@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>蠢驴电竞 - 陪玩端</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .container { width: 400px; background: #16213e; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  h1 { text-align: center; font-size: 20px; margin-bottom: 20px; color: #e94560; }
+  .status-bar { background: #0f3460; border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: center; }
+  .mode-label { font-size: 24px; font-weight: bold; }
+  .mode-work { color: #e94560; }
+  .mode-entertainment { color: #00ff88; }
+  .timers { display: flex; justify-content: space-around; margin-top: 12px; }
+  .timer { text-align: center; }
+  .timer .value { font-size: 28px; font-weight: bold; font-family: monospace; }
+  .timer .label { font-size: 12px; color: #888; margin-top: 4px; }
+  .buttons { display: flex; gap: 12px; }
+  .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+  .btn-work { background: #e94560; color: white; }
+  .btn-entertainment { background: #00ff88; color: #1a1a2e; }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎮 蠢驴电竞陪玩端</h1>
+  <div class="status-bar">
+    <div class="mode-label" id="modeLabel">--</div>
+    <div class="timers">
+      <div class="timer">
+        <div class="value" id="workTime">00:00:00</div>
+        <div class="label">接单时间</div>
+      </div>
+      <div class="timer">
+        <div class="value" id="entertainTime">00:00:00</div>
+        <div class="label">娱乐时间</div>
+      </div>
+      <div class="timer">
+        <div class="value" id="totalTime">00:00:00</div>
+        <div class="label">总运行时间</div>
+      </div>
+    </div>
+  </div>
+  <div class="buttons">
+    <button class="btn btn-work" onclick="switchMode('WORK')">🔴 接单模式</button>
+    <button class="btn btn-entertainment" onclick="switchMode('ENTERTAINMENT')">🟢 娱乐模式</button>
+  </div>
+</div>
+
+<script>
+function formatTime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const el = document.getElementById('modeLabel');
+    if (data.mode === 'WORK') {
+      el.textContent = '🔴 接单中';
+      el.className = 'mode-label mode-work';
+    } else {
+      el.textContent = '🟢 娱乐中';
+      el.className = 'mode-label mode-entertainment';
+    }
+    document.getElementById('workTime').textContent = formatTime(data.workSec);
+    document.getElementById('entertainTime').textContent = formatTime(data.entertainSec);
+    document.getElementById('totalTime').textContent = formatTime(data.totalSec);
+  } catch (e) {
+    console.error('Status fetch failed:', e);
+  }
+}
+
+async function switchMode(mode) {
+  try {
+    await fetch('/api/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    fetchStatus();
+  } catch (e) {
+    console.error('Mode switch failed:', e);
+  }
+}
+
+fetchStatus();
+setInterval(fetchStatus, 5000);
+</script>
+</body>
+</html>

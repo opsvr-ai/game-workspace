@@ -1,6 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
+import CustomersPage from './pages/owner/CustomersPage';
+import DispatchPage from './pages/cs/DispatchPage';
+import CompanionsStatusPage from './pages/cs/CompanionsStatusPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div style={{ padding: 24 }}>
@@ -25,7 +28,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'owner/customers',
-        element: <PlaceholderPage title="客户管理" />,
+        element: <CustomersPage />,
       },
       {
         path: 'owner/employees',
@@ -67,7 +70,7 @@ export const router = createBrowserRouter([
       // CS routes
       {
         path: 'cs/dispatch',
-        element: <PlaceholderPage title="派单工作台" />,
+        element: <DispatchPage />,
       },
       {
         path: 'cs/orders',
@@ -75,7 +78,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'cs/companions',
-        element: <PlaceholderPage title="陪玩状态" />,
+        element: <CompanionsStatusPage />,
       },
       {
         path: '',
