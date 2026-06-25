@@ -41,6 +41,9 @@ coverage/
 .superpowers/
 .remember/
 
+# Docker data
+docker/data/
+
 # Misc
 .cache/
 tmp/

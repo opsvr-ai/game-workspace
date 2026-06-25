@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: docker.1ms.run/postgres:16-alpine
@@ -12,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d chunlv"]
       interval: 5s
@@ -26,15 +24,11 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redisdata:/data
+      - ./data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
 
-volumes:
-  pgdata:
-    driver: local
-  redisdata:
-    driver: local
+
