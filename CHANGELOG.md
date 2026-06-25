@@ -23,6 +23,9 @@ Auto-generated from [Conventional Commits](https://www.conventionalcommits.org/)
 - feat: add WebSocket gateway with real-time status, heartbeat, and order push
 - feat: Go Agent + React business pages
 - feat(web): add CS orders history page with status filter and read-only table
+- feat(web): add admin dispatch management page
+- feat(web): add admin companions management page with time log expansion
+- feat(web): add admin customer management page
 - feat: init monorepo with React + Nest.js + shared types
 
 ### Fixed
