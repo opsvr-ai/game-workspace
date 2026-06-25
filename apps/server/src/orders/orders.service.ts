@@ -71,8 +71,9 @@ export class OrdersService {
     });
   }
 
-  async findAll(user: any) {
+  async findAll(user: any, status?: string) {
     const where: any = {};
+    if (status) where.status = status;
     if (user.role === 'COMPANION') where.companionId = user.companionId;
     else if (user.role === 'CS') where.csUserId = user.id;
     else if (user.role === 'ADMIN') where.studioId = user.studioId;

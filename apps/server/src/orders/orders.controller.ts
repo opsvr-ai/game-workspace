@@ -4,6 +4,7 @@ import {
   Post,
   Param,
   Body,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -40,8 +41,11 @@ export class OrdersController {
 
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION)
-  async findAll(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.findAll(req.user);
+  async findAll(
+    @Req() req: any,
+    @Query('status') status?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.findAll(req.user, status);
     return { code: 200, message: 'ok', data };
   }
 
