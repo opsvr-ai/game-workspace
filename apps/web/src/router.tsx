@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import CustomersPage from './pages/owner/CustomersPage';
+import AdminDispatchPage from './pages/admin/DispatchPage';
 import DispatchPage from './pages/cs/DispatchPage';
 import CompanionsStatusPage from './pages/cs/CompanionsStatusPage';
 import OrdersPage from './pages/cs/OrdersPage';
@@ -46,7 +47,7 @@ export const router = createBrowserRouter([
       // Admin routes
       {
         path: 'admin/dispatch',
-        element: <PlaceholderPage title="派单管理" />,
+        element: <AdminDispatchPage />,
       },
       {
         path: 'admin/companions',
