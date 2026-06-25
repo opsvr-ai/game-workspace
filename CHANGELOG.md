@@ -29,6 +29,7 @@ Auto-generated from [Conventional Commits](https://www.conventionalcommits.org/)
 - feat(web): add admin billing review page
 - feat(web): add admin revenue flow page with daily/monthly views
 - feat(billing): add batch approve/reject operations
+- feat(billing): add CSV export for daily and monthly revenue
 - feat(billing): add screenshot upload endpoint (JWT, COMPANION only, 5MB limit)
 - feat: init monorepo with React + Nest.js + shared types
 
