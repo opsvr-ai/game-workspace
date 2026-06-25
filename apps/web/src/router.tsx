@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import CustomersPage from './pages/owner/CustomersPage';
+import AdminCustomersPage from './pages/admin/CustomersPage';
+import AdminCompanionsPage from './pages/admin/CompanionsPage';
 import AdminDispatchPage from './pages/admin/DispatchPage';
 import DispatchPage from './pages/cs/DispatchPage';
 import CompanionsStatusPage from './pages/cs/CompanionsStatusPage';
@@ -51,11 +53,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/companions',
-        element: <PlaceholderPage title="陪玩管理" />,
+        element: <AdminCompanionsPage />,
       },
       {
         path: 'admin/customers',
-        element: <PlaceholderPage title="客户管理" />,
+        element: <AdminCustomersPage />,
       },
       {
         path: 'admin/billing',
