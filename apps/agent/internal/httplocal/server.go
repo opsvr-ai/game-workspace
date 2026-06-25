@@ -21,6 +21,8 @@ func StartServer(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Cl
 	r.HandleFunc("/api/status", s.handleStatus).Methods("GET")
 	r.HandleFunc("/api/mode", s.handleModeSwitch).Methods("POST")
 	r.HandleFunc("/api/orders/latest", s.handleLatestOrder).Methods("GET")
+	r.HandleFunc("/api/orders/confirm", s.handleConfirmOrder).Methods("POST")
+	r.HandleFunc("/api/orders/complete", s.handleCompleteOrder).Methods("POST")
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./webui")))
 
 	http.ListenAndServe(addr, r)
@@ -45,6 +47,18 @@ func (s *Server) handleLatestOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(raw)
+}
+
+func (s *Server) handleConfirmOrder(w http.ResponseWriter, r *http.Request) {
+	s.wsClient.ConfirmOrder()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true}`))
+}
+
+func (s *Server) handleCompleteOrder(w http.ResponseWriter, r *http.Request) {
+	s.wsClient.CompleteOrder()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true}`))
 }
 
 func (s *Server) handleModeSwitch(w http.ResponseWriter, r *http.Request) {

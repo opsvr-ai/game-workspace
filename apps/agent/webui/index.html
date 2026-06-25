@@ -39,7 +39,6 @@
     align-items: center;
     padding: 10px 14px;
     background: rgba(233,69,96,0.15);
-    cursor: pointer;
   }
   .order-notify-header .title {
     font-size: 14px;
@@ -52,6 +51,9 @@
     cursor: pointer;
     line-height: 1;
     transition: color 0.2s;
+    background: none;
+    border: none;
+    padding: 0;
   }
   .order-notify-header .dismiss:hover { color: #e94560; }
   .order-notify-body { padding: 12px 14px; }
@@ -68,6 +70,50 @@
     font-size: 18px;
     font-weight: bold;
     color: #00ff88;
+  }
+  .order-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .order-actions .btn-confirm {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #00c853;
+    color: white;
+  }
+  .order-actions .btn-complete {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #2979ff;
+    color: white;
+  }
+  .order-actions .btn-confirm:hover,
+  .order-actions .btn-complete:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+  .order-actions .btn-confirm:active,
+  .order-actions .btn-complete:active {
+    transform: translateY(0);
+  }
+  .order-actions .btn-confirm:disabled,
+  .order-actions .btn-complete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
   }
   .order-type-tag {
     display: inline-block;
@@ -112,9 +158,9 @@
     <button class="btn btn-entertainment" onclick="switchMode('ENTERTAINMENT')">🟢 娱乐模式</button>
   </div>
   <div id="orderNotify" class="order-notify" style="display:none;">
-    <div class="order-notify-header" onclick="dismissOrder()">
-      <span class="title">📋 新订单</span>
-      <span class="dismiss">&times;</span>
+    <div class="order-notify-header">
+      <span class="title">📋 当前订单</span>
+      <button class="dismiss" onclick="dismissOrder()">&times;</button>
     </div>
     <div class="order-notify-body">
       <div class="row">
@@ -128,6 +174,10 @@
       <div class="row">
         <span class="label">类型</span>
         <span id="orderTypeTag">--</span>
+      </div>
+      <div class="order-actions">
+        <button class="btn-confirm" onclick="confirmOrder()" id="btnConfirm">✅ 确认接单</button>
+        <button class="btn-complete" onclick="completeOrder()" id="btnComplete">✔️ 完成</button>
       </div>
     </div>
   </div>
@@ -186,14 +236,47 @@ const ORDER_TYPE_LABELS = {
 };
 
 let lastOrderId = '';
-let orderDismissTimer = null;
+let orderPending = false;
 
 function dismissOrder() {
   const el = document.getElementById('orderNotify');
   el.style.display = 'none';
-  if (orderDismissTimer) {
-    clearTimeout(orderDismissTimer);
-    orderDismissTimer = null;
+  lastOrderId = '';
+}
+
+async function confirmOrder() {
+  if (orderPending) return;
+  orderPending = true;
+  const btn = document.getElementById('btnConfirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ 确认中...';
+  try {
+    await fetch('/api/orders/confirm', { method: 'POST' });
+    dismissOrder();
+  } catch (e) {
+    console.error('Confirm order failed:', e);
+    btn.disabled = false;
+    btn.textContent = '✅ 确认接单';
+  } finally {
+    orderPending = false;
+  }
+}
+
+async function completeOrder() {
+  if (orderPending) return;
+  orderPending = true;
+  const btn = document.getElementById('btnComplete');
+  btn.disabled = true;
+  btn.textContent = '⏳ 完成中...';
+  try {
+    await fetch('/api/orders/complete', { method: 'POST' });
+    dismissOrder();
+  } catch (e) {
+    console.error('Complete order failed:', e);
+    btn.disabled = false;
+    btn.textContent = '✔️ 完成';
+  } finally {
+    orderPending = false;
   }
 }
 
@@ -215,15 +298,21 @@ async function fetchLatestOrder() {
     tag.textContent = label;
     tag.className = 'order-type-tag tag-' + orderType;
 
+    // Reset action buttons
+    const btnConfirm = document.getElementById('btnConfirm');
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = '✅ 确认接单';
+    const btnComplete = document.getElementById('btnComplete');
+    btnComplete.disabled = false;
+    btnComplete.textContent = '✔️ 完成';
+
     const el = document.getElementById('orderNotify');
     // Trigger re-animation
     el.style.display = 'none';
     void el.offsetWidth;
     el.style.display = 'block';
 
-    // Auto-dismiss after 10s
-    if (orderDismissTimer) clearTimeout(orderDismissTimer);
-    orderDismissTimer = setTimeout(dismissOrder, 10000);
+    // No auto-dismiss — only dismiss on action or manual dismiss
   } catch (e) {
     // Silently ignore — endpoint may not be ready yet
   }

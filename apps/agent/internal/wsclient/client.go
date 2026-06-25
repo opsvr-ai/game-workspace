@@ -3,6 +3,8 @@ package wsclient
 import (
 	"encoding/json"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +25,29 @@ type Command struct {
 var (
 	latestOrderMu    sync.RWMutex
 	latestOrderBytes []byte
+	currentOrderID   string
 )
+
+// OrderMeta extracts the order ID from raw JSON.
+type OrderMeta struct {
+	ID interface{} `json:"id"`
+}
+
+// extractOrderID tries to parse an order ID from raw JSON bytes.
+func extractOrderID(raw json.RawMessage) string {
+	var meta OrderMeta
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return ""
+	}
+	switch v := meta.ID.(type) {
+	case string:
+		return v
+	case float64:
+		return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(v, 'f', -1, 64), "0"), ".")
+	default:
+		return ""
+	}
+}
 
 // SetLatestOrder stores the raw JSON bytes of the most recent order.
 // Called from readLoop when an order:new event arrives.
@@ -31,6 +55,7 @@ func SetLatestOrder(raw json.RawMessage) {
 	latestOrderMu.Lock()
 	defer latestOrderMu.Unlock()
 	latestOrderBytes = raw
+	currentOrderID = extractOrderID(raw)
 }
 
 // GetLatestOrder returns the raw JSON bytes of the most recent order, or nil.
@@ -42,6 +67,13 @@ func GetLatestOrder() json.RawMessage {
 		return nil
 	}
 	return latestOrderBytes
+}
+
+// GetCurrentOrderID returns the ID of the current active order, or empty string.
+func GetCurrentOrderID() string {
+	latestOrderMu.RLock()
+	defer latestOrderMu.RUnlock()
+	return currentOrderID
 }
 
 type Client struct {
@@ -163,6 +195,46 @@ func (c *Client) SendStatus(status string, mode engine.Mode) {
 		"status": status,
 		"mode":   string(mode),
 	})
+}
+
+// ConfirmOrder emits an order:confirm event with the latest order ID.
+// If no order is present, the call is a no-op.
+func (c *Client) ConfirmOrder() {
+	id := GetCurrentOrderID()
+	if id == "" {
+		log.Println("ConfirmOrder: no active order to confirm")
+		return
+	}
+	log.Printf("ConfirmOrder: confirming order %s", id)
+	c.emit("order:confirm", map[string]interface{}{
+		"orderId": id,
+	})
+	// Clear the current order after action
+	ClearCurrentOrder()
+}
+
+// CompleteOrder emits an order:complete event with the latest order ID.
+// If no order is present, the call is a no-op.
+func (c *Client) CompleteOrder() {
+	id := GetCurrentOrderID()
+	if id == "" {
+		log.Println("CompleteOrder: no active order to complete")
+		return
+	}
+	log.Printf("CompleteOrder: completing order %s", id)
+	c.emit("order:complete", map[string]interface{}{
+		"orderId": id,
+	})
+	// Clear the current order after action
+	ClearCurrentOrder()
+}
+
+// ClearCurrentOrder clears the stored current order.
+func ClearCurrentOrder() {
+	latestOrderMu.Lock()
+	defer latestOrderMu.Unlock()
+	latestOrderBytes = nil
+	currentOrderID = ""
 }
 
 func (c *Client) Disconnect() {
