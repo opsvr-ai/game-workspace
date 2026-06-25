@@ -11,6 +11,8 @@ import OrdersPage from './pages/cs/OrdersPage';
 import AdminBillingPage from './pages/admin/BillingPage';
 import AdminRevenuePage from './pages/admin/RevenuePage';
 import AdminPcControlPage from './pages/admin/PcControlPage';
+import EmployeesPage from './pages/owner/EmployeesPage';
+import StudiosPage from './pages/owner/StudiosPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div style={{ padding: 24 }}>
@@ -39,11 +41,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'owner/employees',
-        element: <PlaceholderPage title="员工管理" />,
+        element: <EmployeesPage />,
       },
       {
         path: 'owner/studios',
-        element: <PlaceholderPage title="工作室管理" />,
+        element: <StudiosPage />,
       },
       {
         path: 'owner/authorizations',
