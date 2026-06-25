@@ -6,4 +6,6 @@ export const companionsApi = {
   updateStatus: (id: string, status: string) =>
     http.put(`/companions/${id}/status`, { status }),
   ranking: () => http.get('/companions/ranking'),
+  sendCommand: (id: string, command: string, params?: unknown) =>
+    http.post(`/companions/${id}/command`, { command, params }),
 };

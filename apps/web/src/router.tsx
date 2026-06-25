@@ -10,6 +10,7 @@ import CompanionsStatusPage from './pages/cs/CompanionsStatusPage';
 import OrdersPage from './pages/cs/OrdersPage';
 import AdminBillingPage from './pages/admin/BillingPage';
 import AdminRevenuePage from './pages/admin/RevenuePage';
+import AdminPcControlPage from './pages/admin/PcControlPage';
 
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div style={{ padding: 24 }}>
@@ -71,7 +72,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/pc-control',
-        element: <PlaceholderPage title="远程控制" />,
+        element: <AdminPcControlPage />,
       },
       // CS routes
       {
