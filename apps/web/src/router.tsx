@@ -19,6 +19,10 @@ import ReviewPage from './pages/admin/ReviewPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import CompanionPage from './pages/CompanionPage';
+import CompanionPoolPage from './pages/companion/PoolPage';
+import CompanionBillingPage from './pages/companion/BillingPage';
+import CompanionCustomersPage from './pages/companion/CustomersPage';
+import CompanionOrdersPage from './pages/companion/OrdersPage';
 
 export const router = createBrowserRouter([
   {
@@ -32,7 +36,13 @@ export const router = createBrowserRouter([
   {
     path: '/companion',
     element: <AppLayout />,
-    children: [{ path: '', element: <CompanionPage /> }],
+    children: [
+      { path: '', element: <CompanionPage /> },
+      { path: 'pool', element: <CompanionPoolPage /> },
+      { path: 'billing', element: <CompanionBillingPage /> },
+      { path: 'customers', element: <CompanionCustomersPage /> },
+      { path: 'orders', element: <CompanionOrdersPage /> },
+    ],
   },
   {
     path: '/',
