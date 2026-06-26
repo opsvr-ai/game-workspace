@@ -52,6 +52,10 @@ export const router = createBrowserRouter([
         path: 'owner/review',
         element: <ReviewPage />,
       },
+      {
+        path: 'owner/settings',
+        element: <SettingsPage />,
+      },
       // Admin routes
       {
         path: 'admin/dispatch',

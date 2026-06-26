@@ -54,6 +54,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/owner/studios', icon: IconStudios, label: '工作室管理' },
     { key: '/owner/authorizations', icon: IconAuth, label: '客户端授权' },
     { key: '/owner/review', icon: IconAuth, label: '实名审核' },
+    { key: '/owner/settings', icon: IconAuth, label: '系统设置' },
   ],
   [UserRole.ADMIN]: [
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
