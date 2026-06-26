@@ -52,8 +52,6 @@ model Companion {
   reviewedById   String?
   reviewedAt     DateTime?
   reviewNote     String?
-  rank           String?
-  hasAccount     Boolean?
   createdAt      DateTime @default(now())
 
   user      User            @relation(fields: [userId], references: [id])

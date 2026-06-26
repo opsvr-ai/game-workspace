@@ -172,16 +172,28 @@ const CompanionsPage: React.FC = () => {
       title: '游戏',
       dataIndex: 'games',
       key: 'games',
-      render: (games: string[] | undefined) =>
-        games && games.length > 0 ? (
-          <Space size={4} wrap>
-            {games.map((g) => (
-              <Tag key={g}>{g}</Tag>
-            ))}
+      render: (games: any[] | undefined) => {
+        if (!games || games.length === 0) return <Text type="secondary">-</Text>;
+        const isProfile = typeof games[0] === 'object';
+        return (
+          <Space size={[4, 4]} wrap>
+            {games.map((g: any, i: number) => {
+              if (!isProfile) return <Tag key={i}>{g}</Tag>;
+              return (
+                <Tag key={i} style={{ padding: '2px 8px', lineHeight: '20px' }}>
+                  {g.game}
+                  <span style={{ color: '#7B61FF', fontWeight: 600, marginLeft: 4 }}>
+                    {g.rank || '?'}
+                  </span>
+                  <span style={{ fontSize: 10, marginLeft: 2, color: g.hasAccount ? '#00E676' : '#94A3B8' }}>
+                    {g.hasAccount ? '有号' : '无号'}
+                  </span>
+                </Tag>
+              );
+            })}
           </Space>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
+        );
+      },
     },
     {
       title: '本月收入',

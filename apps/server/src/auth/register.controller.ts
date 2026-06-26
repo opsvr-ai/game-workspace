@@ -47,7 +47,7 @@ export class RegisterController {
     @Body() body: {
       username: string; password: string; realName: string;
       idNumber: string; phone: string; studioId: string;
-      games?: string; rank?: string; hasAccount?: string;
+      games?: string;
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[] },
   ): Promise<ApiResponse<unknown>> {
@@ -83,9 +83,7 @@ export class RegisterController {
             idCardFront,
             idCardBack,
             reviewStatus: 'PENDING',
-            games: body.games ? JSON.parse(body.games) : [],
-            rank: body.rank ?? null,
-            hasAccount: body.hasAccount === 'true',
+            games: [],
             billingCode: `Z${Date.now().toString(36).toUpperCase()}`,
 
 

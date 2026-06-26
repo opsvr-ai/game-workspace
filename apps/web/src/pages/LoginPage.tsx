@@ -50,7 +50,9 @@ const LoginPage: React.FC = () => {
         try {
           const { data } = await http.get(`/companions/${user.companionId}`);
           const companion = data.data;
-          if (!companion?.games?.length && !companion?.rank) {
+          const games = companion?.games;
+          const isEmpty = !games || !Array.isArray(games) || games.length === 0 || (games.length > 0 && typeof games[0] === 'string');
+          if (isEmpty) {
             navigate('/profile-setup', { replace: true });
             return;
           }

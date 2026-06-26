@@ -49,16 +49,14 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async updateProfile(
     @Param('id') id: string,
-    @Body() body: { games?: string[]; rank?: string; hasAccount?: string },
+    @Body() body: { gameProfiles?: { game: string; rank: string; hasAccount: boolean }[] },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     if (req.user.companionId !== id) throw new (require('@nestjs/common').ForbiddenException)('只能更新自己的资料');
     const data = await this.prisma.companion.update({
       where: { id },
       data: {
-        games: body.games ?? undefined,
-        rank: body.rank ?? undefined,
-        hasAccount: body.hasAccount === 'true' ? true : body.hasAccount === 'false' ? false : undefined,
+        games: body.gameProfiles ?? undefined,
       },
     });
     return { code: 200, message: '资料已更新', data };
