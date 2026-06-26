@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Table, Tag, Typography, Button, Space, Spin, Tooltip, Empty } from 'antd';
 import { ReloadOutlined, DesktopOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 
 const { Text } = Typography;
+
+const STATUS_SORT: Record<string, number> = { IDLE: 0, ONLINE: 1, BUSY: 2, OFFLINE: 3 };
 
 const statusConfig: Record<
   CompanionStatus,
@@ -109,6 +111,10 @@ const CompanionsPage: React.FC = () => {
   useEffect(() => {
     fetchCompanions();
   }, [fetchCompanions]);
+
+  const sorted = useMemo(() =>
+    [...companions].sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9)),
+    [companions]);
 
   const loadTimeLogs = useCallback(async (companionId: string) => {
     let shouldFetch = false;
@@ -351,7 +357,7 @@ const CompanionsPage: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={companions}
+        dataSource={sorted}
         rowKey="id"
         loading={loading}
         locale={{ emptyText: '暂无陪玩数据' }}
