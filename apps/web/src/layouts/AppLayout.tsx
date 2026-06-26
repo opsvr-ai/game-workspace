@@ -87,7 +87,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const { user, isAuthenticated, fetchUser, logout, chatActive } = useAuthStore();
+  const { user, isAuthenticated, fetchUser, logout, chatActive, chatPartner } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -124,14 +124,17 @@ const AppLayout: React.FC = () => {
     // Add pulsing indicator to 陪玩管理 items when chat is active
     return items.map(item => {
       if ((item.label === '派单记录' || item.label === '接单记录') && chatActive) {
+        const name = chatPartner || '?';
         return {
           ...item,
-          label: <span>{item.label} <span style={{
-            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
-            background: '#FF4757', marginLeft: 4, verticalAlign: 'middle',
-            animation: 'pulse-glow 1s ease-in-out infinite',
-            boxShadow: '0 0 8px #FF4757',
-          }} /></span>,
+          label: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{item.label}
+            <span style={{
+              width: 20, height: 20, borderRadius: '50%', background: '#FF4757', color: '#FFF',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 800, animation: 'pulse-glow 1s ease-in-out infinite',
+              boxShadow: '0 0 10px #FF4757',
+            }}>{name[0].toUpperCase()}</span>
+          </span>,
         };
       }
       return item;

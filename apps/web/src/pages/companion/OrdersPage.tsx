@@ -32,24 +32,24 @@ const OrdersPage: React.FC = () => {
       {/* 聊天通知横幅 */}
       {chatActive && (
         <div onClick={() => setChatActive(false)} style={{
-          background: 'linear-gradient(135deg, #FF4757, #FF6B81)', borderRadius: 12, padding: '12px 18px',
-          marginBottom: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
-          boxShadow: '0 2px 12px rgba(255,71,87,0.3)',
+          background: 'linear-gradient(135deg, #FF4757, #FF6B81)', borderRadius: 14, padding: '14px 18px',
+          marginBottom: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+          boxShadow: '0 4px 16px rgba(255,71,87,0.35)',
         }}>
           <span style={{
-            width: 38, height: 38, borderRadius: '50%', background: '#FFF',
+            width: 44, height: 44, borderRadius: '50%', background: '#FFF',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, fontWeight: 800, color: '#FF4757',
-            animation: 'pulse-glow 1s ease-in-out infinite',
-            boxShadow: '0 0 12px rgba(255,255,255,0.5)',
+            fontSize: 22, fontWeight: 900, color: '#FF4757',
+            animation: 'pulse-glow 0.8s ease-in-out infinite',
+            boxShadow: '0 0 16px rgba(255,255,255,0.6)',
           }}>
             {(chatPartner || '?')[0].toUpperCase()}
           </span>
           <div style={{ flex: 1, color: '#FFF' }}>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>💬 {chatPartner} 发来消息</div>
-            <div style={{ fontSize: 11, opacity: 0.8 }}>点击查看对话 · 点击此处关闭通知</div>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>{chatPartner} 发来消息</div>
+            <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>💬 点击前往抢单中心查看并回复</div>
           </div>
-          <span style={{ color: '#FFF', fontSize: 20 }}>▶</span>
+          <span style={{ color: '#FFF', fontSize: 24 }}>▶</span>
         </div>
       )}
 
