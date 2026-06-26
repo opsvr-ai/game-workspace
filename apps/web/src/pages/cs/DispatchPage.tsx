@@ -15,14 +15,8 @@ import {
   message,
   List,
   Spin,
-  Statistic,
 } from 'antd';
-import {
-  PlusOutlined,
-  UserOutlined,
-  DollarOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType, DispatchType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 import { ordersApi } from '../../api/orders';
@@ -258,8 +252,8 @@ const DispatchPage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Center: Order Pool (16/24) */}
-        <Col span={16}>
+        {/* Center: Order Pool (17/24) */}
+        <Col span={17}>
           <div style={{ position: 'relative', marginBottom: 16 }}>
             {/* Water wave header */}
             <div style={{
@@ -303,56 +297,26 @@ const DispatchPage: React.FC = () => {
                         border: '1px solid #E8ECF1', transition: 'all 0.2s',
                         animation: 'fade-slide-in 0.3s ease',
                       }} className="pool-card">
-                        {/* Row 1: Game + Type */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                          <Space size={8}>
-                            <Text strong style={{ fontSize: 16 }}>{order.gameName}</Text>
-                            <Tag color={orderTypeConfig[order.type]?.color}>
-                              {orderTypeConfig[order.type]?.label ?? order.type}
-                            </Tag>
-                            <Tag color={order.dispatchType === 'DIRECT' ? 'orange' : 'cyan'}>
-                              {order.dispatchType === 'DIRECT' ? '指定' : '抢单'}
-                            </Tag>
-                          </Space>
-                        </div>
-                        {/* Row 2: Order details — single line, ordered */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12, color: '#475569', marginBottom: 8, lineHeight: '22px', alignItems: 'center' }}>
-                          {order.customFields?.deltaMode && (
-                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>🎯 {order.customFields.deltaMode}</span>
-                          )}
-                          {order.customFields?.deltaMission && (
-                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>📋 {order.customFields.deltaMission}</span>
-                          )}
-                          {order.customFields?.deltaCount && (
-                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>👥 {order.customFields.deltaCount}</span>
-                          )}
-                          <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>
-                            ⏱ {order.duration || '-'}{order.customFields?.billingMode === 'round' ? '局' : 'h'}
+                        {/* All info in one row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Text strong style={{ fontSize: 14, minWidth: 80 }}>{order.gameName}</Text>
+                          <Tag color={orderTypeConfig[order.type]?.color} style={{ margin: 0 }}>{orderTypeConfig[order.type]?.label ?? order.type}</Tag>
+                          {order.customFields?.deltaMode && <span style={{ fontSize: 12, color: '#7B61FF' }}>{order.customFields.deltaMode}</span>}
+                          {order.customFields?.deltaMission && <span style={{ fontSize: 12, color: '#475569' }}>·{order.customFields.deltaMission}</span>}
+                          {order.customFields?.deltaCount && <span style={{ fontSize: 12, color: '#475569' }}>·{order.customFields.deltaCount}</span>}
+                          <span style={{ fontSize: 12, color: '#64748B' }}>⏱{order.duration || '-'}{order.customFields?.billingMode === 'round' ? '局' : 'h'}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#FF4757' }}>¥{Number(order.amount).toFixed(2)}</span>
+                          {order.customFields?.deltaNote && <span style={{ fontSize: 11, color: '#94A3B8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.customFields.deltaNote}>📝{order.customFields.deltaNote}</span>}
+                          {(order.customFields?.customerWechat || order.customer?.wechatId) && <span style={{ fontSize: 11, color: '#CBD5E1' }}>💬✳️✳️✳️</span>}
+                          {order.customFields?.customerRoomCode && <span style={{ fontSize: 11, color: '#CBD5E1' }}>🏠✳️✳️✳️</span>}
+                          <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('zh-CN') : ''}
                           </span>
-                          <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>
-                            💰 ¥{Number(order.amount).toFixed(2)}{order.duration ? (order.customFields?.billingMode === 'round' ? '/局' : '/h') : ''}
-                          </span>
-                          {order.customFields?.deltaNote && (
-                            <span style={{ color: '#94A3B8' }}>📝 {order.customFields.deltaNote}</span>
-                          )}
-                          {(order.customFields?.customerWechat || order.customer?.wechatId) && (
-                            <span style={{ color: '#94A3B8', marginLeft: 4 }}>💬 ✳️✳️✳️</span>
-                          )}
-                          {order.customFields?.customerRoomCode && (
-                            <span style={{ color: '#94A3B8' }}>🏠 ✳️✳️✳️</span>
-                          )}
-                        </div>
-                        {/* Row 3: Time + Action */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 11, color: '#94A3B8' }}>
-                            {order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                          </Text>
                           <Button type="primary" size="small" loading={grabbingId === order.id}
                             onClick={(e) => handleGrab(order.id, e)}
-                            style={{ borderRadius: 6, fontWeight: 600, position: 'relative', overflow: 'hidden' }}
+                            style={{ borderRadius: 6, fontWeight: 600, flexShrink: 0 }}
                             className="grab-btn">
                             接单
-                            <span className="grab-ripple" />
                           </Button>
                         </div>
                       </div>
@@ -364,41 +328,16 @@ const DispatchPage: React.FC = () => {
           </div>
         </Col>
 
-        {/* Right: Quick Stats (4/24) */}
-        <Col span={4}>
-          <Card title="快捷统计" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={[0, 16]}>
-              <Col span={24}>
-                <Statistic
-                  title="🟢 空闲"
-                  value={idleCount}
-                  prefix={React.createElement(UserOutlined)}
-                  valueStyle={{ color: '#00E676' }}
-                />
-              </Col>
-              <Col span={24}>
-                <Statistic
-                  title="🔴 接单中"
-                  value={busyCount}
-                  prefix={React.createElement(ClockCircleOutlined)}
-                  valueStyle={{ color: '#FF4757' }}
-                />
-              </Col>
-              <Col span={24}>
-                <Statistic title="🟡 娱乐中" value={entertainCount} valueStyle={{ color: '#FFD600', fontSize: 22 }} />
-              </Col>
-              <Col span={24}>
-                <Statistic title="⚪ 离线" value={offlineCount} valueStyle={{ color: '#94A3B8', fontSize: 22 }} />
-              </Col>
-              <Col span={24}>
-                <Statistic
-                  title="待派订单"
-                  value={poolCount}
-                  prefix={React.createElement(DollarOutlined)}
-                  valueStyle={{ color: '#1677ff' }}
-                />
-              </Col>
-            </Row>
+        {/* Right: Quick Stats (3/24) */}
+        <Col span={3}>
+<Card title="统计" size="small" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟢 空闲</span><b style={{ color: '#00E676' }}>{idleCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔴 接单中</span><b style={{ color: '#FF4757' }}>{busyCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟡 娱乐中</span><b style={{ color: '#FFD600' }}>{entertainCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>⚪ 离线</span><b style={{ color: '#94A3B8' }}>{offlineCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}><span>📦 待派</span><b style={{ color: '#1677ff' }}>{poolCount}</b></div>
+            </div>
           </Card>
         </Col>
       </Row>
