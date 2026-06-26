@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Tag, Typography, Button, Space, Row, Col, List, Spin, message } from 'antd';
+import { Card, Table, Tag, Typography, Button, Space, Row, Col, List, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface Customer { id: string; wechatId: string; platform: string; totalSpent: number; notes?: string; }
 interface Order { id: string; gameName: string; type: string; status: string; amount: number; createdAt: string; customFields?: any; }
