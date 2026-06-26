@@ -5,15 +5,20 @@ import { authApi } from '../api/client';
 interface AuthState {
   user: UserInfo | null;
   isAuthenticated: boolean;
+  chatActive: boolean;
+  chatPartner: string;
   login: (dto: LoginRequest) => Promise<UserInfo>;
   logout: () => void;
   fetchUser: () => Promise<UserInfo | null>;
   setUser: (user: UserInfo) => void;
+  setChatActive: (active: boolean, partner?: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: !!sessionStorage.getItem('accessToken'),
+  chatActive: false,
+  chatPartner: '',
 
   login: async (dto: LoginRequest) => {
     const { data } = await authApi.login(dto);
@@ -48,5 +53,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user: UserInfo) => {
     set({ user, isAuthenticated: true });
+  },
+  setChatActive: (active: boolean, partner?: string) => {
+    set({ chatActive: active, chatPartner: partner || '' });
   },
 }));

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Table, Tag, Typography, Button, Space, message } from 'antd';
-import { ReloadOutlined, UserOutlined } from '@ant-design/icons';
+import { ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 
 const { Text } = Typography;

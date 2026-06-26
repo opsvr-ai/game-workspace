@@ -6,7 +6,6 @@ import AdminCustomersPage from './pages/admin/CustomersPage';
 import AdminCompanionsPage from './pages/admin/CompanionsPage';
 import AdminDispatchPage from './pages/admin/DispatchPage';
 import DispatchPage from './pages/cs/DispatchPage';
-import CompanionsStatusPage from './pages/cs/CompanionsStatusPage';
 import OrdersPage from './pages/cs/OrdersPage';
 import AdminBillingPage from './pages/admin/BillingPage';
 import AdminRevenuePage from './pages/admin/RevenuePage';

@@ -356,7 +356,7 @@ const DispatchPage: React.FC = () => {
                             )}
                           </div>
                           {order.csUser?.username && (
-                            <span onClick={() => setChatOrder(order)}
+                            <span onClick={() => { setChatOrder(order); useAuthStore.getState().setChatActive(true, order.csUser?.username); }}
                               style={{ fontSize: 12, color: '#00D4FF', cursor: 'pointer', fontWeight: 600, borderBottom: '1px dashed #00D4FF', whiteSpace: 'nowrap' }}>
                               💬 {order.csUser.username}
                             </span>
@@ -520,7 +520,10 @@ const DispatchPage: React.FC = () => {
       </Modal>
 
       {/* 微信风格聊天弹窗 */}
-      <Modal title={null} open={!!chatOrder} onCancel={() => { setChatOrder(null); setChatMessages([]); setChatInput(''); }} footer={null}
+      <Modal title={null} open={!!chatOrder} onCancel={() => {
+        setChatOrder(null); setChatMessages([]); setChatInput('');
+        useAuthStore.getState().setChatActive(false);
+      }} footer={null}
         width={440} style={{ top: 20 }} bodyStyle={{ padding: 0 }}>
         {chatOrder && (
           <div style={{ display: 'flex', flexDirection: 'column', height: '70vh', maxHeight: 600 }}>

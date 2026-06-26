@@ -12,7 +12,6 @@ import {
   AuditOutlined,
   FileTextOutlined,
   DesktopOutlined,
-  UnorderedListOutlined,
   HeartOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -35,7 +34,6 @@ const IconCompanions = React.createElement(HeartOutlined);
 const IconBilling = React.createElement(AuditOutlined);
 const IconOrders = React.createElement(FileTextOutlined);
 const IconPc = React.createElement(DesktopOutlined);
-const IconCompanionStatus = React.createElement(UnorderedListOutlined);
 const IconLogout = React.createElement(LogoutOutlined);
 const IconFold = React.createElement(MenuFoldOutlined);
 const IconUnfold = React.createElement(MenuUnfoldOutlined);
@@ -90,7 +88,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
+  const { user, isAuthenticated, fetchUser, logout, chatActive, chatPartner } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -108,8 +106,22 @@ const AppLayout: React.FC = () => {
 
   const menuItems = useMemo(() => {
     if (!user) return [];
-    return roleMenus[user.role] || [];
-  }, [user]);
+    const items = [...(roleMenus[user.role] || [])];
+    // Add pulsing indicator to 陪玩管理 items when chat is active
+    return items.map(item => {
+      if (item.label === '陪玩管理' && chatActive) {
+        return {
+          ...item,
+          label: <span>陪玩管理 <span style={{
+            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+            background: '#FF4757', marginLeft: 4, verticalAlign: 'middle',
+            animation: 'pulse-glow 1s ease-in-out infinite',
+          }} /></span>,
+        };
+      }
+      return item;
+    });
+  }, [user, chatActive]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
