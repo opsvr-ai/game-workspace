@@ -289,8 +289,8 @@ func makeNOTIFYICONDATA(hwnd uintptr, msg uint32) []byte {
 	icoData := generateICO()
 	hIcon := createIconFromICO(icoData)
 	if hIcon == 0 {
-		// Fallback: use default application icon
-		hIcon, _, _ = procLoadIcon.Call(0, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("IDI_APPLICATION"))))
+		// Fallback: use default application icon (IDI_APPLICATION = 32512)
+		hIcon, _, _ = procLoadIcon.Call(0, uintptr(32512))
 	}
 	*(*uintptr)(unsafe.Pointer(&nid[32])) = hIcon
 
@@ -323,10 +323,11 @@ func createIconFromICO(data []byte) uintptr {
 
 	procCreateIcon := user32.NewProc("CreateIconFromResourceEx")
 
+	// fIcon=TRUE(1) creates an ICON; FALSE(0) would create a CURSOR.
 	hIcon, _, _ := procCreateIcon.Call(
 		uintptr(unsafe.Pointer(&data[imageOffset])),
 		0,            // size (0 = use all remaining)
-		0,            // fIcon (FALSE = icon)
+		1,            // fIcon (TRUE = create icon, not cursor)
 		0x00030000,   // version
 		0, 0,         // cx, cy (0 = use native size)
 		0x0001,       // LR_DEFAULTCOLOR
