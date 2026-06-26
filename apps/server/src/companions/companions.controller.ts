@@ -31,6 +31,18 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 轮询聊天通知 — 必须在 :id 之前
+  @Get('companions/chat-pending')
+  async chatPending(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const studioId = req.user?.studioId;
+    if (!studioId) return { code: 200, message: 'ok', data: { hasNew: false } };
+    const notif = chatNotifications.get(studioId);
+    if (notif && notif.companionName !== req.user?.username && (Date.now() - notif.timestamp < 15000)) {
+      return { code: 200, message: 'ok', data: { hasNew: true, companionName: notif.companionName } };
+    }
+    return { code: 200, message: 'ok', data: { hasNew: false } };
+  }
+
   @Get('companions/:id')
   async findOne(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.findOne(id);
@@ -188,15 +200,4 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data: null };
   }
 
-  // 轮询聊天通知（客服端/陪玩端）
-  @Get('companions/chat-pending')
-  async chatPending(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const studioId = req.user?.studioId;
-    if (!studioId) return { code: 200, message: 'ok', data: { hasNew: false } };
-    const notif = chatNotifications.get(studioId);
-    if (notif && notif.companionName !== req.user.username && (Date.now() - notif.timestamp < 15000)) {
-      return { code: 200, message: 'ok', data: { hasNew: true, companionName: notif.companionName } };
-    }
-    return { code: 200, message: 'ok', data: { hasNew: false } };
-  }
 }
