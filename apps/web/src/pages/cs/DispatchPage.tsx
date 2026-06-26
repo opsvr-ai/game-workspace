@@ -170,9 +170,7 @@ const DispatchPage: React.FC = () => {
           marginBottom: 16,
         }}
       >
-        <Text strong style={{ fontSize: 16 }}>
-          派单工作台
-        </Text>
+        <div />
         <Button
           type="primary"
           icon={React.createElement(PlusOutlined)}
