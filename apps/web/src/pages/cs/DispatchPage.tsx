@@ -315,26 +315,25 @@ const DispatchPage: React.FC = () => {
                             </Tag>
                           </Space>
                         </div>
-                        {/* Row 2: All order details */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 12, color: '#475569', marginBottom: 8, lineHeight: '22px' }}>
-                          <span>💰 <b>¥{Number(order.amount).toFixed(2)}</b></span>
-                          <span>💬 微信: <b>{order.customFields?.customerWechat || order.customer?.wechatId || '-'}</b></span>
-                          <span>🏠 房间码: <b>{order.customFields?.customerRoomCode || '-'}</b></span>
-                          <span>💳 {order.customFields?.billingMode === 'round'
-                            ? <><b>按局数</b> · {order.duration}局</>
-                            : <><b>按小时</b> · {order.duration}h</>}
-                          </span>
+                        {/* Row 2: Order details — single line, ordered */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12, color: '#475569', marginBottom: 8, lineHeight: '22px', alignItems: 'center' }}>
                           {order.customFields?.deltaMode && (
-                            <span>🎯 模式: <b>{order.customFields.deltaMode}</b></span>
+                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>🎯 {order.customFields.deltaMode}</span>
                           )}
                           {order.customFields?.deltaMission && (
-                            <span>📋 任务: <b>{order.customFields.deltaMission}</b></span>
+                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>📋 {order.customFields.deltaMission}</span>
                           )}
                           {order.customFields?.deltaCount && (
-                            <span>👥 <b>{order.customFields.deltaCount}</b></span>
+                            <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>👥 {order.customFields.deltaCount}</span>
                           )}
+                          <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>
+                            ⏱ {order.duration || '-'}{order.customFields?.billingMode === 'round' ? '局' : 'h'}
+                          </span>
+                          <span style={{ background: '#F1F5F9', borderRadius: 6, padding: '1px 8px' }}>
+                            💰 ¥{Number(order.amount).toFixed(2)}{order.duration ? (order.customFields?.billingMode === 'round' ? '/局' : '/h') : ''}
+                          </span>
                           {order.customFields?.deltaNote && (
-                            <span style={{ flexBasis: '100%', color: '#64748B' }}>📝 备注: {order.customFields.deltaNote}</span>
+                            <span style={{ color: '#94A3B8' }}>📝 {order.customFields.deltaNote}</span>
                           )}
                         </div>
                         {/* Row 3: Time + Action */}
