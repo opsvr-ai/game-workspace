@@ -53,7 +53,7 @@ export class OrdersService {
       const placeholder = await this.prisma.customer.create({
         data: {
           studioId,
-          wechatId: dto.customerWechat || '临时客户',
+          wechatId: dto.customerWechat || '',
           customerCode: `T${Date.now().toString(36).toUpperCase()}`,
         },
       });

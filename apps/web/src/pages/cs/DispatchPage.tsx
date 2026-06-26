@@ -307,7 +307,7 @@ const DispatchPage: React.FC = () => {
                           <span style={{ fontSize: 12, color: '#64748B' }}>⏱{order.duration || '-'}{order.customFields?.billingMode === 'round' ? '局' : 'h'}</span>
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#FF4757' }}>¥{Number(order.amount).toFixed(2)}</span>
                           {order.customFields?.deltaNote && <span style={{ fontSize: 11, color: '#94A3B8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.customFields.deltaNote}>📝{order.customFields.deltaNote}</span>}
-                          {(order.customFields?.customerWechat || order.customer?.wechatId) && <span style={{ fontSize: 11, color: '#CBD5E1' }}>💬✳️✳️✳️</span>}
+                          {order.customFields?.customerWechat && <span style={{ fontSize: 11, color: '#CBD5E1' }}>💬✳️✳️✳️</span>}
                           {order.customFields?.customerRoomCode && <span style={{ fontSize: 11, color: '#CBD5E1' }}>🏠✳️✳️✳️</span>}
                           <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
                             {order.createdAt ? new Date(order.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}
