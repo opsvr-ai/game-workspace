@@ -111,7 +111,7 @@ const CompanionPage: React.FC = () => {
             {/* 主标题 - 流动金属光泽 */}
             <style>{`
               @keyframes lightning-bolt {
-                0%   { background-position: 0% 50%, 200% 50%; filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9)) drop-shadow(0 0 20px rgba(255,215,0,0.3)); }
+                0%   { background-position: 0% 50%, 200% 50%; filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9)) drop-shadow(0 0 20px rgba(180,200,220,0.3)); }
                 8%   { background-position: 0% 50%, -100% 50%; filter: drop-shadow(0 4px 8px rgba(255,255,255,1)) drop-shadow(0 0 80px rgba(255,255,255,0.9)); }
                 9%   { background-position: 0% 50%, 200% 50%; }
                 33%  { background-position: 0% 50%, 200% 50%; }
@@ -127,7 +127,7 @@ const CompanionPage: React.FC = () => {
               fontSize: 68, fontWeight: 900, letterSpacing: 14, fontFamily: "system-ui, 'PingFang SC', sans-serif",
               fontStyle: 'italic',
               background: `
-                linear-gradient(180deg, #FFFFFF 0%, #E0E0E0 12%, #C0C0C0 25%, #D4C898 35%, #C0C0C0 50%, #D8D0B0 60%, #C0C0C0 75%, #D4C898 85%, #E0E0E0 95%, #FFFFFF 100%),
+                linear-gradient(180deg, #FFFFFF 0%, #E8ECF0 12%, #C8D0D8 25%, #A0B0C0 35%, #C8D0D8 50%, #B0BCC8 60%, #C8D0D8 75%, #A0B0C0 85%, #E8ECF0 95%, #FFFFFF 100%),
                 linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.7) 45%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 55%, rgba(255,255,255,0.15) 70%, transparent 100%)
               `,
               backgroundSize: '100% 100%, 200% 100%',
@@ -146,7 +146,7 @@ const CompanionPage: React.FC = () => {
             {/* 副标题 */}
             <div style={{
               fontSize: 16, fontWeight: 700, letterSpacing: 10, fontFamily: "monospace",
-              background: 'linear-gradient(90deg, #C0C0C0 0%, #FFFFFF 30%, #FFD700 60%, #FFFFFF 100%)',
+              background: 'linear-gradient(90deg, #C8D0D8 0%, #FFFFFF 30%, #FFD700 60%, #FFFFFF 100%)',
               backgroundSize: '200% 100%',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               marginBottom: 2,
