@@ -67,7 +67,7 @@ const OrdersPage: React.FC = () => {
     { title: '游戏', dataIndex: 'gameName', width: 100 },
     { title: '客户', key: 'wx', width: 120, render: (_: any, r: any) => r.customFields?.customerWechat || r.customer?.wechatId || '-' },
     { title: '金额', dataIndex: 'amount', width: 100, render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v?.toFixed(2)}</span> },
-    { title: '类型', dataIndex: 'type', width: 70, render: (t: string) => <Tag color={typeConfig[t]?.color}>{typeConfig[t]?.label || t}</Tag> },
+    { title: '类型', dataIndex: 'type', width: 70, render: (t: string) => <Tag color={orderTypeConfig[t]?.color}>{orderTypeConfig[t]?.label || t}</Tag> },
     { title: '接单人', key: 'companion', width: 100,
       render: (_: any, r: any) => r.companion?.user?.username ? (
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
