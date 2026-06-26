@@ -68,6 +68,7 @@ const DispatchPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [grabbingId, setGrabbingId] = useState<string | null>(null);
+  const [chatOrder, setChatOrder] = useState<PoolOrder | null>(null);
   const [gameOptions, setGameOptions] = useState<string[]>([]);
   const [form] = Form.useForm();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -301,9 +302,6 @@ const DispatchPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', flex: 1 }}>
                             <span style={{ fontSize: 16, fontWeight: 700, color: '#1E293B' }}>{order.gameName}</span>
                             <Tag color={orderTypeConfig[order.type]?.color} style={{ fontSize: 13, padding: '2px 10px', borderRadius: 6 }}>{orderTypeConfig[order.type]?.label ?? order.type}</Tag>
-                            {order.csUser?.username && (
-                              <span style={{ fontSize: 11, color: '#94A3B8' }}>派单: {order.csUser.username}</span>
-                            )}
                             {order.customFields?.deltaMode && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0F0FF', borderRadius: 8, padding: '4px 10px', fontSize: 13, color: '#7B61FF', fontWeight: 600 }}>
                                 🎯 {order.customFields.deltaMode}
@@ -323,6 +321,12 @@ const DispatchPage: React.FC = () => {
                             <span style={{ fontSize: 13, color: '#1E293B' }}>
                               ¥{Number(order.amount).toFixed(2)}
                             </span>
+                            {order.csUser?.username && (
+                              <span onClick={() => setChatOrder(order)}
+                                style={{ fontSize: 12, color: '#00D4FF', cursor: 'pointer', fontWeight: 600, borderBottom: '1px dashed #00D4FF' }}>
+                                💬 {order.csUser.username}
+                              </span>
+                            )}
                             {order.customFields?.deltaNote && (
                               <span style={{ fontSize: 14, fontWeight: 700, color: '#FF4757', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.customFields.deltaNote}>
                                 📝 {order.customFields.deltaNote}
@@ -495,6 +499,33 @@ const DispatchPage: React.FC = () => {
             }
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 派单人聊天弹窗 */}
+      <Modal title={null} open={!!chatOrder} onCancel={() => setChatOrder(null)} footer={null} width={500} style={{ top: 40 }}>
+        {chatOrder && (
+          <div>
+            <div style={{ background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', borderRadius: 12, padding: 16, color: '#FFF', marginBottom: 16 }}>
+              <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 4 }}>📋 {chatOrder.gameName}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12, opacity: 0.9 }}>
+                <span>类型: {orderTypeConfig[chatOrder.type]?.label}</span>
+                <span>¥{Number(chatOrder.amount).toFixed(2)}</span>
+                <span>⏱{chatOrder.duration||'-'}h</span>
+                {chatOrder.customFields?.deltaMode && <span>🎯{chatOrder.customFields.deltaMode}</span>}
+                {chatOrder.customFields?.deltaMission && <span>·{chatOrder.customFields.deltaMission}</span>}
+                {chatOrder.customFields?.deltaCount && <span>👥{chatOrder.customFields.deltaCount}</span>}
+                {chatOrder.customFields?.customerWechat && <span>💬{chatOrder.customFields.customerWechat}</span>}
+                {chatOrder.customFields?.customerRoomCode && <span>🏠{chatOrder.customFields.customerRoomCode}</span>}
+                {chatOrder.customFields?.deltaNote && <span>📝{chatOrder.customFields.deltaNote}</span>}
+              </div>
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 10, padding: 16, minHeight: 180, maxHeight: 260, overflowY: 'auto', marginBottom: 10, textAlign: 'center', color: '#94A3B8' }}>
+              💬 发送消息给 <b>{chatOrder.csUser?.username}</b>
+            </div>
+            <Input.Search placeholder={`发送消息给 ${chatOrder.csUser?.username}...`} enterButton="发送" size="large"
+              onSearch={(val) => { if(val.trim()) message.info('已发送'); }} />
+          </div>
+        )}
       </Modal>
 
     </div>
