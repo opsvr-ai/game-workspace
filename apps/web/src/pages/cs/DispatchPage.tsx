@@ -563,8 +563,11 @@ const DispatchPage: React.FC = () => {
                       }}>
                         {(isMe ? (user?.username||'我') : (chatOrder.csUser?.username||'?')).charAt(0).toUpperCase()}
                       </div>
-                      {/* 气泡 */}
+                      {/* 气泡+时间 */}
                       <div style={{ maxWidth: '65%', position: 'relative' }}>
+                        <div style={{ fontSize: 10, color: '#B0B0B0', marginBottom: 3, textAlign: isMe ? 'right' : 'left' }}>
+                          {msg.time}
+                        </div>
                         <div style={{
                           padding: '9px 12px', borderRadius: 4, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word',
                           background: isMe ? '#95EC69' : '#FFF',
