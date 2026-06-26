@@ -477,8 +477,24 @@ const DispatchPage: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="duration" label="时长（小时）">
-            <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} placeholder="请输入时长" />
+          <Form.Item name="billingMode" label="计费方式" initialValue="hour">
+            <Select>
+              <Option value="hour">按小时</Option>
+              <Option value="round">按局数</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.billingMode !== cur.billingMode}>
+            {({ getFieldValue }) =>
+              getFieldValue('billingMode') === 'round' ? (
+                <Form.Item name="duration" label="局数">
+                  <InputNumber min={1} step={1} style={{ width: '100%' }} placeholder="请输入局数" />
+                </Form.Item>
+              ) : (
+                <Form.Item name="duration" label="时长（小时）">
+                  <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} placeholder="请输入时长" />
+                </Form.Item>
+              )
+            }
           </Form.Item>
         </Form>
       </Modal>
