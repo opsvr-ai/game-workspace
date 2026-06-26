@@ -275,6 +275,18 @@ func (c *Client) sendRestHeartbeat() {
 func (c *Client) readLoop() {
 	for {
 		_, msg, err := c.conn.ReadMessage()
+		
+		// Socket.IO ping/pong: server sends "2", respond with "3"
+		msgStr := string(msg)
+		if msgStr == "2" {
+			c.writeMu.Lock()
+			if c.conn != nil {
+				c.conn.WriteMessage(websocket.TextMessage, []byte("3"))
+			}
+			c.writeMu.Unlock()
+			continue
+		}
+		
 		if err != nil {
 			return
 		}
