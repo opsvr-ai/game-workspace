@@ -69,7 +69,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.CS]: [
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },
     { key: '/cs/orders', icon: IconOrders, label: '派单记录' },
-    { key: '/cs/companions', icon: IconCompanionStatus, label: '陪玩状态' },
   ],
   [UserRole.COMPANION]: [
     { key: '/companion', icon: IconRevenue, label: '首页' },
