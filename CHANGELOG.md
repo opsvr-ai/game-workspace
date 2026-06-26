@@ -7,9 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — 2026-06-25
+## [Unreleased] — 2026-06-26
 
 ### Added
+
+- feat: add kick companion feature — admin/owner can force companion offline via POST /api/companions/:id/kick
+- feat: simplify auth flow — Agent uses username/password login instead of manual JWT token
+- feat: companions created by OWNER are auto-authorized (isAuthorized=true)
+- feat(agent): add REST heartbeat endpoint for reliable agent registration
+- feat(agent): add visual server configuration in WebUI with auto-reconnect
+- feat(agent): add Linux support for netctrl and sysctrl (tc, systemctl)
+- feat(web): add Apple-inspired light theme with glass-morphism header
+- feat(web): add revenue charts with Recharts (bar, line, pie)
+- feat(billing): add CSV export for daily and monthly revenue
+- feat(billing): add batch approve/reject operations
+- feat(billing): add screenshot upload endpoint (Multer, 5MB limit)
+- test(server): add unit tests for all 7 backend service modules (54 tests)
+- docs: add architecture document with 8 Mermaid diagrams
+- docs: add deployment guide (1006 lines) and user manual (713 lines)
 
 #### Core Business
 - feat(orders): add DTO validation and state machine (CreateOrderDto, VALID_TRANSITIONS)
@@ -39,8 +54,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - feat(billing): add CSV export for daily and monthly revenue
 
 ### Fixed
+- fix: OWNER employees page — remove disabled state on add button, fetch all employees
+- fix(agent): improve WebSocket auth with query param fallback
 - fix(server): add billing DTO, fix assign validation, add health endpoint
 - fix(web): fix render side-effect in admin companions page
+- fix(web): map companion API response for reassign Select
+- fix(agent): fix system tray icon not showing on Windows
 - fix(server): log unexpected exceptions in error filter
 - fix(orders): support status query filter in order list endpoint
 - fix(web): map companion API response for reassign Select
@@ -48,6 +67,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - fix: improve WebSocket auth with query param fallback
 
 ### Changed
+- chore: switch frontend port to 8000
+- chore: resolve merge conflict in main.ts CORS config
 - chore: add .env.example and verify infrastructure
 - chore: gitignore Go agent binary, update changelog
 

@@ -126,6 +126,12 @@ sequenceDiagram
     ADMIN->>API: PUT /api/transactions/:id/approve
     API->>API: customer.totalSpent += amount
     API->>API: companion.monthlyRevenue += amount
+
+    Note over ADMIN,CP: 踢下线流程
+    ADMIN->>API: POST /companions/:id/kick
+    API->>WS: sendCommand('kick')
+    WS-->>CP: pc:command { command: "kick" }
+    CP-->>CP: 断开连接并退出
 ```
 
 ### 3.3 报账审核流程
@@ -292,13 +298,25 @@ sequenceDiagram
     AGENT-->>GW: pc:command_ack { success }
     GW->>DB: insert PCOperationLog
 
+    Note over AGENT,BROWSER: 踢下线 (kick)
+    BROWSER->>GW: ADMIN/OWNER 触发 kick
+    GW-->>AGENT: pc:command { command: "kick" }
+    AGENT-->>AGENT: 断开连接并退出进程
+    GW->>DB: UPDATE companion.status=OFFLINE
+
     Note over AGENT,GW: 断开
     AGENT-->>GW: disconnect
     GW->>DB: UPDATE companion.status=OFFLINE
     GW-->>BROWSER: status:broadcast OFFLINE
 ```
 
-## 7. Go Agent 内部架构
+## 7. 认证流程
+
+```
+老板创建陪玩(自动授权) → 陪玩输入账号密码 → Agent自动登录 → 在线
+```
+
+## 8. Go Agent 内部架构
 
 ```mermaid
 graph TB
@@ -346,7 +364,7 @@ graph TB
     UI -.->|"fetch /api/*"| HTTP_SRV
 ```
 
-## 8. 部署架构
+## 9. 部署架构
 
 ```mermaid
 graph TB

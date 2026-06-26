@@ -25,7 +25,8 @@ Go Agent (WebSocket) ─────────────┘
 - **Monorepo:** pnpm workspaces (`apps/web`, `apps/server`, `apps/agent`, `packages/shared`)
 - **Auth:** JWT dual-token (access 15min / refresh 7d), 4 roles (OWNER/ADMIN/CS/COMPANION), `RolesGuard`
 - **Real-time:** Socket.IO gateway with JWT auth on connect, studio-based room grouping
-- **API:** Nest.js on port 3001, `/api/*` prefix, CORS for localhost:5173
+- **API:** Nest.js on port 3001, `/api/*` prefix, CORS for localhost:8000/5173
+- **Frontend:** React on port 8000, Apple-inspired light theme
 
 ## Key Files
 
@@ -34,20 +35,31 @@ Go Agent (WebSocket) ─────────────┘
 | `apps/server/src/app.module.ts` | Root Nest.js module (imports all feature modules) |
 | `apps/server/prisma/schema.prisma` | Database schema (11 models) |
 | `apps/web/src/router.tsx` | All 14 frontend routes |
+| `apps/web/src/theme.ts` | Ant Design custom theme config |
 | `packages/shared/src/enums.ts` | Shared TypeScript enums used by all packages |
 | `docker/docker-compose.yaml` | PostgreSQL 16 + Redis 7 |
+| `docs/ARCHITECTURE.md` | Architecture diagrams (Mermaid) |
+| `docs/DEPLOYMENT.md` | Deployment guide |
+| `docs/USER_MANUAL.md` | User manual |
 
 ## Auto-Maintenance Rules
 
-### After each feature/fix commit, MUST:
+### After each feature/fix commit, MUST automatically:
 
-1. **Update CHANGELOG.md:** Add the change under the `[Unreleased]` section using Keep a Changelog format. Run `bash scripts/update-changelog.sh` to preview, then manually merge or use `--write`.
+1. **Update CHANGELOG.md:** Add the change under `[Unreleased]` using Keep a Changelog format. Group by Added/Fixed/Changed.
 
-2. **Update README.md if needed:** When:
-   - New endpoints are added (update API table)
-   - New pages are created (update route list)
-   - Dependencies change (update tech stack table)
-   - Project structure changes
+2. **Update README.md when:**
+   - New endpoints → update API Reference table
+   - New pages → update Project Structure
+   - New features → update Recent Updates section
+   - Dependencies change → update Tech Stack table
+
+3. **Update docs/ when:**
+   - New endpoints/features → `docs/ARCHITECTURE.md` (add to diagrams)
+   - Deployment changes → `docs/DEPLOYMENT.md`
+   - UI/workflow changes → `docs/USER_MANUAL.md`
+
+4. **Auto-commit docs:** `git add` updated docs and commit as `docs: update documentation for <feature>`
 
 ### Commit convention (Conventional Commits):
 ```

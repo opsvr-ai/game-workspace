@@ -4,6 +4,22 @@
 
 ---
 
+## Recent Updates (v2.1.0)
+
+- **Simplified auth:** username/password login in Agent (no manual JWT copying)
+- **Auto-authorization:** companions created by OWNER are immediately authorized
+- **Kick companion feature:** admin/owner can force companion offline
+- **Apple-inspired UI theme** with glass-morphism
+- **REST heartbeat** for reliable agent registration
+- **54 unit tests** covering all backend services
+- **Recharts revenue charts**
+- **CSV export** for daily/monthly revenue
+- **Batch billing** operations
+- **Screenshot upload** endpoint
+- **Linux + Windows** dual-platform Go Agent
+
+---
+
 ## Table of Contents
 
 - [Project Overview](#project-overview)
@@ -235,6 +251,7 @@ Open `http://localhost:5173` in a browser.
 | `hanlei` | `123456` | OWNER | Full access; second password: `888888` |
 | `kefu01` | `123456` | CS | Requires owner authorization |
 | `zhangsan` | `123456` | COMPANION | Requires owner authorization |
+| `peiwang01` | `123456` | COMPANION | Requires owner authorization |
 
 ### 6. Build for Production
 
@@ -318,6 +335,8 @@ Every endpoint returns a standard JSON envelope:
 | `PUT` | `/api/companions/:id/status` | JWT | COMPANION | Update companion online status (`ONLINE`, `BUSY`, `IDLE`, `OFFLINE`). |
 | `GET` | `/api/companions/:id/revenue` | JWT | -- | Get revenue breakdown for a specific companion. |
 | `POST` | `/api/companions/:id/command` | JWT | ADMIN, OWNER | Send a remote command to companion's PC via WebSocket. Body: `{ command, params? }`. |
+| `POST` | `/api/companions/:id/kick` | JWT | ADMIN, OWNER | Kick a companion offline (disconnect WebSocket + mark OFFLINE). |
+| `POST` | `/api/companions/agent-heartbeat` | JWT | COMPANION | Agent REST heartbeat. Body: `{ mode, workSec, entertainSec, totalSec }`. |
 
 ### Billing -- Transactions
 
@@ -361,6 +380,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/employees` | JWT | OWNER, ADMIN | List employees. Query: `?studioId=...`. |
 | `POST` | `/api/employees` | JWT | OWNER, ADMIN | Create a new employee. Body: `{ username, password, role, studioId }`. |
 | `PUT` | `/api/employees/:id/password` | JWT | OWNER, ADMIN | Reset employee password. Body: `{ password }`. |
+| `DELETE` | `/api/employees/:id` | JWT | OWNER, ADMIN | Delete an employee (soft-delete: sets deletedAt). |
 
 ### Upload
 
@@ -410,6 +430,7 @@ Every endpoint returns a standard JSON envelope:
 | `restart` | -- | Restart the companion PC. |
 | `throttle` | `{ limitKB: number }` | Apply network bandwidth limit (KB/s). |
 | `unthrottle` | -- | Remove network bandwidth limit. |
+| `kick` | -- | Force disconnect companion from WebSocket and mark offline. |
 
 ---
 
@@ -650,4 +671,4 @@ The agent exposes a local API on port 9876 for its WebView2 UI:
 
 ---
 
-> v0.1.0 -- Core architecture + complete business workflow
+> v2.1.0 -- Simplified auth, kick companion, Apple-inspired UI, REST heartbeat, 54 unit tests, Recharts, CSV export, batch billing, screenshot upload, dual-platform Go Agent
