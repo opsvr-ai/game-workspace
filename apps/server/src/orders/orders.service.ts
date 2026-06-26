@@ -118,7 +118,7 @@ export class OrdersService {
     });
   }
 
-  async grab(orderId: string, companionId: string) {
+  async grab(orderId: string, companionId?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     this.validateTransition(order, OrderStatus.GRABBED);
@@ -130,7 +130,7 @@ export class OrdersService {
     }
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: OrderStatus.GRABBED, companionId },
+      data: { status: OrderStatus.GRABBED, companionId: companionId || null },
     });
     this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
     return updatedOrder;

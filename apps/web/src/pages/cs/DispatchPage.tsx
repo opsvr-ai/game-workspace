@@ -31,14 +31,6 @@ import http from '../../api/client';
 const { Text } = Typography;
 const { Option } = Select;
 
-// Status color mapping per spec: ONLINE=red, IDLE=green, BUSY=gold, OFFLINE=default
-const statusConfig: Record<CompanionStatus, { color: string; label: string }> = {
-  [CompanionStatus.ONLINE]: { color: 'red', label: '在线' },
-  [CompanionStatus.IDLE]: { color: 'green', label: '空闲' },
-  [CompanionStatus.BUSY]: { color: 'gold', label: '忙碌' },
-  [CompanionStatus.OFFLINE]: { color: 'default', label: '离线' },
-};
-
 const STATUS_SORT: Record<string, number> = { IDLE: 0, ONLINE: 1, BUSY: 2, OFFLINE: 3 };
 
 const orderTypeConfig: Record<OrderType, { color: string; label: string }> = {
@@ -75,10 +67,7 @@ const DispatchPage: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [assigningId, setAssigningId] = useState<string | null>(null);
-  const [companionSearch, setCompanionSearch] = useState('');
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [grabbingId, setGrabbingId] = useState<string | null>(null);
   const [gameOptions, setGameOptions] = useState<string[]>([]);
   const [form] = Form.useForm();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -146,30 +135,21 @@ const DispatchPage: React.FC = () => {
     }
   };
 
-  const handleAssignConfirm = async () => {
-    if (!selectedOrderId) return;
-    try {
-      await ordersApi.assign(selectedOrderId, companionSearch || '');
-      message.success('派单成功');
-      setAssignModalOpen(false);
-      setSelectedOrderId(null);
-      setCompanionSearch('');
-      fetchPool();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '派单失败';
-      message.error(msg);
-    } finally {
-      setAssigningId(null);
-    }
-  };
-
-  const openAssignModal = (orderId: string, e: React.MouseEvent) => {
+  const handleGrab = async (orderId: string, e: React.MouseEvent) => {
     // 轨迹动画：给卡片加 grabbing class
     const card = (e.currentTarget as HTMLElement).closest('.pool-card') as HTMLElement;
     if (card) { card.classList.add('grabbing'); setTimeout(() => card.classList.remove('grabbing'), 600); }
-    setSelectedOrderId(orderId);
-    setCompanionSearch('');
-    setAssignModalOpen(true);
+    setGrabbingId(orderId);
+    try {
+      await ordersApi.grab(orderId);
+      message.success('接单成功，已收录至客户系统');
+      fetchPool();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '接单失败';
+      message.error(msg);
+    } finally {
+      setGrabbingId(null);
+    }
   };
 
   // Stats
@@ -362,8 +342,8 @@ const DispatchPage: React.FC = () => {
                           <Text style={{ fontSize: 11, color: '#94A3B8' }}>
                             {order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}
                           </Text>
-                          <Button type="primary" size="small" loading={assigningId === order.id}
-                            onClick={(e) => openAssignModal(order.id, e)}
+                          <Button type="primary" size="small" loading={grabbingId === order.id}
+                            onClick={(e) => handleGrab(order.id, e)}
                             style={{ borderRadius: 6, fontWeight: 600, position: 'relative', overflow: 'hidden' }}
                             className="grab-btn">
                             接单
@@ -543,49 +523,6 @@ const DispatchPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Assign Companion Modal */}
-      <Modal
-        title="指定陪玩"
-        open={assignModalOpen}
-        onOk={handleAssignConfirm}
-        onCancel={() => {
-          setAssignModalOpen(false);
-          setSelectedOrderId(null);
-          setCompanionSearch('');
-          setAssigningId(null);
-        }}
-        confirmLoading={!!assigningId}
-        okText="确认派单"
-        cancelText="取消"
-      >
-        <Form layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item label="选择陪玩">
-            <Select
-              showSearch
-              placeholder="请搜索陪玩姓名"
-              value={companionSearch || undefined}
-              onChange={(val) => setCompanionSearch(val)}
-              style={{ width: '100%' }}
-              filterOption={(input, option) => {
-                const label = option?.label ?? option?.children;
-                return String(label ?? '').toLowerCase().includes(input.toLowerCase());
-              }}
-            >
-              {companions
-                .filter(
-                  (c) =>
-                    c.status === CompanionStatus.IDLE ||
-                    c.status === CompanionStatus.ONLINE
-                )
-                .map((c) => (
-                  <Option key={c.id} value={c.id}>
-                    {c.user?.username ?? c.id} ({statusConfig[c.status]?.label})
-                  </Option>
-                ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };
