@@ -21,6 +21,7 @@ import { CompanionStatus, OrderType, DispatchType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 import { ordersApi } from '../../api/orders';
 import http from '../../api/client';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -55,6 +56,8 @@ interface PoolOrder {
 }
 
 const DispatchPage: React.FC = () => {
+  const user = useAuthStore((s) => s.user);
+  const isCS = user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER';
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
   const [loadingCompanions, setLoadingCompanions] = useState(false);
@@ -326,10 +329,14 @@ const DispatchPage: React.FC = () => {
                               </span>
                             )}
                             {order.customFields?.customerWechat && (
-                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>💬 {order.customFields.customerWechat}</span>
+                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                                💬 {isCS ? order.customFields.customerWechat : '✳️✳️✳️'}
+                              </span>
                             )}
                             {order.customFields?.customerRoomCode && (
-                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>🏠 {order.customFields.customerRoomCode}</span>
+                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                                🏠 {isCS ? order.customFields.customerRoomCode : '✳️✳️✳️'}
+                              </span>
                             )}
                           </div>
                           <span style={{ fontSize: 12, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
