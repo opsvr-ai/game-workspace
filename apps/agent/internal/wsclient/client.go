@@ -3,6 +3,7 @@ package wsclient
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chunlv/agent/internal/config"
 	"github.com/chunlv/agent/internal/engine"
 	"github.com/gorilla/websocket"
 )
@@ -79,25 +81,69 @@ func GetCurrentOrderID() string {
 }
 
 type Client struct {
-	serverURL   string
-	token       string
-	tracker     *engine.TimeTracker
-	conn        *websocket.Conn
+	serverURL string
+	username  string
+	password  string
+	token     string
+	tracker   *engine.TimeTracker
+	conn      *websocket.Conn
 	CommandChan chan Command
-	done        chan struct{}
+	done      chan struct{}
 }
 
-func NewClient(serverURL, token string, tracker *engine.TimeTracker) *Client {
+func NewClient(serverURL, username, password string, tracker *engine.TimeTracker) *Client {
 	return &Client{
 		serverURL:   serverURL,
-		token:       token,
+		username:    username,
+		password:    password,
 		tracker:     tracker,
 		CommandChan: make(chan Command, 10),
 		done:        make(chan struct{}),
 	}
 }
 
+// Login 用账号密码登录服务端，获取 JWT Token
+func (c *Client) Login() error {
+	body, _ := json.Marshal(map[string]string{
+		"username": c.username,
+		"password": c.password,
+	})
+	resp, err := http.Post(c.serverURL+"/api/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Code int `json:"code"`
+		Data struct {
+			AccessToken string `json:"accessToken"`
+		} `json:"data"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+	if result.Code != 200 {
+		return fmt.Errorf("login failed: %s", result.Message)
+	}
+	c.token = result.Data.AccessToken
+	config.SetToken(c.token)
+	log.Printf("Login OK — welcome %s", c.username)
+	return nil
+}
+
 func (c *Client) Connect() {
+	// 先登录获取 Token
+	for {
+		if err := c.Login(); err != nil {
+			log.Printf("Login failed: %v, retrying in 5s...", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
+	}
+
 	// Normalize URL scheme: gorilla/websocket expects ws:// or wss://
 	serverURL := c.serverURL
 	serverURL = strings.Replace(serverURL, "http://", "ws://", 1)

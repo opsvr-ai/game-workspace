@@ -42,7 +42,7 @@ export class StudiosService {
         passwordHash,
         role: dto.role,
         studioId,
-        isAuthorized: dto.role === 'ADMIN',
+        isAuthorized: true, // 老板创建的账号直接授权
         companion: dto.role === 'COMPANION'
           ? { create: { studioId, billingCode: `Z${Date.now().toString(36).toUpperCase()}` } }
           : undefined,

@@ -16,15 +16,15 @@ func main() {
 
 	log.Printf("Chunlv Agent starting...")
 	log.Printf("  Server: %s", cfg.ServerURL)
+	log.Printf("  User:   %s", cfg.Username)
 
 	tracker := engine.NewTimeTracker()
-	wsClient := wsclient.NewClient(cfg.ServerURL, cfg.Token, tracker)
+	wsClient := wsclient.NewClient(cfg.ServerURL, cfg.Username, cfg.Password, tracker)
 
-	// onReconfig is called when the user saves new config via the settings page.
 	onReconfig := func(newCfg config.AgentConfig) {
-		log.Printf("Config changed, reconnecting to %s", newCfg.ServerURL)
+		log.Printf("Config changed, reconnecting to %s as %s", newCfg.ServerURL, newCfg.Username)
 		wsClient.Disconnect()
-		wsClient = wsclient.NewClient(newCfg.ServerURL, newCfg.Token, tracker)
+		wsClient = wsclient.NewClient(newCfg.ServerURL, newCfg.Username, newCfg.Password, tracker)
 		go wsClient.Connect()
 	}
 
@@ -32,6 +32,5 @@ func main() {
 		httplocal.StartAsync(addr, tracker, wsClient, onReconfig)
 	}
 
-	// Native Win32 tray — blocks until user quits.
 	tray.Run(":9876", tracker, wsClient, httpStart, onReconfig)
 }

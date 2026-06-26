@@ -132,10 +132,12 @@
   <button class="settings-toggle" onclick="toggleSettings()">⚙️ 服务端配置</button>
   <div id="settingsPanel" class="settings-panel">
     <label>服务端地址</label>
-    <input type="text" id="cfgServerUrl" placeholder="http://server:3001">
-    <label>Token（JWT）</label>
-    <input type="password" id="cfgToken" placeholder="输入陪玩的 JWT Token">
-    <button class="btn-save" onclick="saveConfig()" id="btnSaveCfg">💾 保存并重连</button>
+    <input type="text" id="cfgServerUrl" placeholder="http://192.168.0.106:3001">
+    <label>账号</label>
+    <input type="text" id="cfgUsername" placeholder="陪玩账号">
+    <label>密码</label>
+    <input type="password" id="cfgPassword" placeholder="登录密码">
+    <button class="btn-save" onclick="saveConfig()" id="btnSaveCfg">💾 保存并登录</button>
     <div class="status" id="cfgStatus"></div>
   </div>
 </div>
@@ -193,37 +195,39 @@ async function fetchConfig() {
     const res = await fetch('/api/config');
     const cfg = await res.json();
     document.getElementById('cfgServerUrl').value = cfg.serverUrl || '';
-    if (cfg.token) document.getElementById('cfgToken').value = cfg.token;
-    setCfgStatus(cfg.configured ? '✅ 已配置 · ' + cfg.serverUrl : '⚠️ 未配置，请输入服务端地址和 Token', cfg.configured);
+    document.getElementById('cfgUsername').value = cfg.username || '';
+    if (cfg.password) document.getElementById('cfgPassword').value = cfg.password;
+    setCfgStatus(cfg.configured ? '✅ 已配置 · ' + cfg.username + '@' + cfg.serverUrl : '⚠️ 请输入服务端地址和账号密码', cfg.configured);
   } catch (e) { console.error('Fetch config failed:', e); }
 }
 
 async function saveConfig() {
   const serverUrl = document.getElementById('cfgServerUrl').value.trim();
-  const token = document.getElementById('cfgToken').value.trim();
-  if (!serverUrl || !token) {
-    setCfgStatus('❌ 服务端地址和 Token 不能为空', false);
+  const username = document.getElementById('cfgUsername').value.trim();
+  const password = document.getElementById('cfgPassword').value.trim();
+  if (!serverUrl || !username || !password) {
+    setCfgStatus('❌ 服务端地址、账号和密码不能为空', false);
     return;
   }
 
   const btn = document.getElementById('btnSaveCfg');
   btn.disabled = true;
-  btn.textContent = '⏳ 保存中...';
-  setCfgStatus('🔄 正在保存并重连...', false);
+  btn.textContent = '⏳ 登录中...';
+  setCfgStatus('🔄 正在登录...', false);
 
   try {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ serverUrl, token }),
+      body: JSON.stringify({ serverUrl, username, password }),
     });
     if (!res.ok) throw new Error('save failed');
-    setCfgStatus('✅ 已保存，已重连至 ' + serverUrl, true);
+    setCfgStatus('✅ 已登录 · ' + username + '@' + serverUrl, true);
   } catch (e) {
     setCfgStatus('❌ 保存失败: ' + e.message, false);
   } finally {
     btn.disabled = false;
-    btn.textContent = '💾 保存并重连';
+    btn.textContent = '💾 保存并登录';
   }
 }
 

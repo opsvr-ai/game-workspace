@@ -8,13 +8,15 @@ import (
 
 type AgentConfig struct {
 	ServerURL string `json:"serverUrl"`
-	Token     string `json:"token"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Token     string `json:"token,omitempty"` // auto-login 后缓存
 }
 
 var (
-	cfg     AgentConfig
-	mu      sync.RWMutex
-	path    = "agent-config.json"
+	cfg  AgentConfig
+	mu   sync.RWMutex
+	path = "agent-config.json"
 )
 
 func Load() AgentConfig {
@@ -24,7 +26,7 @@ func Load() AgentConfig {
 	// 1. Try config file
 	if data, err := os.ReadFile(path); err == nil {
 		var c AgentConfig
-		if json.Unmarshal(data, &c) == nil && c.ServerURL != "" && c.Token != "" {
+		if json.Unmarshal(data, &c) == nil && c.ServerURL != "" && c.Username != "" {
 			return c
 		}
 	}
@@ -32,7 +34,8 @@ func Load() AgentConfig {
 	// 2. Fallback to env vars
 	return AgentConfig{
 		ServerURL: getEnv("AGENT_SERVER_URL", "http://localhost:3001"),
-		Token:     getEnv("AGENT_TOKEN", ""),
+		Username:  getEnv("AGENT_USERNAME", ""),
+		Password:  getEnv("AGENT_PASSWORD", ""),
 	}
 }
 
@@ -57,6 +60,12 @@ func Update(c AgentConfig) {
 	mu.Lock()
 	defer mu.Unlock()
 	cfg = c
+}
+
+func SetToken(token string) {
+	mu.Lock()
+	defer mu.Unlock()
+	cfg.Token = token
 }
 
 func getEnv(key, fallback string) string {
