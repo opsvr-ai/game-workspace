@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Typography, message, Segmented } from 'antd';
+import { message, Segmented } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, ReferenceLine } from 'recharts';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
-const { Text } = Typography;
 type Metric = 'renewal' | 'repurchase' | 'yesterday' | 'monthly';
 
 const CompanionPage: React.FC = () => {
