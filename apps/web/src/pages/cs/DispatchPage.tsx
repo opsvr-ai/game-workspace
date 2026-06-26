@@ -315,6 +315,13 @@ const DispatchPage: React.FC = () => {
                             </Tag>
                           </Space>
                         </div>
+                        {/* Customer info — masked */}
+                        {(order.customFields?.customerWechat || order.customer?.wechatId || order.customFields?.customerRoomCode) && (
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 6 }}>
+                            {(order.customFields?.customerWechat || order.customer?.wechatId) && <span style={{ marginRight: 10 }}>💬 微信: ✳️✳️✳️</span>}
+                            {order.customFields?.customerRoomCode && <span>🏠 房间: ✳️✳️✳️</span>}
+                          </div>
+                        )}
                         {/* Row 2: Order details — single line, ordered */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12, color: '#475569', marginBottom: 8, lineHeight: '22px', alignItems: 'center' }}>
                           {order.customFields?.deltaMode && (
