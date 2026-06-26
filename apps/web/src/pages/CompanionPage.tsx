@@ -108,12 +108,26 @@ const CompanionPage: React.FC = () => {
             <div style={{ fontSize: 11, color: '#00FF88', fontFamily: 'monospace', letterSpacing: 6, marginBottom: 8, opacity: 0.7 }}>
               ◆ TACTICAL COMMAND CENTER ◆
             </div>
-            <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: 4, fontFamily: 'monospace',
-              background: 'linear-gradient(180deg, #00FF88 0%, #00B864 40%, #007A3D 100%)',
+            <div style={{
+              fontSize: 42, fontWeight: 900, letterSpacing: 6, fontFamily: "'Orbitron','SF Pro Display',system-ui,sans-serif",
+              background: 'linear-gradient(135deg, #00FF88 0%, #00E5FF 25%, #7B61FF 50%, #FFD700 75%, #00FF88 100%)',
+              backgroundSize: '300% 300%',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              textShadow: '0 0 40px rgba(0,255,136,0.3)',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 30px rgba(0,255,136,0.4)) drop-shadow(0 0 60px rgba(0,212,255,0.2))',
+              lineHeight: 1.2,
+              marginBottom: 4,
             }}>
-              蠢驴电竞俱乐部 · {cfg.label}排行榜
+              蠢驴电竞
+            </div>
+            <div style={{
+              fontSize: 18, fontWeight: 700, letterSpacing: 8, fontFamily: "monospace",
+              background: 'linear-gradient(90deg, #C0C0C0, #FFFFFF, #C0C0C0)',
+              backgroundSize: '200% 100%',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              marginBottom: 8,
+            }}>
+              {cfg.label} · RANKING
             </div>
             <div style={{ fontSize: 11, color: '#4A6B5A', fontFamily: 'monospace', letterSpacing: 3, marginTop: 4 }}>
               CHUNLV ESPORTS · DELTA FORCE · {dateStr}
