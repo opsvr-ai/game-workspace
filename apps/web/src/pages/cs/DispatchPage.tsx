@@ -503,23 +503,15 @@ const DispatchPage: React.FC = () => {
               <Option value={DispatchType.DIRECT}>指定派单</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="customerId" label="客户">
-            <Select
-              showSearch
-              placeholder="请搜索客户微信号"
-              filterOption={false}
-              onSearch={handleCustomerSearch}
-              notFoundContent={
-                customerSearch ? <Text type="secondary">未找到匹配客户</Text> : null
-              }
-              allowClear
-            >
-              {customers.map((c) => (
-                <Option key={c.id} value={c.id}>
-                  {c.wechatId}
-                </Option>
-              ))}
-            </Select>
+          <Form.Item label="客户预留信息" style={{ marginBottom: 8 }}>
+            <Input.Group compact>
+              <Form.Item name="customerWechat" noStyle>
+                <Input style={{ width: '50%' }} placeholder="微信" />
+              </Form.Item>
+              <Form.Item name="customerRoomCode" noStyle>
+                <Input style={{ width: '50%' }} placeholder="房间码" />
+              </Form.Item>
+            </Input.Group>
           </Form.Item>
           <Form.Item name="billingMode" label="计费方式" initialValue="hour">
             <Select>
