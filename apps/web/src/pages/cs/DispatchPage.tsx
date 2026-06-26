@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Row,
   Col,
@@ -40,6 +40,8 @@ const statusConfig: Record<CompanionStatus, { color: string; label: string }> = 
   [CompanionStatus.OFFLINE]: { color: 'default', label: '离线' },
 };
 
+const STATUS_SORT: Record<string, number> = { IDLE: 0, ONLINE: 1, BUSY: 2, OFFLINE: 3 };
+
 const orderTypeConfig: Record<OrderType, { color: string; label: string }> = {
   [OrderType.NEW]: { color: 'blue', label: '新单' },
   [OrderType.RENEW]: { color: 'cyan', label: '续费' },
@@ -49,9 +51,9 @@ const orderTypeConfig: Record<OrderType, { color: string; label: string }> = {
 
 interface Companion {
   id: string;
-  username: string;
+  user?: { username: string };
   status: CompanionStatus;
-  games?: string[];
+  games?: any[];
 }
 
 interface PoolOrder {
@@ -179,6 +181,10 @@ const DispatchPage: React.FC = () => {
   };
 
   // Stats
+  const sortedCompanions = useMemo(() =>
+    [...companions].sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9)),
+    [companions]);
+
   const onlineCount = companions.filter(
     (c) => c.status === CompanionStatus.ONLINE || c.status === CompanionStatus.IDLE
   ).length;
@@ -229,43 +235,34 @@ const DispatchPage: React.FC = () => {
             }
           >
             {loadingCompanions && companions.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 24 }}>
-                <Spin />
-              </div>
+              <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
             ) : companions.length === 0 ? (
-              <Text type="secondary">暂无在线陪玩</Text>
+              <Text type="secondary">暂无陪玩</Text>
             ) : (
-              <List
-                size="small"
-                dataSource={companions}
+              <List size="small" dataSource={sortedCompanions}
                 renderItem={(c) => (
-                  <List.Item style={{ padding: '8px 0' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        width: '100%',
-                      }}
-                    >
+                  <List.Item style={{ padding: '8px 0', display: 'block' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <Space size="small">
-                        <Badge
-                          status={
-                            c.status === CompanionStatus.ONLINE
-                              ? 'error'
-                              : c.status === CompanionStatus.IDLE
-                              ? 'success'
-                              : c.status === CompanionStatus.BUSY
-                              ? 'warning'
-                              : 'default'
-                          }
-                        />
-                        <Text>{c.username}</Text>
+                        <Badge status={
+                          c.status === CompanionStatus.ONLINE ? 'error' :
+                          c.status === CompanionStatus.IDLE ? 'success' :
+                          c.status === CompanionStatus.BUSY ? 'warning' : 'default'
+                        } />
+                        <Text strong>{c.user?.username ?? c.id}</Text>
                       </Space>
-                      <Tag color={statusConfig[c.status]?.color}>
-                        {statusConfig[c.status]?.label ?? c.status}
-                      </Tag>
+                      <Tag color={statusConfig[c.status]?.color}>{statusConfig[c.status]?.label ?? c.status}</Tag>
                     </div>
+                    {/* 游戏资料 */}
+                    {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
+                      <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {c.games.map((g: any, i: number) => (
+                          <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
+                            {g.game} <span style={{ color: '#7B61FF' }}>{g.rank||'?'}</span>
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
                   </List.Item>
                 )}
               />
@@ -504,7 +501,7 @@ const DispatchPage: React.FC = () => {
                 )
                 .map((c) => (
                   <Option key={c.id} value={c.id}>
-                    {c.username} ({statusConfig[c.status]?.label})
+                    {c.user?.username ?? c.id} ({statusConfig[c.status]?.label})
                   </Option>
                 ))}
             </Select>
