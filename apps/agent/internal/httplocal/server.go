@@ -18,6 +18,14 @@ type Server struct {
 }
 
 func StartServer(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Client, onReconfig func(config.AgentConfig)) {
+	StartAsync(addr, tracker, wsClient, onReconfig)
+	// Block forever (original blocking behavior)
+	select {}
+}
+
+// StartAsync starts the local HTTP server in a goroutine.
+// Returns immediately; the server runs in the background.
+func StartAsync(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Client, onReconfig func(config.AgentConfig)) {
 	s := &Server{tracker: tracker, wsClient: wsClient, onReconfig: onReconfig}
 	r := mux.NewRouter()
 
@@ -34,7 +42,11 @@ func StartServer(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Cl
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./webui")))
 
 	log.Printf("Local HTTP server on %s", addr)
-	http.ListenAndServe(addr, r)
+	go func() {
+		if err := http.ListenAndServe(addr, r); err != nil {
+			log.Printf("HTTP server error: %v", err)
+		}
+	}()
 }
 
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
