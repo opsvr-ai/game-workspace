@@ -109,13 +109,14 @@ const AppLayout: React.FC = () => {
     const items = [...(roleMenus[user.role] || [])];
     // Add pulsing indicator to 陪玩管理 items when chat is active
     return items.map(item => {
-      if (item.label === '陪玩管理' && chatActive) {
+      if ((item.label === '派单记录' || item.label === '接单记录') && chatActive) {
         return {
           ...item,
-          label: <span>陪玩管理 <span style={{
-            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+          label: <span>{item.label} <span style={{
+            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
             background: '#FF4757', marginLeft: 4, verticalAlign: 'middle',
             animation: 'pulse-glow 1s ease-in-out infinite',
+            boxShadow: '0 0 8px #FF4757',
           }} /></span>,
         };
       }
