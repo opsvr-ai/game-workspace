@@ -60,6 +60,8 @@ const DispatchPage: React.FC = () => {
   const isCS = user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER';
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
+  const [todayNew, setTodayNew] = useState(0);
+  const [todayGrabbed, setTodayGrabbed] = useState(0);
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -84,8 +86,15 @@ const DispatchPage: React.FC = () => {
   const fetchPool = useCallback(async () => {
     setLoadingPool(true);
     try {
-      const { data } = await ordersApi.pool();
-      setPoolOrders(data.data ?? []);
+      const [poolRes, allRes] = await Promise.all([
+        ordersApi.pool(),
+        ordersApi.list(),
+      ]);
+      setPoolOrders(poolRes.data.data ?? []);
+      const all = allRes.data.data ?? [];
+      const today = new Date().toDateString();
+      setTodayNew(all.filter((o: any) => new Date(o.createdAt).toDateString() === today).length);
+      setTodayGrabbed(all.filter((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED').length);
     } catch {
       // silent fail on auto-refresh
     } finally {
@@ -262,6 +271,9 @@ const DispatchPage: React.FC = () => {
                 <Tag color="white" style={{ color: '#7B61FF', fontWeight: 700, borderRadius: 10, padding: '2px 12px', border: 'none' }}>
                   {poolCount} 单待派
                 </Tag>
+                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginLeft: 8 }}>
+                  今日新增 <b style={{ color: '#FFF' }}>{todayNew}</b> · 已接 <b style={{ color: '#FFF' }}>{todayGrabbed}</b> · 剩余 <b style={{ color: '#FFF' }}>{poolCount}</b>
+                </span>
               </Space>
             </div>
             {/* Pool body */}
