@@ -326,10 +326,10 @@ const DispatchPage: React.FC = () => {
                               </span>
                             )}
                             {order.customFields?.customerWechat && (
-                              <span style={{ fontSize: 12, color: '#CBD5E1', letterSpacing: 1 }}>💬 ✳️✳️✳️</span>
+                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>💬 {order.customFields.customerWechat}</span>
                             )}
                             {order.customFields?.customerRoomCode && (
-                              <span style={{ fontSize: 12, color: '#CBD5E1', letterSpacing: 1 }}>🏠 ✳️✳️✳️</span>
+                              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>🏠 {order.customFields.customerRoomCode}</span>
                             )}
                           </div>
                           <span style={{ fontSize: 12, color: '#94A3B8', whiteSpace: 'nowrap', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
