@@ -27,37 +27,59 @@ export class OrdersService {
 
   async create(dto: {
     type: string;
-    studioId: string;
+    studioId?: string;
     csUserId: string;
-    customerId: string;
+    customerId?: string;
+    customerWechat?: string;
+    customerRoomCode?: string;
     dispatchType: string;
     amount: number;
     gameName: string;
     duration?: number;
     customFields?: any;
-    isOnline: boolean;
+    isOnline?: boolean;
     companionId?: string;
   }) {
+    // Resolve studioId: from dto or from CS user's studio
+    let studioId = dto.studioId;
+    if (!studioId) {
+      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId } });
+      studioId = csUser?.studioId ?? undefined;
+    }
+
+    // Resolve customerId: create a placeholder if not provided
+    let customerId = dto.customerId;
+    if (!customerId && studioId) {
+      const placeholder = await this.prisma.customer.create({
+        data: {
+          studioId,
+          wechatId: dto.customerWechat || '临时客户',
+          customerCode: `T${Date.now().toString(36).toUpperCase()}`,
+        },
+      });
+      customerId = placeholder.id;
+    }
+
     const newOrder = await this.prisma.order.create({
       data: {
         type: dto.type,
-        studioId: dto.studioId,
+        studioId: studioId!,
         csUserId: dto.csUserId,
-        customerId: dto.customerId,
+        customerId: customerId!,
         dispatchType: dto.dispatchType,
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         status: 'PENDING',
         amount: dto.amount,
         gameName: dto.gameName,
         duration: dto.duration,
-        customFields: dto.customFields,
-        isOnline: dto.isOnline,
+        customFields: { ...(dto.customFields || {}), customerWechat: dto.customerWechat, customerRoomCode: dto.customerRoomCode },
+        isOnline: dto.isOnline ?? true,
       },
       include: { customer: true },
     });
 
-    if (newOrder.dispatchType === 'POOL') {
-      this.wsGateway.broadcastToStudio(dto.studioId, 'order:pool_updated', newOrder);
+    if (studioId && newOrder.dispatchType === 'POOL') {
+      this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
     }
 
     return newOrder;

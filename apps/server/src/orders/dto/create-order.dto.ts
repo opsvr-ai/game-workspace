@@ -1,10 +1,5 @@
 import {
-  IsEnum,
-  IsString,
-  IsNumber,
-  IsBoolean,
-  IsOptional,
-  Min,
+  IsEnum, IsString, IsNumber, IsBoolean, IsOptional, Min,
 } from 'class-validator';
 import { OrderType, DispatchType } from '@chunlv/shared';
 
@@ -12,11 +7,13 @@ export class CreateOrderDto {
   @IsEnum(OrderType)
   type: OrderType;
 
+  @IsOptional()
   @IsString()
-  studioId: string;
+  studioId?: string;
 
+  @IsOptional()
   @IsString()
-  customerId: string;
+  customerId?: string;
 
   @IsEnum(DispatchType)
   dispatchType: DispatchType;
@@ -35,8 +32,9 @@ export class CreateOrderDto {
   @IsOptional()
   customFields?: Record<string, unknown>;
 
+  @IsOptional()
   @IsBoolean()
-  isOnline: boolean;
+  isOnline?: boolean;
 
   @IsOptional()
   @IsString()
