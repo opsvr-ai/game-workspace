@@ -69,6 +69,7 @@ const DispatchPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [grabbingId, setGrabbingId] = useState<string | null>(null);
   const [chatOrder, setChatOrder] = useState<PoolOrder | null>(null);
+  const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [gameOptions, setGameOptions] = useState<string[]>([]);
   const [form] = Form.useForm();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -212,7 +213,8 @@ const DispatchPage: React.FC = () => {
             ) : (
               <List size="small" dataSource={sortedCompanions}
                 renderItem={(c) => (
-                  <List.Item style={{ padding: '8px 0', display: 'block' }}>
+                  <List.Item style={{ padding: '8px 0', display: 'block', cursor: 'pointer' }}
+                    onClick={() => setSelectedCompanion(c)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <Space size="small">
                         <span style={{
@@ -222,8 +224,9 @@ const DispatchPage: React.FC = () => {
                             c.status === CompanionStatus.IDLE ? '#00E676' :
                             c.status === CompanionStatus.ONLINE ? '#FFD600' : '#94A3B8',
                           boxShadow: c.status !== CompanionStatus.OFFLINE
-                            ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}`
+                            ? `0 0 8px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}`
                             : 'none',
+                          animation: c.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
                         }} />
                         <Text strong>{c.user?.username ?? c.id}</Text>
                       </Space>
@@ -524,6 +527,46 @@ const DispatchPage: React.FC = () => {
             </div>
             <Input.Search placeholder={`发送消息给 ${chatOrder.csUser?.username}...`} enterButton="发送" size="large"
               onSearch={(val) => { if(val.trim()) message.info('已发送'); }} />
+          </div>
+        )}
+      </Modal>
+
+      {/* 陪玩详情弹窗 */}
+      <Modal title={null} open={!!selectedCompanion} onCancel={() => setSelectedCompanion(null)} footer={null} width={420} style={{ top: 60 }}>
+        {selectedCompanion && (
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ width: 40, height: 40, borderRadius: '50%', display: 'inline-block', marginBottom: 8,
+              background: selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' :
+                selectedCompanion.status === CompanionStatus.IDLE ? '#00E676' :
+                selectedCompanion.status === CompanionStatus.ONLINE ? '#FFD600' : '#94A3B8',
+              boxShadow: selectedCompanion.status !== CompanionStatus.OFFLINE
+                ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}`
+                : 'none',
+              animation: selectedCompanion.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+            }} />
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{selectedCompanion.user?.username ?? selectedCompanion.id}</div>
+            <Tag color={
+              selectedCompanion.status === CompanionStatus.BUSY ? 'red' :
+              selectedCompanion.status === CompanionStatus.IDLE ? 'green' :
+              selectedCompanion.status === CompanionStatus.ONLINE ? 'gold' : 'default'
+            }>
+              {selectedCompanion.status === CompanionStatus.BUSY ? '接单中' :
+               selectedCompanion.status === CompanionStatus.IDLE ? '空闲' :
+               selectedCompanion.status === CompanionStatus.ONLINE ? '娱乐中' : '离线'}
+            </Tag>
+            <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
+              {selectedCompanion.games && selectedCompanion.games.length > 0 && typeof selectedCompanion.games[0] === 'object' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {selectedCompanion.games.map((g: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span>🎮 {g.game}</span>
+                      <span style={{ color: '#7B61FF', fontWeight: 600 }}>{g.rank || '?'}</span>
+                      <span style={{ color: g.hasAccount ? '#34C759' : '#94A3B8' }}>{g.hasAccount ? '有号' : '无号'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <Text type="secondary">未设置游戏资料</Text>}
+            </div>
           </div>
         )}
       </Modal>
