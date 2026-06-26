@@ -10,7 +10,6 @@ import {
   Select,
   InputNumber,
   Tag,
-  Badge,
   Typography,
   Space,
   message,
@@ -244,14 +243,27 @@ const DispatchPage: React.FC = () => {
                   <List.Item style={{ padding: '8px 0', display: 'block' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <Space size="small">
-                        <Badge status={
-                          c.status === CompanionStatus.ONLINE ? 'error' :
-                          c.status === CompanionStatus.IDLE ? 'success' :
-                          c.status === CompanionStatus.BUSY ? 'warning' : 'default'
-                        } />
+                        <span style={{
+                          width: 10, height: 10, borderRadius: '50%', display: 'inline-block',
+                          background:
+                            c.status === CompanionStatus.BUSY ? '#FF4757' :
+                            c.status === CompanionStatus.IDLE ? '#00E676' :
+                            c.status === CompanionStatus.ONLINE ? '#FFD600' : '#94A3B8',
+                          boxShadow: c.status !== CompanionStatus.OFFLINE
+                            ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}`
+                            : 'none',
+                        }} />
                         <Text strong>{c.user?.username ?? c.id}</Text>
                       </Space>
-                      <Tag color={statusConfig[c.status]?.color}>{statusConfig[c.status]?.label ?? c.status}</Tag>
+                      <Tag color={
+                        c.status === CompanionStatus.BUSY ? 'red' :
+                        c.status === CompanionStatus.IDLE ? 'green' :
+                        c.status === CompanionStatus.ONLINE ? 'gold' : 'default'
+                      }>
+                        {c.status === CompanionStatus.BUSY ? '接单中' :
+                         c.status === CompanionStatus.IDLE ? '空闲' :
+                         c.status === CompanionStatus.ONLINE ? '娱乐中' : '离线'}
+                      </Tag>
                     </div>
                     {/* 游戏资料 */}
                     {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
