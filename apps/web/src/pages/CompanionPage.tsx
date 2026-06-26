@@ -108,14 +108,30 @@ const CompanionPage: React.FC = () => {
             <div style={{ fontSize: 11, color: '#00FF88', fontFamily: 'monospace', letterSpacing: 6, marginBottom: 8, opacity: 0.7 }}>
               ◆ TACTICAL COMMAND CENTER ◆
             </div>
-            {/* 主标题 - 铬金银金属质感 */}
+            {/* 主标题 - 流动金属光泽 */}
+            <style>{`
+              @keyframes metal-shine {
+                0% { background-position: 0% 50%, 200% 50%; }
+                100% { background-position: 0% 50%, -200% 50%; }
+              }
+              @keyframes metal-pulse {
+                0%,100% { filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9)) drop-shadow(0 0 20px rgba(255,215,0,0.3)) drop-shadow(0 0 40px rgba(192,192,192,0.2)) drop-shadow(0 5px 10px rgba(0,0,0,0.5)); }
+                50% { filter: drop-shadow(0 2px 4px rgba(255,255,255,1)) drop-shadow(0 0 35px rgba(255,215,0,0.6)) drop-shadow(0 0 60px rgba(255,255,255,0.4)) drop-shadow(0 6px 14px rgba(0,0,0,0.6)); }
+              }
+            `}</style>
             <div style={{
               fontSize: 68, fontWeight: 900, letterSpacing: 14, fontFamily: "system-ui, 'PingFang SC', sans-serif",
               fontStyle: 'italic',
-              background: 'linear-gradient(180deg, #FFFFFF 0%, #E8E8E8 12%, #C8C8C8 25%, #D4C898 35%, #C0C0C0 48%, #D8D0B0 58%, #C0C0C0 70%, #D4C898 80%, #E0E0E0 90%, #FFFFFF 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              background: `
+                linear-gradient(180deg, #FFFFFF 0%, #E0E0E0 12%, #C0C0C0 25%, #D4C898 35%, #C0C0C0 50%, #D8D0B0 60%, #C0C0C0 75%, #D4C898 85%, #E0E0E0 95%, #FFFFFF 100%),
+                linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0.7) 45%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 55%, rgba(255,255,255,0.15) 70%, transparent 100%)
+              `,
+              backgroundSize: '100% 100%, 200% 100%',
+              backgroundPosition: '0% 50%, 200% 50%',
+              WebkitBackgroundClip: 'text, text',
+              WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              filter: 'drop-shadow(0 1px 2px rgba(255,255,255,0.9)) drop-shadow(0 0 20px rgba(255,215,0,0.35)) drop-shadow(0 0 40px rgba(192,192,192,0.25)) drop-shadow(0 5px 10px rgba(0,0,0,0.5))',
+              animation: 'metal-shine 2.5s linear infinite, metal-pulse 2s ease-in-out infinite',
               lineHeight: 1.1,
               marginBottom: 6,
               display: 'inline-block',
