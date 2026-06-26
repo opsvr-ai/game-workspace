@@ -7,7 +7,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-  .container { width: 400px; background: #16213e; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .container { width: 420px; background: #16213e; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
   h1 { text-align: center; font-size: 20px; margin-bottom: 20px; color: #e94560; }
   .status-bar { background: #0f3460; border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: center; }
   .mode-label { font-size: 24px; font-weight: bold; }
@@ -25,107 +25,53 @@
   .btn:active { transform: translateY(0); }
 
   /* Order notification */
-  .order-notify {
-    margin-top: 16px;
-    border-radius: 8px;
-    background: #0f3460;
-    border: 1px solid #e94560;
-    overflow: hidden;
-    animation: slideIn 0.4s ease-out;
+  .order-notify { display: none; margin-top: 12px; padding: 16px; background: #0a0e17; border-radius: 8px; border: 1px solid #e94560; animation: slideIn 0.3s ease; }
+  .order-notify-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .order-notify-header .title { font-weight: bold; color: #e94560; }
+  .order-notify-header .dismiss { background: none; border: none; color: #666; font-size: 18px; cursor: pointer; }
+  .order-notify-body .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+  .order-notify-body .row .label { color: #888; }
+  .order-notify-body .amount { color: #ff9800; font-weight: bold; }
+  .order-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .order-actions .btn-confirm, .order-actions .btn-complete {
+    flex: 1; padding: 10px; border: none; border-radius: 6px;
+    font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s;
   }
-  .order-notify-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: rgba(233,69,96,0.15);
-  }
-  .order-notify-header .title {
-    font-size: 14px;
-    font-weight: bold;
-    color: #e94560;
-  }
-  .order-notify-header .dismiss {
-    font-size: 18px;
-    color: #888;
-    cursor: pointer;
-    line-height: 1;
-    transition: color 0.2s;
-    background: none;
-    border: none;
-    padding: 0;
-  }
-  .order-notify-header .dismiss:hover { color: #e94560; }
-  .order-notify-body { padding: 12px 14px; }
-  .order-notify-body .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-  .order-notify-body .row:last-child { margin-bottom: 0; }
-  .order-notify-body .label { font-size: 12px; color: #888; }
-  .order-notify-body .val { font-size: 13px; color: #e0e0e0; }
-  .order-notify-body .amount {
-    font-size: 18px;
-    font-weight: bold;
-    color: #00ff88;
-  }
-  .order-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 12px;
-  }
-  .order-actions .btn-confirm {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: #00c853;
-    color: white;
-  }
-  .order-actions .btn-complete {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: #2979ff;
-    color: white;
-  }
-  .order-actions .btn-confirm:hover,
-  .order-actions .btn-complete:hover {
-    opacity: 0.85;
-    transform: translateY(-1px);
-  }
-  .order-actions .btn-confirm:active,
-  .order-actions .btn-complete:active {
-    transform: translateY(0);
-  }
-  .order-actions .btn-confirm:disabled,
-  .order-actions .btn-complete:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-  .order-type-tag {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: bold;
-  }
+  .order-actions .btn-confirm { background: #00c853; color: white; }
+  .order-actions .btn-complete { background: #2979ff; color: white; }
+  .order-actions .btn-confirm:hover, .order-actions .btn-complete:hover { opacity: 0.85; transform: translateY(-1px); }
+  .order-actions .btn-confirm:disabled, .order-actions .btn-complete:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .order-type-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
   .tag-NEW { background: #1e90ff; color: white; }
   .tag-RENEW { background: #00bcd4; color: white; }
   .tag-REPURCHASE { background: #9b59b6; color: white; }
   .tag-TIP { background: #ff9800; color: white; }
+
+  /* Settings */
+  .settings-toggle {
+    background: none; border: 1px solid #333; color: #888;
+    border-radius: 6px; padding: 8px 16px; cursor: pointer;
+    margin-top: 12px; width: 100%; font-size: 14px; transition: all 0.2s;
+  }
+  .settings-toggle:hover { border-color: #00d4ff; color: #00d4ff; }
+  .settings-panel { display: none; margin-top: 12px; padding: 16px; background: #0a0e17; border-radius: 8px; border: 1px solid #1e2a3a; }
+  .settings-panel.open { display: block; }
+  .settings-panel label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; margin-top: 10px; }
+  .settings-panel label:first-child { margin-top: 0; }
+  .settings-panel input {
+    width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #333;
+    background: #0d1220; color: #e0e0e0; font-size: 13px; box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+  .settings-panel input:focus { outline: none; border-color: #00d4ff; }
+  .settings-panel .btn-save {
+    width: 100%; margin-top: 14px; padding: 10px; border: none; border-radius: 6px;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+    background: #00d4ff; color: #1a1a2e; transition: all 0.2s;
+  }
+  .settings-panel .btn-save:hover { opacity: 0.85; }
+  .settings-panel .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .settings-panel .status { font-size: 12px; margin-top: 8px; text-align: center; min-height: 18px; }
 
   @keyframes slideIn {
     from { transform: translateY(-24px); opacity: 0; }
@@ -157,7 +103,7 @@
     <button class="btn btn-work" onclick="switchMode('WORK')">🔴 接单模式</button>
     <button class="btn btn-entertainment" onclick="switchMode('ENTERTAINMENT')">🟢 娱乐模式</button>
   </div>
-  <div id="orderNotify" class="order-notify" style="display:none;">
+  <div id="orderNotify" class="order-notify">
     <div class="order-notify-header">
       <span class="title">📋 当前订单</span>
       <button class="dismiss" onclick="dismissOrder()">&times;</button>
@@ -180,6 +126,17 @@
         <button class="btn-complete" onclick="completeOrder()" id="btnComplete">✔️ 完成</button>
       </div>
     </div>
+  </div>
+
+  <!-- 设置 -->
+  <button class="settings-toggle" onclick="toggleSettings()">⚙️ 服务端配置</button>
+  <div id="settingsPanel" class="settings-panel">
+    <label>服务端地址</label>
+    <input type="text" id="cfgServerUrl" placeholder="http://server:3001">
+    <label>Token（JWT）</label>
+    <input type="password" id="cfgToken" placeholder="输入陪玩的 JWT Token">
+    <button class="btn-save" onclick="saveConfig()" id="btnSaveCfg">💾 保存并重连</button>
+    <div class="status" id="cfgStatus"></div>
   </div>
 </div>
 
@@ -206,9 +163,7 @@ async function fetchStatus() {
     document.getElementById('workTime').textContent = formatTime(data.workSec);
     document.getElementById('entertainTime').textContent = formatTime(data.entertainSec);
     document.getElementById('totalTime').textContent = formatTime(data.totalSec);
-  } catch (e) {
-    console.error('Status fetch failed:', e);
-  }
+  } catch (e) { console.error('Status fetch failed:', e); }
 }
 
 async function switchMode(mode) {
@@ -219,65 +174,91 @@ async function switchMode(mode) {
       body: JSON.stringify({ mode }),
     });
     fetchStatus();
-  } catch (e) {
-    console.error('Mode switch failed:', e);
-  }
+  } catch (e) { console.error('Mode switch failed:', e); }
 }
 
 fetchStatus();
 setInterval(fetchStatus, 5000);
 
-// ---- Order Notification ----
-const ORDER_TYPE_LABELS = {
-  NEW: '新单',
-  RENEW: '续费',
-  REPURCHASE: '复购',
-  TIP: '打赏',
-};
+// ----- Settings -----
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('open');
+  if (document.getElementById('settingsPanel').classList.contains('open')) {
+    fetchConfig();
+  }
+}
 
-let lastOrderId = '';
-let orderPending = false;
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    document.getElementById('cfgServerUrl').value = cfg.serverUrl || '';
+    if (cfg.token) document.getElementById('cfgToken').value = cfg.token;
+    setCfgStatus(cfg.configured ? '✅ 已配置 · ' + cfg.serverUrl : '⚠️ 未配置，请输入服务端地址和 Token', cfg.configured);
+  } catch (e) { console.error('Fetch config failed:', e); }
+}
+
+async function saveConfig() {
+  const serverUrl = document.getElementById('cfgServerUrl').value.trim();
+  const token = document.getElementById('cfgToken').value.trim();
+  if (!serverUrl || !token) {
+    setCfgStatus('❌ 服务端地址和 Token 不能为空', false);
+    return;
+  }
+
+  const btn = document.getElementById('btnSaveCfg');
+  btn.disabled = true;
+  btn.textContent = '⏳ 保存中...';
+  setCfgStatus('🔄 正在保存并重连...', false);
+
+  try {
+    const res = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serverUrl, token }),
+    });
+    if (!res.ok) throw new Error('save failed');
+    setCfgStatus('✅ 已保存，已重连至 ' + serverUrl, true);
+  } catch (e) {
+    setCfgStatus('❌ 保存失败: ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 保存并重连';
+  }
+}
+
+function setCfgStatus(msg, ok) {
+  const el = document.getElementById('cfgStatus');
+  el.textContent = msg;
+  el.style.color = ok ? '#00ff88' : '#e94560';
+}
+
+// Load config on start
+fetchConfig();
+
+// ----- Order Notification -----
+const ORDER_TYPE_LABELS = { NEW: '新单', RENEW: '续费', REPURCHASE: '复购', TIP: '打赏' };
+let lastOrderId = '', orderPending = false;
 
 function dismissOrder() {
-  const el = document.getElementById('orderNotify');
-  el.style.display = 'none';
+  document.getElementById('orderNotify').style.display = 'none';
   lastOrderId = '';
 }
 
 async function confirmOrder() {
-  if (orderPending) return;
-  orderPending = true;
-  const btn = document.getElementById('btnConfirm');
-  btn.disabled = true;
-  btn.textContent = '⏳ 确认中...';
-  try {
-    await fetch('/api/orders/confirm', { method: 'POST' });
-    dismissOrder();
-  } catch (e) {
-    console.error('Confirm order failed:', e);
-    btn.disabled = false;
-    btn.textContent = '✅ 确认接单';
-  } finally {
-    orderPending = false;
-  }
+  if (orderPending) return; orderPending = true;
+  const btn = document.getElementById('btnConfirm'); btn.disabled = true; btn.textContent = '⏳ 确认中...';
+  try { await fetch('/api/orders/confirm', { method: 'POST' }); dismissOrder(); }
+  catch (e) { console.error(e); btn.disabled = false; btn.textContent = '✅ 确认接单'; }
+  finally { orderPending = false; }
 }
 
 async function completeOrder() {
-  if (orderPending) return;
-  orderPending = true;
-  const btn = document.getElementById('btnComplete');
-  btn.disabled = true;
-  btn.textContent = '⏳ 完成中...';
-  try {
-    await fetch('/api/orders/complete', { method: 'POST' });
-    dismissOrder();
-  } catch (e) {
-    console.error('Complete order failed:', e);
-    btn.disabled = false;
-    btn.textContent = '✔️ 完成';
-  } finally {
-    orderPending = false;
-  }
+  if (orderPending) return; orderPending = true;
+  const btn = document.getElementById('btnComplete'); btn.disabled = true; btn.textContent = '⏳ 完成中...';
+  try { await fetch('/api/orders/complete', { method: 'POST' }); dismissOrder(); }
+  catch (e) { console.error(e); btn.disabled = false; btn.textContent = '✔️ 完成'; }
+  finally { orderPending = false; }
 }
 
 async function fetchLatestOrder() {
@@ -286,36 +267,17 @@ async function fetchLatestOrder() {
     const order = await res.json();
     if (!order || !order.id) return;
     if (order.id === lastOrderId) return;
-
     lastOrderId = order.id;
     document.getElementById('orderGameName').textContent = order.gameName || '--';
-    document.getElementById('orderAmount').textContent =
-      '¥' + (order.amount != null ? Number(order.amount).toFixed(2) : '0.00');
-
+    document.getElementById('orderAmount').textContent = '¥' + (order.amount != null ? Number(order.amount).toFixed(2) : '0.00');
     const orderType = order.type || order.orderType || '';
     const label = ORDER_TYPE_LABELS[orderType] || orderType;
-    const tag = document.getElementById('orderTypeTag');
-    tag.textContent = label;
-    tag.className = 'order-type-tag tag-' + orderType;
-
-    // Reset action buttons
-    const btnConfirm = document.getElementById('btnConfirm');
-    btnConfirm.disabled = false;
-    btnConfirm.textContent = '✅ 确认接单';
-    const btnComplete = document.getElementById('btnComplete');
-    btnComplete.disabled = false;
-    btnComplete.textContent = '✔️ 完成';
-
+    const tag = document.getElementById('orderTypeTag'); tag.textContent = label; tag.className = 'order-type-tag tag-' + orderType;
+    const btnConfirm = document.getElementById('btnConfirm'); btnConfirm.disabled = false; btnConfirm.textContent = '✅ 确认接单';
+    const btnComplete = document.getElementById('btnComplete'); btnComplete.disabled = false; btnComplete.textContent = '✔️ 完成';
     const el = document.getElementById('orderNotify');
-    // Trigger re-animation
-    el.style.display = 'none';
-    void el.offsetWidth;
-    el.style.display = 'block';
-
-    // No auto-dismiss — only dismiss on action or manual dismiss
-  } catch (e) {
-    // Silently ignore — endpoint may not be ready yet
-  }
+    el.style.display = 'none'; void el.offsetWidth; el.style.display = 'block';
+  } catch (e) {}
 }
 
 setInterval(fetchLatestOrder, 3000);

@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/chunlv/agent/internal/config"
 	"github.com/chunlv/agent/internal/engine"
 	"github.com/chunlv/agent/internal/httplocal"
 	"github.com/chunlv/agent/internal/netctrl"
@@ -14,17 +15,26 @@ import (
 )
 
 func main() {
-	serverURL := getEnv("AGENT_SERVER_URL", "http://localhost:3001")
-	token := getEnv("AGENT_TOKEN", "")
+	cfg := config.Load()
+	config.Update(cfg)
 
-	tracker := engine.NewTimeTracker()
-	wsClient := wsclient.NewClient(serverURL, token, tracker)
+	log.Printf("Chunlv Agent starting...")
+	log.Printf("  Server: %s", cfg.ServerURL)
 
+	wsClient := wsclient.NewClient(cfg.ServerURL, cfg.Token, engine.NewTimeTracker())
 	go wsClient.Connect()
-	go httplocal.StartServer(":9876", tracker, wsClient)
+
+	// 配置变更回调：断开旧连接，用新配置重连
+	onReconfig := func(newCfg config.AgentConfig) {
+		log.Printf("Config changed, reconnecting to %s", newCfg.ServerURL)
+		wsClient.Disconnect()
+		wsClient = wsclient.NewClient(newCfg.ServerURL, newCfg.Token, engine.NewTimeTracker())
+		go wsClient.Connect()
+	}
+
+	go httplocal.StartServer(":9876", engine.NewTimeTracker(), wsClient, onReconfig)
 
 	log.Println("Chunlv Agent started")
-	log.Printf("  Server: %s", serverURL)
 	log.Println("  Local UI: http://localhost:9876")
 
 	sigChan := make(chan os.Signal, 1)
@@ -58,11 +68,4 @@ func main() {
 			wsClient.SendAck(cmd.Command, success)
 		}
 	}
-}
-
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
