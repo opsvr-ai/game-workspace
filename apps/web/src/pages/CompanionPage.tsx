@@ -31,27 +31,32 @@ const CompanionPage: React.FC = () => {
           20% { opacity: 1; }
           100% { transform: translateX(0); opacity: 1; }
         }
-        @keyframes arrow-dash {
-          0% { left: 0; opacity: 1; }
-          100% { left: calc(100% - 30px); opacity: 0.3; }
-        }
-        @keyframes glow-pulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(123,97,255,0.4); }
-          50% { box-shadow: 0 0 20px rgba(0,212,255,0.6); }
+        @keyframes metal-arrow {
+          0% { transform: translateX(-20px); opacity: 0.3; filter: brightness(1); }
+          50% { transform: translateX(0); opacity: 1; filter: brightness(1.6); }
+          100% { transform: translateX(20px); opacity: 0.3; filter: brightness(1); }
         }
         .rank-row { animation: sprint 0.6s ease-out forwards; opacity: 0; }
-        .rank-row:nth-child(1) { animation-delay: 0.05s; }
-        .rank-row:nth-child(2) { animation-delay: 0.1s; }
-        .rank-row:nth-child(3) { animation-delay: 0.15s; }
-        .rank-row:nth-child(4) { animation-delay: 0.2s; }
-        .rank-row:nth-child(5) { animation-delay: 0.25s; }
-        .rank-row:nth-child(6) { animation-delay: 0.3s; }
-        .rank-row:nth-child(7) { animation-delay: 0.35s; }
-        .rank-row:nth-child(8) { animation-delay: 0.4s; }
-        .rank-row:nth-child(9) { animation-delay: 0.45s; }
-        .rank-row:nth-child(10) { animation-delay: 0.5s; }
-        .rank-row:nth-child(11) { animation-delay: 0.55s; }
-        .rank-row:nth-child(12) { animation-delay: 0.6s; }
+        .rank-row:nth-child(1) { animation-delay: 0.03s; }
+        .rank-row:nth-child(2) { animation-delay: 0.06s; }
+        .rank-row:nth-child(3) { animation-delay: 0.09s; }
+        .rank-row:nth-child(4) { animation-delay: 0.12s; }
+        .rank-row:nth-child(5) { animation-delay: 0.15s; }
+        .rank-row:nth-child(6) { animation-delay: 0.18s; }
+        .rank-row:nth-child(7) { animation-delay: 0.21s; }
+        .rank-row:nth-child(8) { animation-delay: 0.24s; }
+        .rank-row:nth-child(9) { animation-delay: 0.27s; }
+        .rank-row:nth-child(10) { animation-delay: 0.30s; }
+        .rank-row:nth-child(11) { animation-delay: 0.33s; }
+        .rank-row:nth-child(12) { animation-delay: 0.36s; }
+        .arrow-metal {
+          display: inline-block; width: 0; height: 0;
+          border-top: 7px solid transparent;
+          border-bottom: 7px solid transparent;
+          border-left: 14px solid;
+          border-left-color: inherit;
+          filter: drop-shadow(0 0 3px currentColor);
+        }
       `}</style>
 
       {/* 标题 */}
@@ -63,7 +68,7 @@ const CompanionPage: React.FC = () => {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             backgroundSize: '200% 100%', animation: 'bolt 2s ease-in-out infinite',
           }}>
-            ⚡ 业绩排行榜
+            ▶ 业绩排行榜
           </Text>
           <br /><Text type="secondary" style={{ fontSize: 12 }}>LIGHTNING LEAGUE · 本月收入冲刺</Text>
         </div>
@@ -103,7 +108,7 @@ const CompanionPage: React.FC = () => {
             {/* 闪电背景条 */}
             <div style={{
               position: 'absolute', inset: 0, borderRadius: 8,
-              background: `linear-gradient(90deg, rgba(123,97,255,0.06) 0%, rgba(0,212,255,0.12) ${pct}%, transparent ${pct}%)`,
+              background: `linear-gradient(90deg, rgba(192,192,192,0.08) 0%, rgba(212,175,55,0.06) ${pct}%, transparent ${pct}%)`,
               transition: 'all 1.5s ease',
             }} />
 
@@ -133,17 +138,24 @@ const CompanionPage: React.FC = () => {
                 <span style={{
                   display: 'block', height: '100%', borderRadius: 3, width: `${pct}%`,
                   background: isMe
-                    ? 'linear-gradient(90deg, #00D4FF, #7B61FF)'
+                    ? 'linear-gradient(90deg, #00D4FF, #C0C0C0, #7B61FF)'
                     : rank <= 3
-                      ? 'linear-gradient(90deg, #FFD700, #FFA500)'
-                      : 'linear-gradient(90deg, #7B61FF, #00D4FF)',
+                      ? 'linear-gradient(90deg, #FFD700, #FFF8DC, #FFD700)'
+                      : 'linear-gradient(90deg, #B8B8B8, #E8E8E8, #A0A0A0)',
                   transition: 'width 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
                 }}>
                   <span style={{
-                    position: 'absolute', right: -8, top: -5,
-                    fontSize: 16, animation: 'arrow-dash 1.5s ease-in-out infinite',
-                  }}>⚡</span>
+                    position: 'absolute', right: -12, top: -6,
+                    display: 'inline-block',
+                    width: 0, height: 0,
+                    borderTop: '7px solid transparent',
+                    borderBottom: '7px solid transparent',
+                    borderLeft: '14px solid currentColor',
+                    filter: 'drop-shadow(0 0 4px currentColor)',
+                    animation: 'metal-arrow 1.2s ease-in-out infinite',
+                    color: isMe ? '#00D4FF' : rank <= 3 ? '#FFD700' : '#C0C0C0',
+                  }} />
                 </span>
               </span>
               <span style={{ fontSize: 12, fontWeight: 700, color: pct > 50 ? '#34C759' : '#94A3B8', minWidth: 36, textAlign: 'right' }}>
