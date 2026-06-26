@@ -30,7 +30,7 @@ export class BillingController {
 
   // ── Transactions ──
 
-  @Post('api/transactions')
+  @Post('transactions')
   @Roles(UserRole.COMPANION)
   async createTransaction(
     @Body() dto: CreateTransactionDto,
@@ -43,7 +43,7 @@ export class BillingController {
     return { code: 201, message: '报账提交成功', data };
   }
 
-  @Get('api/transactions')
+  @Get('transactions')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async findAll(
     @Req() req: any,
@@ -53,7 +53,7 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
-  @Put('api/transactions/:id/approve')
+  @Put('transactions/:id/approve')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async approve(
     @Param('id') id: string,
@@ -63,7 +63,7 @@ export class BillingController {
     return { code: 200, message: '审核通过', data };
   }
 
-  @Put('api/transactions/:id/reject')
+  @Put('transactions/:id/reject')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async reject(
     @Param('id') id: string,
@@ -73,7 +73,7 @@ export class BillingController {
     return { code: 200, message: '已拒绝', data };
   }
 
-  @Put('api/transactions/batch')
+  @Put('transactions/batch')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async batchUpdate(
     @Body() dto: { ids: string[]; action: 'approve' | 'reject' },
@@ -104,7 +104,7 @@ export class BillingController {
 
   // ── Revenue ──
 
-  @Get('api/revenue/daily')
+  @Get('revenue/daily')
   async getDailyRevenue(
     @Req() req: any,
     @Query('date') date?: string,
@@ -116,7 +116,7 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
-  @Get('api/revenue/monthly')
+  @Get('revenue/monthly')
   async getMonthlyRevenue(
     @Req() req: any,
     @Query('month') month?: string,
@@ -128,7 +128,7 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
-  @Get('api/revenue/daily/csv')
+  @Get('revenue/daily/csv')
   async getDailyRevenueCSV(
     @Req() req: any,
     @Res() res: any,
@@ -176,7 +176,7 @@ export class BillingController {
     res.send(csv);
   }
 
-  @Get('api/revenue/monthly/csv')
+  @Get('revenue/monthly/csv')
   async getMonthlyRevenueCSV(
     @Req() req: any,
     @Res() res: any,
@@ -217,7 +217,7 @@ export class BillingController {
     res.send(csv);
   }
 
-  @Get('api/revenue/stats')
+  @Get('revenue/stats')
   @Roles(UserRole.OWNER)
   getProfitLoss(
     @Req() req: any,
@@ -235,7 +235,7 @@ export class BillingController {
 
   // ── Expenses ──
 
-  @Post('api/expenses')
+  @Post('expenses')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async createExpense(
     @Req() req: any,
@@ -248,7 +248,7 @@ export class BillingController {
     return { code: 201, message: '支出记录已创建', data };
   }
 
-  @Get('api/expenses')
+  @Get('expenses')
   async getExpenses(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.billingService.getExpenses(req.user.studioId);
     return { code: 200, message: 'ok', data };

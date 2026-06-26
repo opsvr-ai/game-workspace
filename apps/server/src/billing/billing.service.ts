@@ -127,7 +127,7 @@ export class BillingService {
     }
 
     const studioFilter =
-      user.role === 'ADMIN' || user.role === 'OWNER'
+      (user.role === 'ADMIN' || user.role === 'OWNER') && user.studioId
         ? { companion: { studioId: user.studioId } }
         : {};
 
@@ -149,6 +149,9 @@ export class BillingService {
   // ── Revenue statistics ──
 
   async getDailyRevenue(studioId: string, dateStr?: string) {
+    if (!studioId) {
+      return { date: dateStr ?? new Date().toISOString().slice(0, 10), studioId: null, breakdown: {} as Record<string, { count: number; amount: number }>, totalAmount: 0 };
+    }
     const date = dateStr ? new Date(dateStr) : new Date();
     const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
@@ -187,6 +190,10 @@ export class BillingService {
   }
 
   async getMonthlyRevenue(studioId: string, monthStr?: string) {
+    if (!studioId) {
+      const now = new Date();
+      return { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, studioId: null, totalAmount: 0, companionRevenue: [] };
+    }
     let year: number;
     let month: number;
 
@@ -246,6 +253,10 @@ export class BillingService {
   }
 
   async getProfitLoss(studioId: string) {
+    if (!studioId) {
+      const now = new Date();
+      return { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, studioId: null, totalRevenue: 0, totalExpense: 0, profit: 0 };
+    }
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -287,6 +298,7 @@ export class BillingService {
     studioId: string,
     dto: { category: string; amount: number; description?: string; date?: string },
   ) {
+    if (!studioId) throw new ForbiddenException('无工作室权限，无法创建支出');
     return this.prisma.expense.create({
       data: {
         studioId,
@@ -299,6 +311,7 @@ export class BillingService {
   }
 
   async getExpenses(studioId: string) {
+    if (!studioId) return [];
     return this.prisma.expense.findMany({
       where: { studioId },
       orderBy: { date: 'desc' },

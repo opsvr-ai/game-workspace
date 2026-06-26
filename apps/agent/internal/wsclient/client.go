@@ -128,6 +128,7 @@ func (c *Client) Login() error {
 		return fmt.Errorf("login failed: %s", result.Message)
 	}
 	c.token = result.Data.AccessToken
+	c.password = "" // 登录成功后清除明文密码，仅保留 Token
 	config.SetToken(c.token)
 	log.Printf("Login OK — welcome %s", c.username)
 	return nil

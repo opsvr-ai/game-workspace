@@ -21,7 +21,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post('orders')
-  @Roles(UserRole.CS, UserRole.ADMIN)
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async create(
     @Body() dto: CreateOrderDto,
     @Req() req: any,
@@ -40,7 +40,7 @@ export class OrdersController {
   }
 
   @Get('orders')
-  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION)
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(
     @Req() req: any,
     @Query('status') status?: string,

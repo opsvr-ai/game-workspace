@@ -25,7 +25,7 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UploadController {
-  @Post('api/upload/screenshot')
+  @Post('upload/screenshot')
   @Roles(UserRole.COMPANION)
   @UseInterceptors(
     FileInterceptor('file', {

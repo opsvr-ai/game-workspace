@@ -77,6 +77,7 @@ export class OrdersService {
     if (user.role === 'COMPANION') where.companionId = user.companionId;
     else if (user.role === 'CS') where.csUserId = user.id;
     else if (user.role === 'ADMIN') where.studioId = user.studioId;
+    // OWNER: 不添加过滤条件，可以看到所有订单
     return this.prisma.order.findMany({
       where,
       include: {

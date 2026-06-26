@@ -26,7 +26,14 @@ export class StudiosService {
         ...(studioId ? { studioId } : {}),
         role: { not: 'OWNER' },
       },
-      include: {
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        studioId: true,
+        isAuthorized: true,
+        createdAt: true,
+        // 排除 passwordHash 和 secondPasswordHash，防止密码哈希泄露
         studio: { select: { id: true, name: true } },
         companion: { select: { id: true, status: true, monthlyRevenue: true, games: true } },
       },

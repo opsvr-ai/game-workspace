@@ -43,6 +43,8 @@ func Save(c AgentConfig) error {
 	mu.Lock()
 	defer mu.Unlock()
 
+	// 不持久化明文密码，仅保留 Token 用于自动登录
+	c.Password = ""
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
