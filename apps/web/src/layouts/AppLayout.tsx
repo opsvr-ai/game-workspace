@@ -53,6 +53,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/owner/employees', icon: IconEmployees, label: '员工管理' },
     { key: '/owner/studios', icon: IconStudios, label: '工作室管理' },
     { key: '/owner/authorizations', icon: IconAuth, label: '客户端授权' },
+    { key: '/owner/review', icon: IconAuth, label: '实名审核' },
   ],
   [UserRole.ADMIN]: [
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
@@ -61,6 +62,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/billing', icon: IconBilling, label: '报账审核' },
     { key: '/admin/revenue', icon: IconRevenue, label: '收入流水' },
     { key: '/admin/pc-control', icon: IconPc, label: '远程控制' },
+    { key: '/admin/review', icon: IconAuth, label: '实名审核' },
   ],
   [UserRole.CS]: [
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },

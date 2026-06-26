@@ -43,6 +43,15 @@ model Companion {
   billingCode    String   @unique
   revenueShare   Float    @default(0.6)
   monthlyRevenue Float    @default(0)
+  realName       String?
+  idNumber       String?
+  phone          String?
+  idCardFront    String?
+  idCardBack     String?
+  reviewStatus   String   @default("PENDING")  // PENDING | APPROVED | REJECTED
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
   createdAt      DateTime @default(now())
 
   user      User            @relation(fields: [userId], references: [id])

@@ -15,6 +15,7 @@ import EmployeesPage from './pages/owner/EmployeesPage';
 import StudiosPage from './pages/owner/StudiosPage';
 import AuthorizationsPage from './pages/owner/AuthorizationsPage';
 import OwnerRevenuePage from './pages/owner/RevenuePage';
+import ReviewPage from './pages/admin/ReviewPage';
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
         path: 'owner/authorizations',
         element: <AuthorizationsPage />,
       },
+      {
+        path: 'owner/review',
+        element: <ReviewPage />,
+      },
       // Admin routes
       {
         path: 'admin/dispatch',
@@ -70,6 +75,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/pc-control',
         element: <AdminPcControlPage />,
+      },
+      {
+        path: 'admin/review',
+        element: <ReviewPage />,
       },
       // CS routes
       {

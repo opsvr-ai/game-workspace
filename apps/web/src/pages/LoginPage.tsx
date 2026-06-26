@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Button, Typography, message } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { Input, Button, Typography, message, Select, Upload, Form } from 'antd';
+import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
+import http from '../api/client';
 
 const { Text } = Typography;
+const { Option } = Select;
 
 const IconUser = React.createElement(UserOutlined);
 const IconLock = React.createElement(LockOutlined);
@@ -18,96 +20,136 @@ const roleRouteMap: Record<UserRole, string> = {
 };
 
 const LoginPage: React.FC = () => {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('hanlei');
   const [password, setPassword] = useState('123456');
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
 
+  // 注册字段
+  const [realName, setRealName] = useState('');
+  const [idNumber, setIdNumber] = useState('');
+  const [phone, setPhone] = useState('');
+  const [idCardFront, setIdCardFront] = useState<File | null>(null);
+  const [idCardBack, setIdCardBack] = useState<File | null>(null);
+  const [studios, setStudios] = useState<{ id: string; name: string }[]>([]);
+  const [registerStudioId, setRegisterStudioId] = useState('');
+
+  useEffect(() => {
+    http.get('/studios').then(({ data }) => setStudios(data.data ?? [])).catch(() => {});
+  }, []);
+
   const handleLogin = async () => {
-    if (!username || !password) {
-      message.warning('请输入用户名和密码');
-      return;
-    }
+    if (!username || !password) { message.warning('请输入用户名和密码'); return; }
     setLoading(true);
     try {
       const user = await login({ username, password });
       message.success(`欢迎回来，${user.username}`);
-      const route = roleRouteMap[user.role] || '/login';
-      navigate(route, { replace: true });
+      navigate(roleRouteMap[user.role] || '/login', { replace: true });
     } catch (err: any) {
-      const msg = err?.response?.data?.message || '登录失败，请检查用户名和密码';
-      message.error(msg);
-    } finally {
-      setLoading(false);
+      message.error(err?.response?.data?.message || '登录失败');
+    } finally { setLoading(false); }
+  };
+
+  const handleRegister = async () => {
+    if (!username || !password || !realName || !idNumber || !phone || !registerStudioId) {
+      message.warning('请填写所有必填字段');
+      return;
     }
+    if (!idCardFront || !idCardBack) {
+      message.warning('请上传身份证正反面');
+      return;
+    }
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+      formData.append('realName', realName);
+      formData.append('idNumber', idNumber);
+      formData.append('phone', phone);
+      formData.append('studioId', registerStudioId);
+      formData.append('idCardFront', idCardFront);
+      formData.append('idCardBack', idCardBack);
+
+      await http.post('/auth/register', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      message.success('注册成功！请等待管理员审核通过后登录');
+      setMode('login');
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '注册失败');
+    } finally { setLoading(false); }
   };
 
   return (
     <div className="login-wrapper">
-      <div className="login-card">
+      <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>蠢驴电竞</h1>
         <div className="subtitle">CHUNLV ESPORTS · 陪玩派单管理系统</div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Input
-            size="large"
-            placeholder="用户名"
-            prefix={IconUser}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onPressEnter={handleLogin}
-          />
-          <Input.Password
-            size="large"
-            placeholder="密码"
-            prefix={IconLock}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onPressEnter={handleLogin}
-          />
-          <Button
-            type="primary"
-            size="large"
-            block
-            loading={loading}
-            onClick={handleLogin}
-            style={{
-              height: 46,
-              fontSize: 16,
-              fontWeight: 600,
-              borderRadius: 10,
-              marginTop: 4,
-              background: 'linear-gradient(135deg, #7B61FF, #00D4FF)',
-              border: 'none',
-              color: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(123,97,255,0.3)',
-            }}
-          >
-            登 录
-          </Button>
-        </div>
+        {mode === 'login' ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Input size="large" placeholder="用户名" prefix={IconUser}
+                value={username} onChange={(e) => setUsername(e.target.value)} onPressEnter={handleLogin} />
+              <Input.Password size="large" placeholder="密码" prefix={IconLock}
+                value={password} onChange={(e) => setPassword(e.target.value)} onPressEnter={handleLogin} />
+              <Button type="primary" size="large" block loading={loading} onClick={handleLogin}
+                style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4,
+                  background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', border: 'none', color: '#FFF',
+                  boxShadow: '0 2px 8px rgba(123,97,255,0.3)' }}>
+                登 录
+              </Button>
+            </div>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <Button type="link" onClick={() => setMode('register')} style={{ color: '#00D4FF', fontSize: 13 }}>
+                陪玩注册 →
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
+              <Input size="large" placeholder="用户名 *" value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Input.Password size="large" placeholder="密码 *" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input size="large" placeholder="真实姓名 *" value={realName} onChange={(e) => setRealName(e.target.value)} />
+              <Input size="large" placeholder="身份证号 *" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+              <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Select size="large" placeholder="选择工作室 *" value={registerStudioId || undefined} onChange={(v) => setRegisterStudioId(v)}>
+                {studios.map((s) => <Option key={s.id} value={s.id}>{s.name}</Option>)}
+              </Select>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Upload beforeUpload={(f) => { setIdCardFront(f); return false; }} maxCount={1} accept="image/*">
+                  <Button icon={React.createElement(UploadOutlined)}>{idCardFront ? '✓ 正面已选' : '身份证正面 *'}</Button>
+                </Upload>
+                <Upload beforeUpload={(f) => { setIdCardBack(f); return false; }} maxCount={1} accept="image/*">
+                  <Button icon={React.createElement(UploadOutlined)}>{idCardBack ? '✓ 反面已选' : '身份证反面 *'}</Button>
+                </Upload>
+              </div>
+              <Button type="primary" size="large" block loading={loading} onClick={handleRegister}
+                style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4,
+                  background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', border: 'none', color: '#FFF' }}>
+                提交注册
+              </Button>
+            </div>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <Button type="link" onClick={() => setMode('login')} style={{ color: '#94A3B8', fontSize: 13 }}>
+                ← 返回登录
+              </Button>
+            </div>
+          </>
+        )}
 
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <a
-            href="/api/download/agent"
-            download
-            style={{
-              color: '#00D4FF',
-              fontSize: 13,
-              textDecoration: 'none',
-              fontWeight: 500,
-            }}
-          >
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <a href="/api/download/agent" download style={{ color: '#00D4FF', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}>
             📥 下载 Windows 客户端
           </a>
         </div>
-
-        <div style={{ marginTop: 12, textAlign: 'center' }}>
-          <Text style={{ color: '#94A3B8', fontSize: 12 }}>
-            v2.1 · 面向电竞陪玩工作室
-          </Text>
+        <div style={{ marginTop: 8, textAlign: 'center' }}>
+          <Text style={{ color: '#94A3B8', fontSize: 12 }}>v2.1 · 面向电竞陪玩工作室</Text>
         </div>
       </div>
     </div>
