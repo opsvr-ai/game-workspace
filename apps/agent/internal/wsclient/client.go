@@ -89,6 +89,8 @@ type Client struct {
 	conn      *websocket.Conn
 	CommandChan chan Command
 	done      chan struct{}
+	writeMu   sync.Mutex     // protects conn writes
+	cancel    chan struct{}  // signals heartbeatLoop to exit on reconnect
 }
 
 func NewClient(serverURL, username, password string, tracker *engine.TimeTracker) *Client {
@@ -99,6 +101,7 @@ func NewClient(serverURL, username, password string, tracker *engine.TimeTracker
 		tracker:     tracker,
 		CommandChan: make(chan Command, 10),
 		done:        make(chan struct{}),
+		cancel:      make(chan struct{}),
 	}
 }
 
@@ -151,6 +154,12 @@ func (c *Client) Connect() {
 	serverURL = strings.Replace(serverURL, "https://", "wss://", 1)
 
 	for {
+		// 通知旧的 heartbeatLoop 退出
+		if c.cancel != nil {
+			close(c.cancel)
+		}
+		c.cancel = make(chan struct{})
+
 		url := serverURL + "/socket.io/?EIO=4&transport=websocket&token=" + c.token
 		conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 		if err != nil {
@@ -161,8 +170,13 @@ func (c *Client) Connect() {
 		c.conn = conn
 		log.Println("WebSocket connected")
 
-		go c.heartbeatLoop()
+		go c.heartbeatLoop(c.cancel)
 		c.readLoop()
+
+		// 连接断开，清理
+		c.writeMu.Lock()
+		c.conn = nil
+		c.writeMu.Unlock()
 
 		select {
 		case <-c.done:
@@ -174,7 +188,7 @@ func (c *Client) Connect() {
 	}
 }
 
-func (c *Client) heartbeatLoop() {
+func (c *Client) heartbeatLoop(cancel <-chan struct{}) {
 	// 首次启动立即通过 REST 注册，让服务端能看到客户端
 	go c.sendRestHeartbeat()
 
@@ -185,6 +199,8 @@ func (c *Client) heartbeatLoop() {
 		select {
 		case <-c.done:
 			return
+		case <-cancel:
+			return // reconnect requested
 		case <-ticker.C:
 			// REST 心跳（可靠），让服务端感知在线状态
 			go c.sendRestHeartbeat()
@@ -261,6 +277,8 @@ func (c *Client) readLoop() {
 }
 
 func (c *Client) emit(event string, data interface{}) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	if c.conn == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -325,7 +343,13 @@ func ClearCurrentOrder() {
 
 func (c *Client) Disconnect() {
 	close(c.done)
+	if c.cancel != nil {
+		close(c.cancel)
+	}
+	c.writeMu.Lock()
 	if c.conn != nil {
 		c.conn.Close()
+		c.conn = nil
 	}
+	c.writeMu.Unlock()
 }
