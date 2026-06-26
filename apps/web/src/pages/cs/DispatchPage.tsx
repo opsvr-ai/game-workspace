@@ -310,7 +310,7 @@ const DispatchPage: React.FC = () => {
                           {(order.customFields?.customerWechat || order.customer?.wechatId) && <span style={{ fontSize: 11, color: '#CBD5E1' }}>💬✳️✳️✳️</span>}
                           {order.customFields?.customerRoomCode && <span style={{ fontSize: 11, color: '#CBD5E1' }}>🏠✳️✳️✳️</span>}
                           <span style={{ fontSize: 11, color: '#CBD5E1', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('zh-CN') : ''}
+                            {order.createdAt ? new Date(order.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}
                           </span>
                           <Button type="primary" size="small" loading={grabbingId === order.id}
                             onClick={(e) => handleGrab(order.id, e)}
