@@ -4,39 +4,39 @@ import (
 	"bytes"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/png"
 )
 
 // generateIcon creates a 32x32 tray icon PNG at runtime.
-// Blue-purple gradient circle with a "G" letter on a transparent background.
+// Dark blue-purple gradient circle with a white "G" letter, opaque background.
 func generateIcon() []byte {
 	const size = 32
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 
-	// Fill transparent background
-	draw.Draw(img, img.Bounds(), image.Transparent, image.Point{}, draw.Src)
-
 	cx, cy := size/2, size/2
-	radius := size/2 - 2
+	radius := size/2 - 1
 
-	// Draw filled circle with gradient effect
+	bgColor := color.RGBA{40, 44, 52, 255} // dark gray background
+
+	// Draw circle on solid background
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			dx, dy := x-cx, y-cy
 			dist2 := dx*dx + dy*dy
 			if dist2 <= radius*radius {
-				// Gradient: top-left → blue, bottom-right → purple
+				// Gradient inside circle: blue → purple
 				t := float64(x+y) / float64(size*2)
-				r := uint8(60 + int(140*t))
-				g := uint8(80 + int(60*t))
-				b := uint8(200 - int(40*t))
+				r := uint8(60 + int(160*t))
+				g := uint8(70 + int(80*t))
+				b := uint8(210 - int(60*t))
 				img.Set(x, y, color.RGBA{r, g, b, 255})
+			} else {
+				img.Set(x, y, bgColor)
 			}
 		}
 	}
 
-	// Draw "G" letter in white (simple pixel art)
+	// Draw bold white "G"
 	drawG(img, cx, cy)
 
 	var buf bytes.Buffer
@@ -44,25 +44,28 @@ func generateIcon() []byte {
 	return buf.Bytes()
 }
 
-// drawG draws a stylized "G" letter centered at (cx, cy).
-// Uses a simple 7x9 pixel grid.
 func drawG(img *image.RGBA, cx, cy int) {
 	white := color.RGBA{255, 255, 255, 255}
-	// G pattern (7 wide x 9 tall), centered
+
+	// Bold "G" pattern — 11 wide x 13 tall
 	pattern := []string{
-		"  XXX  ",
-		" X   X ",
-		"X     X",
-		"X      ",
-		"X  XXX ",
-		"X    X ",
-		"X    X ",
-		" X   X ",
-		"  XXX  ",
+		"   XXXXXXX  ",
+		"  XX     XX ",
+		" XX       XX",
+		" XX         ",
+		" XX         ",
+		" XX   XXXXX ",
+		" XX      XX ",
+		" XX      XX ",
+		" XX       XX",
+		"  XX     XX ",
+		"   XX   XX  ",
+		"    XXXXXX  ",
+		"         XX ",
 	}
 
-	startX := cx - 3
-	startY := cy - 4
+	startX := cx - 5
+	startY := cy - 6
 
 	for row, line := range pattern {
 		for col, ch := range line {

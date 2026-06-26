@@ -17,13 +17,6 @@ import (
 )
 
 // Start launches the system tray icon and blocks until the user quits.
-//
-// Parameters:
-//   - addr: local HTTP server address (e.g. ":9876")
-//   - tracker: shared time tracker for mode switching and status
-//   - wsClient: shared WebSocket client for server communication
-//   - httpStart: function that starts the local HTTP server (non-blocking)
-//   - onReconfig: called when config is saved via the settings page, triggers reconnect
 func Start(
 	addr string,
 	tracker *engine.TimeTracker,
@@ -66,22 +59,39 @@ func onReady(
 	for {
 		select {
 		case <-mSwitch.ClickedCh:
-			// Toggle mode
+			// Show popup dialog to confirm mode switch
+			var currentName, targetName string
 			var newMode engine.Mode
 			var status string
+			var switchToWork bool
+
 			if currentMode == engine.ModeWork {
+				currentName = "接单中"
+				targetName = "娱乐模式"
 				newMode = engine.ModeEntertainment
 				status = "IDLE"
-				mSwitch.SetTitle("切换为接单模式")
+				switchToWork = false
 			} else {
+				currentName = "娱乐中"
+				targetName = "接单模式"
 				newMode = engine.ModeWork
 				status = "ONLINE"
-				mSwitch.SetTitle("切换为娱乐模式")
+				switchToWork = true
 			}
-			currentMode = newMode
-			tracker.SwitchMode(newMode)
-			wsClient.SendStatus(status, newMode)
-			log.Printf("Mode switched to %s", newMode)
+
+			if showModeSwitchDialog(currentName, targetName) {
+				currentMode = newMode
+				tracker.SwitchMode(newMode)
+				wsClient.SendStatus(status, newMode)
+				log.Printf("Mode switched to %s", newMode)
+
+				// Update menu item text
+				if switchToWork {
+					mSwitch.SetTitle("切换为娱乐模式")
+				} else {
+					mSwitch.SetTitle("切换为接单模式")
+				}
+			}
 
 		case <-mSettings.ClickedCh:
 			// Open browser to settings page
@@ -104,7 +114,6 @@ func onExit(wsClient *wsclient.Client) func() {
 }
 
 // commandLoop reads commands from the WebSocket client and dispatches them.
-// This mirrors the command dispatch that was in main.go.
 func commandLoop(wsClient *wsclient.Client) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
