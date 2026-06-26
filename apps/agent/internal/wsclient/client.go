@@ -137,6 +137,17 @@ func (c *Client) Login() error {
 	return nil
 }
 
+// SetToken sets the JWT token for authenticated WebSocket connections.
+// Used by the popup login flow to inject a token obtained via manual login.
+func (c *Client) SetToken(token string) {
+	c.token = token
+}
+
+// Token returns the current JWT token (empty if not logged in).
+func (c *Client) Token() string {
+	return c.token
+}
+
 func (c *Client) Connect() {
 	// 先登录获取 Token
 	for {
@@ -148,6 +159,22 @@ func (c *Client) Connect() {
 		break
 	}
 
+	c.connectWebSocket()
+}
+
+// ConnectAuthenticated connects the WebSocket using an already-obtained token.
+// Unlike Connect(), it skips the Login() step — the caller must have set the
+// token via SetToken() or the popup login flow beforehand.
+func (c *Client) ConnectAuthenticated() {
+	if c.token == "" {
+		log.Println("ConnectAuthenticated: no token set, skipping")
+		return
+	}
+	c.connectWebSocket()
+}
+
+// connectWebSocket is the shared WebSocket connect+reconnect loop.
+func (c *Client) connectWebSocket() {
 	// Normalize URL scheme: gorilla/websocket expects ws:// or wss://
 	serverURL := c.serverURL
 	serverURL = strings.Replace(serverURL, "http://", "ws://", 1)

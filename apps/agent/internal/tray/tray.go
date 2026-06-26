@@ -65,6 +65,7 @@ const (
 	IDM_SWITCH = 1001
 	IDM_QUIT   = 1003
 	IDM_SHOW   = 1004
+	IDM_LOGOUT = 1005
 
 	NOTIFYICONDATA_V3_SIZE = 956
 )
@@ -119,10 +120,20 @@ func Run(
 
 	// Create the floating popup window (hidden by default).
 	// Must happen before the message loop so it can receive messages.
-	popupWindow = NewPopup(tracker, wsClient, config.Get().Username)
+	cfg := config.Get()
+	popupWindow = NewPopup(tracker, wsClient, cfg.Username, cfg.ServerURL)
 
 	// Start background services.
-	go wsClient.Connect()
+	// Strategy:
+	// - Token exists → ConnectAuthenticated (skip login, use cached token)
+	// - Username+Password exist → Connect (auto-login, get fresh token)
+	// - Neither → Wait for user login via popup
+	if cfg.Token != "" {
+		go wsClient.ConnectAuthenticated()
+	} else if cfg.Username != "" && cfg.Password != "" {
+		go wsClient.Connect()
+	}
+	// else: user must log in via popup first
 	go commandLoop(wsClient)
 
 	// Run the Windows message loop (blocking).
@@ -263,6 +274,10 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			}
 		case IDM_QUIT:
 			procPostQuitMessage.Call(0)
+		case IDM_LOGOUT:
+			if popupWindow != nil {
+				popupWindow.doLogout()
+			}
 		}
 		return 0
 	}
@@ -372,6 +387,8 @@ func showContextMenu(hwnd uintptr) {
 	}
 	appendMenu(menu, MF_STRING, IDM_SHOW, showLabel)
 
+	appendMenu(menu, MF_SEPARATOR, 0, "")
+	appendMenu(menu, MF_STRING, IDM_LOGOUT, "退出登录")
 	appendMenu(menu, MF_SEPARATOR, 0, "")
 	appendMenu(menu, MF_STRING, IDM_QUIT, "退出")
 

@@ -3,15 +3,25 @@
 package tray
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"syscall"
 	"unsafe"
 
+	"github.com/chunlv/agent/internal/config"
 	"github.com/chunlv/agent/internal/engine"
 	"github.com/chunlv/agent/internal/wsclient"
+)
+
+// ── View states ──
+
+const (
+	viewLogin  = 0
+	viewStatus = 1
 )
 
 // ── Types ──
@@ -36,12 +46,29 @@ type PopupWindow struct {
 	username string
 	visible  bool
 
+	// View state: viewLogin (0) or viewStatus (1)
+	viewState int
+	token     string // JWT token after successful login
+
+	// Login form fields
+	userBuf    [64]byte // username buffer (UTF-8)
+	userLen    int
+	passBuf    [64]byte // password buffer (UTF-8)
+	passLen    int
+	focusField int    // -1=none, 0=user, 1=pass
+	cursorOn   bool   // cursor blink state
+	errorMsg   string // login error message
+	loggingIn  bool   // true while login HTTP request is in-flight
+
+	// Server URL from config
+	serverURL string
+
 	// Pre-created GDI objects (destroyed on WM_DESTROY)
 	hFontTitle uintptr // 15px bold — mode label
 	hFontCard  uintptr // 12px — card labels
-	hFontTimer uintptr // 22px bold — timer numbers
+	hFontTimer uintptr // 22px bold — timer numbers / login title
 	hFontBody  uintptr // 13px — order details
-	hFontSmall uintptr // 10px — footer
+	hFontSmall uintptr // 10px — footer / error message
 	hFontBtn   uintptr // 13px bold — button text
 
 	hBgBrush    uintptr // #0F172A
@@ -51,13 +78,20 @@ type PopupWindow struct {
 	hGreenBrush uintptr // #00E676
 	hGrayBrush  uintptr // #475569
 	hWhiteBrush uintptr // #FFFFFF
+	hRedBrush   uintptr // #FF4757 — error text
 
-	hCyanPen uintptr // border pen
+	hCyanPen  uintptr // cyan border pen
+	hGrayPen  uintptr // gray border pen (inactive input)
 
 	// Button hit-test rectangles (set in WM_PAINT, read in WM_LBUTTONDOWN)
 	btnMode    RECT
 	btnConfirm RECT
 	btnIgnore  RECT
+	btnLogin   RECT // login button
+
+	// Input field rectangles (for hit-test)
+	inputUserRect RECT
+	inputPassRect RECT
 
 	// Current order (parsed from latest wsclient order)
 	currentOrder *OrderInfo
@@ -102,6 +136,7 @@ const (
 	_DT_CENTER     = 0x00000001
 	_DT_VCENTER    = 0x00000004
 	_DT_SINGLELINE = 0x00000020
+	_DT_LEFT       = 0x00000000
 
 	// Activate states
 	_WA_INACTIVE = 0
@@ -120,12 +155,16 @@ const (
 	_WM_PAINT       = 0x000F
 	_WM_TIMER       = 0x0113
 	_WM_KEYDOWN     = 0x0100
+	_WM_CHAR        = 0x0102
 	_WM_ACTIVATE    = 0x0006
 	_WM_LBUTTONDOWN = 0x0201
 	_WM_ERASEBKGND  = 0x0014
 
 	// Key codes
 	_VK_ESCAPE = 0x1B
+	_VK_BACK   = 0x08
+	_VK_TAB    = 0x09
+	_VK_RETURN = 0x0D
 
 	// Popup dimensions
 	POPUP_W = 260
@@ -140,13 +179,15 @@ const (
 	COLOR_GRAY    = 0x006B5E47 // #475569
 	COLOR_WHITE   = 0x00FFFFFF
 	COLOR_SLATE   = 0x00BDAB94 // #94ABBD — muted text
+	COLOR_RED     = 0x005747FF // #FF4757 — error text
 
 	// Layout padding
 	PAD_X = 10
 	PAD_Y = 8
 
-	// Timer ID
+	// Timer IDs
 	TIMER_REFRESH = 1
+	TIMER_CURSOR  = 2
 )
 
 // ── Win32 DLL procs ──
@@ -165,6 +206,8 @@ var (
 	_procFillRect         = user32.NewProc("FillRect")
 	_procRoundRect        = _gdi32.NewProc("RoundRect")
 	_procGetStockObject   = _gdi32.NewProc("GetStockObject")
+	_procMoveToEx         = _gdi32.NewProc("MoveToEx")
+	_procLineTo           = _gdi32.NewProc("LineTo")
 
 	// user32 drawing
 	_procDrawText      = user32.NewProc("DrawTextW")
@@ -197,11 +240,29 @@ func drawTextW(hdc uintptr, text string, rect *RECT, format uint32) {
 
 // NewPopup creates the popup window (initially hidden). Call from the main thread
 // before the message loop starts so the window is ready when Toggle is called.
-func NewPopup(tracker *engine.TimeTracker, wsClient *wsclient.Client, username string) *PopupWindow {
+// serverURL is the backend API base URL (e.g. "http://192.168.0.106:3001").
+func NewPopup(tracker *engine.TimeTracker, wsClient *wsclient.Client, username string, serverURL string) *PopupWindow {
 	p := &PopupWindow{
-		tracker:  tracker,
-		wsClient: wsClient,
-		username: username,
+		tracker:   tracker,
+		wsClient:  wsClient,
+		username:  username,
+		serverURL: serverURL,
+		viewState: viewLogin, // default to login; may be overridden below
+		focusField: -1,
+	}
+
+	// If we already have a valid token, start in status view.
+	// If we have username+password but no token, also start in status —
+	// wsClient.Connect() will auto-login in the background.
+	// Only show login view when there are no credentials at all.
+	cfg := config.Get()
+	if cfg.Token != "" {
+		p.token = cfg.Token
+		p.viewState = viewStatus
+		wsClient.SetToken(cfg.Token)
+	} else if cfg.Username != "" && cfg.Password != "" {
+		// Auto-login credentials available — start in status view.
+		p.viewState = viewStatus
 	}
 
 	// Register a dedicated window class for the popup.
@@ -246,6 +307,11 @@ func NewPopup(tracker *engine.TimeTracker, wsClient *wsclient.Client, username s
 	// Start the 1-second refresh timer.
 	_procSetTimer.Call(hwnd, TIMER_REFRESH, 1000, 0)
 
+	// Start cursor blink timer if in login view.
+	if p.viewState == viewLogin {
+		p.startCursorTimer()
+	}
+
 	return p
 }
 
@@ -276,6 +342,11 @@ func (p *PopupWindow) Show() {
 		_SWP_SHOWWINDOW|_SWP_NOACTIVATE,
 	)
 	p.visible = true
+
+	// Resume cursor blink if in login view.
+	if p.viewState == viewLogin && p.focusField != -1 {
+		p.startCursorTimer()
+	}
 	log.Println("Popup shown")
 }
 
@@ -284,6 +355,9 @@ func (p *PopupWindow) Hide() {
 	if !p.visible {
 		return
 	}
+	// Stop cursor blink while hidden.
+	p.stopCursorTimer()
+	p.cursorOn = false
 	_procShowWindow.Call(p.hwnd, 0) // SW_HIDE
 	p.visible = false
 	log.Println("Popup hidden")
@@ -301,6 +375,22 @@ func (p *PopupWindow) Toggle() {
 // IsVisible returns whether the popup is currently shown.
 func (p *PopupWindow) IsVisible() bool {
 	return p.visible
+}
+
+// SetViewState switches between login and status views.
+func (p *PopupWindow) SetViewState(state int) {
+	p.viewState = state
+	if state == viewLogin {
+		p.startCursorTimer()
+	} else {
+		p.stopCursorTimer()
+	}
+	_procInvalidateRect.Call(p.hwnd, 0, 1)
+}
+
+// Token returns the current JWT token.
+func (p *PopupWindow) Token() string {
+	return p.token
 }
 
 // SetOrder stores order data and triggers a repaint so the order section appears.
@@ -351,6 +441,138 @@ func (p *PopupWindow) checkForOrder() {
 	}
 }
 
+// ── Login / Logout ──
+
+// doLogin sends credentials to the backend REST API and switches to status view on success.
+// Runs the HTTP call in a goroutine to keep the UI responsive.
+func (p *PopupWindow) doLogin() {
+	if p.loggingIn {
+		return
+	}
+	if p.userLen == 0 || p.passLen == 0 {
+		p.errorMsg = "请输入用户名和密码"
+		_procInvalidateRect.Call(p.hwnd, 0, 0)
+		return
+	}
+
+	p.loggingIn = true
+	p.errorMsg = ""
+	_procInvalidateRect.Call(p.hwnd, 0, 0)
+
+	username := string(p.userBuf[:p.userLen])
+	password := string(p.passBuf[:p.passLen])
+
+	go func() {
+		defer func() {
+			p.loggingIn = false
+			_procInvalidateRect.Call(p.hwnd, 0, 0)
+		}()
+
+		body, _ := json.Marshal(map[string]string{
+			"username": username,
+			"password": password,
+		})
+
+		resp, err := http.Post(
+			p.serverURL+"/api/auth/login",
+			"application/json",
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			p.errorMsg = "登录失败: 无法连接服务器"
+			log.Printf("Login HTTP error: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		var result struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Data    struct {
+				AccessToken string `json:"accessToken"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			p.errorMsg = "登录失败: 响应解析错误"
+			log.Printf("Login decode error: %v", err)
+			return
+		}
+
+		if result.Code != 200 {
+			p.errorMsg = "登录失败: " + result.Message
+			if result.Message == "" {
+				p.errorMsg = "登录失败: 用户名或密码错误"
+			}
+			return
+		}
+
+		// Success
+		p.token = result.Data.AccessToken
+		config.SetToken(p.token)
+
+		// Clear password buffer (security)
+		for i := range p.passBuf {
+			p.passBuf[i] = 0
+		}
+		p.passLen = 0
+		p.errorMsg = ""
+
+		// Persist username + serverURL (NOT password)
+		cfg := config.Get()
+		cfg.Username = username
+		cfg.ServerURL = p.serverURL
+		if err := config.Save(cfg); err != nil {
+			log.Printf("Config save error: %v", err)
+		}
+
+		p.username = username
+
+		// Switch to status view
+		p.viewState = viewStatus
+		p.focusField = -1
+		p.stopCursorTimer()
+
+		// Connect WebSocket with the new token
+		p.wsClient.SetToken(p.token)
+		go p.wsClient.ConnectAuthenticated()
+
+		log.Printf("Popup: login OK — %s", username)
+	}()
+}
+
+// doLogout clears the token and returns to the login view.
+func (p *PopupWindow) doLogout() {
+	p.token = ""
+	config.SetToken("")
+
+	// Clear persisted token from config file
+	cfg := config.Get()
+	cfg.Token = ""
+	config.Save(cfg)
+
+	// Disconnect WebSocket
+	p.wsClient.Disconnect()
+
+	// Switch to login view
+	p.viewState = viewLogin
+	p.focusField = -1
+	p.errorMsg = ""
+	p.startCursorTimer()
+
+	_procInvalidateRect.Call(p.hwnd, 0, 1)
+	log.Println("Popup: logged out")
+}
+
+// ── Cursor timer ──
+
+func (p *PopupWindow) startCursorTimer() {
+	_procSetTimer.Call(p.hwnd, TIMER_CURSOR, 500, 0)
+}
+
+func (p *PopupWindow) stopCursorTimer() {
+	_procKillTimer.Call(p.hwnd, TIMER_CURSOR, 0)
+}
+
 // ── Window procedure ──
 
 func popupWindowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
@@ -381,8 +603,15 @@ func popupWindowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 	case _WM_TIMER:
 		if wParam == TIMER_REFRESH {
-			p.checkForOrder()
+			if p.viewState == viewStatus {
+				p.checkForOrder()
+			}
 			_procInvalidateRect.Call(hwnd, 0, 0) // FALSE = no erase (avoid flicker)
+		} else if wParam == TIMER_CURSOR {
+			p.cursorOn = !p.cursorOn
+			if p.viewState == viewLogin {
+				_procInvalidateRect.Call(hwnd, 0, 0)
+			}
 		}
 		return 0
 
@@ -393,8 +622,59 @@ func popupWindowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case _WM_KEYDOWN:
-		if wParam == _VK_ESCAPE {
+		switch wParam {
+		case _VK_ESCAPE:
 			p.Hide()
+			return 0
+		case _VK_RETURN:
+			if p.viewState == viewLogin {
+				p.doLogin()
+			}
+			return 0
+		case _VK_TAB:
+			if p.viewState == viewLogin {
+				// Toggle focus between username (0) and password (1)
+				if p.focusField == 0 {
+					p.focusField = 1
+				} else {
+					p.focusField = 0
+				}
+				p.cursorOn = true
+				p.startCursorTimer()
+				_procInvalidateRect.Call(hwnd, 0, 0)
+			}
+			return 0
+		case _VK_BACK:
+			if p.viewState == viewLogin {
+				if p.focusField == 0 && p.userLen > 0 {
+					p.userLen = utf8Backspace(p.userBuf[:], p.userLen)
+				} else if p.focusField == 1 && p.passLen > 0 {
+					p.passLen = utf8Backspace(p.passBuf[:], p.passLen)
+				}
+				p.cursorOn = true
+				p.startCursorTimer()
+				_procInvalidateRect.Call(hwnd, 0, 0)
+			}
+			return 0
+		}
+		return 0
+
+	case _WM_CHAR:
+		if p.viewState == viewLogin && p.focusField >= 0 {
+			ch := byte(wParam)
+			// Accept printable ASCII (space through ~)
+			if ch >= 0x20 && ch < 0x7F {
+				if p.focusField == 0 && p.userLen < 63 {
+					p.userBuf[p.userLen] = ch
+					p.userLen++
+				} else if p.focusField == 1 && p.passLen < 63 {
+					p.passBuf[p.passLen] = ch
+					p.passLen++
+				}
+				p.cursorOn = true
+				p.startCursorTimer()
+				_procInvalidateRect.Call(hwnd, 0, 0)
+			}
 		}
 		return 0
 
@@ -405,6 +685,7 @@ func popupWindowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		return 0
 
 	case WM_DESTROY:
+		p.stopCursorTimer()
 		p.releaseGDI()
 		_procKillTimer.Call(hwnd, TIMER_REFRESH, 0)
 		return 0
@@ -463,15 +744,17 @@ func (p *PopupWindow) initGDI() {
 	p.hGreenBrush, _, _ = _procCreateSolidBrush.Call(uintptr(COLOR_GREEN))
 	p.hGrayBrush, _, _ = _procCreateSolidBrush.Call(uintptr(COLOR_GRAY))
 	p.hWhiteBrush, _, _ = _procCreateSolidBrush.Call(uintptr(COLOR_WHITE))
+	p.hRedBrush, _, _ = _procCreateSolidBrush.Call(uintptr(COLOR_RED))
 
 	p.hCyanPen, _, _ = _procCreatePen.Call(_PS_SOLID, 1, uintptr(COLOR_CYAN))
+	p.hGrayPen, _, _ = _procCreatePen.Call(_PS_SOLID, 1, uintptr(COLOR_GRAY))
 }
 
 func (p *PopupWindow) releaseGDI() {
 	for _, obj := range []uintptr{
 		p.hFontTitle, p.hFontCard, p.hFontTimer, p.hFontBody, p.hFontSmall, p.hFontBtn,
-		p.hBgBrush, p.hCardBrush, p.hCyanBrush, p.hPinkBrush, p.hGreenBrush, p.hGrayBrush, p.hWhiteBrush,
-		p.hCyanPen,
+		p.hBgBrush, p.hCardBrush, p.hCyanBrush, p.hPinkBrush, p.hGreenBrush, p.hGrayBrush, p.hWhiteBrush, p.hRedBrush,
+		p.hCyanPen, p.hGrayPen,
 	} {
 		if obj != 0 {
 			_procDeleteObject.Call(obj)
@@ -492,6 +775,166 @@ func (p *PopupWindow) onPaint() {
 	// Transparent text background.
 	_procSetBkMode.Call(hdc, 1) // TRANSPARENT
 
+	if p.viewState == viewLogin {
+		p.drawLoginView(hdc)
+	} else {
+		p.drawStatusView(hdc)
+	}
+}
+
+// ── Login view drawing ──
+
+func (p *PopupWindow) drawLoginView(hdc uintptr) {
+	// ── 1. Background fill ──
+	fullRect := RECT{0, 0, POPUP_W, POPUP_H}
+	gdiFillRect(hdc, &fullRect, p.hBgBrush)
+
+	// ── 2. Rounded border ──
+	oldPen, _, _ := _procSelectObject.Call(hdc, p.hCyanPen)
+	nullBrush, _, _ := _procGetStockObject.Call(_NULL_BRUSH)
+	oldBrush, _, _ := _procSelectObject.Call(hdc, nullBrush)
+	_procRoundRect.Call(hdc, 0, 0, POPUP_W-1, POPUP_H-1, 8, 8)
+	_procSelectObject.Call(hdc, oldPen)
+	_procSelectObject.Call(hdc, oldBrush)
+
+	// ── 3. Title: "⚡ 蠢驴电竞" ──
+	oldFont, _, _ := _procSelectObject.Call(hdc, p.hFontTimer)
+	_procSetTextColor.Call(hdc, uintptr(COLOR_CYAN))
+	titleRect := RECT{0, 28, POPUP_W, 56}
+	drawTextW(hdc, "⚡ 蠢驴电竞", &titleRect, _DT_CENTER|_DT_VCENTER|_DT_SINGLELINE)
+
+	// ── 4. Subtitle: "陪玩师登录" ──
+	_procSelectObject.Call(hdc, p.hFontCard)
+	_procSetTextColor.Call(hdc, uintptr(COLOR_SLATE))
+	subRect := RECT{0, 52, POPUP_W, 72}
+	drawTextW(hdc, "陪玩师登录", &subRect, _DT_CENTER|_DT_VCENTER|_DT_SINGLELINE)
+
+	// ── 5. Username input ──
+	inputW := int32(220)
+	inputH := int32(36)
+	inputX := (POPUP_W - inputW) / 2
+	userY := int32(86)
+	p.inputUserRect = RECT{inputX, userY, inputX + inputW, userY + inputH}
+	p.drawInputField(hdc, p.inputUserRect, string(p.userBuf[:p.userLen]), false, p.focusField == 0)
+
+	// ── 6. Password input ──
+	passY := userY + inputH + 8
+	p.inputPassRect = RECT{inputX, passY, inputX + inputW, passY + inputH}
+	p.drawInputField(hdc, p.inputPassRect, string(p.passBuf[:p.passLen]), true, p.focusField == 1)
+
+	// ── 7. Login button ──
+	btnW := int32(220)
+	btnH := int32(40)
+	btnX := (POPUP_W - btnW) / 2
+	btnY := passY + inputH + 12
+	p.btnLogin = RECT{btnX, btnY, btnX + btnW, btnY + btnH}
+	p.drawLoginButton(hdc)
+
+	// ── 8. Error message ──
+	if p.errorMsg != "" {
+		_procSelectObject.Call(hdc, p.hFontSmall)
+		_procSetTextColor.Call(hdc, uintptr(COLOR_RED))
+		errRect := RECT{0, btnY + btnH + 10, POPUP_W, btnY + btnH + 30}
+		drawTextW(hdc, p.errorMsg, &errRect, _DT_CENTER|_DT_VCENTER|_DT_SINGLELINE)
+	}
+
+	// ── 9. Footer: server URL ──
+	_procSelectObject.Call(hdc, p.hFontSmall)
+	_procSetTextColor.Call(hdc, uintptr(COLOR_SLATE))
+	footerText := fmt.Sprintf("服务端: %s", p.serverURL)
+	footerRect := RECT{0, POPUP_H - 24, POPUP_W, POPUP_H - 4}
+	drawTextW(hdc, footerText, &footerRect, _DT_CENTER|_DT_VCENTER|_DT_SINGLELINE)
+
+	_procSelectObject.Call(hdc, oldFont)
+}
+
+// drawInputField draws a single input field with optional password masking and cursor.
+func (p *PopupWindow) drawInputField(hdc uintptr, rect RECT, text string, isPassword bool, focused bool) {
+	// Fill background (rounded rect)
+	oldBrush, _, _ := _procSelectObject.Call(hdc, p.hCardBrush)
+	nullPen, _, _ := _procGetStockObject.Call(_NULL_PEN)
+	oldPen, _, _ := _procSelectObject.Call(hdc, nullPen)
+	_procRoundRect.Call(hdc, uintptr(rect.Left), uintptr(rect.Top), uintptr(rect.Right), uintptr(rect.Bottom), 6, 6)
+
+	// Border
+	var borderPen uintptr
+	if focused {
+		borderPen = p.hCyanPen
+	} else {
+		borderPen = p.hGrayPen
+	}
+	_procSelectObject.Call(hdc, borderPen)
+	nullHollowBrush, _, _ := _procGetStockObject.Call(_NULL_BRUSH)
+	_procSelectObject.Call(hdc, nullHollowBrush)
+	_procRoundRect.Call(hdc, uintptr(rect.Left), uintptr(rect.Top), uintptr(rect.Right), uintptr(rect.Bottom), 6, 6)
+
+	// Text
+	_procSelectObject.Call(hdc, p.hFontBody)
+	textRect := RECT{rect.Left + 10, rect.Top, rect.Right - 10, rect.Bottom}
+
+	displayText := text
+	if isPassword {
+		// Mask password with asterisks
+		masked := make([]byte, len(text))
+		for i := range masked {
+			masked[i] = '*'
+		}
+		displayText = string(masked)
+	}
+
+	if displayText == "" {
+		// Placeholder
+		_procSetTextColor.Call(hdc, uintptr(COLOR_GRAY))
+		placeholder := "用户名"
+		if isPassword {
+			placeholder = "密码"
+		}
+		drawTextW(hdc, placeholder, &textRect, _DT_LEFT|_DT_VCENTER|_DT_SINGLELINE)
+	} else {
+		_procSetTextColor.Call(hdc, uintptr(COLOR_WHITE))
+		// Measure text width for cursor positioning
+		cursorOffset := int32(len(displayText)) * 8 // rough estimate: ~8px per char
+		if cursorOffset > textRect.Right-textRect.Left-16 {
+			cursorOffset = textRect.Right - textRect.Left - 16
+		}
+		drawTextW(hdc, displayText, &textRect, _DT_LEFT|_DT_VCENTER|_DT_SINGLELINE)
+
+		// Cursor
+		if focused && p.cursorOn {
+			csrX := rect.Left + 12 + cursorOffset
+			csrY1 := rect.Top + 8
+			csrY2 := rect.Bottom - 8
+			// Draw cursor as a thin vertical line
+			_procSelectObject.Call(hdc, p.hCyanPen)
+			_procMoveToEx.Call(hdc, uintptr(csrX), uintptr(csrY1), 0)
+			_procLineTo.Call(hdc, uintptr(csrX), uintptr(csrY2))
+		}
+	}
+
+	// Restore
+	_procSelectObject.Call(hdc, oldBrush)
+	_procSelectObject.Call(hdc, oldPen)
+}
+
+// drawLoginButton draws the login/submit button.
+func (p *PopupWindow) drawLoginButton(hdc uintptr) {
+	oldFont, _, _ := _procSelectObject.Call(hdc, p.hFontBtn)
+
+	btnText := "登  录"
+	if p.loggingIn {
+		btnText = "登录中..."
+	}
+
+	gdiFillRoundedRect(hdc, &p.btnLogin, 6, p.hCyanBrush)
+	_procSetTextColor.Call(hdc, uintptr(COLOR_BG_DARK))
+	drawTextW(hdc, btnText, &p.btnLogin, _DT_CENTER|_DT_VCENTER|_DT_SINGLELINE)
+
+	_procSelectObject.Call(hdc, oldFont)
+}
+
+// ── Status view drawing ──
+
+func (p *PopupWindow) drawStatusView(hdc uintptr) {
 	// ── 1. Background fill ──
 	fullRect := RECT{0, 0, POPUP_W, POPUP_H}
 	gdiFillRect(hdc, &fullRect, p.hBgBrush)
@@ -723,6 +1166,38 @@ func (p *PopupWindow) drawFooter(hdc uintptr) {
 // ── Click handling ──
 
 func (p *PopupWindow) handleClick(clickX, clickY int32) {
+	// Login view clicks
+	if p.viewState == viewLogin {
+		// Check login button
+		if p.pointInRect(clickX, clickY, p.btnLogin) {
+			p.doLogin()
+			return
+		}
+		// Check input fields for focus
+		if p.pointInRect(clickX, clickY, p.inputUserRect) {
+			p.focusField = 0
+			p.cursorOn = true
+			p.startCursorTimer()
+			_procInvalidateRect.Call(p.hwnd, 0, 0)
+			return
+		}
+		if p.pointInRect(clickX, clickY, p.inputPassRect) {
+			p.focusField = 1
+			p.cursorOn = true
+			p.startCursorTimer()
+			_procInvalidateRect.Call(p.hwnd, 0, 0)
+			return
+		}
+		// Clicked elsewhere — blur
+		if p.focusField != -1 {
+			p.focusField = -1
+			p.stopCursorTimer()
+			_procInvalidateRect.Call(p.hwnd, 0, 0)
+		}
+		return
+	}
+
+	// Status view clicks
 	if p.pointInRect(clickX, clickY, p.btnMode) {
 		p.performModeSwitch()
 		return
@@ -841,3 +1316,23 @@ func formatAmount(m map[string]interface{}) string {
 	}
 	return "¥0.00"
 }
+
+// utf8Backspace removes the last UTF-8 character from buf[:length] and returns the new length.
+func utf8Backspace(buf []byte, length int) int {
+	if length == 0 {
+		return 0
+	}
+	// Single-byte ASCII (most common case)
+	if buf[length-1] < 0x80 {
+		return length - 1
+	}
+	// Multi-byte UTF-8: scan backward to find the start byte
+	for i := length - 1; i >= 0; i-- {
+		if buf[i]&0xC0 != 0x80 {
+			return i
+		}
+	}
+	return 0
+}
+
+// Logout clears the token and returns to the login view.
