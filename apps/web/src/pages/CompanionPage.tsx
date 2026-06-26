@@ -42,7 +42,6 @@ const CompanionPage: React.FC = () => {
   };
   const cfg = cfgMap[metric];
   const sorted = [...ranking].sort((a, b) => (b[cfg.key] || 0) - (a[cfg.key] || 0)).map((c, i) => ({ ...c, rank: i + 1 }));
-  const myRank = sorted.findIndex((c: any) => c.name === user?.username) + 1;
   const failCount = sorted.filter((c: any) => cfg.threshold > 0 && (c[cfg.key] || 0) < cfg.threshold).length;
 
   const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
