@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Typography, Button, Row, Col, Tag, message } from 'antd';
-import { ReloadOutlined, TrophyOutlined, FireOutlined, CrownOutlined } from '@ant-design/icons';
+import { Typography, Row, Col, Tag, message } from 'antd';
+import { FireOutlined, CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
-const IconTrophy = React.createElement(TrophyOutlined);
 const IconFire = React.createElement(FireOutlined);
 const IconCrown = React.createElement(CrownOutlined);
 
@@ -16,7 +15,6 @@ const CompanionPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const [ranking, setRanking] = useState<any[]>([]);
   const [myRank, setMyRank] = useState<number | null>(null);
-  const [myStats, setMyStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const fetch = useCallback(async () => {
@@ -30,7 +28,6 @@ const CompanionPage: React.FC = () => {
       setRanking(list);
       const idx = list.findIndex((c: any) => c.user?.username === user?.username);
       setMyRank(idx >= 0 ? idx + 1 : null);
-      if (compRes) setMyStats(compRes.data.data);
     } catch { message.error('加载排行榜失败'); }
     finally { setLoading(false); }
   }, [user]);
