@@ -5,7 +5,6 @@ import (
 
 	"github.com/chunlv/agent/internal/config"
 	"github.com/chunlv/agent/internal/engine"
-	"github.com/chunlv/agent/internal/httplocal"
 	"github.com/chunlv/agent/internal/tray"
 	"github.com/chunlv/agent/internal/wsclient"
 )
@@ -28,9 +27,5 @@ func main() {
 		go wsClient.Connect()
 	}
 
-	httpStart := func(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Client, onReconfig func(config.AgentConfig)) {
-		httplocal.StartAsync(addr, tracker, wsClient, onReconfig)
-	}
-
-	tray.Run(":9876", tracker, wsClient, httpStart, onReconfig)
+	tray.Run(tracker, wsClient, onReconfig)
 }

@@ -63,8 +63,8 @@ const (
 
 	// Menu IDs
 	IDM_SWITCH = 1001
-	IDM_SETTINGS = 1002
 	IDM_QUIT   = 1003
+	IDM_SHOW   = 1004
 
 	NOTIFYICONDATA_V3_SIZE = 956
 )
@@ -109,22 +109,23 @@ var (
 
 // Run starts the native Win32 system tray and blocks until exit.
 func Run(
-	addr string,
 	tracker *engine.TimeTracker,
 	wsClient *wsclient.Client,
-	httpStart func(addr string, tracker *engine.TimeTracker, wsClient *wsclient.Client, onReconfig func(config.AgentConfig)),
 	onReconfig func(config.AgentConfig),
 ) {
 	appTracker = tracker
 	appWsClient = wsClient
 	appCurrentMode = engine.ModeEntertainment
 
-	// Start background services
+	// Create the floating popup window (hidden by default).
+	// Must happen before the message loop so it can receive messages.
+	popupWindow = NewPopup(tracker, wsClient, config.Get().Username)
+
+	// Start background services.
 	go wsClient.Connect()
-	go httpStart(addr, tracker, wsClient, onReconfig)
 	go commandLoop(wsClient)
 
-	// Run the Windows message loop (blocking)
+	// Run the Windows message loop (blocking).
 	runMessageLoop()
 }
 
@@ -237,8 +238,17 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case WM_TRAY:
 		// lParam loword = mouse event
 		event := uint32(lParam & 0xFFFF)
-		if event == 0x0205 { // WM_RBUTTONUP = 0x0205
+		switch event {
+		case 0x0205: // WM_RBUTTONUP
 			showContextMenu(hwnd)
+		case 0x0203: // WM_LBUTTONDBLCLK — double-click tray icon
+			if popupWindow != nil {
+				popupWindow.Toggle()
+			}
+		case 0x0202: // WM_LBUTTONUP — single-click tray icon
+			if popupWindow != nil {
+				popupWindow.Toggle()
+			}
 		}
 		return 0
 
@@ -247,8 +257,10 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		switch id {
 		case IDM_SWITCH:
 			handleModeSwitch()
-		case IDM_SETTINGS:
-			openBrowser("http://localhost:9876")
+		case IDM_SHOW:
+			if popupWindow != nil {
+				popupWindow.Toggle()
+			}
 		case IDM_QUIT:
 			procPostQuitMessage.Call(0)
 		}
@@ -350,8 +362,16 @@ func showContextMenu(hwnd uintptr) {
 	}
 
 	appendMenu(menu, MF_STRING, IDM_SWITCH, modeLabel)
-	appendMenu(menu, MF_SEPARATOR, 0, "")
-	appendMenu(menu, MF_STRING, IDM_SETTINGS, "打开设置...")
+
+	// Show/hide popup label
+	var showLabel string
+	if popupWindow != nil && popupWindow.IsVisible() {
+		showLabel = "隐藏状态窗"
+	} else {
+		showLabel = "显示状态窗"
+	}
+	appendMenu(menu, MF_STRING, IDM_SHOW, showLabel)
+
 	appendMenu(menu, MF_SEPARATOR, 0, "")
 	appendMenu(menu, MF_STRING, IDM_QUIT, "退出")
 
