@@ -213,7 +213,7 @@ const CompanionPage: React.FC = () => {
             boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)',
           }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sorted} margin={{ top: 30, right: 30, left: 10, bottom: 5 }}
+              <BarChart data={sorted} margin={{ top: 40, right: 30, left: 10, bottom: 30 }}
                 barSize={Math.max(20, Math.min(48, 550 / sorted.length))} barCategoryGap="16%">
                 <defs>
                   <linearGradient id="dfgold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00FF88"/><stop offset="50%" stopColor="#00B864"/><stop offset="100%" stopColor="#005A2B"/></linearGradient>
@@ -226,7 +226,7 @@ const CompanionPage: React.FC = () => {
                   <filter id="dffailglow"><feGaussianBlur stdDeviation="2"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
                 </defs>
                 <XAxis dataKey="name" tick={false} axisLine={false} tickLine={false} />
-                <YAxis hide domain={[0, 'dataMax']} />
+                <YAxis hide domain={[0, (max: number) => max * 1.15]} />
                 <Bar dataKey={cfg.key} radius={[8,8,0,0]} animationDuration={1200} animationEasing="ease-out">
                   <LabelList dataKey={cfg.key} position="top"
                     formatter={(v: any) => cfg.isMoney ? `¥${v>=1000?(v/1000).toFixed(1)+'K':v}` : `${Math.round(v)}%`}
