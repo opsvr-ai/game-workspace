@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { message, Segmented } from 'antd';
+import { message } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, ReferenceLine } from 'recharts';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -112,15 +112,20 @@ const CompanionPage: React.FC = () => {
           </div>
           {/* 指标切换 */}
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <Segmented value={metric} onChange={(v) => setMetric(v as Metric)}
-              options={[
-                { label: '续单率', value: 'renewal' },
-                { label: '复购率', value: 'repurchase' },
-                { label: '昨日业绩', value: 'yesterday' },
-                { label: '本月业绩', value: 'monthly' },
-              ]}
-              style={{ background: '#2A3040', border: '1px solid #3A4050' }}
-            />
+            <div style={{ display: 'inline-flex', gap: 6, background: '#2A3040', borderRadius: 10, padding: 4 }}>
+              {(['renewal','repurchase','yesterday','monthly'] as Metric[]).map(m => (
+                <button key={m} onClick={() => setMetric(m)}
+                  style={{
+                    padding: '6px 16px', border: 'none', borderRadius: 8, cursor: 'pointer',
+                    fontSize: 13, fontWeight: 600, fontFamily: 'system-ui, sans-serif',
+                    background: metric === m ? '#00D4FF' : 'transparent',
+                    color: metric === m ? '#0F172A' : '#CBD5E1',
+                    transition: 'all 0.2s',
+                  }}>
+                  {{renewal:'续单率',repurchase:'复购率',yesterday:'昨日业绩',monthly:'本月业绩'}[m]}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 图表 */}
