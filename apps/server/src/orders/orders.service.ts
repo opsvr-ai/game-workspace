@@ -96,7 +96,10 @@ export class OrdersService {
   async findPool() {
     return this.prisma.order.findMany({
       where: { status: 'PENDING', dispatchType: 'POOL', companionId: null },
-      include: { customer: { select: { wechatId: true, customerCode: true } } },
+      include: {
+        customer: { select: { wechatId: true, customerCode: true } },
+        csUser: { select: { username: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

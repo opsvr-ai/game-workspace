@@ -53,6 +53,7 @@ interface PoolOrder {
   createdAt: string;
   customFields?: any;
   customer?: { wechatId: string; customerCode?: string };
+  csUser?: { username: string };
 }
 
 const DispatchPage: React.FC = () => {
@@ -300,6 +301,9 @@ const DispatchPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', flex: 1 }}>
                             <span style={{ fontSize: 16, fontWeight: 700, color: '#1E293B' }}>{order.gameName}</span>
                             <Tag color={orderTypeConfig[order.type]?.color} style={{ fontSize: 13, padding: '2px 10px', borderRadius: 6 }}>{orderTypeConfig[order.type]?.label ?? order.type}</Tag>
+                            {order.csUser?.username && (
+                              <span style={{ fontSize: 11, color: '#94A3B8' }}>派单: {order.csUser.username}</span>
+                            )}
                             {order.customFields?.deltaMode && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0F0FF', borderRadius: 8, padding: '4px 10px', fontSize: 13, color: '#7B61FF', fontWeight: 600 }}>
                                 🎯 {order.customFields.deltaMode}
