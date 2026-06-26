@@ -47,7 +47,7 @@ const CompanionPage: React.FC = () => {
   const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 
   return (
-    <div style={{ margin: -24 }}>
+    <div style={{ margin: -24, height: '100%' }}>
       <style>{`
         @keyframes scan-fast { 0% { transform: translateY(-100%); } 100% { transform: translateY(1200px); } }
         @keyframes scan-slow { 0% { transform: translateY(-100%); } 100% { transform: translateY(1200px); } }
@@ -61,7 +61,7 @@ const CompanionPage: React.FC = () => {
 
       <div style={{
         background: 'linear-gradient(180deg, #0A0F0A 0%, #0D1410 30%, #0B100C 60%, #080C08 100%)',
-        minHeight: 'calc(100vh - 120px)', borderRadius: 16, padding: '32px 36px 24px',
+        minHeight: '100vh', borderRadius: 0, padding: '32px 28px 24px',
         border: '1px solid rgba(0,255,136,0.08)',
         boxShadow: '0 0 80px rgba(0,255,136,0.03), inset 0 0 120px rgba(0,0,0,0.4)',
         position: 'relative', overflow: 'hidden',
