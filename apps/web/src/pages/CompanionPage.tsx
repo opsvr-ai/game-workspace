@@ -47,7 +47,7 @@ const CompanionPage: React.FC = () => {
   const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 
   return (
-    <div style={{ margin: -24, height: '100%' }}>
+    <div style={{ margin: -24, height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes scan-fast { 0% { transform: translateY(-100%); } 100% { transform: translateY(1200px); } }
         @keyframes scan-slow { 0% { transform: translateY(-100%); } 100% { transform: translateY(1200px); } }
@@ -61,7 +61,8 @@ const CompanionPage: React.FC = () => {
 
       <div style={{
         background: 'linear-gradient(180deg, #0A0F0A 0%, #0D1410 30%, #0B100C 60%, #080C08 100%)',
-        minHeight: '100vh', borderRadius: 0, padding: '20px 24px 16px',
+        flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        borderRadius: 0, padding: '20px 24px 16px',
         border: '1px solid rgba(0,255,136,0.08)',
         boxShadow: '0 0 80px rgba(0,255,136,0.03), inset 0 0 120px rgba(0,0,0,0.4)',
         position: 'relative', overflow: 'hidden',
@@ -204,13 +205,14 @@ const CompanionPage: React.FC = () => {
 
           {/* 图表 */}
           <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
             background: 'linear-gradient(180deg, rgba(0,20,10,0.6), rgba(0,10,5,0.8))',
-            borderRadius: 14, padding: '28px 24px 14px',
+            borderRadius: 14, padding: '16px 20px 10px',
             border: '1px solid rgba(0,255,136,0.06)',
             position: 'relative', overflow: 'hidden',
             boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)',
           }}>
-            <ResponsiveContainer width="100%" height={440}>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={sorted} margin={{ top: 30, right: 30, left: 10, bottom: 5 }}
                 barSize={Math.max(20, Math.min(48, 550 / sorted.length))} barCategoryGap="16%">
                 <defs>
