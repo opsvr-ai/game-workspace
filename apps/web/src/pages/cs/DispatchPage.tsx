@@ -505,59 +505,94 @@ const DispatchPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 派单人聊天弹窗 */}
-      <Modal title={null} open={!!chatOrder} onCancel={() => { setChatOrder(null); setChatMessages([]); }} footer={null} width={500} style={{ top: 40 }}>
+      {/* 微信风格聊天弹窗 */}
+      <Modal title={null} open={!!chatOrder} onCancel={() => { setChatOrder(null); setChatMessages([]); }} footer={null}
+        width={440} style={{ top: 20 }} bodyStyle={{ padding: 0 }}>
         {chatOrder && (
-          <div>
-            <div style={{ background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', borderRadius: 12, padding: 16, color: '#FFF', marginBottom: 16 }}>
-              <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 4 }}>📋 {chatOrder.gameName}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12, opacity: 0.9 }}>
-                <span>类型: {orderTypeConfig[chatOrder.type]?.label}</span>
-                <span>¥{Number(chatOrder.amount).toFixed(2)}</span>
-                <span>⏱{chatOrder.duration||'-'}h</span>
-                {chatOrder.customFields?.deltaMode && <span>🎯{chatOrder.customFields.deltaMode}</span>}
-                {chatOrder.customFields?.deltaMission && <span>·{chatOrder.customFields.deltaMission}</span>}
-                {chatOrder.customFields?.deltaCount && <span>👥{chatOrder.customFields.deltaCount}</span>}
-                {chatOrder.customFields?.customerWechat && <span>💬{chatOrder.customFields.customerWechat}</span>}
-                {chatOrder.customFields?.customerRoomCode && <span>🏠{chatOrder.customFields.customerRoomCode}</span>}
-                {chatOrder.customFields?.deltaNote && <span>📝{chatOrder.customFields.deltaNote}</span>}
+          <div style={{ display: 'flex', flexDirection: 'column', height: '70vh', maxHeight: 600 }}>
+            {/* 顶部订单信息 */}
+            <div style={{ background: '#EDEDED', padding: '10px 16px', borderBottom: '1px solid #D9D9D9', textAlign: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>{chatOrder.csUser?.username}</div>
+              <div style={{ fontSize: 11, color: '#8E8E93', marginTop: 2 }}>
+                {chatOrder.gameName} · ¥{Number(chatOrder.amount).toFixed(2)}
+                {chatOrder.customFields?.deltaMode ? ` · ${chatOrder.customFields.deltaMode}` : ''}
               </div>
             </div>
-            {/* 聊天记录 */}
-            <div style={{ background: '#F8FAFC', borderRadius: 10, padding: 12, minHeight: 200, maxHeight: 280, overflowY: 'auto', marginBottom: 10 }}>
+            {/* 聊天记录区 */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: '#EDEDED' }}>
               {chatMessages.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: 13, padding: 30 }}>
-                  💬 发送消息给 <b>{chatOrder.csUser?.username}</b>
+                <div style={{ textAlign: 'center', color: '#8E8E93', fontSize: 13, marginTop: 60 }}>
+                  暂无消息，发送消息开始对话
                 </div>
               ) : (
-                chatMessages.map((msg, i) => (
-                  <div key={i} style={{
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: msg.from === 'me' ? 'flex-end' : 'flex-start',
-                    marginBottom: 8,
-                  }}>
-                    <div style={{
-                      maxWidth: '80%', padding: '8px 14px', borderRadius: msg.from === 'me' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      background: msg.from === 'me' ? 'linear-gradient(135deg, #7B61FF, #00D4FF)' : '#FFF',
-                      color: msg.from === 'me' ? '#FFF' : '#1E293B',
-                      fontSize: 14, border: msg.from === 'me' ? 'none' : '1px solid #E2E8F0',
-                    }}>
-                      {msg.text}
+                chatMessages.map((msg, i) => {
+                  const isMe = msg.from === 'me';
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16,
+                      flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                      {/* 头像 */}
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 4, flexShrink: 0,
+                        background: isMe ? '#95EC69' : '#FFF',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, color: isMe ? '#FFF' : '#07C160',
+                        marginLeft: isMe ? 10 : 0, marginRight: isMe ? 0 : 10,
+                      }}>
+                        {(isMe ? (user?.username||'我') : (chatOrder.csUser?.username||'?')).charAt(0).toUpperCase()}
+                      </div>
+                      {/* 气泡 */}
+                      <div style={{ maxWidth: '65%', position: 'relative' }}>
+                        <div style={{
+                          padding: '9px 12px', borderRadius: 4, fontSize: 15, lineHeight: 1.4, wordBreak: 'break-word',
+                          background: isMe ? '#95EC69' : '#FFF',
+                          color: '#1E293B',
+                          position: 'relative',
+                        }}>
+                          {/* 小三角 */}
+                          <div style={{
+                            position: 'absolute', top: 10,
+                            [isMe ? 'right' : 'left']: -5,
+                            width: 0, height: 0,
+                            borderTop: '5px solid transparent',
+                            borderBottom: '5px solid transparent',
+                            [isMe ? 'borderLeft' : 'borderRight']: `5px solid ${isMe ? '#95EC69' : '#FFF'}`,
+                          }} />
+                          {msg.text}
+                        </div>
+                      </div>
                     </div>
-                    <span style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
-                      {msg.from === 'me' ? user?.username : chatOrder.csUser?.username} · {msg.time}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
-            <Input.Search placeholder={`发送消息给 ${chatOrder.csUser?.username}...`} enterButton="发送" size="large"
-              onSearch={(val) => {
-                if (!val.trim()) return;
-                const now = new Date();
-                const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-                setChatMessages(prev => [...prev, { text: val.trim(), time, from: 'me' }]);
-              }} />
+            {/* 底部输入栏 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+              background: '#F7F7F7', borderTop: '1px solid #D9D9D9' }}>
+              <Input style={{ flex: 1, borderRadius: 6, background: '#FFF', border: '1px solid #E5E5E5' }}
+                placeholder="输入消息..."
+                id="chatInput"
+                onPressEnter={(e: any) => {
+                  const val = e.target.value?.trim();
+                  if (!val) return;
+                  const now = new Date();
+                  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                  setChatMessages(prev => [...prev, { text: val, time, from: 'me' }]);
+                  e.target.value = '';
+                }}
+              />
+              <Button type="primary" size="small" style={{ borderRadius: 6, background: '#07C160', borderColor: '#07C160' }}
+                onClick={() => {
+                  const input = document.getElementById('chatInput') as HTMLInputElement;
+                  const val = input?.value?.trim();
+                  if (!val) return;
+                  const now = new Date();
+                  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                  setChatMessages(prev => [...prev, { text: val, time, from: 'me' }]);
+                  input.value = '';
+                }}>
+                发送
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
