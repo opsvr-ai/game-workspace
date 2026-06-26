@@ -23,6 +23,7 @@ import CompanionPoolPage from './pages/companion/PoolPage';
 import CompanionBillingPage from './pages/companion/BillingPage';
 import CompanionCustomersPage from './pages/companion/CustomersPage';
 import CompanionOrdersPage from './pages/companion/OrdersPage';
+import DispatchOrdersPage from './pages/companion/DispatchOrdersPage';
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: 'billing', element: <CompanionBillingPage /> },
       { path: 'customers', element: <CompanionCustomersPage /> },
       { path: 'orders', element: <CompanionOrdersPage /> },
+      { path: 'dispatch', element: <DispatchOrdersPage /> },
       { path: 'companions', element: <CompanionListPage /> },
     ],
   },
