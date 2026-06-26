@@ -261,6 +261,9 @@ func (c *Client) readLoop() {
 }
 
 func (c *Client) emit(event string, data interface{}) error {
+	if c.conn == nil {
+		return fmt.Errorf("not connected")
+	}
 	payload, _ := json.Marshal([]interface{}{event, data})
 	msg := "42" + string(payload)
 	return c.conn.WriteMessage(websocket.TextMessage, []byte(msg))
