@@ -27,7 +27,7 @@ const RevenueDashboard: React.FC = () => {
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />;
   if (!data) return <Text type="secondary">加载失败</Text>;
 
-  const pieData = Object.entries(data.typeBreakdown || {}).map(([k, v]) => ({ name: TYPE_LABELS[k] || k, value: v as number })).filter(d => d.value > 0);
+  const pieData = Object.entries(data.typeBreakdown || {}).map(([k, v]) => ({ name: TYPE_LABELS[k] || k, value: v as number }));
   const barData = (data.companionRevenue || []).slice(0, 20);
 
   const detailBarData = detail ? Object.entries(detail.breakdown || {}).map(([k, v]) => ({ name: TYPE_LABELS[k] || k, value: v })) : [];
