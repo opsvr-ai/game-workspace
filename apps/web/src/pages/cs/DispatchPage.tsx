@@ -66,7 +66,6 @@ const DispatchPage: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [grabbingId, setGrabbingId] = useState<string | null>(null);
   const [chatOrder, setChatOrder] = useState<PoolOrder | null>(null);
   const [chatMessages, setChatMessages] = useState<{ text: string; time: string; from: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -143,23 +142,6 @@ const DispatchPage: React.FC = () => {
       message.error(msg);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleGrab = async (orderId: string, e: React.MouseEvent) => {
-    // 轨迹动画：给卡片加 grabbing class
-    const card = (e.currentTarget as HTMLElement).closest('.pool-card') as HTMLElement;
-    if (card) { card.classList.add('grabbing'); setTimeout(() => card.classList.remove('grabbing'), 600); }
-    setGrabbingId(orderId);
-    try {
-      await ordersApi.grab(orderId);
-      message.success('接单成功，已收录至客户系统');
-      fetchPool();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '接单失败';
-      message.error(msg);
-    } finally {
-      setGrabbingId(null);
     }
   };
 
@@ -341,8 +323,6 @@ const DispatchPage: React.FC = () => {
                               <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
                                 {order.createdAt ? new Date(order.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}
                               </Text>
-                              <Button type="primary" size="small" loading={grabbingId === order.id}
-                                onClick={(e) => handleGrab(order.id, e)}>接单</Button>
                             </Space>
                           </Col>
                         </Row>
