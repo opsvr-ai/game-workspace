@@ -38,7 +38,7 @@ const PoolPage: React.FC = () => {
       setPoolStatus(statusRes.data.data);
     } catch (e) {
       console.error('Pool fetch error', e);
-      message.error('加载抢单池失败');
+      message.error('加载订单池失败');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ const PoolPage: React.FC = () => {
 
   return (
     <div>
-      <Title level={4}>📦 抢单池</Title>
+      <Title level={4}>📦 订单池</Title>
 
       <Card size="small" style={{ marginBottom: 16, background: isUnlocked ? '#f6ffed' : '#fff7e6' }}>
         <Row align="middle" justify="space-between">
@@ -141,7 +141,7 @@ const PoolPage: React.FC = () => {
             {React.createElement(ThunderboltOutlined)}
           </div>
           <div style={{ marginTop: 8 }}>
-            <Text type="secondary">今日流水不足 ¥{threshold}，抢单池已锁定</Text>
+            <Text type="secondary">今日流水不足 ¥{threshold}，订单池已锁定</Text>
             <br />
             <Text type="secondary">请先完成老客户服务提升流水</Text>
           </div>

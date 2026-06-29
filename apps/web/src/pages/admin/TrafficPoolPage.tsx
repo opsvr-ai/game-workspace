@@ -45,7 +45,7 @@ const TrafficPoolPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>📊 流量池</Title>
+          <Title level={4} style={{ margin: 0 }}>📊 订单池</Title>
           <Text type="secondary">各渠道客户来源统计</Text>
         </div>
         <Button icon={React.createElement(ReloadOutlined)} onClick={fetchData} loading={loading}>刷新</Button>

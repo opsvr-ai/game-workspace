@@ -186,7 +186,7 @@ const OrdersPage: React.FC = () => {
           </span>
           <div style={{ flex: 1, color: '#FFF' }}>
             <div style={{ fontSize: 16, fontWeight: 800 }}>{chatPartner} 发来消息</div>
-            <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>💬 点击前往抢单中心查看并回复</div>
+            <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>💬 点击前往订单池查看并回复</div>
           </div>
         </div>
       )}

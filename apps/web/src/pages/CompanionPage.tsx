@@ -125,8 +125,8 @@ const CompanionPage: React.FC = () => {
         <Progress percent={unlockPct} status={data.isUnlocked ? 'success' : 'active'} />
         <Text type="secondary">
           {data.isUnlocked
-            ? '抢单池已解锁 ✅'
-            : `还差 ¥${data.unlockThreshold - data.todayRevenue} 解锁抢单池`}
+            ? '订单池已解锁 ✅'
+            : `还差 ¥${data.unlockThreshold - data.todayRevenue} 解锁订单池`}
         </Text>
       </Card>
 
