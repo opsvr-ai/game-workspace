@@ -96,6 +96,17 @@ export class OrdersController {
     return { code: 200, message: '完成成功', data };
   }
 
+  @Post('orders/:id/complete-billing')
+  @Roles(UserRole.COMPANION)
+  async completeWithBilling(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() dto: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.completeWithBilling(id, req.user.companionId, dto);
+    return { code: 200, message: '服务结算完成', data };
+  }
+
   @Post('orders/:id/cancel')
   @Roles(UserRole.CS, UserRole.ADMIN)
   async cancel(

@@ -11,6 +11,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **增强服务结算：** 首单/续单/复购检测，陪玩端结束服务弹出结算表单（客户编号自动检测类型、首单必填、续单可选、总时长总金额汇总、截图上传），后端 `completeWithBilling` 自动创建 RENEW 子订单、更新客户累计消费和陪玩月度流水
+
 - **Phase 1 MVP:** Core business loop complete
 - 数据看板：今日流水/订单/在线陪玩/接单率 + 7日趋势图 + 业绩排行 + 异常预警
 - 陪玩工作台：今日统计、流水解锁进度、状态时长、状态切换、在线陪玩列表

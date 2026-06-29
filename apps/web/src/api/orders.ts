@@ -10,5 +10,6 @@ export const ordersApi = {
     http.post(`/orders/${id}/assign`, { companionId }),
   confirm: (id: string) => http.post(`/orders/${id}/confirm`),
   complete: (id: string) => http.post(`/orders/${id}/complete`),
+  completeBilling: (id: string, data: any) => http.post(`/orders/${id}/complete-billing`, data),
   cancel: (id: string) => http.post(`/orders/${id}/cancel`),
 };

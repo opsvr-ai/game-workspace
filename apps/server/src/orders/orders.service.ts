@@ -206,6 +206,103 @@ export class OrdersService {
     });
   }
 
+  async completeWithBilling(orderId: string, companionId: string, dto: {
+    customerCode?: string;
+    firstOrder: { duration: number; price: number };
+    hasRenew?: boolean;
+    renewOrder?: { duration: number; price: number };
+    gameName: string;
+    type: string; // 'COMPANION' | 'ESCORT'
+    screenshotUrl?: string;
+    wechatId?: string;
+  }) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    this.validateTransition(order, OrderStatus.DONE);
+
+    // Detect customer type
+    const customer = dto.customerCode
+      ? await this.prisma.customer.findUnique({ where: { customerCode: dto.customerCode } })
+      : await this.prisma.customer.findUnique({ where: { id: order.customerId } });
+
+    if (!customer) throw new NotFoundException('客户不存在');
+
+    const orderCount = await this.prisma.order.count({
+      where: { customerId: customer.id, status: 'DONE' },
+    });
+
+    const customerType = orderCount === 0 ? 'NEW' : 'REPURCHASE';
+
+    // Calculate totals
+    const firstAmount = dto.firstOrder.duration * dto.firstOrder.price;
+    const renewAmount = dto.hasRenew && dto.renewOrder
+      ? dto.renewOrder.duration * dto.renewOrder.price
+      : 0;
+    const totalAmount = firstAmount + renewAmount;
+    const totalDuration = dto.firstOrder.duration + (dto.renewOrder?.duration || 0);
+
+    // Update the main order as DONE
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: OrderStatus.DONE,
+        type: customerType,
+        amount: totalAmount,
+        duration: totalDuration,
+        gameName: dto.gameName,
+        customFields: {
+          ...((order.customFields as any) || {}),
+          firstOrder: dto.firstOrder,
+          renewOrder: dto.renewOrder || null,
+          hasRenew: dto.hasRenew || false,
+          customerType,
+          settlementType: dto.type,
+          screenshotUrl: dto.screenshotUrl,
+          wechatId: dto.wechatId,
+        },
+      },
+    });
+
+    // If hasRenew, create a separate RENEW order
+    if (dto.hasRenew && dto.renewOrder) {
+      await this.prisma.order.create({
+        data: {
+          type: 'RENEW',
+          studioId: order.studioId,
+          csUserId: order.csUserId,
+          companionId,
+          customerId: order.customerId,
+          dispatchType: 'DIRECT',
+          status: OrderStatus.DONE,
+          amount: renewAmount,
+          gameName: dto.gameName,
+          duration: dto.renewOrder.duration,
+          customFields: { parentOrderId: orderId },
+        },
+      });
+    }
+
+    // Update customer total spent
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: { totalSpent: { increment: totalAmount } },
+    });
+
+    // Update companion revenue
+    await this.prisma.companion.update({
+      where: { id: companionId },
+      data: { monthlyRevenue: { increment: totalAmount } },
+    });
+
+    // Update customer status
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: { status: 'ACTIVE' },
+    });
+
+    return updatedOrder;
+  }
+
   async cancel(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
