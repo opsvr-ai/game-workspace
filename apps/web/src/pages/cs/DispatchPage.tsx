@@ -16,7 +16,7 @@ import {
   List,
   Spin,
 } from 'antd';
-import { PlusOutlined, MessageOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType, DispatchType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 import { ordersApi } from '../../api/orders';
@@ -316,10 +316,6 @@ const DispatchPage: React.FC = () => {
                           <Col flex="auto" />
                           <Col>
                             <Space size={6}>
-                              {order.csUser?.username && (
-                                <Button size="small" icon={React.createElement(MessageOutlined)}
-                                  onClick={() => { setChatOrder(order); useAuthStore.getState().setChatActive(true, order.csUser?.username); }}>沟通</Button>
-                              )}
                               <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
                                 {order.createdAt ? new Date(order.createdAt).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}
                               </Text>
