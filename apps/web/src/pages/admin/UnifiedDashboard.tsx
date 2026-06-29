@@ -121,7 +121,7 @@ const RevenueDashboard: React.FC = () => {
             </Row>
             {detailBarData.length > 0 && (
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={detailBarData.map(d => ({ ...d, pct: detail.totalRevenue > 0 ? Math.round((d.value / detail.totalRevenue) * 100) : 0 }))}>
+                <BarChart data={detailBarData.map((d: any) => ({ ...d, pct: detail.totalRevenue > 0 ? Math.round((d.value / detail.totalRevenue) * 100) : 0 }))}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `¥${v}`} />
@@ -135,7 +135,7 @@ const RevenueDashboard: React.FC = () => {
               </ResponsiveContainer>
             )}
             <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {detailBarData.map((d, i) => {
+              {detailBarData.map((d: any, i: number) => {
                 const pct = detail.totalRevenue > 0 ? Math.round((d.value / detail.totalRevenue) * 100) : 0;
                 return (
                   <div key={d.name} style={{ flex: 1, minWidth: 100, background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', textAlign: 'center', position: 'relative' }}>
