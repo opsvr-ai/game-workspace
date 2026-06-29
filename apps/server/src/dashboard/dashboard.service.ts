@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+function formatSeconds(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const min = Math.floor((sec % 3600) / 60);
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
@@ -296,10 +302,50 @@ export class DashboardService {
 
     return results.sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
   }
-}
 
-function formatSeconds(sec: number): string {
-  const h = Math.floor(sec / 3600);
-  const min = Math.floor((sec % 3600) / 60);
-  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  async getRevenueOverview(studioId: string | null) {
+    const studioWhere: any = studioId ? { studioId } : {};
+    const now = new Date();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const yesterdayEnd = new Date(yesterday);
+    yesterdayEnd.setDate(yesterdayEnd.getDate() + 1);
+    const yesterdayOrders = await this.prisma.order.findMany({
+      where: { ...studioWhere, status: 'DONE', createdAt: { gte: yesterday, lt: yesterdayEnd } },
+    });
+    const yesterdayRevenue = yesterdayOrders.reduce((s, o) => s + o.amount, 0);
+
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthOrders = await this.prisma.order.findMany({
+      where: { ...studioWhere, status: 'DONE', createdAt: { gte: monthStart } },
+    });
+    const monthlyRevenue = monthOrders.reduce((s, o) => s + o.amount, 0);
+
+    const typeBreakdown: Record<string, number> = { NEW: 0, RENEW: 0, REPURCHASE: 0, TIP: 0 };
+    for (const o of monthOrders) typeBreakdown[o.type] = (typeBreakdown[o.type] || 0) + o.amount;
+
+    const companions = await this.prisma.companion.findMany({
+      where: studioWhere, include: { user: { select: { username: true } } },
+    });
+    const companionRevenue: any[] = [];
+    for (const c of companions) {
+      const rev = monthOrders.filter(o => o.companionId === c.id).reduce((s, o) => s + o.amount, 0);
+      if (rev > 0) companionRevenue.push({ companionId: c.id, name: c.user?.username || '?', revenue: Math.round(rev * 100) / 100 });
+    }
+    companionRevenue.sort((a, b) => b.revenue - a.revenue);
+    return { yesterdayRevenue, monthlyRevenue, typeBreakdown, companionRevenue };
+  }
+
+  async getCompanionRevenueDetail(companionId: string) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const orders = await this.prisma.order.findMany({
+      where: { companionId, status: 'DONE', createdAt: { gte: monthStart } },
+    });
+    const breakdown: Record<string, number> = { NEW: 0, RENEW: 0, REPURCHASE: 0, TIP: 0 };
+    for (const o of orders) breakdown[o.type] = (breakdown[o.type] || 0) + o.amount;
+    return { companionId, totalRevenue: orders.reduce((s, o) => s + o.amount, 0), orderCount: orders.length, breakdown };
+  }
 }

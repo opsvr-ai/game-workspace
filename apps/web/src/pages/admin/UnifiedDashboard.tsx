@@ -1,37 +1,128 @@
-import React, { useState } from 'react';
-import { Tabs } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Tabs, Card, Row, Col, Statistic, Spin, Typography, Modal } from 'antd';
 import { BarChartOutlined, TrophyOutlined, DollarOutlined } from '@ant-design/icons';
-import DashboardPage from './DashboardPage';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import PerformancePage from './PerformancePage';
 import AdminRevenuePage from './RevenuePage';
+import { dashboardApi } from '../../api/dashboard';
+
+const { Text } = Typography;
+const COLORS = ['#52c41a', '#faad14', '#1677ff', '#eb2f96'];
+const TYPE_LABELS: Record<string, string> = { NEW: '新单', RENEW: '续单', REPURCHASE: '复购', TIP: '打赏' };
+
+const RevenueDashboard: React.FC = () => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<any>(null);
+
+  useEffect(() => {
+    dashboardApi.getRevenueOverview().then(({ data }) => { setData(data.data); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const openDetail = async (companionId: string) => {
+    const { data: res } = await dashboardApi.getCompanionRevenueDetail(companionId);
+    setDetail(res.data);
+  };
+
+  if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />;
+  if (!data) return <Text type="secondary">加载失败</Text>;
+
+  const pieData = Object.entries(data.typeBreakdown || {}).map(([k, v]) => ({ name: TYPE_LABELS[k] || k, value: v as number })).filter(d => d.value > 0);
+  const barData = (data.companionRevenue || []).slice(0, 20);
+
+  const detailBarData = detail ? Object.entries(detail.breakdown || {}).map(([k, v]) => ({ name: TYPE_LABELS[k] || k, value: v })) : [];
+
+  return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={12}>
+          <Card size="small" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none' }}>
+            <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>昨日总流水</span>}
+              value={data.yesterdayRevenue} prefix="¥" precision={2}
+              valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 32 }} />
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card size="small" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', border: 'none' }}>
+            <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>全月总流水</span>}
+              value={data.monthlyRevenue} prefix="¥" precision={2}
+              valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 32 }} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card title="全月订单类型占比" size="small">
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : <Text type="secondary">暂无数据</Text>}
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="陪玩收入排行" size="small">
+            {barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barData} layout="vertical" margin={{ left: 50 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(v) => `¥${v}`} />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
+                  <Bar dataKey="revenue" fill="#1677ff" radius={[0, 4, 4, 0]} cursor="pointer"
+                    onClick={(d: any) => openDetail(d.companionId)} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <Text type="secondary">暂无数据</Text>}
+            <Text type="secondary" style={{ fontSize: 12 }}>💡 点击陪玩查看订单类型明细</Text>
+          </Card>
+        </Col>
+      </Row>
+
+      <Modal title="订单类型明细" open={!!detail} onCancel={() => setDetail(null)} footer={null} width={500}>
+        {detail && (
+          <div>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={12}><Statistic title="月流水" value={detail.totalRevenue} prefix="¥" precision={2} /></Col>
+              <Col span={12}><Statistic title="订单数" value={detail.orderCount} suffix="单" /></Col>
+            </Row>
+            {detailBarData.length > 0 && (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={detailBarData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis tickFormatter={(v) => `¥${v}`} />
+                  <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
+                  <Bar dataKey="value" fill="#1677ff" radius={[4, 4, 0, 0]}>
+                    {detailBarData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
 
 const UnifiedDashboard: React.FC = () => {
   const [tab, setTab] = useState('dashboard');
 
   return (
     <div>
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        size="large"
-        items={[
-          {
-            key: 'dashboard',
-            label: <span>{React.createElement(BarChartOutlined)} 数据看板</span>,
-            children: <DashboardPage />,
-          },
-          {
-            key: 'performance',
-            label: <span>{React.createElement(TrophyOutlined)} 绩效看板</span>,
-            children: <PerformancePage />,
-          },
-          {
-            key: 'revenue',
-            label: <span>{React.createElement(DollarOutlined)} 收入流水</span>,
-            children: <AdminRevenuePage />,
-          },
-        ]}
-      />
+      <Tabs activeKey={tab} onChange={setTab} size="large" items={[
+        { key: 'dashboard', label: <span>{React.createElement(BarChartOutlined)} 数据看板</span>, children: <RevenueDashboard /> },
+        { key: 'performance', label: <span>{React.createElement(TrophyOutlined)} 绩效看板</span>, children: <PerformancePage /> },
+        { key: 'revenue', label: <span>{React.createElement(DollarOutlined)} 收入流水</span>, children: <AdminRevenuePage /> },
+      ]} />
     </div>
   );
 };

@@ -8,4 +8,6 @@ export const dashboardApi = {
     http.get('/dashboard/performance/daily', { params: { date } }),
   monthlyPerformance: (month?: string) =>
     http.get('/dashboard/performance/monthly', { params: { month } }),
+  getRevenueOverview: () => http.get('/dashboard/revenue-overview'),
+  getCompanionRevenueDetail: (id: string) => http.get(`/dashboard/companion-revenue/${id}`),
 };
