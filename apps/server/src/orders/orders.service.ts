@@ -73,6 +73,8 @@ export class OrdersService {
         gameName: dto.gameName,
         duration: dto.duration,
         customFields: {
+          customerSource: (dto as any).customerSource,
+          customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
           customerRoomCode: dto.customerRoomCode,
           deltaMode: (dto as any).deltaMode,

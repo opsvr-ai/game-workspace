@@ -493,11 +493,19 @@ const DispatchPage: React.FC = () => {
           </Form.Item>
           <Form.Item label="客户预留信息" style={{ marginBottom: 8 }}>
             <Input.Group compact>
-              <Form.Item name="customerWechat" noStyle>
-                <Input style={{ width: '50%' }} placeholder="微信" />
+              <Form.Item name="customerSource" noStyle>
+                <Select style={{ width: '35%' }} placeholder="来源">
+                  <Option value="小红书">小红书</Option>
+                  <Option value="抖音">抖音</Option>
+                  <Option value="快手">快手</Option>
+                  <Option value="转介绍">转介绍</Option>
+                </Select>
               </Form.Item>
-              <Form.Item name="customerRoomCode" noStyle>
-                <Input style={{ width: '50%' }} placeholder="房间码" />
+              <Form.Item name="customerPlatformAccount" noStyle>
+                <Input style={{ width: '30%' }} placeholder="来源账号ID" />
+              </Form.Item>
+              <Form.Item name="customerWechat" noStyle>
+                <Input style={{ width: '35%' }} placeholder="微信" />
               </Form.Item>
             </Input.Group>
           </Form.Item>

@@ -16,6 +16,8 @@ export class CreateOrderDto {
   @IsOptional() @IsString() companionId?: string;
 
   // Customer info fields
+  @IsOptional() @IsString() customerSource?: string;
+  @IsOptional() @IsString() customerPlatformAccount?: string;
   @IsOptional() @IsString() customerWechat?: string;
   @IsOptional() @IsString() customerRoomCode?: string;
 

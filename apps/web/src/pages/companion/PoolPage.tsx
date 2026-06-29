@@ -164,7 +164,7 @@ const PoolPage: React.FC = () => {
               {order.customFields?.deltaMission && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag></Col>}
               {order.customFields?.deltaCount && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag></Col>}
               {order.customer?.customerCode && <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>👤{order.customer.customerCode}</Text></Col>}
-              {order.customer?.platform && <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📡{order.customer.platform}</Text></Col>}
+              {(order.customFields?.customerSource || order.customer?.platform) && <Col><Tag color="orange" style={{ margin: 0 }}>📡{order.customFields?.customerSource || order.customer?.platform}</Tag></Col>}
               <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text></Col>
               {order.customFields?.deltaNote && <Col><Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>📝{order.customFields.deltaNote}</Text></Col>}
               {order.customFields?.billingMode && <Col><Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{order.customFields.billingMode === 'round' ? '局' : '时'}</Text></Col>}
