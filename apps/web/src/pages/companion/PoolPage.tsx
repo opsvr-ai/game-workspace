@@ -20,6 +20,8 @@ const PoolPage: React.FC = () => {
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
+  const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
+  const [grabbedModal, setGrabbedModal] = useState(false);
 
   // Chat state
   const [chatOrder, setChatOrder] = useState<any>(null);
@@ -49,8 +51,10 @@ const PoolPage: React.FC = () => {
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
     try {
-      await ordersApi.grab(orderId);
-      message.success('抢单成功！');
+      const { data } = await ordersApi.grab(orderId);
+      // Show grabbed order detail modal with contact info
+      setGrabbedOrder(data.data);
+      setGrabbedModal(true);
       fetchData();
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? '抢单失败');
@@ -230,6 +234,22 @@ const PoolPage: React.FC = () => {
                 style={{ borderRadius: 4 }} />
               <Button type="primary" onClick={sendChat}>发送</Button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Grabbed Order Success Modal */}
+      <Modal title="✅ 抢单成功" open={grabbedModal} onCancel={() => setGrabbedModal(false)}
+        footer={<Button type="primary" onClick={() => setGrabbedModal(false)}>知道了</Button>} width={400}>
+        {grabbedOrder && (
+          <div style={{ fontSize: 14, lineHeight: 2 }}>
+            <div><Text strong>游戏：</Text>{grabbedOrder.gameName} ｜ ¥{Number(grabbedOrder.amount).toFixed(0)}</div>
+            {grabbedOrder.customer?.customerCode && <div><Text strong>客户编号：</Text>{grabbedOrder.customer.customerCode}</div>}
+            <div style={{ background: '#FFF7E6', padding: '8px 12px', borderRadius: 6, margin: '8px 0' }}>
+              <div><Text strong>微信：</Text>{grabbedOrder.customFields?.customerWechat || '暂无'}</div>
+              {grabbedOrder.customFields?.customerSource && <div><Text strong>来源：</Text>{grabbedOrder.customFields.customerSource} {grabbedOrder.customFields?.customerPlatformAccount && `(${grabbedOrder.customFields.customerPlatformAccount})`}</div>}
+            </div>
+            <Text type="secondary">请尽快联系客户，添加微信开始服务</Text>
           </div>
         )}
       </Modal>
