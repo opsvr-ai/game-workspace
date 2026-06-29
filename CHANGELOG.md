@@ -11,7 +11,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **增强服务结算：** 首单/续单/复购检测，陪玩端结束服务弹出结算表单（客户编号自动检测类型、首单必填、续单可选、总时长总金额汇总、截图上传），后端 `completeWithBilling` 自动创建 RENEW 子订单、更新客户累计消费和陪玩月度流水
+- **Phase 2 Complete:** All 14 missing modules from requirements V30.0 implemented
+- **陪玩钱包：** 押金/余额/冻结/可支取 + 支取申请/审核 + WalletTransaction 模型
+- **月底结算：** 阶梯分成自动结算，结算后业绩清零计入余额
+- **客户画像：** CustomerProfile (19字段) + CustomerFollowUp 跟进记录
+- **客户类型识别：** 首单/复购自动检测 + 活跃/待跟进/流失/待开发状态判定
+- **绩效看板：** 每日/全月排行，接单率/续单率/复购率 + 流水结构分析
+- **增强服务结算：** 首单+可选续单结算表单，自动创建续单子订单
+- **双陪搭档流程：** 呼叫搭档/接受搭档 WebSocket 通知
+- **AI客户分析：** 消费力/忠诚度/活跃度评分 + 维护建议 + 话术生成
+- **流量池：** 渠道管理/来源追踪/渠道统计
+- **陪玩离职处理：** 清空数据/释放工位/释放微信
+- **租客授权管理：** TenantAuthorization 模型 + CS权限范围设置
+- **工作微信管理：** WorkWechat 模型 + 绑定/解绑/离职自动释放
+- CustomerProfile, CustomerFollowUp, WalletTransaction, TenantAuthorization, WorkWechat 模型
 
 - **Phase 1 MVP:** Core business loop complete
 - 数据看板：今日流水/订单/在线陪玩/接单率 + 7日趋势图 + 业绩排行 + 异常预警
