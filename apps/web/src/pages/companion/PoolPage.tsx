@@ -241,15 +241,16 @@ const PoolPage: React.FC = () => {
       {/* Grabbed Order Success Modal */}
       <Modal title="✅ 抢单成功" open={grabbedModal} onCancel={() => setGrabbedModal(false)}
         footer={<Button type="primary" size="large" onClick={() => {
-          const info = [`微信：${grabbedOrder?.customFields?.customerWechat || '暂无'}`,
+          const wechat = grabbedOrder?.customFields?.customerWechat || '暂无';
+          const info = [`微信：${wechat}`,
             `客户编号：${grabbedOrder?.customer?.customerCode || ''}`,
             `来源：${grabbedOrder?.customFields?.customerSource || ''} ${grabbedOrder?.customFields?.customerPlatformAccount || ''}`,
             grabbedOrder?.customFields?.customerRoomCode ? `房间码：${grabbedOrder.customFields.customerRoomCode}` : '',
             `游戏：${grabbedOrder?.gameName} ¥${Number(grabbedOrder?.amount).toFixed(0)}`];
           navigator.clipboard.writeText(info.filter(Boolean).join('\n')).then(() => {
-            message.success('客户信息已复制到剪贴板 ✅');
+            message.success(`已复制微信号 ${wechat} 到剪贴板，去微信粘贴添加好友 ✅`, 5);
           }).catch(() => {
-            message.info('请手动记录客户信息');
+            message.info(`微信号：${wechat}，请手动复制`, 5);
           });
           setGrabbedModal(false);
         }}>知道了，马上去联系</Button>} width={440}>
