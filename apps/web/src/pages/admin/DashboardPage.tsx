@@ -33,8 +33,11 @@ const DashboardPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [dashRes, trendRes, compRes] = await Promise.all([
         dashboardApi.get(),
@@ -44,8 +47,9 @@ const DashboardPage: React.FC = () => {
       setData(dashRes.data.data);
       setTrend(trendRes.data.data ?? []);
       setCompanions(compRes.data.data ?? []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Dashboard fetch error', e);
+      setError(e?.response?.data?.message || e?.message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -53,7 +57,8 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }}><Text>加载中...</Text></Spin>;
+  if (!data) return <Alert type="warning" message="暂无数据" description="Dashboard API 返回空数据，请检查后端服务" />;
 
   const today = data?.today ?? {};
   const ranking = data?.ranking ?? [];
@@ -71,7 +76,8 @@ const DashboardPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>{'\u{1F4CA} 数据看板'}</Title>
-          {user?.username && <Text type="secondary">店长：{user.username}</Text>}
+          {user?.username && <Text type="secondary">店长：{user.username} (角色:{user.role})</Text>}
+          {error && <Alert type="error" message={error} style={{ marginTop: 8 }} closable onClose={() => setError(null)} />}
         </div>
       </div>
 
