@@ -112,7 +112,7 @@ const RevenueDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      <Modal title="订单类型明细" open={!!detail} onCancel={() => setDetail(null)} footer={null} width={500}>
+      <Modal title="订单类型明细" open={!!detail} onCancel={() => setDetail(null)} footer={null} width={580}>
         {detail && (
           <div>
             <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -121,20 +121,33 @@ const RevenueDashboard: React.FC = () => {
             </Row>
             {detailBarData.length > 0 && (
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={detailBarData}>
+                <BarChart data={detailBarData.map(d => ({ ...d, pct: detail.totalRevenue > 0 ? Math.round((d.value / detail.totalRevenue) * 100) : 0 }))}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `¥${v}`} />
-                  <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
-                  <ReferenceLine y={detail.totalRevenue * 0.3} stroke="#ff4d4f" strokeWidth={2} strokeDasharray="5 5"
-                    label={{ value: '30% 基准', position: 'right', fill: '#ff4d4f', fontSize: 11 }} />
+                  <Tooltip formatter={(v: any, _: string, item: any) => [`¥${Number(v).toLocaleString()} (${item.payload.pct}%)`, '金额']} />
+                  <ReferenceLine y={detail.totalRevenue * 0.3} stroke="#ff4d4f" strokeWidth={1} strokeDasharray="3 3" />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    <LabelList dataKey="value" position="top" formatter={(v: any) => `¥${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
+                    <LabelList position="top" formatter={(v: any) => `${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
                     {detailBarData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
+            <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {detailBarData.map((d, i) => {
+                const pct = detail.totalRevenue > 0 ? Math.round((d.value / detail.totalRevenue) * 100) : 0;
+                return (
+                  <div key={d.name} style={{ flex: 1, minWidth: 100, background: '#f5f5f5', borderRadius: 8, padding: '10px 12px', textAlign: 'center', position: 'relative' }}>
+                    <div style={{ fontSize: 11, color: '#666' }}>{d.name}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: COLORS[i % COLORS.length] }}>¥{Number(d.value).toFixed(0)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: pct >= 30 ? '#52c41a' : '#ff4d4f' }}>占比 {pct}%</div>
+                    <div style={{ position: 'absolute', top: '30%', left: 0, right: 0, borderTop: '1px dashed #ff4d4f', opacity: 0.5 }} />
+                  </div>
+                );
+              })}
+            </div>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>🔴 红线=30%基准 ｜ 绿色达标，红色未达标</Text>
           </div>
         )}
       </Modal>
