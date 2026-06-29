@@ -86,6 +86,10 @@ export const router = createBrowserRouter([
         element: <SettingsPage />,
       },
       {
+        path: 'owner/orders',
+        element: <OrdersPage />,
+      },
+      {
         path: 'owner/performance',
         element: <PerformancePage />,
       },
@@ -129,6 +133,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/performance',
         element: <PerformancePage />,
+      },
+      {
+        path: 'admin/orders',
+        element: <OrdersPage />,
       },
       {
         path: 'admin/traffic',

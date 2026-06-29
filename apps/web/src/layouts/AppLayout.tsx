@@ -53,6 +53,7 @@ interface MenuItemDef {
 const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
+    { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
     { key: '/owner/performance', icon: IconPerformance, label: '绩效看板' },
     { key: '/owner/revenue', icon: IconRevenue, label: '盈亏统计' },
     { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
@@ -66,6 +67,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.ADMIN]: [
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
+    { key: '/admin/orders', icon: IconOrders, label: '订单管理' },
     { key: '/admin/companions', icon: IconCompanions, label: '陪玩管理' },
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
@@ -78,7 +80,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   ],
   [UserRole.CS]: [
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },
-    { key: '/cs/orders', icon: IconOrders, label: '派单记录' },
+    { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
     { key: '/cs/companions', icon: IconCompanions, label: '陪玩管理' },
   ],
   [UserRole.COMPANION]: [
