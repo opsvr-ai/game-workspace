@@ -25,6 +25,7 @@ model User {
 model Studio {
   id        String   @id @default(uuid())
   name      String
+  type      String   @default("DIRECT")  // DIRECT | RENTAL
   createdAt DateTime @default(now())
 
   users      User[]
@@ -191,4 +192,19 @@ model SystemConfig {
   id    String @id @default(uuid())
   key   String @unique
   value Json
+}
+
+model StudioDailyStats {
+  id                String   @id @default(uuid())
+  date              DateTime
+  studioId          String
+  totalRevenue      Float    @default(0)
+  orderCount        Int      @default(0)
+  onlineCompanions  Int      @default(0)
+  totalCompanions   Int      @default(0)
+  acceptRate        Float    @default(0)
+  entertainmentFee  Float    @default(0)
+  createdAt         DateTime @default(now())
+
+  @@unique([date, studioId])
 }
