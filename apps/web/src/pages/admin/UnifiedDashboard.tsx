@@ -124,9 +124,8 @@ const RevenueDashboard: React.FC = () => {
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `¥${v}`} />
                   <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
-                  <Bar dataKey="value" fill="#1677ff" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                     <LabelList dataKey="value" position="top" formatter={(v: any) => `¥${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
-                  </Bar>
                     {detailBarData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>
                 </BarChart>
