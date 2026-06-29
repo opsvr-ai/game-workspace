@@ -3,7 +3,7 @@ import { Card, Row, Col, Table, Tag, Typography, Spin, Alert } from 'antd';
 import { RiseOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
 import { dashboardApi } from '../../api/dashboard';
 import { useAuthStore } from '../../stores/authStore';
-import { Column } from '@ant-design/charts';
+// Chart temporarily disabled for debugging
 
 const { Text, Title } = Typography;
 
@@ -66,16 +66,6 @@ const DashboardPage: React.FC = () => {
     ONLINE: '\u{1F7E2}等单中', BUSY: '\u{1F534}接单中', IDLE: '\u{26AA}娱乐中', OFFLINE: '\u{26AB}离线',
   };
 
-  const trendConfig = {
-    data: trend,
-    xField: 'date',
-    yField: 'revenue',
-    label: { style: { fontSize: 10 } },
-    color: '#1677ff',
-    columnStyle: { radius: [4, 4, 0, 0] },
-    meta: { revenue: { alias: '流水（元）' } },
-  };
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -111,17 +101,13 @@ const DashboardPage: React.FC = () => {
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col span={14}>
           <Card title={'\u{1F4C8} 近7天业绩趋势'} size="small">
-            <Column {...trendConfig} height={200} />
+            <div style={{ padding: '8px 0' }}>
+            {trend.length > 0 ? trend.map((t: any) => (
+              <Tag key={t.date} style={{ margin: 4 }}>{t.date}: ¥{t.revenue?.toLocaleString()}</Tag>
+            )) : <Text type="secondary">暂无数据</Text>}
+            </div>
             <div style={{ marginTop: 8, display: 'flex', gap: 16 }}>
-              <Text type="secondary">
-                最高¥{Math.max(...trend.map((t: any) => t.revenue), 0).toLocaleString()}
-              </Text>
-              <Text type="secondary">
-                最低¥{Math.min(...trend.map((t: any) => t.revenue), 0).toLocaleString()}
-              </Text>
-              <Text type="secondary">
-                平均¥{Math.round(trend.reduce((s: number, t: any) => s + t.revenue, 0) / Math.max(trend.length, 1)).toLocaleString()}
-              </Text>
+              <Text type="secondary">趋势数据显示</Text>
             </div>
           </Card>
         </Col>
