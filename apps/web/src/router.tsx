@@ -27,6 +27,7 @@ import CompanionCustomersPage from './pages/companion/CustomersPage';
 import CompanionOrdersPage from './pages/companion/OrdersPage';
 import DispatchOrdersPage from './pages/companion/DispatchOrdersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
+import TrafficPoolPage from './pages/admin/TrafficPoolPage';
 
 export const router = createBrowserRouter([
   {
@@ -128,6 +129,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin/performance',
         element: <PerformancePage />,
+      },
+      {
+        path: 'admin/traffic',
+        element: <TrafficPoolPage />,
       },
       {
         path: 'admin/settings',

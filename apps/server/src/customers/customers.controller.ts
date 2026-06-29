@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -24,6 +25,22 @@ export class CustomersController {
   @Get('customers')
   async findAll(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.findAll(req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  // ── Traffic Pool (MUST be before :id routes) ──
+
+  @Get('customers/traffic/pool')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async getTrafficPool(@Req() req: any, @Query('platform') platform?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.getTrafficPool(req.user.studioId, platform);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('customers/traffic/stats')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async getChannelStats(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.getChannelStats(req.user.studioId);
     return { code: 200, message: 'ok', data };
   }
 

@@ -1,6 +1,7 @@
-import { Controller, Get, Put, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthorizationService } from './authorization.service';
 import { RolesGuard, Roles } from './roles.guard';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
@@ -30,7 +31,10 @@ const DEFAULT_CONFIGS: Record<string, any> = {
 
 @Controller()
 export class SettingsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authzService: AuthorizationService,
+  ) {}
 
   @Get('settings')
   async getSettings(): Promise<ApiResponse<unknown>> {
@@ -75,5 +79,23 @@ export class SettingsController {
     );
     await Promise.all(ops);
     return { code: 200, message: 'ok', data: null };
+  }
+
+  // ── Tenant Authorization ──
+
+  @Get('tenant/authorizations')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getAuthorizations(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.authzService.getAuthorizations(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('tenant/authorizations')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async updateAuthorization(@Req() req: any, @Body() dto: { csUserId: string } & any): Promise<ApiResponse<unknown>> {
+    const data = await this.authzService.updateAuthorization(req.user.studioId, dto.csUserId, dto);
+    return { code: 200, message: 'ok', data };
   }
 }

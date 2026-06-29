@@ -187,4 +187,34 @@ export class CompanionsService {
       },
     });
   }
+
+  // ── Resignation ──
+
+  async resignCompanion(companionId: string) {
+    return this.prisma.companion.update({
+      where: { id: companionId },
+      data: { status: 'OFFLINE', balance: 0, deposit: 0, frozen: 0, monthlyRevenue: 0 },
+    });
+  }
+
+  // ── Work WeChat Management ──
+
+  async listWorkWechats(studioId: string) {
+    return this.prisma.workWechat.findMany({
+      where: { studioId },
+      include: { companion: { include: { user: { select: { username: true } } } } },
+    });
+  }
+
+  async addWorkWechat(studioId: string, wechatId: string) {
+    return this.prisma.workWechat.create({ data: { studioId, wechatId } });
+  }
+
+  async bindWechat(id: string, companionId: string) {
+    return this.prisma.workWechat.update({ where: { id }, data: { companionId, status: 'BOUND' } });
+  }
+
+  async unbindWechat(id: string) {
+    return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
+  }
 }

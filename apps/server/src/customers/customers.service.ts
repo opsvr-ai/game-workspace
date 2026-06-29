@@ -271,4 +271,25 @@ export class CustomersService {
     await this.updateCustomerStatus(dto.customerId);
     return followUp;
   }
+
+  // ── Traffic Pool ──
+
+  async getTrafficPool(studioId: string, platform?: string) {
+    const where: any = { studioId };
+    if (platform) where.platform = platform;
+    return this.prisma.customer.findMany({
+      where,
+      select: { id: true, customerCode: true, platform: true, platformAccount: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getChannelStats(studioId: string) {
+    const customers = await this.prisma.customer.findMany({ where: { studioId }, select: { platform: true } });
+    const stats: Record<string, number> = {};
+    for (const c of customers) {
+      stats[c.platform || '未知'] = (stats[c.platform || '未知'] || 0) + 1;
+    }
+    return stats;
+  }
 }

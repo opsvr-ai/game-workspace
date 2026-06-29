@@ -14,4 +14,6 @@ export const customersApi = {
   getFollowUps: (id: string) => http.get(`/customers/${id}/follow-ups`),
   addFollowUp: (id: string, data: any) => http.post(`/customers/${id}/follow-ups`, data),
   getOrders: (id: string) => http.get(`/customers/${id}/orders`),
+  trafficPool: (platform?: string) => http.get('/customers/traffic/pool', { params: { platform } }),
+  trafficStats: () => http.get('/customers/traffic/stats'),
 };

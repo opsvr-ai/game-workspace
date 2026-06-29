@@ -12,4 +12,5 @@ export const companionsApi = {
   workbench: () => http.get('/companions/me/workbench'),
   wallet: () => http.get('/companions/me/wallet'),
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
+  resign: (id: string) => http.post(`/companions/${id}/resign`),
 };

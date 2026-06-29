@@ -68,6 +68,7 @@ model Companion {
   transactions Transaction[]
   expenseReports ExpenseReport[]
   walletTransactions WalletTransaction[]
+  workWechats WorkWechat[]
 }
 
 model CompanionPC {
@@ -287,4 +288,29 @@ model CustomerFollowUp {
   createdAt   DateTime @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model TenantAuthorization {
+  id               String   @id @default(uuid())
+  studioId         String
+  csUserId         String
+  canViewPlayers   Boolean  @default(false)
+  canViewOrders    Boolean  @default(false)
+  canViewAlerts    Boolean  @default(false)
+  canHandleOrders  Boolean  @default(false)
+  canDispatchOrders Boolean @default(false)
+  createdAt        DateTime @default(now())
+
+  @@unique([studioId, csUserId])
+}
+
+model WorkWechat {
+  id          String   @id @default(uuid())
+  studioId    String
+  wechatId    String   @unique
+  companionId String?  @unique
+  status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
+  createdAt   DateTime @default(now())
+
+  companion Companion? @relation(fields: [companionId], references: [id])
 }

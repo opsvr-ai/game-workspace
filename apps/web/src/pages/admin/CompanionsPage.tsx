@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Table, Tag, Typography, Button, Space, Spin, Tooltip, Empty } from 'antd';
+import { Table, Tag, Typography, Button, Space, Spin, Tooltip, Empty, Popconfirm, message } from 'antd';
 import { ReloadOutlined, DesktopOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
@@ -155,6 +155,17 @@ const CompanionsPage: React.FC = () => {
     }
   }, []);
 
+  const handleResign = async (id: string) => {
+    try {
+      await companionsApi.resign(id);
+      message.success('陪玩已离职，工位和微信已释放');
+      fetchCompanions();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '操作失败';
+      message.error(msg);
+    }
+  };
+
   const columns = [
     {
       title: '陪玩姓名',
@@ -236,6 +247,25 @@ const CompanionsPage: React.FC = () => {
           </Space>
         );
       },
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      render: (_: unknown, record: Companion) => (
+        <Popconfirm
+          title="确认离职处理？"
+          description="离职后陪玩状态将设为离线，余额、押金等将清零"
+          onConfirm={() => handleResign(record.id)}
+          okText="确认"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button type="link" danger size="small">
+            离职处理
+          </Button>
+        </Popconfirm>
+      ),
     },
   ];
 

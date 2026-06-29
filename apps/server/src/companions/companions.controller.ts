@@ -64,6 +64,45 @@ export class CompanionsController {
     return { code: 201, message: '支取申请已提交', data };
   }
 
+  // ── Work WeChat Management (MUST be before :id routes) ──
+
+  @Get('companions/work-wechats')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async listWorkWechats(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listWorkWechats(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('companions/work-wechats')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async addWorkWechat(@Req() req: any, @Body() dto: { wechatId: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.addWorkWechat(req.user.studioId, dto.wechatId);
+    return { code: 201, message: 'ok', data };
+  }
+
+  @Put('companions/work-wechats/:id/bind')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async bindWechat(@Param('id') id: string, @Body() dto: { companionId: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.bindWechat(id, dto.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('companions/work-wechats/:id/unbind')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async unbindWechat(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.unbindWechat(id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  // ── Resignation (MUST be before :id routes) ──
+
+  @Post('companions/:id/resign')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async resignCompanion(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    await this.companionsService.resignCompanion(id);
+    return { code: 200, message: '陪玩已离职，工位和微信已释放', data: null };
+  }
+
   @Get('companions/:id')
   async findOne(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.findOne(id);
