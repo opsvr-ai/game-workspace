@@ -6,8 +6,8 @@ import { ordersApi } from '../../api/orders';
 const { Text, Title } = Typography;
 
 const orderTypeConfig: Record<string, { label: string; color: string }> = {
-  NEW: { label: '首单', color: 'green' },
-  RENEW: { label: '续单', color: 'orange' },
+  NEW: { label: '新单', color: 'green' },
+  RENEW: { label: '续费', color: 'orange' },
   REPURCHASE: { label: '复购', color: 'blue' },
   TIP: { label: '打赏', color: 'purple' },
 };
