@@ -125,7 +125,7 @@ const RevenueDashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `¥${v}`} />
-                  <Tooltip formatter={(v: any, _: string, item: any) => [`¥${Number(v).toLocaleString()} (${item.payload.pct}%)`, '金额']} />
+                  <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString()}`} />
                   <ReferenceLine y={detail.totalRevenue * 0.3} stroke="#ff4d4f" strokeWidth={1} strokeDasharray="3 3" />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                     <LabelList position="top" formatter={(v: any) => `${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
