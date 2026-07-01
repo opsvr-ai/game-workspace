@@ -39,9 +39,6 @@ export class CompanionsController {
     const studioId = req.user?.studioId;
     if (!studioId) return { code: 200, message: 'ok', data: { hasNew: false, messages: [] } };
 
-    // Always return message history for the requested companionId
-    const messages = companionId ? (chatMessages.get(studioId)?.get(companionId) || []) : [];
-
     // Check for active notification (for hasNew flag)
     let notif;
     if (companionId) {
@@ -52,6 +49,10 @@ export class CompanionsController {
       }
     }
     const hasNew = notif && notif.companionName !== req.user?.username && (Date.now() - notif.timestamp < 30000);
+
+    // Return messages: use provided companionId, or from notification if found
+    const msgCompanionId = companionId || notif?.companionId || '';
+    const messages = msgCompanionId ? (chatMessages.get(studioId)?.get(msgCompanionId) || []) : [];
 
     let avatar: string | null = null;
     if (notif?.companionId) {
