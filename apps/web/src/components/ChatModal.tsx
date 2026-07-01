@@ -5,7 +5,7 @@ import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
 interface ChatMsg { text: string; time: string; from: string; }
-interface ChatPartner { name: string; avatar?: string; companionId: string; orderInfo?: string; orderId?: string; }
+interface ChatPartner { name: string; avatar?: string; orderId: string; orderInfo?: string; }
 
 interface Props {
   open: boolean;
@@ -15,12 +15,12 @@ interface Props {
 
 const STORAGE_KEY = 'chat-msgs';
 
-function loadMsgs(companionId: string): ChatMsg[] {
-  try { const r = localStorage.getItem(`${STORAGE_KEY}-${companionId}`); return r ? JSON.parse(r) : []; }
+function loadMsgs(orderId: string): ChatMsg[] {
+  try { const r = localStorage.getItem(`${STORAGE_KEY}-${orderId}`); return r ? JSON.parse(r) : []; }
   catch { return []; }
 }
-function saveMsgs(companionId: string, msgs: ChatMsg[]) {
-  try { localStorage.setItem(`${STORAGE_KEY}-${companionId}`, JSON.stringify(msgs.slice(-200))); } catch {}
+function saveMsgs(orderId: string, msgs: ChatMsg[]) {
+  try { localStorage.setItem(`${STORAGE_KEY}-${orderId}`, JSON.stringify(msgs.slice(-200))); } catch {}
 }
 
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
@@ -33,36 +33,36 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
 
   // Load messages + mark read when opening
   useEffect(() => {
-    if (!open || !partner?.companionId) return;
-    const loaded = loadMsgs(partner.companionId);
+    if (!open || !partner?.orderId) return;
+    const loaded = loadMsgs(partner.orderId);
     setMsgs(loaded);
     setInput('');
     useAuthStore.getState().setChatOpen(true);
-    localStorage.removeItem(`unread-${partner.companionId}`);
+    localStorage.removeItem(`unread-${partner.orderId}`);
     // Mark read using server count for accurate baseline
-    http.get(`/companions/chat-pending?companionId=${partner.companionId}`).then(({ data }) => {
+    http.get(`/companions/chat-pending?orderId=${partner.orderId}`).then(({ data }) => {
       const total = data?.data?.messages?.length || loaded.length;
-      useAuthStore.getState().markRead(partner.companionId, total);
+      useAuthStore.getState().markRead(partner.orderId, total);
     }).catch(() => {
-      useAuthStore.getState().markRead(partner.companionId, loaded.length);
+      useAuthStore.getState().markRead(partner.orderId, loaded.length);
     });
     // Listen for new messages from global poll
     const handler = (e: any) => {
       const msg = e.detail;
       const p = partnerRef.current;
       if (!p) return;
-      if (msg.companionId === p.companionId) {
+      if (msg.orderId === p.orderId) {
         setMsgs(prev => {
           if (prev.some(m => m.text === msg.text && m.time === msg.time)) return prev;
           const updated = [...prev, { text: msg.text, time: msg.time, from: 'them' }];
-          saveMsgs(p.companionId, updated);
+          saveMsgs(p.orderId, updated);
           return updated;
         });
       }
     };
     window.addEventListener('chat-message', handler);
     return () => window.removeEventListener('chat-message', handler);
-  }, [open, partner?.companionId]);
+  }, [open, partner?.orderId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -77,9 +77,9 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     const msg: ChatMsg = { text, time, from: 'me' };
     const updated = [...msgs, msg];
     setMsgs(updated);
-    saveMsgs(partner.companionId, updated);
+    saveMsgs(partner.orderId, updated);
     setInput('');
-    const body: any = { companionId: partner.companionId, message: text, time };
+    const body: any = { orderId: partner.orderId, message: text, time };
     if (partner.orderId) body.orderId = partner.orderId;
     http.post('/companions/chat-notify', body).catch(() => {});
   };
@@ -101,7 +101,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const handleClose = () => {
     useAuthStore.getState().setChatOpen(false);
     if (partner) {
-      localStorage.removeItem(`unread-${partner.companionId}`);
+      localStorage.removeItem(`unread-${partner.orderId}`);
       if (partner.orderId) localStorage.removeItem(`unread-${partner.orderId}`);
     }
     onClose();
@@ -109,7 +109,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
 
   // Current user avatar
   const myName = user?.displayName || user?.username || '我';
-  const myAvatar = { name: myName, avatar: user?.avatar || undefined, companionId: '', orderInfo: '' };
+  const myAvatar = { name: myName, avatar: user?.avatar || undefined, orderId: '', orderInfo: '' };
 
   return (
     <Modal open={open} footer={null} width={520} closable={false}

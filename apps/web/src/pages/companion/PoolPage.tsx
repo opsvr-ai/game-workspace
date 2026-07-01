@@ -42,7 +42,7 @@ const PoolPage: React.FC = () => {
   }, []);
 
   // Chat state
-  const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; companionId: string; orderInfo?: string; orderId?: string } | null>(null);
+  const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; orderId: string; orderInfo?: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -88,7 +88,6 @@ const PoolPage: React.FC = () => {
     setChatPartner({
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
-      companionId: order.companionId || user?.companionId || '',
       orderId: order.id,
       orderInfo: [
         `📋 ${order.gameName}`,
@@ -155,7 +154,7 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={unreadMap[order.id] || unreadMap[user?.companionId || ''] || 0} size="small" offset={[-4, 0]}
+                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
                     <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}>
                       沟通
