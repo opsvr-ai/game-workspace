@@ -299,7 +299,7 @@ export class CompanionsController {
     });
 
     // Store notification keyed by studioId:companionId
-    chatNotifications.set(`${studioId}:${chatKey}`, { companionName: username, companionId: myCompanionId, timestamp: Date.now(), message: msgText });
+    chatNotifications.set(`${studioId}:${chatKey}`, { companionName: username, companionId: chatKey, timestamp: Date.now(), message: msgText });
     // WebSocket broadcast
     this.wsGateway.notifyChat(studioId, username, chatKey, chatKey);
     return { code: 200, message: 'ok', data: null };
