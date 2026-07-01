@@ -89,8 +89,7 @@ const PoolPage: React.FC = () => {
 
   // Chat handlers
   const openChat = (order: any) => {
-    // Mark as read — updates lastRead timestamp
-    useAuthStore.getState().markRead(order.id);
+    // Clear unread badge
     localStorage.removeItem(`unread-${order.id}`);
     setUnreadMap(prev => { const { [order.id]: _, ...rest } = prev; return rest; });
     setChatPartner({
