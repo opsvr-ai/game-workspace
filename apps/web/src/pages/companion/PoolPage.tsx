@@ -90,13 +90,13 @@ const PoolPage: React.FC = () => {
   // Chat handlers
   const openChat = (order: any) => {
     // Clear unread badge
-    localStorage.removeItem(`unread-${order.companionId || user?.companionId || order.id}`);
-    setUnreadMap(prev => { const { [order.companionId || user?.companionId || order.id]: _, ...rest } = prev; return rest; });
+    localStorage.removeItem(`unread-${user?.companionId || order.id}`);
+    setUnreadMap(prev => { const { [user?.companionId || order.id]: _, ...rest } = prev; return rest; });
     setChatPartner({
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
       companionId: order.companionId || user?.companionId || '',
-      orderId: order.companionId || user?.companionId || order.id,
+      orderId: user?.companionId || order.id,
       orderInfo: [
         `📋 ${order.gameName}`,
         `${order.type === 'NEW' ? '首单' : order.type === 'RENEW' ? '续费' : order.type === 'REPURCHASE' ? '复购' : order.type}`,
@@ -144,7 +144,7 @@ const PoolPage: React.FC = () => {
       {/* Horizontal order rows — all info in one row */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {orders.map((order: any, idx: number) => (
-          <Card key={order.companionId || user?.companionId || order.id} size="small"
+          <Card key={user?.companionId || order.id} size="small"
             style={{ borderLeft: `3px solid ${orderTypeConfig[order.type]?.color || '#1677ff'}` }}>
             <Row align="middle" gutter={8} wrap={false}>
               <Col><Tag style={{ background: '#f0f0f0', color: '#666', fontWeight: 700, minWidth: 24, textAlign: 'center', margin: 0 }}>{idx + 1}</Tag></Col>
@@ -162,18 +162,18 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={unreadMap[order.companionId || user?.companionId || order.id] || 0} size="small" offset={[-4, 0]}
+                  <Badge count={unreadMap[user?.companionId || order.id] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
                     <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
-                      style={unreadMap[order.companionId || user?.companionId || order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
+                      style={unreadMap[user?.companionId || order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
                       沟通
                     </Button>
                   </Badge>
                   <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{React.createElement(ClockCircleOutlined)} {new Date(order.createdAt).toLocaleTimeString()}</Text>
                   <Button type="primary" size="small" danger
                     disabled={!isUnlocked}
-                    loading={grabbing === order.companionId || user?.companionId || order.id}
-                    onClick={() => handleGrab(order.companionId || user?.companionId || order.id)}>
+                    loading={grabbing === user?.companionId || order.id}
+                    onClick={() => handleGrab(user?.companionId || order.id)}>
                     {isUnlocked ? '抢单' : `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
                   </Button>
                 </Space>

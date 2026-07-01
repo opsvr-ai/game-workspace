@@ -159,7 +159,7 @@ const AppLayout: React.FC = () => {
 
         // Unread badge: increment per new notification
         if (data?.hasNew) {
-          const unreadKey = data?.orderId || data?.companionId;
+          const unreadKey = data?.companionId;
           if (unreadKey) {
             try {
               const cur = parseInt(localStorage.getItem(`unread-${unreadKey}`) || '0', 10);
