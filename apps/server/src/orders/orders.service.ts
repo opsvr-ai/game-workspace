@@ -66,7 +66,7 @@ export class OrdersService {
         studioId: studioId!,
         csUserId: dto.csUserId,
         customerId: customerId!,
-        dispatchType: dto.dispatchType,
+        dispatchType: 'POOL',
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         status: 'PENDING',
         amount: dto.amount,
