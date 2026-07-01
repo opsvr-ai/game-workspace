@@ -30,9 +30,24 @@ const PoolPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
 
-  const chatUnread = useAuthStore(s => s.chatUnread);
-  const addChatUnread = useAuthStore(s => s.addChatUnread);
-  const clearChatUnread = useAuthStore(s => s.clearChatUnread);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+
+  // Read unread counts from localStorage on mount + periodically
+  useEffect(() => {
+    const read = () => {
+      const map: Record<string, number> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith('unread-')) {
+          map[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
+        }
+      }
+      setUnreadMap(map);
+    };
+    read();
+    const t = setInterval(read, 2000);
+    return () => clearInterval(t);
+  }, []);
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; companionId: string; orderInfo?: string; orderId?: string } | null>(null);
@@ -59,7 +74,14 @@ const PoolPage: React.FC = () => {
   // Real-time pool updates via WebSocket
   useSocket({
     onOrderPoolUpdated: fetchData,
-    onChatNotify: (d: any) => { if (d?.orderId) addChatUnread(d.orderId); },
+    onChatNotify: (d: any) => {
+      if (d?.orderId) {
+        try {
+          const key = `unread-${d.orderId}`;
+          localStorage.setItem(key, String(parseInt(localStorage.getItem(key) || '0', 10) + 1));
+        } catch {}
+      }
+    },
   });
 
   const handleGrab = async (orderId: string) => {
@@ -77,8 +99,9 @@ const PoolPage: React.FC = () => {
 
   // Chat handlers
   const openChat = (order: any) => {
-    const cid = order.companionId || user?.companionId || '';
-    clearChatUnread(cid);
+    // Clear unread for this order
+    localStorage.removeItem(`unread-${order.id}`);
+    setUnreadMap(prev => { const { [order.id]: _, ...rest } = prev; return rest; });
     setChatPartner({
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
@@ -149,10 +172,10 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={chatUnread[order.id] || 0} size="small" offset={[-4, 0]}
+                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
                     <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
-                      style={chatUnread[order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
+                      style={unreadMap[order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
                       沟通
                     </Button>
                   </Badge>

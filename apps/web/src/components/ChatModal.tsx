@@ -53,6 +53,14 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             if (news.length === 0) return prev;
             const updated = [...prev, ...news.map((m: any) => ({ ...m, from: 'them' }))];
             saveMsgs(p.companionId, updated);
+            // Unread badge: persist to localStorage per-orderId
+            if (news.length > 0 && p.orderId) {
+              try {
+                const key = `unread-${p.orderId}`;
+                const cur = parseInt(localStorage.getItem(key) || '0', 10);
+                localStorage.setItem(key, String(cur + news.length));
+              } catch {}
+            }
             return updated;
           });
         }
