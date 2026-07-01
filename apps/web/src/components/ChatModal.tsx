@@ -34,11 +34,12 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   // Load messages + mark read when opening
   useEffect(() => {
     if (!open || !partner?.companionId) return;
-    setMsgs(loadMsgs(partner.companionId));
+    const loaded = loadMsgs(partner.companionId);
+    setMsgs(loaded);
     setInput('');
-    // Mark as read — clear unread badge
+    // Mark as read with actual loaded count
     useAuthStore.getState().setChatOpen(true);
-    useAuthStore.getState().markRead(partner.companionId, msgs.length);
+    useAuthStore.getState().markRead(partner.companionId, loaded.length);
     localStorage.removeItem(`unread-${partner.companionId}`);
     // Listen for new messages from global poll
     const handler = (e: any) => {
