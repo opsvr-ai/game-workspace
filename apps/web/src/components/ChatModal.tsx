@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Input, Button } from 'antd';
-import { LeftOutlined, UserOutlined } from '@ant-design/icons';
+import { CloseOutlined, UserOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
@@ -96,17 +96,18 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const myAvatar = { name: myName, avatar: user?.avatar || undefined, companionId: '', orderInfo: '' };
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} width={520} closable={false}
+    <Modal open={open} footer={null} width={520} closable={false}
+      maskClosable={false} keyboard={false}
       style={{ top: 20 }} bodyStyle={{ padding: 0, height: '75vh', display: 'flex', flexDirection: 'column' }}>
       {partner && (
         <>
-          {/* Header — WeChat dark bar with order info */}
+          {/* Header — WeChat dark bar with order info + X close */}
           <div style={{ background: '#2E2E2E', color: '#FFF', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <Button type="text" icon={React.createElement(LeftOutlined)} onClick={onClose} style={{ color: '#FFF' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{partner.name}</div>
               {partner.orderInfo && <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2, lineHeight: 1.4 }}>{partner.orderInfo}</div>}
             </div>
+            <Button type="text" icon={React.createElement(CloseOutlined)} onClick={onClose} style={{ color: '#FFF', fontSize: 18 }} />
           </div>
 
           {/* Messages — WeChat gray background */}
