@@ -4,6 +4,7 @@ import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text, Title } = Typography;
 
@@ -16,6 +17,7 @@ const orderTypeConfig: Record<string, { label: string; color: string }> = {
 
 const PoolPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
+  const user = useAuthStore(s => s.user);
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
@@ -63,7 +65,7 @@ const PoolPage: React.FC = () => {
     setChatPartner({
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
-      companionId: order.companionId,
+      companionId: order.companionId || user?.companionId || '',
       orderInfo: [
         `📋 ${order.gameName}`,
         `${order.type === 'NEW' ? '首单' : order.type === 'RENEW' ? '续费' : order.type === 'REPURCHASE' ? '复购' : order.type}`,
