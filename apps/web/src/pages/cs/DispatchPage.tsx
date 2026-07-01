@@ -289,9 +289,8 @@ const DispatchPage: React.FC = () => {
                             </div>
                           );
                         })()}
-                        <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}
-                          className={(unreadMap[c.id] || 0) > 0 ? 'pulse-badge' : ''}>
-                          <Text strong>{c.user?.username ?? c.id}</Text>
+                        <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}>
+                          <Text strong className={(unreadMap[c.id] || 0) > 0 ? 'pulse-badge' : ''}>{c.user?.username ?? c.id}</Text>
                         </Badge>
                       </Space>
                       <Tag color={

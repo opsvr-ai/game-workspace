@@ -8,7 +8,7 @@ import { useSocket } from '../hooks/useSocket';
 if (!document.getElementById('badge-pulse-css')) {
   const s = document.createElement('style');
   s.id = 'badge-pulse-css';
-  s.textContent = '@keyframes badge-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}.pulse-badge .ant-badge-count{animation:badge-pulse 0.6s ease-in-out infinite}';
+  s.textContent = '@keyframes badge-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}.pulse-badge{animation:badge-pulse 0.6s ease-in-out infinite;display:inline-block}';
   document.head.appendChild(s);
 }
 

@@ -154,10 +154,9 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}
-                    className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
-                    style={{ boxShadow: '0 0 8px #FF0000' }}>
-                    <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}>
+                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
+                    <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
+                      className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}>
                       沟通
                     </Button>
                   </Badge>
