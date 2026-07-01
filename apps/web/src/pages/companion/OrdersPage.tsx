@@ -14,7 +14,7 @@ const typeConfig: Record<string, { color: string; label: string }> = {
   REPURCHASE: { color: 'purple', label: '复购' }, TIP: { color: 'orange', label: '打赏' },
 };
 const statusConfig: Record<string, { color: string; label: string }> = {
-  PENDING: { color: 'gold', label: '待派' }, GRABBED: { color: 'blue', label: '已抢' },
+  GRABBED: { color: 'blue', label: '已抢' },
   CONFIRMED: { color: 'green', label: '已确认' }, DONE: { color: 'green', label: '已完成' },
   CANCELLED: { color: 'default', label: '已取消' },
 };
