@@ -157,18 +157,14 @@ const AppLayout: React.FC = () => {
           }
         }
 
-        // Unread badge: write per-order when available, fallback to companion
+        // Unread badge: per-order when available, companion fallback otherwise
         if (data?.companionId) {
           try {
             const total = data?.messages?.length || 0;
             const lastSeen = parseInt(localStorage.getItem(`chat-lastRead-${data.companionId}`) || '0', 10);
             const unread = Math.max(0, total - lastSeen);
-            // Always write companion-level
-            localStorage.setItem(`unread-${data.companionId}`, String(unread));
-            // Also write per-order if available
-            if (data?.orderId) {
-              localStorage.setItem(`unread-${data.orderId}`, String(unread));
-            }
+            const key = data?.orderId || data.companionId;
+            localStorage.setItem(`unread-${key}`, String(unread));
           } catch {}
         }
       } catch {}

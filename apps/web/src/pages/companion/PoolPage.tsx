@@ -155,7 +155,7 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}
+                  <Badge count={unreadMap[order.id] || unreadMap[user?.companionId || ''] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
                     <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}>
                       沟通
