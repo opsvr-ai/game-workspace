@@ -6,14 +6,6 @@ import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 import { useAuthStore } from '../../stores/authStore';
 
-// Inject message pulse animation
-if (!document.getElementById('msg-pulse-pool')) {
-  const s = document.createElement('style');
-  s.id = 'msg-pulse-pool';
-  s.textContent = '@keyframes msg-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}';
-  document.head.appendChild(s);
-}
-
 const { Text, Title } = Typography;
 
 const orderTypeConfig: Record<string, { label: string; color: string }> = {
@@ -164,8 +156,7 @@ const PoolPage: React.FC = () => {
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
                   <Badge count={unreadMap[user?.companionId || order.id] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
-                    <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
-                      style={unreadMap[user?.companionId || order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
+                    <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}>
                       沟通
                     </Button>
                   </Badge>

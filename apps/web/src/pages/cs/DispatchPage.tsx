@@ -26,14 +26,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 
-// Inject message pulse animation
-if (typeof document !== 'undefined' && !document.getElementById('msg-pulse-keyframes')) {
-  const s = document.createElement('style');
-  s.id = 'msg-pulse-keyframes';
-  s.textContent = '@keyframes msg-pulse{0%,100%{transform:scale(1);box-shadow:0 0 8px #FF0000,0 0 20px #FF4757,0 0 35px rgba(255,0,0,.5)}50%{transform:scale(1.15);box-shadow:0 0 15px #FF0000,0 0 35px #FF4757,0 0 55px rgba(255,0,0,.7)}}';
-  document.head.appendChild(s);
-}
-
 const { Text } = Typography;
 const { Option } = Select;
 
@@ -280,10 +272,7 @@ const DispatchPage: React.FC = () => {
                               width: 32, height: 32, borderRadius: '50%',
                               background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              animation: hasMsg ? 'msg-pulse 0.8s ease-in-out infinite' : 'none',
-                              boxShadow: hasMsg ? '0 0 8px #FF0000, 0 0 20px #FF4757, 0 0 35px rgba(255,0,0,0.5)' :
-                                c.status !== CompanionStatus.OFFLINE ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}` : 'none',
-                              border: hasMsg ? '2px solid #FF0000' : 'none',
+                              boxShadow: c.status !== CompanionStatus.OFFLINE ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}` : 'none',
                               flexShrink: 0,
                             }}>
                               {!avatarUrl && (
@@ -293,9 +282,7 @@ const DispatchPage: React.FC = () => {
                           );
                         })()}
                         <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}>
-                          <Text strong style={chatIds.includes(c.id) ? { color: '#FF0000' } : undefined}>
-                            {c.user?.username ?? c.id}
-                          </Text>
+                          <Text strong>{c.user?.username ?? c.id}</Text>
                         </Badge>
                       </Space>
                       <Tag color={
