@@ -18,7 +18,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
     if (!token) return;
 
     // In dev: Vite serves on :8000, API on :3001 — connect directly to API server
-    const wsUrl = import.meta.env.DEV ? 'http://localhost:3001' : '/';
+    const wsUrl = import.meta.env.DEV ? `http://${window.location.hostname}:3001` : '/';
     const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
