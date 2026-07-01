@@ -115,33 +115,65 @@ const AppLayout: React.FC = () => {
     },
   });
 
-  // 轮询聊天通知
+  // Global chat poll — single source of truth for all chat updates
   useEffect(() => {
     if (!user?.studioId) return;
+    const seenKeys = new Set<string>();
     const poll = async () => {
       try {
         const res = await fetch('/api/companions/chat-pending', {
           headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
         });
-        if (res.ok) {
-          const { data } = await res.json();
-          if (data?.hasNew) {
-            useAuthStore.getState().setChatActive(true, data.companionName);
-            if (data.companionId) useAuthStore.getState().addChatCompanion(data.companionId);
-            // Write unread to localStorage so PoolPage badge picks it up
-            const unreadKey = data?.orderId || data?.companionId;
-            if (unreadKey) {
-              try {
-                const k = `unread-${unreadKey}`;
-                localStorage.setItem(k, String(parseInt(localStorage.getItem(k) || '0', 10) + 1));
-              } catch {}
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!data?.messages?.length) return;
+
+        // Process new messages
+        const msgs = data.messages as Array<{text:string;time:string;from:string}>;
+        for (const m of msgs) {
+          const dedupKey = `${m.text}|${m.time}`;
+          if (seenKeys.has(dedupKey)) continue;
+          seenKeys.add(dedupKey);
+
+          // Save to localStorage
+          const storageKey = `chat-msgs-${data.companionId || 'global'}`;
+          try {
+            const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            if (!existing.some((em: any) => em.text === m.text && em.time === m.time)) {
+              existing.push({ ...m, from: 'them' });
+              localStorage.setItem(storageKey, JSON.stringify(existing.slice(-100)));
             }
-          }
+          } catch {}
+
+          // Dispatch to open ChatModal instances
+          window.dispatchEvent(new CustomEvent('chat-message', {
+            detail: { text: m.text, time: m.time, companionId: data.companionId },
+          }));
+        }
+
+        // Update sidebar red dot
+        if (data?.hasNew) {
+          useAuthStore.getState().setChatActive(true, data.companionName);
+          if (data.companionId) useAuthStore.getState().addChatCompanion(data.companionId);
+        }
+
+        // Unread badge: set count (not increment) based on messages newer than lastRead
+        const unreadKey = data?.orderId || data?.companionId;
+        if (unreadKey && data.messages.length > 0) {
+          try {
+            const lastRead = parseInt(localStorage.getItem(`chat-lastRead-${unreadKey}`) || '0', 10);
+            const unread = data.messages.filter((m: any) => {
+              const [h, min] = (m.time || '00:00').split(':').map(Number);
+              const msgTs = Date.now() - (Date.now() % 86400000) + h * 3600000 + min * 60000;
+              return msgTs > lastRead;
+            }).length;
+            localStorage.setItem(`unread-${unreadKey}`, String(unread));
+          } catch {}
         }
       } catch {}
     };
     poll();
-    const t = setInterval(poll, 5000);
+    const t = setInterval(poll, 3000);
     return () => clearInterval(t);
   }, [user?.studioId]);
 

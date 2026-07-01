@@ -72,17 +72,7 @@ const PoolPage: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // Real-time pool updates via WebSocket
-  useSocket({
-    onOrderPoolUpdated: fetchData,
-    onChatNotify: (d: any) => {
-      if (d?.orderId) {
-        try {
-          const key = `unread-${d.orderId}`;
-          localStorage.setItem(key, String(parseInt(localStorage.getItem(key) || '0', 10) + 1));
-        } catch {}
-      }
-    },
-  });
+  useSocket({ onOrderPoolUpdated: fetchData });
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
@@ -99,7 +89,8 @@ const PoolPage: React.FC = () => {
 
   // Chat handlers
   const openChat = (order: any) => {
-    // Clear unread for this order
+    // Mark as read — updates lastRead timestamp
+    useAuthStore.getState().markRead(order.id);
     localStorage.removeItem(`unread-${order.id}`);
     setUnreadMap(prev => { const { [order.id]: _, ...rest } = prev; return rest; });
     setChatPartner({

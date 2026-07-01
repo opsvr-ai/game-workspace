@@ -26,51 +26,35 @@ function saveMsgs(companionId: string, msgs: ChatMsg[]) {
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
-  const [dbg, setDbg] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
   const user = useAuthStore(s => s.user);
   const partnerRef = useRef(partner);
   partnerRef.current = partner;
 
-  // Load messages when modal opens with a new companionId
+  // Load messages + mark read when opening
   useEffect(() => {
     if (!open || !partner?.companionId) return;
     setMsgs(loadMsgs(partner.companionId));
     setInput('');
-    // Poll immediately, then every 3s
-    let timer: any;
-    const poll = async () => {
+    // Mark as read — clear unread badge
+    useAuthStore.getState().markRead(partner.orderId || partner.companionId);
+    if (partner.orderId) localStorage.removeItem(`unread-${partner.orderId}`);
+    // Listen for new messages from global poll
+    const handler = (e: any) => {
+      const msg = e.detail;
       const p = partnerRef.current;
       if (!p) return;
-      try {
-        const { data } = await http.get(`/companions/chat-pending?companionId=${p.companionId}`);
-        const d = data.data;
-        setDbg(`轮询OK companionId=${(p.companionId||'').slice(0,8)} msgs=${d?.messages?.length||0} hasNew=${d?.hasNew} ${new Date().toLocaleTimeString()}`);
-        if (d?.messages?.length) {
-          setMsgs(prev => {
-            const seen = new Set(prev.map(m => m.text + m.time));
-            const news = d.messages.filter((m: any) => !seen.has(m.text + m.time));
-            if (news.length === 0) return prev;
-            const updated = [...prev, ...news.map((m: any) => ({ ...m, from: 'them' }))];
-            saveMsgs(p.companionId, updated);
-            // Unread badge: persist to localStorage per-orderId
-            if (news.length > 0 && p.orderId) {
-              try {
-                const key = `unread-${p.orderId}`;
-                const cur = parseInt(localStorage.getItem(key) || '0', 10);
-                localStorage.setItem(key, String(cur + news.length));
-              } catch {}
-            }
-            return updated;
-          });
-        }
-      } catch (e: any) {
-        setDbg(`轮询ERR ${e?.message || '未知'}`);
+      if (msg.companionId === p.companionId) {
+        setMsgs(prev => {
+          if (prev.some(m => m.text === msg.text && m.time === msg.time)) return prev;
+          const updated = [...prev, { text: msg.text, time: msg.time, from: 'them' }];
+          saveMsgs(p.companionId, updated);
+          return updated;
+        });
       }
     };
-    poll();
-    timer = setInterval(poll, 3000);
-    return () => clearInterval(timer);
+    window.addEventListener('chat-message', handler);
+    return () => window.removeEventListener('chat-message', handler);
   }, [open, partner?.companionId]);
 
   // Auto-scroll
@@ -122,7 +106,6 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{partner.name}</div>
               {partner.orderInfo && <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2, lineHeight: 1.4 }}>{partner.orderInfo}</div>}
-              <div style={{ fontSize: 10, color: '#0f0', marginTop: 2, fontFamily: 'monospace' }}>{dbg || '等待轮询...'}</div>
             </div>
           </div>
 

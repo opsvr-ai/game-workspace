@@ -18,6 +18,8 @@ interface AuthState {
   chatUnread: Record<string, number>;
   addChatUnread: (companionId: string) => void;
   clearChatUnread: (companionId: string) => void;
+  lastReadTs: Record<string, number>;
+  markRead: (key: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -80,4 +82,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { [companionId]: _, ...rest } = s.chatUnread;
     return { chatUnread: rest };
   }),
+  lastReadTs: {},
+  markRead: (key: string) => {
+    const now = Date.now();
+    localStorage.setItem(`chat-lastRead-${key}`, String(now));
+    set((s) => ({ lastReadTs: { ...s.lastReadTs, [key]: now } }));
+  },
 }));
