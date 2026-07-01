@@ -15,6 +15,9 @@ interface AuthState {
   chatCompanionIds: string[];
   addChatCompanion: (companionId: string) => void;
   clearChatCompanions: () => void;
+  chatUnread: Record<string, number>;
+  addChatUnread: (companionId: string) => void;
+  clearChatUnread: (companionId: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -69,4 +72,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     }));
   },
   clearChatCompanions: () => set({ chatCompanionIds: [] }),
+  chatUnread: {},
+  addChatUnread: (companionId: string) => set((s) => ({
+    chatUnread: { ...s.chatUnread, [companionId]: (s.chatUnread[companionId] || 0) + 1 },
+  })),
+  clearChatUnread: (companionId: string) => set((s) => {
+    const { [companionId]: _, ...rest } = s.chatUnread;
+    return { chatUnread: rest };
+  }),
 }));

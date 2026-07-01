@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge } from 'antd';
 import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
 import { useSocket } from '../../hooks/useSocket';
@@ -21,6 +21,10 @@ const PoolPage: React.FC = () => {
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
+
+  const chatUnread = useAuthStore(s => s.chatUnread);
+  const addChatUnread = useAuthStore(s => s.addChatUnread);
+  const clearChatUnread = useAuthStore(s => s.clearChatUnread);
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; companionId: string; orderInfo?: string } | null>(null);
@@ -45,7 +49,10 @@ const PoolPage: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // Real-time pool updates via WebSocket
-  useSocket({ onOrderPoolUpdated: fetchData });
+  useSocket({
+    onOrderPoolUpdated: fetchData,
+    onChatNotify: (d: any) => { if (d?.companionId) addChatUnread(d.companionId); },
+  });
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
@@ -62,6 +69,8 @@ const PoolPage: React.FC = () => {
 
   // Chat handlers
   const openChat = (order: any) => {
+    const cid = order.companionId || user?.companionId || '';
+    clearChatUnread(cid);
     setChatPartner({
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
@@ -131,7 +140,13 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}>沟通</Button>
+                  <Badge count={chatUnread[order.companionId || ''] || 0} size="small" offset={[-4, 0]}
+                    style={{ boxShadow: '0 0 8px #FF0000' }}>
+                    <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
+                      style={chatUnread[order.companionId || ''] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
+                      沟通
+                    </Button>
+                  </Badge>
                   <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{React.createElement(ClockCircleOutlined)} {new Date(order.createdAt).toLocaleTimeString()}</Text>
                   <Button type="primary" size="small" danger
                     disabled={!isUnlocked}
