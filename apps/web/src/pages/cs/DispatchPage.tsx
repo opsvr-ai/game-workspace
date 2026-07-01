@@ -257,7 +257,15 @@ const DispatchPage: React.FC = () => {
                         avatar: u?.avatar || null,
                         orderId: chatOrderId,
                         orderInfo: matchedOrder
-                          ? `📋 ${matchedOrder.gameName} · ${(orderTypeConfig as any)[matchedOrder.type]?.label || matchedOrder.type} · ¥${Number(matchedOrder.amount).toFixed(2)}`
+                          ? [
+                              `📋 ${matchedOrder.gameName}`,
+                              `${(orderTypeConfig as any)[matchedOrder.type]?.label || matchedOrder.type}`,
+                              `¥${Number(matchedOrder.amount).toFixed(2)}`,
+                              matchedOrder.duration ? `${matchedOrder.duration}h` : '',
+                              matchedOrder.customFields?.billingMode ? (matchedOrder.customFields.billingMode === 'round' ? '按局' : '按小时') : '',
+                              matchedOrder.customFields?.deltaMode ? `🎯${matchedOrder.customFields.deltaMode}` : '',
+                              matchedOrder.customer?.customerCode ? `👤${matchedOrder.customer.customerCode}` : '',
+                            ].filter(Boolean).join(' · ')
                           : (c.games?.length ? `🎮 ${c.games.map((g:any)=>g.game||g).join(',')}` : ''),
                       });
                     }}>
