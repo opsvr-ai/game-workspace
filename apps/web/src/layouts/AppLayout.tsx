@@ -128,8 +128,14 @@ const AppLayout: React.FC = () => {
           if (data?.hasNew) {
             useAuthStore.getState().setChatActive(true, data.companionName);
             if (data.companionId) useAuthStore.getState().addChatCompanion(data.companionId);
+            // Write unread to localStorage so PoolPage badge picks it up
             const unreadKey = data?.orderId || data?.companionId;
-            if (unreadKey) useAuthStore.getState().addChatUnread(unreadKey);
+            if (unreadKey) {
+              try {
+                const k = `unread-${unreadKey}`;
+                localStorage.setItem(k, String(parseInt(localStorage.getItem(k) || '0', 10) + 1));
+              } catch {}
+            }
           }
         }
       } catch {}
