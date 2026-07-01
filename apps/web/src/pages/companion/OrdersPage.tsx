@@ -4,6 +4,7 @@ import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
+import ChatModal from '../../components/ChatModal';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -37,6 +38,7 @@ const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const { chatActive, chatPartner, setChatActive } = useAuthStore();
+  const [chatPartnerModal, setChatPartnerModal] = useState<{ name: string; avatar?: string; orderId: string; orderInfo?: string } | null>(null);
 
   // Settlement modal state
   const [settleModal, setSettleModal] = useState(false);
@@ -224,17 +226,23 @@ const OrdersPage: React.FC = () => {
           { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={statusConfig[s]?.color}>{statusConfig[s]?.label||s}</Tag> },
           { title: '创建时间', dataIndex: 'createdAt', width: 130, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-' },
           {
-            title: '操作', key: 'action', width: 100,
-            render: (_: any, r: any) => {
-              if (r.status === 'CONFIRMED') {
-                return (
+            title: '操作', key: 'action', width: 160,
+            render: (_: any, r: any) => (
+              <Space size="small">
+                <Button size="small" onClick={() => setChatPartnerModal({
+                  name: r.csUser?.username || '客服',
+                  orderId: r.id,
+                  orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}`,
+                })}>
+                  沟通
+                </Button>
+                {r.status === 'CONFIRMED' && (
                   <Button type="primary" size="small" onClick={() => openSettleModal(r)}>
                     结束服务
                   </Button>
-                );
-              }
-              return null;
-            },
+                )}
+              </Space>
+            ),
           },
         ]}
         pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` }}
@@ -417,6 +425,7 @@ const OrdersPage: React.FC = () => {
           </div>
         </Space>
       </Modal>
+      <ChatModal open={!!chatPartnerModal} partner={chatPartnerModal} onClose={() => setChatPartnerModal(null)} />
     </div>
   );
 };
