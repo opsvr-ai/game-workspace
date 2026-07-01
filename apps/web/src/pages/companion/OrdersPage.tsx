@@ -230,7 +230,10 @@ const OrdersPage: React.FC = () => {
             ) : <Text type="secondary">-</Text>
           },
           { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={statusConfig[s]?.color}>{statusConfig[s]?.label||s}</Tag> },
-          { title: '抢单时间', dataIndex: 'grabbedAt', width: 150, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-' },
+          { title: '抢单时间', dataIndex: 'grabbedAt', width: 150, render: (v: string, r: any) => {
+            const t = v || r.createdAt;
+            return t ? new Date(t).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
+          }},
           {
             title: '操作', key: 'action', width: 160,
             render: (_: any, r: any) => (
