@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, Typography, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker } from 'antd';
+import { Table, Tag, Typography, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker, Badge } from 'antd';
 import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import { ordersApi } from '../../api/orders';
@@ -39,6 +39,18 @@ const OrdersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [chatPartnerModal, setChatPartnerModal] = useState<{ name: string; avatar?: string; orderId: string; orderInfo?: string } | null>(null);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const read = () => {
+      const m: Record<string, number> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith('unread-')) m[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
+      }
+      setUnreadMap(m);
+    };
+    read(); const t = setInterval(read, 3000); return () => clearInterval(t);
+  }, []);
 
   // Settlement modal state
   const [settleModal, setSettleModal] = useState(false);
@@ -217,13 +229,19 @@ const OrdersPage: React.FC = () => {
             title: '操作', key: 'action', width: 160,
             render: (_: any, r: any) => (
               <Space size="small">
-                <Button size="small" onClick={() => setChatPartnerModal({
-                  name: r.csUser?.username || '客服',
-                  orderId: r.id,
-                  orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}`,
-                })}>
-                  沟通
-                </Button>
+                <Badge count={unreadMap[r.id] || 0} size="small">
+                  <Button size="small" className={(unreadMap[r.id] || 0) > 0 ? 'pulse-badge' : ''} onClick={() => {
+                    localStorage.removeItem(`unread-${r.id}`);
+                    setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
+                    setChatPartnerModal({
+                      name: r.csUser?.username || '客服',
+                      orderId: r.id,
+                      orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}`,
+                    });
+                  }}>
+                    沟通
+                  </Button>
+                </Badge>
                 {r.status === 'CONFIRMED' && (
                   <Button type="primary" size="small" onClick={() => openSettleModal(r)}>
                     结束服务
