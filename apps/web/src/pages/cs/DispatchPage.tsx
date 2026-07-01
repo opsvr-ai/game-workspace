@@ -258,6 +258,7 @@ const DispatchPage: React.FC = () => {
                         orderId: chatOrderId,
                         orderInfo: matchedOrder
                           ? [
+                              matchedOrder.companionId === c.id ? '✅已抢' : '⏳待抢',
                               `📋 ${matchedOrder.gameName}`,
                               `${(orderTypeConfig as any)[matchedOrder.type]?.label || matchedOrder.type}`,
                               `¥${Number(matchedOrder.amount).toFixed(2)}`,
