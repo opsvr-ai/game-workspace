@@ -157,15 +157,15 @@ const AppLayout: React.FC = () => {
           }
         }
 
-        // Unread badge: total messages - last seen count
-        const unreadKey = data?.orderId || data?.companionId;
-        if (unreadKey) {
-          try {
-            const total = data?.messages?.length || 0;
-            const lastSeen = parseInt(localStorage.getItem(`chat-lastRead-${unreadKey}`) || '0', 10);
-            const unread = Math.max(0, total - lastSeen);
-            localStorage.setItem(`unread-${unreadKey}`, String(unread));
-          } catch {}
+        // Unread badge: increment per new notification
+        if (data?.hasNew) {
+          const unreadKey = data?.orderId || data?.companionId;
+          if (unreadKey) {
+            try {
+              const cur = parseInt(localStorage.getItem(`unread-${unreadKey}`) || '0', 10);
+              localStorage.setItem(`unread-${unreadKey}`, String(cur + 1));
+            } catch {}
+          }
         }
       } catch {}
     };
