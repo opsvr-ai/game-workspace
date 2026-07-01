@@ -10,7 +10,7 @@ import type { ApiResponse } from '@chunlv/shared';
 // 内存聊天消息存储 (studioId -> companionId -> messages[])
 interface ChatMsg { text: string; from: string; time: string; }
 const chatMessages = new Map<string, Map<string, ChatMsg[]>>();
-const chatNotifications = new Map<string, { companionName: string; companionId: string; timestamp: number; message?: string }>();
+const chatNotifications = new Map<string, { companionName: string; companionId: string; timestamp: number; message?: string; orderId?: string }>();
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -68,6 +68,7 @@ export class CompanionsController {
       hasNew: !!hasNew,
       companionName: notif?.companionName,
       companionId: notif?.companionId || companionId,
+      orderId: notif?.orderId,
       avatar,
       messages,
     }};
@@ -279,7 +280,7 @@ export class CompanionsController {
   // 聊天通知：陪玩端发送消息时通知客服
   @Post('companions/chat-notify')
   @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async chatNotify(@Req() req: any, @Body() body: { companionId?: string; message?: string; time?: string }): Promise<ApiResponse<unknown>> {
+  async chatNotify(@Req() req: any, @Body() body: { companionId?: string; message?: string; time?: string; orderId?: string }): Promise<ApiResponse<unknown>> {
     const username = req.user.username || 'unknown';
     const myCompanionId = req.user.companionId || '';
     const studioId = req.user.studioId;
@@ -299,7 +300,7 @@ export class CompanionsController {
     });
 
     // Store notification keyed by studioId:companionId
-    chatNotifications.set(`${studioId}:${chatKey}`, { companionName: username, companionId: chatKey, timestamp: Date.now(), message: msgText });
+    chatNotifications.set(`${studioId}:${chatKey}`, { companionName: username, companionId: chatKey, timestamp: Date.now(), message: msgText, orderId: body.orderId });
     // WebSocket broadcast
     this.wsGateway.notifyChat(studioId, username, chatKey, chatKey);
     return { code: 200, message: 'ok', data: null };

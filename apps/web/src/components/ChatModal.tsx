@@ -5,7 +5,7 @@ import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 
 interface ChatMsg { text: string; time: string; from: string; }
-interface ChatPartner { name: string; avatar?: string; companionId: string; orderInfo?: string; }
+interface ChatPartner { name: string; avatar?: string; companionId: string; orderInfo?: string; orderId?: string; }
 
 interface Props {
   open: boolean;
@@ -80,7 +80,9 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     setMsgs(updated);
     saveMsgs(partner.companionId, updated);
     setInput('');
-    http.post('/companions/chat-notify', { companionId: partner.companionId, message: text, time }).catch(() => {});
+    const body: any = { companionId: partner.companionId, message: text, time };
+    if (partner.orderId) body.orderId = partner.orderId;
+    http.post('/companions/chat-notify', body).catch(() => {});
   };
 
   const avatarEl = (p: ChatPartner, size = 36, isMe = false) => {

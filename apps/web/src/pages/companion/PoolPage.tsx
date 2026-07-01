@@ -35,7 +35,7 @@ const PoolPage: React.FC = () => {
   const clearChatUnread = useAuthStore(s => s.clearChatUnread);
 
   // Chat state
-  const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; companionId: string; orderInfo?: string } | null>(null);
+  const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; companionId: string; orderInfo?: string; orderId?: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -83,6 +83,7 @@ const PoolPage: React.FC = () => {
       name: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
       companionId: order.companionId || user?.companionId || '',
+      orderId: order.id,
       orderInfo: [
         `📋 ${order.gameName}`,
         `${order.type === 'NEW' ? '首单' : order.type === 'RENEW' ? '续费' : order.type === 'REPURCHASE' ? '复购' : order.type}`,
@@ -148,10 +149,10 @@ const PoolPage: React.FC = () => {
               <Col>
                 <Space size={6}>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>📋{order.csUser?.username || '-'}</Text>
-                  <Badge count={chatUnread[user?.companionId || ''] || 0} size="small" offset={[-4, 0]}
+                  <Badge count={chatUnread[order.id] || 0} size="small" offset={[-4, 0]}
                     style={{ boxShadow: '0 0 8px #FF0000' }}>
                     <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(order)}
-                      style={chatUnread[user?.companionId || ''] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
+                      style={chatUnread[order.id] ? { background: '#FFF1F0', borderColor: '#FF4D4F', color: '#FF4D4F', animation: 'msg-pulse 1s ease-in-out infinite' } : undefined}>
                       沟通
                     </Button>
                   </Badge>

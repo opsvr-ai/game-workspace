@@ -127,10 +127,9 @@ const AppLayout: React.FC = () => {
           const { data } = await res.json();
           if (data?.hasNew) {
             useAuthStore.getState().setChatActive(true, data.companionName);
-            if (data.companionId) {
-              useAuthStore.getState().addChatCompanion(data.companionId);
-              useAuthStore.getState().addChatUnread(data.companionId);
-            }
+            if (data.companionId) useAuthStore.getState().addChatCompanion(data.companionId);
+            const unreadKey = data?.orderId || data?.companionId;
+            if (unreadKey) useAuthStore.getState().addChatUnread(unreadKey);
           }
         }
       } catch {}
