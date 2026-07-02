@@ -166,8 +166,8 @@ const AppLayout: React.FC = () => {
           }
         }
 
-        // Unread badge
-        if (data?.orderId) {
+        // Unread badge — only update when there's a new notification from others
+        if (data?.hasNew && data?.orderId) {
           try {
             const total = data?.messages?.length || 0;
             const lastSeen = parseInt(localStorage.getItem(`chat-lastRead-${data.orderId}`) || '0', 10);
