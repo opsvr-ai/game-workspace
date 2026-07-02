@@ -108,7 +108,7 @@ export class OrdersService {
       },
       include: {
         customer: { select: { wechatId: true, customerCode: true, platform: true } },
-        csUser: { select: { username: true, avatar: true, displayName: true } },
+        csUser: { select: { username: true, avatar: true, displayName: true, role: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

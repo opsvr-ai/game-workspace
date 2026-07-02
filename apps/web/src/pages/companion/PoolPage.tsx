@@ -176,9 +176,10 @@ const PoolPage: React.FC = () => {
                   </Badge>
                   <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{React.createElement(ClockCircleOutlined)} {(()=>{const d=new Date(order.createdAt);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`})()}</Text>
                   <Button type="primary" size="small" danger
+                    disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
                     loading={grabbing === order.id}
                     onClick={() => handleGrab(order.id)}>
-                    抢单
+                    {(!isUnlocked && order.csUser?.role !== 'COMPANION') ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}` : '抢单'}
                   </Button>
                 </Space>
               </Col>
