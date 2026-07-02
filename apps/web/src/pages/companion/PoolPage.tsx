@@ -196,10 +196,12 @@ const PoolPage: React.FC = () => {
       {/* Grab Success Modal */}
       <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={400}>
         {grabbedOrder && <>
-          <p>游戏：<Text strong>{grabbedOrder.gameName}</Text> ｜ ¥{grabbedOrder.amount}</p>
-          {grabbedOrder.customer?.wechatId && <p>微信：<Text copyable style={{ color: '#1677ff', fontSize: 16 }}>{grabbedOrder.customer.wechatId}</Text></p>}
-          {grabbedOrder.customer?.customerCode && <p>客户编号：{grabbedOrder.customer.customerCode}</p>}
+          <p>游戏：<Text strong>{grabbedOrder.gameName}</Text> ｜ ¥{grabbedOrder.amount} ｜ {grabbedOrder.duration}h</p>
+          {grabbedOrder.customer?.customerCode && <p>客户编号：<Text copyable>{grabbedOrder.customer.customerCode}</Text></p>}
           {grabbedOrder.customFields?.customerSource && <p>来源：{grabbedOrder.customFields.customerSource}</p>}
+          {grabbedOrder.customFields?.customerRoomCode && <p>房间码：<Text copyable>{grabbedOrder.customFields.customerRoomCode}</Text></p>}
+          {grabbedOrder.customFields?.customerPlatformAccount && <p>平台账号：<Text copyable>{grabbedOrder.customFields.customerPlatformAccount}</Text></p>}
+          {grabbedOrder.customFields?.deltaMode && <p>模式：{grabbedOrder.customFields.deltaMode} {grabbedOrder.customFields.deltaMission||''} {grabbedOrder.customFields.deltaCount||''}</p>}
         </>}
       </Modal>
       {/* Chat Modal */}
