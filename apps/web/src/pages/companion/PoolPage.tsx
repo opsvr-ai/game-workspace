@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge, Modal } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
@@ -23,6 +23,7 @@ const PoolPage: React.FC = () => {
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
+  const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
 
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -72,8 +73,8 @@ const PoolPage: React.FC = () => {
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
     try {
-      await ordersApi.grab(orderId);
-      message.success('抢单成功！');
+      const { data } = await ordersApi.grab(orderId);
+      setGrabbedOrder(data.data);
       fetchData();
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? '抢单失败');
@@ -192,6 +193,15 @@ const PoolPage: React.FC = () => {
       </Card>
 
       <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id} defaultDeltaCount="双" />
+      {/* Grab Success Modal */}
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={400}>
+        {grabbedOrder && <>
+          <p>游戏：<Text strong>{grabbedOrder.gameName}</Text> ｜ ¥{grabbedOrder.amount}</p>
+          {grabbedOrder.customer?.wechatId && <p>微信：<Text copyable style={{ color: '#1677ff', fontSize: 16 }}>{grabbedOrder.customer.wechatId}</Text></p>}
+          {grabbedOrder.customer?.customerCode && <p>客户编号：{grabbedOrder.customer.customerCode}</p>}
+          {grabbedOrder.customFields?.customerSource && <p>来源：{grabbedOrder.customFields.customerSource}</p>}
+        </>}
+      </Modal>
       {/* Chat Modal */}
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
     </div>
