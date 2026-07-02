@@ -6,9 +6,10 @@ import { DispatchType } from '@chunlv/shared';
 
 const { Option } = Select;
 
-interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; }
-
 const orderTypeConfig: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购' };
+const gameList = ['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'];
+
+interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; }
 
 const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId }) => {
   const [loading, setLoading] = useState(false);
@@ -30,31 +31,24 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId })
   return (
     <Modal title="创建订单" open={open} onOk={handleOk} onCancel={() => { form.resetFields(); onClose(); }}
       confirmLoading={loading} okText="发布" cancelText="取消" destroyOnClose width={520}>
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', dispatchType:DispatchType.POOL, urgency:'now' }}>
-        <Form.Item name="type" label="订单类型" rules={[{ required: true }]}>
+      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form.Item name="type" label="订单类型" initialValue="NEW" rules={[{ required: true }]}>
           <Select>{Object.entries(orderTypeConfig).map(([k,v]) => <Option key={k} value={k}>{v}</Option>)}</Select></Form.Item>
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>
-          <Select placeholder="选择游戏" showSearch>
-            {['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'].map(g=><Option key={g} value={g}>{g}</Option>)}
-          </Select></Form.Item>
+          <Select showSearch>{gameList.map(g => <Option key={g} value={g}>{g}</Option>)}</Select></Form.Item>
         <Form.Item noStyle shouldUpdate={(p,c) => p.gameName !== c.gameName}>
           {({ getFieldValue }) => getFieldValue('gameName') === '三角洲行动' ? <>
-            <Form.Item name="deltaMode" label="模式" initialValue="陪玩">
-              <Select><Option value="护航">护航</Option><Option value="陪玩">陪玩</Option></Select></Form.Item>
-            <Form.Item name="deltaMission" label="任务类型">
-              <Select placeholder="可选" allowClear><Option value="机密">机密</Option><Option value="绝密">绝密</Option></Select></Form.Item>
-            <Form.Item name="deltaCount" label="陪陪数量" initialValue="单">
-              <Select><Option value="单">单</Option><Option value="双">双</Option></Select></Form.Item>
+            <Form.Item name="deltaMode" label="模式" initialValue="陪玩" rules={[{ required: true }]}>
+              <Select onChange={(val: string) => { if (val === '护航') form.setFieldsValue({ deltaCount: '双' }); }}>
+                <Option value="护航">护航</Option><Option value="陪玩">陪玩</Option></Select></Form.Item>
+            <Form.Item name="deltaMission" label="任务类型"><Select placeholder="可选" allowClear><Option value="机密">机密</Option><Option value="绝密">绝密</Option></Select></Form.Item>
+            <Form.Item name="deltaCount" label="陪陪数量" initialValue="单"><Select><Option value="单">单</Option><Option value="双">双</Option></Select></Form.Item>
             <Form.Item name="deltaNote" label="备注"><Input.TextArea rows={2} placeholder="补充说明" /></Form.Item>
           </> : null}
         </Form.Item>
         <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" /></Form.Item>
-        <Form.Item name="duration" label="时长（小时）" initialValue={1}>
-          <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} /></Form.Item>
-        <Form.Item name="billingMode" label="计费方式" initialValue="hour">
-          <Select><Option value="hour">按时长</Option><Option value="round">按局数</Option></Select></Form.Item>
-        <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL}>
+        <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
           <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定派单</Option></Select></Form.Item>
         <Form.Item noStyle shouldUpdate={(p,c) => p.dispatchType !== c.dispatchType}>
           {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (
@@ -66,6 +60,22 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId })
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select><Option value="now">⚡立即打</Option><Option value="later">📅预约</Option></Select></Form.Item>
+        <Form.Item label="客户预留信息">
+          <Input.Group compact>
+            <Form.Item name="customerSource" noStyle><Select style={{ width: '35%' }} placeholder="来源"><Option value="小红书">小红书</Option><Option value="抖音">抖音</Option><Option value="快手">快手</Option><Option value="转介绍">转介绍</Option></Select></Form.Item>
+            <Form.Item name="customerPlatformAccount" noStyle><Input style={{ width: '30%' }} placeholder="来源账号ID" /></Form.Item>
+            <Form.Item name="customerWechat" noStyle><Input style={{ width: '35%' }} placeholder="微信" /></Form.Item>
+          </Input.Group>
+        </Form.Item>
+        <Form.Item name="billingMode" label="计费方式" initialValue="hour">
+          <Select><Option value="hour">按小时</Option><Option value="round">按局数</Option></Select></Form.Item>
+        <Form.Item noStyle shouldUpdate={(p,c) => p.billingMode !== c.billingMode}>
+          {({ getFieldValue }) => getFieldValue('billingMode') === 'round' ? (
+            <Form.Item name="duration" label="局数"><InputNumber min={1} step={1} style={{ width: '100%' }} /></Form.Item>
+          ) : (
+            <Form.Item name="duration" label="时长（小时）" initialValue={1}><InputNumber min={0.5} step={0.5} style={{ width: '100%' }} /></Form.Item>
+          )}
+        </Form.Item>
       </Form>
     </Modal>
   );
