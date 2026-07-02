@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge, Modal, Form, Input, Select, InputNumber } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
+import CreateOrderModal from '../../components/CreateOrderModal';
 import { useAuthStore } from '../../stores/authStore';
 
 const { Text, Title } = Typography;
-const { Option } = Select;
 
 const orderTypeConfig: Record<string, { label: string; color: string }> = {
   NEW: { label: '首单', color: 'green' },
@@ -26,8 +26,6 @@ const PoolPage: React.FC = () => {
 
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createForm] = Form.useForm();
 
   // Read unread counts from localStorage on mount + periodically
   useEffect(() => {
@@ -105,17 +103,6 @@ const PoolPage: React.FC = () => {
         order.csUser?.username ? `💬${order.csUser.username}` : '',
       ].filter(Boolean).join(' · '),
     });
-  };
-
-  const handleCreateOrder = async () => {
-    try {
-      const values = await createForm.validateFields();
-      setCreateLoading(true);
-      await ordersApi.create({ ...values, dispatchType: 'POOL', csUserId: (user as any)?.id });
-      message.success('订单已发布到抢单池');
-      setCreateOpen(false); createForm.resetFields(); fetchData();
-    } catch (e: any) { if (!e?.errorFields) message.error(e?.response?.data?.message||'发布失败'); }
-    finally { setCreateLoading(false); }
   };
 
 
@@ -204,24 +191,7 @@ const PoolPage: React.FC = () => {
         <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
       </Card>
 
-      {/* Create Order Modal */}
-      <Modal title="发布订单到抢单池" open={createOpen} onOk={handleCreateOrder} onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
-        confirmLoading={createLoading} okText="发布" cancelText="取消" destroyOnClose>
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}><Input placeholder="如：王者荣耀" /></Form.Item>
-          <Form.Item name="type" label="订单类型" initialValue="NEW"><Select>
-            <Option value="NEW">首单</Option><Option value="RENEW">续单</Option><Option value="REPURCHASE">复购</Option>
-          </Select></Form.Item>
-          <Form.Item name="amount" label="金额" rules={[{ required: true }]}><InputNumber min={0} style={{ width: '100%' }} placeholder="单价（元/小时或元/局）" /></Form.Item>
-          <Form.Item name="duration" label="时长（小时）" initialValue={1}><InputNumber min={0.5} step={0.5} style={{ width: '100%' }} /></Form.Item>
-          <Form.Item name="billingMode" label="计费方式" initialValue="hour"><Select>
-            <Option value="hour">按时长</Option><Option value="round">按局数</Option>
-          </Select></Form.Item>
-          <Form.Item name="urgency" label="打单时间" initialValue="now"><Select>
-            <Option value="now">⚡立即打</Option><Option value="later">📅预约</Option>
-          </Select></Form.Item>
-        </Form>
-      </Modal>
+      <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id} />
       {/* Chat Modal */}
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
     </div>
