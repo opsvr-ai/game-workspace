@@ -177,7 +177,6 @@ const AppLayout: React.FC = () => {
             // Per-companion (CS's companion list badge)
             if (data?.companionId) {
               localStorage.setItem(`unread-${data.companionId}`, String(unread));
-              localStorage.setItem(`last-orderId-${data.companionId}`, data.orderId);
             }
           } catch {}
         }
