@@ -147,30 +147,31 @@ export class OrdersService {
       throw new ForbiddenException('该订单不可抢');
     }
 
-    // Revenue threshold check
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Revenue threshold check — skip for peer orders (created by companions)
+    const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
+    const isPeerOrder = creator?.role === 'COMPANION';
 
-    const todayOrders = await this.prisma.order.findMany({
-      where: {
-        companionId,
-        status: 'DONE',
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-    const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
+    if (!isPeerOrder) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const config = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.unlock_threshold' },
-    });
-    const threshold = (config?.value as number) ?? 100;
+      const todayOrders = await this.prisma.order.findMany({
+        where: { companionId, status: 'DONE', createdAt: { gte: today, lt: tomorrow } },
+      });
+      const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
 
-    if (todayRevenue < threshold) {
-      throw new ForbiddenException(
-        `今日流水 ¥${todayRevenue}，未达到解锁门槛 ¥${threshold}，还差 ¥${threshold - todayRevenue}`,
-      );
+      const config = await this.prisma.systemConfig.findUnique({
+        where: { key: 'revenue.unlock_threshold' },
+      });
+      const threshold = (config?.value as number) ?? 100;
+
+      if (todayRevenue < threshold) {
+        throw new ForbiddenException(
+          `今日流水 ¥${todayRevenue}，未达到解锁门槛 ¥${threshold}，还差 ¥${threshold - todayRevenue}`,
+        );
+      }
     }
 
     const updatedOrder = await this.prisma.order.update({
