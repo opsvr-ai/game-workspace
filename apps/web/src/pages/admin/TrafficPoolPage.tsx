@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Typography, Tag, Row, Col, Spin, Empty, Space } from 'antd';
-import { ClockCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
+import CreateOrderModal from '../../components/CreateOrderModal';
 
 const { Text, Title } = Typography;
 
@@ -15,6 +16,7 @@ const orderTypeConfig: Record<string, { label: string; color: string }> = {
 const TrafficPoolPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -34,7 +36,10 @@ const TrafficPoolPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>📦 订单池</Title>
-        <Button icon={React.createElement(ReloadOutlined)} onClick={fetchData} loading={loading}>刷新</Button>
+        <Space>
+          <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setCreateOpen(true)}>发布订单</Button>
+          <Button icon={React.createElement(ReloadOutlined)} onClick={fetchData} loading={loading}>刷新</Button>
+        </Space>
       </div>
 
       {loading ? (
@@ -76,6 +81,7 @@ const TrafficPoolPage: React.FC = () => {
           ))}
         </div>
       )}
+      <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} />
     </div>
   );
 };
