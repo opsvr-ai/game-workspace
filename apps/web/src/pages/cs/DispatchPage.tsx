@@ -25,6 +25,7 @@ import http from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
+import CreateOrderModal from '../../components/CreateOrderModal';
 
 const { Text } = Typography;
 const { Option } = Select;
