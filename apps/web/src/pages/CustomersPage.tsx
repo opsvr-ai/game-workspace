@@ -73,8 +73,10 @@ const CustomersPage: React.FC = () => {
   };
   const handleSchedule = async () => {
     if (!scheduleTime || !scheduleCustomer) { message.warning('请选择预约时间'); return; }
+    const orderId = scheduleCustomer.orders?.[0]?.id;
+    if (!orderId) { message.warning('该客户暂无订单，无法设置预约'); return; }
     try {
-      await http.put(`/orders/${scheduleCustomer.orders?.[0]?.id}/contact`, { scheduledAt: scheduleTime.toISOString() });
+      await http.put(`/orders/${orderId}/contact`, { scheduledAt: scheduleTime.toISOString() });
       message.success(`已设置预约: ${scheduleTime.format('YYYY-MM-DD HH:mm')}`);
       setScheduleModalOpen(false); fetchCustomers();
     } catch (e: any) { message.error(e?.response?.data?.message || '设置失败'); }
