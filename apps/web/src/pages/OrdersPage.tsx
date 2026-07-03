@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Select, DatePicker, message, Badge, Tag } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
+import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import OrderTable from '../components/OrderTable';
 import { orderStatusConfig } from '../constants';
@@ -53,6 +54,16 @@ const OrdersPage: React.FC = () => {
           setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
         }}>沟通</Button>
       </Badge>
+      {r.status === 'PENDING' && r.dispatchType === 'DIRECT' && (<>
+        <Button type="primary" size="small" onClick={async () => {
+          try { await ordersApi.acceptAssignment(r.id); message.success('已接单'); fetch(); }
+          catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+        }}>接单</Button>
+        <Button danger size="small" onClick={async () => {
+          try { await ordersApi.declineAssignment(r.id); message.success('已拒绝'); fetch(); }
+          catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+        }}>拒绝</Button>
+      </>)}
       {r.status === 'GRABBED' && !r.contactStatus && (<>
         <Button type="primary" size="small" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={async () => {
           try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' }); message.success('已标记'); fetch(); }

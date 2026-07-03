@@ -132,7 +132,7 @@ export class OrdersService {
     if (!showAll) {
       if (user.role === 'COMPANION') {
       where.companionId = user.companionId;
-      if (!status) where.NOT = { status: 'PENDING' };
+      if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
     }
       else if (user.role === 'CS') where.csUserId = user.id;
       else if (user.role === 'ADMIN') where.studioId = user.studioId;
