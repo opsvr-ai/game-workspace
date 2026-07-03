@@ -202,11 +202,14 @@ export class OrdersService {
     if (body.screenshotUrl !== undefined) data.screenshotUrl = body.screenshotUrl;
     const updated = await this.prisma.order.update({ where: { id: orderId }, data, include: { customer: true } });
 
-    // When contact status is set to 'added', create/update customer record
-    if (body.contactStatus === 'added' && updated.customer) {
+    // When contact status is 'added' or 'not_accepted', link customer to companion.
+    // Only set companionId if currently null — don't steal customers from other companions.
+    if ((body.contactStatus === 'added' || body.contactStatus === 'not_accepted') && updated.customer) {
       await this.prisma.customer.upsert({
         where: { id: updated.customerId },
-        update: { companionId: updated.companionId },
+        update: {
+          companionId: updated.customer.companionId || updated.companionId,
+        },
         create: {
           id: updated.customerId,
           studioId: updated.studioId,
