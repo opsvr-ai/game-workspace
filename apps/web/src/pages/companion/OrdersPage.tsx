@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, Typography, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker, Badge } from 'antd';
+import { Typography, Tag, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker, Badge } from 'antd';
 import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import { ordersApi } from '../../api/orders';
@@ -201,129 +201,55 @@ const OrdersPage: React.FC = () => {
           <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
         </div>
       </div>
-      <Table size="small" dataSource={[...orders].sort((a: any, b: any) => {
-        const aUnread = unreadMap[a.id] || 0;
-        const bUnread = unreadMap[b.id] || 0;
-        if (aUnread > 0 && bUnread === 0) return -1;
-        if (bUnread > 0 && aUnread === 0) return 1;
-        return new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime();
-      }).filter((o: any) => {
-        if (!dateFilter) return true;
-        const d = new Date(o.grabbedAt || o.createdAt).toDateString();
-        return d === dateFilter.toDate().toDateString();
-      })} rowKey="id" loading={loading}
-        columns={[
-          { title: '订单', key: 'info', width: 200, render: (_: any, r: any) => (<>
-            <Text strong>{r.gameName}</Text>
-            <br /><Text type="secondary" style={{ fontSize: 11 }}>{typeConfig[r.type]?.label || r.type} · ¥{Number(r.amount).toFixed(0)} · {r.duration}h · 发布:{r.csUser?.username || '?'}</Text>
-          </>)},
-          { title: '客户', key: 'customer', width: 120, render: (_: any, r: any) => (<>
-            <Text style={{ fontSize: 12 }}>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>
-            {r.customer?.customerCode && <><br /><Text type="secondary" style={{ fontSize: 11 }}>{r.customer.customerCode}</Text></>}
-          </>)},
-          { title: '标注', key: 'tags', width: 100, render: (_: any, r: any) => (<>
-            {r.customFields?.urgency === 'later' ? <Tag color="purple" style={{fontSize:11}}>📅预约</Tag> : <Tag color="green" style={{fontSize:11}}>⚡立即打</Tag>}
-            {r.customFields?.deltaMode && <Tag style={{fontSize:10}}>{r.customFields.deltaMode}{r.customFields.deltaCount||''}</Tag>}
-          </>)},
-          { title: '联系人', key: 'companion', width: 80,
-            render: (_: any, r: any) => r.companion?.user?.username || <Text type="secondary">-</Text>
-          },
-          { title: '状态', key: 'contact', width: 130, render: (_: any, r: any) => (<>
-            <Tag color={statusConfig[r.status]?.color}>{statusConfig[r.status]?.label||r.status}</Tag>
-            {r.contactStatus === 'added' && <Tag color="green">已添加</Tag>}
-            {r.contactStatus === 'not_accepted' && <Tag color="orange">未同意</Tag>}
-            {r.scheduledAt && <div><Text type="secondary" style={{ fontSize: 11 }}>📅{new Date(r.scheduledAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</Text></div>}
-          </>)},
-          { title: '创建时间', dataIndex: 'createdAt', width: 150, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-' },
-          { title: '抢单时间', dataIndex: 'grabbedAt', width: 150, render: (v: string, r: any) => {
-            const t = v || r.createdAt;
-            return t ? new Date(t).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
-          }},
-          {
-            title: '操作', key: 'action', width: 160,
-            render: (_: any, r: any) => (
-              <Space size="small">
-                <Badge count={unreadMap[r.id] || 0} size="small">
-                  <Button size="small" className={(unreadMap[r.id] || 0) > 0 ? 'pulse-badge' : ''} onClick={() => {
-                    localStorage.removeItem(`unread-${r.id}`);
-                    setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
-                    setChatPartnerModal({
-                      name: r.csUser?.username || '客服',
-                      orderId: r.id,
-                      orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}`,
-                    });
-                  }}>
-                    沟通
-                  </Button>
-                </Badge>
-                {r.status === 'GRABBED' && !r.contactStatus && (<>
-                  <Upload showUploadList={false} beforeUpload={async (file: File) => {
-                    const fd = new FormData(); fd.append('file', file);
-                    try { const { data } = await http.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                      const url = data.data?.url || data.url || '';
-                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added', screenshotUrl: url });
-                      message.success('截图已上传'); fetch();
-                    } catch(e:any) { message.error('上传失败'); }
-                    return false;
-                  }}>
-                    <Button size="small" icon={React.createElement(UploadOutlined)}>上传截图</Button>
-                  </Upload>
-                  <Button type="primary" size="small" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={async () => {
-                    try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' }); message.success('已标记'); fetch(); }
-                    catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
-                  }}>
-                    联系方式添加成功
-                  </Button>
-                  <Button danger size="small" onClick={async () => {
-                    try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted' }); message.success('已标记'); fetch(); }
-                    catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
-                  }}>
-                    已添加未同意
-                  </Button>
-                </>)}
-                {r.status === 'GRABBED' && r.contactStatus === 'added' && (<>
-                  <Button type="primary" size="small" onClick={async () => {
-                    try { await http.post(`/orders/${r.id}/confirm`); message.success('已开始服务'); fetch(); }
-                    catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
-                  }}>
-                    开始服务
-                  </Button>
-                  <Button size="small" onClick={async () => {
-                    try { await http.post(`/orders/${r.id}/republish`); message.success('已发布到抢单池'); fetch(); }
-                    catch(e:any) { message.error(e?.response?.data?.message||'发布失败'); }
-                  }}>
-                    发布到抢单池
-                  </Button>
-                  <Button size="small" onClick={() => {
-                    const dt = prompt('预约时间 (YYYY-MM-DD HH:mm)', '');
-                    if (dt) http.put(`/orders/${r.id}/contact`, { scheduledAt: new Date(dt).toISOString() }).then(()=>{message.success('已预约'); fetch();}).catch((e:any)=>message.error(e?.response?.data?.message||'失败'));
-                  }}>
-                    预约时间
-                  </Button>
-                </>)}
-                {r.status === 'GRABBED' && r.contactStatus === 'not_accepted' && (
-                  <Tag color="orange">待客户同意</Tag>
-                )}
-                {r.status === 'CONFIRMED' && (<>
-                  <Button size="small" onClick={async () => {
-                    try { await http.post(`/orders/${r.id}/renew`); message.success('已续单'); fetch(); }
-                    catch(e:any) { message.error(e?.response?.data?.message||'续单失败'); }
-                  }}>
-                    续单
-                  </Button>
-                  <Button size="small" onClick={() => {
-                    const amt = prompt('修改金额', String(r.amount));
-                    if (amt && !isNaN(+amt)) http.put(`/orders/${r.id}/amount`, { amount: +amt }).then(()=>{message.success('已改价'); fetch();}).catch((e:any)=>message.error(e?.response?.data?.message||'失败'));
-                  }}>改价</Button>
-                  <Button type="primary" size="small" onClick={() => openSettleModal(r)}>
-                    结束服务
-                  </Button>
-                </>)}
-              </Space>
-            ),
-          },
-        ]}
-        pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` }}
+      <OrderTable
+        dataSource={[...orders].sort((a: any, b: any) => {
+          const aUnread = unreadMap[a.id] || 0; const bUnread = unreadMap[b.id] || 0;
+          if (aUnread > 0 && bUnread === 0) return -1;
+          if (bUnread > 0 && aUnread === 0) return 1;
+          return new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime();
+        }).filter((o: any) => {
+          if (!dateFilter) return true;
+          return new Date(o.grabbedAt || o.createdAt).toDateString() === dateFilter.toDate().toDateString();
+        })}
+        loading={loading} unreadMap={unreadMap}
+        renderActions={(r: any) => (<>
+          <Badge count={unreadMap[r.id] || 0} size="small">
+            <Button size="small" onClick={() => {
+              localStorage.removeItem(`unread-${r.id}`);
+              setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
+              setChatPartnerModal({ name: r.csUser?.username || '客服', orderId: r.id, orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}` });
+            }}>沟通</Button>
+          </Badge>
+          {r.status === 'GRABBED' && !r.contactStatus && (<>
+            <Upload showUploadList={false} beforeUpload={async (file: File) => {
+              const fd = new FormData(); fd.append('file', file);
+              try { const { data } = await http.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added', screenshotUrl: data.data?.url || data.url || '' });
+                message.success('截图已上传'); fetch();
+              } catch(e:any) { message.error('上传失败'); }
+              return false;
+            }}><Button size="small" icon={React.createElement(UploadOutlined)}>上传截图</Button></Upload>
+            <Button type="primary" size="small" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={async () => {
+              try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' }); message.success('已标记'); fetch(); }
+              catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+            }}>联系方式添加成功</Button>
+            <Button danger size="small" onClick={async () => {
+              try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted' }); message.success('已标记'); fetch(); }
+              catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+            }}>已添加未同意</Button>
+          </>)}
+          {r.status === 'GRABBED' && r.contactStatus === 'added' && (<>
+            <Button type="primary" size="small" onClick={async () => { try { await http.post(`/orders/${r.id}/confirm`); message.success('已开始服务'); fetch(); } catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); } }}>开始服务</Button>
+            <Button size="small" onClick={async () => { try { await http.post(`/orders/${r.id}/republish`); message.success('已发布到抢单池'); fetch(); } catch(e:any) { message.error(e?.response?.data?.message||'发布失败'); } }}>发布到抢单池</Button>
+            <Button size="small" onClick={() => { const dt = prompt('预约时间 (YYYY-MM-DD HH:mm)', ''); if (dt) http.put(`/orders/${r.id}/contact`, { scheduledAt: new Date(dt).toISOString() }).then(()=>{message.success('已预约'); fetch();}).catch((e:any)=>message.error(e?.response?.data?.message||'失败')); }}>预约时间</Button>
+          </>)}
+          {r.status === 'GRABBED' && r.contactStatus === 'not_accepted' && <Tag color="orange">待客户同意</Tag>}
+          {r.status === 'CONFIRMED' && (<>
+            <Button size="small" onClick={async () => { try { await http.post(`/orders/${r.id}/renew`); message.success('已续单'); fetch(); } catch(e:any) { message.error(e?.response?.data?.message||'续单失败'); } }}>续单</Button>
+            <Button size="small" onClick={() => { const amt = prompt('修改金额', String(r.amount)); if (amt && !isNaN(+amt)) http.put(`/orders/${r.id}/amount`, { amount: +amt }).then(()=>{message.success('已改价'); fetch();}).catch((e:any)=>message.error(e?.response?.data?.message||'失败')); }}>改价</Button>
+            <Button type="primary" size="small" onClick={() => openSettleModal(r)}>结束服务</Button>
+          </>)}
+        </>)}
       />
 
       {/* Settlement Modal */}
