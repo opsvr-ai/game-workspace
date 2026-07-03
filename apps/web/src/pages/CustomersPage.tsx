@@ -78,10 +78,9 @@ const CustomersPage: React.FC = () => {
       setScheduleModalOpen(false); fetchCustomers();
     } catch (e: any) { message.error(e?.response?.data?.message || '设置失败'); }
   };
-  const editNotes = (record: Customer) => {
-    const notes = prompt('备注', record.notes || '');
-    if (notes === null) return;
-    customersApi.update(record.id, { notes }).then(() => { message.success('备注已更新'); fetchCustomers(); }).catch((e: any) => message.error(e?.response?.data?.message || '更新失败'));
+  const [notesEditing, setNotesEditing] = useState<Record<string, string>>({});
+  const saveNotes = (id: string, notes: string) => {
+    customersApi.update(id, { notes }).then(() => { message.success('备注已更新'); fetchCustomers(); }).catch((e: any) => message.error(e?.response?.data?.message || '更新失败'));
   };
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -194,13 +193,17 @@ const CustomersPage: React.FC = () => {
 
   if (isCompanion) {
     columns.push({
-      title: '操作', key: 'actions', width: 350,
+      title: '操作', key: 'actions', width: 400,
       render: (_: unknown, record: Customer) => (
         <Space size={4}>
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>沟通</Button>
           )}
-          <Button size="small" icon={React.createElement(EditOutlined)} onClick={() => editNotes(record)}>备注</Button>
+          <Input size="small" placeholder="备注" style={{ width: 80 }}
+            value={notesEditing[record.id] ?? record.notes ?? ''}
+            onChange={(e) => setNotesEditing(prev => ({ ...prev, [record.id]: e.target.value }))}
+            onBlur={() => { const v = notesEditing[record.id]; if (v !== undefined && v !== record.notes) saveNotes(record.id, v); }}
+            onPressEnter={(e: any) => { e.target.blur(); }} />
           <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => startService(record)}>开始服务</Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>发布订单</Button>
           <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>预约</Button>
@@ -235,6 +238,7 @@ const CustomersPage: React.FC = () => {
       </div>
       {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>{error}</div>}
       <Table columns={columns} dataSource={customers} rowKey="id" loading={loading}
+        scroll={{ x: 'max-content' }}
         locale={{ emptyText: '暂无客户数据' }}
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />
       <Modal title={editingCustomer ? '编辑客户' : '新建客户'} open={modalOpen} onOk={handleSubmit}
