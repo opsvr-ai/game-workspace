@@ -190,7 +190,6 @@ const CustomersPage: React.FC = () => {
     { title: '陪玩', dataIndex: ['companion', 'username'], key: 'companion', render: (name: string) => name ?? <Text type="secondary">未分配</Text> },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
-    { title: '备注', dataIndex: 'notes', key: 'notes', render: (v: string) => v || '-' },
   ];
 
   if (isCompanion) {
