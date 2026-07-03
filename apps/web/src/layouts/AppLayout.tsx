@@ -111,15 +111,6 @@ const AppLayout: React.FC = () => {
   const inviteTRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCompanionRole = user?.role === UserRole.COMPANION;
 
-  useSocket({
-    onOrderNew: (data: any) => {
-      if (isCompanionRole && data._isAssignment) {
-        setInvitePopup(data);
-        if (inviteTRef.current) clearTimeout(inviteTRef.current);
-        inviteTRef.current = setTimeout(() => setInvitePopup(null), 15000);
-      }
-    },
-  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -135,6 +126,13 @@ const AppLayout: React.FC = () => {
       }
       if (data?.companionName) {
         useAuthStore.getState().setChatActive(true, data.companionName);
+      }
+    },
+    onOrderNew: (data: any) => {
+      if (isCompanionRole && data._isAssignment) {
+        setInvitePopup(data);
+        if (inviteTRef.current) clearTimeout(inviteTRef.current);
+        inviteTRef.current = setTimeout(() => setInvitePopup(null), 15000);
       }
     },
   });
