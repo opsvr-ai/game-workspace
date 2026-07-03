@@ -9,7 +9,6 @@ import {
 } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
 import { companionsApi } from '../api/companions';
-import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
@@ -56,15 +55,7 @@ const CustomersPage: React.FC = () => {
     setChatPartner({ name: record.wechatId || record.customerCode, orderId: o?.id || '',
       orderInfo: o ? `👤${record.customerCode} · ${o.gameName}` : `👤${record.customerCode}` });
   };
-  const startService = async (record: Customer) => {
-    if (!user?.companionId) { message.warning('未绑定陪玩身份'); return; }
-    try {
-      await ordersApi.create({ type: 'NEW', gameName: record.orders?.[0]?.gameName || '三角洲行动',
-        amount: record.orders?.[0]?.amount || 0, dispatchType: 'DIRECT', companionId: user.companionId,
-        customerId: record.id, customerWechat: record.wechatId, csUserId: user.id, urgency: 'now' });
-      message.success('已创建订单并指定给你'); fetchCustomers();
-    } catch (e: any) { message.error(e?.response?.data?.message || '创建失败'); }
-  };
+  const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
@@ -216,7 +207,7 @@ const CustomersPage: React.FC = () => {
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>沟通</Button>
           )}
-          <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => startService(record)}>开始服务</Button>
+          <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => { setStartServicePreFill({ customerId: record.id, customerWechat: record.wechatId, companionId: user?.companionId, gameName: record.orders?.[0]?.gameName, amount: record.orders?.[0]?.amount, dispatchType: 'DIRECT' }); setCreateOrderOpen(true); }}>开始服务</Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>发布订单</Button>
           <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>预约</Button>
         </Space>
@@ -276,7 +267,7 @@ const CustomersPage: React.FC = () => {
         </Form>
       </Modal>
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
-      <CreateOrderModal open={createOrderOpen} onClose={() => setCreateOrderOpen(false)} onCreated={fetchCustomers} userId={user?.id} defaultDeltaCount="单" />
+      <CreateOrderModal open={createOrderOpen} onClose={() => { setCreateOrderOpen(false); setStartServicePreFill(null); }} onCreated={() => { fetchCustomers(); setStartServicePreFill(null); }} userId={user?.id} defaultDeltaCount="单" customerPreFill={startServicePreFill} />
       <Modal title="预约时间" open={scheduleModalOpen} onOk={handleSchedule} onCancel={() => setScheduleModalOpen(false)}
         okText="确认预约" cancelText="取消" destroyOnClose>
         <div style={{ marginTop: 16 }}>

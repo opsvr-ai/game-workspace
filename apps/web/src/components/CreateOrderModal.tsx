@@ -9,14 +9,29 @@ const { Option } = Select;
 const orderTypeConfig: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购' };
 const gameList = ['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'];
 
-interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; defaultDeltaCount?: string; }
+interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; defaultDeltaCount?: string; customerPreFill?: { customerId?: string; customerWechat?: string; companionId?: string; gameName?: string; amount?: number; dispatchType?: string }; }
 
-const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, defaultDeltaCount }) => {
+const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, defaultDeltaCount, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
 
-  useEffect(() => { if (open) companionsApi.list().then(({data}:any) => setCompanions(data.data||[])).catch(()=>{}); }, [open]);
+  useEffect(() => {
+    if (open && !customerPreFill?.companionId) companionsApi.list().then(({data}:any) => setCompanions(data.data||[])).catch(()=>{});
+  }, [open, customerPreFill]);
+
+  useEffect(() => {
+    if (open && customerPreFill) {
+      form.setFieldsValue({
+        type: 'NEW', gameName: customerPreFill.gameName || '三角洲行动',
+        dispatchType: customerPreFill.dispatchType || DispatchType.POOL,
+        urgency: 'now', billingMode: 'hour', duration: 1,
+        deltaMode: '陪玩', deltaCount: defaultDeltaCount || '单',
+        customerId: customerPreFill.customerId, customerWechat: customerPreFill.customerWechat,
+        companionId: customerPreFill.companionId, amount: customerPreFill.amount || 0,
+      });
+    }
+  }, [open, customerPreFill, form, defaultDeltaCount]);
 
   const handleOk = async () => {
     try {
@@ -46,6 +61,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
           <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" /></Form.Item>
         <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
           <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定派单</Option></Select></Form.Item>
+        {!customerPreFill?.companionId && (
         <Form.Item noStyle shouldUpdate={(p,c) => p.dispatchType !== c.dispatchType}>
           {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (
             <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true }]}>
@@ -53,7 +69,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 {companions.filter((c:any) => c.status !== 'OFFLINE').map((c:any) => (
                   <Option key={c.id} value={c.id} label={c.user?.username}>{c.user?.username ?? c.id}</Option>))}
               </Select></Form.Item>) : null}
-        </Form.Item>
+        </Form.Item>)}
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select><Option value="now">⚡立即打</Option><Option value="later">📅预约</Option></Select></Form.Item>
         <Form.Item label="客户来源">
