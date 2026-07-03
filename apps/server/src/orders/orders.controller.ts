@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Param,
   Body,
   Query,
@@ -58,6 +59,13 @@ export class OrdersController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.grab(id, req.user.companionId);
     return { code: 200, message: '抢单成功', data };
+  }
+
+  @Put('orders/:id/amount')
+  @Roles(UserRole.COMPANION)
+  async updateAmount(@Param('id') id: string, @Body('amount') amount: number): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.updateAmount(id, amount);
+    return { code: 200, message: '已改价', data };
   }
 
   @Post('orders/:id/renew')

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Tag, Typography, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker, Badge } from 'antd';
+import { Table, Tag, Typography, Button, message, Select, Modal, Input, InputNumber, Checkbox, Upload, Space, Divider, DatePicker, Badge, Popconfirm } from 'antd';
 import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import { ordersApi } from '../../api/orders';
@@ -273,6 +273,10 @@ const OrdersPage: React.FC = () => {
                   }}>
                     续单
                   </Button>
+                  <Button size="small" onClick={() => {
+                    const amt = prompt('修改金额', String(r.amount));
+                    if (amt && !isNaN(+amt)) http.put(`/orders/${r.id}/amount`, { amount: +amt }).then(()=>{message.success('已改价'); fetch();}).catch((e:any)=>message.error(e?.response?.data?.message||'失败'));
+                  }}>改价</Button>
                   <Button type="primary" size="small" onClick={() => openSettleModal(r)}>
                     结束服务
                   </Button>

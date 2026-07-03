@@ -193,6 +193,10 @@ export class OrdersService {
     return updatedOrder;
   }
 
+  async updateAmount(orderId: string, amount: number) {
+    return this.prisma.order.update({ where: { id: orderId }, data: { amount } });
+  }
+
   async renew(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new (require('@nestjs/common').NotFoundException)('订单不存在');
