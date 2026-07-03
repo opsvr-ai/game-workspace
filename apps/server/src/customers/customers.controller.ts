@@ -58,7 +58,7 @@ export class CustomersController {
   }
 
   @Put('customers/:id')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateCustomerDto,

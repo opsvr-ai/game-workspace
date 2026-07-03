@@ -24,6 +24,7 @@ export interface UpdateCustomerDto {
   isAccountBanned?: boolean;
   isDeletedByCustomer?: boolean;
   notes?: string;
+  scheduledAt?: string | null;
 }
 
 interface AuthenticatedUser {
@@ -140,6 +141,7 @@ export class CustomersService {
     if (data.isDeletedByCustomer !== undefined)
       updateData.isDeletedByCustomer = data.isDeletedByCustomer;
     if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.scheduledAt !== undefined) updateData.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
 
     return this.prisma.customer.update({
       where: { id },

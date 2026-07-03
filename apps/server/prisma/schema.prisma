@@ -140,6 +140,7 @@ model Customer {
   isDeletedByCustomer Boolean  @default(false)
   notes               String?
   totalSpent          Float    @default(0)
+  scheduledAt         DateTime?
   status              String   @default("PENDING_DEVELOPMENT")  // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
   createdAt           DateTime @default(now())
 
