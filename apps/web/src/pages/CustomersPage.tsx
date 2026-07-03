@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, Space, Typography, message, Popconfirm, Tag, DatePicker,
+  Table, Button, Modal, Form, Input, Select, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider,
 } from 'antd';
+import locale from 'antd/locale/zh_CN';
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, SwapOutlined,
   MessageOutlined, CalendarOutlined, PlayCircleOutlined, SendOutlined,
@@ -164,7 +165,7 @@ const CustomersPage: React.FC = () => {
         <Text>{code}</Text>
         {record.scheduledAt && (
           <><br /><Tag color="purple" style={{ fontSize: 10, marginTop: 2 }}>
-            📅{dayjs(record.scheduledAt).format('M/D HH:mm')}
+            📅{dayjs(record.scheduledAt).format('M月D日 HH:mm')}
           </Tag></>
         )}
       </>)},
@@ -285,7 +286,7 @@ const CustomersPage: React.FC = () => {
         <div style={{ marginTop: 16 }}>
           <p>为客户 <Text strong>{scheduleCustomer?.customerCode}</Text> 设置预约提醒：</p>
           <DatePicker showTime format="YYYY-MM-DD HH:mm" placeholder="选择预约时间"
-            value={scheduleTime} onChange={(v) => setScheduleTime(v)}
+            locale={locale} value={scheduleTime} onChange={(v) => setScheduleTime(v)}
             style={{ width: '100%' }} />
         </div>
       </Modal>
