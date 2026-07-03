@@ -190,15 +190,15 @@ const CustomersPage: React.FC = () => {
 
   if (isCompanion) {
     columns.push({
-      title: '操作', key: 'actions', width: 280,
+      title: '操作', key: 'actions', width: 350,
       render: (_: unknown, record: Customer) => (
-        <Space size="small" wrap>
+        <Space size={4}>
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>沟通</Button>
           )}
           <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => startService(record)}>开始服务</Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>发布订单</Button>
-          <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => scheduleReminder(record)}>预约时间</Button>
+          <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => scheduleReminder(record)}>预约</Button>
           <Button size="small" icon={React.createElement(EditOutlined)} onClick={() => editNotes(record)}>备注</Button>
         </Space>
       ),
