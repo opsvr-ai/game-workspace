@@ -12,4 +12,6 @@ export const ordersApi = {
   complete: (id: string) => http.post(`/orders/${id}/complete`),
   completeBilling: (id: string, data: any) => http.post(`/orders/${id}/complete-billing`, data),
   cancel: (id: string) => http.post(`/orders/${id}/cancel`),
+  acceptAssignment: (id: string) => http.post(`/orders/${id}/accept-assignment`),
+  declineAssignment: (id: string) => http.post(`/orders/${id}/decline-assignment`),
 };

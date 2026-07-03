@@ -106,8 +106,33 @@ const OrderPoolPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  // Assignment invitation
+  const [inviteModal, setInviteModal] = useState(false);
+  const [inviteOrder, setInviteOrder] = useState<any>(null);
+  const inviteTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleAcceptInvite = async () => {
+    if (!inviteOrder) return;
+    try { await ordersApi.acceptAssignment(inviteOrder.id); message.success('已接单'); setInviteModal(false); fetchData(); }
+    catch (e: any) { message.error(e?.response?.data?.message || '操作失败'); }
+  };
+  const handleDeclineInvite = async () => {
+    if (!inviteOrder) return;
+    try { await ordersApi.declineAssignment(inviteOrder.id); message.success('已拒绝'); setInviteModal(false); fetchData(); }
+    catch (e: any) { message.error(e?.response?.data?.message || '操作失败'); }
+  };
+
   // Real-time pool updates via WebSocket
-  useSocket({ onOrderPoolUpdated: fetchData });
+  useSocket({
+    onOrderPoolUpdated: fetchData,
+    onOrderNew: (data: any) => {
+      if (isCompanion && data._isAssignment) {
+        setInviteOrder(data); setInviteModal(true);
+        if (inviteTimer.current) clearTimeout(inviteTimer.current);
+        inviteTimer.current = setTimeout(() => { setInviteModal(false); setInviteOrder(null); }, 15000);
+      }
+    },
+  });
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
@@ -568,11 +593,25 @@ const OrderPoolPage: React.FC = () => {
       </Modal>
 
       {/* Chat Modal */}
-      <ChatModal
-        open={!!chatPartner}
-        partner={chatPartner}
-        onClose={() => setChatPartner(null)}
-      />
+      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
+
+      {/* Assignment Invitation Modal */}
+      <Modal title="📋 接单邀请" open={inviteModal} onCancel={() => { setInviteModal(false); setInviteOrder(null); }}
+        footer={[
+          <Button key="decline" danger onClick={handleDeclineInvite}>拒绝</Button>,
+          <Button key="accept" type="primary" onClick={handleAcceptInvite}>接单</Button>,
+        ]} destroyOnClose>
+        {inviteOrder && (
+          <div style={{ lineHeight: 2 }}>
+            <p><Text strong>{inviteOrder._inviterName || '客服'}</Text> 邀请你共同接单</p>
+            <p>📋 游戏：<Text strong>{inviteOrder.gameName}</Text></p>
+            <p>💰 金额：<Text strong style={{ color: '#FF4757' }}>¥{Number(inviteOrder.amount).toFixed(0)}</Text></p>
+            {inviteOrder.customFields?.deltaMode && <p>🎯 模式：{inviteOrder.customFields.deltaMode} {inviteOrder.customFields.deltaMission || ''} {inviteOrder.customFields.deltaCount || ''}</p>}
+            {inviteOrder.customFields?.customerWechat && <p>💬 客户微信：{inviteOrder.customFields.customerWechat}</p>}
+            <p style={{ color: '#94A3B8', fontSize: 12 }}>⏱ 15 秒后自动消失</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
