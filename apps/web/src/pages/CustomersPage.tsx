@@ -11,6 +11,7 @@ import { companionsApi } from '../api/companions';
 import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
+import dayjs from 'dayjs';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 
@@ -27,6 +28,7 @@ interface Customer {
   totalSpent: number;
   status: string;
   companion?: { id: string; username: string };
+  scheduledAt?: string | null;
   orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any }>;
 }
 
@@ -157,7 +159,15 @@ const CustomersPage: React.FC = () => {
   };
 
   const columns: any[] = [
-    { title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 140 },
+    { title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 150,
+      render: (code: string, record: Customer) => (<>
+        <Text>{code}</Text>
+        {record.scheduledAt && (
+          <><br /><Tag color="purple" style={{ fontSize: 10, marginTop: 2 }}>
+            📅{dayjs(record.scheduledAt).format('M/D HH:mm')}
+          </Tag></>
+        )}
+      </>)},
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
     { title: '最近订单', key: 'lastOrder', width: 220, render: (_: any, r: any) => {
       const o = r.orders?.[0];
