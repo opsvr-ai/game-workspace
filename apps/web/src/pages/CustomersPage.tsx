@@ -8,7 +8,7 @@ import {
 import { customersApi } from '../api/customers';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
-import { platformOptions, customerStatusConfig } from '../constants';
+import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -119,6 +119,31 @@ const CustomersPage: React.FC = () => {
     { title: '平台', dataIndex: 'platform', key: 'platform', width: 90,
       render: (platform: string) => { const found = platformOptions.find((o) => o.value === platform); return <Tag>{found?.label ?? platform}</Tag>; } },
     { title: '平台账号', dataIndex: 'platformAccount', key: 'platformAccount', width: 120, render: (v: string) => v || '-' },
+    { title: '最近订单', key: 'lastOrder', width: 220, render: (_: any, r: any) => {
+      const o = r.orders?.[0];
+      if (!o) return <Text type="secondary">-</Text>;
+      const cf = o.customFields || {};
+      return (<>
+        <Text strong>{o.gameName}</Text>
+        <br /><Text type="secondary" style={{ fontSize: 11 }}>
+          <Tag color={orderTypeConfig[o.type]?.color} style={{ fontSize: 10, margin: 0 }}>{orderTypeConfig[o.type]?.label || o.type}</Tag>
+          {' '}¥{Number(o.amount).toFixed(0)}
+          {cf.deltaMode && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaMode}</Tag>}
+          {cf.deltaMission && <Tag color="red" style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaMission}</Tag>}
+          {cf.deltaCount && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
+          {cf.billingMode === 'round' && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>🎯{o.duration||cf.deltaCount||'?'}局</Tag>}
+          {o.duration > 0 && cf.billingMode !== 'round' && <Text style={{ fontSize: 10 }}> · {o.duration}h</Text>}
+        </Text>
+      </>);
+    }},
+    { title: '来源/时间', key: 'source', width: 110, render: (_: any, r: any) => {
+      const cf = r.orders?.[0]?.customFields || {};
+      return (<>
+        {cf.customerSource && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>📡{cf.customerSource}</Tag>}
+        {cf.urgency && <Tag color={urgencyConfig[cf.urgency]?.color} style={{ fontSize: 10, margin: '2px 0' }}>{urgencyConfig[cf.urgency]?.label}</Tag>}
+        {cf.billingMode && <Tag style={{ fontSize: 10, margin: 0 }}>{billingModeConfig[cf.billingMode]?.label}</Tag>}
+      </>);
+    }},
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
     { title: '陪玩', dataIndex: ['companion', 'username'], key: 'companion', render: (name: string) => name ?? <Text type="secondary">未分配</Text> },

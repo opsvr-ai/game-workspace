@@ -55,6 +55,17 @@ export class CustomersService {
             user: { select: { username: true } },
           },
         },
+        orders: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            gameName: true,
+            type: true,
+            amount: true,
+            duration: true,
+            customFields: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
