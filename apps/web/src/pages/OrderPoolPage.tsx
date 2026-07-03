@@ -595,22 +595,27 @@ const OrderPoolPage: React.FC = () => {
       {/* Chat Modal */}
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
 
-      {/* Assignment Invitation Modal */}
-      <Modal title="📋 接单邀请" open={inviteModal} onCancel={() => { setInviteModal(false); setInviteOrder(null); }}
-        footer={[
-          <Button key="decline" danger onClick={handleDeclineInvite}>拒绝</Button>,
-          <Button key="accept" type="primary" onClick={handleAcceptInvite}>接单</Button>,
-        ]} destroyOnClose>
-        {inviteOrder && (
-          <div style={{ lineHeight: 2 }}>
-            <p><Text strong>{inviteOrder._inviterName || '客服'}</Text> 邀请你共同接单</p>
-            <p>📋 游戏：<Text strong>{inviteOrder.gameName}</Text></p>
-            <p>💰 金额：<Text strong style={{ color: '#FF4757' }}>¥{Number(inviteOrder.amount).toFixed(0)}</Text></p>
-            {inviteOrder.customFields?.deltaMode && <p>🎯 模式：{inviteOrder.customFields.deltaMode} {inviteOrder.customFields.deltaMission || ''} {inviteOrder.customFields.deltaCount || ''}</p>}
-            <p style={{ color: '#94A3B8', fontSize: 12 }}>⏱ 15 秒后自动消失</p>
+      {/* Assignment Invitation — bottom-right popup */}
+      {inviteOrder && (
+        <div style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 1050,
+          background: '#FFF', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          padding: 20, minWidth: 320, maxWidth: 380,
+          borderLeft: '4px solid #7B61FF',
+        }}>
+          <Text strong style={{ fontSize: 15 }}>📋 {inviteOrder._inviterName || '客服'} 邀请你共同接单</Text>
+          <div style={{ marginTop: 10, lineHeight: 1.8 }}>
+            <div>🎮 游戏：<Text strong>{inviteOrder.gameName}</Text> · <Text strong style={{ color: '#FF4757' }}>¥{Number(inviteOrder.amount).toFixed(0)}</Text></div>
+            {inviteOrder.customFields?.deltaMode && <div>🎯 模式：{inviteOrder.customFields.deltaMode} {inviteOrder.customFields.deltaMission || ''} {inviteOrder.customFields.deltaCount || ''}</div>}
           </div>
-        )}
-      </Modal>
+          <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+            <Button danger size="small" onClick={handleDeclineInvite} style={{ flex: 1 }}>拒绝</Button>
+            <Button type="primary" size="small" onClick={handleAcceptInvite} style={{ flex: 1 }}>接单</Button>
+          </div>
+          <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 6 }}>⏱ 15 秒后自动消失</Text>
+        </div>
+      )}
+      {inviteModal && !inviteOrder && null}{/* keep inviteModal state for cleanup */}
     </div>
   );
 };

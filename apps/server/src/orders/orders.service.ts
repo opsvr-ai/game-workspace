@@ -77,6 +77,7 @@ export class OrdersService {
           customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
           customerRoomCode: dto.customerRoomCode,
+          customerYy: (dto as any).customerYy,
           deltaMode: (dto as any).deltaMode,
           deltaMission: (dto as any).deltaMission,
           deltaCount: (dto as any).deltaCount,

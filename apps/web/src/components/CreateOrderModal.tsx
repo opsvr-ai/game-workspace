@@ -88,7 +88,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         <Form.Item label="客户联系方式">
           <Input.Group compact>
             <Form.Item name="customerWechat" noStyle><Input style={{ width: '25%' }} placeholder="微信" /></Form.Item>
-            <Form.Item name="customerRoomCode" noStyle><Input style={{ width: '25%' }} placeholder="YY号" /></Form.Item>
+            <Form.Item name="customerYy" noStyle><Input style={{ width: '25%' }} placeholder="YY号" /></Form.Item>
             <Form.Item name="customerPlatformAccount" noStyle><Input style={{ width: '25%' }} placeholder="KOOK号" /></Form.Item>
             <Form.Item name="customerRoomCode" noStyle><Input style={{ width: '25%' }} placeholder="房间码" /></Form.Item>
           </Input.Group>
