@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 
@@ -105,6 +105,21 @@ const roleLabels: Record<UserRole, string> = {
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout, chatActive, chatPartner } = useAuthStore();
+
+  // ── Invite popup (global, for companion) ──
+  const [invitePopup, setInvitePopup] = React.useState<any>(null);
+  const inviteTRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isCompanionRole = user?.role === UserRole.COMPANION;
+
+  useSocket({
+    onOrderNew: (data: any) => {
+      if (isCompanionRole && data._isAssignment) {
+        setInvitePopup(data);
+        if (inviteTRef.current) clearTimeout(inviteTRef.current);
+        inviteTRef.current = setTimeout(() => setInvitePopup(null), 15000);
+      }
+    },
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -254,6 +269,7 @@ const AppLayout: React.FC = () => {
   }
 
   return (
+    <>
     <Layout style={{ minHeight: '100vh' }}>
       {/* ── 深色侧边栏 ── */}
       <Sider
@@ -418,6 +434,23 @@ const AppLayout: React.FC = () => {
         </Content>
       </Layout>
     </Layout>
+
+    {/* Invite popup — bottom-right */}
+    {invitePopup && (
+      <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, background: '#FFF', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', padding: 20, minWidth: 320, maxWidth: 380, borderLeft: '4px solid #7B61FF' }}>
+        <Typography.Text strong style={{ fontSize: 15 }}>📋 {invitePopup._inviterName || '客服'} 邀请你共同接单</Typography.Text>
+        <div style={{ marginTop: 10, lineHeight: 1.8 }}>
+          <div>🎮 游戏：<Typography.Text strong>{invitePopup.gameName}</Typography.Text> · <Typography.Text strong style={{ color: '#FF4757' }}>¥{Number(invitePopup.amount).toFixed(0)}</Typography.Text></div>
+          {invitePopup.customFields?.deltaMode && <div>🎯 模式：{invitePopup.customFields.deltaMode} {invitePopup.customFields.deltaMission || ''} {invitePopup.customFields.deltaCount || ''}</div>}
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+          <Button danger size="small" onClick={async () => { try { const { ordersApi } = await import('../api/orders'); await ordersApi.declineAssignment(invitePopup.id); message.success('已拒绝'); setInvitePopup(null); } catch(e:any) { message.error(e?.response?.data?.message); } }} style={{ flex: 1 }}>拒绝</Button>
+          <Button type="primary" size="small" onClick={async () => { try { const { ordersApi } = await import('../api/orders'); await ordersApi.acceptAssignment(invitePopup.id); message.success('已接单'); setInvitePopup(null); } catch(e:any) { message.error(e?.response?.data?.message); } }} style={{ flex: 1 }}>接单</Button>
+        </div>
+        <Typography.Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 6 }}>⏱ 15 秒后自动消失</Typography.Text>
+      </div>
+    )}
+    </>
   );
 };
 
