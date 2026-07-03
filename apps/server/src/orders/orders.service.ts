@@ -200,7 +200,26 @@ export class OrdersService {
     if (body.scheduledAt !== undefined) data.scheduledAt = new Date(body.scheduledAt);
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.screenshotUrl !== undefined) data.screenshotUrl = body.screenshotUrl;
-    return this.prisma.order.update({ where: { id: orderId }, data });
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data, include: { customer: true } });
+
+    // When contact status is set to 'added', create/update customer record
+    if (body.contactStatus === 'added' && updated.customer) {
+      await this.prisma.customer.upsert({
+        where: { id: updated.customerId },
+        update: { companionId: updated.companionId },
+        create: {
+          id: updated.customerId,
+          studioId: updated.studioId,
+          customerCode: updated.customer.customerCode || `C${Date.now().toString(36)}`,
+          wechatId: (updated.customFields as any)?.customerWechat || updated.customer.wechatId || '',
+          platform: (updated.customFields as any)?.customerSource || '',
+          platformAccount: (updated.customFields as any)?.customerPlatformAccount || '',
+          companionId: updated.companionId,
+          status: 'FOLLOW_UP',
+        },
+      });
+    }
+    return updated;
   }
 
   async updateAmount(orderId: string, amount: number) {
