@@ -257,6 +257,17 @@ const OrdersPage: React.FC = () => {
                   </Button>
                 </Badge>
                 {r.status === 'GRABBED' && !r.contactStatus && (<>
+                  <Upload showUploadList={false} beforeUpload={async (file: File) => {
+                    const fd = new FormData(); fd.append('file', file);
+                    try { const { data } = await http.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      const url = data.data?.url || data.url || '';
+                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added', screenshotUrl: url });
+                      message.success('截图已上传'); fetch();
+                    } catch(e:any) { message.error('上传失败'); }
+                    return false;
+                  }}>
+                    <Button size="small" icon={React.createElement(UploadOutlined)}>上传截图</Button>
+                  </Upload>
                   <Button type="primary" size="small" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={async () => {
                     try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' }); message.success('已标记'); fetch(); }
                     catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
