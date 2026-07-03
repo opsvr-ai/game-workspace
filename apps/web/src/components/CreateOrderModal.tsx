@@ -9,7 +9,7 @@ const { Option } = Select;
 const orderTypeConfig: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购' };
 const gameList = ['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'];
 
-interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; defaultDeltaCount?: string; customerPreFill?: { customerId?: string; customerWechat?: string; companionId?: string; gameName?: string; amount?: number; dispatchType?: string }; }
+interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; defaultDeltaCount?: string; customerPreFill?: { customerId?: string; customerWechat?: string; companionId?: string; companionSelfId?: string; gameName?: string; amount?: number; dispatchType?: string }; }
 
 const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, defaultDeltaCount, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
     try {
       const v = await form.validateFields();
       setLoading(true);
+      // 单陪 → 自己打，不需要派单
+      if (v.deltaCount === '单' && customerPreFill?.companionSelfId) {
+        v.dispatchType = DispatchType.DIRECT;
+        v.companionId = customerPreFill.companionSelfId;
+      }
       await ordersApi.create({ ...v, csUserId: userId });
       message.success('订单已发布'); form.resetFields(); onClose(); onCreated();
     } catch (e: any) { if (!e?.errorFields) message.error(e?.response?.data?.message||'创建失败'); }
@@ -59,15 +64,19 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         <Form.Item name="deltaNote" label="备注"><Input.TextArea rows={2} placeholder="补充说明" /></Form.Item>
         <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" /></Form.Item>
-        <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
-          <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定派单</Option></Select></Form.Item>
-        <Form.Item noStyle shouldUpdate={(p,c) => p.dispatchType !== c.dispatchType}>
-          {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (
-            <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true }]}>
-              <Select placeholder="选择陪玩" showSearch optionFilterProp="label">
-                {companions.filter((c:any) => c.status !== 'OFFLINE').map((c:any) => (
-                  <Option key={c.id} value={c.id} label={c.user?.username}>{c.user?.username ?? c.id}</Option>))}
-              </Select></Form.Item>) : null}
+        <Form.Item noStyle shouldUpdate={(p,c) => p.deltaCount !== c.deltaCount}>
+          {({ getFieldValue }) => getFieldValue('deltaCount') === '双' ? (<>
+            <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
+              <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定陪玩</Option></Select></Form.Item>
+            <Form.Item noStyle shouldUpdate={(p2,c2) => p2.dispatchType !== c2.dispatchType}>
+              {({ getFieldValue: gv }) => gv('dispatchType') === DispatchType.DIRECT ? (
+                <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true }]}>
+                  <Select placeholder="选择陪玩" showSearch optionFilterProp="label">
+                    {companions.filter((c:any) => c.status !== 'OFFLINE').map((c:any) => (
+                      <Option key={c.id} value={c.id} label={c.user?.username}>{c.user?.username ?? c.id}</Option>))}
+                  </Select></Form.Item>) : null}
+            </Form.Item>
+          </>) : null}
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select><Option value="now">⚡立即打</Option><Option value="later">📅预约</Option></Select></Form.Item>

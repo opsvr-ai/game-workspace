@@ -207,7 +207,7 @@ const CustomersPage: React.FC = () => {
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>沟通</Button>
           )}
-          <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => { setStartServicePreFill({ customerId: record.id, customerWechat: record.wechatId, gameName: record.orders?.[0]?.gameName, amount: record.orders?.[0]?.amount }); setCreateOrderOpen(true); }}>开始服务</Button>
+          <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => { setStartServicePreFill({ customerId: record.id, customerWechat: record.wechatId, companionSelfId: user?.companionId, gameName: record.orders?.[0]?.gameName, amount: record.orders?.[0]?.amount }); setCreateOrderOpen(true); }}>开始服务</Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>发布订单</Button>
           <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>预约</Button>
         </Space>
