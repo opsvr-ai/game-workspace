@@ -9,7 +9,7 @@ import { httpRequest } from './http';
 import { startProcessMonitor, stopProcessMonitor, updateBlacklist } from './process-monitor';
 import { killProcess } from './process-killer';
 import { showKillNotification, showKilledToast } from './blacklist-notification';
-import { isConnected as isWsConnected, emitBlacklistReport, emitKillResult } from './websocket';
+import { emitStatus, isConnected as isWsConnected, emitBlacklistReport, emitKillResult } from './websocket';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -137,6 +137,8 @@ function setupIPC(): void {
   ipcMain.on('status:changed', (_e, status: string) => {
     const name = store.get('companionName') as string;
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);
+    // Sync to server via WebSocket
+    emitStatus(status);
   });
 }
 
