@@ -157,6 +157,14 @@ const CompanionPage: React.FC = () => {
         </Col>
         <Col span={8}>
           <Card size="small" style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>当前状态</Text>
+              <div style={{ marginTop: 4 }}>
+                <Tag color={companionStatusConfig[data.currentStatus]?.color || 'default'} style={{ fontSize: 18, padding: '4px 24px', borderRadius: 12 }}>
+                  {companionStatusConfig[data.currentStatus]?.label || data.currentStatus}
+                </Tag>
+              </div>
+            </div>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Button type="default" icon={IconPlay} size="large" onClick={() => switchStatus('IDLE')} block>娱乐中</Button>
               <Button type="primary" icon={IconSearch} size="large" onClick={() => switchStatus('ONLINE')} block>空闲</Button>

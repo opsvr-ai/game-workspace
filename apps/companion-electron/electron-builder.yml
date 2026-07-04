@@ -1,0 +1,17 @@
+appId: com.chunlv.companion
+productName: 蠢驴电竞陪玩
+directories:
+  output: release
+win:
+  icon: src/assets/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 蠢驴电竞陪玩
+extraResources:
+  - from: src/assets/
+    to: assets/

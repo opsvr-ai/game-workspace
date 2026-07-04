@@ -114,7 +114,7 @@ export class CompanionsService {
     // Online companions (same studio)
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { studioId: true },
+      select: { studioId: true, status: true },
     });
     const onlineCompanions = await this.prisma.companion.findMany({
       where: { studioId: companion?.studioId, status: { in: ['ONLINE', 'BUSY', 'IDLE'] } },
@@ -132,6 +132,7 @@ export class CompanionsService {
       freeThreshold,
       entertainmentMinutes,
       entertainmentFee,
+      currentStatus: companion?.status ?? 'OFFLINE',
       statusDurations: {
         entertainment: formatDuration(durations.entertainment),
         work: formatDuration(durations.work),
