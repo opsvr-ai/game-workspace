@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { logger } from './common/logger';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
@@ -28,6 +29,7 @@ async function bootstrap() {
   });
 
   await app.listen(3001);
+  logger.info('Server started', { port: 3001 });
   console.log('Server running on http://localhost:3001');
 }
 

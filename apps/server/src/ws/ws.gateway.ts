@@ -57,6 +57,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         void client.join(`companion:${user.companionId}`);
         void client.join(`pc:${user.companionId}`);
         this.companionSockets.set(user.companionId, client.id);
+        logger.info('Companion connected', { companionId: user.companionId, username: user.username });
 
         await this.prisma.companion.update({
           where: { id: user.companionId }, data: { status: 'ONLINE' },
@@ -77,6 +78,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.userSockets.delete(user.id);
     if (!user.companionId) return;
     this.companionSockets.delete(user.companionId);
+    logger.info('Companion disconnected', { companionId: user.companionId });
 
     await this.prisma.companion.update({
       where: { id: user.companionId }, data: { status: 'OFFLINE' },
