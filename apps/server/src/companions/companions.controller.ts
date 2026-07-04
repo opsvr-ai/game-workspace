@@ -150,6 +150,20 @@ export class CompanionsController {
     @Body('status') status: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
+    // Threshold check when switching to entertainment mode (ONLINE)
+    if (status === 'ONLINE') {
+      const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true, monthlyRevenue: true } });
+      if (companion) {
+        const depositCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } });
+        const revenueCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } });
+        const minDeposit = (depositCfg?.value as number) ?? 500;
+        const minRevenue = (revenueCfg?.value as number) ?? 200;
+        const d = companion.deposit || 0, r = companion.monthlyRevenue || 0;
+        if (d < minDeposit || r < minRevenue) {
+          return { code: 200, message: '不满足娱乐模式条件', data: { blocked: true, deposit: d, revenue: r, depositThreshold: minDeposit, revenueThreshold: minRevenue } };
+        }
+      }
+    }
     const data = await this.companionsService.updateStatus(id, status, req.user);
     return { code: 200, message: 'ok', data };
   }

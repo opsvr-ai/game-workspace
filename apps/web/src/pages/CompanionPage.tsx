@@ -84,9 +84,12 @@ const CompanionPage: React.FC = () => {
     }
   };
 
+  const [blockedModal, setBlockedModal] = useState<any>(null);
+
   const switchStatus = async (status: string) => {
     try {
-      await companionsApi.updateStatus(user?.companionId ?? '', status);
+      const { data: res } = await companionsApi.updateStatus(user?.companionId ?? '', status);
+      if (res.data?.blocked) { setBlockedModal(res.data); return; }
       fetchData();
     } catch { /* ignore */ }
   };
@@ -305,6 +308,20 @@ const CompanionPage: React.FC = () => {
           </>
         )}
       </Spin>
+
+      {/* Blocked — entertainment mode threshold check */}
+      <Modal title="⚠️ 无法切换娱乐模式" open={!!blockedModal} onCancel={() => setBlockedModal(null)} footer={null}>
+        <div style={{ lineHeight: 2.2 }}>
+          <p>您当前不满足娱乐模式的开启条件：</p>
+          <div style={{ background: '#fff7e6', borderRadius: 8, padding: 12, marginTop: 8 }}>
+            <div>💰 押金：<Text strong style={{ color: blockedModal?.deposit >= (blockedModal?.depositThreshold||0) ? '#52c41a' : '#ff4d4f' }}>¥{blockedModal?.deposit?.toFixed(2)}</Text> / 需要 ¥{blockedModal?.depositThreshold}</div>
+            <div>📊 月流水：<Text strong style={{ color: blockedModal?.revenue >= (blockedModal?.revenueThreshold||0) ? '#52c41a' : '#ff4d4f' }}>¥{blockedModal?.revenue?.toFixed(2)}</Text> / 需要 ¥{blockedModal?.revenueThreshold}</div>
+          </div>
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <Button type="primary" onClick={() => setBlockedModal(null)}>知道了</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

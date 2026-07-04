@@ -468,7 +468,34 @@ const SettingsPage: React.FC = () => {
     </Card>
   );
 
-  // ── Tab 5: 下拉选项 ──
+  // ── Tab 5: 娱乐模式门槛 ──
+
+  const renderEntertainmentThreshold = () => (
+    <Card title="🎮 娱乐模式门槛" extra={
+      <Space>
+        <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
+        <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving === '娱乐模式门槛'}
+          onClick={() => save({ 'entertainment.deposit_threshold': config?.['entertainment.deposit_threshold'], 'entertainment.revenue_threshold': config?.['entertainment.revenue_threshold'] }, '娱乐模式门槛')}>保存</Button>
+      </Space>
+    }>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <div>
+          <Label>押金门槛（元）</Label>
+          <InputNumber min={0} step={50} value={config?.['entertainment.deposit_threshold'] ?? 500}
+            onChange={(v) => update('entertainment.deposit_threshold', v ?? 500)} style={{ width: 200 }} />
+          <Text type="secondary" style={{ marginLeft: 8 }}>押金低于此金额无法切换娱乐模式</Text>
+        </div>
+        <div>
+          <Label>月流水门槛（元）</Label>
+          <InputNumber min={0} step={50} value={config?.['entertainment.revenue_threshold'] ?? 200}
+            onChange={(v) => update('entertainment.revenue_threshold', v ?? 200)} style={{ width: 200 }} />
+          <Text type="secondary" style={{ marginLeft: 8 }}>月流水低于此金额无法切换娱乐模式</Text>
+        </div>
+      </Space>
+    </Card>
+  );
+
+  // ── Tab 6: 下拉选项 ──
 
   const renderOptions = () => {
     const contactResults: string[] = config?.['options.contact_results'] ?? [];
@@ -578,6 +605,7 @@ const SettingsPage: React.FC = () => {
     { key: 'share', label: '📊 结算规则', children: renderShareTiers() },
     { key: 'withdraw', label: '💸 支取与押金', children: renderWithdraw() },
     { key: 'timeout', label: '⏰ 超时与关机', children: renderTimeout() },
+    { key: 'entertainment', label: '🎮 娱乐模式门槛', children: renderEntertainmentThreshold() },
     { key: 'options', label: '📋 下拉选项', children: renderOptions() },
     { key: 'games', label: '🎮 游戏与段位', children: renderGamesRanks() },
   ];
