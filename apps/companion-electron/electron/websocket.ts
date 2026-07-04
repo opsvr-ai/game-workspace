@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { logger } from './logger';
 
 let socket: Socket | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -32,7 +33,7 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   });
 
   socket.on('connect', () => {
-    console.log('[WS] Connected');
+    logger.info('WebSocket connected');
 
     // Heartbeat every 30s
     heartbeatTimer = setInterval(() => {
@@ -45,7 +46,7 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   });
 
   socket.on('disconnect', () => {
-    console.log('[WS] Disconnected');
+    logger.warn('WebSocket disconnected');
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
@@ -110,7 +111,7 @@ export function disconnectWebSocket(): void {
 }
 
 export function emitStatus(status: string, mode?: string): void {
-  console.log(`[STATUS][${new Date().toISOString()}] Electron emit — status=${status} mode=${mode || '-'} connected=${socket?.connected || false}`);
+  logger.info('Electron emit companion:status', { status, mode, connected: socket?.connected });
   socket?.emit('companion:status', { status, mode });
 }
 

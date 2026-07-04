@@ -10,6 +10,7 @@ import { startProcessMonitor, stopProcessMonitor, updateBlacklist } from './proc
 import { killProcess } from './process-killer';
 import { showKillNotification, showKilledToast } from './blacklist-notification';
 import { emitStatus, isConnected as isWsConnected, emitBlacklistReport, emitKillResult } from './websocket';
+import { logger } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -136,8 +137,7 @@ function setupIPC(): void {
 
   ipcMain.on('status:changed', (_e, status: string) => {
     const name = store.get('companionName') as string;
-    const ts = new Date().toISOString();
-    console.log(`[STATUS][${ts}] IPC status:changed received — status=${status} name=${name}`);
+    logger.info('IPC status:changed received', { status, name });
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);
     // Sync to server via WebSocket
     emitStatus(status);
@@ -182,13 +182,13 @@ function setupWsEvents(): void {
   onWsEvent('blacklist:update', (data: any) => {
     const updated = updateBlacklist(data.blacklist || [], data.whitelist || [], data.version || 0);
     if (updated) {
-      console.log('[Blacklist] Updated to version', data.version);
+      logger.info('Blacklist updated', { version: data.version });
     }
     mainWindow?.webContents.send('ws:blacklistUpdate', data);
   });
 
   onWsEvent('blacklist:recheck', () => {
-    console.log('[Blacklist] Server requested re-check');
+    logger.debug('Blacklist re-check requested');
   });
 }
 

@@ -335,7 +335,6 @@ func (c *Client) SendAck(command string, success bool) {
 }
 
 func (c *Client) SendStatus(status string, mode engine.Mode) {
-	log.Printf("[STATUS][%s] Go Agent emit — status=%s mode=%s", time.Now().Format(time.RFC3339), status, string(mode))
 	c.emit("companion:status", map[string]interface{}{
 		"status": status,
 		"mode":   string(mode),

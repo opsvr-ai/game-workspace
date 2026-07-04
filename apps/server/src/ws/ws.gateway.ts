@@ -11,6 +11,7 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
+import { logger } from '../common/logger';
 
 interface ConnectedUser {
   id: string;
@@ -98,22 +99,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user as ConnectedUser | undefined;
     if (!user?.companionId) return;
 
-    const ts = new Date().toISOString();
-    console.log(`[STATUS][${ts}] WS companion:status — companionId=${user.companionId} username=${user.username} status=${data.status} mode=${data.mode || '-'}`);
+    logger.info('WS companion:status received', { companionId: user.companionId, username: user.username, status: data.status, mode: data.mode });
 
     await this.prisma.companion.update({
       where: { id: user.companionId }, data: { status: data.status },
     }).then(() => {
-      console.log(`[STATUS][${ts}] DB updated OK — companionId=${user.companionId} → ${data.status}`);
+      logger.debug('DB status updated', { companionId: user.companionId, status: data.status });
     }).catch((err) => {
-      console.error(`[STATUS][${ts}] DB update FAILED — companionId=${user.companionId} error=${err.message}`);
+      logger.error('DB status update failed', { companionId: user.companionId, error: (err as any).message });
     });
 
     if (user.studioId) {
       this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
         companionId: user.companionId, status: data.status, mode: data.mode,
       });
-      console.log(`[STATUS][${ts}] Broadcast to studio=${user.studioId}`);
+      logger.debug('Broadcast to studio', { studioId: user.studioId });
     }
   }
 
@@ -125,7 +125,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user as ConnectedUser | undefined;
     if (!user?.companionId) return;
 
-    console.log(`[HEARTBEAT][${new Date().toISOString()}] WS — companionId=${user.companionId} username=${user.username} mode=${data.currentMode || '-'} workSec=${data.workSec || 0}`);
+    logger.debug('WS heartbeat', { companionId: user.companionId, username: user.username, mode: data.currentMode, workSec: data.workSec });
 
     await this.prisma.companionPC.upsert({
       where: { companionId: user.companionId },

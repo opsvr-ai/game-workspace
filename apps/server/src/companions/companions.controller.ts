@@ -4,6 +4,7 @@ import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CompanionsService } from './companions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { logger } from '../common/logger';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 
@@ -214,8 +215,7 @@ export class CompanionsController {
       return { code: 400, message: '当前用户不是陪玩', data: null };
     }
 
-    const ts = new Date().toISOString();
-    console.log(`[HEARTBEAT][${ts}] REST — companionId=${companionId} username=${req.user.username} mode=${body.currentMode || '-'} workSec=${body.workSec || 0}`);
+    logger.debug('REST heartbeat', { companionId, username: req.user.username, mode: body.currentMode, workSec: body.workSec });
 
     // 1. 更新在线状态（仅当离线时设为在线，避免覆盖用户主动设置的状态）
     const companion = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { status: true } });
@@ -225,9 +225,9 @@ export class CompanionsController {
         where: { id: companionId },
         data: { status: 'ONLINE' },
       });
-      console.log(`[HEARTBEAT][${ts}] Status changed: ${currentStatus} → ONLINE (was offline)`);
+      logger.info('Heartbeat set ONLINE (was offline)', { companionId, previousStatus: currentStatus });
     } else {
-      console.log(`[HEARTBEAT][${ts}] Status preserved: ${currentStatus} (not overwritten)`);
+      logger.debug('Heartbeat status preserved', { companionId, status: currentStatus });
     }
 
     // 2. 更新 PC 状态
