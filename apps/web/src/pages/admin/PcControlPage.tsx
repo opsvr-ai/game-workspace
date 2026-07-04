@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
+import { useSocket } from '../../hooks/useSocket';
 import { companionStatusConfig, modeLabels } from '../../constants';
 
 const { Text } = Typography;
@@ -91,6 +92,13 @@ const PcControlPage: React.FC = () => {
   useEffect(() => {
     fetchCompanions();
   }, [fetchCompanions]);
+
+  // Real-time status updates via WebSocket
+  useSocket({
+    onStatusBroadcast: () => {
+      fetchCompanions();
+    },
+  });
 
   const handleCommand = useCallback(
     async (companionId: string, command: string) => {
