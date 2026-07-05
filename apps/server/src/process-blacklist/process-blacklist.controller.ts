@@ -99,6 +99,7 @@ export class ProcessBlacklistController {
       this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version);
       pushed++;
     }
+    logger.info("Blacklist push", { pushed, version, studioId: req.user.studioId });
     return { code: 200, data: { pushed, version }, message: `已向 ${pushed} 个陪玩推送黑名单` };
   }
 

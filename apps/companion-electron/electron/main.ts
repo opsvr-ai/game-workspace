@@ -242,6 +242,7 @@ app.whenReady().then(() => {
           body: { processes, totalCount },
         }).catch(() => {});
         // Also try WebSocket (real-time bonus)
+        logger.debug("Process report", { totalCount });
         emitBlacklistReport(processes, totalCount);
       },
       (process) => {
