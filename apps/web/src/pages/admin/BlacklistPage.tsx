@@ -209,7 +209,8 @@ const BlacklistPage: React.FC = () => {
           {pushTarget === 'selected' && (
             <Select mode="multiple" placeholder="选择陪玩" style={{ width: '100%' }}
               value={selectedCompanions} onChange={setSelectedCompanions}
-              options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))} />
+              options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))}
+              showSearch filterOption={(input, option) => (option?.label as string || '').toLowerCase().includes(input.toLowerCase())} />
           )}
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
             推送后，陪玩终端将立即检查并关闭匹配的黑名单进程
