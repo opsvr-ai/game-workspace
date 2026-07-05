@@ -32,6 +32,21 @@ export class ProcessBlacklistController {
   }
 
 
+  // ── Companion self-service (REST fallback when WS disconnected) ──
+
+  @Get('blacklist/my-rules')
+  @Roles(UserRole.COMPANION)
+  async getMyRules(@Req() req: any) {
+    const companionId = req.user.companionId;
+    if (!companionId) return { code: 400, message: '当前用户不是陪玩', data: null };
+    const [blacklist, whitelist] = await Promise.all([
+      this.service.getEffectiveBlacklist(companionId),
+      this.service.getWhitelist(req.user.studioId),
+    ]);
+    logger.info('REST my-rules', { companionId, blacklistCount: blacklist.length, whitelistCount: whitelist.length });
+    return { code: 200, data: { blacklist, whitelist, version: Date.now() } };
+  }
+
   // ── Blacklist CRUD (ADMIN, OWNER) ──
 
   @Get('blacklist')

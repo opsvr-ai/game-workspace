@@ -210,6 +210,25 @@ app.whenReady().then(() => {
   if (token) {
     connectWebSocket(getServerUrl(), token, store.get('companionId') as string);
 
+    // Start blacklist polling via REST (works even when WS disconnected)
+    const pollBlacklist = async () => {
+      try {
+        const token = store.get('token') as string;
+        const serverUrl = getServerUrl();
+        const res = await httpRequest({
+          method: 'GET',
+          url: `${serverUrl}/api/blacklist/my-rules`,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data?.code === 200 && res.data?.data) {
+          const { blacklist, whitelist, version } = res.data.data;
+          updateBlacklist(blacklist || [], whitelist || [], version || 0);
+        }
+      } catch { /* ignore */ }
+    };
+    setInterval(pollBlacklist, 60000); // poll every 60s
+    pollBlacklist(); // immediate first fetch
+
     // Start process monitor (blacklist management - Phase 2/3)
     startProcessMonitor(
       (processes, totalCount) => {
