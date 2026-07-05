@@ -15,7 +15,7 @@ import { ProcessReportDto } from './dto/process-report.dto';
 import { KillReportDto } from './dto/kill-report.dto';
 import { CreateCompanionOverrideDto } from './dto/companion-override.dto';
 
-@Controller()
+@Controller('processes')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProcessBlacklistController {
   constructor(
@@ -150,7 +150,7 @@ export class ProcessBlacklistController {
   }
 
   
-  @Post('processes/kill')
+  @Post('kill')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async manualKill(@Req() req: any, @Body() dto: { companionId: string; processName: string; pid?: number }) {
     if (!dto.companionId || !dto.processName) return { code: 400, message: '缺少参数', data: null };
@@ -162,14 +162,14 @@ export class ProcessBlacklistController {
 
   // ── Process Reports (viewing) ──
 
-  @Get('processes/reports')
+  @Get('reports')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getReports(@Req() req: any, @Query('companionId') companionId?: string, @Query('limit') limit?: string) {
     const reports = await this.service.getRecentReports(await this.sid(req), companionId, Number(limit) || 20);
     return { code: 200, data: reports };
   }
 
-  @Get('processes/unique-names')
+  @Get('unique-names')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getUniqueNames(@Query('companionId') companionId: string) {
     if (!companionId) return { code: 400, message: '请指定陪玩ID', data: null };
@@ -177,7 +177,7 @@ export class ProcessBlacklistController {
     return { code: 200, data: names };
   }
 
-  @Get('processes/reports/:companionId')
+  @Get('reports/:companionId')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getLatestReport(@Param('companionId') companionId: string) {
     const report = await this.service.getLatestReport(companionId);
@@ -186,7 +186,7 @@ export class ProcessBlacklistController {
 
   // ── Companion endpoints ──
 
-  @Post('processes/reports')
+  @Post('reports')
   @Roles(UserRole.COMPANION)
   async submitReport(@Req() req: any, @Body() dto: ProcessReportDto) {
     logger.info("RECV REST process report", { companionId: req.user.companionId, username: req.user.username, totalCount: dto.totalCount });
@@ -194,7 +194,7 @@ export class ProcessBlacklistController {
     return { code: 200, data: report, message: '进程报告已保存' };
   }
 
-  @Get('processes/kill-logs')
+  @Get('kill-logs')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getKillLogs(
     @Req() req: any,
@@ -206,7 +206,7 @@ export class ProcessBlacklistController {
     return { code: 200, data: logs };
   }
 
-  @Post('processes/kill-report')
+  @Post('kill-report')
   @Roles(UserRole.COMPANION)
   async submitKillReport(@Req() req: any, @Body() dto: KillReportDto) {
     const log = await this.service.logKill(

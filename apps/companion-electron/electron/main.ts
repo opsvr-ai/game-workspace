@@ -222,7 +222,7 @@ app.whenReady().then(() => {
         const serverUrl = getServerUrl();
         const res = await httpRequest({
           method: 'GET',
-          url: `${serverUrl}/api/blacklist/my-rules`,
+          url: `${serverUrl}/api/processes/blacklist/my-rules`,
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.data?.code === 200 && res.data?.data) {

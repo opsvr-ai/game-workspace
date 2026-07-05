@@ -28,7 +28,6 @@ import {
 } from '@ant-design/icons';
 import { CompanionStatus, OrderType, OrderStatus, DispatchType, UserRole } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
-import { blacklistApi } from '../api/blacklist';
 import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { useSocket } from '../hooks/useSocket';
@@ -100,8 +99,7 @@ const CSView: React.FC = () => {
   const [chatPartner, setChatPartner] = useState<{ name: string; avatar?: string; orderId: string; orderInfo?: string } | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
-  const [processWarningIds, setProcessWarningIds] = useState<string[]>([]);
-
+  
   // Poll localStorage for unread badges every 2s
   useEffect(() => {
     const read = () => {
@@ -154,14 +152,6 @@ const CSView: React.FC = () => {
   useEffect(() => {
     fetchCompanions();
     fetchPool();
-    blacklistApi.getKillLogs({ pageSize: 200 }).then(({ data }: any) => {
-      const logs = data?.data?.items || [];
-      const warned: string[] = [];
-      for (const log of logs) {
-        if (!log.success || log.resultText?.includes('REPEAT_KILL_ALERT')) warned.push(log.companionId);
-      }
-      setProcessWarningIds(warned);
-    }).catch(() => {});
   }, [fetchCompanions, fetchPool]);
 
   // WebSocket real-time: refresh pool on order updates
@@ -300,7 +290,8 @@ const CSView: React.FC = () => {
                         })()}
                         <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}>
                           <Text strong className={(unreadMap[c.id] || 0) > 0 ? 'pulse-badge' : ''}>{c.user?.username ?? c.id}</Text>
-                        {processWarningIds.includes(c.id) && <Tag color="orange" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>⚠️ 进程异常</Tag>}
+                        {(c as any).processStatus === 'BLOCKED' && <Tag color="red" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>已限制</Tag>}
+                        {(c as any).processStatus === 'WARNING' && <Tag color="orange" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>⚠️ 进程异常</Tag>}
                         </Badge>
                       </Space>
                       <Tag color={companionStatusConfig[c.status]?.color || 'default'}>

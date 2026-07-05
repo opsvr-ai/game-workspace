@@ -8,13 +8,36 @@ export class CompanionsService {
   async findAll(user: any) {
     const where: any = {};
     if (user.role !== 'OWNER') where.studioId = user.studioId;
-    return this.prisma.companion.findMany({
+    const companions = await this.prisma.companion.findMany({
       where,
       include: {
         user: { select: { username: true, avatar: true, displayName: true } },
         pc: { select: { currentMode: true, isThrottled: true, lastHeartbeat: true } },
       },
     });
+
+    // Derive processStatus from recent kill logs (30min window)
+    const ids = companions.map(c => c.id);
+    if (ids.length === 0) return [];
+
+    const recentKills = await this.prisma.processKillLog.groupBy({
+      by: ['companionId'],
+      where: { companionId: { in: ids }, createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
+      _count: { id: true },
+    });
+    const killMap = new Map(recentKills.map(k => [k.companionId, k._count.id]));
+
+    const blockedKills = await this.prisma.processKillLog.findMany({
+      where: { companionId: { in: ids }, resultText: { contains: 'REPEAT_KILL_ALERT' }, createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
+      select: { companionId: true },
+      distinct: ['companionId'],
+    });
+    const blockedSet = new Set(blockedKills.map(k => k.companionId));
+
+    return companions.map(c => ({
+      ...c,
+      processStatus: blockedSet.has(c.id) ? 'BLOCKED' : ((killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL'),
+    }));
   }
 
   async findOne(id: string) {

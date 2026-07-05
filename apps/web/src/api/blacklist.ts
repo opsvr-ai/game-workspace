@@ -3,31 +3,31 @@ import http from './client';
 export const blacklistApi = {
   // ── Blacklist CRUD ──
   list: (params?: { page?: number; pageSize?: number }) =>
-    http.get('/blacklist', { params }),
+    http.get('/processes/blacklist', { params }),
   add: (data: { processName: string; processPath?: string }) =>
-    http.post('/blacklist', data),
+    http.post('/processes/blacklist', data),
   update: (id: string, data: { isActive?: boolean; processPath?: string }) =>
-    http.put(`/blacklist/${id}`, data),
+    http.put(`/processes/blacklist/${id}`, data),
   remove: (id: string) =>
-    http.delete(`/blacklist/${id}`),
+    http.delete(`/processes/blacklist/${id}`),
   push: (data: { companionIds?: string[]; targetAll?: boolean }) =>
     http.post('/blacklist/push', data),
 
   // ── Companion Overrides ──
   getOverrides: (companionId: string) =>
-    http.get(`/blacklist/companions/${companionId}/overrides`),
+    http.get(`/processes/blacklist/companions/${companionId}/overrides`),
   addOverride: (companionId: string, data: { processName: string; processPath?: string }) =>
-    http.post(`/blacklist/companions/${companionId}/overrides`, data),
+    http.post(`/processes/blacklist/companions/${companionId}/overrides`, data),
   removeOverride: (companionId: string, overrideId: string) =>
-    http.delete(`/blacklist/companions/${companionId}/overrides/${overrideId}`),
+    http.delete(`/processes/blacklist/companions/${companionId}/overrides/${overrideId}`),
 
   // ── Whitelist ──
   getWhitelist: () =>
-    http.get('/whitelist'),
+    http.get('/processes/whitelist'),
   addWhitelist: (data: { processName: string; processPath?: string }) =>
-    http.post('/whitelist', data),
+    http.post('/processes/whitelist', data),
   removeWhitelist: (id: string) =>
-    http.delete(`/whitelist/${id}`),
+    http.delete(`/processes/whitelist/${id}`),
 
   // ── Reports & Logs ──
   getReports: (params?: { companionId?: string; limit?: number }) =>
