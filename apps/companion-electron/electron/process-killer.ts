@@ -34,6 +34,27 @@ function recordKill(processName: string, pid: number): void {
   });
 }
 
+// ── Loop Kill Prevention (3 kills / 5 minutes per process) ──
+const killLoopMap = new Map<string, { count: number; firstKill: number }>();
+const LOOP_THRESHOLD = 3;
+const LOOP_WINDOW_MS = 5 * 60 * 1000;
+
+function isLoopKill(processName: string): boolean {
+  const now = Date.now();
+  const key = processName.toLowerCase();
+  const entry = killLoopMap.get(key);
+  if (!entry || now - entry.firstKill > LOOP_WINDOW_MS) {
+    killLoopMap.set(key, { count: 1, firstKill: now });
+    return false;
+  }
+  entry.count++;
+  if (entry.count > LOOP_THRESHOLD) {
+    logger.warn('[ProcessKiller] LOOP_KILL blocked', { processName, count: entry.count, threshold: LOOP_THRESHOLD });
+    return true;
+  }
+  return false;
+}
+
 // ── Kill Execution ──
 
 export interface KillResult {
@@ -51,6 +72,12 @@ export function killProcess(process: ProcessInfo): Promise<KillResult> {
     memoryMB: process.memoryMB,
   });
 
+  if (isLoopKill(process.name)) {
+    return Promise.resolve({
+      processName: process.name, pid: process.pid, success: false,
+      resultText: "REPEAT_KILL_ALERT",
+    });
+  }
   if (!checkRateLimit(process.name)) {
     return Promise.resolve({
       processName: process.name,
