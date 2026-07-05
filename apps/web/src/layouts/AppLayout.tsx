@@ -12,7 +12,7 @@ if (!document.getElementById('badge-pulse-css')) {
   document.head.appendChild(s);
 }
 
-import {
+import { ControlOutlined, StopOutlined, SafetyOutlined, HistoryOutlined,
   DashboardOutlined,
   DollarOutlined,
   TeamOutlined,
@@ -45,6 +45,10 @@ const IconDispatch = React.createElement(SendOutlined);
 const IconBilling = React.createElement(AuditOutlined);
 const IconOrders = React.createElement(FileTextOutlined);
 const IconPc = React.createElement(DesktopOutlined);
+const IconControl = React.IconControl;
+const IconStop = React.IconStop;
+const IconSafety = React.IconSafety;
+const IconHistory = React.IconHistory;
 const IconLogout = React.createElement(LogoutOutlined);
 const IconTraffic = React.createElement(FundOutlined);
 const IconFold = React.createElement(MenuFoldOutlined);
@@ -65,10 +69,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/owner/studios', icon: IconStudios, label: '工作室管理' },
     { key: '/owner/authorizations', icon: IconAuth, label: '客户端授权' },
     { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
-    { key: '/admin/pc-control', icon: IconPc, label: '远程控制' },
-    { key: '/admin/blacklist', icon: IconPc, label: '进程黑名单' },
-    { key: '/admin/whitelist', icon: IconPc, label: '进程白名单' },
-    { key: '/admin/process-kill-log', icon: IconPc, label: '杀进程日志' },
+    { key: '/admin/billing', icon: IconBilling, label: '报账审核' },
+    { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
+    { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
+    { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
+    { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
     { key: '/owner/review', icon: IconAuth, label: '实名审核' },
     { key: '/owner/settings', icon: IconAuth, label: '系统设置' },
   ],
@@ -80,10 +85,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
     { key: '/admin/billing', icon: IconBilling, label: '报账审核' },
-    { key: '/admin/pc-control', icon: IconPc, label: '远程控制' },
-    { key: '/admin/blacklist', icon: IconPc, label: '进程黑名单' },
-    { key: '/admin/whitelist', icon: IconPc, label: '进程白名单' },
-    { key: '/admin/process-kill-log', icon: IconPc, label: '杀进程日志' },
+    { key: '/admin/billing', icon: IconBilling, label: '报账审核' },
+    { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
+    { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
+    { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
+    { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
     { key: '/admin/review', icon: IconAuth, label: '实名审核' },
     { key: '/admin/settings', icon: IconAuth, label: '系统设置' },
   ],
@@ -91,10 +97,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },
     { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
     { key: '/cs/employees', icon: IconEmployees, label: '员工管理' },
-    { key: '/admin/pc-control', icon: IconPc, label: '远程控制' },
-    { key: '/admin/blacklist', icon: IconPc, label: '进程黑名单' },
-    { key: '/admin/whitelist', icon: IconPc, label: '进程白名单' },
-    { key: '/admin/process-kill-log', icon: IconPc, label: '杀进程日志' },
+    { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
+    { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
+    { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
+    { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
   ],
   [UserRole.COMPANION]: [
     { key: '/companion', icon: IconRevenue, label: '首页' },

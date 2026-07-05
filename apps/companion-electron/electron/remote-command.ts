@@ -1,4 +1,4 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen, ipcMain } from 'electron';
 import { exec } from 'child_process';
 import { logger } from './logger';
 
@@ -8,6 +8,7 @@ interface RemoteCommand {
 }
 
 let execWindow: BrowserWindow | null = null;
+let execAction: 'exec' | 'cancel' | null = null;
 
 const commandLabels: Record<string, string> = {
   shutdown: '关机',
@@ -73,41 +74,38 @@ function showNotification(label: string, seconds: number, onExecute: () => void)
       <button class="btn btn-exec" id="execBtn">立即执行</button>
     </div>
     <script>
+      const { ipcRenderer } = require('electron');
       let sec = ${seconds};
-      let cancelled = false;
       const update = () => { document.getElementById('timer').textContent = sec; document.getElementById('sec').textContent = sec; };
       const countdown = setInterval(() => {
         sec--;
         update();
-        if (sec <= 0) { clearInterval(countdown); window.__onExpire && window.__onExpire(); window.close(); }
+        if (sec <= 0) { clearInterval(countdown); ipcRenderer.send('rcmd-exec'); window.close(); }
       }, 1000);
-      document.getElementById('execBtn').addEventListener('click', () => { clearInterval(countdown); window.__onExec && window.__onExec(); window.close(); });
-      document.getElementById('cancelBtn').addEventListener('click', () => { clearInterval(countdown); cancelled = true; window.__onCancel && window.__onCancel(); window.close(); });
+      document.getElementById('execBtn').addEventListener('click', () => { clearInterval(countdown); ipcRenderer.send('rcmd-exec'); window.close(); });
+      document.getElementById('cancelBtn').addEventListener('click', () => { clearInterval(countdown); ipcRenderer.send('rcmd-cancel'); window.close(); });
     </script>
   </body></html>`;
 
+  execWindow.webPreferences = { contextIsolation: false, nodeIntegration: true };
   execWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
-  // Inject callbacks
-  execWindow.webContents.executeJavaScript('window.__onExec = function(){}; window.__onExpire = function(){}; window.__onCancel = function(){};');
-  execWindow.webContents.executeJavaScript(`
-    window.__onExec = function() { window.__action = 'exec'; };
-    window.__onExpire = function() { window.__action = 'expire'; };
-    window.__onCancel = function() { window.__action = 'cancel'; };
-  `);
+  // IPC listeners: receive decision BEFORE window closes
+  const onExec = () => { execAction = 'exec'; };
+  const onCancel = () => { execAction = 'cancel'; };
+  ipcMain.on('rcmd-exec', onExec);
+  ipcMain.on('rcmd-cancel', onCancel);
 
   execWindow.on('closed', () => {
-    execWindow?.webContents.executeJavaScript('window.__action || "cancel"')
-      .then((action: string) => {
-        if (action === 'cancel') {
-          logger.info('Remote command cancelled by user', { label });
-        } else {
-          logger.info('Remote command executing', { label, action });
-          onExecute();
-        }
-        execWindow = null;
-      })
-      .catch(() => { onExecute(); execWindow = null; });
+    ipcMain.removeListener('rcmd-exec', onExec);
+    ipcMain.removeListener('rcmd-cancel', onCancel);
+    if (execAction === 'cancel') {
+      logger.info('Remote command cancelled by user', { label });
+    } else {
+      logger.info('Remote command executing', { label, action: execAction || 'default' });
+      onExecute();
+    }
+    execWindow = null;
   });
 }
 

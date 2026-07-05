@@ -222,7 +222,7 @@ const CSView: React.FC = () => {
 
       <Row gutter={12}>
         {/* Left: Companion sidebar (3/24) */}
-        <Col span={3}>
+        <Col span={4}>
           <Card
             title="陪玩管理"
             size="small"
@@ -290,8 +290,8 @@ const CSView: React.FC = () => {
                         })()}
                         <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}>
                           <Text strong className={(unreadMap[c.id] || 0) > 0 ? 'pulse-badge' : ''}>{c.user?.username ?? c.id}</Text>
-                        {(c as any).processStatus === 'BLOCKED' && <Tag color="red" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>已限制</Tag>}
-                        {(c as any).processStatus === 'WARNING' && <Tag color="orange" style={{ fontSize: 10, padding: '0 4px', lineHeight: '18px' }}>⚠️ 进程异常</Tag>}
+                        {(c as any).processStatus === 'BLOCKED' && <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>已限制</Tag>}
+                        {(c as any).processStatus === 'WARNING' && <Tag color="orange" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>⚠️ 进程异常</Tag>}
                         </Badge>
                       </Space>
                       <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
