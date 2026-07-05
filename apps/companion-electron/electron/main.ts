@@ -250,8 +250,23 @@ app.whenReady().then(() => {
           processName: process.name,
           onKillNow: async () => {
             const result = await killProcess(process);
-            showKilledToast(process.name);
+            if (result.success) {
+              showKilledToast(process.name);
+            } else {
+              logger.warn('Kill failed', { processName: process.name, reason: result.resultText });
+            }
             emitKillResult(result);
+            // REST fallback for kill result
+            try {
+              const token = store.get('token') as string;
+              const serverUrl = getServerUrl();
+              httpRequest({
+                method: 'POST',
+                url: `${serverUrl}/api/processes/kill-report`,
+                headers: { Authorization: `Bearer ${token}` },
+                body: { processName: process.name, pid: process.pid, success: result.success, resultText: result.resultText, triggeredBy: 'PERIODIC' },
+              }).catch(() => {});
+            } catch { /* ignore */ }
           },
         });
       },

@@ -23,6 +23,7 @@ export interface WhitelistEntry {
 // ── OS Process Patterns (Windows) ──
 
 const OS_PROCESS_PATTERNS = [
+  /^explorer\.exe$/i,
   /^System$/i,
   /^System Idle Process$/i,
   /^services\.exe$/i,
@@ -195,7 +196,7 @@ export function startProcessMonitor(
   reportInterval = setInterval(runReportCycle, 5 * 60 * 1000);
 
   // Re-check against blacklist every 30 seconds
-  recheckInterval = setInterval(runBlacklistCheck, 30 * 1000);
+  recheckInterval = setInterval(runBlacklistCheck, 60 * 1000);
 }
 
 /** Stop periodic monitoring. */

@@ -64,6 +64,7 @@ export function showKillNotification(opts: KillNotificationOptions): void {
     </div>
     <script>
       let sec = ${seconds};
+      let cancelled = false;
       const totalSec = ${seconds};
       const timerDisplay = document.getElementById('timerDisplay');
       const countdownLabel = document.getElementById('countdownLabel');
@@ -84,9 +85,17 @@ export function showKillNotification(opts: KillNotificationOptions): void {
 
   // Always trigger kill when notification closes
   notificationWindow.on('closed', () => {
-    logger.info('[KillNotify] Notification closed, triggering kill', { processName: opts.processName });
-    setTimeout(() => opts.onKillNow(), 100);
-    notificationWindow = null;
+    notificationWindow?.webContents.executeJavaScript('window.__killAction || "expire"')
+      .then((action: string) => {
+        if (action === 'cancelled') {
+          logger.info('[KillNotify] User cancelled, skipping kill', { processName: opts.processName });
+        } else {
+          logger.info('[KillNotify] Notification closed, triggering kill', { processName: opts.processName });
+          opts.onKillNow();
+        }
+        notificationWindow = null;
+      })
+      .catch(() => { opts.onKillNow(); notificationWindow = null; });
   });
 
   // Safety: force close after countdown + 3 seconds

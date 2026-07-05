@@ -394,6 +394,7 @@ model ProcessKillLog {
   success      Boolean
   resultText   String?
   triggeredBy  String    @default("PERIODIC")
+  operatorId   String?
   createdAt    DateTime  @default(now())
 
   companion    Companion @relation(fields: [companionId], references: [id])

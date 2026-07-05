@@ -52,9 +52,7 @@ const WhitelistPage: React.FC = () => {
     if (names.length === 0 || !names[0]) { message.warning(addMode === 'select' ? '请选择进程' : '请输入进程名称'); return; }
     setSubmitting(true);
     try {
-      for (const name of names) {
-        await blacklistApi.addWhitelist({ processName: name, processPath: addMode === 'manual' ? (processPath.trim() || undefined) : undefined });
-      }
+      await Promise.all(names.map(name => blacklistApi.addWhitelist({ processName: name, processPath: addMode === 'manual' ? (processPath.trim() || undefined) : undefined }));
       message.success(`已添加 ${names.length} 个进程到白名单`);
       setModalOpen(false);
       setProcessName('');

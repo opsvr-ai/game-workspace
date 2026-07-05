@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Tag, Typography, Select, Button, Space } from 'antd';
+import { Table, Tag, Typography, Select, Button, Space, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
 import { companionsApi } from '../../api/companions';
@@ -44,6 +44,8 @@ const ProcessKillLogPage: React.FC = () => {
     { title: 'PID', dataIndex: 'pid', key: 'pid', width: 80 },
     { title: '结果', dataIndex: 'success', key: 'success', width: 80,
       render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '成功' : '失败'}</Tag> },
+    { title: '详情', dataIndex: 'resultText', key: 'resultText', width: 160, ellipsis: true,
+      render: (v: string | undefined) => v ? <Tooltip title={v}><Text type="secondary" style={{ fontSize: 12, maxWidth: 150 }} ellipsis>{v}</Text></Tooltip> : '-' },
     { title: '触发方式', dataIndex: 'triggeredBy', key: 'trigger', width: 100,
       render: (v: string) => triggerLabels[v] || v },
     { title: '时间', dataIndex: 'createdAt', key: 'time', width: 170,
