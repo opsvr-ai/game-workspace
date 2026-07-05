@@ -34,43 +34,6 @@ function recordKill(processName: string, pid: number): void {
   });
 }
 
-// ── Loop Kill Prevention (3 kills / 5 minutes, 30min cooldown) ──
-const killLoopMap = new Map<string, { count: number; firstKill: number; blocked: boolean; blockedAt: number }>();
-const LOOP_THRESHOLD = 3;
-const LOOP_WINDOW_MS = 5 * 60 * 1000;
-const BLOCK_DURATION_MS = 30 * 60 * 1000;
-
-function isLoopKill(processName: string): boolean {
-  const now = Date.now();
-  const key = processName.toLowerCase();
-  const entry = killLoopMap.get(key);
-
-  // Check if in cooldown period
-  if (entry?.blocked) {
-    if (now - entry.blockedAt < BLOCK_DURATION_MS) {
-      logger.warn('[ProcessKiller] LOOP_KILL blocked (cooldown)', { processName, blockedAt: new Date(entry.blockedAt).toISOString() });
-      return true;
-    }
-    // Cooldown expired, reset
-    killLoopMap.delete(key);
-    return false;
-  }
-
-  // Track kill count within window
-  if (!entry || now - entry.firstKill > LOOP_WINDOW_MS) {
-    killLoopMap.set(key, { count: 1, firstKill: now, blocked: false, blockedAt: 0 });
-    return false;
-  }
-  entry.count++;
-  if (entry.count >= LOOP_THRESHOLD) {
-    entry.blocked = true;
-    entry.blockedAt = now;
-    logger.warn('[ProcessKiller] REPEAT_KILL_ALERT — entering 30min cooldown', { processName, count: entry.count, threshold: LOOP_THRESHOLD });
-    return true;
-  }
-  return false;
-}
-
 // ── Kill Execution ──
 
 export interface KillResult {
@@ -88,12 +51,6 @@ export function killProcess(process: ProcessInfo): Promise<KillResult> {
     memoryMB: process.memoryMB,
   });
 
-  if (isLoopKill(process.name)) {
-    return Promise.resolve({
-      processName: process.name, pid: process.pid, success: false,
-      resultText: "REPEAT_KILL_ALERT",
-    });
-  }
   if (!checkRateLimit(process.name)) {
     return Promise.resolve({
       processName: process.name,

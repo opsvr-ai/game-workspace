@@ -11,7 +11,7 @@ export const blacklistApi = {
   remove: (id: string) =>
     http.delete(`/processes/blacklist/${id}`),
   push: (data: { companionIds?: string[]; targetAll?: boolean }) =>
-    http.post('/blacklist/push', data),
+    http.post('/processes/blacklist/push', data),
 
   // ── Companion Overrides ──
   getOverrides: (companionId: string) =>

@@ -60,6 +60,39 @@ const OS_PROCESS_PATTERNS = [
   /^Vmwp\.exe$/i,
 ];
 
+
+// ── Loop Kill Prevention ──
+interface KillCounter { count: number; firstKillAt: number; lastKillAt: number; }
+const killCounters = new Map<string, KillCounter>();
+const CYCLE_THRESHOLD = 3;
+const CYCLE_WINDOW_MS = 5 * 60 * 1000;
+const BLOCK_DURATION_MS = 30 * 60 * 1000;
+
+function shouldSkipLoopKill(processName: string): boolean {
+  const now = Date.now();
+  const key = processName.toLowerCase();
+  const c = killCounters.get(key) || { count: 0, firstKillAt: 0, lastKillAt: 0 };
+
+  // Cooldown check
+  if (c.lastKillAt > 0 && (now - c.lastKillAt) < BLOCK_DURATION_MS) {
+    logger.warn('[ProcessMonitor] Kill blocked (cooldown)', { processName });
+    return true;
+  }
+
+  // Window reset
+  if (now - c.firstKillAt > CYCLE_WINDOW_MS) { c.count = 0; c.firstKillAt = now; }
+  c.count++;
+  c.lastKillAt = now;
+  killCounters.set(key, c);
+
+  // Threshold reached
+  if (c.count >= CYCLE_THRESHOLD) {
+    logger.error('[ProcessMonitor] REPEAT_KILL_ALERT', { processName, count: c.count });
+    return true;
+  }
+  return false;
+}
+
 // ── State ──
 
 let localBlacklist: BlacklistEntry[] = [];
@@ -120,8 +153,13 @@ export function collectProcesses(): Promise<ProcessInfo[]> {
         });
         resolve(result);
       } catch (e: any) {
-        logger.error('[ProcessCollect] Failed to parse PowerShell output', { error: e.message });
-        resolve([]);
+        logger.warn('[ProcessCollect] PowerShell JSON parse failed, falling back to tasklist', { error: e?.message });
+        exec('tasklist /FO CSV /NH', { timeout: 10000 }, (err2, out2) => {
+          if (err2) { logger.error('[ProcessCollect] tasklist fallback also failed', { error: err2.message }); resolve([]); return; }
+          const result = parseTasklist(out2);
+          logger.info('[ProcessCollect] Collection complete via tasklist fallback', { method: 'tasklist-fallback', count: result.length });
+          resolve(result);
+        });
       }
     });
   });
