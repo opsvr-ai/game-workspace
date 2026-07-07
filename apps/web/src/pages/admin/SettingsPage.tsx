@@ -239,15 +239,15 @@ const SettingsPage: React.FC = () => {
 
     return (
       <Card
-        title="📊 结算规则"
+        title="📊 分账规则"
         extra={
           <Space>
             <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
             <Button
               type="primary"
               icon={React.createElement(SaveOutlined)}
-              loading={saving === '结算规则'}
-              onClick={() => save({ 'revenue.share_tiers': tiers }, '结算规则')}
+              loading={saving === '分账规则'}
+              onClick={() => save({ 'revenue.share_tiers': tiers, 'revenue.club_companion_share': config?.['revenue.club_companion_share'] }, '分账规则')}
             >
               保存
             </Button>
@@ -330,8 +330,17 @@ const SettingsPage: React.FC = () => {
             }
           />
         </Table>
-        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-          流水区间按当日累计流水自动匹配，系统取最高匹配档位结算。第一档最低流水固定为 0。
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>🏢 线上俱乐部（固定比例）</Text>
+          <div>
+            <Label>陪玩分成比例（%）</Label>
+            <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? 80}
+              onChange={(v) => update('revenue.club_companion_share', v ?? 80)} style={{ width: 200 }} />
+            <Text type="secondary" style={{ marginLeft: 8 }}>线上俱乐部固定分给陪玩的比例，工作室获剩余份额，默认 80%</Text>
+          </div>
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+          📌 线下工作室使用阶梯档位，线上俱乐部使用固定比例。创建工作室时可选择分账模式。
         </Text>
       </Card>
     );
@@ -614,37 +623,9 @@ const SettingsPage: React.FC = () => {
     );
   }
 
-  // ── Tab: 俱乐部分账 ──
-  const renderClubSplit = () => (
-    <Card title="🏢 俱乐部分账（线上俱乐部 / 固定比例）" extra={
-      <Space>
-        <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
-        <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving === '俱乐部分账'}
-          onClick={() => save({ 'revenue.club_companion_share': config?.['revenue.club_companion_share'] }, '俱乐部分账')}>保存</Button>
-      </Space>
-    }>
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div>
-          <Label>陪玩分成比例（%）</Label>
-          <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? 80}
-            onChange={(v) => update('revenue.club_companion_share', v ?? 80)} style={{ width: 200 }} />
-          <Text type="secondary" style={{ marginLeft: 8 }}>俱乐部陪玩默认分成（工作室获剩余份额），默认 80%</Text>
-        </div>
-        <div style={{ background: '#f0f5ff', borderRadius: 8, padding: 12 }}>
-          <Text type="secondary">
-            📌 线上俱乐部（固定比例模式）：每笔流水按此比例分给陪玩。<br />
-            📌 线下工作室（阶梯分成模式）：使用「📊 结算规则」中的阶梯档位。<br />
-            📌 创建/编辑工作室时可选择分账模式。
-          </Text>
-        </div>
-      </Space>
-    </Card>
-  );
-
   const tabItems = [
     { key: 'revenue', label: '💰 流水与价格', children: renderRevenue() },
-    { key: 'share', label: '📊 结算规则', children: renderShareTiers() },
-    { key: 'club', label: '🏢 俱乐部分账', children: renderClubSplit() },
+    { key: 'share', label: '📊 分账规则', children: renderShareTiers() },
     { key: 'withdraw', label: '💸 支取与押金', children: renderWithdraw() },
     { key: 'timeout', label: '⏰ 超时与关机', children: renderTimeout() },
     { key: 'entertainment', label: '🎮 娱乐模式门槛', children: renderEntertainmentThreshold() },
