@@ -187,6 +187,20 @@ export class CompanionsService {
       };
     }
 
+    // Total revenue and balance for entertainment fee check
+    const totalRevenue = await this.prisma.transaction.aggregate({
+      where: { companionId, status: 'APPROVED' },
+      _sum: { amount: true },
+    });
+    const totalRev = totalRevenue._sum.amount || 0;
+    const wallet = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { balance: true, deposit: true },
+    });
+    const availableFunds = (wallet?.balance || 0) + (wallet?.deposit || 0);
+    const feeBalanceWarning = entertainmentFee >= availableFunds - 30; // 30 min buffer (¥30)
+    const feeBalanceAlert = entertainmentFee >= availableFunds; // Already exceeded
+
     return {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       unlockThreshold,
@@ -194,6 +208,10 @@ export class CompanionsService {
       freeThreshold,
       entertainmentMinutes,
       entertainmentFee,
+      totalRevenue: Math.round(totalRev * 100) / 100,
+      availableFunds: Math.round(availableFunds * 100) / 100,
+      feeBalanceWarning,
+      feeBalanceAlert,
       currentStatus: companion?.status ?? 'OFFLINE',
       splitMode,
       tierInfo,

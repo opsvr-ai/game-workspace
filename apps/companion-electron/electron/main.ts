@@ -9,6 +9,7 @@ import { httpRequest } from './http';
 import { startProcessMonitor, stopProcessMonitor, updateBlacklist } from './process-monitor';
 import { killProcess } from './process-killer';
 import { showKillNotification, showKilledToast } from './blacklist-notification';
+import { showEntertainmentWarning, showEntertainmentForceIdle } from './entertainment-notify';
 import { handleRemoteCommand } from './remote-command';
 import { emitStatus, isConnected as isWsConnected, emitBlacklistReport, emitKillResult, emitCommandAck } from './websocket';
 import { logger } from './logger';
@@ -218,6 +219,19 @@ function setupWsEvents(): void {
 
   onWsEvent('blacklist:recheck', () => {
     logger.debug('Blacklist re-check requested');
+  });
+
+  // Entertainment balance warnings
+  onWsEvent('entertainment:warning', (data: any) => {
+    logger.warn('Entertainment balance warning', data);
+    mainWindow?.webContents.send('ws:entertainmentWarning', data);
+    showEntertainmentWarning(data);
+  });
+
+  onWsEvent('entertainment:forceIdle', (data: any) => {
+    logger.warn('Entertainment force idle', data);
+    mainWindow?.webContents.send('ws:entertainmentForceIdle', data);
+    showEntertainmentForceIdle(data);
   });
 }
 

@@ -215,6 +215,59 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         where: { id: openLog.id },
         data: { durationSeconds: elapsed },
       });
+
+      // Balance check: if in ENTERTAINMENT mode and running out of funds
+      if (openLog.mode === 'ENTERTAINMENT') {
+        const companion = await this.prisma.companion.findUnique({
+          where: { id: user.companionId },
+          select: { balance: true, deposit: true, status: true },
+        });
+        if (companion) {
+          const availableFunds = (companion.balance || 0) + (companion.deposit || 0);
+          const feeMinutes = Math.floor(elapsed / 60);
+          const fee = feeMinutes; // ¥1/min
+          const remainingMinutes = Math.max(0, availableFunds - fee);
+
+          // 30 minute warning
+          if (remainingMinutes <= 30 && remainingMinutes > 0) {
+            this.server.to(`user:${user.id}`).emit('entertainment:warning', {
+              message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），余额仅够再玩 ${remainingMinutes} 分钟，30 分钟后将自动切换到空闲状态`,
+              elapsedMinutes: feeMinutes,
+              fee,
+              availableFunds,
+              remainingMinutes,
+              autoSwitchIn: 30 * 60, // seconds
+            });
+            logger.warn('Entertainment balance warning', { companionId: user.companionId, fee, remainingMinutes });
+          }
+
+          // Balance exhausted — force switch to AVAILABLE
+          if (remainingMinutes <= 0 && companion.status === 'ENTERTAINMENT') {
+            await this.prisma.companion.update({
+              where: { id: user.companionId },
+              data: { status: 'AVAILABLE' },
+            });
+            // Close current entertainment log
+            await this.prisma.companionTimeLog.updateMany({
+              where: { companionId: user.companionId, mode: 'ENTERTAINMENT', endedAt: null },
+              data: { endedAt: now },
+            });
+            // Open AVAILABLE log
+            await this.prisma.companionTimeLog.create({
+              data: { companionId: user.companionId, mode: 'AVAILABLE', startedAt: now, endedAt: null, durationSeconds: 0 },
+            });
+            this.server.to(`user:${user.id}`).emit('entertainment:forceIdle', {
+              message: `余额不足，已自动切换到空闲状态。娱乐 ${feeMinutes} 分钟，费用 ¥${fee}`,
+            });
+            if (user.studioId) {
+              this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
+                companionId: user.companionId, status: 'AVAILABLE',
+              });
+            }
+            logger.warn('Force idle due to insufficient balance', { companionId: user.companionId, fee, availableFunds });
+          }
+        }
+      }
     }
 
     // Legacy: Go Agent accumulated workSec

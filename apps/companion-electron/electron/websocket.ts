@@ -97,6 +97,14 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   wsOn('blacklist:recheck', (data: any) => {
     emitEvent('blacklist:recheck', data);
   });
+
+  wsOn('entertainment:warning', (data: any) => {
+    emitEvent('entertainment:warning', data);
+  });
+
+  wsOn('entertainment:forceIdle', (data: any) => {
+    emitEvent('entertainment:forceIdle', data);
+  });
 }
 
 export function disconnectWebSocket(): void {

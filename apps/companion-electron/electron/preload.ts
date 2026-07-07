@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'ws:pcCommand',
       'ws:blacklistUpdate',
       'ws:blacklistRecheck',
+      'ws:entertainmentWarning',
+      'ws:entertainmentForceIdle',
       'fileDropped',
     ];
     if (validChannels.includes(channel)) {
