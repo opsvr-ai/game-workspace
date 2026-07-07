@@ -61,37 +61,6 @@ const OS_PROCESS_PATTERNS = [
 ];
 
 
-// ── Loop Kill Prevention ──
-interface KillCounter { count: number; firstKillAt: number; lastKillAt: number; }
-const killCounters = new Map<string, KillCounter>();
-const CYCLE_THRESHOLD = 3;
-const CYCLE_WINDOW_MS = 5 * 60 * 1000;
-const BLOCK_DURATION_MS = 2 * 60 * 1000;  // 2 min cooldown (was 30 min)
-
-function shouldSkipLoopKill(processName: string): boolean {
-  const now = Date.now();
-  const key = processName.toLowerCase();
-  const c = killCounters.get(key) || { count: 0, firstKillAt: 0, lastKillAt: 0 };
-
-  // Cooldown check
-  if (c.lastKillAt > 0 && (now - c.lastKillAt) < BLOCK_DURATION_MS) {
-    logger.warn('[ProcessMonitor] Kill blocked (cooldown)', { processName });
-    return true;
-  }
-
-  // Window reset
-  if (now - c.firstKillAt > CYCLE_WINDOW_MS) { c.count = 0; c.firstKillAt = now; }
-  c.count++;
-  c.lastKillAt = now;
-  killCounters.set(key, c);
-
-  // Threshold reached
-  if (c.count >= CYCLE_THRESHOLD) {
-    logger.error('[ProcessMonitor] REPEAT_KILL_ALERT', { processName, count: c.count });
-    return true;
-  }
-  return false;
-}
 
 // ── State ──
 
@@ -270,7 +239,6 @@ async function runReportCycle(): Promise<void> {
       });
     }
     for (const hit of hits) {
-      if (shouldSkipLoopKill(hit.name)) continue;
       onKillCallback?.(hit);
     }
     logger.info('[ProcessMonitor] Report cycle complete', { elapsed: `${Date.now() - cycleStart}ms` });
@@ -293,7 +261,6 @@ async function runBlacklistCheck(): Promise<void> {
       });
     }
     for (const hit of hits) {
-      if (shouldSkipLoopKill(hit.name)) continue;
       onKillCallback?.(hit);
     }
   } catch (e: any) {
