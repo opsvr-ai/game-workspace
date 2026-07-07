@@ -267,7 +267,7 @@ const CustomersPage: React.FC = () => {
         </Form>
       </Modal>
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
-      <CreateOrderModal open={createOrderOpen} onClose={() => { setCreateOrderOpen(false); setStartServicePreFill(null); }} onCreated={() => { fetchCustomers(); setStartServicePreFill(null); }} userId={user?.id} defaultDeltaCount="单" customerPreFill={startServicePreFill} />
+      <CreateOrderModal open={createOrderOpen} onClose={() => { setCreateOrderOpen(false); setStartServicePreFill(null); }} onCreated={() => { fetchCustomers(); setStartServicePreFill(null); }} userId={user?.id} customerPreFill={startServicePreFill} />
       <Modal title="预约时间" open={scheduleModalOpen} onOk={handleSchedule} onCancel={() => setScheduleModalOpen(false)}
         okText="确认预约" cancelText="取消" destroyOnClose>
         <div style={{ marginTop: 16 }}>

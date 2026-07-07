@@ -22,6 +22,8 @@ interface AuthState {
   markRead: (key: string, msgCount?: number) => void;
   isChatOpen: boolean;
   setChatOpen: (open: boolean) => void;
+  grabbedOrder: any | null;
+  setGrabbedOrder: (order: any | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -92,4 +94,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   isChatOpen: false,
   setChatOpen: (open: boolean) => set({ isChatOpen: open }),
+  grabbedOrder: null,
+  setGrabbedOrder: (order: any | null) => set({ grabbedOrder: order }),
 }));

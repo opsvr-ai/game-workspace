@@ -76,12 +76,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         logger.info('Companion connected', { companionId: user.companionId, username: user.username });
 
         await this.prisma.companion.update({
-          where: { id: user.companionId }, data: { status: 'ONLINE' },
+          where: { id: user.companionId }, data: { status: 'AVAILABLE' },
         });
 
         if (user.studioId) {
           this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
-            companionId: user.companionId, status: 'ONLINE',
+            companionId: user.companionId, status: 'AVAILABLE',
           });
         }
       }
@@ -119,8 +119,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     logger.info('WS companion:status received', { companionId: user.companionId, username: user.username, status: data.status, mode: data.mode });
 
+    // Compat: map old client status values to new enum
+    const STATUS_COMPAT: Record<string, string> = { 'ONLINE': 'AVAILABLE', 'IDLE': 'ENTERTAINMENT' };
+    const mappedStatus = STATUS_COMPAT[data.status] || data.status;
+
     await this.prisma.companion.update({
-      where: { id: user.companionId }, data: { status: data.status },
+      where: { id: user.companionId }, data: { status: mappedStatus },
     }).then(() => {
       logger.debug('DB status updated', { companionId: user.companionId, status: data.status });
     }).catch((err) => {
@@ -129,7 +133,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (user.studioId) {
       this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
-        companionId: user.companionId, status: data.status, mode: data.mode,
+        companionId: user.companionId, status: mappedStatus, mode: data.mode,
       });
       logger.debug('Broadcast to studio', { studioId: user.studioId });
     }
@@ -253,7 +257,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<void> {
-    const idleCompanions = await this.prisma.companion.findMany({ where: { studioId, status: 'ONLINE' }, select: { id: true } });
+    const idleCompanions = await this.prisma.companion.findMany({ where: { studioId, status: 'AVAILABLE' }, select: { id: true } });
     for (const c of idleCompanions) {
       const socketId = this.companionSockets.get(c.id);
       if (socketId) this.server.to(socketId).emit(event, data);

@@ -64,10 +64,10 @@ const CompanionPage: React.FC = () => {
 
   useEffect(() => { fetchData(); fetchWallet(); }, [fetchData, fetchWallet]);
 
-  // Auto-set ONLINE on first load if currently OFFLINE
+  // Auto-set AVAILABLE on first load if currently OFFLINE
   useEffect(() => {
     if (data?.currentStatus === 'OFFLINE' && user?.companionId) {
-      switchStatus('ONLINE');
+      switchStatus('AVAILABLE');
     }
   }, [data?.currentStatus]);
 
@@ -154,8 +154,8 @@ const CompanionPage: React.FC = () => {
               </div>
             </div>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Button type="default" icon={IconPlay} size="large" onClick={() => switchStatus('IDLE')} block>切换为娱乐中</Button>
-              <Button type="primary" icon={IconSearch} size="large" onClick={() => switchStatus('ONLINE')} block>切换为空闲</Button>
+              <Button type="default" icon={IconPlay} size="large" onClick={() => switchStatus('ENTERTAINMENT')} block>切换为娱乐中</Button>
+              <Button type="primary" icon={IconSearch} size="large" onClick={() => switchStatus('AVAILABLE')} block>切换为空闲</Button>
               <Button type="default" icon={IconThunder} size="large" onClick={() => switchStatus('BUSY')} block>切换为接单中</Button>
               <Button type="default" icon={IconCoffee} size="large" onClick={() => switchStatus('RESTING')} block>切换为休息中</Button>
             </Space>

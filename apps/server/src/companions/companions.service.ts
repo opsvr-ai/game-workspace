@@ -140,7 +140,7 @@ export class CompanionsService {
       select: { studioId: true, status: true },
     });
     const onlineCompanions = await this.prisma.companion.findMany({
-      where: { studioId: companion?.studioId, status: { in: ['ONLINE', 'BUSY', 'IDLE'] } },
+      where: { studioId: companion?.studioId, status: { in: ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'] } },
       select: {
         id: true,
         status: true,
@@ -240,5 +240,23 @@ export class CompanionsService {
 
   async unbindWechat(id: string) {
     return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
+  }
+
+  // ── Status Blacklist CRUD ──
+  async getStatusBlacklist(companionId: string, status: string) {
+    return this.prisma.companionStatusBlacklist.findMany({
+      where: { companionId, status },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async addStatusBlacklist(companionId: string, status: string, processName: string) {
+    return this.prisma.companionStatusBlacklist.create({
+      data: { companionId, status, processName },
+    });
+  }
+
+  async removeStatusBlacklist(id: string) {
+    return this.prisma.companionStatusBlacklist.delete({ where: { id } });
   }
 }

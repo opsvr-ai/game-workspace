@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Button,
@@ -27,27 +28,21 @@ import { useAuthStore } from '../stores/authStore';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 
-const { Text, Title } = Typography;
+import { orderTypeConfig } from '../constants/orders';
 
-const orderTypeConfig: Record<string, { label: string; color: string }> = {
-  NEW: { label: '首单', color: 'green' },
-  RENEW: { label: '续单', color: 'orange' },
-  REPURCHASE: { label: '复购', color: 'blue' },
-  TIP: { label: '打赏', color: 'purple' },
-};
+const { Text, Title } = Typography;
 
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
 
   const isCompanion = role === 'COMPANION';
-  const isAdmin = role === 'ADMIN' || role === 'OWNER';
+  const navigate = useNavigate();
 
   const [orders, setOrders] = useState<any[]>([]);
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
-  const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
 
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -113,8 +108,9 @@ const OrderPoolPage: React.FC = () => {
     setGrabbing(orderId);
     try {
       const { data } = await ordersApi.grab(orderId);
-      setGrabbedOrder(data.data);
+      useAuthStore.getState().setGrabbedOrder(data.data);
       fetchData();
+      if (isCompanion) navigate('/companion/orders');
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? '抢单失败');
     } finally {
@@ -420,15 +416,13 @@ const OrderPoolPage: React.FC = () => {
           📦 订单池
         </Title>
         <Space>
-          {isAdmin && (
-            <Button
-              type="primary"
-              icon={React.createElement(PlusOutlined)}
-              onClick={() => setCreateOpen(true)}
-            >
-              发布订单
-            </Button>
-          )}
+          <Button
+            type="primary"
+            icon={React.createElement(PlusOutlined)}
+            onClick={() => setCreateOpen(true)}
+          >
+            发布订单
+          </Button>
           <Button
             icon={React.createElement(ReloadOutlined)}
             onClick={fetchData}
@@ -493,79 +487,7 @@ const OrderPoolPage: React.FC = () => {
         onClose={() => setCreateOpen(false)}
         onCreated={fetchData}
         userId={(user as any)?.id}
-        defaultDeltaCount="双"
       />
-
-      {/* Grab Success Modal */}
-      <Modal
-        title="抢单成功"
-        open={!!grabbedOrder}
-        onCancel={() => setGrabbedOrder(null)}
-        footer={null}
-        width={480}
-      >
-        {grabbedOrder && (
-          <div style={{ fontSize: 14, lineHeight: 2 }}>
-            <div>
-              📋 {grabbedOrder.gameName} ·{' '}
-              {orderTypeConfig[grabbedOrder.type]?.label ||
-                grabbedOrder.type}{' '}
-              · ¥{Number(grabbedOrder.amount).toFixed(0)} ·{' '}
-              {grabbedOrder.duration}h
-            </div>
-            {grabbedOrder.customer?.customerCode && (
-              <div>客户编号：{grabbedOrder.customer.customerCode}</div>
-            )}
-            {grabbedOrder.customFields?.customerSource && (
-              <div>来源：{grabbedOrder.customFields.customerSource}</div>
-            )}
-            {grabbedOrder.csUser?.username && (
-              <div>发布者：{grabbedOrder.csUser.username}</div>
-            )}
-            {grabbedOrder.customFields?.urgency === 'later' && (
-              <Tag color="purple">📅预约</Tag>
-            )}
-            {grabbedOrder.customFields?.urgency !== 'later' && (
-              <Tag color="green">⚡立即打</Tag>
-            )}
-            {grabbedOrder.customFields?.deltaMode && (
-              <div>
-                模式：{grabbedOrder.customFields.deltaMode}{' '}
-                {grabbedOrder.customFields.deltaMission || ''}{' '}
-                {grabbedOrder.customFields.deltaCount || ''}
-              </div>
-            )}
-            <Divider style={{ margin: '8px 0' }} />
-            <div>
-              <strong>📞 联系方式（可复制）：</strong>
-            </div>
-            {grabbedOrder.customFields?.customerWechat && (
-              <div>
-                微信：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerWechat}
-                </Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerRoomCode && (
-              <div>
-                房间码：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerRoomCode}
-                </Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerPlatformAccount && (
-              <div>
-                平台账号/YY/KOOK：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerPlatformAccount}
-                </Text>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
 
       {/* Chat Modal */}
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />

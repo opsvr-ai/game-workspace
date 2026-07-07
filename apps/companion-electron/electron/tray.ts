@@ -43,9 +43,9 @@ function buildMenu(): Menu {
     {
       label: '切换状态',
       submenu: [
-        { label: '空闲', click: () => { if (onStatusChange) onStatusChange('ONLINE'); } },
+        { label: '空闲', click: () => { if (onStatusChange) onStatusChange('AVAILABLE'); } },
         { label: '接单中', click: () => { if (onStatusChange) onStatusChange('BUSY'); } },
-        { label: '娱乐中', click: () => { if (onStatusChange) onStatusChange('IDLE'); } },
+        { label: '娱乐中', click: () => { if (onStatusChange) onStatusChange('ENTERTAINMENT'); } },
         { label: '休息中', click: () => { if (onStatusChange) onStatusChange('RESTING'); } },
       ],
     },

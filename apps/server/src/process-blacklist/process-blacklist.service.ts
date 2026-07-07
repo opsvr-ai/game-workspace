@@ -68,11 +68,11 @@ export class ProcessBlacklistService {
   async getEffectiveBlacklist(companionId: string): Promise<{ processName: string; processPath: string | null }[]> {
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { studioId: true },
+      select: { studioId: true, status: true },
     });
     if (!companion) throw new NotFoundException('陪玩不存在');
 
-    const [studioEntries, overrideEntries] = await Promise.all([
+    const [studioEntries, overrideEntries, statusEntries] = await Promise.all([
       this.prisma.processBlacklist.findMany({
         where: { studioId: companion.studioId, isActive: true },
         select: { processName: true, processPath: true },
@@ -81,12 +81,17 @@ export class ProcessBlacklistService {
         where: { companionId, isActive: true },
         select: { processName: true, processPath: true },
       }),
+      this.prisma.companionStatusBlacklist.findMany({
+        where: { companionId, status: companion.status },
+        select: { processName: true },
+      }),
     ]);
 
-    // Merge: studio defaults + companion overrides (override replaces studio entry with same name)
+    // Merge: studio defaults → companion override → status blacklist (highest priority)
     const map = new Map<string, { processName: string; processPath: string | null }>();
     for (const e of studioEntries) map.set(e.processName.toLowerCase(), e);
     for (const o of overrideEntries) map.set(o.processName.toLowerCase(), o);
+    for (const s of statusEntries) map.set(s.processName.toLowerCase(), { processName: s.processName, processPath: null });
 
     return Array.from(map.values());
   }

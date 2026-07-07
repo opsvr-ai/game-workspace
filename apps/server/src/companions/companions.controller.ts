@@ -1,7 +1,8 @@
-import { Controller, Get, Put, Post, Param, Body, Req, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Post, Delete, Param, Body, Req, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CompanionsService } from './companions.service';
+import { RestingMonitorService } from './resting-monitor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
@@ -20,6 +21,7 @@ export class CompanionsController {
     private readonly companionsService: CompanionsService,
     private readonly wsGateway: WsGateway,
     private readonly prisma: PrismaService,
+    private readonly restingMonitor: RestingMonitorService,
   ) {}
 
   @Get('companions')
@@ -180,8 +182,8 @@ export class CompanionsController {
     const id = req.user.companionId;
     if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
 
-    // Threshold check when switching to entertainment mode (IDLE)
-    if (status === 'IDLE') {
+    // Threshold check when switching to entertainment mode
+    if (status === 'ENTERTAINMENT') {
       const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true, monthlyRevenue: true } });
       if (companion) {
         const depositCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } });
@@ -196,6 +198,8 @@ export class CompanionsController {
     }
     logger.info('REST status update (me)', { companionId: id, username: req.user.username, status });
     const data = await this.companionsService.updateStatus(id, status, req.user);
+    if (status === 'RESTING') this.restingMonitor.startResting(id);
+    else this.restingMonitor.clearTimer(id);
     return { code: 200, message: 'ok', data };
   }
 
@@ -206,8 +210,8 @@ export class CompanionsController {
     @Body('status') status: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    // Threshold check when switching to entertainment mode (IDLE)
-    if (status === 'IDLE') {
+    // Threshold check when switching to entertainment mode
+    if (status === 'ENTERTAINMENT') {
       const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true, monthlyRevenue: true } });
       if (companion) {
         const depositCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } });
@@ -221,6 +225,8 @@ export class CompanionsController {
       }
     }
     const data = await this.companionsService.updateStatus(id, status, req.user);
+    if (status === 'RESTING') this.restingMonitor.startResting(id);
+    else this.restingMonitor.clearTimer(id);
     return { code: 200, message: 'ok', data };
   }
 
@@ -278,9 +284,9 @@ export class CompanionsController {
     if (!companion || companion.status === 'OFFLINE') {
       await this.prisma.companion.update({
         where: { id: companionId },
-        data: { status: 'ONLINE' },
+        data: { status: 'AVAILABLE' },
       });
-      logger.info('Heartbeat set ONLINE (was offline)', { companionId, previousStatus: currentStatus });
+      logger.info('Heartbeat set AVAILABLE (was offline)', { companionId, previousStatus: currentStatus });
     } else {
       logger.debug('Heartbeat status preserved', { companionId, status: currentStatus });
     }
@@ -323,12 +329,12 @@ export class CompanionsController {
     if (req.user.studioId) {
       this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
         companionId,
-        status: 'ONLINE',
+        status: 'AVAILABLE',
         mode: body.currentMode,
       });
     }
 
-    return { code: 200, message: 'ok', data: { companionId, status: 'ONLINE' } };
+    return { code: 200, message: 'ok', data: { companionId, status: 'AVAILABLE' } };
   }
 
   // 踢出陪玩：强制下线
@@ -405,4 +411,25 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data: null };
   }
 
+  // ── Status Blacklist CRUD ──
+  @Get('companions/:id/status-blacklist')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getStatusBlacklist(@Param('id') id: string, @Query('status') status: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getStatusBlacklist(id, status);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('companions/:id/status-blacklist')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async addStatusBlacklist(@Param('id') id: string, @Body() dto: { status: string; processName: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.addStatusBlacklist(id, dto.status, dto.processName);
+    return { code: 201, message: 'ok', data };
+  }
+
+  @Delete('companions/:id/status-blacklist/:entryId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async removeStatusBlacklist(@Param('entryId') entryId: string): Promise<ApiResponse<unknown>> {
+    await this.companionsService.removeStatusBlacklist(entryId);
+    return { code: 200, message: 'ok', data: null };
+  }
 }

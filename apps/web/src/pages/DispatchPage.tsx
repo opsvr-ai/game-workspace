@@ -196,9 +196,9 @@ const CSView: React.FC = () => {
       return (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9);
     }), [companions, chatIds]);
 
-  const idleCount = companions.filter((c) => c.status === CompanionStatus.ONLINE).length;
+  const idleCount = companions.filter((c) => c.status === CompanionStatus.AVAILABLE).length;
   const busyCount = companions.filter((c) => c.status === CompanionStatus.BUSY).length;
-  const entertainCount = companions.filter((c) => c.status === CompanionStatus.IDLE).length;
+  const entertainCount = companions.filter((c) => c.status === CompanionStatus.ENTERTAINMENT).length;
   const restingCount = companions.filter((c) => c.status === CompanionStatus.RESTING).length;
   const offlineCount = companions.filter((c) => c.status === CompanionStatus.OFFLINE).length;
   const poolCount = poolOrders.length;
@@ -227,7 +227,7 @@ const CSView: React.FC = () => {
           icon={React.createElement(PlusOutlined)}
           onClick={() => setModalOpen(true)}
         >
-          创建订单
+          发布订单
         </Button>
       </div>
 
@@ -290,7 +290,7 @@ const CSView: React.FC = () => {
                               width: 32, height: 32, borderRadius: '50%',
                               background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              boxShadow: c.status !== CompanionStatus.OFFLINE ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}` : 'none',
+                              boxShadow: c.status !== CompanionStatus.OFFLINE ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}` : 'none',
                               flexShrink: 0,
                             }}>
                               {!avatarUrl && (
@@ -448,10 +448,10 @@ const CSView: React.FC = () => {
           <div style={{ textAlign: 'center' }}>
             <span style={{ width: 40, height: 40, borderRadius: '50%', display: 'inline-block', marginBottom: 8,
               background: selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' :
-                selectedCompanion.status === CompanionStatus.IDLE ? '#00E676' :
+                selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' :
                 selectedCompanion.status === CompanionStatus.ONLINE ? '#FFD600' : '#94A3B8',
               boxShadow: selectedCompanion.status !== CompanionStatus.OFFLINE
-                ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.IDLE ? '#00E676' : '#FFD600'}`
+                ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
                 : 'none',
               animation: selectedCompanion.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
             }} />
@@ -786,7 +786,7 @@ const AdminView: React.FC = () => {
               {adminCompanions
                 .filter(
                   (c) =>
-                    c.status === CompanionStatus.ONLINE
+                    c.status === CompanionStatus.AVAILABLE
                 )
                 .map((c) => (
                   <Option key={c.id} value={c.id}>

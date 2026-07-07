@@ -7,17 +7,9 @@ import ChatModal from '../../components/ChatModal';
 import OrderTable from '../../components/OrderTable';
 
 const { Text } = Typography;
-const { Option } = Select;
+import { orderTypeConfig, orderStatusConfig } from '../../constants/orders';
 
-const typeConfig: Record<string, { color: string; label: string }> = {
-  NEW: { color: 'blue', label: '首单' }, RENEW: { color: 'cyan', label: '续费' },
-  REPURCHASE: { color: 'purple', label: '复购' }, TIP: { color: 'orange', label: '打赏' },
-};
-const statusConfig: Record<string, { color: string; label: string }> = {
-  GRABBED: { color: 'blue', label: '已抢' },
-  CONFIRMED: { color: 'green', label: '已确认' }, DONE: { color: 'green', label: '已完成' },
-  CANCELLED: { color: 'default', label: '已取消' },
-};
+const { Option } = Select;
 
 interface SettlementForm {
   customerCode: string;
@@ -195,7 +187,7 @@ const OrdersPage: React.FC = () => {
         <div style={{ display: 'flex', gap: 8 }}>
           <Select placeholder="全部状态" allowClear value={statusFilter || undefined}
             onChange={(v) => setStatusFilter(v || '')} style={{ width: 120 }}>
-            {Object.entries(statusConfig).map(([k, v]) => <Option key={k} value={k}>{v.label}</Option>)}
+            {Object.entries(orderStatusConfig).map(([k, v]) => <Option key={k} value={k}>{v.label}</Option>)}
           </Select>
           <DatePicker placeholder="筛选日期" value={dateFilter} onChange={setDateFilter} style={{ width: 140 }} />
           <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
@@ -217,7 +209,7 @@ const OrdersPage: React.FC = () => {
             <Button size="small" onClick={() => {
               localStorage.removeItem(`unread-${r.id}`);
               setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
-              setChatPartnerModal({ name: r.csUser?.username || '客服', orderId: r.id, orderInfo: `📋 ${r.gameName} · ${typeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}` });
+              setChatPartnerModal({ name: r.csUser?.username || '客服', orderId: r.id, orderInfo: `📋 ${r.gameName} · ${orderTypeConfig[r.type]?.label || r.type} · ¥${Number(r.amount).toFixed(2)}` });
             }}>沟通</Button>
           </Badge>
           {r.status === 'GRABBED' && !r.contactStatus && (<>

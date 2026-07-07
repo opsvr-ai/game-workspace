@@ -8,14 +8,9 @@ import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import { useAuthStore } from '../../stores/authStore';
 
-const { Text, Title } = Typography;
+import { orderTypeConfig } from '../../constants/orders';
 
-const orderTypeConfig: Record<string, { label: string; color: string }> = {
-  NEW: { label: '首单', color: 'green' },
-  RENEW: { label: '续单', color: 'orange' },
-  REPURCHASE: { label: '复购', color: 'blue' },
-  TIP: { label: '打赏', color: 'purple' },
-};
+const { Text, Title } = Typography;
 
 const PoolPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -192,7 +187,7 @@ const PoolPage: React.FC = () => {
         <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
       </Card>
 
-      <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id} defaultDeltaCount="双" />
+      <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id}/>
       {/* Grab Success Modal */}
       <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
         {grabbedOrder && <div style={{ fontSize: 14, lineHeight: 2 }}>

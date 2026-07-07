@@ -26,9 +26,9 @@ export enum DispatchType {
 }
 
 export enum CompanionStatus {
-  ONLINE = 'ONLINE',
+  AVAILABLE = 'AVAILABLE',
   BUSY = 'BUSY',
-  IDLE = 'IDLE',
+  ENTERTAINMENT = 'ENTERTAINMENT',
   RESTING = 'RESTING',
   OFFLINE = 'OFFLINE',
 }

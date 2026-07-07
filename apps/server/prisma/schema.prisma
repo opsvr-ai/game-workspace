@@ -76,6 +76,7 @@ model Companion {
   blacklistOverrides CompanionBlacklistOverride[]
   processReports     CompanionProcessReport[]
   processKillLogs    ProcessKillLog[]
+  statusBlacklists   CompanionStatusBlacklist[]
 }
 
 model CompanionPC {
@@ -412,4 +413,16 @@ model ChatMessage {
   createdAt  DateTime @default(now())
 
   @@index([studioId, orderId, createdAt])
+}
+
+model CompanionStatusBlacklist {
+  id          String   @id @default(uuid())
+  companionId String
+  status      String   // AVAILABLE | BUSY | ENTERTAINMENT | RESTING
+  processName String
+  createdAt   DateTime @default(now())
+
+  companion   Companion @relation(fields: [companionId], references: [id])
+  @@unique([companionId, status, processName])
+  @@index([companionId, status])
 }

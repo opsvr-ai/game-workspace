@@ -9,9 +9,9 @@ const { Option } = Select;
 const orderTypeConfig: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购' };
 const gameList = ['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'];
 
-interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; defaultDeltaCount?: string; customerPreFill?: { customerId?: string; customerWechat?: string; gameName?: string; amount?: number; }; }
+interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; customerPreFill?: { customerId?: string; customerWechat?: string; gameName?: string; amount?: number; }; }
 
-const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, defaultDeltaCount, customerPreFill }) => {
+const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
@@ -25,12 +25,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       form.setFieldsValue({
         type: 'NEW', gameName: customerPreFill.gameName || '三角洲行动',
         dispatchType: DispatchType.POOL, urgency: 'now', billingMode: 'hour', duration: 1,
-        deltaMode: '陪玩', deltaCount: defaultDeltaCount || '单',
+        deltaMode: '陪玩', deltaCount: '单',
         customerId: customerPreFill.customerId, customerWechat: customerPreFill.customerWechat,
         amount: customerPreFill.amount || 0,
       });
     }
-  }, [open, customerPreFill, form, defaultDeltaCount]);
+  }, [open, customerPreFill, form]);
 
   const handleOk = async () => {
     try {
@@ -45,7 +45,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   return (
     <Modal title="创建订单" open={open} onOk={handleOk} onCancel={() => { form.resetFields(); onClose(); }}
       confirmLoading={loading} okText="发布" cancelText="取消" destroyOnClose width={520}>
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, deltaMode:'陪玩', deltaCount: defaultDeltaCount || '单' }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, deltaMode:'陪玩', deltaCount: '单' }}>
         <Form.Item name="type" label="订单类型" initialValue="NEW" rules={[{ required: true }]}>
           <Select>{Object.entries(orderTypeConfig).map(([k,v]) => <Option key={k} value={k}>{v}</Option>)}</Select></Form.Item>
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>

@@ -131,7 +131,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const { user, isAuthenticated, fetchUser, logout, chatActive, chatPartner } = useAuthStore();
+  const { user, isAuthenticated, fetchUser, logout, chatActive, chatPartner, grabbedOrder, setGrabbedOrder } = useAuthStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
 
   // Keyboard shortcuts
@@ -568,6 +568,20 @@ const AppLayout: React.FC = () => {
         </div>
       </div>
     )}
+
+      {/* Global Grab Success Modal — survives navigation */}
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
+        {grabbedOrder && (
+          <div style={{ lineHeight: 2.2 }}>
+            <div>📋 {grabbedOrder.gameName} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
+            {grabbedOrder.customer?.customerCode && <div>客户编号：{grabbedOrder.customer.customerCode}</div>}
+            {grabbedOrder.customFields?.customerSource && <div>来源：{grabbedOrder.customFields.customerSource}</div>}
+            {grabbedOrder.customFields?.customerWechat && <div>💬 微信：<Typography.Text copyable>{grabbedOrder.customFields.customerWechat}</Typography.Text></div>}
+            {grabbedOrder.customFields?.customerRoomCode && <div>🏠 房间码：<Typography.Text copyable>{grabbedOrder.customFields.customerRoomCode}</Typography.Text></div>}
+            {grabbedOrder.customFields?.customerPlatformAccount && <div>🔗 平台号：<Typography.Text copyable>{grabbedOrder.customFields.customerPlatformAccount}</Typography.Text></div>}
+          </div>
+        )}
+      </Modal>
 
       {/* Command Palette (Ctrl+K) */}
       <Modal open={commandPalette} onCancel={() => setCommandPalette(false)} footer={null} title="命令面板" width={480}>
