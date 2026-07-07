@@ -275,9 +275,24 @@ export class CompanionsService {
     });
     const totalRev = totalRevenue._sum.amount || 0;
 
-    // Split ratio: FIXED uses companion.revenueShare, TIERED defaults 50%
+    // Split ratio: FIXED uses companion.revenueShare, TIERED reads from config
     const isFixed = companion.studio?.splitMode === 'FIXED';
-    const share = isFixed ? (companion.revenueShare || 0.8) : 0.5;
+    let share: number;
+    if (isFixed) {
+      share = companion.revenueShare || 0.8;
+    } else {
+      // TIERED: read the lowest tier's companion share from config
+      const tiersCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.share_tiers' } });
+      const tiers: Array<{ min: number; max: number | null; companion: number }> =
+        (tiersCfg?.value as any) ?? [
+          { min: 0, max: 5999.99, companion: 50 },
+          { min: 6000, max: 9999, companion: 60 },
+          { min: 10000, max: null, companion: 70 },
+        ];
+      // Find applicable tier for total revenue
+      const tier = tiers.find(t => totalRev >= t.min && (t.max === null || totalRev <= t.max)) || tiers[0];
+      share = tier.companion / 100;
+    }
 
     // Already withdrawn
     const withdrawn = await this.prisma.walletTransaction.aggregate({
