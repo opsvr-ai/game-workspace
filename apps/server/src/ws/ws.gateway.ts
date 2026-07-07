@@ -224,19 +224,22 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
         if (companion) {
           const availableFunds = (companion.balance || 0) + (companion.deposit || 0);
+          const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
+          const hourlyRate = (rateCfg?.value as number) ?? 60;
           const feeMinutes = Math.floor(elapsed / 60);
-          const fee = feeMinutes; // ¥1/min
-          const remainingMinutes = Math.max(0, availableFunds - fee);
+          const fee = Number((feeMinutes * (hourlyRate / 60)).toFixed(2));
+          const remainingMinutes = Math.floor(availableFunds / (hourlyRate / 60));
 
           // 30 minute warning
           if (remainingMinutes <= 30 && remainingMinutes > 0) {
             this.server.to(`user:${user.id}`).emit('entertainment:warning', {
-              message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），余额仅够再玩 ${remainingMinutes} 分钟，30 分钟后将自动切换到空闲状态`,
+              message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），费率 ¥${hourlyRate}/小时，余额 ¥${availableFunds} 仅够再玩 ${remainingMinutes} 分钟`,
               elapsedMinutes: feeMinutes,
               fee,
+              hourlyRate,
               availableFunds,
               remainingMinutes,
-              autoSwitchIn: 30 * 60, // seconds
+              autoSwitchIn: 30 * 60,
             });
             logger.warn('Entertainment balance warning', { companionId: user.companionId, fee, remainingMinutes });
           }
@@ -257,7 +260,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
               data: { companionId: user.companionId, mode: 'AVAILABLE', startedAt: now, endedAt: null, durationSeconds: 0 },
             });
             this.server.to(`user:${user.id}`).emit('entertainment:forceIdle', {
-              message: `余额不足，已自动切换到空闲状态。娱乐 ${feeMinutes} 分钟，费用 ¥${fee}`,
+              message: `余额不足，已自动切换到空闲状态。娱乐 ${feeMinutes} 分钟，费用 ¥${fee}（费率 ¥${hourlyRate}/小时）`,
             });
             if (user.studioId) {
               this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
