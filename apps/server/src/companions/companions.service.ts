@@ -232,7 +232,7 @@ export class CompanionsService {
   async getWallet(companionId: string) {
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { deposit: true, balance: true, frozen: true, monthlyRevenue: true },
+      select: { deposit: true, balance: true, frozen: true, monthlyRevenue: true, revenueShare: true, studio: { select: { splitMode: true } } },
     });
     const transactions = await this.prisma.walletTransaction.findMany({
       where: { companionId },
@@ -240,19 +240,44 @@ export class CompanionsService {
       take: 50,
     });
 
-    // Calculate withdrawable: (monthlyRevenue * advanceRatio%) - alreadyWithdrawn
-    const config = await this.prisma.systemConfig.findUnique({ where: { key: 'withdraw.advance_ratio' } });
-    const ratio = (config?.value as number) ?? 50;
+    // Calculate withdrawable: totalDONE × splitRatio - alreadyWithdrawn
+    const totalRevenue = await this.prisma.order.aggregate({
+      where: { companionId, status: 'DONE' },
+      _sum: { amount: true },
+    });
+    const totalRev = totalRevenue._sum.amount || 0;
     const withdrawn = transactions
       .filter(t => t.type === 'WITHDRAW' && t.status === 'APPROVED')
       .reduce((s, t) => s + t.amount, 0);
-    const withdrawable = Math.max(0, (companion!.monthlyRevenue * ratio / 100) - withdrawn);
+
+    // Determine split ratio
+    const isFixed = companion!.studio?.splitMode === 'FIXED';
+    let share: number;
+    if (isFixed) {
+      share = companion!.revenueShare || 0.8;
+    } else {
+      const tiersCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.share_tiers' } });
+      const tiers: Array<{ min: number; max: number | null; companion: number }> =
+        (tiersCfg?.value as any) ?? [
+          { min: 0, max: 5999.99, companion: 50 },
+          { min: 6000, max: 9999, companion: 60 },
+          { min: 10000, max: null, companion: 70 },
+        ];
+      const tier = tiers.find(t => totalRev >= t.min && (t.max === null || totalRev <= t.max)) || tiers[0];
+      share = tier.companion / 100;
+    }
+
+    const maxWithdrawable = Math.round(totalRev * share * 100) / 100;
+    const withdrawable = Math.max(0, maxWithdrawable - withdrawn);
 
     return {
       deposit: companion!.deposit,
       balance: companion!.balance,
       frozen: companion!.frozen,
       monthlyRevenue: companion!.monthlyRevenue,
+      totalRevenue: Math.round(totalRev * 100) / 100,
+      maxWithdrawable,
+      totalWithdrawn: withdrawn,
       withdrawable,
       transactions,
     };

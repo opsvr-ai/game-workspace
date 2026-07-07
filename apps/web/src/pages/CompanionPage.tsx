@@ -295,7 +295,15 @@ const CompanionPage: React.FC = () => {
               </Table>
             </Card>
             <Modal title="申请支取" open={withdrawVisible} onOk={handleWithdraw} onCancel={() => { setWithdrawVisible(false); setWithdrawAmount(0); }} confirmLoading={withdrawSubmitting} okText="提交申请" cancelText="取消">
-              <div style={{ marginBottom: 16 }}><Text>可支取金额：</Text><Text strong style={{ color: '#faad14', fontSize: 18 }}>¥{wallet.withdrawable?.toFixed(2) ?? '0.00'}</Text></div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ background: '#f6ffed', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <Text>📊 总流水：<Text strong>¥{(wallet.totalRevenue ?? 0).toFixed(2)}</Text></Text><br />
+                  <Text>🔢 可分账金额（{wallet.maxWithdrawable > 0 ? Math.round((wallet.maxWithdrawable / (wallet.totalRevenue || 1)) * 100) : 50}%）：<Text strong>¥{(wallet.maxWithdrawable ?? 0).toFixed(2)}</Text></Text><br />
+                  <Text>💸 已支取：<Text strong>¥{(wallet.totalWithdrawn ?? 0).toFixed(2)}</Text></Text><br />
+                  <Text>🏦 可支取余额：<Text strong style={{ color: '#faad14', fontSize: 18 }}>¥{(wallet.withdrawable ?? 0).toFixed(2)}</Text></Text>
+                </div>
+                <Text type="secondary">💡 提示：线下工作室（阶梯分成）最多支取当前档位比例的流水，线上俱乐部（固定比例）按个人分成比例支取。支取后需保留部分余额方可进入娱乐模式。</Text>
+              </div>
               <div><Text>支取金额：</Text><InputNumber style={{ width: '100%', marginTop: 8 }} min={0} max={wallet.withdrawable ?? 0} value={withdrawAmount} onChange={(v) => setWithdrawAmount(v ?? 0)} placeholder="请输入支取金额" addonAfter="元" /></div>
             </Modal>
           </>
