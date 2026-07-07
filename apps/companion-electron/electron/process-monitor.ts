@@ -66,7 +66,7 @@ interface KillCounter { count: number; firstKillAt: number; lastKillAt: number; 
 const killCounters = new Map<string, KillCounter>();
 const CYCLE_THRESHOLD = 3;
 const CYCLE_WINDOW_MS = 5 * 60 * 1000;
-const BLOCK_DURATION_MS = 30 * 60 * 1000;
+const BLOCK_DURATION_MS = 2 * 60 * 1000;  // 2 min cooldown (was 30 min)
 
 function shouldSkipLoopKill(processName: string): boolean {
   const now = Date.now();
