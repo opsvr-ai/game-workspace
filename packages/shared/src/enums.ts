@@ -27,6 +27,7 @@ export enum DispatchType {
 
 export enum CompanionStatus {
   AVAILABLE = 'AVAILABLE',
+  WAITING = 'WAITING',
   BUSY = 'BUSY',
   ENTERTAINMENT = 'ENTERTAINMENT',
   RESTING = 'RESTING',
@@ -47,4 +48,10 @@ export enum TransactionStatus {
 export enum StudioType {
   DIRECT = 'DIRECT',
   RENTAL = 'RENTAL',
+}
+
+export enum ServiceType {
+  PLAY_WITH = 'PLAY_WITH',
+  ESCORT = 'ESCORT',
+  DO_TASK = 'DO_TASK',
 }

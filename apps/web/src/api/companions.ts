@@ -13,4 +13,13 @@ export const companionsApi = {
   wallet: () => http.get('/companions/me/wallet'),
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
   resign: (id: string) => http.post(`/companions/${id}/resign`),
+  requestProofNoCustomer: (note: string) => http.post('/companions/me/proof-no-customer', { note }),
+  // Status blacklist
+  getStatusBlacklist: (companionId: string, status: string) =>
+    http.get(`/companions/${companionId}/status-blacklist`, { params: { status } }),
+  addStatusBlacklist: (companionId: string, data: { status: string; processName: string }) =>
+    http.post(`/companions/${companionId}/status-blacklist`, data),
+  removeStatusBlacklist: (companionId: string, entryId: string) =>
+    http.delete(`/companions/${companionId}/status-blacklist/${entryId}`),
+  requestDualCompanion: () => http.post('/companions/me/request-dual'),
 };

@@ -18,10 +18,11 @@ export class StudiosService {
     managerUsername: string,
     managerPassword: string,
     managerDisplayName?: string,
+    splitMode?: string,
   ) {
     const passwordHash = await bcrypt.hash(managerPassword, 10);
     return this.prisma.$transaction(async (tx) => {
-      const studio = await tx.studio.create({ data: { name, type } });
+      const studio = await tx.studio.create({ data: { name, type, splitMode: splitMode ?? 'TIERED' } });
       await tx.user.create({
         data: {
           username: managerUsername,
@@ -36,10 +37,11 @@ export class StudiosService {
     });
   }
 
-  async update(id: string, name?: string, type?: string) {
+  async update(id: string, name?: string, type?: string, splitMode?: string) {
     const data: any = {};
     if (name !== undefined) data.name = name;
     if (type !== undefined) data.type = type;
+    if (splitMode !== undefined) data.splitMode = splitMode;
     return this.prisma.studio.update({ where: { id }, data });
   }
 

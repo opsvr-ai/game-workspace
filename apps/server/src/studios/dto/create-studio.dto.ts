@@ -18,4 +18,8 @@ export class CreateStudioDto {
   @IsOptional()
   @IsString()
   managerDisplayName?: string;
+
+  @IsOptional()
+  @IsString()
+  splitMode?: string;
 }

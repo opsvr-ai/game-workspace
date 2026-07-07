@@ -13,8 +13,6 @@ import {
   Progress,
   Space,
   Badge,
-  Modal,
-  Divider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -28,7 +26,7 @@ import { useAuthStore } from '../stores/authStore';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 
-import { orderTypeConfig } from '../constants/orders';
+import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 
 const { Text, Title } = Typography;
 
@@ -238,6 +236,20 @@ const OrderPoolPage: React.FC = () => {
           <Col>
             <Tag style={{ margin: 0 }}>
               {order.customFields.deltaCount}
+            </Tag>
+          </Col>
+        )}
+        {order.customFields?.serviceType && (
+          <Col>
+            <Tag color={serviceTypeConfig[order.customFields.serviceType]?.color} style={{ margin: 0 }}>
+              {serviceTypeConfig[order.customFields.serviceType]?.label || order.customFields.serviceType}
+            </Tag>
+          </Col>
+        )}
+        {order.customFields?.gameMode && (
+          <Col>
+            <Tag color="geekblue" style={{ margin: 0 }}>
+              {order.customFields.gameMode}
             </Tag>
           </Col>
         )}

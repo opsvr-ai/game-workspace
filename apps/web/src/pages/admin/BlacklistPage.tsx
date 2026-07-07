@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, createElement } from 'react';
 import { Table, Button, Space, Modal, Input, Switch, Popconfirm, message, Typography, Select, Tabs, Radio } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
+import StatusBlacklistConfigModal from '../../components/StatusBlacklistConfigModal';
 
 const { Text } = Typography;
 
@@ -32,6 +33,7 @@ const BlacklistPage: React.FC = () => {
   const [pushing, setPushing] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [statusBlacklistVisible, setStatusBlacklistVisible] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -155,6 +157,7 @@ const BlacklistPage: React.FC = () => {
           <Button icon={createElement(ReloadOutlined)} onClick={fetchItems} loading={loading}>刷新</Button>
           <Button icon={createElement(SendOutlined)} onClick={() => setPushModalOpen(true)}>推送黑名单</Button>
           <Button type="primary" icon={createElement(PlusOutlined)} onClick={() => { setProcessName(''); setProcessPath(''); setAddMode('select'); setModalOpen(true); }}>添加进程</Button>
+          <Button onClick={() => setStatusBlacklistVisible(true)}>状态黑名单</Button>
         </Space>
       </div>
 
@@ -265,6 +268,12 @@ const BlacklistPage: React.FC = () => {
           </Text>
         </div>
       </Modal>
+
+      {/* Status Blacklist Config Modal */}
+      <StatusBlacklistConfigModal
+        visible={statusBlacklistVisible}
+        onClose={() => setStatusBlacklistVisible(false)}
+      />
     </div>
   );
 };

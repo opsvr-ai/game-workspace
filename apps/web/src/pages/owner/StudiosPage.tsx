@@ -10,6 +10,7 @@ import {
   Tag,
   Card,
   Segmented,
+  Radio,
   message,
   Popconfirm,
 } from 'antd';
@@ -40,6 +41,7 @@ interface Studio {
   id: string;
   name: string;
   type: string;
+  splitMode?: string;
   createdAt: string;
   _count?: { users: number; companions: number };
 }
@@ -84,7 +86,7 @@ const StudiosPage: React.FC = () => {
 
   const openEditModal = (record: Studio) => {
     setEditingStudio(record);
-    form.setFieldsValue({ name: record.name, type: record.type });
+    form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED' });
     setModalOpen(true);
   };
 
@@ -98,6 +100,7 @@ const StudiosPage: React.FC = () => {
         values.managerUsername,
         values.managerPassword,
         values.managerDisplayName,
+        values.splitMode,
       );
       message.success('工作室及店长账号已创建');
       setModalOpen(false);
@@ -116,7 +119,7 @@ const StudiosPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await studiosApi.update(editingStudio!.id, values.name, values.type);
+      await studiosApi.update(editingStudio!.id, values.name, values.type, values.splitMode);
       message.success('工作室已更新');
       setModalOpen(false);
       form.resetFields();
@@ -355,6 +358,16 @@ const StudiosPage: React.FC = () => {
               >
                 <Input placeholder="请输入工作室名称" autoFocus />
               </Form.Item>
+              <Form.Item
+                name="splitMode"
+                label="分账模式"
+                initialValue="TIERED"
+              >
+                <Radio.Group>
+                  <Radio.Button value="TIERED">阶梯分成</Radio.Button>
+                  <Radio.Button value="FIXED">固定比例</Radio.Button>
+                </Radio.Group>
+              </Form.Item>
               <div style={{
                 borderTop: '1px solid #f0f0f0',
                 paddingTop: 16,
@@ -414,6 +427,15 @@ const StudiosPage: React.FC = () => {
                 ]}
                 block
               />
+            </Form.Item>
+            <Form.Item
+              name="splitMode"
+              label="分账模式"
+            >
+              <Radio.Group>
+                <Radio.Button value="TIERED">阶梯分成</Radio.Button>
+                <Radio.Button value="FIXED">固定比例</Radio.Button>
+              </Radio.Group>
             </Form.Item>
           </Form>
         )}

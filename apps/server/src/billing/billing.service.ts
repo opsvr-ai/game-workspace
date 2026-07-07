@@ -342,13 +342,17 @@ export class BillingService {
     // Get all companions in studio
     const companions = await this.prisma.companion.findMany({
       where: { studioId },
-      include: { user: { select: { username: true } } },
+      select: { id: true, balance: true, revenueShare: true, user: { select: { username: true } } },
     });
 
-    // Get share tiers config
-    const config = await this.prisma.systemConfig.findUnique({
+    // Check studio split mode (TASK-12)
+    const studio = await this.prisma.studio.findUnique({ where: { id: studioId }, select: { splitMode: true } });
+    const isFixedMode = studio?.splitMode === 'FIXED';
+
+    // Get share tiers config (only used in TIERED mode)
+    const config = !isFixedMode ? await this.prisma.systemConfig.findUnique({
       where: { key: 'revenue.share_tiers' },
-    });
+    }) : null;
     const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
       (config?.value as any) ?? [
         { min: 0, max: 5999.99, studio: 50, companion: 50 },
@@ -378,18 +382,28 @@ export class BillingService {
 
       if (monthlyRevenue === 0) continue; // skip companions with no revenue
 
-      // Find applicable tier
-      const tier =
-        tiers.find(
-          (t) =>
-            monthlyRevenue >= t.min &&
-            (t.max === null || monthlyRevenue <= t.max),
-        ) || tiers[tiers.length - 1];
+      let companionPct: number;
+      let companionShare: number;
+      let studioShare: number;
 
-      const companionShare =
-        Math.round(monthlyRevenue * (tier.companion / 100) * 100) / 100;
-      const studioShare =
-        Math.round(monthlyRevenue * (tier.studio / 100) * 100) / 100;
+      if (isFixedMode) {
+        // FIXED mode: use companion's personal revenueShare
+        const share = (c.revenueShare as number) ?? 0.8;
+        companionPct = Math.round(share * 100);
+        companionShare = Math.round(monthlyRevenue * share * 100) / 100;
+        studioShare = Math.round((monthlyRevenue - companionShare) * 100) / 100;
+      } else {
+        // TIERED mode: find applicable tier
+        const tier =
+          tiers.find(
+            (t) =>
+              monthlyRevenue >= t.min &&
+              (t.max === null || monthlyRevenue <= t.max),
+          ) || tiers[tiers.length - 1];
+        companionPct = tier.companion;
+        companionShare = Math.round(monthlyRevenue * (tier.companion / 100) * 100) / 100;
+        studioShare = Math.round(monthlyRevenue * (tier.studio / 100) * 100) / 100;
+      }
 
       // Create settlement transaction
       await this.prisma.walletTransaction.create({
@@ -400,7 +414,7 @@ export class BillingService {
           balanceBefore: c.balance,
           balanceAfter: c.balance + companionShare,
           status: 'APPROVED',
-          note: `${month} 月底结算：业绩¥${monthlyRevenue}，${tier.companion}%分成`,
+          note: `${month} 月底结算：业绩¥${monthlyRevenue}，${companionPct}%分成`,
         },
       });
 
@@ -417,7 +431,7 @@ export class BillingService {
         companionId: c.id,
         companionName: c.user?.username ?? c.id,
         monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
-        tierCompanionPct: tier.companion,
+        tierCompanionPct: companionPct,
         companionShare,
         studioShare,
       });

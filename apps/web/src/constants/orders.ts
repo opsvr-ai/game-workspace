@@ -44,3 +44,9 @@ export const settlementTypeOptions = [
   { label: '陪玩', value: 'COMPANION' },
   { label: '代练', value: 'ESCORT' },
 ];
+
+export const serviceTypeConfig: Record<string, { color: string; label: string }> = {
+  PLAY_WITH: { color: 'blue', label: '陪玩' },
+  ESCORT: { color: 'orange', label: '护航' },
+  DO_TASK: { color: 'purple', label: '做任务' },
+};

@@ -40,6 +40,7 @@ import {
   companionStatusConfig,
   dispatchTypeConfig,
   STATUS_SORT,
+  serviceTypeConfig,
 } from '../constants';
 
 const { Text } = Typography;
@@ -197,6 +198,7 @@ const CSView: React.FC = () => {
     }), [companions, chatIds]);
 
   const idleCount = companions.filter((c) => c.status === CompanionStatus.AVAILABLE).length;
+  const waitingCount = companions.filter((c) => c.status === CompanionStatus.WAITING).length;
   const busyCount = companions.filter((c) => c.status === CompanionStatus.BUSY).length;
   const entertainCount = companions.filter((c) => c.status === CompanionStatus.ENTERTAINMENT).length;
   const restingCount = companions.filter((c) => c.status === CompanionStatus.RESTING).length;
@@ -393,6 +395,8 @@ const CSView: React.FC = () => {
                           {order.customFields?.deltaMode && <Col><Tag color="cyan" style={{ margin: 0 }}>{order.customFields.deltaMode}</Tag></Col>}
                           {order.customFields?.deltaMission && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag></Col>}
                           {order.customFields?.deltaCount && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag></Col>}
+                          {order.customFields?.serviceType && <Col><Tag color={serviceTypeConfig[order.customFields.serviceType]?.color} style={{ margin: 0 }}>{serviceTypeConfig[order.customFields.serviceType]?.label || order.customFields.serviceType}</Tag></Col>}
+                          {order.customFields?.gameMode && <Col><Tag color="geekblue" style={{ margin: 0 }}>{order.customFields.gameMode}</Tag></Col>}
                           {order.customFields?.customerSource && <Col><Tag color="orange" style={{ margin: 0 }}>📡{order.customFields.customerSource}</Tag></Col>}
                           {order.customFields?.customerWechat && <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>💬{order.customFields.customerWechat}</Text></Col>}
                           {order.customFields?.customerRoomCode && <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>🏠{order.customFields.customerRoomCode}</Text></Col>}
@@ -427,6 +431,7 @@ const CSView: React.FC = () => {
           <Card title="统计" size="small" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟢 空闲</span><b style={{ color: '#00E676' }}>{idleCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔷 等单</span><b style={{ color: '#06B6D4' }}>{waitingCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔴 接单中</span><b style={{ color: '#FF4757' }}>{busyCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟡 娱乐中</span><b style={{ color: '#FFD600' }}>{entertainCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟠 休息中</span><b style={{ color: '#FF9500' }}>{restingCount}</b></div>
@@ -449,7 +454,7 @@ const CSView: React.FC = () => {
             <span style={{ width: 40, height: 40, borderRadius: '50%', display: 'inline-block', marginBottom: 8,
               background: selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' :
                 selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' :
-                selectedCompanion.status === CompanionStatus.ONLINE ? '#FFD600' : '#94A3B8',
+                selectedCompanion.status === CompanionStatus.AVAILABLE ? '#FFD600' : '#94A3B8',
               boxShadow: selectedCompanion.status !== CompanionStatus.OFFLINE
                 ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
                 : 'none',

@@ -8,10 +8,12 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
 import { logger } from '../common/logger';
+import { CompanionsService } from '../companions/companions.service';
 
 interface ConnectedUser {
   id: string;
@@ -33,6 +35,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => CompanionsService)) private readonly companionsService: CompanionsService,
   ) {}
 
   // ── lifecycle ──────────────────────────────────────────────────────
@@ -79,6 +82,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           where: { id: user.companionId }, data: { status: 'AVAILABLE' },
         });
 
+        // Record attendance on connection
+        await this.companionsService.ensureAttendance(user.companionId);
+
         if (user.studioId) {
           this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
             companionId: user.companionId, status: 'AVAILABLE',
@@ -99,6 +105,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.prisma.companion.update({
       where: { id: user.companionId }, data: { status: 'OFFLINE' },
     }).catch(() => null);
+
+    // Finalize attendance on disconnect
+    await this.companionsService.finalizeAttendance(user.companionId);
 
     if (user.studioId) {
       this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {

@@ -134,19 +134,58 @@ export class CompanionsService {
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
     const entertainmentFee = entertainmentMinutes; // ¥1/min
 
-    // Online companions (same studio)
+    // Online companions (same studio) — also fetch split mode info
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { studioId: true, status: true },
+      select: {
+        studioId: true,
+        status: true,
+        monthlyRevenue: true,
+        revenueShare: true,
+        studio: { select: { splitMode: true } },
+      },
     });
     const onlineCompanions = await this.prisma.companion.findMany({
-      where: { studioId: companion?.studioId, status: { in: ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'] } },
+      where: { studioId: companion?.studioId, status: { in: ['AVAILABLE', 'WAITING', 'BUSY', 'ENTERTAINMENT'] } },
       select: {
         id: true,
         status: true,
         user: { select: { username: true, avatar: true, displayName: true } },
       },
     });
+
+    // Compute split mode display info
+    const splitMode = companion?.studio?.splitMode ?? 'TIERED';
+    let tierInfo: { mode: string; companionPct?: number; monthlyRevenue?: number } = { mode: splitMode };
+
+    if (splitMode === 'FIXED') {
+      tierInfo = {
+        mode: 'FIXED',
+        companionPct: Math.round((companion?.revenueShare ?? 0.6) * 100),
+      };
+    } else if (companion?.monthlyRevenue) {
+      // TIERED: compute which tier the companion is in
+      const config = await this.prisma.systemConfig.findUnique({
+        where: { key: 'revenue.share_tiers' },
+      });
+      const tiers: Array<{ min: number; max: number | null; companion: number }> =
+        (config?.value as any) ?? [
+          { min: 0, max: 5999.99, companion: 50 },
+          { min: 6000, max: 9999, companion: 60 },
+          { min: 10000, max: null, companion: 70 },
+        ];
+      const tier =
+        tiers.find(
+          (t) =>
+            companion.monthlyRevenue >= t.min &&
+            (t.max === null || companion.monthlyRevenue <= t.max),
+        ) || tiers[tiers.length - 1];
+      tierInfo = {
+        mode: 'TIERED',
+        companionPct: tier.companion,
+        monthlyRevenue: Math.round(companion.monthlyRevenue * 100) / 100,
+      };
+    }
 
     return {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
@@ -156,6 +195,8 @@ export class CompanionsService {
       entertainmentMinutes,
       entertainmentFee,
       currentStatus: companion?.status ?? 'OFFLINE',
+      splitMode,
+      tierInfo,
       statusDurations: {
         entertainment: formatDuration(durations.entertainment),
         work: formatDuration(durations.work),
@@ -212,6 +253,35 @@ export class CompanionsService {
     });
   }
 
+  // TASK-08: No-customer proof upload (creates expense report for review)
+  async requestProofNoCustomer(companionId: string, note: string) {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId }, select: { studioId: true },
+    });
+    if (!companion?.studioId) throw new Error('未找到工作室');
+    return this.prisma.expenseReport.create({
+      data: {
+        companionId,
+        studioId: companion.studioId,
+        type: 'NO_CUSTOMER_PROOF',
+        amount: 0,
+        description: note,
+        status: 'PENDING',
+      },
+    });
+  }
+
+  // TASK-11: Request dual companion
+  async requestDualCompanion(companionId: string, studioId: string, username: string) {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { user: { select: { username: true, displayName: true } } },
+    });
+    const name = companion?.user?.displayName || companion?.user?.username || username;
+    // Broadcast to studio via WS gateway will be handled by controller
+    return { companionId, companionName: name, studioId };
+  }
+
   // ── Resignation ──
 
   async resignCompanion(companionId: string) {
@@ -240,6 +310,93 @@ export class CompanionsService {
 
   async unbindWechat(id: string) {
     return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
+  }
+
+  // ── Attendance ──
+
+  async ensureAttendance(companionId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    const existing = await this.prisma.companionAttendance.findUnique({
+      where: { companionId_date: { companionId, date: today } },
+    });
+
+    if (existing) return existing;
+
+    // Read work start time from SystemConfig
+    const workStartCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workStart' } });
+    const workStartStr = (workStartCfg?.value as string) ?? '09:00';
+    const [sh, sm] = workStartStr.split(':').map(Number);
+    const workStart = new Date(today);
+    workStart.setHours(sh, sm, 0, 0);
+
+    const isLate = now > workStart;
+
+    return this.prisma.companionAttendance.create({
+      data: {
+        companionId,
+        date: today,
+        loginAt: now,
+        isLate,
+      },
+    });
+  }
+
+  async finalizeAttendance(companionId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    const record = await this.prisma.companionAttendance.findUnique({
+      where: { companionId_date: { companionId, date: today } },
+    });
+    if (!record) return null;
+
+    const loginAt = new Date(record.loginAt);
+    const workMinutes = Math.floor((now.getTime() - loginAt.getTime()) / 60000);
+
+    // Read work end time from SystemConfig
+    const workEndCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workEnd' } });
+    const workEndStr = (workEndCfg?.value as string) ?? '18:00';
+    const [eh, em] = workEndStr.split(':').map(Number);
+    const workEnd = new Date(today);
+    workEnd.setHours(eh, em, 0, 0);
+
+    const isEarlyLeave = now < workEnd;
+
+    return this.prisma.companionAttendance.update({
+      where: { id: record.id },
+      data: {
+        logoutAt: now,
+        workMinutes,
+        isEarlyLeave,
+      },
+    });
+  }
+
+  async getAttendance(filters: { companionId?: string; dateFrom?: string; dateTo?: string }) {
+    const where: any = {};
+    if (filters.companionId) where.companionId = filters.companionId;
+    if (filters.dateFrom || filters.dateTo) {
+      where.date = {};
+      if (filters.dateFrom) where.date.gte = new Date(filters.dateFrom);
+      if (filters.dateTo) where.date.lte = new Date(filters.dateTo);
+    }
+
+    return this.prisma.companionAttendance.findMany({
+      where,
+      include: {
+        companion: {
+          select: {
+            id: true,
+            user: { select: { username: true, displayName: true } },
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
   }
 
   // ── Status Blacklist CRUD ──

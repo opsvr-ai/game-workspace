@@ -56,6 +56,10 @@ export class CustomersService {
             user: { select: { username: true } },
           },
         },
+        followUps: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 1,

@@ -28,6 +28,7 @@ model Studio {
   id        String   @id @default(uuid())
   name      String
   type      String   @default("DIRECT")  // DIRECT | RENTAL
+  splitMode String   @default("TIERED")  // TIERED | FIXED
   createdAt DateTime @default(now())
 
   users             User[]
@@ -66,8 +67,9 @@ model Companion {
   user      User            @relation(fields: [userId], references: [id])
   studio    Studio          @relation(fields: [studioId], references: [id])
   pc        CompanionPC?
-  timeLogs  CompanionTimeLog[]
-  orders    Order[]
+  timeLogs          CompanionTimeLog[]
+  attendanceRecords CompanionAttendance[]
+  orders            Order[]
   customers Customer[]
   transactions Transaction[]
   expenseReports ExpenseReport[]
@@ -102,6 +104,20 @@ model CompanionTimeLog {
   durationSeconds Int       @default(0)
 
   companion Companion @relation(fields: [companionId], references: [id])
+}
+
+model CompanionAttendance {
+  id           String    @id @default(uuid())
+  companionId  String
+  date         DateTime
+  loginAt      DateTime
+  logoutAt     DateTime?
+  workMinutes  Int       @default(0)
+  isLate       Boolean   @default(false)
+  isEarlyLeave Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  companion    Companion @relation(fields: [companionId], references: [id])
+  @@unique([companionId, date])
 }
 
 model Order {
@@ -418,7 +434,7 @@ model ChatMessage {
 model CompanionStatusBlacklist {
   id          String   @id @default(uuid())
   companionId String
-  status      String   // AVAILABLE | BUSY | ENTERTAINMENT | RESTING
+  status      String   // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
   processName String
   createdAt   DateTime @default(now())
 

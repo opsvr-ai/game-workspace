@@ -23,7 +23,7 @@ export class StudiosController {
   @Roles(UserRole.OWNER)
   async create(@Body() dto: CreateStudioDto): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.create(
-      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName,
+      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName, dto.splitMode,
     );
     return { code: 200, message: '工作室及店长账号已创建', data };
   }
@@ -34,7 +34,7 @@ export class StudiosController {
     @Param('id') id: string,
     @Body() dto: UpdateStudioDto,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.update(id, dto.name, dto.type);
+    const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode);
     return { code: 200, message: 'ok', data };
   }
 

@@ -9,4 +9,8 @@ export class UpdateStudioDto {
   @IsOptional()
   @IsEnum(StudioType)
   type?: StudioType;
+
+  @IsOptional()
+  @IsString()
+  splitMode?: string;
 }

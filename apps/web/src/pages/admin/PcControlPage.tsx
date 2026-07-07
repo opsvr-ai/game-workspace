@@ -65,7 +65,7 @@ function formatHeartbeat(heartbeat: string | null | undefined): string {
 
 function isOnline(record: Companion): boolean {
   // Companion status is the primary indicator (set via WS companion:status or REST)
-  if (record.status === 'AVAILABLE' || record.status === 'ENTERTAINMENT' || record.status === 'BUSY') return true;
+  if (record.status === 'AVAILABLE' || record.status === 'WAITING' || record.status === 'ENTERTAINMENT' || record.status === 'BUSY') return true;
   // Fallback: heartbeat-based check from PC agent
   if (!record.pc?.lastHeartbeat) return false;
   return Date.now() - new Date(record.pc.lastHeartbeat).getTime() < 120_000;
@@ -348,6 +348,7 @@ const PcControlPage: React.FC = () => {
             onChange={setStatusFilter}
             options={[
               { label: '空闲', value: 'AVAILABLE' },
+              { label: '等单', value: 'WAITING' },
               { label: '接单中', value: 'BUSY' },
               { label: '娱乐中', value: 'ENTERTAINMENT' },
               { label: '休息中', value: 'RESTING' },

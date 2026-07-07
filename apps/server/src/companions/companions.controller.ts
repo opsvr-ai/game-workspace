@@ -126,6 +126,41 @@ export class CompanionsController {
     return { code: 201, message: '支取申请已提交', data };
   }
 
+  // TASK-08: No-customer proof upload
+  @Post('companions/me/proof-no-customer')
+  @Roles(UserRole.COMPANION)
+  async requestProofNoCustomer(@Req() req: any, @Body() dto: { note: string }): Promise<ApiResponse<unknown>> {
+    await this.companionsService.requestProofNoCustomer(req.user.companionId, dto.note);
+    return { code: 201, message: '解锁申请已提交，请等待管理员审核', data: null };
+  }
+
+  // TASK-11: Request dual companion
+  @Post('companions/me/request-dual')
+  @Roles(UserRole.COMPANION)
+  async requestDualCompanion(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const result = await this.companionsService.requestDualCompanion(req.user.companionId, req.user.studioId, req.user.username);
+    if (result.studioId) {
+      this.wsGateway.broadcastToStudio(result.studioId, 'order:dual-request', {
+        companionId: result.companionId,
+        companionName: result.companionName,
+      });
+    }
+    return { code: 200, message: '双陪请求已发送', data: result };
+  }
+
+  // ── Attendance ──
+
+  @Get('companions/attendance')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getAttendance(
+    @Query('companionId') companionId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getAttendance({ companionId, dateFrom, dateTo });
+    return { code: 200, message: 'ok', data };
+  }
+
   // ── Work WeChat Management (MUST be before :id routes) ──
 
   @Get('companions/work-wechats')

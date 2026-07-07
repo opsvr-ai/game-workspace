@@ -27,6 +27,7 @@ import { ControlOutlined, StopOutlined, SafetyOutlined, HistoryOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
@@ -49,6 +50,7 @@ const IconControl = React.createElement(ControlOutlined);
 const IconStop = React.createElement(StopOutlined);
 const IconSafety = React.createElement(SafetyOutlined);
 const IconHistory = React.createElement(HistoryOutlined);
+const IconClock = React.createElement(ClockCircleOutlined);
 
 const IconLogout = React.createElement(LogoutOutlined);
 const IconTraffic = React.createElement(FundOutlined);
@@ -83,6 +85,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
       { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
       { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
+      { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     ]},
     { key: 'grp-settings', type: 'group', label: '设置', children: [
       { key: '/owner/settings', icon: IconAuth, label: '系统设置' },
@@ -100,6 +103,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
     { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
     { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
+    { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     { key: '/admin/review', icon: IconAuth, label: '实名审核' },
     { key: '/admin/settings', icon: IconAuth, label: '系统设置' },
   ],
@@ -111,6 +115,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
     { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
     { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
+    { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
   ],
   [UserRole.COMPANION]: [
     { key: '/companion', icon: IconRevenue, label: '首页' },

@@ -31,7 +31,7 @@ export class DashboardService {
       select: { id: true, status: true },
     });
     const onlineCompanions = allCompanions.filter(
-      c => ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'].includes(c.status),
+      c => ['AVAILABLE', 'WAITING', 'BUSY', 'ENTERTAINMENT'].includes(c.status),
     ).length;
 
     // Accept rate: companion with status BUSY / total online

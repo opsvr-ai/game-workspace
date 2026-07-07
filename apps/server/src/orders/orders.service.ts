@@ -74,6 +74,7 @@ export class OrdersService {
         duration: dto.duration,
         customFields: {
           customerSource: (dto as any).customerSource,
+          customerSourceAccount: (dto as any).customerSourceAccount,
           customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
           customerRoomCode: dto.customerRoomCode,
@@ -84,6 +85,8 @@ export class OrdersService {
           deltaNote: (dto as any).deltaNote,
           billingMode: (dto as any).billingMode,
           urgency: (dto as any).urgency,
+          serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
+          gameMode: (dto as any).gameMode,
         },
         isOnline: dto.isOnline ?? true,
       },
@@ -211,6 +214,15 @@ export class OrdersService {
         message: `${companionName} 抢了你的订单`,
       });
     }
+
+    // Auto-assign customer to companion if not yet assigned
+    try {
+      await this.prisma.customer.updateMany({
+        where: { id: order.customerId, companionId: null },
+        data: { companionId },
+      });
+    } catch (_) { /* best-effort: don't fail the grab if customer assignment fails */ }
+
     return updatedOrder;
   }
 
@@ -354,6 +366,17 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     this.validateTransition(order, OrderStatus.DONE);
+
+    // Auto-assign customer to companion if not yet assigned
+    if (order.companionId) {
+      try {
+        await this.prisma.customer.updateMany({
+          where: { id: order.customerId, companionId: null },
+          data: { companionId: order.companionId },
+        });
+      } catch (_) { /* best-effort */ }
+    }
+
     return this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.DONE },
@@ -447,6 +470,14 @@ export class OrdersService {
       where: { id: companionId },
       data: { monthlyRevenue: { increment: totalAmount } },
     });
+
+    // Auto-assign customer to companion if not yet assigned
+    try {
+      await this.prisma.customer.updateMany({
+        where: { id: customer.id, companionId: null },
+        data: { companionId },
+      });
+    } catch (_) { /* best-effort */ }
 
     // Update customer status
     await this.prisma.customer.update({

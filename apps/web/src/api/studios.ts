@@ -8,8 +8,10 @@ export const studiosApi = {
     managerUsername: string,
     managerPassword: string,
     managerDisplayName?: string,
+    splitMode?: string,
   ) => http.post('/studios', {
-    name, type, managerUsername, managerPassword, managerDisplayName,
+    name, type, managerUsername, managerPassword, managerDisplayName, splitMode,
   }),
-  update: (id: string, name: string, type: string) => http.put(`/studios/${id}`, { name, type }),
+  update: (id: string, name: string, type: string, splitMode?: string) =>
+    http.put(`/studios/${id}`, { name, type, splitMode }),
 };

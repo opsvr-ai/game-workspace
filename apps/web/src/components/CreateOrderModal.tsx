@@ -45,11 +45,28 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
   return (
     <Modal title="创建订单" open={open} onOk={handleOk} onCancel={() => { form.resetFields(); onClose(); }}
       confirmLoading={loading} okText="发布" cancelText="取消" destroyOnClose width={520}>
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, deltaMode:'陪玩', deltaCount: '单' }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, deltaMode:'陪玩', deltaCount: '单', serviceType: 'PLAY_WITH' }}>
         <Form.Item name="type" label="订单类型" initialValue="NEW" rules={[{ required: true }]}>
           <Select>{Object.entries(orderTypeConfig).map(([k,v]) => <Option key={k} value={k}>{v}</Option>)}</Select></Form.Item>
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>
           <Select showSearch>{gameList.map(g => <Option key={g} value={g}>{g}</Option>)}</Select></Form.Item>
+        <Form.Item name="serviceType" label="服务类型" initialValue="PLAY_WITH">
+          <Select>
+            <Option value="PLAY_WITH">陪玩</Option>
+            <Option value="ESCORT">护航</Option>
+            <Option value="DO_TASK">做任务</Option>
+          </Select>
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(p, c) => p.gameName !== c.gameName}>
+          {({ getFieldValue }) => getFieldValue('gameName') === '三角洲行动' ? (
+            <Form.Item name="gameMode" label="对局模式">
+              <Select placeholder="选择模式" allowClear>
+                <Option value="机密">机密</Option>
+                <Option value="绝密">绝密</Option>
+              </Select>
+            </Form.Item>
+          ) : null}
+        </Form.Item>
         <Form.Item name="deltaMode" label="模式" initialValue="陪玩">
           <Select onChange={(val: string) => { if (val === '护航') form.setFieldsValue({ deltaCount: '双' }); }}>
             <Option value="护航">护航</Option><Option value="陪玩">陪玩</Option></Select></Form.Item>
@@ -70,8 +87,15 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select><Option value="now">⚡立即打</Option><Option value="later">📅预约</Option></Select></Form.Item>
-        <Form.Item label="客户来源">
-          <Form.Item name="customerSource" noStyle><Select placeholder="来源"><Option value="小红书">小红书</Option><Option value="抖音">抖音</Option><Option value="快手">快手</Option><Option value="转介绍">转介绍</Option></Select></Form.Item>
+        <Form.Item label="客户来源" required>
+          <Input.Group compact>
+            <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
+              <Select placeholder="来源" style={{ width: '35%' }}><Option value="小红书">小红书</Option><Option value="抖音">抖音</Option><Option value="快手">快手</Option><Option value="转介绍">转介绍</Option></Select>
+            </Form.Item>
+            <Form.Item name="customerSourceAccount" noStyle>
+              <Input style={{ width: '65%' }} placeholder="来源账号（如小红书ID/抖音号）" />
+            </Form.Item>
+          </Input.Group>
         </Form.Item>
         <Form.Item label="客户联系方式">
           <Input.Group compact>
