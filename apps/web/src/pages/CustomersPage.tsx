@@ -146,7 +146,7 @@ const CustomersPage: React.FC = () => {
       setReassigning(true);
       await customersApi.reassign(reassigningCustomer.id, values.companionId);
       if (values.note) await customersApi.update(reassigningCustomer.id, { notes: `[归属调整] ${values.note}` });
-      message.success(`已将客户 ${reassigningCustomer.customerCode} 重新分配给新陪玩`);
+      message.success('已重新分配');
       setReassignModalOpen(false); reassignForm.resetFields(); fetchCustomers();
     } catch (err: any) { if (err?.errorFields) return; message.error(err?.response?.data?.message || err?.message || '归属调整失败'); }
     finally { setReassigning(false); }
@@ -221,7 +221,7 @@ const CustomersPage: React.FC = () => {
       title: '操作', key: 'actions', width: canReassign ? 260 : 160,
       render: (_: unknown, record: Customer) => (
         <Space size="small">
-          {canReassign && <Button type="link" size="small" icon={React.createElement(SwapOutlined)} onClick={() => openReassignModal(record)}>归属调整</Button>}
+          {canReassign && <Button type="link" size="small" onClick={() => openReassignModal(record)}>归属调整</Button>}
           {canManage && <Button type="link" size="small" icon={React.createElement(EditOutlined)} onClick={() => openEditModal(record)}>编辑</Button>}
           {isAdmin && (
             <Popconfirm title="确定删除该客户？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
@@ -260,7 +260,7 @@ const CustomersPage: React.FC = () => {
         </Form>
       </Modal>
       <Modal title="归属调整" open={reassignModalOpen} onOk={handleReassign}
-        onCancel={() => { setReassignModalOpen(false); reassignForm.resetFields(); }} confirmLoading={reassigning} okText="确认分配" cancelText="取消" destroyOnClose>
+        onCancel={() => { setReassignModalOpen(false); reassignForm.resetFields(); }} confirmLoading={reassigning} okText="确认调整" cancelText="取消" destroyOnClose>
         <Form form={reassignForm} layout="vertical" style={{ marginTop: 16 }}>
           <p>将客户 <Text strong>{reassigningCustomer?.customerCode}</Text> 重新分配给：</p>
           <Form.Item name="companionId" rules={[{ required: true, message: '请选择陪玩' }]}>

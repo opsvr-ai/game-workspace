@@ -146,8 +146,9 @@ const OrdersPage: React.FC = () => {
         if (!reassignCompanionId) { message.warning('请选择陪玩'); return; }
         await reassignCompanion(reassignOrder.id, reassignCompanionId);
         if (reassignNote) await http.put(`/orders/${reassignOrder.id}/contact`, { notes: `[归属调整] ${reassignNote}` });
+        message.success('已重新分配');
         setReassignOrder(null);
-      }} onCancel={() => setReassignOrder(null)} okText="确认调整" cancelText="取消">
+      }} onCancel={() => setReassignOrder(null)} okText="确认调整" cancelText="取消" destroyOnClose>
         <div style={{ marginBottom: 12 }}>
           <Text>当前陪玩：{reassignOrder?.companion?.user?.username || '未分配'}</Text>
         </div>
