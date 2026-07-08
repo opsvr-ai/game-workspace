@@ -166,7 +166,7 @@ const OrdersPage: React.FC = () => {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const { data } = await http.post('/upload', formData, {
+      const { data } = await http.post('/upload/screenshot', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setForm(prev => ({ ...prev, screenshotUrl: data.data?.url ?? data.url ?? '' }));
@@ -215,7 +215,7 @@ const OrdersPage: React.FC = () => {
           {r.status === 'GRABBED' && !r.contactStatus && (<>
             <Upload showUploadList={false} beforeUpload={async (file: File) => {
               const fd = new FormData(); fd.append('file', file);
-              try { const { data } = await http.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+              try { const { data } = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
                 await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added', screenshotUrl: data.data?.url || data.url || '' });
                 message.success('截图已上传'); fetch();
               } catch(e:any) { message.error('上传失败'); }
@@ -227,7 +227,7 @@ const OrdersPage: React.FC = () => {
             }}>联系方式添加成功</Button>
             <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
               const fd = new FormData(); fd.append('file', file);
-              try { const { data } = await http.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+              try { const { data } = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
                 await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', screenshotUrl: data.data?.url || data.url || '' });
                 message.success('截图已上传，等待审核补客户'); fetch();
               } catch(e:any) { message.error('上传失败'); }
