@@ -102,6 +102,7 @@ const CustomersPage: React.FC = () => {
   }, []);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+  useEffect(() => { if (canReassign) { companionsApi.list().then(({data}:any) => setCompanionOptions((data.data||[]).map((c:any)=>({id:c.id,username:c.user?.username||'未知'})))).catch(()=>{}); } }, [canReassign]);
 
   const openCreateModal = () => { setEditingCustomer(null); form.resetFields(); setModalOpen(true); };
   const openEditModal = (record: Customer) => {
@@ -183,7 +184,7 @@ const CustomersPage: React.FC = () => {
     }},
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
-    { title: '陪玩', dataIndex: ['companion', 'username'], key: 'companion', render: (name: string) => name ?? <Text type="secondary">未分配</Text> },
+    { title: '陪玩', key: 'companion', width: 120, render: (_: any, r: Customer) => canReassign ? (<Select size="small" value={r.companion?.id || undefined} placeholder="分配陪玩" style={{ width: 100 }} onChange={async (v) => { try { await customersApi.reassign(r.id, v); message.success('已重新分配'); fetchCustomers(); } catch(e:any) { message.error(e?.response?.data?.message||'分配失败'); } }}>{companionOptions.map((c) => (<Option key={c.id} value={c.id}>{c.username}</Option>))}</Select>) : (r.companion?.username ?? <Text type="secondary">未分配</Text>) },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
   ];
