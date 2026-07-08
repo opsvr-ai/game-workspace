@@ -31,7 +31,7 @@ interface Customer {
   orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any }>;
 }
 
-interface CompanionOption { id: string; username: string }
+interface CompanionOption { id: string; username: string; status?: string; id: string; username: string }
 
 const CustomersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -184,7 +184,7 @@ const CustomersPage: React.FC = () => {
     }},
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
-    { title: '陪玩', key: 'companion', width: 120, render: (_: any, r: Customer) => canReassign ? (<Select size="small" value={r.companion?.id || undefined} placeholder="分配陪玩" style={{ width: 100 }} onChange={async (v) => { try { await customersApi.reassign(r.id, v); message.success('已重新分配'); fetchCustomers(); } catch(e:any) { message.error(e?.response?.data?.message||'分配失败'); } }}>{companionOptions.map((c) => (<Option key={c.id} value={c.id}>{c.username}</Option>))}</Select>) : (r.companion?.username ?? <Text type="secondary">未分配</Text>) },
+    { title: '陪玩', dataIndex: ['companion', 'username'], key: 'companion', render: (name: string) => name ?? <Text type="secondary">未分配</Text> },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
   ];
@@ -219,7 +219,10 @@ const CustomersPage: React.FC = () => {
       title: '操作', key: 'actions', width: canReassign ? 260 : 160,
       render: (_: unknown, record: Customer) => (
         <Space size="small">
-          {canReassign && <Button type="link" size="small" icon={React.createElement(SwapOutlined)} onClick={() => openReassignModal(record)}>归属调整</Button>}
+          {canReassign && <Select size="small" value={record.companion?.id || undefined} placeholder="分配陪玩" style={{ width: 100 }}
+            onChange={async (v) => { try { await customersApi.reassign(record.id, v); message.success('已重新分配'); fetchCustomers(); } catch(e:any) { message.error(e?.response?.data?.message||'分配失败'); } }}>
+            {companionOptions.filter((c:any) => c.status !== 'OFFLINE').map((c:any) => (<Option key={c.id} value={c.id}>{c.username||c.id.slice(0,6)}</Option>))}
+          </Select>}
           {canManage && <Button type="link" size="small" icon={React.createElement(EditOutlined)} onClick={() => openEditModal(record)}>编辑</Button>}
           {isAdmin && (
             <Popconfirm title="确定删除该客户？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
