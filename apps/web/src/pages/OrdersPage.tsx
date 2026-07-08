@@ -82,6 +82,20 @@ const OrdersPage: React.FC = () => {
     </>
   );
 
+  // Admin/CS/Owner actions — show screenshot + compensate button for not_accepted
+  const renderAdminActions = (r: any) => (<>
+    {r.contactStatus === 'not_accepted' && r.screenshotUrl && (
+      <Image src={r.screenshotUrl} width={60} style={{ borderRadius: 4, cursor: 'pointer' }} preview={{ mask: '查看' }} />
+    )}
+    {r.contactStatus === 'not_accepted' && (
+      <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16', marginLeft: 8 }}
+        onClick={async () => {
+          try { await http.post(`/orders/${r.id}/compensate-customer`); message.success('已补客户'); fetch(); }
+          catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+        }}>补客户</Button>
+    )}
+  </>);
+
   const sorted = [...orders].sort((a: any, b: any) => {
     const aUnread = unreadMap[a.id] || 0; const bUnread = unreadMap[b.id] || 0;
     if (aUnread > 0 && bUnread === 0) return -1;
@@ -109,7 +123,7 @@ const OrdersPage: React.FC = () => {
         </div>
       </div>
       <OrderTable dataSource={sorted} loading={loading} unreadMap={unreadMap}
-        renderActions={isCompanion ? renderCompanionActions : undefined} />
+        renderActions={isCompanion ? renderCompanionActions : renderAdminActions} />
     </div>
   );
 };
