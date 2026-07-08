@@ -16,7 +16,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import type { Request } from 'express';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads', 'screenshots');
+const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'screenshots');
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
