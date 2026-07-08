@@ -320,11 +320,8 @@ export class OrdersService {
   async assign(orderId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
-    if (order.status !== OrderStatus.PENDING) {
-      throw new ForbiddenException('只能指派待处理状态的订单');
-    }
-    if (order.companionId !== null) {
-      throw new ForbiddenException('该订单已被指派');
+    if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
+      throw new ForbiddenException('已完成或已取消的订单不可重新分配');
     }
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
