@@ -26,12 +26,12 @@ interface Customer {
   notes: string;
   totalSpent: number;
   status: string;
-  companion?: { id: string; username: string };
+  companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any }>;
 }
 
-interface CompanionOption { id: string; username: string; status?: string; id: string; username: string }
+interface CompanionOption { id: string; username: string; status?: string }
 
 const CustomersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -186,7 +186,7 @@ const CustomersPage: React.FC = () => {
     }},
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
-    { title: '陪玩', dataIndex: ['companion', 'username'], key: 'companion', render: (name: string) => name ?? <Text type="secondary">未分配</Text> },
+    { title: '陪玩', key: 'companion', width: 80, render: (_: any, r: Customer) => (r.companion?.user?.username) ?? <Text type="secondary">未分配</Text> },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
   ];
