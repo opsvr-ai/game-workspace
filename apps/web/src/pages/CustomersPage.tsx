@@ -240,6 +240,7 @@ const CustomersPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div><Text strong style={{ fontSize: 16 }}>客户管理</Text>{isCompanion && <><br /><Text type="secondary">管理我的客户信息</Text></>}</div>
         <Space>
+          <Input.Search placeholder="搜索客户编号" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} style={{ width: 200 }} allowClear />
           <Button icon={React.createElement(ReloadOutlined)} onClick={fetchCustomers} loading={loading}>刷新</Button>
           {canManage && <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>新建客户</Button>}
         </Space>
