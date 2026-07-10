@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider,
+  Table, Button, Modal, Form, Input, Select, InputNumber, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -45,6 +45,7 @@ const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchCode, setSearchCode] = useState('');
 
   // Companion: chat, create order, schedule
   const [chatPartner, setChatPartner] = useState<{ name: string; orderId: string; orderInfo?: string } | null>(null);
@@ -244,7 +245,7 @@ const CustomersPage: React.FC = () => {
         </Space>
       </div>
       {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>{error}</div>}
-      <Table columns={columns} dataSource={customers} rowKey="id" loading={loading}
+      <Table columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
         scroll={{ x: 'max-content' }}
         locale={{ emptyText: '暂无客户数据' }}
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />
