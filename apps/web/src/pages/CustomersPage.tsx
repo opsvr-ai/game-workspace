@@ -28,6 +28,7 @@ interface Customer {
   status: string;
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
+  followUps?: Array<{ content: string; createdAt: string }>;
   orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any }>;
 }
 
@@ -188,6 +189,7 @@ const CustomersPage: React.FC = () => {
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
     { title: '陪玩', key: 'companion', width: 80, render: (_: any, r: Customer) => (r.companion?.user?.username) ?? <Text type="secondary">未分配</Text> },
+    { title: '最近跟进', key: 'followUp', width: 120, render: (_: any, r: Customer) => { const latest = r.followUps?.[0]; return latest ? <><Text style={{fontSize:11}}>{latest.content?.slice(0,20)}...</Text><br /><Text type="secondary" style={{fontSize:10}}>{new Date(latest.createdAt).toLocaleDateString("zh-CN")}</Text></> : <Tag color="orange" style={{fontSize:10}}>未跟进</Tag>; } },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
   ];

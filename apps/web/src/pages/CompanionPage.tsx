@@ -117,6 +117,10 @@ const CompanionPage: React.FC = () => {
   const [proofVisible, setProofVisible] = useState(false);
   const [proofNote, setProofNote] = useState('');
   const [proofSubmitting, setProofSubmitting] = useState(false);
+  const [followVisible, setFollowVisible] = useState(false);
+  const [followCustomer, setFollowCustomer] = useState<any>(null);
+  const [followNote, setFollowNote] = useState('');
+  const [followSubmitting, setFollowSubmitting] = useState(false);
   // Customer follow-up tracking
   const [myCustomers, setMyCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
@@ -343,7 +347,7 @@ const CompanionPage: React.FC = () => {
                 return <Tag color={info.color}>{info.label}</Tag>;
               }} />
               <Table.Column title="操作" width={100} render={(_: any, c: any) => (
-                <Button type="link" size="small" icon={IconInfo} onClick={() => window.location.href = `/companion/customers/${c.id}`}>
+                <Button type="link" size="small" icon={IconInfo} onClick={() => { setFollowCustomer(c); setFollowNote(''); setFollowVisible(true); }}>
                   跟进
                 </Button>
               )} />
@@ -351,6 +355,21 @@ const CompanionPage: React.FC = () => {
           );
         })()}
       </Spin>
+
+      <Modal title="📝 添加跟进" open={followVisible} onOk={async () => {
+        if (!followNote.trim()) { message.warning("请填写跟进内容"); return; }
+        setFollowSubmitting(true);
+        try {
+          await customersApi.addFollowUp(followCustomer.id, { content: followNote });
+          message.success("跟进已记录");
+          setFollowVisible(false);
+          fetchMyCustomers();
+        } catch(e:any) { message.error(e?.response?.data?.message||"保存失败"); }
+        finally { setFollowSubmitting(false); }
+      }} onCancel={() => setFollowVisible(false)} okText="保存" cancelText="取消" confirmLoading={followSubmitting} destroyOnClose>
+        <div><Text strong>客户：{followCustomer?.customerCode}</Text></div>
+        <div style={{ marginTop: 8 }}><Input.TextArea rows={4} value={followNote} onChange={(e) => setFollowNote(e.target.value)} placeholder="请填写跟进内容..." /></div>
+      </Modal>
 
       <Modal title="⚠️ 无法切换娱乐模式" open={!!blockedModal} onCancel={() => setBlockedModal(null)} footer={null}>
         <div style={{ lineHeight: 2.2 }}>
