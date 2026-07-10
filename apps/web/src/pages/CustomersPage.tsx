@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
 import { companionsApi } from '../api/companions';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
@@ -46,6 +47,7 @@ const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [searchCode, setSearchCode] = useState('');
 
   // Companion: chat, create order, schedule
