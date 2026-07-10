@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { SaveOutlined,
   Card,
   Descriptions,
   Tag,
@@ -25,8 +24,7 @@ import { SaveOutlined,
   ReloadOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { SaveOutlined, useParams, useNavigate } from 'react-router-dom';
-import { SaveOutlined, customersApi } from '../api/customers';
+import { customersApi } from '../api/customers';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
