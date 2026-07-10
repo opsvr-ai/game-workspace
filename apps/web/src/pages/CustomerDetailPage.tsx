@@ -25,6 +25,7 @@ import {
   ReloadOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
+import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
 
 const { Text, Title } = Typography;
