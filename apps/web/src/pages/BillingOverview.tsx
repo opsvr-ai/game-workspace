@@ -85,12 +85,12 @@ const BillingOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const [withdrawVisible, setWithdrawVisible] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [todayOrders, setTodayOrders] = useState<any[]>([]);
   const [reportScreenshots, setReportScreenshots] = useState<Record<string,string>>({});
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
-  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
@@ -445,9 +445,17 @@ const BillingOverview: React.FC = () => {
       {/* Bottom Action Bar */}
       <div style={{ marginTop: 16, textAlign: 'right' }}>
         {isCompanion && (
-          <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>
-            申请支取
-          </Button>
+          <Space>
+            <Button icon={<UploadOutlined />} onClick={() => {
+              http.get('/orders?all=true').then(({data}:any) => {
+                const list = data.data?.items ?? data.data ?? [];
+                setTodayOrders(list.filter((o:any) => o.status === 'DONE' && new Date(o.createdAt).toDateString()===new Date().toDateString()));
+                setReportScreenshots({});
+                setReportVisible(true);
+              }).catch(()=>{});
+            }}>上报今日流水</Button>
+            <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>申请支取</Button>
+          </Space>
         )}
         {isAdmin && (
           <Space>
@@ -480,54 +488,52 @@ const BillingOverview: React.FC = () => {
         )}
       </div>
 
-      {/* Withdraw Modal */}
-      <Modal
-        title="申请支取"
-      {/* 上报今日流水 */}
+      {/* Report Today Modal */}
       <Modal title="📋 上报今日流水" open={reportVisible} width={640}
         onOk={async () => {
           setReportSubmitting(true);
           try {
-            await http.post("/billing/report-today", { screenshots: reportScreenshots });
-            message.success("已提交审核");
+            await http.post('/billing/report-today', { screenshots: reportScreenshots });
+            message.success('已提交审核');
             setReportVisible(false);
             fetchOverview();
-          } catch(e:any) { message.error(e?.response?.data?.message||"提交失败"); }
+          } catch(e:any) { message.error(e?.response?.data?.message||'提交失败'); }
           finally { setReportSubmitting(false); }
         }}
         onCancel={() => setReportVisible(false)}
         okText="提交审核" cancelText="取消" confirmLoading={reportSubmitting} destroyOnClose>
-        <Spin spinning={!todayOrders.length} tip="加载今日订单...">
-          {["NEW","RENEW","REPURCHASE","TIP"].map(type => {
-            const orders = todayOrders.filter((o:any) => o.type === type);
-            const labels: Record<string,string> = { NEW:"首单", RENEW:"续单", REPURCHASE:"复购", TIP:"打赏" };
-            if (!orders.length) return null;
-            return (
-              <Card key={type} size="small" title={`${labels[type]} (${orders.length}单)`} style={{ marginBottom: 8 }}>
-                {orders.map((o:any) => (
-                  <div key={o.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 4 }}>
-                    <span>{o.gameName} · ¥{o.amount} · {o.customer?.wechatId || o.customFields?.customerWechat || "?"}</span>
-                    <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
-                      const fd = new FormData(); fd.append("file", file);
-                      try { const { data } = await http.post("/upload/screenshot", fd);
-                        setReportScreenshots(prev => ({ ...prev, [o.id]: data.data?.url || "" }));
-                        message.success("截图已上传");
-                      } catch { message.error("上传失败"); }
-                      return false;
-                    }}>
-                      <Button size="small">{reportScreenshots[o.id] ? "✅ 已上传" : "📎 上传截图"}</Button>
-                    </Upload>
-                  </div>
-                ))}
-              </Card>
-            );
-          })}
-          <div style={{ background:"#f6ffed", borderRadius:8, padding:12, marginTop:8 }}>
-            <Text strong>汇总：共 {todayOrders.length} 单 · ¥{todayOrders.reduce((s:any,o:any) => s+o.amount,0)}</Text>
-          </div>
-        </Spin>
+        {['NEW','RENEW','REPURCHASE','TIP'].map(type => {
+          const orders = todayOrders.filter((o:any) => o.type === type);
+          const labels: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购', TIP:'打赏' };
+          if (!orders.length) return null;
+          return (
+            <Card key={type} size="small" title={`${labels[type]} (${orders.length}单)`} style={{ marginBottom: 8 }}>
+              {orders.map((o:any) => (
+                <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 4 }}>
+                  <span>{o.gameName} · ¥{o.amount} · {o.customer?.wechatId || o.customFields?.customerWechat || '?'}</span>
+                  <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
+                    const fd = new FormData(); fd.append('file', file);
+                    try { const { data } = await http.post('/upload/screenshot', fd);
+                      setReportScreenshots(prev => ({ ...prev, [o.id]: data.data?.url || '' }));
+                      message.success('截图已上传');
+                    } catch { message.error('上传失败'); }
+                    return false;
+                  }}>
+                    <Button size="small">{reportScreenshots[o.id] ? '✅ 已上传' : '📎 上传截图'}</Button>
+                  </Upload>
+                </div>
+              ))}
+            </Card>
+          );
+        })}
+        <div style={{ background:'#f6ffed', borderRadius:8, padding:12, marginTop:8 }}>
+          <Text strong>汇总：共 {todayOrders.length} 单 · ¥{todayOrders.reduce((s:number,o:any) => s+o.amount, 0)}</Text>
+        </div>
       </Modal>
+
+      {/* Withdraw Modal */}
       <Modal
+        title="申请支取"
         open={withdrawVisible}
         onOk={handleWithdraw}
         onCancel={() => {
