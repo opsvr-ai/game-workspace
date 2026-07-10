@@ -66,7 +66,7 @@ export class OrdersService {
         studioId: studioId!,
         csUserId: dto.csUserId,
         customerId: customerId!,
-        dispatchType: 'POOL',
+        dispatchType: dto.dispatchType === 'BROADCAST' ? 'POOL' : dto.dispatchType,
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         status: 'PENDING',
         amount: dto.amount,
@@ -93,6 +93,17 @@ export class OrdersService {
       },
       include: { customer: true },
     });
+
+    // BROADCAST: send to ALL idle companions
+    if (dto.dispatchType === 'BROADCAST' && studioId) {
+      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true, role: true } });
+      this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
+        ...newOrder,
+        _createdBy: csUser?.username || '未知',
+        _creatorRole: csUser?.role || 'CS',
+        _broadcast: true,
+      });
+    }
 
     // Urgent orders: broadcast to all IDLE companions (first-come-first-served)
     const isUrgent = (dto as any).urgency === 'now';

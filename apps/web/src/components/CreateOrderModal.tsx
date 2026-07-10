@@ -57,16 +57,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             <Option value="DO_TASK">做任务</Option>
           </Select>
         </Form.Item>
-        <Form.Item noStyle shouldUpdate={(p, c) => p.gameName !== c.gameName}>
-          {({ getFieldValue }) => getFieldValue('gameName') === '三角洲行动' ? (
-            <Form.Item name="gameMode" label="对局模式">
-              <Select placeholder="选择模式" allowClear>
-                <Option value="机密">机密</Option>
-                <Option value="绝密">绝密</Option>
-              </Select>
-            </Form.Item>
-          ) : null}
-        </Form.Item>
         <Form.Item name="deltaMode" label="模式" initialValue="陪玩">
           <Select onChange={(val: string) => { if (val === '护航') form.setFieldsValue({ deltaCount: '双' }); }}>
             <Option value="护航">护航</Option><Option value="陪玩">陪玩</Option></Select></Form.Item>
@@ -76,7 +66,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
           <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" /></Form.Item>
         <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
-          <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定陪玩</Option></Select></Form.Item>
+          <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定陪玩</Option><Option value="BROADCAST">📢 群发</Option></Select></Form.Item>
         <Form.Item noStyle shouldUpdate={(p,c) => p.dispatchType !== c.dispatchType}>
           {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (
             <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true }]}>
