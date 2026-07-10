@@ -192,20 +192,17 @@ const CustomersPage: React.FC = () => {
     { title: '最近跟进', key: 'followUp', width: 120, render: (_: any, r: Customer) => { const latest = r.followUps?.[0]; return latest ? <><Text style={{fontSize:11}}>{latest.content?.slice(0,20)}...</Text><br /><Text type="secondary" style={{fontSize:10}}>{new Date(latest.createdAt).toLocaleDateString("zh-CN")}</Text></> : <Tag color="orange" style={{fontSize:10}}>未跟进</Tag>; } },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span> },
+    { title: '备注', key: 'notes', width: 200, render: (_: any, r: Customer) =>
+      isCompanion ? (
+        <Input size="small" placeholder="输入备注" value={notesEditing[r.id] ?? r.notes ?? ''}
+          onChange={(e) => setNotesEditing(prev => ({ ...prev, [r.id]: e.target.value }))}
+          onBlur={() => { const v = notesEditing[r.id]; if (v !== undefined && v !== r.notes) saveNotes(r.id, v); }}
+          onPressEnter={(e: any) => { e.target.blur(); }} />
+      ) : <Text style={{fontSize:12}}>{r.notes || '-'}</Text>
+    },
   ];
 
   if (isCompanion) {
-    columns.push({
-      title: '备注', key: 'notes', width: 280,
-      render: (_: unknown, record: Customer) => (
-        <Input size="small" placeholder="输入备注"
-          style={{ width: '100%', maxWidth: 260 }}
-          value={notesEditing[record.id] ?? record.notes ?? ''}
-          onChange={(e) => setNotesEditing(prev => ({ ...prev, [record.id]: e.target.value }))}
-          onBlur={() => { const v = notesEditing[record.id]; if (v !== undefined && v !== record.notes) saveNotes(record.id, v); }}
-          onPressEnter={(e: any) => { e.target.blur(); }} />
-      ),
-    });
     columns.push({
       title: '操作', key: 'actions', width: 280,
       render: (_: unknown, record: Customer) => (
