@@ -223,6 +223,19 @@ export class BillingController {
 
   // ── Unified Billing Overview ──
 
+  @Post('billing/report-today')
+  @Roles(UserRole.COMPANION)
+  async reportToday(@Req() req: any, @Body() dto: { screenshots: Record<string,string> }): Promise<ApiResponse<unknown>> {
+    await this.billingService.createExpenseReport({
+      companionId: req.user.companionId,
+      studioId: req.user.studioId,
+      type: 'TODAY_REVENUE',
+      amount: 0,
+      description: JSON.stringify(dto.screenshots),
+    });
+    return { code: 201, message: '已提交审核', data: null };
+  }
+
   @Get('billing/overview')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
   async getOverview(
