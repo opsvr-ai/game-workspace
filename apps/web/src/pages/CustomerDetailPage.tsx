@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
+import { SaveOutlined,
   Card,
   Descriptions,
   Tag,
@@ -19,14 +19,14 @@ import {
   Row,
   Col,
 } from 'antd';
-import {
+import { SaveOutlined,
   ArrowLeftOutlined,
   EditOutlined,
   ReloadOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
-import { customersApi } from '../api/customers';
+import { SaveOutlined, useParams, useNavigate } from 'react-router-dom';
+import { SaveOutlined, customersApi } from '../api/customers';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -88,7 +88,6 @@ const CustomerDetailPage: React.FC = () => {
   const [loadingFollowUps, setLoadingFollowUps] = useState(true);
 
   // Modal states
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [submittingProfile, setSubmittingProfile] = useState(false);
   const [profileForm] = Form.useForm();
 
@@ -172,12 +171,6 @@ const CustomerDetailPage: React.FC = () => {
 
   // ── Profile edit ───────────────────────────────────────────
 
-  const openProfileModal = () => {
-    if (profile) {
-      profileForm.setFieldsValue(profile);
-    }
-    setProfileModalOpen(true);
-  };
 
   const handleProfileSubmit = async () => {
     try {
@@ -385,195 +378,52 @@ const CustomerDetailPage: React.FC = () => {
         )}
       </Card>
 
-      {/* ── Section 3: Profile Card ──────────────────────── */}
+            {/* ── Section 3: Profile Card — direct edit ────────── */}
       <Card
         title="客户画像"
         style={{ marginBottom: 16 }}
         loading={loadingProfile}
         extra={
-          <Button
-            type="primary"
-            size="small"
-            icon={React.createElement(EditOutlined)}
-            onClick={openProfileModal}
-          >
-            编辑画像
+          <Button type="primary" size="small" icon={React.createElement(SaveOutlined)}
+            onClick={handleProfileSubmit} loading={submittingProfile}>
+            保存
           </Button>
         }
       >
-        {profile ? (
-          <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small" bordered>
-            <Descriptions.Item label="年龄">{profile.age ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="地址">{profile.address || '-'}</Descriptions.Item>
-            <Descriptions.Item label="职业">{profile.occupation || '-'}</Descriptions.Item>
-            <Descriptions.Item label="偏好游戏">{profile.preferredGame || '-'}</Descriptions.Item>
-            <Descriptions.Item label="偏好模式">{profile.preferredMode || '-'}</Descriptions.Item>
-            <Descriptions.Item label="单/双人">{profile.preferredSingleDouble || '-'}</Descriptions.Item>
-            <Descriptions.Item label="偏好时间">{profile.preferredTime || '-'}</Descriptions.Item>
-            <Descriptions.Item label="游戏频率">{profile.playFrequency || '-'}</Descriptions.Item>
-            <Descriptions.Item label="价格偏好">{profile.pricePreference || '-'}</Descriptions.Item>
-            <Descriptions.Item label="情感状态">{profile.relationshipStatus || '-'}</Descriptions.Item>
-            <Descriptions.Item label="恐微信查岗">
-              {profile.afraidWechatCheck ? <Tag color="red">是</Tag> : <Tag>否</Tag>}
-            </Descriptions.Item>
-            <Descriptions.Item label="喜欢的声音">{profile.likedVoice || '-'}</Descriptions.Item>
-            <Descriptions.Item label="我的声音">{profile.myVoice || '-'}</Descriptions.Item>
-            <Descriptions.Item label="喜欢话多的">
-              {profile.likesTalkative ? <Tag color="blue">是</Tag> : <Tag>否</Tag>}
-            </Descriptions.Item>
-            <Descriptions.Item label="喜欢技术好的">
-              {profile.likesSkill ? <Tag color="blue">是</Tag> : <Tag>否</Tag>}
-            </Descriptions.Item>
-            <Descriptions.Item label="两者都喜欢">
-              {profile.likesBoth ? <Tag color="blue">是</Tag> : <Tag>否</Tag>}
-            </Descriptions.Item>
-            <Descriptions.Item label="自定义备注" span={3}>
-              {profile.customNotes || '-'}
-            </Descriptions.Item>
-          </Descriptions>
-        ) : (
-          <Skeleton active paragraph={{ rows: 6 }} />
-        )}
+        <Form form={profileForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="age" label="年龄"><InputNumber min={0} max={150} style={{ width: '100%' }} placeholder="年龄" /></Form.Item></Col>
+            <Col span={16}><Form.Item name="address" label="地址"><Input placeholder="地址" /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="occupation" label="职业"><Input placeholder="职业" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="preferredGame" label="偏好游戏"><Input placeholder="偏好游戏" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="preferredMode" label="偏好模式"><Input placeholder="偏好模式" /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="preferredSingleDouble" label="单/双人"><Select placeholder="选择" allowClear><Select.Option value="单人">单人</Select.Option><Select.Option value="双人">双人</Select.Option><Select.Option value="均可">均可</Select.Option></Select></Form.Item></Col>
+            <Col span={8}><Form.Item name="preferredTime" label="偏好时间"><Input placeholder="如: 晚上8-12点" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="playFrequency" label="游戏频率"><Select placeholder="选择" allowClear><Select.Option value="每天">每天</Select.Option><Select.Option value="每周数次">每周数次</Select.Option><Select.Option value="偶尔">偶尔</Select.Option></Select></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="pricePreference" label="价格偏好"><Input placeholder="价格偏好" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="relationshipStatus" label="情感状态"><Select placeholder="选择" allowClear><Select.Option value="单身">单身</Select.Option><Select.Option value="恋爱">恋爱</Select.Option><Select.Option value="已婚">已婚</Select.Option><Select.Option value="保密">保密</Select.Option></Select></Form.Item></Col>
+            <Col span={8}><Form.Item name="afraidWechatCheck" label="恐微信查岗" valuePropName="checked"><Switch /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="likedVoice" label="喜欢的声音"><Input placeholder="喜欢的声音" /></Form.Item></Col>
+            <Col span={8}><Form.Item name="myVoice" label="我的声音"><Input placeholder="我的声音" /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}><Form.Item name="likesTalkative" label="喜欢话多的" valuePropName="checked"><Switch /></Form.Item></Col>
+            <Col span={8}><Form.Item name="likesSkill" label="喜欢技术好的" valuePropName="checked"><Switch /></Form.Item></Col>
+            <Col span={8}><Form.Item name="likesBoth" label="两者都喜欢" valuePropName="checked"><Switch /></Form.Item></Col>
+          </Row>
+          <Form.Item name="customNotes" label="自定义备注"><Input.TextArea rows={3} placeholder="其他备注信息" /></Form.Item>
+        </Form>
       </Card>
 
-      {/* ── Profile Edit Modal ───────────────────────────── */}
-      <Modal
-        title="编辑客户画像"
-        open={profileModalOpen}
-        onOk={handleProfileSubmit}
-        onCancel={() => {
-          setProfileModalOpen(false);
-          profileForm.resetFields();
-        }}
-        confirmLoading={submittingProfile}
-        okText="保存"
-        cancelText="取消"
-        width={720}
-        destroyOnClose
-      >
-        <Form form={profileForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="age" label="年龄">
-                <InputNumber min={0} max={150} style={{ width: '100%' }} placeholder="年龄" />
-              </Form.Item>
-            </Col>
-            <Col span={16}>
-              <Form.Item name="address" label="地址">
-                <Input placeholder="地址" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="occupation" label="职业">
-                <Input placeholder="职业" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="preferredGame" label="偏好游戏">
-                <Input placeholder="偏好游戏" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="preferredMode" label="偏好模式">
-                <Input placeholder="偏好模式" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="preferredSingleDouble" label="单/双人">
-                <Select placeholder="选择" allowClear>
-                  <Select.Option value="单人">单人</Select.Option>
-                  <Select.Option value="双人">双人</Select.Option>
-                  <Select.Option value="均可">均可</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="preferredTime" label="偏好时间">
-                <Input placeholder="如: 晚上8-12点" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="playFrequency" label="游戏频率">
-                <Select placeholder="选择" allowClear>
-                  <Select.Option value="每天">每天</Select.Option>
-                  <Select.Option value="每周数次">每周数次</Select.Option>
-                  <Select.Option value="偶尔">偶尔</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="pricePreference" label="价格偏好">
-                <Input placeholder="价格偏好" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="relationshipStatus" label="情感状态">
-                <Select placeholder="选择" allowClear>
-                  <Select.Option value="单身">单身</Select.Option>
-                  <Select.Option value="恋爱中">恋爱中</Select.Option>
-                  <Select.Option value="已婚">已婚</Select.Option>
-                  <Select.Option value="保密">保密</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="likedVoice" label="喜欢的声音">
-                <Select placeholder="选择" allowClear>
-                  <Select.Option value="萝莉音">萝莉音</Select.Option>
-                  <Select.Option value="御姐音">御姐音</Select.Option>
-                  <Select.Option value="少女音">少女音</Select.Option>
-                  <Select.Option value="少御音">少御音</Select.Option>
-                  <Select.Option value="中性音">中性音</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="myVoice" label="我的声音">
-                <Select placeholder="选择" allowClear>
-                  <Select.Option value="萝莉音">萝莉音</Select.Option>
-                  <Select.Option value="御姐音">御姐音</Select.Option>
-                  <Select.Option value="少女音">少女音</Select.Option>
-                  <Select.Option value="少御音">少御音</Select.Option>
-                  <Select.Option value="中性音">中性音</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="afraidWechatCheck" label="恐微信查岗" valuePropName="checked">
-                <Switch checkedChildren="是" unCheckedChildren="否" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="likesTalkative" label="喜欢话多的" valuePropName="checked">
-                <Switch checkedChildren="是" unCheckedChildren="否" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="likesSkill" label="喜欢技术好的" valuePropName="checked">
-                <Switch checkedChildren="是" unCheckedChildren="否" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="likesBoth" label="两者都喜欢" valuePropName="checked">
-                <Switch checkedChildren="是" unCheckedChildren="否" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="customNotes" label="自定义备注">
-            <TextArea rows={3} placeholder="其他补充信息" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* ── Old profile modal removed ── */}
 
       {/* ── Section 4: Smart Analysis ──────────────────────── */}
       <Card title="智能分析" style={{ marginBottom: 16 }} loading={loadingCustomer || loadingOrders}>
