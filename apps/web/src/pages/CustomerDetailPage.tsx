@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import {
   Card,
   Descriptions,
   Tag,
@@ -18,8 +19,8 @@ import React, { useEffect, useState, useCallback } from 'react';
   Row,
   Col,
 } from 'antd';
-import { SaveOutlined,
-  ArrowLeftOutlined,
+import {
+  SaveOutlined, ArrowLeftOutlined,
   EditOutlined,
   ReloadOutlined,
   PlusOutlined,
@@ -176,7 +177,7 @@ const CustomerDetailPage: React.FC = () => {
       setSubmittingProfile(true);
       await customersApi.updateProfile(id!, values);
       message.success('客户画像已更新');
-      setProfileModalOpen(false);
+      
       fetchProfile();
     } catch (err: any) {
       if (err?.errorFields) return;
