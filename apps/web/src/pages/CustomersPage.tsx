@@ -216,6 +216,7 @@ const CustomersPage: React.FC = () => {
           <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={() => { setStartServicePreFill({ customerId: record.id, companionSelfId: user?.companionId, gameName: record.orders?.[0]?.gameName, amount: record.orders?.[0]?.amount }); setCreateOrderOpen(true); }}>开始服务</Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>发布订单</Button>
           <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>预约</Button>
+          <Button type="link" size="small" onClick={() => navigate(`/companion/customers/${record.id}`)}>查看</Button>
         </Space>
       ),
     });
