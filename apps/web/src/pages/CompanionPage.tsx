@@ -302,6 +302,8 @@ const CompanionPage: React.FC = () => {
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
           const pendingCustomers = myCustomers.filter((c: any) => {
+            const hasSpent = (c.totalSpent ?? 0) > 0;
+            if (!hasSpent) return true; // Never spent — always show
             const latestFollowUp = c.followUps?.[0];
             if (!latestFollowUp) return true; // No follow-up ever
             return new Date(latestFollowUp.createdAt) < sevenDaysAgo;
