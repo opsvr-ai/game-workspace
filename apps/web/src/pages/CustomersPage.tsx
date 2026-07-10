@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, InputNumber, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider,
+  Table, Button, Modal, Form, Input, Select, InputNumber, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider, Card,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -249,10 +249,12 @@ const CustomersPage: React.FC = () => {
         </Space>
       </div>
       {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>{error}</div>}
-      <Table columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
-        scroll={{ x: 'max-content' }}
-        locale={{ emptyText: '暂无客户数据' }}
-        pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />
+      <Card size="small" style={{ overflow: 'auto' }}>
+        <Table columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
+          scroll={{ x: 1000 }}
+          locale={{ emptyText: '暂无客户数据' }}
+          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />
+      </Card>
       <Modal title={editingCustomer ? '编辑客户' : '新建客户'} open={modalOpen} onOk={handleSubmit}
         onCancel={() => { setModalOpen(false); form.resetFields(); }} confirmLoading={submitting} okText="保存" cancelText="取消" destroyOnClose>
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
