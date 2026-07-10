@@ -56,19 +56,35 @@ export class CompanionsService {
     return this.prisma.companion.update({ where: { id }, data: { status } });
   }
 
-  async getRanking(user: any) {
-    const where: any = { monthlyRevenue: { gt: 0 } };
-    if (user.role !== 'OWNER') where.studioId = user.studioId;
-    return this.prisma.companion.findMany({
+  async getRanking(studioId: string, type: string) {
+    const where: any = { studioId };
+    const companions = await this.prisma.companion.findMany({
       where,
-      orderBy: { monthlyRevenue: 'desc' },
-      take: 20,
-      select: {
-        id: true,
-        monthlyRevenue: true,
-        user: { select: { username: true, avatar: true, displayName: true } },
-      },
+      select: { id: true, user: { select: { username: true, displayName: true } } },
     });
+
+    const results = await Promise.all(companions.map(async (c) => {
+      const orders = await this.prisma.order.findMany({
+        where: { companionId: c.id, status: 'DONE' },
+        select: { type: true, amount: true },
+      });
+      const totalAmount = orders.reduce((s,o) => s + o.amount, 0);
+      const totalCount = orders.length;
+      const typeCounts: Record<string,number> = { NEW:0, RENEW:0, REPURCHASE:0, TIP:0 };
+      orders.forEach(o => { typeCounts[o.type] = (typeCounts[o.type]||0) + 1; });
+
+      let score = 0;
+      if (type === 'revenue') score = totalAmount;
+      else if (type === 'new_rate') score = totalCount > 0 ? typeCounts.NEW / totalCount * 100 : 0;
+      else if (type === 'renew_rate') score = totalCount > 0 ? typeCounts.RENEW / totalCount * 100 : 0;
+      else if (type === 'repurchase_rate') score = totalCount > 0 ? typeCounts.REPURCHASE / totalCount * 100 : 0;
+      else if (type === 'tip_ratio') score = totalAmount > 0 ? (orders.filter(o=>o.type==='TIP').reduce((s,o)=>s+o.amount,0)) / totalAmount * 100 : 0;
+
+      return { companionId: c.id, name: c.user?.displayName || c.user?.username || c.id, totalAmount: Math.round(totalAmount*100)/100, totalCount, score: Math.round(score*100)/100 };
+    }));
+
+    results.sort((a,b) => b.score - a.score);
+    return results.slice(0, 10);
   }
 
   async getRevenue(id: string) {
@@ -99,6 +115,22 @@ export class CompanionsService {
       },
     });
     const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
+
+    // Order type breakdown
+    const orderStats = await Promise.all(['NEW','RENEW','REPURCHASE','TIP'].map(async (type) => {
+      const orders = await this.prisma.order.findMany({
+        where: { companionId, type, status: 'DONE' },
+        select: { amount: true },
+      });
+      const count = orders.length;
+      const amount = orders.reduce((s,o) => s + o.amount, 0);
+      return { type, count, amount };
+    }));
+    const totalCount = orderStats.reduce((s,o) => s + o.count, 0);
+    const statsMap: Record<string,any> = {};
+    orderStats.forEach(({type, count, amount}) => {
+      statsMap[type] = { count, amount: Math.round(amount * 100) / 100, ratio: totalCount > 0 ? Math.round(count/totalCount*100) : 0 };
+    });
 
     // Config thresholds
     const [unlockCfg, freeCfg] = await Promise.all([
@@ -206,6 +238,8 @@ export class CompanionsService {
 
     return {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
+      orderStats: statsMap,
+      totalCount,
       unlockThreshold,
       isUnlocked: todayRevenue >= unlockThreshold,
       freeThreshold,

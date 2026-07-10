@@ -184,6 +184,12 @@ const CompanionPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={4} style={{ margin: 0 }}>👤 我的工作台</Title>
         <Button size="small" onClick={() => { fetchData(); fetchWallet(); fetchMyCustomers(); }} icon={React.createElement(ReloadOutlined)}>刷新数据</Button>
+      {/* ② Order Stats */}
+      <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        {[{key:'NEW',label:'首单',icon:'🆕',color:'#1677ff'},{key:'RENEW',label:'续单',icon:'🔄',color:'#52c41a'},{key:'REPURCHASE',label:'复购',icon:'🔁',color:'#722ed1'},{key:'TIP',label:'打赏',icon:'🎁',color:'#fa8c16'}].map(({key,label,icon,color}) => (<Col span={6} key={key}><Card size="small" style={{borderLeft:`4px solid ${color}`,textAlign:'center'}}><div style={{fontSize:28}}>{icon}</div><div style={{fontSize:22,fontWeight:700,color}}>{(data?.orderStats?.[key]?.count||0)}<Text style={{fontSize:14,fontWeight:400}}> 单</Text></div><div style={{fontSize:16,fontWeight:600}}>¥{(data?.orderStats?.[key]?.amount||0).toFixed(0)}</div><Tag color={color} style={{marginTop:4}}>{label} · 占{data?.orderStats?.[key]?.ratio||0}%</Tag></Card></Col>))}
+      </Row>
+      <Card size="small" style={{marginBottom:16,textAlign:'center',background:'#f6f8fa'}}><Text>今日 <Text strong>¥{data.todayRevenue}</Text> · 累计 <Text strong>¥{data?.totalRevenue||0}</Text> · 总单 <Text strong>{data?.totalCount||0}</Text> · {data.isUnlocked?'✅ 已解锁':`🔒 还差¥${data.unlockThreshold-data.todayRevenue}`}</Text></Card>
       </div>
       <Row gutter={[16, 16]}>
         <Col span={6}><StatBlock label="今日流水" value={`¥${data.todayRevenue}`} icon={IconDollar} color="#1677ff" /></Col>

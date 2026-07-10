@@ -31,8 +31,8 @@ export class CompanionsController {
   }
 
   @Get('companions/ranking')
-  async getRanking(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.getRanking(req.user);
+  async getRanking(@Req() req: any, @Query('type') type?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getRanking(req.user.studioId, type || 'revenue');
     return { code: 200, message: 'ok', data };
   }
 

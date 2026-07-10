@@ -100,34 +100,30 @@ describe('CompanionsService', () => {
   });
 
   describe('getRanking', () => {
-    it('returns top 20 by monthlyRevenue', async () => {
-      const user = {
-        id: 'u1',
-        username: 'owner',
-        role: 'OWNER' as const,
-        studioId: null,
-      };
-
-      const ranking = [
-        { id: 'comp-1', monthlyRevenue: 5000, user: { username: 'zhangsan' } },
-        { id: 'comp-2', monthlyRevenue: 3000, user: { username: 'lisi' } },
+    it('returns top 10 companions by revenue score', async () => {
+      const companions = [
+        { id: 'comp-1', user: { username: 'zhangsan', displayName: 'Zhang San' } },
+        { id: 'comp-2', user: { username: 'lisi', displayName: null } },
       ];
 
-      mockPrisma.companion.findMany.mockResolvedValue(ranking);
+      const orders = [
+        { type: 'NEW', amount: 100 },
+        { type: 'RENEW', amount: 200 },
+      ];
 
-      const result = await service.getRanking(user);
+      mockPrisma.companion.findMany.mockResolvedValue(companions);
+      mockPrisma.order.findMany.mockResolvedValue(orders);
+
+      const result = await service.getRanking('studio-1', 'revenue');
 
       expect(mockPrisma.companion.findMany).toHaveBeenCalledWith({
-        where: { monthlyRevenue: { gt: 0 } },
-        orderBy: { monthlyRevenue: 'desc' },
-        take: 20,
-        select: {
-          id: true,
-          monthlyRevenue: true,
-          user: { select: { username: true } },
-        },
+        where: { studioId: 'studio-1' },
+        select: { id: true, user: { select: { username: true, displayName: true } } },
       });
-      expect(result).toEqual(ranking);
+      expect(result).toHaveLength(2);
+      expect(result[0].totalAmount).toBe(300);
+      expect(result[0].totalCount).toBe(2);
+      expect(result[0].score).toBe(300);
     });
   });
 
