@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Table, message, Tooltip, Empty } from 'antd';
-import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, TeamOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
@@ -126,16 +126,6 @@ const CompanionPage: React.FC = () => {
     return () => window.removeEventListener('message', ipcHandler);
   }, []);
 
-  // TASK-11: Dual companion request
-  const requestDual = async () => {
-    try {
-      await companionsApi.requestDualCompanion();
-      message.success('已向工作室发送双陪请求，等待其他陪玩响应');
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || '请求失败');
-    }
-  };
-
   const handleProofSubmit = async () => {
     if (!proofNote.trim()) { message.warning('请填写申请说明'); return; }
     setProofSubmitting(true);
@@ -164,11 +154,11 @@ const CompanionPage: React.FC = () => {
   return (
     <div>
       {/* ① Status Header — compact inline */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 16, border: '2px solid #00D4FF' }}>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
-              <Text strong style={{ fontSize: 18 }}>👤 {user?.username || '陪玩'}</Text>
+              <Text strong style={{ fontSize: 18 }}>👤 {user?.username || '陪玩'} <Tag color="cyan" style={{ fontSize: 10 }}>NEW v2.0</Tag></Text>
               <Tag color={companionStatusConfig[data.currentStatus]?.color || 'default'} style={{ fontSize: 16, padding: '4px 16px', borderRadius: 10 }}>
                 {companionStatusConfig[data.currentStatus]?.label || data.currentStatus}
               </Tag>
@@ -183,7 +173,6 @@ const CompanionPage: React.FC = () => {
               <Button type="primary" icon={IconSearch} onClick={() => switchStatus('AVAILABLE')}>空闲</Button>
               <Button icon={IconThunder} onClick={() => switchStatus('BUSY')}>接单</Button>
               <Button icon={IconCoffee} onClick={() => switchStatus('RESTING')}>休息</Button>
-              <Button type="dashed" icon={React.createElement(TeamOutlined)} onClick={requestDual}>🤝 双陪</Button>
               <Button size="small" onClick={() => { fetchData(); fetchWallet(); fetchMyCustomers(); }} icon={React.createElement(ReloadOutlined)} />
             </Space>
           </Col>

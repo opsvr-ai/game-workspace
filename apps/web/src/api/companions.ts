@@ -21,5 +21,4 @@ export const companionsApi = {
     http.post(`/companions/${companionId}/status-blacklist`, data),
   removeStatusBlacklist: (companionId: string, entryId: string) =>
     http.delete(`/companions/${companionId}/status-blacklist/${entryId}`),
-  requestDualCompanion: () => http.post('/companions/me/request-dual'),
 };
