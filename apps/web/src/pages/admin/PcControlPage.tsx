@@ -348,9 +348,9 @@ const PcControlPage: React.FC = () => {
             onChange={setStatusFilter}
             options={[
               { label: '空闲', value: 'AVAILABLE' },
-              { label: '接单中', value: 'BUSY' },
-              { label: '娱乐中', value: 'ENTERTAINMENT' },
-              { label: '休息中', value: 'RESTING' },
+              { label: '接单', value: 'BUSY' },
+              { label: '娱乐', value: 'ENTERTAINMENT' },
+              { label: '休息', value: 'RESTING' },
               { label: '离线', value: 'OFFLINE' },
             ]}
           />

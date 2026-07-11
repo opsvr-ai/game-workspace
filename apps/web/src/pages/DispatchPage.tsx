@@ -430,9 +430,9 @@ const CSView: React.FC = () => {
           <Card title="统计" size="small" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟢 空闲</span><b style={{ color: '#00E676' }}>{idleCount}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔴 接单中</span><b style={{ color: '#FF4757' }}>{busyCount}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟡 娱乐中</span><b style={{ color: '#FFD600' }}>{entertainCount}</b></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟠 休息中</span><b style={{ color: '#FF9500' }}>{restingCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔴 接单</span><b style={{ color: '#FF4757' }}>{busyCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟡 娱乐</span><b style={{ color: '#FFD600' }}>{entertainCount}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟠 休息</span><b style={{ color: '#FF9500' }}>{restingCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>⚪ 离线</span><b style={{ color: '#94A3B8' }}>{offlineCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid #E2E8F0', paddingTop: 8 }}><span>📦 待派</span><b style={{ color: '#1677ff' }}>{poolCount}</b></div>
             </div>
