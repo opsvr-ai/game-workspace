@@ -201,8 +201,8 @@ const CompanionPage: React.FC = () => {
                   <BarChart data={chartData} barSize={28} barGap={4}>
                     <XAxis dataKey="name" fontSize={13} tickLine={false}/>
                     <YAxis fontSize={11} tickLine={false}/>
-                    <Bar dataKey="todayAmount" name="今日" radius={[4,4,0,0]} fill="#1890ff" label={({todayAmount,todayCount})=>todayAmount?`¥${(todayAmount||0).toFixed(0)}`:''} labelStyle={{fontSize:10}}/>
-                    <Bar dataKey="monthAmount" name="全月" radius={[4,4,0,0]} fill="#91caff" label={({monthAmount,monthCount})=>monthAmount?`¥${(monthAmount||0).toFixed(0)}`:''} labelStyle={{fontSize:10}}/>
+                    <Bar dataKey="todayAmount" name="今日" radius={[4,4,0,0]} fill="#1890ff" label={({todayAmount,todayCount})=>todayAmount?`¥${(todayAmount||0).toFixed(0)}·${todayCount||0}单`:`${todayCount||0}单`} labelStyle={{fontSize:10}}/>
+                    <Bar dataKey="monthAmount" name="全月" radius={[4,4,0,0]} fill="#91caff" label={({monthAmount,monthCount})=>monthAmount?`¥${(monthAmount||0).toFixed(0)}·${monthCount||0}单`:`${monthCount||0}单`} labelStyle={{fontSize:10}}/>
                   </BarChart>
                 </ResponsiveContainer>
               ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
