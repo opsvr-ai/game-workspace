@@ -40,7 +40,7 @@ function showNotification(label: string, seconds: number, onExecute: () => void)
     frame: false, alwaysOnTop: true, skipTaskbar: true,
     resizable: false, transparent: true,
     backgroundColor: '#00000000',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: false, nodeIntegration: true },
   });
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -87,7 +87,6 @@ function showNotification(label: string, seconds: number, onExecute: () => void)
     </script>
   </body></html>`;
 
-  execWindow.webPreferences = { contextIsolation: false, nodeIntegration: true };
   execWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
   // IPC listeners: receive decision BEFORE window closes
