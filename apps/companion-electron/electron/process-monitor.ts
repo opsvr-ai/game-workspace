@@ -65,7 +65,7 @@ const OS_PROCESS_PATTERNS = [
 // ── State ──
 
 let localBlacklist: BlacklistEntry[] = [];
-let localWhitelist: processName[] = [];
+let localWhitelist: string[] = [];
 let blacklistVersion = 0;
 let reportInterval: ReturnType<typeof setInterval> | null = null;
 let recheckInterval: ReturnType<typeof setInterval> | null = null;
