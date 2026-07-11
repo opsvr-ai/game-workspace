@@ -19,6 +19,7 @@ const IconLock = React.createElement(LockOutlined);
 const CompanionPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const [ranking, setRanking] = useState<any[]>([]);
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
   const [rankingLoading, setRankingLoading] = useState(true);
 
   const fetchRanking = useCallback(async () => {
