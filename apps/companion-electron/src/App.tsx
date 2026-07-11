@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ConfigProvider, Tag, Space, Dropdown } from 'antd';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { ConfigProvider, Tag, Space, Dropdown, Spin } from 'antd';
 import {
   HomeOutlined, UnorderedListOutlined, WalletOutlined,
   TeamOutlined, FileTextOutlined, HistoryOutlined,
   SettingOutlined, GlobalOutlined,
 } from '@ant-design/icons';
+import { HashRouter } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import WorkbenchPage from './pages/WorkbenchPage';
 
@@ -16,7 +17,7 @@ const companionStatusConfig: Record<string, { color: string; label: string }> = 
   OFFLINE: { color: 'default', label: '离线' },
 };
 
-const tabs = [
+const companionTabs = [
   { key: 'workbench', icon: <HomeOutlined />, label: '工作台' },
   { key: 'pool', icon: <UnorderedListOutlined />, label: '订单池' },
   { key: 'billing', icon: <WalletOutlined />, label: '报账' },
@@ -24,6 +25,9 @@ const tabs = [
   { key: 'orders', icon: <FileTextOutlined />, label: '接单' },
   { key: 'dispatch', icon: <HistoryOutlined />, label: '派单' },
 ];
+
+// Lazy admin shell — loads web AppLayout for non-companion roles
+const AdminShell = React.lazy(() => import('../../web/src/layouts/AppLayout'));
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -34,31 +38,32 @@ const App: React.FC = () => {
   const [serverUrl, setServerUrl] = useState('');
   const [loadedPages, setLoadedPages] = useState<Record<string, any>>({});
 
+  const isCompanion = user?.role === 'COMPANION';
+
   useEffect(() => {
     if (window.electronAPI) window.electronAPI.getServerUrl().then(setServerUrl);
   }, []);
 
-  // Lazy-load page components on demand
+  // Lazy-load companion page components on demand
   useEffect(() => {
-    if (loadedPages[activeTab]) return;
+    if (!isCompanion || loadedPages[activeTab]) return;
     let cancelled = false;
     const loader = async () => {
       let mod: any = null;
       try {
-        switch (activeTab) {
-          case 'pool': mod = await import('./pages/OrderPoolPage'); break;
-          case 'billing': mod = await import('../../web/src/pages/BillingOverview'); break;
-          case 'customers': mod = await import('../../web/src/pages/CustomersPage'); break;
-          case 'orders': mod = await import('../../web/src/pages/OrdersPage'); break;
-          case 'dispatch': mod = await import('../../web/src/pages/DispatchPage'); break;
-        }
-      } catch { /* page may fail to load — handled by null check */ }
+        if (activeTab === 'pool') mod = await import('./pages/OrderPoolPage');
+        else if (activeTab === 'billing') mod = await import('../../web/src/pages/BillingOverview');
+        else if (activeTab === 'customers') mod = await import('../../web/src/pages/CustomersPage');
+        else if (activeTab === 'orders') mod = await import('../../web/src/pages/OrdersPage');
+        else if (activeTab === 'dispatch') mod = await import('../../web/src/pages/DispatchPage');
+      } catch { /* ignore */ }
       if (!cancelled && mod) setLoadedPages(prev => ({ ...prev, [activeTab]: mod.default || mod }));
     };
     loader();
     return () => { cancelled = true; };
-  }, [activeTab]);
+  }, [activeTab, isCompanion]);
 
+  // Listen for navigation events from main process
   useEffect(() => {
     if (!window.electronAPI) return;
     const u1 = window.electronAPI.onWsEvent('nav:orderPool', () => setActiveTab('pool'));
@@ -79,6 +84,20 @@ const App: React.FC = () => {
 
   if (!isLoggedIn) return <ConfigProvider theme={{ token: { colorPrimary: '#00D4FF' } }}><LoginPage onLogin={handleLogin} /></ConfigProvider>;
 
+  // ── Non-companion: render web AppLayout with HashRouter ──
+  if (!isCompanion) {
+    return (
+      <ConfigProvider theme={{ token: { colorPrimary: '#00D4FF', colorBgContainer: '#1E293B', colorBgElevated: '#1E293B', colorText: '#E2E8F0', colorTextSecondary: '#94A3B8', colorBorder: 'rgba(148,163,184,0.15)', borderRadius: 8 } }}>
+        <HashRouter>
+          <Suspense fallback={<Spin size="large" style={{ display: 'block', margin: '100px auto' }} />}>
+            <AdminShell />
+          </Suspense>
+        </HashRouter>
+      </ConfigProvider>
+    );
+  }
+
+  // ── Companion shell: 6-tab bar + status control ──
   const statusCfg = companionStatusConfig[currentStatus] || companionStatusConfig.OFFLINE;
   const PageComponent = loadedPages[activeTab];
 
@@ -103,7 +122,7 @@ const App: React.FC = () => {
           {activeTab !== 'workbench' && PageComponent && <PageComponent />}
         </div>
         <div style={{ height: 56, background: '#1A2332', borderTop: '1px solid rgba(148,163,184,0.1)', display: 'flex', flexShrink: 0 }}>
-          {tabs.map(tab => (
+          {companionTabs.map(tab => (
             <div key={tab.key} onClick={() => { setActiveTab(tab.key); if (tab.key === 'pool') setOrderBadge(0); }}
               style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                 color: activeTab === tab.key ? '#00D4FF' : '#64748B', fontSize: 11, gap: 2,
