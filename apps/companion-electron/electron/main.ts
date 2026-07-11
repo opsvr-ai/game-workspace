@@ -35,10 +35,14 @@ function createMainWindow(): BrowserWindow {
     },
   });
 
+  // Load web app — dev mode uses local Vite, prod uses server's web port
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
+    const serverUrl = getServerUrl();
+    // Web app served on port 8000 (same host as API server on 3001)
+    const webUrl = serverUrl.replace(/:3001$/, ':8000');
+    win.loadURL(webUrl);
   }
 
   win.once('ready-to-show', () => {
