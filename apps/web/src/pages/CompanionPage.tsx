@@ -226,7 +226,7 @@ const CompanionPage: React.FC = () => {
             {ranking.length > 0 ? (
               <div style={{fontSize:11}}>
                 <div style={{display:'flex',justifyContent:'space-between',padding:'2px 4px',borderBottom:'1px solid #f0f0f0',color:'#999'}}>
-                  <span>陪玩</span><span>流水</span><span>续单</span><span>复购</span><span>礼物</span><span>评分</span>
+                  <span>陪玩</span><span>首单</span><span>流水</span><span>续单</span><span>复购</span><span>礼物</span><span>评分</span>
                 </div>
                 {[...ranking].sort((a:any,b:any)=>b.qualityScore-a.qualityScore).map((r:any,i:number)=>(<div key={r.companionId} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 4px',background:r.companionId===user?.companionId?'#e6f7ff':'transparent',borderRadius:4,marginBottom:1}}>
                   <span style={{minWidth:40}}>{['🥇','🥈','🥉'][i]||`${i+1}`} {r.name?.slice(0,6)}</span>
