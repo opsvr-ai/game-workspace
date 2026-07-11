@@ -132,6 +132,22 @@ export class CompanionsService {
       statsMap[type] = { count, amount: Math.round(amount * 100) / 100, ratio: totalCount > 0 ? Math.round(count/totalCount*100) : 0 };
     });
 
+    // Today's order type breakdown
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    const todayBreakdownOrders = await this.prisma.order.findMany({
+      where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
+      select: { type: true, amount: true },
+    });
+    const todayStats: Record<string,any> = {};
+    ['NEW','RENEW','REPURCHASE','TIP'].forEach(t => { todayStats[t] = { count: 0, amount: 0 }; });
+    todayBreakdownOrders.forEach(o => { todayStats[o.type].count++; todayStats[o.type].amount += o.amount; });
+    const todayTotal = todayBreakdownOrders.reduce((s,o) => s + o.amount, 0);
+    Object.keys(todayStats).forEach(k => {
+      todayStats[k].amount = Math.round(todayStats[k].amount * 100) / 100;
+      todayStats[k].ratio = todayTotal > 0 ? Math.round(todayStats[k].amount / todayTotal * 100) : 0;
+    });
+
     // Config thresholds
     const [unlockCfg, freeCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } }),
@@ -239,6 +255,7 @@ export class CompanionsService {
     return {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       orderStats: statsMap,
+      todayStats,
       totalCount,
       unlockThreshold,
       isUnlocked: todayRevenue >= unlockThreshold,
