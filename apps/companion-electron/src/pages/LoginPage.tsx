@@ -3,6 +3,7 @@ import { Input, Button, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined, GlobalOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
+import http from '../api/client';
 
 interface Props {
   onLogin: (user: any) => void;
@@ -21,27 +22,24 @@ const LoginPage: React.FC<Props> = ({ onLogin }) => {
   }, []);
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      message.warning('请输入用户名和密码');
-      return;
-    }
+    if (!username.trim() || !password.trim()) { message.warning('请输入用户名和密码'); return; }
     setLoading(true);
     try {
-      const result = await window.electronAPI.login({
-        username: username.trim(),
-        password,
-      });
+      const result = await window.electronAPI.login({ username: username.trim(), password });
       if (result.success) {
         message.success('登录成功');
         onLogin(result.user);
-      } else {
-        message.error(result.message || '登录失败');
-      }
-    } catch (err: any) {
-      message.error(err.message || '网络错误');
-    } finally {
-      setLoading(false);
-    }
+        // Also login via API to set sessionStorage tokens for web pages
+        try {
+          const { data } = await http.post('/auth/login', { username: username.trim(), password });
+          if (data?.data?.accessToken) {
+            sessionStorage.setItem('accessToken', data.data.accessToken);
+            localStorage.setItem('refreshToken', data.data.refreshToken);
+          }
+        } catch {} /* API login is best-effort — IPC login already succeeded */
+      } else { message.error(result.message || '登录失败'); }
+    } catch (err: any) { message.error(err.message || '网络错误'); }
+    finally { setLoading(false); }
   };
 
   return (
