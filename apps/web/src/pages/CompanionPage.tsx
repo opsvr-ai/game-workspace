@@ -230,6 +230,7 @@ const CompanionPage: React.FC = () => {
                 </div>
                 {[...ranking].sort((a:any,b:any)=>b.qualityScore-a.qualityScore).map((r:any,i:number)=>(<div key={r.companionId} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 4px',background:r.companionId===user?.companionId?'#e6f7ff':'transparent',borderRadius:4,marginBottom:1}}>
                   <span style={{minWidth:40}}>{['🥇','🥈','🥉'][i]||`${i+1}`} {r.name?.slice(0,6)}</span>
+                  <Tag color={r.newRate>50?'red':r.newRate>30?'orange':'default'} style={{fontSize:10,margin:0}}>{r.newRate||0}%</Tag>
                   <span style={{minWidth:40,color:'#1677ff',fontWeight:500}}>¥{(r.totalAmount||0).toFixed(0)}</span>
                   <Tag color={r.renewRate>20?'green':'default'} style={{fontSize:10,margin:0}}>{r.renewRate||0}%</Tag>
                   <Tag color={r.repurchaseRate>15?'green':'default'} style={{fontSize:10,margin:0}}>{r.repurchaseRate||0}%</Tag>
