@@ -188,48 +188,60 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* ② Performance Dashboard — today + monthly + ranking */}
+      {/* ② Performance — left chart + right ranking */}
       <Title level={5} style={{ marginBottom: 12 }}>📊 业绩看板</Title>
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-        {[
-          { title: '📅 今日', stats: data?.todayStats, total: data?.todayRevenue },
-          { title: '📆 全月', stats: data?.orderStats, total: data?.totalRevenue || 0 },
-        ].map(({title, stats, total}) => (
-          <Col span={12} key={title}>
-            <Card size="small" title={title} extra={<Text strong style={{color:'#1677ff'}}>¥{(total||0).toFixed(0)}</Text>}>
-              {[{key:'NEW',label:'首单',color:'#1677ff',tip:'少打首单'},{key:'RENEW',label:'续单',color:'#52c41a',tip:'多续单！'},{key:'REPURCHASE',label:'复购',color:'#722ed1',tip:'多复购！'},{key:'TIP',label:'礼物',color:'#fa8c16',tip:'多收礼！'}].map(({key,label,color,tip}) => {
-                const s = stats?.[key] || {count:0,amount:0,ratio:0};
-                return (
-                  <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 0', borderBottom:'1px solid #f0f0f0' }}>
-                    <Tag color={color} style={{minWidth:50,textAlign:'center'}}>{label}</Tag>
-                    <span style={{flex:1,textAlign:'center'}}>
-                      <Text strong style={{fontSize:16}}>{s.count||0}</Text><Text type="secondary"> 单</Text>
-                      <span style={{margin:'0 8px',color:'#d9d9d9'}}>|</span>
-                      <Text style={{color}}>¥{(s.amount||0).toFixed(0)}</Text>
-                    </span>
-                    <Tag color={s.ratio>30?'green':s.ratio>10?'blue':'default'}>{s.ratio||0}%</Tag>
-                    {s.ratio<20 && key!=='NEW' && <Text type="secondary" style={{fontSize:10,marginLeft:4}}>{tip}</Text>}
-                  </div>
-                );
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col span={15}>
+          <Card size="small" title="订单类型 · 今日 vs 全月">
+            {(() => {
+              const types = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}];
+              const chartData = types.map(t => ({
+                name: t.name,
+                todayAmount: data?.todayStats?.[t.key]?.amount || 0,
+                monthAmount: data?.orderStats?.[t.key]?.amount || 0,
+                todayRatio: data?.todayStats?.[t.key]?.ratio || 0,
+                monthRatio: data?.orderStats?.[t.key]?.ratio || 0,
+                todayCount: data?.todayStats?.[t.key]?.count || 0,
+                monthCount: data?.orderStats?.[t.key]?.count || 0,
+              }));
+              return chartData.some(d=>d.todayAmount||d.monthAmount) ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={chartData} barSize={36} barGap={4}>
+                    <XAxis dataKey="name" fontSize={14} tickLine={false}/>
+                    <YAxis fontSize={12} tickLine={false}/>
+                    <Bar dataKey="todayAmount" name="今日" radius={[4,4,0,0]} fill="#1890ff" label={({todayAmount,todayCount})=>todayAmount?`¥${(todayAmount||0).toFixed(0)}·${todayCount}单`:''} labelStyle={{fontSize:10}}/>
+                    <Bar dataKey="monthAmount" name="全月" radius={[4,4,0,0]} fill="#91caff" label={({monthAmount,monthCount})=>monthAmount?`¥${(monthAmount||0).toFixed(0)}·${monthCount}单`:''} labelStyle={{fontSize:10}}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <Empty description="暂无订单数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+            })()}
+            <div style={{ display:'flex', justifyContent:'center', gap:24, marginTop:8 }}>
+              <span><Tag color="blue">■ 今日</Tag> ¥{(data?.todayRevenue||0).toFixed(0)}</span>
+              <span><Tag color="cyan">■ 全月</Tag> ¥{(data?.totalRevenue||0).toFixed(0)}</span>
+              <span>总单 {data?.totalCount||0}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'center', gap:12, marginTop:4, fontSize:12 }}>
+              {[{key:'NEW',name:'首单',color:'#1677ff',tip:'少打首单'},{key:'RENEW',name:'续单',color:'#52c41a',tip:'多续单！'},{key:'REPURCHASE',name:'复购',color:'#722ed1',tip:'多复购！'},{key:'TIP',name:'礼物',color:'#fa8c16',tip:'多收礼！'}].map(({key,name,color,tip}) => {
+                const tr = data?.todayStats?.[key]?.ratio||0;
+                const mr = data?.orderStats?.[key]?.ratio||0;
+                return <span key={key}><Tag color={color}>{name}</Tag> 今日{tr}% · 全月{mr}% {mr<15&&key!=='NEW'?<Text type="secondary" style={{fontSize:10}}>{tip}</Text>:null}</span>;
               })}
-            </Card>
-          </Col>
-        ))}
+            </div>
+          </Card>
+        </Col>
+        <Col span={9}>
+          <Card size="small" title="🏆 优秀陪玩" loading={rankingLoading} style={{height:'100%'}}>
+            {ranking.length > 0 ? (
+              <div style={{fontSize:13,lineHeight:2.4}}>
+                {ranking.map((r:any,i:number)=>(<div key={r.companionId} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'2px 8px',background:r.companionId===user?.companionId?'#e6f7ff':'transparent',borderRadius:4,marginBottom:2}}>
+                  <span>{i<3?['🥇','🥈','🥉'][i]:`${i+1}.`} {r.name?.slice(0,8)}</span>
+                  <span><Text strong style={{color:'#1677ff'}}>¥{(r.totalAmount||0).toFixed(0)}</Text> <Text type="secondary" style={{fontSize:11}}>{r.totalCount||0}单</Text></span>
+                </div>))}
+              </div>
+            ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+          </Card>
+        </Col>
       </Row>
-      {/* Ranking */}
-      <Card size="small" title="🏆 优秀陪玩" style={{ marginBottom: 16 }} loading={rankingLoading}>
-        <Row gutter={8}>
-          {ranking.length > 0 ? ranking.map((r:any, i:number) => (
-            <Col span={Math.floor(24/Math.min(ranking.length,5))} key={r.companionId} style={{ textAlign:'center',
-              background: r.companionId===user?.companionId?'#e6f7ff':'transparent', borderRadius:8, padding:'8px 4px' }}>
-              <div style={{fontSize:20}}>{i<3?['🥇','🥈','🥉'][i]:`${i+1}`}</div>
-              <Text strong style={{fontSize:12}}>{r.name?.slice(0,6)}</Text>
-              <div style={{color:'#1677ff',fontWeight:600}}>¥{(r.totalAmount||0).toFixed(0)}</div>
-              <Text type="secondary" style={{fontSize:11}}>{r.totalCount||0}单</Text>
-            </Col>
-          )) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-        </Row>
-      </Card>
 
       {/* ③ Pending Customers — prominent */}
       <Spin spinning={customersLoading}>
