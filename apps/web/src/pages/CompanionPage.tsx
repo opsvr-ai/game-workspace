@@ -195,7 +195,7 @@ const CompanionPage: React.FC = () => {
           <Card size="small" title="订单占比">
             <Row gutter={8}>
               {[{title:'📅 今日',stats:data?.todayStats,revenue:data?.todayRevenue},{title:'📆 全月',stats:data?.orderStats,revenue:data?.totalRevenue}].map(({title,stats,revenue}) => {
-                const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(t => ({name:t.name,value:stats?.[t.key]?.count||0,color:t.color})).filter(d=>d.value>0);
+                const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(t => ({name:t.name,value:stats?.[t.key]?.count||0,amount:stats?.[t.key]?.amount||0,color:t.color})).filter(d=>d.value>0);
                 return (
                   <Col span={12} key={title} style={{textAlign:'center'}}>
                     <Text strong style={{fontSize:12}}>{title} ¥{(revenue||0).toFixed(0)}</Text>
