@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Button, Typography, Tag, Progress, Spin, Space, Modal, InputNumber, Input, Table, message, Statistic, Tooltip, Empty } from 'antd';
-import { DollarOutlined, ClockCircleOutlined, ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, WalletOutlined, BankOutlined, SwapOutlined, LockOutlined, HourglassOutlined, InfoCircleOutlined, TeamOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Table, message, Tooltip, Empty } from 'antd';
+import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, TeamOutlined, ReloadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
@@ -8,27 +8,11 @@ import { companionStatusConfig } from '../constants';
 
 const { Text, Title } = Typography;
 
-const IconDollar = React.createElement(DollarOutlined);
-const IconClock = React.createElement(ClockCircleOutlined);
 const IconThunder = React.createElement(ThunderboltOutlined);
 const IconPlay = React.createElement(PlayCircleOutlined);
 const IconSearch = React.createElement(SearchOutlined);
 const IconCoffee = React.createElement(CoffeeOutlined);
-const IconWallet = React.createElement(WalletOutlined);
-const IconBank = React.createElement(BankOutlined);
-const IconSwap = React.createElement(SwapOutlined);
 const IconLock = React.createElement(LockOutlined);
-const IconHourglass = React.createElement(HourglassOutlined);
-const IconInfo = React.createElement(InfoCircleOutlined);
-
-const StatBlock: React.FC<{ label: string; value: string | number; icon: React.ReactNode; color: string }> =
-  ({ label, value, icon, color }) => (
-    <Card size="small" style={{ borderLeft: `3px solid ${color}`, textAlign: 'center' }}>
-      <div style={{ fontSize: 24, color, opacity: 0.5, marginBottom: 4 }}>{icon}</div>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
-      <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
-    </Card>
-  );
 
 const CompanionPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -176,191 +160,125 @@ const CompanionPage: React.FC = () => {
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!data) return <Text type="secondary">加载失败</Text>;
 
-  const unlockPct = Math.min(Math.round((data.todayRevenue / data.unlockThreshold) * 100), 100);
-  const freePct = Math.min(Math.round((data.todayRevenue / data.freeThreshold) * 100), 100);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>👤 我的工作台</Title>
-        <Button size="small" onClick={() => { fetchData(); fetchWallet(); fetchMyCustomers(); }} icon={React.createElement(ReloadOutlined)}>刷新数据</Button>
-      {/* ② Order Stats */}
-      <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-        {[{key:'NEW',label:'首单',icon:'🆕',color:'#1677ff'},{key:'RENEW',label:'续单',icon:'🔄',color:'#52c41a'},{key:'REPURCHASE',label:'复购',icon:'🔁',color:'#722ed1'},{key:'TIP',label:'打赏',icon:'🎁',color:'#fa8c16'}].map(({key,label,icon,color}) => (<Col span={6} key={key}><Card size="small" style={{borderLeft:`4px solid ${color}`,textAlign:'center'}}><div style={{fontSize:28}}>{icon}</div><div style={{fontSize:22,fontWeight:700,color}}>{(data?.orderStats?.[key]?.count||0)}<Text style={{fontSize:14,fontWeight:400}}> 单</Text></div><div style={{fontSize:16,fontWeight:600}}>¥{(data?.orderStats?.[key]?.amount||0).toFixed(0)}</div><Tag color={color} style={{marginTop:4}}>{label} · 占{data?.orderStats?.[key]?.ratio||0}%</Tag></Card></Col>))}
-      </Row>
-      <Card size="small" style={{marginBottom:16,textAlign:'center',background:'#f6f8fa'}}><Text>今日 <Text strong>¥{data.todayRevenue}</Text> · 累计 <Text strong>¥{data?.totalRevenue||0}</Text> · 总单 <Text strong>{data?.totalCount||0}</Text> · {data.isUnlocked?'✅ 已解锁':`🔒 还差¥${data.unlockThreshold-data.todayRevenue}`}</Text></Card>
-      </div>
-      <Row gutter={[16, 16]}>
-        <Col span={6}><StatBlock label="今日流水" value={`¥${data.todayRevenue}`} icon={IconDollar} color="#1677ff" /></Col>
-        <Col span={6}><StatBlock label="解锁门槛" value={data.isUnlocked ? '✅ 已解锁' : `¥${data.unlockThreshold}`} icon={IconThunder} color={data.isUnlocked ? '#52c41a' : '#faad14'} /></Col>
-        <Col span={6}><StatBlock label="娱乐计时" value={`${data.entertainmentMinutes}分钟`} icon={IconClock} color="#eb2f96" /></Col>
-        <Col span={6}><StatBlock label="暂扣费用" value={`¥${data.entertainmentFee}`} icon={IconDollar} color="#ff4d4f" /></Col>
-      </Row>
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={16}>
-          <Row gutter={[16, 16]}>
-            <Col span={12}>
-              <Card size="small">
-                <Text>🎯 流水解锁进度：¥{data.todayRevenue} / ¥{data.unlockThreshold}</Text>
-                <Progress percent={unlockPct} status={data.isUnlocked ? 'success' : 'active'} />
-                <Text type="secondary">{data.isUnlocked ? '订单池已解锁 ✅' : `还差 ¥${data.unlockThreshold - data.todayRevenue} 解锁订单池`}</Text>
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card size="small">
-                <Text>🎯 免单门槛：¥{data.freeThreshold}</Text>
-                <Progress percent={freePct} status={data.todayRevenue >= data.freeThreshold ? 'success' : 'active'} strokeColor="#eb2f96" />
-                <Text type="secondary">还差 ¥{Math.max(0, data.freeThreshold - data.todayRevenue)} 免娱乐费</Text>
-              </Card>
-            </Col>
-          </Row>
-          <Row gutter={16} style={{ marginTop: 16 }}>
-            {(['entertainment', 'idle', 'work', 'rest'] as const).map(mode => {
-              const labels = { entertainment: '🎮娱乐', idle: '💼空闲', work: '🔴接单', rest: '🛏️休息' };
-              return (
-                <Col span={6} key={mode}>
-                  <Card size="small" style={{ textAlign: 'center' }}>
-                    <Text type="secondary">{labels[mode]}</Text>
-                    <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{data.statusDurations?.[mode] ?? '00:00'}</div>
-                  </Card>
-                </Col>
-              );
-            })}
-          </Row>
-        </Col>
-        <Col span={8}>
-          <Card size="small" style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ marginBottom: 16 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>当前状态</Text>
-              <div style={{ marginTop: 4 }}>
-                <Tag color={companionStatusConfig[data.currentStatus]?.color || 'default'} style={{ fontSize: 18, padding: '4px 24px', borderRadius: 12 }}>
-                  {companionStatusConfig[data.currentStatus]?.label || data.currentStatus}
-                </Tag>
-              </div>
-            </div>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Tooltip title={belowEntertainment ? `今日流水 ¥${data.todayRevenue}，达标 ¥${entertainmentThreshold} 后可切换` : undefined}>
-                <Button type="default" icon={IconPlay} size="large" onClick={() => switchStatus('ENTERTAINMENT')} block disabled={belowEntertainment}>切换为娱乐中{belowEntertainment ? ` (还差¥${entertainmentThreshold - data.todayRevenue})` : ''}</Button>
-              </Tooltip>
-              <Button type="primary" icon={IconSearch} size="large" onClick={() => switchStatus('AVAILABLE')} block>切换为空闲</Button>
-              <Button type="default" icon={IconThunder} size="large" onClick={() => switchStatus('BUSY')} block>切换为接单中</Button>
-              <Button type="default" icon={IconCoffee} size="large" onClick={() => switchStatus('RESTING')} block>切换为休息中</Button>
-              <div style={{ borderTop: '1px dashed #d9d9d9', paddingTop: 8, marginTop: 4 }}>
-                <Button type="dashed" icon={React.createElement(TeamOutlined)} size="middle" onClick={requestDual} block>🤝 请求双陪</Button>
-              </div>
-            </Space>
-          </Card>
-          <Card title="在线陪玩" size="small">
-            {data.onlineCompanions?.map((c: any) => (
-              <Tag key={c.id} color={companionStatusConfig[c.status]?.color || 'default'} style={{ marginBottom: 8, padding: '4px 12px', fontSize: 14 }}>
-                {c.user?.username} {companionStatusConfig[c.status]?.label || c.status}
+      {/* ① Status Header — compact inline */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row align="middle" gutter={16}>
+          <Col flex="auto">
+            <Space size="middle">
+              <Text strong style={{ fontSize: 18 }}>👤 {user?.username || '陪玩'}</Text>
+              <Tag color={companionStatusConfig[data.currentStatus]?.color || 'default'} style={{ fontSize: 16, padding: '4px 16px', borderRadius: 10 }}>
+                {companionStatusConfig[data.currentStatus]?.label || data.currentStatus}
               </Tag>
-            ))}
-            {(!data.onlineCompanions || data.onlineCompanions.length === 0) && <Text type="secondary">暂无在线陪玩</Text>}
-          </Card>
-        </Col>
-      </Row>
-
-      <Title level={4} style={{ marginTop: 24 }}>📊 分账模式</Title>
-      <Row gutter={[16, 16]}>
-        <Col span={24}>
-          <Card size="small">
-            {data.tierInfo?.mode === 'FIXED' ? (
-              <Text>
-                <Text strong>固定分成</Text>
-                <Text type="secondary"> · </Text>
-                <Text strong style={{ color: '#1677ff', fontSize: 16 }}>{data.tierInfo.companionPct}%</Text>
-                <Text type="secondary" style={{ marginLeft: 8 }}>（每笔流水按此比例分账）</Text>
-              </Text>
-            ) : (
-              <Text>
-                <Text strong>阶梯分成</Text>
-                <Text type="secondary"> · 档位 </Text>
-                <Text strong style={{ color: '#1677ff', fontSize: 16 }}>{data.tierInfo?.companionPct ?? '—'}%</Text>
-                {data.tierInfo?.monthlyRevenue != null && (
-                  <Text type="secondary" style={{ marginLeft: 8 }}>（本月流水 ¥{data.tierInfo.monthlyRevenue}）</Text>
-                )}
-              </Text>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      <Title level={4} style={{ marginTop: 24 }}>💰 报账系统</Title>
-      <Card size="small" style={{ textAlign: 'center' }}>
-        <Row gutter={16}>
-          <Col span={8}><Statistic title="总流水" value={`¥${(wallet?.totalRevenue ?? 0).toFixed(2)}`} prefix={IconDollar} /></Col>
-          <Col span={8}><Statistic title="可支取" value={`¥${(wallet?.withdrawable ?? 0).toFixed(2)}`} prefix={IconSwap} valueStyle={{ color: (wallet?.withdrawable ?? 0) > 0 ? '#52c41a' : '#999' }} /></Col>
-          <Col span={8}><Statistic title="押金" value={`¥${(wallet?.deposit ?? 0).toFixed(2)}`} prefix={IconBank} /></Col>
+              <Text type="secondary">今日¥{data.todayRevenue} · 娱乐{data.entertainmentMinutes}min · {data.statusDurations?.entertainment || '00:00'}</Text>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Tooltip title={belowEntertainment ? `今日流水 ¥${data.todayRevenue}，达标 ¥${entertainmentThreshold} 后可切换` : undefined}>
+                <Button icon={IconPlay} onClick={() => switchStatus('ENTERTAINMENT')} disabled={belowEntertainment}>娱乐</Button>
+              </Tooltip>
+              <Button type="primary" icon={IconSearch} onClick={() => switchStatus('AVAILABLE')}>空闲</Button>
+              <Button icon={IconThunder} onClick={() => switchStatus('BUSY')}>接单</Button>
+              <Button icon={IconCoffee} onClick={() => switchStatus('RESTING')}>休息</Button>
+              <Button type="dashed" icon={React.createElement(TeamOutlined)} onClick={requestDual}>🤝 双陪</Button>
+              <Button size="small" onClick={() => { fetchData(); fetchWallet(); fetchMyCustomers(); }} icon={React.createElement(ReloadOutlined)} />
+            </Space>
+          </Col>
         </Row>
-        <div style={{ marginTop: 16 }}>
-          <Button type="primary" icon={IconSwap} onClick={() => { window.location.href = '/companion/billing'; }}>
-            进入报账系统（支取记录 / 申请支取）
-          </Button>
-        </div>
       </Card>
 
-      {/* TASK-10: 我的待跟进客户 */}
-      <Spin spinning={customersLoading}>
-        <Title level={4} style={{ marginTop: 24 }}>📋 我的待跟进客户</Title>
-        {(() => {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const pendingCustomers = myCustomers.filter((c: any) => {
-            const hasSpent = (c.totalSpent ?? 0) > 0;
-            if (!hasSpent) return true; // Never spent — always show
-            const latestFollowUp = c.followUps?.[0];
-            if (!latestFollowUp) return true; // No follow-up ever
-            return new Date(latestFollowUp.createdAt) < sevenDaysAgo;
-          });
-
-          if (pendingCustomers.length === 0) {
-            return (
-              <Card size="small">
-                <Empty description="暂无待跟进客户" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              </Card>
-            );
-          }
-
+      {/* ② Order Stats — 4 big cards */}
+      <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+        {[
+          { key: 'NEW', label: '首单', icon: '🆕', color: '#1677ff' },
+          { key: 'RENEW', label: '续单', icon: '🔄', color: '#52c41a' },
+          { key: 'REPURCHASE', label: '复购', icon: '🔁', color: '#722ed1' },
+          { key: 'TIP', label: '打赏', icon: '🎁', color: '#fa8c16' },
+        ].map(({ key, label, icon, color }) => {
+          const s = data?.orderStats?.[key] || { count: 0, amount: 0, ratio: 0 };
           return (
-            <Table
-              dataSource={pendingCustomers}
-              rowKey="id"
-              size="small"
-              pagination={{ pageSize: 5 }}
-              locale={{ emptyText: '暂无待跟进客户' }}
-            >
-              <Table.Column title="客户编号" dataIndex="customerCode" width={120} render={(v: string) => <Text code>{v}</Text>} />
-              <Table.Column title="微信" dataIndex="wechatId" width={120} render={(v: string) => v || '-'} />
-              <Table.Column title="来源" dataIndex="platform" width={80} render={(v: string) => v ? <Tag>{v}</Tag> : '-'} />
-              <Table.Column title="最近跟进" width={140} render={(_: any, c: any) => {
-                const latest = c.followUps?.[0];
-                return latest
-                  ? <Tooltip title={latest.content}><Text type="secondary" style={{ fontSize: 12 }}>{new Date(latest.createdAt).toLocaleString('zh-CN')}</Text></Tooltip>
-                  : <Tag color="orange">从未跟进</Tag>;
+            <Col span={6} key={key}>
+              <Card size="small" style={{ borderLeft: `4px solid ${color}`, textAlign: 'center', height: '100%' }}>
+                <div style={{ fontSize: 24 }}>{icon}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color }}>{s.count}<Text style={{ fontSize: 14, fontWeight: 400 }}> 单</Text></div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>¥{s.amount.toFixed(0)}</div>
+                <Tag color={color} style={{ marginTop: 4 }}>{label} · 占{s.ratio}%</Tag>
+              </Card>
+            </Col>
+          );
+        })}
+      </Row>
+      <Card size="small" style={{ marginBottom: 16, textAlign: 'center', background: '#f6f8fa' }}>
+        <Text>
+          今日 <Text strong>¥{data.todayRevenue}</Text> · 累计 <Text strong>¥{data?.totalRevenue || 0}</Text> · 总单 <Text strong>{data?.totalCount || 0}</Text>
+          {data.isUnlocked ? ' · ✅ 订单池已解锁' : ` · 🔒 还差¥${data.unlockThreshold - data.todayRevenue}解锁`}
+        </Text>
+      </Card>
+
+      {/* ③ Pending Customers — prominent */}
+      <Spin spinning={customersLoading}>
+        <Title level={5} style={{ marginBottom: 8 }}>
+          📋 待跟进客户
+          {(() => {
+            const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const pending = myCustomers.filter((c: any) => {
+              const spent = (c.totalSpent ?? 0) > 0;
+              if (!spent) return true;
+              const f = c.followUps?.[0];
+              if (!f) return true;
+              return new Date(f.createdAt) < sevenDaysAgo;
+            });
+            return <Tag color={pending.length > 0 ? 'red' : 'default'} style={{ marginLeft: 8 }}>{pending.length}人</Tag>;
+          })()}
+          <Button type="link" size="small" style={{ float: 'right' }} onClick={() => window.location.href = '/companion/customers'}>查看全部 →</Button>
+        </Title>
+        {(() => {
+          const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const pendingCustomers = myCustomers.filter((c: any) => {
+            const spent = (c.totalSpent ?? 0) > 0;
+            if (!spent) return true;
+            const f = c.followUps?.[0];
+            if (!f) return true;
+            return new Date(f.createdAt) < sevenDaysAgo;
+          });
+          if (pendingCustomers.length === 0) return <Card size="small"><Empty description="暂无待跟进客户" image={Empty.PRESENTED_IMAGE_SIMPLE} /></Card>;
+          return (
+            <Table dataSource={pendingCustomers.slice(0, 5)} rowKey="id" size="small" pagination={false} style={{ marginBottom: 16 }}>
+              <Table.Column title="编号" dataIndex="customerCode" width={100} render={(v: string) => <Text code>{v}</Text>} />
+              <Table.Column title="微信" dataIndex="wechatId" width={100} render={(v: string) => v || '-'} />
+              <Table.Column title="来源" dataIndex="platform" width={70} render={(v: string) => v ? <Tag>{v}</Tag> : '-'} />
+              <Table.Column title="跟进" width={90} render={(_: any, c: any) => {
+                const f = c.followUps?.[0];
+                return f ? <Text style={{ fontSize: 11 }}>{new Date(f.createdAt).toLocaleDateString('zh-CN')}</Text> : <Tag color="red">未跟进</Tag>;
               }} />
-              <Table.Column title="状态" dataIndex="status" width={100} render={(s: string) => {
-                const statusMap: Record<string, { color: string; label: string }> = {
-                  PENDING_DEVELOPMENT: { color: 'blue', label: '待开发' },
-                  FOLLOW_UP: { color: 'orange', label: '跟进中' },
-                  ACTIVE: { color: 'green', label: '活跃' },
-                  LOST: { color: 'default', label: '已流失' },
-                };
-                const info = statusMap[s] || { color: 'default', label: s };
-                return <Tag color={info.color}>{info.label}</Tag>;
-              }} />
-              <Table.Column title="操作" width={100} render={(_: any, c: any) => (
-                <Button type="link" size="small" icon={IconInfo} onClick={() => window.location.href = `/companion/customers/${c.id}`}>
-                  跟进
-                </Button>
+              <Table.Column title="操作" width={60} render={(_: any, c: any) => (
+                <Button type="link" size="small" onClick={() => window.location.href = `/companion/customers/${c.id}`}>跟进</Button>
               )} />
             </Table>
           );
         })()}
       </Spin>
 
+      {/* ④ Banner: Billing + Ranking */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Text strong>💰 报账</Text><br />
+            <Text>总流水 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥{(wallet?.deposit ?? 0).toFixed(0)}</Text><br />
+            <Button type="primary" size="small" style={{ marginTop: 8 }} onClick={() => window.location.href = '/companion/billing'}>进入报账系统 →</Button>
+          </Col>
+          <Col span={12}>
+            <Text strong>🏆 本月排行</Text><br />
+            <Button type="link" size="small" onClick={() => window.location.href = '/companion/companions'}>查看完整排行 →</Button>
+          </Col>
+        </Row>
+      </Card>
 
+      {/* Keep existing modals */}
       <Modal title="⚠️ 无法切换娱乐模式" open={!!blockedModal} onCancel={() => setBlockedModal(null)} footer={null}>
         <div style={{ lineHeight: 2.2 }}>
           <p>您当前没有未支取的余额，无法开启娱乐模式：</p>

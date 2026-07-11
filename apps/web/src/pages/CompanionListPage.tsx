@@ -38,7 +38,7 @@ const CompanionListPage: React.FC = () => {
             render: (_: any, r: any) => (
               <Space>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', display: 'inline-block',
-                  background: r.status === 'BUSY' ? '#FF4757' : r.status === 'AVAILABLE' ? '#00E676' :
+                  background: r.status === 'BUSY' ? '#FF4757' : r.status === 'AVAILABLE' ? '#00E676' : r.status === 'ENTERTAINMENT' ? '#FFD600' : r.status === 'RESTING' ? '#FF9500' : '#94A3B8',
                 }} />
                 <Text strong>{r.user?.username || r.id}</Text>
                 {r.realName && <Text type="secondary" style={{ fontSize: 11 }}>{r.realName}</Text>}
