@@ -24,20 +24,20 @@ export class AiService {
     const apiKey = process.env.DOUBAO_API_KEY;
     if (apiKey) {
       try {
-        const prompt = `你是游戏陪玩业绩顾问。根据数据给建议（50字内）：总流水¥${totalAmount}，${totalCount}单。首单${newRate}%，续单率${renewRate}%，复购率${repurchaseRate}%，礼物${tipRatio}%。行业标准续单率≥30%复购率≥30%。低于标准严厉指出，达标表扬。`;
+        const prompt = `你是游戏陪玩业绩教练。陪玩数据：总流水¥${totalAmount}，${totalCount}单，首单${newRate}%，续单率${renewRate}%，复购率${repurchaseRate}%，礼物占比${tipRatio}%。行业标准：续单率≥30%，复购率≥30%，礼物≥15%。请给出3条具体可执行建议（每条15字内），告诉陪玩怎么做才能提高续单率、复购率、多收礼物。例如：打完主动加微信约下次、服务到位了直接要礼物、老客户给折扣存单。`;
         const { data } = await axios.post('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
           model: 'ep-20240617223045-7mh8q', messages: [{role:'user',content:prompt}], max_tokens: 150,
         }, { headers: {'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`}, timeout: 8000 });
         return { advice: data.choices?.[0]?.message?.content || 'AI 暂时无法响应', fromAI: true };
       } catch { /* fallback */ }
     }
-    const issues: string[] = [];
-    if (newRate > 50) issues.push(`首单占比${newRate}%过高！`);
-    if (renewRate < 30) issues.push(`续单率${renewRate}%低于30%标准！`);
-    if (repurchaseRate < 30) issues.push(`复购率${repurchaseRate}%不达标！`);
-    if (tipRatio < 15) issues.push(`礼物占比${tipRatio}%偏低！`);
-    if (!issues.length) issues.push('续单率复购率都达标，继续加油！');
-    return { advice: issues.join(' '), fromAI: false };
+    const tips: string[] = [];
+    if (newRate > 50) tips.push(`首单${newRate}%过高，少打新单多维护老客户`);
+    if (renewRate < 30) tips.push(`续单率${renewRate}%不达标：打完主动加微信，约定下次时间，给存单折扣`);
+    if (repurchaseRate < 30) tips.push(`复购率${repurchaseRate}%不达标：提高服务质量，记住客户偏好，定期问候`);
+    if (tipRatio < 15) tips.push(`礼物${tipRatio}%偏低：服务满意直接开口要礼物，节日生日主动提醒`);
+    if (!tips.length) tips.push('🎉 各项指标优秀，继续保持！');
+    return { advice: tips.join('。') + '。', fromAI: false };
   }
 
   async analyzeCustomer(customerId: string) {
