@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Table, message, Tooltip, Empty } from 'antd';
 import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
@@ -179,27 +180,34 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* ② Order Stats — 4 big cards */}
+      {/* ② Order Stats — charts */}
       <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
-      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-        {[
-          { key: 'NEW', label: '首单', icon: '首', color: '#1677ff' },
-          { key: 'RENEW', label: '续单', icon: '续', color: '#52c41a' },
-          { key: 'REPURCHASE', label: '复购', icon: '复', color: '#722ed1' },
-          { key: 'TIP', label: '打赏', icon: '礼', color: '#fa8c16' },
-        ].map(({ key, label, icon, color }) => {
-          const s = data?.orderStats?.[key] || { count: 0, amount: 0, ratio: 0 };
-          return (
-            <Col span={6} key={key}>
-              <Card size="small" style={{ borderLeft: `4px solid ${color}`, textAlign: 'center', height: '100%' }}>
-                <div style={{ fontSize: 24 }}>{icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color }}>{s.count}<Text style={{ fontSize: 14, fontWeight: 400 }}> 单</Text></div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>¥{s.amount.toFixed(0)}</div>
-                <Tag color={color} style={{ marginTop: 4 }}>{label} · 占{s.ratio}%</Tag>
-              </Card>
-            </Col>
-          );
-        })}
+      <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
+        <Col span={12}>
+          <Card size="small" title="订单分布">
+            {(() => {
+              const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'打赏',color:'#fa8c16'}].map(t => ({name:t.name,value:data?.orderStats?.[t.key]?.count||0,color:t.color})).filter(d=>d.value>0);
+              return pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({name,value})=>`${name} ${value}单`}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
+                </ResponsiveContainer>
+              ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+            })()}
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card size="small" title="金额分布">
+            {(() => {
+              const barData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'打赏',color:'#fa8c16'}].map(t => ({name:t.name,amount:data?.orderStats?.[t.key]?.amount||0,fill:t.color}));
+              const hasData = barData.some(d=>d.amount>0);
+              return hasData ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={barData}><XAxis dataKey="name" fontSize={12}/><YAxis fontSize={12}/><Bar dataKey="amount" radius={[4,4,0,0]}>{barData.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar></BarChart>
+                </ResponsiveContainer>
+              ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+            })()}
+          </Card>
+        </Col>
       </Row>
       <Card size="small" style={{ marginBottom: 16, textAlign: 'center', background: '#f6f8fa' }}>
         <Text>
