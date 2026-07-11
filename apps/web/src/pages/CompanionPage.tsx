@@ -218,27 +218,30 @@ const CompanionPage: React.FC = () => {
             </div>
           </Card>
         </Col>
+        <Col span={11}>
+          <Card size="small" title={<span>🏆 实力排行<Text type="secondary" style={{fontSize:10,marginLeft:8}}>续单×2+复购×3+礼物×2−首单×0.5</Text></span>} loading={rankingLoading} style={{height:'100%'}}>
+            {ranking.length > 0 ? (
+              <table style={{width:'100%',fontSize:11,borderCollapse:'collapse'}}>
+                <thead><tr style={{color:'#999',borderBottom:'1px solid #f0f0f0'}}>
+                  <th style={{textAlign:'left',padding:2}}>陪玩</th><th style={{padding:2}}>流水</th><th style={{padding:2}}>首单</th><th style={{padding:2}}>续单</th><th style={{padding:2}}>复购</th><th style={{padding:2}}>礼物</th><th style={{textAlign:'right',padding:2}}>评分</th>
+                </tr></thead>
+                <tbody>{[...ranking].sort((a:any,b:any)=>b.qualityScore-a.qualityScore).map((r:any,i:number)=>(<tr key={r.companionId} style={{background:r.companionId===user?.companionId?'#e6f7ff':'transparent'}}>
+                  <td style={{padding:3}}>{['🥇','🥈','🥉'][i]||`${i+1}`} {r.name?.slice(0,6)}</td>
+                  <td style={{color:'#1677ff',fontWeight:500,textAlign:'center'}}>¥{(r.totalAmount||0).toFixed(0)}</td>
+                  <td style={{textAlign:'center'}}><Tag color={r.newRate>50?'red':r.newRate>30?'orange':'default'} style={{fontSize:10,margin:0}}>{r.newRate||0}%</Tag></td>
+                  <td style={{textAlign:'center'}}><Tag color={r.renewRate>20?'green':'default'} style={{fontSize:10,margin:0}}>{r.renewRate||0}%</Tag></td>
+                  <td style={{textAlign:'center'}}><Tag color={r.repurchaseRate>15?'green':'default'} style={{fontSize:10,margin:0}}>{r.repurchaseRate||0}%</Tag></td>
+                  <td style={{textAlign:'center'}}><Tag color={r.tipRatio>10?'gold':'default'} style={{fontSize:10,margin:0}}>{r.tipRatio||0}%</Tag></td>
+                  <td style={{textAlign:'right',fontWeight:600,color:r.qualityScore>50?'#52c41a':'#999'}}>{r.qualityScore||0}</td>
+                </tr>))}</tbody>
+              </table>
+            ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            <div style={{textAlign:'center',marginTop:8}}>
+              <Button type="link" size="small" onClick={() => window.location.href = '/companion/companions'}>查看完整排行 →</Button>
+            </div>
+          </Card>
+        </Col>
       </Row>
-
-      {/* Ranking — full width below charts */}
-      <Card size="small" title={<span>🏆 实力排行<Text type="secondary" style={{fontSize:10,marginLeft:8}}>续单×2+复购×3+礼物×2−首单×0.5</Text></span>} loading={rankingLoading} style={{ marginBottom: 16 }}>
-        {ranking.length > 0 ? (
-          <table style={{width:'100%',fontSize:11,borderCollapse:'collapse'}}>
-            <thead><tr style={{color:'#999',borderBottom:'1px solid #f0f0f0'}}>
-              <th style={{textAlign:'left',padding:2}}>陪玩</th><th style={{padding:2}}>流水</th><th style={{padding:2}}>首单</th><th style={{padding:2}}>续单</th><th style={{padding:2}}>复购</th><th style={{padding:2}}>礼物</th><th style={{textAlign:'right',padding:2}}>评分</th>
-            </tr></thead>
-            <tbody>{[...ranking].sort((a:any,b:any)=>b.qualityScore-a.qualityScore).map((r:any,i:number)=>(<tr key={r.companionId} style={{background:r.companionId===user?.companionId?'#e6f7ff':'transparent'}}>
-              <td style={{padding:3}}>{['🥇','🥈','🥉'][i]||`${i+1}`} {r.name?.slice(0,6)}</td>
-              <td style={{color:'#1677ff',fontWeight:500,textAlign:'center'}}>¥{(r.totalAmount||0).toFixed(0)}</td>
-              <td style={{textAlign:'center'}}><Tag color={r.newRate>50?'red':r.newRate>30?'orange':'default'} style={{fontSize:10,margin:0}}>{r.newRate||0}%</Tag></td>
-              <td style={{textAlign:'center'}}><Tag color={r.renewRate>20?'green':'default'} style={{fontSize:10,margin:0}}>{r.renewRate||0}%</Tag></td>
-              <td style={{textAlign:'center'}}><Tag color={r.repurchaseRate>15?'green':'default'} style={{fontSize:10,margin:0}}>{r.repurchaseRate||0}%</Tag></td>
-              <td style={{textAlign:'center'}}><Tag color={r.tipRatio>10?'gold':'default'} style={{fontSize:10,margin:0}}>{r.tipRatio||0}%</Tag></td>
-              <td style={{textAlign:'right',fontWeight:600,color:r.qualityScore>50?'#52c41a':'#999'}}>{r.qualityScore||0}</td>
-            </tr>))}</tbody>
-          </table>
-        ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-      </Card>
 
       {/* ③ Pending Customers — prominent */}
       <Spin spinning={customersLoading}>
