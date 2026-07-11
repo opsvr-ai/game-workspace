@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer }
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
+import http from '../api/client';
 import { companionStatusConfig } from '../constants';
 
 const { Text, Title } = Typography;
@@ -17,6 +18,13 @@ const IconLock = React.createElement(LockOutlined);
 
 const CompanionPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(true);
+
+  const fetchRanking = useCallback(async () => {
+    try { const { data: res } = await http.get('/companions/ranking?type=revenue'); setRanking((res.data||[]).slice(0,5)); }
+    catch {} finally { setRankingLoading(false); }
+  }, []);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,11 +71,11 @@ const CompanionPage: React.FC = () => {
     }
   }, [user?.companionId]);
 
-  useEffect(() => { fetchData(); fetchWallet(); fetchMyCustomers(); const t = setInterval(() => { fetchData(); fetchWallet(); }, 30_000); return () => clearInterval(t); }, [fetchData, fetchWallet, fetchMyCustomers]);
+  useEffect(() => { fetchData(); fetchWallet(); fetchMyCustomers(); fetchRanking(); const t = setInterval(() => { fetchData(); fetchWallet(); }, 30_000); return () => clearInterval(t); }, [fetchData, fetchWallet, fetchMyCustomers]);
 
   // Auto-refresh when tab becomes visible (catches data changes from admin panel / Electron)
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') { fetchData(); fetchWallet(); fetchMyCustomers(); } };
+    const onVisible = () => { if (document.visibilityState === 'visible') { fetchData(); fetchWallet(); fetchMyCustomers(); fetchRanking(); } };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     return () => { document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); };
@@ -180,32 +188,33 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* ② Order Stats — charts */}
+      {/* ② Order Stats Chart + Ranking */}
       <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
       <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
-        <Col span={12}>
-          <Card size="small" title="订单分布">
+        <Col span={14}>
+          <Card size="small" title="订单金额分布">
             {(() => {
-              const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'打赏',color:'#fa8c16'}].map(t => ({name:t.name,value:data?.orderStats?.[t.key]?.count||0,color:t.color})).filter(d=>d.value>0);
-              return pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({name,value})=>`${name} ${value}单`}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
+              const barData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'打赏',color:'#fa8c16'}].map(t => ({name:t.name,amount:data?.orderStats?.[t.key]?.amount||0,count:data?.orderStats?.[t.key]?.count||0,fill:t.color}));
+              return barData.some(d=>d.amount>0||d.count>0) ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={barData}><XAxis dataKey="name" fontSize={13} tickLine={false}/><YAxis fontSize={12} tickLine={false}/><Bar dataKey="amount" radius={[4,4,0,0]} label={({amount,count})=>`¥${(amount||0).toFixed(0)}·${count||0}单`} labelStyle={{fontSize:11}}>{barData.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar></BarChart>
                 </ResponsiveContainer>
-              ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+              ) : <Empty description="暂无订单数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
             })()}
           </Card>
         </Col>
-        <Col span={12}>
-          <Card size="small" title="金额分布">
-            {(() => {
-              const barData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'打赏',color:'#fa8c16'}].map(t => ({name:t.name,amount:data?.orderStats?.[t.key]?.amount||0,fill:t.color}));
-              const hasData = barData.some(d=>d.amount>0);
-              return hasData ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={barData}><XAxis dataKey="name" fontSize={12}/><YAxis fontSize={12}/><Bar dataKey="amount" radius={[4,4,0,0]}>{barData.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar></BarChart>
-                </ResponsiveContainer>
-              ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
-            })()}
+        <Col span={10}>
+          <Card size="small" title="🏆 流水排行 TOP5" loading={rankingLoading}>
+            {ranking.length > 0 ? (
+              <div style={{ fontSize: 13, lineHeight: 2.2 }}>
+                {ranking.map((r:any, i:number) => (
+                  <div key={r.companionId} style={{ display:'flex', justifyContent:'space-between', padding:'2px 8px', background: r.companionId===user?.companionId?'#e6f7ff':'transparent', borderRadius:4 }}>
+                    <span>{i<3?['🥇','🥈','🥉'][i]:`${i+1}.`} {r.name?.slice(0,8)}</span>
+                    <span style={{fontWeight:600,color:'#1677ff'}}>¥{(r.totalAmount||0).toFixed(0)} <Text type="secondary" style={{fontSize:11}}>{r.totalCount||0}单</Text></span>
+                  </div>
+                ))}
+              </div>
+            ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
           </Card>
         </Col>
       </Row>
