@@ -287,19 +287,11 @@ const CompanionPage: React.FC = () => {
         })()}
       </Spin>
 
-      {/* ④ Banner: Billing + Ranking */}
+      {/* ④ Billing entry */}
       <Card size="small" style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Text strong>💰 报账</Text><br />
-            <Text>总流水 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥{(wallet?.deposit ?? 0).toFixed(0)}</Text><br />
-            <Button type="primary" size="small" style={{ marginTop: 8 }} onClick={() => window.location.href = '/companion/billing'}>进入报账系统 →</Button>
-          </Col>
-          <Col span={12}>
-            <Text strong>🏆 本月排行</Text><br />
-            <Button type="link" size="small" onClick={() => window.location.href = '/companion/companions'}>查看完整排行 →</Button>
-          </Col>
-        </Row>
+        <Text strong>💰 报账</Text><br />
+        <Text>总流水 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥{(wallet?.deposit ?? 0).toFixed(0)}</Text><br />
+        <Button type="primary" size="small" style={{ marginTop: 8 }} onClick={() => window.location.href = '/companion/billing'}>进入报账系统 →</Button>
       </Card>
 
       {/* Keep existing modals */}
