@@ -209,17 +209,11 @@ const CompanionPage: React.FC = () => {
               })}
             </Row>
             <div style={{textAlign:'center',marginTop:8,fontSize:11}}>
-              {(() => {
-                const rn = data?.orderStats?.RENEW?.ratio || 0;
-                const rp = data?.orderStats?.REPURCHASE?.ratio || 0;
-                const tp = data?.orderStats?.TIP?.ratio || 0;
-                const items = [
-                  {label:'续单率',val:rn,target:30},
-                  {label:'复购率',val:rp,target:30},
-                  {label:'礼物占比',val:tp,target:15},
-                ];
-                return <Text type="secondary">🤖 AI建议：{items.map(({label,val,target},i)=><span key={label}>{i>0?' · ':''}{label}<Text strong style={{color:val>=target?'#52c41a':'#ff4d4f'}}>{val}%</Text>{val<target?<span style={{color:'#ff4d4f'}}>（低于{target}%）</span>:''}</span>)}</Text>;
-              })()}
+              {aiAdvice ? (
+                <Text type="secondary">🤖 AI建议：{aiAdvice}</Text>
+              ) : (
+                <Text type="secondary" onClick={() => http.post('/ai/advice').then(({data}:any) => setAiAdvice(data.data?.advice)).catch(()=>{})} style={{cursor:'pointer'}}>🤖 点击获取AI建议</Text>
+              )}
             </div>
           </Card>
         </Col>
