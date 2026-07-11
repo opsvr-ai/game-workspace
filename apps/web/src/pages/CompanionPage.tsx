@@ -183,10 +183,10 @@ const CompanionPage: React.FC = () => {
       <Title level={5} style={{ marginBottom: 12 }}>📊 我的业绩</Title>
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         {[
-          { key: 'NEW', label: '首单', icon: '🆕', color: '#1677ff' },
-          { key: 'RENEW', label: '续单', icon: '🔄', color: '#52c41a' },
-          { key: 'REPURCHASE', label: '复购', icon: '🔁', color: '#722ed1' },
-          { key: 'TIP', label: '打赏', icon: '🎁', color: '#fa8c16' },
+          { key: 'NEW', label: '首单', icon: '首', color: '#1677ff' },
+          { key: 'RENEW', label: '续单', icon: '续', color: '#52c41a' },
+          { key: 'REPURCHASE', label: '复购', icon: '复', color: '#722ed1' },
+          { key: 'TIP', label: '打赏', icon: '礼', color: '#fa8c16' },
         ].map(({ key, label, icon, color }) => {
           const s = data?.orderStats?.[key] || { count: 0, amount: 0, ratio: 0 };
           return (
