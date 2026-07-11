@@ -201,7 +201,7 @@ const CompanionPage: React.FC = () => {
                     <Text strong style={{fontSize:12}}>{title} ¥{(revenue||0).toFixed(0)}</Text>
                     {pieData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={150}>
-                        <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} innerRadius={25} label={({name,value,percent})=>`${name} ${value}单 ${(percent*100).toFixed(0)}%`} labelStyle={{fontSize:10}}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
+                        <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} innerRadius={25} label={({name,value,percent,payload})=>`${name} ${value}单 ¥${payload.amount||0} ${(percent*100).toFixed(0)}%`} labelStyle={{fontSize:10}}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
                       </ResponsiveContainer>
                     ) : <Empty description="暂无" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{margin:'20px 0'}}/>}
                   </Col>
