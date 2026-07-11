@@ -236,9 +236,6 @@ const CompanionPage: React.FC = () => {
                 </tr>))}</tbody>
               </table>
             ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-            <div style={{textAlign:'center',marginTop:8}}>
-              <Button type="link" size="small" onClick={() => window.location.href = '/companion/companions'}>查看完整排行 →</Button>
-            </div>
           </Card>
         </Col>
       </Row>
