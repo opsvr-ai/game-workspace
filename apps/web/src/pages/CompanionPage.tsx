@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Table, message, Tooltip, Empty } from 'antd';
 import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
-import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { XAxis, YAxis, ResponsiveContainer, PieChart, Pie } from 'recharts';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
@@ -192,31 +192,23 @@ const CompanionPage: React.FC = () => {
       <Title level={5} style={{ marginBottom: 12 }}>📊 业绩看板</Title>
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={13}>
-          <Card size="small" title="今日 vs 全月">
-            {(() => {
-              const types = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}];
-              const chartData = types.map(t => ({name:t.name,todayAmount:data?.todayStats?.[t.key]?.amount||0,monthAmount:data?.orderStats?.[t.key]?.amount||0,todayCount:data?.todayStats?.[t.key]?.count||0,monthCount:data?.orderStats?.[t.key]?.count||0}));
-              return chartData.some(d=>d.todayAmount||d.monthAmount) ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={chartData} barSize={28} barGap={4}>
-                    <XAxis dataKey="name" fontSize={13} tickLine={false}/>
-                    <YAxis fontSize={11} tickLine={false}/>
-                    <Bar dataKey="todayAmount" name="今日" radius={[4,4,0,0]} fill="#1890ff" label={({todayAmount,todayCount})=>todayAmount?`¥${(todayAmount||0).toFixed(0)}·${todayCount||0}单`:`${todayCount||0}单`} labelStyle={{fontSize:10}}/>
-                    <Bar dataKey="monthAmount" name="全月" radius={[4,4,0,0]} fill="#91caff" label={({monthAmount,monthCount})=>monthAmount?`¥${(monthAmount||0).toFixed(0)}·${monthCount||0}单`:`${monthCount||0}单`} labelStyle={{fontSize:10}}/>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
-            })()}
-            <div style={{display:'flex',justifyContent:'center',gap:16,marginTop:6,fontSize:12}}>
-              <span>📅今日<Text strong>¥{(data?.todayRevenue||0).toFixed(0)}</Text></span>
-              <span>📆全月<Text strong>¥{(data?.totalRevenue||0).toFixed(0)}</Text></span>
-              <span>总{data?.totalCount||0}单</span>
-              {data.isUnlocked?'✅':'🔒'}
-            </div>
-            <div style={{display:'flex',justifyContent:'center',gap:6,marginTop:2,fontSize:11}}>
-              {[{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(({key,name,color})=>{const tr=data?.todayStats?.[key]?.ratio||0;const mr=data?.orderStats?.[key]?.ratio||0;return <Tag key={key} color={color} style={{fontSize:10,margin:0}}>{name} {tr}|{mr}%</Tag>;})}
-            </div>
-            <div style={{textAlign:'center',marginTop:4,fontSize:11}}>
+          <Card size="small" title="订单占比">
+            <Row gutter={8}>
+              {[{title:'📅 今日',stats:data?.todayStats,revenue:data?.todayRevenue},{title:'📆 全月',stats:data?.orderStats,revenue:data?.totalRevenue}].map(({title,stats,revenue}) => {
+                const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(t => ({name:t.name,value:stats?.[t.key]?.count||0,color:t.color})).filter(d=>d.value>0);
+                return (
+                  <Col span={12} key={title} style={{textAlign:'center'}}>
+                    <Text strong style={{fontSize:12}}>{title} ¥{(revenue||0).toFixed(0)}</Text>
+                    {pieData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={150}>
+                        <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} innerRadius={25} label={({name,value,percent})=>`${name} ${value}单 ${(percent*100).toFixed(0)}%`} labelStyle={{fontSize:10}}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
+                      </ResponsiveContainer>
+                    ) : <Empty description="暂无" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{margin:'20px 0'}}/>}
+                  </Col>
+                );
+              })}
+            </Row>
+            <div style={{textAlign:'center',marginTop:8,fontSize:11}}>
               <Text type="secondary">💡 续单率+复购率+礼物占比 才是真本事。首单人人会打。</Text>
             </div>
           </Card>
