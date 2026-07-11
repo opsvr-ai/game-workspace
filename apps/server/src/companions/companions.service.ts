@@ -80,7 +80,13 @@ export class CompanionsService {
       else if (type === 'repurchase_rate') score = totalCount > 0 ? typeCounts.REPURCHASE / totalCount * 100 : 0;
       else if (type === 'tip_ratio') score = totalAmount > 0 ? (orders.filter(o=>o.type==='TIP').reduce((s,o)=>s+o.amount,0)) / totalAmount * 100 : 0;
 
-      return { companionId: c.id, name: c.user?.displayName || c.user?.username || c.id, totalAmount: Math.round(totalAmount*100)/100, totalCount, score: Math.round(score*100)/100 };
+      const newRate = totalCount > 0 ? Math.round(typeCounts.NEW/totalCount*100) : 0;
+      const renewRate = totalCount > 0 ? Math.round(typeCounts.RENEW/totalCount*100) : 0;
+      const repurchaseRate = totalCount > 0 ? Math.round(typeCounts.REPURCHASE/totalCount*100) : 0;
+      const tipAmount = orders.filter(o=>o.type==='TIP').reduce((s,o)=>s+o.amount,0);
+      const tipRatio = totalAmount > 0 ? Math.round(tipAmount/totalAmount*100) : 0;
+      const qualityScore = Math.round((renewRate*2 + repurchaseRate*3 + tipRatio*2 - newRate*0.5) * 100) / 100;
+      return { companionId: c.id, name: c.user?.displayName || c.user?.username || c.id, totalAmount: Math.round(totalAmount*100)/100, totalCount, newRate, renewRate, repurchaseRate, tipRatio, tipAmount: Math.round(tipAmount*100)/100, qualityScore, score: Math.round(score*100)/100 };
     }));
 
     results.sort((a,b) => b.score - a.score);
