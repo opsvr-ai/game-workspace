@@ -259,6 +259,7 @@ export class OrdersService {
     if (body.scheduledAt !== undefined) data.scheduledAt = new Date(body.scheduledAt);
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.screenshotUrl !== undefined) data.screenshotUrl = body.screenshotUrl;
+    if (body.workWechatId !== undefined) { const order2 = await this.prisma.order.findUnique({ where: { id: orderId }, select: { customFields: true } }); const cf2 = (order2?.customFields as any) || {}; data.customFields = { ...cf2, workWechatId: body.workWechatId }; }
     const updated = await this.prisma.order.update({ where: { id: orderId }, data, include: { customer: true } });
 
     // When contact status is 'added' or 'not_accepted', link customer to companion.

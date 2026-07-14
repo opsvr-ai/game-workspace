@@ -6,6 +6,7 @@ export const ordersApi = {
   poolStatus: () => http.get('/orders/pool/status'),
   create: (data: any) => http.post('/orders', data),
   grab: (id: string) => http.post(`/orders/${id}/grab`),
+  updateContact: (id: string, data: any) => http.put(`/orders/${id}/contact`, data),
   assign: (id: string, companionId: string) =>
     http.post(`/orders/${id}/assign`, { companionId }),
   confirm: (id: string) => http.post(`/orders/${id}/confirm`),

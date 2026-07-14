@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Typography, Tag, Row, Col, Spin, message, Empty, Progress, Space, Badge, Modal, Divider } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Select, Spin, message, Empty, Progress, Space, Badge, Modal, Divider } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
+import { companionsApi } from '../../api/companions';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
@@ -19,6 +20,8 @@ const PoolPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
+  const [workWechats, setWorkWechats] = useState<any[]>([]);
+  const [selectedWechat, setSelectedWechat] = useState<string>('');
 
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,6 +73,9 @@ const PoolPage: React.FC = () => {
     try {
       const { data } = await ordersApi.grab(orderId);
       setGrabbedOrder(data.data);
+      setSelectedWechat('');
+      // Fetch work wechats
+      try { const { data: wx } = await companionsApi.listWorkWechats() || {}; setWorkWechats(wx?.data || []); } catch { setWorkWechats([]); }
       fetchData();
     } catch (e: any) {
       message.error(e?.response?.data?.message ?? '抢单失败');
@@ -200,6 +206,20 @@ const PoolPage: React.FC = () => {
           {grabbedOrder.customFields?.customerWechat && <div>微信：<Text copyable style={{ color: '#1677ff' }}>{grabbedOrder.customFields.customerWechat}</Text></div>}
           {grabbedOrder.customFields?.customerRoomCode && <div>房间码：<Text copyable style={{ color: '#1677ff' }}>{grabbedOrder.customFields.customerRoomCode}</Text></div>}
           {grabbedOrder.customFields?.customerPlatformAccount && <div>平台账号/YY/KOOK：<Text copyable style={{ color: '#1677ff' }}>{grabbedOrder.customFields.customerPlatformAccount}</Text></div>}
+          <Divider style={{ margin: '8px 0' }} />
+          <div><strong>📱 选择加客户使用的工作微信：</strong></div>
+          <Select placeholder="选择工作微信" value={selectedWechat || undefined} onChange={(v) => setSelectedWechat(v)} style={{ width: '100%', marginTop: 8 }} allowClear>
+            {workWechats.map((w: any) => <Select.Option key={w.id} value={w.id}>{w.wechatId}{w.companion ? ` (${w.companion?.user?.username || w.companionId})` : ''}</Select.Option>)}
+          </Select>
+          <Button type="primary" block style={{ marginTop: 12 }} disabled={!selectedWechat} onClick={async () => {
+            if (!selectedWechat) return;
+            try {
+              await ordersApi.updateContact(grabbedOrder.id, { workWechatId: selectedWechat });
+              const wx = workWechats.find((w: any) => w.id === selectedWechat);
+              message.success(`已标记使用微信: ${wx?.wechatId || selectedWechat}`);
+            } catch { message.error('保存失败'); }
+            setGrabbedOrder(null);
+          }}>确认使用该微信</Button>
         </div>}
       </Modal>
       {/* Chat Modal */}
