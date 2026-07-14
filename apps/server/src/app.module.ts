@@ -12,6 +12,7 @@ import { WsModule } from './ws/ws.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AiModule } from './ai/ai.module';
 import { ProcessBlacklistModule } from './process-blacklist/process-blacklist.module';
+import { AgentModule } from './agent/agent.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ProcessBlacklistModule } from './process-blacklist/process-blacklist.mo
     WsModule,
     DashboardModule,
     AiModule,
+    AgentModule,
     ProcessBlacklistModule,
   ],
 })

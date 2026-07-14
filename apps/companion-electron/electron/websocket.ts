@@ -51,7 +51,7 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
 
     heartbeatTimer = setInterval(() => {
       wsEmit('companion:heartbeat', {
-        agentVersion: '3.0.0',
+        agentVersion: require('electron').app.getVersion(),
         currentMode: 'WORK',
         companionId,
       });

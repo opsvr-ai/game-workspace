@@ -1,35 +1,27 @@
-import { Tray, Menu, nativeImage, app } from 'electron';
+import { Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 
 let tray: Tray | null = null;
 let onShowCallback: (() => void) | null = null;
-let onQuitCallback: (() => void) | null = null;
 let onStatusChange: ((status: string) => void) | null = null;
 
 interface TrayOptions {
   onShow: () => void;
-  onQuit: () => void;
   onStatusChange?: (status: string) => void;
 }
 
 export function createTray(opts: TrayOptions): Tray {
   onShowCallback = opts.onShow;
-  onQuitCallback = opts.onQuit;
   onStatusChange = opts.onStatusChange || null;
 
-  // Create a simple 16x16 tray icon programmatically
   const icon = createTrayIcon();
   tray = new Tray(icon);
 
   tray.setToolTip('蠢驴电竞陪玩');
   tray.setContextMenu(buildMenu());
 
-  tray.on('double-click', () => {
-    onShowCallback?.();
-  });
-  tray.on('click', () => {
-    onShowCallback?.();
-  });
+  tray.on('double-click', () => { onShowCallback?.(); });
+  tray.on('click', () => { onShowCallback?.(); });
 
   return tray;
 }
@@ -49,11 +41,6 @@ function buildMenu(): Menu {
         { label: '休息', click: () => { if (onStatusChange) onStatusChange('RESTING'); } },
       ],
     },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => onQuitCallback?.(),
-    },
   ]);
 }
 
@@ -70,7 +57,6 @@ function createTrayIcon() {
   try {
     return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
   } catch {
-    // Fallback: simple colored circle
     const size = 16;
     const buf = Buffer.alloc(size * size * 4);
     for (let y = 0; y < size; y++) {

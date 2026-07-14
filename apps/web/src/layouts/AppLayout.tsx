@@ -334,7 +334,7 @@ const AppLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         trigger={null}
-        width={220}
+        width={180}
         style={{
           background: '#0F172A',
           borderRight: 'none',
@@ -409,7 +409,7 @@ const AppLayout: React.FC = () => {
         {/* 顶栏 — 白色底 */}
         <Header
           style={{
-            padding: '0 24px',
+            padding: '0 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -500,7 +500,6 @@ const AppLayout: React.FC = () => {
         <Typography.Text strong style={{ fontSize: 15 }}>⚡ 新订单！{urgentOrder._createdBy || '系统'} 发布</Typography.Text>
         <div style={{ marginTop: 10, lineHeight: 1.8 }}>
           <div>🎮 {urgentOrder.gameName} · <Typography.Text strong style={{ color: '#FF4757' }}>¥{Number(urgentOrder.amount).toFixed(0)}</Typography.Text></div>
-          {urgentOrder.customFields?.deltaMode && <div>🎯 {urgentOrder.customFields.deltaMode} {urgentOrder.customFields.deltaMission||''} {urgentOrder.customFields.deltaCount||''}</div>}
         </div>
         <div style={{ marginTop: 14 }}>
           <Button type="primary" size="large" block onClick={async () => {

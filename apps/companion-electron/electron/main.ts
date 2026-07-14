@@ -9,8 +9,10 @@ import { httpRequest } from './http';
 import { startProcessMonitor, stopProcessMonitor, updateBlacklist } from './process-monitor';
 import { killProcess } from './process-killer';
 import { showKillNotification, showKilledToast } from './blacklist-notification';
+import { shouldNotify } from './notification-prefs';
 import { showEntertainmentWarning, showEntertainmentForceIdle } from './entertainment-notify';
 import { handleRemoteCommand } from './remote-command';
+import { checkForUpdates, handleUpdateCommand } from './updater';
 import { emitStatus, isConnected as isWsConnected, emitBlacklistReport, emitKillResult, emitCommandAck } from './websocket';
 import { logger } from './logger';
 
@@ -19,9 +21,9 @@ let isQuitting = false;
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 960,
-    height: 680,
-    minWidth: 800,
+    width: 1100,
+    height: 750,
+    minWidth: 900,
     minHeight: 600,
     title: '蠢驴电竞陪玩',
     frame: true,
@@ -187,12 +189,19 @@ function setupWsEvents(): void {
   };
 
   onWsEvent('order:new', (data: any) => {
-    notifyOrder(data, false);
+    // Check notification preferences before showing popup
+    const orderType = data.type || data.orderType;
+    if (shouldNotify(data)) {
+      notifyOrder(data, false);
+    }
     mainWindow?.webContents.send('ws:orderNew', data);
   });
 
   onWsEvent('order:urgent', (data: any) => {
-    notifyOrder(data, true);
+    const orderType = data.type || data.orderType;
+    if (shouldNotify(data)) {
+      notifyOrder(data, true);
+    }
     mainWindow?.webContents.send('ws:orderUrgent', data);
   });
 
@@ -206,10 +215,18 @@ function setupWsEvents(): void {
 
   onWsEvent('pc:command', (data: any) => {
     logger.info('Remote command received via WS', { command: data.command });
+
+    // Route update commands to the updater module
+    if (data.command === 'update') {
+      handleUpdateCommand(data.downloadUrl);
+      return;
+    }
+
     handleRemoteCommand(data, (success: boolean) => {
       emitCommandAck(data.command, success);
     });
     mainWindow?.webContents.send('ws:pcCommand', data);
+  });
   });
 
   // Blacklist process management events
@@ -248,7 +265,7 @@ app.whenReady().then(() => {
 
   createTray({
     onShow: () => { mainWindow?.show(); mainWindow?.focus(); },
-    onQuit: () => { isQuitting = true; disconnectWebSocket(); app.quit(); },
+    
   });
 
   const token = store.get('token') as string;
@@ -319,6 +336,18 @@ app.whenReady().then(() => {
   }
 });
 
+
+  checkForUpdates();
+
+let isSystemShutdown = false;
+
+try {
+  require('electron').powerMonitor.on('shutdown', () => {
+    logger.info('System shutdown detected');
+    isSystemShutdown = true;
+  });
+} catch {}
+
 app.on('before-quit', () => {
   logger.info('App quitting');
   isQuitting = true;
@@ -326,9 +355,11 @@ app.on('before-quit', () => {
   disconnectWebSocket();
 });
 
+
 app.on('window-all-closed', () => {
   // Don't quit on window close (tray app)
 });
+
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

@@ -14,6 +14,7 @@ import StudiosPage from './pages/owner/StudiosPage';
 import AuthorizationsPage from './pages/owner/AuthorizationsPage';
 import ReviewPage from './pages/admin/ReviewPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import AgentVersionPage from './pages/admin/AgentVersionPage';
 import BlacklistPage from './pages/admin/BlacklistPage';
 import ProcessKillLogPage from './pages/admin/ProcessKillLogPage';
 import WhitelistPage from './pages/admin/WhitelistPage';
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: 'owner/authorizations', element: <AuthorizationsPage /> },
       { path: 'owner/review', element: <ReviewPage /> },
       { path: 'owner/settings', element: <SettingsPage /> },
+      { path: 'owner/agent-version', element: <AgentVersionPage /> },
       { path: 'owner/orders', element: <OrdersPage /> },
       { path: 'admin', element: <UnifiedDashboard /> },
       { path: 'admin/dispatch', element: <DispatchPage /> },
@@ -66,6 +68,7 @@ export const router = createBrowserRouter([
       { path: 'admin/process-kill-log', element: <ProcessKillLogPage /> },
       { path: 'admin/attendance', element: <AttendancePage /> },
       { path: 'admin/settings', element: <SettingsPage /> },
+      { path: 'admin/agent-version', element: <AgentVersionPage /> },
       { path: 'cs/billing', element: <BillingOverview /> },
       { path: 'cs/dispatch', element: <DispatchPage /> },
       { path: 'cs/orders', element: <OrdersPage /> },
