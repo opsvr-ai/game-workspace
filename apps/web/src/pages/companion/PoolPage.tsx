@@ -214,7 +214,8 @@ const PoolPage: React.FC = () => {
           <Button type="primary" block style={{ marginTop: 12 }} disabled={!selectedWechat} onClick={async () => {
             if (!selectedWechat) return;
             try {
-              await ordersApi.updateContact(grabbedOrder.id, { workWechatId: selectedWechat });
+              const wxInfo = workWechats.find((w: any) => w.id === selectedWechat);
+              await ordersApi.updateContact(grabbedOrder.id, { workWechatId: selectedWechat, workWechatName: wxInfo?.wechatId || '' });
               const wx = workWechats.find((w: any) => w.id === selectedWechat);
               message.success(`已标记使用微信: ${wx?.wechatId || selectedWechat}`);
             } catch { message.error('保存失败'); }

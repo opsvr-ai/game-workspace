@@ -28,6 +28,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, showC
       { title: '客户信息', key: 'customer', width: 90, render: (_: any, r: any) => (<>
         <Text style={{ fontSize: 12 }}>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>
         {r.customer?.customerCode && <><br /><Text type="secondary" style={{ fontSize: 10 }}>{r.customer.customerCode}</Text></>}
+        {r.customFields?.workWechatId && <><br /><Tag color="cyan" style={{ fontSize: 10, margin: "2px 0" }}>📱{r.customFields.workWechatName || r.customFields.workWechatId}</Tag></>}
         {r.customFields?.customerSource && <><br /><Tag color="orange" style={{fontSize:10,margin:0}}>{r.customFields.customerSource}</Tag></>}
       </>)},
       { title: '标注', key: 'tags', width: 90, render: (_: any, r: any) => (<>
