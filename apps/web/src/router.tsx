@@ -8,6 +8,7 @@ import OrdersPage from './pages/OrdersPage';
 import BillingOverview from './pages/BillingOverview';
 import CompanionsPage from './pages/CompanionsPage';
 import OrderPoolPage from './pages/OrderPoolPage';
+import CompanionPoolPage from './pages/companion/PoolPage';
 import AdminPcControlPage from './pages/admin/PcControlPage';
 import EmployeesPage from './pages/owner/EmployeesPage';
 import StudiosPage from './pages/owner/StudiosPage';
@@ -32,7 +33,7 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: '', element: <CompanionPage /> },
-      { path: 'pool', element: <OrderPoolPage /> },
+      { path: 'pool', element: <CompanionPoolPage /> },
       { path: 'billing', element: <BillingOverview /> },
       { path: 'customers/:id', element: <CustomerDetailPage /> },
       { path: 'customers', element: <CustomersPage /> },
