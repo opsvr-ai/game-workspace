@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, Tag, Typography, Space } from 'antd';
+import { orderTypeConfig, orderStatusConfig } from '../constants';
 
 const { Text } = Typography;
 
