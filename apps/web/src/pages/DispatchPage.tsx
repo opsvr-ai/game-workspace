@@ -857,7 +857,7 @@ const CompanionView: React.FC = () => {
           },
           { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={orderStatusConfig[s]?.color}>{orderStatusConfig[s]?.label || s}</Tag> },
           { title: '金额', dataIndex: 'amount', width: 100, render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v?.toFixed(2)}</span> },
-          { title: '客户', key: 'wx', width: 130, render: (_: any, r: any) => r.customFields?.customerWechat || r.customer?.wechatId || '-' },
+          { title: '客户', key: 'wx', width: 130, render: (_: any, r: any) => <>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}{r.customFields?.workWechatName && <><br /><Tag color="cyan" style={{fontSize:10,margin:0}}>📱{r.customFields.workWechatName}</Tag></>}</> },
           { title: '时间', dataIndex: 'createdAt', render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-' },
         ]}
         pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` }}
