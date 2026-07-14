@@ -163,12 +163,6 @@ const CustomersPage: React.FC = () => {
         {record.scheduledAt && (() => { const d=new Date(record.scheduledAt); return <><br /><Tag color="purple" style={{ fontSize: 10, marginTop: 2 }}>📅{d.getMonth()+1}月{d.getDate()}日 {String(d.getHours()).padStart(2,'0')}:{String(d.getMinutes()).padStart(2,'0')}</Tag></>; })()}
       </>)},
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
-    { title: '所用微信', key: 'workWechat', width: 100, render: (_: any, r: any) => {
-      const wo = r.orders?.[0]?.customFields;
-      if (wo?.workWechatName) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatName}</Tag>;
-      if (wo?.workWechatId) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatId?.slice(0,8)}</Tag>;
-      return <Text type="secondary" style={{fontSize:11}}>-</Text>;
-    } },
     { title: '最近订单', key: 'lastOrder', width: 220, render: (_: any, r: any) => {
       const o = r.orders?.[0];
       if (!o) return <Text type="secondary">-</Text>;
@@ -195,6 +189,7 @@ const CustomersPage: React.FC = () => {
     }},
     { title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: (s: string) => { const cfg = customerStatusConfig[s]; return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>; } },
+    { title: '所用微信', key: 'workWechat', width: 100, render: (_: any, r: any) => { const wo = r.orders?.[0]?.customFields; if (wo?.workWechatName) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatName}</Tag>; if (wo?.workWechatId) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatId?.slice(0,8)}</Tag>; return <Text type="secondary" style={{fontSize:11}}>-</Text>; } },
     { title: '陪玩', key: 'companion', width: 80, render: (_: any, r: Customer) => (r.companion?.user?.username) ?? <Text type="secondary">未分配</Text> },
     { title: '最近跟进', key: 'followUp', width: 120, render: (_: any, r: Customer) => { const latest = r.followUps?.[0]; return latest ? <><Text style={{fontSize:11}}>{latest.content?.slice(0,20)}...</Text><br /><Text type="secondary" style={{fontSize:10}}>{new Date(latest.createdAt).toLocaleDateString("zh-CN")}</Text></> : <Tag color="orange" style={{fontSize:10}}>未跟进</Tag>; } },
     { title: '累计消费', dataIndex: 'totalSpent', key: 'totalSpent', width: 120,
