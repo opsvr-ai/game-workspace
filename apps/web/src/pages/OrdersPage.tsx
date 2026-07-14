@@ -120,7 +120,7 @@ const OrdersPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>{isCompanion ? '接单记录' : '📋 订单管理'}</Text>
           {isCompanion && <><br /><Text type="secondary">查看我的接单历史</Text></>}

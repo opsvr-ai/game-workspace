@@ -607,7 +607,7 @@ const BillingPage: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           <div>
@@ -626,7 +626,7 @@ const BillingPage: React.FC = () => {
           </Button>
         </div>
 
-        <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Row gutter={16} style={{ marginBottom: 12 }}>
           <Col span={8}>
             <Card size="small">
               <Statistic
@@ -722,7 +722,7 @@ const BillingPage: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           <div>
@@ -734,7 +734,7 @@ const BillingPage: React.FC = () => {
           </div>
         </div>
 
-        <Space style={{ marginBottom: 16 }}>
+        <Space style={{ marginBottom: 12 }}>
           <Button
             type="primary"
             onClick={() => {
@@ -849,9 +849,9 @@ const BillingPage: React.FC = () => {
       {isAdmin && (
         <>
           {/* ── Transaction Approval ── */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 12 }}>
             {/* Stats row */}
-            <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Row gutter={16} style={{ marginBottom: 12 }}>
               <Col span={8}>
                 <Card size="small">
                   <Statistic
@@ -890,7 +890,7 @@ const BillingPage: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 16,
+                marginBottom: 12,
               }}
             >
               <Text strong style={{ fontSize: 16 }}>
@@ -983,7 +983,7 @@ const BillingPage: React.FC = () => {
 
           {/* ── Expense Report Review ── */}
           <Card title="报账与财务" style={{ marginTop: 16 }}>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Row gutter={16} style={{ marginBottom: 12 }}>
               <Col span={6}>
                 <Statistic
                   title="本月报账"
@@ -1104,10 +1104,10 @@ const BillingPage: React.FC = () => {
               message="结算后陪玩当月业绩将清零并计入可支取余额，请确认当月订单已全部审核完毕。"
               type="warning"
               showIcon
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: 12 }}
             />
 
-            <Row gutter={16} align="middle" style={{ marginBottom: 16 }}>
+            <Row gutter={16} align="middle" style={{ marginBottom: 12 }}>
               <Col>
                 <DatePicker
                   picker="month"
@@ -1139,7 +1139,7 @@ const BillingPage: React.FC = () => {
               <Card
                 size="small"
                 style={{
-                  marginBottom: 16,
+                  marginBottom: 12,
                   background: '#f6ffed',
                   border: '1px solid #b7eb8f',
                 }}

@@ -206,7 +206,7 @@ const StudiosPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <Text strong style={{ fontSize: 16 }}>
@@ -238,7 +238,7 @@ const StudiosPage: React.FC = () => {
             border: '1px solid #ffccc7',
             borderRadius: 6,
             padding: '8px 12px',
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {error}

@@ -102,7 +102,7 @@ const WhitelistPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>进程白名单</Text>
           <br />
@@ -117,7 +117,7 @@ const WhitelistPage: React.FC = () => {
         </Space>
       </div>
 
-      <Table columns={columns} dataSource={items} rowKey="id" loading={loading}
+      <Table size="small" columns={columns} dataSource={items} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无白名单条目' }}
         pagination={{ pageSize: 50, showTotal: (t) => `共 ${t} 条` }} />
 
@@ -125,7 +125,7 @@ const WhitelistPage: React.FC = () => {
         onCancel={() => { setModalOpen(false); setAddMode('select'); setSelectedCompanionForAdd(undefined); setSelectedProcess([]); }}
         confirmLoading={submitting} okText="添加" cancelText="取消" destroyOnClose width={480}>
         <div style={{ marginTop: 16 }}>
-          <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 16 }}>
+          <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 12 }}>
             <Radio.Button value="select">从陪玩已上报进程选择</Radio.Button>
             <Radio.Button value="manual">手动输入</Radio.Button>
           </Radio.Group>

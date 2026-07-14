@@ -516,10 +516,10 @@ const SettingsPage: React.FC = () => {
           <Text type="secondary" style={{ marginLeft: 8 }}>押金低于此金额无法切换娱乐模式</Text>
         </div>
         <div>
-          <Label>月流水门槛（元）</Label>
+          <Label>日流水门槛（元）</Label>
           <InputNumber min={0} step={50} value={config?.['entertainment.revenue_threshold'] ?? 200}
             onChange={(v) => update('entertainment.revenue_threshold', v ?? 200)} style={{ width: 200 }} />
-          <Text type="secondary" style={{ marginLeft: 8 }}>月流水低于此金额无法切换娱乐模式</Text>
+          <Text type="secondary" style={{ marginLeft: 8 }}>当天流水低于此金额无法切换娱乐模式</Text>
         </div>
       </Space>
     </Card>
@@ -642,7 +642,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>系统设置</Title>
         <Text type="secondary">管理系统全局配置项，修改后即时生效</Text>
       </div>

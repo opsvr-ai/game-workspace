@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
         </Col>
         <Col span={10}>
           <Card title={'\u{1F3C6} 陪玩业绩排行'} size="small">
-            <Table dataSource={ranking} pagination={false} size="small" rowKey="companionId"
+            <Table size="small" dataSource={ranking} pagination={false} rowKey="companionId"
               locale={{ emptyText: '暂无数据' }}>
               <Table.Column title="排名" dataIndex="rank" width={50}
                 render={(r: number) => r <= 3 ? ['\u{1F947}', '\u{1F948}', '\u{1F949}'][r - 1] : r} />
@@ -126,7 +126,7 @@ const DashboardPage: React.FC = () => {
       </Row>
 
       <Card title={'\u{1F465} 在线陪玩状态'} size="small" style={{ marginTop: 16 }}>
-        <Table dataSource={companions} pagination={false} size="small" rowKey="id"
+        <Table size="small" dataSource={companions} pagination={false} rowKey="id"
           locale={{ emptyText: '暂无陪玩' }}>
           <Table.Column title="昵称" dataIndex={['user', 'username']} />
           <Table.Column title="状态" dataIndex="status"

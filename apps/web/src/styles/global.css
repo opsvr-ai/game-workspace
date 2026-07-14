@@ -94,8 +94,20 @@ body::before {
 .apple-card {
   background: #FFFFFF;
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+}
+
+/* ── Responsive compact mode (fits 900x600 viewport) ── */
+@media (max-height: 800px) {
+  .ant-card { margin-bottom: 10px !important; }
+  .ant-card-body { padding: 12px !important; }
+  .ant-card-head { padding: 0 12px !important; min-height: 36px !important; }
+  .ant-table-cell { padding: 6px 8px !important; font-size: 12px !important; }
+  .ant-modal-body { max-height: 60vh; overflow-y: auto; padding: 16px !important; }
+  .ant-form-item { margin-bottom: 12px !important; }
+  .ant-tag { font-size: 11px !important; }
+  .ant-statistic-content { font-size: 20px !important; }
 }
 
 /* ── 登录页 ── */

@@ -24,7 +24,7 @@ const ErrorBanner: React.FC<ErrorBannerProps> = ({
         </Button>
       ) : undefined
     }
-    style={{ marginBottom: 16 }}
+    style={{ marginBottom: 12 }}
   />
 );
 

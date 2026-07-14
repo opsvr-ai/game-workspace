@@ -123,13 +123,13 @@ const RevenueDashboard: React.FC = () => {
       </Row>
 
       {/* DatePicker + Export */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <RangePicker value={dateRange} onChange={(v) => v && setDateRange([v[0]!, v[1]!])}
           style={{ width: 260 }} size="small" />
         <CsvExport dailyRevenue={dailyRevenue} />
       </div>
 
-      <Card title="📈 每日流水" size="small" style={{ marginBottom: 16 }}>
+      <Card title="📈 每日流水" size="small" style={{ marginBottom: 12 }}>
         {dailyRevenue.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dailyRevenue}>
@@ -185,7 +185,7 @@ const RevenueDashboard: React.FC = () => {
       <Modal title="订单类型明细" open={!!detail} onCancel={() => setDetail(null)} footer={null} width={580}>
         {detail && (
           <div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Row gutter={16} style={{ marginBottom: 12 }}>
               <Col span={12}><Statistic title="月流水" value={detail.totalRevenue} prefix="¥" precision={2} /></Col>
               <Col span={12}><Statistic title="订单数" value={detail.orderCount} suffix="单" /></Col>
             </Row>

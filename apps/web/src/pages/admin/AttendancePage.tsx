@@ -113,7 +113,7 @@ const AttendancePage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>📋 考勤管理</Text>
           <br />
@@ -124,7 +124,7 @@ const AttendancePage: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <RangePicker
           value={dateRange}
           onChange={(dates) => setDateRange(dates as [Dayjs, Dayjs] | null)}

@@ -59,7 +59,7 @@ const ProfileSetupPage: React.FC = () => {
     <div style={{ minHeight: '100vh', background: '#F8FAFC', padding: '40px 0' }}>
       <div style={{ maxWidth: 700, margin: '0 auto', background: '#FFF', borderRadius: 16, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
         <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>完善陪玩资料</h2>
-        <Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 24 }}>
+        <Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 16 }}>
           选择游戏后为每个游戏设置段位和账号情况
         </Text>
 

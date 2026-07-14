@@ -147,7 +147,7 @@ const BlacklistPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>进程黑名单管理</Text>
           <br />
@@ -184,7 +184,7 @@ const BlacklistPage: React.FC = () => {
           border: `2px dashed ${dragOver ? '#00D4FF' : '#d9d9d9'}`,
           borderRadius: 8,
           padding: '12px 16px',
-          marginBottom: 16,
+          marginBottom: 12,
           textAlign: 'center',
           background: dragOver ? 'rgba(0,212,255,0.06)' : '#fafafa',
           transition: 'all 0.2s',
@@ -202,7 +202,7 @@ const BlacklistPage: React.FC = () => {
           <Button size="small" danger onClick={handleBatchDelete}>批量删除</Button>
         </div>
       )}
-      <Table rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }} columns={columns} dataSource={items} rowKey="id" loading={loading}
+      <Table size="small" rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }} columns={columns} dataSource={items} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无黑名单规则' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
 
@@ -211,7 +211,7 @@ const BlacklistPage: React.FC = () => {
         onCancel={() => { setModalOpen(false); setAddMode('select'); setSelectedCompanionForAdd(undefined); setSelectedProcess([]); }}
         confirmLoading={submitting} okText="添加" cancelText="取消" destroyOnClose width={480}>
         <div style={{ marginTop: 16 }}>
-          <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 16 }}>
+          <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 12 }}>
             <Radio.Button value="select">从陪玩已上报进程选择</Radio.Button>
             <Radio.Button value="manual">手动输入</Radio.Button>
           </Radio.Group>

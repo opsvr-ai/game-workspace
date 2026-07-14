@@ -334,7 +334,7 @@ const BillingOverview: React.FC = () => {
   return (
     <div>
       {/* Title Bar */}
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
         <Col>
           <Title level={3} style={{ margin: 0 }}>
             报账系统
@@ -373,7 +373,7 @@ const BillingOverview: React.FC = () => {
 
       <Spin spinning={loading}>
         {/* 6 Stat Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
           <Col span={4}>
             <StatBlock
               label="今日流水"
@@ -544,7 +544,7 @@ const BillingOverview: React.FC = () => {
         okText="提交申请"
         cancelText="取消"
       >
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <div
             style={{
               background: '#f6ffed',

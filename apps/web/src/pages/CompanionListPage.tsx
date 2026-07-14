@@ -24,7 +24,7 @@ const CompanionListPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>陪玩管理</Text>
           <br /><Text type="secondary" style={{ fontSize: 12 }}>共 {companions.length} 位陪玩 · 60s 刷新</Text>

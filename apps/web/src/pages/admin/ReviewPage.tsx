@@ -85,11 +85,11 @@ const ReviewPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Text strong style={{ fontSize: 16 }}>实名审核</Text>
         <Button icon={React.createElement(ReloadOutlined)} onClick={fetchPending} loading={loading}>刷新</Button>
       </div>
-      <Table columns={columns} dataSource={companions} rowKey="id" loading={loading}
+      <Table size="small" columns={columns} dataSource={companions} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无待审核陪玩' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条待审核` }} />
       <Modal open={!!previewImage} footer={null} onCancel={() => setPreviewImage(null)} width={600}>

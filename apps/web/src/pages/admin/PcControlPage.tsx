@@ -325,7 +325,7 @@ const PcControlPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <Text strong style={{ fontSize: 16 }}>

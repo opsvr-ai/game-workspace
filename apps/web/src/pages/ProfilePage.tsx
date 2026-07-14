@@ -73,10 +73,10 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Title level={4} style={{ marginBottom: 24 }}>个人设置</Title>
+      <Title level={4} style={{ marginBottom: 16 }}>个人设置</Title>
 
       {/* Avatar Card */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
@@ -108,7 +108,7 @@ const ProfilePage: React.FC = () => {
       </Card>
 
       {/* Display Name Card */}
-      <Card size="small" title="修改名字" style={{ marginBottom: 16 }}>
+      <Card size="small" title="修改名字" style={{ marginBottom: 12 }}>
         <Form form={nameForm} layout="vertical" initialValues={{ displayName: user?.displayName || '' }}>
           <Form.Item name="displayName" label="显示名字" rules={[{ required: true, message: '请输入显示名字' }]}>
             <Input placeholder="输入你的显示名字" prefix={React.createElement(UserOutlined)} />

@@ -20,13 +20,13 @@ export const chunlvTheme: ThemeConfig = {
     // 排版 — Inter + PingFang SC
     fontFamily:
       "'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif",
-    fontSize: 14,
-    fontSizeLG: 16,
-    fontSizeSM: 12,
-    borderRadius: 8,
-    borderRadiusLG: 12,
-    borderRadiusSM: 6,
-    borderRadiusXS: 4,
+    fontSize: 13,
+    fontSizeLG: 15,
+    fontSizeSM: 11,
+    borderRadius: 6,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
+    borderRadiusXS: 3,
 
     // 控件
     controlHeight: 36,

@@ -147,7 +147,7 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
           为指定陪玩在特定状态下配置禁止运行的进程列表。当陪玩切换至该状态时，系统将自动检查并关闭匹配的黑名单进程。
         </Text>
 
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择陪玩</Text>
             <Select
@@ -199,7 +199,7 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
           loading={loading}
           locale={{ emptyText: selectedCompanionId && selectedStatus ? '暂无黑名单规则' : '请先选择陪玩和状态' }}
           pagination={false}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 12 }}
         />
 
         <div style={{ display: 'flex', gap: 8 }}>

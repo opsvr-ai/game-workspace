@@ -315,7 +315,7 @@ const CustomerDetailPage: React.FC = () => {
       </div>
 
       {/* ── Section 1: Basic Info ────────────────────────── */}
-      <Card title="基本信息" style={{ marginBottom: 16 }} loading={loadingCustomer}>
+      <Card title="基本信息" style={{ marginBottom: 12 }} loading={loadingCustomer}>
         {customer ? (
           <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small" bordered>
             <Descriptions.Item label="客户编号">
@@ -362,7 +362,7 @@ const CustomerDetailPage: React.FC = () => {
       </Card>
 
       {/* ── Section 2: Contact Info ──────────────────────── */}
-      <Card title="联系方式" style={{ marginBottom: 16 }} loading={loadingCustomer}>
+      <Card title="联系方式" style={{ marginBottom: 12 }} loading={loadingCustomer}>
         {customer ? (
           <Descriptions column={3} size="small" bordered>
             <Descriptions.Item label="微信号">{customer.wechatId}</Descriptions.Item>
@@ -381,7 +381,7 @@ const CustomerDetailPage: React.FC = () => {
             {/* ── Section 3: Profile Card — direct edit ────────── */}
       <Card
         title="客户画像"
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 12 }}
         loading={loadingProfile}
         extra={
           <Button type="primary" size="small" icon={React.createElement(SaveOutlined)}
@@ -426,7 +426,7 @@ const CustomerDetailPage: React.FC = () => {
       {/* ── Old profile modal removed ── */}
 
       {/* ── Section 4: Smart Analysis ──────────────────────── */}
-      <Card title="智能分析" style={{ marginBottom: 16 }} loading={loadingCustomer || loadingOrders}>
+      <Card title="智能分析" style={{ marginBottom: 12 }} loading={loadingCustomer || loadingOrders}>
         {(() => {
           const totalSpent = customer?.totalSpent ?? 0;
           const orderCount = orders.length;
@@ -494,7 +494,7 @@ const CustomerDetailPage: React.FC = () => {
       {/* ── Section 5: Service History ────────────────────── */}
       <Card
         title="服务记录"
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 12 }}
         extra={
           <Text type="secondary">
             {loadingOrders ? '加载中...' : `共 ${orders.length} 单`}
@@ -525,7 +525,7 @@ const CustomerDetailPage: React.FC = () => {
         {/* Add follow-up form */}
         <div
           style={{
-            marginBottom: 24,
+            marginBottom: 16,
             padding: 16,
             background: '#fafafa',
             borderRadius: 8,

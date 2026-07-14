@@ -66,7 +66,7 @@ const ProcessKillLogPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Text strong style={{ fontSize: 16 }}>杀进程日志</Text>
         <Space>
           <Select placeholder="按陪玩筛选" allowClear style={{ width: 160 }} value={companionFilter}
@@ -75,14 +75,14 @@ const ProcessKillLogPage: React.FC = () => {
           <Button icon={createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
         </Space>
       </div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Row gutter={16} style={{ marginBottom: 12 }}>
         <Col span={6}><Card size="small"><Statistic title="总杀进程次数" value={logs.length} valueStyle={{ fontSize: 20 }} /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="成功" value={logs.filter(l => l.success).length} valueStyle={{ fontSize: 20, color: '#3f8600' }} /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="失败" value={logs.filter(l => !l.success).length} valueStyle={{ fontSize: 20, color: '#cf1322' }} /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="告警" value={logs.filter(l => l.resultText?.includes('REPEAT_KILL_ALERT') || l.resultText?.includes('RATE_LIMITED')).length} valueStyle={{ fontSize: 20, color: '#faad14' }} /></Card></Col>
       </Row>
       {topProcesses.length > 0 && (
-        <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Row gutter={16} style={{ marginBottom: 12 }}>
           <Col span={12}>
             <Card size="small" title="Top 5 被杀进程">
               {topProcesses.map(([name, count], i) => (
@@ -104,7 +104,7 @@ const ProcessKillLogPage: React.FC = () => {
         </Row>
       )}
 
-      <Table columns={columns} dataSource={logs} rowKey="id" loading={loading}
+      <Table size="small" columns={columns} dataSource={logs} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无杀进程记录' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
     </div>
