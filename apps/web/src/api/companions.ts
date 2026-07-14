@@ -13,6 +13,7 @@ export const companionsApi = {
   wallet: () => http.get('/companions/me/wallet'),
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
   resign: (id: string) => http.post(`/companions/${id}/resign`),
+  updateFinance: (id: string, data: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; deposit?: number; note?: string }) => http.put(`/companions/${id}/finance`, data),
   requestProofNoCustomer: (note: string) => http.post('/companions/me/proof-no-customer', { note }),
   // Status blacklist
   getStatusBlacklist: (companionId: string, status: string) =>

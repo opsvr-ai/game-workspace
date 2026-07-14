@@ -172,7 +172,6 @@ const CustomersPage: React.FC = () => {
         <br /><Text type="secondary" style={{ fontSize: 11 }}>
           <Tag color={orderTypeConfig[o.type]?.color} style={{ fontSize: 10, margin: 0 }}>{orderTypeConfig[o.type]?.label || o.type}</Tag>
           {' '}¥{Number(o.amount).toFixed(0)}
-          {cf.deltaMode && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaMode}</Tag>}
           {cf.deltaMission && <Tag color="red" style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaMission}</Tag>}
           {cf.deltaCount && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
           {cf.billingMode === 'round' && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>🎯{o.duration||cf.deltaCount||'?'}局</Tag>}
@@ -239,7 +238,7 @@ const CustomersPage: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN}>
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div><Text strong style={{ fontSize: 16 }}>客户管理</Text>{isCompanion && <><br /><Text type="secondary">管理我的客户信息</Text></>}</div>
         <Space>
           <Input.Search placeholder="搜索客户编号" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} style={{ width: 200 }} allowClear />
@@ -247,9 +246,9 @@ const CustomersPage: React.FC = () => {
           {canManage && <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>新建客户</Button>}
         </Space>
       </div>
-      {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>{error}</div>}
+      {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>{error}</div>}
       <Card size="small" style={{ overflow: 'auto' }}>
-        <Table columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
+        <Table size="small" columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
           scroll={{ x: 1000 }}
           locale={{ emptyText: '暂无客户数据' }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />

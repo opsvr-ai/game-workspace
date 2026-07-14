@@ -10,6 +10,7 @@ import {
   Space,
   Popconfirm,
   Typography,
+  InputNumber,
   message,
 } from 'antd';
 import {
@@ -18,10 +19,12 @@ import {
   DeleteOutlined,
   KeyOutlined,
   LogoutOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import { employeesApi } from '../../api/employees';
 import { studiosApi } from '../../api/studios';
 import { companionsApi } from '../../api/companions';
+import { billingApi } from '../../api/billing';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '@chunlv/shared';
 import { companionStatusConfig } from '../../constants';
@@ -48,6 +51,9 @@ interface Employee {
     monthlyRevenue: number;
     games: string[];
     billingCode: string;
+    deposit?: number;
+    balance?: number;
+    frozen?: number;
   } | null;
 }
 
@@ -79,6 +85,12 @@ const EmployeesPage: React.FC = () => {
   const [resetting, setResetting] = useState(false);
   const [resetForm] = Form.useForm();
 
+  const [financeModalOpen, setFinanceModalOpen] = useState(false);
+  const [financeRecord, setFinanceRecord] = useState<Employee | null>(null);
+  const [financeForm] = Form.useForm();
+  const [financeSubmitting, setFinanceSubmitting] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [filterRole, setFilterRole] = useState<string | undefined>(undefined);
   const fetchStudios = useCallback(async () => {
     try {
       const { data } = await studiosApi.list();
@@ -168,7 +180,48 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  const openFinanceModal = async (record: Employee) => {
+    setFinanceRecord(record);
+    try {
+      const { data: overviewRes } = await billingApi.getOverview(record.companion?.id);
+      const overview = overviewRes?.data?.summary || {};
+      financeForm.setFieldsValue({
+        totalRevenue: overview.totalRevenue ?? 0,
+        totalWithdrawn: overview.totalWithdrawn ?? 0,
+        pendingWithdraw: overview.pendingWithdraw ?? 0,
+        todayRevenue: overview.todayRevenue ?? 0,
+        withdrawable: overview.withdrawable ?? 0,
+        deposit: overview.deposit ?? 0,
+        note: "",
+      });
+    } catch {
+      financeForm.setFieldsValue({ totalRevenue: 0, totalWithdrawn: 0, pendingWithdraw: 0, deposit: 0, note: "" });
+    }
+    setFinanceModalOpen(true);
+  };
+
+  const handleFinanceSave = async () => {
+    try {
+      const values = await financeForm.validateFields();
+      if (!financeRecord?.companion?.id) return;
+      setFinanceSubmitting(true);
+      const { todayRevenue, withdrawable, ...editableFields } = values;
+      await companionsApi.updateFinance(financeRecord.companion.id, editableFields);
+      message.success(`${financeRecord.username} 财务数据已更新`);
+      setFinanceModalOpen(false);
+      fetchEmployees();
+    } catch (err: any) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.message || "更新失败");
+    } finally { setFinanceSubmitting(false); }
+  };
+
   // --- Kick companion ---
+  const filteredEmployees = employees.filter((e) => {
+    if (searchText && !e.username.toLowerCase().includes(searchText.toLowerCase())) return false;
+    if (filterRole && e.role !== filterRole) return false;
+    return true;
+  });
   const [kickingId, setKickingId] = useState<string | null>(null);
 
   const handleKick = async (record: Employee) => {
@@ -267,12 +320,28 @@ const EmployeesPage: React.FC = () => {
       },
     },
     {
-      title: '月流水',
+      title: '总流水',
       dataIndex: ['companion', 'monthlyRevenue'],
       key: 'revenue',
       width: 100,
       render: (_: unknown, record: Employee) =>
         record.companion ? `¥${(record.companion.monthlyRevenue || 0).toLocaleString()}` : '-',
+    },
+    {
+      title: '押金',
+      dataIndex: ['companion', 'deposit'],
+      key: 'deposit',
+      width: 90,
+      render: (_: unknown, record: Employee) =>
+        record.companion?.deposit !== undefined ? `¥${(record.companion.deposit || 0).toLocaleString()}` : '-',
+    },
+    {
+      title: '可支取余额',
+      dataIndex: ['companion', 'balance'],
+      key: 'balance',
+      width: 90,
+      render: (_: unknown, record: Employee) =>
+        record.companion?.balance !== undefined ? `¥${(record.companion.balance || 0).toLocaleString()}` : '-',
     },
     {
       title: '审核',
@@ -308,6 +377,9 @@ const EmployeesPage: React.FC = () => {
             重置密码
           </Button>
           {record.role === UserRole.COMPANION && record.companion && (
+            <Button type="link" size="small" icon={React.createElement(DollarOutlined)} onClick={() => openFinanceModal(record)}>编辑财务</Button>
+          )}
+          {record.role === UserRole.COMPANION && record.companion && (
             <>
               <Popconfirm
                 title="确定踢出该陪玩？Agent 将被强制下线"
@@ -334,7 +406,7 @@ const EmployeesPage: React.FC = () => {
             cancelText="取消"
           >
             <Button
-              type="link"
+            type="link"
               size="small"
               danger
               icon={React.createElement(DeleteOutlined)}
@@ -354,7 +426,7 @@ const EmployeesPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <Text strong style={{ fontSize: 16 }}>
@@ -375,6 +447,16 @@ const EmployeesPage: React.FC = () => {
               </Option>
             ))}
           </Select>
+              <Select placeholder="搜索陪玩名字" showSearch value={searchText || undefined} onChange={(v) => setSearchText(v || "")} style={{ width: 190 }} allowClear onClear={() => setSearchText("")} optionFilterProp="children">
+                {employees.filter(e => e.role === "COMPANION").map((e) => (
+                  <Option key={e.id} value={e.username}>{e.username}</Option>
+                ))}
+              </Select>
+             <Select placeholder="角色筛选" showSearch optionFilterProp="children" value={filterRole} onChange={(v) => setFilterRole(v)} style={{ width: 120 }} allowClear onClear={() => setFilterRole(undefined)}>
+               <Option value="COMPANION">陪玩</Option>
+               <Option value="ADMIN">管理员</Option>
+               <Option value="CS">客服</Option>
+             </Select>
           <Button
             icon={React.createElement(ReloadOutlined)}
             onClick={fetchEmployees}
@@ -402,7 +484,7 @@ const EmployeesPage: React.FC = () => {
             border: '1px solid #ffccc7',
             borderRadius: 6,
             padding: '8px 12px',
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {error}
@@ -411,7 +493,7 @@ const EmployeesPage: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={employees}
+        dataSource={filteredEmployees}
         rowKey="id"
         loading={loading}
         locale={{ emptyText: '暂无员工数据' }}
@@ -505,8 +587,44 @@ const EmployeesPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+      {/* Finance Edit Modal */}
+      <Modal
+        title={`编辑财务数据 — ${financeRecord?.username ?? ""}`}
+        open={financeModalOpen}
+        onOk={handleFinanceSave}
+        onCancel={() => { setFinanceModalOpen(false); financeForm.resetFields(); }}
+        confirmLoading={financeSubmitting}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+      >
+        <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="todayRevenue" label="今日流水（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="totalRevenue" label="总流水（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="totalWithdrawn" label="已支取（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="pendingWithdraw" label="审核中（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="withdrawable" label="待支取（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="deposit" label="押金（元）">
+            <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
+          </Form.Item>
+          <Form.Item name="note" label="调整备注">
+            <Input placeholder="请输入调整原因" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
+
 };
 
 export default EmployeesPage;

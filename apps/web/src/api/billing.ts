@@ -1,6 +1,7 @@
 import http from './client';
 
 export const billingApi = {
+  getOverview: (companionId?: string, month?: string) => http.get('/billing/overview', { params: { companionId, month } }),
   list: (params?: { status?: string }) =>
     http.get('/transactions', { params }),
   approve: (id: string) => http.put(`/transactions/${id}/approve`),

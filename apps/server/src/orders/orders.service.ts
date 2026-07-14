@@ -80,7 +80,6 @@ export class OrdersService {
           customerWechat: dto.customerWechat,
           customerRoomCode: dto.customerRoomCode,
           customerYy: (dto as any).customerYy,
-          deltaMode: (dto as any).deltaMode,
           deltaMission: (dto as any).deltaMission,
           deltaCount: (dto as any).deltaCount,
           deltaNote: (dto as any).deltaNote,
@@ -120,6 +119,14 @@ export class OrdersService {
       this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
     }
 
+    // Desktop notification to ALL online companions (they can filter by prefs)
+    if (studioId) {
+      this.wsGateway.broadcastToStudio(studioId, 'order:new', {
+        ...newOrder,
+        _notify: true,
+      });
+    }
+
     // DIRECT dispatch: notify target companion via WS
     if (dto.dispatchType === 'DIRECT' && dto.companionId) {
       const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true } });
@@ -131,17 +138,25 @@ export class OrdersService {
     return newOrder;
   }
 
-  async findPool(companionId?: string) {
+  async findPool(companionId?: string, studioType?: string) {
+    const where: any = {
+      status: 'PENDING', dispatchType: 'POOL',
+      OR: companionId ? [
+        { companionId: null },
+        { companionId: companionId },
+      ] : [
+        { companionId: null },
+      ],
+    };
+
+    // Non-DIRECT studios: exclude orders created within the last 1 minute
+    if (studioType && studioType !== 'DIRECT') {
+      const oneMinuteAgo = new Date(Date.now() - 60_000);
+      where.createdAt = { lte: oneMinuteAgo };
+    }
+
     return this.prisma.order.findMany({
-      where: {
-        status: 'PENDING', dispatchType: 'POOL',
-        OR: companionId ? [
-          { companionId: null },
-          { companionId: companionId },
-        ] : [
-          { companionId: null },
-        ],
-      },
+      where,
       include: {
         customer: { select: { wechatId: true, customerCode: true, platform: true } },
         csUser: { select: { username: true, avatar: true, displayName: true, role: true } },

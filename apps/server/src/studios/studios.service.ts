@@ -60,7 +60,7 @@ export class StudiosService {
         createdAt: true,
         // 排除 passwordHash 和 secondPasswordHash，防止密码哈希泄露
         studio: { select: { id: true, name: true } },
-        companion: { select: { id: true, status: true, monthlyRevenue: true, games: true, billingCode: true } },
+        companion: { select: { id: true, status: true, monthlyRevenue: true, deposit: true, balance: true, frozen: true, games: true, billingCode: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

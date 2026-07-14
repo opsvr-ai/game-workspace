@@ -25,7 +25,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
       form.setFieldsValue({
         type: 'NEW', gameName: customerPreFill.gameName || '三角洲行动',
         dispatchType: DispatchType.POOL, urgency: 'now', billingMode: 'hour', duration: 1,
-        deltaMode: '陪玩', deltaCount: '单',
+        
         customerId: customerPreFill.customerId, customerWechat: customerPreFill.customerWechat,
         amount: customerPreFill.amount || 0,
       });
@@ -45,7 +45,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
   return (
     <Modal title="创建订单" open={open} onOk={handleOk} onCancel={() => { form.resetFields(); onClose(); }}
       confirmLoading={loading} okText="发布" cancelText="取消" destroyOnClose width={520}>
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }} initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, deltaMode:'陪玩', deltaCount: '单', serviceType: 'PLAY_WITH' }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 8 }} size="small" initialValues={{ type:'NEW', gameName:'三角洲行动', dispatchType:DispatchType.POOL, urgency:'now', billingMode:'hour', duration:1, serviceType:'PLAY_WITH', customerSource:'小红书' }}>
         <Form.Item name="type" label="订单类型" initialValue="NEW" rules={[{ required: true }]}>
           <Select>{Object.entries(orderTypeConfig).map(([k,v]) => <Option key={k} value={k}>{v}</Option>)}</Select></Form.Item>
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>
@@ -57,9 +57,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             <Option value="DO_TASK">做任务</Option>
           </Select>
         </Form.Item>
-        <Form.Item name="deltaMode" label="模式" initialValue="陪玩">
-          <Select onChange={(val: string) => { if (val === '护航') form.setFieldsValue({ deltaCount: '双' }); }}>
-            <Option value="护航">护航</Option><Option value="陪玩">陪玩</Option></Select></Form.Item>
         <Form.Item name="deltaMission" label="任务类型"><Select placeholder="可选" allowClear><Option value="机密">机密</Option><Option value="绝密">绝密</Option></Select></Form.Item>
         <Form.Item name="deltaCount" label="陪陪数量" initialValue="单"><Select><Option value="单">单</Option><Option value="双">双</Option></Select></Form.Item>
         <Form.Item name="deltaNote" label="备注"><Input.TextArea rows={2} placeholder="补充说明" /></Form.Item>

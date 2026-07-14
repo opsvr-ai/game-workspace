@@ -219,7 +219,7 @@ const CSView: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <div />
@@ -238,7 +238,7 @@ const CSView: React.FC = () => {
           <Card
             title="陪玩管理"
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 12 }}
           >
             {loadingCompanions && companions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}><Spin /></div>
@@ -274,7 +274,6 @@ const CSView: React.FC = () => {
                               `¥${Number(matchedOrder.amount).toFixed(2)}`,
                               matchedOrder.duration ? `${matchedOrder.duration}h` : '',
                               matchedOrder.customFields?.billingMode === 'round' ? '按局' : '',
-                              matchedOrder.customFields?.deltaMode ? `🎯${matchedOrder.customFields.deltaMode}` : '',
                               matchedOrder.customer?.customerCode ? `👤${matchedOrder.customer.customerCode}` : '',
                             ].filter(Boolean).join(' · ')
                           : (c.games?.length ? `🎮 ${c.games.map((g:any)=>g.game||g).join(',')}` : ''),
@@ -329,7 +328,7 @@ const CSView: React.FC = () => {
 
         {/* Center: Order Pool (18/24) */}
         <Col span={18}>
-          <div style={{ position: 'relative', marginBottom: 16 }}>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Water wave header */}
             <div style={{
               background: 'linear-gradient(180deg, #00D4FF 0%, #7B61FF 100%)',
@@ -391,7 +390,6 @@ const CSView: React.FC = () => {
                           <Col><Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>{orderTypeConfig[order.type]?.label || order.type}</Tag></Col>
                           <Col><Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{order.gameName}</Text></Col>
                           <Col><Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>¥{Number(order.amount).toFixed(0)}</Text></Col>
-                          {order.customFields?.deltaMode && <Col><Tag color="cyan" style={{ margin: 0 }}>{order.customFields.deltaMode}</Tag></Col>}
                           {order.customFields?.deltaMission && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag></Col>}
                           {order.customFields?.deltaCount && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag></Col>}
                           {order.customFields?.serviceType && <Col><Tag color={serviceTypeConfig[order.customFields.serviceType]?.color} style={{ margin: 0 }}>{serviceTypeConfig[order.customFields.serviceType]?.label || order.customFields.serviceType}</Tag></Col>}
@@ -427,7 +425,7 @@ const CSView: React.FC = () => {
 
         {/* Right: Quick Stats (3/24) */}
         <Col span={3}>
-          <Card title="统计" size="small" style={{ marginBottom: 16 }}>
+          <Card title="统计" size="small" style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🟢 空闲</span><b style={{ color: '#00E676' }}>{idleCount}</b></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span>🔴 接单</span><b style={{ color: '#FF4757' }}>{busyCount}</b></div>
@@ -666,7 +664,7 @@ const AdminView: React.FC = () => {
   return (
     <div>
       {/* Stats Cards */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: 12 }}>
         <Col span={6}>
           <Card size="small">
             <Statistic
@@ -715,7 +713,7 @@ const AdminView: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <div />
@@ -829,7 +827,7 @@ const CompanionView: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Text strong style={{ fontSize: 16 }}>派单记录</Text>
           <br /><Text type="secondary">查看全部派单历史</Text>
@@ -911,7 +909,7 @@ const DispatchPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <Text strong style={{ fontSize: 16 }}>

@@ -22,7 +22,6 @@ export class CreateOrderDto {
   @IsOptional() @IsString() customerRoomCode?: string;
 
   // Delta Force sub-fields
-  @IsOptional() @IsString() deltaMode?: string;
   @IsOptional() @IsString() deltaMission?: string;
   @IsOptional() @IsString() deltaCount?: string;
   @IsOptional() @IsString() deltaNote?: string;

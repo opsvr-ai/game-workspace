@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Table, message, Tooltip, Empty } from 'antd';
+import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Switch, Table, message, Tooltip, Empty } from 'antd';
 import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { companionsApi } from '../api/companions';
@@ -114,6 +114,9 @@ const CompanionPage: React.FC = () => {
   // Customer follow-up tracking
   const [myCustomers, setMyCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<any>({ enabled: true, orderTypes: { NEW: true, RENEW: true, REPURCHASE: true, TIP: true }, serviceTypes: { PLAY_WITH: true, ESCORT: true, DO_TASK: true }, dispatchTypes: { POOL: true, DIRECT: true }, urgency: { now: true, later: true }, billingMode: { hour: true, round: true }, deltaCount: { '单': true, '双': true }, deltaMission: { '机密': true, '绝密': true }, customerSource: { '小红书': true, '抖音': true, '快手': true, '转介绍': true } });
+  const saveNotifPrefs = async (prefs: any) => { setNotifPrefs(prefs); try { await (window as any).electronAPI?.storeSet('notificationPrefs', prefs); } catch {} };
   const entertainmentThreshold = data?.entertainmentThreshold ?? 200;
   const belowEntertainment = data ? (data.todayRevenue < entertainmentThreshold) : true;
 
@@ -164,7 +167,7 @@ const CompanionPage: React.FC = () => {
   return (
     <div>
       {/* ① Status Header — compact inline */}
-      <Card size="small" style={{ marginBottom: 16, border: '2px solid #00D4FF' }}>
+      <Card size="small" style={{ marginBottom: 12, border: '2px solid #00D4FF' }}>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
@@ -184,6 +187,7 @@ const CompanionPage: React.FC = () => {
               <Button icon={IconThunder} onClick={() => switchStatus('BUSY')}>接单</Button>
               <Button icon={IconCoffee} onClick={() => switchStatus('RESTING')}>休息</Button>
               <Button size="small" onClick={() => { fetchData(); fetchWallet(); fetchMyCustomers(); }} icon={React.createElement(ReloadOutlined)} />
+              <Button size="small" onClick={() => setNotifModalOpen(true)}>🔔</Button>
             </Space>
           </Col>
         </Row>
@@ -191,7 +195,7 @@ const CompanionPage: React.FC = () => {
 
       {/* ② Performance — left chart + right ranking */}
       <Title level={5} style={{ marginBottom: 12 }}>📊 业绩看板</Title>
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col span={13}>
           <Card size="small" title="订单占比">
             <Row gutter={8}>
@@ -271,7 +275,7 @@ const CompanionPage: React.FC = () => {
           });
           if (pendingCustomers.length === 0) return <Card size="small"><Empty description="暂无待跟进客户" image={Empty.PRESENTED_IMAGE_SIMPLE} /></Card>;
           return (
-            <Table dataSource={pendingCustomers.slice(0, 5)} rowKey="id" size="small" pagination={false} style={{ marginBottom: 16 }}>
+            <Table size="small" dataSource={pendingCustomers.slice(0, 5)} rowKey="id" pagination={false} style={{ marginBottom: 12 }}>
               <Table.Column title="编号" dataIndex="customerCode" width={100} render={(v: string) => <Text code>{v}</Text>} />
               <Table.Column title="微信" dataIndex="wechatId" width={100} render={(v: string) => v || '-'} />
               <Table.Column title="来源" dataIndex="platform" width={70} render={(v: string) => v ? <Tag>{v}</Tag> : '-'} />
@@ -288,11 +292,41 @@ const CompanionPage: React.FC = () => {
       </Spin>
 
       {/* ④ Billing entry */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 12 }}>
         <Text strong>💰 报账</Text><br />
         <Text>总流水 ¥{(wallet?.totalRevenue ?? 0).toFixed(0)} · 可支取 ¥{(wallet?.withdrawable ?? 0).toFixed(0)} · 押金 ¥{(wallet?.deposit ?? 0).toFixed(0)}</Text><br />
         <Button type="primary" size="small" style={{ marginTop: 8 }} onClick={() => window.location.href = '/companion/billing'}>进入报账系统 →</Button>
       </Card>
+
+      {/* Notification Settings Modal */}
+      <Modal title="🔔 订单通知设置" open={notifModalOpen} onCancel={() => setNotifModalOpen(false)} footer={null} width={540}>
+        <div style={{display:'flex',alignItems:'center',marginBottom:14}}>
+          <Typography.Text strong style={{marginRight:12}}>启用通知</Typography.Text>
+          <Switch checked={notifPrefs?.enabled !== false} onChange={(v) => saveNotifPrefs({...notifPrefs, enabled: v})} />
+        </div>
+        <Row gutter={[8,14]}>
+          {[{title:'订单类型',key:'orderTypes',items:[{k:'NEW',l:'首单',c:'#1677ff'},{k:'RENEW',l:'续费',c:'#00D4FF'},{k:'REPURCHASE',l:'复购',c:'#7B61FF'},{k:'TIP',l:'打赏',c:'#FF9100'}]},
+            {title:'服务类型',key:'serviceTypes',items:[{k:'PLAY_WITH',l:'陪玩',c:'#1677ff'},{k:'ESCORT',l:'护航',c:'#FF9100'},{k:'DO_TASK',l:'任务',c:'#7B61FF'}]},
+            {title:'派单方式',key:'dispatchTypes',items:[{k:'POOL',l:'抢单池',c:'#1677ff'},{k:'DIRECT',l:'直接派',c:'#52c41a'}]},
+            {title:'打单时间',key:'urgency',items:[{k:'now',l:'⚡立即',c:'#52c41a'},{k:'later',l:'预约',c:'#7B61FF'}]},
+            {title:'计费方式',key:'billingMode',items:[{k:'hour',l:'按小时',c:'#1677ff'},{k:'round',l:'按局',c:'#52c41a'}]},
+            {title:'陪陪数量',key:'deltaCount',items:[{k:'单',l:'单',c:'#1677ff'},{k:'双',l:'双',c:'#7B61FF'}]},
+            {title:'任务类型',key:'deltaMission',items:[{k:'机密',l:'机密',c:'#FF9100'},{k:'绝密',l:'绝密',c:'#7B61FF'}]},
+            {title:'客户来源',key:'customerSource',items:[{k:'小红书',l:'小红书',c:'#FF4D4F'},{k:'抖音',l:'抖音',c:'#1677ff'},{k:'快手',l:'快手',c:'#FF9100'},{k:'转介绍',l:'转介绍',c:'#52c41a'}]},
+          ].map((sec: any) => (
+            <Col span={8} key={sec.key}>
+              <Typography.Text type="secondary" style={{display:'block',marginBottom:4}}>{sec.title}</Typography.Text>
+              {sec.items.map(({k,l,c}: any) => (
+                <div key={k} style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                  <Tag color={c} style={{margin:0,fontSize:11}}>{l}</Tag>
+                  <Switch size="small" checked={notifPrefs?.[sec.key]?.[k] !== false} disabled={!notifPrefs?.enabled}
+                    onChange={(v) => saveNotifPrefs({...notifPrefs, [sec.key]: {...notifPrefs?.[sec.key], [k]: v}})} />
+                </div>
+              ))}
+            </Col>
+          ))}
+        </Row>
+      </Modal>
 
       {/* Keep existing modals */}
       <Modal title="⚠️ 无法切换娱乐模式" open={!!blockedModal} onCancel={() => setBlockedModal(null)} footer={null}>

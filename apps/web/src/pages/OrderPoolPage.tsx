@@ -145,9 +145,6 @@ const OrderPoolPage: React.FC = () => {
         `¥${Number(order.amount).toFixed(2)}`,
         order.duration ? `${order.duration}h` : '',
         order.customFields?.billingMode === 'round' ? '按局' : '',
-        order.customFields?.deltaMode
-          ? `🎯${order.customFields.deltaMode}`
-          : '',
         order.customer?.customerCode
           ? `👤${order.customer.customerCode}`
           : '',
@@ -218,13 +215,6 @@ const OrderPoolPage: React.FC = () => {
             ¥{Number(order.amount).toFixed(0)}
           </Text>
         </Col>
-        {order.customFields?.deltaMode && (
-          <Col>
-            <Tag color="cyan" style={{ margin: 0 }}>
-              {order.customFields.deltaMode}
-            </Tag>
-          </Col>
-        )}
         {order.customFields?.deltaMission && (
           <Col>
             <Tag style={{ margin: 0 }}>
@@ -421,7 +411,7 @@ const OrderPoolPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <Title level={4} style={{ margin: 0 }}>
@@ -450,7 +440,7 @@ const OrderPoolPage: React.FC = () => {
         <Card
           size="small"
           style={{
-            marginBottom: 16,
+            marginBottom: 12,
             background: isUnlocked ? '#f6ffed' : '#fff7e6',
           }}
         >

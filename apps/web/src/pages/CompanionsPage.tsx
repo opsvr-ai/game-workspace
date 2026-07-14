@@ -312,11 +312,12 @@ const CompanionsPage: React.FC = () => {
         width: 200,
         render: (_: unknown, record: Companion) => {
           const hb = formatHeartbeat(record.pc?.lastHeartbeat);
+            const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.pc?.lastHeartbeat !== null;
           return (
             <Space size={4}>
-              <Tag color={hb.online ? 'green' : 'default'}>
+              <Tag color={isAbnormal ? 'red' : (hb.online ? 'green' : 'default')}>
                 {React.createElement(DesktopOutlined)}{' '}
-                {hb.online ? '在线' : '离线'}
+                {isAbnormal ? '异常离线' : (hb.online ? '在线' : '离线')}
               </Tag>
               {record.pc?.lastHeartbeat && (
                 <Tooltip
@@ -454,7 +455,7 @@ const CompanionsPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
         <div>
@@ -488,7 +489,7 @@ const CompanionsPage: React.FC = () => {
             border: '1px solid #ffccc7',
             borderRadius: 6,
             padding: '8px 12px',
-            marginBottom: 16,
+            marginBottom: 12,
           }}
         >
           {error}

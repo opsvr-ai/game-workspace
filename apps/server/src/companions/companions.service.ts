@@ -156,12 +156,16 @@ export class CompanionsService {
     });
 
     // Config thresholds
-    const [unlockCfg, freeCfg] = await Promise.all([
+    const [unlockCfg, freeCfg, entRevenueCfg, entDepositCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'revenue.free_threshold' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } }),
     ]);
     const unlockThreshold = (unlockCfg?.value as number) ?? 200;
     const freeThreshold = (freeCfg?.value as number) ?? 300;
+    const entertainmentThreshold = (entRevenueCfg?.value as number) ?? 200;
+    const entertainmentDepositThreshold = (entDepositCfg?.value as number) ?? 500;
 
     // Time logs for today
     const timeLogs = await this.prisma.companionTimeLog.findMany({
@@ -274,6 +278,9 @@ export class CompanionsService {
       availableFunds: Math.round(availableFunds * 100) / 100,
       feeBalanceWarning,
       feeBalanceAlert,
+      entertainmentThreshold,
+      entertainmentDepositThreshold,
+      isEntertainmentUnlocked: todayRevenue >= entertainmentThreshold,
       currentStatus: companion?.status ?? 'OFFLINE',
       splitMode,
       tierInfo,
@@ -582,5 +589,50 @@ export class CompanionsService {
 
   async removeStatusBlacklist(id: string) {
     return this.prisma.companionStatusBlacklist.delete({ where: { id } });
+  }
+
+  // ── Manual financial adjustment (ADMIN/OWNER) ──
+  async updateFinance(companionId: string, data: {
+    todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number;
+    pendingWithdraw?: number; withdrawable?: number; deposit?: number; note?: string;
+  }, operatorId: string) {
+    const note = data.note || '管理员手动调整';
+    const logs: Promise<any>[] = [];
+
+    if (data.totalRevenue !== undefined) {
+      const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { monthlyRevenue: true } });
+      const old = cur?.monthlyRevenue || 0;
+      await this.prisma.companion.update({ where: { id: companionId }, data: { monthlyRevenue: data.totalRevenue } });
+      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'SETTLEMENT', amount: data.totalRevenue - old, balanceBefore: old, balanceAfter: data.totalRevenue, note, reviewedById: operatorId, status: 'APPROVED' } }));
+    }
+
+    if (data.totalWithdrawn !== undefined) {
+      const agg = await this.prisma.walletTransaction.aggregate({ where: { companionId, type: 'WITHDRAW', status: 'APPROVED' }, _sum: { amount: true } });
+      const cur = agg._sum.amount || 0; const diff = data.totalWithdrawn - cur;
+      if (diff !== 0) logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'WITHDRAW', amount: diff, balanceBefore: cur, balanceAfter: data.totalWithdrawn, note, reviewedById: operatorId, status: 'APPROVED' } }));
+    }
+
+    if (data.pendingWithdraw !== undefined) {
+      const agg = await this.prisma.walletTransaction.aggregate({ where: { companionId, type: 'WITHDRAW', status: 'PENDING' }, _sum: { amount: true } });
+      const cur = agg._sum.amount || 0; const diff = data.pendingWithdraw - cur;
+      if (diff !== 0) logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'WITHDRAW', amount: diff, balanceBefore: cur, balanceAfter: data.pendingWithdraw, note, reviewedById: operatorId, status: 'PENDING' } }));
+    }
+
+    if (data.withdrawable !== undefined) {
+      const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { balance: true } });
+      const old = cur?.balance || 0;
+      await this.prisma.companion.update({ where: { id: companionId }, data: { balance: data.withdrawable } });
+      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'SETTLEMENT', amount: data.withdrawable - old, balanceBefore: old, balanceAfter: data.withdrawable, note: note + ' (待支取)', reviewedById: operatorId, status: 'APPROVED' } }));
+    }
+
+    if (data.deposit !== undefined) {
+      const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { deposit: true } });
+      const old = cur?.deposit || 0;
+      await this.prisma.companion.update({ where: { id: companionId }, data: { deposit: data.deposit } });
+      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'DEPOSIT', amount: data.deposit - old, balanceBefore: old, balanceAfter: data.deposit, note, reviewedById: operatorId, status: 'APPROVED' } }));
+    }
+
+    await Promise.all(logs);
+    return { success: true };
   }
 }

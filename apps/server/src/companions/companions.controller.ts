@@ -240,15 +240,25 @@ export class CompanionsController {
   ): Promise<ApiResponse<unknown>> {
     // Threshold check when switching to entertainment mode
     if (status === 'ENTERTAINMENT') {
-      const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true, monthlyRevenue: true } });
+      const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true } });
       if (companion) {
         const depositCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } });
         const revenueCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } });
         const minDeposit = (depositCfg?.value as number) ?? 500;
         const minRevenue = (revenueCfg?.value as number) ?? 200;
-        const d = companion.deposit || 0, r = companion.monthlyRevenue || 0;
-        if (d < minDeposit || r < minRevenue) {
-          return { code: 200, message: '不满足娱乐模式条件', data: { blocked: true, deposit: d, revenue: r, depositThreshold: minDeposit, revenueThreshold: minRevenue } };
+        const d = companion.deposit || 0;
+
+        // Calculate today's revenue from DONE orders
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+        const todayOrders = await this.prisma.order.findMany({
+          where: { companionId: id, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
+          select: { amount: true },
+        });
+        const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
+
+        if (d < minDeposit || todayRevenue < minRevenue) {
+          return { code: 200, message: '不满足娱乐模式条件', data: { blocked: true, deposit: d, revenue: todayRevenue, depositThreshold: minDeposit, revenueThreshold: minRevenue } };
         }
       }
     }
@@ -439,6 +449,14 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data: null };
   }
 
+
+  // ── Manual financial adjustment (ADMIN/OWNER) ──
+  @Put('companions/:id/finance')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async updateFinance(@Param('id') id: string, @Body() dto: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; withdrawable?: number; deposit?: number; note?: string }, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.updateFinance(id, dto, req.user.id);
+    return { code: 200, message: '财务数据已更新', data };
+  }
   // ── Status Blacklist CRUD ──
   @Get('companions/:id/status-blacklist')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)

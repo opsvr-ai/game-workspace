@@ -94,7 +94,6 @@ const PoolPage: React.FC = () => {
         `¥${Number(order.amount).toFixed(2)}`,
         order.duration ? `${order.duration}h` : '',
         order.customFields?.billingMode === 'round' ? '按局' : '',
-        order.customFields?.deltaMode ? `🎯${order.customFields.deltaMode}` : '',
         order.customer?.customerCode ? `👤${order.customer.customerCode}` : '',
         order.csUser?.username ? `💬${order.csUser.username}` : '',
       ].filter(Boolean).join(' · '),
@@ -111,12 +110,12 @@ const PoolPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>📦 订单池</Title>
         <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setCreateOpen(true)}>发布订单</Button>
       </div>
 
-      <Card size="small" style={{ marginBottom: 16, background: isUnlocked ? '#f6ffed' : '#fff7e6' }}>
+      <Card size="small" style={{ marginBottom: 12, background: isUnlocked ? '#f6ffed' : '#fff7e6' }}>
         <Row align="middle" justify="space-between">
           <Col>
             <Text strong>
@@ -145,7 +144,6 @@ const PoolPage: React.FC = () => {
               <Col><Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>{orderTypeConfig[order.type]?.label || order.type}</Tag></Col>
               <Col><Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{order.gameName}</Text></Col>
               <Col><Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>¥{Number(order.amount).toFixed(0)}</Text></Col>
-              {order.customFields?.deltaMode && <Col><Tag color="cyan" style={{ margin: 0 }}>{order.customFields.deltaMode}</Tag></Col>}
               {order.customFields?.deltaMission && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag></Col>}
               {order.customFields?.deltaCount && <Col><Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag></Col>}
               {order.customer?.customerCode && <Col><Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>👤{order.customer.customerCode}</Text></Col>}
@@ -197,7 +195,6 @@ const PoolPage: React.FC = () => {
           {grabbedOrder.csUser?.username && <div>发布者：{grabbedOrder.csUser.username}</div>}
           {grabbedOrder.customFields?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
           {grabbedOrder.customFields?.urgency !== 'later' && <Tag color="green">⚡立即打</Tag>}
-          {grabbedOrder.customFields?.deltaMode && <div>模式：{grabbedOrder.customFields.deltaMode} {grabbedOrder.customFields.deltaMission||''} {grabbedOrder.customFields.deltaCount||''}</div>}
           <Divider style={{ margin: '8px 0' }} />
           <div><strong>📞 联系方式（可复制）：</strong></div>
           {grabbedOrder.customFields?.customerWechat && <div>微信：<Text copyable style={{ color: '#1677ff' }}>{grabbedOrder.customFields.customerWechat}</Text></div>}
