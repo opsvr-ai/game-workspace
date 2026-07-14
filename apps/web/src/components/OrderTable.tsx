@@ -15,10 +15,10 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
     tableLayout="fixed"
     pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条`, size: 'small' }}
     columns={[
-      { title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 75,
+      { title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 60,
         render: (_: any, r: any) => <Text>{r.customer?.customerCode || '-'}</Text> },
-      { title: '微信号', key: 'wechatId', width: 80, render: (_: any, r: any) => <Text>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text> },
-      { title: '最近订单', key: 'lastOrder', width: 120, render: (_: any, r: any) => {
+      { title: '微信号', key: 'wechatId', width: 70, render: (_: any, r: any) => <Text>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text> },
+      { title: '最近订单', key: 'lastOrder', width: 110, render: (_: any, r: any) => {
         const cf = r.customFields || {};
         return (<>
           <Text strong>{r.gameName}</Text>
@@ -32,7 +32,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
           </Text>
         </>);
       }},
-      { title: '来源/时间', key: 'source', width: 55, render: (_: any, r: any) => {
+      { title: '来源/时间', key: 'source', width: 50, render: (_: any, r: any) => {
         const cf = r.customFields || {};
         return (<>
           {cf.customerSource && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>📡{cf.customerSource}</Tag>}
@@ -40,20 +40,20 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
           {cf.billingMode && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.billingMode==='round'?'按局':'按小时'}</Tag>}
         </>);
       }},
-      { title: '状态', dataIndex: 'status', key: 'status', width: 50,
+      { title: '状态', dataIndex: 'status', key: 'status', width: 45,
         render: (s: string) => <Tag color={orderStatusConfig[s]?.color||'default'}>{orderStatusConfig[s]?.label||s}</Tag> },
-      { title: '所用微信', key: 'workWechat', width: 80, render: (_: any, r: any) => {
+      { title: '所用微信', key: 'workWechat', width: 70, render: (_: any, r: any) => {
         const wo = r.customFields || {};
         if (wo.workWechatName) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatName}</Tag>;
         if (wo.workWechatId) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatId?.slice(0,8)}</Tag>;
         return <Text type="secondary" style={{fontSize:11}}>-</Text>;
       }},
-      { title: '陪玩', key: 'companion', width: 50, render: (_: any, r: any) => r.companion?.user?.username || <Text type="secondary">-</Text> },
-      { title: '最近跟进', key: 'followUp', width: 55, render: () => <Tag color="orange" style={{fontSize:10}}>-</Tag> },
+      { title: '陪玩', key: 'companion', width: 45, render: (_: any, r: any) => r.companion?.user?.username || <Text type="secondary">-</Text> },
+      { title: '最近跟进', key: 'followUp', width: 50, render: () => <Tag color="orange" style={{fontSize:10}}>-</Tag> },
       { title: '累计消费', key: 'totalSpent', width: 55,
         render: (_: any, r: any) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{Number(r.amount||0).toFixed(2)}</span> },
-      { title: '备注', key: 'notes', width: 75, render: (_: any, r: any) => <Text style={{fontSize:12}}>{r.notes||r.customFields?.deltaNote||'-'}</Text> },
-      ...(renderActions ? [{ title: '操作', key: 'actions', width: 200, render: (_: any, r: any) => <Space size={2} wrap>{renderActions(r)}</Space> }] : []),
+      { title: '备注', key: 'notes', width: 60, render: (_: any, r: any) => <Text style={{fontSize:12}}>{r.notes||r.customFields?.deltaNote||'-'}</Text> },
+      ...(renderActions ? [{ title: '操作', key: 'actions', width: 310, render: (_: any, r: any) => <Space size={2} wrap>{renderActions(r)}</Space> }] : []),
     ]}
   />
 );
