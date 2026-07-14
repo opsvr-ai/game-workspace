@@ -14,6 +14,7 @@ interface Props {
 
 const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => (
   <Table size="small" dataSource={dataSource} rowKey="id" loading={loading}
+    tableLayout="fixed" scroll={{ x: 750 }}
     pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` }}
     columns={[
       { title: '客户编号', key: 'code', width: 80,
