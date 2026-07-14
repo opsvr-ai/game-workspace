@@ -32,7 +32,7 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
       } catch {}
       setEditing(false);
     },
-    style: { width: 80, fontSize: 10 },
+    style: { width: 120, fontSize: 14 },
     defaultValue: "",
   }, React.createElement("option", { value: "" }, "选择"), ...wxs.map((w: any) => React.createElement("option", { key: w.id, value: w.id }, w.wechatId)));
 
@@ -54,21 +54,21 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
         return (<>
           <Text strong>{r.gameName}</Text>
           <br /><Text type="secondary" style={{ fontSize: 11 }}>
-            <Tag color={orderTypeConfig[r.type]?.color} style={{ fontSize: 10, margin: 0 }}>{orderTypeConfig[r.type]?.label || r.type}</Tag>
+            <Tag color={orderTypeConfig[r.type]?.color} style={{ fontSize: 14, margin: 0 }}>{orderTypeConfig[r.type]?.label || r.type}</Tag>
             {' '}¥{Number(r.amount).toFixed(0)}
-            {cf.deltaMission && <Tag color="red" style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaMission}</Tag>}
-            {cf.deltaCount && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
-            {cf.billingMode === 'round' && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>🎯{r.duration||cf.deltaCount||'?'}局</Tag>}
-            {r.duration > 0 && cf.billingMode !== 'round' && <Text style={{ fontSize: 10 }}> · {r.duration}h</Text>}
+            {cf.deltaMission && <Tag color="red" style={{ fontSize: 14, margin: '0 0 0 4px' }}>{cf.deltaMission}</Tag>}
+            {cf.deltaCount && <Tag style={{ fontSize: 14, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
+            {cf.billingMode === 'round' && <Tag style={{ fontSize: 14, margin: '0 0 0 4px' }}>🎯{r.duration||cf.deltaCount||'?'}局</Tag>}
+            {r.duration > 0 && cf.billingMode !== 'round' && <Text style={{ fontSize: 14 }}> · {r.duration}h</Text>}
           </Text>
         </>);
       }},
       { title: '来源/时间', key: 'source', width: 50, render: (_: any, r: any) => {
         const cf = r.customFields || {};
         return (<>
-          {cf.customerSource && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>📡{cf.customerSource}</Tag>}
-          {cf.urgency === 'later' ? <Tag color="purple" style={{ fontSize: 10, margin: '2px 0' }}>📅预约</Tag> : <Tag color="green" style={{ fontSize: 10, margin: '2px 0' }}>⚡立即打</Tag>}
-          {cf.billingMode && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.billingMode==='round'?'按局':'按小时'}</Tag>}
+          {cf.customerSource && <Tag color="orange" style={{ fontSize: 14, margin: 0 }}>📡{cf.customerSource}</Tag>}
+          {cf.urgency === 'later' ? <Tag color="purple" style={{ fontSize: 14, margin: '2px 0' }}>📅预约</Tag> : <Tag color="green" style={{ fontSize: 10, margin: '2px 0' }}>⚡立即打</Tag>}
+          {cf.billingMode && <Tag style={{ fontSize: 14, margin: 0 }}>{cf.billingMode==='round'?'按局':'按小时'}</Tag>}
         </>);
       }},
       { title: '状态', dataIndex: 'status', key: 'status', width: 45,
