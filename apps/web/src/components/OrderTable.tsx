@@ -10,6 +10,37 @@ interface Props {
   renderActions?: (r: any) => React.ReactNode;
 }
 
+
+const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [wxs, setWxs] = React.useState<any[]>([]);
+  const wo = order.customFields || {};
+
+  const startEdit = async () => {
+    try { const http = (await import("../api/client")).default; const { data } = await http.get("/companions/work-wechats"); setWxs(data?.data || []); } catch { setWxs([]); }
+    setEditing(true);
+  };
+
+  if (editing) return React.createElement("select", {
+    onChange: async (e: any) => {
+      const wid = e.target.value;
+      if (!wid) { setEditing(false); return; }
+      const wx = wxs.find((w: any) => w.id === wid);
+      try {
+        const http = (await import("../api/client")).default;
+        await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: wx?.wechatId || "" });
+      } catch {}
+      setEditing(false);
+    },
+    style: { width: 80, fontSize: 10 },
+    defaultValue: "",
+  }, React.createElement("option", { value: "" }, "选择"), ...wxs.map((w: any) => React.createElement("option", { key: w.id, value: w.id }, w.wechatId)));
+
+  if (wo.workWechatName) return React.createElement(Tag, { color: "cyan", style: { fontSize: 11, margin: 0, cursor: "pointer" }, onClick: startEdit }, "📱" + wo.workWechatName);
+  if (wo.workWechatId) return React.createElement(Tag, { color: "cyan", style: { fontSize: 11, margin: 0, cursor: "pointer" }, onClick: startEdit }, "📱" + String(wo.workWechatId).slice(0, 8));
+  return React.createElement(Text, { type: "secondary", style: { fontSize: 11, cursor: "pointer" }, onClick: startEdit }, "点击选择");
+};
+
 const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => (
   <Table size="small" dataSource={dataSource} rowKey="id" loading={loading}
     tableLayout="fixed"
@@ -43,31 +74,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
       { title: '状态', dataIndex: 'status', key: 'status', width: 45,
         render: (s: string) => <Tag color={orderStatusConfig[s]?.color||'default'}>{orderStatusConfig[s]?.label||s}</Tag> },
       { title: '所用微信', key: 'workWechat', width: 90, render: (_: any, r: any) => {
-        const wo = r.customFields || {};
-        const [editing, setEditing] = React.useState(false);
-        const [wxs, setWxs] = React.useState<any[]>([]);
-        const startEdit = async () => {
-          try { const http = (await import('../api/client')).default; const { data } = await http.get('/companions/work-wechats'); setWxs(data?.data||[]); } catch { setWxs([]); }
-          setEditing(true);
-        };
-        if (editing) return (
-          <Space size={4}>
-            <select onChange={async (e) => {
-              const wid = e.target.value; if (!wid) { setEditing(false); return; }
-              const wx = wxs.find((w:any)=>w.id===wid);
-              try { const http = (await import('../api/client')).default;
-                await http.put('/orders/'+r.id+'/contact', { workWechatId: wid, workWechatName: wx?.wechatId||'' });
-              } catch {}
-              setEditing(false);
-            }} style={{width:80,fontSize:10}}>
-              <option value="">选择微信</option>
-              {wxs.map((w: any) => <option key={w.id} value={w.id}>{w.wechatId}</option>)}
-            </select>
-          </Space>
-        );
-        if (wo.workWechatName) return <Tag color="cyan" style={{fontSize:11,margin:0,cursor:'pointer'}} onClick={startEdit}>📱{wo.workWechatName}</Tag>;
-        if (wo.workWechatId) return <Tag color="cyan" style={{fontSize:11,margin:0,cursor:'pointer'}} onClick={startEdit}>📱{String(wo.workWechatId).slice(0,8)}</Tag>;
-        return <Text type="secondary" style={{fontSize:11,cursor:'pointer'}} onClick={startEdit}>点击选择</Text>;
+        return React.createElement(EditableWorkWechat, { order: r });
       }},
       { title: '陪玩', key: 'companion', width: 45, render: (_: any, r: any) => r.companion?.user?.username || <Text type="secondary">-</Text> },
       { title: '最近跟进', key: 'followUp', width: 50, render: () => <Tag color="orange" style={{fontSize:10}}>-</Tag> },
