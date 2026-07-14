@@ -163,6 +163,12 @@ const CustomersPage: React.FC = () => {
         {record.scheduledAt && (() => { const d=new Date(record.scheduledAt); return <><br /><Tag color="purple" style={{ fontSize: 10, marginTop: 2 }}>📅{d.getMonth()+1}月{d.getDate()}日 {String(d.getHours()).padStart(2,'0')}:{String(d.getMinutes()).padStart(2,'0')}</Tag></>; })()}
       </>)},
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
+    { title: '所用微信', key: 'workWechat', width: 100, render: (_: any, r: any) => {
+      const wo = r.orders?.[0]?.customFields;
+      if (wo?.workWechatName) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatName}</Tag>;
+      if (wo?.workWechatId) return <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wo.workWechatId?.slice(0,8)}</Tag>;
+      return <Text type="secondary" style={{fontSize:11}}>-</Text>;
+    } },
     { title: '最近订单', key: 'lastOrder', width: 220, render: (_: any, r: any) => {
       const o = r.orders?.[0];
       if (!o) return <Text type="secondary">-</Text>;
