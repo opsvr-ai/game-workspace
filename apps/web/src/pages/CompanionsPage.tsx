@@ -464,7 +464,7 @@ const CompanionsPage: React.FC = () => {
       >
         <div>
           <Text strong style={{ fontSize: 16 }}>
-            {isAdmin ? '陪玩管理' : '陪玩状态'}
+            {isAdmin ? '员工管理' : role === 'CS' ? '陪玩管理' : '陪玩状态'}
           </Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>

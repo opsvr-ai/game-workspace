@@ -112,7 +112,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },
     { key: '/cs/billing', icon: IconBilling, label: '报账系统' },
     { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
-    { key: '/cs/employees', icon: IconEmployees, label: '员工管理' },
+    { key: '/cs/employees', icon: IconEmployees, label: '陪玩管理' },
     { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
     { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
     { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
@@ -275,7 +275,7 @@ const AppLayout: React.FC = () => {
     const items = [...(roleMenus[user.role] || [])];
     // Add pulsing indicator to 陪玩管理 items when chat is active
     return items.map(item => {
-      if (item.label === '陪玩管理' && chatActive) {
+      if ((item.label === '陪玩管理' || item.label === '员工管理') && chatActive) {
         const name = chatPartner || '?';
         return {
           ...item,
