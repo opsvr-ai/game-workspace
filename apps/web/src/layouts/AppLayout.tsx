@@ -575,7 +575,7 @@ const AppLayout: React.FC = () => {
     )}
 
       {/* Global Grab Success Modal — survives navigation */}
-      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => { setGrabbedOrder(null); navigate('/companion/orders'); }} footer={null} width={480}>
         {grabbedOrder && (
           <div style={{ lineHeight: 2.2 }}>
             <div>📋 {grabbedOrder.gameName} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
