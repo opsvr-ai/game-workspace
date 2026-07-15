@@ -89,8 +89,6 @@ const OrdersPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   useEffect(() => { http.get('/companions').then(({data}:any) => setCompanions(data.data||[])).catch(()=>{}); }, []);
 
-  const [switchWxOrder, setSwitchWxOrder] = useState<any>(null);
-  const [selectedWxId, setSelectedWxId] = useState('');
   const [reassignOrder, setReassignOrder] = useState<any>(null);
   const [reassignCompanionId, setReassignCompanionId] = useState<string>('');
   const [reassignNote, setReassignNote] = useState('');
@@ -142,23 +140,6 @@ const OrdersPage: React.FC = () => {
       </div>
       <OrderTable dataSource={sorted} loading={loading} unreadMap={unreadMap}
         renderActions={isCompanion ? renderCompanionActions : renderAdminActions} />
-
-      <Modal title="切换工作微信" open={!!switchWxOrder} onCancel={() => setSwitchWxOrder(null)} footer={null} width={400}>
-        <Select placeholder="选择工作微信" value={selectedWxId || undefined} onChange={(v) => setSelectedWxId(v)} style={{ width: '100%' }} allowClear>
-          {workWechats.map((w: any) => <Select.Option key={w.id} value={w.id}>{w.wechatId}{w.companion ? ' ('+w.companion?.user?.username+')' : ''}</Select.Option>)}
-        </Select>
-        <Button type="primary" block style={{ marginTop: 12 }} disabled={!selectedWxId} onClick={async () => {
-          if (!selectedWxId || !switchWxOrder) return;
-          try {
-            const wx = workWechats.find((w: any) => w.id === selectedWxId);
-            await http.put(`/orders/${switchWxOrder.id}/contact`, { workWechatId: selectedWxId, workWechatName: wx?.wechatId || '' });
-            message.success('微信已切换');
-            setSwitchWxOrder(null);
-            setSelectedWxId('');
-            fetch();
-          } catch { message.error('操作失败'); }
-        }}>确认切换</Button>
-      </Modal>
 
       <Modal title="归属调整" open={!!reassignOrder}
         onOk={async () => {
