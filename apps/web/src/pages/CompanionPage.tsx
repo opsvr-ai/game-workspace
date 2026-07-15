@@ -196,11 +196,28 @@ const CompanionPage: React.FC = () => {
       {/* ② Analytics Dashboard */}
       <Title level={5} style={{ marginBottom: 8 }}>📊 数据看板</Title>
       <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
-        {[{l:'今日接单',v:data?.todayOrderCount??0,c:'#1677ff'},{l:'本月接单',v:data?.monthlyOrderCount??0,c:'#52c41a'},{l:'微信成功率',v:(data?.wechatAddRate??0)+'%',c:'#722ed1'},{l:'转化率',v:(data?.conversionRate??0)+'%',c:'#fa8c16'},{l:'续单率',v:(data?.renewRate??0)+'%',c:'#00D4FF'},{l:'复购率',v:(data?.repurchaseRate??0)+'%',c:'#7B61FF'}].map(m => (
-        <Col span={4} key={m.l}>
-          <Card size="small" bodyStyle={{padding:'6px 8px',textAlign:'center'}}>
-            <Text type="secondary" style={{fontSize:9}}>{m.l}</Text><br />
-            <Text strong style={{fontSize:16,color:m.c}}>{m.v}</Text>
+        {[
+          {l:'今日接单',v:data?.todayOrderCount??0,color:'#1677ff',max:Math.max(data?.todayOrderCount||1,5)},
+          {l:'本月接单',v:data?.monthlyOrderCount??0,color:'#52c41a',max:Math.max(data?.monthlyOrderCount||1,10)},
+          {l:'微信成功率',v:data?.wechatAddRate??0,color:'#722ed1',max:100},
+          {l:'转化率',v:data?.conversionRate??0,color:'#fa8c16',max:100},
+          {l:'续单率',v:data?.renewRate??0,color:'#00D4FF',max:100},
+          {l:'复购率',v:data?.repurchaseRate??0,color:'#7B61FF',max:100},
+        ].map(m => (
+        <Col span={4} key={m.l} style={{textAlign:'center'}}>
+          <Card size="small" bodyStyle={{padding:'6px 8px'}}>
+            <Text type="secondary" style={{fontSize:9}}>{m.l}</Text>
+            <ResponsiveContainer width="100%" height={60}>
+              <PieChart>
+                <Pie data={[{name:'a',value:m.v,fill:m.color},{name:'b',value:m.max-m.v,fill:'#F0F0F0'}]} dataKey="value" cx="50%" cy="50%" outerRadius={25} innerRadius={18} startAngle={90} endAngle={-270} isAnimationActive={false}>
+                  <Cell fill={m.color} />
+                  <Cell fill="#F0F0F0" />
+                </Pie>
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={{fontSize:10,fontWeight:600,fill:m.color}}>
+                  {m.v}{m.max===100?'%':''}
+                </text>
+              </PieChart>
+            </ResponsiveContainer>
           </Card>
         </Col>
         ))}
