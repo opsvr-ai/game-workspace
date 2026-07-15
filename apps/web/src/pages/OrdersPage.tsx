@@ -60,7 +60,7 @@ const OrdersPage: React.FC = () => {
         }}>联系方式添加成功</Button>
         <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
           const fd = new FormData(); fd.append('file', file);
-          try { const { data } = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': undefined as any } });
+          try { const { data } = await http.post('/upload/screenshot', fd);
             await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', screenshotUrl: data.data?.url || data.url || '' });
             message.success('截图已上传，等待审核补客户'); fetch();
           } catch(e:any) { message.error('上传失败'); }
