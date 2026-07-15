@@ -220,6 +220,7 @@ const PoolPage: React.FC = () => {
               message.success(`已标记使用微信: ${wx?.wechatId || selectedWechat}`);
             } catch { message.error('保存失败'); }
             setGrabbedOrder(null);
+            window.location.href = '/companion/orders';
           }}>确认使用该微信</Button>
         </div>}
       </Modal>
