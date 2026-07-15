@@ -9,7 +9,7 @@ import type {
 const http = axios.create({
   baseURL: '/api',
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {},
 });
 
 // Request interceptor: attach Bearer token from sessionStorage
