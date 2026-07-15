@@ -191,7 +191,7 @@ const CompanionsPage: React.FC = () => {
       {
         title: '陪玩姓名',
         key: 'name',
-        width: 150,
+        width: 90,
         render: (_: unknown, r: Companion) => {
           const username = r.user?.username || r.id;
           const avatarUrl = r.user?.avatar
@@ -238,7 +238,7 @@ const CompanionsPage: React.FC = () => {
         title: '状态',
         dataIndex: 'status',
         key: 'status',
-        width: 90,
+        width: 70,
         render: (status: CompanionStatus) => {
           const cfg = companionStatusConfig[status];
           return <Tag color={cfg?.color}>{cfg?.label ?? status}</Tag>;
@@ -248,7 +248,7 @@ const CompanionsPage: React.FC = () => {
         title: '游戏',
         dataIndex: 'games',
         key: 'games',
-        width: 260,
+        width: 180,
         render: (games: any[] | undefined) => {
           if (!games || games.length === 0)
             return <Text type="secondary">-</Text>;
@@ -296,7 +296,7 @@ const CompanionsPage: React.FC = () => {
         title: '月收入',
         dataIndex: 'monthlyRevenue',
         key: 'monthlyRevenue',
-        width: 110,
+        width: 80,
         render: (val: number | undefined) => (
           <span style={{ color: '#FF4757', fontWeight: 600 }}>
             ¥{val?.toFixed(2) || '0.00'}
@@ -307,13 +307,13 @@ const CompanionsPage: React.FC = () => {
         title: '手机',
         dataIndex: 'phone',
         key: 'phone',
-        width: 120,
+        width: 90,
         render: (v: string | undefined) => v || '-',
       },
       {
         title: 'PC状态',
         key: 'pcStatus',
-        width: 200,
+        width: 140,
         render: (_: unknown, record: Companion) => {
           const hb = formatHeartbeat(record.pc?.lastHeartbeat);
             const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.pc?.lastHeartbeat !== null;
@@ -348,7 +348,7 @@ const CompanionsPage: React.FC = () => {
       cols.push({
         title: '操作',
         key: 'actions',
-        width: 120,
+        width: 90,
         render: (_: unknown, record: Companion) => (
           <Popconfirm
             title="确认离职处理？"

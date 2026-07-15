@@ -46,7 +46,7 @@ export class StudiosService {
   }
 
   async getEmployees(studioId?: string) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         ...(studioId ? { studioId } : {}),
         role: { not: 'OWNER' },
@@ -64,6 +64,24 @@ export class StudiosService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Add today's order counts per companion
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    const companionIds = users.filter((u: any) => u.companion?.id).map((u: any) => u.companion!.id);
+    if (companionIds.length > 0) {
+      const todayOrders = await this.prisma.order.groupBy({
+        by: ['companionId'],
+        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELLED' } },
+        _count: { id: true },
+      });
+      const counts = new Map(todayOrders.map((o: any) => [o.companionId, o._count.id]));
+      users.forEach((u: any) => {
+        if (u.companion) u.companion.todayOrderCount = counts.get(u.companion.id) || 0;
+      });
+    }
+
+    return users;
   }
 
   async createEmployee(studioId: string, dto: { username: string; password: string; role: string }) {
