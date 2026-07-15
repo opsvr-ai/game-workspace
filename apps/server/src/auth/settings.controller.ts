@@ -30,6 +30,9 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'options.fail_reasons': ['抢单未加微信', '好友未通过', '客户不回消息', '客户删除', '客户说不打', '其他'],
   'games': ['英雄联盟', '王者荣耀', '无畏契约', 'CS2', 'DOTA2', '永劫无间', '绝地求生', 'Apex英雄'],
   'ranks': ['青铜', '白银', '黄金', '铂金', '钻石', '大师', '宗师', '王者'],
+  'identity.app_code': '',
+  'identity.app_key': '',
+  'identity.app_secret': '',
   'agent.latest_version': '1.0.0',
   'agent.latest_download_url': '/api/agent/download/latest',
 };

@@ -3,6 +3,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { IdentityVerifyService } from './identity-verify.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
@@ -14,7 +15,7 @@ import * as bcrypt from 'bcryptjs';
 
 @Controller()
 export class RegisterController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly identityVerify: IdentityVerifyService) {}
 
   // 陪玩自主注册（无需登录）
   @Post('auth/register')
@@ -61,6 +62,12 @@ export class RegisterController {
     if (existing) {
       return { code: 409, message: '用户名已被占用', data: null };
     }
+
+    // 实名认证（如API已配置则验证，未配置则跳过）
+    try {
+      const vr = await this.identityVerify.verify(body.realName, body.idNumber);
+      if (!vr.valid) return { code: 400, message: vr.reason || '身份验证失败', data: null };
+    } catch {}
 
     const idCardFront = files?.idCardFront?.[0]?.filename ?? null;
     const idCardBack = files?.idCardBack?.[0]?.filename ?? null;
