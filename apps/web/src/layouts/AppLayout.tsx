@@ -31,6 +31,7 @@ import { ControlOutlined, StopOutlined, SafetyOutlined, HistoryOutlined,
 } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
+import { orderTypeConfig } from '../constants/orders';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -575,10 +576,10 @@ const AppLayout: React.FC = () => {
     )}
 
       {/* Global Grab Success Modal — survives navigation */}
-      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => { setGrabbedOrder(null); navigate('/companion/orders'); }} footer={null} width={480}>
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
         {grabbedOrder && (
-          <div style={{ lineHeight: 2.2 }}>
-            <div>📋 {grabbedOrder.gameName} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
+          <div style={{ fontSize: 14, lineHeight: 2 }}>
+            <div>📋 {grabbedOrder.gameName} · {orderTypeConfig[grabbedOrder.type]?.label || grabbedOrder.type} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
             {grabbedOrder.customer?.customerCode && <div>客户编号：{grabbedOrder.customer.customerCode}</div>}
             {grabbedOrder.customFields?.customerSource && <div>来源：{grabbedOrder.customFields.customerSource}</div>}
             {grabbedOrder.customFields?.customerWechat && <div>💬 微信：<Typography.Text copyable>{grabbedOrder.customFields.customerWechat}</Typography.Text></div>}
