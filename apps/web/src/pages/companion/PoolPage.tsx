@@ -221,6 +221,7 @@ const PoolPage: React.FC = () => {
             } catch { message.error('保存失败'); }
             setGrabbedOrder(null);
           }}>确认使用该微信</Button>
+          <Button type="link" block style={{ marginTop: 8 }} onClick={() => { setGrabbedOrder(null); window.location.href = '/companion/orders'; }}>跳过，查看接单记录 →</Button>
         </div>}
       </Modal>
       {/* Chat Modal */}
