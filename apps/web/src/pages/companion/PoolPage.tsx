@@ -193,7 +193,7 @@ const PoolPage: React.FC = () => {
 
       <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id}/>
       {/* Grab Success Modal */}
-      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => { setGrabbedOrder(null); window.location.href = '/companion/orders'; }} footer={null} width={480}>
         {grabbedOrder && <div style={{ fontSize: 14, lineHeight: 2 }}>
           <div>📋 {grabbedOrder.gameName} · {orderTypeConfig[grabbedOrder.type]?.label || grabbedOrder.type} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
           {grabbedOrder.customer?.customerCode && <div>客户编号：{grabbedOrder.customer.customerCode}</div>}
@@ -221,7 +221,6 @@ const PoolPage: React.FC = () => {
             } catch { message.error('保存失败'); }
             setGrabbedOrder(null);
           }}>确认使用该微信</Button>
-          <Button type="link" block style={{ marginTop: 8 }} onClick={() => { setGrabbedOrder(null); window.location.href = '/companion/orders'; }}>跳过，查看接单记录 →</Button>
         </div>}
       </Modal>
       {/* Chat Modal */}
