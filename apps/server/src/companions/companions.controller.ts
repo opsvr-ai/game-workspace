@@ -62,7 +62,7 @@ export class CompanionsController {
     if (msgOrderId) {
       const memMsgs = chatMessages.get(studioId)?.get(msgOrderId);
       if (memMsgs && memMsgs.length > 0) {
-        messages = memMsgs;
+        messages = memMsgs.map(m => ({ ...m, from: 'them' }));
       } else {
         // Fall back to database (survives server restart)
         try {
