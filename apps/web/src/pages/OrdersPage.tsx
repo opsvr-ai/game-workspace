@@ -90,7 +90,6 @@ const OrdersPage: React.FC = () => {
   useEffect(() => { http.get('/companions').then(({data}:any) => setCompanions(data.data||[])).catch(()=>{}); }, []);
 
   const [switchWxOrder, setSwitchWxOrder] = useState<any>(null);
-  const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [selectedWxId, setSelectedWxId] = useState('');
   const [reassignOrder, setReassignOrder] = useState<any>(null);
   const [reassignCompanionId, setReassignCompanionId] = useState<string>('');
