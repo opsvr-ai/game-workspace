@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Tag, Typography, Space } from 'antd';
+import { Table, Tag, Typography, Space, Image } from 'antd';
 import { orderTypeConfig, orderStatusConfig } from '../constants';
 import EditableWorkWechat from './EditableWorkWechat';
 
@@ -48,7 +48,11 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
       { title: '最近跟进', key: 'followUp', width: 50, render: () => <Tag color="orange" style={{fontSize:10}}>-</Tag> },
       { title: '累计消费', key: 'totalSpent', width: 55,
         render: (_: any, r: any) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{Number(r.amount||0).toFixed(2)}</span> },
-      { title: '备注', key: 'notes', width: 60, render: (_: any, r: any) => <Text style={{fontSize:12}}>{r.notes||r.customFields?.deltaNote||'-'}</Text> },
+      { title: '备注', key: 'notes', width: 60, render: (_: any, r: any) => (<>
+        {r.screenshotUrl && <Image src={r.screenshotUrl} width={18} height={18} style={{borderRadius:4,objectFit:'cover',cursor:'pointer',marginRight:2}} preview={{mask:'查看截图'}} />}
+        {r.contactStatus === 'not_accepted' && <Tag color="orange" style={{fontSize:9,margin:'2px 0 0',padding:'0 4px'}}>待审</Tag>}
+        <Text style={{fontSize:9}}>{(r.notes||r.customFields?.deltaNote||'').slice(0,10)}</Text>
+      </>) },
       ...(renderActions ? [{ title: '操作', key: 'actions', width: 270, render: (_: any, r: any) => <Space size={2} wrap>{renderActions(r)}</Space> }] : []),
     ]}
   />
