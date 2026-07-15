@@ -203,7 +203,7 @@ const CompanionPage: React.FC = () => {
           {l:'转化率',v:data?.conversionRate??0,color:'#fa8c16',max:100},
           
         ].map(m => (
-        <Col span={4} key={m.l} style={{textAlign:'center'}}>
+        <Col span={6} key={m.l} style={{textAlign:'center'}}>
           <Card size="small" bodyStyle={{padding:'6px 8px'}}>
             <Text type="secondary" style={{fontSize:9}}>{m.l}</Text>
             <ResponsiveContainer width="100%" height={60}>
