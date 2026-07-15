@@ -256,7 +256,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     poll();
-    const t = setInterval(poll, 3000);
+    const t = setInterval(poll, 1500);
     return () => clearInterval(t);
   }, [user?.studioId]);
 
