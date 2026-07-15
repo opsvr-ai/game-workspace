@@ -33,6 +33,7 @@ import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { useSocket } from '../hooks/useSocket';
 import ChatModal from '../components/ChatModal';
+import OrderTable from "../components/OrderTable";
 import CreateOrderModal from '../components/CreateOrderModal';
 import {
   orderTypeConfig,
@@ -840,23 +841,7 @@ const CompanionView: React.FC = () => {
           <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
         </div>
       </div>
-      <Table size="small" dataSource={orders} rowKey="id" loading={loading}
-        columns={[
-          { title: '游戏', dataIndex: 'gameName', width: 100 },
-          { title: '客户', key: 'wx', width: 120, render: (_: any, r: any) => r.customFields?.customerWechat || r.customer?.wechatId || '-' },
-          { title: '所用微信', key: 'workWechat', width: 110, render: (_: any, r: any) => {
-            const wx = r.customFields?.workWechatName || r.customFields?.workWechatId;
-            return wx ? <Tag color="cyan" style={{fontSize:11,margin:0}}>📱{wx}</Tag> : <Text type="secondary" style={{fontSize:11}}>-</Text>;
-          }},
-          { title: '状态', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={orderStatusConfig[s]?.color} style={{fontSize:11}}>{orderStatusConfig[s]?.label || s}</Tag> },
-          { title: '来源/时间', key: 'source', width: 130, render: (_: any, r: any) => {
-            const cf = r.customFields;
-            return <>{cf?.customerSource ? <Tag color="orange" style={{fontSize:10,margin:'0 0 2px 0'}}>{cf.customerSource}</Tag> : null}<br /><Text type="secondary" style={{fontSize:10}}>{r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-'}</Text></>;
-          }},
-        ]}
-        pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` }}
-      />
-    </div>
+      <OrderTable dataSource={orders} loading={loading} />    </div>
   );
 };
 
