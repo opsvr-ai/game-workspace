@@ -106,9 +106,9 @@ const OrdersPage: React.FC = () => {
     )}
     {r.contactStatus === 'not_accepted' && (
       <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16', marginLeft: 4 }}
-        onClick={async () => {
-          try { await http.post(`/orders/${r.id}/compensate-customer`); message.success('已补客户'); fetch(); }
-          catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+        onClick={() => {
+          setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, notes: '补单客户' });
+          setCreateOpen(true);
         }}>补客户</Button>
     )}
   </>);
