@@ -51,6 +51,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
       { title: '备注', key: 'notes', width: 60, render: (_: any, r: any) => (<>
         {r.screenshotUrl && <Image src={r.screenshotUrl} width={18} height={18} style={{borderRadius:4,objectFit:'cover',cursor:'pointer',marginRight:2}} preview={{mask:'查看截图'}} />}
         {r.contactStatus === 'not_accepted' && <Tag color="orange" style={{fontSize:9,margin:'2px 0 0',padding:'0 4px'}}>待审</Tag>}
+        {(r.customFields?.deltaNote || r.notes || '').includes('补单') && <Tag color="red" style={{fontSize:9,margin:'2px 0 0',padding:'0 4px'}}>🔴补单</Tag>}
         <Text style={{fontSize:9}}>{(r.notes||r.customFields?.deltaNote||'').slice(0,10)}</Text>
       </>) },
       ...(renderActions ? [{ title: '操作', key: 'actions', width: 270, render: (_: any, r: any) => <Space size={2} wrap>{renderActions(r)}</Space> }] : []),
