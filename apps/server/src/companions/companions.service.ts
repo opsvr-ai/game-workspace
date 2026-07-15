@@ -287,15 +287,16 @@ export class CompanionsService {
     const feeBalanceAlert = entertainmentFee >= availableFunds;
 
     // Analytics: contact conversion rates
-    const [addedCount, notAcceptedCount, convertedCount, monthlyAll] = await Promise.all([
+    // 微信添加成功率 = 已添加 ÷ (抢单数+补单数) = added / monthlyAll
+    // 转化率 = 添加完成数量 ÷ 开始服务数量 = (added+DONE) / (CONFIRMED+DONE)
+    const [addedCount, convertedCount, startedCount, monthlyAll] = await Promise.all([
       this.prisma.order.count({ where: { companionId, contactStatus: 'added' } }),
-      this.prisma.order.count({ where: { companionId, contactStatus: 'not_accepted' } }),
       this.prisma.order.count({ where: { companionId, contactStatus: 'added', status: 'DONE' } }),
+      this.prisma.order.count({ where: { companionId, status: { in: ['CONFIRMED', 'DONE'] } } }),
       this.prisma.order.count({ where: { companionId, status: { not: 'CANCELLED' }, createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
     ]);
-    const totalContactAttempts = addedCount + notAcceptedCount;
-    const wechatAddRate = totalContactAttempts > 0 ? Math.round(addedCount / totalContactAttempts * 100) : 0;
-    const conversionRate = addedCount > 0 ? Math.round(convertedCount / addedCount * 100) : 0;
+    const wechatAddRate = monthlyAll > 0 ? Math.round(addedCount / monthlyAll * 100) : 0;
+    const conversionRate = startedCount > 0 ? Math.round(convertedCount / startedCount * 100) : 0;
     const renewRate = statsMap.RENEW?.ratio || 0;
     const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
 
