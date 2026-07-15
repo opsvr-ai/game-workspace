@@ -286,6 +286,17 @@ export class CompanionsService {
     const feeBalanceWarning = entertainmentFee >= availableFunds - buffer30min;
     const feeBalanceAlert = entertainmentFee >= availableFunds;
 
+    // Analytics: contact conversion rates
+    const [totalWithContact, totalConverted, monthlyAll] = await Promise.all([
+      this.prisma.order.count({ where: { companionId, contactStatus: { not: null } } }),
+      this.prisma.order.count({ where: { companionId, contactStatus: 'added', status: 'DONE' } }),
+      this.prisma.order.count({ where: { companionId, status: { not: 'CANCELLED' }, createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
+    ]);
+    const wechatAddRate = monthlyAll > 0 ? Math.round(totalWithContact / monthlyAll * 100) : 0;
+    const conversionRate = totalWithContact > 0 ? Math.round(totalConverted / totalWithContact * 100) : 0;
+    const renewRate = statsMap.RENEW?.ratio || 0;
+    const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
+
     return {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       orderStats: statsMap,
@@ -304,6 +315,14 @@ export class CompanionsService {
       entertainmentThreshold,
       entertainmentDepositThreshold,
       isEntertainmentUnlocked: todayRevenue >= entertainmentThreshold,
+      // New analytics metrics
+      todayOrderCount: todayBreakdownOrders.length,
+      monthlyOrderCount: monthlyAll,
+      wechatAddRate,
+      conversionRate,
+      renewRate,
+      repurchaseRate,
+      todayBudanCount: todayBreakdownOrders.filter(o => (o.customFields?.deltaNote || o.notes || '').includes('补单')).length,
       currentStatus: companion?.status ?? 'OFFLINE',
       splitMode,
       tierInfo,
