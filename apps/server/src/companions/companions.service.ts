@@ -287,13 +287,15 @@ export class CompanionsService {
     const feeBalanceAlert = entertainmentFee >= availableFunds;
 
     // Analytics: contact conversion rates
-    const [totalWithContact, totalConverted, monthlyAll] = await Promise.all([
-      this.prisma.order.count({ where: { companionId, contactStatus: { not: null } } }),
+    const [addedCount, notAcceptedCount, convertedCount, monthlyAll] = await Promise.all([
+      this.prisma.order.count({ where: { companionId, contactStatus: 'added' } }),
+      this.prisma.order.count({ where: { companionId, contactStatus: 'not_accepted' } }),
       this.prisma.order.count({ where: { companionId, contactStatus: 'added', status: 'DONE' } }),
       this.prisma.order.count({ where: { companionId, status: { not: 'CANCELLED' }, createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
     ]);
-    const wechatAddRate = monthlyAll > 0 ? Math.round(totalWithContact / monthlyAll * 100) : 0;
-    const conversionRate = totalWithContact > 0 ? Math.round(totalConverted / totalWithContact * 100) : 0;
+    const totalContactAttempts = addedCount + notAcceptedCount;
+    const wechatAddRate = totalContactAttempts > 0 ? Math.round(addedCount / totalContactAttempts * 100) : 0;
+    const conversionRate = addedCount > 0 ? Math.round(convertedCount / addedCount * 100) : 0;
     const renewRate = statsMap.RENEW?.ratio || 0;
     const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
 

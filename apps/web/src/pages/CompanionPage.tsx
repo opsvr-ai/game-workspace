@@ -199,7 +199,7 @@ const CompanionPage: React.FC = () => {
         {[
           {l:'今日接单',v:data?.todayOrderCount??0,color:'#1677ff',max:Math.max(data?.todayOrderCount||1,5)},
           {l:'本月接单',v:data?.monthlyOrderCount??0,color:'#52c41a',max:Math.max(data?.monthlyOrderCount||1,10)},
-          {l:'微信成功率',v:data?.wechatAddRate??0,color:'#722ed1',max:100},
+          {l:'微信添加成功率',v:data?.wechatAddRate??0,color:'#722ed1',max:100},
           {l:'转化率',v:data?.conversionRate??0,color:'#fa8c16',max:100},
           
         ].map(m => (
