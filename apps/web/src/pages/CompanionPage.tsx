@@ -201,8 +201,7 @@ const CompanionPage: React.FC = () => {
           {l:'本月接单',v:data?.monthlyOrderCount??0,color:'#52c41a',max:Math.max(data?.monthlyOrderCount||1,10)},
           {l:'微信成功率',v:data?.wechatAddRate??0,color:'#722ed1',max:100},
           {l:'转化率',v:data?.conversionRate??0,color:'#fa8c16',max:100},
-          {l:'续单率',v:data?.renewRate??0,color:'#00D4FF',max:100},
-          {l:'复购率',v:data?.repurchaseRate??0,color:'#7B61FF',max:100},
+          
         ].map(m => (
         <Col span={4} key={m.l} style={{textAlign:'center'}}>
           <Card size="small" bodyStyle={{padding:'6px 8px'}}>
