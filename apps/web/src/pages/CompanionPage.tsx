@@ -193,8 +193,18 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* ② Performance — left chart + right ranking */}
-      <Title level={5} style={{ marginBottom: 12 }}>📊 业绩看板</Title>
+      {/* ② Analytics Dashboard */}
+      <Title level={5} style={{ marginBottom: 8 }}>📊 数据看板</Title>
+      <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
+        {[{l:'今日接单',v:data?.todayOrderCount??0,c:'#1677ff'},{l:'本月接单',v:data?.monthlyOrderCount??0,c:'#52c41a'},{l:'微信成功率',v:(data?.wechatAddRate??0)+'%',c:'#722ed1'},{l:'转化率',v:(data?.conversionRate??0)+'%',c:'#fa8c16'},{l:'续单率',v:(data?.renewRate??0)+'%',c:'#00D4FF'},{l:'复购率',v:(data?.repurchaseRate??0)+'%',c:'#7B61FF'}].map(m => (
+        <Col span={4} key={m.l}>
+          <Card size="small" bodyStyle={{padding:'6px 8px',textAlign:'center'}}>
+            <Text type="secondary" style={{fontSize:9}}>{m.l}</Text><br />
+            <Text strong style={{fontSize:16,color:m.c}}>{m.v}</Text>
+          </Card>
+        </Col>
+        ))}
+      </Row>
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col span={13}>
           <Card size="small" title="订单占比">
