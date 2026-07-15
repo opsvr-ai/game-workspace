@@ -320,6 +320,10 @@ const EmployeesPage: React.FC = () => {
       },
     },
     {
+      title: '今日抢单', key: 'todayOrders', width: 80,
+      render: (_: unknown, record: any) => <Text strong style={{fontSize:13}}>{record.companion?.todayOrderCount ?? '-'}</Text>,
+    },
+    {
       title: '总流水',
       dataIndex: ['companion', 'monthlyRevenue'],
       key: 'revenue',
