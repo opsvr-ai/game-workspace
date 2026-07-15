@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Input, Button } from 'antd';
+import { Modal, Input, Button, message } from 'antd';
 import { CloseOutlined, UserOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -161,7 +161,8 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                       {m.text.split(/(\[img\].*?\[\/img\])/g).map((part: string, i: number) => {
                         if (part.startsWith('[img]') && part.endsWith('[/img]')) {
                           const url = part.slice(5, -6);
-                          return <img key={i} src={url} style={{ maxWidth: 120, maxHeight: 120, borderRadius: 4, display: 'block' }} alt="emoji" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
+                          return <img key={i} src={url} style={{ maxWidth: 120, maxHeight: 120, borderRadius: 4, display: 'block', cursor: 'pointer' }} alt="emoji" title="右键收藏此表情" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            onContextMenu={(e2) => { e2.preventDefault(); if (!customEmojis.includes(url)) { const next = [...customEmojis, url]; setCustomEmojis(next); localStorage.setItem('custom-emojis', JSON.stringify(next)); message.success('已收藏到我的表情'); } else { message.info('已在收藏中'); } }} />;
                         }
                         return <span key={i}>{part}</span>;
                       })}

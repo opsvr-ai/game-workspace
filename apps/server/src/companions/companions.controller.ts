@@ -73,7 +73,7 @@ export class CompanionsController {
           });
           messages = dbMsgs.map(m => ({
             text: m.text,
-            from: m.senderRole === 'COMPANION' ? 'them' : 'me',
+            from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
             time: m.createdAt.toISOString(),
           }));
           // Populate in-memory cache
@@ -421,7 +421,7 @@ export class CompanionsController {
     const time = body.time || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
     studioMsgs.get(chatKey)!.push({
       text: msgText,
-      from: req.user.role === 'COMPANION' ? 'them' : 'me',
+      from: 'them',
       time,
     });
 
