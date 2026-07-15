@@ -4,6 +4,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import OrderTable from '../components/OrderTable';
+import CreateOrderModal from '../components/CreateOrderModal';
 import { orderStatusConfig } from '../constants';
 
 const { Text } = Typography;
@@ -16,6 +17,8 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
@@ -73,9 +76,9 @@ const OrdersPage: React.FC = () => {
         <Tag color="orange">待客户同意</Tag>
         {r.screenshotUrl && <Image src={r.screenshotUrl} width={40} style={{ marginLeft: 4, borderRadius: 4 }} />}
         {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS') && (
-          <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16' }} onClick={async () => {
-            try { await http.post(`/orders/${r.id}/compensate-customer`); message.success('已补客户'); fetch(); }
-            catch(e:any) { message.error(e?.response?.data?.message||'操作失败'); }
+          <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16' }} onClick={() => {
+            setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, notes: '补单客户' });
+            setCreateOpen(true);
           }}>补客户</Button>
         )}
       </>)}
@@ -122,6 +125,7 @@ const OrdersPage: React.FC = () => {
   });
 
   return (
+    <>
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
@@ -188,6 +192,8 @@ const OrdersPage: React.FC = () => {
         </div>
       </Modal>
     </div>
+      <CreateOrderModal open={createOpen} onClose={() => { setCreateOpen(false); setPreFill(null); }} onCreated={() => { message.success('补客户订单已创建'); fetch(); setCreateOpen(false); setPreFill(null); }} userId={user?.id} customerPreFill={preFill || undefined} />
+    </>
   );
 };
 
