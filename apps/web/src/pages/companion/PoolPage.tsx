@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Typography, Tag, Row, Col, Select, Spin, message, Empty, Progress, Space, Badge, Modal, Divider } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
@@ -16,6 +17,7 @@ const { Text, Title } = Typography;
 const PoolPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const user = useAuthStore(s => s.user);
+  const navigate = useNavigate();
   const [poolStatus, setPoolStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
@@ -72,9 +74,9 @@ const PoolPage: React.FC = () => {
     setGrabbing(orderId);
     try {
       const { data } = await ordersApi.grab(orderId);
-      setGrabbedOrder(data.data);
+      useAuthStore.getState().setGrabbedOrder(data.data);
       setSelectedWechat('');
-      window.location.href = '/companion/orders';
+      navigate('/companion/orders');
       // Fetch work wechats
       try { const { data: wx } = await companionsApi.listWorkWechats() || {}; setWorkWechats(wx?.data || []); } catch { setWorkWechats([]); }
       fetchData();
