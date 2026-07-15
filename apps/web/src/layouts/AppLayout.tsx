@@ -585,6 +585,9 @@ const AppLayout: React.FC = () => {
             {grabbedOrder.customFields?.customerWechat && <div>💬 微信：<Typography.Text copyable>{grabbedOrder.customFields.customerWechat}</Typography.Text></div>}
             {grabbedOrder.customFields?.customerRoomCode && <div>🏠 房间码：<Typography.Text copyable>{grabbedOrder.customFields.customerRoomCode}</Typography.Text></div>}
             {grabbedOrder.customFields?.customerPlatformAccount && <div>🔗 平台号：<Typography.Text copyable>{grabbedOrder.customFields.customerPlatformAccount}</Typography.Text></div>}
+            {grabbedOrder.csUser?.username && <div>发布者：{grabbedOrder.csUser.username}</div>}
+            {grabbedOrder.customFields?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
+            {grabbedOrder.customFields?.urgency !== 'later' && grabbedOrder.customFields?.urgency && <Tag color="green">⚡立即打</Tag>}
           </div>
         )}
       </Modal>
