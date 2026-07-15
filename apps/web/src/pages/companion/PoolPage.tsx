@@ -74,8 +74,7 @@ const PoolPage: React.FC = () => {
     setGrabbing(orderId);
     try {
       const { data } = await ordersApi.grab(orderId);
-      useAuthStore.getState().setGrabbedOrder(data.data);
-      navigate('/companion/orders');
+      setGrabbedOrder(data.data);
       // Fetch work wechats
       try { const { data: wx } = await companionsApi.listWorkWechats() || {}; setWorkWechats(wx?.data || []); } catch { setWorkWechats([]); }
       fetchData();
@@ -195,7 +194,7 @@ const PoolPage: React.FC = () => {
 
       <CreateOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchData} userId={(user as any)?.id}/>
       {/* Grab Success Modal */}
-      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
+      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => { setGrabbedOrder(null); navigate('/companion/orders'); }} footer={null} width={480}>
         {grabbedOrder && <div style={{ fontSize: 14, lineHeight: 2 }}>
           <div>📋 {grabbedOrder.gameName} · {orderTypeConfig[grabbedOrder.type]?.label || grabbedOrder.type} · ¥{Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h</div>
           {grabbedOrder.customer?.customerCode && <div>客户编号：{grabbedOrder.customer.customerCode}</div>}
@@ -222,6 +221,7 @@ const PoolPage: React.FC = () => {
               message.success(`已标记使用微信: ${wx?.wechatId || selectedWechat}`);
             } catch { message.error('保存失败'); }
             setGrabbedOrder(null);
+            navigate('/companion/orders');
           }}>确认使用该微信</Button>
         </div>}
       </Modal>
