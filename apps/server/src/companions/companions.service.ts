@@ -34,9 +34,20 @@ export class CompanionsService {
     });
     const blockedSet = new Set(blockedKills.map(k => k.companionId));
 
+    // Today's order counts per companion
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    const todayOrders = await this.prisma.order.groupBy({
+      by: ['companionId'],
+      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELLED' } },
+      _count: { id: true },
+    });
+    const orderCounts = new Map(todayOrders.map(o => [o.companionId, o._count.id]));
+
     return companions.map(c => ({
       ...c,
       processStatus: blockedSet.has(c.id) ? 'BLOCKED' : ((killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL'),
+      todayOrderCount: orderCounts.get(c.id) || 0,
     }));
   }
 

@@ -289,6 +289,10 @@ const CompanionsPage: React.FC = () => {
         },
       },
       {
+        title: '今日抢单', key: 'todayOrders', width: 80,
+        render: (_: unknown, r: any) => <Text strong style={{fontSize:13}}>{r.todayOrderCount ?? '-'}</Text>,
+      },
+      {
         title: '月收入',
         dataIndex: 'monthlyRevenue',
         key: 'monthlyRevenue',
