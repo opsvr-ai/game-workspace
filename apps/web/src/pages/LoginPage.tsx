@@ -35,6 +35,28 @@ const LoginPage: React.FC = () => {
   const [idCardBack, setIdCardBack] = useState<File | null>(null);
   const [studios, setStudios] = useState<{ id: string; name: string }[]>([]);
   const [registerStudioId, setRegisterStudioId] = useState('');
+
+  // ID number validation
+  const validateIdNumber = (id: string): boolean => {
+    if (!/^\d{17}[\dXx]$/.test(id)) return false;
+    const weights = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2];
+    const checkChars = ['1','0','X','9','8','7','6','5','4','3','2'];
+    const sum = id.slice(0,17).split('').reduce((s, d, i) => s + parseInt(d) * weights[i], 0);
+    return checkChars[sum % 11] === id[17].toUpperCase();
+  };
+  const [idNumberError, setIdNumberError] = useState('');
+  const handleIdNumberChange = (v: string) => {
+    setIdNumber(v);
+    if (v.length === 18) {
+      if (!validateIdNumber(v)) setIdNumberError('身份证号格式不正确');
+      else setIdNumberError('');
+    } else if (v.length > 0 && v.length < 18) {
+      setIdNumberError('身份证号为18位');
+    } else {
+      setIdNumberError('');
+    }
+  };
+
   useEffect(() => {
     http.get('/studios').then(({ data }) => setStudios(data.data ?? [])).catch(() => {});
   }, []);
@@ -127,8 +149,8 @@ const LoginPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
               <Input size="large" placeholder="用户名 *" value={username} onChange={(e) => setUsername(e.target.value)} />
               <Input.Password size="large" placeholder="密码 *" value={password} onChange={(e) => setPassword(e.target.value)} />
-              <Input size="large" placeholder="真实姓名 *" value={realName} onChange={(e) => setRealName(e.target.value)} />
-              <Input size="large" placeholder="身份证号 *" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+              <Input size="large" placeholder="真实姓名 *" value={realName} onChange={(e) => setRealName(e.target.value)} onBlur={() => { if (realName && !/^[\u4e00-\u9fa5]{2,4}$/.test(realName)) message.warning("姓名应为2-4个中文字符"); }} />
+              <Input size="large" placeholder="身份证号 *" value={idNumber} onChange={(e) => handleIdNumberChange(e.target.value)} status={idNumberError ? "error" : undefined} /><div style={{color:'#FF4757',fontSize:12,marginTop:-8,marginBottom:8,textAlign:'left'}}>{idNumberError || '\u00A0'}</div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
               <Select size="large" placeholder="选择工作室 *" value={registerStudioId || undefined} onChange={(v) => setRegisterStudioId(v)}>
                 {studios.map((s) => <Option key={s.id} value={s.id}>{s.name}</Option>)}

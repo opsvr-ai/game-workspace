@@ -10,6 +10,7 @@ import { startProcessMonitor, stopProcessMonitor, updateBlacklist } from './proc
 import { killProcess } from './process-killer';
 import { showKillNotification, showKilledToast } from './blacklist-notification';
 import { shouldNotify } from './notification-prefs';
+import { showScreenLock, hideScreenLock, setAppPassword, getAppPasswordForUI } from './screen-lock';
 import { showEntertainmentWarning, showEntertainmentForceIdle } from './entertainment-notify';
 import { handleRemoteCommand } from './remote-command';
 import { checkForUpdates, handleUpdateCommand } from './updater';
@@ -152,6 +153,8 @@ function setupIPC(): void {
   // Store get/set
   ipcMain.handle('store:get', (_e, key: string) => store.get(key));
   ipcMain.handle('store:set', (_e, key: string, value: any) => store.set(key, value));
+  ipcMain.handle('app:setPassword', (_e, password: string) => { setAppPassword(password); return { success: true }; });
+  ipcMain.handle('app:getPassword', () => getAppPasswordForUI());
 
   // Window controls
   ipcMain.handle('window:show', () => {
@@ -168,6 +171,9 @@ function setupIPC(): void {
   });
 
   ipcMain.on('status:changed', (_e, status: string) => {
+    store.set('lastStatus', status);
+    logger.info('Status changed', { status });
+    if (status === 'RESTING') { showScreenLock(); } else { hideScreenLock(); }
     const name = store.get('companionName') as string;
     logger.info('IPC status:changed received', { status, name });
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);

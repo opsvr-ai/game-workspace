@@ -53,12 +53,6 @@ const OrdersPage: React.FC = () => {
           setUnreadMap(prev => { const { [r.id]: _, ...rest } = prev; return rest; });
         }}>沟通</Button>
       </Badge>
-      {(r.status === "GRABBED" || r.status === "CONFIRMED") && (
-        <Button size="small" onClick={async () => {
-          try { const { data } = await http.get("/companions/work-wechats"); setWorkWechats(data?.data || []); } catch { setWorkWechats([]); }
-          setSwitchWxOrder(r);
-        }}>切换微信</Button>
-      )}
       {r.status === 'GRABBED' && !r.contactStatus && (<>
         <Button type="primary" size="small" style={{ background: '#52c41a', borderColor: '#52c41a' }} onClick={async () => {
           try { await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' }); message.success('已标记'); fetch(); }
@@ -66,7 +60,7 @@ const OrdersPage: React.FC = () => {
         }}>联系方式添加成功</Button>
         <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
           const fd = new FormData(); fd.append('file', file);
-          try { const { data } = await http.post('/upload/screenshot', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+          try { const { data } = await http.post('/upload/screenshot', fd);
             await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', screenshotUrl: data.data?.url || data.url || '' });
             message.success('截图已上传，等待审核补客户'); fetch();
           } catch(e:any) { message.error('上传失败'); }
