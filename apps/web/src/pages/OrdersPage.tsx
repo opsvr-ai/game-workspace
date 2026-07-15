@@ -138,7 +138,12 @@ const OrdersPage: React.FC = () => {
           <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
         </div>
       </div>
-      <OrderTable dataSource={sorted} loading={loading} unreadMap={unreadMap}
+      {/* Today's order stats */}
+      <div style={{ display:'flex',gap:12,marginBottom:8 }}>
+        <Tag color="blue">📋 今日抢单：{orders.filter((o:any) => { const d = new Date(o.grabbedAt || o.createdAt).toDateString(); return d === new Date().toDateString() && o.status !== 'CANCELLED'; }).length}</Tag>
+        <Tag color="red">🔴 补单：{orders.filter((o:any) => { const d = new Date(o.grabbedAt || o.createdAt).toDateString(); return d === new Date().toDateString() && (o.customFields?.deltaNote || o.notes || '').includes('补单'); }).length}</Tag>
+        <Tag color="green">📊 合计：{orders.filter((o:any) => new Date(o.grabbedAt || o.createdAt).toDateString() === new Date().toDateString()).length}</Tag>
+      </div>      <OrderTable dataSource={sorted} loading={loading} unreadMap={unreadMap}
         renderActions={isCompanion ? renderCompanionActions : renderAdminActions} />
 
       <Modal title="归属调整" open={!!reassignOrder}
