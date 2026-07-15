@@ -158,7 +158,13 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                       background: isMe ? '#95EC69' : '#FFFFFF', color: '#333',
                       position: 'relative',
                     }}>
-                      {m.text}
+                      {m.text.split(/(\[img\].*?\[\/img\])/g).map((part: string, i: number) => {
+                        if (part.startsWith('[img]') && part.endsWith('[/img]')) {
+                          const url = part.slice(5, -6);
+                          return <img key={i} src={url} style={{ maxWidth: 120, maxHeight: 120, borderRadius: 4, display: 'block' }} alt="emoji" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />;
+                        }
+                        return <span key={i}>{part}</span>;
+                      })}
                     </div>
                     <div style={{ fontSize: 11, color: '#B0B0B0', marginTop: 3, textAlign: isMe ? 'right' : 'left' }}>{m.time}</div>
                   </div>
