@@ -77,7 +77,7 @@ const OrdersPage: React.FC = () => {
         {r.screenshotUrl && <Image src={r.screenshotUrl} width={40} style={{ marginLeft: 4, borderRadius: 4 }} />}
         {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS') && (
           <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16' }} onClick={() => {
-            setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, notes: '补单客户' });
+            setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, companionId: r.companionId, dispatchType: 'DIRECT', notes: '补单客户' });
             setCreateOpen(true);
           }}>补客户</Button>
         )}
@@ -105,7 +105,7 @@ const OrdersPage: React.FC = () => {
     {r.contactStatus === 'not_accepted' && (
       <Button size="small" type="primary" style={{ background: '#fa8c16', borderColor: '#fa8c16', marginLeft: 4 }}
         onClick={() => {
-          setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, notes: '补单客户' });
+          setPreFill({ customerId: r.customer?.id, customerWechat: r.customFields?.customerWechat || r.customer?.wechatId, gameName: r.gameName, amount: r.amount, companionId: r.companionId, dispatchType: 'DIRECT', notes: '补单客户' });
           setCreateOpen(true);
         }}>补客户</Button>
     )}

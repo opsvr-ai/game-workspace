@@ -9,7 +9,7 @@ const { Option } = Select;
 const orderTypeConfig: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购' };
 const gameList = ['王者荣耀','三角洲行动','英雄联盟','永劫无间','无畏契约','CS2','绝地求生'];
 
-interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; customerPreFill?: { customerId?: string; customerWechat?: string; gameName?: string; amount?: number; }; }
+interface Props { open: boolean; onClose: () => void; onCreated: () => void; userId?: string; customerPreFill?: { customerId?: string; customerWechat?: string; gameName?: string; amount?: number; companionId?: string; dispatchType?: string; }; }
 
 const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
     if (open && customerPreFill) {
       form.setFieldsValue({
         type: 'NEW', gameName: customerPreFill.gameName || '三角洲行动',
-        dispatchType: DispatchType.POOL, urgency: 'now', billingMode: 'hour', duration: 1,
+        dispatchType: customerPreFill.dispatchType || DispatchType.DIRECT, urgency: 'now', billingMode: 'hour', duration: 1, companionId: customerPreFill.companionId || undefined,
         
         customerId: customerPreFill.customerId, customerWechat: customerPreFill.customerWechat,
         amount: customerPreFill.amount || 0,
