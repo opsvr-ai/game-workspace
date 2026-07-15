@@ -76,8 +76,19 @@ export class StudiosService {
         _count: { id: true },
       });
       const counts = new Map(todayOrders.map((o: any) => [o.companionId, o._count.id]));
+      // Add budan counts
+      const budanData = await this.prisma.order.findMany({
+        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lte: todayEnd } },
+        select: { companionId: true, customFields: true, notes: true },
+      });
+      const budanCounts = new Map<string, number>();
+      budanData.forEach((o: any) => {
+        if ((o.customFields as any)?.deltaNote?.includes('补单') || o.notes?.includes('补单')) {
+          budanCounts.set(o.companionId!, (budanCounts.get(o.companionId!) || 0) + 1);
+        }
+      });
       users.forEach((u: any) => {
-        if (u.companion) u.companion.todayOrderCount = counts.get(u.companion.id) || 0;
+        if (u.companion) u.companion.todayOrderCount = (counts.get(u.companion.id) || 0) + (budanCounts.get(u.companion.id) || 0);
       });
     }
 

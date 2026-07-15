@@ -44,10 +44,22 @@ export class CompanionsService {
     });
     const orderCounts = new Map(todayOrders.map(o => [o.companionId, o._count.id]));
 
+    // Today's budan counts
+    const budanData = await this.prisma.order.findMany({
+      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lte: todayEnd } },
+      select: { companionId: true, customFields: true, notes: true },
+    });
+    const budanCounts = new Map<string, number>();
+    budanData.forEach(o => {
+      if ((o.customFields as any)?.deltaNote?.includes('补单') || o.notes?.includes('补单')) {
+        budanCounts.set(o.companionId!, (budanCounts.get(o.companionId!) || 0) + 1);
+      }
+    });
+
     return companions.map(c => ({
       ...c,
       processStatus: blockedSet.has(c.id) ? 'BLOCKED' : ((killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL'),
-      todayOrderCount: orderCounts.get(c.id) || 0,
+      todayOrderCount: (orderCounts.get(c.id) || 0) + (budanCounts.get(c.id) || 0),
     }));
   }
 

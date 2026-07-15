@@ -289,7 +289,7 @@ const CompanionsPage: React.FC = () => {
         },
       },
       {
-        title: '今日抢单', key: 'todayOrders', width: 80,
+        title: '今日接单数量', key: 'todayOrders', width: 80,
         render: (_: unknown, r: any) => <Text strong style={{fontSize:13}}>{r.todayOrderCount ?? '-'}</Text>,
       },
       {
