@@ -119,19 +119,18 @@ export class OrdersService {
       this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
     }
 
-    // Desktop notification to ALL online companions (they can filter by prefs)
-    if (studioId) {
+    // Desktop notification: DIRECT → only target companion; POOL/BROADCAST → all
+    if (dto.dispatchType === 'DIRECT' && dto.companionId) {
+      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true } });
+      const isBuDan = (dto as any).deltaNote?.includes('补单') || (newOrder.customFields as any)?.deltaNote?.includes('补单');
+      this.wsGateway.pushOrder(dto.companionId, {
+        ...newOrder, _inviterName: csUser?.username || '系统', _isAssignment: true,
+        _label: isBuDan ? '补单' : '新订单',
+      });
+    } else if (studioId) {
       this.wsGateway.broadcastToStudio(studioId, 'order:new', {
         ...newOrder,
         _notify: true,
-      });
-    }
-
-    // DIRECT dispatch: notify target companion via WS
-    if (dto.dispatchType === 'DIRECT' && dto.companionId) {
-      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true } });
-      this.wsGateway.pushOrder(dto.companionId, {
-        ...newOrder, _inviterName: csUser?.username || '系统', _isAssignment: true,
       });
     }
 
