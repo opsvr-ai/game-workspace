@@ -87,7 +87,7 @@ export function showOrderNotification(
     <div class="timer" id="timer">30 秒后自动关闭</div>
     <div class="actions">
       <button class="btn btn-ignore" onclick="window.close()">忽略</button>
-      <button class="btn btn-accept" id="acceptBtn">接单</button>
+      <button class="btn btn-accept" id="acceptBtn">查看</button>
     </div>
     <script>
       let sec = 30;
