@@ -84,13 +84,13 @@ export function showOrderNotification(
       ${customerSource ? `<div class="row"><span class="label">来源</span><span class="value">${customerSource}</span></div>` : ''}
       <div class="row"><span class="label">时间</span><span class="value">${urgency === 'later' ? '📅 预约' : '⚡ 立即打'}</span></div>
     </div>
-    <div class="timer" id="timer">30 秒后自动关闭</div>
+    <div class="timer" id="timer">15 秒后自动关闭</div>
     <div class="actions">
       <button class="btn btn-ignore" onclick="window.close()">忽略</button>
       <button class="btn btn-accept" id="acceptBtn">查看</button>
     </div>
     <script>
-      let sec = 30;
+      let sec = 15;
       const timer = document.getElementById('timer');
       const countdown = setInterval(() => {
         sec--;
@@ -120,7 +120,7 @@ export function showOrderNotification(
   // Auto close after 35 seconds (just in case the countdown fails)
   autoCloseTimer = setTimeout(() => {
     closeNotification();
-  }, 35_000);
+  }, 20_000);
 
   // Accept button handler via IPC
   notificationWindow.webContents.on('ipc-message', (_e, channel) => {
