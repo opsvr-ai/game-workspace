@@ -74,9 +74,8 @@ const PoolPage: React.FC = () => {
     setGrabbing(orderId);
     try {
       const { data } = await ordersApi.grab(orderId);
-      useAuthStore.getState().setGrabbedOrder(data.data);
+      setGrabbedOrder(data.data);
       setSelectedWechat('');
-      navigate('/companion/orders');
       // Fetch work wechats
       try { const { data: wx } = await companionsApi.listWorkWechats() || {}; setWorkWechats(wx?.data || []); } catch { setWorkWechats([]); }
       fetchData();
