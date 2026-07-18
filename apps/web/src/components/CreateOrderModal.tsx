@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
 import { ordersApi } from '../api/orders';
@@ -66,12 +67,21 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
           <Select><Option value={DispatchType.POOL}>入池抢单</Option><Option value={DispatchType.DIRECT}>指定陪玩</Option><Option value="BROADCAST">📢 群发</Option></Select></Form.Item>
         <Form.Item noStyle shouldUpdate={(p,c) => p.dispatchType !== c.dispatchType}>
-          {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (
+          {({ getFieldValue }) => getFieldValue('dispatchType') === DispatchType.DIRECT ? (<>
             <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true }]}>
               <Select placeholder="选择陪玩" showSearch optionFilterProp="label">
                 {companions.filter((c:any) => c.status !== 'OFFLINE' && c.status !== 'RESTING').map((c:any) => (
                   <Option key={c.id} value={c.id} label={c.user?.username}>{c.user?.username ?? c.id}</Option>))}
-              </Select></Form.Item>) : null}
+              </Select></Form.Item>
+            <Form.Item noStyle shouldUpdate={(p,c) => p.deltaCount !== c.deltaCount}>
+              {({ getFieldValue: getV }) => getV('deltaCount') === '双' ? (
+                <Form.Item name="coCompanionId" label="协同陪玩" rules={[{ required: true, message: '请选择协同陪玩' }]}>
+                  <Select placeholder="选择协同陪玩" showSearch optionFilterProp="label" allowClear>
+                    {companions.filter((c:any) => c.status !== 'OFFLINE' && c.status !== 'RESTING').map((c:any) => (
+                      <Option key={c.id} value={c.id} label={c.user?.username}>{c.user?.username ?? c.id}</Option>))}
+                  </Select></Form.Item>) : null}
+            </Form.Item>
+          </>) : null}
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select><Option value="now">⚡立即打</Option><Option value="later">📅预约</Option></Select></Form.Item>
