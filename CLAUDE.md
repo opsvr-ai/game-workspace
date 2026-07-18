@@ -74,3 +74,22 @@ refactor: <description> # Code refactoring
 | hanlei | 123456 | OWNER (second password: 888888) |
 | kefu01 | 123456 | CS |
 | zhangsan | 123456 | COMPANION |
+
+## AXME Code
+
+### Session Start (MANDATORY)
+Call axme_context at the start of every session.
+If it returns "not initialized": offer the user AXME setup, and on consent
+EXECUTE the inline setup flow from axme_context / the server instructions
+(a sequence of axme_save_decision / axme_save_memory / axme_update_safety /
+axme_save_oracle tool calls). Do NOT try to run `axme-code` via the Bash
+tool — on plugin installs it is not on PATH.
+Do NOT skip — without context you will miss critical project rules.
+
+## RTFM — Indexed Knowledge Base
+
+This project has been indexed with RTFM.
+
+For any **exploratory search** (finding which files/modules/classes are relevant
+to a topic), use `rtfm_search` instead of Glob, find, ls, or broad Grep.
+Then use `rtfm_expand` to read easily most relevant files/sections.

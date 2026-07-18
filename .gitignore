@@ -53,3 +53,6 @@ tmp/
 temp/
 *.exe
 apps/agent/agent
+
+# AI assistant artifacts
+context-snapshot.json
