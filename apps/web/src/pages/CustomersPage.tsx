@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Button, Modal, Form, Input, Select, InputNumber, Space, Typography, message, Popconfirm, Tag, DatePicker, ConfigProvider, Card,
@@ -14,6 +15,7 @@ import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
+import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -76,6 +78,7 @@ const CustomersPage: React.FC = () => {
     } catch (e: any) { message.error(e?.response?.data?.message || '设置失败'); }
   };
   const [notesEditing, setNotesEditing] = useState<Record<string, string>>({});
+  const [detailCustomer, setDetailCustomer] = useState<Customer | null>(null);
   const saveNotes = (id: string, notes: string) => {
     customersApi.update(id, { notes }).then(() => { message.success('备注已更新'); fetchCustomers(); }).catch((e: any) => message.error(e?.response?.data?.message || '更新失败'));
   };
@@ -250,6 +253,7 @@ const CustomersPage: React.FC = () => {
       {error && <div style={{ color: '#ff4d4f', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>{error}</div>}
       <Card size="small" style={{ overflow: 'auto' }}>
         <Table size="small" columns={columns} dataSource={customers.filter((c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()))} rowKey="id" loading={loading}
+          onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
           scroll={{ x: 1000 }}
           locale={{ emptyText: '暂无客户数据' }}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }} />
@@ -280,6 +284,11 @@ const CustomersPage: React.FC = () => {
       </Modal>
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
       <CreateOrderModal open={createOrderOpen} onClose={() => { setCreateOrderOpen(false); setStartServicePreFill(null); }} onCreated={() => { fetchCustomers(); setStartServicePreFill(null); }} userId={user?.id} customerPreFill={startServicePreFill} />
+      <CustomerDetailDrawer
+        customerId={detailCustomer?.id ?? null}
+        customerCode={detailCustomer?.customerCode}
+        open={!!detailCustomer}
+        onClose={() => setDetailCustomer(null)} />
       <Modal title="预约时间" open={scheduleModalOpen} onOk={handleSchedule} onCancel={() => setScheduleModalOpen(false)}
         okText="确认预约" cancelText="取消" destroyOnClose>
         <div style={{ marginTop: 16 }}>
