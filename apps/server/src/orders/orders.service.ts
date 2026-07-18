@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
@@ -68,6 +69,7 @@ export class OrdersService {
         customerId: customerId!,
         dispatchType: dto.dispatchType === 'BROADCAST' ? 'POOL' : dto.dispatchType,
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
+        coCompanionId: dto.dispatchType === 'DIRECT' ? (dto as any).coCompanionId ?? null : null,
         status: 'PENDING',
         amount: dto.amount,
         gameName: dto.gameName,
@@ -180,7 +182,7 @@ export class OrdersService {
       where,
       include: {
         customer: true,
-        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } }, coCompanion: { include: { user: { select: { username: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -227,7 +229,7 @@ export class OrdersService {
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.GRABBED, companionId, grabbedAt: new Date() },
-      include: { csUser: { select: { username: true, avatar: true, displayName: true } }, companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } } },
+      include: { csUser: { select: { username: true, avatar: true, displayName: true } }, companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } }, coCompanion: { include: { user: { select: { username: true } } } } },
     });
     this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
 

@@ -70,6 +70,7 @@ model Companion {
   timeLogs          CompanionTimeLog[]
   attendanceRecords CompanionAttendance[]
   orders            Order[]
+  coOrders          Order[]        @relation("CoCompanion")
   customers Customer[]
   transactions Transaction[]
   expenseReports ExpenseReport[]
@@ -142,9 +143,12 @@ model Order {
   scheduledAt     DateTime?
   notes           String?
 
+  coCompanionId String?
+
   studio       Studio        @relation(fields: [studioId], references: [id])
   csUser       User          @relation("CSUser", fields: [csUserId], references: [id])
   companion    Companion?    @relation(fields: [companionId], references: [id])
+  coCompanion  Companion?    @relation("CoCompanion", fields: [coCompanionId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
   transactions Transaction[]
 }

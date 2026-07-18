@@ -14,6 +14,7 @@ export class CreateOrderDto {
   @IsOptional() customFields?: Record<string, unknown>;
   @IsOptional() @IsBoolean() isOnline?: boolean;
   @IsOptional() @IsString() companionId?: string;
+  @IsOptional() @IsString() coCompanionId?: string;
 
   // Customer info fields
   @IsOptional() @IsString() customerSource?: string;
