@@ -219,9 +219,10 @@ const CSDispatchView: React.FC = () => {
       </div>
 
       <Row gutter={12}>
-        {/* Left: Companion sidebar (3/24) */}
+        {/* Left: Companion sidebar */}
         <Col span={4}>
-          <Card title="陪玩管理" size="small" style={{ marginBottom: 12 }}>
+          <Card title="陪玩管理" size="small" style={{ marginBottom: 12 }}
+            bodyStyle={{ padding: '8px 12px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
             {/* Companion search filter */}
             <Input
               size="small"
@@ -390,8 +391,9 @@ const CSDispatchView: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Center: Order Pool (18/24) */}
-        <Col span={18}>
+        {/* Center: Order Pool */}
+        <Col span={17}
+          style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
