@@ -6,10 +6,38 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 describe('BillingService', () => {
   let service: BillingService;
   let mockPrisma: MockPrisma;
+  let mockTransactionService: {
+    createTransaction: ReturnType<typeof vi.fn>;
+    approve: ReturnType<typeof vi.fn>;
+    reject: ReturnType<typeof vi.fn>;
+    batchApprove: ReturnType<typeof vi.fn>;
+    batchReject: ReturnType<typeof vi.fn>;
+  };
+  let mockSettlementService: {
+    getProfitLoss: ReturnType<typeof vi.fn>;
+    getOverview: ReturnType<typeof vi.fn>;
+    runMonthlySettlement: ReturnType<typeof vi.fn>;
+    getDailyRevenue: ReturnType<typeof vi.fn>;
+    getMonthlyRevenue: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
-    service = new BillingService(mockPrisma as any);
+    mockTransactionService = {
+      createTransaction: vi.fn(),
+      approve: vi.fn(),
+      reject: vi.fn(),
+      batchApprove: vi.fn(),
+      batchReject: vi.fn(),
+    };
+    mockSettlementService = {
+      getProfitLoss: vi.fn(),
+      getOverview: vi.fn(),
+      runMonthlySettlement: vi.fn(),
+      getDailyRevenue: vi.fn(),
+      getMonthlyRevenue: vi.fn(),
+    };
+    service = new BillingService(mockPrisma as any, mockTransactionService as any, mockSettlementService as any);
     vi.clearAllMocks();
   });
 
@@ -39,49 +67,22 @@ describe('BillingService', () => {
         companion: { id: 'comp-1', user: { username: 'zhangsan' } },
       };
 
-      mockPrisma.transaction.create.mockResolvedValue(mockTx);
+      mockTransactionService.createTransaction.mockResolvedValue(mockTx);
 
       const result = await service.createTransaction(dto);
 
       expect(result).toEqual(mockTx);
       expect(result.status).toBe('PENDING');
-      expect(mockPrisma.transaction.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          orderId: 'order-1',
-          companionId: 'comp-1',
-          amount: 100,
-          paymentMethod: 'WECHAT',
-          screenshotUrl: 'https://img.example.com/1.png',
-          status: 'PENDING',
-          paidAt: new Date('2026-06-25T10:00:00Z'),
-        }),
-        include: expect.objectContaining({
-          order: { select: { id: true, type: true, amount: true } },
-          companion: {
-            select: {
-              id: true,
-              user: { select: { username: true } },
-            },
-          },
-        }),
-      });
+      expect(mockTransactionService.createTransaction).toHaveBeenCalledWith(dto);
     });
   });
 
   describe('approve', () => {
-    it('approves transaction to APPROVED and increments customer.totalSpent and companion.monthlyRevenue', async () => {
+    it('approves transaction and returns result', async () => {
       const transactionId = 'tx-1';
       const reviewerId = 'reviewer-1';
 
-      mockPrisma.transaction.findUnique.mockResolvedValue({
-        id: transactionId,
-        amount: 100,
-        companionId: 'comp-1',
-        status: 'PENDING',
-        order: { customerId: 'cust-1' },
-      });
-
-      mockPrisma.transaction.update.mockResolvedValue({
+      mockTransactionService.approve.mockResolvedValue({
         id: transactionId,
         status: 'APPROVED',
         reviewedById: reviewerId,
@@ -91,44 +92,21 @@ describe('BillingService', () => {
 
       expect(result.status).toBe('APPROVED');
       expect(result.reviewedById).toBe(reviewerId);
-
-      expect(mockPrisma.customer.update).toHaveBeenCalledWith({
-        where: { id: 'cust-1' },
-        data: { totalSpent: { increment: 100 } },
-      });
-
-      expect(mockPrisma.companion.update).toHaveBeenCalledWith({
-        where: { id: 'comp-1' },
-        data: { monthlyRevenue: { increment: 100 } },
-      });
+      expect(mockTransactionService.approve).toHaveBeenCalledWith(transactionId, reviewerId);
     });
 
     it('throws NotFoundException for missing transaction', async () => {
-      mockPrisma.transaction.findUnique.mockResolvedValue(null);
+      mockTransactionService.approve.mockRejectedValue(new NotFoundException('报账记录不存在'));
 
-      await expect(
-        service.approve('nonexistent', 'reviewer-1'),
-      ).rejects.toThrow(NotFoundException);
-      await expect(
-        service.approve('nonexistent', 'reviewer-1'),
-      ).rejects.toThrow('报账记录不存在');
+      await expect(service.approve('nonexistent', 'reviewer-1')).rejects.toThrow(NotFoundException);
+      await expect(service.approve('nonexistent', 'reviewer-1')).rejects.toThrow('报账记录不存在');
     });
 
     it('throws ForbiddenException for already-approved transaction', async () => {
-      mockPrisma.transaction.findUnique.mockResolvedValue({
-        id: 'tx-1',
-        amount: 100,
-        companionId: 'comp-1',
-        status: 'APPROVED',
-        order: { customerId: 'cust-1' },
-      });
+      mockTransactionService.approve.mockRejectedValue(new ForbiddenException('该报账已处理'));
 
-      await expect(
-        service.approve('tx-1', 'reviewer-1'),
-      ).rejects.toThrow(ForbiddenException);
-      await expect(
-        service.approve('tx-1', 'reviewer-1'),
-      ).rejects.toThrow('该报账已处理');
+      await expect(service.approve('tx-1', 'reviewer-1')).rejects.toThrow(ForbiddenException);
+      await expect(service.approve('tx-1', 'reviewer-1')).rejects.toThrow('该报账已处理');
     });
   });
 
@@ -137,12 +115,7 @@ describe('BillingService', () => {
       const transactionId = 'tx-1';
       const reviewerId = 'reviewer-1';
 
-      mockPrisma.transaction.findUnique.mockResolvedValue({
-        id: transactionId,
-        status: 'PENDING',
-      });
-
-      mockPrisma.transaction.update.mockResolvedValue({
+      mockTransactionService.reject.mockResolvedValue({
         id: transactionId,
         status: 'REJECTED',
         reviewedById: reviewerId,
@@ -152,11 +125,7 @@ describe('BillingService', () => {
 
       expect(result.status).toBe('REJECTED');
       expect(result.reviewedById).toBe(reviewerId);
-
-      expect(mockPrisma.transaction.update).toHaveBeenCalledWith({
-        where: { id: transactionId },
-        data: { status: 'REJECTED', reviewedById: reviewerId },
-      });
+      expect(mockTransactionService.reject).toHaveBeenCalledWith(transactionId, reviewerId);
     });
   });
 
@@ -167,40 +136,10 @@ describe('BillingService', () => {
       const ids = ['tx-1', 'tx-2', 'tx-3'];
       const reviewerId = 'reviewer-1';
 
-      // tx-1 succeeds
-      mockPrisma.transaction.findUnique
-        .mockResolvedValueOnce({
-          id: 'tx-1',
-          amount: 100,
-          companionId: 'comp-1',
-          status: 'PENDING',
-          order: { customerId: 'cust-1' },
-        });
-
-      // tx-2 fails (already approved)
-      mockPrisma.transaction.findUnique
-        .mockResolvedValueOnce({
-          id: 'tx-2',
-          amount: 200,
-          companionId: 'comp-2',
-          status: 'APPROVED',
-          order: { customerId: 'cust-2' },
-        });
-
-      // tx-3 succeeds
-      mockPrisma.transaction.findUnique
-        .mockResolvedValueOnce({
-          id: 'tx-3',
-          amount: 300,
-          companionId: 'comp-3',
-          status: 'PENDING',
-          order: { customerId: 'cust-3' },
-        });
-
-      mockPrisma.transaction.update.mockResolvedValue({
-        id: 'tx-1',
-        status: 'APPROVED',
-        reviewedById: reviewerId,
+      mockTransactionService.batchApprove.mockResolvedValue({
+        succeeded: 2,
+        failed: 1,
+        errors: ['tx-2: 该报账已处理'],
       });
 
       const result = await service.batchApprove(ids, reviewerId);
@@ -210,6 +149,7 @@ describe('BillingService', () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0]).toContain('tx-2');
       expect(result.errors[0]).toContain('该报账已处理');
+      expect(mockTransactionService.batchApprove).toHaveBeenCalledWith(ids, reviewerId);
     });
   });
 
@@ -220,13 +160,17 @@ describe('BillingService', () => {
       const studioId = 'studio-1';
       const dateStr = '2026-06-25';
 
-      mockPrisma.order.findMany.mockResolvedValue([
-        { type: 'NEW', amount: 100 },
-        { type: 'NEW', amount: 50 },
-        { type: 'RENEW', amount: 200 },
-        { type: 'TIP', amount: 30 },
-        { type: 'TIP', amount: 20 },
-      ]);
+      mockSettlementService.getDailyRevenue.mockResolvedValue({
+        date: '2026-06-25',
+        studioId: 'studio-1',
+        breakdown: {
+          NEW: { count: 2, amount: 150 },
+          RENEW: { count: 1, amount: 200 },
+          REPURCHASE: { count: 0, amount: 0 },
+          TIP: { count: 2, amount: 50 },
+        },
+        totalAmount: 400,
+      });
 
       const result = await service.getDailyRevenue(studioId, dateStr);
 
@@ -237,6 +181,7 @@ describe('BillingService', () => {
       expect(result.breakdown.REPURCHASE).toEqual({ count: 0, amount: 0 });
       expect(result.breakdown.TIP).toEqual({ count: 2, amount: 50 });
       expect(result.totalAmount).toBe(400);
+      expect(mockSettlementService.getDailyRevenue).toHaveBeenCalledWith(studioId, dateStr);
     });
   });
 
@@ -245,23 +190,15 @@ describe('BillingService', () => {
       const studioId = 'studio-1';
       const monthStr = '2026-06';
 
-      mockPrisma.order.findMany.mockResolvedValue([
-        {
-          amount: 100,
-          companionId: 'comp-1',
-          companion: { user: { username: 'zhangsan' } },
-        },
-        {
-          amount: 200,
-          companionId: 'comp-2',
-          companion: { user: { username: 'lisi' } },
-        },
-        {
-          amount: 50,
-          companionId: 'comp-1',
-          companion: { user: { username: 'zhangsan' } },
-        },
-      ]);
+      mockSettlementService.getMonthlyRevenue.mockResolvedValue({
+        month: '2026-06',
+        studioId: 'studio-1',
+        totalAmount: 350,
+        companionRevenue: [
+          { name: 'zhangsan', amount: 150 },
+          { name: 'lisi', amount: 200 },
+        ],
+      });
 
       const result = await service.getMonthlyRevenue(studioId, monthStr);
 
@@ -274,6 +211,7 @@ describe('BillingService', () => {
           { name: 'lisi', amount: 200 },
         ]),
       );
+      expect(mockSettlementService.getMonthlyRevenue).toHaveBeenCalledWith(studioId, monthStr);
     });
   });
 
@@ -281,12 +219,15 @@ describe('BillingService', () => {
     it('returns revenue minus expenses', async () => {
       const studioId = 'studio-1';
 
-      mockPrisma.order.aggregate.mockResolvedValue({
-        _sum: { amount: 5000 },
-      });
+      const now = new Date();
+      const expectedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-      mockPrisma.expense.aggregate.mockResolvedValue({
-        _sum: { amount: 1200 },
+      mockSettlementService.getProfitLoss.mockResolvedValue({
+        totalRevenue: 5000,
+        totalExpense: 1200,
+        profit: 3800,
+        studioId: 'studio-1',
+        month: expectedMonth,
       });
 
       const result = await service.getProfitLoss(studioId);
@@ -295,12 +236,8 @@ describe('BillingService', () => {
       expect(result.totalExpense).toBe(1200);
       expect(result.profit).toBe(3800);
       expect(result.studioId).toBe(studioId);
-
-      // Verify it uses current month date range
-      const now = new Date();
-      const expectedMonth =
-        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       expect(result.month).toBe(expectedMonth);
+      expect(mockSettlementService.getProfitLoss).toHaveBeenCalledWith(studioId);
     });
   });
 

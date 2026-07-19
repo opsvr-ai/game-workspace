@@ -79,6 +79,16 @@ export class BillingService {
     return this.settlementService.getProfitLoss(studioId);
   }
 
+  // ── Revenue Statistics ──
+
+  async getDailyRevenue(studioId: string, date: string) {
+    return this.settlementService.getDailyRevenue(studioId, date);
+  }
+
+  async getMonthlyRevenue(studioId: string, month: string) {
+    return this.settlementService.getMonthlyRevenue(studioId, month);
+  }
+
   // ── Expense management ──
 
   async createExpense(
@@ -176,12 +186,12 @@ export class BillingService {
       },
     });
 
-    const approved = reports.filter(r => r.status === 'APPROVED');
-    const pending = reports.filter(r => r.status === 'PENDING');
-    const rejected = reports.filter(r => r.status === 'REJECTED');
+    const approved = reports.filter((r) => r.status === 'APPROVED');
+    const pending = reports.filter((r) => r.status === 'PENDING');
+    const rejected = reports.filter((r) => r.status === 'REJECTED');
 
     const sumByType = (list: typeof reports, type: string) =>
-      list.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
+      list.filter((r) => r.type === type).reduce((s, r) => s + r.amount, 0);
 
     return {
       month: targetMonth,
@@ -230,9 +240,7 @@ export class BillingService {
   }
 
   async getMonthlySettlement(studioId: string, month?: string) {
-    const targetMonth =
-      month ||
-      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const targetMonth = month || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     const [year, mon] = targetMonth.split('-').map(Number);
     const start = new Date(year, mon - 1, 1);
     const end = new Date(year, mon, 1);

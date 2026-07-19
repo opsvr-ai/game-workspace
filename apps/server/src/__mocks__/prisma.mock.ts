@@ -17,6 +17,7 @@ export function createMockPrisma() {
       update: vi.fn(),
       delete: vi.fn(),
       aggregate: vi.fn(),
+      groupBy: vi.fn(),
     },
     customer: {
       findUnique: vi.fn(),
@@ -118,6 +119,7 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       count: vi.fn(),
+      groupBy: vi.fn(),
     },
     $queryRaw: vi.fn(),
     $transaction: vi.fn((fn: (...a: unknown[]) => unknown) => fn(mock)),

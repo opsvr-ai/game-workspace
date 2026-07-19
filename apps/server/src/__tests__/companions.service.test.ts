@@ -3,13 +3,55 @@ import { CompanionsService } from '../companions/companions.service';
 import { ForbiddenException } from '@nestjs/common';
 import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 
+function createMockRevenueService() {
+  return {
+    getRanking: vi.fn(),
+    getWallet: vi.fn(),
+    checkEntertainmentBlocked: vi.fn(),
+  };
+}
+
+function createMockAttendanceService() {
+  return {
+    ensureAttendance: vi.fn(),
+    finalizeAttendance: vi.fn(),
+    getAttendance: vi.fn(),
+  };
+}
+
+function createMockWechatService() {
+  return {
+    listWorkWechats: vi.fn(),
+    addWorkWechat: vi.fn(),
+    bindWechat: vi.fn(),
+    unbindWechat: vi.fn(),
+  };
+}
+
 describe('CompanionsService', () => {
   let service: CompanionsService;
   let mockPrisma: MockPrisma;
+  let mockRevenueService: ReturnType<typeof createMockRevenueService>;
+  let mockAttendanceService: ReturnType<typeof createMockAttendanceService>;
+  let mockWechatService: ReturnType<typeof createMockWechatService>;
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
-    service = new CompanionsService(mockPrisma as any);
+    mockRevenueService = createMockRevenueService();
+    mockAttendanceService = createMockAttendanceService();
+    mockWechatService = createMockWechatService();
+    service = new CompanionsService(
+      mockPrisma as any,
+      mockRevenueService as any,
+      mockAttendanceService as any,
+      mockWechatService as any,
+    );
+
+    // Set up default return values for additional prisma calls used by findAll
+    mockPrisma.processKillLog.groupBy.mockResolvedValue([]);
+    mockPrisma.processKillLog.findMany.mockResolvedValue([]);
+    mockPrisma.order.groupBy.mockResolvedValue([]);
+    mockPrisma.order.findMany.mockResolvedValue([]);
   });
 
   describe('findAll', () => {
@@ -37,11 +79,14 @@ describe('CompanionsService', () => {
       expect(mockPrisma.companion.findMany).toHaveBeenCalledWith({
         where: { studioId: 'studio-1' },
         include: {
-          user: { select: { username: true } },
+          user: { select: { username: true, avatar: true, displayName: true } },
           pc: { select: { currentMode: true, isThrottled: true, lastHeartbeat: true } },
         },
       });
-      expect(result).toEqual(companions);
+      // Result is decorated with processStatus and todayOrderCount
+      expect(result).toHaveLength(1);
+      expect(result[0].processStatus).toBe('NORMAL');
+      expect(result[0].todayOrderCount).toBe(0);
     });
   });
 
@@ -67,7 +112,7 @@ describe('CompanionsService', () => {
       expect(result).toEqual(updatedCompanion);
     });
 
-    it('throws ForbiddenException when updating other\'s status', async () => {
+    it("throws ForbiddenException when updating other's status", async () => {
       const otherUser = {
         id: 'u3',
         username: 'admin',
@@ -76,13 +121,9 @@ describe('CompanionsService', () => {
         companionId: undefined,
       };
 
-      await expect(
-        service.updateStatus('comp-1', 'BUSY', otherUser),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.updateStatus('comp-1', 'BUSY', otherUser)).rejects.toThrow(ForbiddenException);
 
-      await expect(
-        service.updateStatus('comp-1', 'BUSY', otherUser),
-      ).rejects.toThrow('只能更新自己的状态');
+      await expect(service.updateStatus('comp-1', 'BUSY', otherUser)).rejects.toThrow('只能更新自己的状态');
 
       // Also test a user with a different companionId
       const otherCompanionUser = {
@@ -93,33 +134,20 @@ describe('CompanionsService', () => {
         companionId: 'comp-2',
       };
 
-      await expect(
-        service.updateStatus('comp-1', 'BUSY', otherCompanionUser),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.updateStatus('comp-1', 'BUSY', otherCompanionUser)).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('getRanking', () => {
     it('returns top 10 companions by revenue score', async () => {
-      const companions = [
-        { id: 'comp-1', user: { username: 'zhangsan', displayName: 'Zhang San' } },
-        { id: 'comp-2', user: { username: 'lisi', displayName: null } },
-      ];
-
-      const orders = [
-        { type: 'NEW', amount: 100 },
-        { type: 'RENEW', amount: 200 },
-      ];
-
-      mockPrisma.companion.findMany.mockResolvedValue(companions);
-      mockPrisma.order.findMany.mockResolvedValue(orders);
+      mockRevenueService.getRanking.mockResolvedValue([
+        { name: 'Zhang San', totalAmount: 300, totalCount: 2, score: 300 },
+        { name: 'lisi', totalAmount: 0, totalCount: 0, score: 0 },
+      ]);
 
       const result = await service.getRanking('studio-1', 'revenue');
 
-      expect(mockPrisma.companion.findMany).toHaveBeenCalledWith({
-        where: { studioId: 'studio-1' },
-        select: { id: true, user: { select: { username: true, displayName: true } } },
-      });
+      expect(mockRevenueService.getRanking).toHaveBeenCalledWith('studio-1', 'revenue');
       expect(result).toHaveLength(2);
       expect(result[0].totalAmount).toBe(300);
       expect(result[0].totalCount).toBe(2);

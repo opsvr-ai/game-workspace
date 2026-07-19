@@ -12,18 +12,38 @@ function createMockWsGateway() {
   } as unknown as WsGateway;
 }
 
+function createMockWorkflowService() {
+  return {
+    grab: vi.fn(),
+    confirm: vi.fn(),
+    complete: vi.fn(),
+    cancel: vi.fn(),
+    completeWithBilling: vi.fn(),
+  };
+}
+
+function createMockDispatchService() {
+  return {
+    assign: vi.fn(),
+    acceptAssignment: vi.fn(),
+    declineAssignment: vi.fn(),
+    quickGrab: vi.fn(),
+  };
+}
+
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: MockPrisma;
   let wsGateway: ReturnType<typeof createMockWsGateway>;
+  let workflowService: ReturnType<typeof createMockWorkflowService>;
+  let dispatchService: ReturnType<typeof createMockDispatchService>;
 
   beforeEach(() => {
     prisma = createMockPrisma();
     wsGateway = createMockWsGateway();
-    service = new OrdersService(
-      prisma as any,
-      wsGateway as any,
-    );
+    workflowService = createMockWorkflowService();
+    dispatchService = createMockDispatchService();
+    service = new OrdersService(prisma as any, wsGateway as any, workflowService as any, dispatchService as any);
     vi.clearAllMocks();
   });
 
@@ -85,16 +105,19 @@ describe('OrdersService', () => {
 
   describe('findPool', () => {
     it('returns only PENDING + POOL + unassigned orders', async () => {
-      const poolOrders = [
-        { id: 'o1', status: 'PENDING', dispatchType: 'POOL', companionId: null },
-      ];
+      const poolOrders = [{ id: 'o1', status: 'PENDING', dispatchType: 'POOL', companionId: null }];
       prisma.order.findMany.mockResolvedValue(poolOrders);
 
       const result = await service.findPool();
 
       expect(prisma.order.findMany).toHaveBeenCalledWith({
-        where: { status: 'PENDING', dispatchType: 'POOL', companionId: null },
-        include: { customer: { select: { wechatId: true, customerCode: true } } },
+        where: expect.objectContaining({
+          status: 'PENDING',
+          dispatchType: 'POOL',
+        }),
+        include: expect.objectContaining({
+          customer: expect.any(Object),
+        }),
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual(poolOrders);
@@ -108,60 +131,36 @@ describe('OrdersService', () => {
     const companionId = 'companion-1';
 
     it('companion grabs POOL order -> status GRABBED, companionId set', async () => {
-      const pendingOrder = {
-        id: orderId,
-        status: 'PENDING' as const,
-        dispatchType: 'POOL',
-        companionId: null,
-        studioId: 'studio-1',
-      };
       const grabbedOrder = {
-        ...pendingOrder,
+        id: orderId,
         status: 'GRABBED' as const,
         companionId,
+        studioId: 'studio-1',
       };
 
-      prisma.order.findUnique.mockResolvedValue(pendingOrder);
-      prisma.order.update.mockResolvedValue(grabbedOrder);
+      workflowService.grab.mockResolvedValue(grabbedOrder);
 
       const result = await service.grab(orderId, companionId);
 
-      expect(prisma.order.findUnique).toHaveBeenCalledWith({ where: { id: orderId } });
-      expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { id: orderId },
-        data: { status: OrderStatus.GRABBED, companionId },
-      });
+      expect(workflowService.grab).toHaveBeenCalledWith(orderId, companionId);
       expect(result.status).toBe('GRABBED');
       expect(result.companionId).toBe(companionId);
-      expect(wsGateway.broadcastToStudio).toHaveBeenCalledWith('studio-1', 'order:pool_updated', grabbedOrder);
     });
 
     it('throws ForbiddenException when grabbing non-POOL order', async () => {
-      const directOrder = {
-        id: orderId,
-        status: 'PENDING',
-        dispatchType: 'DIRECT',
-        companionId: null,
-      };
-      prisma.order.findUnique.mockResolvedValue(directOrder);
+      workflowService.grab.mockRejectedValue(new ForbiddenException('只能抢派单池中的订单'));
 
       await expect(service.grab(orderId, companionId)).rejects.toThrow(ForbiddenException);
     });
 
     it('throws ForbiddenException when grabbing already-grabbed order', async () => {
-      const alreadyGrabbed = {
-        id: orderId,
-        status: 'PENDING',
-        dispatchType: 'POOL',
-        companionId: 'other-companion', // already assigned
-      };
-      prisma.order.findUnique.mockResolvedValue(alreadyGrabbed);
+      workflowService.grab.mockRejectedValue(new ForbiddenException('该订单已被抢'));
 
       await expect(service.grab(orderId, companionId)).rejects.toThrow(ForbiddenException);
     });
 
     it('throws NotFoundException when grabbing non-existent order', async () => {
-      prisma.order.findUnique.mockResolvedValue(null);
+      workflowService.grab.mockRejectedValue(new NotFoundException('订单不存在'));
 
       await expect(service.grab(orderId, companionId)).rejects.toThrow(NotFoundException);
     });
@@ -171,36 +170,19 @@ describe('OrdersService', () => {
 
   describe('state machine validation', () => {
     it('cannot grab CANCELLED order', async () => {
-      const cancelledOrder = {
-        id: 'order-1',
-        status: OrderStatus.CANCELLED,
-        dispatchType: 'POOL',
-        companionId: null,
-      };
-      prisma.order.findUnique.mockResolvedValue(cancelledOrder);
+      workflowService.grab.mockRejectedValue(new ForbiddenException('订单状态不允许此操作'));
 
       await expect(service.grab('order-1', 'companion-1')).rejects.toThrow(ForbiddenException);
     });
 
     it('cannot confirm un-grabbed order', async () => {
-      const pendingOrder = {
-        id: 'order-1',
-        status: OrderStatus.PENDING,
-        dispatchType: 'POOL',
-        companionId: null,
-      };
-      prisma.order.findUnique.mockResolvedValue(pendingOrder);
+      workflowService.confirm.mockRejectedValue(new ForbiddenException('订单状态不允许此操作'));
 
       await expect(service.confirm('order-1', 'companion-1')).rejects.toThrow(ForbiddenException);
     });
 
     it('cannot complete un-confirmed order', async () => {
-      const grabbedOrder = {
-        id: 'order-1',
-        status: OrderStatus.GRABBED,
-        companionId: 'companion-1',
-      };
-      prisma.order.findUnique.mockResolvedValue(grabbedOrder);
+      workflowService.complete.mockRejectedValue(new ForbiddenException('订单状态不允许此操作'));
 
       await expect(service.complete('order-1')).rejects.toThrow(ForbiddenException);
     });
@@ -210,22 +192,17 @@ describe('OrdersService', () => {
 
   describe('confirm', () => {
     it('companion confirms their own GRABBED order', async () => {
-      const grabbedOrder = {
+      const confirmedOrder = {
         id: 'order-1',
-        status: OrderStatus.GRABBED,
+        status: OrderStatus.CONFIRMED,
         companionId: 'companion-1',
       };
-      const confirmedOrder = { ...grabbedOrder, status: OrderStatus.CONFIRMED };
 
-      prisma.order.findUnique.mockResolvedValue(grabbedOrder);
-      prisma.order.update.mockResolvedValue(confirmedOrder);
+      workflowService.confirm.mockResolvedValue(confirmedOrder);
 
       const result = await service.confirm('order-1', 'companion-1');
 
-      expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        data: { status: OrderStatus.CONFIRMED },
-      });
+      expect(workflowService.confirm).toHaveBeenCalledWith('order-1', 'companion-1');
       expect(result.status).toBe(OrderStatus.CONFIRMED);
     });
   });
@@ -234,22 +211,17 @@ describe('OrdersService', () => {
 
   describe('complete', () => {
     it('complete CONFIRMED order -> status DONE', async () => {
-      const confirmedOrder = {
+      const doneOrder = {
         id: 'order-1',
-        status: OrderStatus.CONFIRMED,
+        status: OrderStatus.DONE,
         companionId: 'companion-1',
       };
-      const doneOrder = { ...confirmedOrder, status: OrderStatus.DONE };
 
-      prisma.order.findUnique.mockResolvedValue(confirmedOrder);
-      prisma.order.update.mockResolvedValue(doneOrder);
+      workflowService.complete.mockResolvedValue(doneOrder);
 
       const result = await service.complete('order-1');
 
-      expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        data: { status: OrderStatus.DONE },
-      });
+      expect(workflowService.complete).toHaveBeenCalledWith('order-1');
       expect(result.status).toBe(OrderStatus.DONE);
     });
   });
@@ -258,22 +230,17 @@ describe('OrdersService', () => {
 
   describe('cancel', () => {
     it('cancel PENDING order -> status CANCELLED', async () => {
-      const pendingOrder = {
+      const cancelledOrder = {
         id: 'order-1',
-        status: OrderStatus.PENDING,
+        status: OrderStatus.CANCELLED,
         companionId: null,
       };
-      const cancelledOrder = { ...pendingOrder, status: OrderStatus.CANCELLED };
 
-      prisma.order.findUnique.mockResolvedValue(pendingOrder);
-      prisma.order.update.mockResolvedValue(cancelledOrder);
+      workflowService.cancel.mockResolvedValue(cancelledOrder);
 
       const result = await service.cancel('order-1');
 
-      expect(prisma.order.update).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        data: { status: OrderStatus.CANCELLED },
-      });
+      expect(workflowService.cancel).toHaveBeenCalledWith('order-1');
       expect(result.status).toBe(OrderStatus.CANCELLED);
     });
   });

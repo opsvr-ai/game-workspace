@@ -5,13 +5,9 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 // Mock bcryptjs so password hashing is deterministic
 vi.mock('bcryptjs', () => ({
   default: {
-    hash: vi.fn((password: string, _rounds: number) =>
-      Promise.resolve(`hashed_${password}`),
-    ),
+    hash: vi.fn((password: string, _rounds: number) => Promise.resolve(`hashed_${password}`)),
   },
-  hash: vi.fn((password: string, _rounds: number) =>
-    Promise.resolve(`hashed_${password}`),
-  ),
+  hash: vi.fn((password: string, _rounds: number) => Promise.resolve(`hashed_${password}`)),
 }));
 
 describe('StudiosService', () => {
@@ -20,6 +16,9 @@ describe('StudiosService', () => {
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
+    // Set up default empty return values for groupBy/findMany used in getEmployees
+    mockPrisma.order.groupBy.mockResolvedValue([]);
+    mockPrisma.order.findMany.mockResolvedValue([]);
     service = new StudiosService(mockPrisma as any);
     vi.clearAllMocks();
   });
@@ -56,7 +55,8 @@ describe('StudiosService', () => {
   });
 
   describe('create', () => {
-    it('creates a studio', async () => {
+    it('creates a studio with manager account', async () => {
+      const bcrypt = await import('bcryptjs');
       const mockStudio = {
         id: 'studio-new',
         name: 'New Studio',
@@ -64,13 +64,15 @@ describe('StudiosService', () => {
       };
 
       mockPrisma.studio.create.mockResolvedValue(mockStudio);
+      mockPrisma.user.create.mockResolvedValue({ id: 'user-new', username: 'admin', role: 'ADMIN' });
 
-      const result = await service.create('New Studio');
+      const result = await service.create('New Studio', 'GAMING', 'admin', 'pass123');
 
+      expect(bcrypt.hash).toHaveBeenCalledWith('pass123', 10);
       expect(result).toEqual(mockStudio);
       expect(result.name).toBe('New Studio');
       expect(mockPrisma.studio.create).toHaveBeenCalledWith({
-        data: { name: 'New Studio' },
+        data: expect.objectContaining({ name: 'New Studio' }),
       });
     });
   });
@@ -133,17 +135,12 @@ describe('StudiosService', () => {
 
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
         where: { studioId: 'studio-1', role: { not: 'OWNER' } },
-        include: {
-          studio: { select: { id: true, name: true } },
-          companion: {
-            select: {
-              id: true,
-              status: true,
-              monthlyRevenue: true,
-              games: true,
-            },
-          },
-        },
+        select: expect.objectContaining({
+          id: true,
+          username: true,
+          role: true,
+          studioId: true,
+        }),
         orderBy: { createdAt: 'desc' },
       });
     });
@@ -181,7 +178,7 @@ describe('StudiosService', () => {
           passwordHash: 'hashed_pass123',
           role: 'COMPANION',
           studioId: 'studio-1',
-          isAuthorized: false,
+          isAuthorized: true,
           companion: expect.objectContaining({
             create: expect.objectContaining({
               studioId: 'studio-1',
