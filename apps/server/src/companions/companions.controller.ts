@@ -9,8 +9,11 @@ import {
   Req,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   ForbiddenException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CompanionsService } from './companions.service';
@@ -21,6 +24,9 @@ import { logger } from '../common/logger';
 import { ChatService } from '../chat/chat.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -445,6 +451,37 @@ export class CompanionsController {
     });
 
     return { code: 200, message: 'ok', data: null };
+  }
+
+  @Post('companions/chat-upload')
+  @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), '../../uploads/chat');
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+          const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extname(file.originalname)}`;
+          cb(null, name);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    }),
+  )
+  async chatUpload(@UploadedFile() file: Express.Multer.File): Promise<ApiResponse<{ url: string; name: string; size: number; type: string }>> {
+    if (!file) return { code: 400, message: '未选择文件', data: null as any };
+    return {
+      code: 200, message: 'ok',
+      data: {
+        url: `/uploads/chat/${file.filename}`,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+      },
+    };
   }
 
   @Put('companions/:id/finance')

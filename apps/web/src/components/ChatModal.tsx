@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useState, useRef, useEffect } from 'react';
 import { Modal, Input, Button, message } from 'antd';
-import { CloseOutlined, UserOutlined, SendOutlined, SmileOutlined } from '@ant-design/icons';
+import { CloseOutlined, SendOutlined, SmileOutlined, PaperClipOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
@@ -47,6 +47,8 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const [addEmojiUrl, setAddEmojiUrl] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const user = useAuthStore((s) => s.user);
   const partnerRef = useRef(partner);
   partnerRef.current = partner;
@@ -116,6 +118,31 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     let currMin = timeToMinutes(currTime);
     if (currMin < prevMin) currMin += 24 * 60;
     return currMin - prevMin > 3;
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await http.post('/companions/chat-upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = data?.data?.url;
+      const name = data?.data?.name || file.name;
+      if (url) {
+        const isImage = file.type.startsWith('image/');
+        const marker = isImage ? `[img]${url}[/img]` : `[file:${name}](${url})`;
+        setInput((prev) => prev + (prev ? ' ' : '') + marker);
+      }
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '上传失败');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const send = async () => {
@@ -276,12 +303,13 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                           color: isMe ? '#FFF' : '#1E293B',
                           boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
                         }}>
-                          {m.text.split(/(\[img\].*?\[\/img\])/g).map((part: string, j: number) => {
+                          {m.text.split(/(\[img\].*?\[\/img\]|\[file:.*?\]\(.*?\))/g).map((part: string, j: number) => {
                             if (part.startsWith('[img]') && part.endsWith('[/img]')) {
                               const url = part.slice(5, -6);
                               return <img key={j} src={url}
-                                style={{ maxWidth: 120, maxHeight: 120, borderRadius: 4, display: 'block', cursor: 'pointer' }}
+                                style={{ maxWidth: 200, maxHeight: 200, borderRadius: 6, display: 'block', cursor: 'pointer' }}
                                 alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                onClick={() => window.open(url, '_blank')}
                                 onContextMenu={(e2) => {
                                   e2.preventDefault();
                                   if (!customEmojis.includes(url)) {
@@ -289,6 +317,26 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                                     message.success('已收藏到我的表情');
                                   } else { message.info('已在收藏中'); }
                                 }} />;
+                            }
+                            if (part.startsWith('[file:') && part.includes('](')) {
+                              const nameEnd = part.indexOf('](');
+                              const name = part.slice(6, nameEnd);
+                              const url = part.slice(nameEnd + 2, -1);
+                              const ext = name.split('.').pop()?.toLowerCase() || '';
+                              const isDoc = ['pdf','doc','docx','xls','xlsx','txt'].includes(ext);
+                              return (
+                                <a key={j} href={url} target="_blank" rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                                    padding: '6px 10px', borderRadius: 6,
+                                    background: isMe ? 'rgba(255,255,255,0.2)' : '#F0F0F0',
+                                    color: isMe ? '#FFF' : '#2563EB',
+                                    fontSize: 13, textDecoration: 'none',
+                                  }}>
+                                  <span>{isDoc ? '📄' : '📎'}</span>
+                                  <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                                </a>
+                              );
                             }
                             return <span key={j}>{part}</span>;
                           })}
@@ -337,8 +385,22 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                   {e}
                 </span>
               ))}
+              {/* Upload button */}
+              <input type="file" ref={fileInputRef} onChange={handleUpload}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                style={{ display: 'none' }} />
               <span style={{
-                fontSize: 16, cursor: 'pointer', padding: '2px 4px', borderRadius: 4, marginLeft: 'auto',
+                fontSize: 16, cursor: uploading ? 'not-allowed' : 'pointer',
+                padding: '2px 4px', borderRadius: 4, opacity: uploading ? 0.5 : 1,
+                color: '#666',
+              }}
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                title="上传图片或文件">
+                {React.createElement(PaperClipOutlined)}
+              </span>
+              {/* Emoji toggle */}
+              <span style={{
+                fontSize: 16, cursor: 'pointer', padding: '2px 4px', borderRadius: 4, marginLeft: 4,
                 userSelect: 'none' as any, color: showEmoji ? '#12B7F5' : '#666',
               }}
                 onClick={() => setShowEmoji(!showEmoji)}>
