@@ -387,17 +387,44 @@ const AppLayout: React.FC = () => {
     onChatNotify: (data: any) => {
       if (data?.companionId) {
         useChatStore.getState().addChatCompanion(data.companionId);
+        useChatStore.getState().addChatNotification({
+          companionId: data.companionId,
+          companionName: data.companionName || data.companionId,
+          lastMessage: data.message || '',
+          timestamp: Date.now(),
+        });
       }
       if (data?.companionName) {
         useChatStore.getState().setChatActive(true, data.companionName);
+        notify({ title: data.companionName, body: data.message || '发来一条消息' });
       }
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
     onChatNew: (data: any) => {
-      if (data?.companionName) {
-        notify({ title: data.companionName, body: data.message || '新消息' });
+      if (data?.senderId) {
+        useChatStore.getState().addChatCompanion(data.senderId);
+        useChatStore.getState().addChatNotification({
+          companionId: data.companionId || data.senderId,
+          companionName: data.senderName || '新消息',
+          lastMessage: data.text || '',
+          timestamp: Date.now(),
+        });
+      }
+      if (data?.senderName) {
+        useChatStore.getState().setChatActive(true, data.senderName);
+        notify({ title: data.senderName, body: data.text || '新消息' });
+      }
+      // Also update localStorage for unread badge
+      const orderId = data?.orderId || localStorage.getItem(`last-orderId-${data.companionId || data.senderId}`) || '';
+      if (orderId) {
+        const current = parseInt(localStorage.getItem(`unread-${orderId}`) || '0', 10);
+        localStorage.setItem(`unread-${orderId}`, String(current + 1));
+        if (data.companionId) {
+          localStorage.setItem(`unread-${data.companionId}`, String(current + 1));
+          localStorage.setItem(`last-orderId-${data.companionId}`, orderId);
+        }
       }
     },
   });
