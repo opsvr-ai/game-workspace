@@ -169,7 +169,7 @@ const CompanionPage: React.FC = () => {
   return (
     <div>
       {/* ① Status Header — compact inline */}
-      <Card size="small" style={{ marginBottom: 12, border: '2px solid #00D4FF' }}>
+      <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
@@ -199,8 +199,8 @@ const CompanionPage: React.FC = () => {
       <Title level={5} style={{ marginBottom: 8 }}>📊 数据看板</Title>
       <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
         {[
-          {l:'今日接单',v:data?.todayOrderCount??0,color:'#1677ff',max:Math.max(data?.todayOrderCount||1,5)},
-          {l:'本月接单',v:data?.monthlyOrderCount??0,color:'#52c41a',max:Math.max(data?.monthlyOrderCount||1,10)},
+          {l:'今日接单',v:data?.todayOrderCount??0,color:'#2563EB',max:Math.max(data?.todayOrderCount||1,5)},
+          {l:'本月接单',v:data?.monthlyOrderCount??0,color:'#16A34A',max:Math.max(data?.monthlyOrderCount||1,10)},
           {l:'微信添加成功率',v:data?.wechatAddRate??0,color:'#722ed1',max:100},
           {l:'转化率',v:data?.conversionRate??0,color:'#fa8c16',max:100},
           
@@ -228,7 +228,7 @@ const CompanionPage: React.FC = () => {
           <Card size="small" title="订单占比">
             <Row gutter={8}>
               {[{title:'📅 今日',stats:data?.todayStats,revenue:data?.todayRevenue},{title:'📆 全月',stats:data?.orderStats,revenue:data?.totalRevenue}].map(({title,stats,revenue}) => {
-                const pieData = [{key:'NEW',name:'首单',color:'#1677ff'},{key:'RENEW',name:'续单',color:'#52c41a'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(t => ({name:t.name,value:stats?.[t.key]?.count||0,amount:stats?.[t.key]?.amount||0,color:t.color})).filter(d=>d.value>0);
+                const pieData = [{key:'NEW',name:'首单',color:'#2563EB'},{key:'RENEW',name:'续单',color:'#16A34A'},{key:'REPURCHASE',name:'复购',color:'#722ed1'},{key:'TIP',name:'礼物',color:'#fa8c16'}].map(t => ({name:t.name,value:stats?.[t.key]?.count||0,amount:stats?.[t.key]?.amount||0,color:t.color})).filter(d=>d.value>0);
                 return (
                   <Col span={12} key={title} style={{textAlign:'center'}}>
                     <Text strong style={{fontSize:12}}>{title} ¥{(revenue||0).toFixed(0)}</Text>
@@ -259,12 +259,12 @@ const CompanionPage: React.FC = () => {
                 </tr></thead>
                 <tbody>{[...ranking].sort((a:any,b:any)=>b.qualityScore-a.qualityScore).map((r:any,i:number)=>(<tr key={r.companionId} style={{background:r.companionId===user?.companionId?'#e6f7ff':'transparent'}}>
                   <td style={{padding:3}}>{['🥇','🥈','🥉'][i]||`${i+1}`} {r.name?.slice(0,6)}</td>
-                  <td style={{color:'#1677ff',fontWeight:500,textAlign:'center'}}>¥{(r.totalAmount||0).toFixed(0)}</td>
+                  <td style={{color:'#2563EB',fontWeight:500,textAlign:'center'}}>¥{(r.totalAmount||0).toFixed(0)}</td>
                   <td style={{textAlign:'center'}}><Tag color={r.newRate>50?'red':r.newRate>30?'orange':'default'} style={{fontSize:10,margin:0}}>{r.newRate||0}%</Tag></td>
                   <td style={{textAlign:'center'}}><Tag color={r.renewRate>20?'green':'default'} style={{fontSize:10,margin:0}}>{r.renewRate||0}%</Tag></td>
                   <td style={{textAlign:'center'}}><Tag color={r.repurchaseRate>15?'green':'default'} style={{fontSize:10,margin:0}}>{r.repurchaseRate||0}%</Tag></td>
                   <td style={{textAlign:'center'}}><Tag color={r.tipRatio>10?'gold':'default'} style={{fontSize:10,margin:0}}>{r.tipRatio||0}%</Tag></td>
-                  <td style={{textAlign:'right',fontWeight:600,color:r.qualityScore>50?'#52c41a':'#999'}}>{r.qualityScore||0}</td>
+                  <td style={{textAlign:'right',fontWeight:600,color:r.qualityScore>50?'#16A34A':'#999'}}>{r.qualityScore||0}</td>
                 </tr>))}</tbody>
               </table>
             ) : <EmptyState description="暂无排行" />}
@@ -333,14 +333,14 @@ const CompanionPage: React.FC = () => {
           <Switch checked={notifPrefs?.enabled !== false} onChange={(v) => saveNotifPrefs({...notifPrefs, enabled: v})} />
         </div>
         <Row gutter={[8,14]}>
-          {[{title:'订单类型',key:'orderTypes',items:[{k:'NEW',l:'首单',c:'#1677ff'},{k:'RENEW',l:'续费',c:'#00D4FF'},{k:'REPURCHASE',l:'复购',c:'#7B61FF'},{k:'TIP',l:'打赏',c:'#FF9100'}]},
-            {title:'服务类型',key:'serviceTypes',items:[{k:'PLAY_WITH',l:'陪玩',c:'#1677ff'},{k:'ESCORT',l:'护航',c:'#FF9100'},{k:'DO_TASK',l:'任务',c:'#7B61FF'}]},
-            {title:'派单方式',key:'dispatchTypes',items:[{k:'POOL',l:'抢单池',c:'#1677ff'},{k:'DIRECT',l:'直接派',c:'#52c41a'}]},
-            {title:'打单时间',key:'urgency',items:[{k:'now',l:'⚡立即',c:'#52c41a'},{k:'later',l:'预约',c:'#7B61FF'}]},
-            {title:'计费方式',key:'billingMode',items:[{k:'hour',l:'按小时',c:'#1677ff'},{k:'round',l:'按局',c:'#52c41a'}]},
-            {title:'陪陪数量',key:'deltaCount',items:[{k:'单',l:'单',c:'#1677ff'},{k:'双',l:'双',c:'#7B61FF'}]},
-            {title:'任务类型',key:'deltaMission',items:[{k:'机密',l:'机密',c:'#FF9100'},{k:'绝密',l:'绝密',c:'#7B61FF'}]},
-            {title:'客户来源',key:'customerSource',items:[{k:'小红书',l:'小红书',c:'#FF4D4F'},{k:'抖音',l:'抖音',c:'#1677ff'},{k:'快手',l:'快手',c:'#FF9100'},{k:'转介绍',l:'转介绍',c:'#52c41a'}]},
+          {[{title:'订单类型',key:'orderTypes',items:[{k:'NEW',l:'首单',c:'#2563EB'},{k:'RENEW',l:'续费',c:'#3B82F6'},{k:'REPURCHASE',l:'复购',c:'#7C3AED'},{k:'TIP',l:'打赏',c:'#FF9100'}]},
+            {title:'服务类型',key:'serviceTypes',items:[{k:'PLAY_WITH',l:'陪玩',c:'#2563EB'},{k:'ESCORT',l:'护航',c:'#FF9100'},{k:'DO_TASK',l:'任务',c:'#7C3AED'}]},
+            {title:'派单方式',key:'dispatchTypes',items:[{k:'POOL',l:'抢单池',c:'#2563EB'},{k:'DIRECT',l:'直接派',c:'#16A34A'}]},
+            {title:'打单时间',key:'urgency',items:[{k:'now',l:'⚡立即',c:'#16A34A'},{k:'later',l:'预约',c:'#7C3AED'}]},
+            {title:'计费方式',key:'billingMode',items:[{k:'hour',l:'按小时',c:'#2563EB'},{k:'round',l:'按局',c:'#16A34A'}]},
+            {title:'陪陪数量',key:'deltaCount',items:[{k:'单',l:'单',c:'#2563EB'},{k:'双',l:'双',c:'#7C3AED'}]},
+            {title:'任务类型',key:'deltaMission',items:[{k:'机密',l:'机密',c:'#FF9100'},{k:'绝密',l:'绝密',c:'#7C3AED'}]},
+            {title:'客户来源',key:'customerSource',items:[{k:'小红书',l:'小红书',c:'#FF4D4F'},{k:'抖音',l:'抖音',c:'#2563EB'},{k:'快手',l:'快手',c:'#FF9100'},{k:'转介绍',l:'转介绍',c:'#16A34A'}]},
           ].map((sec: any) => (
             <Col span={8} key={sec.key}>
               <Typography.Text type="secondary" style={{display:'block',marginBottom:4}}>{sec.title}</Typography.Text>

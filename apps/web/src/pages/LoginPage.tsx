@@ -179,7 +179,7 @@ const LoginPage: React.FC = () => {
               </Button>
             </div>
             <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <Button type="link" onClick={() => setMode('register')} style={{ color: '#00D4FF', fontSize: 13 }}>
+              <Button type="link" onClick={() => setMode('register')} style={{ color: '#2563EB', fontSize: 13 }}>
                 陪玩注册 →
               </Button>
             </div>
@@ -289,7 +289,7 @@ const LoginPage: React.FC = () => {
           <a
             href="/api/download/agent"
             download
-            style={{ color: '#00D4FF', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
+            style={{ color: '#2563EB', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
           >
             📥 下载 Windows 客户端
           </a>

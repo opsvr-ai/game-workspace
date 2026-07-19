@@ -100,7 +100,7 @@ const ProfileSetupPage: React.FC = () => {
 
         <Button type="primary" size="large" block loading={saving} onClick={handleSave}
           style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 24,
-            background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', border: 'none', color: '#FFF' }}>
+            background: 'linear-gradient(135deg, #2563EB, #7C3AED)', border: 'none', color: '#FFF' }}>
           💾 保存资料
         </Button>
       </div>

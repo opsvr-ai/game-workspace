@@ -10,8 +10,8 @@ const SECTIONS = [
     key: 'orderTypes',
     items: [
       { k: 'NEW', l: '首单', c: '#1677ff' },
-      { k: 'RENEW', l: '续费', c: '#00D4FF' },
-      { k: 'REPURCHASE', l: '复购', c: '#7B61FF' },
+      { k: 'RENEW', l: '续费', c: '#3B82F6' },
+      { k: 'REPURCHASE', l: '复购', c: '#7C3AED' },
       { k: 'TIP', l: '打赏', c: '#FF9100' },
     ],
   },
@@ -21,7 +21,7 @@ const SECTIONS = [
     items: [
       { k: 'PLAY_WITH', l: '陪玩', c: '#1677ff' },
       { k: 'ESCORT', l: '护航', c: '#FF9100' },
-      { k: 'DO_TASK', l: '任务', c: '#7B61FF' },
+      { k: 'DO_TASK', l: '任务', c: '#7C3AED' },
     ],
   },
   {
@@ -37,7 +37,7 @@ const SECTIONS = [
     key: 'urgency',
     items: [
       { k: 'now', l: '⚡立即', c: '#52c41a' },
-      { k: 'later', l: '预约', c: '#7B61FF' },
+      { k: 'later', l: '预约', c: '#7C3AED' },
     ],
   },
   {
@@ -53,7 +53,7 @@ const SECTIONS = [
     key: 'deltaCount',
     items: [
       { k: '单', l: '单', c: '#1677ff' },
-      { k: '双', l: '双', c: '#7B61FF' },
+      { k: '双', l: '双', c: '#7C3AED' },
     ],
   },
 ];

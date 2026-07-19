@@ -181,7 +181,7 @@ const BlacklistPage: React.FC = () => {
           }
         }}
         style={{
-          border: `2px dashed ${dragOver ? '#00D4FF' : '#d9d9d9'}`,
+          border: `2px dashed ${dragOver ? '#2563EB' : '#d9d9d9'}`,
           borderRadius: 8,
           padding: '12px 16px',
           marginBottom: 12,

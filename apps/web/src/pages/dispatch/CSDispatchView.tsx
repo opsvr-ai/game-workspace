@@ -252,11 +252,11 @@ const CSDispatchView: React.FC = () => {
                       padding: '8px 6px',
                       display: 'block',
                       cursor: 'pointer',
-                      borderLeft: isSelected ? '3px solid #00D4FF' : '3px solid transparent',
+                      borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
                       paddingLeft: isSelected ? 10 : 10,
                       borderRadius: '0 6px 6px 0',
                       transition: 'transform 0.15s ease, background 0.15s ease',
-                      background: isSelected ? 'rgba(0,212,255,0.06)' : 'transparent',
+                      background: isSelected ? '#EFF6FF' : 'transparent',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateX(2px)';
@@ -322,7 +322,7 @@ const CSDispatchView: React.FC = () => {
                                 width: 32,
                                 height: 32,
                                 borderRadius: '50%',
-                                background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
+                                background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -377,7 +377,7 @@ const CSDispatchView: React.FC = () => {
                       <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {c.games.map((g: any, i: number) => (
                           <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
-                            {g.game} <span style={{ color: '#7B61FF' }}>{g.rank || '?'}</span>
+                            {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
                           </Tag>
                         ))}
                       </div>
@@ -393,31 +393,22 @@ const CSDispatchView: React.FC = () => {
         {/* Center: Order Pool (18/24) */}
         <Col span={18}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
-            {/* Water wave header */}
+            {/* Order pool header */}
             <div
               style={{
-                background: 'linear-gradient(180deg, #00D4FF 0%, #7B61FF 100%)',
-                borderRadius: '16px 16px 0 0',
-                padding: '20px 24px',
-                position: 'relative',
-                overflow: 'hidden',
+                background: '#FFFFFF',
+                borderRadius: '8px 8px 0 0',
+                padding: '16px 24px',
+                borderBottom: '1px solid #E2E8F0',
               }}
             >
-              <div
-                className="wave-container"
-                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 40 }}
-              >
-                <div className="wave wave1" />
-                <div className="wave wave2" />
-              </div>
-              <Space style={{ position: 'relative', zIndex: 1 }}>
-                <span style={{ fontSize: 24 }}>🌊</span>
-                <Text strong style={{ color: '#FFF', fontSize: 18 }}>
+              <Space>
+                <Text strong style={{ color: '#1E293B', fontSize: 16 }}>
                   订单池
                 </Text>
                 <Tag
                   color="white"
-                  style={{ color: '#7B61FF', fontWeight: 700, borderRadius: 10, padding: '2px 12px', border: 'none' }}
+                  style={{ color: '#7C3AED', fontWeight: 700, borderRadius: 10, padding: '2px 12px', border: 'none' }}
                 >
                   {poolCount} 单待派
                 </Tag>
@@ -734,7 +725,7 @@ const CSDispatchView: React.FC = () => {
                   {selectedCompanion.games.map((g: any, i: number) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                       <span>🎮 {g.game}</span>
-                      <span style={{ color: '#7B61FF', fontWeight: 600 }}>{g.rank || '?'}</span>
+                      <span style={{ color: '#7C3AED', fontWeight: 600 }}>{g.rank || '?'}</span>
                       <span style={{ color: g.hasAccount ? '#34C759' : '#94A3B8' }}>
                         {g.hasAccount ? '有号' : '无号'}
                       </span>

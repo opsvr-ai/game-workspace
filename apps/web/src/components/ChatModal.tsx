@@ -234,7 +234,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
           {/* Header — gradient bar with online dot + order info + X close */}
           <div
             style={{
-              background: 'linear-gradient(135deg, #00D4FF, #7B61FF)',
+              background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
               color: '#FFF',
               padding: '10px 12px',
               display: 'flex',
@@ -329,7 +329,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                           lineHeight: 1.5,
                           wordBreak: 'break-word',
                           background: isMe
-                            ? 'linear-gradient(135deg, #00D4FF, #7B61FF)'
+                            ? 'linear-gradient(135deg, #2563EB, #7C3AED)'
                             : '#F1F5F9',
                           color: isMe ? '#FFF' : '#1E293B',
                           position: 'relative',
@@ -484,7 +484,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#00D4FF';
+                e.currentTarget.style.borderColor = '#2563EB';
                 e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,212,255,0.2)';
               }}
               onBlur={(e) => {
@@ -497,7 +497,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
               disabled={!input.trim()}
               style={{
                 background: input.trim()
-                  ? 'linear-gradient(135deg, #00D4FF, #7B61FF)'
+                  ? 'linear-gradient(135deg, #2563EB, #7C3AED)'
                   : '#E0E0E0',
                 borderColor: input.trim() ? 'transparent' : '#E0E0E0',
                 color: input.trim() ? '#FFF' : '#999',

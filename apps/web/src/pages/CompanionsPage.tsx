@@ -233,7 +233,7 @@ const CompanionsPage: React.FC = () => {
                     {g.game}
                     <span
                       style={{
-                        color: '#7B61FF',
+                        color: '#7C3AED',
                         fontWeight: 600,
                         marginLeft: 4,
                       }}

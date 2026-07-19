@@ -105,7 +105,7 @@ body {
   color: #1e293b;
 }
 .stat-card .stat-value.blue {
-  color: #00d4ff;
+  color: #2563EB;
 }
 .stat-card .stat-value.green {
   color: #00e676;
@@ -295,7 +295,7 @@ body {
 
 /* ── 订单池卡片悬浮 ── */
 .pool-card:hover {
-  border-color: #00d4ff !important;
+  border-color: #2563EB !important;
   box-shadow: 0 2px 12px rgba(0, 212, 255, 0.1) !important;
   transform: translateY(-1px);
 }

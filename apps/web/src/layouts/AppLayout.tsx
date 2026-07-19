@@ -550,7 +550,7 @@ const AppLayout: React.FC = () => {
                     </div>
                     <Text style={{ color: '#1E293B', fontWeight: 500 }}>{user.displayName || user.username}</Text>
                   </div>
-                  <Text style={{ color: '#00D4FF', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
+                  <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
                 </>
               )}
               <Button type="text" icon={IconLogout} onClick={handleLogout} style={{ color: '#64748B' }}>

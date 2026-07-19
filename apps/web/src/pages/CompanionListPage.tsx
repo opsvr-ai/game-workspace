@@ -55,7 +55,7 @@ const CompanionListPage: React.FC = () => {
                 <Space size={[4,4]} wrap>
                   {games.map((g: any, i: number) => (
                     <Tag key={i} style={{ fontSize: 11, padding: '1px 6px' }}>
-                      {isObj ? <>{g.game} <span style={{ color: '#7B61FF' }}>{g.rank||'?'}</span> <span style={{ color: g.hasAccount ? '#34C759' : '#94A3B8', fontSize: 10 }}>{g.hasAccount?'有号':'无号'}</span></> : g}
+                      {isObj ? <>{g.game} <span style={{ color: '#7C3AED' }}>{g.rank||'?'}</span> <span style={{ color: g.hasAccount ? '#34C759' : '#94A3B8', fontSize: 10 }}>{g.hasAccount?'有号':'无号'}</span></> : g}
                     </Tag>
                   ))}
                 </Space>
