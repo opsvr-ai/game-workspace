@@ -4,15 +4,18 @@ import path from 'path';
 let tray: Tray | null = null;
 let onShowCallback: (() => void) | null = null;
 let onStatusChange: ((status: string) => void) | null = null;
+let onQuitCallback: (() => void) | null = null;
 
 interface TrayOptions {
   onShow: () => void;
   onStatusChange?: (status: string) => void;
+  onQuit: () => void;
 }
 
 export function createTray(opts: TrayOptions): Tray {
   onShowCallback = opts.onShow;
   onStatusChange = opts.onStatusChange || null;
+  onQuitCallback = opts.onQuit;
 
   const icon = createTrayIcon();
   tray = new Tray(icon);
@@ -40,6 +43,11 @@ function buildMenu(): Menu {
         { label: '娱乐', click: () => { if (onStatusChange) onStatusChange('ENTERTAINMENT'); } },
         { label: '休息', click: () => { if (onStatusChange) onStatusChange('RESTING'); } },
       ],
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => onQuitCallback?.(),
     },
   ]);
 }

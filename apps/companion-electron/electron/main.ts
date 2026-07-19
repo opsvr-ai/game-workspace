@@ -271,7 +271,7 @@ app.whenReady().then(() => {
 
   createTray({
     onShow: () => { mainWindow?.show(); mainWindow?.focus(); },
-    
+    onQuit: () => { isQuitting = true; app.quit(); },
   });
 
   const token = store.get('token') as string;
