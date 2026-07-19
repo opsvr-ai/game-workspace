@@ -21,8 +21,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
     const token = sessionStorage.getItem('accessToken');
     if (!token) return;
 
-    // In dev: Vite serves on :8000, API on :3001 — connect directly to API server
-    const wsUrl = import.meta.env.DEV ? `http://${window.location.hostname}:3001` : '/';
+    // Always connect directly to API server on :3001 (Vite preview doesn't proxy WS)
+    const wsUrl = import.meta.env.DEV
+      ? `http://${window.location.hostname}:3001`
+      : `http://${window.location.hostname}:3001`;
     const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],

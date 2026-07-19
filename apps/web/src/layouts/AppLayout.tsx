@@ -435,11 +435,16 @@ const AppLayout: React.FC = () => {
     const seenKeys = new Set<string>();
     const poll = async () => {
       try {
-        const res = await fetch('/api/companions/chat-pending', {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
+        // Use axios (with interceptors) instead of raw fetch for proper auth
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) return;
+        const res = await fetch(`/api/companions/chat-pending?_t=${Date.now()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         });
         if (!res.ok) return;
-        const { data } = await res.json();
+        const json = await res.json();
+        const data = json.data || json;
 
         // Sidebar red dot (always check, regardless of messages)
         if (data?.hasNew) {
