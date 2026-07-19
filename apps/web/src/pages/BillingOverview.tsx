@@ -239,89 +239,50 @@ const BillingOverview: React.FC = () => {
 
   const columns: any[] = [
     {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 90,
+      title: '类型', dataIndex: 'type', key: 'type', width: 80,
       render: (t: string) => {
         const cfg = typeConfig[t] ?? { color: 'default', label: t };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
     {
-      title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 110,
+      title: '金额', dataIndex: 'amount', key: 'amount', width: 100,
       render: (v: number) => (
-        <Text strong style={{ color: '#EF4444' }}>
-          ¥{v?.toFixed(2) ?? '0.00'}
-        </Text>
+        <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(2) ?? '0.00'}</Text>
       ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 90,
+      title: '状态', dataIndex: 'status', key: 'status', width: 80,
       render: (s: string) => {
         const cfg = statusConfig[s] ?? { color: 'default', label: s };
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
     {
-      title: '陪玩',
-      dataIndex: 'companionName',
-      key: 'companionName',
-      width: 100,
+      title: '陪玩', dataIndex: 'companionName', key: 'companionName', width: 90,
       render: (v: string) => v || '-',
     },
     {
-      title: '时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 160,
+      title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 150,
       render: (d: string) => (d ? new Date(d).toLocaleString('zh-CN') : '-'),
     },
     {
-      title: '备注',
-      dataIndex: 'note',
-      key: 'note',
-      ellipsis: true,
+      title: '备注', dataIndex: 'note', key: 'note', width: 120, ellipsis: true,
       render: (v: string) => v || '-',
     },
     ...(isAdmin
-      ? [
-          {
-            title: '操作',
-            key: 'action',
-            width: 150,
-            render: (_: unknown, record: any) => {
-              if (record.status !== 'PENDING') return <Text type="secondary">-</Text>;
-              return (
-                <Space size="small">
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={IconCheck}
-                    onClick={() => handleSingleApprove(record.id)}
-                  >
-                    通过
-                  </Button>
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    icon={IconClose}
-                    onClick={() => handleSingleReject(record.id)}
-                  >
-                    驳回
-                  </Button>
-                </Space>
-              );
-            },
+      ? [{
+          title: '操作', key: 'action', width: 130,
+          render: (_: unknown, record: any) => {
+            if (record.status !== 'PENDING') return <Text type="secondary">-</Text>;
+            return (
+              <Space size="small">
+                <Button type="link" size="small" icon={IconCheck} onClick={() => handleSingleApprove(record.id)}>通过</Button>
+                <Button type="link" size="small" danger icon={IconClose} onClick={() => handleSingleReject(record.id)}>驳回</Button>
+              </Space>
+            );
           },
-        ]
+        }]
       : []),
   ];
 
@@ -443,7 +404,7 @@ const BillingOverview: React.FC = () => {
               showTotal: (total) => `共 ${total} 条`,
             }}
             locale={{ emptyText: '暂无记录' }}
-            style={{ marginTop: -4 }}
+            scroll={{ x: 750 }}
           />
         </Card>
         </>
