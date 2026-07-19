@@ -405,4 +405,44 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, skipped, version });
   }
+
+  // ── chat inbound / outbound ──────────────────────────────────────────
+
+  @SubscribeMessage('chat:send')
+  async handleChatSend(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { orderId?: string; text: string },
+  ): Promise<void> {
+    const user = client.data.user as ConnectedUser | undefined;
+    if (!user?.studioId || !data.text?.trim()) return;
+
+    logger.info('WS chat:send', { senderId: user.id, studioId: user.studioId, orderId: data.orderId });
+
+    // Broadcast to entire studio (CS/admin/companion all in studio room)
+    this.server.to(`studio:${user.studioId}`).emit('chat:new', {
+      text: data.text,
+      senderId: user.id,
+      senderRole: user.role,
+      senderName: user.username,
+      orderId: data.orderId || null,
+      companionId: user.companionId || null,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /** Notify studio about a new chat message (called from HTTP endpoint fallback) */
+  notifyChatMessage(
+    studioId: string,
+    payload: {
+      text: string;
+      senderId: string;
+      senderRole: string;
+      senderName: string;
+      orderId?: string | null;
+      companionId?: string | null;
+      timestamp: string;
+    },
+  ): void {
+    this.server.to(`studio:${studioId}`).emit('chat:new', payload);
+  }
 }

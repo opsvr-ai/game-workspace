@@ -43,6 +43,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
       optsRef.current.onChatNotify?.(data);
     });
 
+    socket.on('chat:new', (data: any) => {
+      optsRef.current.onChatNotify?.(data);
+    });
+
     socket.on('order:new', (data: any) => {
       optsRef.current.onOrderNew?.(data);
     });

@@ -15,6 +15,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AiModule } from './ai/ai.module';
 import { ProcessBlacklistModule } from './process-blacklist/process-blacklist.module';
 import { AgentModule } from './agent/agent.module';
+import { ChatModule } from './chat/chat.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 
 @Module({
@@ -52,6 +53,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     AiModule,
     AgentModule,
     ProcessBlacklistModule,
+    ChatModule,
   ],
   providers: [
     {

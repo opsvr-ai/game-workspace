@@ -18,25 +18,9 @@ import { RestingMonitorService } from './resting-monitor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
+import { ChatService } from '../chat/chat.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
-
-// 内存聊天消息存储 — senderId 用于动态计算 from
-interface ChatMsgStore {
-  text: string;
-  senderId: string;
-  time: string;
-}
-interface ChatMsg {
-  text: string;
-  from: string;
-  time: string;
-}
-const chatMessages = new Map<string, Map<string, ChatMsgStore[]>>();
-const chatNotifications = new Map<
-  string,
-  { companionName: string; companionId: string; timestamp: number; message?: string; orderId?: string }
->();
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -46,6 +30,7 @@ export class CompanionsController {
     private readonly wsGateway: WsGateway,
     private readonly prisma: PrismaService,
     private readonly restingMonitor: RestingMonitorService,
+    private readonly chatService: ChatService,
   ) {}
 
   @Get('companions')
@@ -60,92 +45,42 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
-  // 轮询聊天通知
+  // Chat: get pending messages (DB-backed, survives restarts)
   @Get('companions/chat-pending')
   async chatPending(@Req() req: any, @Query('orderId') orderId?: string): Promise<ApiResponse<unknown>> {
     const studioId = req.user?.studioId;
     if (!studioId) return { code: 200, message: 'ok', data: { hasNew: false, messages: [] } };
 
-    // Find notification for this order or any order in studio
-    let notif;
-    if (orderId) {
-      notif = chatNotifications.get(`${studioId}:${orderId}`);
-    } else {
-      for (const [k, v] of chatNotifications) {
-        if (
-          k.startsWith(`${studioId}:`) &&
-          v.companionName !== req.user?.username &&
-          Date.now() - v.timestamp < 30000
-        ) {
-          notif = v;
-          break;
-        }
-      }
-    }
-    const hasNew = notif && notif.companionName !== req.user?.username && Date.now() - notif.timestamp < 30000;
+    // Check for recent messages (last 30 seconds) as "new" indicator
+    const since = new Date(Date.now() - 30000);
+    const recentMsgs = await this.chatService.getRecentMessages(studioId, since);
 
-    // Get messages for the requested orderId, or from notification
-    const msgOrderId = orderId || notif?.orderId || '';
-    // Read from in-memory map first, fall back to database
-    let messages: ChatMsg[] = [];
+    const hasNew = recentMsgs.some((m) => m.senderId !== req.user.id);
+
+    // Get messages for the requested orderId
+    let messages: { text: string; from: string; time: string }[] = [];
+    const msgOrderId = orderId || '';
     if (msgOrderId) {
-      const memMsgs = chatMessages.get(studioId)?.get(msgOrderId);
-      if (memMsgs && memMsgs.length > 0) {
-        messages = memMsgs.map((m) => ({
-          text: m.text,
-          from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
-          time: m.time,
-        }));
-      } else {
-        // Fall back to database (survives server restart)
-        try {
-          const dbMsgs = await this.prisma.chatMessage.findMany({
-            where: { studioId, orderId: msgOrderId },
-            orderBy: { createdAt: 'asc' },
-            take: 200,
-          });
-          const dbRawMsgs = dbMsgs.map((m) => ({
-            text: m.text,
-            senderId: m.senderId,
-            time: m.createdAt.toISOString(),
-          }));
-          messages = dbRawMsgs.map((m) => ({
-            text: m.text,
-            from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
-            time: m.time,
-          }));
-          // Populate in-memory cache with senderId (not computed from) so other users get correct sender
-          if (dbRawMsgs.length > 0 && chatMessages.has(studioId)) {
-            chatMessages.get(studioId)!.set(msgOrderId, dbRawMsgs);
-          }
-        } catch (err) {
-          logger.error('DB chat message read failed', { error: (err as Error).message });
-        }
-      }
+      const dbMsgs = await this.chatService.getMessages(studioId, msgOrderId);
+      messages = dbMsgs.map((m) => ({
+        text: m.text,
+        from: m.senderId === req.user.id ? 'me' : 'them',
+        time: m.createdAt.toISOString(),
+      }));
     }
 
-    let avatar: string | null = null;
-    if (notif?.companionId) {
-      try {
-        const companion = await this.prisma.companion.findUnique({
-          where: { id: notif.companionId },
-          select: { user: { select: { avatar: true } } },
-        });
-        avatar = companion?.user?.avatar ?? null;
-      } catch (err) {
-        logger.error('Companion avatar fetch failed', { error: (err as Error).message });
-      }
-    }
+    // Find the most recent message not from this user for notification info
+    const lastOther = recentMsgs.find((m) => m.senderId !== req.user.id);
 
     return {
       code: 200,
       message: 'ok',
       data: {
-        hasNew: !!hasNew,
-        companionName: notif?.companionName,
-        companionId: notif?.companionId,
-        orderId: notif?.orderId || orderId,
-        avatar,
+        hasNew,
+        companionName: lastOther ? req.user.username : undefined,
+        companionId: lastOther?.senderId,
+        orderId: msgOrderId || lastOther?.orderId,
+        avatar: null,
         messages,
       },
     };
@@ -483,55 +418,34 @@ export class CompanionsController {
     @Body() body: { orderId?: string; message?: string; time?: string },
   ): Promise<ApiResponse<unknown>> {
     const username = req.user.username || 'unknown';
-    const myCompanionId = req.user.companionId || '';
     const studioId = req.user.studioId;
     if (!studioId) return { code: 400, message: 'error', data: null };
-    const chatKey = body.orderId || 'global';
+
+    const senderId = req.user.id || req.user.userId || username;
     const msgText = body.message || '发来一条消息';
 
-    // Store message history keyed by orderId
-    if (!chatMessages.has(studioId)) chatMessages.set(studioId, new Map());
-    const studioMsgs = chatMessages.get(studioId)!;
-    if (!studioMsgs.has(chatKey)) studioMsgs.set(chatKey, []);
-    const time =
-      body.time ||
-      `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
-    const senderId = req.user.id || req.user.userId || username;
-    studioMsgs.get(chatKey)!.push({
-      text: msgText,
+    // Persist to database via ChatService
+    const saved = await this.chatService.saveMessage({
+      studioId,
+      orderId: body.orderId || undefined,
       senderId,
-      time,
+      senderRole: req.user.role || 'COMPANION',
+      text: msgText,
     });
 
-    // Persist to database so messages survive server restart
-    try {
-      await this.prisma.chatMessage.create({
-        data: {
-          studioId,
-          orderId: chatKey === 'global' ? null : chatKey,
-          senderId: req.user.id || req.user.userId || username,
-          senderRole: req.user.role || 'COMPANION',
-          text: msgText,
-        },
-      });
-    } catch (err) {
-      logger.error('DB chat message write failed', { error: (err as Error).message });
-    }
-
-    // Store notification keyed by orderId, preserve companionId for avatar
-    chatNotifications.set(`${studioId}:${chatKey}`, {
-      companionName: username,
-      companionId: myCompanionId,
-      timestamp: Date.now(),
-      message: msgText,
-      orderId: chatKey,
+    // Push via WebSocket for real-time delivery
+    this.wsGateway.notifyChatMessage(studioId, {
+      text: saved.text,
+      senderId: saved.senderId,
+      senderRole: saved.senderRole,
+      senderName: username,
+      orderId: saved.orderId || null,
+      companionId: req.user.companionId || undefined,
+      timestamp: saved.createdAt.toISOString(),
     });
-    // WebSocket broadcast
-    this.wsGateway.notifyChat(studioId, username, chatKey, chatKey);
+
     return { code: 200, message: 'ok', data: null };
-  }
-
-  // ── Manual financial adjustment (ADMIN/OWNER) ──
+  
   @Put('companions/:id/finance')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async updateFinance(

@@ -42,6 +42,20 @@ export function createMockPrisma() {
     companionTimeLog: {
       create: vi.fn(),
       findMany: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    systemConfig: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
+    companionStatusBlacklist: {
+      findMany: vi.fn(),
+    },
+    customerProfile: {
+      findUnique: vi.fn(),
     },
     transaction: {
       findUnique: vi.fn(),
@@ -98,6 +112,7 @@ export function createMockPrisma() {
       findFirst: vi.fn(),
       create: vi.fn(),
       count: vi.fn(),
+      deleteMany: vi.fn(),
     },
     processKillLog: {
       findMany: vi.fn(),
@@ -105,7 +120,7 @@ export function createMockPrisma() {
       count: vi.fn(),
     },
     $queryRaw: vi.fn(),
-    $transaction: vi.fn((fn: any) => fn(mock)),
+    $transaction: vi.fn((fn: (...a: unknown[]) => unknown) => fn(mock)),
   };
   return mock;
 }
