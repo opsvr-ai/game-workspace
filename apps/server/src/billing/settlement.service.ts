@@ -297,4 +297,40 @@ export class SettlementService {
       profit: Math.round((totalRevenue - totalExpense) * 100) / 100,
     };
   }
+
+  async getDailyRevenue(studioId: string, date: string) {
+    const start = new Date(date);
+    const end = new Date(date);
+    end.setDate(end.getDate() + 1);
+
+    const orders = await this.prisma.order.aggregate({
+      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      _sum: { amount: true },
+    });
+    return {
+      date,
+      totalRevenue: orders._sum.amount ?? 0,
+      orderCount: await this.prisma.order.count({
+        where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      }),
+    };
+  }
+
+  async getMonthlyRevenue(studioId: string, month: string) {
+    const [year, mon] = month.split('-').map(Number);
+    const start = new Date(year, mon - 1, 1);
+    const end = new Date(year, mon, 1);
+
+    const orders = await this.prisma.order.aggregate({
+      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      _sum: { amount: true },
+    });
+    return {
+      month,
+      totalRevenue: orders._sum.amount ?? 0,
+      orderCount: await this.prisma.order.count({
+        where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      }),
+    };
+  }
 }
