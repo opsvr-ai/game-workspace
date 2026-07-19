@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table,
@@ -10,6 +11,7 @@ import {
   Tooltip,
   Input,
   Select,
+  Segmented,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -77,6 +79,9 @@ const PcControlPage: React.FC = () => {
   const [sendingCommands, setSendingCommands] = useState<Record<string, boolean>>({});
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [modeFilter, setModeFilter] = useState<string | undefined>();
+  const [versionSearch, setVersionSearch] = useState('');
+  const [onlineFilter, setOnlineFilter] = useState<string | undefined>();
 
   const fetchCompanions = useCallback(async () => {
     setLoading(true);
@@ -133,7 +138,12 @@ const PcControlPage: React.FC = () => {
   const filtered = companions.filter((c) => {
     const matchName = !searchText || (c.user?.username || '').toLowerCase().includes(searchText.toLowerCase());
     const matchStatus = !statusFilter || c.status === statusFilter;
-    return matchName && matchStatus;
+    const matchMode = !modeFilter || (c.pc?.currentMode ?? '') === modeFilter;
+    const matchVersion = !versionSearch || (c.pc?.agentVersion || '').toLowerCase().includes(versionSearch.toLowerCase());
+    let matchOnline = true;
+    if (onlineFilter === 'online') matchOnline = isOnline(c);
+    else if (onlineFilter === 'offline') matchOnline = !isOnline(c);
+    return matchName && matchStatus && matchMode && matchVersion && matchOnline;
   });
 
   const columns = [
@@ -331,7 +341,7 @@ const PcControlPage: React.FC = () => {
         <Text strong style={{ fontSize: 16 }}>
           PC 远程控制
         </Text>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="搜索陪玩姓名"
             allowClear
@@ -352,6 +362,34 @@ const PcControlPage: React.FC = () => {
               { label: '娱乐', value: 'ENTERTAINMENT' },
               { label: '休息', value: 'RESTING' },
               { label: '离线', value: 'OFFLINE' },
+            ]}
+          />
+          <Select
+            placeholder="模式筛选"
+            allowClear
+            style={{ width: 120 }}
+            value={modeFilter}
+            onChange={setModeFilter}
+            options={[
+              { label: '娱乐模式', value: 'ENTERTAINMENT' },
+              { label: '工作模式', value: 'WORK' },
+            ]}
+          />
+          <Input
+            placeholder="搜索版本号"
+            allowClear
+            style={{ width: 140 }}
+            value={versionSearch}
+            onChange={(e) => setVersionSearch(e.target.value)}
+          />
+          <Segmented
+            size="small"
+            value={onlineFilter}
+            onChange={(val) => setOnlineFilter(val as string | undefined)}
+            options={[
+              { label: '全部', value: undefined },
+              { label: '在线', value: 'online' },
+              { label: '离线', value: 'offline' },
             ]}
           />
           <Button

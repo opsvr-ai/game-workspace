@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 
+export interface ChatNotification {
+  companionId: string;
+  companionName: string;
+  lastMessage: string;
+  timestamp: number;
+}
+
 interface ChatState {
   chatActive: boolean;
   chatPartner: string;
@@ -7,6 +14,7 @@ interface ChatState {
   chatUnread: Record<string, number>;
   lastReadTs: Record<string, number>;
   isChatOpen: boolean;
+  chatNotifications: ChatNotification[];
   setChatActive: (active: boolean, partner?: string) => void;
   addChatCompanion: (companionId: string) => void;
   clearChatCompanions: () => void;
@@ -14,6 +22,8 @@ interface ChatState {
   clearChatUnread: (companionId: string) => void;
   markRead: (key: string, msgCount?: number) => void;
   setChatOpen: (open: boolean) => void;
+  addChatNotification: (notification: ChatNotification) => void;
+  clearChatNotifications: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -23,6 +33,7 @@ export const useChatStore = create<ChatState>((set) => ({
   chatUnread: {},
   lastReadTs: {},
   isChatOpen: false,
+  chatNotifications: [],
 
   setChatActive: (active: boolean, partner?: string) => {
     set({ chatActive: active, chatPartner: partner || '' });
@@ -48,4 +59,14 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => ({ lastReadTs: { ...s.lastReadTs, [key]: count } as Record<string, number> }));
   },
   setChatOpen: (open: boolean) => set({ isChatOpen: open }),
+  addChatNotification: (notification: ChatNotification) =>
+    set((s) => {
+      const existing = s.chatNotifications.filter(
+        (n) => n.companionId !== notification.companionId,
+      );
+      return {
+        chatNotifications: [notification, ...existing].slice(0, 20),
+      };
+    }),
+  clearChatNotifications: () => set({ chatNotifications: [] }),
 }));

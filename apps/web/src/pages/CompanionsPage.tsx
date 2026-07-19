@@ -1,8 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card } from 'antd';
-import { ReloadOutlined, DesktopOutlined } from '@ant-design/icons';
+import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card, Input, Select } from 'antd';
+import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
@@ -83,6 +83,22 @@ const CompanionsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Filters
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [gameFilter, setGameFilter] = useState<string | undefined>();
+
+  const GAME_OPTIONS = ['王者荣耀', '英雄联盟', '和平精英', '无畏契约', '永劫无间', 'CS2', 'DOTA2', 'APEX', '其他'];
+
+  const STATUS_TABS: { label: string; value: string | undefined }[] = [
+    { label: '全部', value: undefined },
+    { label: '在线', value: 'AVAILABLE' },
+    { label: '忙碌', value: 'BUSY' },
+    { label: '娱乐', value: 'ENTERTAINMENT' },
+    { label: '休息', value: 'RESTING' },
+    { label: '离线', value: 'OFFLINE' },
+  ];
+
   // Expanded row time logs cache
   const [timeLogsCache, setTimeLogsCache] = useState<
     Record<string, { loading: boolean; logs: TimeLog[]; error?: string }>
@@ -111,10 +127,33 @@ const CompanionsPage: React.FC = () => {
     return () => clearInterval(t);
   }, [fetchCompanions]);
 
-  const sorted = useMemo(
-    () => [...companions].sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9)),
-    [companions],
-  );
+  const sorted = useMemo(() => {
+    let list = [...companions];
+
+    // Name search
+    if (searchText) {
+      const lower = searchText.toLowerCase();
+      list = list.filter((c) => (c.user?.username || '').toLowerCase().includes(lower));
+    }
+
+    // Status filter
+    if (statusFilter) {
+      list = list.filter((c) => c.status === statusFilter);
+    }
+
+    // Game filter — checks companions.games array for string or object {game}
+    if (gameFilter) {
+      list = list.filter((c) => {
+        if (!c.games || c.games.length === 0) return false;
+        return c.games.some((g: any) => {
+          if (typeof g === 'string') return g === gameFilter;
+          return g.game === gameFilter;
+        });
+      });
+    }
+
+    return list.sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9));
+  }, [companions, searchText, statusFilter, gameFilter]);
 
   const loadTimeLogs = useCallback(async (companionId: string) => {
     let shouldFetch = false;
@@ -438,6 +477,65 @@ const CompanionsPage: React.FC = () => {
         <TableSkeleton columns={6} rows={5} />
       ) : (
         <Card size="small" style={{ overflow: 'auto' }}>
+          {/* Filter row */}
+          <div style={{ marginBottom: 12 }}>
+            <Space size="middle" wrap style={{ marginBottom: 8 }}>
+              <Input
+                placeholder="搜索陪玩姓名"
+                allowClear
+                style={{ width: 180 }}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={React.createElement(SearchOutlined)}
+              />
+              <Select
+                placeholder="状态筛选"
+                allowClear
+                style={{ width: 120 }}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { label: '空闲', value: 'AVAILABLE' },
+                  { label: '接单', value: 'BUSY' },
+                  { label: '娱乐', value: 'ENTERTAINMENT' },
+                  { label: '休息', value: 'RESTING' },
+                  { label: '离线', value: 'OFFLINE' },
+                ]}
+              />
+              <Select
+                placeholder="游戏筛选"
+                allowClear
+                style={{ width: 130 }}
+                value={gameFilter}
+                onChange={setGameFilter}
+                options={GAME_OPTIONS.map((g) => ({ label: g, value: g }))}
+              />
+            </Space>
+            {/* Status quick-tabs */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {STATUS_TABS.map((tab) => (
+                <Tag
+                  key={tab.label}
+                  style={{
+                    cursor: 'pointer',
+                    padding: '2px 12px',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    fontWeight: statusFilter === tab.value ? 600 : 400,
+                    border: statusFilter === tab.value
+                      ? '1px solid #2563EB'
+                      : '1px solid #E2E8F0',
+                    background: statusFilter === tab.value ? '#EFF6FF' : '#FFFFFF',
+                    color: statusFilter === tab.value ? '#2563EB' : '#64748B',
+                  }}
+                  onClick={() => setStatusFilter(tab.value)}
+                >
+                  {tab.label}
+                </Tag>
+              ))}
+            </div>
+          </div>
+
           <Table
             columns={columns}
             dataSource={sorted}

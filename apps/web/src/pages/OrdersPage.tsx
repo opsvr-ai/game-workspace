@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Select, DatePicker, message, Badge, Tag, Image, Upload, Modal, Input } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -24,6 +24,10 @@ const OrdersPage: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [gameSearch, setGameSearch] = useState('');
+  const [companionFilter, setCompanionFilter] = useState<string>('');
+  const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -149,13 +153,9 @@ const OrdersPage: React.FC = () => {
     </>
   );
 
-  // Admin/CS/Owner actions — show screenshot + compensate button + reassign
-  const [companions, setCompanions] = useState<any[]>([]);
+  // Load companions for filter + reassign
   useEffect(() => {
-    http
-      .get('/companions')
-      .then(({ data }: any) => setCompanions(data.data || []))
-      .catch(() => {});
+    http.get('/companions').then(({ data }: any) => setCompanions(data.data || [])).catch(() => {});
   }, []);
 
   const [reassignOrder, setReassignOrder] = useState<any>(null);
@@ -220,6 +220,18 @@ const OrdersPage: React.FC = () => {
     .filter((o: any) => {
       if (!dateFilter) return true;
       return new Date(o.grabbedAt || o.createdAt).toDateString() === dateFilter.toDate().toDateString();
+    })
+    .filter((o: any) => {
+      if (!typeFilter) return true;
+      return o.type === typeFilter;
+    })
+    .filter((o: any) => {
+      if (!gameSearch) return true;
+      return (o.gameName || '').toLowerCase().includes(gameSearch.toLowerCase());
+    })
+    .filter((o: any) => {
+      if (!companionFilter) return true;
+      return o.companionId === companionFilter;
     });
 
   return (
@@ -250,6 +262,23 @@ const OrdersPage: React.FC = () => {
             </div>
           }
         />
+        {/* Filter bar */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          <Input.Search placeholder="搜索游戏名" allowClear value={gameSearch}
+            onChange={(e) => setGameSearch(e.target.value)} style={{ width: 160 }} size="small" />
+          <Select placeholder="订单类型" allowClear value={typeFilter || undefined}
+            onChange={(v) => setTypeFilter(v || '')} style={{ width: 100 }} size="small">
+            <Option value="NEW">首单</Option><Option value="RENEW">续费</Option>
+            <Option value="REPURCHASE">复购</Option><Option value="TIP">打赏</Option>
+          </Select>
+          <Select placeholder="陪玩筛选" allowClear value={companionFilter || undefined}
+            onChange={(v) => setCompanionFilter(v || '')} style={{ width: 130 }} size="small"
+            showSearch optionFilterProp="children">
+            {companions.map((c: any) => (
+              <Option key={c.id} value={c.id}>{c.user?.username || c.id.slice(0, 6)}</Option>
+            ))}
+          </Select>
+        </div>
         {/* Today's order stats */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
           <Tag color="blue">
