@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,10 +29,7 @@ export class AuthService {
     }
 
     const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION];
-    if (
-      rolesRequiringAuth.includes(user.role as UserRole) &&
-      !user.isAuthorized
-    ) {
+    if (rolesRequiringAuth.includes(user.role as UserRole) && !user.isAuthorized) {
       throw new ForbiddenException('账号尚未通过审核，请联系管理员');
     }
 
@@ -105,7 +97,7 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(newPayload, {
       secret: process.env.JWT_SECRET,
-      expiresIn: '24h',
+      expiresIn: '15m',
     });
 
     const refreshToken = this.jwtService.sign(newPayload, {
@@ -177,10 +169,7 @@ export class AuthService {
     });
   }
 
-  async verifySecondPassword(
-    userId: string,
-    password: string,
-  ): Promise<{ secondToken: string }> {
+  async verifySecondPassword(userId: string, password: string): Promise<{ secondToken: string }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
