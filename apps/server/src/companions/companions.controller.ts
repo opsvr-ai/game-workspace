@@ -9,9 +9,10 @@ import { logger } from '../common/logger';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 
-// 内存聊天消息存储 (studioId -> companionId -> messages[])
+// 内存聊天消息存储 — senderId 用于动态计算 from
+interface ChatMsgStore { text: string; senderId: string; time: string; }
 interface ChatMsg { text: string; from: string; time: string; }
-const chatMessages = new Map<string, Map<string, ChatMsg[]>>();
+const chatMessages = new Map<string, Map<string, ChatMsgStore[]>>();
 const chatNotifications = new Map<string, { companionName: string; companionId: string; timestamp: number; message?: string; orderId?: string }>();
 
 @Controller()
@@ -62,7 +63,7 @@ export class CompanionsController {
     if (msgOrderId) {
       const memMsgs = chatMessages.get(studioId)?.get(msgOrderId);
       if (memMsgs && memMsgs.length > 0) {
-        messages = memMsgs.map(m => ({ ...m, from: 'them' }));
+        messages = memMsgs.map(m => ({ text: m.text, from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them', time: m.time }));
       } else {
         // Fall back to database (survives server restart)
         try {
@@ -71,14 +72,19 @@ export class CompanionsController {
             orderBy: { createdAt: 'asc' },
             take: 200,
           });
-          messages = dbMsgs.map(m => ({
+          const dbRawMsgs = dbMsgs.map(m => ({
             text: m.text,
-            from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
+            senderId: m.senderId,
             time: m.createdAt.toISOString(),
           }));
-          // Populate in-memory cache
-          if (messages.length > 0 && chatMessages.has(studioId)) {
-            chatMessages.get(studioId)!.set(msgOrderId, messages);
+          messages = dbRawMsgs.map(m => ({
+            text: m.text,
+            from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
+            time: m.time,
+          }));
+          // Populate in-memory cache with senderId (not computed from) so other users get correct sender
+          if (dbRawMsgs.length > 0 && chatMessages.has(studioId)) {
+            chatMessages.get(studioId)!.set(msgOrderId, dbRawMsgs);
           }
         } catch { /* DB read failure is non-critical; in-memory messages still work */ }
       }
@@ -419,9 +425,10 @@ export class CompanionsController {
     const studioMsgs = chatMessages.get(studioId)!;
     if (!studioMsgs.has(chatKey)) studioMsgs.set(chatKey, []);
     const time = body.time || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+    const senderId = req.user.id || req.user.userId || username;
     studioMsgs.get(chatKey)!.push({
       text: msgText,
-      from: 'them',
+      senderId,
       time,
     });
 
