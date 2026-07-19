@@ -34,6 +34,8 @@ const IconReload = React.createElement(ReloadOutlined);
 import { UserRole } from '@chunlv/shared';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
+import PageHeader from '../components/PageHeader';
+import CardSkeleton from '../components/CardSkeleton';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -250,7 +252,7 @@ const BillingOverview: React.FC = () => {
       key: 'amount',
       width: 110,
       render: (v: number) => (
-        <Text strong style={{ color: '#cf1322' }}>
+        <Text strong style={{ color: '#EF4444' }}>
           ¥{v?.toFixed(2) ?? '0.00'}
         </Text>
       ),
@@ -336,9 +338,7 @@ const BillingOverview: React.FC = () => {
       {/* Title Bar */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
         <Col>
-          <Title level={3} style={{ margin: 0 }}>
-            报账系统
-          </Title>
+          <PageHeader title="报账系统" />
         </Col>
         <Col>
           <Space>
@@ -371,7 +371,10 @@ const BillingOverview: React.FC = () => {
         </Col>
       </Row>
 
-      <Spin spinning={loading}>
+      {loading && !overviewData ? (
+        <CardSkeleton lines={6} />
+      ) : (
+        <>
         {/* 6 Stat Cards */}
         <Row gutter={[16, 16]} style={{ marginBottom: 12 }}>
           <Col span={4}>
@@ -379,7 +382,7 @@ const BillingOverview: React.FC = () => {
               label="今日流水"
               value={`¥${(overviewData?.todayRevenue ?? 0).toFixed(2)}`}
               icon={IconDollar}
-              color="#1677ff"
+              color="#2563EB"
             />
           </Col>
           <Col span={4}>
@@ -387,7 +390,7 @@ const BillingOverview: React.FC = () => {
               label="总流水"
               value={`¥${(overviewData?.totalRevenue ?? 0).toFixed(2)}`}
               icon={IconWallet}
-              color="#722ed1"
+              color="#7C3AED"
             />
           </Col>
           <Col span={4}>
@@ -395,7 +398,7 @@ const BillingOverview: React.FC = () => {
               label="已支取"
               value={`¥${(overviewData?.totalWithdrawn ?? 0).toFixed(2)}`}
               icon={IconBank}
-              color="#52c41a"
+              color="#16A34A"
             />
           </Col>
           <Col span={4}>
@@ -403,7 +406,7 @@ const BillingOverview: React.FC = () => {
               label="审核中"
               value={`¥${(overviewData?.pendingWithdraw ?? 0).toFixed(2)}`}
               icon={IconHourglass}
-              color="#fa8c16"
+              color="#F59E0B"
             />
           </Col>
           <Col span={4}>
@@ -411,7 +414,7 @@ const BillingOverview: React.FC = () => {
               label="待支取"
               value={`¥${(overviewData?.withdrawable ?? 0).toFixed(2)}`}
               icon={IconSwap}
-              color="#faad14"
+              color="#F59E0B"
             />
           </Col>
           <Col span={4}>
@@ -419,7 +422,7 @@ const BillingOverview: React.FC = () => {
               label="押金"
               value={`¥${(overviewData?.deposit ?? 0).toFixed(2)}`}
               icon={IconLock}
-              color="#13c2c2"
+              color="#06B6D4"
             />
           </Col>
         </Row>
@@ -440,7 +443,8 @@ const BillingOverview: React.FC = () => {
             locale={{ emptyText: '暂无记录' }}
           />
         </Card>
-      </Spin>
+        </>
+      )}
 
       {/* Bottom Action Bar */}
       <div style={{ marginTop: 16, textAlign: 'right' }}>
@@ -526,7 +530,7 @@ const BillingOverview: React.FC = () => {
             </Card>
           );
         })}
-        <div style={{ background:'#f6ffed', borderRadius:8, padding:12, marginTop:8 }}>
+        <div style={{ background:'#F0FDF4', borderRadius:8, padding:12, marginTop:8 }}>
           <Text strong>汇总：共 {todayOrders.length} 单 · ¥{todayOrders.reduce((s:number,o:any) => s+o.amount, 0)}</Text>
         </div>
       </Modal>
@@ -547,7 +551,7 @@ const BillingOverview: React.FC = () => {
         <div style={{ marginBottom: 12 }}>
           <div
             style={{
-              background: '#f6ffed',
+              background: '#F0FDF4',
               borderRadius: 8,
               padding: 12,
               marginBottom: 12,
