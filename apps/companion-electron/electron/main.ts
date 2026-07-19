@@ -45,8 +45,28 @@ function createMainWindow(): BrowserWindow {
     const serverUrl = getServerUrl();
     // Web app served on port 8000 (same host as API server on 3001)
     const webUrl = serverUrl.replace(/:3001$/, ':8000');
+    logger.info('Loading web app', { webUrl });
     win.loadURL(webUrl);
   }
+
+  // Handle page load failures
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logger.error('Page load failed', { errorCode, errorDescription, url: validatedURL });
+    // Show a user-visible error instead of blank page
+    const errorHtml = `
+      <html><head><meta charset="utf-8"><style>
+        body { background:#0F172A; color:#e2e8f0; font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+        .box { text-align:center; padding:40px; }
+        h2 { color:#f87171; } p { color:#94a3b8; font-size:14px; }
+      </style></head><body>
+        <div class="box">
+          <h2>❌ 无法连接到服务器</h2>
+          <p>请确认服务器已启动：<code>${validatedURL || '—'}</code></p>
+          <p>错误：${errorDescription} (${errorCode})</p>
+        </div>
+      </body></html>`;
+    win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
+  });
 
   win.once('ready-to-show', () => {
     win.show();
