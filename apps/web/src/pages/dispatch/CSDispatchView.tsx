@@ -414,9 +414,9 @@ const CSDispatchView: React.FC = () => {
                 >
                   {poolCount} 单待派
                 </Tag>
-                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginLeft: 8 }}>
-                  今日新增 <b style={{ color: '#FFF' }}>{todayNew}</b> · 已接{' '}
-                  <b style={{ color: '#FFF' }}>{todayGrabbed}</b> · 剩余 <b style={{ color: '#FFF' }}>{poolCount}</b>
+                <span style={{ color: '#64748B', fontSize: 12, marginLeft: 8 }}>
+                  今日新增 <b style={{ color: '#2563EB' }}>{todayNew}</b> · 已接{' '}
+                  <b style={{ color: '#16A34A' }}>{todayGrabbed}</b> · 剩余 <b style={{ color: '#F59E0B' }}>{poolCount}</b>
                 </span>
               </Space>
             </div>
@@ -427,9 +427,7 @@ const CSDispatchView: React.FC = () => {
                 borderRadius: '0 0 16px 16px',
                 padding: '16px 20px',
                 minHeight: 400,
-                border: '1px solid #E2E8F0',
-                borderTop: 'none',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
               }}
             >
               {/* Filter bar */}
@@ -477,10 +475,10 @@ const CSDispatchView: React.FC = () => {
                           background: '#FFF',
                           borderRadius: 10,
                           padding: '8px 14px',
-                          border: '1px solid #E8ECF1',
+                          border: '1px solid #F1F5F9',
+                          borderRadius: 8,
                           transition: 'all 0.2s',
                           animation: 'fade-slide-in 0.3s ease',
-                          borderLeft: `3px solid ${orderTypeConfig[order.type]?.color || '#1677ff'}`,
                         }}
                       >
                         <Row align="middle" gutter={8} wrap={false}>
@@ -509,7 +507,7 @@ const CSDispatchView: React.FC = () => {
                             </Text>
                           </Col>
                           <Col>
-                            <Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>
+                            <Text style={{ fontSize: 14, fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
                               ¥{Number(order.amount).toFixed(0)}
                             </Text>
                           </Col>
