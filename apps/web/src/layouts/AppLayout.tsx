@@ -439,7 +439,7 @@ const AppLayout: React.FC = () => {
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: '50%',
-                      background: user.avatar ? `url(/uploads/avatars/${user.avatar}) center/cover` : '#1677ff',
+                      background: user.avatar ? `url(/uploads/avatars/${user.avatar}?v=${user.avatar}) center/cover` : '#1677ff',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       {!user.avatar && (

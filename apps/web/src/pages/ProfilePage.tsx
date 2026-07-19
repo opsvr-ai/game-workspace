@@ -15,7 +15,7 @@ const ProfilePage: React.FC = () => {
   const userStr = sessionStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const avatarUrl = user?.avatar
-    ? `/uploads/avatars/${user.avatar}`
+    ? `/uploads/avatars/${user.avatar}?v=${user.avatar}`
     : null;
 
   const reloadUser = async () => {

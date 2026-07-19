@@ -284,7 +284,7 @@ const CSView: React.FC = () => {
                       <Space size="small">
                         {(() => {
                           const u = c.user as any;
-                          const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}` : null;
+                          const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
                           const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
                           return (
                             <div style={{

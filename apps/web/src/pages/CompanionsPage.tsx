@@ -195,7 +195,7 @@ const CompanionsPage: React.FC = () => {
         render: (_: unknown, r: Companion) => {
           const username = r.user?.username || r.id;
           const avatarUrl = r.user?.avatar
-            ? `/uploads/avatars/${r.user.avatar}`
+            ? `/uploads/avatars/${r.user.avatar}?v=${r.user.avatar}`
             : null;
           return (
             <Space size={8}>
