@@ -445,7 +445,8 @@ export class CompanionsController {
     });
 
     return { code: 200, message: 'ok', data: null };
-  
+  }
+
   @Put('companions/:id/finance')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async updateFinance(
