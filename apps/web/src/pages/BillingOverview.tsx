@@ -68,10 +68,12 @@ const StatBlock: React.FC<{
   icon: React.ReactNode;
   color: string;
 }> = ({ label, value, icon, color }) => (
-  <Card size="small" style={{ borderLeft: `3px solid ${color}`, textAlign: 'center' }}>
-    <div style={{ fontSize: 24, color, opacity: 0.5, marginBottom: 4 }}>{icon}</div>
-    <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
-    <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
+  <Card size="small" style={{ textAlign: 'center', borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+    <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}12`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+      <span style={{ fontSize: 20, color }}>{icon}</span>
+    </div>
+    <div style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', lineHeight: 1.2 }}>{value}</div>
+    <Text style={{ fontSize: 12, color: '#94A3B8' }}>{label}</Text>
   </Card>
 );
 
@@ -428,11 +430,11 @@ const BillingOverview: React.FC = () => {
         </Row>
 
         {/* Withdrawal Records Table */}
-        <Card title="支取记录" size="small">
+        <Card title="支取记录" size="small" style={{ borderRadius: 8 }}>
           <Table
             dataSource={records}
             rowKey="id"
-            size="small"
+            size="middle"
             rowSelection={rowSelection}
             columns={columns}
             pagination={{
@@ -441,6 +443,7 @@ const BillingOverview: React.FC = () => {
               showTotal: (total) => `共 ${total} 条`,
             }}
             locale={{ emptyText: '暂无记录' }}
+            style={{ marginTop: -4 }}
           />
         </Card>
         </>
