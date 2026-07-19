@@ -9,7 +9,7 @@ interface AppConfig {
 }
 
 const defaultConfig: AppConfig = {
-  serverUrl: 'http://192.168.0.106:3001',
+  serverUrl: process.env.API_URL || 'http://localhost:3001',
 };
 
 export function loadConfig(): AppConfig {

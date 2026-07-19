@@ -23,6 +23,7 @@ import {
 import { ordersApi } from '../api/orders';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../stores/authStore';
+import { useOrderStore } from '../stores/orderStore';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 
@@ -106,7 +107,7 @@ const OrderPoolPage: React.FC = () => {
     setGrabbing(orderId);
     try {
       const { data } = await ordersApi.grab(orderId);
-      useAuthStore.getState().setGrabbedOrder(data.data);
+      useOrderStore.getState().setGrabbedOrder(data.data);
       fetchData();
       if (isCompanion) navigate('/companion/orders');
     } catch (e: any) {

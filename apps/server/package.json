@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint ok'"
+    "lint": "eslint src/ --ext .ts,.tsx --max-warnings 50",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\""
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -28,18 +29,22 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.22",
     "@nestjs/platform-socket.io": "^11.1.27",
+    "@nestjs/swagger": "^11.4.6",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.27",
     "@prisma/client": "^5.14.0",
     "axios": "^1.18.0",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "helmet": "^8.3.0",
     "multer": "^2.2.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.5.0",
@@ -47,6 +52,7 @@
     "@nestjs/schematics": "^10.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.6",
+    "@types/helmet": "^4.0.0",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.14.0",
     "@types/passport-jwt": "^4.0.1",

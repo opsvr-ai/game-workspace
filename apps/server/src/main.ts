@@ -5,20 +5,37 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { join } from 'path';
+import helmet from 'helmet';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
+  // Startup safety checks
+  if (!process.env.JWT_SECRET) {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Security middleware
+  app.use(helmet());
+
   app.setGlobalPrefix('api');
+
+  const corsOriginEnv = process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:8000';
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:8000',
-      'http://127.0.0.1:8000',
-      'http://192.168.0.106:8000',
-    ],
+    origin: corsOriginEnv.split(','),
     credentials: true,
   });
+
+  // Swagger API documentation
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('蠢驴电竞陪玩派单管理系统 API')
+    .setDescription('Chunlv Esports Companion Dispatch Management System')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());

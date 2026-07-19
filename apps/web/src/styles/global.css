@@ -2,8 +2,8 @@
 
 /* ── 页面底色 + 网格纹理 ── */
 body {
-  background: #F8FAFC;
-  color: #1E293B;
+  background: #f8fafc;
+  color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: relative;
@@ -16,105 +16,169 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
 /* 滚动条 — 赛博青 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.5);
+}
 
 /* ── 状态指示点 + 呼吸动画 ── */
 @keyframes pulse-glow {
-  0%   { box-shadow: 0 0 0 0 rgba(0,212,255,0.5); }
-  70%  { box-shadow: 0 0 0 6px rgba(0,212,255,0); }
-  100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+  }
 }
 
 .status-dot {
   display: inline-block;
-  width: 8px; height: 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   margin-right: 6px;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.04);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
 }
 .status-dot.online {
-  background: #00E676;
+  background: #00e676;
   animation: pulse-glow 2s ease-in-out infinite;
 }
-.status-dot.offline { background: #94A3B8; }
-.status-dot.busy  { background: #FF9100; }
+.status-dot.offline {
+  background: #94a3b8;
+}
+.status-dot.busy {
+  background: #ff9100;
+}
 
 /* ── 页面标题 ── */
 .page-title {
-  font-size: 28px; font-weight: 700;
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.5px;
-  color: #1E293B;
+  color: #1e293b;
   margin-bottom: 4px;
 }
 .page-subtitle {
-  font-size: 14px; color: #64748B;
+  font-size: 14px;
+  color: #64748b;
   margin-bottom: 24px;
 }
 
 /* ── 统计卡片增强 ── */
 .stat-card {
-  background: #FFFFFF;
+  background: #ffffff;
   border-radius: 12px;
   padding: 20px 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
   border-left: 3px solid;
-  border-image: linear-gradient(180deg, #7B61FF, #00D4FF) 1;
-  transition: box-shadow 0.25s, transform 0.25s;
+  border-image: linear-gradient(180deg, #7b61ff, #00d4ff) 1;
+  transition:
+    box-shadow 0.25s,
+    transform 0.25s;
 }
 .stat-card:hover {
-  box-shadow: 0 4px 20px rgba(0,212,255,0.12), 0 0 0 1px rgba(0,212,255,0.2);
+  box-shadow:
+    0 4px 20px rgba(0, 212, 255, 0.12),
+    0 0 0 1px rgba(0, 212, 255, 0.2);
   transform: translateY(-2px);
 }
 .stat-card .stat-label {
-  font-size: 12px; font-weight: 600;
-  color: #64748B; text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 .stat-card .stat-value {
-  font-size: 32px; font-weight: 700;
+  font-size: 32px;
+  font-weight: 700;
   letter-spacing: -0.5px;
-  color: #1E293B;
+  color: #1e293b;
 }
-.stat-card .stat-value.blue   { color: #00D4FF; }
-.stat-card .stat-value.green  { color: #00E676; }
-.stat-card .stat-value.orange { color: #FF9100; }
-.stat-card .stat-value.red    { color: #FF4757; }
+.stat-card .stat-value.blue {
+  color: #00d4ff;
+}
+.stat-card .stat-value.green {
+  color: #00e676;
+}
+.stat-card .stat-value.orange {
+  color: #ff9100;
+}
+.stat-card .stat-value.red {
+  color: #ff4757;
+}
 
 /* ── 圆角卡片 ── */
 .apple-card {
-  background: #FFFFFF;
+  background: #ffffff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 /* ── Responsive compact mode (fits 900x600 viewport) ── */
 @media (max-height: 800px) {
-  .ant-card { margin-bottom: 10px !important; }
-  .ant-card-body { padding: 12px !important; }
-  .ant-card-head { padding: 0 12px !important; min-height: 36px !important; }
-  .ant-table-cell { padding: 6px 8px !important; font-size: 12px !important; }
-  .ant-modal-body { max-height: 60vh; overflow-y: auto; padding: 16px !important; }
-  .ant-form-item { margin-bottom: 12px !important; }
-  .ant-tag { font-size: 11px !important; }
-  .ant-statistic-content { font-size: 20px !important; }
+  .ant-card {
+    margin-bottom: 10px !important;
+  }
+  .ant-card-body {
+    padding: 12px !important;
+  }
+  .ant-card-head {
+    padding: 0 12px !important;
+    min-height: 36px !important;
+  }
+  .ant-table-cell {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+  .ant-modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 16px !important;
+  }
+  .ant-form-item {
+    margin-bottom: 12px !important;
+  }
+  .ant-tag {
+    font-size: 11px !important;
+  }
+  .ant-statistic-content {
+    font-size: 20px !important;
+  }
 }
 
 /* ── 登录页 ── */
 .login-wrapper {
   min-height: 100vh;
-  display: flex; align-items: center; justify-content: center;
-  background: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
   position: relative;
 }
 
@@ -123,20 +187,22 @@ body::before {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
 .login-card {
-  background: rgba(255,255,255,0.88);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: saturate(180%) blur(30px);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 24px;
   padding: 48px 40px;
   width: 400px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.04);
   position: relative;
   overflow: hidden;
   z-index: 1;
@@ -145,28 +211,35 @@ body::before {
 .login-card::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #7B61FF, #00D4FF);
+  background: var(--color-gradient-brand);
 }
 
 .login-card h1 {
   text-align: center;
-  font-size: 28px; font-weight: 700;
+  font-size: 28px;
+  font-weight: 700;
   letter-spacing: -0.5px;
   margin-bottom: 4px;
-  background: linear-gradient(135deg, #7B61FF, #00D4FF);
+  background: var(--color-gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .login-card .subtitle {
-  text-align: center; font-size: 13px; color: #94A3B8;
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
   margin-bottom: 36px;
   letter-spacing: 0.3px;
 }
 .login-card .brand-icon {
-  display: block; text-align: center; font-size: 40px;
+  display: block;
+  text-align: center;
+  font-size: 40px;
   margin-bottom: 12px;
 }
 
@@ -180,36 +253,66 @@ body::before {
 
 /* ── 过渡动画 ── */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.fade-in { animation: fade-in 0.25s ease-out; }
+.fade-in {
+  animation: fade-in 0.25s ease-out;
+}
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.scale-in { animation: scale-in 0.2s ease-out; }
+.scale-in {
+  animation: scale-in 0.2s ease-out;
+}
 
 /* ── 水波动画 ── */
-.wave-container { overflow: hidden; }
+.wave-container {
+  overflow: hidden;
+}
 .wave {
-  position: absolute; bottom: 0; left: -50%;
-  width: 200%; height: 100%;
-  background: rgba(255,255,255,0.15);
+  position: absolute;
+  bottom: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 40%;
 }
-.wave1 { animation: drift 4s linear infinite; }
-.wave2 { animation: drift 6s linear infinite reverse; opacity: 0.6; }
+.wave1 {
+  animation: drift 4s linear infinite;
+}
+.wave2 {
+  animation: drift 6s linear infinite reverse;
+  opacity: 0.6;
+}
 @keyframes drift {
-  from { transform: translateX(0) rotate(0deg); }
-  to { transform: translateX(-50%) rotate(360deg); }
+  from {
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
 }
 
 /* ── 订单池卡片悬浮 ── */
 .pool-card:hover {
-  border-color: #00D4FF !important;
-  box-shadow: 0 2px 12px rgba(0,212,255,0.1) !important;
+  border-color: #00d4ff !important;
+  box-shadow: 0 2px 12px rgba(0, 212, 255, 0.1) !important;
   transform: translateY(-1px);
 }
 
@@ -218,19 +321,35 @@ body::before {
   transition: all 0.2s;
 }
 .grab-btn:hover {
-  box-shadow: 0 0 16px rgba(123,97,255,0.4) !important;
+  box-shadow: 0 0 16px rgba(123, 97, 255, 0.4) !important;
 }
 .grab-ripple {
   display: none;
 }
 @keyframes grab-trajectory {
-  0%   { opacity: 1; transform: translateX(0) scale(1); }
-  30%  { opacity: 0.8; transform: translateX(20px) scale(0.95); box-shadow: 0 0 30px rgba(123,97,255,0.3); }
-  100% { opacity: 0; transform: translateX(200px) scale(0.8); }
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  30% {
+    opacity: 0.8;
+    transform: translateX(20px) scale(0.95);
+    box-shadow: 0 0 30px rgba(123, 97, 255, 0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(200px) scale(0.8);
+  }
 }
 @keyframes particle-fly {
-  0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 0; transform: translate(80px, -40px) scale(0); }
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(80px, -40px) scale(0);
+  }
 }
 .grabbing {
   animation: grab-trajectory 0.6s ease forwards;
@@ -238,7 +357,9 @@ body::before {
 }
 .grabbing::after {
   content: '✨';
-  position: absolute; right: -20px; top: 50%;
+  position: absolute;
+  right: -20px;
+  top: 50%;
   animation: particle-fly 0.5s ease-out forwards;
 }
 

@@ -15,7 +15,7 @@ import { SettingsController } from './settings.controller';
     PrismaModule,
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'fallback-secret',
+      secret: process.env.JWT_SECRET ?? (() => { throw new Error('FATAL: JWT_SECRET environment variable is not set'); })(),
       signOptions: { expiresIn: '15m' },
     }),
   ],

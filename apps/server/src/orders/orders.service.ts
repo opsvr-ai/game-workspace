@@ -1,30 +1,18 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
-import { OrderStatus } from '@chunlv/shared';
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CANCELLED],
-  [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-  [OrderStatus.CONFIRMED]: [OrderStatus.DONE, OrderStatus.CANCELLED],
-};
+import { OrderWorkflowService } from './order-workflow.service';
+import { OrderDispatchService } from './order-dispatch.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private wsGateway: WsGateway,
+    private readonly workflowService: OrderWorkflowService,
+    private readonly dispatchService: OrderDispatchService,
   ) {}
-
-  private validateTransition(order: { id: string; status: string }, targetStatus: string) {
-    const allowed = VALID_TRANSITIONS[order.status];
-    if (!allowed || !allowed.includes(targetStatus)) {
-      throw new ForbiddenException(
-        `不允许从 ${order.status} 转换到 ${targetStatus}`,
-      );
-    }
-  }
 
   async create(dto: {
     type: string;
@@ -69,7 +57,7 @@ export class OrdersService {
         customerId: customerId!,
         dispatchType: dto.dispatchType === 'BROADCAST' ? 'POOL' : dto.dispatchType,
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
-        coCompanionId: dto.dispatchType === 'DIRECT' ? (dto as any).coCompanionId ?? null : null,
+        coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         status: 'PENDING',
         amount: dto.amount,
         gameName: dto.gameName,
@@ -97,7 +85,10 @@ export class OrdersService {
 
     // BROADCAST: send to ALL idle companions
     if (dto.dispatchType === 'BROADCAST' && studioId) {
-      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true, role: true } });
+      const csUser = await this.prisma.user.findUnique({
+        where: { id: dto.csUserId },
+        select: { username: true, role: true },
+      });
       this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
         ...newOrder,
         _createdBy: csUser?.username || '未知',
@@ -109,7 +100,10 @@ export class OrdersService {
     // Urgent orders: broadcast to all IDLE companions (first-come-first-served)
     const isUrgent = (dto as any).urgency === 'now';
     if (studioId && isUrgent) {
-      const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true, role: true } });
+      const csUser = await this.prisma.user.findUnique({
+        where: { id: dto.csUserId },
+        select: { username: true, role: true },
+      });
       this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
         ...newOrder,
         _createdBy: csUser?.username || '未知',
@@ -124,9 +118,12 @@ export class OrdersService {
     // Desktop notification: DIRECT → only target companion; POOL/BROADCAST → all
     if (dto.dispatchType === 'DIRECT' && dto.companionId) {
       const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { username: true } });
-      const isBuDan = (dto as any).deltaNote?.includes('补单') || (newOrder.customFields as any)?.deltaNote?.includes('补单');
+      const isBuDan =
+        (dto as any).deltaNote?.includes('补单') || (newOrder.customFields as any)?.deltaNote?.includes('补单');
       this.wsGateway.pushOrder(dto.companionId, {
-        ...newOrder, _inviterName: csUser?.username || '系统', _isAssignment: true,
+        ...newOrder,
+        _inviterName: csUser?.username || '系统',
+        _isAssignment: true,
         _label: isBuDan ? '补单' : '新订单',
       });
     } else if (studioId) {
@@ -141,13 +138,9 @@ export class OrdersService {
 
   async findPool(companionId?: string, studioType?: string) {
     const where: any = {
-      status: 'PENDING', dispatchType: 'POOL',
-      OR: companionId ? [
-        { companionId: null },
-        { companionId: companionId },
-      ] : [
-        { companionId: null },
-      ],
+      status: 'PENDING',
+      dispatchType: 'POOL',
+      OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
 
     // Non-DIRECT studios: exclude orders created within the last 1 minute
@@ -171,10 +164,9 @@ export class OrdersService {
     if (status) where.status = status;
     if (!showAll) {
       if (user.role === 'COMPANION') {
-      where.companionId = user.companionId;
-      if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
-    }
-      else if (user.role === 'CS') where.csUserId = user.id;
+        where.companionId = user.companionId;
+        if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
+      } else if (user.role === 'CS') where.csUserId = user.id;
       else if (user.role === 'ADMIN') where.studioId = user.studioId;
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
@@ -182,76 +174,15 @@ export class OrdersService {
       where,
       include: {
         customer: true,
-        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } }, coCompanion: { include: { user: { select: { username: true } } } },
+        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async grab(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    this.validateTransition(order, OrderStatus.GRABBED);
-    if (
-      order.dispatchType !== 'POOL' ||
-      order.companionId !== null
-    ) {
-      throw new ForbiddenException('该订单不可抢');
-    }
-
-    // Revenue threshold check — skip for peer orders (created by companions)
-    const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
-    const isPeerOrder = creator?.role === 'COMPANION';
-
-    if (!isPeerOrder) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayOrders = await this.prisma.order.findMany({
-        where: { companionId, status: 'DONE', createdAt: { gte: today, lt: tomorrow } },
-      });
-      const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-
-      const config = await this.prisma.systemConfig.findUnique({
-        where: { key: 'revenue.unlock_threshold' },
-      });
-      const threshold = (config?.value as number) ?? 100;
-
-      if (todayRevenue < threshold) {
-        throw new ForbiddenException(
-          `今日流水 ¥${todayRevenue}，未达到解锁门槛 ¥${threshold}，还差 ¥${threshold - todayRevenue}`,
-        );
-      }
-    }
-
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.GRABBED, companionId, grabbedAt: new Date() },
-      include: { csUser: { select: { username: true, avatar: true, displayName: true } }, companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } }, coCompanion: { include: { user: { select: { username: true } } } } },
-    });
-    this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
-
-    // Notify the CS who created this order about the grab
-    if (updatedOrder.csUserId) {
-      const companionName = updatedOrder.companion?.user?.username ?? '未知';
-      this.wsGateway.notifyUser(updatedOrder.csUserId, 'order:grabbed', {
-        orderId: updatedOrder.id,
-        companionName,
-        message: `${companionName} 抢了你的订单`,
-      });
-    }
-
-    // Auto-assign customer to companion if not yet assigned
-    try {
-      await this.prisma.customer.updateMany({
-        where: { id: order.customerId, companionId: null },
-        data: { companionId },
-      });
-    } catch (_) { /* best-effort: don't fail the grab if customer assignment fails */ }
-
-    return updatedOrder;
+    return this.workflowService.grab(orderId, companionId);
   }
 
   async updateContact(orderId: string, body: any) {
@@ -260,9 +191,16 @@ export class OrdersService {
     if (body.scheduledAt !== undefined) data.scheduledAt = new Date(body.scheduledAt);
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.screenshotUrl !== undefined) data.screenshotUrl = body.screenshotUrl;
-    if (body.workWechatId !== undefined) { const order2 = await this.prisma.order.findUnique({ where: { id: orderId }, select: { customFields: true } }); const cf2 = (order2?.customFields as any) || {}; if (body.workWechatName !== undefined) cf2.workWechatName = body.workWechatName;
-          data.customFields = { ...cf2, workWechatId: body.workWechatId }; }
-    if (body.workWechatName !== undefined) { const cf3 = (data.customFields as any) || {}; data.customFields = { ...cf3, workWechatName: body.workWechatName }; }
+    if (body.workWechatId !== undefined) {
+      const order2 = await this.prisma.order.findUnique({ where: { id: orderId }, select: { customFields: true } });
+      const cf2 = (order2?.customFields as any) || {};
+      if (body.workWechatName !== undefined) cf2.workWechatName = body.workWechatName;
+      data.customFields = { ...cf2, workWechatId: body.workWechatId };
+    }
+    if (body.workWechatName !== undefined) {
+      const cf3 = (data.customFields as any) || {};
+      data.customFields = { ...cf3, workWechatName: body.workWechatName };
+    }
     const updated = await this.prisma.order.update({ where: { id: orderId }, data, include: { customer: true } });
 
     // When contact status is 'added' or 'not_accepted', link customer to companion.
@@ -294,14 +232,14 @@ export class OrdersService {
 
   async compensateCustomer(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new (require('@nestjs/common').NotFoundException)('订单不存在');
+    if (!order) throw new NotFoundException('订单不存在');
     const customer = await this.prisma.customer.create({
       data: {
         studioId: order.studioId,
-        wechatId: 'BC-'+order.id.slice(0,8),
+        wechatId: 'BC-' + order.id.slice(0, 8),
         companionId: order.companionId,
-        customerCode: 'BC'+Date.now().toString(36).toUpperCase(),
-        notes: '补单客户（原订单 '+order.id+'）',
+        customerCode: 'BC' + Date.now().toString(36).toUpperCase(),
+        notes: '补单客户（原订单 ' + order.id + '）',
       },
     });
     return customer;
@@ -309,7 +247,7 @@ export class OrdersService {
 
   async renew(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new (require('@nestjs/common').NotFoundException)('订单不存在');
+    if (!order) throw new NotFoundException('订单不存在');
     return this.prisma.order.create({
       data: {
         type: 'RENEW',
@@ -321,7 +259,7 @@ export class OrdersService {
         amount: order.amount,
         gameName: order.gameName,
         duration: order.duration,
-        customFields: { ...(order.customFields as any || {}), renewedFrom: orderId },
+        customFields: { ...((order.customFields as any) || {}), renewedFrom: orderId },
         status: 'CONFIRMED',
       },
     });
@@ -329,7 +267,7 @@ export class OrdersService {
 
   async republish(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new (require('@nestjs/common').NotFoundException)('订单不存在');
+    if (!order) throw new NotFoundException('订单不存在');
     return this.prisma.order.create({
       data: {
         type: order.type,
@@ -348,43 +286,19 @@ export class OrdersService {
   }
 
   async assign(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
-      throw new ForbiddenException('已完成或已取消的订单不可重新分配');
-    }
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { dispatchType: 'DIRECT', companionId },
-    });
-    this.wsGateway.pushOrder(companionId, updatedOrder);
-    return updatedOrder;
+    return this.dispatchService.assign(orderId, companionId);
   }
 
   async acceptAssignment(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
-    if (order.status !== OrderStatus.PENDING) throw new ForbiddenException('订单状态不正确');
-    return this.prisma.order.update({ where: { id: orderId }, data: { status: OrderStatus.GRABBED, grabbedAt: new Date() } });
+    return this.dispatchService.acceptAssignment(orderId, companionId);
   }
 
   async declineAssignment(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
-    return this.prisma.order.update({ where: { id: orderId }, data: { companionId: null, dispatchType: 'POOL' } });
+    return this.dispatchService.declineAssignment(orderId, companionId);
   }
 
   async quickGrab(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.companionId) throw new ForbiddenException('已被其他陪玩抢先');
-    if (order.status !== OrderStatus.PENDING) throw new ForbiddenException('订单状态不正确');
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.GRABBED, companionId, grabbedAt: new Date() },
-    });
+    return this.dispatchService.quickGrab(orderId, companionId);
   }
 
   async markReady(orderId: string, companionId: string) {
@@ -395,157 +309,43 @@ export class OrdersService {
   }
 
   async confirm(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    this.validateTransition(order, OrderStatus.CONFIRMED);
-    if (order.companionId !== companionId) throw new ForbiddenException('无权确认此订单');
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.CONFIRMED },
-    });
+    return this.workflowService.confirm(orderId, companionId);
   }
 
   async complete(orderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    this.validateTransition(order, OrderStatus.DONE);
-
-    // Auto-assign customer to companion if not yet assigned
-    if (order.companionId) {
-      try {
-        await this.prisma.customer.updateMany({
-          where: { id: order.customerId, companionId: null },
-          data: { companionId: order.companionId },
-        });
-      } catch (_) { /* best-effort */ }
-    }
-
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.DONE },
-    });
+    return this.workflowService.complete(orderId);
   }
 
-  async completeWithBilling(orderId: string, companionId: string, dto: {
-    customerCode?: string;
-    firstOrder: { duration: number; price: number };
-    hasRenew?: boolean;
-    renewOrder?: { duration: number; price: number };
-    gameName: string;
-    type: string; // 'COMPANION' | 'ESCORT'
-    screenshotUrl?: string;
-    wechatId?: string;
-  }) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    this.validateTransition(order, OrderStatus.DONE);
-
-    // Detect customer type
-    const customer = dto.customerCode
-      ? await this.prisma.customer.findUnique({ where: { customerCode: dto.customerCode } })
-      : await this.prisma.customer.findUnique({ where: { id: order.customerId } });
-
-    if (!customer) throw new NotFoundException('客户不存在');
-
-    const orderCount = await this.prisma.order.count({
-      where: { customerId: customer.id, status: 'DONE' },
-    });
-
-    const customerType = orderCount === 0 ? 'NEW' : 'REPURCHASE';
-
-    // Calculate totals
-    const firstAmount = dto.firstOrder.duration * dto.firstOrder.price;
-    const renewAmount = dto.hasRenew && dto.renewOrder
-      ? dto.renewOrder.duration * dto.renewOrder.price
-      : 0;
-    const totalAmount = firstAmount + renewAmount;
-    const totalDuration = dto.firstOrder.duration + (dto.renewOrder?.duration || 0);
-
-    // Update the main order as DONE
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: OrderStatus.DONE,
-        type: customerType,
-        amount: totalAmount,
-        duration: totalDuration,
-        gameName: dto.gameName,
-        customFields: {
-          ...((order.customFields as any) || {}),
-          firstOrder: dto.firstOrder,
-          renewOrder: dto.renewOrder || null,
-          hasRenew: dto.hasRenew || false,
-          customerType,
-          settlementType: dto.type,
-          screenshotUrl: dto.screenshotUrl,
-          wechatId: dto.wechatId,
-        },
-      },
-    });
-
-    // If hasRenew, create a separate RENEW order
-    if (dto.hasRenew && dto.renewOrder) {
-      await this.prisma.order.create({
-        data: {
-          type: 'RENEW',
-          studioId: order.studioId,
-          csUserId: order.csUserId,
-          companionId,
-          customerId: order.customerId,
-          dispatchType: 'DIRECT',
-          status: OrderStatus.DONE,
-          amount: renewAmount,
-          gameName: dto.gameName,
-          duration: dto.renewOrder.duration,
-          customFields: { parentOrderId: orderId },
-        },
-      });
-    }
-
-    // Update customer total spent
-    await this.prisma.customer.update({
-      where: { id: customer.id },
-      data: { totalSpent: { increment: totalAmount } },
-    });
-
-    // Update companion revenue
-    await this.prisma.companion.update({
-      where: { id: companionId },
-      data: { monthlyRevenue: { increment: totalAmount } },
-    });
-
-    // Auto-assign customer to companion if not yet assigned
-    try {
-      await this.prisma.customer.updateMany({
-        where: { id: customer.id, companionId: null },
-        data: { companionId },
-      });
-    } catch (_) { /* best-effort */ }
-
-    // Update customer status
-    await this.prisma.customer.update({
-      where: { id: customer.id },
-      data: { status: 'ACTIVE' },
-    });
-
-    return updatedOrder;
+  async completeWithBilling(
+    orderId: string,
+    companionId: string,
+    dto: {
+      customerCode?: string;
+      firstOrder: { duration: number; price: number };
+      hasRenew?: boolean;
+      renewOrder?: { duration: number; price: number };
+      gameName: string;
+      type: string;
+      screenshotUrl?: string;
+      wechatId?: string;
+    },
+  ) {
+    return this.workflowService.completeWithBilling(orderId, companionId, dto);
   }
 
   async cancel(orderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    this.validateTransition(order, OrderStatus.CANCELLED);
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.CANCELLED },
-    });
+    return this.workflowService.cancel(orderId);
   }
 
   async callPartner(orderId: string, callerId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { customer: true } });
     if (!order) throw new NotFoundException('订单不存在');
     this.wsGateway.broadcastToStudio(order.studioId, 'order:partner_call', {
-      orderId, callerId, customerName: order.customer?.customerCode, gameName: order.gameName, amount: order.amount
+      orderId,
+      callerId,
+      customerName: order.customer?.customerCode,
+      gameName: order.gameName,
+      amount: order.amount,
     });
     return { ok: true };
   }
@@ -553,7 +353,10 @@ export class OrdersService {
   async acceptPartner(orderId: string, partnerId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
-    return this.prisma.order.update({ where: { id: orderId }, data: { customFields: { ...((order.customFields as any)||{}), partnerId } } });
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { customFields: { ...((order.customFields as any) || {}), partnerId } },
+    });
   }
 
   async getPoolStatus(companionId: string) {

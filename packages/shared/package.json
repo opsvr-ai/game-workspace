@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint ok'"
+    "lint": "eslint src/ --ext .ts,.tsx --max-warnings 50",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\""
   },
   "devDependencies": {
     "typescript": "^5.5.0"

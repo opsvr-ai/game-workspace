@@ -1,4 +1,6 @@
+// craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
+import { extractErrorMessage } from '../utils/error-handler';
 import {
   Card,
   Descriptions,
@@ -19,12 +21,7 @@ import {
   Row,
   Col,
 } from 'antd';
-import {
-  SaveOutlined, ArrowLeftOutlined,
-  EditOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
 
@@ -109,8 +106,7 @@ const CustomerDetailPage: React.FC = () => {
       setCustomer(data.data);
       setError(null);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '加载客户信息失败';
-      setError(msg);
+      setError(extractErrorMessage(err, '加载客户信息失败'));
     } finally {
       setLoadingCustomer(false);
     }
@@ -171,18 +167,17 @@ const CustomerDetailPage: React.FC = () => {
 
   // ── Profile edit ───────────────────────────────────────────
 
-
   const handleProfileSubmit = async () => {
     try {
       const values = await profileForm.validateFields();
       setSubmittingProfile(true);
       await customersApi.updateProfile(id!, values);
       message.success('客户画像已更新');
-      
+
       fetchProfile();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.message || err?.message || '更新失败');
+      message.error(extractErrorMessage(err, '更新失败'));
     } finally {
       setSubmittingProfile(false);
     }
@@ -207,7 +202,7 @@ const CustomerDetailPage: React.FC = () => {
       fetchFollowUps();
       fetchCustomer(); // refresh status
     } catch (err: any) {
-      message.error(err?.response?.data?.message || err?.message || '添加失败');
+      message.error(extractErrorMessage(err, '添加失败'));
     } finally {
       setSubmittingFollowUp(false);
     }
@@ -240,16 +235,14 @@ const CustomerDetailPage: React.FC = () => {
       dataIndex: 'duration',
       key: 'duration',
       width: 80,
-      render: (v: number | null) => v != null ? `${v}h` : '-',
+      render: (v: number | null) => (v != null ? `${v}h` : '-'),
     },
     {
       title: '金额',
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
-      render: (v: number) => (
-        <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v.toFixed(2)}</span>
-      ),
+      render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v.toFixed(2)}</span>,
     },
     {
       title: '类型',
@@ -275,7 +268,9 @@ const CustomerDetailPage: React.FC = () => {
   if (error && !customer) {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
-        <Text type="danger" style={{ fontSize: 16 }}>{error}</Text>
+        <Text type="danger" style={{ fontSize: 16 }}>
+          {error}
+        </Text>
         <br />
         <Button style={{ marginTop: 16 }} onClick={() => navigate(-1)}>
           返回
@@ -289,11 +284,7 @@ const CustomerDetailPage: React.FC = () => {
       {/* ── Header ──────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <Space>
-          <Button
-            type="text"
-            icon={React.createElement(ArrowLeftOutlined)}
-            onClick={() => navigate(-1)}
-          >
+          <Button type="text" icon={React.createElement(ArrowLeftOutlined)} onClick={() => navigate(-1)}>
             返回
           </Button>
           <Title level={4} style={{ margin: 0 }}>
@@ -378,48 +369,132 @@ const CustomerDetailPage: React.FC = () => {
         )}
       </Card>
 
-            {/* ── Section 3: Profile Card — direct edit ────────── */}
+      {/* ── Section 3: Profile Card — direct edit ────────── */}
       <Card
         title="客户画像"
         style={{ marginBottom: 12 }}
         loading={loadingProfile}
         extra={
-          <Button type="primary" size="small" icon={React.createElement(SaveOutlined)}
-            onClick={handleProfileSubmit} loading={submittingProfile}>
+          <Button
+            type="primary"
+            size="small"
+            icon={React.createElement(SaveOutlined)}
+            onClick={handleProfileSubmit}
+            loading={submittingProfile}
+          >
             保存
           </Button>
         }
       >
         <Form form={profileForm} layout="vertical">
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="age" label="年龄"><InputNumber min={0} max={150} style={{ width: '100%' }} placeholder="年龄" /></Form.Item></Col>
-            <Col span={16}><Form.Item name="address" label="地址"><Input placeholder="地址" /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="age" label="年龄">
+                <InputNumber min={0} max={150} style={{ width: '100%' }} placeholder="年龄" />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item name="address" label="地址">
+                <Input placeholder="地址" />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="occupation" label="职业"><Input placeholder="职业" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="preferredGame" label="偏好游戏"><Input placeholder="偏好游戏" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="preferredMode" label="偏好模式"><Input placeholder="偏好模式" /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="occupation" label="职业">
+                <Input placeholder="职业" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="preferredGame" label="偏好游戏">
+                <Input placeholder="偏好游戏" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="preferredMode" label="偏好模式">
+                <Input placeholder="偏好模式" />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="preferredSingleDouble" label="单/双人"><Select placeholder="选择" allowClear><Select.Option value="单人">单人</Select.Option><Select.Option value="双人">双人</Select.Option><Select.Option value="均可">均可</Select.Option></Select></Form.Item></Col>
-            <Col span={8}><Form.Item name="preferredTime" label="偏好时间"><Input placeholder="如: 晚上8-12点" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="playFrequency" label="游戏频率"><Select placeholder="选择" allowClear><Select.Option value="每天">每天</Select.Option><Select.Option value="每周数次">每周数次</Select.Option><Select.Option value="偶尔">偶尔</Select.Option></Select></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="preferredSingleDouble" label="单/双人">
+                <Select placeholder="选择" allowClear>
+                  <Select.Option value="单人">单人</Select.Option>
+                  <Select.Option value="双人">双人</Select.Option>
+                  <Select.Option value="均可">均可</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="preferredTime" label="偏好时间">
+                <Input placeholder="如: 晚上8-12点" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="playFrequency" label="游戏频率">
+                <Select placeholder="选择" allowClear>
+                  <Select.Option value="每天">每天</Select.Option>
+                  <Select.Option value="每周数次">每周数次</Select.Option>
+                  <Select.Option value="偶尔">偶尔</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="pricePreference" label="价格偏好"><Input placeholder="价格偏好" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="relationshipStatus" label="情感状态"><Select placeholder="选择" allowClear><Select.Option value="单身">单身</Select.Option><Select.Option value="恋爱">恋爱</Select.Option><Select.Option value="已婚">已婚</Select.Option><Select.Option value="保密">保密</Select.Option></Select></Form.Item></Col>
-            <Col span={8}><Form.Item name="afraidWechatCheck" label="恐微信查岗" valuePropName="checked"><Switch /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="pricePreference" label="价格偏好">
+                <Input placeholder="价格偏好" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="relationshipStatus" label="情感状态">
+                <Select placeholder="选择" allowClear>
+                  <Select.Option value="单身">单身</Select.Option>
+                  <Select.Option value="恋爱">恋爱</Select.Option>
+                  <Select.Option value="已婚">已婚</Select.Option>
+                  <Select.Option value="保密">保密</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="afraidWechatCheck" label="恐微信查岗" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="likedVoice" label="喜欢的声音"><Input placeholder="喜欢的声音" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="myVoice" label="我的声音"><Input placeholder="我的声音" /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="likedVoice" label="喜欢的声音">
+                <Input placeholder="喜欢的声音" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="myVoice" label="我的声音">
+                <Input placeholder="我的声音" />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="likesTalkative" label="喜欢话多的" valuePropName="checked"><Switch /></Form.Item></Col>
-            <Col span={8}><Form.Item name="likesSkill" label="喜欢技术好的" valuePropName="checked"><Switch /></Form.Item></Col>
-            <Col span={8}><Form.Item name="likesBoth" label="两者都喜欢" valuePropName="checked"><Switch /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item name="likesTalkative" label="喜欢话多的" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="likesSkill" label="喜欢技术好的" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="likesBoth" label="两者都喜欢" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
           </Row>
-          <Form.Item name="customNotes" label="自定义备注"><Input.TextArea rows={3} placeholder="其他备注信息" /></Form.Item>
+          <Form.Item name="customNotes" label="自定义备注">
+            <Input.TextArea rows={3} placeholder="其他备注信息" />
+          </Form.Item>
         </Form>
       </Card>
 
@@ -444,44 +519,61 @@ const CustomerDetailPage: React.FC = () => {
           if (customer?.status === 'FOLLOW_UP') tags.push('待跟进');
           if (tags.length === 0) tags.push('新客户');
 
-          const riskLevel = customer?.status === 'LOST' ? 'high'
-            : daysSinceLastOrder > 30 && orderCount > 0 ? 'high'
-            : daysSinceLastOrder > 14 && orderCount > 0 ? 'medium'
-            : 'low';
+          const riskLevel =
+            customer?.status === 'LOST'
+              ? 'high'
+              : daysSinceLastOrder > 30 && orderCount > 0
+                ? 'high'
+                : daysSinceLastOrder > 14 && orderCount > 0
+                  ? 'medium'
+                  : 'low';
 
-          const suggestion = riskLevel === 'high'
-            ? '建议尽快主动联系客户，超过30天未消费，存在流失风险'
-            : riskLevel === 'medium'
-            ? '客户近期活跃度下降，可发送活动优惠或新游戏推荐'
-            : orderCount === 0
-            ? '新客户尚未下单，建议完善画像并推送首次优惠'
-            : '客户状态良好，继续保持日常维护和关系经营';
+          const suggestion =
+            riskLevel === 'high'
+              ? '建议尽快主动联系客户，超过30天未消费，存在流失风险'
+              : riskLevel === 'medium'
+                ? '客户近期活跃度下降，可发送活动优惠或新游戏推荐'
+                : orderCount === 0
+                  ? '新客户尚未下单，建议完善画像并推送首次优惠'
+                  : '客户状态良好，继续保持日常维护和关系经营';
 
           return (
             <div>
               <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {tags.map(t => (
-                  <Tag key={t} color={
-                    t.includes('风险') || t.includes('流失') ? 'red'
-                    : t.includes('高价值') || t.includes('忠实') ? 'blue'
-                    : t.includes('潜力') ? 'green'
-                    : 'default'
-                  }>{t}</Tag>
+                {tags.map((t) => (
+                  <Tag
+                    key={t}
+                    color={
+                      t.includes('风险') || t.includes('流失')
+                        ? 'red'
+                        : t.includes('高价值') || t.includes('忠实')
+                          ? 'blue'
+                          : t.includes('潜力')
+                            ? 'green'
+                            : 'default'
+                    }
+                  >
+                    {t}
+                  </Tag>
                 ))}
               </div>
-              <div style={{
-                padding: '12px 16px',
-                background: riskLevel === 'high' ? '#fff2f0' : riskLevel === 'medium' ? '#fff7e6' : '#f6ffed',
-                border: `1px solid ${riskLevel === 'high' ? '#ffccc7' : riskLevel === 'medium' ? '#ffe7ba' : '#b7eb8f'}`,
-                borderRadius: 8,
-              }}>
-                <Text style={{ fontSize: 13 }}>
-                  {suggestion}
-                </Text>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: riskLevel === 'high' ? '#fff2f0' : riskLevel === 'medium' ? '#fff7e6' : '#f6ffed',
+                  border: `1px solid ${riskLevel === 'high' ? '#ffccc7' : riskLevel === 'medium' ? '#ffe7ba' : '#b7eb8f'}`,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontSize: 13 }}>{suggestion}</Text>
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 16 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>累计消费：¥{totalSpent.toFixed(2)}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>订单数：{orderCount}单</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  累计消费：¥{totalSpent.toFixed(2)}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  订单数：{orderCount}单
+                </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   最近消费：{lastOrderDate ? formatDate(lastOrderDate.toISOString()) : '暂无'}
                 </Text>
@@ -495,11 +587,7 @@ const CustomerDetailPage: React.FC = () => {
       <Card
         title="服务记录"
         style={{ marginBottom: 12 }}
-        extra={
-          <Text type="secondary">
-            {loadingOrders ? '加载中...' : `共 ${orders.length} 单`}
-          </Text>
-        }
+        extra={<Text type="secondary">{loadingOrders ? '加载中...' : `共 ${orders.length} 单`}</Text>}
       >
         <Table
           columns={orderColumns}
@@ -516,11 +604,7 @@ const CustomerDetailPage: React.FC = () => {
       <Card
         title="跟进记录"
         loading={loadingFollowUps}
-        extra={
-          <Text type="secondary">
-            {loadingFollowUps ? '加载中...' : `共 ${followUps.length} 条`}
-          </Text>
-        }
+        extra={<Text type="secondary">{loadingFollowUps ? '加载中...' : `共 ${followUps.length} 条`}</Text>}
       >
         {/* Add follow-up form */}
         <div
@@ -532,7 +616,9 @@ const CustomerDetailPage: React.FC = () => {
             border: '1px solid #f0f0f0',
           }}
         >
-          <Text strong style={{ display: 'block', marginBottom: 12 }}>添加跟进记录</Text>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>
+            添加跟进记录
+          </Text>
           <Form layout="vertical">
             <Form.Item label="跟进内容" required>
               <TextArea

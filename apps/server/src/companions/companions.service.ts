@@ -1,10 +1,20 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeRevenueSplit } from '../common/revenue-calculator';
+import type { RevenueSplitTier } from '../common/revenue-calculator';
+import { CompanionRevenueService } from './companion-revenue.service';
+import { CompanionAttendanceService } from './companion-attendance.service';
+import { CompanionWechatService } from './companion-wechat.service';
 
 @Injectable()
 export class CompanionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly revenueService: CompanionRevenueService,
+    private readonly attendanceService: CompanionAttendanceService,
+    private readonly wechatService: CompanionWechatService,
+  ) {}
 
   async findAll(user: any) {
     const where: any = {};
@@ -18,7 +28,7 @@ export class CompanionsService {
     });
 
     // Derive processStatus from recent kill logs (30min window)
-    const ids = companions.map(c => c.id);
+    const ids = companions.map((c) => c.id);
     if (ids.length === 0) return [];
 
     const recentKills = await this.prisma.processKillLog.groupBy({
@@ -26,24 +36,30 @@ export class CompanionsService {
       where: { companionId: { in: ids }, createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
       _count: { id: true },
     });
-    const killMap = new Map(recentKills.map(k => [k.companionId, k._count.id]));
+    const killMap = new Map(recentKills.map((k) => [k.companionId, k._count.id]));
 
     const blockedKills = await this.prisma.processKillLog.findMany({
-      where: { companionId: { in: ids }, resultText: { contains: 'REPEAT_KILL_ALERT' }, createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
+      where: {
+        companionId: { in: ids },
+        resultText: { contains: 'REPEAT_KILL_ALERT' },
+        createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
+      },
       select: { companionId: true },
       distinct: ['companionId'],
     });
-    const blockedSet = new Set(blockedKills.map(k => k.companionId));
+    const blockedSet = new Set(blockedKills.map((k) => k.companionId));
 
     // Today's order counts per companion
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
     const todayOrders = await this.prisma.order.groupBy({
       by: ['companionId'],
       where: { companionId: { in: ids }, createdAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELLED' } },
       _count: { id: true },
     });
-    const orderCounts = new Map(todayOrders.map(o => [o.companionId, o._count.id]));
+    const orderCounts = new Map(todayOrders.map((o) => [o.companionId, o._count.id]));
 
     // Today's budan counts
     const budanData = await this.prisma.order.findMany({
@@ -51,15 +67,15 @@ export class CompanionsService {
       select: { companionId: true, customFields: true, notes: true },
     });
     const budanCounts = new Map<string, number>();
-    budanData.forEach(o => {
+    budanData.forEach((o) => {
       if ((o.customFields as any)?.deltaNote?.includes('补单') || o.notes?.includes('补单')) {
         budanCounts.set(o.companionId!, (budanCounts.get(o.companionId!) || 0) + 1);
       }
     });
 
-    return companions.map(c => ({
+    return companions.map((c) => ({
       ...c,
-      processStatus: blockedSet.has(c.id) ? 'BLOCKED' : ((killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL'),
+      processStatus: blockedSet.has(c.id) ? 'BLOCKED' : (killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL',
       todayOrderCount: (orderCounts.get(c.id) || 0) + (budanCounts.get(c.id) || 0),
     }));
   }
@@ -81,41 +97,7 @@ export class CompanionsService {
   }
 
   async getRanking(studioId: string, type: string) {
-    const where: any = { studioId };
-    const companions = await this.prisma.companion.findMany({
-      where,
-      select: { id: true, user: { select: { username: true, displayName: true } } },
-    });
-
-    const results = await Promise.all(companions.map(async (c) => {
-      const orders = await this.prisma.order.findMany({
-        where: { companionId: c.id, status: 'DONE' },
-        select: { type: true, amount: true },
-      });
-      const totalAmount = orders.reduce((s,o) => s + o.amount, 0);
-      const totalCount = orders.length;
-      const typeCounts: Record<string,number> = { NEW:0, RENEW:0, REPURCHASE:0, TIP:0 };
-      orders.forEach(o => { typeCounts[o.type] = (typeCounts[o.type]||0) + 1; });
-
-      let score = 0;
-      if (type === 'revenue') score = totalAmount;
-      else if (type === 'new_rate') score = totalCount > 0 ? typeCounts.NEW / totalCount * 100 : 0;
-      else if (type === 'renew_rate') score = totalCount > 0 ? typeCounts.RENEW / totalCount * 100 : 0;
-      else if (type === 'repurchase_rate') score = totalCount > 0 ? typeCounts.REPURCHASE / totalCount * 100 : 0;
-      else if (type === 'tip_ratio') score = totalAmount > 0 ? (orders.filter(o=>o.type==='TIP').reduce((s,o)=>s+o.amount,0)) / totalAmount * 100 : 0;
-
-      const newRate = totalCount > 0 ? Math.round(typeCounts.NEW/totalCount*100) : 0;
-      const renewRate = totalCount > 0 ? Math.round(typeCounts.RENEW/totalCount*100) : 0;
-      const repurchaseRate = totalCount > 0 ? Math.round(typeCounts.REPURCHASE/totalCount*100) : 0;
-      const tipAmount = orders.filter(o=>o.type==='TIP').reduce((s,o)=>s+o.amount,0);
-      const tipRatio = totalAmount > 0 ? Math.round(tipAmount/totalAmount*100) : 0;
-      const rawScore = renewRate*2 + repurchaseRate*3 + tipRatio*2 - newRate*0.5;
-      const qualityScore = Math.round(Math.max(0, Math.min(100, (rawScore + 50) / 170 * 100)));
-      return { companionId: c.id, name: c.user?.displayName || c.user?.username || c.id, totalAmount: Math.round(totalAmount*100)/100, totalCount, newRate, renewRate, repurchaseRate, tipRatio, tipAmount: Math.round(tipAmount*100)/100, qualityScore, score: Math.round(score*100)/100 };
-    }));
-
-    results.sort((a,b) => b.score - a.score);
-    return results.slice(0, 10);
+    return this.revenueService.getRanking(studioId, type);
   }
 
   async getRevenue(id: string) {
@@ -148,35 +130,48 @@ export class CompanionsService {
     const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
 
     // Order type breakdown
-    const orderStats = await Promise.all(['NEW','RENEW','REPURCHASE','TIP'].map(async (type) => {
-      const orders = await this.prisma.order.findMany({
-        where: { companionId, type, status: 'DONE' },
-        select: { amount: true },
-      });
-      const count = orders.length;
-      const amount = orders.reduce((s,o) => s + o.amount, 0);
-      return { type, count, amount };
-    }));
-    const totalCount = orderStats.reduce((s,o) => s + o.count, 0);
-    const statsMap: Record<string,any> = {};
-    orderStats.forEach(({type, count, amount}) => {
-      statsMap[type] = { count, amount: Math.round(amount * 100) / 100, ratio: totalCount > 0 ? Math.round(count/totalCount*100) : 0 };
+    const orderStats = await Promise.all(
+      ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].map(async (type) => {
+        const orders = await this.prisma.order.findMany({
+          where: { companionId, type, status: 'DONE' },
+          select: { amount: true },
+        });
+        const count = orders.length;
+        const amount = orders.reduce((s, o) => s + o.amount, 0);
+        return { type, count, amount };
+      }),
+    );
+    const totalCount = orderStats.reduce((s, o) => s + o.count, 0);
+    const statsMap: Record<string, any> = {};
+    orderStats.forEach(({ type, count, amount }) => {
+      statsMap[type] = {
+        count,
+        amount: Math.round(amount * 100) / 100,
+        ratio: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0,
+      };
     });
 
     // Today's order type breakdown
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
     const todayBreakdownOrders = await this.prisma.order.findMany({
       where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
       select: { type: true, amount: true, customFields: true, notes: true },
     });
-    const todayStats: Record<string,any> = {};
-    ['NEW','RENEW','REPURCHASE','TIP'].forEach(t => { todayStats[t] = { count: 0, amount: 0 }; });
-    todayBreakdownOrders.forEach(o => { todayStats[o.type].count++; todayStats[o.type].amount += o.amount; });
-    const todayTotal = todayBreakdownOrders.reduce((s,o) => s + o.amount, 0);
-    Object.keys(todayStats).forEach(k => {
+    const todayStats: Record<string, any> = {};
+    ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].forEach((t) => {
+      todayStats[t] = { count: 0, amount: 0 };
+    });
+    todayBreakdownOrders.forEach((o) => {
+      todayStats[o.type].count++;
+      todayStats[o.type].amount += o.amount;
+    });
+    const todayTotal = todayBreakdownOrders.reduce((s, o) => s + o.amount, 0);
+    Object.keys(todayStats).forEach((k) => {
       todayStats[k].amount = Math.round(todayStats[k].amount * 100) / 100;
-      todayStats[k].ratio = todayTotal > 0 ? Math.round(todayStats[k].amount / todayTotal * 100) : 0;
+      todayStats[k].ratio = todayTotal > 0 ? Math.round((todayStats[k].amount / todayTotal) * 100) : 0;
     });
 
     // Config thresholds
@@ -249,26 +244,22 @@ export class CompanionsService {
         companionPct: Math.round((companion?.revenueShare ?? 0.6) * 100),
       };
     } else if (companion?.monthlyRevenue) {
-      // TIERED: compute which tier the companion is in
+      // TIERED: compute which tier the companion is in (delegated to revenue-calculator)
       const config = await this.prisma.systemConfig.findUnique({
         where: { key: 'revenue.share_tiers' },
       });
-      const tiers: Array<{ min: number; max: number | null; companion: number }> =
-        (config?.value as any) ?? [
-          { min: 0, max: 5999.99, companion: 50 },
-          { min: 6000, max: 9999, companion: 60 },
-          { min: 10000, max: null, companion: 70 },
-        ];
-      const tier =
-        tiers.find(
-          (t) =>
-            companion.monthlyRevenue >= t.min &&
-            (t.max === null || companion.monthlyRevenue <= t.max),
-        ) || tiers[tiers.length - 1];
+      const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
+      const splitResult = computeRevenueSplit({
+        splitMode,
+        totalRevenue: companion.monthlyRevenue,
+        revenueShare: companion?.revenueShare,
+        tiers: tiers.length > 0 ? tiers : undefined,
+        monthlyRevenue: companion.monthlyRevenue,
+      });
       tierInfo = {
-        mode: 'TIERED',
-        companionPct: tier.companion,
-        monthlyRevenue: Math.round(companion.monthlyRevenue * 100) / 100,
+        mode: splitResult.mode,
+        companionPct: splitResult.companionPct,
+        monthlyRevenue: splitResult.monthlyRevenue,
       };
     }
 
@@ -283,7 +274,7 @@ export class CompanionsService {
       select: { balance: true, deposit: true },
     });
     const availableFunds = (wallet?.balance || 0) + (wallet?.deposit || 0);
-    const buffer30min = Math.round(hourlyRate / 2 * 100) / 100; // half-hour cost
+    const buffer30min = Math.round((hourlyRate / 2) * 100) / 100; // half-hour cost
     const feeBalanceWarning = entertainmentFee >= availableFunds - buffer30min;
     const feeBalanceAlert = entertainmentFee >= availableFunds;
 
@@ -294,10 +285,16 @@ export class CompanionsService {
       this.prisma.order.count({ where: { companionId, contactStatus: 'added' } }),
       this.prisma.order.count({ where: { companionId, contactStatus: 'added', status: 'DONE' } }),
       this.prisma.order.count({ where: { companionId, status: { in: ['CONFIRMED', 'DONE'] } } }),
-      this.prisma.order.count({ where: { companionId, status: { not: 'CANCELLED' }, createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } } }),
+      this.prisma.order.count({
+        where: {
+          companionId,
+          status: { not: 'CANCELLED' },
+          createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        },
+      }),
     ]);
-    const wechatAddRate = monthlyAll > 0 ? Math.round(addedCount / monthlyAll * 100) : 0;
-    const conversionRate = startedCount > 0 ? Math.round(convertedCount / startedCount * 100) : 0;
+    const wechatAddRate = monthlyAll > 0 ? Math.round((addedCount / monthlyAll) * 100) : 0;
+    const conversionRate = startedCount > 0 ? Math.round((convertedCount / startedCount) * 100) : 0;
     const renewRate = statsMap.RENEW?.ratio || 0;
     const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
 
@@ -326,7 +323,9 @@ export class CompanionsService {
       conversionRate,
       renewRate,
       repurchaseRate,
-      todayBudanCount: todayBreakdownOrders.filter(o => (((o.customFields as Record<string,unknown> | null)?.deltaNote as string) || o.notes || '').includes('补单')).length,
+      todayBudanCount: todayBreakdownOrders.filter((o) =>
+        (((o.customFields as Record<string, unknown> | null)?.deltaNote as string) || o.notes || '').includes('补单'),
+      ).length,
       currentStatus: companion?.status ?? 'OFFLINE',
       splitMode,
       tierInfo,
@@ -341,119 +340,12 @@ export class CompanionsService {
   }
 
   async getWallet(companionId: string) {
-    const companion = await this.prisma.companion.findUnique({
-      where: { id: companionId },
-      select: { deposit: true, balance: true, frozen: true, monthlyRevenue: true, revenueShare: true, studio: { select: { splitMode: true } } },
-    });
-    const transactions = await this.prisma.walletTransaction.findMany({
-      where: { companionId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-
-    // Calculate withdrawable: totalDONE × splitRatio - alreadyWithdrawn
-    const totalRevenue = await this.prisma.order.aggregate({
-      where: { companionId, status: 'DONE' },
-      _sum: { amount: true },
-    });
-    const totalRev = totalRevenue._sum.amount || 0;
-    const withdrawn = transactions
-      .filter(t => t.type === 'WITHDRAW' && t.status === 'APPROVED')
-      .reduce((s, t) => s + t.amount, 0);
-
-    // Determine split ratio
-    const isFixed = companion!.studio?.splitMode === 'FIXED';
-    let share: number;
-    if (isFixed) {
-      const clubCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.club_companion_share' } });
-      const defaultClubShare = (clubCfg?.value as number) ?? 80;
-      share = companion!.revenueShare || (defaultClubShare / 100);
-    } else {
-      const tiersCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.share_tiers' } });
-      const tiers: Array<{ min: number; max: number | null; companion: number }> =
-        (tiersCfg?.value as any) ?? [
-          { min: 0, max: 5999.99, companion: 50 },
-          { min: 6000, max: 9999, companion: 60 },
-          { min: 10000, max: null, companion: 70 },
-        ];
-      const tier = tiers.find(t => totalRev >= t.min && (t.max === null || totalRev <= t.max)) || tiers[0];
-      share = tier.companion / 100;
-    }
-
-    const maxWithdrawable = Math.round(totalRev * share * 100) / 100;
-    const withdrawable = Math.max(0, maxWithdrawable - withdrawn);
-
-    return {
-      deposit: companion!.deposit,
-      balance: companion!.balance,
-      frozen: companion!.frozen,
-      monthlyRevenue: companion!.monthlyRevenue,
-      totalRevenue: Math.round(totalRev * 100) / 100,
-      maxWithdrawable,
-      totalWithdrawn: withdrawn,
-      withdrawable,
-      transactions,
-    };
+    return this.revenueService.getWallet(companionId);
   }
 
   // Check if companion can enter entertainment mode: needs undrawn balance > 0
   async checkEntertainmentBlocked(companionId: string) {
-    const companion = await this.prisma.companion.findUnique({
-      where: { id: companionId },
-      select: { balance: true, deposit: true, revenueShare: true, studio: { select: { splitMode: true } } },
-    });
-    if (!companion) return { reason: '陪玩不存在' };
-
-    const totalBalance = (companion.balance || 0) + (companion.deposit || 0);
-
-    // Total revenue from all DONE orders
-    const totalRevenue = await this.prisma.order.aggregate({
-      where: { companionId, status: 'DONE' },
-      _sum: { amount: true },
-    });
-    const totalRev = totalRevenue._sum.amount || 0;
-
-    // Split ratio: FIXED uses companion.revenueShare, TIERED reads from config
-    const isFixed = companion.studio?.splitMode === 'FIXED';
-    let share: number;
-    if (isFixed) {
-      const clubCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.club_companion_share' } });
-      const defaultClubShare = (clubCfg?.value as number) ?? 80;
-      share = companion.revenueShare || (defaultClubShare / 100);
-    } else {
-      // TIERED: read the lowest tier's companion share from config
-      const tiersCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.share_tiers' } });
-      const tiers: Array<{ min: number; max: number | null; companion: number }> =
-        (tiersCfg?.value as any) ?? [
-          { min: 0, max: 5999.99, companion: 50 },
-          { min: 6000, max: 9999, companion: 60 },
-          { min: 10000, max: null, companion: 70 },
-        ];
-      // Find applicable tier for total revenue
-      const tier = tiers.find(t => totalRev >= t.min && (t.max === null || totalRev <= t.max)) || tiers[0];
-      share = tier.companion / 100;
-    }
-
-    // Already withdrawn
-    const withdrawn = await this.prisma.walletTransaction.aggregate({
-      where: { companionId, type: 'WITHDRAW', status: 'APPROVED' },
-      _sum: { amount: true },
-    });
-    const totalWithdrawn = withdrawn._sum.amount || 0;
-
-    const withdrawable = Math.round(totalRev * share * 100) / 100;
-    const remaining = withdrawable - totalWithdrawn;
-
-    if (remaining <= 0) {
-      return {
-        totalRevenue: totalRev,
-        withdrawable,
-        totalWithdrawn,
-        remaining: Math.round(remaining * 100) / 100,
-        totalBalance: Math.round(totalBalance * 100) / 100,
-      };
-    }
-    return null; // not blocked — has undrawn balance
+    return this.revenueService.checkEntertainmentBlocked(companionId);
   }
 
   async requestWithdraw(companionId: string, amount: number) {
@@ -476,7 +368,8 @@ export class CompanionsService {
   // TASK-08: No-customer proof upload (creates expense report for review)
   async requestProofNoCustomer(companionId: string, note: string) {
     const companion = await this.prisma.companion.findUnique({
-      where: { id: companionId }, select: { studioId: true },
+      where: { id: companionId },
+      select: { studioId: true },
     });
     if (!companion?.studioId) throw new Error('未找到工作室');
     return this.prisma.expenseReport.create({
@@ -514,109 +407,33 @@ export class CompanionsService {
   // ── Work WeChat Management ──
 
   async listWorkWechats(studioId: string) {
-    return this.prisma.workWechat.findMany({
-      where: { studioId },
-      include: { companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } } },
-    });
+    return this.wechatService.listWorkWechats(studioId);
   }
 
   async addWorkWechat(studioId: string, wechatId: string) {
-    return this.prisma.workWechat.create({ data: { studioId, wechatId } });
+    return this.wechatService.addWorkWechat(studioId, wechatId);
   }
 
   async bindWechat(id: string, companionId: string) {
-    return this.prisma.workWechat.update({ where: { id }, data: { companionId, status: 'BOUND' } });
+    return this.wechatService.bindWechat(id, companionId);
   }
 
   async unbindWechat(id: string) {
-    return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
+    return this.wechatService.unbindWechat(id);
   }
 
   // ── Attendance ──
 
   async ensureAttendance(companionId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const now = new Date();
-
-    const existing = await this.prisma.companionAttendance.findUnique({
-      where: { companionId_date: { companionId, date: today } },
-    });
-
-    if (existing) return existing;
-
-    // Read work start time from SystemConfig
-    const workStartCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workStart' } });
-    const workStartStr = (workStartCfg?.value as string) ?? '09:00';
-    const [sh, sm] = workStartStr.split(':').map(Number);
-    const workStart = new Date(today);
-    workStart.setHours(sh, sm, 0, 0);
-
-    const isLate = now > workStart;
-
-    return this.prisma.companionAttendance.create({
-      data: {
-        companionId,
-        date: today,
-        loginAt: now,
-        isLate,
-      },
-    });
+    return this.attendanceService.ensureAttendance(companionId);
   }
 
   async finalizeAttendance(companionId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const now = new Date();
-
-    const record = await this.prisma.companionAttendance.findUnique({
-      where: { companionId_date: { companionId, date: today } },
-    });
-    if (!record) return null;
-
-    const loginAt = new Date(record.loginAt);
-    const workMinutes = Math.floor((now.getTime() - loginAt.getTime()) / 60000);
-
-    // Read work end time from SystemConfig
-    const workEndCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workEnd' } });
-    const workEndStr = (workEndCfg?.value as string) ?? '18:00';
-    const [eh, em] = workEndStr.split(':').map(Number);
-    const workEnd = new Date(today);
-    workEnd.setHours(eh, em, 0, 0);
-
-    const isEarlyLeave = now < workEnd;
-
-    return this.prisma.companionAttendance.update({
-      where: { id: record.id },
-      data: {
-        logoutAt: now,
-        workMinutes,
-        isEarlyLeave,
-      },
-    });
+    return this.attendanceService.finalizeAttendance(companionId);
   }
 
   async getAttendance(filters: { companionId?: string; dateFrom?: string; dateTo?: string }) {
-    const where: any = {};
-    if (filters.companionId) where.companionId = filters.companionId;
-    if (filters.dateFrom || filters.dateTo) {
-      where.date = {};
-      if (filters.dateFrom) where.date.gte = new Date(filters.dateFrom);
-      if (filters.dateTo) where.date.lte = new Date(filters.dateTo);
-    }
-
-    return this.prisma.companionAttendance.findMany({
-      where,
-      include: {
-        companion: {
-          select: {
-            id: true,
-            user: { select: { username: true, displayName: true } },
-          },
-        },
-      },
-      orderBy: { date: 'desc' },
-    });
+    return this.attendanceService.getAttendance(filters);
   }
 
   // ── Status Blacklist CRUD ──
@@ -638,44 +455,131 @@ export class CompanionsService {
   }
 
   // ── Manual financial adjustment (ADMIN/OWNER) ──
-  async updateFinance(companionId: string, data: {
-    todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number;
-    pendingWithdraw?: number; withdrawable?: number; deposit?: number; note?: string;
-  }, operatorId: string) {
+  async updateFinance(
+    companionId: string,
+    data: {
+      todayRevenue?: number;
+      totalRevenue?: number;
+      totalWithdrawn?: number;
+      pendingWithdraw?: number;
+      withdrawable?: number;
+      deposit?: number;
+      note?: string;
+    },
+    operatorId: string,
+  ) {
     const note = data.note || '管理员手动调整';
     const logs: Promise<any>[] = [];
 
     if (data.totalRevenue !== undefined) {
-      const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { monthlyRevenue: true } });
+      const cur = await this.prisma.companion.findUnique({
+        where: { id: companionId },
+        select: { monthlyRevenue: true },
+      });
       const old = cur?.monthlyRevenue || 0;
       await this.prisma.companion.update({ where: { id: companionId }, data: { monthlyRevenue: data.totalRevenue } });
-      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'SETTLEMENT', amount: data.totalRevenue - old, balanceBefore: old, balanceAfter: data.totalRevenue, note, reviewedById: operatorId, status: 'APPROVED' } }));
+      logs.push(
+        this.prisma.walletTransaction.create({
+          data: {
+            companionId,
+            type: 'SETTLEMENT',
+            amount: data.totalRevenue - old,
+            balanceBefore: old,
+            balanceAfter: data.totalRevenue,
+            note,
+            reviewedById: operatorId,
+            status: 'APPROVED',
+          },
+        }),
+      );
     }
 
     if (data.totalWithdrawn !== undefined) {
-      const agg = await this.prisma.walletTransaction.aggregate({ where: { companionId, type: 'WITHDRAW', status: 'APPROVED' }, _sum: { amount: true } });
-      const cur = agg._sum.amount || 0; const diff = data.totalWithdrawn - cur;
-      if (diff !== 0) logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'WITHDRAW', amount: diff, balanceBefore: cur, balanceAfter: data.totalWithdrawn, note, reviewedById: operatorId, status: 'APPROVED' } }));
+      const agg = await this.prisma.walletTransaction.aggregate({
+        where: { companionId, type: 'WITHDRAW', status: 'APPROVED' },
+        _sum: { amount: true },
+      });
+      const cur = agg._sum.amount || 0;
+      const diff = data.totalWithdrawn - cur;
+      if (diff !== 0)
+        logs.push(
+          this.prisma.walletTransaction.create({
+            data: {
+              companionId,
+              type: 'WITHDRAW',
+              amount: diff,
+              balanceBefore: cur,
+              balanceAfter: data.totalWithdrawn,
+              note,
+              reviewedById: operatorId,
+              status: 'APPROVED',
+            },
+          }),
+        );
     }
 
     if (data.pendingWithdraw !== undefined) {
-      const agg = await this.prisma.walletTransaction.aggregate({ where: { companionId, type: 'WITHDRAW', status: 'PENDING' }, _sum: { amount: true } });
-      const cur = agg._sum.amount || 0; const diff = data.pendingWithdraw - cur;
-      if (diff !== 0) logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'WITHDRAW', amount: diff, balanceBefore: cur, balanceAfter: data.pendingWithdraw, note, reviewedById: operatorId, status: 'PENDING' } }));
+      const agg = await this.prisma.walletTransaction.aggregate({
+        where: { companionId, type: 'WITHDRAW', status: 'PENDING' },
+        _sum: { amount: true },
+      });
+      const cur = agg._sum.amount || 0;
+      const diff = data.pendingWithdraw - cur;
+      if (diff !== 0)
+        logs.push(
+          this.prisma.walletTransaction.create({
+            data: {
+              companionId,
+              type: 'WITHDRAW',
+              amount: diff,
+              balanceBefore: cur,
+              balanceAfter: data.pendingWithdraw,
+              note,
+              reviewedById: operatorId,
+              status: 'PENDING',
+            },
+          }),
+        );
     }
 
     if (data.withdrawable !== undefined) {
       const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { balance: true } });
       const old = cur?.balance || 0;
       await this.prisma.companion.update({ where: { id: companionId }, data: { balance: data.withdrawable } });
-      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'SETTLEMENT', amount: data.withdrawable - old, balanceBefore: old, balanceAfter: data.withdrawable, note: note + ' (待支取)', reviewedById: operatorId, status: 'APPROVED' } }));
+      logs.push(
+        this.prisma.walletTransaction.create({
+          data: {
+            companionId,
+            type: 'SETTLEMENT',
+            amount: data.withdrawable - old,
+            balanceBefore: old,
+            balanceAfter: data.withdrawable,
+            note: note + ' (待支取)',
+            reviewedById: operatorId,
+            status: 'APPROVED',
+          },
+        }),
+      );
     }
 
     if (data.deposit !== undefined) {
       const cur = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { deposit: true } });
       const old = cur?.deposit || 0;
       await this.prisma.companion.update({ where: { id: companionId }, data: { deposit: data.deposit } });
-      logs.push(this.prisma.walletTransaction.create({ data: { companionId, type: 'DEPOSIT', amount: data.deposit - old, balanceBefore: old, balanceAfter: data.deposit, note, reviewedById: operatorId, status: 'APPROVED' } }));
+      logs.push(
+        this.prisma.walletTransaction.create({
+          data: {
+            companionId,
+            type: 'DEPOSIT',
+            amount: data.deposit - old,
+            balanceBefore: old,
+            balanceAfter: data.deposit,
+            note,
+            reviewedById: operatorId,
+            status: 'APPROVED',
+          },
+        }),
+      );
     }
 
     await Promise.all(logs);

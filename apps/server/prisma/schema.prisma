@@ -23,6 +23,9 @@ model User {
   studio    Studio?     @relation(fields: [studioId], references: [id])
   companion Companion?
   csOrders  Order[]     @relation("CSUser")
+
+  @@index([studioId])
+  @@index([role])
 }
 
 model Studio {
@@ -81,6 +84,9 @@ model Companion {
   processReports     CompanionProcessReport[]
   processKillLogs    ProcessKillLog[]
   statusBlacklists   CompanionStatusBlacklist[]
+
+  @@index([studioId])
+  @@index([status])
 }
 
 model CompanionPC {
@@ -106,6 +112,8 @@ model CompanionTimeLog {
   durationSeconds Int       @default(0)
 
   companion Companion @relation(fields: [companionId], references: [id])
+
+  @@index([companionId, startedAt])
 }
 
 model CompanionAttendance {
@@ -152,6 +160,12 @@ model Order {
   coCompanion  Companion?    @relation("CoCompanion", fields: [coCompanionId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
   transactions Transaction[]
+
+  @@index([companionId])
+  @@index([customerId])
+  @@index([csUserId])
+  @@index([status])
+  @@index([studioId, createdAt])
 }
 
 model Customer {
@@ -177,6 +191,10 @@ model Customer {
   orders    Order[]
   profile   CustomerProfile?
   followUps CustomerFollowUp[]
+
+  @@index([studioId])
+  @@index([companionId])
+  @@index([status])
 }
 
 model Transaction {
@@ -193,6 +211,9 @@ model Transaction {
 
   order     Order     @relation(fields: [orderId], references: [id])
   companion Companion @relation(fields: [companionId], references: [id])
+
+  @@index([companionId])
+  @@index([status, createdAt])
 }
 
 model RevenueDaily {
@@ -221,6 +242,8 @@ model Expense {
   date        DateTime @default(now())
 
   studio Studio @relation(fields: [studioId], references: [id])
+
+  @@index([studioId, createdAt])
 }
 
 model PCOperationLog {
@@ -271,6 +294,9 @@ model ExpenseReport {
 
   companion     Companion @relation(fields: [companionId], references: [id])
   studio        Studio    @relation(fields: [studioId], references: [id])
+
+  @@index([companionId])
+  @@index([studioId, status])
 }
 
 model WalletTransaction {
@@ -286,9 +312,10 @@ model WalletTransaction {
   createdAt     DateTime @default(now())
 
   companion Companion @relation(fields: [companionId], references: [id])
-}
 
-model CustomerProfile {
+  @@index([companionId])
+  @@index([createdAt])
+}
   id                    String   @id @default(uuid())
   customerId            String   @unique
   age                   Int?

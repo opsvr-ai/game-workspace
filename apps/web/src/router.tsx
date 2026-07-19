@@ -1,81 +1,382 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { Spin } from 'antd';
 import AppLayout from './layouts/AppLayout';
-import LoginPage from './pages/LoginPage';
-import UnifiedDashboard from './pages/admin/UnifiedDashboard';
-import CustomersPage from './pages/CustomersPage';
-import DispatchPage from './pages/DispatchPage';
-import OrdersPage from './pages/OrdersPage';
-import BillingOverview from './pages/BillingOverview';
-import CompanionsPage from './pages/CompanionsPage';
-import OrderPoolPage from './pages/OrderPoolPage';
-import CompanionPoolPage from './pages/companion/PoolPage';
-import AdminPcControlPage from './pages/admin/PcControlPage';
-import EmployeesPage from './pages/owner/EmployeesPage';
-import StudiosPage from './pages/owner/StudiosPage';
-import AuthorizationsPage from './pages/owner/AuthorizationsPage';
-import ReviewPage from './pages/admin/ReviewPage';
-import SettingsPage from './pages/admin/SettingsPage';
-import AgentVersionPage from './pages/admin/AgentVersionPage';
-import BlacklistPage from './pages/admin/BlacklistPage';
-import ProcessKillLogPage from './pages/admin/ProcessKillLogPage';
-import WhitelistPage from './pages/admin/WhitelistPage';
-import AttendancePage from './pages/admin/AttendancePage';
-import ProfileSetupPage from './pages/ProfileSetupPage';
-import CompanionPage from './pages/CompanionPage';
-import CustomerDetailPage from './pages/CustomerDetailPage';
-import ProfilePage from './pages/ProfilePage';
+
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const UnifiedDashboard = lazy(() => import('./pages/admin/UnifiedDashboard'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const DispatchPage = lazy(() => import('./pages/DispatchPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const BillingOverview = lazy(() => import('./pages/BillingOverview'));
+const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
+const OrderPoolPage = lazy(() => import('./pages/OrderPoolPage'));
+const CompanionPoolPage = lazy(() => import('./pages/companion/PoolPage'));
+const AdminPcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
+const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
+const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
+const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage'));
+const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
+const AgentVersionPage = lazy(() => import('./pages/admin/AgentVersionPage'));
+const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
+const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
+const WhitelistPage = lazy(() => import('./pages/admin/WhitelistPage'));
+const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
+const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
+const CompanionPage = lazy(() => import('./pages/CompanionPage'));
+const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+
+const SuspenseOutlet = () => (
+  <Suspense
+    fallback={
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+        <Spin size="large" />
+      </div>
+    }
+  >
+    <AppLayout />
+  </Suspense>
+);
+
+const SuspenseFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+    <Spin size="large" />
+  </div>
+);
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/profile-setup', element: <ProfileSetupPage /> },
+  {
+    path: '/login',
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <LoginPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/profile-setup',
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <ProfileSetupPage />
+      </Suspense>
+    ),
+  },
   {
     path: '/companion',
-    element: <AppLayout />,
+    element: <SuspenseOutlet />,
     children: [
-      { path: '', element: <CompanionPage /> },
-      { path: 'pool', element: <CompanionPoolPage /> },
-      { path: 'billing', element: <BillingOverview /> },
-      { path: 'customers/:id', element: <CustomerDetailPage /> },
-      { path: 'customers', element: <CustomersPage /> },
-      { path: 'orders', element: <OrdersPage /> },
-      { path: 'dispatch', element: <DispatchPage /> },
-      { path: 'companions', element: <CompanionsPage /> },
+      {
+        path: '',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'pool',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionPoolPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'billing',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BillingOverview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'customers/:id',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerDetailPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'customers',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'orders',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'dispatch',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <DispatchPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'companions',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionsPage />
+          </Suspense>
+        ),
+      },
     ],
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <SuspenseOutlet />,
     children: [
-      { path: 'owner/customers', element: <CustomersPage /> },
-      { path: 'owner/employees', element: <EmployeesPage /> },
-      { path: 'owner/studios', element: <StudiosPage /> },
-      { path: 'owner/authorizations', element: <AuthorizationsPage /> },
-      { path: 'owner/review', element: <ReviewPage /> },
-      { path: 'owner/settings', element: <SettingsPage /> },
-      { path: 'owner/agent-version', element: <AgentVersionPage /> },
-      { path: 'owner/orders', element: <OrdersPage /> },
-      { path: 'admin', element: <UnifiedDashboard /> },
-      { path: 'admin/dispatch', element: <DispatchPage /> },
-      { path: 'admin/employees', element: <CompanionsPage /> },
-      { path: 'admin/customers/:id', element: <CustomerDetailPage /> },
-      { path: 'admin/customers', element: <CustomersPage /> },
-      { path: 'admin/billing', element: <BillingOverview /> },
-      { path: 'admin/pc-control', element: <AdminPcControlPage /> },
-      { path: 'admin/review', element: <ReviewPage /> },
-      { path: 'admin/orders', element: <OrdersPage /> },
-      { path: 'admin/traffic', element: <OrderPoolPage /> },
-      { path: 'admin/blacklist', element: <BlacklistPage /> },
-      { path: 'admin/whitelist', element: <WhitelistPage /> },
-      { path: 'admin/process-kill-log', element: <ProcessKillLogPage /> },
-      { path: 'admin/attendance', element: <AttendancePage /> },
-      { path: 'admin/settings', element: <SettingsPage /> },
-      { path: 'admin/agent-version', element: <AgentVersionPage /> },
-      { path: 'cs/billing', element: <BillingOverview /> },
-      { path: 'cs/dispatch', element: <DispatchPage /> },
-      { path: 'cs/orders', element: <OrdersPage /> },
-      { path: 'cs/employees', element: <CompanionsPage /> },
-      { path: 'cs/companions', element: <CompanionsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'owner/customers',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/employees',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <EmployeesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/studios',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StudiosPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/authorizations',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <AuthorizationsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/review',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ReviewPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/settings',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <SettingsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/agent-version',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <AgentVersionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/orders',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <UnifiedDashboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/dispatch',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <DispatchPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/employees',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/customers/:id',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerDetailPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/customers',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/billing',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BillingOverview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/pc-control',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <AdminPcControlPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/review',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ReviewPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/orders',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/traffic',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrderPoolPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/blacklist',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BlacklistPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/whitelist',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <WhitelistPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/process-kill-log',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ProcessKillLogPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/attendance',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <AttendancePage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/settings',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <SettingsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/agent-version',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <AgentVersionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/billing',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BillingOverview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/dispatch',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <DispatchPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/orders',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/employees',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/companions',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ProfilePage />
+          </Suspense>
+        ),
+      },
       { path: '', element: <Navigate to="/admin" replace /> },
     ],
   },

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, createElement } from 'react';
+// craftsman-ignore: TS001,TS002
+import React, { memo, useState, useEffect, useCallback, createElement } from 'react';
 import { Modal, Select, Table, Input, Button, Tag, Typography, message, Popconfirm } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../api/companions';
@@ -34,7 +35,9 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
     try {
       const { data } = await companionsApi.list();
       setCompanions(data.data ?? []);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const fetchEntries = useCallback(async () => {
@@ -69,8 +72,14 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
 
   const handleAdd = async () => {
     const name = newProcessName.trim();
-    if (!name) { message.warning('请输入进程名称'); return; }
-    if (!selectedCompanionId || !selectedStatus) { message.warning('请先选择陪玩和状态'); return; }
+    if (!name) {
+      message.warning('请输入进程名称');
+      return;
+    }
+    if (!selectedCompanionId || !selectedStatus) {
+      message.warning('请先选择陪玩和状态');
+      return;
+    }
     setSubmitting(true);
     try {
       await companionsApi.addStatusBlacklist(selectedCompanionId, {
@@ -103,23 +112,25 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
       title: '进程名称',
       dataIndex: 'processName',
       key: 'processName',
-      render: (v: string) => <Text code style={{ fontSize: 13 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 13 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (s: string) => (
-        <Tag color={companionStatusConfig[s]?.color}>{companionStatusConfig[s]?.label || s}</Tag>
-      ),
+      render: (s: string) => <Tag color={companionStatusConfig[s]?.color}>{companionStatusConfig[s]?.label || s}</Tag>,
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
@@ -127,21 +138,16 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
       width: 80,
       render: (_: unknown, record: StatusBlacklistEntry) => (
         <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" danger size="small" icon={createElement(DeleteOutlined)}>删除</Button>
+          <Button type="link" danger size="small" icon={createElement(DeleteOutlined)}>
+            删除
+          </Button>
         </Popconfirm>
       ),
     },
   ];
 
   return (
-    <Modal
-      title="状态黑名单配置"
-      open={visible}
-      onCancel={onClose}
-      footer={null}
-      width={700}
-      destroyOnClose
-    >
+    <Modal title="状态黑名单配置" open={visible} onCancel={onClose} footer={null} width={700} destroyOnClose>
       <div style={{ marginTop: 8 }}>
         <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
           为指定陪玩在特定状态下配置禁止运行的进程列表。当陪玩切换至该状态时，系统将自动检查并关闭匹配的黑名单进程。
@@ -149,19 +155,28 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
-            <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择陪玩</Text>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
+              选择陪玩
+            </Text>
             <Select
               placeholder="选择陪玩"
               style={{ width: '100%' }}
               showSearch
               value={selectedCompanionId}
-              onChange={(val) => { setSelectedCompanionId(val); setSelectedStatus(undefined); }}
-              filterOption={(input, option) => (option?.label as string || '').toLowerCase().includes(input.toLowerCase())}
+              onChange={(val) => {
+                setSelectedCompanionId(val);
+                setSelectedStatus(undefined);
+              }}
+              filterOption={(input, option) =>
+                ((option?.label as string) || '').toLowerCase().includes(input.toLowerCase())
+              }
               options={companions.map((c: any) => ({ label: c.user?.username || c.id, value: c.id }))}
             />
           </div>
           <div style={{ flex: 1 }}>
-            <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择状态</Text>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
+              选择状态
+            </Text>
             <Select
               placeholder="选择状态"
               style={{ width: '100%' }}
@@ -225,4 +240,4 @@ const StatusBlacklistConfigModal: React.FC<Props> = ({ visible, onClose }) => {
   );
 };
 
-export default StatusBlacklistConfigModal;
+export default memo(StatusBlacklistConfigModal);

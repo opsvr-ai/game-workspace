@@ -5,33 +5,15 @@ import { authApi } from '../api/client';
 interface AuthState {
   user: UserInfo | null;
   isAuthenticated: boolean;
-  chatActive: boolean;
-  chatPartner: string;
   login: (dto: LoginRequest) => Promise<UserInfo>;
   logout: () => void;
   fetchUser: () => Promise<UserInfo | null>;
   setUser: (user: UserInfo) => void;
-  setChatActive: (active: boolean, partner?: string) => void;
-  chatCompanionIds: string[];
-  addChatCompanion: (companionId: string) => void;
-  clearChatCompanions: () => void;
-  chatUnread: Record<string, number>;
-  addChatUnread: (companionId: string) => void;
-  clearChatUnread: (companionId: string) => void;
-  lastReadTs: Record<string, number>;
-  markRead: (key: string, msgCount?: number) => void;
-  isChatOpen: boolean;
-  setChatOpen: (open: boolean) => void;
-  grabbedOrder: any | null;
-  setGrabbedOrder: (order: any | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: !!sessionStorage.getItem('accessToken'),
-  chatActive: false,
-  chatPartner: '',
-  chatCompanionIds: [],
 
   login: async (dto: LoginRequest) => {
     const { data } = await authApi.login(dto);
@@ -67,33 +49,4 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user: UserInfo) => {
     set({ user, isAuthenticated: true });
   },
-  setChatActive: (active: boolean, partner?: string) => {
-    set({ chatActive: active, chatPartner: partner || '' });
-  },
-  addChatCompanion: (companionId: string) => {
-    set((s) => ({
-      chatCompanionIds: s.chatCompanionIds.includes(companionId)
-        ? s.chatCompanionIds
-        : [companionId, ...s.chatCompanionIds],
-    }));
-  },
-  clearChatCompanions: () => set({ chatCompanionIds: [] }),
-  chatUnread: {},
-  addChatUnread: (companionId: string) => set((s) => ({
-    chatUnread: { ...s.chatUnread, [companionId]: (s.chatUnread[companionId] || 0) + 1 },
-  })),
-  clearChatUnread: (companionId: string) => set((s) => {
-    const { [companionId]: _, ...rest } = s.chatUnread;
-    return { chatUnread: rest };
-  }),
-  lastReadTs: {},
-  markRead: (key: string, msgCount?: number) => {
-    const count = msgCount ?? 0;
-    localStorage.setItem(`chat-lastRead-${key}`, String(count));
-    set((s) => ({ lastReadTs: { ...s.lastReadTs, [key]: count } as any }));
-  },
-  isChatOpen: false,
-  setChatOpen: (open: boolean) => set({ isChatOpen: open }),
-  grabbedOrder: null,
-  setGrabbedOrder: (order: any | null) => set({ grabbedOrder: order }),
 }));

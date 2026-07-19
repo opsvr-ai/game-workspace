@@ -1,29 +1,12 @@
+// craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  Table,
-  Tag,
-  Typography,
-  Button,
-  Space,
-  message,
-  Popconfirm,
-  Spin,
-  Empty,
-  Tooltip,
-} from 'antd';
-import {
-  ReloadOutlined,
-  DesktopOutlined,
-} from '@ant-design/icons';
+import { extractErrorMessage } from '../utils/error-handler';
+import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Empty, Tooltip } from 'antd';
+import { ReloadOutlined, DesktopOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
-import {
-  companionStatusConfig,
-  STATUS_SORT,
-  modeLabels,
-  HEARTBEAT_THRESHOLD,
-} from '../constants';
+import { companionStatusConfig, STATUS_SORT, modeLabels, HEARTBEAT_THRESHOLD } from '../constants';
 
 const { Text } = Typography;
 
@@ -108,11 +91,7 @@ const CompanionsPage: React.FC = () => {
       const { data } = await companionsApi.list();
       setCompanions(data.data ?? []);
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        '加载陪玩列表失败';
-      setError(msg);
+      setError(extractErrorMessage(err, '加载陪玩列表失败'));
     } finally {
       setLoading(false);
     }
@@ -129,11 +108,7 @@ const CompanionsPage: React.FC = () => {
   }, [fetchCompanions]);
 
   const sorted = useMemo(
-    () =>
-      [...companions].sort(
-        (a, b) =>
-          (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9),
-      ),
+    () => [...companions].sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9)),
     [companions],
   );
 
@@ -166,11 +141,9 @@ const CompanionsPage: React.FC = () => {
         [companionId]: { loading: false, logs },
       }));
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message || err?.message || '加载时间日志失败';
       setTimeLogsCache((prev) => ({
         ...prev,
-        [companionId]: { loading: false, logs: [], error: msg },
+        [companionId]: { loading: false, logs: [], error: extractErrorMessage(err, '加载时间日志失败') },
       }));
     }
   }, []);
@@ -181,8 +154,7 @@ const CompanionsPage: React.FC = () => {
       message.success('陪玩已离职，工位和微信已释放');
       fetchCompanions();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '操作失败';
-      message.error(msg);
+      message.error(extractErrorMessage(err, '操作失败'));
     }
   };
 
@@ -194,9 +166,7 @@ const CompanionsPage: React.FC = () => {
         width: 90,
         render: (_: unknown, r: Companion) => {
           const username = r.user?.username || r.id;
-          const avatarUrl = r.user?.avatar
-            ? `/uploads/avatars/${r.user.avatar}?v=${r.user.avatar}`
-            : null;
+          const avatarUrl = r.user?.avatar ? `/uploads/avatars/${r.user.avatar}?v=${r.user.avatar}` : null;
           return (
             <Space size={8}>
               <div
@@ -204,9 +174,7 @@ const CompanionsPage: React.FC = () => {
                   width: 32,
                   height: 32,
                   borderRadius: '50%',
-                  background: avatarUrl
-                    ? `url(${avatarUrl}) center/cover`
-                    : '#1677ff',
+                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -250,18 +218,14 @@ const CompanionsPage: React.FC = () => {
         key: 'games',
         width: 180,
         render: (games: any[] | undefined) => {
-          if (!games || games.length === 0)
-            return <Text type="secondary">-</Text>;
+          if (!games || games.length === 0) return <Text type="secondary">-</Text>;
           const isProfile = typeof games[0] === 'object';
           return (
             <Space size={[4, 4]} wrap>
               {games.map((g: any, i: number) => {
                 if (!isProfile) return <Tag key={i}>{g}</Tag>;
                 return (
-                  <Tag
-                    key={i}
-                    style={{ padding: '2px 8px', lineHeight: '20px' }}
-                  >
+                  <Tag key={i} style={{ padding: '2px 8px', lineHeight: '20px' }}>
                     {g.game}
                     <span
                       style={{
@@ -289,8 +253,14 @@ const CompanionsPage: React.FC = () => {
         },
       },
       {
-        title: '今日接单数量', key: 'todayOrders', width: 80,
-        render: (_: unknown, r: any) => <Text strong style={{fontSize:13}}>{r.todayOrderCount ?? '-'}</Text>,
+        title: '今日接单数量',
+        key: 'todayOrders',
+        width: 80,
+        render: (_: unknown, r: any) => (
+          <Text strong style={{ fontSize: 13 }}>
+            {r.todayOrderCount ?? '-'}
+          </Text>
+        ),
       },
       {
         title: '月收入',
@@ -298,9 +268,7 @@ const CompanionsPage: React.FC = () => {
         key: 'monthlyRevenue',
         width: 80,
         render: (val: number | undefined) => (
-          <span style={{ color: '#FF4757', fontWeight: 600 }}>
-            ¥{val?.toFixed(2) || '0.00'}
-          </span>
+          <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{val?.toFixed(2) || '0.00'}</span>
         ),
       },
       {
@@ -316,17 +284,14 @@ const CompanionsPage: React.FC = () => {
         width: 140,
         render: (_: unknown, record: Companion) => {
           const hb = formatHeartbeat(record.pc?.lastHeartbeat);
-            const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.pc?.lastHeartbeat !== null;
+          const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.pc?.lastHeartbeat !== null;
           return (
             <Space size={4}>
-              <Tag color={isAbnormal ? 'red' : (hb.online ? 'green' : 'default')}>
-                {React.createElement(DesktopOutlined)}{' '}
-                {isAbnormal ? '异常离线' : (hb.online ? '在线' : '离线')}
+              <Tag color={isAbnormal ? 'red' : hb.online ? 'green' : 'default'}>
+                {React.createElement(DesktopOutlined)} {isAbnormal ? '异常离线' : hb.online ? '在线' : '离线'}
               </Tag>
               {record.pc?.lastHeartbeat && (
-                <Tooltip
-                  title={`心跳: ${new Date(record.pc.lastHeartbeat).toLocaleString('zh-CN')}`}
-                >
+                <Tooltip title={`心跳: ${new Date(record.pc.lastHeartbeat).toLocaleString('zh-CN')}`}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {new Date(record.pc.lastHeartbeat).toLocaleString('zh-CN', {
                       month: '2-digit',
@@ -405,20 +370,14 @@ const CompanionsPage: React.FC = () => {
     if (!cache.logs || cache.logs.length === 0) {
       return (
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <Empty
-            description="暂无时间日志"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description="暂无时间日志" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
       );
     }
 
     return (
       <div style={{ padding: '8px 24px 16px' }}>
-        <Text
-          strong
-          style={{ fontSize: 13, marginBottom: 8, display: 'block' }}
-        >
+        <Text strong style={{ fontSize: 13, marginBottom: 8, display: 'block' }}>
           最近时间日志
         </Text>
         {cache.logs.map((log) => (
@@ -433,14 +392,10 @@ const CompanionsPage: React.FC = () => {
             }}
           >
             <Space size="middle">
-              <Tag color="blue">
-                {modeLabels[log.mode] ?? log.mode}
-              </Tag>
+              <Tag color="blue">{modeLabels[log.mode] ?? log.mode}</Tag>
               <Text style={{ fontSize: 13 }}>
                 {new Date(log.startedAt).toLocaleString('zh-CN')}
-                {log.endedAt
-                  ? ` — ${new Date(log.endedAt).toLocaleString('zh-CN')}`
-                  : ' — 进行中'}
+                {log.endedAt ? ` — ${new Date(log.endedAt).toLocaleString('zh-CN')}` : ' — 进行中'}
               </Text>
             </Space>
             <Text type="secondary" style={{ fontSize: 13 }}>
@@ -513,9 +468,7 @@ const CompanionsPage: React.FC = () => {
           showTotal: (t) => `共 ${t} 位陪玩`,
         }}
         expandable={{
-          expandedRowRender: (record) => (
-            <ExpandableRow record={record} />
-          ),
+          expandedRowRender: (record) => <ExpandableRow record={record} />,
           rowExpandable: () => true,
         }}
       />

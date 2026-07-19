@@ -1,4 +1,16 @@
-import { Controller, Get, Put, Post, Delete, Param, Body, Req, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Delete,
+  Param,
+  Body,
+  Req,
+  Query,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CompanionsService } from './companions.service';
@@ -10,10 +22,21 @@ import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 
 // 内存聊天消息存储 — senderId 用于动态计算 from
-interface ChatMsgStore { text: string; senderId: string; time: string; }
-interface ChatMsg { text: string; from: string; time: string; }
+interface ChatMsgStore {
+  text: string;
+  senderId: string;
+  time: string;
+}
+interface ChatMsg {
+  text: string;
+  from: string;
+  time: string;
+}
 const chatMessages = new Map<string, Map<string, ChatMsgStore[]>>();
-const chatNotifications = new Map<string, { companionName: string; companionId: string; timestamp: number; message?: string; orderId?: string }>();
+const chatNotifications = new Map<
+  string,
+  { companionName: string; companionId: string; timestamp: number; message?: string; orderId?: string }
+>();
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -49,12 +72,17 @@ export class CompanionsController {
       notif = chatNotifications.get(`${studioId}:${orderId}`);
     } else {
       for (const [k, v] of chatNotifications) {
-        if (k.startsWith(`${studioId}:`) && v.companionName !== req.user?.username && (Date.now() - v.timestamp < 30000)) {
-          notif = v; break;
+        if (
+          k.startsWith(`${studioId}:`) &&
+          v.companionName !== req.user?.username &&
+          Date.now() - v.timestamp < 30000
+        ) {
+          notif = v;
+          break;
         }
       }
     }
-    const hasNew = notif && notif.companionName !== req.user?.username && (Date.now() - notif.timestamp < 30000);
+    const hasNew = notif && notif.companionName !== req.user?.username && Date.now() - notif.timestamp < 30000;
 
     // Get messages for the requested orderId, or from notification
     const msgOrderId = orderId || notif?.orderId || '';
@@ -63,7 +91,11 @@ export class CompanionsController {
     if (msgOrderId) {
       const memMsgs = chatMessages.get(studioId)?.get(msgOrderId);
       if (memMsgs && memMsgs.length > 0) {
-        messages = memMsgs.map(m => ({ text: m.text, from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them', time: m.time }));
+        messages = memMsgs.map((m) => ({
+          text: m.text,
+          from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
+          time: m.time,
+        }));
       } else {
         // Fall back to database (survives server restart)
         try {
@@ -72,12 +104,12 @@ export class CompanionsController {
             orderBy: { createdAt: 'asc' },
             take: 200,
           });
-          const dbRawMsgs = dbMsgs.map(m => ({
+          const dbRawMsgs = dbMsgs.map((m) => ({
             text: m.text,
             senderId: m.senderId,
             time: m.createdAt.toISOString(),
           }));
-          messages = dbRawMsgs.map(m => ({
+          messages = dbRawMsgs.map((m) => ({
             text: m.text,
             from: m.senderId === (req.user.id || req.user.userId) ? 'me' : 'them',
             time: m.time,
@@ -86,7 +118,9 @@ export class CompanionsController {
           if (dbRawMsgs.length > 0 && chatMessages.has(studioId)) {
             chatMessages.get(studioId)!.set(msgOrderId, dbRawMsgs);
           }
-        } catch { /* DB read failure is non-critical; in-memory messages still work */ }
+        } catch (err) {
+          logger.error('DB chat message read failed', { error: (err as Error).message });
+        }
       }
     }
 
@@ -98,17 +132,23 @@ export class CompanionsController {
           select: { user: { select: { avatar: true } } },
         });
         avatar = companion?.user?.avatar ?? null;
-      } catch {}
+      } catch (err) {
+        logger.error('Companion avatar fetch failed', { error: (err as Error).message });
+      }
     }
 
-    return { code: 200, message: 'ok', data: {
-      hasNew: !!hasNew,
-      companionName: notif?.companionName,
-      companionId: notif?.companionId,
-      orderId: notif?.orderId || orderId,
-      avatar,
-      messages,
-    }};
+    return {
+      code: 200,
+      message: 'ok',
+      data: {
+        hasNew: !!hasNew,
+        companionName: notif?.companionName,
+        companionId: notif?.companionId,
+        orderId: notif?.orderId || orderId,
+        avatar,
+        messages,
+      },
+    };
   }
 
   @Get('companions/me/workbench')
@@ -144,7 +184,11 @@ export class CompanionsController {
   @Post('companions/me/request-dual')
   @Roles(UserRole.COMPANION)
   async requestDualCompanion(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const result = await this.companionsService.requestDualCompanion(req.user.companionId, req.user.studioId, req.user.username);
+    const result = await this.companionsService.requestDualCompanion(
+      req.user.companionId,
+      req.user.studioId,
+      req.user.username,
+    );
     if (result.studioId) {
       this.wsGateway.broadcastToStudio(result.studioId, 'order:dual-request', {
         companionId: result.companionId,
@@ -216,10 +260,7 @@ export class CompanionsController {
 
   @Put('companions/me/status')
   @Roles(UserRole.COMPANION)
-  async updateMyStatus(
-    @Body('status') status: string,
-    @Req() req: any,
-  ): Promise<ApiResponse<unknown>> {
+  async updateMyStatus(@Body('status') status: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const id = req.user.companionId;
     if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
 
@@ -248,15 +289,21 @@ export class CompanionsController {
     if (status === 'ENTERTAINMENT') {
       const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true } });
       if (companion) {
-        const depositCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } });
-        const revenueCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } });
+        const depositCfg = await this.prisma.systemConfig.findUnique({
+          where: { key: 'entertainment.deposit_threshold' },
+        });
+        const revenueCfg = await this.prisma.systemConfig.findUnique({
+          where: { key: 'entertainment.revenue_threshold' },
+        });
         const minDeposit = (depositCfg?.value as number) ?? 500;
         const minRevenue = (revenueCfg?.value as number) ?? 200;
         const d = companion.deposit || 0;
 
         // Calculate today's revenue from DONE orders
-        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
         const todayOrders = await this.prisma.order.findMany({
           where: { companionId: id, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
           select: { amount: true },
@@ -264,7 +311,17 @@ export class CompanionsController {
         const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
 
         if (d < minDeposit || todayRevenue < minRevenue) {
-          return { code: 200, message: '不满足娱乐模式条件', data: { blocked: true, deposit: d, revenue: todayRevenue, depositThreshold: minDeposit, revenueThreshold: minRevenue } };
+          return {
+            code: 200,
+            message: '不满足娱乐模式条件',
+            data: {
+              blocked: true,
+              deposit: d,
+              revenue: todayRevenue,
+              depositThreshold: minDeposit,
+              revenueThreshold: minRevenue,
+            },
+          };
         }
       }
     }
@@ -281,7 +338,7 @@ export class CompanionsController {
     @Body() body: { gameProfiles?: { game: string; rank: string; hasAccount: boolean }[] },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    if (req.user.companionId !== id) throw new (require('@nestjs/common').ForbiddenException)('只能更新自己的资料');
+    if (req.user.companionId !== id) throw new ForbiddenException('只能更新自己的资料');
     const data = await this.prisma.companion.update({
       where: { id },
       data: {
@@ -313,14 +370,26 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async agentHeartbeat(
     @Req() req: any,
-    @Body() body: { agentVersion?: string; currentMode?: string; workSec?: number; isThrottled?: boolean; throttleLimitKB?: number },
+    @Body()
+    body: {
+      agentVersion?: string;
+      currentMode?: string;
+      workSec?: number;
+      isThrottled?: boolean;
+      throttleLimitKB?: number;
+    },
   ): Promise<ApiResponse<unknown>> {
     const companionId = req.user.companionId;
     if (!companionId) {
       return { code: 400, message: '当前用户不是陪玩', data: null };
     }
 
-    logger.debug('REST heartbeat', { companionId, username: req.user.username, mode: body.currentMode, workSec: body.workSec });
+    logger.debug('REST heartbeat', {
+      companionId,
+      username: req.user.username,
+      mode: body.currentMode,
+      workSec: body.workSec,
+    });
 
     // 1. 更新在线状态（仅当离线时设为在线，避免覆盖用户主动设置的状态）
     const companion = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { status: true } });
@@ -384,10 +453,7 @@ export class CompanionsController {
   // 踢出陪玩：强制下线
   @Post('companions/:id/kick')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async kickCompanion(
-    @Param('id') id: string,
-    @Req() req: any,
-  ): Promise<ApiResponse<unknown>> {
+  async kickCompanion(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     // 1. 发送踢出指令给 Agent
     this.wsGateway.sendCommand(id, 'kick', { reason: '管理员强制下线' });
 
@@ -412,7 +478,10 @@ export class CompanionsController {
   // 聊天通知：陪玩端发送消息时通知客服
   @Post('companions/chat-notify')
   @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async chatNotify(@Req() req: any, @Body() body: { orderId?: string; message?: string; time?: string }): Promise<ApiResponse<unknown>> {
+  async chatNotify(
+    @Req() req: any,
+    @Body() body: { orderId?: string; message?: string; time?: string },
+  ): Promise<ApiResponse<unknown>> {
     const username = req.user.username || 'unknown';
     const myCompanionId = req.user.companionId || '';
     const studioId = req.user.studioId;
@@ -424,7 +493,9 @@ export class CompanionsController {
     if (!chatMessages.has(studioId)) chatMessages.set(studioId, new Map());
     const studioMsgs = chatMessages.get(studioId)!;
     if (!studioMsgs.has(chatKey)) studioMsgs.set(chatKey, []);
-    const time = body.time || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`;
+    const time =
+      body.time ||
+      `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
     const senderId = req.user.id || req.user.userId || username;
     studioMsgs.get(chatKey)!.push({
       text: msgText,
@@ -443,12 +514,16 @@ export class CompanionsController {
           text: msgText,
         },
       });
-    } catch { /* DB write failure is non-critical; in-memory messages still work */ }
+    } catch (err) {
+      logger.error('DB chat message write failed', { error: (err as Error).message });
+    }
 
     // Store notification keyed by orderId, preserve companionId for avatar
     chatNotifications.set(`${studioId}:${chatKey}`, {
-      companionName: username, companionId: myCompanionId,
-      timestamp: Date.now(), message: msgText,
+      companionName: username,
+      companionId: myCompanionId,
+      timestamp: Date.now(),
+      message: msgText,
       orderId: chatKey,
     });
     // WebSocket broadcast
@@ -456,11 +531,23 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data: null };
   }
 
-
   // ── Manual financial adjustment (ADMIN/OWNER) ──
   @Put('companions/:id/finance')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
-  async updateFinance(@Param('id') id: string, @Body() dto: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; withdrawable?: number; deposit?: number; note?: string }, @Req() req: any): Promise<ApiResponse<unknown>> {
+  async updateFinance(
+    @Param('id') id: string,
+    @Body()
+    dto: {
+      todayRevenue?: number;
+      totalRevenue?: number;
+      totalWithdrawn?: number;
+      pendingWithdraw?: number;
+      withdrawable?: number;
+      deposit?: number;
+      note?: string;
+    },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.updateFinance(id, dto, req.user.id);
     return { code: 200, message: '财务数据已更新', data };
   }
@@ -474,7 +561,10 @@ export class CompanionsController {
 
   @Post('companions/:id/status-blacklist')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async addStatusBlacklist(@Param('id') id: string, @Body() dto: { status: string; processName: string }): Promise<ApiResponse<unknown>> {
+  async addStatusBlacklist(
+    @Param('id') id: string,
+    @Body() dto: { status: string; processName: string },
+  ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.addStatusBlacklist(id, dto.status, dto.processName);
     return { code: 201, message: 'ok', data };
   }

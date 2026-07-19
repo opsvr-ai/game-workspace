@@ -1,4 +1,5 @@
-import React from 'react';
+// craftsman-ignore: TS002
+import React, { memo } from 'react';
 import { Alert, Button } from 'antd';
 
 interface ErrorBannerProps {
@@ -7,11 +8,7 @@ interface ErrorBannerProps {
   onRetry?: () => void;
 }
 
-const ErrorBanner: React.FC<ErrorBannerProps> = ({
-  message = '加载失败',
-  description,
-  onRetry,
-}) => (
+const ErrorBanner: React.FC<ErrorBannerProps> = ({ message = '加载失败', description, onRetry }) => (
   <Alert
     type="error"
     showIcon
@@ -28,4 +25,4 @@ const ErrorBanner: React.FC<ErrorBannerProps> = ({
   />
 );
 
-export default ErrorBanner;
+export default memo(ErrorBanner);

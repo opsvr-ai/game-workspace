@@ -39,9 +39,12 @@ const LoginPage: React.FC = () => {
   // ID number validation
   const validateIdNumber = (id: string): boolean => {
     if (!/^\d{17}[\dXx]$/.test(id)) return false;
-    const weights = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2];
-    const checkChars = ['1','0','X','9','8','7','6','5','4','3','2'];
-    const sum = id.slice(0,17).split('').reduce((s, d, i) => s + parseInt(d) * weights[i], 0);
+    const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+    const checkChars = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+    const sum = id
+      .slice(0, 17)
+      .split('')
+      .reduce((s, d, i) => s + parseInt(d) * weights[i], 0);
     return checkChars[sum % 11] === id[17].toUpperCase();
   };
   const [idNumberError, setIdNumberError] = useState('');
@@ -58,11 +61,17 @@ const LoginPage: React.FC = () => {
   };
 
   useEffect(() => {
-    http.get('/studios').then(({ data }) => setStudios(data.data ?? [])).catch(() => {});
+    http
+      .get('/studios')
+      .then(({ data }) => setStudios(data.data ?? []))
+      .catch(() => {});
   }, []);
 
   const handleLogin = async () => {
-    if (!username || !password) { message.warning('请输入用户名和密码'); return; }
+    if (!username || !password) {
+      message.warning('请输入用户名和密码');
+      return;
+    }
     setLoading(true);
     try {
       const user = await login({ username, password });
@@ -73,7 +82,8 @@ const LoginPage: React.FC = () => {
           const { data } = await http.get(`/companions/${user.companionId}`);
           const companion = data.data;
           const games = companion?.games;
-          const isEmpty = !games || !Array.isArray(games) || games.length === 0 || (games.length > 0 && typeof games[0] === 'string');
+          const isEmpty =
+            !games || !Array.isArray(games) || games.length === 0 || (games.length > 0 && typeof games[0] === 'string');
           if (isEmpty) {
             navigate('/profile-setup', { replace: true });
             return;
@@ -83,7 +93,9 @@ const LoginPage: React.FC = () => {
       navigate(roleRouteMap[user.role] || '/login', { replace: true });
     } catch (err: any) {
       message.error(err?.response?.data?.message || '登录失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -114,7 +126,9 @@ const LoginPage: React.FC = () => {
       setMode('login');
     } catch (err: any) {
       message.error(err?.response?.data?.message || '注册失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -127,14 +141,40 @@ const LoginPage: React.FC = () => {
         {mode === 'login' ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Input size="large" placeholder="用户名" prefix={IconUser}
-                value={username} onChange={(e) => setUsername(e.target.value)} onPressEnter={handleLogin} />
-              <Input.Password size="large" placeholder="密码" prefix={IconLock}
-                value={password} onChange={(e) => setPassword(e.target.value)} onPressEnter={handleLogin} />
-              <Button type="primary" size="large" block loading={loading} onClick={handleLogin}
-                style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4,
-                  background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', border: 'none', color: '#FFF',
-                  boxShadow: '0 2px 8px rgba(123,97,255,0.3)' }}>
+              <Input
+                size="large"
+                placeholder="用户名"
+                prefix={IconUser}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onPressEnter={handleLogin}
+              />
+              <Input.Password
+                size="large"
+                placeholder="密码"
+                prefix={IconLock}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onPressEnter={handleLogin}
+              />
+              <Button
+                type="primary"
+                size="large"
+                block
+                loading={loading}
+                onClick={handleLogin}
+                style={{
+                  height: 46,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  borderRadius: 10,
+                  marginTop: 4,
+                  background: 'var(--color-gradient-brand)',
+                  border: 'none',
+                  color: '#FFF',
+                  boxShadow: '0 2px 8px rgba(123,97,255,0.3)',
+                }}
+              >
                 登 录
               </Button>
             </div>
@@ -147,25 +187,93 @@ const LoginPage: React.FC = () => {
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
-              <Input size="large" placeholder="用户名 *" value={username} onChange={(e) => setUsername(e.target.value)} />
-              <Input.Password size="large" placeholder="密码 *" value={password} onChange={(e) => setPassword(e.target.value)} />
-              <Input size="large" placeholder="真实姓名 *" value={realName} onChange={(e) => setRealName(e.target.value)} onBlur={() => { if (realName && !/^[\u4e00-\u9fa5]{2,4}$/.test(realName)) message.warning("姓名应为2-4个中文字符"); }} />
-              <Input size="large" placeholder="身份证号 *" value={idNumber} onChange={(e) => handleIdNumberChange(e.target.value)} status={idNumberError ? "error" : undefined} /><div style={{color:'#FF4757',fontSize:12,marginTop:-8,marginBottom:8,textAlign:'left'}}>{idNumberError || '\u00A0'}</div>
+              <Input
+                size="large"
+                placeholder="用户名 *"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <Input.Password
+                size="large"
+                placeholder="密码 *"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Input
+                size="large"
+                placeholder="真实姓名 *"
+                value={realName}
+                onChange={(e) => setRealName(e.target.value)}
+                onBlur={() => {
+                  if (realName && !/^[\u4e00-\u9fa5]{2,4}$/.test(realName)) message.warning('姓名应为2-4个中文字符');
+                }}
+              />
+              <Input
+                size="large"
+                placeholder="身份证号 *"
+                value={idNumber}
+                onChange={(e) => handleIdNumberChange(e.target.value)}
+                status={idNumberError ? 'error' : undefined}
+              />
+              <div style={{ color: '#FF4757', fontSize: 12, marginTop: -8, marginBottom: 8, textAlign: 'left' }}>
+                {idNumberError || '\u00A0'}
+              </div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <Select size="large" placeholder="选择工作室 *" value={registerStudioId || undefined} onChange={(v) => setRegisterStudioId(v)}>
-                {studios.map((s) => <Option key={s.id} value={s.id}>{s.name}</Option>)}
+              <Select
+                size="large"
+                placeholder="选择工作室 *"
+                value={registerStudioId || undefined}
+                onChange={(v) => setRegisterStudioId(v)}
+              >
+                {studios.map((s) => (
+                  <Option key={s.id} value={s.id}>
+                    {s.name}
+                  </Option>
+                ))}
               </Select>
               <div style={{ display: 'flex', gap: 12 }}>
-                <Upload beforeUpload={(f) => { setIdCardFront(f); return false; }} maxCount={1} accept="image/*">
-                  <Button icon={React.createElement(UploadOutlined)}>{idCardFront ? '✓ 正面已选' : '身份证正面 *'}</Button>
+                <Upload
+                  beforeUpload={(f) => {
+                    setIdCardFront(f);
+                    return false;
+                  }}
+                  maxCount={1}
+                  accept="image/*"
+                >
+                  <Button icon={React.createElement(UploadOutlined)}>
+                    {idCardFront ? '✓ 正面已选' : '身份证正面 *'}
+                  </Button>
                 </Upload>
-                <Upload beforeUpload={(f) => { setIdCardBack(f); return false; }} maxCount={1} accept="image/*">
-                  <Button icon={React.createElement(UploadOutlined)}>{idCardBack ? '✓ 反面已选' : '身份证反面 *'}</Button>
+                <Upload
+                  beforeUpload={(f) => {
+                    setIdCardBack(f);
+                    return false;
+                  }}
+                  maxCount={1}
+                  accept="image/*"
+                >
+                  <Button icon={React.createElement(UploadOutlined)}>
+                    {idCardBack ? '✓ 反面已选' : '身份证反面 *'}
+                  </Button>
                 </Upload>
               </div>
-              <Button type="primary" size="large" block loading={loading} onClick={handleRegister}
-                style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4,
-                  background: 'linear-gradient(135deg, #7B61FF, #00D4FF)', border: 'none', color: '#FFF' }}>
+              <Button
+                type="primary"
+                size="large"
+                block
+                loading={loading}
+                onClick={handleRegister}
+                style={{
+                  height: 46,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  borderRadius: 10,
+                  marginTop: 4,
+                  background: 'var(--color-gradient-brand)',
+                  border: 'none',
+                  color: '#FFF',
+                }}
+              >
                 提交注册
               </Button>
             </div>
@@ -178,7 +286,11 @@ const LoginPage: React.FC = () => {
         )}
 
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <a href="/api/download/agent" download style={{ color: '#00D4FF', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}>
+          <a
+            href="/api/download/agent"
+            download
+            style={{ color: '#00D4FF', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
+          >
             📥 下载 Windows 客户端
           </a>
         </div>

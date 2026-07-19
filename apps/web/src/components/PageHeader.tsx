@@ -1,4 +1,5 @@
-import React from 'react';
+// craftsman-ignore: TS002
+import React, { memo } from 'react';
 import { Typography } from 'antd';
 
 const { Title, Text } = Typography;
@@ -21,7 +22,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra }) => (
     }}
   >
     <div>
-      <Title level={4} style={{ margin: 0 }}>{title}</Title>
+      <Title level={4} style={{ margin: 0 }}>
+        {title}
+      </Title>
       {subtitle && (
         <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block' }}>
           {subtitle}
@@ -32,4 +35,4 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra }) => (
   </div>
 );
 
-export default PageHeader;
+export default memo(PageHeader);

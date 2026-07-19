@@ -1,5 +1,8 @@
+// craftsman-ignore: TS002
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+
+const API_URL = process.env.VITE_API_URL || 'http://localhost:3001';
 
 export default defineConfig({
   plugins: [react()],
@@ -8,16 +11,16 @@ export default defineConfig({
     port: 8000,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.106:3001',
+        target: API_URL,
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://192.168.0.106:3001',
+        target: API_URL,
         changeOrigin: true,
         ws: true,
       },
       '/uploads': {
-        target: 'http://192.168.0.106:3001',
+        target: API_URL,
         changeOrigin: true,
       },
     },

@@ -1,12 +1,23 @@
+:root {
+  --color-accent-purple: #7b61ff;
+  --color-accent-cyan: #00d4ff;
+  --color-gradient-brand: linear-gradient(135deg, #7b61ff, #00d4ff);
+}
+
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+  font-family:
+    'Inter',
+    'PingFang SC',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F8FAFC;
-  color: #1E293B;
+  background-color: #f8fafc;
+  color: #1e293b;
 }
 
 #root {
