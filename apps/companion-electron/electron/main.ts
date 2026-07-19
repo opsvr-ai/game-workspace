@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'path';
 import { createTray, updateTrayTooltip } from './tray';
 import { connectWebSocket, disconnectWebSocket, onWsEvent } from './websocket';
@@ -233,7 +233,6 @@ function setupWsEvents(): void {
     });
     mainWindow?.webContents.send('ws:pcCommand', data);
   });
-  });
 
   // Blacklist process management events
   onWsEvent('blacklist:update', (data: any) => {
@@ -264,6 +263,7 @@ function setupWsEvents(): void {
 
 // App lifecycle
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   logger.info('Electron app started', { version: app.getVersion() });
   setupIPC();
   setupWsEvents();
