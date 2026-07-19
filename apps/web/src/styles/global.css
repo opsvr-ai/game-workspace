@@ -79,7 +79,7 @@ body {
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(0, 0, 0, 0.02);
   border-left: 3px solid;
-  border-image: linear-gradient(180deg, #7b61ff, #00d4ff) 1;
+  border-left-color: #2563EB;
   transition:
     box-shadow 0.25s,
     transform 0.25s;
@@ -173,10 +173,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
+  background: linear-gradient(180deg, #EFF6FF 0%, #F8FAFC 100%);
 }
 
 .login-card {

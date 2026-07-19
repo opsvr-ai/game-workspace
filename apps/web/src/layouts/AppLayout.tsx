@@ -398,16 +398,16 @@ const AppLayout: React.FC = () => {
   return (
     <>
       <Layout style={{ minHeight: '100vh' }}>
-        {/* ── 深色侧边栏 ── */}
+        {/* ── 浅色侧边栏 ── */}
         <Sider
           collapsible
           collapsed={collapsed}
           onCollapse={setCollapsed}
           trigger={null}
-          width={180}
+          width={200}
           style={{
-            background: '#0F172A',
-            borderRight: 'none',
+            background: '#FFFFFF',
+            borderRight: '1px solid #E2E8F0',
           }}
         >
           {/* Logo 区域 */}
@@ -417,29 +417,26 @@ const AppLayout: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid #F1F5F9',
             }}
           >
             <Text
               style={{
-                fontSize: collapsed ? 14 : 18,
+                fontSize: collapsed ? 16 : 20,
                 fontWeight: 700,
-                letterSpacing: -0.3,
+                letterSpacing: -0.5,
                 whiteSpace: 'nowrap',
-                background: 'var(--color-gradient-brand)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                color: '#2563EB',
               }}
             >
-              {collapsed ? '⚡' : '蠢驴电竞'}
+              {collapsed ? '⚡' : 'Chunlv'}
             </Text>
           </div>
 
           {/* 导航菜单 */}
           <Menu
             mode="inline"
-            theme="dark"
+            theme="light"
             selectedKeys={selectedKeys}
             items={menuItems as MenuProps['items']}
             onClick={onMenuClick}
@@ -470,7 +467,7 @@ const AppLayout: React.FC = () => {
                 textAlign: 'center',
               }}
             >
-              {collapsed ? '' : 'CHUNLV ESports · v2.1'}
+              {collapsed ? '' : 'Chunlv ESports v2.1'}
             </Text>
           </div>
         </Sider>
