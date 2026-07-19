@@ -61,13 +61,16 @@ export class CompanionsController {
     const since = new Date(Date.now() - 30000);
     const recentMsgs = await this.chatService.getRecentMessages(studioId, since);
 
-    const hasNew = recentMsgs.some((m) => m.senderId !== req.user.id);
+    const otherMsgs = recentMsgs.filter((m) => m.senderId !== req.user.id);
+    const hasNew = otherMsgs.length > 0;
 
-    // Get messages for the requested orderId
+    // Use the most recent other message's orderId if none specified
+    const effectiveOrderId = orderId || otherMsgs[0]?.orderId || '';
+
+    // Get messages for the resolved orderId
     let messages: { text: string; from: string; time: string }[] = [];
-    const msgOrderId = orderId || '';
-    if (msgOrderId) {
-      const dbMsgs = await this.chatService.getMessages(studioId, msgOrderId);
+    if (effectiveOrderId) {
+      const dbMsgs = await this.chatService.getMessages(studioId, effectiveOrderId);
       messages = dbMsgs.map((m) => ({
         text: m.text,
         from: m.senderId === req.user.id ? 'me' : 'them',
@@ -76,7 +79,7 @@ export class CompanionsController {
     }
 
     // Find the most recent message not from this user for notification info
-    const lastOther = recentMsgs.find((m) => m.senderId !== req.user.id);
+    const lastOther = otherMsgs[0];
 
     return {
       code: 200,
@@ -85,7 +88,7 @@ export class CompanionsController {
         hasNew,
         companionName: lastOther ? req.user.username : undefined,
         companionId: lastOther?.senderId,
-        orderId: msgOrderId || lastOther?.orderId,
+        orderId: effectiveOrderId,
         avatar: null,
         messages,
       },
