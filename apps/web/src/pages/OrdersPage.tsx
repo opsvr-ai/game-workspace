@@ -80,7 +80,7 @@ const OrdersPage: React.FC = () => {
           <Button
             type="primary"
             size="small"
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            style={{ background: '#16A34A', borderColor: '#16A34A' }}
             onClick={async () => {
               try {
                 await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -127,7 +127,7 @@ const OrdersPage: React.FC = () => {
             <Button
               size="small"
               type="primary"
-              style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
+              style={{ background: '#F59E0B', borderColor: '#F59E0B' }}
               onClick={() => {
                 setPreFill({
                   customerId: r.customer?.id,

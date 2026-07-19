@@ -15,172 +15,80 @@ interface Props {
 
 const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => (
   <Table
-    size="small"
+    size="middle"
     dataSource={dataSource}
     rowKey="id"
     loading={loading}
-    tableLayout="fixed"
-    pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条`, size: 'small' }}
+    pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条`, size: 'default' }}
     columns={[
       {
-        title: '客户编号',
-        dataIndex: 'customerCode',
-        key: 'customerCode',
-        width: 60,
+        title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 80,
         render: (_: any, r: any) => <Text>{r.customer?.customerCode || '-'}</Text>,
       },
       {
-        title: '微信号',
-        key: 'wechatId',
-        width: 70,
-        render: (_: any, r: any) => <Text>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>,
+        title: '微信', key: 'wechatId', width: 90,
+        render: (_: any, r: any) => <Text ellipsis style={{ maxWidth: 90 }}>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>,
       },
       {
-        title: '最近订单',
-        key: 'lastOrder',
-        width: 110,
+        title: '订单', key: 'order', width: 140,
         render: (_: any, r: any) => {
           const cf = r.customFields || {};
           return (
-            <>
-              <Text strong>{r.gameName}</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                <Tag color={orderTypeConfig[r.type]?.color} style={{ fontSize: 10, margin: 0 }}>
-                  {orderTypeConfig[r.type]?.label || r.type}
-                </Tag>{' '}
-                ¥{Number(r.amount).toFixed(0)}
-                {cf.deltaMission && (
-                  <Tag color="red" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
-                    {cf.deltaMission}
-                  </Tag>
-                )}
-                {cf.deltaCount && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
-                {cf.billingMode === 'round' && (
-                  <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>🎯{r.duration || cf.deltaCount || '?'}局</Tag>
-                )}
-                {r.duration > 0 && cf.billingMode !== 'round' && <Text style={{ fontSize: 10 }}> · {r.duration}h</Text>}
-              </Text>
-            </>
+            <div style={{ lineHeight: 1.4 }}>
+              <div style={{ fontWeight: 500, marginBottom: 2 }}>{r.gameName}</div>
+              <Space size={4} wrap>
+                <Tag color={orderTypeConfig[r.type]?.color} style={{ fontSize: 11, margin: 0 }}>{orderTypeConfig[r.type]?.label || r.type}</Tag>
+                <Text style={{ fontSize: 12 }}>¥{Number(r.amount).toFixed(0)}</Text>
+                {r.duration > 0 && <Text type="secondary" style={{ fontSize: 11 }}>{r.duration}h</Text>}
+              </Space>
+            </div>
           );
         },
       },
       {
-        title: '来源/时间',
-        key: 'source',
-        width: 50,
+        title: '来源', key: 'source', width: 90,
         render: (_: any, r: any) => {
           const cf = r.customFields || {};
           return (
-            <>
-              {cf.customerSource && (
-                <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>
-                  📡{cf.customerSource}
-                </Tag>
-              )}
-              {cf.urgency === 'later' ? (
-                <Tag color="purple" style={{ fontSize: 10, margin: '2px 0' }}>
-                  📅预约
-                </Tag>
-              ) : (
-                <Tag color="green" style={{ fontSize: 10, margin: '2px 0' }}>
-                  ⚡立即打
-                </Tag>
-              )}
-              {cf.billingMode && (
-                <Tag style={{ fontSize: 10, margin: 0 }}>{cf.billingMode === 'round' ? '按局' : '按小时'}</Tag>
-              )}
-            </>
+            <Space size={2} wrap>
+              {cf.customerSource && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.customerSource}</Tag>}
+              {cf.urgency === 'later' ? <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>预约</Tag> : <Tag color="green" style={{ fontSize: 10, margin: 0 }}>即时</Tag>}
+              {cf.billingMode && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.billingMode === 'round' ? '按局' : '按时'}</Tag>}
+            </Space>
           );
         },
       },
       {
-        title: '状态',
-        dataIndex: 'status',
-        key: 'status',
-        width: 45,
-        render: (s: string) => (
-          <Tag color={orderStatusConfig[s]?.color || 'default'}>{orderStatusConfig[s]?.label || s}</Tag>
-        ),
+        title: '状态', dataIndex: 'status', key: 'status', width: 70,
+        render: (s: string) => <Tag color={orderStatusConfig[s]?.color || 'default'}>{orderStatusConfig[s]?.label || s}</Tag>,
       },
-      { title: '所用微信', key: 'workWechat', width: 90, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
       {
-        title: '陪玩',
-        key: 'companion',
-        width: 60,
+        title: '陪玩', key: 'companion', width: 90,
         render: (_: any, r: any) =>
           r.coCompanion ? (
-            <>
-              <Text>{r.companion?.user?.username || '-'}</Text>
-              <Text type="secondary" style={{ fontSize: 10 }}>
-                {' '}
-                +{r.coCompanion?.user?.username || ''}
-              </Text>
-            </>
+            <Text>{r.companion?.user?.username || '-'}<Text type="secondary" style={{ fontSize: 11 }}> +{r.coCompanion?.user?.username || ''}</Text></Text>
           ) : (
-            <Text>{r.companion?.user?.username || <Text type="secondary">-</Text>}</Text>
+            <Text>{r.companion?.user?.username || '-'}</Text>
           ),
       },
+      { title: '工作微信', key: 'workWechat', width: 90, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
       {
-        title: '最近跟进',
-        key: 'followUp',
-        width: 50,
-        render: () => (
-          <Tag color="orange" style={{ fontSize: 10 }}>
-            -
-          </Tag>
-        ),
+        title: '金额', key: 'amount', width: 80, align: 'right' as const,
+        render: (_: any, r: any) => <Text strong style={{ color: '#EF4444' }}>¥{Number(r.amount || 0).toFixed(0)}</Text>,
       },
       {
-        title: '累计消费',
-        key: 'totalSpent',
-        width: 55,
+        title: '备注', key: 'notes', width: 100, ellipsis: true,
         render: (_: any, r: any) => (
-          <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{Number(r.amount || 0).toFixed(2)}</span>
-        ),
-      },
-      {
-        title: '备注',
-        key: 'notes',
-        width: 60,
-        render: (_: any, r: any) => (
-          <>
-            {r.screenshotUrl && (
-              <Image
-                src={r.screenshotUrl}
-                width={18}
-                height={18}
-                style={{ borderRadius: 4, objectFit: 'cover', cursor: 'pointer', marginRight: 2 }}
-                preview={{ mask: '查看截图' }}
-              />
-            )}
-            {r.contactStatus === 'not_accepted' && (
-              <Tag color="orange" style={{ fontSize: 9, margin: '2px 0 0', padding: '0 4px' }}>
-                待审
-              </Tag>
-            )}
-            {(r.customFields?.deltaNote || r.notes || '').includes('补单') && (
-              <Tag color="red" style={{ fontSize: 9, margin: '2px 0 0', padding: '0 4px' }}>
-                🔴补单
-              </Tag>
-            )}
-            <Text style={{ fontSize: 9 }}>{(r.notes || r.customFields?.deltaNote || '').slice(0, 10)}</Text>
-          </>
+          <Space size={2} wrap>
+            {r.screenshotUrl && <Image src={r.screenshotUrl} width={20} height={20} style={{ borderRadius: 4, cursor: 'pointer' }} preview={{ mask: '查看' }} />}
+            {r.contactStatus === 'not_accepted' && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>待审</Tag>}
+            {(r.customFields?.deltaNote || r.notes || '').includes('补单') && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>补单</Tag>}
+            <Text ellipsis style={{ fontSize: 11, maxWidth: 60 }}>{(r.notes || r.customFields?.deltaNote || '').slice(0, 12)}</Text>
+          </Space>
         ),
       },
       ...(renderActions
-        ? [
-            {
-              title: '操作',
-              key: 'actions',
-              width: 270,
-              render: (_: any, r: any) => (
-                <Space size={2} wrap>
-                  {renderActions(r)}
-                </Space>
-              ),
-            },
-          ]
+        ? [{ title: '操作', key: 'actions', width: 220, render: (_: any, r: any) => <Space size={4} wrap>{renderActions(r)}</Space> }]
         : []),
     ]}
   />
