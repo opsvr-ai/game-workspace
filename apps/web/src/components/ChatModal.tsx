@@ -27,14 +27,21 @@ interface Props {
 
 const STORAGE_PREFIX = 'chat-msgs';
 
-function loadMsgs(userId: string, orderId: string): ChatMsg[] {
+function loadMsgs(_userId: string, orderId: string): ChatMsg[] {
   try {
-    const r = localStorage.getItem(`${STORAGE_PREFIX}-${userId}-${orderId}`);
+    // Try userId-keyed first (own messages), fallback to shared key
+    const r = localStorage.getItem(`${STORAGE_PREFIX}-${_userId}-${orderId}`)
+      || localStorage.getItem(`${STORAGE_PREFIX}-${orderId}`);
     return r ? JSON.parse(r) : [];
   } catch { return []; }
 }
 function saveMsgs(userId: string, orderId: string, msgs: ChatMsg[]) {
-  try { localStorage.setItem(`${STORAGE_PREFIX}-${userId}-${orderId}`, JSON.stringify(msgs.slice(-200))); } catch {}
+  try {
+    // Save to both keys so all parties can read
+    const data = JSON.stringify(msgs.slice(-200));
+    localStorage.setItem(`${STORAGE_PREFIX}-${userId}-${orderId}`, data);
+    localStorage.setItem(`${STORAGE_PREFIX}-${orderId}`, data);
+  } catch {}
 }
 
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
