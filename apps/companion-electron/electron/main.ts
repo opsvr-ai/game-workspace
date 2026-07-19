@@ -387,6 +387,35 @@ app.on('window-all-closed', () => {
 });
 
 
+// ── Auto-silent update: poll server version and reload page on change ──
+let lastVersion = '';
+const VERSION_POLL_INTERVAL = 30_000; // 30 seconds
+
+const pollVersion = async () => {
+  try {
+    const { httpRequest } = require('./http');
+    const serverUrl = defaultConfig.serverUrl; // from config
+    const fullUrl = `${serverUrl}/api/version`;
+    const res = await httpRequest({ method: 'GET', url: fullUrl, label: 'version-check' });
+    const version = res?.data?.version || '';
+    if (version && lastVersion && version !== lastVersion) {
+      logger.info('New version detected, reloading page', { old: lastVersion, new: version });
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.reloadIgnoringCache();
+      }
+    }
+    if (version) lastVersion = version;
+  } catch { /* server might be restarting */ }
+};
+
+// Initial version fetch after window loads
+if (mainWindow) {
+  mainWindow.webContents.on('did-finish-load', () => {
+    setTimeout(pollVersion, 5000); // initial check after 5s
+    setInterval(pollVersion, VERSION_POLL_INTERVAL);
+  });
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
