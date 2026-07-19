@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "customEmojis" JSONB NOT NULL DEFAULT '[]';

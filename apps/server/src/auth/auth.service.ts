@@ -162,6 +162,21 @@ export class AuthService {
     });
   }
 
+  async getCustomEmojis(userId: string): Promise<string[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { customEmojis: true },
+    });
+    return (user?.customEmojis as string[]) ?? [];
+  }
+
+  async updateCustomEmojis(userId: string, emojis: string[]): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { customEmojis: emojis },
+    });
+  }
+
   async verifySecondPassword(
     userId: string,
     password: string,

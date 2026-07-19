@@ -17,6 +17,7 @@ model User {
   secondPasswordHash String?
   displayName        String?
   avatar             String?
+  customEmojis       Json      @default("[]")
   createdAt          DateTime @default(now())
 
   studio    Studio?     @relation(fields: [studioId], references: [id])

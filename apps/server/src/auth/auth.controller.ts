@@ -81,6 +81,23 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('me/emojis')
+  async getEmojis(@Request() req: any): Promise<ApiResponse<string[]>> {
+    const data = await this.authService.getCustomEmojis(req.user.id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Put('me/emojis')
+  async updateEmojis(
+    @Request() req: any,
+    @Body() body: { emojis: string[] },
+  ): Promise<ApiResponse<null>> {
+    await this.authService.updateCustomEmojis(req.user.id, body.emojis ?? []);
+    return { code: 200, message: '表情已保存', data: null };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Post('me/avatar')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
