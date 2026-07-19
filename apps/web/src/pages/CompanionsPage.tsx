@@ -1,12 +1,16 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Empty, Tooltip } from 'antd';
+import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card } from 'antd';
 import { ReloadOutlined, DesktopOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, STATUS_SORT, modeLabels, HEARTBEAT_THRESHOLD } from '../constants';
+import ErrorBanner from '../components/ErrorBanner';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import TableSkeleton from '../components/TableSkeleton';
 
 const { Text } = Typography;
 
@@ -370,7 +374,7 @@ const CompanionsPage: React.FC = () => {
     if (!cache.logs || cache.logs.length === 0) {
       return (
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <Empty description="暂无时间日志" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <EmptyState description="暂无时间日志" />
         </div>
       );
     }
@@ -409,69 +413,49 @@ const CompanionsPage: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <div>
-          <Text strong style={{ fontSize: 16 }}>
-            {isAdmin ? '员工管理' : role === 'CS' ? '陪玩管理' : '陪玩状态'}
-          </Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            共 {companions.length} 位陪玩 · 60s 刷新
-          </Text>
-        </div>
-        <Space>
-          <Button
-            icon={React.createElement(ReloadOutlined)}
-            onClick={() => {
-              setTimeLogsCache({});
-              fetchCompanions();
-            }}
-            loading={loading}
-          >
-            刷新
-          </Button>
-        </Space>
-      </div>
-
-      {error && (
-        <div
-          style={{
-            color: '#ff4d4f',
-            background: '#fff2f0',
-            border: '1px solid #ffccc7',
-            borderRadius: 6,
-            padding: '8px 12px',
-            marginBottom: 12,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      <Table
-        columns={columns}
-        dataSource={sorted}
-        rowKey="id"
-        loading={loading}
-        size="small"
-        locale={{ emptyText: '暂无陪玩数据' }}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 位陪玩`,
-        }}
-        expandable={{
-          expandedRowRender: (record) => <ExpandableRow record={record} />,
-          rowExpandable: () => true,
-        }}
+      <PageHeader
+        title={isAdmin ? '员工管理' : role === 'CS' ? '陪玩管理' : '陪玩状态'}
+        subtitle={`共 ${companions.length} 位陪玩 · 60s 刷新`}
+        extra={
+          <Space>
+            <Button
+              icon={React.createElement(ReloadOutlined)}
+              onClick={() => {
+                setTimeLogsCache({});
+                fetchCompanions();
+              }}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Space>
+        }
       />
+
+      {error && <ErrorBanner message={error} onRetry={fetchCompanions} />}
+
+      {loading && companions.length === 0 ? (
+        <TableSkeleton columns={6} rows={5} />
+      ) : (
+        <Card size="small" style={{ overflow: 'auto' }}>
+          <Table
+            columns={columns}
+            dataSource={sorted}
+            rowKey="id"
+            size="small"
+            locale={{ emptyText: '暂无陪玩数据' }}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (t) => `共 ${t} 位陪玩`,
+            }}
+            expandable={{
+              expandedRowRender: (record) => <ExpandableRow record={record} />,
+              rowExpandable: () => true,
+            }}
+          />
+        </Card>
+      )}
     </div>
   );
 };

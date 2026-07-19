@@ -49,7 +49,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
   const navigate = useNavigate();
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} title="命令面板" width={480}>
+    <Modal open={open} onCancel={onClose} footer={null} title="命令面板" width={480} aria-label="命令面板">
       <Input.Search
         placeholder="搜索页面..."
         autoFocus
@@ -67,10 +67,20 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
         {flatRoutes.slice(0, 15).map((m) => (
           <div
             key={m.key}
+            role="button"
+            tabIndex={0}
+            aria-label={`导航到${m.label}`}
             style={{ padding: '6px 8px', cursor: 'pointer', borderRadius: 6 }}
             onClick={() => {
               navigate(m.key);
               onClose();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(m.key);
+                onClose();
+              }
             }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#f0f0f0')}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}

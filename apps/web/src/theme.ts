@@ -1,9 +1,10 @@
-// 蠢驴电竞 — 电竞赛博光感风（浅色主题）
+// 蠢驴电竞 — 浅色简约风
 import type { ThemeConfig } from 'antd';
 
 export const chunlvTheme: ThemeConfig = {
+  hashed: false,
   token: {
-    // 色彩 — 赛博青主色调
+    // 色彩 — 青色主色调
     colorPrimary: '#00D4FF',
     colorSuccess: '#00E676',
     colorWarning: '#FF9100',
@@ -17,12 +18,21 @@ export const chunlvTheme: ThemeConfig = {
     colorBorderSecondary: '#F1F5F9',
     colorLink: '#00D4FF',
 
+    // Semantic tokens
+    colorChart1: '#00D4FF',
+    colorChart2: '#7B61FF',
+    colorChart3: '#00E676',
+    colorChart4: '#FF9100',
+    colorAmountPositive: '#00E676',
+    colorAmountNegative: '#FF4757',
+    colorAvatarFallback: '#00D4FF',
+
     // 排版 — Inter + PingFang SC
     fontFamily:
       "'Inter', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif",
-    fontSize: 13,
-    fontSizeLG: 15,
-    fontSizeSM: 11,
+    fontSize: 14,
+    fontSizeLG: 16,
+    fontSizeSM: 12,
     borderRadius: 6,
     borderRadiusLG: 8,
     borderRadiusSM: 4,
@@ -35,19 +45,14 @@ export const chunlvTheme: ThemeConfig = {
     lineHeight: 1.6,
     paddingContentHorizontal: 24,
     paddingContentVertical: 20,
-    paddingLG: 24,
-    paddingSM: 16,
-    paddingXS: 12,
-    marginLG: 24,
-    marginSM: 16,
 
-    // 阴影 — 赛博光晕
+    // 阴影 — 简约轻阴影
     boxShadow:
-      '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
+      '0 1px 3px rgba(0,0,0,0.06)',
     boxShadowSecondary:
-      '0 4px 20px rgba(0,212,255,0.12), 0 0 0 1px rgba(0,212,255,0.2)',
+      '0 4px 12px rgba(0,0,0,0.06)',
     boxShadowTertiary:
-      '0 8px 32px rgba(0,212,255,0.15)',
+      '0 8px 24px rgba(0,0,0,0.08)',
   },
 
   components: {
@@ -73,12 +78,12 @@ export const chunlvTheme: ThemeConfig = {
     },
     Card: {
       colorBgContainer: '#FFFFFF',
-      paddingLG: 24,
-      borderRadiusLG: 12,
+      paddingLG: 20,
+      borderRadiusLG: 8,
     },
     Table: {
       colorBgContainer: '#FFFFFF',
-      headerBg: '#F1F5F9',
+      headerBg: '#F8FAFC',
       headerColor: '#64748B',
       rowHoverBg: 'rgba(0,212,255,0.04)',
       borderColor: '#E2E8F0',
@@ -88,7 +93,7 @@ export const chunlvTheme: ThemeConfig = {
       borderRadius: 8,
       borderRadiusLG: 10,
       borderRadiusSM: 6,
-      primaryShadow: '0 2px 8px rgba(0,212,255,0.25)',
+      primaryShadow: '0 1px 4px rgba(0,0,0,0.1)',
       defaultBg: '#FFFFFF',
       defaultBorderColor: '#E2E8F0',
       defaultColor: '#1E293B',
@@ -102,7 +107,7 @@ export const chunlvTheme: ThemeConfig = {
       colorBorder: '#E2E8F0',
       colorTextPlaceholder: '#94A3B8',
       activeBorderColor: '#00D4FF',
-      borderRadius: 10,
+      borderRadius: 8,
       paddingBlock: 8,
       paddingInline: 14,
     },
@@ -110,12 +115,12 @@ export const chunlvTheme: ThemeConfig = {
       colorBgContainer: '#FFFFFF',
       colorBgElevated: '#FFFFFF',
       optionSelectedBg: 'rgba(0,212,255,0.08)',
-      borderRadius: 10,
+      borderRadius: 8,
     },
     Modal: {
       colorBgElevated: '#FFFFFF',
       headerBg: '#FFFFFF',
-      borderRadiusLG: 16,
+      borderRadiusLG: 12,
     },
     Tabs: {
       colorBgContainer: 'transparent',

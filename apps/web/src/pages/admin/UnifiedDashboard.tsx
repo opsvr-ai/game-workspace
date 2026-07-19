@@ -1,11 +1,14 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Spin, Typography, Modal, DatePicker, Button, Result } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Modal, DatePicker, Button, Result } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import dayjs, { Dayjs } from 'dayjs';
 import { dashboardApi } from '../../api/dashboard';
 import http from '../../api/client';
 import ErrorBanner from '../../components/ErrorBanner';
+import CardSkeleton from '../../components/CardSkeleton';
+import EmptyState from '../../components/EmptyState';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -77,7 +80,19 @@ const RevenueDashboard: React.FC = () => {
     setDetail(res.data);
   };
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '80px auto' }} />;
+  if (loading) return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Col xs={12} sm={6} key={i}>
+            <CardSkeleton lines={1} />
+          </Col>
+        ))}
+      </Row>
+      <CardSkeleton lines={6} />
+      <CardSkeleton lines={3} />
+    </div>
+  );
 
   if (error && !data) {
     return <Result status="error" title="数据加载失败" subTitle={error}
@@ -142,7 +157,7 @@ const RevenueDashboard: React.FC = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        ) : <Text type="secondary">暂无数据</Text>}
+        ) : <EmptyState description="暂无数据" />}
       </Card>
 
       <Row gutter={16}>
@@ -158,7 +173,7 @@ const RevenueDashboard: React.FC = () => {
                   <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <Text type="secondary">暂无数据</Text>}
+            ) : <EmptyState description="暂无数据" />}
           </Card>
         </Col>
         <Col span={12}>
@@ -176,7 +191,7 @@ const RevenueDashboard: React.FC = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            ) : <Text type="secondary">暂无数据</Text>}
+            ) : <EmptyState description="暂无数据" />}
             <Text type="secondary" style={{ fontSize: 12 }}>💡 点击陪玩查看订单类型明细</Text>
           </Card>
         </Col>

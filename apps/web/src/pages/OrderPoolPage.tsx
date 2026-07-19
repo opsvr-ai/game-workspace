@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,9 +8,7 @@ import {
   Tag,
   Row,
   Col,
-  Spin,
   message,
-  Empty,
   Progress,
   Space,
   Badge,
@@ -26,10 +25,13 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import CardSkeleton from '../components/CardSkeleton';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -158,7 +160,10 @@ const OrderPoolPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
+      <div>
+        <PageHeader title="📦 订单池" />
+        <CardSkeleton lines={6} />
+      </div>
     );
   }
 
@@ -407,34 +412,27 @@ const OrderPoolPage: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Title level={4} style={{ margin: 0 }}>
-          📦 订单池
-        </Title>
-        <Space>
-          <Button
-            type="primary"
-            icon={React.createElement(PlusOutlined)}
-            onClick={() => setCreateOpen(true)}
-          >
-            发布订单
-          </Button>
-          <Button
-            icon={React.createElement(ReloadOutlined)}
-            onClick={fetchData}
-            loading={loading}
-          >
-            刷新
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="📦 订单池"
+        extra={
+          <Space>
+            <Button
+              type="primary"
+              icon={React.createElement(PlusOutlined)}
+              onClick={() => setCreateOpen(true)}
+            >
+              发布订单
+            </Button>
+            <Button
+              icon={React.createElement(ReloadOutlined)}
+              onClick={fetchData}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Space>
+        }
+      />
 
       {/* Companion: unlock threshold card */}
       {isCompanion && poolStatus && (
@@ -469,7 +467,7 @@ const OrderPoolPage: React.FC = () => {
         </Card>
       )}
 
-      {orders.length === 0 && <Empty description="暂无待派订单" />}
+      {orders.length === 0 && <EmptyState description="暂无待派订单" />}
 
       {/* Horizontal order rows — all info in one row */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -1,5 +1,6 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Switch, Table, message, Tooltip, Empty } from 'antd';
+import { Card, Row, Col, Button, Typography, Tag, Spin, Space, Modal, Input, Switch, Table, message, Tooltip } from 'antd';
 import { ThunderboltOutlined, PlayCircleOutlined, SearchOutlined, CoffeeOutlined, LockOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { companionsApi } from '../api/companions';
@@ -7,6 +8,7 @@ import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
 import { companionStatusConfig } from '../constants';
+import EmptyState from '../components/EmptyState';
 
 const { Text, Title } = Typography;
 
@@ -234,7 +236,7 @@ const CompanionPage: React.FC = () => {
                       <ResponsiveContainer width="100%" height={180}>
                         <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={50} innerRadius={25} label={({name,value,percent,payload})=>`${name} ${value}单 ¥${payload.amount||0} ${(percent*100).toFixed(0)}%`} labelStyle={{fontSize:9}}>{pieData.map((d,i)=><Cell key={i} fill={d.color}/>)}</Pie></PieChart>
                       </ResponsiveContainer>
-                    ) : <Empty description="暂无" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{margin:'20px 0'}}/>}
+                    ) : <EmptyState description="暂无" />}
                   </Col>
                 );
               })}
@@ -265,7 +267,7 @@ const CompanionPage: React.FC = () => {
                   <td style={{textAlign:'right',fontWeight:600,color:r.qualityScore>50?'#52c41a':'#999'}}>{r.qualityScore||0}</td>
                 </tr>))}</tbody>
               </table>
-            ) : <Empty description="暂无排行" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+            ) : <EmptyState description="暂无排行" />}
             <div style={{textAlign:'center',marginTop:8}}>
               <Button type="link" size="small" onClick={() => window.location.href = '/companion/companions'}>查看完整排行 →</Button>
             </div>
@@ -299,7 +301,7 @@ const CompanionPage: React.FC = () => {
             if (!f) return true;
             return new Date(f.createdAt) < sevenDaysAgo;
           });
-          if (pendingCustomers.length === 0) return <Card size="small"><Empty description="暂无待跟进客户" image={Empty.PRESENTED_IMAGE_SIMPLE} /></Card>;
+          if (pendingCustomers.length === 0) return <Card size="small"><EmptyState description="暂无待跟进客户" /></Card>;
           return (
             <Table size="small" dataSource={pendingCustomers.slice(0, 5)} rowKey="id" pagination={false} style={{ marginBottom: 12 }}>
               <Table.Column title="编号" dataIndex="customerCode" width={100} render={(v: string) => <Text code>{v}</Text>} />

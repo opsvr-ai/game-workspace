@@ -8,6 +8,7 @@ import TransactionList from './billing/TransactionList';
 import ExpenseApproval from './billing/ExpenseApproval';
 import SettlementPanel from './billing/SettlementPanel';
 import OverviewPanel from './billing/OverviewPanel';
+import PageHeader from '../components/PageHeader';
 
 const BillingPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -26,6 +27,7 @@ const BillingPage: React.FC = () => {
 
   return (
     <div>
+      <PageHeader title="报账系统" />
       {/* Always show companion view section for admin users who also have a companionId */}
       {user?.companionId && <CompanionBillingView />}
       <Tabs defaultActiveKey="transactions" items={tabItems} />

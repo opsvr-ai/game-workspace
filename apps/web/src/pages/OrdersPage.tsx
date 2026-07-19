@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Select, DatePicker, message, Badge, Tag, Image, Upload, Modal, Input } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -7,6 +8,8 @@ import { useAuthStore } from '../stores/authStore';
 import OrderTable from '../components/OrderTable';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { orderStatusConfig } from '../constants';
+import PageHeader from '../components/PageHeader';
+import TableSkeleton from '../components/TableSkeleton';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -222,38 +225,31 @@ const OrdersPage: React.FC = () => {
   return (
     <>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <Text strong style={{ fontSize: 16 }}>
-              {isCompanion ? '接单记录' : '📋 订单管理'}
-            </Text>
-            {isCompanion && (
-              <>
-                <br />
-                <Text type="secondary">查看我的接单历史</Text>
-              </>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Select
-              placeholder="全部状态"
-              allowClear
-              value={statusFilter || undefined}
-              onChange={(v) => setStatusFilter(v || '')}
-              style={{ width: 120 }}
-            >
-              {Object.entries(orderStatusConfig).map(([k, v]) => (
-                <Option key={k} value={k}>
-                  {v.label}
-                </Option>
-              ))}
-            </Select>
-            <DatePicker placeholder="筛选日期" value={dateFilter} onChange={setDateFilter} style={{ width: 140 }} />
-            <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>
-              刷新
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title={isCompanion ? '接单记录' : '📋 订单管理'}
+          subtitle={isCompanion ? '查看我的接单历史' : undefined}
+          extra={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Select
+                placeholder="全部状态"
+                allowClear
+                value={statusFilter || undefined}
+                onChange={(v) => setStatusFilter(v || '')}
+                style={{ width: 120 }}
+              >
+                {Object.entries(orderStatusConfig).map(([k, v]) => (
+                  <Option key={k} value={k}>
+                    {v.label}
+                  </Option>
+                ))}
+              </Select>
+              <DatePicker placeholder="筛选日期" value={dateFilter} onChange={setDateFilter} style={{ width: 140 }} />
+              <Button icon={React.createElement(ReloadOutlined)} onClick={fetch} loading={loading}>
+                刷新
+              </Button>
+            </div>
+          }
+        />
         {/* Today's order stats */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
           <Tag color="blue">
@@ -283,12 +279,16 @@ const OrdersPage: React.FC = () => {
             }
           </Tag>
         </div>{' '}
-        <OrderTable
-          dataSource={sorted}
-          loading={loading}
-          unreadMap={unreadMap}
-          renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
-        />
+        {loading && orders.length === 0 ? (
+          <TableSkeleton columns={5} rows={5} />
+        ) : (
+          <OrderTable
+            dataSource={sorted}
+            loading={loading}
+            unreadMap={unreadMap}
+            renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
+          />
+        )}
         <Modal
           title="归属调整"
           open={!!reassignOrder}

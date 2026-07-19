@@ -2,6 +2,12 @@
   --color-accent-purple: #7b61ff;
   --color-accent-cyan: #00d4ff;
   --color-gradient-brand: linear-gradient(135deg, #7b61ff, #00d4ff);
+  --color-success: #00E676;
+  --color-warning: #FF9100;
+  --color-error: #FF4757;
+  --color-bg-hover: #f8fafc;
+  --color-bg-error: #fff2f0;
+  --color-text-secondary: #64748B;
 }
 
 body {

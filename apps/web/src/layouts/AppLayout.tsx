@@ -4,6 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
+import { useChatNotification } from '../hooks/useChatNotification';
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import DualCompanionModal from '../components/DualCompanionModal';
@@ -171,6 +172,7 @@ const AppLayout: React.FC = () => {
   const { chatActive, chatPartner } = useChatStore();
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
+  const { notify } = useChatNotification(true);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -231,6 +233,11 @@ const AppLayout: React.FC = () => {
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
+    },
+    onChatNew: (data: any) => {
+      if (data?.companionName) {
+        notify({ title: data.companionName, body: data.message || '新消息' });
+      }
     },
   });
 

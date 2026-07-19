@@ -39,6 +39,9 @@ import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, 
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
+import ErrorBanner from '../components/ErrorBanner';
+import PageHeader from '../components/PageHeader';
+import TableSkeleton from '../components/TableSkeleton';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -511,65 +514,49 @@ const CustomersPage: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN}>
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <Text strong style={{ fontSize: 16 }}>
-              客户管理
-            </Text>
-            {isCompanion && (
-              <>
-                <br />
-                <Text type="secondary">管理我的客户信息</Text>
-              </>
-            )}
-          </div>
-          <Space>
-            <Input.Search
-              placeholder="搜索客户编号"
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-              style={{ width: 200 }}
-              allowClear
-            />
-            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchCustomers} loading={loading}>
-              刷新
-            </Button>
-            {canManage && (
-              <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>
-                新建客户
+        <PageHeader
+          title="客户管理"
+          subtitle={isCompanion ? '管理我的客户信息' : undefined}
+          extra={
+            <Space>
+              <Input.Search
+                placeholder="搜索客户编号"
+                value={searchCode}
+                onChange={(e) => setSearchCode(e.target.value)}
+                style={{ width: 200 }}
+                allowClear
+              />
+              <Button icon={React.createElement(ReloadOutlined)} onClick={fetchCustomers} loading={loading}>
+                刷新
               </Button>
-            )}
-          </Space>
-        </div>
-        {error && (
-          <div
-            style={{
-              color: '#ff4d4f',
-              background: '#fff2f0',
-              border: '1px solid #ffccc7',
-              borderRadius: 6,
-              padding: '8px 12px',
-              marginBottom: 12,
-            }}
-          >
-            {error}
-          </div>
+              {canManage && (
+                <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>
+                  新建客户
+                </Button>
+              )}
+            </Space>
+          }
+        />
+        {error && <ErrorBanner message={error} onRetry={fetchCustomers} />}
+        {loading && customers.length === 0 ? (
+          <TableSkeleton columns={6} rows={5} />
+        ) : (
+          <Card size="small" style={{ overflow: 'auto' }}>
+            <Table
+              size="small"
+              columns={columns}
+              dataSource={customers.filter(
+                (c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()),
+              )}
+              rowKey="id"
+              loading={loading}
+              onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
+              scroll={{ x: 1000 }}
+              locale={{ emptyText: '暂无客户数据' }}
+              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
+            />
+          </Card>
         )}
-        <Card size="small" style={{ overflow: 'auto' }}>
-          <Table
-            size="small"
-            columns={columns}
-            dataSource={customers.filter(
-              (c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()),
-            )}
-            rowKey="id"
-            loading={loading}
-            onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
-            scroll={{ x: 1000 }}
-            locale={{ emptyText: '暂无客户数据' }}
-            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
-          />
-        </Card>
         <Modal
           title={editingCustomer ? '编辑客户' : '新建客户'}
           open={modalOpen}

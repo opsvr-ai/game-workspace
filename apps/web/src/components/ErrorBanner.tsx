@@ -6,9 +6,10 @@ interface ErrorBannerProps {
   message?: string;
   description?: string;
   onRetry?: () => void;
+  style?: React.CSSProperties;
 }
 
-const ErrorBanner: React.FC<ErrorBannerProps> = ({ message = '加载失败', description, onRetry }) => (
+const ErrorBanner: React.FC<ErrorBannerProps> = ({ message = '加载失败', description, onRetry, style }) => (
   <Alert
     type="error"
     showIcon
@@ -21,7 +22,7 @@ const ErrorBanner: React.FC<ErrorBannerProps> = ({ message = '加载失败', des
         </Button>
       ) : undefined
     }
-    style={{ marginBottom: 12 }}
+    style={{ marginBottom: 12, ...style }}
   />
 );
 

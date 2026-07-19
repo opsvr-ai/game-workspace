@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import CSDispatchView from './dispatch/CSDispatchView';
 import AdminDispatchView from './dispatch/AdminDispatchView';
 import CompanionDispatchView from './dispatch/CompanionDispatchView';
+import PageHeader from '../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -45,18 +46,7 @@ const DispatchPage: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text strong style={{ fontSize: 16 }}>
-          {getHeaderTitle()}
-        </Text>
-      </div>
+      <PageHeader title={getHeaderTitle()} />
       {renderView()}
     </div>
   );

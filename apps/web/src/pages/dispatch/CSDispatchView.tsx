@@ -25,6 +25,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
+import EmptyState from '../../components/EmptyState';
 import {
   orderTypeConfig,
   companionStatusConfig,
@@ -74,6 +75,8 @@ const CSDispatchView: React.FC = () => {
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  const [companionSearch, setCompanionSearch] = useState('');
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
 
   // Poll localStorage for unread badges every 2s
   useEffect(() => {
@@ -172,6 +175,18 @@ const CSDispatchView: React.FC = () => {
     [companions, chatIds],
   );
 
+  // Filter companions by name search
+  const filteredCompanions = useMemo(
+    () =>
+      companionSearch
+        ? sortedCompanions.filter((c) => {
+            const name = (c.user as any)?.displayName || c.user?.username || '';
+            return name.toLowerCase().includes(companionSearch.toLowerCase());
+          })
+        : sortedCompanions,
+    [sortedCompanions, companionSearch],
+  );
+
   const idleCount = companions.filter((c) => c.status === CompanionStatus.AVAILABLE).length;
   const busyCount = companions.filter((c) => c.status === CompanionStatus.BUSY).length;
   const entertainCount = companions.filter((c) => c.status === CompanionStatus.ENTERTAINMENT).length;
@@ -207,20 +222,52 @@ const CSDispatchView: React.FC = () => {
         {/* Left: Companion sidebar (3/24) */}
         <Col span={4}>
           <Card title="陪玩管理" size="small" style={{ marginBottom: 12 }}>
+            {/* Companion search filter */}
+            <Input
+              size="small"
+              placeholder="搜索陪玩..."
+              value={companionSearch}
+              onChange={(e) => setCompanionSearch(e.target.value)}
+              allowClear
+              style={{ marginBottom: 8 }}
+            />
             {loadingCompanions && companions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
                 <Spin />
               </div>
+            ) : filteredCompanions.length === 0 && companionSearch ? (
+              <Text type="secondary">未找到匹配的陪玩</Text>
             ) : companions.length === 0 ? (
               <Text type="secondary">暂无陪玩</Text>
             ) : (
               <List
                 size="small"
-                dataSource={sortedCompanions}
-                renderItem={(c) => (
+                dataSource={filteredCompanions}
+                renderItem={(c) => {
+                  const isSelected = selectedCompanionId === c.id;
+                  const hasUnread = (unreadMap[c.id] || 0) > 0;
+                  return (
                   <List.Item
-                    style={{ padding: '8px 0', display: 'block', cursor: 'pointer' }}
+                    style={{
+                      padding: '8px 6px',
+                      display: 'block',
+                      cursor: 'pointer',
+                      borderLeft: isSelected ? '3px solid #00D4FF' : '3px solid transparent',
+                      paddingLeft: isSelected ? 10 : 10,
+                      borderRadius: '0 6px 6px 0',
+                      transition: 'transform 0.15s ease, background 0.15s ease',
+                      background: isSelected ? 'rgba(0,212,255,0.06)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateX(2px)';
+                      e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateX(0)';
+                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    }}
                     onClick={() => {
+                      setSelectedCompanionId(c.id);
                       const hasMsg = chatIds.includes(c.id);
                       if (hasMsg) {
                         const cur = useChatStore.getState().chatCompanionIds.filter((id: string) => id !== c.id);
@@ -292,8 +339,21 @@ const CSDispatchView: React.FC = () => {
                             </div>
                           );
                         })()}
-                        <Badge count={unreadMap[c.id] || 0} size="small" offset={[6, -2]}>
-                          <Text strong className={(unreadMap[c.id] || 0) > 0 ? 'pulse-badge' : ''}>
+                        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {/* Unread dot */}
+                          {hasUnread && (
+                            <span
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: '#FF4757',
+                                flexShrink: 0,
+                                boxShadow: '0 0 4px #FF4757',
+                              }}
+                            />
+                          )}
+                          <Text strong>
                             {c.user?.username ?? c.id}
                           </Text>
                           {(c as any).processStatus === 'BLOCKED' && (
@@ -306,7 +366,7 @@ const CSDispatchView: React.FC = () => {
                               ⚠️ 进程异常
                             </Tag>
                           )}
-                        </Badge>
+                        </span>
                       </Space>
                       <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
                         {companionStatusConfig[c.status]?.label || c.status}
@@ -323,7 +383,8 @@ const CSDispatchView: React.FC = () => {
                       </div>
                     )}
                   </List.Item>
-                )}
+                  );
+                }}
               />
             )}
           </Card>
@@ -411,12 +472,7 @@ const CSDispatchView: React.FC = () => {
                   <Spin size="large" />
                 </div>
               ) : poolOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 48, color: '#94A3B8' }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>🏊</div>
-                  <Text type="secondary" style={{ fontSize: 15 }}>
-                    暂无待派订单，水面平静
-                  </Text>
-                </div>
+                <EmptyState description="暂无待派订单" />
               ) : (
                 <List
                   grid={{ gutter: [0, 8], column: 1 }}
@@ -628,7 +684,7 @@ const CSDispatchView: React.FC = () => {
       />
 
       {/* Chat Modal */}
-      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
+      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => { setChatPartner(null); setSelectedCompanionId(null); }} />
 
       {/* Companion detail modal */}
       <Modal

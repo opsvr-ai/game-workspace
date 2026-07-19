@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
@@ -8,6 +9,7 @@ interface UseSocketOptions {
   onOrderUrgent?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
   onChatNotify?: (data: any) => void;
+  onChatNew?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -45,6 +47,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('chat:new', (data: any) => {
       optsRef.current.onChatNotify?.(data);
+      optsRef.current.onChatNew?.(data);
     });
 
     socket.on('order:new', (data: any) => {

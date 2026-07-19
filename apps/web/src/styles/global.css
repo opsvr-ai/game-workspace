@@ -1,27 +1,14 @@
-/* 蠢驴电竞 — 电竞赛博光感风全局样式 */
+/* 蠢驴电竞 — 浅色简约风全局样式 */
 
-/* ── 页面底色 + 网格纹理 ── */
+/* ── 页面底色 ── */
 body {
   background: #f8fafc;
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  position: relative;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
-
-/* 滚动条 — 赛博青 */
+/* 滚动条 — 浅色 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

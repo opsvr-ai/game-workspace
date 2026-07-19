@@ -10,6 +10,7 @@ interface ChatMsg {
   text: string;
   time: string;
   from: string;
+  error?: boolean;
 }
 interface ChatPartner {
   name: string;
@@ -121,12 +122,26 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     return () => window.removeEventListener('chat-message', handler);
   }, [open, partner?.orderId]);
 
-  // Auto-scroll
+  // Auto-scroll (smooth)
   useEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    if (bodyRef.current) {
+      bodyRef.current.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
+    }
   }, [msgs]);
 
-  const send = () => {
+  const timeToMinutes = (t: string): number => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const shouldShowTimeDivider = (prevTime: string, currTime: string): boolean => {
+    const prevMin = timeToMinutes(prevTime);
+    let currMin = timeToMinutes(currTime);
+    if (currMin < prevMin) currMin += 24 * 60;
+    return currMin - prevMin > 5;
+  };
+
+  const send = async () => {
     const text = input.trim();
     if (!text || !partner) return;
     const now = new Date();
@@ -138,7 +153,30 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     setInput('');
     const body: any = { orderId: partner.orderId, message: text, time };
     if (partner.orderId) body.orderId = partner.orderId;
-    http.post('/companions/chat-notify', body).catch(() => {});
+    try {
+      await http.post('/companions/chat-notify', body);
+    } catch {
+      setMsgs((prev) =>
+        prev.map((m) =>
+          m.text === text && m.time === time && m.from === 'me' && !m.error ? { ...m, error: true } : m,
+        ),
+      );
+    }
+  };
+
+  const retrySend = async (msg: ChatMsg) => {
+    if (!partner) return;
+    const body: any = { orderId: partner.orderId, message: msg.text, time: msg.time };
+    try {
+      await http.post('/companions/chat-notify', body);
+      setMsgs((prev) =>
+        prev.map((m) =>
+          m.text === msg.text && m.time === msg.time && m.from === msg.from ? { ...m, error: false } : m,
+        ),
+      );
+    } catch {
+      // keep error flag
+    }
   };
 
   const avatarEl = (p: ChatPartner, size = 36, isMe = false) => {
@@ -193,10 +231,10 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     >
       {partner && (
         <>
-          {/* Header — WeChat dark bar with order info + X close */}
+          {/* Header — gradient bar with online dot + order info + X close */}
           <div
             style={{
-              background: '#2E2E2E',
+              background: 'linear-gradient(135deg, #00D4FF, #7B61FF)',
               color: '#FFF',
               padding: '10px 12px',
               display: 'flex',
@@ -206,19 +244,32 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: 16,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {partner.name}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* Online status dot */}
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#00E676',
+                    boxShadow: '0 0 6px #00E676',
+                    flexShrink: 0,
+                  }}
+                />
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 16,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {partner.name}
+                </div>
               </div>
               {partner.orderInfo && (
-                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2, lineHeight: 1.4 }}>{partner.orderInfo}</div>
+                <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2, lineHeight: 1.4 }}>{partner.orderInfo}</div>
               )}
             </div>
             <Button
@@ -229,89 +280,184 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             />
           </div>
 
-          {/* Messages — WeChat gray background */}
+          {/* Messages */}
           <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', background: '#EDEDED' }}>
             {msgs.length === 0 && (
               <div style={{ textAlign: 'center', color: '#B0B0B0', marginTop: 80, fontSize: 13 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
-                暂无消息，发送消息开始对话
+                暂无聊天记录，发送第一条消息吧
               </div>
             )}
             {msgs.map((m, i) => {
               const isMe = m.from === 'me';
+              const showDivider = i > 0 && shouldShowTimeDivider(msgs[i - 1].time, m.time);
               return (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    flexDirection: isMe ? 'row-reverse' : 'row',
-                    alignItems: 'flex-start',
-                    gap: 8,
-                    marginBottom: 14,
-                  }}
-                >
-                  {/* Avatar */}
-                  <div style={{ flexShrink: 0 }}>
-                    {isMe ? avatarEl(myAvatar, 34, true) : avatarEl(partner, 34, false)}
-                  </div>
-                  {/* Bubble */}
-                  <div style={{ maxWidth: '65%' }}>
+                <React.Fragment key={i}>
+                  {/* Time divider */}
+                  {showDivider && (
                     <div
                       style={{
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        fontSize: 14,
-                        lineHeight: 1.5,
-                        wordBreak: 'break-word',
-                        background: isMe ? '#95EC69' : '#FFFFFF',
-                        color: '#333',
-                        position: 'relative',
+                        textAlign: 'center',
+                        margin: '12px 0',
+                        fontSize: 11,
+                        color: '#94A3B8',
                       }}
                     >
-                      {m.text.split(/(\[img\].*?\[\/img\])/g).map((part: string, i: number) => {
-                        if (part.startsWith('[img]') && part.endsWith('[/img]')) {
-                          const url = part.slice(5, -6);
-                          return (
-                            <img
-                              key={i}
-                              src={url}
-                              style={{
-                                maxWidth: 120,
-                                maxHeight: 120,
-                                borderRadius: 4,
-                                display: 'block',
-                                cursor: 'pointer',
-                              }}
-                              alt="emoji"
-                              title="右键收藏此表情"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                              onContextMenu={(e2) => {
-                                e2.preventDefault();
-                                if (!customEmojis.includes(url)) {
-                                  syncCustomEmojis([...customEmojis, url]);
-                                  message.success('已收藏到我的表情');
-                                } else {
-                                  message.info('已在收藏中');
-                                }
-                              }}
-                            />
-                          );
-                        }
-                        return <span key={i}>{part}</span>;
-                      })}
+                      ——— {m.time} ———
                     </div>
-                    <div style={{ fontSize: 11, color: '#B0B0B0', marginTop: 3, textAlign: isMe ? 'right' : 'left' }}>
-                      {m.time}
+                  )}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: isMe ? 'row-reverse' : 'row',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {/* Avatar */}
+                    <div style={{ flexShrink: 0 }}>
+                      {isMe ? avatarEl(myAvatar, 34, true) : avatarEl(partner, 34, false)}
+                    </div>
+                    {/* Bubble */}
+                    <div style={{ maxWidth: '65%' }}>
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: 12,
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                          wordBreak: 'break-word',
+                          background: isMe
+                            ? 'linear-gradient(135deg, #00D4FF, #7B61FF)'
+                            : '#F1F5F9',
+                          color: isMe ? '#FFF' : '#1E293B',
+                          position: 'relative',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                        }}
+                      >
+                        {m.text.split(/(\[img\].*?\[\/img\])/g).map((part: string, i: number) => {
+                          if (part.startsWith('[img]') && part.endsWith('[/img]')) {
+                            const url = part.slice(5, -6);
+                            return (
+                              <img
+                                key={i}
+                                src={url}
+                                style={{
+                                  maxWidth: 120,
+                                  maxHeight: 120,
+                                  borderRadius: 4,
+                                  display: 'block',
+                                  cursor: 'pointer',
+                                }}
+                                alt="emoji"
+                                title="右键收藏此表情"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                                onContextMenu={(e2) => {
+                                  e2.preventDefault();
+                                  if (!customEmojis.includes(url)) {
+                                    syncCustomEmojis([...customEmojis, url]);
+                                    message.success('已收藏到我的表情');
+                                  } else {
+                                    message.info('已在收藏中');
+                                  }
+                                }}
+                              />
+                            );
+                          }
+                          return <span key={i}>{part}</span>;
+                        })}
+                      </div>
+                      {/* Time + error indicator */}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: '#B0B0B0',
+                          marginTop: 3,
+                          textAlign: isMe ? 'right' : 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          justifyContent: isMe ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        {m.error && isMe && (
+                          <span
+                            onClick={() => retrySend(m)}
+                            style={{
+                              color: '#FF4757',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              fontWeight: 700,
+                            }}
+                            title="发送失败，点击重试"
+                          >
+                            !
+                          </span>
+                        )}
+                        {m.time}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
 
-          {/* Input bar — WeChat style */}
+          {/* Quick emoji bar */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: '4px 10px',
+              background: '#F7F7F7',
+              borderTop: '1px solid #E0E0E0',
+              flexShrink: 0,
+            }}
+          >
+            {['👍', '❤️', '😊', '😂', '🎉', '🔥'].map((e) => (
+              <span
+                key={e}
+                style={{
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  borderRadius: 6,
+                  transition: 'background 0.15s',
+                  userSelect: 'none' as any,
+                }}
+                onMouseEnter={(ev) => {
+                  (ev.currentTarget as HTMLSpanElement).style.background = '#E8ECF1';
+                }}
+                onMouseLeave={(ev) => {
+                  (ev.currentTarget as HTMLSpanElement).style.background = 'transparent';
+                }}
+                onClick={() => {
+                  setInput((prev) => prev + e);
+                  inputRef.current?.focus();
+                }}
+              >
+                {e}
+              </span>
+            ))}
+            <span
+              style={{
+                fontSize: 20,
+                cursor: 'pointer',
+                padding: '2px 6px',
+                borderRadius: 6,
+                userSelect: 'none' as any,
+                marginLeft: 'auto',
+              }}
+              onClick={() => setShowEmoji(!showEmoji)}
+            >
+              😊
+            </span>
+          </div>
+
+          {/* Input bar */}
           <div
             style={{
               display: 'flex',
@@ -323,29 +469,42 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
               flexShrink: 0,
             }}
           >
-            <span
-              style={{ fontSize: 22, cursor: 'pointer', userSelect: 'none' as any }}
-              onClick={() => setShowEmoji(!showEmoji)}
-            >
-              😊
-            </span>
             <Input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPressEnter={send}
               placeholder="输入消息..."
-              style={{ flex: 1, borderRadius: 6, background: '#FFF', border: '1px solid #E0E0E0' }}
+              style={{
+                flex: 1,
+                borderRadius: 20,
+                background: '#FFF',
+                border: '1px solid #E0E0E0',
+                boxShadow: 'none',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#00D4FF';
+                e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,212,255,0.2)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#E0E0E0';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <Button
               onClick={send}
               disabled={!input.trim()}
               style={{
-                background: input.trim() ? '#07C160' : '#E0E0E0',
-                borderColor: input.trim() ? '#07C160' : '#E0E0E0',
+                background: input.trim()
+                  ? 'linear-gradient(135deg, #00D4FF, #7B61FF)'
+                  : '#E0E0E0',
+                borderColor: input.trim() ? 'transparent' : '#E0E0E0',
                 color: input.trim() ? '#FFF' : '#999',
-                borderRadius: 6,
+                borderRadius: 20,
                 fontWeight: 600,
+                padding: '0 18px',
+                border: 'none',
               }}
             >
               发送
