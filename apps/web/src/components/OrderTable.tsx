@@ -22,11 +22,11 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
     pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条`, size: 'default' }}
     columns={[
       {
-        title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 80,
+        title: '客户编号', dataIndex: 'customerCode', key: 'customerCode', width: 80, align: 'center' as const,
         render: (_: any, r: any) => <Text>{r.customer?.customerCode || '-'}</Text>,
       },
       {
-        title: '微信', key: 'wechatId', width: 90,
+        title: '微信', key: 'wechatId', width: 90, align: 'center' as const,
         render: (_: any, r: any) => <Text ellipsis style={{ maxWidth: 90 }}>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>,
       },
       {
@@ -46,24 +46,26 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
         },
       },
       {
-        title: '来源', key: 'source', width: 90,
+        title: '来源', key: 'source', width: 80, align: 'center' as const,
         render: (_: any, r: any) => {
           const cf = r.customFields || {};
           return (
-            <Space size={2} wrap>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              {cf.urgency === 'later'
+                ? <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>预约</Tag>
+                : <Tag color="green" style={{ fontSize: 10, margin: 0 }}>即时</Tag>}
               {cf.customerSource && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.customerSource}</Tag>}
-              {cf.urgency === 'later' ? <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>预约</Tag> : <Tag color="green" style={{ fontSize: 10, margin: 0 }}>即时</Tag>}
               {cf.billingMode && <Tag style={{ fontSize: 10, margin: 0 }}>{cf.billingMode === 'round' ? '按局' : '按时'}</Tag>}
-            </Space>
+            </div>
           );
         },
       },
       {
-        title: '状态', dataIndex: 'status', key: 'status', width: 70,
+        title: '状态', dataIndex: 'status', key: 'status', width: 70, align: 'center' as const,
         render: (s: string) => <Tag color={orderStatusConfig[s]?.color || 'default'}>{orderStatusConfig[s]?.label || s}</Tag>,
       },
       {
-        title: '陪玩', key: 'companion', width: 90,
+        title: '陪玩', key: 'companion', width: 90, align: 'center' as const,
         render: (_: any, r: any) =>
           r.coCompanion ? (
             <Text>{r.companion?.user?.username || '-'}<Text type="secondary" style={{ fontSize: 11 }}> +{r.coCompanion?.user?.username || ''}</Text></Text>
@@ -71,15 +73,15 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
             <Text>{r.companion?.user?.username || '-'}</Text>
           ),
       },
-      { title: '工作微信', key: 'workWechat', width: 90, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
+      { title: '工作微信', key: 'workWechat', width: 90, align: 'center' as const, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
       {
-        title: '金额', key: 'amount', width: 80, align: 'right' as const,
+        title: '金额', key: 'amount', width: 90, align: 'center' as const,
         render: (_: any, r: any) => <Text strong style={{ color: '#EF4444' }}>¥{Number(r.amount || 0).toFixed(0)}</Text>,
       },
       {
-        title: '备注', key: 'notes', width: 100, ellipsis: true,
+        title: '备注', key: 'notes', width: 110, align: 'center' as const,
         render: (_: any, r: any) => (
-          <Space size={2} wrap>
+          <Space size={2} wrap style={{ justifyContent: 'center' }}>
             {r.screenshotUrl && <Image src={r.screenshotUrl} width={20} height={20} style={{ borderRadius: 4, cursor: 'pointer' }} preview={{ mask: '查看' }} />}
             {r.contactStatus === 'not_accepted' && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>待审</Tag>}
             {(r.customFields?.deltaNote || r.notes || '').includes('补单') && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>补单</Tag>}
