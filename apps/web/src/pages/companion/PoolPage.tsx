@@ -62,11 +62,7 @@ const PoolPage: React.FC = () => {
   }, []);
 
   // Chat state
-  const [chatPartner, setChatPartner] = useState<{
-    companionId: string;
-    companionName: string;
-    avatar?: string;
-  } | null>(null);
+  const [chatPartner, setChatPartner] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -119,8 +115,14 @@ const PoolPage: React.FC = () => {
       return rest;
     });
     setChatPartner({
-      companionId: order.csUserId,
-      companionName: order.csUser?.displayName || order.csUser?.username || '未知',
+      conversationId: order.csUserId,
+      participant: {
+        userId: order.csUserId,
+        username: order.csUser?.username || '未知',
+        displayName: order.csUser?.displayName,
+        avatar: order.csUser?.avatar,
+        role: 'CS',
+      },
       avatar: order.csUser?.avatar || null,
     });
   };

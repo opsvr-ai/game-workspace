@@ -45,11 +45,7 @@ const OrdersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<any>(null);
-  const [chatPartnerModal, setChatPartnerModal] = useState<{
-    companionId: string;
-    companionName: string;
-    avatar?: string;
-  } | null>(null);
+  const [chatPartnerModal, setChatPartnerModal] = useState<any>(null);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   useEffect(() => {
     const read = () => {
@@ -262,8 +258,14 @@ const OrdersPage: React.FC = () => {
                     return rest;
                   });
                   setChatPartnerModal({
-                    companionId: r.csUserId,
-                    companionName: r.csUser?.username || '客服',
+                    conversationId: r.csUserId,
+                    participant: {
+                      userId: r.csUserId,
+                      username: r.csUser?.username || '客服',
+                      displayName: r.csUser?.displayName,
+                      avatar: r.csUser?.avatar,
+                      role: 'CS',
+                    },
                   });
                 }}
               >
