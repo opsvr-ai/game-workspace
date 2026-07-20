@@ -1,10 +1,12 @@
 // craftsman-ignore: TS001
-import { Controller, Get, Post, Param, Body, Req, Query, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, Query, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ChatService } from './chat.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('chat')
+@UseGuards(AuthGuard('jwt'))
 export class ChatController {
   constructor(
     private readonly chatService: ChatService,
