@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 52,
+      "successCount": 55,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
           "weight": 26
         },
         "style:prefer_const": {
-          "count": 2,
-          "weight": 53
+          "count": 0,
+          "weight": 54
         },
         "typing:explicit_types": {
           "count": 1,
@@ -58,19 +58,19 @@
   "codePatterns": {},
   "bashPatterns": {
     "npx": {
-      "count": 4,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784474065660
+      "lastSuccess": 1784554713483
     },
     "git": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784476846028
+      "lastSuccess": 1784554765260
     },
     "pwd": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784402087749
+      "lastSuccess": 1784554774793
     },
     "fuser": {
       "count": 2,
@@ -106,6 +106,11 @@
       "count": 1,
       "patterns": [],
       "lastSuccess": 1784476771914
+    },
+    "curl": {
+      "count": 2,
+      "patterns": [],
+      "lastSuccess": 1784554732142
     }
   },
   "successfulActions": [
@@ -1837,6 +1842,118 @@
         "hasChain": false
       },
       "timestamp": 1784476846028
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784554341681
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx",
+      "patterns": [],
+      "timestamp": 1784554351556
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -E \"FloatingChatWidget|notificationSound\" | head -10",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -E \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784554359979
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -A 20 \"FloatingChatWidget.tsx(298\" | head -25",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -A N \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784554367928
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx",
+      "patterns": [],
+      "timestamp": 1784554380545
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -E \"FloatingChatWidget|notificationSound|chatStore\" | head -10",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -E \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784554389786
+    },
+    {
+      "type": "bash",
+      "command": "npx vite --host 0.0.0.0 --port 8000 2>&1 &",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx vite --host N.N.N.N --port N N>&N &",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784554713483
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8002/ 2>&1",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -o /dev/null -w \"\" http://localhost:N/ N>&N",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784554729340
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8002/ | head -20",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/ | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784554732142
+    },
+    {
+      "type": "bash",
+      "command": "git status",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git status",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784554765260
+    },
+    {
+      "type": "bash",
+      "command": "pwd && git rev-parse --show-toplevel",
+      "cmdPattern": {
+        "base": "pwd",
+        "pattern": "pwd && git rev-parse --show-toplevel",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784554774793
     }
   ]
 }

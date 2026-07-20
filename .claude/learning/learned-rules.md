@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-19T13:09:41.272Z
+**Last Updated:** 2026-07-20T16:11:45.980Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 10
+- **Total Patterns:** 14
 - **Total Feedback:** 1
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 14 occurrences
+**Frequency:** 26 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 3 occurrences
+**Frequency:** 10 occurrences
 
 ### Commonly used command: find
 
@@ -39,7 +39,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 10 occurrences
 
 ### Commonly used command: wc
 
@@ -49,6 +49,28 @@
 **Frequency:** 1 occurrences
 
 ### Commonly used command: pnpm
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: mkdir
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: npx
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
+### Commonly used command: openspec
 
 **Examples:**
 - Used successfully 6 times
@@ -66,7 +88,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 10 occurrences
+**Frequency:** 23 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -75,7 +97,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 5 occurrences
+**Frequency:** 12 occurrences
 
 ### Prefer async await in .ts files
 
@@ -84,7 +106,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 4 occurrences
+**Frequency:** 6 occurrences
 
 ## Framework
 
@@ -97,13 +119,24 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 5 occurrences
+**Frequency:** 8 occurrences
 
 ## Quality
 
 *0 corrections in this category*
 
 ### Prefer error handling in .tsx files
+
+**Examples:**
+- Auto-detected from 3 successful operations
+
+**Frequency:** 1 occurrences
+
+## Typing
+
+*0 corrections in this category*
+
+### Prefer explicit types in .ts files
 
 **Examples:**
 - Auto-detected from 3 successful operations

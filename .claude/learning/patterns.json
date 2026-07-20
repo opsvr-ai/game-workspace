@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 14,
+    "frequency": 26,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-19T13:07:09.875Z"
+    "updated_at": "2026-07-20T15:26:39.338Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 10,
+    "frequency": 23,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-19T13:09:15.281Z"
+    "updated_at": "2026-07-20T16:11:45.979Z"
   },
   {
     "type": "code_style",
@@ -50,12 +50,17 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 5,
+    "frequency": 12,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-19T13:09:41.269Z"
+    "updated_at": "2026-07-20T15:26:46.855Z"
   },
   {
     "type": "code_style",
@@ -66,12 +71,15 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 5,
+    "frequency": 8,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-19T12:27:04.968Z"
+    "updated_at": "2026-07-20T14:29:21.215Z"
   },
   {
     "type": "workflow",
@@ -80,12 +88,19 @@
     "evidence": [
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 3,
+    "frequency": 10,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-19T13:04:48.919Z"
+    "updated_at": "2026-07-20T15:40:40.757Z"
   },
   {
     "type": "code_style",
@@ -107,12 +122,18 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "find",
-    "frequency": 4,
+    "frequency": 10,
     "created_at": "2026-07-19T12:03:25.754Z",
-    "updated_at": "2026-07-19T12:24:41.854Z"
+    "updated_at": "2026-07-20T15:03:44.794Z"
   },
   {
     "type": "workflow",
@@ -146,11 +167,62 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 4,
+    "frequency": 6,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-19T13:09:41.272Z"
+    "updated_at": "2026-07-20T15:17:14.039Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: mkdir",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "mkdir",
+    "frequency": 1,
+    "created_at": "2026-07-20T14:06:19.167Z",
+    "updated_at": "2026-07-20T14:06:19.167Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: npx",
+    "evidence": [
+      "Used successfully 6 times",
+      "Used successfully 6 times"
+    ],
+    "rule": "npx",
+    "frequency": 2,
+    "created_at": "2026-07-20T14:53:10.455Z",
+    "updated_at": "2026-07-20T16:03:15.470Z"
+  },
+  {
+    "type": "code_style",
+    "category": "typing",
+    "description": "Prefer explicit types in .ts files",
+    "evidence": [
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "explicit_types",
+    "frequency": 1,
+    "created_at": "2026-07-20T15:17:14.040Z",
+    "updated_at": "2026-07-20T15:17:14.040Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: openspec",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "openspec",
+    "frequency": 1,
+    "created_at": "2026-07-20T15:56:36.906Z",
+    "updated_at": "2026-07-20T15:56:36.906Z"
   }
 ]

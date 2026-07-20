@@ -86,7 +86,7 @@ export class ChatService {
   }
 
   /** Get messages for a conversation (cursor-based pagination) */
-  async getMessages(conversationId: string, before?: string, limit = 50) {
+  async getConversationMessages(conversationId: string, before?: string, limit = 50) {
     const where: { conversationId: string; createdAt?: { lt: Date } } = { conversationId };
     if (before) {
       where.createdAt = { lt: new Date(before) };
@@ -169,6 +169,54 @@ export class ChatService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, username: true, displayName: true, avatar: true, role: true },
+    });
+  }
+
+  // ── Legacy methods (keep old endpoints working during migration) ──
+
+  async saveMessage(data: { studioId: string; orderId?: string; senderId: string; senderRole: string; text: string }) {
+    return this.prisma.chatMessageLegacy.create({ data });
+  }
+
+  async getRecentMessages(studioId: string, since: Date) {
+    return this.prisma.chatMessageLegacy.findMany({
+      where: { studioId, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async getMessages(studioId: string, orderId: string, limit = 200) {
+    return this.prisma.chatMessageLegacy.findMany({
+      where: { studioId, orderId },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+  }
+
+  async getMessagesByCompanion(studioId: string, companionId: string, userId?: string, limit = 200) {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { userId: true },
+    });
+    const otherUserId = companion?.userId || companionId;
+    const orderIds = await this.prisma.order.findMany({
+      where: { companionId },
+      select: { id: true },
+    });
+    const ids = orderIds.map((o: { id: string }) => o.id);
+    return this.prisma.chatMessageLegacy.findMany({
+      where: {
+        studioId,
+        OR: [
+          { senderId: otherUserId },
+          ...(userId && userId !== otherUserId ? [{ senderId: userId }] : []),
+          ...(otherUserId !== companionId ? [{ senderId: companionId }] : []),
+          ...(ids.length > 0 ? [{ orderId: { in: ids } }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
     });
   }
 }

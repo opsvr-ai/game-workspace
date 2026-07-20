@@ -1,13 +1,10 @@
 {
-  "session_start": 1784459811668,
+  "session_start": 1784561636316,
   "per_server": {
-    "axme": {
-      "session": 17,
+    "codegraph": {
+      "session": 1,
       "last_minute": [
-        1784460616448,
-        1784460640790,
-        1784460662776,
-        1784460676047
+        1784561636316
       ]
     }
   }

@@ -26,11 +26,7 @@ export class ChatController {
     if (!req.user?.id || !req.user?.studioId) {
       throw new UnauthorizedException('未登录');
     }
-    const conv = await this.chatService.getOrCreateConversation(
-      req.user.studioId,
-      req.user.id,
-      body.participantId,
-    );
+    const conv = await this.chatService.getOrCreateConversation(req.user.studioId, req.user.id, body.participantId);
     return { data: { id: conv.id } };
   }
 
@@ -43,7 +39,7 @@ export class ChatController {
   ) {
     if (!req.user?.id) throw new UnauthorizedException('未登录');
     return {
-      data: await this.chatService.getMessages(id, before, Number(limit) || 50),
+      data: await this.chatService.getConversationMessages(id, before, Number(limit) || 50),
     };
   }
 
@@ -63,8 +59,7 @@ export class ChatController {
       select: { participantA: true, participantB: true },
     });
     if (fullConv) {
-      const otherUserId =
-        fullConv.participantA === req.user.id ? fullConv.participantB : fullConv.participantA;
+      const otherUserId = fullConv.participantA === req.user.id ? fullConv.participantB : fullConv.participantA;
       this.wsGateway.notifyNewMessage(otherUserId, {
         conversationId: id,
         message: {
