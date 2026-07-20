@@ -207,10 +207,7 @@ const AppLayout: React.FC = () => {
         userId: conversationId,
         username: participantName,
         role: 'COMPANION',
-      },
-      orderInfo:
-        conv?.orderInfo ||
-        (conv?.participant?.role === 'COMPANION' ? '陪玩' : conv?.participant?.role === 'CS' ? '客服' : undefined),
+      orderInfo: conv?.orderInfo,
     });
     useChatStore.getState().markRead(conversationId);
   }, []);
