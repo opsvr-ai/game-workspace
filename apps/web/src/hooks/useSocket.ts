@@ -10,6 +10,7 @@ interface UseSocketOptions {
   onStatusBroadcast?: (data: any) => void;
   onChatNotify?: (data: any) => void;
   onChatNew?: (data: any) => void;
+  onChatMessage?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -49,6 +50,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('chat:new', (data: any) => {
       optsRef.current.onChatNew?.(data);
+    });
+
+    socket.on('chat:message', (data: any) => {
+      optsRef.current.onChatMessage?.(data);
     });
 
     socket.on('order:new', (data: any) => {

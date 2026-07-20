@@ -11,8 +11,9 @@ import DualCompanionModal from '../components/DualCompanionModal';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
 import { FloatingChatWidget } from '../components/FloatingChatWidget';
-import { MessageCenterPanel } from '../components/MessageCenterPanel';
+import { ConversationList } from '../components/ConversationList';
 import { playMessageSound } from '../utils/notificationSound';
+import { chatApi } from '../api/chat';
 
 // Badge pulse animation
 if (!document.getElementById('badge-pulse-css')) {
@@ -190,25 +191,24 @@ const AppLayout: React.FC = () => {
   const [notifOpen, setNotifOpen] = React.useState(false);
   // Global chat modal (opened from notification bell)
   const [globalChatPartner, setGlobalChatPartner] = React.useState<{
-    companionId: string;
-    companionName: string;
-    avatar?: string;
-    orderInfo?: string;
+    conversationId: string;
   } | null>(null);
   const { notify } = useChatNotification(true);
 
   // Open chat from notification
   const openChatFromNotification = useCallback(
-    (companionId: string, companionName: string) => {
+    (conversationId: string, participantName: string) => {
+      const conv = useChatStore.getState().conversations[conversationId];
       setNotifOpen(false);
       setGlobalChatPartner({
-        companionId,
-        companionName,
-        orderInfo: user?.role === 'COMPANION' ? '客服' : `陪玩: ${companionName}`,
+        conversationId,
+        participant: conv?.participant || {
+          userId: conversationId, username: participantName, role: 'COMPANION',
+        },
       });
-      useChatStore.getState().markAllRead(companionId);
+      useChatStore.getState().markRead(conversationId);
     },
-    [user?.role],
+    [],
   );
 
   // Keyboard shortcuts
@@ -359,6 +359,15 @@ const AppLayout: React.FC = () => {
     const t = setInterval(poll, 10000);
     return () => clearInterval(t);
   }, [user?.studioId]);
+  // Load conversations on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    useChatStore.getState().setMyUserId(user.id);
+    chatApi.listConversations().then(({ data }) => {
+      useChatStore.getState().setConversations(data?.data?.conversations || []);
+    }).catch(() => {});
+  }, [user?.id]);
+
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -542,7 +551,7 @@ const AppLayout: React.FC = () => {
                   placement="bottomRight"
                   title="消息通知"
                   content={
-                    <MessageCenterPanel onOpenChat={openChatFromNotification} onClose={() => setNotifOpen(false)} />
+                    <ConversationList onOpenChat={openChatFromNotification} onClose={() => setNotifOpen(false)} />
                   }
                 >
                   <Badge count={totalUnread} overflowCount={99} size="default" offset={[-2, 8]}>
@@ -708,14 +717,7 @@ const AppLayout: React.FC = () => {
       {/* Global Chat Modal (opened from notification bell) */}
       <ChatModal
         open={!!globalChatPartner}
-        partner={
-          globalChatPartner
-            ? {
-                companionId: globalChatPartner.companionId,
-                companionName: globalChatPartner.companionName,
-              }
-            : null
-        }
+        partner={globalChatPartner}
         onClose={() => setGlobalChatPartner(null)}
       />
 
