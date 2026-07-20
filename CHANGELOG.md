@@ -9,6 +9,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Chat history endpoint:** `GET /api/companions/chat-history/:companionId` returns full chat message history between a studio and a specific companion.
+
 ### Changed
 
 - **全角色页面统一化：** 6 个功能页面的 12 个 per-role 版本合并为统一的共享组件

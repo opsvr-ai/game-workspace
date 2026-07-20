@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UploadedFile,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -93,6 +94,16 @@ export class CompanionsController {
         messages,
       },
     };
+  }
+
+  @Get('companions/chat-history/:companionId')
+  async chatHistory(@Req() req: any, @Param('companionId') companionId: string) {
+    const user = req.user;
+    if (!user?.studioId) {
+      throw new UnauthorizedException('未登录');
+    }
+    const messages = await this.chatService.getMessagesByCompanion(user.studioId, companionId, 200);
+    return { data: { companionId, messages } };
   }
 
   @Get('companions/me/workbench')
@@ -474,10 +485,13 @@ export class CompanionsController {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     }),
   )
-  async chatUpload(@UploadedFile() file: Express.Multer.File): Promise<ApiResponse<{ url: string; name: string; size: number; type: string }>> {
+  async chatUpload(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ApiResponse<{ url: string; name: string; size: number; type: string }>> {
     if (!file) return { code: 400, message: '未选择文件', data: null as any };
     return {
-      code: 200, message: 'ok',
+      code: 200,
+      message: 'ok',
       data: {
         url: `/uploads/chat/${file.filename}`,
         name: file.originalname,

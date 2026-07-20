@@ -366,6 +366,9 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/companions/work-wechats` | JWT | ADMIN, OWNER | Add work wechat. |
 | `PUT` | `/api/companions/work-wechats/:id/bind` | JWT | ADMIN, OWNER | Bind to companion. |
 | `PUT` | `/api/companions/work-wechats/:id/unbind` | JWT | ADMIN, OWNER | Unbind wechat. |
+| `GET` | `/api/companions/chat-history/:companionId` | JWT | -- | Get full chat history with a companion. |
+| `GET` | `/api/companions/chat-pending` | JWT | -- | Get pending chat messages for current studio. |
+| `POST` | `/api/companions/chat-notify` | JWT | COMPANION, CS, ADMIN, OWNER | Send chat notification from companion. |
 
 ### Customers
 
