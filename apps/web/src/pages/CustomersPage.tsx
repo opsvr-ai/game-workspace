@@ -83,15 +83,18 @@ const CustomersPage: React.FC = () => {
   const [searchCode, setSearchCode] = useState('');
 
   // Companion: chat, create order, schedule
-  const [chatPartner, setChatPartner] = useState<{ name: string; orderId: string; orderInfo?: string } | null>(null);
+  const [chatPartner, setChatPartner] = useState<{
+    companionId: string;
+    companionName: string;
+    avatar?: string;
+  } | null>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
 
   const openChat = (record: Customer) => {
     const o = record.orders?.[0];
     setChatPartner({
-      name: record.wechatId || record.customerCode,
-      orderId: o?.id || '',
-      orderInfo: o ? `👤${record.customerCode} · ${o.gameName}` : `👤${record.customerCode}`,
+      companionId: o?.companionId || o?.id || record.id,
+      companionName: record.wechatId || record.customerCode,
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);

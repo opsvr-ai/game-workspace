@@ -1,24 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Button,
-  Typography,
-  Tag,
-  Row,
-  Col,
-  message,
-  Progress,
-  Space,
-  Badge,
-} from 'antd';
-import {
-  PlusOutlined,
-  ReloadOutlined,
-  ClockCircleOutlined,
-  MessageOutlined,
-} from '@ant-design/icons';
+import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge } from 'antd';
+import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../stores/authStore';
@@ -55,10 +39,7 @@ const OrderPoolPage: React.FC = () => {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k?.startsWith('unread-')) {
-          map[k.replace('unread-', '')] = parseInt(
-            localStorage.getItem(k) || '0',
-            10,
-          );
+          map[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
         }
       }
       setUnreadMap(map);
@@ -70,20 +51,16 @@ const OrderPoolPage: React.FC = () => {
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<{
-    name: string;
+    companionId: string;
+    companionName: string;
     avatar?: string;
-    orderId: string;
-    orderInfo?: string;
   } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       if (isCompanion) {
-        const [poolRes, statusRes] = await Promise.all([
-          ordersApi.pool(),
-          ordersApi.poolStatus(),
-        ]);
+        const [poolRes, statusRes] = await Promise.all([ordersApi.pool(), ordersApi.poolStatus()]);
         setOrders(poolRes.data.data ?? []);
         setPoolStatus(statusRes.data.data);
       } else {
@@ -124,37 +101,13 @@ const OrderPoolPage: React.FC = () => {
     localStorage.removeItem(`unread-${order.id}`);
     localStorage.removeItem(`unread-${user?.companionId || ''}`);
     setUnreadMap((prev) => {
-      const {
-        [user?.companionId || order.id]: _,
-        ...rest
-      } = prev;
+      const { [user?.companionId || order.id]: _, ...rest } = prev;
       return rest;
     });
     setChatPartner({
-      name: order.csUser?.displayName || order.csUser?.username || '未知',
+      companionId: order.csUserId,
+      companionName: order.csUser?.displayName || order.csUser?.username || '未知',
       avatar: order.csUser?.avatar || null,
-      orderId: order.id,
-      orderInfo: [
-        `📋 ${order.gameName}`,
-        `${
-          order.type === 'NEW'
-            ? '首单'
-            : order.type === 'RENEW'
-              ? '续费'
-              : order.type === 'REPURCHASE'
-                ? '复购'
-                : order.type
-        }`,
-        `¥${Number(order.amount).toFixed(2)}`,
-        order.duration ? `${order.duration}h` : '',
-        order.customFields?.billingMode === 'round' ? '按局' : '',
-        order.customer?.customerCode
-          ? `👤${order.customer.customerCode}`
-          : '',
-        order.csUser?.username ? `💬${order.csUser.username}` : '',
-      ]
-        .filter(Boolean)
-        .join(' · '),
     });
   };
 
@@ -197,10 +150,7 @@ const OrderPoolPage: React.FC = () => {
           </Tag>
         </Col>
         <Col>
-          <Tag
-            color={orderTypeConfig[order.type]?.color || 'blue'}
-            style={{ margin: 0 }}
-          >
+          <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
             {orderTypeConfig[order.type]?.label || order.type}
           </Tag>
         </Col>
@@ -223,16 +173,12 @@ const OrderPoolPage: React.FC = () => {
         </Col>
         {order.customFields?.deltaMission && (
           <Col>
-            <Tag style={{ margin: 0 }}>
-              {order.customFields.deltaMission}
-            </Tag>
+            <Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag>
           </Col>
         )}
         {order.customFields?.deltaCount && (
           <Col>
-            <Tag style={{ margin: 0 }}>
-              {order.customFields.deltaCount}
-            </Tag>
+            <Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag>
           </Col>
         )}
         {order.customFields?.serviceType && (
@@ -251,40 +197,29 @@ const OrderPoolPage: React.FC = () => {
         )}
         {order.customer?.customerCode && (
           <Col>
-            <Text
-              type="secondary"
-              style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-            >
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               👤{order.customer.customerCode}
             </Text>
           </Col>
         )}
-        {(order.customFields?.customerSource ||
-          order.customer?.platform) && (
+        {(order.customFields?.customerSource || order.customer?.platform) && (
           <Col>
             <Tag color="orange" style={{ margin: 0 }}>
               📡
-              {order.customFields?.customerSource ||
-                order.customer?.platform}
+              {order.customFields?.customerSource || order.customer?.platform}
             </Tag>
           </Col>
         )}
         {order.customFields?.customerWechat && (
           <Col>
-            <Text
-              type="secondary"
-              style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-            >
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               💬{order.customFields.customerWechat}
             </Text>
           </Col>
         )}
         {order.customFields?.deltaNote && (
           <Col>
-            <Text
-              type="warning"
-              style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-            >
+            <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
               📝{order.customFields.deltaNote}
             </Text>
           </Col>
@@ -305,20 +240,14 @@ const OrderPoolPage: React.FC = () => {
         )}
         {order.customFields?.billingMode === 'round' ? (
           <Col>
-            <Text
-              type="secondary"
-              style={{ fontSize: 13, whiteSpace: 'nowrap' }}
-            >
+            <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
               🎯{order.duration || order.customFields?.deltaCount || '?'}局
             </Text>
           </Col>
         ) : (
           order.duration && (
             <Col>
-              <Text
-                type="secondary"
-                style={{ fontSize: 13, whiteSpace: 'nowrap' }}
-              >
+              <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
                 ⏱{order.duration}h
               </Text>
             </Col>
@@ -333,32 +262,20 @@ const OrderPoolPage: React.FC = () => {
                   该订单客服指定给你接
                 </Tag>
               )}
-              <Text
-                type="secondary"
-                style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-              >
+              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                 📋{order.csUser?.username || '-'}
               </Text>
-              <Badge
-                count={unreadMap[order.id] || 0}
-                size="small"
-                offset={[-4, 0]}
-              >
+              <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
                 <Button
                   size="small"
                   icon={React.createElement(MessageOutlined)}
                   onClick={() => openChat(order)}
-                  className={
-                    (unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''
-                  }
+                  className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
                 >
                   沟通
                 </Button>
               </Badge>
-              <Text
-                type="secondary"
-                style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-              >
+              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
                 {React.createElement(ClockCircleOutlined)}{' '}
                 {(() => {
                   const d = new Date(order.createdAt);
@@ -369,9 +286,7 @@ const OrderPoolPage: React.FC = () => {
                 type="primary"
                 size="small"
                 danger
-                disabled={
-                  !isUnlocked && order.csUser?.role !== 'COMPANION'
-                }
+                disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
                 loading={grabbing === order.id}
                 onClick={() => handleGrab(order.id)}
               >
@@ -382,21 +297,12 @@ const OrderPoolPage: React.FC = () => {
             </Space>
           ) : (
             <Space size={6}>
-              <Text
-                type="secondary"
-                style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-              >
+              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                 发布:
-                {order.csUser?.username ||
-                  order.customFields?.createdBy ||
-                  '未知'}
+                {order.csUser?.username || order.customFields?.createdBy || '未知'}
               </Text>
-              <Text
-                type="secondary"
-                style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-              >
-                {React.createElement(ClockCircleOutlined)}{' '}
-                {new Date(order.createdAt).toLocaleDateString('zh-CN')}{' '}
+              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                {React.createElement(ClockCircleOutlined)} {new Date(order.createdAt).toLocaleDateString('zh-CN')}{' '}
                 {new Date(order.createdAt).toLocaleTimeString('zh-CN', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -416,18 +322,10 @@ const OrderPoolPage: React.FC = () => {
         title="📦 订单池"
         extra={
           <Space>
-            <Button
-              type="primary"
-              icon={React.createElement(PlusOutlined)}
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setCreateOpen(true)}>
               发布订单
             </Button>
-            <Button
-              icon={React.createElement(ReloadOutlined)}
-              onClick={fetchData}
-              loading={loading}
-            >
+            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchData} loading={loading}>
               刷新
             </Button>
           </Space>
@@ -451,19 +349,12 @@ const OrderPoolPage: React.FC = () => {
               </Text>
             </Col>
             <Col>
-              <Tag
-                color={isUnlocked ? 'success' : 'warning'}
-                style={{ fontSize: 14, padding: '4px 12px' }}
-              >
-                {isUnlocked
-                  ? '✅ 可抢单'
-                  : `还差 ¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
+              <Tag color={isUnlocked ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>
+                {isUnlocked ? '✅ 可抢单' : `还差 ¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
               </Tag>
             </Col>
           </Row>
-          {!isUnlocked && (
-            <Progress percent={pct} size="small" style={{ marginTop: 8 }} />
-          )}
+          {!isUnlocked && <Progress percent={pct} size="small" style={{ marginTop: 8 }} />}
         </Card>
       )}
 
@@ -476,9 +367,7 @@ const OrderPoolPage: React.FC = () => {
 
       {isCompanion && (
         <Card size="small" style={{ marginTop: 16 }}>
-          <Text type="secondary">
-            💡 抢单后可见客户联系方式和来源账号ID
-          </Text>
+          <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
         </Card>
       )}
 
@@ -492,7 +381,6 @@ const OrderPoolPage: React.FC = () => {
 
       {/* Chat Modal */}
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
-
     </div>
   );
 };

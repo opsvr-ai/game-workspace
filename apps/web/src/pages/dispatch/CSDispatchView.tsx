@@ -1,21 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Modal,
-  Select,
-  Tag,
-  Typography,
-  Space,
-  message,
-  List,
-  Spin,
-  Badge,
-  Input,
-} from 'antd';
+import { Row, Col, Card, Button, Modal, Select, Tag, Typography, Space, message, List, Spin, Badge, Input } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
@@ -26,12 +11,7 @@ import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
-import {
-  orderTypeConfig,
-  companionStatusConfig,
-  STATUS_SORT,
-  serviceTypeConfig,
-} from '../../constants';
+import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
 
 const { Text } = Typography;
 
@@ -66,10 +46,9 @@ const CSDispatchView: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [chatPartner, setChatPartner] = useState<{
-    name: string;
+    companionId: string;
+    companionName: string;
     avatar?: string;
-    orderId: string;
-    orderInfo?: string;
   } | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
@@ -221,8 +200,12 @@ const CSDispatchView: React.FC = () => {
       <Row gutter={12}>
         {/* Left: Companion sidebar */}
         <Col span={4}>
-          <Card title="陪玩管理" size="small" style={{ marginBottom: 12 }}
-            bodyStyle={{ padding: '8px 12px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
+          <Card
+            title="陪玩管理"
+            size="small"
+            style={{ marginBottom: 12 }}
+            bodyStyle={{ padding: '8px 12px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+          >
             {/* Companion search filter */}
             <Input
               size="small"
@@ -248,142 +231,128 @@ const CSDispatchView: React.FC = () => {
                   const isSelected = selectedCompanionId === c.id;
                   const hasUnread = (unreadMap[c.id] || 0) > 0;
                   return (
-                  <List.Item
-                    style={{
-                      padding: '8px 6px',
-                      display: 'block',
-                      cursor: 'pointer',
-                      borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
-                      paddingLeft: isSelected ? 10 : 10,
-                      borderRadius: '0 6px 6px 0',
-                      transition: 'transform 0.15s ease, background 0.15s ease',
-                      background: isSelected ? '#EFF6FF' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateX(2px)';
-                      e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateX(0)';
-                      if (!isSelected) e.currentTarget.style.background = 'transparent';
-                    }}
-                    onClick={() => {
-                      setSelectedCompanionId(c.id);
-                      const hasMsg = chatIds.includes(c.id);
-                      if (hasMsg) {
-                        const cur = useChatStore.getState().chatCompanionIds.filter((id: string) => id !== c.id);
-                        useChatStore.setState({ chatCompanionIds: cur });
-                      }
-                      // Clear badge
-                      localStorage.removeItem(`unread-${c.id}`);
-                      setUnreadMap((prev) => {
-                        const { [c.id]: _, ...r } = prev;
-                        return r;
-                      });
-                      // Open WeChat-style chat — use notification's orderId
-                      const u = c.user as any;
-                      const notifOrderId = localStorage.getItem(`last-orderId-${c.id}`);
-                      const matchedOrder = [...poolOrders, ...allOrders].find(
-                        (o: any) => o.id === notifOrderId || o.companionId === c.id,
-                      );
-                      const chatOrderId = notifOrderId || matchedOrder?.id;
-                      setChatPartner({
-                        name: u?.displayName || u?.username || c.id,
-                        avatar: u?.avatar || null,
-                        orderId: chatOrderId,
-                        orderInfo: matchedOrder
-                          ? [
-                              matchedOrder.companionId === c.id ? '✅已抢' : '⏳待抢',
-                              `📋 ${matchedOrder.gameName}`,
-                              `${(orderTypeConfig as any)[matchedOrder.type]?.label || matchedOrder.type}`,
-                              `¥${Number(matchedOrder.amount).toFixed(2)}`,
-                              matchedOrder.duration ? `${matchedOrder.duration}h` : '',
-                              matchedOrder.customFields?.billingMode === 'round' ? '按局' : '',
-                              matchedOrder.customer?.customerCode ? `👤${matchedOrder.customer.customerCode}` : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')
-                          : c.games?.length
-                            ? `🎮 ${c.games.map((g: any) => g.game || g).join(',')}`
-                            : '',
-                      });
-                    }}
-                  >
-                    <div
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
+                    <List.Item
+                      style={{
+                        padding: '8px 6px',
+                        display: 'block',
+                        cursor: 'pointer',
+                        borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
+                        paddingLeft: isSelected ? 10 : 10,
+                        borderRadius: '0 6px 6px 0',
+                        transition: 'transform 0.15s ease, background 0.15s ease',
+                        background: isSelected ? '#EFF6FF' : 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateX(2px)';
+                        e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateX(0)';
+                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                      }}
+                      onClick={() => {
+                        setSelectedCompanionId(c.id);
+                        const hasMsg = chatIds.includes(c.id);
+                        if (hasMsg) {
+                          const cur = useChatStore.getState().chatCompanionIds.filter((id: string) => id !== c.id);
+                          useChatStore.setState({ chatCompanionIds: cur });
+                        }
+                        // Clear badge
+                        localStorage.removeItem(`unread-${c.id}`);
+                        setUnreadMap((prev) => {
+                          const { [c.id]: _, ...r } = prev;
+                          return r;
+                        });
+                        // Open WeChat-style chat
+                        const u = c.user as any;
+                        setChatPartner({
+                          companionId: c.id,
+                          companionName: u?.displayName || u?.username || c.id,
+                          avatar: u?.avatar || null,
+                        });
+                      }}
                     >
-                      <Space size="small">
-                        {(() => {
-                          const u = c.user as any;
-                          const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
-                          const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
-                          return (
-                            <div
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '50%',
-                                background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow:
-                                  c.status !== CompanionStatus.OFFLINE
-                                    ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
-                                    : 'none',
-                                flexShrink: 0,
-                              }}
-                            >
-                              {!avatarUrl && (
-                                <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          {/* Unread dot */}
-                          {hasUnread && (
-                            <span
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                background: '#FF4757',
-                                flexShrink: 0,
-                                boxShadow: '0 0 4px #FF4757',
-                              }}
-                            />
-                          )}
-                          <Text strong>
-                            {c.user?.username ?? c.id}
-                          </Text>
-                          {(c as any).processStatus === 'BLOCKED' && (
-                            <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
-                              已限制
-                            </Tag>
-                          )}
-                          {(c as any).processStatus === 'WARNING' && (
-                            <Tag color="orange" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
-                              ⚠️ 进程异常
-                            </Tag>
-                          )}
-                        </span>
-                      </Space>
-                      <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
-                        {companionStatusConfig[c.status]?.label || c.status}
-                      </Tag>
-                    </div>
-                    {/* Game profile */}
-                    {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
-                      <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {c.games.map((g: any, i: number) => (
-                          <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
-                            {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
-                          </Tag>
-                        ))}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          width: '100%',
+                        }}
+                      >
+                        <Space size="small">
+                          {(() => {
+                            const u = c.user as any;
+                            const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
+                            const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
+                            return (
+                              <div
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow:
+                                    c.status !== CompanionStatus.OFFLINE
+                                      ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
+                                      : 'none',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {!avatarUrl && (
+                                  <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {/* Unread dot */}
+                            {hasUnread && (
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  background: '#FF4757',
+                                  flexShrink: 0,
+                                  boxShadow: '0 0 4px #FF4757',
+                                }}
+                              />
+                            )}
+                            <Text strong>{c.user?.username ?? c.id}</Text>
+                            {(c as any).processStatus === 'BLOCKED' && (
+                              <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
+                                已限制
+                              </Tag>
+                            )}
+                            {(c as any).processStatus === 'WARNING' && (
+                              <Tag color="orange" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
+                                ⚠️ 进程异常
+                              </Tag>
+                            )}
+                          </span>
+                        </Space>
+                        <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
+                          {companionStatusConfig[c.status]?.label || c.status}
+                        </Tag>
                       </div>
-                    )}
-                  </List.Item>
+                      {/* Game profile */}
+                      {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
+                        <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {c.games.map((g: any, i: number) => (
+                            <Tag
+                              key={i}
+                              style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}
+                            >
+                              {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
+                            </Tag>
+                          ))}
+                        </div>
+                      )}
+                    </List.Item>
                   );
                 }}
               />
@@ -392,8 +361,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={17}
-          style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -416,7 +384,8 @@ const CSDispatchView: React.FC = () => {
                 </Tag>
                 <span style={{ color: '#64748B', fontSize: 12, marginLeft: 8 }}>
                   今日新增 <b style={{ color: '#2563EB' }}>{todayNew}</b> · 已接{' '}
-                  <b style={{ color: '#16A34A' }}>{todayGrabbed}</b> · 剩余 <b style={{ color: '#F59E0B' }}>{poolCount}</b>
+                  <b style={{ color: '#16A34A' }}>{todayGrabbed}</b> · 剩余{' '}
+                  <b style={{ color: '#F59E0B' }}>{poolCount}</b>
                 </span>
               </Space>
             </div>
@@ -675,7 +644,14 @@ const CSDispatchView: React.FC = () => {
       />
 
       {/* Chat Modal */}
-      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => { setChatPartner(null); setSelectedCompanionId(null); }} />
+      <ChatModal
+        open={!!chatPartner}
+        partner={chatPartner}
+        onClose={() => {
+          setChatPartner(null);
+          setSelectedCompanionId(null);
+        }}
+      />
 
       {/* Companion detail modal */}
       <Modal

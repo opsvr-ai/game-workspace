@@ -308,27 +308,21 @@ const AppLayout: React.FC = () => {
   const [notifOpen, setNotifOpen] = React.useState(false);
   // Global chat modal (opened from notification bell)
   const [globalChatPartner, setGlobalChatPartner] = React.useState<{
-    name: string;
+    companionId: string;
+    companionName: string;
     avatar?: string;
-    orderId: string;
-    orderInfo?: string;
   } | null>(null);
   const { notify } = useChatNotification(true);
 
   // Open chat from notification
   const openChatFromNotification = useCallback((companionId: string, companionName: string) => {
-    const orderId = localStorage.getItem(`last-orderId-${companionId}`);
-    if (!orderId) {
-      return;
-    }
     setNotifOpen(false);
     setGlobalChatPartner({
-      name: companionName,
-      orderId,
-      orderInfo: user?.role === 'COMPANION' ? `客服: ${companionName}` : `陪玩: ${companionName}`,
+      companionId,
+      companionName,
     });
     // Clear unread for this companion
-    useChatStore.getState().clearChatUnread(companionId);
+    useChatStore.getState().markAllRead(companionId);
   }, []);
 
   // Keyboard shortcuts
