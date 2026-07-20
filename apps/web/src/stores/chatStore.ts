@@ -54,6 +54,7 @@ interface ChatState {
   openChat: (companionId: string) => void;
   closeChat: () => void;
   markSoundPlayed: (companionId: string, timestamp: number) => void;
+  reset: () => void;
 }
 
 function ensureChat(s: ChatState, companionId: string, companionName: string): ChatState {
@@ -117,7 +118,10 @@ export const useChatStore = create<ChatState>((set) => ({
       const s2 = ensureChat(s, companionId, companionName);
       const chat = s2.chats[companionId];
       const existingIds = new Set(chat.messages.map((m) => m.id));
-      const newMsgs = msgs.filter((m) => !existingIds.has(m.id)).map((m) => ({ ...m, read: true })); // history is always read
+      const newMsgs = msgs
+        .filter((m) => !existingIds.has(m.id))
+        .filter((m) => !chat.messages.some((em) => em.text === m.text && em.timestamp === m.timestamp))
+        .map((m) => ({ ...m, read: true })); // history is always read
       const merged = [...chat.messages, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp).slice(-200);
       return {
         chats: {
@@ -192,4 +196,12 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => ({
       lastSoundPlayedAt: { ...s.lastSoundPlayedAt, [companionId]: timestamp },
     })),
+
+  reset: () =>
+    set({
+      chats: {},
+      totalUnread: 0,
+      activeCompanionId: null,
+      isChatOpen: false,
+    }),
 }));

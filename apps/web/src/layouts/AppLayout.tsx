@@ -416,6 +416,7 @@ const AppLayout: React.FC = () => {
 
   const handleLogout = () => {
     logout();
+    useChatStore.getState().reset();
     navigate('/login', { replace: true });
   };
 
