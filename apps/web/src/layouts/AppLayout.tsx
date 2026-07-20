@@ -11,6 +11,7 @@ import DualCompanionModal from '../components/DualCompanionModal';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
 import { FloatingChatWidget } from '../components/FloatingChatWidget';
+import { MessageCenterPanel } from '../components/MessageCenterPanel';
 import { playMessageSound } from '../utils/notificationSound';
 
 // Badge pulse animation
@@ -179,129 +180,10 @@ const roleLabels: Record<UserRole, string> = {
   [UserRole.COMPANION]: '陪玩',
 };
 
-// Notification list inside the bell popover
-const NotificationList: React.FC<{
-  notifications: import('../stores/chatStore').ChatNotification[];
-  chatUnread: Record<string, number>;
-  onOpenChat: (companionId: string, companionName: string) => void;
-  onClose: () => void;
-}> = ({ notifications, chatUnread, onOpenChat, onClose }) => {
-  if (notifications.length === 0) {
-    return (
-      <div style={{ width: 280, textAlign: 'center', padding: '24px 0', color: '#94A3B8', fontSize: 13 }}>
-        暂无消息通知
-      </div>
-    );
-  }
-
-  // Deduplicate by companionId, show latest first
-  const unique: Record<string, (typeof notifications)[0]> = {};
-  for (const n of notifications) {
-    if (!unique[n.companionId] || n.timestamp > unique[n.companionId].timestamp) {
-      unique[n.companionId] = n;
-    }
-  }
-  const items = Object.values(unique)
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 10);
-
-  return (
-    <div style={{ width: 300, maxHeight: 400, overflowY: 'auto' }}>
-      <List
-        size="small"
-        dataSource={items}
-        renderItem={(item) => {
-          const unread = chatUnread[item.companionId] || 0;
-          const timeStr = new Date(item.timestamp).toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          return (
-            <List.Item
-              style={{
-                cursor: 'pointer',
-                padding: '10px 12px',
-                borderRadius: 6,
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
-              onClick={() => {
-                onOpenChat(item.companionId, item.companionName);
-                onClose();
-              }}
-            >
-              <List.Item.Meta
-                avatar={
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      background: '#1677ff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
-                      {(item.companionName || '?')[0].toUpperCase()}
-                    </span>
-                  </div>
-                }
-                title={
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>
-                    {item.companionName}
-                    {unread > 0 && (
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          background: '#EF4444',
-                          color: '#FFF',
-                          borderRadius: 10,
-                          padding: '0 6px',
-                          fontSize: 10,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {unread}
-                      </span>
-                    )}
-                  </span>
-                }
-                description={
-                  <div>
-                    <Typography.Text
-                      style={{ fontSize: 12, color: '#64748B' }}
-                      ellipsis={{ tooltip: item.lastMessage }}
-                    >
-                      {item.lastMessage || '（无文字消息）'}
-                    </Typography.Text>
-                    <br />
-                    <Typography.Text style={{ fontSize: 11, color: '#94A3B8' }}>{timeStr}</Typography.Text>
-                  </div>
-                }
-              />
-            </List.Item>
-          );
-        }}
-      />
-    </div>
-  );
-};
-
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
-  const { chatActive, chatPartner, chatUnread, chatNotifications } = useChatStore();
-  const totalUnread = useMemo(() => Object.values(chatUnread).reduce((a, b) => a + b, 0), [chatUnread]);
+  const totalUnread = useChatStore((s) => s.totalUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
   // Notification bell
@@ -315,15 +197,18 @@ const AppLayout: React.FC = () => {
   const { notify } = useChatNotification(true);
 
   // Open chat from notification
-  const openChatFromNotification = useCallback((companionId: string, companionName: string) => {
-    setNotifOpen(false);
-    setGlobalChatPartner({
-      companionId,
-      companionName,
-    });
-    // Clear unread for this companion
-    useChatStore.getState().markAllRead(companionId);
-  }, []);
+  const openChatFromNotification = useCallback(
+    (companionId: string, companionName: string) => {
+      setNotifOpen(false);
+      setGlobalChatPartner({
+        companionId,
+        companionName,
+        orderInfo: user?.role === 'COMPANION' ? '客服' : `陪玩: ${companionName}`,
+      });
+      useChatStore.getState().markAllRead(companionId);
+    },
+    [user?.role],
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -376,15 +261,15 @@ const AppLayout: React.FC = () => {
   useSocket({
     onChatNotify: (data: any) => {
       if (data?.companionId) {
-        useChatStore.getState().addChatCompanion(data.companionId);
-        useChatStore.getState().addChatNotification({
+        const store = useChatStore.getState();
+        store.addMessage({
           companionId: data.companionId,
           companionName: data.companionName || data.companionId,
-          lastMessage: data.message || '',
+          senderId: data.companionId,
+          senderRole: 'COMPANION',
+          text: data.message || '',
           timestamp: Date.now(),
         });
-        // Sound notification
-        const store = useChatStore.getState();
         if (!store.isChatOpen) {
           const ts = Date.now();
           if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
@@ -394,7 +279,6 @@ const AppLayout: React.FC = () => {
         }
       }
       if (data?.companionName) {
-        useChatStore.getState().setChatActive(true, data.companionName);
         notify({ title: data.companionName, body: data.message || '发来一条消息' });
       }
     },
@@ -402,49 +286,36 @@ const AppLayout: React.FC = () => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
     onChatNew: (data: any) => {
-      if (data?.senderId) {
-        useChatStore.getState().addChatCompanion(data.senderId);
-        useChatStore.getState().addChatNotification({
-          companionId: data.companionId || data.senderId,
-          companionName: data.senderName || '新消息',
-          lastMessage: data.text || '',
-          timestamp: Date.now(),
-        });
-        // Sound notification
-        const store = useChatStore.getState();
-        if (!store.isChatOpen) {
-          const companionKey = data.companionId || data.senderId;
-          const ts = Date.now();
-          if (ts > (store.lastSoundPlayedAt[companionKey] ?? 0)) {
-            playMessageSound();
-            store.markSoundPlayed(companionKey, ts);
-          }
+      const companionId = data.companionId || data.senderId;
+      if (!companionId) return;
+      const store = useChatStore.getState();
+      store.addMessage({
+        companionId,
+        companionName: data.senderName || companionId,
+        senderId: data.senderId,
+        senderRole: data.senderRole || 'COMPANION',
+        text: data.text || '',
+        timestamp: Date.now(),
+      });
+      if (!store.isChatOpen) {
+        const ts = Date.now();
+        if (ts > (store.lastSoundPlayedAt[companionId] ?? 0)) {
+          playMessageSound();
+          store.markSoundPlayed(companionId, ts);
         }
       }
       if (data?.senderName) {
-        useChatStore.getState().setChatActive(true, data.senderName);
         notify({ title: data.senderName, body: data.text || '新消息' });
-      }
-      // Also update localStorage for unread badge
-      const orderId = data?.orderId || localStorage.getItem(`last-orderId-${data.companionId || data.senderId}`) || '';
-      if (orderId) {
-        const current = parseInt(localStorage.getItem(`unread-${orderId}`) || '0', 10);
-        localStorage.setItem(`unread-${orderId}`, String(current + 1));
-        if (data.companionId) {
-          localStorage.setItem(`unread-${data.companionId}`, String(current + 1));
-          localStorage.setItem(`last-orderId-${data.companionId}`, orderId);
-        }
       }
     },
   });
 
-  // Global chat poll — single source of truth for all chat updates
+  // Global chat poll — dispatches to chatStore.addMessage
   useEffect(() => {
     if (!user?.studioId) return;
     const seenKeys = new Set<string>();
     const poll = async () => {
       try {
-        // Use axios (with interceptors) instead of raw fetch for proper auth
         const token = sessionStorage.getItem('accessToken');
         if (!token) return;
         const res = await fetch(`/api/companions/chat-pending?_t=${Date.now()}`, {
@@ -455,74 +326,36 @@ const AppLayout: React.FC = () => {
         const json = await res.json();
         const data = json.data || json;
 
-        // Sidebar red dot (always check, regardless of messages)
-        if (data?.hasNew) {
-          useChatStore.getState().setChatActive(true, data.companionName);
-          if (data.companionId) useChatStore.getState().addChatCompanion(data.companionId);
-        }
-
-        // Process messages if any
         if (data?.messages?.length) {
+          const store = useChatStore.getState();
           for (const m of data.messages) {
             const dedupKey = `${m.text}|${m.time}`;
             if (seenKeys.has(dedupKey)) continue;
             seenKeys.add(dedupKey);
 
-            // Save to localStorage (keyed by orderId to match ChatModal)
-            const storageKey = `chat-msgs-${data.orderId || 'global'}`;
-            try {
-              const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
-              if (!existing.some((em: any) => em.text === m.text && em.time === m.time)) {
-                existing.push({ ...m, from: 'them' });
-                localStorage.setItem(storageKey, JSON.stringify(existing.slice(-100)));
-              }
-            } catch {}
-
-            // Dispatch to open ChatModal instances (include orderId for matching)
-            window.dispatchEvent(
-              new CustomEvent('chat-message', {
-                detail: { text: m.text, time: m.time, orderId: data.orderId, companionId: data.companionId },
-              }),
-            );
+            const companionId = data.companionId || m.senderId;
+            store.addMessage({
+              companionId,
+              companionName: data.companionName || companionId,
+              senderId: m.senderId,
+              senderRole: m.senderRole || 'COMPANION',
+              text: m.text,
+              timestamp: new Date(m.time || Date.now()).getTime(),
+            });
           }
-        }
 
-        // Unread badge — only update when there's a new notification from others
-        if (data?.hasNew && data?.orderId) {
-          try {
-            const total = data?.messages?.length || 0;
-            const lastSeen = parseInt(localStorage.getItem(`chat-lastRead-${data.orderId}`) || '0', 10);
-            const unread = Math.max(0, total - lastSeen);
-            // Per-order (companion's pool badge)
-            localStorage.setItem(`unread-${data.orderId}`, String(unread));
-            // Per-companion (CS's companion list badge)
-            if (data?.companionId) {
-              localStorage.setItem(`unread-${data.companionId}`, String(unread));
-              localStorage.setItem(`last-orderId-${data.companionId}`, data.orderId);
-              // Store notification metadata for the bell
-              const lastMsg = data?.messages?.length ? data.messages[data.messages.length - 1]?.text || '' : '';
-              useChatStore.getState().addChatNotification({
-                companionId: data.companionId,
-                companionName: data.companionName || data.companionId,
-                lastMessage: lastMsg,
-                timestamp: Date.now(),
-              });
-              // Sound notification from poll
-              const store = useChatStore.getState();
-              if (!store.isChatOpen) {
-                const ts = Date.now();
-                if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
-                  playMessageSound();
-                  store.markSoundPlayed(data.companionId, ts);
-                }
-              }
+          if (!store.isChatOpen && data.companionId) {
+            const ts = Date.now();
+            if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
+              playMessageSound();
+              store.markSoundPlayed(data.companionId, ts);
             }
-          } catch {}
+          }
         }
       } catch {}
     };
     poll();
-    const t = setInterval(poll, 10000); // 10s chat poll (was 1500ms)
+    const t = setInterval(poll, 10000);
     return () => clearInterval(t);
   }, [user?.studioId]);
 
@@ -546,40 +379,26 @@ const AppLayout: React.FC = () => {
   const menuItems = useMemo(() => {
     if (!user) return [];
     const items = [...(roleMenus[user.role] || [])];
-    // Add pulsing indicator to 陪玩管理 items when chat is active
     return items.map((item) => {
-      if ((item.label === '陪玩管理' || item.label === '员工管理') && chatActive) {
-        const name = chatPartner || '?';
+      if ((item.label === '陪玩管理' || item.label === '员工管理') && totalUnread > 0) {
         return {
           ...item,
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
-              <span
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: '#FF4757',
-                  color: '#FFF',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 800,
-                  animation: 'pulse-glow 1s ease-in-out infinite',
-                  boxShadow: '0 0 10px #FF4757',
-                }}
-              >
-                {name[0].toUpperCase()}
-              </span>
+              <Badge
+                count={totalUnread}
+                size="small"
+                overflowCount={99}
+                style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+              />
             </span>
           ),
         };
       }
       return item;
     });
-  }, [user, chatActive]);
+  }, [user, totalUnread]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -721,25 +540,31 @@ const AppLayout: React.FC = () => {
                   placement="bottomRight"
                   title="消息通知"
                   content={
-                    <NotificationList
-                      notifications={chatNotifications}
-                      chatUnread={chatUnread}
-                      onOpenChat={openChatFromNotification}
-                      onClose={() => setNotifOpen(false)}
-                    />
+                    <MessageCenterPanel onOpenChat={openChatFromNotification} onClose={() => setNotifOpen(false)} />
                   }
                 >
                   <Badge count={totalUnread} overflowCount={99} size="default" offset={[-2, 8]}>
-                    <Button
-                      type="text"
-                      icon={React.createElement(BellOutlined)}
+                    <div
                       style={{
-                        color: totalUnread > 0 ? '#2563EB' : '#64748B',
-                        fontSize: 20,
-                        ...(totalUnread > 0 ? { animation: 'bell-glow 2s ease-in-out infinite', borderRadius: 8 } : {}),
+                        borderRadius: 8,
+                        ...(totalUnread > 0
+                          ? {
+                              animation: 'bell-glow 2s ease-in-out infinite',
+                              boxShadow: '0 0 12px rgba(37, 99, 235, 0.5)',
+                            }
+                          : {}),
                       }}
-                      className={totalUnread > 0 ? 'bell-animate' : ''}
-                    />
+                    >
+                      <Button
+                        type="text"
+                        icon={React.createElement(BellOutlined)}
+                        style={{
+                          color: totalUnread > 0 ? '#2563EB' : '#64748B',
+                          fontSize: 20,
+                        }}
+                        className={totalUnread > 0 ? 'bell-animate' : ''}
+                      />
+                    </div>
                   </Badge>
                 </Popover>
               )}
@@ -879,7 +704,18 @@ const AppLayout: React.FC = () => {
       </Modal>
 
       {/* Global Chat Modal (opened from notification bell) */}
-      <ChatModal open={!!globalChatPartner} partner={globalChatPartner} onClose={() => setGlobalChatPartner(null)} />
+      <ChatModal
+        open={!!globalChatPartner}
+        partner={
+          globalChatPartner
+            ? {
+                companionId: globalChatPartner.companionId,
+                companionName: globalChatPartner.companionName,
+              }
+            : null
+        }
+        onClose={() => setGlobalChatPartner(null)}
+      />
 
       {/* Floating chat notification widget (bottom-right) */}
       <FloatingChatWidget onOpenChat={openChatFromNotification} />
