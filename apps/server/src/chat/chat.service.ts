@@ -72,10 +72,17 @@ export class ChatService {
   /** Get complete chat history for a companion — all orders */
   async getMessagesByCompanion(studioId: string, companionId: string, limit = 200): Promise<ChatMessageData[]> {
     try {
+      // Find all orderIds assigned to this companion
+      const orderIds = await this.prisma.order.findMany({
+        where: { companionId },
+        select: { id: true },
+      });
+      const ids = orderIds.map((o) => o.id);
+
       return await this.prisma.chatMessage.findMany({
         where: {
           studioId,
-          OR: [{ senderId: companionId }, { order: { companionId } }],
+          OR: [{ senderId: companionId }, ...(ids.length > 0 ? [{ orderId: { in: ids } }] : [])],
         },
         orderBy: { createdAt: 'asc' },
         take: limit,
