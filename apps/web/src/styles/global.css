@@ -273,12 +273,15 @@ body {
 @keyframes float-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+    transform: scale(1);
   }
-  70% {
-    box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+  50% {
+    box-shadow: 0 0 0 14px rgba(37, 99, 235, 0);
+    transform: scale(1.03);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    transform: scale(1);
   }
 }
 
@@ -286,11 +289,14 @@ body {
   0% {
     transform: scale(1);
   }
-  30% {
-    transform: scale(1.15);
+  25% {
+    transform: scale(1.2);
   }
-  60% {
-    transform: scale(0.95);
+  50% {
+    transform: scale(0.9);
+  }
+  75% {
+    transform: scale(1.05);
   }
   100% {
     transform: scale(1);
@@ -299,22 +305,38 @@ body {
 
 @keyframes bell-glow {
   0% {
-    box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
   }
   50% {
-    box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+    box-shadow: 0 0 16px rgba(37, 99, 235, 0.7);
   }
   100% {
-    box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+  }
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
 .float-widget-pulse {
-  animation: float-pulse 2s ease-in-out infinite;
+  animation: float-pulse 2.5s ease-in-out infinite;
 }
 
 .float-widget-bounce {
   animation: float-bounce 0.5s ease-out;
+}
+
+.bell-glow-active {
+  animation: bell-glow 2s ease-in-out infinite;
 }
 
 /* ── 水波动画 ── */
