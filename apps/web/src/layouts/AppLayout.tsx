@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, List } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import { useChatNotification } from '../hooks/useChatNotification';
@@ -193,6 +193,7 @@ const AppLayout: React.FC = () => {
     companionId: string;
     companionName: string;
     avatar?: string;
+    orderInfo?: string;
   } | null>(null);
   const { notify } = useChatNotification(true);
 
