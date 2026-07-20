@@ -123,7 +123,7 @@ const PoolPage: React.FC = () => {
         avatar: order.csUser?.avatar,
         role: 'CS',
       },
-      avatar: order.csUser?.avatar || null,
+      orderInfo: `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}`,
     });
   };
 

@@ -247,10 +247,10 @@ const CSDispatchView: React.FC = () => {
                           return r;
                         });
                         const u = c.user as any;
-                        // Find matching order for this companion
-                        const order = poolOrders.find((o: any) => o.companionId === c.id);
+                        // Find matching order for this companion (check both pool and assigned)
+                        const order = [...poolOrders, ...allOrders].find((o: any) => o.companionId === c.id);
                         const orderInfo = order
-                          ? `🎮 ${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 👤' + order.customer.customerCode : ''}`
+                          ? `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 客户' + order.customer.customerCode : ''}`
                           : undefined;
                         // Open conversation via new store
                         useChatStore.getState().openConversation(c.id, {

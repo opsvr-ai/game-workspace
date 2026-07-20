@@ -109,6 +109,7 @@ const OrderPoolPage: React.FC = () => {
         avatar: order.csUser?.avatar || undefined,
         role: 'CS',
       },
+      orderInfo: `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}`,
     });
   };
 
