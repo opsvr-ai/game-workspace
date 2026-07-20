@@ -266,6 +266,7 @@ const OrdersPage: React.FC = () => {
                       avatar: r.csUser?.avatar,
                       role: 'CS',
                     },
+                    orderInfo: `${r.gameName} · ¥${Number(r.amount || 0).toFixed(0)}${r.duration ? ' · ' + r.duration + 'h' : ''}`,
                   });
                 }}
               >
