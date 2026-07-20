@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-20T17:00:46.351Z
+**Last Updated:** 2026-07-20T22:22:53.679Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 15
+- **Total Patterns:** 16
 - **Total Feedback:** 2
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 30 occurrences
+**Frequency:** 33 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 12 occurrences
+**Frequency:** 16 occurrences
 
 ### Commonly used command: find
 
@@ -86,6 +86,13 @@
 
 **Frequency:** 1 occurrences
 
+### Commonly used command: sleep
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
 ## Style
 
 *0 corrections in this category*
@@ -97,7 +104,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 25 occurrences
+**Frequency:** 30 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -106,7 +113,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 14 occurrences
+**Frequency:** 16 occurrences
 
 ### Prefer async await in .ts files
 
@@ -115,7 +122,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 7 occurrences
+**Frequency:** 8 occurrences
 
 ## Framework
 
@@ -128,7 +135,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 10 occurrences
+**Frequency:** 11 occurrences
 
 ## Quality
 

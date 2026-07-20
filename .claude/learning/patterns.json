@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 30,
+    "frequency": 33,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-20T17:00:46.351Z"
+    "updated_at": "2026-07-20T22:21:46.806Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 25,
+    "frequency": 30,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-20T16:59:49.983Z"
+    "updated_at": "2026-07-20T22:22:53.679Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 14,
+    "frequency": 16,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-20T16:54:25.214Z"
+    "updated_at": "2026-07-20T22:03:27.189Z"
   },
   {
     "type": "code_style",
@@ -79,9 +79,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 10,
+    "frequency": 11,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-20T16:55:01.933Z"
+    "updated_at": "2026-07-20T17:12:13.111Z"
   },
   {
     "type": "workflow",
@@ -100,9 +100,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 12,
+    "frequency": 16,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-20T16:55:34.534Z"
+    "updated_at": "2026-07-20T22:18:47.702Z"
   },
   {
     "type": "code_style",
@@ -175,12 +175,13 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 7,
+    "frequency": 8,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-20T16:20:48.711Z"
+    "updated_at": "2026-07-20T22:22:03.558Z"
   },
   {
     "type": "workflow",
@@ -245,5 +246,17 @@
     "frequency": 1,
     "created_at": "2026-07-20T16:45:32.583Z",
     "updated_at": "2026-07-20T16:45:32.583Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: sleep",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "sleep",
+    "frequency": 1,
+    "created_at": "2026-07-20T17:01:58.896Z",
+    "updated_at": "2026-07-20T17:01:58.896Z"
   }
 ]

@@ -6,7 +6,7 @@ export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Create or get existing conversation between two users */
-  async getOrCreateConversation(studioId: string, userId: string, participantId: string) {
+  async getOrCreateConversation(studioId: string, userId: string, participantId: string, orderInfo?: string) {
     const participantA = [userId, participantId].sort()[0];
     const participantB = [userId, participantId].sort()[1];
 
@@ -16,7 +16,13 @@ export class ChatService {
 
     if (!conv) {
       conv = await this.prisma.conversation.create({
-        data: { studioId, participantA, participantB },
+        data: { studioId, participantA, participantB, orderInfo },
+      });
+    } else if (orderInfo && !conv.orderInfo) {
+      // Update orderInfo if not previously set
+      conv = await this.prisma.conversation.update({
+        where: { id: conv.id },
+        data: { orderInfo },
       });
     }
 

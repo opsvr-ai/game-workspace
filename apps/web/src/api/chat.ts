@@ -28,8 +28,8 @@ export const chatApi = {
     return http.get<{ data: { conversations: ConversationSummary[] } }>('/chat/conversations');
   },
 
-  createConversation(participantId: string) {
-    return http.post<{ data: { id: string } }>('/chat/conversations', { participantId });
+  createConversation(participantId: string, orderInfo?: string) {
+    return http.post<{ data: { id: string } }>('/chat/conversations', { participantId, orderInfo });
   },
 
   getMessages(conversationId: string, before?: string, limit = 50) {

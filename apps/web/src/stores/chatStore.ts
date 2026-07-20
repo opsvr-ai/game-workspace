@@ -27,7 +27,7 @@ interface ChatState {
   myUserId: string | null;
 
   /** THE single write path — called by WS handler and send response */
-  receiveMessage: (convId: string, msg: ServerMessage) => void;
+  receiveMessage: (convId: string, msg: ServerMessage, orderInfo?: string) => void;
 
   setConversations: (list: ConversationSummary[]) => void;
   loadMessages: (convId: string, msgs: ServerMessage[], hasMore: boolean) => void;
@@ -66,7 +66,7 @@ export const useChatStore = create<ChatState>((set) => ({
   totalUnread: 0,
   myUserId: null,
 
-  receiveMessage: (convId: string, msg: ServerMessage) =>
+  receiveMessage: (convId: string, msg: ServerMessage, orderInfo?: string) =>
     set((s) => {
       const s2 = ensureConv(s, convId);
       const conv = s2.conversations[convId];
@@ -91,6 +91,7 @@ export const useChatStore = create<ChatState>((set) => ({
         unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
         lastMessage: msg.text,
         lastMessageAt: newMsg.createdAt,
+        orderInfo: orderInfo || conv.orderInfo,
       };
 
       // Move to top of order
@@ -173,7 +174,7 @@ export const useChatStore = create<ChatState>((set) => ({
     // Create/get real conversation via API (returns conversation UUID)
     let convId = userId;
     try {
-      const { data } = await chatApi.createConversation(participant.userId || userId);
+      const { data } = await chatApi.createConversation(participant.userId || userId, orderInfo);
       convId = data?.data?.id || userId;
     } catch {}
     set((s) => {

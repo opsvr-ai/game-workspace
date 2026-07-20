@@ -208,7 +208,9 @@ const AppLayout: React.FC = () => {
         username: participantName,
         role: 'COMPANION',
       },
-      orderInfo: conv?.orderInfo,
+      orderInfo:
+        conv?.orderInfo ||
+        (conv?.participant?.role === 'COMPANION' ? '陪玩' : conv?.participant?.role === 'CS' ? '客服' : undefined),
     });
     useChatStore.getState().markRead(conversationId);
   }, []);
@@ -269,7 +271,7 @@ const AppLayout: React.FC = () => {
     onChatMessage: (data: any) => {
       if (data?.conversationId && data?.message) {
         const store = useChatStore.getState();
-        store.receiveMessage(data.conversationId, data.message);
+        store.receiveMessage(data.conversationId, data.message, data.orderInfo);
         if (!store.activeConversationId) {
           const ts = Date.now();
           const cid = data.conversationId;

@@ -24,11 +24,16 @@ export class ChatController {
   }
 
   @Post('conversations')
-  async createConversation(@Req() req: any, @Body() body: { participantId: string }) {
+  async createConversation(@Req() req: any, @Body() body: { participantId: string; orderInfo?: string }) {
     if (!req.user?.id || !req.user?.studioId) {
       throw new UnauthorizedException('未登录');
     }
-    const conv = await this.chatService.getOrCreateConversation(req.user.studioId, req.user.id, body.participantId);
+    const conv = await this.chatService.getOrCreateConversation(
+      req.user.studioId,
+      req.user.id,
+      body.participantId,
+      body.orderInfo,
+    );
     return { data: { id: conv.id } };
   }
 
@@ -64,6 +69,7 @@ export class ChatController {
       const otherUserId = fullConv.participantA === req.user.id ? fullConv.participantB : fullConv.participantA;
       this.wsGateway.notifyNewMessage(otherUserId, {
         conversationId: id,
+        orderInfo: fullConv.orderInfo || undefined,
         message: {
           id: msg.id,
           senderId: msg.senderId,

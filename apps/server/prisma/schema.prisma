@@ -476,6 +476,7 @@ model Conversation {
   bReadAt        DateTime?
   lastMessage    String?
   lastMessageAt  DateTime?
+  orderInfo      String?
   createdAt      DateTime  @default(now())
 
   messages       ChatMessage[]
