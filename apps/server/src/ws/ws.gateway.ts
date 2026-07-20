@@ -436,6 +436,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     userId: string,
     payload: {
       conversationId: string;
+      orderInfo?: string;
       message: { id: string; senderId: string; text: string; createdAt: string };
     },
   ): void {

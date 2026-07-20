@@ -63,7 +63,7 @@ export class ChatController {
     // Notify the other participant via WebSocket
     const fullConv = await this.prisma.conversation.findUnique({
       where: { id },
-      select: { participantA: true, participantB: true },
+      select: { participantA: true, participantB: true, orderInfo: true },
     });
     if (fullConv) {
       const otherUserId = fullConv.participantA === req.user.id ? fullConv.participantB : fullConv.participantA;
