@@ -21,12 +21,12 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #94a3b8;
 }
 
 /* ── 状态指示点 + 呼吸动画 ── */
@@ -84,7 +84,7 @@ body {
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(0, 0, 0, 0.02);
   border-left: 3px solid;
-  border-left-color: #2563EB;
+  border-left-color: #2563eb;
   transition:
     box-shadow 0.25s,
     transform 0.25s;
@@ -110,7 +110,7 @@ body {
   color: #1e293b;
 }
 .stat-card .stat-value.blue {
-  color: #2563EB;
+  color: #2563eb;
 }
 .stat-card .stat-value.green {
   color: #00e676;
@@ -178,7 +178,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #EFF6FF 0%, #F8FAFC 100%);
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
 }
 
 .login-card {
@@ -269,6 +269,54 @@ body {
   animation: scale-in 0.2s ease-out;
 }
 
+/* ── 浮动聊天组件 ── */
+@keyframes float-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@keyframes float-bounce {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bell-glow {
+  0% {
+    box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(37, 99, 235, 0.3);
+  }
+}
+
+.float-widget-pulse {
+  animation: float-pulse 2s ease-in-out infinite;
+}
+
+.float-widget-bounce {
+  animation: float-bounce 0.5s ease-out;
+}
+
 /* ── 水波动画 ── */
 .wave-container {
   overflow: hidden;
@@ -300,7 +348,7 @@ body {
 
 /* ── 订单池卡片悬浮 ── */
 .pool-card:hover {
-  border-color: #2563EB !important;
+  border-color: #2563eb !important;
   box-shadow: 0 2px 12px rgba(0, 212, 255, 0.1) !important;
   transform: translateY(-1px);
 }

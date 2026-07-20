@@ -10,6 +10,8 @@ import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import DualCompanionModal from '../components/DualCompanionModal';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
+import { FloatingChatWidget } from '../components/FloatingChatWidget';
+import { playMessageSound } from '../utils/notificationSound';
 
 // Badge pulse animation
 if (!document.getElementById('badge-pulse-css')) {
@@ -199,7 +201,9 @@ const NotificationList: React.FC<{
       unique[n.companionId] = n;
     }
   }
-  const items = Object.values(unique).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+  const items = Object.values(unique)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 10);
 
   return (
     <div style={{ width: 300, maxHeight: 400, overflowY: 'auto' }}>
@@ -281,9 +285,7 @@ const NotificationList: React.FC<{
                       {item.lastMessage || '（无文字消息）'}
                     </Typography.Text>
                     <br />
-                    <Typography.Text style={{ fontSize: 11, color: '#94A3B8' }}>
-                      {timeStr}
-                    </Typography.Text>
+                    <Typography.Text style={{ fontSize: 11, color: '#94A3B8' }}>{timeStr}</Typography.Text>
                   </div>
                 }
               />
@@ -299,10 +301,7 @@ const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   const { chatActive, chatPartner, chatUnread, chatNotifications } = useChatStore();
-  const totalUnread = useMemo(
-    () => Object.values(chatUnread).reduce((a, b) => a + b, 0),
-    [chatUnread],
-  );
+  const totalUnread = useMemo(() => Object.values(chatUnread).reduce((a, b) => a + b, 0), [chatUnread]);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
   // Notification bell
@@ -317,23 +316,20 @@ const AppLayout: React.FC = () => {
   const { notify } = useChatNotification(true);
 
   // Open chat from notification
-  const openChatFromNotification = useCallback(
-    (companionId: string, companionName: string) => {
-      const orderId = localStorage.getItem(`last-orderId-${companionId}`);
-      if (!orderId) {
-        return;
-      }
-      setNotifOpen(false);
-      setGlobalChatPartner({
-        name: companionName,
-        orderId,
-        orderInfo: `陪玩: ${companionName}`,
-      });
-      // Clear unread for this companion
-      useChatStore.getState().clearChatUnread(companionId);
-    },
-    [],
-  );
+  const openChatFromNotification = useCallback((companionId: string, companionName: string) => {
+    const orderId = localStorage.getItem(`last-orderId-${companionId}`);
+    if (!orderId) {
+      return;
+    }
+    setNotifOpen(false);
+    setGlobalChatPartner({
+      name: companionName,
+      orderId,
+      orderInfo: `陪玩: ${companionName}`,
+    });
+    // Clear unread for this companion
+    useChatStore.getState().clearChatUnread(companionId);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -393,6 +389,15 @@ const AppLayout: React.FC = () => {
           lastMessage: data.message || '',
           timestamp: Date.now(),
         });
+        // Sound notification
+        const store = useChatStore.getState();
+        if (!store.isChatOpen) {
+          const ts = Date.now();
+          if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
+            playMessageSound();
+            store.markSoundPlayed(data.companionId, ts);
+          }
+        }
       }
       if (data?.companionName) {
         useChatStore.getState().setChatActive(true, data.companionName);
@@ -411,6 +416,16 @@ const AppLayout: React.FC = () => {
           lastMessage: data.text || '',
           timestamp: Date.now(),
         });
+        // Sound notification
+        const store = useChatStore.getState();
+        if (!store.isChatOpen) {
+          const companionKey = data.companionId || data.senderId;
+          const ts = Date.now();
+          if (ts > (store.lastSoundPlayedAt[companionKey] ?? 0)) {
+            playMessageSound();
+            store.markSoundPlayed(companionKey, ts);
+          }
+        }
       }
       if (data?.senderName) {
         useChatStore.getState().setChatActive(true, data.senderName);
@@ -491,15 +506,22 @@ const AppLayout: React.FC = () => {
               localStorage.setItem(`unread-${data.companionId}`, String(unread));
               localStorage.setItem(`last-orderId-${data.companionId}`, data.orderId);
               // Store notification metadata for the bell
-              const lastMsg = data?.messages?.length
-                ? data.messages[data.messages.length - 1]?.text || ''
-                : '';
+              const lastMsg = data?.messages?.length ? data.messages[data.messages.length - 1]?.text || '' : '';
               useChatStore.getState().addChatNotification({
                 companionId: data.companionId,
                 companionName: data.companionName || data.companionId,
                 lastMessage: lastMsg,
                 timestamp: Date.now(),
               });
+              // Sound notification from poll
+              const store = useChatStore.getState();
+              if (!store.isChatOpen) {
+                const ts = Date.now();
+                if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
+                  playMessageSound();
+                  store.markSoundPlayed(data.companionId, ts);
+                }
+              }
             }
           } catch {}
         }
@@ -713,17 +735,14 @@ const AppLayout: React.FC = () => {
                     />
                   }
                 >
-                  <Badge
-                    count={totalUnread}
-                    size="small"
-                    offset={[-2, 8]}
-                  >
+                  <Badge count={totalUnread} overflowCount={99} size="default" offset={[-2, 8]}>
                     <Button
                       type="text"
                       icon={React.createElement(BellOutlined)}
                       style={{
                         color: totalUnread > 0 ? '#2563EB' : '#64748B',
-                        fontSize: 18,
+                        fontSize: 20,
+                        ...(totalUnread > 0 ? { animation: 'bell-glow 2s ease-in-out infinite', borderRadius: 8 } : {}),
                       }}
                       className={totalUnread > 0 ? 'bell-animate' : ''}
                     />
@@ -866,11 +885,10 @@ const AppLayout: React.FC = () => {
       </Modal>
 
       {/* Global Chat Modal (opened from notification bell) */}
-      <ChatModal
-        open={!!globalChatPartner}
-        partner={globalChatPartner}
-        onClose={() => setGlobalChatPartner(null)}
-      />
+      <ChatModal open={!!globalChatPartner} partner={globalChatPartner} onClose={() => setGlobalChatPartner(null)} />
+
+      {/* Floating chat notification widget (bottom-right) */}
+      <FloatingChatWidget onOpenChat={openChatFromNotification} />
 
       {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />

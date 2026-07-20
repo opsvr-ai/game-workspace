@@ -15,6 +15,7 @@ interface ChatState {
   lastReadTs: Record<string, number>;
   isChatOpen: boolean;
   chatNotifications: ChatNotification[];
+  lastSoundPlayedAt: Record<string, number>;
   setChatActive: (active: boolean, partner?: string) => void;
   addChatCompanion: (companionId: string) => void;
   clearChatCompanions: () => void;
@@ -24,6 +25,7 @@ interface ChatState {
   setChatOpen: (open: boolean) => void;
   addChatNotification: (notification: ChatNotification) => void;
   clearChatNotifications: () => void;
+  markSoundPlayed: (companionId: string, timestamp: number) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -34,6 +36,7 @@ export const useChatStore = create<ChatState>((set) => ({
   lastReadTs: {},
   isChatOpen: false,
   chatNotifications: [],
+  lastSoundPlayedAt: {},
 
   setChatActive: (active: boolean, partner?: string) => {
     set({ chatActive: active, chatPartner: partner || '' });
@@ -46,13 +49,15 @@ export const useChatStore = create<ChatState>((set) => ({
     }));
   },
   clearChatCompanions: () => set({ chatCompanionIds: [] }),
-  addChatUnread: (companionId: string) => set((s) => ({
-    chatUnread: { ...s.chatUnread, [companionId]: (s.chatUnread[companionId] || 0) + 1 },
-  })),
-  clearChatUnread: (companionId: string) => set((s) => {
-    const { [companionId]: _, ...rest } = s.chatUnread;
-    return { chatUnread: rest };
-  }),
+  addChatUnread: (companionId: string) =>
+    set((s) => ({
+      chatUnread: { ...s.chatUnread, [companionId]: (s.chatUnread[companionId] || 0) + 1 },
+    })),
+  clearChatUnread: (companionId: string) =>
+    set((s) => {
+      const { [companionId]: _, ...rest } = s.chatUnread;
+      return { chatUnread: rest };
+    }),
   markRead: (key: string, msgCount?: number) => {
     const count = msgCount ?? 0;
     localStorage.setItem(`chat-lastRead-${key}`, String(count));
@@ -61,12 +66,14 @@ export const useChatStore = create<ChatState>((set) => ({
   setChatOpen: (open: boolean) => set({ isChatOpen: open }),
   addChatNotification: (notification: ChatNotification) =>
     set((s) => {
-      const existing = s.chatNotifications.filter(
-        (n) => n.companionId !== notification.companionId,
-      );
+      const existing = s.chatNotifications.filter((n) => n.companionId !== notification.companionId);
       return {
         chatNotifications: [notification, ...existing].slice(0, 20),
       };
     }),
   clearChatNotifications: () => set({ chatNotifications: [] }),
+  markSoundPlayed: (companionId: string, timestamp: number) =>
+    set((s) => ({
+      lastSoundPlayedAt: { ...s.lastSoundPlayedAt, [companionId]: timestamp },
+    })),
 }));
