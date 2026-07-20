@@ -9,7 +9,7 @@ interface Props {
 }
 
 const MessageCenterPanel: React.FC<Props> = ({ onOpenChat, onClose }) => {
-  const { chats, totalUnread, markAllRead, markAllUnreadClean } = useChatStore();
+  const { chats, totalUnread, markAllUnreadClean } = useChatStore();
 
   const items = Object.values(chats)
     .filter((c) => c.messages.length > 0)
@@ -56,7 +56,6 @@ const MessageCenterPanel: React.FC<Props> = ({ onOpenChat, onClose }) => {
         (e.currentTarget as HTMLElement).style.background = 'transparent';
       }}
       onClick={() => {
-        markAllRead(c.companionId);
         onOpenChat(c.companionId, c.companionName);
         onClose();
       }}

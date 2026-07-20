@@ -165,7 +165,6 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
                   (e.currentTarget as HTMLElement).style.background = 'transparent';
                 }}
                 onClick={() => {
-                  useChatStore.getState().markAllRead(c.companionId);
                   onOpenChat(c.companionId, c.companionName);
                   setPopoverOpen(false);
                 }}

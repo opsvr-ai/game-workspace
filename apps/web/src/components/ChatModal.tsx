@@ -94,7 +94,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             partner.companionName,
             serverMsgs.map((m: any) => ({
               id: m.id,
-              companionId: m.senderId === user?.id ? (m.order?.companionId ?? partner.companionId) : m.senderId,
+              companionId: partner.companionId,
               companionName: partner.companionName,
               senderId: m.senderId,
               senderRole: m.senderRole,
@@ -102,20 +102,11 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
               timestamp: new Date(m.createdAt).getTime(),
             })),
           );
-          // Re-read after merge
-          const updated = store.chats[partner.companionId];
-          const mergedMsgs =
-            updated?.messages.map((m) => ({
-              text: m.text,
-              time: formatTime(m.timestamp),
-              from: m.senderId === user?.id ? 'me' : 'them',
-            })) ?? [];
-          setMsgs(mergedMsgs as any);
         }
       })
       .catch(() => {});
 
-    // Listen for new messages from store (poll-driven)
+    // Listen for new messages from store (covers both poll + history load)
     const unsubscribe = useChatStore.subscribe((state) => {
       const p = partnerRef.current;
       if (!p) return;
