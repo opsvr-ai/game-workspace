@@ -69,14 +69,39 @@ export class CompanionsController {
     // Use the most recent other message's orderId if none specified
     const effectiveOrderId = orderId || otherMsgs[0]?.orderId || '';
 
-    // Get messages for the resolved orderId
-    let messages: { text: string; from: string; time: string }[] = [];
+    // Look up companion name from the most recent other sender
+    let otherName: string | undefined;
+    if (otherMsgs[0]) {
+      try {
+        const sender = await this.prisma.user.findUnique({
+          where: { id: otherMsgs[0].senderId },
+          select: { username: true, displayName: true },
+        });
+        otherName = sender?.displayName || sender?.username || undefined;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Get messages — prefer by orderId, but fall back to recent messages
+    let messages: { text: string; from: string; time: string; senderId?: string; senderRole?: string }[] = [];
     if (effectiveOrderId) {
       const dbMsgs = await this.chatService.getMessages(studioId, effectiveOrderId);
       messages = dbMsgs.map((m) => ({
         text: m.text,
         from: m.senderId === req.user.id ? 'me' : 'them',
         time: m.createdAt.toISOString(),
+        senderId: m.senderId,
+        senderRole: m.senderRole,
+      }));
+    } else if (hasNew) {
+      // No orderId available (chat messages from ChatModal) — use recent messages directly
+      messages = recentMsgs.map((m) => ({
+        text: m.text,
+        from: m.senderId === req.user.id ? 'me' : 'them',
+        time: m.createdAt.toISOString(),
+        senderId: m.senderId,
+        senderRole: m.senderRole,
       }));
     }
 
@@ -88,9 +113,9 @@ export class CompanionsController {
       message: 'ok',
       data: {
         hasNew,
-        companionName: lastOther ? req.user.username : undefined,
+        companionName: otherName,
         companionId: lastOther?.senderId,
-        orderId: effectiveOrderId,
+        orderId: effectiveOrderId || undefined,
         avatar: null,
         messages,
       },
