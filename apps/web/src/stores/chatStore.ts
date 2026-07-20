@@ -119,6 +119,7 @@ export const useChatStore = create<ChatState>((set) => ({
           unreadCount: item.unreadCount,
           lastMessage: item.lastMessage || existing?.lastMessage || '',
           lastMessageAt: item.lastMessageAt ? new Date(item.lastMessageAt).getTime() : existing?.lastMessageAt || 0,
+          orderInfo: existing?.orderInfo,
         };
         order.push(item.id);
         totalUnread += item.unreadCount;
