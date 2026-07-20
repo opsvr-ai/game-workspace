@@ -431,6 +431,20 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /** Notify studio about a new chat message (called from HTTP endpoint fallback) */
+  /** Notify a specific user about a new chat message (via user room) */
+  notifyNewMessage(
+    userId: string,
+    payload: {
+      conversationId: string;
+      message: { id: string; senderId: string; text: string; createdAt: string };
+    },
+  ): void {
+    const socketId = this.userSockets.get(userId);
+    if (socketId) {
+      this.server.to(socketId).emit('chat:message', payload);
+    }
+  }
+
   notifyChatMessage(
     studioId: string,
     payload: {

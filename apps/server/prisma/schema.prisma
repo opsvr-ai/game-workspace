@@ -243,7 +243,7 @@ model Expense {
 
   studio Studio @relation(fields: [studioId], references: [id])
 
-  @@index([studioId, createdAt])
+  @@index([studioId, date])
 }
 
 model PCOperationLog {
@@ -316,6 +316,8 @@ model WalletTransaction {
   @@index([companionId])
   @@index([createdAt])
 }
+
+model CustomerProfile {
   id                    String   @id @default(uuid())
   customerId            String   @unique
   age                   Int?
@@ -452,7 +454,7 @@ model ProcessKillLog {
   @@index([companionId, createdAt])
 }
 
-model ChatMessage {
+model ChatMessageLegacy {
   id         String   @id @default(uuid())
   studioId   String
   orderId    String?
@@ -462,6 +464,38 @@ model ChatMessage {
   createdAt  DateTime @default(now())
 
   @@index([studioId, orderId, createdAt])
+  @@map("ChatMessage")
+}
+
+model Conversation {
+  id             String    @id @default(uuid())
+  studioId       String
+  participantA   String
+  participantB   String
+  aReadAt        DateTime?
+  bReadAt        DateTime?
+  lastMessage    String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime  @default(now())
+
+  messages       ChatMessage[]
+
+  @@unique([studioId, participantA, participantB])
+  @@index([studioId, participantA])
+  @@index([studioId, participantB])
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  text           String
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("ChatMessageV2")
 }
 
 model CompanionStatusBlacklist {
