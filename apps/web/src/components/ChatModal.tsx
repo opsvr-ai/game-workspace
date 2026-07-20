@@ -104,20 +104,32 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
               borderBottom: '1px solid #D9D9D9',
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: '#07C160',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ color: '#FFF', fontSize: 16, fontWeight: 700 }}>{participantName[0].toUpperCase()}</span>
-            </div>
+            {partner.participant?.avatar ? (
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: `url(/uploads/avatars/${partner.participant.avatar}) center/cover`,
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: '#07C160',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ color: '#FFF', fontSize: 16, fontWeight: 700 }}>{participantName[0].toUpperCase()}</span>
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.3 }}>{participantName}</div>
               {partner.orderInfo && (
@@ -164,6 +176,15 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
                   showAvatar={showAvatar || false}
                   showDivider={showDivider || false}
                   avatarName={isMe ? myName : participantName}
+                  avatarUrl={
+                    isMe
+                      ? user?.avatar
+                        ? `/uploads/avatars/${user.avatar}`
+                        : undefined
+                      : partner.participant?.avatar
+                        ? `/uploads/avatars/${partner.participant.avatar}`
+                        : undefined
+                  }
                 />
               );
             })}

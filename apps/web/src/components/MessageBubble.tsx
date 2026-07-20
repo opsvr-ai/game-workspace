@@ -7,9 +7,10 @@ interface Props {
   showAvatar: boolean;
   showDivider: boolean;
   avatarName: string;
+  avatarUrl?: string;
 }
 
-const MessageBubble: React.FC<Props> = ({ msg, isMe, showAvatar, showDivider, avatarName }) => {
+const MessageBubble: React.FC<Props> = ({ msg, isMe, showAvatar, showDivider, avatarName, avatarUrl }) => {
   const time = (() => {
     const d = new Date(msg.createdAt);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -44,19 +45,25 @@ const MessageBubble: React.FC<Props> = ({ msg, isMe, showAvatar, showDivider, av
       >
         {/* Avatar */}
         <div style={{ flexShrink: 0, visibility: showAvatar ? 'visible' : 'hidden' }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: '50%',
-              background: '#CBD5E1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ color: '#FFF', fontSize: 14, fontWeight: 700 }}>{(avatarName || '?')[0].toUpperCase()}</span>
-          </div>
+          {avatarUrl ? (
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: `url(${avatarUrl}) center/cover` }} />
+          ) : (
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                background: '#CBD5E1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span style={{ color: '#FFF', fontSize: 14, fontWeight: 700 }}>
+                {(avatarName || '?')[0].toUpperCase()}
+              </span>
+            </div>
+          )}
         </div>
 
         <div style={{ maxWidth: '70%' }}>
