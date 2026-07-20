@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Badge, Popover, List, Typography } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
-import { useChatStore, type ChatNotification } from '../stores/chatStore';
+import { useChatStore } from '../stores/chatStore';
 
 interface Props {
   onOpenChat: (companionId: string, companionName: string) => void;
@@ -29,8 +29,7 @@ function savePosition(pos: { x: number; y: number }): void {
 
 const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   const user = useAuthStore((s) => s.user);
-  const { chatNotifications, chatUnread } = useChatStore();
-  const totalUnread = Object.values(chatUnread).reduce((a, b) => a + b, 0);
+  const { chats, totalUnread } = useChatStore();
 
   const [position, setPosition] = useState(loadPosition);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -39,18 +38,18 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
-  const prevNotifCount = useRef(chatNotifications.length);
+  const prevTotalUnread = useRef(totalUnread);
 
   // Bounce animation when a new notification arrives
   useEffect(() => {
-    if (chatNotifications.length > prevNotifCount.current) {
+    if (totalUnread > prevTotalUnread.current) {
       setBounce(true);
       const t = setTimeout(() => setBounce(false), 500);
-      prevNotifCount.current = chatNotifications.length;
+      prevTotalUnread.current = totalUnread;
       return () => clearTimeout(t);
     }
-    prevNotifCount.current = chatNotifications.length;
-  }, [chatNotifications.length]);
+    prevTotalUnread.current = totalUnread;
+  }, [totalUnread]);
 
   // Drag: mouse
   const handleMouseDown = useCallback(
@@ -129,30 +128,23 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
     setPopoverOpen((prev) => !prev);
   }, []);
 
-  // Deduplicated notification list
-  const deduped = (() => {
-    const map: Record<string, ChatNotification> = {};
-    for (const n of chatNotifications) {
-      if (!map[n.companionId] || n.timestamp > map[n.companionId].timestamp) {
-        map[n.companionId] = n;
-      }
-    }
-    return Object.values(map)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 10);
-  })();
+  // Notification list derived from chats
+  const notificationItems = Object.values(chats)
+    .filter((c) => c.messages.length > 0)
+    .sort((a, b) => b.lastMessageTime - a.lastMessageTime)
+    .slice(0, 10);
 
   const notificationContent = (
     <div style={{ width: 300, maxHeight: 400, overflowY: 'auto' }}>
-      {deduped.length === 0 ? (
+      {notificationItems.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '24px 0', color: '#94A3B8', fontSize: 13 }}>暂无消息通知</div>
       ) : (
         <List
           size="small"
-          dataSource={deduped}
-          renderItem={(item) => {
-            const unread = chatUnread[item.companionId] || 0;
-            const timeStr = new Date(item.timestamp).toLocaleString('zh-CN', {
+          dataSource={notificationItems}
+          renderItem={(c) => {
+            const unread = c.unreadCount;
+            const timeStr = new Date(c.lastMessageTime).toLocaleString('zh-CN', {
               month: '2-digit',
               day: '2-digit',
               hour: '2-digit',
@@ -173,7 +165,8 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
                   (e.currentTarget as HTMLElement).style.background = 'transparent';
                 }}
                 onClick={() => {
-                  onOpenChat(item.companionId, item.companionName);
+                  useChatStore.getState().markAllRead(c.companionId);
+                  onOpenChat(c.companionId, c.companionName);
                   setPopoverOpen(false);
                 }}
               >
@@ -192,13 +185,13 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
                       }}
                     >
                       <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
-                        {(item.companionName || '?')[0].toUpperCase()}
+                        {(c.companionName || '?')[0].toUpperCase()}
                       </span>
                     </div>
                   }
                   title={
                     <span style={{ fontWeight: 600, fontSize: 13 }}>
-                      {item.companionName}
+                      {c.companionName}
                       {unread > 0 && (
                         <span
                           style={{
@@ -218,11 +211,8 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
                   }
                   description={
                     <div>
-                      <Typography.Text
-                        style={{ fontSize: 12, color: '#64748B' }}
-                        ellipsis={{ tooltip: item.lastMessage }}
-                      >
-                        {item.lastMessage || '（无文字消息）'}
+                      <Typography.Text style={{ fontSize: 12, color: '#64748B' }} ellipsis={{ tooltip: c.lastMessage }}>
+                        {c.lastMessage || '（无文字消息）'}
                       </Typography.Text>
                       <br />
                       <Typography.Text style={{ fontSize: 11, color: '#94A3B8' }}>{timeStr}</Typography.Text>
