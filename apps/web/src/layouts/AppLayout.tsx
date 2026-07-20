@@ -208,6 +208,7 @@ const AppLayout: React.FC = () => {
         username: participantName,
         role: 'COMPANION',
       },
+      orderInfo: conv?.orderInfo,
     });
     useChatStore.getState().markRead(conversationId);
   }, []);

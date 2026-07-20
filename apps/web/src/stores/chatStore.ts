@@ -16,6 +16,7 @@ export interface ConversationState {
   unreadCount: number;
   lastMessage: string;
   lastMessageAt: number;
+  orderInfo?: string;
 }
 
 interface ChatState {
@@ -168,7 +169,7 @@ export const useChatStore = create<ChatState>((set) => ({
       };
     }),
 
-  openConversation: async (userId: string, participant: ParticipantInfo) => {
+  openConversation: async (userId: string, participant: ParticipantInfo, orderInfo?: string) => {
     // Create/get real conversation via API (returns conversation UUID)
     let convId = userId;
     try {
@@ -182,7 +183,11 @@ export const useChatStore = create<ChatState>((set) => ({
         activeConversationId: convId,
         conversations: {
           ...s2.conversations,
-          [convId]: { ...s2.conversations[convId], participant },
+          [convId]: {
+            ...s2.conversations[convId],
+            participant,
+            orderInfo: orderInfo || s2.conversations[convId]?.orderInfo,
+          },
         },
       };
     });

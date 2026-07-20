@@ -253,13 +253,17 @@ const CSDispatchView: React.FC = () => {
                           ? `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 客户' + order.customer.customerCode : ''}`
                           : undefined;
                         // Open conversation via new store
-                        useChatStore.getState().openConversation(c.id, {
-                          userId: u?.id || c.id,
-                          username: u?.username || c.id,
-                          displayName: u?.displayName,
-                          avatar: u?.avatar,
-                          role: 'COMPANION',
-                        });
+                        useChatStore.getState().openConversation(
+                          c.id,
+                          {
+                            userId: u?.id || c.id,
+                            username: u?.username || c.id,
+                            displayName: u?.displayName,
+                            avatar: u?.avatar,
+                            role: 'COMPANION',
+                          },
+                          orderInfo,
+                        );
                         setChatPartner({
                           conversationId: c.id,
                           participant: {

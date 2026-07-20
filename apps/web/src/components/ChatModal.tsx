@@ -46,7 +46,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   // Open conversation when modal opens
   useEffect(() => {
     if (!open || !partner) return;
-    useChatStore.getState().openConversation(partner.conversationId, partner.participant);
+    useChatStore.getState().openConversation(partner.conversationId, partner.participant, partner.orderInfo);
 
     return () => {
       useChatStore.getState().closeConversation();
