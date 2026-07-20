@@ -98,17 +98,19 @@ const MessageBubble: React.FC<Props> = ({ msg, isMe, showAvatar, showDivider, av
             )}
             {msg.text}
           </div>
-          {/* Time */}
-          <div
-            style={{
-              fontSize: 11,
-              color: '#B0B0B0',
-              marginTop: 2,
-              textAlign: isMe ? 'right' : 'left',
-            }}
-          >
-            {time}
-          </div>
+          {/* Time — only on first message of group */}
+          {showAvatar && (
+            <div
+              style={{
+                fontSize: 11,
+                color: '#B0B0B0',
+                marginTop: 2,
+                textAlign: isMe ? 'right' : 'left',
+              }}
+            >
+              {time}
+            </div>
+          )}
         </div>
       </div>
     </>
