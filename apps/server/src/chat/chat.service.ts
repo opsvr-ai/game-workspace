@@ -63,6 +63,7 @@ export class ChatService {
         lastMessage: c.lastMessage,
         lastMessageAt: c.lastMessageAt?.toISOString() || null,
         unreadCount,
+        orderInfo: c.orderInfo || undefined,
       });
     }
 

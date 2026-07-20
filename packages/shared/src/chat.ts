@@ -14,6 +14,7 @@ export interface ConversationSummaryDTO {
   lastMessage: string | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  orderInfo?: string;
 }
 
 export interface MessageDTO {
