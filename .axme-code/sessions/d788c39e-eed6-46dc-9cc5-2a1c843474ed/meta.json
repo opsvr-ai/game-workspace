@@ -38,7 +38,12 @@
     "/data/project/game-workspace/openspec/changes/wechat-chat-redesign/specs/chat-ui-wechat/spec.md",
     "/data/project/game-workspace/openspec/changes/wechat-chat-redesign/tasks.md",
     "/data/project/game-workspace/apps/server/prisma/schema.prisma",
-    "/data/project/game-workspace/apps/server/src/chat/chat.controller.ts"
+    "/data/project/game-workspace/apps/server/src/chat/chat.controller.ts",
+    "/data/project/game-workspace/apps/web/src/api/chat.ts",
+    "/data/project/game-workspace/apps/web/src/components/ConversationList.tsx",
+    "/data/project/game-workspace/apps/web/src/components/MessageBubble.tsx",
+    "/data/project/game-workspace/apps/web/src/components/ChatInput.tsx",
+    "/data/project/game-workspace/apps/server/src/companions/companions.module.ts"
   ],
   "origin": "/data/project/game-workspace",
   "pid": 2520137,

@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-20T16:11:45.980Z
+**Last Updated:** 2026-07-20T16:34:34.123Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 26 occurrences
+**Frequency:** 27 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 10 occurrences
+**Frequency:** 11 occurrences
 
 ### Commonly used command: find
 
@@ -52,8 +52,9 @@
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: mkdir
 
@@ -88,7 +89,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 23 occurrences
+**Frequency:** 24 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -97,7 +98,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 12 occurrences
+**Frequency:** 13 occurrences
 
 ### Prefer async await in .ts files
 
@@ -106,7 +107,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 6 occurrences
+**Frequency:** 7 occurrences
 
 ## Framework
 
@@ -119,7 +120,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 8 occurrences
+**Frequency:** 9 occurrences
 
 ## Quality
 
@@ -129,8 +130,10 @@
 
 **Examples:**
 - Auto-detected from 3 successful operations
+- Auto-detected from 3 successful operations
+- Auto-detected from 3 successful operations
 
-**Frequency:** 1 occurrences
+**Frequency:** 3 occurrences
 
 ## Typing
 
@@ -140,8 +143,9 @@
 
 **Examples:**
 - Auto-detected from 3 successful operations
+- Auto-detected from 3 successful operations
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ---
 

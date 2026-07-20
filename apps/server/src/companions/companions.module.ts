@@ -7,9 +7,10 @@ import { RestingMonitorService } from './resting-monitor.service';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [forwardRef(() => WsModule)],
+  imports: [forwardRef(() => WsModule), ChatModule],
   controllers: [CompanionsController],
   providers: [
     CompanionsService,
