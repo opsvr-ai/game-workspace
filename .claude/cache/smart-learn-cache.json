@@ -1,31 +1,31 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 127,
+      "successCount": 130,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 78
+          "count": 0,
+          "weight": 90
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 202
+          "count": 1,
+          "weight": 224
         },
         "style:async_await": {
           "count": 1,
           "weight": 7
         },
         "typing:explicit_types": {
-          "count": 2,
-          "weight": 37
+          "count": 0,
+          "weight": 46
         },
         "framework:react_hooks": {
           "count": 0,
-          "weight": 27
+          "weight": 30
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 11
+          "count": 1,
+          "weight": 13
         }
       }
     },
@@ -38,7 +38,7 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 82,
+      "successCount": 84,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
@@ -78,14 +78,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 0,
-      "patterns": [],
-      "lastSuccess": 1784564996061
-    },
-    "grep": {
       "count": 4,
       "patterns": [],
-      "lastSuccess": 1784565296263
+      "lastSuccess": 1784565660392
+    },
+    "grep": {
+      "count": 0,
+      "patterns": [],
+      "lastSuccess": 1784566280778
     },
     "wc": {
       "count": 5,
@@ -93,14 +93,14 @@
       "lastSuccess": 1784563891069
     },
     "npx": {
-      "count": 1,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784564980209
+      "lastSuccess": 1784566492771
     },
     "pythonN": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784466165686
+      "lastSuccess": 1784566258280
     },
     "find": {
       "count": 0,
@@ -113,14 +113,14 @@
       "lastSuccess": 1784405649054
     },
     "pnpm": {
-      "count": 0,
-      "patterns": [],
-      "lastSuccess": 1784565274122
-    },
-    "sleep": {
       "count": 1,
       "patterns": [],
-      "lastSuccess": 1784405681605
+      "lastSuccess": 1784566301055
+    },
+    "sleep": {
+      "count": 4,
+      "patterns": [],
+      "lastSuccess": 1784566044522
     },
     "mkdir": {
       "count": 3,
@@ -148,9 +148,9 @@
       "lastSuccess": 1784556745907
     },
     "curl": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784560571485
+      "lastSuccess": 1784566223730
     },
     "kill": {
       "count": 1,
@@ -186,446 +186,24 @@
       "count": 1,
       "patterns": [],
       "lastSuccess": 1784564898399
+    },
+    "K_TOKEN=$(curl": {
+      "count": 2,
+      "patterns": [],
+      "lastSuccess": 1784565824861
+    },
+    "ps": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1784565938743
+    },
+    "rm": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1784566497792
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/MessageCenterPanel.tsx && git commit -m \"feat: add MessageCenterPanel — unified message center with unread/read grouping\" #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/MessageCenterPanel.tsx && git commit -m \"\" #!axme pr=none repo=opsvr",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1784556903059
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'chat-message\\|CustomEvent\\|partner\\.orderId\\|partner\\.name\\b\\|partner\\.orderInfo\\|saveMsgs\\|loadMsgs\\|STORAGE_PREFIX\\|setChatOpen' apps/web/src/components/ChatModal.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/components/ChatModal.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557009384
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn 'partner.*orderId\\|partner.*orderInfo\\|partner.*name.*ChatModal\\|ChatPartner' apps/web/src/ --include='*.tsx' --include='*.ts' | grep -v node_modules | grep -v '.d.ts'",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" apps/web/src/ --include=\"\" --include=\"\" | grep -v node_modules | grep -v \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557024616
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'setChatPartner\\|setChatPartnerModal' apps/web/src/pages/OrderPoolPage.tsx apps/web/src/pages/companion/PoolPage.tsx apps/web/src/pages/dispatch/CSDispatchView.tsx | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/OrderPoolPage.tsx apps/web/src/pages/companion/PoolPage.tsx apps/web/s",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557073857
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'companionId\\|companion\\.' apps/web/src/pages/OrderPoolPage.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/OrderPoolPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557105965
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn 'csUser' packages/shared/src/ apps/server/prisma/ --include='*.ts' --include='*.prisma' | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" packages/shared/src/ apps/server/prisma/ --include=\"\" --include=\"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557120747
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'csUser.*id\\|csUserId' apps/web/src/pages/OrderPoolPage.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/OrderPoolPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557128646
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'csUserId\\|csUser.*{' apps/server/src/orders/ apps/server/src/companion/ -r | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/src/orders/ apps/server/src/companion/ -r | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557138705
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'csUserId' apps/web/src/pages/OrderPoolPage.tsx apps/web/src/pages/companion/PoolPage.tsx apps/web/src/pages/companion/OrdersPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/OrderPoolPage.tsx apps/web/src/pages/companion/PoolPage.tsx apps/web/s",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557145199
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn 'pool\\|getPool\\|findPool' apps/server/src/orders/ --include='*.ts' | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" apps/server/src/orders/ --include=\"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557149881
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'csUserId\\|csUser' apps/server/prisma/schema.prisma",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/prisma/schema.prisma",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557164024
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'ChatModal\\|import.*chat' apps/web/src/pages/OrderPoolPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/OrderPoolPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557198102
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557204245
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-      "patterns": [],
-      "timestamp": 1784557224872
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/PoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557231197
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'setChatPartner' apps/web/src/pages/companion/PoolPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/companion/PoolPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557240797
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/PoolPage.tsx",
-      "patterns": [],
-      "timestamp": 1784557247304
-    },
-    {
-      "type": "bash",
-      "command": "head -1 apps/web/src/pages/companion/PoolPage.tsx",
-      "cmdPattern": {
-        "base": "head",
-        "pattern": "head -N apps/web/src/pages/companion/PoolPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557252579
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557259794
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784557273766
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557283043
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'setChatPartnerModal' apps/web/src/pages/companion/OrdersPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/companion/OrdersPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557292655
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
-      "patterns": [],
-      "timestamp": 1784557300459
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557308726
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
-      "patterns": [],
-      "timestamp": 1784557330699
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557342471
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784557353358
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557368958
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'chatOrderId\\|matchedOrder\\|notifOrderId' apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557397956
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784557405206
-    },
-    {
-      "type": "bash",
-      "command": "grep -n 'orderTypeConfig' apps/web/src/pages/companion/OrdersPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/companion/OrdersPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557410750
-    },
-    {
-      "type": "bash",
-      "command": "grep -c 'orderTypeConfig' apps/web/src/pages/companion/OrdersPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -c \"\" apps/web/src/pages/companion/OrdersPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557413332
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
-      "patterns": [],
-      "timestamp": 1784557418671
-    },
-    {
-      "type": "bash",
-      "command": "git diff --stat apps/web/src/components/ChatModal.tsx",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --stat apps/web/src/components/ChatModal.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557437562
-    },
-    {
-      "type": "bash",
-      "command": "git diff --name-only",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --name-only",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557440568
-    },
-    {
-      "type": "bash",
-      "command": "git remote get-url origin",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git remote get-url origin",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557448137
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ChatModal.tsx apps/web/src/layouts/AppLayout.tsx apps/web/src/pages/CustomersPage.tsx apps/web/src/pages/OrderPoolPage.tsx apps/web/src/pages/companion/OrdersPage.tsx a",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ChatModal.tsx apps/web/src/layouts/AppLayout.tsx apps/web/src/pages/",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1784557452568
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -6",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -N",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784557494802
-    },
-    {
-      "type": "bash",
-      "command": "npx tsc --noEmit 2>&1 | grep -c \"error TS\"",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx tsc --noEmit N>&N | grep -c \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784557504304
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
@@ -2484,6 +2062,448 @@
       "file": "/data/project/game-workspace/apps/server/src/companions/companions.module.ts",
       "patterns": [],
       "timestamp": 1784565304731
+    },
+    {
+      "type": "bash",
+      "command": "git add -A && git commit -m \"fix: export ChatService from ChatModule, import into CompanionsModule\" #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add -A && git commit -m \"\" #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784565321553
+    },
+    {
+      "type": "bash",
+      "command": "git push #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784565331473
+    },
+    {
+      "type": "bash",
+      "command": "sleep 3; echo \"=== Server ===\" && curl -s http://localhost:3001/api/chat/unread-count -H \"Authorization: Bearer $(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N; echo \"\" && curl -s http://localhost:N/api/chat/unread-count -H \"\"Content-Type: application/",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784565456204
+    },
+    {
+      "type": "bash",
+      "command": "K_TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"kefu01\",\"password\":\"123456\"}' | python3 -c \"import sys,json;print(json.load(sys.stdin)['data",
+      "cmdPattern": {
+        "base": "K_TOKEN=$(curl",
+        "pattern": "K_TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"kefuN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784565611042
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"APP_GUARD\\|useGlobalGuards\" /data/project/game-workspace/apps/server/src/app.module.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/app.module.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784565616767
+    },
+    {
+      "type": "bash",
+      "command": "grep \"setGlobalPrefix\\|api\" /data/project/game-workspace/apps/server/src/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/server/src/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784565621239
+    },
+    {
+      "type": "bash",
+      "command": "grep -A5 \"APP_GUARD\" /data/project/game-workspace/apps/server/src/app.module.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/server/src/app.module.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784565625911
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/chat/chat.controller.ts",
+      "patterns": [],
+      "timestamp": 1784565631110
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/chat/chat.controller.ts",
+      "patterns": [],
+      "timestamp": 1784565637450
+    },
+    {
+      "type": "bash",
+      "command": "git add apps/server/src/chat/chat.controller.ts && git commit -m \"fix: add JWT AuthGuard to ChatController\" #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add apps/server/src/chat/chat.controller.ts && git commit -m \"\" #!axme pr=none repo=opsvr-ai/gam",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784565650382
+    },
+    {
+      "type": "bash",
+      "command": "git push #!axme pr=none repo=opsvr-ai/game-workspace && lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 1; pnpm dev:server 2>&1 &",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push #!axme pr=none repo=opsvr-ai/game-workspace && lsof -ti:N | xargs kill -N N>/dev/null; slee",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784565660392
+    },
+    {
+      "type": "bash",
+      "command": "sleep 5; K_TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"kefu01\",\"password\":\"123456\"}' | python3 -c \"import sys,json;print(json.load(sys.std",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N; K_TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"kefuN\"\"password\"\"N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784565740752
+    },
+    {
+      "type": "bash",
+      "command": "K_TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"kefu01\",\"password\":\"123456\"}' | python3 -c \"import sys,json;print(json.load(sys.stdin)['data",
+      "cmdPattern": {
+        "base": "K_TOKEN=$(curl",
+        "pattern": "K_TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"kefuN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784565824861
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8000/ 2>/dev/null | head -5",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/ N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784565927210
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8000/src/main.tsx 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/src/main.tsx N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784565932582
+    },
+    {
+      "type": "bash",
+      "command": "ps aux | grep vite | grep -v grep | head -3",
+      "cmdPattern": {
+        "base": "ps",
+        "pattern": "ps aux | grep vite | grep -v grep | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784565938743
+    },
+    {
+      "type": "bash",
+      "command": "sleep 5; curl -so /dev/null -w \"%{http_code}\" http://localhost:8000/ 2>&1; echo \"\"; lsof -ti:8000 2>/dev/null",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N; curl -so /dev/null -w \"\" http://localhost:N/ N>&N; echo \"\"; lsof -ti:N N>/dev/null",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784566044522
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8000/ 2>/dev/null | head -3; echo \"---\"; curl -s http://localhost:8000/src/App.tsx 2>/dev/null | head -5",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/ N>/dev/null | head -N; echo \"\"; curl -s http://localhost:N/src/App.tsx N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784566223730
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"MessageCenterPanel\\|ChatNotification\\|chatCompanionIds\\|addChatCompanion\\|addChatUnread\\|chatUnread\\|chatActive\\|chatPartner\\|markAllRead\\|addMessage\\|oldChatStore\\|NotificationList\" /data/pr",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566231342
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"useSocket({\\|^useSocket\\|onChatNotify\\|onChatNew\\|onOrderUrgent\\|Global chat poll\\|chat-pending\\|addMessage\\|markSoundPlayed\\|lastSoundPlayedAt\\|setChatActive\\|chatActive\\|chatCompanionIds\" /",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566244914
+    },
+    {
+      "type": "bash",
+      "command": "python3 << 'PYEOF'\npath = '/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx'\nwith open(path) as f:\n    lines = f.readlines()\n\n# Find the old block from line 262 to 361 (0-indexed: 261 t",
+      "cmdPattern": {
+        "base": "pythonN",
+        "pattern": "pythonN << \"\" path = \"\" with open(path) as f: lines = f.readlines() # Find the old block from line N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784566258280
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -c \"error TS\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -c \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566263601
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"addMessage\\|markAllRead\\|chatUnread\\|chatNotifications\\|chatCompanionIds\\|addChatCompanion\\|lastSoundPlayedAt\\|markSoundPlayed\" /data/project/game-workspace/apps/web/src/components/FloatingCh",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx /data/project",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566268985
+    },
+    {
+      "type": "bash",
+      "command": "grep \"markAllRead\\|markRead\" /data/project/game-workspace/apps/web/src/stores/chatStore.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/stores/chatStore.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566274285
+    },
+    {
+      "type": "bash",
+      "command": "grep \"markAllRead\\|markRead\\|openChat\" /data/project/game-workspace/apps/web/src/stores/chatStore.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/stores/chatStore.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566280778
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep \"CSDispatchView\\|markAllRead\\|markRead\" | head -10",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566287714
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit --pretty 2>&1 | head -20",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit --pretty N>&N | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566294598
+    },
+    {
+      "type": "bash",
+      "command": "pnpm exec tsc --noEmit 2>&1 | grep -c \"error\"",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm exec tsc --noEmit N>&N | grep -c \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566301055
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --noEmit 2>&1 | grep -c \"error\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --noEmit N>&N | grep -c \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566330977
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --noEmit 2>&1 | grep \"error TS\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --noEmit N>&N | grep \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566336253
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --noEmit 2>&1 | tail -30",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --noEmit N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566341737
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --project tsconfig.json --noEmit 2>&1 | grep \"error TS\" | head -10",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --project tsconfig.json --noEmit N>&N | grep \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566359428
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --project apps/web/tsconfig.json --noEmit 2>&1 | grep \"error TS\" | head -15",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --project apps/web/tsconfig.json --noEmit N>&N | grep \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566432564
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --project apps/web/tsconfig.json --noEmit 2>&1 | grep \"error TS\" | grep -v \"TS6133\\|FloatingChatWidget\" | head -15",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --project apps/web/tsconfig.json --noEmit N>&N | grep \"\" | grep -v \"\" | he",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566443140
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 12
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 22
+        },
+        {
+          "type": "typing",
+          "pattern": "explicit_types",
+          "weight": 9
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784566465212
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/FloatingChatWidget.tsx",
+      "patterns": [
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784566482513
+    },
+    {
+      "type": "bash",
+      "command": "npx -p typescript@5.4 tsc --project apps/web/tsconfig.json --noEmit 2>&1 | grep \"error TS\" | grep -v \"node_modules\" | head -15",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx -p typescript@N.N tsc --project apps/web/tsconfig.json --noEmit N>&N | grep \"\" | grep -v \"\" | he",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784566492771
+    },
+    {
+      "type": "bash",
+      "command": "rm /data/project/game-workspace/apps/web/src/components/MessageCenterPanel.tsx",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm /data/project/game-workspace/apps/web/src/components/MessageCenterPanel.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784566497792
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/ChatModal.tsx",
+      "patterns": [
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784566501932
     }
   ]
 }

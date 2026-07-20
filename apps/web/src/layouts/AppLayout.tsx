@@ -259,106 +259,33 @@ const AppLayout: React.FC = () => {
   }, []);
 
   // WebSocket connection for real-time updates
+  // WebSocket connection for real-time updates
   useSocket({
-    onChatNotify: (data: any) => {
-      if (data?.companionId) {
-        const store = useChatStore.getState();
-        store.addMessage({
-          companionId: data.companionId,
-          companionName: data.companionName || data.companionId,
-          senderId: data.companionId,
-          senderRole: 'COMPANION',
-          text: data.message || '',
-          timestamp: Date.now(),
-        });
-        if (!store.isChatOpen) {
-          const ts = Date.now();
-          if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
-            playMessageSound();
-            store.markSoundPlayed(data.companionId, ts);
-          }
-        }
-      }
-      if (data?.companionName) {
-        notify({ title: data.companionName, body: data.message || '发来一条消息' });
-      }
-    },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
-    onChatNew: (data: any) => {
-      const companionId = data.companionId || data.senderId;
-      if (!companionId) return;
-      const store = useChatStore.getState();
-      store.addMessage({
-        companionId,
-        companionName: data.senderName || companionId,
-        senderId: data.senderId,
-        senderRole: data.senderRole || 'COMPANION',
-        text: data.text || '',
-        timestamp: Date.now(),
-      });
-      if (!store.isChatOpen) {
-        const ts = Date.now();
-        if (ts > (store.lastSoundPlayedAt[companionId] ?? 0)) {
-          playMessageSound();
-          store.markSoundPlayed(companionId, ts);
+    onChatMessage: (data: any) => {
+      if (data?.conversationId && data?.message) {
+        const store = useChatStore.getState();
+        store.receiveMessage(data.conversationId, data.message);
+        if (!store.activeConversationId) {
+          const ts = Date.now();
+          const cid = data.conversationId;
+          if (ts > ((store as any).lastSoundPlayedAt?.[cid] ?? 0)) {
+            playMessageSound();
+            (store as any).markSoundPlayed?.(cid, ts);
+          }
         }
-      }
-      if (data?.senderName) {
-        notify({ title: data.senderName, body: data.text || '新消息' });
+        if (data.message.text) {
+          const conv = store.conversations[data.conversationId];
+          const name = conv?.participant?.displayName || conv?.participant?.username || '新消息';
+          notify({ title: name, body: data.message.text });
+        }
       }
     },
   });
 
-  // Global chat poll — dispatches to chatStore.addMessage
-  useEffect(() => {
-    if (!user?.studioId) return;
-    const seenKeys = new Set<string>();
-    const poll = async () => {
-      try {
-        const token = sessionStorage.getItem('accessToken');
-        if (!token) return;
-        const res = await fetch(`/api/companions/chat-pending?_t=${Date.now()}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-store',
-        });
-        if (!res.ok) return;
-        const json = await res.json();
-        const data = json.data || json;
 
-        if (data?.messages?.length) {
-          const store = useChatStore.getState();
-          for (const m of data.messages) {
-            const dedupKey = `${m.text}|${m.time}`;
-            if (seenKeys.has(dedupKey)) continue;
-            seenKeys.add(dedupKey);
-
-            const companionId = data.companionId || m.senderId;
-            store.addMessage({
-              companionId,
-              companionName: data.companionName || companionId,
-              senderId: m.senderId,
-              senderRole: m.senderRole || 'COMPANION',
-              text: m.text,
-              timestamp: new Date(m.time || Date.now()).getTime(),
-            });
-          }
-
-          if (!store.isChatOpen && data.companionId) {
-            const ts = Date.now();
-            if (ts > (store.lastSoundPlayedAt[data.companionId] ?? 0)) {
-              playMessageSound();
-              store.markSoundPlayed(data.companionId, ts);
-            }
-          }
-        }
-      } catch {}
-    };
-    poll();
-    const t = setInterval(poll, 10000);
-    return () => clearInterval(t);
-  }, [user?.studioId]);
   // Load conversations on mount
   useEffect(() => {
     if (!user?.id) return;

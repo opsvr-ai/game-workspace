@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 27,
+    "frequency": 29,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-20T16:23:03.692Z"
+    "updated_at": "2026-07-20T16:51:20.779Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 13,
+    "frequency": 14,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-20T16:21:30.374Z"
+    "updated_at": "2026-07-20T16:54:25.214Z"
   },
   {
     "type": "code_style",
@@ -75,12 +75,13 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 9,
+    "frequency": 10,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-20T16:22:30.888Z"
+    "updated_at": "2026-07-20T16:55:01.933Z"
   },
   {
     "type": "workflow",
@@ -199,12 +200,13 @@
     "description": "Commonly used command: npx",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 2,
+    "frequency": 3,
     "created_at": "2026-07-20T14:53:10.455Z",
-    "updated_at": "2026-07-20T16:03:15.470Z"
+    "updated_at": "2026-07-20T16:52:16.254Z"
   },
   {
     "type": "code_style",
@@ -212,12 +214,13 @@
     "description": "Prefer explicit types in .ts files",
     "evidence": [
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "explicit_types",
-    "frequency": 2,
+    "frequency": 3,
     "created_at": "2026-07-20T15:17:14.040Z",
-    "updated_at": "2026-07-20T16:20:48.713Z"
+    "updated_at": "2026-07-20T16:54:25.217Z"
   },
   {
     "type": "workflow",
@@ -230,5 +233,17 @@
     "frequency": 1,
     "created_at": "2026-07-20T15:56:36.906Z",
     "updated_at": "2026-07-20T15:56:36.906Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: curl",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "curl",
+    "frequency": 1,
+    "created_at": "2026-07-20T16:45:32.583Z",
+    "updated_at": "2026-07-20T16:45:32.583Z"
   }
 ]

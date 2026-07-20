@@ -1,14 +1,14 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-20T16:34:34.123Z
+**Last Updated:** 2026-07-20T16:55:01.933Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 14
-- **Total Feedback:** 1
+- **Total Patterns:** 15
+- **Total Feedback:** 2
 
 ## Bash
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 27 occurrences
+**Frequency:** 29 occurrences
 
 ### Commonly used command: git
 
@@ -68,10 +68,18 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: openspec
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: curl
 
 **Examples:**
 - Used successfully 6 times
@@ -98,7 +106,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 13 occurrences
+**Frequency:** 14 occurrences
 
 ### Prefer async await in .ts files
 
@@ -120,7 +128,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 9 occurrences
+**Frequency:** 10 occurrences
 
 ## Quality
 
@@ -144,8 +152,9 @@
 **Examples:**
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
+- Auto-detected from 3 successful operations
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ---
 
@@ -154,6 +163,7 @@
 *Things the user has corrected recently - avoid repeating these mistakes*
 
 - **general:** Background agent "Run hipocampus compaction" was stopped by the user.
+- **error_handling:** 显示 “unexpected application  error”
 
 ---
 

@@ -17,5 +17,24 @@
       "agent": "unknown"
     },
     "created_at": "2026-07-18T20:13:20.410Z"
+  },
+  {
+    "feedback_type": "correction",
+    "reason": "显示 “unexpected application  error”",
+    "rating": 3,
+    "metadata": {
+      "source": "auto_detect",
+      "confidence": 0.5,
+      "category": "error_handling",
+      "rule": "error_handling",
+      "hash": "7e442c242676",
+      "patternCount": 1,
+      "learnableReason": "no_specific_indicators",
+      "matchedKeywords": [
+        "error"
+      ],
+      "agent": "unknown"
+    },
+    "created_at": "2026-07-20T16:50:17.722Z"
   }
 ]

@@ -1,5 +1,5 @@
 // craftsman-ignore: TS002
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Modal, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';

@@ -1,15 +1,16 @@
 {
   "entries": [
     {
-      "hash": "4af1fc52a800",
+      "hash": "7e442c242676",
       "type": "correction",
-      "category": "general",
-      "rule": "preference",
+      "category": "error_handling",
+      "rule": "error_handling",
       "learnableReason": "no_specific_indicators",
-      "timestamp": 1784405600409
+      "timestamp": 1784566217721
     }
   ],
   "patterns": {
-    "general:preference": 1
+    "general:preference": 1,
+    "error_handling:error_handling": 1
   }
 }
