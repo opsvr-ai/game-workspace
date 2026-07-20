@@ -238,7 +238,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   );
 
   // Hide for companions
-  if (!user || user.role === 'COMPANION') return null;
+  if (!user) return null;
 
   return (
     <div

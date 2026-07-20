@@ -325,7 +325,7 @@ const AppLayout: React.FC = () => {
     setGlobalChatPartner({
       name: companionName,
       orderId,
-      orderInfo: `陪玩: ${companionName}`,
+      orderInfo: user?.role === 'COMPANION' ? `客服: ${companionName}` : `陪玩: ${companionName}`,
     });
     // Clear unread for this companion
     useChatStore.getState().clearChatUnread(companionId);
@@ -719,7 +719,7 @@ const AppLayout: React.FC = () => {
             />
             <Space size="middle">
               {/* Notification bell */}
-              {user && user.role !== 'COMPANION' && (
+              {user && (
                 <Popover
                   open={notifOpen}
                   onOpenChange={setNotifOpen}
