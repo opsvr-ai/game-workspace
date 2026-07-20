@@ -115,9 +115,7 @@ const CSDispatchView: React.FC = () => {
       message.info(data?.message || '有陪玩抢了订单');
       fetchPool();
     },
-    onChatNotify: (data: any) => {
-      if (data?.companionId) addChatCompanion(data.companionId);
-    },
+    onChatNotify: () => {},
   });
 
   // Fallback polling every 120s
@@ -132,26 +130,19 @@ const CSDispatchView: React.FC = () => {
   }, [fetchPool, fetchCompanions]);
 
   // Chat notification tracking
-  const chatIds = useChatStore((s) => s.chatCompanionIds);
-  const addChatCompanion = useChatStore((s) => s.addChatCompanion);
-  const clearChatCompanions = useChatStore((s) => s.clearChatCompanions);
-
-  useEffect(() => {
-    return () => {
-      clearChatCompanions();
-    };
-  }, []);
+  const chats = useChatStore((s) => s.chats);
 
   // Stats — sort: messages first, then by status
   const sortedCompanions = useMemo(
     () =>
       [...companions].sort((a, b) => {
-        const aMsg = chatIds.includes(a.id) ? 1 : 0;
-        const bMsg = chatIds.includes(b.id) ? 1 : 0;
+        const chatKeys = Object.keys(chats);
+        const aMsg = chatKeys.includes(a.id) ? 1 : 0;
+        const bMsg = chatKeys.includes(b.id) ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
         return (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9);
       }),
-    [companions, chatIds],
+    [companions, chats],
   );
 
   // Filter companions by name search
@@ -251,24 +242,18 @@ const CSDispatchView: React.FC = () => {
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
                       }}
                       onClick={() => {
+                        useChatStore.getState().markAllRead(c.id);
+                        useChatStore.getState().openChat(c.id);
                         setSelectedCompanionId(c.id);
-                        const hasMsg = chatIds.includes(c.id);
-                        if (hasMsg) {
-                          const cur = useChatStore.getState().chatCompanionIds.filter((id: string) => id !== c.id);
-                          useChatStore.setState({ chatCompanionIds: cur });
-                        }
-                        // Clear badge
-                        localStorage.removeItem(`unread-${c.id}`);
                         setUnreadMap((prev) => {
                           const { [c.id]: _, ...r } = prev;
                           return r;
                         });
-                        // Open WeChat-style chat
                         const u = c.user as any;
                         setChatPartner({
                           companionId: c.id,
                           companionName: u?.displayName || u?.username || c.id,
-                          avatar: u?.avatar || null,
+                          avatar: u?.avatar || undefined,
                         });
                       }}
                     >
@@ -646,7 +631,14 @@ const CSDispatchView: React.FC = () => {
       {/* Chat Modal */}
       <ChatModal
         open={!!chatPartner}
-        partner={chatPartner}
+        partner={
+          chatPartner
+            ? {
+                companionId: chatPartner.companionId,
+                companionName: chatPartner.companionName,
+              }
+            : null
+        }
         onClose={() => {
           setChatPartner(null);
           setSelectedCompanionId(null);
