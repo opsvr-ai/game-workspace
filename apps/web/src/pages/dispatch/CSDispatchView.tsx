@@ -247,7 +247,12 @@ const CSDispatchView: React.FC = () => {
                           return r;
                         });
                         const u = c.user as any;
-                        // Open conversation via new store (conversationId = companion table ID for now)
+                        // Find matching order for this companion
+                        const order = poolOrders.find((o: any) => o.companionId === c.id);
+                        const orderInfo = order
+                          ? `🎮 ${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 👤' + order.customer.customerCode : ''}`
+                          : undefined;
+                        // Open conversation via new store
                         useChatStore.getState().openConversation(c.id, {
                           userId: u?.id || c.id,
                           username: u?.username || c.id,
@@ -264,6 +269,7 @@ const CSDispatchView: React.FC = () => {
                             avatar: u?.avatar,
                             role: 'COMPANION',
                           },
+                          orderInfo,
                         });
                       }}
                     >

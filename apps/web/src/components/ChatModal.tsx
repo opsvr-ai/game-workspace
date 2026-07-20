@@ -11,6 +11,7 @@ import { ChatInput } from './ChatInput';
 interface ChatPartner {
   conversationId: string;
   participant: ParticipantInfo;
+  orderInfo?: string;
 }
 
 interface Props {
@@ -119,6 +120,9 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 16, lineHeight: 1.3 }}>{participantName}</div>
+              {partner.orderInfo && (
+                <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4, marginTop: 1 }}>{partner.orderInfo}</div>
+              )}
             </div>
             <Button
               type="text"
