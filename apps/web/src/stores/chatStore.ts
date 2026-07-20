@@ -168,30 +168,36 @@ export const useChatStore = create<ChatState>((set) => ({
       };
     }),
 
-  openConversation: async (id: string, participant: ParticipantInfo) => {
+  openConversation: async (userId: string, participant: ParticipantInfo) => {
+    // Create/get real conversation via API (returns conversation UUID)
+    let convId = userId;
+    try {
+      const { data } = await chatApi.createConversation(participant.userId || userId);
+      convId = data?.data?.id || userId;
+    } catch {}
     set((s) => {
-      const s2 = ensureConv(s, id, participant);
+      const s2 = ensureConv(s, convId, participant);
       return {
         ...s2,
-        activeConversationId: id,
+        activeConversationId: convId,
         conversations: {
           ...s2.conversations,
-          [id]: { ...s2.conversations[id], participant },
+          [convId]: { ...s2.conversations[convId], participant },
         },
       };
     });
     // Load history
     try {
-      const { data } = await chatApi.getMessages(id);
+      const { data } = await chatApi.getMessages(convId);
       const msgs = data?.data?.messages || [];
       const hasMore = data?.data?.hasMore ?? false;
       if (msgs.length > 0) {
-        useChatStore.getState().loadMessages(id, msgs, hasMore);
+        useChatStore.getState().loadMessages(convId, msgs, hasMore);
       }
     } catch {}
     // Mark read
-    chatApi.markRead(id).catch(() => {});
-    useChatStore.getState().markRead(id);
+    chatApi.markRead(convId).catch(() => {});
+    useChatStore.getState().markRead(convId);
   },
 
   closeConversation: () =>
