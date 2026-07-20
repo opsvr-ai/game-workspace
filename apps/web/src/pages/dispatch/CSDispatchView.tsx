@@ -130,19 +130,18 @@ const CSDispatchView: React.FC = () => {
   }, [fetchPool, fetchCompanions]);
 
   // Chat notification tracking
-  const chats = useChatStore((s) => s.chats);
+  const conversations = useChatStore((s) => s.conversations);
 
   // Stats — sort: messages first, then by status
   const sortedCompanions = useMemo(
     () =>
       [...companions].sort((a, b) => {
-        const chatKeys = Object.keys(chats);
-        const aMsg = chatKeys.includes(a.id) ? 1 : 0;
-        const bMsg = chatKeys.includes(b.id) ? 1 : 0;
+        const aMsg = conversations[a.id]?.unreadCount > 0 ? 1 : 0;
+        const bMsg = conversations[b.id]?.unreadCount > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
         return (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9);
       }),
-    [companions, chats],
+    [companions, conversations],
   );
 
   // Filter companions by name search
@@ -242,18 +241,29 @@ const CSDispatchView: React.FC = () => {
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
                       }}
                       onClick={() => {
-                        useChatStore.getState().markAllRead(c.id);
-                        useChatStore.getState().openChat(c.id);
                         setSelectedCompanionId(c.id);
                         setUnreadMap((prev) => {
                           const { [c.id]: _, ...r } = prev;
                           return r;
                         });
                         const u = c.user as any;
+                        // Open conversation via new store (conversationId = companion table ID for now)
+                        useChatStore.getState().openConversation(c.id, {
+                          userId: u?.id || c.id,
+                          username: u?.username || c.id,
+                          displayName: u?.displayName,
+                          avatar: u?.avatar,
+                          role: 'COMPANION',
+                        });
                         setChatPartner({
-                          companionId: c.id,
-                          companionName: u?.displayName || u?.username || c.id,
-                          avatar: u?.avatar || undefined,
+                          conversationId: c.id,
+                          participant: {
+                            userId: u?.id || c.id,
+                            username: u?.username || c.id,
+                            displayName: u?.displayName,
+                            avatar: u?.avatar,
+                            role: 'COMPANION',
+                          },
                         });
                       }}
                     >
@@ -631,14 +641,7 @@ const CSDispatchView: React.FC = () => {
       {/* Chat Modal */}
       <ChatModal
         open={!!chatPartner}
-        partner={
-          chatPartner
-            ? {
-                companionId: chatPartner.companionId,
-                companionName: chatPartner.companionName,
-              }
-            : null
-        }
+        partner={chatPartner as any}
         onClose={() => {
           setChatPartner(null);
           setSelectedCompanionId(null);

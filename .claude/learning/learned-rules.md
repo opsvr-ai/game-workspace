@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-20T16:55:01.933Z
+**Last Updated:** 2026-07-20T17:00:46.351Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 29 occurrences
+**Frequency:** 30 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 11 occurrences
+**Frequency:** 12 occurrences
 
 ### Commonly used command: find
 
@@ -97,7 +97,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 24 occurrences
+**Frequency:** 25 occurrences
 
 ### Prefer arrow functions in .tsx files
 
