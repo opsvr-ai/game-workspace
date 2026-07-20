@@ -42,11 +42,7 @@ export class ChatService {
   }
 
   /** Get chat history for an order */
-  async getMessages(
-    studioId: string,
-    orderId: string,
-    limit = 200,
-  ): Promise<ChatMessageData[]> {
+  async getMessages(studioId: string, orderId: string, limit = 200): Promise<ChatMessageData[]> {
     try {
       return await this.prisma.chatMessage.findMany({
         where: { studioId, orderId },
@@ -60,10 +56,7 @@ export class ChatService {
   }
 
   /** Get pending notifications for a studio (messages in last 30 seconds) */
-  async getRecentMessages(
-    studioId: string,
-    since: Date,
-  ): Promise<ChatMessageData[]> {
+  async getRecentMessages(studioId: string, since: Date): Promise<ChatMessageData[]> {
     try {
       return await this.prisma.chatMessage.findMany({
         where: { studioId, createdAt: { gte: since } },
@@ -72,6 +65,27 @@ export class ChatService {
       });
     } catch (err) {
       logger.error('Failed to fetch recent messages', { studioId, error: (err as Error).message });
+      return [];
+    }
+  }
+
+  /** Get complete chat history for a companion — all orders */
+  async getMessagesByCompanion(studioId: string, companionId: string, limit = 200): Promise<ChatMessageData[]> {
+    try {
+      return await this.prisma.chatMessage.findMany({
+        where: {
+          studioId,
+          OR: [{ senderId: companionId }, { order: { companionId } }],
+        },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      });
+    } catch (err) {
+      logger.error('Failed to fetch companion chat history', {
+        studioId,
+        companionId,
+        error: (err as Error).message,
+      });
       return [];
     }
   }
