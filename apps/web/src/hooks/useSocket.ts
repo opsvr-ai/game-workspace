@@ -48,7 +48,6 @@ export function useSocket(opts: UseSocketOptions = {}) {
     });
 
     socket.on('chat:new', (data: any) => {
-      optsRef.current.onChatNotify?.(data);
       optsRef.current.onChatNew?.(data);
     });
 

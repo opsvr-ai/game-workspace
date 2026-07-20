@@ -72,6 +72,13 @@ export class ChatService {
   /** Get complete chat history for a companion — all orders */
   async getMessagesByCompanion(studioId: string, companionId: string, limit = 200): Promise<ChatMessageData[]> {
     try {
+      // Resolve Companion table ID to User primary key (senderId stores User PK)
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: companionId },
+        select: { userId: true },
+      });
+      const userId = companion?.userId || companionId;
+
       // Find all orderIds assigned to this companion
       const orderIds = await this.prisma.order.findMany({
         where: { companionId },
@@ -82,7 +89,11 @@ export class ChatService {
       return await this.prisma.chatMessage.findMany({
         where: {
           studioId,
-          OR: [{ senderId: companionId }, ...(ids.length > 0 ? [{ orderId: { in: ids } }] : [])],
+          OR: [
+            { senderId: userId },
+            ...(userId !== companionId ? [{ senderId: companionId }] : []),
+            ...(ids.length > 0 ? [{ orderId: { in: ids } }] : []),
+          ],
         },
         orderBy: { createdAt: 'asc' },
         take: limit,
