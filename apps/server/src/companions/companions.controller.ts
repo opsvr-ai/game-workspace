@@ -128,7 +128,7 @@ export class CompanionsController {
     if (!user?.studioId) {
       throw new UnauthorizedException('未登录');
     }
-    const messages = await this.chatService.getMessagesByCompanion(user.studioId, companionId, 200);
+    const messages = await this.chatService.getMessagesByCompanion(user.studioId, companionId, user.id, 200);
     return { data: { companionId, messages } };
   }
 
