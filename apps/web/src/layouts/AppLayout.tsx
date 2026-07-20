@@ -192,24 +192,25 @@ const AppLayout: React.FC = () => {
   // Global chat modal (opened from notification bell)
   const [globalChatPartner, setGlobalChatPartner] = React.useState<{
     conversationId: string;
+    participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
+    orderInfo?: string;
   } | null>(null);
   const { notify } = useChatNotification(true);
 
   // Open chat from notification
-  const openChatFromNotification = useCallback(
-    (conversationId: string, participantName: string) => {
-      const conv = useChatStore.getState().conversations[conversationId];
-      setNotifOpen(false);
-      setGlobalChatPartner({
-        conversationId,
-        participant: conv?.participant || {
-          userId: conversationId, username: participantName, role: 'COMPANION',
-        },
-      });
-      useChatStore.getState().markRead(conversationId);
-    },
-    [],
-  );
+  const openChatFromNotification = useCallback((conversationId: string, participantName: string) => {
+    const conv = useChatStore.getState().conversations[conversationId];
+    setNotifOpen(false);
+    setGlobalChatPartner({
+      conversationId,
+      participant: conv?.participant || {
+        userId: conversationId,
+        username: participantName,
+        role: 'COMPANION',
+      },
+    });
+    useChatStore.getState().markRead(conversationId);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -285,16 +286,17 @@ const AppLayout: React.FC = () => {
     },
   });
 
-
   // Load conversations on mount
   useEffect(() => {
     if (!user?.id) return;
     useChatStore.getState().setMyUserId(user.id);
-    chatApi.listConversations().then(({ data }) => {
-      useChatStore.getState().setConversations(data?.data?.conversations || []);
-    }).catch(() => {});
+    chatApi
+      .listConversations()
+      .then(({ data }) => {
+        useChatStore.getState().setConversations(data?.data?.conversations || []);
+      })
+      .catch(() => {});
   }, [user?.id]);
-
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -642,11 +644,7 @@ const AppLayout: React.FC = () => {
       </Modal>
 
       {/* Global Chat Modal (opened from notification bell) */}
-      <ChatModal
-        open={!!globalChatPartner}
-        partner={globalChatPartner}
-        onClose={() => setGlobalChatPartner(null)}
-      />
+      <ChatModal open={!!globalChatPartner} partner={globalChatPartner} onClose={() => setGlobalChatPartner(null)} />
 
       {/* Floating chat notification widget (bottom-right) */}
       <FloatingChatWidget onOpenChat={openChatFromNotification} />
