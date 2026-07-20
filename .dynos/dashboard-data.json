@@ -1,0 +1,28 @@
+{
+  "registry_updated_at": "2026-07-18T15:22:45Z",
+  "summary": {
+    "learned_components": 0,
+    "active_routes": 0,
+    "shadow_components": 0,
+    "demoted_components": 0,
+    "queued_automation_jobs": 0,
+    "benchmark_runs": 0,
+    "tracked_fixtures": 0,
+    "coverage_gaps": 0
+  },
+  "active_routes": [],
+  "demotions": [],
+  "automation_queue": [],
+  "coverage_gaps": [],
+  "recent_runs": [],
+  "generated_at": "2026-07-18T15:22:45Z",
+  "lineage": {
+    "nodes": 0,
+    "edges": 0
+  },
+  "lineage_graph": {
+    "version": 1,
+    "nodes": [],
+    "edges": []
+  }
+}

@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"b07160b1847c0a00","span_id":"b07160b1847c0a00","run_id":"run-aaeae0ff-2e40-485b-9a61-67b23b711c8b","event":"UserPromptSubmit","ts":"2026-07-18T19:30:04.516Z","actor_id":"main","body":{"prompt":"/resume"}}

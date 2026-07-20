@@ -1,0 +1,4 @@
+{"ts":"2026-07-18T20:37:31.173Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"maxFiles":3,"query":"AuthController getMe updateProfile updateAvatar /api/auth"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-18T21:06:49.778Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"query":"avatar upload display companion user avatarUrl image cache","maxFiles":10},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-18T21:07:00.106Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"query":"companionsService findAll list companions include user avatar","maxFiles":5},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-18T21:07:46.926Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"maxFiles":8,"query":"/uploads/avatars avatar url background image companion user"},"success":true,"BLOCKED":false,"reason":null}

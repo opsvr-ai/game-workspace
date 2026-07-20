@@ -1,0 +1,6 @@
+{"file":"apps/web/src/components/CustomerDetailDrawer.tsx","action":"Write","timestamp":"2026-07-18T19:11:26Z","important":false}
+{"file":"apps/web/src/pages/CustomersPage.tsx","action":"Edit","timestamp":"2026-07-18T19:12:38Z","important":false}
+{"file":"apps/server/prisma/schema.prisma","action":"Edit","timestamp":"2026-07-18T19:17:31Z","important":false}
+{"file":"apps/web/src/components/CreateOrderModal.tsx","action":"Edit","timestamp":"2026-07-18T19:22:39Z","important":false}
+{"file":"apps/web/src/components/OrderTable.tsx","action":"Edit","timestamp":"2026-07-18T19:23:42Z","important":false}
+{"file":"/tmp/cleanup_plugins.py","action":"Write","timestamp":"2026-07-18T20:05:05Z","important":false}

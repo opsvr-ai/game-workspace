@@ -1,0 +1,150 @@
+[
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: git",
+    "evidence": [
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times"
+    ],
+    "rule": "git",
+    "frequency": 5,
+    "created_at": "2026-07-19T14:22:35.495Z",
+    "updated_at": "2026-07-19T15:45:18.538Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: npx",
+    "evidence": [
+      "Used successfully 6 times",
+      "Used successfully 6 times"
+    ],
+    "rule": "npx",
+    "frequency": 2,
+    "created_at": "2026-07-19T14:29:46.244Z",
+    "updated_at": "2026-07-19T14:44:33.860Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: grep",
+    "evidence": [
+      "Used successfully 6 times",
+      "Used successfully 6 times"
+    ],
+    "rule": "grep",
+    "frequency": 2,
+    "created_at": "2026-07-19T14:37:26.066Z",
+    "updated_at": "2026-07-19T15:34:43.118Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: export",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "export",
+    "frequency": 1,
+    "created_at": "2026-07-19T15:00:45.558Z",
+    "updated_at": "2026-07-19T15:00:45.558Z"
+  },
+  {
+    "type": "code_style",
+    "category": "style",
+    "description": "Prefer arrow functions in .tsx files",
+    "evidence": [
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "arrow_functions",
+    "frequency": 3,
+    "created_at": "2026-07-19T15:02:44.453Z",
+    "updated_at": "2026-07-19T15:35:06.560Z"
+  },
+  {
+    "type": "code_style",
+    "category": "style",
+    "description": "Prefer prefer const in .tsx files",
+    "evidence": [
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "prefer_const",
+    "frequency": 6,
+    "created_at": "2026-07-19T15:02:44.456Z",
+    "updated_at": "2026-07-19T15:59:21.345Z"
+  },
+  {
+    "type": "code_style",
+    "category": "typing",
+    "description": "Prefer explicit types in .tsx files",
+    "evidence": [
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "explicit_types",
+    "frequency": 2,
+    "created_at": "2026-07-19T15:02:44.457Z",
+    "updated_at": "2026-07-19T15:09:18.899Z"
+  },
+  {
+    "type": "code_style",
+    "category": "framework",
+    "description": "Prefer react hooks in .tsx files",
+    "evidence": [
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "react_hooks",
+    "frequency": 3,
+    "created_at": "2026-07-19T15:10:11.138Z",
+    "updated_at": "2026-07-19T15:13:42.302Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: fuser",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "fuser",
+    "frequency": 1,
+    "created_at": "2026-07-19T15:44:34.890Z",
+    "updated_at": "2026-07-19T15:44:34.890Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: /data/project/game-workspace/apps/web/node_modules/.bin/vite",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "/data/project/game-workspace/apps/web/node_modules/.bin/vite",
+    "frequency": 1,
+    "created_at": "2026-07-19T15:57:49.166Z",
+    "updated_at": "2026-07-19T15:57:49.166Z"
+  },
+  {
+    "type": "code_style",
+    "category": "style",
+    "description": "Prefer async await in .ts files",
+    "evidence": [
+      "Auto-detected from 3 successful operations"
+    ],
+    "rule": "async_await",
+    "frequency": 1,
+    "created_at": "2026-07-19T15:59:21.347Z",
+    "updated_at": "2026-07-19T15:59:21.347Z"
+  }
+]

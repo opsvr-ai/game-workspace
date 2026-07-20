@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"58eb3c11d63a0975","span_id":"58eb3c11d63a0975","run_id":"run-3c5fe9e9-d886-44b1-b738-ea62d54cb2a4","event":"UserPromptSubmit","ts":"2026-07-18T19:35:04.951Z","actor_id":"main","body":{"prompt":"理解当前项目架构及功能"}}

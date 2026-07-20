@@ -1,0 +1,15 @@
+{"timestamp":"2026-07-19T11:24:44.146Z","type":"decision_saved","sessionId":"","data":{"id":"D-001","title":"pnpm Workspace Monorepo Architecture","source":"session"}}
+{"timestamp":"2026-07-19T11:24:49.665Z","type":"session_start","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{}}
+{"timestamp":"2026-07-19T11:25:07.685Z","type":"decision_saved","sessionId":"","data":{"id":"D-002","title":"JWT Dual-Token Authentication with Role-Based Access Control","source":"session"}}
+{"timestamp":"2026-07-19T11:25:30.564Z","type":"decision_saved","sessionId":"","data":{"id":"D-003","title":"Prisma ORM + PostgreSQL Data Layer","source":"session"}}
+{"timestamp":"2026-07-19T11:26:01.072Z","type":"decision_saved","sessionId":"","data":{"id":"D-004","title":"React + Ant Design Frontend with Zustand State Management","source":"session"}}
+{"timestamp":"2026-07-19T11:26:21.750Z","type":"decision_saved","sessionId":"","data":{"id":"D-005","title":"Socket.IO Real-Time Communication with Studio Room Isolation","source":"session"}}
+{"timestamp":"2026-07-19T11:26:39.021Z","type":"decision_saved","sessionId":"","data":{"id":"D-006","title":"Nest.js Modular Feature-First Architecture","source":"session"}}
+{"timestamp":"2026-07-19T11:27:42.640Z","type":"memory_saved","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"slug":"","type":"pattern"}}
+{"timestamp":"2026-07-19T11:28:17.642Z","type":"memory_saved","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"slug":"","type":"pattern"}}
+{"timestamp":"2026-07-19T11:28:32.896Z","type":"memory_saved","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"slug":"conventional-commits","type":"pattern"}}
+{"timestamp":"2026-07-19T11:28:49.210Z","type":"safety_updated","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"ruleType":"git_protected_branch","value":"master"}}
+{"timestamp":"2026-07-19T11:31:41.205Z","type":"safety_updated","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"ruleType":"bash_deny","value":"rm -rf"}}
+{"timestamp":"2026-07-19T12:23:27.989Z","type":"safety_block","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"tool":"Read","target":"/data/project/game-workspace/apps/server/.env","rule":"safety_rule","reason":"Path denied: .env"}}
+{"timestamp":"2026-07-19T12:53:06.005Z","type":"safety_block","sessionId":"e9720d4c-10a3-40cf-b024-369cf314e938","data":{"tool":"Bash","target":"git commit -m \"refactor: comprehensive P0-P3 optimization across all packages\n\nP0 Security (7 items):\n- Remove JWT fallb","rule":"safety_rule","reason":"BLOCKED: git commit/push requires #!axme safety metadata. Retry with: `<your command> #!axme pr=<PR_NUMBER|none> repo=<OWNER/REPO>` (pr=none if no PR created yet). Place the marker AFTER the closing `\"` of any `-m \"...\"` argument, not inside it — otherwise the closing quote gets parsed as part of the repo name."}}
+{"timestamp":"2026-07-20T12:51:22.078Z","type":"session_start","sessionId":"d788c39e-eed6-46dc-9cc5-2a1c843474ed","data":{}}

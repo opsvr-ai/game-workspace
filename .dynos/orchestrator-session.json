@@ -1,0 +1,180 @@
+{
+  "sessions": {
+    "12b02ef4-4aea-469f-bb9c-030d1e4ff3f2": {
+      "session_id": "12b02ef4-4aea-469f-bb9c-030d1e4ff3f2",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/12b02ef4-4aea-469f-bb9c-030d1e4ff3f2.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T15:22:45Z"
+    },
+    "d6231d4b-821c-456b-a651-8523bcfcde0e": {
+      "session_id": "d6231d4b-821c-456b-a651-8523bcfcde0e",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/d6231d4b-821c-456b-a651-8523bcfcde0e.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T15:23:24Z"
+    },
+    "d168c81c-414e-4cd2-8ca0-68d2812ef9d0": {
+      "session_id": "d168c81c-414e-4cd2-8ca0-68d2812ef9d0",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/d168c81c-414e-4cd2-8ca0-68d2812ef9d0.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T18:57:16Z"
+    },
+    "6324652c-c572-435c-a50c-adccd5e2a4c8": {
+      "session_id": "6324652c-c572-435c-a50c-adccd5e2a4c8",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/6324652c-c572-435c-a50c-adccd5e2a4c8.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:04:45Z"
+    },
+    "b1cf84c6-03f8-4c88-9f62-e82cbbce4ef5": {
+      "session_id": "b1cf84c6-03f8-4c88-9f62-e82cbbce4ef5",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/b1cf84c6-03f8-4c88-9f62-e82cbbce4ef5.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:08:52Z"
+    },
+    "5d7e7221-115c-4f67-a241-e3fc6a63796f": {
+      "session_id": "5d7e7221-115c-4f67-a241-e3fc6a63796f",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/5d7e7221-115c-4f67-a241-e3fc6a63796f.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:29:34Z"
+    },
+    "aaeae0ff-2e40-485b-9a61-67b23b711c8b": {
+      "session_id": "aaeae0ff-2e40-485b-9a61-67b23b711c8b",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/aaeae0ff-2e40-485b-9a61-67b23b711c8b.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:29:56Z"
+    },
+    "c1ac7023-e8da-454c-b134-bd9fb86e731c": {
+      "session_id": "c1ac7023-e8da-454c-b134-bd9fb86e731c",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/c1ac7023-e8da-454c-b134-bd9fb86e731c.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:31:30Z"
+    },
+    "3c5fe9e9-d886-44b1-b738-ea62d54cb2a4": {
+      "session_id": "3c5fe9e9-d886-44b1-b738-ea62d54cb2a4",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/3c5fe9e9-d886-44b1-b738-ea62d54cb2a4.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:34:40Z"
+    },
+    "0881fba1-3f25-4219-b770-8e6976f7d214": {
+      "session_id": "0881fba1-3f25-4219-b770-8e6976f7d214",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/0881fba1-3f25-4219-b770-8e6976f7d214.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:34:42Z"
+    },
+    "d6059c2b-d5d2-403a-b326-f82c0638aeb0": {
+      "session_id": "d6059c2b-d5d2-403a-b326-f82c0638aeb0",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/d6059c2b-d5d2-403a-b326-f82c0638aeb0.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:45:20Z"
+    },
+    "69b72a6f-a10c-4c89-84de-26401f209e4a": {
+      "session_id": "69b72a6f-a10c-4c89-84de-26401f209e4a",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/69b72a6f-a10c-4c89-84de-26401f209e4a.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:45:21Z"
+    },
+    "c2a0cb42-44d4-4c37-8ff6-c94d99ccd310": {
+      "session_id": "c2a0cb42-44d4-4c37-8ff6-c94d99ccd310",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/c2a0cb42-44d4-4c37-8ff6-c94d99ccd310.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:49:29Z"
+    },
+    "6107fb85-eb0a-42df-8519-bedeacbefe26": {
+      "session_id": "6107fb85-eb0a-42df-8519-bedeacbefe26",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/6107fb85-eb0a-42df-8519-bedeacbefe26.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:54:12Z"
+    },
+    "092644a1-58f3-4d45-b3d9-4c07829765c2": {
+      "session_id": "092644a1-58f3-4d45-b3d9-4c07829765c2",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/092644a1-58f3-4d45-b3d9-4c07829765c2.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:54:12Z"
+    },
+    "0f4d4fa0-64bb-4e80-8269-21b79a0d92f5": {
+      "session_id": "0f4d4fa0-64bb-4e80-8269-21b79a0d92f5",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/0f4d4fa0-64bb-4e80-8269-21b79a0d92f5.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:55:54Z"
+    },
+    "6d2fa60a-8518-4ab0-bfb6-b18c67422d73": {
+      "session_id": "6d2fa60a-8518-4ab0-bfb6-b18c67422d73",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/6d2fa60a-8518-4ab0-bfb6-b18c67422d73.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:56:03Z"
+    },
+    "ebe3b7db-6eea-4730-a909-5dbadf2d45df": {
+      "session_id": "ebe3b7db-6eea-4730-a909-5dbadf2d45df",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/ebe3b7db-6eea-4730-a909-5dbadf2d45df.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:57:02Z"
+    },
+    "b30e011b-3a62-4b8d-843c-741c28694e3c": {
+      "session_id": "b30e011b-3a62-4b8d-843c-741c28694e3c",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/b30e011b-3a62-4b8d-843c-741c28694e3c.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:57:39Z"
+    },
+    "3354017f-13e9-4ffe-b60f-8ec74aebff4f": {
+      "session_id": "3354017f-13e9-4ffe-b60f-8ec74aebff4f",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/3354017f-13e9-4ffe-b60f-8ec74aebff4f.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:57:47Z"
+    },
+    "74044d58-74b2-420f-a230-eb95249cfd0c": {
+      "session_id": "74044d58-74b2-420f-a230-eb95249cfd0c",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/74044d58-74b2-420f-a230-eb95249cfd0c.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:57:53Z"
+    },
+    "b7f2fd2a-4a5f-4f1b-8320-d6fccc99f4ac": {
+      "session_id": "b7f2fd2a-4a5f-4f1b-8320-d6fccc99f4ac",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/b7f2fd2a-4a5f-4f1b-8320-d6fccc99f4ac.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:58:04Z"
+    },
+    "9d1c7c8b-510e-4050-bd1c-8becbfc07c76": {
+      "session_id": "9d1c7c8b-510e-4050-bd1c-8becbfc07c76",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/9d1c7c8b-510e-4050-bd1c-8becbfc07c76.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:58:11Z"
+    },
+    "510ad321-f2c4-4f6b-abc9-8e9aee7b532c": {
+      "session_id": "510ad321-f2c4-4f6b-abc9-8e9aee7b532c",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/510ad321-f2c4-4f6b-abc9-8e9aee7b532c.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:58:20Z"
+    },
+    "f6b2bff8-b52c-4131-bc5c-49c3cba68684": {
+      "session_id": "f6b2bff8-b52c-4131-bc5c-49c3cba68684",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/f6b2bff8-b52c-4131-bc5c-49c3cba68684.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T19:58:24Z"
+    },
+    "02160687-7de9-42fc-a108-8fc912b194cf": {
+      "session_id": "02160687-7de9-42fc-a108-8fc912b194cf",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/02160687-7de9-42fc-a108-8fc912b194cf.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T20:00:03Z"
+    },
+    "16d5a8f8-352e-46ae-9012-32b0960c63c3": {
+      "session_id": "16d5a8f8-352e-46ae-9012-32b0960c63c3",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/16d5a8f8-352e-46ae-9012-32b0960c63c3.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T20:00:55Z"
+    },
+    "a03f1f6d-6a61-4f97-8a66-1f44d09d6e91": {
+      "session_id": "a03f1f6d-6a61-4f97-8a66-1f44d09d6e91",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/a03f1f6d-6a61-4f97-8a66-1f44d09d6e91.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T20:01:43Z"
+    },
+    "a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc": {
+      "session_id": "a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc",
+      "transcript_path": "/root/.claude/projects/-data-project-game-workspace/a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc.jsonl",
+      "source": "startup",
+      "pinned_at": "2026-07-18T20:01:46Z"
+    }
+  },
+  "session_id": "a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc",
+  "latest_session_id": "a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc"
+}

@@ -1,0 +1,9 @@
+{
+  "policy": {
+    "token_budget_multiplier": 1.0,
+    "fast_track_skip_plan_audit": false
+  },
+  "prevention_rules": 0,
+  "learned_agents": 0,
+  "has_learned_agents": false
+}

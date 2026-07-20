@@ -1,0 +1,3 @@
+/data/project/game-workspace/apps/web/src/components/CustomerDetailDrawer.tsx
+/data/project/game-workspace/apps/web/src/components/CustomerDetailDrawer.tsx
+/data/project/game-workspace/apps/web/src/components/CustomerDetailDrawer.tsx

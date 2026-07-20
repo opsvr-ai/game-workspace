@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"7172738b3add1a9f","span_id":"7172738b3add1a9f","run_id":"run-a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc","event":"PostToolUse","ts":"2026-07-18T20:04:51.373Z","actor_id":"main","body":{"tool":"StructuredOutput","tool_input":{"ok":true},"tool_response":"Structured output provided successfully"}}

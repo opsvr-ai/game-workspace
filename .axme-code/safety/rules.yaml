@@ -1,0 +1,83 @@
+git:
+  protectedBranches:
+    - main
+    - master
+  allowForcePush: false
+  allowDirectPushToMain: false
+  requirePrForMain: true
+bash:
+  allowedPrefixes:
+    - ls
+    - find
+    - cat
+    - head
+    - tail
+    - wc
+    - grep
+    - rg
+    - echo
+    - pwd
+    - which
+    - date
+    - env
+    - git status
+    - git log
+    - git diff
+    - git branch
+    - git show
+    - git rev-parse
+    - go vet
+    - go build
+    - go test
+    - go mod
+    - python -m pytest
+    - pytest
+    - npm test
+    - npm run
+    - cargo check
+    - cargo test
+    - cargo build
+    - make test
+    - make check
+    - make lint
+    - make build
+    - tree
+    - file
+    - stat
+    - du
+  deniedPrefixes:
+    - rm -rf /
+    - chmod 777
+    - curl | sh
+    - curl | bash
+    - wget | sh
+    - git push --force
+    - git checkout -- .
+    - git clean -f
+    - gh workflow run deploy-prod
+    - gh release create
+    - npm publish
+    - twine upload
+    - docker push
+    - dotnet nuget push
+    - mvn deploy
+    - git tag
+    - rm -rf
+  deniedCommands:
+    - shutdown
+    - reboot
+    - halt
+    - poweroff
+    - mkfs
+    - dd if=
+filesystem:
+  readOnlyPaths: []
+  deniedPaths:
+    - /etc/passwd
+    - /etc/shadow
+    - ~/.ssh/id_*
+    - ~/.aws/credentials
+    - ~/.gnupg/*
+    - .env
+    - '*.pem'
+    - '*.key'

@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"5156724a0024fb80","span_id":"5156724a0024fb80","run_id":"run-d6231d4b-821c-456b-a651-8523bcfcde0e","event":"UserPromptSubmit","ts":"2026-07-18T19:04:43.903Z","actor_id":"main","body":{"prompt":"我的服务器地址是多少"}}

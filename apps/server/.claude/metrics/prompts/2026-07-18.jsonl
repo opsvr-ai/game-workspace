@@ -1,0 +1,3 @@
+{"ts":"2026-07-18T21:01:53.744Z","prompt":"聊天框 按  enter发送消息","words":3,"chars":16,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"248152"}
+{"ts":"2026-07-18T21:04:42.715Z","prompt":"选中表情后，按enter没反应，必须把鼠标移动到输入框后  ，再按enter才会发送，给我修复","words":2,"chars":47,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"249648"}
+{"ts":"2026-07-18T21:06:46.066Z","prompt":"客服端  不显示陪玩修改的头像","words":2,"chars":15,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"259149"}

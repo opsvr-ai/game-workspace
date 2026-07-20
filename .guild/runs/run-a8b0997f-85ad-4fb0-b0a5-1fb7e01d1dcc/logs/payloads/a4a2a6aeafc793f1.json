@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"a4a2a6aeafc793f1","span_id":"a4a2a6aeafc793f1","run_id":"run-a8b0997f-85ad-4fb0-b0a5-1fb7e01d1dcc","event":"UserPromptSubmit","ts":"2026-07-18T20:02:00.819Z","actor_id":"main","body":{"prompt":"给我修复claude，当前claude发送任务没有正常返回，清理不必要的插件。当前的/resume命令也无法使用"}}

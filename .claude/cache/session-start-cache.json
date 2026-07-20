@@ -1,0 +1,28 @@
+{
+  "envVars": {
+    "AF_SESSION_ID": "2520194",
+    "AF_PROJECT_TYPE": "monorepo",
+    "AF_PACKAGE_MANAGER": "pnpm",
+    "AF_FRAMEWORK": "",
+    "AF_PROJECT_ROOT": "/data/project/game-workspace",
+    "AF_ACTIVE_PLAN": "",
+    "AF_SUGGESTED_PLAN": "",
+    "AF_REPORTS_PATH": "plans/reports/",
+    "AF_PLANS_PATH": "plans",
+    "AF_WORKFLOWS_PATH": ".claude/logs/runs",
+    "AF_GIT_BRANCH": "master",
+    "AF_GIT_URL": "git@github.com:opsvr-ai/game-workspace.git",
+    "AF_NODE_VERSION": "v24.18.0",
+    "AF_OS_PLATFORM": "linux",
+    "AF_USER": "root",
+    "AF_TIMEZONE": "UTC",
+    "AF_MEMORY_LOADED": "false",
+    "AF_MEMORY_COUNT": "0",
+    "AF_PYTHON_VERSION": "3.14.4",
+    "AF_GO_VERSION": "1.26.0"
+  },
+  "contextSummary": "Type: monorepo | PM: pnpm",
+  "agent": "ready",
+  "phase": "-",
+  "cachedAt": 1784551783278
+}

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-18T20:01:46Z",
+  "migration": {
+    "openclawOffered": false,
+    "openclawAnsweredAt": null
+  },
+  "entries": [
+    {
+      "key": "heartbeat-default",
+      "cron": "*/30 * * * *",
+      "prompt": "Run /agent:heartbeat",
+      "recurring": true,
+      "source": "default-heartbeat",
+      "note": "Default 30-min heartbeat",
+      "createdAt": "2026-07-18T18:57:16Z",
+      "lastSeenAlive": null,
+      "harnessTaskId": null,
+      "paused": false,
+      "tombstone": null,
+      "adoptedAt": null,
+      "targetEpoch": null
+    },
+    {
+      "key": "dreaming-default",
+      "cron": "0 3 * * *",
+      "prompt": "Use the dream tool: dream(action=run)",
+      "recurring": true,
+      "source": "default-dreaming",
+      "note": "Default 3am dreaming",
+      "createdAt": "2026-07-18T18:57:16Z",
+      "lastSeenAlive": null,
+      "harnessTaskId": null,
+      "paused": false,
+      "tombstone": null,
+      "adoptedAt": null,
+      "targetEpoch": null
+    }
+  ]
+}

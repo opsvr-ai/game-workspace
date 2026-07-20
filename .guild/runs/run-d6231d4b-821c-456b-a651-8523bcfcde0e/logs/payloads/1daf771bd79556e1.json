@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"1daf771bd79556e1","span_id":"1daf771bd79556e1","run_id":"run-d6231d4b-821c-456b-a651-8523bcfcde0e","event":"UserPromptSubmit","ts":"2026-07-18T19:08:51.162Z","actor_id":"main","body":{"prompt":"我的系统架构是什么"}}

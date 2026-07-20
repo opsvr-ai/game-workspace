@@ -1,0 +1,1 @@
+{"schema_version":"guild.trace_payload.v1","evt_id":"e4ae9b69ebf2d67d","span_id":"e4ae9b69ebf2d67d","run_id":"run-b7f2fd2a-4a5f-4f1b-8320-d6fccc99f4ac","event":"UserPromptSubmit","ts":"2026-07-18T19:58:09.169Z","actor_id":"main","body":{"prompt":"你好"}}

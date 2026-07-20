@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "hash": "4af1fc52a800",
+      "type": "correction",
+      "category": "general",
+      "rule": "preference",
+      "learnableReason": "no_specific_indicators",
+      "timestamp": 1784405600409
+    }
+  ],
+  "patterns": {
+    "general:preference": 1
+  }
+}

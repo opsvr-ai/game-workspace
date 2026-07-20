@@ -1,0 +1,16 @@
+{
+  "framework": "vitest",
+  "imports": [],
+  "mocks": [
+    "vi.mock"
+  ],
+  "assertions": "expect",
+  "naming": ".test.",
+  "style": "describe-it",
+  "sampleFiles": [
+    "apps/server/src/__tests__/studios.service.test.ts",
+    "apps/server/src/__tests__/companions.service.test.ts",
+    "apps/server/src/__tests__/orders.service.test.ts"
+  ],
+  "extractedAt": "2026-07-20T12:49:43.236Z"
+}

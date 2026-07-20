@@ -1,0 +1,21 @@
+[
+  {
+    "feedback_type": "correction",
+    "reason": "Background agent \"Run hipocampus compaction\" was stopped by the user.",
+    "rating": 3,
+    "metadata": {
+      "source": "auto_detect",
+      "confidence": 0.5,
+      "category": "general",
+      "rule": "preference",
+      "hash": "4af1fc52a800",
+      "patternCount": 1,
+      "learnableReason": "no_specific_indicators",
+      "matchedKeywords": [
+        "stop"
+      ],
+      "agent": "unknown"
+    },
+    "created_at": "2026-07-18T20:13:20.410Z"
+  }
+]

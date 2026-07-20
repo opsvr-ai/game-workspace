@@ -1,0 +1,2 @@
+{"ts":"2026-07-18T19:30:04.516Z","event":"UserPromptSubmit","tool":"","specialist":"","payload_digest":"f7aea1b8e9a3","ok":true,"ms":0,"prompt":"/resume","span_id":"b07160b1847c0a00","payload_ref":"logs/payloads/b07160b1847c0a00.json"}
+{"ts":"2026-07-18T19:31:28.607Z","event":"UserPromptSubmit","tool":"","specialist":"","payload_digest":"bd92fb6c4090","ok":true,"ms":0,"prompt":"/guild:resume","span_id":"8001699b56e67cb6","payload_ref":"logs/payloads/8001699b56e67cb6.json"}

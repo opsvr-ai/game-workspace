@@ -1,0 +1,5 @@
+{"ts":"2026-07-18T19:35:04.951Z","event":"UserPromptSubmit","tool":"","specialist":"","payload_digest":"5ada27d09637","ok":true,"ms":0,"prompt":"理解当前项目架构及功能","span_id":"58eb3c11d63a0975","payload_ref":"logs/payloads/58eb3c11d63a0975.json"}
+{"ts":"2026-07-18T19:37:47.835Z","event":"PostToolUse","tool":"Read","specialist":"","payload_digest":"504950726176","ok":true,"ms":173,"span_id":"21347662de833645","payload_ref":"logs/payloads/21347662de833645.json"}
+{"ts":"2026-07-18T19:37:48.280Z","event":"PostToolUse","tool":"Read","specialist":"","payload_digest":"682e79572747","ok":true,"ms":218,"span_id":"3dcfe39f065723c4","payload_ref":"logs/payloads/3dcfe39f065723c4.json"}
+{"ts":"2026-07-18T19:37:49.133Z","event":"PostToolUse","tool":"Read","specialist":"","payload_digest":"1a42d466a9d2","ok":true,"ms":482,"span_id":"b9d6d4db3f2ec2c9","payload_ref":"logs/payloads/b9d6d4db3f2ec2c9.json"}
+{"ts":"2026-07-18T19:37:49.481Z","event":"PostToolUse","tool":"Read","specialist":"","payload_digest":"0967a9652657","ok":true,"ms":521,"span_id":"847b80b34891d79c","payload_ref":"logs/payloads/847b80b34891d79c.json"}

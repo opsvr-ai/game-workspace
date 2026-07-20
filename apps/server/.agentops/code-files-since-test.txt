@@ -1,0 +1,8 @@
+/data/project/game-workspace/apps/server/src/orders/dto/create-order.dto.ts
+/data/project/game-workspace/apps/server/src/orders/orders.service.ts
+/data/project/game-workspace/apps/server/src/orders/orders.service.ts
+/data/project/game-workspace/apps/server/src/orders/orders.service.ts
+/data/project/game-workspace/apps/server/src/orders/orders.service.ts
+/data/project/game-workspace/apps/server/src/companions/companions.service.ts
+/data/project/game-workspace/apps/server/src/companions/companions.service.ts
+/data/project/game-workspace/apps/server/src/companions/companions.service.ts

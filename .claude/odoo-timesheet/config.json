@@ -1,0 +1,13 @@
+{
+  "odoo_url": "",
+  "odoo_db": "",
+  "odoo_user": "",
+  "odoo_password": "",
+  "project_id": null,
+  "employee_id": null,
+  "ai_matching": "claude_code",
+  "auto_create_task": true,
+  "min_duration_seconds": 30,
+  "task_name_prefix": "",
+  "scripts_path": "/root/.claude/plugins/cache/claude-community/auto-log-your-claude-code-sessions-as-odoo-timesheets/1.0.5/scripts"
+}
