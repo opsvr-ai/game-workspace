@@ -195,6 +195,15 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
+  // Refresh pending review count for OWNER/ADMIN every 30s
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
+    const t = setInterval(() => {
+      useAuthStore.getState().fetchUser();
+    }, 30000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
   // Chat 3.0: notification handled by ChatProvider
 
   // Open chat from notification
