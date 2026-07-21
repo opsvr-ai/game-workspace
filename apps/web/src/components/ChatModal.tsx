@@ -64,11 +64,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       style={{ top: 20 }}
       destroyOnClose
     >
-      <div style={{
-        width: size.w, height: size.h,
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        position: 'relative',
-      }}>
+      <div style={{ height: size.h, display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <ChatPanel
           roomId={activeConversationId || undefined}
           participant={partner?.participant || conv?.participant}
