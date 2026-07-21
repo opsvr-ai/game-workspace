@@ -49,7 +49,8 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       closable={false}
       maskClosable
       onCancel={onClose}
-      bodyStyle={{ padding: 0, height: '75vh', display: 'flex', flexDirection: 'column' }}
+      bodyStyle={{ padding: 0, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}
+      style={{ top: 20 }}
       destroyOnClose
     >
       <ChatPanel
