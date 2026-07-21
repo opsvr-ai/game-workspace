@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-20T22:22:53.679Z
+**Last Updated:** 2026-07-21T12:51:01.411Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 16
+- **Total Patterns:** 17
 - **Total Feedback:** 2
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 33 occurrences
+**Frequency:** 38 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 16 occurrences
+**Frequency:** 20 occurrences
 
 ### Commonly used command: find
 
@@ -39,7 +39,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 10 occurrences
+**Frequency:** 12 occurrences
 
 ### Commonly used command: wc
 
@@ -53,8 +53,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 4 occurrences
 
 ### Commonly used command: mkdir
 
@@ -70,7 +71,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 3 occurrences
+**Frequency:** 4 occurrences
 
 ### Commonly used command: openspec
 
@@ -83,10 +84,18 @@
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
+### Commonly used command: sleep
+
+**Examples:**
+- Used successfully 6 times
 
 **Frequency:** 1 occurrences
 
-### Commonly used command: sleep
+### Commonly used command: K_TOKEN=$(curl
 
 **Examples:**
 - Used successfully 6 times
@@ -104,7 +113,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 30 occurrences
+**Frequency:** 44 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -113,7 +122,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 16 occurrences
+**Frequency:** 27 occurrences
 
 ### Prefer async await in .ts files
 
@@ -122,7 +131,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 8 occurrences
+**Frequency:** 13 occurrences
 
 ## Framework
 
@@ -135,7 +144,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 11 occurrences
+**Frequency:** 16 occurrences
 
 ## Quality
 
@@ -148,7 +157,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 3 occurrences
+**Frequency:** 4 occurrences
 
 ## Typing
 
@@ -161,7 +170,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 3 occurrences
+**Frequency:** 10 occurrences
 
 ---
 

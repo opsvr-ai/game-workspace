@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { create } from 'zustand';
 import { chatApi, type ConversationSummary, type ParticipantInfo } from '../api/chat';
+import { cacheMessages, loadCachedMessages, cleanupCache } from '../workers/chat-db';
 
 export interface Message {
   id: string;
@@ -141,6 +142,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Move to top of order
       const order = [convId, ...s2.conversationOrder.filter((id) => id !== convId)];
 
+      // Persist to IndexedDB (fire-and-forget)
+      cacheMessages(convId, [newMsg]).catch(() => {});
+
       return {
         conversations: { ...s2.conversations, [convId]: updatedConv },
         conversationOrder: order,
@@ -191,6 +195,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const existingIds = new Set(conv.messages.map((m) => m.id));
       const newMsgs = msgs.filter((m) => !existingIds.has(m.id)).map(normalizeMessage);
       const merged = [...conv.messages, ...newMsgs].sort((a, b) => a.createdAt - b.createdAt).slice(-200);
+      // Persist to IndexedDB
+      cacheMessages(convId, newMsgs).catch(() => {});
+      cleanupCache().catch(() => {});
+
       const lastMsg = merged[merged.length - 1];
       return {
         conversations: {
@@ -243,13 +251,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     });
 
-    // Load history
+    // Load from IndexedDB cache first (instant), then sync from API
+    loadCachedMessages(convId)
+      .then((cached) => {
+        if (cached.length > 0) {
+          get().loadMessages(convId, cached, true);
+        }
+      })
+      .catch(() => {});
+
     try {
       const { data } = await chatApi.getMessages(convId);
       const msgs = data?.data?.messages || [];
       const hasMore = data?.data?.hasMore ?? false;
       if (msgs.length > 0) {
         get().loadMessages(convId, msgs, hasMore);
+        cacheMessages(convId, msgs).catch(() => {});
       }
     } catch {}
 

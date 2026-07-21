@@ -47,19 +47,6 @@ const OrdersPage: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [chatPartnerModal, setChatPartnerModal] = useState<any>(null);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
-  useEffect(() => {
-    const read = () => {
-      const m: Record<string, number> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith('unread-')) m[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
-      }
-      setUnreadMap(m);
-    };
-    read();
-    const t = setInterval(read, 3000);
-    return () => clearInterval(t);
-  }, []);
 
   // Settlement modal state
   const [settleModal, setSettleModal] = useState(false);
@@ -252,7 +239,6 @@ const OrdersPage: React.FC = () => {
               <Button
                 size="small"
                 onClick={() => {
-                  localStorage.removeItem(`unread-${r.id}`);
                   setUnreadMap((prev) => {
                     const { [r.id]: _, ...rest } = prev;
                     return rest;

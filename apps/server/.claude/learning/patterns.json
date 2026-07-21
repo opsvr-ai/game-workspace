@@ -80,12 +80,13 @@
     "evidence": [
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 3,
+    "frequency": 4,
     "created_at": "2026-07-19T12:32:02.197Z",
-    "updated_at": "2026-07-19T14:11:22.453Z"
+    "updated_at": "2026-07-21T12:22:30.825Z"
   },
   {
     "type": "code_style",

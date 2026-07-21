@@ -1,0 +1,24 @@
+{
+  "id": "4d08e829-2b06-4bf0-8cd7-2428a84ea75e",
+  "createdAt": "2026-07-21T05:01:20.536Z",
+  "closedAt": null,
+  "filesChanged": [
+    "/data/project/game-workspace/apps/server/prisma/migrations/$(date",
+    "/data/project/game-workspace/apps/agent/agent",
+    "/data/project/game-workspace/apps/agent/internal"
+  ],
+  "origin": "/data/project/game-workspace",
+  "pid": 664655,
+  "claudeSessions": [
+    {
+      "id": "6a77dae7-e5ba-409c-9bfd-c72bbc3705e1",
+      "transcriptPath": "/root/.claude/projects/-data-project-game-workspace/6a77dae7-e5ba-409c-9bfd-c72bbc3705e1.jsonl",
+      "firstSeen": "2026-07-21T05:01:20.540Z",
+      "role": "main",
+      "ide": "claude-code"
+    }
+  ],
+  "auditStatus": "pending",
+  "auditStartedAt": "2026-07-21T11:38:37.883Z",
+  "auditAttempts": 1
+}

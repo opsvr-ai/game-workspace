@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 33,
+    "frequency": 38,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-20T22:21:46.806Z"
+    "updated_at": "2026-07-21T11:58:03.911Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 30,
+    "frequency": 44,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-20T22:22:53.679Z"
+    "updated_at": "2026-07-21T12:51:01.411Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 16,
+    "frequency": 27,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-20T22:03:27.189Z"
+    "updated_at": "2026-07-21T12:50:28.958Z"
   },
   {
     "type": "code_style",
@@ -79,9 +79,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 11,
+    "frequency": 16,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-20T17:12:13.111Z"
+    "updated_at": "2026-07-21T12:50:11.746Z"
   },
   {
     "type": "workflow",
@@ -100,9 +100,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 16,
+    "frequency": 20,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-20T22:18:47.702Z"
+    "updated_at": "2026-07-21T12:44:00.247Z"
   },
   {
     "type": "code_style",
@@ -111,12 +111,13 @@
     "evidence": [
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "error_handling",
-    "frequency": 3,
+    "frequency": 4,
     "created_at": "2026-07-18T20:33:13.318Z",
-    "updated_at": "2026-07-20T16:22:02.792Z"
+    "updated_at": "2026-07-21T12:42:10.815Z"
   },
   {
     "type": "workflow",
@@ -135,9 +136,9 @@
       "Used successfully 6 times"
     ],
     "rule": "find",
-    "frequency": 10,
+    "frequency": 12,
     "created_at": "2026-07-19T12:03:25.754Z",
-    "updated_at": "2026-07-20T15:03:44.794Z"
+    "updated_at": "2026-07-21T11:50:59.613Z"
   },
   {
     "type": "workflow",
@@ -157,12 +158,14 @@
     "description": "Commonly used command: pnpm",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "pnpm",
-    "frequency": 2,
+    "frequency": 4,
     "created_at": "2026-07-19T12:25:12.176Z",
-    "updated_at": "2026-07-20T16:34:34.123Z"
+    "updated_at": "2026-07-21T12:49:09.542Z"
   },
   {
     "type": "code_style",
@@ -176,12 +179,14 @@
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 8,
+    "frequency": 13,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-20T22:22:03.558Z"
+    "updated_at": "2026-07-21T12:50:48.006Z"
   },
   {
     "type": "workflow",
@@ -202,12 +207,13 @@
     "evidence": [
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 3,
+    "frequency": 4,
     "created_at": "2026-07-20T14:53:10.455Z",
-    "updated_at": "2026-07-20T16:52:16.254Z"
+    "updated_at": "2026-07-21T12:28:03.358Z"
   },
   {
     "type": "code_style",
@@ -216,12 +222,19 @@
     "evidence": [
       "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
+      "Auto-detected from 3 successful operations",
       "Auto-detected from 3 successful operations"
     ],
     "rule": "explicit_types",
-    "frequency": 3,
+    "frequency": 10,
     "created_at": "2026-07-20T15:17:14.040Z",
-    "updated_at": "2026-07-20T16:54:25.217Z"
+    "updated_at": "2026-07-21T12:50:48.009Z"
   },
   {
     "type": "workflow",
@@ -240,12 +253,13 @@
     "category": "bash",
     "description": "Commonly used command: curl",
     "evidence": [
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "curl",
-    "frequency": 1,
+    "frequency": 2,
     "created_at": "2026-07-20T16:45:32.583Z",
-    "updated_at": "2026-07-20T16:45:32.583Z"
+    "updated_at": "2026-07-20T22:49:44.958Z"
   },
   {
     "type": "workflow",
@@ -258,5 +272,17 @@
     "frequency": 1,
     "created_at": "2026-07-20T17:01:58.896Z",
     "updated_at": "2026-07-20T17:01:58.896Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: K_TOKEN=$(curl",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "K_TOKEN=$(curl",
+    "frequency": 1,
+    "created_at": "2026-07-20T22:43:53.853Z",
+    "updated_at": "2026-07-20T22:43:53.854Z"
   }
 ]

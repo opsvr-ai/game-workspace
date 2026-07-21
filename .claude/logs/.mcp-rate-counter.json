@@ -1,10 +1,10 @@
 {
-  "session_start": 1784561636316,
+  "session_start": 1784634759524,
   "per_server": {
     "codegraph": {
-      "session": 1,
+      "session": 2,
       "last_minute": [
-        1784561636316
+        1784634841494
       ]
     }
   }

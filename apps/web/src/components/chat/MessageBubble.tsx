@@ -92,16 +92,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span style={{ color: isMe ? 'rgba(255,255,255,0.6)' : '#999', fontStyle: 'italic', fontSize: 13 }}>
               消息已被撤回
             </span>
+          ) : message.type === 'IMAGE' && message.attachments?.length ? (
+            <ImageContent attachments={message.attachments} isMe={isMe} />
+          ) : message.type === 'FILE' && message.attachments?.length ? (
+            <FileContent attachment={message.attachments[0]} isMe={isMe} />
+          ) : message.type === 'ORDER_CARD' ? (
+            <OrderCardContent content={message.content || message.text} isMe={isMe} />
           ) : (
-            {message.type === 'IMAGE' && message.attachments?.length ? (
-              <ImageContent attachments={message.attachments} isMe={isMe} />
-            ) : message.type === 'FILE' && message.attachments?.length ? (
-              <FileContent attachment={message.attachments[0]} isMe={isMe} />
-            ) : message.type === 'ORDER_CARD' ? (
-              <OrderCardContent content={message.content || message.text} isMe={isMe} />
-            ) : (
-              <span>{message.text}</span>
-            )}
+            <span>{message.text}</span>
           )}
           <div
             style={{
@@ -152,9 +150,20 @@ const ImageContent: React.FC<{ attachments: any[]; isMe: boolean }> = ({ attachm
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4, maxWidth: 280 }}>
       {imgs.map((img: any, i: number) => (
-        <img key={i} src={img.thumbnailUrl || img.url} alt=""
-          style={{ width: '100%', borderRadius: 8, objectFit: 'cover', maxHeight: cols === 1 ? 240 : 140, cursor: 'pointer' }}
-          onClick={() => { /* open ImageViewer */ }}
+        <img
+          key={i}
+          src={img.thumbnailUrl || img.url}
+          alt=""
+          style={{
+            width: '100%',
+            borderRadius: 8,
+            objectFit: 'cover',
+            maxHeight: cols === 1 ? 240 : 140,
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            /* open ImageViewer */
+          }}
         />
       ))}
     </div>
@@ -172,8 +181,18 @@ const FileContent: React.FC<{ attachment: any; isMe: boolean }> = ({ attachment,
 
 const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ content }) => {
   let order: any = {};
-  try { order = JSON.parse(content); } catch { return <span>{content}</span>; }
-  const statusLabel: Record<string, string> = { PENDING: '待接单', GRABBED: '已接单', CONFIRMED: '已确认', DONE: '已完成', CANCELLED: '已取消' };
+  try {
+    order = JSON.parse(content);
+  } catch {
+    return <span>{content}</span>;
+  }
+  const statusLabel: Record<string, string> = {
+    PENDING: '待接单',
+    GRABBED: '已接单',
+    CONFIRMED: '已确认',
+    DONE: '已完成',
+    CANCELLED: '已取消',
+  };
   return (
     <div>
       <div style={{ fontSize: 12, opacity: 0.7 }}>📋 订单 #{order.orderId?.slice(-8)}</div>

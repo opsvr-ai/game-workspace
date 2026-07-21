@@ -29,25 +29,9 @@ const OrderPoolPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
 
+  // Order-level unread tracking (populated via WebSocket order events, not localStorage)
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
-
-  // Read unread counts from localStorage on mount + periodically
-  useEffect(() => {
-    const read = () => {
-      const map: Record<string, number> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith('unread-')) {
-          map[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
-        }
-      }
-      setUnreadMap(map);
-    };
-    read();
-    const t = setInterval(read, 2000);
-    return () => clearInterval(t);
-  }, []);
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<any>(null);
@@ -94,10 +78,9 @@ const OrderPoolPage: React.FC = () => {
 
   // Chat handlers
   const openChat = (order: any) => {
-    localStorage.removeItem(`unread-${order.id}`);
-    localStorage.removeItem(`unread-${user?.companionId || ''}`);
     setUnreadMap((prev) => {
-      const { [user?.companionId || order.id]: _, ...rest } = prev;
+      const key = user?.companionId || order.id;
+      const { [key]: _, ...rest } = prev;
       return rest;
     });
     setChatPartner({

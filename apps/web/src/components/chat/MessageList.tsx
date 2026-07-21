@@ -1,11 +1,12 @@
 // craftsman-ignore: TS001,TS002
 import React, { useRef, useEffect, useCallback } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { Message } from '../../stores/chatStore';
 import MessageBubble from './MessageBubble';
 import DateDivider from './DateDivider';
 import TypingIndicator from './TypingIndicator';
 
-const SHOULD_SHOW_TIME_THRESHOLD = 3 * 60 * 1000; // 3 min gap → show time label
+const SHOULD_SHOW_TIME_THRESHOLD = 3 * 60 * 1000;
 
 interface MessageListProps {
   messages: Message[];
@@ -35,99 +36,99 @@ const MessageList: React.FC<MessageListProps> = ({
   hasMore,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const isAtBottomRef = useRef(true);
 
-  // Track if scrolled to bottom
+  const virtualizer = useVirtualizer({
+    count: messages.length + (typing ? 1 : 0),
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 48,
+    overscan: 10,
+  });
+
+  // Auto-scroll to bottom on new messages
+  const prevLengthRef = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length > prevLengthRef.current) {
+      const lastIdx = messages.length - 1;
+      const lastMsg = messages[lastIdx];
+      if (lastMsg?.senderId === myUserId || prevLengthRef.current === 0) {
+        virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+      }
+    }
+    prevLengthRef.current = messages.length;
+  }, [messages.length, myUserId, virtualizer]);
+
+  // Scroll to bottom on mount
+  useEffect(() => {
+    if (messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+    }
+  }, []); // eslint-disable-line
+
+  // Load more when scrolling to top
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
-    if (!el) return;
-    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-  }, []);
-
-  // Auto-scroll to bottom when new messages arrive (only if already at bottom)
-  useEffect(() => {
-    if (isAtBottomRef.current && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages.length, typing]);
-
-  // Scroll to bottom on initial load
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'auto' });
-    }
-  }, []);
-
-  // IntersectionObserver for load more
-  useEffect(() => {
-    const el = containerRef.current;
     if (!el || !onLoadMore || !hasMore) return;
-    const sentinel = el.querySelector('.load-more-sentinel');
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) onLoadMore();
-      },
-      { root: el, threshold: 0.1 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    if (el.scrollTop < 60) onLoadMore();
   }, [onLoadMore, hasMore]);
 
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '12px 16px',
-        background: '#FFF',
-      }}
+      style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: '#FFF' }}
     >
-      {/* Load more sentinel */}
-      {hasMore && onLoadMore && <div className="load-more-sentinel" style={{ height: 1 }} />}
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          if (vi.index >= messages.length) {
+            // Typing indicator row
+            return (
+              <div
+                key="typing"
+                style={{ position: 'absolute', top: vi.start, width: '100%' }}
+                ref={virtualizer.measureElement}
+              >
+                <TypingIndicator />
+              </div>
+            );
+          }
 
-      {messages.map((msg, i) => {
-        const prev = i > 0 ? messages[i - 1] : null;
-        const isMe = msg.senderId === myUserId;
-        const sameSender = prev && prev.senderId === msg.senderId;
-        const withinTimeGap = prev && msg.createdAt - prev.createdAt < SHOULD_SHOW_TIME_THRESHOLD;
-        const showAvatar = !sameSender || !withinTimeGap;
-        const showTime =
-          i === messages.length - 1 ||
-          (messages[i + 1] ? messages[i + 1].createdAt - msg.createdAt >= SHOULD_SHOW_TIME_THRESHOLD : true);
+          const msg = messages[vi.index];
+          const prev = vi.index > 0 ? messages[vi.index - 1] : null;
+          const isMe = msg.senderId === myUserId;
+          const sameSender = prev && prev.senderId === msg.senderId;
+          const withinTimeGap = prev && msg.createdAt - prev.createdAt < SHOULD_SHOW_TIME_THRESHOLD;
+          const showAvatar = !sameSender || !withinTimeGap;
+          const showTime =
+            vi.index === messages.length - 1 ||
+            (messages[vi.index + 1]
+              ? messages[vi.index + 1].createdAt - msg.createdAt >= SHOULD_SHOW_TIME_THRESHOLD
+              : true);
+          const showDivider = prev && msg.createdAt - prev.createdAt >= SHOULD_SHOW_TIME_THRESHOLD;
 
-        return (
-          <React.Fragment key={msg.id}>
-            {/* Date divider when gap is large */}
-            {prev && msg.createdAt - prev.createdAt >= SHOULD_SHOW_TIME_THRESHOLD && (
-              <DateDivider timestamp={msg.createdAt} />
-            )}
-            <MessageBubble
-              message={msg}
-              isMe={isMe}
-              showAvatar={showAvatar}
-              showTime={showTime}
-              participantName={isMe ? undefined : participantName}
-              onReply={() => onReply?.(msg)}
-              onRecall={() => onRecall?.(msg)}
-              onReaction={(emoji) => onReaction?.(msg.id, emoji)}
-              onRemoveReaction={(emoji) => onRemoveReaction?.(msg.id, emoji)}
-              onContextMenu={(e) => onContextMenu?.(e, msg)}
-              myUserId={myUserId}
-            />
-          </React.Fragment>
-        );
-      })}
-
-      {/* Typing indicator */}
-      {typing && <TypingIndicator />}
-
-      {/* Auto-scroll anchor */}
-      <div ref={bottomRef} />
+          return (
+            <div
+              key={msg.id}
+              style={{ position: 'absolute', top: vi.start, width: '100%' }}
+              ref={virtualizer.measureElement}
+            >
+              {showDivider && <DateDivider timestamp={msg.createdAt} />}
+              <MessageBubble
+                message={msg}
+                isMe={isMe}
+                showAvatar={showAvatar}
+                showTime={showTime}
+                participantName={isMe ? undefined : participantName}
+                onReply={() => onReply?.(msg)}
+                onRecall={() => onRecall?.(msg)}
+                onReaction={(emoji) => onReaction?.(msg.id, emoji)}
+                onRemoveReaction={(emoji) => onRemoveReaction?.(msg.id, emoji)}
+                onContextMenu={(e) => onContextMenu?.(e, msg)}
+                myUserId={myUserId}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

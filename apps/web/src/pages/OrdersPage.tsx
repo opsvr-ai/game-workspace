@@ -30,20 +30,6 @@ const OrdersPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    const read = () => {
-      const m: Record<string, number> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith('unread-')) m[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
-      }
-      setUnreadMap(m);
-    };
-    read();
-    const t = setInterval(read, 3000);
-    return () => clearInterval(t);
-  }, []);
-
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
@@ -69,7 +55,6 @@ const OrdersPage: React.FC = () => {
         <Button
           size="small"
           onClick={() => {
-            localStorage.removeItem(`unread-${r.id}`);
             setUnreadMap((prev) => {
               const { [r.id]: _, ...rest } = prev;
               return rest;
@@ -155,7 +140,10 @@ const OrdersPage: React.FC = () => {
 
   // Load companions for filter + reassign
   useEffect(() => {
-    http.get('/companions').then(({ data }: any) => setCompanions(data.data || [])).catch(() => {});
+    http
+      .get('/companions')
+      .then(({ data }: any) => setCompanions(data.data || []))
+      .catch(() => {});
   }, []);
 
   const [reassignOrder, setReassignOrder] = useState<any>(null);
@@ -264,18 +252,41 @@ const OrdersPage: React.FC = () => {
         />
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-          <Input.Search placeholder="搜索游戏名" allowClear value={gameSearch}
-            onChange={(e) => setGameSearch(e.target.value)} style={{ width: 160 }} size="small" />
-          <Select placeholder="订单类型" allowClear value={typeFilter || undefined}
-            onChange={(v) => setTypeFilter(v || '')} style={{ width: 100 }} size="small">
-            <Option value="NEW">首单</Option><Option value="RENEW">续费</Option>
-            <Option value="REPURCHASE">复购</Option><Option value="TIP">打赏</Option>
+          <Input.Search
+            placeholder="搜索游戏名"
+            allowClear
+            value={gameSearch}
+            onChange={(e) => setGameSearch(e.target.value)}
+            style={{ width: 160 }}
+            size="small"
+          />
+          <Select
+            placeholder="订单类型"
+            allowClear
+            value={typeFilter || undefined}
+            onChange={(v) => setTypeFilter(v || '')}
+            style={{ width: 100 }}
+            size="small"
+          >
+            <Option value="NEW">首单</Option>
+            <Option value="RENEW">续费</Option>
+            <Option value="REPURCHASE">复购</Option>
+            <Option value="TIP">打赏</Option>
           </Select>
-          <Select placeholder="陪玩筛选" allowClear value={companionFilter || undefined}
-            onChange={(v) => setCompanionFilter(v || '')} style={{ width: 130 }} size="small"
-            showSearch optionFilterProp="children">
+          <Select
+            placeholder="陪玩筛选"
+            allowClear
+            value={companionFilter || undefined}
+            onChange={(v) => setCompanionFilter(v || '')}
+            style={{ width: 130 }}
+            size="small"
+            showSearch
+            optionFilterProp="children"
+          >
             {companions.map((c: any) => (
-              <Option key={c.id} value={c.id}>{c.user?.username || c.id.slice(0, 6)}</Option>
+              <Option key={c.id} value={c.id}>
+                {c.user?.username || c.id.slice(0, 6)}
+              </Option>
             ))}
           </Select>
         </div>

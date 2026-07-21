@@ -44,23 +44,6 @@ const PoolPage: React.FC = () => {
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Read unread counts from localStorage on mount + periodically
-  useEffect(() => {
-    const read = () => {
-      const map: Record<string, number> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith('unread-')) {
-          map[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
-        }
-      }
-      setUnreadMap(map);
-    };
-    read();
-    const t = setInterval(read, 2000);
-    return () => clearInterval(t);
-  }, []);
-
   // Chat state
   const [chatPartner, setChatPartner] = useState<any>(null);
 
@@ -108,8 +91,6 @@ const PoolPage: React.FC = () => {
   // Chat handlers
   const openChat = (order: any) => {
     // Clear unread badge — both per-order and companion-level
-    localStorage.removeItem(`unread-${order.id}`);
-    localStorage.removeItem(`unread-${user?.companionId || ''}`);
     setUnreadMap((prev) => {
       const { [user?.companionId || order.id]: _, ...rest } = prev;
       return rest;
