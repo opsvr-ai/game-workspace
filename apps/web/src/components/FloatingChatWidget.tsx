@@ -50,6 +50,18 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
     prevTotalUnread.current = totalUnread;
   }, [totalUnread]);
 
+  // Reposition on window resize — keep within bounds
+  useEffect(() => {
+    const onResize = () => {
+      setPosition((prev) => ({
+        x: Math.min(prev.x, window.innerWidth - 56),
+        y: Math.min(prev.y, window.innerHeight - 56),
+      }));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Drag handlers (unchanged)
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {

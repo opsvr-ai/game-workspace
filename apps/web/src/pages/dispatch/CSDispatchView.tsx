@@ -168,7 +168,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row gutter={12}>
         {/* Left: Companion sidebar */}
-        <Col span={selectedCompanionId ? 4 : 5}>
+        <Col span={selectedCompanionId ? 4 : 4}>
           <Card
             title="陪玩管理"
             size="small"
@@ -338,7 +338,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={selectedCompanionId ? 13 : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={selectedCompanionId ? 12 : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -571,7 +571,8 @@ const CSDispatchView: React.FC = () => {
           </div>
         </Col>
 
-        {/* Right: Quick Stats (3/24) */}
+        {/* Right: Quick Stats — hidden when chat panel is open */}
+        {!selectedCompanionId && (
         <Col span={3}>
           <Card title="统计" size="small" style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -610,10 +611,11 @@ const CSDispatchView: React.FC = () => {
             </div>
           </Card>
         </Col>
+        )}
 
         {/* Embedded Chat Panel (inside Row — right side) */}
         {selectedCompanionId && (
-          <Col span={7} style={{
+          <Col span={8} style={{
             background: '#FFF', borderRadius: 10, overflow: 'hidden',
             boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: 'calc(100vh - 140px)',
           }}>
