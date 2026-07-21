@@ -73,5 +73,3 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <ChatContext.Provider value={{ wsConnected }}>{children}</ChatContext.Provider>;
 };
-
-export default ChatProvider;

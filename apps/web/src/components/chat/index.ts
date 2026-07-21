@@ -14,6 +14,6 @@ export { default as ReplyBar } from './ReplyBar';
 export { default as ImageViewer } from './ImageViewer';
 export { default as FileMessage } from './FileMessage';
 export { default as OrderCardMessage } from './OrderCardMessage';
-export { default as ChatProvider } from './ChatProvider';
+export { ChatProvider, useChatContext } from './ChatProvider';
 export { default as CompanionSidebar } from './CompanionSidebar';
 export { default as CompanionItem } from './CompanionItem';
