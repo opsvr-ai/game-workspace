@@ -314,9 +314,9 @@ const StudiosPage: React.FC = () => {
           <div style={{ lineHeight: 2.2 }}>
             <p><Text strong>用户名：</Text>{detailUser.username}</p>
             <p><Text strong>角色：</Text><Tag>{ROLE_LABELS[detailUser.role] || detailUser.role}</Tag></p>
-            <p><Text strong>姓名：</Text>{detailUser.displayName || detailUser.companion?.realName || '-'}</p>
-            <p><Text strong>手机号：</Text>{detailUser.companion?.phone || '-'}</p>
-            <p><Text strong>身份证号：</Text>{detailUser.companion?.idNumber || '-'}</p>
+            <p><Text strong>姓名：</Text>{detailUser.displayName || detailUser.realName || detailUser.companion?.realName || '-'}</p>
+            <p><Text strong>手机号：</Text>{detailUser.phone || detailUser.companion?.phone || '-'}</p>
+            <p><Text strong>身份证号：</Text>{detailUser.idNumber || detailUser.companion?.idNumber || '-'}</p>
             <p><Text strong>工作室：</Text>{detailUser.studio?.name || '-'}</p>
             <p><Text strong>地址：</Text>{detailUser.address || '-'}</p>
             <p><Text strong>申请时间：</Text>{detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleString('zh-CN') : '-'}</p>

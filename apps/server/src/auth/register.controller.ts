@@ -109,6 +109,9 @@ export class RegisterController {
         isAuthorized: false,
         address: body.address || null,
         leaseContractUrl,
+        realName: (!isCompanion ? body.realName : null) as any,
+        idNumber: (!isCompanion ? body.idNumber : null) as any,
+        phone: (!isCompanion ? body.phone : null) as any,
         ...(isCompanion ? {
           companion: {
             create: {
@@ -144,7 +147,7 @@ export class RegisterController {
       where: { isAuthorized: false },
       select: {
         id: true, username: true, role: true, displayName: true, address: true,
-        leaseContractUrl: true, createdAt: true,
+        leaseContractUrl: true, realName: true, idNumber: true, phone: true, createdAt: true,
         studio: { select: { id: true, name: true } },
         companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true } },
       },
