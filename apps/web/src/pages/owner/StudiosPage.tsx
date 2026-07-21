@@ -148,12 +148,13 @@ const StudiosPage: React.FC = () => {
       title: '工作室名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 130,
+      width: 120,
       render: (val: string) => (
         <Tag color={STUDIO_TYPE_COLORS[val] || 'default'}>
           {STUDIO_TYPE_LABELS[val] || val}
@@ -164,7 +165,7 @@ const StudiosPage: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 200,
+      width: 130,
       render: (val: string) => val ? new Date(val).toLocaleString('zh-CN') : '-',
     },
     {
@@ -176,7 +177,7 @@ const StudiosPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 160,
+      width: 140,
       render: (_: unknown, record: Studio) => (
         <Space size="small">
           <Button
