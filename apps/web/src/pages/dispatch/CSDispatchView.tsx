@@ -45,14 +45,6 @@ const CSDispatchView: React.FC = () => {
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [chatPartner, setChatPartner] = useState<{
-    companionId?: string;
-    companionName?: string;
-    conversationId?: string;
-    participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
-    orderInfo?: string;
-    avatar?: string;
-  } | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
@@ -178,11 +170,10 @@ const CSDispatchView: React.FC = () => {
         {/* Left: Companion sidebar */}
         <Col span={selectedCompanionId ? 4 : 5}>
           <Card
-            title={<span style={{ color: '#F2F3F5' }}>陪玩管理</span>}
+            title="陪玩管理"
             size="small"
-            style={{ marginBottom: 12, background: '#1E1F22', border: '1px solid #2B2D31', borderRadius: 10 }}
+            style={{ marginBottom: 12 }}
             bodyStyle={{ padding: '8px 6px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
-            headStyle={{ background: '#1E1F22', borderBottom: '1px solid #2B2D31', borderRadius: '10px 10px 0 0' }}
           >
             {/* Companion search filter */}
             <Input
@@ -191,7 +182,7 @@ const CSDispatchView: React.FC = () => {
               value={companionSearch}
               onChange={(e) => setCompanionSearch(e.target.value)}
               allowClear
-              style={{ marginBottom: 8, background: '#2B2D31', border: '1px solid #3F4248', color: '#F2F3F5' }}
+              style={{ marginBottom: 8 }}
             />
             {loadingCompanions && companions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
@@ -200,7 +191,7 @@ const CSDispatchView: React.FC = () => {
             ) : filteredCompanions.length === 0 && companionSearch ? (
               <Text type="secondary">未找到匹配的陪玩</Text>
             ) : companions.length === 0 ? (
-              <Text style={{ color: '#949BA4' }}>暂无陪玩</Text>
+              <Text type="secondary">暂无陪玩</Text>
             ) : (
               <List
                 size="small"
@@ -215,15 +206,15 @@ const CSDispatchView: React.FC = () => {
                         padding: '8px 6px',
                         display: 'block',
                         cursor: 'pointer',
-                        borderLeft: isSelected ? '3px solid #2B579A' : '3px solid transparent',
+                        borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
                         paddingLeft: isSelected ? 10 : 10,
                         borderRadius: '0 6px 6px 0',
                         transition: 'transform 0.15s ease, background 0.15s ease',
-                        background: isSelected ? '#3F4248' : 'transparent',
+                        background: isSelected ? '#EFF6FF' : 'transparent',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateX(2px)';
-                        e.currentTarget.style.background = '#2B2D31';
+                        e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateX(0)';
@@ -254,17 +245,6 @@ const CSDispatchView: React.FC = () => {
                           },
                           orderInfo,
                         );
-                        setChatPartner({
-                          conversationId: c.id,
-                          participant: {
-                            userId: u?.id || c.id,
-                            username: u?.username || c.id,
-                            displayName: u?.displayName,
-                            avatar: u?.avatar,
-                            role: 'COMPANION',
-                          },
-                          orderInfo,
-                        });
                       }}
                     >
                       <div
@@ -317,7 +297,7 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
-                            <Text strong style={{ color: '#F2F3F5' }}>
+                            <Text strong>
                               {c.user?.username ?? c.id}
                             </Text>
                             {(c as any).processStatus === 'BLOCKED' && (
@@ -630,6 +610,21 @@ const CSDispatchView: React.FC = () => {
             </div>
           </Card>
         </Col>
+
+        {/* Embedded Chat Panel (inside Row — right side) */}
+        {selectedCompanionId && (
+          <Col span={7} style={{
+            background: '#FFF', borderRadius: 10, overflow: 'hidden',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: 'calc(100vh - 140px)',
+          }}>
+            <EmbeddedChatPanel
+              onClose={() => {
+                useChatStore.getState().closeConversation();
+                setSelectedCompanionId(null);
+              }}
+            />
+          </Col>
+        )}
       </Row>
 
       <CreateOrderModal
@@ -638,31 +633,6 @@ const CSDispatchView: React.FC = () => {
         onCreated={fetchPool}
         userId={useAuthStore.getState().user?.id}
       />
-
-      {/* Embedded Chat Panel — replaces ChatModal */}
-      {selectedCompanionId && (
-        <Col
-          span={7}
-          style={{
-            background: '#FFF',
-            borderRadius: 10,
-            overflow: 'hidden',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            height: 'calc(100vh - 140px)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <EmbeddedChatPanel
-            onClose={() => {
-              useChatStore.getState().closeConversation();
-              setSelectedCompanionId(null);
-              setChatPartner(null);
-            }}
-          />
-        </Col>
-      )}
-      {selectedCompanionId && <Col span={1} />}
 
       {/* Companion detail modal */}
       <Modal
