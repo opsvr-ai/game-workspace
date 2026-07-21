@@ -155,7 +155,9 @@ const LoginPage: React.FC = () => {
       message.success('注册成功！请等待管理员审核通过后登录');
       setMode('login');
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '注册失败');
+      const msg = err?.response?.data?.message || err?.message || '注册失败';
+      message.error(msg, 5); // show for 5 seconds
+      console.error('注册失败', err);
     } finally {
       setLoading(false);
     }
@@ -209,7 +211,7 @@ const LoginPage: React.FC = () => {
               </Button>
             </div>
             <div style={{ marginTop: 16, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Button type="link" onClick={() => setMode('register')} style={{ color: '#2563EB', fontSize: 13 }}>
+              <Button type="link" onClick={() => { setMode('register'); setUsername(''); setPassword(''); }} style={{ color: '#2563EB', fontSize: 13 }}>
                 注册新账号 →
               </Button>
               <Text style={{ color: '#94A3B8', fontSize: 11 }}>工作室店长 / 客服 / 陪玩均可注册</Text>
