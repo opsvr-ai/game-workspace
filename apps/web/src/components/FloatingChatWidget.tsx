@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+// useCallback used by handleMouseDown
 import { Badge, Popover, List, Typography } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
@@ -83,12 +84,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
     };
   }, [position]);
 
-  const handleClick = useCallback(() => {
-    if (hasMoved.current) return;
-    setPopoverOpen((prev) => !prev);
-  }, []);
-
-  // Notification list from new store
+  // Popover trigger="click" handles open/close — don't duplicate toggle
   const notificationItems = conversationOrder
     .map((id) => conversations[id])
     .filter(Boolean)
@@ -202,7 +198,6 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
       >
         <div
           onMouseDown={handleMouseDown}
-          onClick={handleClick}
           className={[totalUnread > 0 ? 'float-widget-pulse' : '', bounce ? 'float-widget-bounce' : '']
             .filter(Boolean)
             .join(' ')}
