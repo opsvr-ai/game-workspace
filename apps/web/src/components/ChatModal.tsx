@@ -45,20 +45,27 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     <Modal
       open={open}
       footer={null}
-      width={400}
+      width={420}
       closable={false}
       maskClosable
       onCancel={onClose}
-      bodyStyle={{ padding: 0, height: '520px', display: 'flex', flexDirection: 'column' }}
-      style={{ top: 40 }}
+      bodyStyle={{ padding: 0, overflow: 'hidden' }}
+      style={{ top: 20 }}
       destroyOnClose
     >
-      <ChatPanel
-        roomId={activeConversationId || undefined}
-        participant={partner?.participant || conv?.participant}
-        orderInfo={partner?.orderInfo || conv?.orderInfo}
-        onClose={onClose}
-      />
+      <div style={{
+        width: 420, minWidth: 320, maxWidth: 700,
+        height: 500, minHeight: 360, maxHeight: 'calc(100vh - 60px)',
+        resize: 'both', overflow: 'auto',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <ChatPanel
+          roomId={activeConversationId || undefined}
+          participant={partner?.participant || conv?.participant}
+          orderInfo={partner?.orderInfo || conv?.orderInfo}
+          onClose={onClose}
+        />
+      </div>
     </Modal>
   );
 };
