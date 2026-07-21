@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useRef, useCallback } from 'react';
-import { Button } from 'antd';
-import { SendOutlined, SmileOutlined, PaperClipOutlined } from '@ant-design/icons';
+import { Button, Input, message } from 'antd';
+import { SendOutlined, SmileOutlined, PaperClipOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import http from '../../api/client';
 import ReplyBar from './ReplyBar';
 
 interface ChatComposerProps {
@@ -10,14 +11,40 @@ interface ChatComposerProps {
   uploading?: boolean;
 }
 
+const EMOJI_CATEGORIES: Record<string, string[]> = {
+  '😊 表情': ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','🤪','😜','😝','😎','🤓','🧐','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','😈','👿','💀','☠️'],
+  '👍 手势': ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤙','💪','🦾','🖕','✍️','🙏','🦶','🦵','💄','💋','👄','🦷','👅','👂','🦻','👃','👣','👀','👁️','🧠','🫀','🫁'],
+  '🎉 活动': ['🎉','🎊','🎈','🎂','🎀','🎁','🏆','🥇','🥈','🥉','🎖️','🏅','🎗️','🎟️','🎫','🎪','🎭','🎨','🎬','🎤','🎧','🎼','🎹','🎸','🎺','🎷','🥁','🎯','🎳','🎮','🎲','🎰','🧩','♟️','🎯'],
+  '❤️ 符号': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','🆔','⚛️','🉑','☢️','☣️','📴','📳','🈶','🈚','🈸','🈺','🈷️','✴️','🆚','💮','🉐','㊙️','㊗️','🈴','🈵','🈹','🈲','🅰️','🅱️','🆎','🆑','🅾️','🆘','❌','⭕','🛑','⛔','📛','🚫','💯','💢','♨️','🚷','🚯','🚳','🚱','🔞','📵','🚭','❗','❕','❓','❔','‼️','⁉️','🔅','🔆','〽️','⚠️','🚸','🔱','⚜️','🔰','♻️','✅','🈯','💹','❇️','✳️','❎','🌐','💠','Ⓜ️','🌀','💤','🏧','🚾','♿','🅿️','🛗','🈳','🈂️','🛂','🛃','🛄','🛅','🚹','🚺','🚼','⚧','🚻','🚮','🎦','📶','🈁','🔣','ℹ️','🔤','🔡','🔠','🆖','🆗','🆙','🆒','🆕','🆓','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','🔢','#️⃣','*️⃣','⏏️','▶️','⏸️','⏯️','⏹️','⏺️','⏭️','⏮️','⏩','⏪','⏫','⏬','◀️','🔼','🔽','➡️','⬅️','⬆️','⬇️','↗️','↘️','↙️','↖️','↕️','↔️','↪️','↩️','⤴️','⤵️','🔀','🔁','🔂','🔄','🔃','🎵','🎶','➕','➖','➗','✖️','♾️','💲','💱','™️','©️','®️','〰️','➰','➿','🔚','🔙','🔛','🔝','🔜','✔️','☑️','🔘','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','🔺','🔻','🔸','🔹','🔶','🔷','🔳','🔲','▪️','▫️','◾','◽','◼️','◻️','🟥','🟧','🟨','🟩','🟦','🟪','⬛','⬜','🟫'],
+  '🍔 食物': ['🍔','🍟','🍕','🌭','🍿','🧂','🥓','🥚','🧇','🥞','🧈','🍞','🥐','🥨','🥯','🥖','🫓','🧀','🥗','🥙','🥪','🌮','🌯','🫔','🥫','🍖','🍗','🥩','🍠','🥟','🥠','🥡','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍲','🍢','🍣','🍤','🍥','🥮','🍡','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍎','🍏','🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🥦','🧄','🧅','🍄','🥜','🫘','🌰','🍞','🥐','🥖','🫓','🧀','🍖','🍗','🥩','🍔','🍟','🍕','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘','🍲','🫕','🥣','🥗','🍿','🧈','🧂','🥫','🍝','🍜','🍛','🍚','🍱','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍺','🍻','🥂','🍷','🫗','🥃','🍸','🍹','🧉','🍾','🧊','🥄','🍴','🍽️','🥣','🥡','🥢','🧂'],
+  '🎮 游戏': ['🎮','🕹️','🎲','🎯','🎳','🎰','♠️','♥️','♦️','♣️','🃏','🀄','🎴','🎱','🎾','🏓','🏸','🏒','🏑','🥍','🏏','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','🤺','⛹️','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🧜','🧚','🧞','🧝','🧙','🧛','🦸','🦹','🤶','🎅','🧑‍🎄','💂','🕵️','👮','👷','🦺','👩‍🌾','👩‍🍳','👩‍🎓','👩‍🎤','👩‍🏫','👩‍🏭','👩‍💻','👩‍💼','👩‍🔧','👩‍🔬','👩‍🎨','👩‍🚒','👩‍✈️','👩‍🚀','👩‍⚖️'],
+};
+
+// Load custom emojis from localStorage + sync with server
+function loadCustomEmojis(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem('custom-emojis') || '[]');
+  } catch { return []; }
+}
+function saveCustomEmojis(emojis: string[]) {
+  localStorage.setItem('custom-emojis', JSON.stringify(emojis));
+  http.put('/auth/me/emojis', { emojis }).catch(() => {});
+}
+
 const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading }) => {
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [activeTab, setActiveTab] = useState('😊 表情');
+  const [customEmojis, setCustomEmojis] = useState<string[]>(loadCustomEmojis);
+  const [addEmojiInput, setAddEmojiInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const QUICK_EMOJIS = ['😀', '😂', '👍', '❤️', '🔥', '😢', '😮', '🎉', '💪', '🙏', '👌', '🤝'];
+  const insertEmoji = useCallback((emoji: string) => {
+    setText((prev) => prev + emoji);
+    textareaRef.current?.focus();
+  }, []);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
@@ -27,16 +54,12 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     setReplyTo(null);
   }, [text, replyTo, onSend]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      // Enter to send, Shift+Enter for newline
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend],
-  );
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,21 +69,29 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const addCustomEmoji = () => {
+    const trimmed = addEmojiInput.trim();
+    if (!trimmed) return;
+    const updated = [...customEmojis, trimmed];
+    setCustomEmojis(updated);
+    saveCustomEmojis(updated);
+    setAddEmojiInput('');
+    message.success('表情已收藏');
+  };
+
+  const removeCustomEmoji = (emoji: string) => {
+    const updated = customEmojis.filter((e) => e !== emoji);
+    setCustomEmojis(updated);
+    saveCustomEmojis(updated);
+  };
+
+  const tabs = [...Object.keys(EMOJI_CATEGORIES), '⭐ 收藏'];
+
   return (
     <div style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: '#FFF' }}>
-      {/* Reply bar */}
       {replyTo && <ReplyBar content={replyTo.content} onCancel={() => setReplyTo(null)} />}
 
-      {/* Input area */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 8,
-          padding: '8px 12px',
-        }}
-      >
-        {/* Action buttons */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '8px 12px' }}>
         <div style={{ display: 'flex', gap: 2, paddingBottom: 4 }}>
           <span
             onClick={() => { setShowEmoji(!showEmoji); textareaRef.current?.focus(); }}
@@ -70,99 +101,95 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
           </span>
           {onUpload && (
             <>
-              <span
-                onClick={() => { fileInputRef.current?.click(); textareaRef.current?.focus(); }}
-                style={{ cursor: 'pointer', padding: 4, color: '#949BA4' }}
-              >
+              <span onClick={() => { fileInputRef.current?.click(); textareaRef.current?.focus(); }}
+                style={{ cursor: 'pointer', padding: 4, color: '#949BA4' }}>
                 <PaperClipOutlined style={{ fontSize: 20 }} />
               </span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                onChange={handleUpload}
-                accept="image/*,.pdf,.zip,.mp3,.wav"
-              />
+              <input ref={fileInputRef} type="file" hidden onChange={handleUpload}
+                accept="image/*,.pdf,.zip,.mp3,.wav" />
             </>
           )}
         </div>
 
-        {/* Text input */}
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="输入消息..."
-          rows={1}
+        <textarea ref={textareaRef} value={text} onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown} placeholder="输入消息..." rows={1}
           style={{
-            flex: 1,
-            height: 36,
-            border: 'none',
-            outline: 'none',
-            resize: 'vertical',
-            fontSize: 14,
-            lineHeight: '22px',
-            padding: '6px 8px',
-            background: '#F5F6FA',
-            borderRadius: 6,
-            fontFamily: 'inherit',
-            minHeight: 36,
-            maxHeight: 200,
+            flex: 1, height: 36, border: 'none', outline: 'none', resize: 'vertical',
+            fontSize: 14, lineHeight: '22px', padding: '6px 8px', background: '#F5F6FA',
+            borderRadius: 6, fontFamily: 'inherit', minHeight: 36, maxHeight: 200,
           }}
         />
 
-        {/* Send button */}
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          loading={uploading}
+        <Button type="primary" icon={<SendOutlined />} onClick={handleSend} loading={uploading}
           disabled={!text.trim()}
-          style={{
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-          }}
+          style={{ borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
         />
       </div>
 
-      {/* Emoji picker */}
+      {/* Emoji picker panel */}
       {showEmoji && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 4,
-            padding: '8px 12px',
-            borderTop: '1px solid #F0F0F0',
-            maxHeight: 120,
-            overflowY: 'auto',
-          }}
-        >
-          {QUICK_EMOJIS.map((emoji) => (
-            <span
-              key={emoji}
-              onClick={() => {
-                setText((prev) => prev + emoji);
-                setShowEmoji(false);
-                textareaRef.current?.focus();
-              }}
-              style={{ cursor: 'pointer', fontSize: 22, padding: 4, borderRadius: 6, transition: 'background 0.1s' }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.background = '#F0F0F0';
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.background = 'transparent';
-              }}
-            >
-              {emoji}
-            </span>
-          ))}
+        <div style={{ borderTop: '1px solid #F0F0F0', maxHeight: 280, display: 'flex', flexDirection: 'column' }}>
+          {/* Tab bar */}
+          <div style={{ display: 'flex', gap: 0, padding: '4px 8px', borderBottom: '1px solid #F0F0F0', overflowX: 'auto' }}>
+            {tabs.map((tab) => (
+              <span key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  cursor: 'pointer', padding: '4px 10px', borderRadius: 6, fontSize: 12,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  background: activeTab === tab ? '#E8F0FE' : 'transparent',
+                  color: activeTab === tab ? '#2B579A' : '#666',
+                  fontWeight: activeTab === tab ? 600 : 400,
+                }}
+              >{tab}</span>
+            ))}
+          </div>
+
+          {/* Emoji grid */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+            {activeTab === '⭐ 收藏' ? (
+              <div>
+                {/* Add custom emoji */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  <Input size="small" placeholder="输入emoji或URL..."
+                    value={addEmojiInput} onChange={(e) => setAddEmojiInput(e.target.value)}
+                    onPressEnter={addCustomEmoji}
+                    style={{ flex: 1 }}
+                  />
+                  <Button size="small" icon={<PlusOutlined />} onClick={addCustomEmoji}>收藏</Button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {customEmojis.length === 0 && (
+                    <span style={{ color: '#999', fontSize: 12 }}>暂无收藏表情，输入 emoji 字符或图片 URL 添加</span>
+                  )}
+                  {customEmojis.map((emoji, i) => (
+                    <span key={i} style={{ position: 'relative', display: 'inline-block' }}>
+                      <span onClick={() => insertEmoji(emoji)}
+                        style={{ cursor: 'pointer', fontSize: 28, padding: 4, borderRadius: 6, display: 'inline-block', transition: 'background 0.1s' }}
+                        onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#F0F0F0'; }}
+                        onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+                      >{emoji}</span>
+                      <DeleteOutlined
+                        onClick={() => removeCustomEmoji(emoji)}
+                        style={{ position: 'absolute', top: -2, right: -2, fontSize: 10, color: '#F23F42', cursor: 'pointer', background: '#FFF', borderRadius: '50%', padding: 1 }}
+                      />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                {(EMOJI_CATEGORIES[activeTab] || []).map((emoji) => (
+                  <span key={emoji}
+                    onClick={() => insertEmoji(emoji)}
+                    style={{ cursor: 'pointer', fontSize: 24, padding: 4, borderRadius: 6, transition: 'background 0.1s', lineHeight: 1.2 }}
+                    onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#F0F0F0'; }}
+                    onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+                  >{emoji}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
