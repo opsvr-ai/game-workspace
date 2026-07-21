@@ -167,7 +167,7 @@ export class OrdersService {
       where.companionId = user.companionId;
       if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
     } else if (user.role === 'CS') {
-      where.csUserId = user.id;
+      where.studioId = user.studioId; // H5: CS sees all studio orders for shift handoff
     } else if (user.role === 'ADMIN') {
       if (!showAll) where.studioId = user.studioId;
     }
@@ -210,9 +210,8 @@ export class OrdersService {
     }
     const updated = await this.prisma.order.update({ where: { id: orderId }, data, include: { customer: true } });
 
-    // When contact status is 'added' or 'not_accepted', link customer to companion.
-    // Only set companionId if currently null — don't steal customers from other companions.
-    if ((body.contactStatus === 'added' || body.contactStatus === 'not_accepted') && updated.customer) {
+    // M6: Only link customer when contact is successfully added (not 'not_accepted')
+    if (body.contactStatus === 'added' && updated.customer) {
       await this.prisma.customer.upsert({
         where: { id: updated.customerId },
         update: {
@@ -255,7 +254,8 @@ export class OrdersService {
   async renew(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
-    return this.prisma.order.create({
+    // H1 fix: create as PENDING+DIRECT, companion accepts via standard flow
+    const newOrder = await this.prisma.order.create({
       data: {
         type: 'RENEW',
         studioId: order.studioId,
@@ -267,9 +267,13 @@ export class OrdersService {
         gameName: order.gameName,
         duration: order.duration,
         customFields: { ...((order.customFields as any) || {}), renewedFrom: orderId },
-        status: 'CONFIRMED',
+        status: 'PENDING',
       },
     });
+    if (order.companionId) {
+      this.wsGateway.pushOrder(order.companionId, newOrder);
+    }
+    return newOrder;
   }
 
   async republish(orderId: string, userId: string) {

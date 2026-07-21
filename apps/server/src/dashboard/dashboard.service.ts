@@ -71,18 +71,18 @@ export class DashboardService {
     });
     const lowThreshold = (config?.value as number) ?? 300;
 
-    // Get today's revenue per companion from transactions
-    const todayTransactions = await this.prisma.transaction.findMany({
+    // H3 fix: use Order table for alerts (same source as KPI)
+    const todayDoneOrders = await this.prisma.order.findMany({
       where: {
-        companion: studioWhere,
+        ...(studioWhere ? { studioId: studioWhere.studioId } : {}),
         createdAt: { gte: today, lt: tomorrow },
-        status: 'APPROVED',
+        status: 'DONE',
       },
       select: { companionId: true, amount: true },
     });
     const revMap = new Map<string, number>();
-    for (const t of todayTransactions) {
-      revMap.set(t.companionId, (revMap.get(t.companionId) || 0) + t.amount);
+    for (const o of todayDoneOrders) {
+      if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
     }
     const alerts = allCompanions
       .filter(c => (revMap.get(c.id) || 0) < lowThreshold)
