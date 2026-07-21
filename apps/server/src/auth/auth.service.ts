@@ -147,6 +147,14 @@ export class AuthService {
     });
   }
 
+  async rejectUser(userId: string, reason: string): Promise<void> {
+    // Set note with reject reason, keep isAuthorized=false
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isAuthorized: false, customEmojis: [{ rejectReason: reason, rejectedAt: new Date().toISOString() }] as any },
+    });
+  }
+
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('用户不存在');

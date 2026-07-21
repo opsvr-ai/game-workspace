@@ -55,6 +55,14 @@ export class AuthController {
     return { code: 200, message: '审核通过', data: null };
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER)
+  @Put('users/:id/reject')
+  async rejectUser(@Param('id') id: string, @Body() body: { reason: string }): Promise<ApiResponse<null>> {
+    await this.authService.rejectUser(id, body.reason);
+    return { code: 200, message: '已拒绝', data: null };
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   async me(@Request() req: any): Promise<ApiResponse<UserInfo>> {

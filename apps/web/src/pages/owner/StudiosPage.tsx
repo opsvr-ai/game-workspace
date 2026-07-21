@@ -70,10 +70,26 @@ const StudiosPage: React.FC = () => {
     fetchPendingUsers();
   }, [fetchPendingUsers]);
 
+  const [rejectModal, setRejectModal] = useState<{ userId: string; username: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
   const handleApprove = async (userId: string) => {
     try {
       await http.put(`/auth/users/${userId}/authorize`, {});
       message.success('已通过审核');
+      fetchPendingUsers();
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '操作失败');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectModal) return;
+    try {
+      await http.put(`/auth/users/${rejectModal.userId}/reject`, { reason: rejectReason || '未填写原因' });
+      message.success('已拒绝');
+      setRejectModal(null);
+      setRejectReason('');
       fetchPendingUsers();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '操作失败');
@@ -260,7 +276,10 @@ const StudiosPage: React.FC = () => {
               {
                 title: '操作', key: 'actions', width: 80,
                 render: (_: unknown, r: any) => (
-                  <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
+                  <Space size="small">
+                    <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
+                    <Button size="small" danger onClick={() => { setRejectModal({ userId: r.id, username: r.username }); setRejectReason(''); }}>拒绝</Button>
+                  </Space>
                 ),
               },
             ]}
@@ -322,6 +341,27 @@ const StudiosPage: React.FC = () => {
             </Form.Item>
           </Form>
         )}
+      </Modal>
+
+      {/* Reject Modal */}
+      <Modal
+        title={`拒绝申请 — ${rejectModal?.username || ''}`}
+        open={!!rejectModal}
+        onOk={handleReject}
+        onCancel={() => setRejectModal(null)}
+        okText="确认拒绝"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary" style={{ marginBottom: 8, display: 'block' }}>拒绝原因：</Text>
+          <Input.TextArea
+            rows={3}
+            placeholder="填写拒绝原因..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        </div>
       </Modal>
     </div>
   );
