@@ -8,8 +8,8 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      '../../api/client': path.resolve(__dirname, 'src/api/client.ts'),
-      '../api/client': path.resolve(__dirname, 'src/api/client.ts'),
+      '../../api/client': path.resolve(__dirname, '../../apps/web/src/api/client.ts'),
+      '../api/client': path.resolve(__dirname, '../../apps/web/src/api/client.ts'),
       '../../api/companions': path.resolve(__dirname, '../../apps/web/src/api/companions.ts'),
       '../../api/customers': path.resolve(__dirname, '../../apps/web/src/api/customers.ts'),
       '../../api/orders': path.resolve(__dirname, '../../apps/web/src/api/orders.ts'),
