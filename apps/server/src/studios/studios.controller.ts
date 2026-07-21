@@ -28,6 +28,13 @@ export class StudiosController {
     return { code: 200, message: '工作室及店长账号已创建', data };
   }
 
+  @Delete('studios/:id')
+  @Roles(UserRole.OWNER)
+  async delete(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    await this.studiosService.delete(id);
+    return { code: 200, message: '工作室已删除', data: null };
+  }
+
   @Put('studios/:id')
   @Roles(UserRole.OWNER)
   async update(

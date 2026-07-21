@@ -180,8 +180,16 @@ const StudiosPage: React.FC = () => {
             编辑
           </Button>
           <Popconfirm
-            title="确定删除该工作室？"
-            onConfirm={() => message.info('删除功能待实现')}
+            title="确定删除该工作室？此操作不可恢复！"
+            onConfirm={async () => {
+              try {
+                await studiosApi.delete(record.id);
+                message.success('工作室已删除');
+                fetchStudios();
+              } catch (err: any) {
+                message.error(err?.response?.data?.message || '删除失败');
+              }
+            }}
             okText="确定"
             cancelText="取消"
           >

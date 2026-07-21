@@ -116,6 +116,12 @@ export class StudiosService {
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }
 
+  async delete(id: string) {
+    // Delete all studio members first (cascade), then studio
+    await this.prisma.user.deleteMany({ where: { studioId: id } });
+    return this.prisma.studio.delete({ where: { id } });
+  }
+
   async deleteEmployee(userId: string) {
     // Delete companion first if exists (cascade), then user
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
