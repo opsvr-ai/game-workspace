@@ -36,9 +36,11 @@ const LoginPage: React.FC = () => {
   const [idCardBack, setIdCardBack] = useState<File | null>(null);
   const [studios, setStudios] = useState<{ id: string; name: string; type: string }[]>([]);
   const [registerStudioId, setRegisterStudioId] = useState('');
+  const [registerStudioName, setRegisterStudioName] = useState('');
   const [registerAddress, setRegisterAddress] = useState('');
   const [leaseContract, setLeaseContract] = useState<File | null>(null);
   const isCompanionRole = registerRole.includes('COMPANION');
+  const isAdminRole = registerRole.includes('ADMIN');
   const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
 
   // ID number validation
@@ -104,8 +106,16 @@ const LoginPage: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!username || !password || !realName || !idNumber || !phone || !registerStudioId) {
+    if (!username || !password || !realName || !idNumber || !phone) {
       message.warning('请填写所有必填字段');
+      return;
+    }
+    if (isAdminRole && !registerStudioName) {
+      message.warning('请输入工作室名称');
+      return;
+    }
+    if (!isAdminRole && !registerStudioId) {
+      message.warning('请选择工作室');
       return;
     }
     if (isOfflineAdmin && !registerAddress) {
@@ -131,7 +141,8 @@ const LoginPage: React.FC = () => {
       formData.append('realName', realName);
       formData.append('idNumber', idNumber || '');
       formData.append('phone', phone);
-      formData.append('studioId', registerStudioId);
+      formData.append('studioId', isAdminRole ? '' : registerStudioId);
+      if (isAdminRole) formData.append('studioName', registerStudioName);
       formData.append('role', apiRole);
       if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
       if (isOfflineAdmin && leaseContract) formData.append('leaseContract', leaseContract);
@@ -239,18 +250,27 @@ const LoginPage: React.FC = () => {
                 {idNumberError || '\u00A0'}
               </div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <Select
-                size="large"
-                placeholder="选择工作室 *"
-                value={registerStudioId || undefined}
-                onChange={(v) => setRegisterStudioId(v)}
-              >
-                {studios.map((s) => (
-                  <Option key={s.id} value={s.id}>
-                    {s.name} ({s.type === 'RENTAL' ? '线上俱乐部' : '线下工作室'})
-                  </Option>
-                ))}
-              </Select>
+              {isAdminRole ? (
+                <Input
+                  size="large"
+                  placeholder="工作室名称 *"
+                  value={registerStudioName}
+                  onChange={(e) => setRegisterStudioName(e.target.value)}
+                />
+              ) : (
+                <Select
+                  size="large"
+                  placeholder="选择工作室 *"
+                  value={registerStudioId || undefined}
+                  onChange={(v) => setRegisterStudioId(v)}
+                >
+                  {studios.map((s) => (
+                    <Option key={s.id} value={s.id}>
+                      {s.name} ({s.type === 'RENTAL' ? '线上俱乐部' : '线下工作室'})
+                    </Option>
+                  ))}
+                </Select>
+              )}
               <Select
                 size="large"
                 placeholder="选择注册角色 *"

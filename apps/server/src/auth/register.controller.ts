@@ -50,7 +50,8 @@ export class RegisterController {
       username: string; password: string; realName: string;
       idNumber: string; phone: string; studioId: string;
       role?: string;
-      address?: string; // Admin: studio address
+      address?: string;
+      studioName?: string; // Admin: create new studio with this name
       games?: string;
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[]; leaseContract?: Express.Multer.File[] },
@@ -82,20 +83,32 @@ export class RegisterController {
 
     const role = body.role === 'CS' ? 'CS' : body.role === 'ADMIN' ? 'ADMIN' : 'COMPANION';
     const isCompanion = role === 'COMPANION';
+    const isAdmin = role === 'ADMIN';
+
+    // Auto-create studio for admin registration
+    let studioId = body.studioId;
+    if (isAdmin && body.studioName) {
+      const studioType = body.role?.startsWith('ONLINE') ? 'RENTAL' : 'DIRECT';
+      const splitMode = studioType === 'RENTAL' ? 'TIERED' : 'FIXED';
+      const studio = await this.prisma.studio.create({
+        data: { name: body.studioName, type: studioType, splitMode, address: body.address || null, leaseContractUrl },
+      });
+      studioId = studio.id;
+    }
 
     const user = await this.prisma.user.create({
       data: {
         username: body.username,
         passwordHash,
         role,
-        studioId: body.studioId,
+        studioId,
         isAuthorized: false,
         address: body.address || null,
         leaseContractUrl,
         ...(isCompanion ? {
           companion: {
             create: {
-              studioId: body.studioId,
+              studioId,
               realName: body.realName,
               idNumber: body.idNumber,
               phone: body.phone,
