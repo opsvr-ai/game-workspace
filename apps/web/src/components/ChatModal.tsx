@@ -49,7 +49,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       closable={false}
       maskClosable
       onCancel={onClose}
-      bodyStyle={{ padding: 0, overflow: 'hidden' }}
+      bodyStyle={{ padding: 0 }}
       style={{ top: 20 }}
       destroyOnClose
     >

@@ -37,19 +37,22 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInf
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" style={{
-            width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
-          }} />
-        ) : (
+        <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
           <div style={{
             width: 36, height: 36, borderRadius: '50%', background: '#CBD5E1',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#FFF', fontSize: 14, fontWeight: 700, flexShrink: 0,
+            color: '#FFF', fontSize: 14, fontWeight: 700,
+            position: 'absolute', top: 0, left: 0,
           }}>
             {name[0]?.toUpperCase()}
           </div>
-        )}
+          {avatarUrl && (
+            <img src={avatarUrl} alt="" style={{
+              width: 36, height: 36, borderRadius: '50%', objectFit: 'cover',
+              position: 'absolute', top: 0, left: 0,
+            }} />
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <Space size={8}>
             <Text strong style={{ fontSize: 15, color: '#313338' }}>

@@ -67,34 +67,29 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexDirection: isMe ? 'row-reverse' : 'row' }}>
         {/* Avatar */}
         {showAvatar ? (
-          avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              style={{
-                width: 36, height: 36, borderRadius: '50%',
-                objectFit: 'cover', flexShrink: 0,
-              }}
-            />
-          ) : (
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
+          <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
+            {/* Initials fallback (always shown, below the image) */}
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
               background: isMe ? '#2B579A' : '#CBD5E1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFF',
-              fontSize: 14,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {(participantName || '?')[0].toUpperCase()}
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#FFF', fontSize: 14, fontWeight: 700,
+              position: 'absolute', top: 0, left: 0,
+            }}>
+              {(participantName || '?')[0].toUpperCase()}
+            </div>
+            {/* Avatar image (on top of initials, hides them when loaded) */}
+            {avatarUrl && (
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  objectFit: 'cover', position: 'absolute', top: 0, left: 0,
+                }}
+              />
+            )}
           </div>
-          )
         ) : (
           <div style={{ width: 36, flexShrink: 0 }} />
         )}
