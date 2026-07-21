@@ -8,25 +8,19 @@ import {
   Space,
   Typography,
   Tag,
-  Card,
   Segmented,
   Radio,
   message,
   Popconfirm,
-  Upload,
 } from 'antd';
 import {
-  PlusOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
-  ShopOutlined,
-  GlobalOutlined,
-  LeftOutlined,
 } from '@ant-design/icons';
 import { studiosApi } from '../../api/studios';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const STUDIO_TYPE_LABELS: Record<string, string> = {
   DIRECT: '线下工作室',
@@ -56,8 +50,6 @@ const StudiosPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStudio, setEditingStudio] = useState<Studio | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [createStep, setCreateStep] = useState<'select-type' | 'fill-form'>('select-type');
-  const [selectedType, setSelectedType] = useState<string>('DIRECT');
   const [form] = Form.useForm();
 
   const fetchStudios = useCallback(async () => {
@@ -79,47 +71,10 @@ const StudiosPage: React.FC = () => {
     fetchStudios();
   }, [fetchStudios]);
 
-  const openCreateModal = () => {
-    setEditingStudio(null);
-    setCreateStep('select-type');
-    setSelectedType('DIRECT');
-    form.resetFields();
-    setModalOpen(true);
-  };
-
   const openEditModal = (record: Studio) => {
     setEditingStudio(record);
-    form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED' });
+    form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED', address: record.address || '' });
     setModalOpen(true);
-  };
-
-  const handleCreateSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-      const formData = new FormData();
-      formData.append('name', values.name);
-      formData.append('type', selectedType);
-      formData.append('managerUsername', values.managerUsername);
-      formData.append('managerPassword', values.managerPassword);
-      if (values.managerDisplayName) formData.append('managerDisplayName', values.managerDisplayName);
-      formData.append('splitMode', values.splitMode || 'TIERED');
-      if (values.address) formData.append('address', values.address);
-      if (values.leaseContract?.[0]?.originFileObj) {
-        formData.append('leaseContract', values.leaseContract[0].originFileObj);
-      }
-      await studiosApi.create(formData);
-      message.success('工作室及店长账号已创建');
-      setModalOpen(false);
-      form.resetFields();
-      fetchStudios();
-    } catch (err: any) {
-      if (err?.errorFields) return;
-      const msg = err?.response?.data?.message || err?.message || '创建失败';
-      message.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const handleEditSubmit = async () => {
@@ -227,22 +182,13 @@ const StudiosPage: React.FC = () => {
         <Text strong style={{ fontSize: 16 }}>
           工作室管理
         </Text>
-        <Space>
-          <Button
-            icon={React.createElement(ReloadOutlined)}
-            onClick={fetchStudios}
-            loading={loading}
-          >
-            刷新
-          </Button>
-          <Button
-            type="primary"
-            icon={React.createElement(PlusOutlined)}
-            onClick={openCreateModal}
-          >
-            新建工作室
-          </Button>
-        </Space>
+        <Button
+          icon={React.createElement(ReloadOutlined)}
+          onClick={fetchStudios}
+          loading={loading}
+        >
+          刷新
+        </Button>
       </div>
 
       {error && (
@@ -269,178 +215,18 @@ const StudiosPage: React.FC = () => {
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
       />
 
-      {/* Create Modal — two-step */}
+      {/* Edit Modal */}
       <Modal
-        title={editingStudio ? '编辑工作室' : (createStep === 'select-type' ? '新建工作室 — 选择类型' : '新建工作室 — 填写信息')}
+        title="编辑工作室"
         open={modalOpen}
-        onOk={editingStudio ? handleEditSubmit : (createStep === 'fill-form' ? handleCreateSubmit : undefined)}
-        onCancel={() => {
-          if (!editingStudio && createStep === 'fill-form') {
-            setCreateStep('select-type');
-            form.resetFields();
-          } else {
-            setModalOpen(false);
-            form.resetFields();
-          }
-        }}
+        onOk={handleEditSubmit}
+        onCancel={() => { setModalOpen(false); form.resetFields(); }}
         confirmLoading={submitting}
-        okText={editingStudio ? '保存' : (createStep === 'fill-form' ? '创建' : undefined)}
-        okButtonProps={(!editingStudio && createStep === 'select-type') ? { style: { display: 'none' } } : undefined}
-        cancelText={(!editingStudio && createStep === 'fill-form') ? '上一步' : '取消'}
+        okText="保存"
+        cancelText="取消"
         destroyOnClose
-        width={editingStudio ? 480 : 560}
+        width={480}
       >
-        {!editingStudio && createStep === 'select-type' && (
-          <div style={{ padding: '8px 0' }}>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 20, textAlign: 'center' }}>
-              请选择要创建的工作室类型
-            </Text>
-            <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
-              <Card
-                hoverable
-                onClick={() => { setSelectedType('DIRECT'); setCreateStep('fill-form'); }}
-                style={{
-                  width: 200,
-                  textAlign: 'center',
-                  border: selectedType === 'DIRECT' ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {React.createElement(ShopOutlined)}
-                </div>
-                <Title level={5} style={{ margin: 0 }}>线下工作室</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  实体场地运营，陪玩在门店接单
-                </Text>
-              </Card>
-              <Card
-                hoverable
-                onClick={() => { setSelectedType('RENTAL'); setCreateStep('fill-form'); }}
-                style={{
-                  width: 200,
-                  textAlign: 'center',
-                  border: selectedType === 'RENTAL' ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 12 }}>
-                  {React.createElement(GlobalOutlined)}
-                </div>
-                <Title level={5} style={{ margin: 0 }}>线上俱乐部</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  纯线上运营，陪玩远程在家接单
-                </Text>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {(!editingStudio && createStep === 'fill-form') && (
-          <div style={{ padding: '8px 0' }}>
-            <div style={{
-              background: '#f6f8fa',
-              borderRadius: 8,
-              padding: '12px 16px',
-              marginBottom: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}>
-              <span style={{ fontSize: 20, color: STUDIO_TYPE_COLORS[selectedType] }}>
-                {React.createElement(selectedType === 'DIRECT' ? ShopOutlined : GlobalOutlined)}
-              </span>
-              <div>
-                <Text strong>{STUDIO_TYPE_LABELS[selectedType]}</Text>
-                <Button
-                  type="link"
-                  size="small"
-                  icon={React.createElement(LeftOutlined)}
-                  onClick={() => { setCreateStep('select-type'); form.resetFields(); }}
-                  style={{ marginLeft: 8, padding: 0 }}
-                >
-                  重新选择
-                </Button>
-              </div>
-            </div>
-            <Form form={form} layout="vertical">
-              <Form.Item
-                name="name"
-                label="工作室名称"
-                rules={[{ required: true, message: '请输入工作室名称' }]}
-              >
-                <Input placeholder="请输入工作室名称" autoFocus />
-              </Form.Item>
-              <Form.Item
-                name="splitMode"
-                label="分账模式"
-                initialValue="TIERED"
-              >
-                <Radio.Group>
-                  <Radio.Button value="TIERED">阶梯分成</Radio.Button>
-                  <Radio.Button value="FIXED">固定比例</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
-              <Form.Item
-                name="address"
-                label="工作室地址"
-                rules={[{ required: true, message: '请输入工作室地址' }]}
-              >
-                <Input placeholder="请输入详细地址" />
-              </Form.Item>
-              <Form.Item
-                name="leaseContract"
-                label="租赁合同照片"
-                valuePropName="fileList"
-                getValueFromEvent={(e: any) => (Array.isArray(e) ? e : e?.fileList)}
-              >
-                <Upload beforeUpload={() => false} maxCount={1} accept="image/*" listType="picture-card">
-                  <div>
-                    <PlusOutlined />
-                    <div style={{ marginTop: 8 }}>上传</div>
-                  </div>
-                </Upload>
-              </Form.Item>
-              <div style={{
-                borderTop: '1px solid #f0f0f0',
-                paddingTop: 16,
-                marginTop: 4,
-                marginBottom: 8,
-              }}>
-                <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-                  👤 店长信息设置
-                </Text>
-                <Form.Item
-                  name="managerDisplayName"
-                  label="店长名字"
-                  rules={[{ required: false }]}
-                >
-                  <Input placeholder="店长显示名字（选填）" />
-                </Form.Item>
-                <Form.Item
-                  name="managerUsername"
-                  label="登录账号"
-                  rules={[{ required: true, message: '请输入店长登录账号' }]}
-                >
-                  <Input placeholder="店长登录账号" />
-                </Form.Item>
-                <Form.Item
-                  name="managerPassword"
-                  label="登录密码"
-                  rules={[
-                    { required: true, message: '请输入店长密码' },
-                    { min: 6, message: '密码至少6位' },
-                  ]}
-                >
-                  <Input.Password placeholder="店长登录密码（至少6位）" />
-                </Form.Item>
-              </div>
-            </Form>
-          </div>
-        )}
-
         {editingStudio && (
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
             <Form.Item
@@ -463,14 +249,14 @@ const StudiosPage: React.FC = () => {
                 block
               />
             </Form.Item>
-            <Form.Item
-              name="splitMode"
-              label="分账模式"
-            >
+            <Form.Item name="splitMode" label="分账模式">
               <Radio.Group>
                 <Radio.Button value="TIERED">阶梯分成</Radio.Button>
                 <Radio.Button value="FIXED">固定比例</Radio.Button>
               </Radio.Group>
+            </Form.Item>
+            <Form.Item name="address" label="工作室地址">
+              <Input placeholder="请输入详细地址" />
             </Form.Item>
           </Form>
         )}
