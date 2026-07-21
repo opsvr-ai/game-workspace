@@ -615,19 +615,21 @@ const CSDispatchView: React.FC = () => {
 
         {/* Embedded Chat Panel (inside Row — right side) */}
         {selectedCompanionId && (
-          <Col style={{
-            background: '#FFF', borderRadius: 10,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-            width: 380, minWidth: 300, maxWidth: 600,
-            height: 500, minHeight: 360, maxHeight: 'calc(100vh - 140px)',
-            resize: 'both', overflow: 'auto', flexShrink: 0,
-          }}>
+          <Col style={{ flexShrink: 0 }}>
+            <div style={{
+              background: '#FFF', borderRadius: 10,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              width: 380, minWidth: 300, maxWidth: 600,
+              height: 500, minHeight: 360, maxHeight: 'calc(100vh - 140px)',
+              resize: 'both', overflow: 'auto',
+            }}>
             <EmbeddedChatPanel
               onClose={() => {
                 useChatStore.getState().closeConversation();
                 setSelectedCompanionId(null);
               }}
             />
+            </div>
           </Col>
         )}
       </Row>
