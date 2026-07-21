@@ -28,13 +28,15 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   // 注册字段
+  const [registerRole, setRegisterRole] = useState('OFFLINE_COMPANION'); // 默认线下陪玩
   const [realName, setRealName] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [phone, setPhone] = useState('');
   const [idCardFront, setIdCardFront] = useState<File | null>(null);
   const [idCardBack, setIdCardBack] = useState<File | null>(null);
-  const [studios, setStudios] = useState<{ id: string; name: string }[]>([]);
+  const [studios, setStudios] = useState<{ id: string; name: string; type: string }[]>([]);
   const [registerStudioId, setRegisterStudioId] = useState('');
+  const isCompanionRole = registerRole.includes('COMPANION');
 
   // ID number validation
   const validateIdNumber = (id: string): boolean => {
@@ -99,25 +101,37 @@ const LoginPage: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!username || !password || !realName || !idNumber || !phone || !registerStudioId) {
+    if (!username || !password || !realName || !phone || !registerStudioId) {
       message.warning('请填写所有必填字段');
       return;
     }
-    if (!idCardFront || !idCardBack) {
-      message.warning('请上传身份证正反面');
-      return;
+    // Role mapping: OFFLINE_/ONLINE_ prefix → UserRole + studioType hint
+    const roleMap: Record<string, string> = {
+      OFFLINE_ADMIN: 'ADMIN', OFFLINE_CS: 'CS', OFFLINE_COMPANION: 'COMPANION',
+      ONLINE_ADMIN: 'ADMIN', ONLINE_CS: 'CS', ONLINE_COMPANION: 'COMPANION',
+    };
+    const apiRole = roleMap[registerRole] || 'COMPANION';
+
+    // ID card only required for companion roles
+    if (isCompanionRole) {
+      if (!idNumber || !idCardFront || !idCardBack) {
+        message.warning('陪玩注册需要身份证号和正反面照片');
+        return;
+      }
     }
+
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('username', username);
       formData.append('password', password);
       formData.append('realName', realName);
-      formData.append('idNumber', idNumber);
+      formData.append('idNumber', idNumber || '');
       formData.append('phone', phone);
       formData.append('studioId', registerStudioId);
-      formData.append('idCardFront', idCardFront);
-      formData.append('idCardBack', idCardBack);
+      formData.append('role', apiRole);
+      if (idCardFront) formData.append('idCardFront', idCardFront);
+      if (idCardBack) formData.append('idCardBack', idCardBack);
 
       await http.post('/auth/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -178,10 +192,11 @@ const LoginPage: React.FC = () => {
                 登 录
               </Button>
             </div>
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <div style={{ marginTop: 16, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Button type="link" onClick={() => setMode('register')} style={{ color: '#2563EB', fontSize: 13 }}>
-                陪玩注册 →
+                注册新账号 →
               </Button>
+              <Text style={{ color: '#94A3B8', fontSize: 11 }}>工作室店长 / 客服 / 陪玩均可注册</Text>
             </div>
           </>
         ) : (
@@ -208,6 +223,7 @@ const LoginPage: React.FC = () => {
                   if (realName && !/^[\u4e00-\u9fa5]{2,4}$/.test(realName)) message.warning('姓名应为2-4个中文字符');
                 }}
               />
+              {isCompanionRole && (
               <Input
                 size="large"
                 placeholder="身份证号 *"
@@ -215,6 +231,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => handleIdNumberChange(e.target.value)}
                 status={idNumberError ? 'error' : undefined}
               />
+              )}
               <div style={{ color: '#FF4757', fontSize: 12, marginTop: -8, marginBottom: 8, textAlign: 'left' }}>
                 {idNumberError || '\u00A0'}
               </div>
@@ -227,10 +244,24 @@ const LoginPage: React.FC = () => {
               >
                 {studios.map((s) => (
                   <Option key={s.id} value={s.id}>
-                    {s.name}
+                    {s.name} ({s.type === 'RENTAL' ? '线上俱乐部' : '线下工作室'})
                   </Option>
                 ))}
               </Select>
+              <Select
+                size="large"
+                placeholder="选择注册角色 *"
+                value={registerRole}
+                onChange={(v) => setRegisterRole(v)}
+              >
+                <Option value="OFFLINE_ADMIN">🏢 线下工作室 · 店长</Option>
+                <Option value="OFFLINE_CS">🏢 线下工作室 · 客服</Option>
+                <Option value="OFFLINE_COMPANION">🏢 线下工作室 · 陪玩</Option>
+                <Option value="ONLINE_ADMIN">🌐 线上俱乐部 · 店长</Option>
+                <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
+                <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
+              </Select>
+              {isCompanionRole && (
               <div style={{ display: 'flex', gap: 12 }}>
                 <Upload
                   beforeUpload={(f) => {
@@ -257,6 +288,15 @@ const LoginPage: React.FC = () => {
                   </Button>
                 </Upload>
               </div>
+              )}
+              <Input
+                size="large"
+                placeholder="身份证号 *"
+                value={idNumber}
+                onChange={(e) => handleIdNumberChange(e.target.value)}
+                status={idNumberError ? 'error' : undefined}
+                style={{ display: isCompanionRole ? undefined : 'none' }}
+              />
               <Button
                 type="primary"
                 size="large"
