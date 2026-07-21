@@ -38,7 +38,8 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      // Enter to send, Shift+Enter for newline
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }
