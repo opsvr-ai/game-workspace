@@ -36,7 +36,10 @@ const LoginPage: React.FC = () => {
   const [idCardBack, setIdCardBack] = useState<File | null>(null);
   const [studios, setStudios] = useState<{ id: string; name: string; type: string }[]>([]);
   const [registerStudioId, setRegisterStudioId] = useState('');
+  const [registerAddress, setRegisterAddress] = useState('');
+  const [leaseContract, setLeaseContract] = useState<File | null>(null);
   const isCompanionRole = registerRole.includes('COMPANION');
+  const isAdminRole = registerRole.includes('ADMIN');
 
   // ID number validation
   const validateIdNumber = (id: string): boolean => {
@@ -105,6 +108,10 @@ const LoginPage: React.FC = () => {
       message.warning('请填写所有必填字段');
       return;
     }
+    if (isAdminRole && !registerAddress) {
+      message.warning('店长注册需要填写工作室地址');
+      return;
+    }
     if (isCompanionRole && (!idCardFront || !idCardBack)) {
       message.warning('陪玩注册需要上传身份证正反面照片');
       return;
@@ -126,6 +133,8 @@ const LoginPage: React.FC = () => {
       formData.append('phone', phone);
       formData.append('studioId', registerStudioId);
       formData.append('role', apiRole);
+      if (isAdminRole && registerAddress) formData.append('address', registerAddress);
+      if (isAdminRole && leaseContract) formData.append('leaseContract', leaseContract);
       if (idCardFront) formData.append('idCardFront', idCardFront);
       if (idCardBack) formData.append('idCardBack', idCardBack);
 
@@ -255,6 +264,28 @@ const LoginPage: React.FC = () => {
                 <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
                 <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
               </Select>
+              {isAdminRole && (
+                <>
+                  <Input
+                    size="large"
+                    placeholder="工作室地址 *"
+                    value={registerAddress}
+                    onChange={(e) => setRegisterAddress(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Upload
+                      beforeUpload={(f) => { setLeaseContract(f); return false; }}
+                      maxCount={1}
+                      accept="image/*"
+                    >
+                      <Button icon={React.createElement(UploadOutlined)}>
+                        {leaseContract ? '✓ 合同已选' : '租赁合同照片'}
+                      </Button>
+                    </Upload>
+                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>选填</Text>
+                  </div>
+                </>
+              )}
               {isCompanionRole && (
               <div style={{ display: 'flex', gap: 12 }}>
                 <Upload

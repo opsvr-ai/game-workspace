@@ -17,6 +17,8 @@ model User {
   secondPasswordHash String?
   displayName        String?
   avatar             String?
+  address            String?                     // 申请地址（店长注册时填写）
+  leaseContractUrl   String?                     // 租赁合同照片URL
   customEmojis       Json      @default("[]")
   createdAt          DateTime @default(now())
 

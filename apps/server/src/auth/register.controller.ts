@@ -24,6 +24,7 @@ export class RegisterController {
       [
         { name: 'idCardFront', maxCount: 1 },
         { name: 'idCardBack', maxCount: 1 },
+        { name: 'leaseContract', maxCount: 1 },
       ],
       {
         storage: diskStorage({
@@ -48,10 +49,11 @@ export class RegisterController {
     @Body() body: {
       username: string; password: string; realName: string;
       idNumber: string; phone: string; studioId: string;
-      role?: string; // COMPANION (default) | CS | ADMIN
+      role?: string;
+      address?: string; // Admin: studio address
       games?: string;
     },
-    @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[] },
+    @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[]; leaseContract?: Express.Multer.File[] },
   ): Promise<ApiResponse<unknown>> {
     // 校验必填
     if (!body.username || !body.password || !body.realName || !body.idNumber || !body.phone || !body.studioId) {
@@ -72,6 +74,9 @@ export class RegisterController {
 
     const idCardFront = files?.idCardFront?.[0]?.filename ?? null;
     const idCardBack = files?.idCardBack?.[0]?.filename ?? null;
+    const leaseContractUrl = files?.leaseContract?.[0]?.filename
+      ? `/uploads/idcards/${files.leaseContract[0].filename}`
+      : null;
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
@@ -84,7 +89,9 @@ export class RegisterController {
         passwordHash,
         role,
         studioId: body.studioId,
-        isAuthorized: false, // All self-registered users need approval
+        isAuthorized: false,
+        address: body.address || null,
+        leaseContractUrl,
         ...(isCompanion ? {
           companion: {
             create: {
