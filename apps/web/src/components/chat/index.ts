@@ -11,3 +11,6 @@ export { default as DateDivider } from './DateDivider';
 export { default as TypingIndicator } from './TypingIndicator';
 export { default as ReplyPreview } from './ReplyPreview';
 export { default as ReplyBar } from './ReplyBar';
+export { default as ImageViewer } from './ImageViewer';
+export { default as FileMessage } from './FileMessage';
+export { default as OrderCardMessage } from './OrderCardMessage';
