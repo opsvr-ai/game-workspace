@@ -108,6 +108,21 @@ export const chatApi = {
     });
   },
 
+  /** Delete (recall) a room message */
+  deleteRoomMessage(roomId: string, msgId: string) {
+    return http.delete<{ data: { ok: boolean } }>(`/chat/rooms/${roomId}/messages/${msgId}`);
+  },
+
+  /** Add reaction to a message */
+  addReaction(roomId: string, msgId: string, emoji: string) {
+    return http.post<{ data: { reactions: any[] } }>(`/chat/rooms/${roomId}/messages/${msgId}/reactions`, { emoji });
+  },
+
+  /** Remove reaction from a message */
+  removeReaction(roomId: string, msgId: string, emoji: string) {
+    return http.delete<{ data: { reactions: any[] } }>(`/chat/rooms/${roomId}/messages/${msgId}/reactions/${emoji}`);
+  },
+
   /** Search messages */
   searchMessages(query: string, roomId?: string) {
     return http.get<{ data: { results: ServerMessage[] } }>('/chat/search', {

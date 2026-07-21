@@ -17,24 +17,28 @@ interface Props {
 }
 
 /**
- * Chat Modal — wraps ChatPanel in an antd Modal for non-embedded use.
- * Used by notification bell, FloatingChatWidget, companion pages.
+ * Chat Modal — wraps ChatPanel in an antd Modal for popup use.
+ * All pages (companion/CS/AppLayout) use this for consistent Chat 3.0 UI.
+ *
+ * IMPORTANT: partner.conversationId may be a companion ID or user ID,
+ * NOT the real ChatRoom UUID. We use activeConversationId from the
+ * store (set by openConversation API call) as the roomId for ChatPanel.
  */
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const conv = activeConversationId ? useChatStore((s) => s.conversations[activeConversationId]) : undefined;
+
   // Open conversation when modal opens
   useEffect(() => {
     if (!open || !partner) return;
-    const store = useChatStore.getState();
-    store.openConversation(partner.conversationId, partner.participant, partner.orderInfo);
+    useChatStore.getState().openConversation(
+      partner.conversationId, partner.participant, partner.orderInfo,
+    );
 
     return () => {
       useChatStore.getState().closeConversation();
     };
   }, [open, partner?.conversationId]);
-
-  const conv = partner?.conversationId
-    ? useChatStore((s) => s.conversations[partner.conversationId])
-    : undefined;
 
   return (
     <Modal
@@ -48,8 +52,8 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       destroyOnClose
     >
       <ChatPanel
-        roomId={partner?.conversationId}
-        participant={partner?.participant}
+        roomId={activeConversationId || undefined}
+        participant={partner?.participant || conv?.participant}
         orderInfo={partner?.orderInfo || conv?.orderInfo}
         onClose={onClose}
       />
