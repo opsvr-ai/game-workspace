@@ -116,6 +116,11 @@ export class AuthService {
       include: { companion: { select: { id: true } } },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
+    // Include pending review count for OWNER/ADMIN
+    let pendingReviewCount = 0;
+    if (user.role === 'OWNER' || user.role === 'ADMIN') {
+      pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+    }
     return {
       id: user.id,
       username: user.username,
@@ -124,6 +129,7 @@ export class AuthService {
       companionId: user.companion?.id,
       displayName: user.displayName,
       avatar: user.avatar,
+      pendingReviewCount,
     };
   }
 

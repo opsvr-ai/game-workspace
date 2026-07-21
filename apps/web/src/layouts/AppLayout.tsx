@@ -4,7 +4,6 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
-import http from '../api/client';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
@@ -196,20 +195,6 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
-  // Pending review count — badge on 工作室管理
-  const [pendingReviewCount, setPendingReviewCount] = React.useState(0);
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
-    const fetch = () => {
-      http.get('/users/pending-review').then(({ data }) => {
-        setPendingReviewCount((data.data || []).length);
-      }).catch(() => {});
-    };
-    fetch();
-    const t = setInterval(fetch, 60000); // every 60s
-    return () => clearInterval(t);
-  }, [user?.role]);
-
   // Chat 3.0: notification handled by ChatProvider
 
   // Open chat from notification
@@ -304,13 +289,14 @@ const AppLayout: React.FC = () => {
     if (!user) return [];
     const items = [...(roleMenus[user.role] || [])];
     return items.map((item) => {
-      if (item.label === '工作室管理' && pendingReviewCount > 0) {
+      const pCount = user?.pendingReviewCount || 0;
+      if (item.label === '工作室管理' && pCount > 0) {
         return {
           ...item,
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
-              <Badge count={pendingReviewCount} size="small" overflowCount={99}
+              <Badge count={pCount} size="small" overflowCount={99}
                 style={{ boxShadow: '0 0 10px #FF4757' }} />
             </span>
           ),
@@ -334,7 +320,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-  }, [user, totalUnread, pendingReviewCount]);
+  }, [user, totalUnread]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;

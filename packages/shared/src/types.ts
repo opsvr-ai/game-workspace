@@ -32,4 +32,5 @@ export interface UserInfo {
   companionId?: string;
   displayName?: string | null;
   avatar?: string | null;
+  pendingReviewCount?: number;
 }
