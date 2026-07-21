@@ -4,16 +4,16 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
-import { useChatNotification } from '../hooks/useChatNotification';
+// useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import DualCompanionModal from '../components/DualCompanionModal';
+import { ChatProvider } from '../components/chat';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
 import { FloatingChatWidget } from '../components/FloatingChatWidget';
 import { ConversationList } from '../components/ConversationList';
-import { playMessageSound } from '../utils/notificationSound';
-import { chatApi } from '../api/chat';
+// Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
 if (!document.getElementById('badge-pulse-css')) {
@@ -195,7 +195,7 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
-  const { notify } = useChatNotification(true);
+  // Chat 3.0: notification handled by ChatProvider
 
   // Open chat from notification
   const openChatFromNotification = useCallback((conversationId: string, participantName: string) => {
@@ -266,38 +266,7 @@ const AppLayout: React.FC = () => {
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
-    onChatMessage: (data: any) => {
-      if (data?.conversationId && data?.message) {
-        const store = useChatStore.getState();
-        store.receiveMessage(data.conversationId, data.message, data.orderInfo);
-        if (!store.activeConversationId) {
-          const ts = Date.now();
-          const cid = data.conversationId;
-          if (ts > ((store as any).lastSoundPlayedAt?.[cid] ?? 0)) {
-            playMessageSound();
-            (store as any).markSoundPlayed?.(cid, ts);
-          }
-        }
-        if (data.message.text) {
-          const conv = store.conversations[data.conversationId];
-          const name = conv?.participant?.displayName || conv?.participant?.username || '新消息';
-          notify({ title: name, body: data.message.text });
-        }
-      }
-    },
   });
-
-  // Load conversations on mount
-  useEffect(() => {
-    if (!user?.id) return;
-    useChatStore.getState().setMyUserId(user.id);
-    chatApi
-      .listConversations()
-      .then(({ data }) => {
-        useChatStore.getState().setConversations(data?.data?.conversations || []);
-      })
-      .catch(() => {});
-  }, [user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -375,7 +344,7 @@ const AppLayout: React.FC = () => {
   }
 
   return (
-    <>
+    <ChatProvider>
       <Layout style={{ minHeight: '100vh' }}>
         {/* ── 浅色侧边栏 ── */}
         <Sider
@@ -645,14 +614,18 @@ const AppLayout: React.FC = () => {
       </Modal>
 
       {/* Global Chat Modal (opened from notification bell) */}
-      <ChatModal open={!!globalChatPartner} partner={globalChatPartner} onClose={() => setGlobalChatPartner(null)} />
+      <ChatModal
+        open={!!globalChatPartner}
+        partner={globalChatPartner as any}
+        onClose={() => setGlobalChatPartner(null)}
+      />
 
       {/* Floating chat notification widget (bottom-right) */}
       <FloatingChatWidget onOpenChat={openChatFromNotification} />
 
       {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
-    </>
+    </ChatProvider>
   );
 };
 
