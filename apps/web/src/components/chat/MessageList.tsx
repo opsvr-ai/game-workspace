@@ -40,7 +40,7 @@ const MessageList: React.FC<MessageListProps> = ({
   const virtualizer = useVirtualizer({
     count: messages.length + (typing ? 1 : 0),
     getScrollElement: () => containerRef.current,
-    estimateSize: () => 48,
+    estimateSize: () => 80,
     overscan: 10,
   });
 
@@ -84,6 +84,7 @@ const MessageList: React.FC<MessageListProps> = ({
             return (
               <div
                 key="typing"
+                data-index={vi.index}
                 style={{ position: 'absolute', top: vi.start, width: '100%' }}
                 ref={virtualizer.measureElement}
               >
@@ -108,6 +109,7 @@ const MessageList: React.FC<MessageListProps> = ({
           return (
             <div
               key={msg.id}
+              data-index={vi.index}
               style={{ position: 'absolute', top: vi.start, width: '100%' }}
               ref={virtualizer.measureElement}
             >
