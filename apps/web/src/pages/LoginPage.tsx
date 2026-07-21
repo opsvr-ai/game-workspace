@@ -39,7 +39,7 @@ const LoginPage: React.FC = () => {
   const [registerAddress, setRegisterAddress] = useState('');
   const [leaseContract, setLeaseContract] = useState<File | null>(null);
   const isCompanionRole = registerRole.includes('COMPANION');
-  const isAdminRole = registerRole.includes('ADMIN');
+  const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
 
   // ID number validation
   const validateIdNumber = (id: string): boolean => {
@@ -108,8 +108,8 @@ const LoginPage: React.FC = () => {
       message.warning('请填写所有必填字段');
       return;
     }
-    if (isAdminRole && !registerAddress) {
-      message.warning('店长注册需要填写工作室地址');
+    if (isOfflineAdmin && !registerAddress) {
+      message.warning('线下工作室店长需要填写地址');
       return;
     }
     if (isCompanionRole && (!idCardFront || !idCardBack)) {
@@ -133,8 +133,8 @@ const LoginPage: React.FC = () => {
       formData.append('phone', phone);
       formData.append('studioId', registerStudioId);
       formData.append('role', apiRole);
-      if (isAdminRole && registerAddress) formData.append('address', registerAddress);
-      if (isAdminRole && leaseContract) formData.append('leaseContract', leaseContract);
+      if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
+      if (isOfflineAdmin && leaseContract) formData.append('leaseContract', leaseContract);
       if (idCardFront) formData.append('idCardFront', idCardFront);
       if (idCardBack) formData.append('idCardBack', idCardBack);
 
@@ -264,7 +264,7 @@ const LoginPage: React.FC = () => {
                 <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
                 <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
               </Select>
-              {isAdminRole && (
+              {isOfflineAdmin && (
                 <>
                   <Input
                     size="large"
