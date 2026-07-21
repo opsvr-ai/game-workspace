@@ -43,6 +43,11 @@ export const chatApi = {
     });
   },
 
+  /** Update room metadata (Chat 3.0) */
+  updateRoom(roomId: string, data: { pinned?: boolean; archived?: boolean; orderInfo?: string }) {
+    return http.patch<{ data: { room: any } }>(`/chat/rooms/${roomId}`, data);
+  },
+
   /** Create or get existing room (Chat 3.0) */
   createRoom(participantId: string, orderInfo?: string) {
     return http.post<{ data: { room: { id: string } } }>('/chat/rooms', { participantId, orderInfo });

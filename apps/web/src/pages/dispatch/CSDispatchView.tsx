@@ -8,7 +8,7 @@ import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
-import ChatModal from '../../components/ChatModal';
+import { EmbeddedChatPanel } from '../../components/chat';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
@@ -176,7 +176,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row gutter={12}>
         {/* Left: Companion sidebar */}
-        <Col span={4}>
+        <Col span={selectedCompanionId ? 4 : 5}>
           <Card
             title="陪玩管理"
             size="small"
@@ -355,7 +355,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={selectedCompanionId ? 13 : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -636,15 +636,30 @@ const CSDispatchView: React.FC = () => {
         userId={useAuthStore.getState().user?.id}
       />
 
-      {/* Chat Modal */}
-      <ChatModal
-        open={!!chatPartner}
-        partner={chatPartner as any}
-        onClose={() => {
-          setChatPartner(null);
-          setSelectedCompanionId(null);
-        }}
-      />
+      {/* Embedded Chat Panel — replaces ChatModal */}
+      {selectedCompanionId && (
+        <Col
+          span={7}
+          style={{
+            background: '#FFF',
+            borderRadius: 10,
+            overflow: 'hidden',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            height: 'calc(100vh - 140px)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <EmbeddedChatPanel
+            onClose={() => {
+              useChatStore.getState().closeConversation();
+              setSelectedCompanionId(null);
+              setChatPartner(null);
+            }}
+          />
+        </Col>
+      )}
+      {selectedCompanionId && <Col span={1} />}
 
       {/* Companion detail modal */}
       <Modal
