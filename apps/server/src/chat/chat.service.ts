@@ -134,6 +134,11 @@ export class ChatService {
       throw new Error('消息不能为空');
     }
 
+    // Content moderation: basic sensitive word filter
+    if (content && this.containsSensitiveWords(content)) {
+      throw new Error('CHAT_SENSITIVE_WORD');
+    }
+
     // Atomic: increment seq + create message + update room
     const [msg] = await this.prisma.$transaction([
       // Read current max seq
@@ -470,6 +475,15 @@ export class ChatService {
       })),
       createdAt: m.createdAt.toISOString(),
     };
+  }
+
+  // ── Content Moderation ──
+
+  private SENSITIVE_WORDS = ['赌博', '赌场', '色情', '毒品', '枪支'];
+
+  private containsSensitiveWords(text: string): boolean {
+    const lower = text.toLowerCase();
+    return this.SENSITIVE_WORDS.some((word) => lower.includes(word));
   }
 
   // ── Legacy Methods (keep during migration) ──

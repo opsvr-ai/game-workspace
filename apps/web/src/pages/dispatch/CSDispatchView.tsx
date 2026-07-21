@@ -178,10 +178,11 @@ const CSDispatchView: React.FC = () => {
         {/* Left: Companion sidebar */}
         <Col span={selectedCompanionId ? 4 : 5}>
           <Card
-            title="陪玩管理"
+            title={<span style={{ color: '#F2F3F5' }}>陪玩管理</span>}
             size="small"
-            style={{ marginBottom: 12 }}
-            bodyStyle={{ padding: '8px 12px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+            style={{ marginBottom: 12, background: '#1E1F22', border: '1px solid #2B2D31', borderRadius: 10 }}
+            bodyStyle={{ padding: '8px 6px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+            headStyle={{ background: '#1E1F22', borderBottom: '1px solid #2B2D31', borderRadius: '10px 10px 0 0' }}
           >
             {/* Companion search filter */}
             <Input
@@ -190,7 +191,7 @@ const CSDispatchView: React.FC = () => {
               value={companionSearch}
               onChange={(e) => setCompanionSearch(e.target.value)}
               allowClear
-              style={{ marginBottom: 8 }}
+              style={{ marginBottom: 8, background: '#2B2D31', border: '1px solid #3F4248', color: '#F2F3F5' }}
             />
             {loadingCompanions && companions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
@@ -199,7 +200,7 @@ const CSDispatchView: React.FC = () => {
             ) : filteredCompanions.length === 0 && companionSearch ? (
               <Text type="secondary">未找到匹配的陪玩</Text>
             ) : companions.length === 0 ? (
-              <Text type="secondary">暂无陪玩</Text>
+              <Text style={{ color: '#949BA4' }}>暂无陪玩</Text>
             ) : (
               <List
                 size="small"
@@ -214,15 +215,15 @@ const CSDispatchView: React.FC = () => {
                         padding: '8px 6px',
                         display: 'block',
                         cursor: 'pointer',
-                        borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
+                        borderLeft: isSelected ? '3px solid #2B579A' : '3px solid transparent',
                         paddingLeft: isSelected ? 10 : 10,
                         borderRadius: '0 6px 6px 0',
                         transition: 'transform 0.15s ease, background 0.15s ease',
-                        background: isSelected ? '#EFF6FF' : 'transparent',
+                        background: isSelected ? '#3F4248' : 'transparent',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateX(2px)';
-                        e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
+                        e.currentTarget.style.background = '#2B2D31';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'translateX(0)';
@@ -316,7 +317,9 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
-                            <Text strong>{c.user?.username ?? c.id}</Text>
+                            <Text strong style={{ color: '#F2F3F5' }}>
+                              {c.user?.username ?? c.id}
+                            </Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
                                 已限制
