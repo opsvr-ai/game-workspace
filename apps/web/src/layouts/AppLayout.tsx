@@ -297,20 +297,28 @@ const AppLayout: React.FC = () => {
   const menuItems = useMemo(() => {
     if (!user) return [];
     const items = [...(roleMenus[user.role] || [])];
+    const pCount = user?.pendingReviewCount || 0;
     return items.map((item) => {
-      const pCount = user?.pendingReviewCount || 0;
-      if (item.label === '工作室管理' && pCount > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge count={pCount} size="small" overflowCount={99}
-                style={{ boxShadow: '0 0 10px #FF4757' }} />
-            </span>
-          ),
-        };
+      // Check children (group items) for badge targets
+      if (item.children) {
+        const hasPending = item.children.some((c: any) => c.label === '工作室管理' && pCount > 0);
+        const hasUnread = item.children.some((c: any) => (c.label === '陪玩管理' || c.label === '员工管理') && totalUnread > 0);
+        if (hasPending || hasUnread) {
+          return {
+            ...item,
+            children: item.children.map((child: any) => {
+              if (child.label === '工作室管理' && pCount > 0) {
+                return { ...child, label: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{child.label}<Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+              }
+              if ((child.label === '陪玩管理' || child.label === '员工管理') && totalUnread > 0) {
+                return { ...child, label: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{child.label}<Badge count={totalUnread} size="small" overflowCount={99} style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }} /></span> };
+              }
+              return child;
+            }),
+          };
+        }
       }
+      // Top-level item check (fallback)
       if ((item.label === '陪玩管理' || item.label === '员工管理') && totalUnread > 0) {
         return {
           ...item,
