@@ -50,7 +50,19 @@ const CSDispatchView: React.FC = () => {
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
-  const [chatPanelWidth, setChatPanelWidth] = useState(380);
+  const [chatPanelWidth, setChatPanelWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chat-panel-width');
+      return saved ? parseInt(saved, 10) : 380;
+    } catch { return 380; }
+  });
+  // Persist panel width on change (debounced)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      localStorage.setItem('chat-panel-width', String(chatPanelWidth));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [chatPanelWidth]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
 

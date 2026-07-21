@@ -20,8 +20,13 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
 
-  // JS-based resize state
-  const [size, setSize] = useState({ w: 420, h: 500 });
+  // JS-based resize state — restore saved size
+  const [size, setSize] = useState(() => {
+    try {
+      const saved = localStorage.getItem('chat-modal-size');
+      return saved ? JSON.parse(saved) : { w: 420, h: 500 };
+    } catch { return { w: 420, h: 500 }; }
+  });
   const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number; dir: string } | null>(null);
   const wasResizing = useRef(false);
 
@@ -44,7 +49,8 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       resizeRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      // Prevent the subsequent click from closing the modal
+      // Persist size
+      setSize((current: { w: number; h: number }) => { localStorage.setItem('chat-modal-size', JSON.stringify(current)); return current; });
       setTimeout(() => { wasResizing.current = false; }, 100);
     };
     document.addEventListener('mousemove', onMove);
