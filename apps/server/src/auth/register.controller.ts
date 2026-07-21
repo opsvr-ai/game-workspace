@@ -56,9 +56,13 @@ export class RegisterController {
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[]; leaseContract?: Express.Multer.File[] },
   ): Promise<ApiResponse<unknown>> {
-    // 校验必填
-    if (!body.username || !body.password || !body.realName || !body.idNumber || !body.phone || !body.studioId) {
+    // 校验必填 (ADMIN with studioName doesn't need studioId — auto-creates studio)
+    const needsStudioId = body.role !== 'ADMIN' || !body.studioName;
+    if (!body.username || !body.password || !body.realName || !body.idNumber || !body.phone) {
       return { code: 400, message: '请填写所有必填字段', data: null };
+    }
+    if (needsStudioId && !body.studioId) {
+      return { code: 400, message: '请选择工作室', data: null };
     }
 
     // 检查用户名唯一
