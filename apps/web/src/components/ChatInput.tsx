@@ -75,11 +75,11 @@ const ChatInput: React.FC<Props> = ({ onSend }) => {
       return [];
     }
   });
-  const [addEmojiUrl, setAddEmojiUrl] = useState('');
+  const [_addEmojiUrl, _setAddEmojiUrl] = useState('');
   const inputRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const syncEmojis = (next: string[]) => {
+  const _syncEmojis = (next: string[]) => {
     setCustomEmojis(next);
     localStorage.setItem('custom-emojis', JSON.stringify(next));
     http.put('/auth/me/emojis', { emojis: next }).catch(() => {});

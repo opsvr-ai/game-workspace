@@ -21,7 +21,7 @@ import {
   Row,
   Col,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
 
@@ -73,7 +73,7 @@ const CustomerDetailPage: React.FC = () => {
 
   // Data states
   const [customer, setCustomer] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [_profile, setProfile] = useState<any>(null);
   const [customerType, setCustomerType] = useState<any>(null);
   const [followUps, setFollowUps] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
