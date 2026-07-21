@@ -45,12 +45,12 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     <Modal
       open={open}
       footer={null}
-      width={420}
+      width={400}
       closable={false}
       maskClosable
       onCancel={onClose}
-      bodyStyle={{ padding: 0, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}
-      style={{ top: 20 }}
+      bodyStyle={{ padding: 0, height: '520px', display: 'flex', flexDirection: 'column' }}
+      style={{ top: 40 }}
       destroyOnClose
     >
       <ChatPanel

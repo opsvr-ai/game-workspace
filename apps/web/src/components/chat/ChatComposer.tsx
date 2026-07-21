@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Button } from 'antd';
 import { SendOutlined, SmileOutlined, PaperClipOutlined } from '@ant-design/icons';
 import ReplyBar from './ReplyBar';
@@ -18,15 +18,6 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const QUICK_EMOJIS = ['😀', '😂', '👍', '❤️', '🔥', '😢', '😮', '🎉', '💪', '🙏', '👌', '🤝'];
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-    }
-  }, [text]);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
@@ -106,13 +97,15 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
           rows={1}
           style={{
             flex: 1,
+            height: 36,
             border: 'none',
             outline: 'none',
             resize: 'vertical',
             fontSize: 14,
             lineHeight: '22px',
-            padding: '6px 0',
-            background: 'transparent',
+            padding: '6px 8px',
+            background: '#F5F6FA',
+            borderRadius: 6,
             fontFamily: 'inherit',
             minHeight: 36,
             maxHeight: 200,

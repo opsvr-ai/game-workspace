@@ -338,7 +338,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={selectedCompanionId ? 14 : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={selectedCompanionId ? 15 : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -615,9 +615,9 @@ const CSDispatchView: React.FC = () => {
 
         {/* Embedded Chat Panel (inside Row — right side) */}
         {selectedCompanionId && (
-          <Col span={6} style={{
+          <Col span={5} style={{
             background: '#FFF', borderRadius: 10, overflow: 'hidden',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: 'calc(100vh - 140px)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)', height: '520px',
           }}>
             <EmbeddedChatPanel
               onClose={() => {
