@@ -8,6 +8,7 @@ import {
   Space,
   Typography,
   Tag,
+  Card,
   Segmented,
   Radio,
   message,
@@ -19,6 +20,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { studiosApi } from '../../api/studios';
+import http from '../../api/client';
 
 const { Text } = Typography;
 
@@ -51,6 +53,34 @@ const StudiosPage: React.FC = () => {
   const [editingStudio, setEditingStudio] = useState<Studio | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  // Pending review
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+
+  const fetchPendingUsers = useCallback(async () => {
+    setLoadingPending(true);
+    try {
+      const { data } = await http.get('/users/pending-review');
+      setPendingUsers(data.data ?? []);
+    } catch { /* non-critical */ }
+    finally { setLoadingPending(false); }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingUsers();
+  }, [fetchPendingUsers]);
+
+  const handleApprove = async (userId: string) => {
+    try {
+      await http.put(`/auth/users/${userId}/authorize`, {});
+      message.success('已通过审核');
+      fetchPendingUsers();
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '操作失败');
+    }
+  };
+
+  const ROLE_LABELS: Record<string, string> = { COMPANION: '陪玩', CS: '客服', ADMIN: '店长' };
 
   const fetchStudios = useCallback(async () => {
     setLoading(true);
@@ -204,6 +234,38 @@ const StudiosPage: React.FC = () => {
         >
           {error}
         </div>
+      )}
+
+      {/* Pending Review Section */}
+      {pendingUsers.length > 0 && (
+        <Card
+          title={<span>📋 待审核申请 <Tag>{pendingUsers.length}</Tag></span>}
+          size="small"
+          style={{ marginBottom: 16, borderColor: '#faad14' }}
+        >
+          <Table
+            dataSource={pendingUsers}
+            rowKey="id"
+            loading={loadingPending}
+            pagination={false}
+            size="small"
+            columns={[
+              { title: '用户名', dataIndex: 'username', width: 100 },
+              { title: '姓名', dataIndex: ['displayName'], width: 80, render: (v: string) => v || '-' },
+              { title: '角色', dataIndex: 'role', width: 70, render: (v: string) => <Tag>{ROLE_LABELS[v] || v}</Tag> },
+              { title: '工作室', dataIndex: ['studio', 'name'], width: 120, render: (v: string) => v || '-' },
+              { title: '地址', dataIndex: 'address', ellipsis: true, render: (v: string) => v || '-' },
+              { title: '合同', dataIndex: 'leaseContractUrl', width: 60, render: (v: string) => v ? <a href={v} target="_blank">查看</a> : '-' },
+              { title: '申请时间', dataIndex: 'createdAt', width: 140, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+              {
+                title: '操作', key: 'actions', width: 80,
+                render: (_: unknown, r: any) => (
+                  <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
+                ),
+              },
+            ]}
+          />
+        </Card>
       )}
 
       <Table

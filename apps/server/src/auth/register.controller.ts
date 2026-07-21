@@ -131,7 +131,25 @@ export class RegisterController {
     };
   }
 
-  // 待审核陪玩列表（CS/ADMIN/OWNER）
+  // 待审核列表（所有角色：陪玩+店长+客服）
+  @Get('users/pending-review')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async listPendingUsers(): Promise<ApiResponse<unknown>> {
+    const data = await this.prisma.user.findMany({
+      where: { isAuthorized: false },
+      select: {
+        id: true, username: true, role: true, displayName: true, address: true,
+        leaseContractUrl: true, createdAt: true,
+        studio: { select: { id: true, name: true } },
+        companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { code: 200, message: 'ok', data };
+  }
+
+  // @deprecated 待审核陪玩列表（保留兼容）
   @Get('companions/pending-review')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
