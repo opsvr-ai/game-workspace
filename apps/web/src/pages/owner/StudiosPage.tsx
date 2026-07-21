@@ -265,18 +265,17 @@ const StudiosPage: React.FC = () => {
             loading={loadingPending}
             pagination={false}
             size="small"
+            scroll={{ x: 700 }}
             columns={[
-              { title: '用户名', dataIndex: 'username', width: 100 },
-              { title: '姓名', dataIndex: ['displayName'], width: 80, render: (v: string) => v || '-' },
-              { title: '角色', dataIndex: 'role', width: 70, render: (v: string) => <Tag>{ROLE_LABELS[v] || v}</Tag> },
-              { title: '工作室', dataIndex: ['studio', 'name'], width: 120, render: (v: string) => v || '-' },
-              { title: '地址', dataIndex: 'address', ellipsis: true, render: (v: string) => v || '-' },
-              { title: '合同', dataIndex: 'leaseContractUrl', width: 60, render: (v: string) => v ? <a href={v} target="_blank">查看</a> : '-' },
-              { title: '申请时间', dataIndex: 'createdAt', width: 140, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+              { title: '用户名', dataIndex: 'username', width: 90 },
+              { title: '角色', dataIndex: 'role', width: 60, render: (v: string) => <Tag>{ROLE_LABELS[v] || v}</Tag> },
+              { title: '工作室', dataIndex: ['studio', 'name'], width: 110, ellipsis: true, render: (v: string) => v || '-' },
+              { title: '地址', dataIndex: 'address', width: 140, ellipsis: true, render: (v: string) => v || '-' },
+              { title: '申请时间', dataIndex: 'createdAt', width: 130, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
               {
-                title: '操作', key: 'actions', width: 80,
+                title: '操作', key: 'actions', width: 140,
                 render: (_: unknown, r: any) => (
-                  <Space size="small">
+                  <Space size={4}>
                     <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
                     <Button size="small" danger onClick={() => { setRejectModal({ userId: r.id, username: r.username }); setRejectReason(''); }}>拒绝</Button>
                   </Space>
