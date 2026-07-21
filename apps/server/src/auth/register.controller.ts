@@ -48,6 +48,7 @@ export class RegisterController {
     @Body() body: {
       username: string; password: string; realName: string;
       idNumber: string; phone: string; studioId: string;
+      role?: string; // COMPANION (default) | CS | ADMIN
       games?: string;
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[] },
@@ -74,28 +75,31 @@ export class RegisterController {
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
+    const role = body.role === 'CS' ? 'CS' : body.role === 'ADMIN' ? 'ADMIN' : 'COMPANION';
+    const isCompanion = role === 'COMPANION';
+
     const user = await this.prisma.user.create({
       data: {
         username: body.username,
         passwordHash,
-        role: 'COMPANION',
+        role,
         studioId: body.studioId,
-        isAuthorized: false, // 需审核
-        companion: {
-          create: {
-            studioId: body.studioId,
-            realName: body.realName,
-            idNumber: body.idNumber,
-            phone: body.phone,
-            idCardFront,
-            idCardBack,
-            reviewStatus: 'PENDING',
-            games: [],
-            billingCode: `Z${Date.now().toString(36).toUpperCase()}`,
-
-
+        isAuthorized: false, // All self-registered users need approval
+        ...(isCompanion ? {
+          companion: {
+            create: {
+              studioId: body.studioId,
+              realName: body.realName,
+              idNumber: body.idNumber,
+              phone: body.phone,
+              idCardFront,
+              idCardBack,
+              reviewStatus: 'PENDING',
+              games: [],
+              billingCode: `Z${Date.now().toString(36).toUpperCase()}`,
+            },
           },
-        },
+        } : {}),
       },
       include: { companion: true },
     });

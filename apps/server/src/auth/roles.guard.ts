@@ -3,12 +3,16 @@ import {
   CanActivate,
   ExecutionContext,
   SetMetadata,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@chunlv/shared';
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
+
+/** Roles that require authorization (isAuthorized check) */
+const ROLES_REQUIRING_AUTH: UserRole[] = [UserRole.CS, UserRole.COMPANION];
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -29,6 +33,15 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    return requiredRoles.includes(user.role);
+    if (!requiredRoles.includes(user.role)) {
+      throw new ForbiddenException('无权访问');
+    }
+
+    // isAuthorized check: CS and COMPANION must be approved
+    if (ROLES_REQUIRING_AUTH.includes(user.role) && !user.isAuthorized) {
+      throw new ForbiddenException('账号尚未通过审核，请联系管理员');
+    }
+
+    return true;
   }
 }

@@ -39,6 +39,7 @@ export class AuthService {
       role: user.role as UserRole,
       studioId: user.studioId,
       companionId: user.companion?.id,
+      isAuthorized: user.isAuthorized,
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -93,6 +94,7 @@ export class AuthService {
       role: user.role as UserRole,
       studioId: user.studioId,
       companionId: user.companion?.id,
+      isAuthorized: user.isAuthorized,
     };
 
     const accessToken = this.jwtService.sign(newPayload, {
@@ -201,4 +203,5 @@ export interface JwtPayload {
   role: UserRole;
   studioId: string | null;
   companionId?: string;
+  isAuthorized?: boolean;
 }
