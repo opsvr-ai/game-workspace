@@ -110,15 +110,19 @@ export class OrderWorkflowService {
     if (!order) throw new NotFoundException('订单不存在');
     this.validateTransition(order, OrderStatus.CONFIRMED);
     if (order.companionId !== companionId) throw new ForbiddenException('无权确认此订单');
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.CONFIRMED },
     });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
-  async complete(orderId: string) {
+  async complete(orderId: string, _userId?: string, userStudioId?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    // Studio boundary: non-owner users can only complete orders in their own studio
+    if (userStudioId && order.studioId !== userStudioId) throw new ForbiddenException('无权操作其他工作室的订单');
     this.validateTransition(order, OrderStatus.DONE);
 
     // Auto-assign customer to companion if not yet assigned
@@ -149,10 +153,12 @@ export class OrderWorkflowService {
       }
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.DONE },
     });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async completeWithBilling(
@@ -171,6 +177,8 @@ export class OrderWorkflowService {
   ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    // Ownership check: only the assigned companion can complete with billing
+    if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     this.validateTransition(order, OrderStatus.DONE);
 
     // Detect customer type
@@ -263,6 +271,7 @@ export class OrderWorkflowService {
       data: { status: 'ACTIVE' },
     });
 
+    this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
     return updatedOrder;
   }
 
@@ -270,9 +279,14 @@ export class OrderWorkflowService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     this.validateTransition(order, OrderStatus.CANCELLED);
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.CANCELLED },
     });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    if (updated.companionId) {
+      this.wsGateway.pushOrder(updated.companionId, updated);
+    }
+    return updated;
   }
 }

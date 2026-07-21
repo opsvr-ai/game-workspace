@@ -232,7 +232,9 @@ export class OrdersService {
     return updated;
   }
 
-  async updateAmount(orderId: string, amount: number) {
+  async updateAmount(orderId: string, companionId: string, amount: number) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true } });
+    if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     return this.prisma.order.update({ where: { id: orderId }, data: { amount } });
   }
 
@@ -251,9 +253,10 @@ export class OrdersService {
     return customer;
   }
 
-  async renew(orderId: string, userId: string) {
+  async renew(orderId: string, userId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     // H1 fix: create as PENDING+DIRECT, companion accepts via standard flow
     const newOrder = await this.prisma.order.create({
       data: {
@@ -276,9 +279,10 @@ export class OrdersService {
     return newOrder;
   }
 
-  async republish(orderId: string, userId: string) {
+  async republish(orderId: string, userId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     return this.prisma.order.create({
       data: {
         type: order.type,
@@ -313,18 +317,22 @@ export class OrdersService {
   }
 
   async markReady(orderId: string, companionId: string) {
-    return this.prisma.order.update({
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true } });
+    if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { customFields: { partnerReady: true, partnerId: companionId } as any },
     });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async confirm(orderId: string, companionId: string) {
     return this.workflowService.confirm(orderId, companionId);
   }
 
-  async complete(orderId: string) {
-    return this.workflowService.complete(orderId);
+  async complete(orderId: string, userStudioId?: string) {
+    return this.workflowService.complete(orderId, undefined, userStudioId);
   }
 
   async completeWithBilling(

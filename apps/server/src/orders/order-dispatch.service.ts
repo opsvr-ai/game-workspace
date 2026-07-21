@@ -29,6 +29,7 @@ export class OrderDispatchService {
       });
     } catch { /* non-blocking */ }
     this.wsGateway.pushOrder(companionId, updatedOrder);
+    this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
     return updatedOrder;
   }
 
@@ -51,14 +52,18 @@ export class OrderDispatchService {
         data: { companionId },
       });
     } catch { /* non-blocking */ }
-    return this.prisma.order.findUnique({ where: { id: orderId } });
+    const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (updated) this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async declineAssignment(orderId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
-    return this.prisma.order.update({ where: { id: orderId }, data: { companionId: null, dispatchType: 'POOL' } });
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data: { companionId: null, dispatchType: 'POOL' } });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async quickGrab(orderId: string, companionId: string) {
@@ -77,6 +82,8 @@ export class OrderDispatchService {
       });
     } catch { /* non-blocking */ }
 
-    return this.prisma.order.findUnique({ where: { id: orderId } });
+    const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (updated) this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 }
