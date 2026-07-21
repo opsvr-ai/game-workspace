@@ -20,16 +20,19 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
 
-  // JS-based resize state (avoid CSS resize ghost outline in Electron)
+  // JS-based resize state
   const [size, setSize] = useState({ w: 420, h: 500 });
   const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number; dir: string } | null>(null);
+  const wasResizing = useRef(false);
 
   const onResizeStart = useCallback((e: React.MouseEvent, dir: string) => {
     e.preventDefault();
     e.stopPropagation();
+    wasResizing.current = false;
     resizeRef.current = { startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h, dir };
     const onMove = (ev: MouseEvent) => {
       if (!resizeRef.current) return;
+      wasResizing.current = true;
       const dx = ev.clientX - resizeRef.current.startX;
       const dy = ev.clientY - resizeRef.current.startY;
       setSize(() => ({
@@ -41,10 +44,18 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       resizeRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      // Prevent the subsequent click from closing the modal
+      setTimeout(() => { wasResizing.current = false; }, 100);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [size]);
+
+  // Block modal close if we just finished resizing
+  const handleCancel = useCallback(() => {
+    if (wasResizing.current) return;
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (!open || !partner) return;
@@ -59,7 +70,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       width={size.w}
       closable={false}
       maskClosable
-      onCancel={onClose}
+      onCancel={handleCancel}
       bodyStyle={{ padding: 0 }}
       style={{ top: 20 }}
       destroyOnClose
