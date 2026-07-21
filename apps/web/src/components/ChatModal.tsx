@@ -25,11 +25,9 @@ interface Props {
  * store (set by openConversation API call) as the roomId for ChatPanel.
  */
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
-  // NEVER call hooks conditionally — one selector always
-  const { activeConversationId, conv } = useChatStore((s) => ({
-    activeConversationId: s.activeConversationId,
-    conv: s.activeConversationId ? s.conversations[s.activeConversationId] : undefined,
-  }));
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  // Always call hook — pass activeConversationId as part of the selector to keep it unconditional
+  const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
 
   // Open conversation when modal opens
   useEffect(() => {

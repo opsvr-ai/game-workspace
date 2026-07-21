@@ -12,10 +12,8 @@ interface EmbeddedChatPanelProps {
  * Reads active room from chatStore.
  */
 const EmbeddedChatPanel: React.FC<EmbeddedChatPanelProps> = ({ onClose }) => {
-  const { activeConversationId, conv } = useChatStore((s) => ({
-    activeConversationId: s.activeConversationId,
-    conv: s.activeConversationId ? s.conversations[s.activeConversationId] : undefined,
-  }));
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
 
   return (
     <ChatPanel
