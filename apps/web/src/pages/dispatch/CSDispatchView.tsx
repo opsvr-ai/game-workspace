@@ -50,7 +50,9 @@ const CSDispatchView: React.FC = () => {
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
+  const [chatPanelWidth, setChatPanelWidth] = useState(380);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
 
   const fetchCompanions = useCallback(async () => {
     setLoadingCompanions(true);
@@ -615,13 +617,38 @@ const CSDispatchView: React.FC = () => {
 
         {/* Embedded Chat Panel (inside Row — right side) */}
         {selectedCompanionId && (
-          <Col style={{ flexShrink: 0 }}>
+          <Col style={{ flexShrink: 0, display: 'flex' }}>
+            {/* Resize handle (left edge of chat panel) */}
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                resizeRef.current = { startX: e.clientX, startW: chatPanelWidth };
+                const onMove = (ev: MouseEvent) => {
+                  if (!resizeRef.current) return;
+                  const delta = resizeRef.current.startX - ev.clientX;
+                  setChatPanelWidth(Math.min(600, Math.max(300, resizeRef.current.startW + delta)));
+                };
+                const onUp = () => {
+                  resizeRef.current = null;
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+              style={{
+                width: 4, cursor: 'col-resize', flexShrink: 0,
+                background: 'transparent', transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#E0E2E5'; }}
+              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+            />
             <div style={{
               background: '#FFF', borderRadius: 10,
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-              width: 380, minWidth: 300, maxWidth: 600,
+              width: chatPanelWidth, minWidth: 300, maxWidth: 600,
               height: 500, minHeight: 360, maxHeight: 'calc(100vh - 140px)',
-              resize: 'both', overflow: 'auto',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
             }}>
             <EmbeddedChatPanel
               onClose={() => {
