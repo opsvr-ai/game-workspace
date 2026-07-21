@@ -101,24 +101,20 @@ const LoginPage: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!username || !password || !realName || !phone || !registerStudioId) {
+    if (!username || !password || !realName || !idNumber || !phone || !registerStudioId) {
       message.warning('请填写所有必填字段');
       return;
     }
-    // Role mapping: OFFLINE_/ONLINE_ prefix → UserRole + studioType hint
+    if (isCompanionRole && (!idCardFront || !idCardBack)) {
+      message.warning('陪玩注册需要上传身份证正反面照片');
+      return;
+    }
+    // Role mapping: OFFLINE_/ONLINE_ prefix → UserRole
     const roleMap: Record<string, string> = {
       OFFLINE_ADMIN: 'ADMIN', OFFLINE_CS: 'CS', OFFLINE_COMPANION: 'COMPANION',
       ONLINE_ADMIN: 'ADMIN', ONLINE_CS: 'CS', ONLINE_COMPANION: 'COMPANION',
     };
     const apiRole = roleMap[registerRole] || 'COMPANION';
-
-    // ID card only required for companion roles
-    if (isCompanionRole) {
-      if (!idNumber || !idCardFront || !idCardBack) {
-        message.warning('陪玩注册需要身份证号和正反面照片');
-        return;
-      }
-    }
 
     setLoading(true);
     try {
@@ -223,7 +219,6 @@ const LoginPage: React.FC = () => {
                   if (realName && !/^[\u4e00-\u9fa5]{2,4}$/.test(realName)) message.warning('姓名应为2-4个中文字符');
                 }}
               />
-              {isCompanionRole && (
               <Input
                 size="large"
                 placeholder="身份证号 *"
@@ -231,7 +226,6 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => handleIdNumberChange(e.target.value)}
                 status={idNumberError ? 'error' : undefined}
               />
-              )}
               <div style={{ color: '#FF4757', fontSize: 12, marginTop: -8, marginBottom: 8, textAlign: 'left' }}>
                 {idNumberError || '\u00A0'}
               </div>
@@ -289,14 +283,6 @@ const LoginPage: React.FC = () => {
                 </Upload>
               </div>
               )}
-              <Input
-                size="large"
-                placeholder="身份证号 *"
-                value={idNumber}
-                onChange={(e) => handleIdNumberChange(e.target.value)}
-                status={idNumberError ? 'error' : undefined}
-                style={{ display: isCompanionRole ? undefined : 'none' }}
-              />
               <Button
                 type="primary"
                 size="large"
