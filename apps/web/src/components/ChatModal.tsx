@@ -45,7 +45,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
     <Modal
       open={open}
       footer={null}
-      width={520}
+      width={420}
       closable={false}
       maskClosable
       onCancel={onClose}

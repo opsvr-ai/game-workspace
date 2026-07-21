@@ -108,13 +108,14 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
             flex: 1,
             border: 'none',
             outline: 'none',
-            resize: 'none',
+            resize: 'vertical',
             fontSize: 14,
             lineHeight: '22px',
             padding: '6px 0',
             background: 'transparent',
             fontFamily: 'inherit',
-            maxHeight: 120,
+            minHeight: 36,
+            maxHeight: 200,
           }}
         />
 
