@@ -71,6 +71,7 @@ const StudiosPage: React.FC = () => {
 
   const [rejectModal, setRejectModal] = useState<{ userId: string; username: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [detailUser, setDetailUser] = useState<any>(null);
 
   const handleApprove = async (userId: string) => {
     try {
@@ -200,7 +201,11 @@ const StudiosPage: React.FC = () => {
             title: '工作室名称',
             key: 'name',
             width: 140,
-            render: (_: unknown, r: any) => r._type === 'pending' ? (r.studio?.name || '-') : r.name,
+            render: (_: unknown, r: any) => r._type === 'pending' ? (
+              <a onClick={() => setDetailUser(r)} style={{ cursor: 'pointer' }}>
+                {r.studio?.name || '-'}
+              </a>
+            ) : r.name,
           },
           {
             title: '类型',
@@ -294,6 +299,31 @@ const StudiosPage: React.FC = () => {
               <Input placeholder="请输入详细地址" />
             </Form.Item>
           </Form>
+        )}
+      </Modal>
+
+      {/* Detail Modal — show full registration info */}
+      <Modal
+        title="申请详情"
+        open={!!detailUser}
+        onCancel={() => setDetailUser(null)}
+        footer={<Button onClick={() => setDetailUser(null)}>关闭</Button>}
+        width={480}
+      >
+        {detailUser && (
+          <div style={{ lineHeight: 2.2 }}>
+            <p><Text strong>用户名：</Text>{detailUser.username}</p>
+            <p><Text strong>角色：</Text><Tag>{ROLE_LABELS[detailUser.role] || detailUser.role}</Tag></p>
+            <p><Text strong>姓名：</Text>{detailUser.displayName || detailUser.companion?.realName || '-'}</p>
+            <p><Text strong>手机号：</Text>{detailUser.companion?.phone || '-'}</p>
+            <p><Text strong>身份证号：</Text>{detailUser.companion?.idNumber || '-'}</p>
+            <p><Text strong>工作室：</Text>{detailUser.studio?.name || '-'}</p>
+            <p><Text strong>地址：</Text>{detailUser.address || '-'}</p>
+            <p><Text strong>申请时间：</Text>{detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleString('zh-CN') : '-'}</p>
+            {detailUser.leaseContractUrl && (
+              <p><Text strong>租赁合同：</Text><a href={detailUser.leaseContractUrl} target="_blank">查看合同照片</a></p>
+            )}
+          </div>
         )}
       </Modal>
 
