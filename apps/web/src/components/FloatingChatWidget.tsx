@@ -41,7 +41,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [bounce, setBounce] = useState(false);
 
-  const isDragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
   const prevTotalUnread = useRef(totalUnread);
@@ -73,7 +73,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      isDragging.current = true;
+      setIsDragging(true);
       hasMoved.current = false;
       dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
     },
@@ -81,16 +81,15 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   );
 
   useEffect(() => {
-    if (!isDragging.current) return;
+    if (!isDragging) return;
     const onMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
       const nx = Math.max(0, Math.min(window.innerWidth - 56, e.clientX - dragStart.current.x));
       const ny = Math.max(0, Math.min(window.innerHeight - 56, e.clientY - dragStart.current.y));
       if (Math.abs(nx - position.x) > 3 || Math.abs(ny - position.y) > 3) hasMoved.current = true;
       setPosition({ x: nx, y: ny });
     };
     const onUp = () => {
-      isDragging.current = false;
+      setIsDragging(false);
       savePosition(position);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
@@ -101,7 +100,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [position]);
+  }, [isDragging, position]);
 
   // Popover trigger="click" handles open/close — don't duplicate toggle
   const notificationItems = conversationOrder
