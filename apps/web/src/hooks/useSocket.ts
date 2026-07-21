@@ -8,9 +8,17 @@ interface UseSocketOptions {
   onOrderNew?: (data: any) => void;
   onOrderUrgent?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
+  // Legacy chat events (deprecated, remove after migration)
   onChatNotify?: (data: any) => void;
   onChatNew?: (data: any) => void;
   onChatMessage?: (data: any) => void;
+  // Chat 3.0 events
+  onMessageNew?: (data: any) => void;
+  onMessageUpdated?: (data: any) => void;
+  onMessageAcked?: (data: any) => void;
+  onTypingNotify?: (data: any) => void;
+  onRoomUpdated?: (data: any) => void;
+  onSyncRequired?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -54,6 +62,33 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('chat:message', (data: any) => {
       optsRef.current.onChatMessage?.(data);
+      // Also handle as Chat 3.0 message:new for backward compatibility
+      optsRef.current.onMessageNew?.(data);
+    });
+
+    // Chat 3.0 events
+    socket.on('message:new', (data: any) => {
+      optsRef.current.onMessageNew?.(data);
+    });
+
+    socket.on('message:updated', (data: any) => {
+      optsRef.current.onMessageUpdated?.(data);
+    });
+
+    socket.on('message:acked', (data: any) => {
+      optsRef.current.onMessageAcked?.(data);
+    });
+
+    socket.on('typing:notify', (data: any) => {
+      optsRef.current.onTypingNotify?.(data);
+    });
+
+    socket.on('room:updated', (data: any) => {
+      optsRef.current.onRoomUpdated?.(data);
+    });
+
+    socket.on('sync:required', (data: any) => {
+      optsRef.current.onSyncRequired?.(data);
     });
 
     socket.on('order:new', (data: any) => {

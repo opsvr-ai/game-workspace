@@ -1,10 +1,30 @@
+// craftsman-ignore: TS001
 import { create } from 'zustand';
-import { chatApi, type ConversationSummary, type ServerMessage, type ParticipantInfo } from '../api/chat';
+import { chatApi, type ConversationSummary, type ParticipantInfo } from '../api/chat';
 
 export interface Message {
   id: string;
   senderId: string;
-  text: string;
+  text: string; // Backward-compatible alias for content
+  content?: string; // Chat 3.0 content field
+  type?: string; // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
+  seq?: number; // Chat 3.0 sequence number
+  replyTo?: { id: string; type: string; content: string; senderId: string; seq: number };
+  deletedAt?: string;
+  attachments?: Array<{
+    id: string;
+    type: string;
+    url: string;
+    thumbnailUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+    width?: number;
+    height?: number;
+    duration?: number;
+  }>;
+  reactions?: Array<{ userId: string; emoji: string }>;
+  status?: 'pending' | 'sent' | 'failed'; // Optimistic update status
   createdAt: number; // ms timestamp
 }
 
@@ -17,6 +37,8 @@ export interface ConversationState {
   lastMessage: string;
   lastMessageAt: number;
   orderInfo?: string;
+  pinned?: boolean;
+  lastKnownSeq?: number; // Chat 3.0: for sync gap detection
 }
 
 interface ChatState {
@@ -25,18 +47,20 @@ interface ChatState {
   activeConversationId: string | null;
   totalUnread: number;
   myUserId: string | null;
+  syncing: boolean;
 
-  /** THE single write path — called by WS handler and send response */
-  receiveMessage: (convId: string, msg: ServerMessage, orderInfo?: string) => void;
+  /** THE single write path for incoming messages (WS + send response) */
+  receiveMessage: (convId: string, msg: any, orderInfo?: string) => void;
 
   setConversations: (list: ConversationSummary[]) => void;
-  loadMessages: (convId: string, msgs: ServerMessage[], hasMore: boolean) => void;
-  prependMessages: (convId: string, msgs: ServerMessage[], hasMore: boolean) => void;
+  loadMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
+  prependMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
 
-  openConversation: (id: string, participant: ParticipantInfo) => Promise<void>;
+  openConversation: (participantId: string, participant: ParticipantInfo, orderInfo?: string) => Promise<void>;
   closeConversation: () => void;
   markRead: (convId: string) => void;
   setMyUserId: (id: string) => void;
+  setSyncing: (v: boolean) => void;
   reset: () => void;
 }
 
@@ -59,14 +83,38 @@ function ensureConv(s: ChatState, id: string, participant?: ParticipantInfo): Ch
   };
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+function normalizeMessage(msg: any): Message {
+  const text = msg.text || msg.content || '';
+  const createdAt = msg.createdAt
+    ? typeof msg.createdAt === 'string'
+      ? new Date(msg.createdAt).getTime()
+      : msg.createdAt
+    : Date.now();
+  return {
+    id: msg.id,
+    senderId: msg.senderId,
+    text,
+    content: msg.content,
+    type: msg.type || 'TEXT',
+    seq: msg.seq,
+    replyTo: msg.replyTo,
+    deletedAt: msg.deletedAt,
+    attachments: msg.attachments || [],
+    reactions: msg.reactions || [],
+    status: msg.status,
+    createdAt,
+  };
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
   conversations: {},
   conversationOrder: [],
   activeConversationId: null,
   totalUnread: 0,
   myUserId: null,
+  syncing: false,
 
-  receiveMessage: (convId: string, msg: ServerMessage, orderInfo?: string) =>
+  receiveMessage: (convId: string, msg: any, orderInfo?: string) =>
     set((s) => {
       const s2 = ensureConv(s, convId);
       const conv = s2.conversations[convId];
@@ -74,12 +122,7 @@ export const useChatStore = create<ChatState>((set) => ({
       // Dedup by server UUID
       if (conv.messages.some((m) => m.id === msg.id)) return s2;
 
-      const newMsg: Message = {
-        id: msg.id,
-        senderId: msg.senderId,
-        text: msg.text,
-        createdAt: new Date(msg.createdAt).getTime(),
-      };
+      const newMsg = normalizeMessage(msg);
 
       const isActive = s2.activeConversationId === convId;
       const isMine = msg.senderId === s2.myUserId;
@@ -89,9 +132,10 @@ export const useChatStore = create<ChatState>((set) => ({
         ...conv,
         messages: [...conv.messages, newMsg].slice(-200),
         unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
-        lastMessage: msg.text,
+        lastMessage: newMsg.text.slice(0, 100),
         lastMessageAt: newMsg.createdAt,
         orderInfo: orderInfo || conv.orderInfo,
+        lastKnownSeq: msg.seq || conv.lastKnownSeq,
       };
 
       // Move to top of order
@@ -106,62 +150,67 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setConversations: (list: ConversationSummary[]) =>
     set((s) => {
-      const conversations: Record<string, ConversationState> = {};
-      const order: string[] = [];
+      const conversations: Record<string, ConversationState> = { ...s.conversations };
+      const orderSet = new Set(s.conversationOrder);
       let totalUnread = 0;
+
       for (const item of list) {
         const existing = s.conversations[item.id];
+        const unread = item.unreadCount ?? 0;
+
         conversations[item.id] = {
           id: item.id,
           participant: item.participant,
           messages: existing?.messages || [],
           hasMore: existing?.hasMore ?? true,
-          unreadCount: item.unreadCount,
+          unreadCount: unread,
           lastMessage: item.lastMessage || existing?.lastMessage || '',
           lastMessageAt: item.lastMessageAt ? new Date(item.lastMessageAt).getTime() : existing?.lastMessageAt || 0,
           orderInfo: item.orderInfo || existing?.orderInfo,
+          pinned: (item as any).pinned,
+          lastKnownSeq: existing?.lastKnownSeq,
         };
-        order.push(item.id);
-        totalUnread += item.unreadCount;
+
+        if (!orderSet.has(item.id)) {
+          orderSet.add(item.id);
+        }
+        totalUnread += unread;
       }
-      return { conversations, conversationOrder: order, totalUnread };
+
+      return {
+        conversations,
+        conversationOrder: [...orderSet],
+        totalUnread,
+      };
     }),
 
-  loadMessages: (convId: string, msgs: ServerMessage[], hasMore: boolean) =>
+  loadMessages: (convId: string, msgs: any[], hasMore: boolean) =>
     set((s) => {
       const s2 = ensureConv(s, convId);
       const conv = s2.conversations[convId];
       const existingIds = new Set(conv.messages.map((m) => m.id));
-      const newMsgs = msgs
-        .filter((m) => !existingIds.has(m.id))
-        .map((m) => ({
-          id: m.id,
-          senderId: m.senderId,
-          text: m.text,
-          createdAt: new Date(m.createdAt).getTime(),
-        }));
+      const newMsgs = msgs.filter((m) => !existingIds.has(m.id)).map(normalizeMessage);
       const merged = [...conv.messages, ...newMsgs].sort((a, b) => a.createdAt - b.createdAt).slice(-200);
+      const lastMsg = merged[merged.length - 1];
       return {
         conversations: {
           ...s2.conversations,
-          [convId]: { ...conv, messages: merged, hasMore },
+          [convId]: {
+            ...conv,
+            messages: merged,
+            hasMore,
+            lastKnownSeq: lastMsg?.seq || conv.lastKnownSeq,
+          },
         },
       };
     }),
 
-  prependMessages: (convId: string, msgs: ServerMessage[], hasMore: boolean) =>
+  prependMessages: (convId: string, msgs: any[], hasMore: boolean) =>
     set((s) => {
       const s2 = ensureConv(s, convId);
       const conv = s2.conversations[convId];
       const existingIds = new Set(conv.messages.map((m) => m.id));
-      const olderMsgs = msgs
-        .filter((m) => !existingIds.has(m.id))
-        .map((m) => ({
-          id: m.id,
-          senderId: m.senderId,
-          text: m.text,
-          createdAt: new Date(m.createdAt).getTime(),
-        }));
+      const olderMsgs = msgs.filter((m) => !existingIds.has(m.id)).map(normalizeMessage);
       const merged = [...olderMsgs, ...conv.messages].sort((a, b) => a.createdAt - b.createdAt).slice(-200);
       return {
         conversations: {
@@ -171,13 +220,13 @@ export const useChatStore = create<ChatState>((set) => ({
       };
     }),
 
-  openConversation: async (userId: string, participant: ParticipantInfo, orderInfo?: string) => {
-    // Create/get real conversation via API (returns conversation UUID)
-    let convId = userId;
+  openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string) => {
+    let convId = participantId;
     try {
-      const { data } = await chatApi.createConversation(participant.userId || userId, orderInfo);
-      convId = data?.data?.id || userId;
+      const { data } = await chatApi.createConversation(participant.userId || participantId, orderInfo);
+      convId = data?.data?.id || participantId;
     } catch {}
+
     set((s) => {
       const s2 = ensureConv(s, convId, participant);
       return {
@@ -193,18 +242,20 @@ export const useChatStore = create<ChatState>((set) => ({
         },
       };
     });
+
     // Load history
     try {
       const { data } = await chatApi.getMessages(convId);
       const msgs = data?.data?.messages || [];
       const hasMore = data?.data?.hasMore ?? false;
       if (msgs.length > 0) {
-        useChatStore.getState().loadMessages(convId, msgs, hasMore);
+        get().loadMessages(convId, msgs, hasMore);
       }
     } catch {}
+
     // Mark read
     chatApi.markRead(convId).catch(() => {});
-    useChatStore.getState().markRead(convId);
+    get().markRead(convId);
   },
 
   closeConversation: () =>
@@ -238,12 +289,13 @@ export const useChatStore = create<ChatState>((set) => ({
     }),
 
   setMyUserId: (id: string) => set({ myUserId: id }),
-
+  setSyncing: (v: boolean) => set({ syncing: v }),
   reset: () =>
     set({
       conversations: {},
       conversationOrder: [],
       activeConversationId: null,
       totalUnread: 0,
+      syncing: false,
     }),
 }));

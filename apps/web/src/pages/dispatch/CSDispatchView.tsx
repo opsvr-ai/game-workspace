@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Row, Col, Card, Button, Modal, Select, Tag, Typography, Space, message, List, Spin, Badge, Input } from 'antd';
+import { Row, Col, Card, Button, Modal, Select, Tag, Typography, Space, message, List, Spin, Input } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
@@ -46,31 +46,18 @@ const CSDispatchView: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [chatPartner, setChatPartner] = useState<{
-    companionId: string;
-    companionName: string;
+    companionId?: string;
+    companionName?: string;
+    conversationId?: string;
+    participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
+    orderInfo?: string;
     avatar?: string;
   } | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
-  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [companionSearch, setCompanionSearch] = useState('');
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
-
-  // Poll localStorage for unread badges every 2s
-  useEffect(() => {
-    const read = () => {
-      const map: Record<string, number> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith('unread-')) map[k.replace('unread-', '')] = parseInt(localStorage.getItem(k) || '0', 10);
-      }
-      setUnreadMap(map);
-    };
-    read();
-    const t = setInterval(read, 2000);
-    return () => clearInterval(t);
-  }, []);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchCompanions = useCallback(async () => {
@@ -219,7 +206,8 @@ const CSDispatchView: React.FC = () => {
                 dataSource={filteredCompanions}
                 renderItem={(c) => {
                   const isSelected = selectedCompanionId === c.id;
-                  const hasUnread = (unreadMap[c.id] || 0) > 0;
+                  const companionConvUnread = useChatStore.getState().conversations[c.id]?.unreadCount || 0;
+                  const hasUnread = companionConvUnread > 0;
                   return (
                     <List.Item
                       style={{
@@ -242,10 +230,11 @@ const CSDispatchView: React.FC = () => {
                       }}
                       onClick={() => {
                         setSelectedCompanionId(c.id);
-                        setUnreadMap((prev) => {
-                          const { [c.id]: _, ...r } = prev;
-                          return r;
-                        });
+                        // Mark read via chatStore instead of localStorage
+                        const store = useChatStore.getState();
+                        if (store.conversations[c.id]) {
+                          store.markRead(c.id);
+                        }
                         const u = c.user as any;
                         // Find matching order for this companion (check both pool and assigned)
                         const order = [...poolOrders, ...allOrders].find((o: any) => o.companionId === c.id);
@@ -450,7 +439,6 @@ const CSDispatchView: React.FC = () => {
                           borderRadius: 10,
                           padding: '8px 14px',
                           border: '1px solid #F1F5F9',
-                          borderRadius: 8,
                           transition: 'all 0.2s',
                           animation: 'fade-slide-in 0.3s ease',
                         }}
