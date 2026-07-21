@@ -13,20 +13,18 @@ interface Props {
 const STORAGE_KEY = 'chat-widget-pos';
 
 function loadPosition(): { x: number; y: number } {
+  const w = window.innerWidth || 1024;
+  const h = window.innerHeight || 768;
+  const defaultPos = { x: w - 76, y: h - 140 };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      // Validate saved position is still within viewport
-      if (saved.x >= 0 && saved.y >= 0 && saved.x < window.innerWidth && saved.y < window.innerHeight) {
-        return saved;
-      }
+      // Only accept saved position if it's near the right/bottom edge (within 200px)
+      if (saved.x > w - 200 && saved.y > h - 300) return saved;
     }
   } catch {}
-  // Default: bottom-right corner, with safety bounds for Electron startup
-  const x = Math.max(0, window.innerWidth - 76);
-  const y = Math.max(0, window.innerHeight - 140);
-  return { x: Math.max(0, x), y: Math.max(0, y) };
+  return defaultPos;
 }
 
 function savePosition(pos: { x: number; y: number }): void {
