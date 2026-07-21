@@ -11,7 +11,7 @@ import DualCompanionModal from '../components/DualCompanionModal';
 import { ChatProvider } from '../components/chat';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
-import { FloatingChatWidget } from '../components/FloatingChatWidget';
+// FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -619,9 +619,6 @@ const AppLayout: React.FC = () => {
         partner={globalChatPartner as any}
         onClose={() => setGlobalChatPartner(null)}
       />
-
-      {/* Floating chat notification widget (bottom-right) */}
-      <FloatingChatWidget onOpenChat={openChatFromNotification} />
 
       {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
