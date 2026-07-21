@@ -15,9 +15,18 @@ const STORAGE_KEY = 'chat-widget-pos';
 function loadPosition(): { x: number; y: number } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // Validate saved position is still within viewport
+      if (saved.x >= 0 && saved.y >= 0 && saved.x < window.innerWidth && saved.y < window.innerHeight) {
+        return saved;
+      }
+    }
   } catch {}
-  return { x: window.innerWidth - 76, y: window.innerHeight - 140 };
+  // Default: bottom-right corner, with safety bounds for Electron startup
+  const x = Math.max(0, window.innerWidth - 76);
+  const y = Math.max(0, window.innerHeight - 140);
+  return { x: Math.max(0, x), y: Math.max(0, y) };
 }
 
 function savePosition(pos: { x: number; y: number }): void {
