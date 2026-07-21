@@ -52,6 +52,12 @@ export class AuthService {
       expiresIn: '7d',
     });
 
+    // Include pending count for OWNER/ADMIN
+    let pendingReviewCount = 0;
+    if (user.role === 'OWNER' || user.role === 'ADMIN') {
+      pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+    }
+
     const userInfo: UserInfo = {
       id: user.id,
       username: user.username,
@@ -60,6 +66,7 @@ export class AuthService {
       companionId: user.companion?.id,
       displayName: user.displayName,
       avatar: user.avatar,
+      pendingReviewCount,
     };
 
     return {
