@@ -23,7 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: '#F23F42',
 };
 
-const OrderCardMessage: React.FC<OrderCardMessageProps> = ({ content, isMe, onViewOrder }) => {
+const OrderCardMessage: React.FC<OrderCardMessageProps> = ({ content, onViewOrder }) => {
   let order: any = {};
   try {
     order = JSON.parse(content);

@@ -143,7 +143,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
 // ── Inline rich media renderers ──
 
-const ImageContent: React.FC<{ attachments: any[]; isMe: boolean }> = ({ attachments, isMe }) => {
+const ImageContent: React.FC<{ attachments: any[]; isMe: boolean }> = ({ attachments }) => {
   const imgs = attachments.filter((a: any) => a.type === 'IMAGE');
   if (!imgs.length) return <span>[图片]</span>;
   const cols = imgs.length === 1 ? 1 : imgs.length === 2 ? 2 : 3;

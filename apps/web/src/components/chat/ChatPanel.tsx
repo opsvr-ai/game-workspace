@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useChatStore, type Message } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
@@ -24,12 +24,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
   const participantName = participant?.displayName || participant?.username || '...';
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: Message } | null>(null);
-  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
-
-  // Clear reply on room change
-  useEffect(() => {
-    setReplyTarget(null);
-  }, [roomId]);
+  const [, setReplyTarget] = useState<Message | null>(null);
 
   const handleSend = useCallback(
     async (text: string, replyToId?: string) => {
@@ -197,7 +192,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         messages={messages}
         myUserId={user?.id || null}
         participantName={participantName}
-        typing={typing}
+        typing={false}
         hasMore={conv?.hasMore ?? false}
         onLoadMore={handleLoadMore}
         onReply={handleReply}

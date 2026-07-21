@@ -96,7 +96,7 @@ export async function cleanupCache(maxPerRoom = 500) {
     byRoom[m.roomId].push(m);
   }
   const tx = db.transaction('messages', 'readwrite');
-  for (const [roomId, msgs] of Object.entries(byRoom)) {
+  for (const [, msgs] of Object.entries(byRoom)) {
     if (msgs.length > maxPerRoom) {
       const toDelete = msgs.sort((a, b) => b.seq - a.seq).slice(maxPerRoom);
       for (const m of toDelete) {

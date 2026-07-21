@@ -9,7 +9,6 @@ import { useChatStore } from '../stores/chatStore';
  */
 export function useChatSync(wsConnected: boolean) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const store = useChatStore();
 
   const sync = useCallback(async () => {
     const state = useChatStore.getState();

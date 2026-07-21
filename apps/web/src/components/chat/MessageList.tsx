@@ -27,8 +27,8 @@ const MessageList: React.FC<MessageListProps> = ({
   myUserId,
   participantName,
   typing,
-  onReply,
-  onRecall,
+  onReply: _onReply,
+  onRecall: _onRecall,
   onReaction,
   onRemoveReaction,
   onContextMenu,
@@ -118,8 +118,6 @@ const MessageList: React.FC<MessageListProps> = ({
                 showAvatar={showAvatar}
                 showTime={showTime}
                 participantName={isMe ? undefined : participantName}
-                onReply={() => onReply?.(msg)}
-                onRecall={() => onRecall?.(msg)}
                 onReaction={(emoji) => onReaction?.(msg.id, emoji)}
                 onRemoveReaction={(emoji) => onRemoveReaction?.(msg.id, emoji)}
                 onContextMenu={(e) => onContextMenu?.(e, msg)}
