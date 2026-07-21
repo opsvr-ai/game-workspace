@@ -12,6 +12,8 @@ interface MessageListProps {
   messages: Message[];
   myUserId: string | null;
   participantName?: string;
+  participantAvatarUrl?: string;
+  myAvatarUrl?: string;
   typing?: boolean;
   onReply?: (msg: Message) => void;
   onRecall?: (msg: Message) => void;
@@ -26,6 +28,8 @@ const MessageList: React.FC<MessageListProps> = ({
   messages,
   myUserId,
   participantName,
+  participantAvatarUrl,
+  myAvatarUrl,
   typing,
   onReply: _onReply,
   onRecall: _onRecall,
@@ -120,6 +124,7 @@ const MessageList: React.FC<MessageListProps> = ({
                 showAvatar={showAvatar}
                 showTime={showTime}
                 participantName={isMe ? undefined : participantName}
+                avatarUrl={isMe ? myAvatarUrl : participantAvatarUrl}
                 onReaction={(emoji) => onReaction?.(msg.id, emoji)}
                 onRemoveReaction={(emoji) => onRemoveReaction?.(msg.id, emoji)}
                 onContextMenu={(e) => onContextMenu?.(e, msg)}

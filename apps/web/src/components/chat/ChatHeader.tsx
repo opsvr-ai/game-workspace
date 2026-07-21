@@ -8,6 +8,7 @@ const { Text } = Typography;
 interface ChatHeaderProps {
   name: string;
   role: string;
+  avatarUrl?: string;
   orderInfo?: string;
   pinned?: boolean;
   onTogglePin?: () => void;
@@ -21,7 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   OWNER: '老板',
 };
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, orderInfo, pinned, onTogglePin, onClose }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInfo, pinned, onTogglePin, onClose }) => {
   return (
     <div
       style={{
@@ -35,18 +36,33 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, orderInfo, pinned, 
         flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <Space size={8}>
-          <Text strong style={{ fontSize: 15, color: '#313338' }}>
-            {name}
-          </Text>
-          <Tag style={{ fontSize: 11, padding: '0 6px', lineHeight: '18px' }}>{ROLE_LABELS[role] || role}</Tag>
-        </Space>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" style={{
+            width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+          }} />
+        ) : (
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%', background: '#CBD5E1',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#FFF', fontSize: 14, fontWeight: 700, flexShrink: 0,
+          }}>
+            {name[0]?.toUpperCase()}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <Space size={8}>
+            <Text strong style={{ fontSize: 15, color: '#313338' }}>
+              {name}
+            </Text>
+            <Tag style={{ fontSize: 11, padding: '0 6px', lineHeight: '18px' }}>{ROLE_LABELS[role] || role}</Tag>
+          </Space>
         {orderInfo && (
           <Text type="secondary" style={{ fontSize: 12, marginTop: 1 }}>
             {orderInfo}
           </Text>
         )}
+      </div>
       </div>
       <Space size={4}>
         {onTogglePin && (

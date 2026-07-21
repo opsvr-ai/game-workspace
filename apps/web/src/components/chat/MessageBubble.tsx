@@ -10,6 +10,7 @@ interface MessageBubbleProps {
   showAvatar: boolean;
   showTime: boolean;
   participantName?: string;
+  avatarUrl?: string;  // full URL to avatar image (e.g. /uploads/avatars/xxx)
   onReaction?: (emoji: string) => void;
   onRemoveReaction?: (emoji: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -22,6 +23,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   showAvatar,
   showTime,
   participantName,
+  avatarUrl,
   onReaction,
   onRemoveReaction,
   onContextMenu,
@@ -65,6 +67,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexDirection: isMe ? 'row-reverse' : 'row' }}>
         {/* Avatar */}
         {showAvatar ? (
+          avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                objectFit: 'cover', flexShrink: 0,
+              }}
+            />
+          ) : (
           <div
             style={{
               width: 36,
@@ -82,6 +94,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           >
             {(participantName || '?')[0].toUpperCase()}
           </div>
+          )
         ) : (
           <div style={{ width: 36, flexShrink: 0 }} />
         )}

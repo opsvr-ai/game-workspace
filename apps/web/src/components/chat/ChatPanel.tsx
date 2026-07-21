@@ -22,6 +22,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
   const conv = useChatStore((s) => (roomId ? s.conversations[roomId] : undefined));
   const messages = conv?.messages || [];
   const participantName = participant?.displayName || participant?.username || '...';
+  const participantAvatar = participant?.avatar ? `/uploads/avatars/${participant.avatar}?v=${participant.avatar}` : undefined;
+  const myAvatar = user?.avatar ? `/uploads/avatars/${user.avatar}?v=${user.avatar}` : undefined;
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: Message } | null>(null);
   const [, setReplyTarget] = useState<Message | null>(null);
@@ -149,6 +151,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
       <ChatHeader
         name={participantName}
         role={participant?.role || ''}
+        avatarUrl={participantAvatar}
         orderInfo={orderInfo || conv?.orderInfo}
         pinned={conv?.pinned}
         onClose={onClose}
@@ -160,6 +163,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         messages={messages}
         myUserId={user?.id || null}
         participantName={participantName}
+        participantAvatarUrl={participantAvatar}
+        myAvatarUrl={myAvatar}
         typing={false}
         hasMore={conv?.hasMore ?? false}
         onLoadMore={handleLoadMore}
