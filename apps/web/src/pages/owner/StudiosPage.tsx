@@ -266,7 +266,7 @@ const StudiosPage: React.FC = () => {
             loading={loadingPending}
             pagination={false}
             size="small"
-            scroll={{ x: 700 }}
+            scroll={{ x: 'max-content' }}
             columns={[
               { title: '用户名', dataIndex: 'username', width: 90 },
               { title: '角色', dataIndex: 'role', width: 60, render: (v: string) => <Tag>{ROLE_LABELS[v] || v}</Tag> },
