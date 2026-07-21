@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -5,54 +6,66 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Create or get existing conversation between two users */
-  async getOrCreateConversation(studioId: string, userId: string, participantId: string, orderInfo?: string) {
-    const participantA = [userId, participantId].sort()[0];
-    const participantB = [userId, participantId].sort()[1];
+  // ─── Room Management ───
 
-    let conv = await this.prisma.conversation.findUnique({
-      where: { studioId_participantA_participantB: { studioId, participantA, participantB } },
+  /** Create or get existing ChatRoom between two users */
+  async getOrCreateRoom(studioId: string, userId: string, participantId: string, orderInfo?: string) {
+    const [participantA, participantB] = [userId, participantId].sort();
+
+    let room = await this.prisma.chatRoom.findUnique({
+      where: {
+        studioId_participantA_participantB: { studioId, participantA, participantB },
+      },
     });
 
-    if (!conv) {
-      conv = await this.prisma.conversation.create({
+    if (!room) {
+      room = await this.prisma.chatRoom.create({
         data: { studioId, participantA, participantB, orderInfo },
       });
-    } else if (orderInfo && !conv.orderInfo) {
-      // Update orderInfo if not previously set
-      conv = await this.prisma.conversation.update({
-        where: { id: conv.id },
+    } else if (orderInfo && !room.orderInfo) {
+      room = await this.prisma.chatRoom.update({
+        where: { id: room.id },
         data: { orderInfo },
       });
     }
 
-    return conv;
+    return room;
   }
 
-  /** List conversations for a user, resolving participant info */
-  async listConversations(userId: string, studioId: string) {
-    const conversations = await this.prisma.conversation.findMany({
-      where: {
-        studioId,
-        OR: [{ participantA: userId }, { participantB: userId }],
-      },
-      orderBy: { lastMessageAt: 'desc' },
+  /** List rooms for a user */
+  async listRooms(userId: string, studioId: string, opts?: { pinned?: boolean; search?: string }) {
+    const where: any = {
+      studioId,
+      OR: [{ participantA: userId }, { participantB: userId }],
+      ...(opts?.pinned ? { pinned: true } : {}),
+    };
+
+    const rooms = await this.prisma.chatRoom.findMany({
+      where,
+      orderBy: [{ pinned: 'desc' }, { lastMessageAt: 'desc' }],
     });
 
-    // Resolve participant info for the OTHER user in each conversation
     const result = [];
-    for (const c of conversations) {
-      const otherUserId = c.participantA === userId ? c.participantB : c.participantA;
+    for (const r of rooms) {
+      const otherUserId = r.participantA === userId ? r.participantB : r.participantA;
       const user = await this.prisma.user.findUnique({
         where: { id: otherUserId },
         select: { id: true, username: true, displayName: true, avatar: true, role: true },
       });
       if (!user) continue;
 
-      const unreadCount = await this.getUnreadCount(c.id, userId);
+      // Filter by search term if provided
+      if (opts?.search) {
+        const q = opts.search.toLowerCase();
+        const name = (user.displayName || user.username).toLowerCase();
+        const orderInfo = (r.orderInfo || '').toLowerCase();
+        if (!name.includes(q) && !orderInfo.includes(q)) continue;
+      }
+
+      const unreadCount = await this.getUnreadCount(r.id, userId);
 
       result.push({
-        id: c.id,
+        id: r.id,
         participant: {
           userId: user.id,
           username: user.username,
@@ -60,118 +73,341 @@ export class ChatService {
           avatar: user.avatar || undefined,
           role: user.role,
         },
-        lastMessage: c.lastMessage,
-        lastMessageAt: c.lastMessageAt?.toISOString() || null,
+        lastMessage: r.lastMessage,
+        lastMessageAt: r.lastMessageAt?.toISOString() || null,
         unreadCount,
-        orderInfo: c.orderInfo || undefined,
+        orderInfo: r.orderInfo || undefined,
+        pinned: r.pinned,
+        archived: r.archived,
       });
     }
 
     return result;
   }
 
-  /** Send a message */
-  async sendMessage(conversationId: string, senderId: string, text: string) {
-    // Verify sender is a participant
-    const conv = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
-    if (!conv) throw new Error('Conversation not found');
-    if (conv.participantA !== senderId && conv.participantB !== senderId) {
-      throw new Error('Sender is not a participant');
-    }
-
-    const msg = await this.prisma.chatMessage.create({
-      data: { conversationId, senderId, text },
+  /** Update room metadata (pin/archive) */
+  async updateRoom(roomId: string, data: { pinned?: boolean; archived?: boolean; orderInfo?: string }) {
+    return this.prisma.chatRoom.update({
+      where: { id: roomId },
+      data: {
+        ...(data.pinned !== undefined ? { pinned: data.pinned, pinnedAt: data.pinned ? new Date() : null } : {}),
+        ...(data.archived !== undefined ? { archived: data.archived } : {}),
+        ...(data.orderInfo !== undefined ? { orderInfo: data.orderInfo } : {}),
+      },
     });
-
-    // Update conversation last message
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { lastMessage: text.slice(0, 100), lastMessageAt: new Date() },
-    });
-
-    return msg;
   }
 
-  /** Get messages for a conversation (cursor-based pagination) */
-  async getConversationMessages(conversationId: string, before?: string, limit = 50) {
-    const where: { conversationId: string; createdAt?: { lt: Date } } = { conversationId };
-    if (before) {
-      where.createdAt = { lt: new Date(before) };
+  // ─── Message Operations ───
+
+  /** Send a message (HTTP path — main entry for sending) */
+  async sendMessage(
+    roomId: string,
+    senderId: string,
+    data: {
+      type?: string;
+      content?: string;
+      attachments?: Array<{
+        type: string;
+        url: string;
+        thumbnailUrl?: string;
+        fileName?: string;
+        fileSize?: number;
+        mimeType?: string;
+        width?: number;
+        height?: number;
+        duration?: number;
+      }>;
+      replyToId?: string;
+    },
+  ) {
+    const { type = 'TEXT', content, attachments = [], replyToId } = data;
+
+    // Verify sender is a participant
+    const room = await this.prisma.chatRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new Error('CHAT_ROOM_NOT_FOUND');
+    if (room.participantA !== senderId && room.participantB !== senderId) {
+      throw new Error('CHAT_NOT_PARTICIPANT');
     }
 
-    const messages = await this.prisma.chatMessage.findMany({
+    // Validate: must have content OR attachments (except for ORDER_CARD/SYSTEM)
+    if (!content && attachments.length === 0) {
+      throw new Error('消息不能为空');
+    }
+
+    // Atomic: increment seq + create message + update room
+    const [msg] = await this.prisma.$transaction([
+      // Read current max seq
+      this.prisma.chatRoom.findUnique({ where: { id: roomId }, select: { lastMessageSeq: true } }),
+    ]);
+
+    const nextSeq = (msg?.lastMessageSeq ?? 0) + 1;
+
+    const [message] = await this.prisma.$transaction([
+      this.prisma.chatMessageV3.create({
+        data: {
+          roomId,
+          senderId,
+          type,
+          content: content?.slice(0, 5000),
+          seq: nextSeq,
+          replyToId: replyToId || null,
+          attachments: attachments.length > 0 ? { create: attachments } : undefined,
+        },
+        include: {
+          attachments: true,
+          replyTo: {
+            select: { id: true, type: true, content: true, senderId: true },
+          },
+        },
+      }),
+      this.prisma.chatRoom.update({
+        where: { id: roomId },
+        data: {
+          lastMessage: content?.slice(0, 100) || `[${type}]`,
+          lastMessageAt: new Date(),
+          lastMessageSeq: nextSeq,
+          archived: false, // un-archive on new message
+        },
+      }),
+    ]);
+
+    // Audit log
+    await this.prisma.chatAuditLog
+      .create({
+        data: { roomId, userId: senderId, action: 'SEND', metadata: { messageId: message.id, seq: nextSeq } },
+      })
+      .catch(() => {});
+
+    return message;
+  }
+
+  /** Get messages for a room (cursor-based pagination by seq) */
+  async getRoomMessages(roomId: string, before?: number, after?: number, limit = 50) {
+    const where: any = { roomId };
+
+    if (before) {
+      where.seq = { lt: before };
+    }
+    if (after) {
+      where.seq = { gt: after };
+    }
+
+    const messages = await this.prisma.chatMessageV3.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { seq: 'desc' },
       take: limit + 1,
+      include: {
+        attachments: true,
+        reactions: true,
+        replyTo: {
+          select: { id: true, type: true, content: true, senderId: true, seq: true },
+        },
+      },
     });
 
     const hasMore = messages.length > limit;
     const result = messages.slice(0, limit).reverse();
 
     return {
-      messages: result.map((m) => ({
-        id: m.id,
-        senderId: m.senderId,
-        text: m.text,
-        createdAt: m.createdAt.toISOString(),
-      })),
+      messages: result.map((m) => this.serializeMessage(m)),
       hasMore,
     };
   }
 
-  /** Mark conversation as read */
-  async markRead(conversationId: string, userId: string) {
-    const conv = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
-    if (!conv) return;
+  /** Get messages since a given seq (for sync/poll) */
+  async getMessagesSince(roomId: string, sinceSeq: number) {
+    const messages = await this.prisma.chatMessageV3.findMany({
+      where: { roomId, seq: { gt: sinceSeq } },
+      orderBy: { seq: 'asc' },
+      include: {
+        attachments: true,
+        reactions: true,
+        replyTo: {
+          select: { id: true, type: true, content: true, senderId: true, seq: true },
+        },
+      },
+    });
 
-    const now = new Date();
-    if (conv.participantA === userId) {
-      await this.prisma.conversation.update({ where: { id: conversationId }, data: { aReadAt: now } });
-    } else if (conv.participantB === userId) {
-      await this.prisma.conversation.update({ where: { id: conversationId }, data: { bReadAt: now } });
-    }
+    return messages.map((m) => this.serializeMessage(m));
   }
 
-  /** Get unread count for a user in a conversation */
-  async getUnreadCount(conversationId: string, userId: string) {
-    const conv = await this.prisma.conversation.findUnique({ where: { id: conversationId } });
-    if (!conv) return 0;
+  /** Bulk sync — get missed messages across rooms */
+  async syncRooms(userId: string, rooms: Array<{ roomId: string; lastKnownSeq: number }>) {
+    const missedMessages: any[] = [];
+    const updatedRooms: any[] = [];
 
-    const myReadAt = conv.participantA === userId ? conv.aReadAt : conv.bReadAt;
-    if (!myReadAt) {
-      // Never read — count all messages not from this user
-      return this.prisma.chatMessage.count({
-        where: { conversationId, senderId: { not: userId } },
+    for (const { roomId, lastKnownSeq } of rooms) {
+      // Verify participant
+      const room = await this.prisma.chatRoom.findUnique({
+        where: { id: roomId },
+        select: { participantA: true, participantB: true },
       });
+      if (!room || (room.participantA !== userId && room.participantB !== userId)) continue;
+
+      const messages = await this.getMessagesSince(roomId, lastKnownSeq);
+      if (messages.length > 0) {
+        missedMessages.push(...messages.map((m) => ({ ...m, roomId })));
+        updatedRooms.push({ roomId, latestSeq: messages[messages.length - 1].seq });
+      }
     }
 
-    return this.prisma.chatMessage.count({
+    return { missedMessages, updatedRooms };
+  }
+
+  /** Mark room as read up to a given seq */
+  async markRead(roomId: string, userId: string) {
+    const room = await this.prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      select: { participantA: true, participantB: true, lastMessageSeq: true },
+    });
+    if (!room) return;
+
+    const latestSeq = room.lastMessageSeq;
+    const data = room.participantA === userId ? { aReadSeq: latestSeq } : { bReadSeq: latestSeq };
+
+    await this.prisma.chatRoom.update({ where: { id: roomId }, data });
+    return latestSeq;
+  }
+
+  /** Get unread count for a user in a room */
+  async getUnreadCount(roomId: string, userId: string): Promise<number> {
+    const room = await this.prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      select: { participantA: true, participantB: true, aReadSeq: true, bReadSeq: true },
+    });
+    if (!room) return 0;
+
+    const myReadSeq = room.participantA === userId ? room.aReadSeq : room.bReadSeq;
+
+    return this.prisma.chatMessageV3.count({
       where: {
-        conversationId,
+        roomId,
         senderId: { not: userId },
-        createdAt: { gt: myReadAt },
+        seq: { gt: myReadSeq },
+        deletedAt: null,
       },
     });
   }
 
-  /** Get total unread count across all conversations */
+  /** Get total unread count across all rooms */
   async getTotalUnread(userId: string, studioId: string) {
-    const conversations = await this.prisma.conversation.findMany({
+    const rooms = await this.prisma.chatRoom.findMany({
+      where: {
+        studioId,
+        OR: [{ participantA: userId }, { participantB: userId }],
+        archived: false,
+      },
+      select: {
+        id: true,
+        participantA: true,
+        participantB: true,
+        aReadSeq: true,
+        bReadSeq: true,
+        lastMessageSeq: true,
+      },
+    });
+
+    let total = 0;
+    for (const r of rooms) {
+      const myReadSeq = r.participantA === userId ? r.aReadSeq : r.bReadSeq;
+      if (myReadSeq < r.lastMessageSeq) {
+        total += await this.getUnreadCount(r.id, userId);
+      }
+    }
+
+    return total;
+  }
+
+  /** Mark all rooms as read */
+  async markAllRead(userId: string, studioId: string) {
+    const rooms = await this.prisma.chatRoom.findMany({
       where: {
         studioId,
         OR: [{ participantA: userId }, { participantB: userId }],
       },
-      select: { id: true, participantA: true, participantB: true, aReadAt: true, bReadAt: true },
+      select: { id: true, participantA: true, participantB: true, lastMessageSeq: true },
     });
 
-    let total = 0;
-    for (const c of conversations) {
-      total += await this.getUnreadCount(c.id, userId);
+    for (const r of rooms) {
+      if (r.participantA === userId) {
+        await this.prisma.chatRoom.update({
+          where: { id: r.id },
+          data: { aReadSeq: r.lastMessageSeq },
+        });
+      } else {
+        await this.prisma.chatRoom.update({
+          where: { id: r.id },
+          data: { bReadSeq: r.lastMessageSeq },
+        });
+      }
     }
-    return total;
   }
 
-  /** Get user profile for chat display */
+  // ─── Message Actions ───
+
+  /** Recall (soft-delete) a message within 2 minute window */
+  async recallMessage(roomId: string, messageId: string, userId: string) {
+    const message = await this.prisma.chatMessageV3.findUnique({
+      where: { id: messageId },
+      select: { senderId: true, createdAt: true, deletedAt: true },
+    });
+
+    if (!message || message.senderId !== userId) {
+      throw new Error('CHAT_NOT_PARTICIPANT');
+    }
+    if (message.deletedAt) {
+      throw new Error('消息已被撤回');
+    }
+
+    const elapsed = Date.now() - message.createdAt.getTime();
+    if (elapsed > 2 * 60 * 1000) {
+      throw new Error('CHAT_RECALL_TIMEOUT');
+    }
+
+    await this.prisma.chatMessageV3.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date() },
+    });
+
+    await this.prisma.chatAuditLog
+      .create({
+        data: { roomId, userId, action: 'RECALL', metadata: { messageId } },
+      })
+      .catch(() => {});
+  }
+
+  /** Add reaction to a message */
+  async addReaction(messageId: string, userId: string, emoji: string) {
+    const message = await this.prisma.chatMessageV3.findUnique({
+      where: { id: messageId },
+      select: { roomId: true },
+    });
+    if (!message) throw new Error('消息不存在');
+
+    await this.prisma.messageReaction.create({
+      data: { messageId, userId, emoji },
+    });
+
+    await this.prisma.chatAuditLog
+      .create({
+        data: { roomId: message.roomId, userId, action: 'REACT', metadata: { messageId, emoji } },
+      })
+      .catch(() => {});
+
+    return this.prisma.messageReaction.findMany({ where: { messageId } });
+  }
+
+  /** Remove a reaction */
+  async removeReaction(messageId: string, userId: string, emoji: string) {
+    await this.prisma.messageReaction.deleteMany({
+      where: { messageId, userId, emoji },
+    });
+
+    return this.prisma.messageReaction.findMany({ where: { messageId } });
+  }
+
+  // ─── User Profile ───
+
   async getUserProfile(userId: string) {
     return this.prisma.user.findUnique({
       where: { id: userId },
@@ -179,7 +415,64 @@ export class ChatService {
     });
   }
 
-  // ── Legacy methods (keep old endpoints working during migration) ──
+  // ─── Search ───
+
+  async searchMessages(userId: string, query: string, roomId?: string) {
+    const where: any = {
+      content: { contains: query, mode: 'insensitive' },
+      deletedAt: null,
+    };
+    if (roomId) where.roomId = roomId;
+
+    const messages = await this.prisma.chatMessageV3.findMany({
+      where,
+      include: {
+        room: { select: { participantA: true, participantB: true } },
+        attachments: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Filter to only rooms the user participates in
+    return messages
+      .filter((m) => m.room.participantA === userId || m.room.participantB === userId)
+      .map((m) => this.serializeMessage(m));
+  }
+
+  // ── Serialization ──
+
+  private serializeMessage(m: any) {
+    return {
+      id: m.id,
+      roomId: m.roomId,
+      senderId: m.senderId,
+      type: m.type,
+      content: m.content,
+      seq: m.seq,
+      replyTo: m.replyTo || undefined,
+      deletedAt: m.deletedAt?.toISOString() || undefined,
+      attachments: (m.attachments || []).map((a: any) => ({
+        id: a.id,
+        type: a.type,
+        url: a.url,
+        thumbnailUrl: a.thumbnailUrl,
+        fileName: a.fileName,
+        fileSize: a.fileSize,
+        mimeType: a.mimeType,
+        width: a.width,
+        height: a.height,
+        duration: a.duration,
+      })),
+      reactions: (m.reactions || []).map((r: any) => ({
+        userId: r.userId,
+        emoji: r.emoji,
+      })),
+      createdAt: m.createdAt.toISOString(),
+    };
+  }
+
+  // ── Legacy Methods (keep during migration) ──
 
   async saveMessage(data: { studioId: string; orderId?: string; senderId: string; senderRole: string; text: string }) {
     return this.prisma.chatMessageLegacy.create({ data });

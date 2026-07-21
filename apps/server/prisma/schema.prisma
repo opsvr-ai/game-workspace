@@ -454,6 +454,7 @@ model ProcessKillLog {
   @@index([companionId, createdAt])
 }
 
+// ── @deprecated Legacy Chat (V1) — migrate to Chat 3.0, then drop ──
 model ChatMessageLegacy {
   id         String   @id @default(uuid())
   studioId   String
@@ -467,6 +468,7 @@ model ChatMessageLegacy {
   @@map("ChatMessage")
 }
 
+// ── @deprecated Chat V2 — migrate to Chat 3.0, then drop ──
 model Conversation {
   id             String    @id @default(uuid())
   studioId       String
@@ -486,6 +488,7 @@ model Conversation {
   @@index([studioId, participantB])
 }
 
+// ── @deprecated Chat V2 message — migrate to ChatMessageV3, then drop ──
 model ChatMessage {
   id             String   @id @default(uuid())
   conversationId String
@@ -497,6 +500,96 @@ model ChatMessage {
 
   @@index([conversationId, createdAt])
   @@map("ChatMessageV2")
+}
+
+// ── Chat 3.0 Models ──
+
+model ChatRoom {
+  id             String    @id @default(uuid())
+  studioId       String
+  participantA   String              // sorted alphabetically (smaller first)
+  participantB   String
+  aReadSeq       Int       @default(0)  // participantA's last-read message seq
+  bReadSeq       Int       @default(0)  // participantB's last-read message seq
+  lastMessage    String?              // preview text, truncated to 100 chars
+  lastMessageAt  DateTime?
+  lastMessageSeq Int       @default(0)  // auto-incrementing per room
+  orderInfo      String?              // order summary (gameName · ¥amount · duration)
+  pinned         Boolean   @default(false)
+  pinnedAt       DateTime?
+  archived       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  messages       ChatMessageV3[]
+
+  @@unique([studioId, participantA, participantB])
+  @@index([studioId, participantA])
+  @@index([studioId, participantB])
+  @@index([studioId, pinned, lastMessageAt])
+}
+
+model ChatMessageV3 {
+  id          String    @id @default(uuid())
+  roomId      String
+  room        ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId    String
+  type        String    @default("TEXT")   // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
+  content     String?
+  seq         Int                          // per-room incrementing sequence number
+  replyToId   String?                      // quoted reply message ID
+  replyTo     ChatMessageV3? @relation("Reply", fields: [replyToId], references: [id])
+  deletedAt   DateTime?                    // soft-delete = recall
+  createdAt   DateTime  @default(now())
+
+  attachments  MessageAttachment[]
+  reactions    MessageReaction[]
+  repliedBy    ChatMessageV3[] @relation("Reply")
+
+  @@unique([roomId, seq])
+  @@index([roomId, createdAt])
+  @@index([senderId])
+  @@map("ChatMessageV3")
+}
+
+model MessageAttachment {
+  id           String   @id @default(uuid())
+  messageId    String
+  message      ChatMessageV3 @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  type         String              // IMAGE | FILE | AUDIO
+  url          String
+  thumbnailUrl String?
+  fileName     String?
+  fileSize     Int?
+  mimeType     String?
+  width        Int?
+  height       Int?
+  duration     Int?                // audio seconds
+  createdAt    DateTime @default(now())
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   ChatMessageV3 @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+model ChatAuditLog {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  action    String              // SEND | RECALL | DELETE | REACT | READ
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([userId])
 }
 
 model CompanionStatusBlacklist {
