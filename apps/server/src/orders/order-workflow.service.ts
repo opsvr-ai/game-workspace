@@ -7,7 +7,7 @@ import { logger } from '../common/logger';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CANCELLED],
-  [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PENDING], // H2: allow re-pool
   [OrderStatus.CONFIRMED]: [OrderStatus.DONE, OrderStatus.CANCELLED],
 };
 
@@ -60,22 +60,33 @@ export class OrderWorkflowService {
       }
     }
 
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
+    // Atomic grab: WHERE includes companionId:null + status:PENDING to prevent race
+    const updatedOrder = await this.prisma.order.updateMany({
+      where: { id: orderId, companionId: null, status: OrderStatus.PENDING },
       data: { status: OrderStatus.GRABBED, companionId, grabbedAt: new Date() },
+    });
+
+    if (updatedOrder.count === 0) {
+      throw new ForbiddenException('该订单已被其他陪玩抢先抢走');
+    }
+
+    // Re-fetch with includes for broadcasting
+    const grabbedOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
       include: {
         csUser: { select: { username: true, avatar: true, displayName: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
       },
     });
-    this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
+    if (!grabbedOrder) throw new NotFoundException('订单不存在');
+    this.wsGateway.broadcastToStudio(grabbedOrder.studioId, 'order:pool_updated', grabbedOrder);
 
     // Notify the CS who created this order about the grab
-    if (updatedOrder.csUserId) {
-      const companionName = updatedOrder.companion?.user?.username ?? '未知';
-      this.wsGateway.notifyUser(updatedOrder.csUserId, 'order:grabbed', {
-        orderId: updatedOrder.id,
+    if (grabbedOrder.csUserId) {
+      const companionName = grabbedOrder.companion?.user?.username ?? '未知';
+      this.wsGateway.notifyUser(grabbedOrder.csUserId, 'order:grabbed', {
+        orderId: grabbedOrder.id,
         companionName,
         message: `${companionName} 抢了你的订单`,
       });
@@ -91,7 +102,7 @@ export class OrderWorkflowService {
       logger.error('Customer assignment failed during grab', { error: (err as Error).message });
     }
 
-    return updatedOrder;
+    return grabbedOrder;
   }
 
   async confirm(orderId: string, companionId: string) {
@@ -119,6 +130,22 @@ export class OrderWorkflowService {
         });
       } catch (err) {
         logger.error('Customer assignment failed during complete', { error: (err as Error).message });
+      }
+    }
+
+    // H4: Update companion monthlyRevenue + customer totalSpent (unify with completeWithBilling)
+    if (order.companionId && order.amount) {
+      try {
+        await this.prisma.companion.update({
+          where: { id: order.companionId },
+          data: { monthlyRevenue: { increment: order.amount } },
+        });
+        await this.prisma.customer.update({
+          where: { id: order.customerId },
+          data: { totalSpent: { increment: order.amount } },
+        });
+      } catch (err) {
+        logger.error('Revenue update failed during complete', { error: (err as Error).message });
       }
     }
 
@@ -206,17 +233,19 @@ export class OrderWorkflowService {
       });
     }
 
-    // Update customer total spent
-    await this.prisma.customer.update({
-      where: { id: customer.id },
-      data: { totalSpent: { increment: totalAmount } },
-    });
-
-    // Update companion revenue
-    await this.prisma.companion.update({
-      where: { id: companionId },
-      data: { monthlyRevenue: { increment: totalAmount } },
-    });
+    // Update revenue (C2 fix: unified entry — only complete paths record revenue)
+    try {
+      await this.prisma.customer.update({
+        where: { id: customer.id },
+        data: { totalSpent: { increment: totalAmount } },
+      });
+      await this.prisma.companion.update({
+        where: { id: companionId },
+        data: { monthlyRevenue: { increment: totalAmount } },
+      });
+    } catch (err) {
+      logger.error('Revenue update failed', { error: (err as Error).message });
+    }
 
     // Auto-assign customer to companion if not yet assigned
     try {

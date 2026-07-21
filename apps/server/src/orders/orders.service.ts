@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { OrderWorkflowService } from './order-workflow.service';
@@ -162,12 +162,14 @@ export class OrdersService {
   async findAll(user: any, status?: string, showAll?: boolean) {
     const where: any = {};
     if (status) where.status = status;
-    if (!showAll) {
-      if (user.role === 'COMPANION') {
-        where.companionId = user.companionId;
-        if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
-      } else if (user.role === 'CS') where.csUserId = user.id;
-      else if (user.role === 'ADMIN') where.studioId = user.studioId;
+    // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
+    if (user.role === 'COMPANION') {
+      where.companionId = user.companionId;
+      if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
+    } else if (user.role === 'CS') {
+      where.csUserId = user.id;
+    } else if (user.role === 'ADMIN') {
+      if (!showAll) where.studioId = user.studioId;
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
     return this.prisma.order.findMany({
@@ -186,6 +188,11 @@ export class OrdersService {
   }
 
   async updateContact(orderId: string, body: any) {
+    // M1: Validate order is in GRABBED or CONFIRMED state before allowing contact updates
+    const order0 = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+    if (!order0 || (order0.status !== 'GRABBED' && order0.status !== 'CONFIRMED')) {
+      throw new ForbiddenException('只能对已抢单或已确认的订单更新联系状态');
+    }
     const data: any = {};
     if (body.contactStatus !== undefined) data.contactStatus = body.contactStatus;
     if (body.scheduledAt !== undefined) data.scheduledAt = new Date(body.scheduledAt);

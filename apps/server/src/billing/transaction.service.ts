@@ -45,24 +45,13 @@ export class TransactionService {
     if (!tx) throw new NotFoundException('报账记录不存在');
     if (tx.status !== 'PENDING') throw new ForbiddenException('该报账已处理');
 
-    const updated = await this.prisma.transaction.update({
+    // Revenue already recorded in OrderWorkflowService.complete() (C2 fix — unified entry point)
+    // Transaction approve now only marks the audit record as reviewed
+
+    return this.prisma.transaction.update({
       where: { id: transactionId },
       data: { status: 'APPROVED', reviewedById: reviewerId },
     });
-
-    // Increment customer.totalSpent
-    await this.prisma.customer.update({
-      where: { id: tx.order.customerId },
-      data: { totalSpent: { increment: tx.amount } },
-    });
-
-    // Increment companion.monthlyRevenue
-    await this.prisma.companion.update({
-      where: { id: tx.companionId },
-      data: { monthlyRevenue: { increment: tx.amount } },
-    });
-
-    return updated;
   }
 
   async reject(transactionId: string, reviewerId: string) {
