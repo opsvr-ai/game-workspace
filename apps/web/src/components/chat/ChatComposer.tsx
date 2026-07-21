@@ -72,7 +72,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 2, paddingBottom: 4 }}>
           <span
-            onClick={() => setShowEmoji(!showEmoji)}
+            onClick={() => { setShowEmoji(!showEmoji); textareaRef.current?.focus(); }}
             style={{ cursor: 'pointer', padding: 4, color: showEmoji ? '#2B579A' : '#949BA4' }}
           >
             <SmileOutlined style={{ fontSize: 20 }} />
@@ -80,7 +80,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
           {onUpload && (
             <>
               <span
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => { fileInputRef.current?.click(); textareaRef.current?.focus(); }}
                 style={{ cursor: 'pointer', padding: 4, color: '#949BA4' }}
               >
                 <PaperClipOutlined style={{ fontSize: 20 }} />
@@ -156,6 +156,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
               onClick={() => {
                 setText((prev) => prev + emoji);
                 setShowEmoji(false);
+                textareaRef.current?.focus();
               }}
               style={{ cursor: 'pointer', fontSize: 22, padding: 4, borderRadius: 6, transition: 'background 0.1s' }}
               onMouseEnter={(e) => {
