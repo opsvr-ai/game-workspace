@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { StudiosService } from './studios.service';
@@ -21,9 +25,21 @@ export class StudiosController {
 
   @Post('studios')
   @Roles(UserRole.OWNER)
-  async create(@Body() dto: CreateStudioDto): Promise<ApiResponse<unknown>> {
+  @UseInterceptors(FileInterceptor('leaseContract', {
+    storage: diskStorage({
+      destination: join(process.cwd(), '../../uploads/studios'),
+      filename: (_req, file, cb) => {
+        if (!existsSync(join(process.cwd(), '../../uploads/studios'))) {
+          mkdirSync(join(process.cwd(), '../../uploads/studios'), { recursive: true });
+        }
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + extname(file.originalname));
+      },
+    }),
+  }))
+  async create(@Body() dto: CreateStudioDto, @UploadedFile() file?: Express.Multer.File): Promise<ApiResponse<unknown>> {
+    const leaseContractUrl = file ? `/uploads/studios/${file.filename}` : undefined;
     const data = await this.studiosService.create(
-      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName, dto.splitMode,
+      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName, dto.splitMode, dto.address, leaseContractUrl,
     );
     return { code: 200, message: '工作室及店长账号已创建', data };
   }
@@ -41,7 +57,7 @@ export class StudiosController {
     @Param('id') id: string,
     @Body() dto: UpdateStudioDto,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode);
+    const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode, (dto as any).address);
     return { code: 200, message: 'ok', data };
   }
 

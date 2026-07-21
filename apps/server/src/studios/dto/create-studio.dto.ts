@@ -22,4 +22,8 @@ export class CreateStudioDto {
   @IsOptional()
   @IsString()
   splitMode?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

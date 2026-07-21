@@ -13,6 +13,7 @@ import {
   Radio,
   message,
   Popconfirm,
+  Upload,
 } from 'antd';
 import {
   PlusOutlined,
@@ -42,8 +43,10 @@ interface Studio {
   name: string;
   type: string;
   splitMode?: string;
+  address?: string;
   createdAt: string;
   _count?: { users: number; companions: number };
+  users?: Array<{ id: string; username: string; role: string; displayName?: string; createdAt: string }>;
 }
 
 const StudiosPage: React.FC = () => {
@@ -94,14 +97,18 @@ const StudiosPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await studiosApi.create(
-        values.name,
-        selectedType,
-        values.managerUsername,
-        values.managerPassword,
-        values.managerDisplayName,
-        values.splitMode,
-      );
+      const formData = new FormData();
+      formData.append('name', values.name);
+      formData.append('type', selectedType);
+      formData.append('managerUsername', values.managerUsername);
+      formData.append('managerPassword', values.managerPassword);
+      if (values.managerDisplayName) formData.append('managerDisplayName', values.managerDisplayName);
+      formData.append('splitMode', values.splitMode || 'TIERED');
+      if (values.address) formData.append('address', values.address);
+      if (values.leaseContract?.[0]?.originFileObj) {
+        formData.append('leaseContract', values.leaseContract[0].originFileObj);
+      }
+      await studiosApi.create(formData);
       message.success('工作室及店长账号已创建');
       setModalOpen(false);
       form.resetFields();
@@ -119,7 +126,7 @@ const StudiosPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await studiosApi.update(editingStudio!.id, values.name, values.type, values.splitMode);
+      await studiosApi.update(editingStudio!.id, values.name, values.type, values.splitMode, values.address);
       message.success('工作室已更新');
       setModalOpen(false);
       form.resetFields();
@@ -375,6 +382,26 @@ const StudiosPage: React.FC = () => {
                   <Radio.Button value="TIERED">阶梯分成</Radio.Button>
                   <Radio.Button value="FIXED">固定比例</Radio.Button>
                 </Radio.Group>
+              </Form.Item>
+              <Form.Item
+                name="address"
+                label="工作室地址"
+                rules={[{ required: true, message: '请输入工作室地址' }]}
+              >
+                <Input placeholder="请输入详细地址" />
+              </Form.Item>
+              <Form.Item
+                name="leaseContract"
+                label="租赁合同照片"
+                valuePropName="fileList"
+                getValueFromEvent={(e: any) => (Array.isArray(e) ? e : e?.fileList)}
+              >
+                <Upload beforeUpload={() => false} maxCount={1} accept="image/*" listType="picture-card">
+                  <div>
+                    <PlusOutlined />
+                    <div style={{ marginTop: 8 }}>上传</div>
+                  </div>
+                </Upload>
               </Form.Item>
               <div style={{
                 borderTop: '1px solid #f0f0f0',

@@ -29,11 +29,13 @@ model User {
 }
 
 model Studio {
-  id        String   @id @default(uuid())
-  name      String
-  type      String   @default("DIRECT")  // DIRECT | RENTAL
-  splitMode String   @default("TIERED")  // TIERED | FIXED
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  name             String
+  type             String   @default("DIRECT")  // DIRECT | RENTAL
+  splitMode        String   @default("TIERED")  // TIERED | FIXED
+  address          String?                     // 工作室地址
+  leaseContractUrl String?                     // 租赁合同照片URL
+  createdAt        DateTime @default(now())
 
   users             User[]
   companions        Companion[]
