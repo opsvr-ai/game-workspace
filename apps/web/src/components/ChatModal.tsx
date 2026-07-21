@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Modal } from 'antd';
 import { useChatStore } from '../stores/chatStore';
 import ChatPanel from './chat/ChatPanel';
@@ -16,36 +16,47 @@ interface Props {
   onClose: () => void;
 }
 
-/**
- * Chat Modal — wraps ChatPanel in an antd Modal for popup use.
- * All pages (companion/CS/AppLayout) use this for consistent Chat 3.0 UI.
- *
- * IMPORTANT: partner.conversationId may be a companion ID or user ID,
- * NOT the real ChatRoom UUID. We use activeConversationId from the
- * store (set by openConversation API call) as the roomId for ChatPanel.
- */
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
-  // Always call hook — pass activeConversationId as part of the selector to keep it unconditional
   const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
 
-  // Open conversation when modal opens
+  // JS-based resize state (avoid CSS resize ghost outline in Electron)
+  const [size, setSize] = useState({ w: 420, h: 500 });
+  const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number; dir: string } | null>(null);
+
+  const onResizeStart = useCallback((e: React.MouseEvent, dir: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, startW: size.w, startH: size.h, dir };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const dx = ev.clientX - resizeRef.current.startX;
+      const dy = ev.clientY - resizeRef.current.startY;
+      setSize(() => ({
+        w: Math.min(700, Math.max(320, resizeRef.current!.startW + (resizeRef.current!.dir.includes('e') ? dx : 0))),
+        h: Math.min(window.innerHeight - 60, Math.max(300, resizeRef.current!.startH + (resizeRef.current!.dir.includes('s') ? dy : 0))),
+      }));
+    };
+    const onUp = () => {
+      resizeRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [size]);
+
   useEffect(() => {
     if (!open || !partner) return;
-    useChatStore.getState().openConversation(
-      partner.conversationId, partner.participant, partner.orderInfo,
-    );
-
-    return () => {
-      useChatStore.getState().closeConversation();
-    };
+    useChatStore.getState().openConversation(partner.conversationId, partner.participant, partner.orderInfo);
+    return () => { useChatStore.getState().closeConversation(); };
   }, [open, partner?.conversationId]);
 
   return (
     <Modal
       open={open}
       footer={null}
-      width={420}
+      width={size.w}
       closable={false}
       maskClosable
       onCancel={onClose}
@@ -54,16 +65,25 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       destroyOnClose
     >
       <div style={{
-        width: 420, minWidth: 320, maxWidth: 700,
-        height: 500, minHeight: 360, maxHeight: 'calc(100vh - 60px)',
-        resize: 'both', overflow: 'auto',
-        display: 'flex', flexDirection: 'column',
+        width: size.w, height: size.h,
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        position: 'relative',
       }}>
         <ChatPanel
           roomId={activeConversationId || undefined}
           participant={partner?.participant || conv?.participant}
           orderInfo={partner?.orderInfo || conv?.orderInfo}
           onClose={onClose}
+        />
+        {/* Resize handle — bottom-right corner */}
+        <div
+          onMouseDown={(e) => onResizeStart(e, 'se')}
+          style={{
+            position: 'absolute', bottom: 0, right: 0,
+            width: 16, height: 16, cursor: 'nwse-resize',
+            background: 'linear-gradient(135deg, transparent 50%, #D0D5DD 50%)',
+            opacity: 0.5,
+          }}
         />
       </div>
     </Modal>
