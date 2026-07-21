@@ -8,7 +8,6 @@ import {
   Space,
   Typography,
   Tag,
-  Card,
   Segmented,
   Radio,
   message,
@@ -141,81 +140,6 @@ const StudiosPage: React.FC = () => {
     }
   };
 
-  const staffCount = (record: Studio) => (record._count?.users ?? 0) + (record._count?.companions ?? 0);
-
-  const columns = [
-    {
-      title: '工作室名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 200,
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 120,
-      render: (val: string) => (
-        <Tag color={STUDIO_TYPE_COLORS[val] || 'default'}>
-          {STUDIO_TYPE_LABELS[val] || val}
-        </Tag>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 130,
-      render: (val: string) => val ? new Date(val).toLocaleString('zh-CN') : '-',
-    },
-    {
-      title: '员工数',
-      key: 'staffCount',
-      width: 100,
-      render: (_: unknown, record: Studio) => staffCount(record),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 140,
-      render: (_: unknown, record: Studio) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={React.createElement(EditOutlined)}
-            onClick={() => openEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除该工作室？此操作不可恢复！"
-            onConfirm={async () => {
-              try {
-                await studiosApi.delete(record.id);
-                message.success('工作室已删除');
-                fetchStudios();
-              } catch (err: any) {
-                message.error(err?.response?.data?.message || '删除失败');
-              }
-            }}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={React.createElement(DeleteOutlined)}
-            >
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <div>
       <div
@@ -253,47 +177,77 @@ const StudiosPage: React.FC = () => {
         </div>
       )}
 
-      {/* Pending Review Section */}
-      {pendingUsers.length > 0 && (
-        <Card
-          title={<span>📋 待审核申请 <Tag>{pendingUsers.length}</Tag></span>}
-          size="small"
-          style={{ marginBottom: 16, borderColor: '#faad14' }}
-        >
-          <Table
-            dataSource={pendingUsers}
-            rowKey="id"
-            loading={loadingPending}
-            pagination={false}
-            size="small"
-            scroll={{ x: 'max-content' }}
-            columns={[
-              { title: '用户名', dataIndex: 'username', width: 90 },
-              { title: '角色', dataIndex: 'role', width: 60, render: (v: string) => <Tag>{ROLE_LABELS[v] || v}</Tag> },
-              { title: '工作室', dataIndex: ['studio', 'name'], width: 110, ellipsis: true, render: (v: string) => v || '-' },
-              { title: '地址', dataIndex: 'address', width: 140, ellipsis: true, render: (v: string) => v || '-' },
-              { title: '申请时间', dataIndex: 'createdAt', width: 130, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
-              {
-                title: '操作', key: 'actions', width: 140,
-                render: (_: unknown, r: any) => (
-                  <Space size={4}>
-                    <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
-                    <Button size="small" danger onClick={() => { setRejectModal({ userId: r.id, username: r.username }); setRejectReason(''); }}>拒绝</Button>
-                  </Space>
-                ),
-              },
-            ]}
-          />
-        </Card>
-      )}
-
+      {/* Single unified table: pending applications + approved studios */}
       <Table
-        columns={columns}
-        dataSource={studios}
-        rowKey="id"
-        loading={loading}
+        dataSource={[
+          ...pendingUsers.map((u: any) => ({ ...u, _type: 'pending' })),
+          ...studios.map((s) => ({ ...s, _type: 'studio' })),
+        ]}
+        rowKey={(r: any) => r._type === 'pending' ? `p-${r.id}` : r.id}
+        loading={loading || loadingPending}
         locale={{ emptyText: '暂无工作室数据' }}
         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
+        columns={[
+          {
+            title: '状态',
+            key: 'status',
+            width: 80,
+            render: (_: unknown, r: any) => r._type === 'pending'
+              ? <Tag color="orange">待审核</Tag>
+              : <Tag color="green">已通过</Tag>,
+          },
+          {
+            title: '工作室名称',
+            key: 'name',
+            width: 140,
+            render: (_: unknown, r: any) => r._type === 'pending' ? (r.studio?.name || '-') : r.name,
+          },
+          {
+            title: '类型',
+            key: 'type',
+            width: 100,
+            render: (_: unknown, r: any) => r._type === 'pending'
+              ? <Tag>{ROLE_LABELS[r.role] || r.role}</Tag>
+              : <Tag color={STUDIO_TYPE_COLORS[r.type] || 'default'}>{STUDIO_TYPE_LABELS[r.type] || r.type}</Tag>,
+          },
+          {
+            title: '地址',
+            dataIndex: 'address',
+            width: 120,
+            ellipsis: true,
+            render: (v: string) => v || '-',
+          },
+          {
+            title: '创建时间',
+            key: 'createdAt',
+            width: 130,
+            render: (_: unknown, r: any) => r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN') : '-',
+          },
+          {
+            title: '员工数',
+            key: 'staff',
+            width: 80,
+            render: (_: unknown, r: any) => r._type === 'studio' ? ((r._count?.users ?? 0) + (r._count?.companions ?? 0)) : 1,
+          },
+          {
+            title: '操作',
+            key: 'actions',
+            width: 140,
+            render: (_: unknown, r: any) => r._type === 'pending' ? (
+              <Space size={4}>
+                <Button type="primary" size="small" onClick={() => handleApprove(r.id)}>通过</Button>
+                <Button size="small" danger onClick={() => { setRejectModal({ userId: r.id, username: r.username }); setRejectReason(''); }}>拒绝</Button>
+              </Space>
+            ) : (
+              <Space size="small">
+                <Button type="link" size="small" icon={React.createElement(EditOutlined)} onClick={() => openEditModal(r)}>编辑</Button>
+                <Popconfirm title="确定删除该工作室？此操作不可恢复！" onConfirm={async () => { try { await studiosApi.delete(r.id); message.success('工作室已删除'); fetchStudios(); } catch (err: any) { message.error(err?.response?.data?.message || '删除失败'); } }} okText="确定" cancelText="取消">
+                  <Button type="link" size="small" danger icon={React.createElement(DeleteOutlined)}>删除</Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
+        ]}
       />
 
       {/* Edit Modal */}
