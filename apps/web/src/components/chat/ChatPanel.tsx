@@ -41,7 +41,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
           type: 'TEXT', content: text, replyToId,
         });
         const realMsg = data?.data?.message;
-        if (realMsg) s.receiveMessage(roomId, realMsg);
+        if (realMsg) {
+          // Replace temp optimistic msg with real server msg (same message, don't duplicate)
+          const conv2 = useChatStore.getState().conversations[roomId];
+          if (conv2) {
+            const msgs = conv2.messages.map((m) =>
+              m.id === tempId ? { ...realMsg, status: 'sent' as const, createdAt: new Date(realMsg.createdAt).getTime() } : m,
+            );
+            useChatStore.setState((prev) => ({
+              conversations: { ...prev.conversations, [roomId]: { ...conv2, messages: msgs } },
+            }));
+          }
+        }
       } catch {
         const conv2 = useChatStore.getState().conversations[roomId];
         if (conv2) {
