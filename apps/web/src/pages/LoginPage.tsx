@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Button, Typography, message, Select, Upload } from 'antd';
+import { Input, Button, Typography, message, Select, Upload, Modal } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
@@ -149,15 +149,18 @@ const LoginPage: React.FC = () => {
       if (idCardFront) formData.append('idCardFront', idCardFront);
       if (idCardBack) formData.append('idCardBack', idCardBack);
 
-      await http.post('/auth/register', formData, {
+      const res = await http.post('/auth/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      message.success('注册成功！请等待管理员审核通过后登录');
-      setMode('login');
+      if (res.data?.code === 201) {
+        message.success('✅ 注册成功！请等待管理员审核通过后登录', 8);
+        setMode('login');
+      } else {
+        message.error(res.data?.message || '注册失败', 8);
+      }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '注册失败';
-      message.error(msg, 5); // show for 5 seconds
-      console.error('注册失败', err);
+      const msg = err?.response?.data?.message || err?.message || '注册失败，请检查网络';
+      Modal.error({ title: '注册失败', content: msg });
     } finally {
       setLoading(false);
     }
