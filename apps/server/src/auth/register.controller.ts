@@ -100,8 +100,9 @@ export class RegisterController {
     let studioId = body.studioId;
     if (isAdmin && body.studioName) {
       const registerRole = body.registerRole || body.role || '';
-      const studioType = registerRole.startsWith('ONLINE') ? 'RENTAL' : 'DIRECT';
-      const splitMode = 'TIERED'; // 所有工作室默认阶梯分成
+      const isOnline = registerRole.startsWith('ONLINE');
+      const studioType = isOnline ? 'RENTAL' : 'DIRECT';
+      const splitMode = isOnline ? 'FIXED' : 'TIERED'; // 线下=阶梯 线上=固定
       const studio = await this.prisma.studio.create({
         data: { name: body.studioName, type: studioType, splitMode, address: body.address || null, leaseContractUrl },
       });
