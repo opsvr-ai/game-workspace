@@ -12,18 +12,17 @@ import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 
 @Controller()
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class StudiosController {
   constructor(private readonly studiosService: StudiosService) {}
 
   @Get('studios')
-  @Roles(UserRole.OWNER)
   async findAll(): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.findAll();
     return { code: 200, message: 'ok', data };
   }
 
   @Post('studios')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER)
   @UseInterceptors(FileInterceptor('leaseContract', {
     storage: diskStorage({
@@ -45,6 +44,7 @@ export class StudiosController {
   }
 
   @Delete('studios/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER)
   async delete(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     await this.studiosService.delete(id);
@@ -52,6 +52,7 @@ export class StudiosController {
   }
 
   @Put('studios/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER)
   async update(
     @Param('id') id: string,
@@ -62,6 +63,7 @@ export class StudiosController {
   }
 
   @Get('employees')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async getEmployees(@Query('studioId') studioId: string): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.getEmployees(studioId);
@@ -69,6 +71,7 @@ export class StudiosController {
   }
 
   @Post('employees')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createEmployee(
     @Body() dto: { username: string; password: string; role: string; studioId: string },
@@ -78,6 +81,7 @@ export class StudiosController {
   }
 
   @Put('employees/:id/password')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async resetPassword(
     @Param('id') id: string,
@@ -88,6 +92,7 @@ export class StudiosController {
   }
 
   @Delete('employees/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER)
   async deleteEmployee(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     await this.studiosService.deleteEmployee(id);
