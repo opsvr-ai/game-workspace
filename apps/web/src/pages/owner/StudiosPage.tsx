@@ -186,7 +186,8 @@ const StudiosPage: React.FC = () => {
       <Table
         dataSource={[
           ...pendingUsers.map((u: any) => ({ ...u, _type: 'pending' })),
-          ...studios.map((s) => ({ ...s, _type: 'studio' })),
+          // Filter: don't show studios that have pending users (avoid duplicate)
+          ...studios.filter((s) => !pendingUsers.some((u: any) => u.studio?.id === s.id)).map((s) => ({ ...s, _type: 'studio' })),
         ]}
         rowKey={(r: any) => r._type === 'pending' ? `p-${r.id}` : r.id}
         loading={loading || loadingPending}
