@@ -196,34 +196,37 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
-  // Badge: total - lastSeen (click clears, new apps increment)
-  const [totalPending, setTotalPending] = React.useState(0);
-  const [lastSeen, setLastSeen] = React.useState(() =>
-    parseInt(localStorage.getItem('pending-seen') || '0', 10)
-  );
-  const pendingBadge = Math.max(0, totalPending - lastSeen);
+  // Badge: raw count from API, with seen-tracking via ref (not state)
+  const [pendingBadge, setPendingBadge] = React.useState(0);
+  const seenRef = React.useRef(parseInt(localStorage.getItem('pending-seen') || '0', 10));
 
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
     const doFetch = async () => {
       try {
         const { data } = await http.get('/users/pending-review');
-        const t = (data.data || []).length;
-        setTotalPending(t);
-        if (t < lastSeen) {
-          setLastSeen(t);
-          localStorage.setItem('pending-seen', String(t));
+        const total = (data.data || []).length;
+        // Fix: seen should never exceed total
+        if (seenRef.current > total) {
+          seenRef.current = total;
+          localStorage.setItem('pending-seen', String(total));
         }
+        setPendingBadge(Math.max(0, total - seenRef.current));
       } catch {}
     };
     doFetch();
     const t = setInterval(doFetch, 10000);
     return () => clearInterval(t);
-  }, [user?.role, lastSeen]);
+  }, [user?.role]);
 
   const markSeen = () => {
-    setLastSeen(totalPending);
-    localStorage.setItem('pending-seen', String(totalPending));
+    // Read current total from state to set seen
+    setPendingBadge(prev => {
+      const total = prev + seenRef.current; // reconstruct: badge + seen = total
+      seenRef.current = total;
+      localStorage.setItem('pending-seen', String(total));
+      return 0;
+    });
   };
 
   // Chat 3.0: notification handled by ChatProvider
