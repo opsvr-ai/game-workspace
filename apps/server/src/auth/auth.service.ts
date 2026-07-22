@@ -147,15 +147,17 @@ export class AuthService {
     });
   }
 
-  async rejectUser(userId: string, reason: string): Promise<void> {
-    // Mark as processed: isAuthorized stays false, but rejected flag means no longer pending
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { customEmojis: [{ rejectReason: reason, rejectedAt: new Date().toISOString() }] as any },
-    });
+  async rejectUser(userId: string, _reason: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
     // Delete the user — rejection means application is denied
-    // (soft alternative: could keep but exclude from pending list)
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
+    // Also delete auto-created studio if it only has this user
+    if (user?.studioId) {
+      const count = await this.prisma.user.count({ where: { studioId: user.studioId } });
+      if (count === 0) {
+        await this.prisma.studio.delete({ where: { id: user.studioId } }).catch(() => {});
+      }
+    }
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
