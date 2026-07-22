@@ -195,50 +195,25 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
-  // Refresh pending review count for OWNER/ADMIN every 30s
+  // Simple direct polling for pending badge
+  const [pendingBadge, setPendingBadge] = React.useState(0);
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
-    const t = setInterval(() => {
-      useAuthStore.getState().fetchUser();
-    }, 30000);
+    const doFetch = async () => {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) return;
+        const res = await fetch('/api/users/pending-review', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        setPendingBadge((data.data || []).length);
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(doFetch, 10000);
     return () => clearInterval(t);
   }, [user?.role]);
-
-  // Direct polling + "read" tracking: badge shows only NEW apps since last visit
-  const [pendingBadge, setPendingBadge] = React.useState(0);
-  const [lastSeenCount, setLastSeenCount] = React.useState(() => {
-    try { return parseInt(localStorage.getItem('pending-last-seen') || '0', 10); } catch { return 0; }
-  });
-  useEffect(() => {
-    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
-    const fetchCount = () => {
-      fetch('/api/users/pending-review', {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-      }).then(r => r.json()).then(d => {
-        const total = (d.data || []).length;
-        const currentSeen = lastSeenCount;
-        // If total went down (approved/deleted), reset lastSeen
-        if (total < currentSeen) {
-          setLastSeenCount(total);
-          localStorage.setItem('pending-last-seen', String(total));
-          setPendingBadge(0);
-        } else {
-          setPendingBadge(total - currentSeen);
-        }
-      }).catch(() => {});
-    };
-    fetchCount();
-    const t = setInterval(fetchCount, 15000);
-    return () => clearInterval(t);
-  }, [user?.role, lastSeenCount]);
-
-  // Mark as "read" when clicking 工作室管理 or visiting the page
-  const markPendingRead = () => {
-    const current = pendingBadge + lastSeenCount; // reconstruct total
-    setLastSeenCount(current);
-    localStorage.setItem('pending-last-seen', String(current));
-    setPendingBadge(0);
-  };
 
   // Chat 3.0: notification handled by ChatProvider
 
@@ -385,7 +360,6 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === '/owner/studios') markPendingRead();
     navigate(key);
   };
 
