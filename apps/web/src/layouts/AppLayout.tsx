@@ -497,12 +497,6 @@ const AppLayout: React.FC = () => {
               style={{ color: '#64748B' }}
             />
             <Space size="middle">
-              {/* Pending applications badge — OWNER/ADMIN only */}
-              {pendingBadge > 0 && (user?.role === 'OWNER' || user?.role === 'ADMIN') && (
-                <Badge count={pendingBadge} overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }}>
-                  <span style={{ fontSize: 18 }}>📋</span>
-                </Badge>
-              )}
               {/* Notification bell */}
               {user && (
                 <Popover
