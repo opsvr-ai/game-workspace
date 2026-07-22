@@ -198,7 +198,7 @@ const AppLayout: React.FC = () => {
   } | null>(null);
   // Badge: raw count from API, with seen-tracking via ref (not state)
   const [pendingBadge, setPendingBadge] = React.useState(0);
-  const seenRef = React.useRef(parseInt(localStorage.getItem('pending-seen') || '0', 10));
+  const seenRef = React.useRef(0); // start fresh — old localStorage values cause bugs
 
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
