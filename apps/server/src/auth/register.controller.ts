@@ -57,7 +57,8 @@ export class RegisterController {
       idNumber: string; phone: string; studioId: string;
       role?: string;
       address?: string;
-      studioName?: string; // Admin: create new studio with this name
+      studioName?: string;
+      registerRole?: string; // Original role from frontend (OFFLINE_ADMIN/ONLINE_ADMIN etc.)
       games?: string;
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[]; leaseContract?: Express.Multer.File[] },
@@ -98,7 +99,8 @@ export class RegisterController {
     // Auto-create studio for admin registration
     let studioId = body.studioId;
     if (isAdmin && body.studioName) {
-      const studioType = body.role?.startsWith('ONLINE') ? 'RENTAL' : 'DIRECT';
+      const registerRole = body.registerRole || body.role || '';
+      const studioType = registerRole.startsWith('ONLINE') ? 'RENTAL' : 'DIRECT';
       const splitMode = studioType === 'RENTAL' ? 'TIERED' : 'FIXED';
       const studio = await this.prisma.studio.create({
         data: { name: body.studioName, type: studioType, splitMode, address: body.address || null, leaseContractUrl },

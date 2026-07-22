@@ -158,6 +158,7 @@ const LoginPage: React.FC = () => {
       formData.append('studioId', isAdminRole ? '' : registerStudioId);
       if (isAdminRole) formData.append('studioName', registerStudioName);
       formData.append('role', apiRole);
+      formData.append('registerRole', registerRole); // keep original for studio type detection
       if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
       if (isOfflineAdmin && leaseContract) formData.append('leaseContract', leaseContract);
       if (idCardFront) formData.append('idCardFront', idCardFront);
