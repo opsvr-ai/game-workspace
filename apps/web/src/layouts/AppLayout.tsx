@@ -356,6 +356,7 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === '/owner/studios') setPendingBadge(0);
     navigate(key);
   };
 
