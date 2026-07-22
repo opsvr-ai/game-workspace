@@ -279,7 +279,7 @@ const StudiosPage: React.FC = () => {
         width={480}
       >
         {editingStudio && (
-          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form form={form} key={editingStudio.id} layout="vertical" style={{ marginTop: 16 }}>
             {/* Members info (read-only) */}
             {editingStudio.users && editingStudio.users.length > 0 && editingStudio.users.map((u: any) => (
               <div key={u.id} style={{ background: '#f6f8fa', borderRadius: 8, padding: 12, marginBottom: 8 }}>
