@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-22T18:53:54.348Z
+**Last Updated:** 2026-07-22T23:12:51.114Z
 
 ---
 
@@ -120,7 +120,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 50 occurrences
+**Frequency:** 51 occurrences
 
 ### Prefer arrow functions in .tsx files
 

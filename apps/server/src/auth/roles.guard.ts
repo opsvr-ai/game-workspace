@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  SetMetadata,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, SetMetadata, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@chunlv/shared';
 
@@ -12,17 +6,17 @@ export const ROLES_KEY = 'roles';
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);
 
 /** Roles that require authorization (isAuthorized check) */
-const ROLES_REQUIRING_AUTH: UserRole[] = [UserRole.CS, UserRole.COMPANION];
+const ROLES_REQUIRING_AUTH: UserRole[] = [UserRole.CS, UserRole.COMPANION, UserRole.ADMIN];
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;

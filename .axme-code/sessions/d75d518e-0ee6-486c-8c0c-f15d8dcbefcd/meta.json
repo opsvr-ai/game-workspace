@@ -8,7 +8,11 @@
     "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
     "/data/project/game-workspace/apps/server/src/orders/orders.controller.ts",
     "/data/project/game-workspace/apps/server/src/orders/order-workflow.service.ts",
-    "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts"
+    "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
+    "/data/project/game-workspace/apps/server/prisma/schema.prisma",
+    "/data/project/game-workspace/apps/server/src/auth/roles.guard.ts",
+    "/data/project/game-workspace/apps/server/src/auth/auth.module.ts",
+    "/data/project/game-workspace/apps/server/src/chat/chat.module.ts"
   ],
   "origin": "/data/project/game-workspace",
   "pid": 1781723,

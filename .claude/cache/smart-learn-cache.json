@@ -30,7 +30,7 @@
       }
     },
     ".prisma": {
-      "successCount": 22,
+      "successCount": 23,
       "patterns": {}
     },
     ".py": {
@@ -38,11 +38,11 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 164,
+      "successCount": 169,
       "patterns": {
         "style:prefer_const": {
-          "count": 2,
-          "weight": 392
+          "count": 0,
+          "weight": 393
         },
         "style:arrow_functions": {
           "count": 2,
@@ -78,14 +78,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784746186721
+      "lastSuccess": 1784761940306
     },
     "grep": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784746507445
+      "lastSuccess": 1784762255554
     },
     "wc": {
       "count": 5,
@@ -133,9 +133,9 @@
       "lastSuccess": 1784663670787
     },
     "tail": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784746157871
+      "lastSuccess": 1784762247610
     },
     "bash": {
       "count": 5,
@@ -239,153 +239,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"setInterval\\|useEffect.*localStorage\\|localStorage.getItem\\|localStorage.key\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx /data/project/game-workspace/apps/web/src/pages",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx /data/project/game-work",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784638034257
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638047568
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        }
-      ],
-      "timestamp": 1784638054261
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638064322
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784638071723
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/PoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638083522
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/PoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638095509
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/PoolPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638112370
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784638124374
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
@@ -2554,6 +2407,81 @@
         }
       ],
       "timestamp": 1784746520653
+    },
+    {
+      "type": "bash",
+      "command": "git commit -m \"fix: complete companion ownership + cancel permissions + studios auth gate + billing API paths + settlement idempotency\n\nCo-Authored-By: Claude <noreply@anthropic.com>\" #!axme pr=none r",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git commit -m \"\" #!axme pr=none repo=AxmeAI/axme-code",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784761940306
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "patterns": [],
+      "timestamp": 1784761966287
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/auth/roles.guard.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784761971112
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/auth/auth.module.ts",
+      "patterns": [],
+      "timestamp": 1784762032991
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/auth/auth.module.ts",
+      "patterns": [],
+      "timestamp": 1784762038125
+    },
+    {
+      "type": "bash",
+      "command": "tail -10 /tmp/server-fix.log",
+      "cmdPattern": {
+        "base": "tail",
+        "pattern": "tail -N /tmp/server-fix.log",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784762247610
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"import\\|Module\\|forwardRef\\|exports\" /data/project/game-workspace/apps/server/src/companions/companions.module.ts | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.module.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784762255554
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/chat/chat.module.ts",
+      "patterns": [],
+      "timestamp": 1784762265526
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/chat/chat.module.ts",
+      "patterns": [],
+      "timestamp": 1784762269868
     }
   ]
 }

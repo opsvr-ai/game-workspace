@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
@@ -11,7 +11,7 @@ import { WsModule } from '../ws/ws.module';
 import { StudiosModule } from '../studios/studios.module';
 
 @Module({
-  imports: [PrismaModule, WsModule, StudiosModule],
+  imports: [PrismaModule, forwardRef(() => WsModule), StudiosModule],
   controllers: [ChatController],
   providers: [
     ChatService,

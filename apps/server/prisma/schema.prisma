@@ -175,6 +175,7 @@ model Order {
   @@index([csUserId])
   @@index([status])
   @@index([studioId, createdAt])
+  @@index([status, dispatchType])
 }
 
 model Customer {

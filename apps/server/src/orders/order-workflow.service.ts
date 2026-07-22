@@ -35,6 +35,18 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单不可抢');
     }
 
+    // Cross-studio scope: companion can only grab from own or bridged studios
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { studioId: true },
+    });
+    if (companion?.studioId && companion.studioId !== order.studioId) {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(companion.studioId);
+      if (!bridgedIds.includes(order.studioId)) {
+        throw new ForbiddenException('无权抢其他工作室的订单');
+      }
+    }
+
     // Revenue threshold check — skip for peer orders (created by companions)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
     const isPeerOrder = creator?.role === 'COMPANION';
@@ -272,7 +284,10 @@ export class OrderWorkflowService {
             data: { monthlyRevenue: { increment: split.amount } },
           });
         } catch (err) {
-          logger.error('Split revenue update failed', { error: (err as Error).message, splitCompanionId: split.companionId });
+          logger.error('Split revenue update failed', {
+            error: (err as Error).message,
+            splitCompanionId: split.companionId,
+          });
         }
       }
     } catch (err) {
