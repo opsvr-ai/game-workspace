@@ -88,16 +88,19 @@ const StudiosPage: React.FC = () => {
 
   const handleReject = async () => {
     if (!rejectModal) return;
+    setSubmitting(true);
     try {
       await http.put(`/auth/users/${rejectModal.userId}/reject`, { reason: rejectReason || '未填写原因' });
       message.success('已拒绝');
-      // Remove from local state immediately + refresh
-      setPendingUsers((prev: any[]) => prev.filter((u: any) => u.id !== rejectModal.userId));
       setRejectModal(null);
       setRejectReason('');
-      setTimeout(() => fetchPendingUsers(), 1000);
+      // Force immediate refetch — don't rely on local filter
+      fetchPendingUsers();
+      fetchStudios();
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '操作失败');
+      Modal.error({ title: '拒绝失败', content: err?.response?.data?.message || err?.message || '操作失败' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
