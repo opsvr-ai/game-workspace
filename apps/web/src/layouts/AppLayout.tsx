@@ -308,10 +308,10 @@ const AppLayout: React.FC = () => {
             ...item,
             children: item.children.map((child: any) => {
               if (child.label === '工作室管理' && pCount > 0) {
-                return { ...child, label: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{child.label}<Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
               }
               if ((child.label === '陪玩管理' || child.label === '员工管理') && totalUnread > 0) {
-                return { ...child, label: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{child.label}<Badge count={totalUnread} size="small" overflowCount={99} style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }} /></span> };
+                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={totalUnread} size="small" overflowCount={99} style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }} /></span> };
               }
               return child;
             }),
