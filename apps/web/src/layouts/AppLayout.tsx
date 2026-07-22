@@ -362,7 +362,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-  }, [user, totalUnread]);
+  }, [user, totalUnread, pendingBadge]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
