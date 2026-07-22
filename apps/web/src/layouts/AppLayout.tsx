@@ -204,21 +204,33 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(t);
   }, [user?.role]);
 
-  // Direct polling for pending review badge — bypasses authStore caching issues
+  // Direct polling + "read" tracking: badge shows only NEW apps since last visit
   const [pendingBadge, setPendingBadge] = React.useState(0);
+  const [lastSeenCount, setLastSeenCount] = React.useState(() => {
+    try { return parseInt(localStorage.getItem('pending-last-seen') || '0', 10); } catch { return 0; }
+  });
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
     const fetchCount = () => {
       fetch('/api/users/pending-review', {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
       }).then(r => r.json()).then(d => {
-        setPendingBadge((d.data || []).length);
+        const total = (d.data || []).length;
+        setPendingBadge(Math.max(0, total - lastSeenCount));
       }).catch(() => {});
     };
     fetchCount();
     const t = setInterval(fetchCount, 15000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, lastSeenCount]);
+
+  // Mark as "read" when clicking 工作室管理 or visiting the page
+  const markPendingRead = () => {
+    const current = pendingBadge + lastSeenCount; // reconstruct total
+    setLastSeenCount(current);
+    localStorage.setItem('pending-last-seen', String(current));
+    setPendingBadge(0);
+  };
 
   // Chat 3.0: notification handled by ChatProvider
 
@@ -365,6 +377,7 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === '/owner/studios') markPendingRead();
     navigate(key);
   };
 
