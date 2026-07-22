@@ -148,11 +148,14 @@ export class AuthService {
   }
 
   async rejectUser(userId: string, reason: string): Promise<void> {
-    // Set note with reject reason, keep isAuthorized=false
+    // Mark as processed: isAuthorized stays false, but rejected flag means no longer pending
     await this.prisma.user.update({
       where: { id: userId },
-      data: { isAuthorized: false, customEmojis: [{ rejectReason: reason, rejectedAt: new Date().toISOString() }] as any },
+      data: { customEmojis: [{ rejectReason: reason, rejectedAt: new Date().toISOString() }] as any },
     });
+    // Delete the user — rejection means application is denied
+    // (soft alternative: could keep but exclude from pending list)
+    await this.prisma.user.delete({ where: { id: userId } });
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
