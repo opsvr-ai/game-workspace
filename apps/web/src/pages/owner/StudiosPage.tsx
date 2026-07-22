@@ -117,6 +117,8 @@ const StudiosPage: React.FC = () => {
 
   useEffect(() => {
     fetchStudios();
+    // Refresh sidebar badge on page load
+    useAuthStore.getState().fetchUser();
   }, [fetchStudios]);
 
   const openEditModal = (record: Studio) => {
