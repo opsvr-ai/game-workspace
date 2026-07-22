@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { studiosApi } from '../../api/studios';
 import http from '../../api/client';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
 
@@ -78,6 +79,7 @@ const StudiosPage: React.FC = () => {
       await http.put(`/auth/users/${userId}/authorize`, {});
       message.success('已通过审核');
       fetchPendingUsers();
+      useAuthStore.getState().fetchUser(); // refresh sidebar badge
     } catch (err: any) {
       message.error(err?.response?.data?.message || '操作失败');
     }

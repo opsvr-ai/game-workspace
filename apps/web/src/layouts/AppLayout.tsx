@@ -349,6 +349,10 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
+    // Refresh user info when navigating to studio management (update pending count)
+    if (key === '/owner/studios') {
+      useAuthStore.getState().fetchUser();
+    }
     navigate(key);
   };
 
