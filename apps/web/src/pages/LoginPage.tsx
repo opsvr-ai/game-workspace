@@ -274,6 +274,19 @@ const LoginPage: React.FC = () => {
                 {idNumberError || '\u00A0'}
               </div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Select
+                size="large"
+                placeholder="选择注册角色 *"
+                value={registerRole}
+                onChange={(v) => setRegisterRole(v)}
+              >
+                <Option value="OFFLINE_ADMIN">🏢 线下工作室 · 店长</Option>
+                <Option value="OFFLINE_CS">🏢 线下工作室 · 客服</Option>
+                <Option value="OFFLINE_COMPANION">🏢 线下工作室 · 陪玩</Option>
+                <Option value="ONLINE_ADMIN">🌐 线上俱乐部 · 店长</Option>
+                <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
+                <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
+              </Select>
               {isAdminRole ? (
                 <Input
                   size="large"
@@ -295,19 +308,6 @@ const LoginPage: React.FC = () => {
                   ))}
                 </Select>
               )}
-              <Select
-                size="large"
-                placeholder="选择注册角色 *"
-                value={registerRole}
-                onChange={(v) => setRegisterRole(v)}
-              >
-                <Option value="OFFLINE_ADMIN">🏢 线下工作室 · 店长</Option>
-                <Option value="OFFLINE_CS">🏢 线下工作室 · 客服</Option>
-                <Option value="OFFLINE_COMPANION">🏢 线下工作室 · 陪玩</Option>
-                <Option value="ONLINE_ADMIN">🌐 线上俱乐部 · 店长</Option>
-                <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
-                <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
-              </Select>
               {isOfflineAdmin && (
                 <>
                   <Input
