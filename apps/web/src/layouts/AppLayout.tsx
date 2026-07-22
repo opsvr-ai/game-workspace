@@ -4,6 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
+import http from '../api/client';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
@@ -201,12 +202,7 @@ const AppLayout: React.FC = () => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
     const doFetch = async () => {
       try {
-        const token = sessionStorage.getItem('accessToken');
-        if (!token) return;
-        const res = await fetch('/api/users/pending-review', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const { data } = await http.get('/users/pending-review');
         setPendingBadge((data.data || []).length);
       } catch {}
     };
