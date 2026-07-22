@@ -204,6 +204,22 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(t);
   }, [user?.role]);
 
+  // Direct polling for pending review badge — bypasses authStore caching issues
+  const [pendingBadge, setPendingBadge] = React.useState(0);
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
+    const fetchCount = () => {
+      fetch('/api/users/pending-review', {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
+      }).then(r => r.json()).then(d => {
+        setPendingBadge((d.data || []).length);
+      }).catch(() => {});
+    };
+    fetchCount();
+    const t = setInterval(fetchCount, 15000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
   // Chat 3.0: notification handled by ChatProvider
 
   // Open chat from notification
@@ -297,7 +313,7 @@ const AppLayout: React.FC = () => {
   const menuItems = useMemo(() => {
     if (!user) return [];
     const items = [...(roleMenus[user.role] || [])];
-    const pCount = user?.pendingReviewCount || 0;
+    const pCount = pendingBadge;
     return items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
