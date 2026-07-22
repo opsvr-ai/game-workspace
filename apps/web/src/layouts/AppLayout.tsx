@@ -215,7 +215,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 10000);
+    const t = setInterval(doFetch, 5000);
     return () => clearInterval(t);
   }, [user?.role]);
 
@@ -374,7 +374,7 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === '/owner/studios') markSeen();
+    if (key === '/owner/studios') { setPendingBadge(0); markSeen(); }
     navigate(key);
   };
 
