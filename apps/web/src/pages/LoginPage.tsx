@@ -149,6 +149,7 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('注册提交', { username, realName, phone, apiRole, registerRole, registerStudioName, registerAddress });
       const formData = new FormData();
       formData.append('username', username);
       formData.append('password', password);
