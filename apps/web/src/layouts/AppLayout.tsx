@@ -196,20 +196,35 @@ const AppLayout: React.FC = () => {
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
     orderInfo?: string;
   } | null>(null);
-  // Simple direct polling for pending badge
-  const [pendingBadge, setPendingBadge] = React.useState(0);
+  // Badge: total - lastSeen (click clears, new apps increment)
+  const [totalPending, setTotalPending] = React.useState(0);
+  const [lastSeen, setLastSeen] = React.useState(() =>
+    parseInt(localStorage.getItem('pending-seen') || '0', 10)
+  );
+  const pendingBadge = Math.max(0, totalPending - lastSeen);
+
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
     const doFetch = async () => {
       try {
         const { data } = await http.get('/users/pending-review');
-        setPendingBadge((data.data || []).length);
+        const t = (data.data || []).length;
+        setTotalPending(t);
+        if (t < lastSeen) {
+          setLastSeen(t);
+          localStorage.setItem('pending-seen', String(t));
+        }
       } catch {}
     };
     doFetch();
     const t = setInterval(doFetch, 10000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, lastSeen]);
+
+  const markSeen = () => {
+    setLastSeen(totalPending);
+    localStorage.setItem('pending-seen', String(totalPending));
+  };
 
   // Chat 3.0: notification handled by ChatProvider
 
@@ -356,7 +371,7 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === '/owner/studios') setPendingBadge(0);
+    if (key === '/owner/studios') markSeen();
     navigate(key);
   };
 
