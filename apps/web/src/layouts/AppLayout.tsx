@@ -216,12 +216,15 @@ const AppLayout: React.FC = () => {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
       }).then(r => r.json()).then(d => {
         const total = (d.data || []).length;
+        const currentSeen = lastSeenCount;
         // If total went down (approved/deleted), reset lastSeen
-        if (total < lastSeenCount) {
+        if (total < currentSeen) {
           setLastSeenCount(total);
           localStorage.setItem('pending-last-seen', String(total));
+          setPendingBadge(0);
+        } else {
+          setPendingBadge(total - currentSeen);
         }
-        setPendingBadge(Math.max(0, total - lastSeenCount));
       }).catch(() => {});
     };
     fetchCount();

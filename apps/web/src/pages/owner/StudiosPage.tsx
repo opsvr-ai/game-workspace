@@ -280,6 +280,19 @@ const StudiosPage: React.FC = () => {
       >
         {editingStudio && (
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            {/* Members info (read-only) */}
+            {editingStudio.users && editingStudio.users.length > 0 && (
+              <div style={{ background: '#f6f8fa', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                <Text strong style={{ fontSize: 13 }}>👤 工作室成员</Text>
+                {editingStudio.users.map((u: any) => (
+                  <div key={u.id} style={{ marginTop: 6, fontSize: 13 }}>
+                    <Tag>{u.role === 'ADMIN' ? '店长' : u.role === 'CS' ? '客服' : '陪玩'}</Tag>
+                    {u.displayName || u.username}
+                    <Text type="secondary" style={{ marginLeft: 8 }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : ''}</Text>
+                  </div>
+                ))}
+              </div>
+            )}
             <Form.Item
               name="name"
               label="工作室名称"
