@@ -78,7 +78,8 @@ const StudiosPage: React.FC = () => {
     try {
       await http.put(`/auth/users/${userId}/authorize`, {});
       message.success('已通过审核');
-      fetchPendingUsers();
+      setPendingUsers((prev: any[]) => prev.filter((u: any) => u.id !== userId));
+      setTimeout(() => { fetchPendingUsers(); fetchStudios(); }, 1000);
       useAuthStore.getState().fetchUser(); // refresh sidebar badge
     } catch (err: any) {
       message.error(err?.response?.data?.message || '操作失败');
@@ -90,9 +91,11 @@ const StudiosPage: React.FC = () => {
     try {
       await http.put(`/auth/users/${rejectModal.userId}/reject`, { reason: rejectReason || '未填写原因' });
       message.success('已拒绝');
+      // Remove from local state immediately + refresh
+      setPendingUsers((prev: any[]) => prev.filter((u: any) => u.id !== rejectModal.userId));
       setRejectModal(null);
       setRejectReason('');
-      fetchPendingUsers();
+      setTimeout(() => fetchPendingUsers(), 1000);
     } catch (err: any) {
       message.error(err?.response?.data?.message || '操作失败');
     }
