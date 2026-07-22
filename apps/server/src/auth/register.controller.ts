@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Put, Param, Body, Req, UseGuards, UseInterceptors,
+  Controller, Post, Get, Put, Param, Body, Req, Query, UseGuards, UseInterceptors,
   UploadedFiles,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -16,6 +16,12 @@ import * as bcrypt from 'bcryptjs';
 @Controller()
 export class RegisterController {
   constructor(private readonly prisma: PrismaService, private readonly identityVerify: IdentityVerifyService) {}
+
+  @Get('auth/check-username')
+  async checkUsername(@Query('q') q: string): Promise<ApiResponse<{ exists: boolean }>> {
+    const user = await this.prisma.user.findUnique({ where: { username: q }, select: { id: true } });
+    return { code: 200, message: 'ok', data: { exists: !!user } };
+  }
 
   // 陪玩自主注册（无需登录）
   @Post('auth/register')

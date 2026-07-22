@@ -21,8 +21,22 @@ const roleRouteMap: Record<UserRole, string> = {
 
 const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [username, setUsername] = useState(import.meta.env.DEV ? 'hanlei' : '');
-  const [password, setPassword] = useState(import.meta.env.DEV ? '123456' : '');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+
+  // Check username availability on blur
+  const checkUsername = async (val: string) => {
+    if (!val || val.length < 2) return;
+    try {
+      const { data } = await http.get(`/auth/check-username?q=${encodeURIComponent(val)}`);
+      if (data?.data?.exists) {
+        setUsernameError('该用户名已被注册');
+      } else {
+        setUsernameError('');
+      }
+    } catch { /* non-critical */ }
+  };
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
@@ -227,8 +241,11 @@ const LoginPage: React.FC = () => {
                 size="large"
                 placeholder="用户名 *"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
+                onBlur={(e) => checkUsername(e.target.value)}
+                status={usernameError ? 'error' : undefined}
               />
+              {usernameError && <Text type="danger" style={{ fontSize: 12 }}>{usernameError}</Text>}
               <Input.Password
                 size="large"
                 placeholder="密码 *"
