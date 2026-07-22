@@ -396,7 +396,7 @@ const LoginPage: React.FC = () => {
           </a>
         </div>
         <div style={{ marginTop: 8, textAlign: 'center' }}>
-          <Text style={{ color: '#94A3B8', fontSize: 12 }}>v2.1 · 面向电竞陪玩工作室</Text>
+          <Text style={{ color: '#94A3B8', fontSize: 12 }}>v2.1 · 514ba7c</Text>
         </div>
       </div>
     </div>
