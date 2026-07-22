@@ -48,18 +48,18 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Put('users/:id/authorize')
-  async authorizeUser(@Param('id') id: string): Promise<ApiResponse<null>> {
-    await this.authService.authorizeUser(id);
+  async authorizeUser(@Param('id') id: string, @Request() req: any): Promise<ApiResponse<null>> {
+    await this.authService.authorizeUser(id, req.user.studioId, req.user.role);
     return { code: 200, message: '审核通过', data: null };
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   @Put('users/:id/reject')
-  async rejectUser(@Param('id') id: string, @Body() body: { reason: string }): Promise<ApiResponse<null>> {
-    await this.authService.rejectUser(id, body.reason);
+  async rejectUser(@Param('id') id: string, @Body() body: { reason: string }, @Request() req: any): Promise<ApiResponse<null>> {
+    await this.authService.rejectUser(id, body.reason, req.user.studioId, req.user.role);
     return { code: 200, message: '已拒绝', data: null };
   }
 

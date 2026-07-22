@@ -8,9 +8,10 @@ import { ChatSearchService } from './chat-search.service';
 import { ParticipantGuard } from './guards/participant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WsModule } from '../ws/ws.module';
+import { StudiosModule } from '../studios/studios.module';
 
 @Module({
-  imports: [PrismaModule, WsModule],
+  imports: [PrismaModule, WsModule, StudiosModule],
   controllers: [ChatController],
   providers: [
     ChatService,

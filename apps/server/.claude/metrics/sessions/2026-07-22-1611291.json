@@ -1,0 +1,13 @@
+{
+  "sessionId": "1611291",
+  "date": "2026-07-22",
+  "startedAt": 1784733617364,
+  "totalTokens": 5500,
+  "toolCalls": 1,
+  "tokensByTool": {
+    "Edit": 300
+  },
+  "tokensByPhase": {},
+  "agent": "unknown",
+  "lastUpdated": "2026-07-22T15:20:17.365Z"
+}

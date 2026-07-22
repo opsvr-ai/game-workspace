@@ -1,26 +1,50 @@
 // craftsman-ignore: TS001
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BridgeService } from '../studios/bridge.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bridgeService: BridgeService,
+  ) {}
 
   // ─── Room Management ───
 
-  /** Create or get existing ChatRoom between two users */
+  /** Create or get existing ChatRoom between two users. studioId=null for cross-studio rooms. */
   async getOrCreateRoom(studioId: string, userId: string, participantId: string, orderInfo?: string) {
     const [participantA, participantB] = [userId, participantId].sort();
 
-    let room = await this.prisma.chatRoom.findUnique({
-      where: {
-        studioId_participantA_participantB: { studioId, participantA, participantB },
-      },
+    // Determine if this is a cross-studio conversation
+    const otherUser = await this.prisma.user.findUnique({
+      where: { id: participantId },
+      select: { studioId: true },
+    });
+    const isCrossStudio = otherUser?.studioId && otherUser.studioId !== studioId;
+
+    let effectiveStudioId: string | null = studioId;
+    if (isCrossStudio) {
+      // Verify the two studios are bridged
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      const otherStudioId = otherUser?.studioId;
+      if (!otherStudioId || !bridgedIds.includes(otherStudioId)) {
+        // Not bridged — fall back to own studio (shouldn't happen in practice)
+        effectiveStudioId = studioId;
+      } else {
+        effectiveStudioId = null; // cross-studio room
+      }
+    }
+
+    // Find existing room
+    let room = null;
+    room = await this.prisma.chatRoom.findFirst({
+      where: { studioId: effectiveStudioId as any, participantA, participantB },
     });
 
     if (!room) {
       room = await this.prisma.chatRoom.create({
-        data: { studioId, participantA, participantB, orderInfo },
+        data: { studioId: effectiveStudioId as any, participantA, participantB, orderInfo },
       });
     } else if (orderInfo && !room.orderInfo) {
       room = await this.prisma.chatRoom.update({
@@ -32,11 +56,14 @@ export class ChatService {
     return room;
   }
 
-  /** List rooms for a user */
+  /** List rooms for a user, including cross-studio rooms (studioId=null) */
   async listRooms(userId: string, studioId: string, opts?: { pinned?: boolean; search?: string }) {
+    const baseCondition = { OR: [{ participantA: userId }, { participantB: userId }] };
     const where: any = {
-      studioId,
-      OR: [{ participantA: userId }, { participantB: userId }],
+      OR: [
+        { studioId, ...baseCondition },
+        { studioId: null, ...baseCondition },
+      ],
       ...(opts?.pinned ? { pinned: true } : {}),
     };
 
@@ -50,7 +77,7 @@ export class ChatService {
       const otherUserId = r.participantA === userId ? r.participantB : r.participantA;
       const user = await this.prisma.user.findUnique({
         where: { id: otherUserId },
-        select: { id: true, username: true, displayName: true, avatar: true, role: true },
+        select: { id: true, username: true, displayName: true, avatar: true, role: true, studioId: true },
       });
       if (!user) continue;
 
@@ -63,6 +90,15 @@ export class ChatService {
       }
 
       const unreadCount = await this.getUnreadCount(r.id, userId);
+      const isCrossStudio = r.studioId === null;
+      let studioName: string | undefined;
+      if (isCrossStudio && user.studioId) {
+        const studio = await this.prisma.studio.findUnique({
+          where: { id: user.studioId },
+          select: { name: true },
+        });
+        studioName = studio?.name;
+      }
 
       result.push({
         id: r.id,
@@ -72,6 +108,8 @@ export class ChatService {
           displayName: user.displayName || undefined,
           avatar: user.avatar || undefined,
           role: user.role,
+          studioName,
+          isCrossStudio,
         },
         lastMessage: r.lastMessage,
         lastMessageAt: r.lastMessageAt?.toISOString() || null,

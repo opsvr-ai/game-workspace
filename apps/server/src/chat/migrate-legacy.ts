@@ -26,31 +26,38 @@ async function migrateConversations(): Promise<Map<string, string>> {
   for (const conv of conversations) {
     const maxSeq = conv.messages.length;
 
-    const room = await prisma.chatRoom.upsert({
+    let room = await prisma.chatRoom.findFirst({
       where: {
-        studioId_participantA_participantB: {
-          studioId: conv.studioId,
-          participantA: conv.participantA,
-          participantB: conv.participantB,
-        },
-      },
-      create: {
         studioId: conv.studioId,
         participantA: conv.participantA,
         participantB: conv.participantB,
-        aReadSeq: conv.aReadAt ? maxSeq : 0,
-        bReadSeq: conv.bReadAt ? maxSeq : 0,
-        lastMessage: conv.lastMessage,
-        lastMessageAt: conv.lastMessageAt,
-        lastMessageSeq: maxSeq,
-        orderInfo: conv.orderInfo,
-        createdAt: conv.createdAt,
-      },
-      update: {
-        lastMessageSeq: maxSeq,
-        orderInfo: conv.orderInfo || undefined,
       },
     });
+
+    if (!room) {
+      room = await prisma.chatRoom.create({
+        data: {
+          studioId: conv.studioId,
+          participantA: conv.participantA,
+          participantB: conv.participantB,
+          aReadSeq: conv.aReadAt ? maxSeq : 0,
+          bReadSeq: conv.bReadAt ? maxSeq : 0,
+          lastMessage: conv.lastMessage,
+          lastMessageAt: conv.lastMessageAt,
+          lastMessageSeq: maxSeq,
+          orderInfo: conv.orderInfo,
+          createdAt: conv.createdAt,
+        },
+      });
+    } else {
+      room = await prisma.chatRoom.update({
+        where: { id: room.id },
+        data: {
+          lastMessageSeq: maxSeq,
+          orderInfo: conv.orderInfo || undefined,
+        },
+      });
+    }
 
     idMap.set(conv.id, room.id);
 

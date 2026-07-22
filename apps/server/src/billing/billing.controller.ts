@@ -140,6 +140,12 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('billing/pending-count')
+  async pendingCount(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.billingService.getPendingCount(req.user.studioId, req.user.role);
+    return { code: 200, message: 'ok', data };
+  }
+
   // ── Expense Reports ──
 
   @Post('expense-reports')

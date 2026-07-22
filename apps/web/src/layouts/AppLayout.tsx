@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, notification } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import http from '../api/client';
@@ -12,6 +12,7 @@ import DualCompanionModal from '../components/DualCompanionModal';
 import { ChatProvider } from '../components/chat';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
+import { PartnerCallNotification } from '../components/PartnerCallNotification';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
@@ -146,6 +147,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
+    { key: '/owner/bridges', icon: IconStudios, label: '工作室桥接' },
     { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
     { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
     { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
@@ -206,7 +208,6 @@ const AppLayout: React.FC = () => {
       try {
         const { data } = await http.get('/users/pending-review');
         const total = (data.data || []).length;
-        // Fix: seen should never exceed total
         if (seenRef.current > total) {
           seenRef.current = total;
           localStorage.setItem('pending-seen', String(total));
@@ -218,6 +219,69 @@ const AppLayout: React.FC = () => {
     const t = setInterval(doFetch, 5000);
     return () => clearInterval(t);
   }, [user?.role]);
+
+  // Bridge pending badge for ADMIN (same pattern as pendingBadge above)
+  const [bridgePendingBadge, setBridgePendingBadge] = React.useState(0);
+  const bridgeSeenRef = React.useRef(0);
+
+  useEffect(() => {
+    if (user?.role !== 'ADMIN') return;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/bridges');
+        const pending = data.data?.pending || [];
+        const total = pending.length;
+        if (bridgeSeenRef.current > total) {
+          bridgeSeenRef.current = total;
+          localStorage.setItem('bridge-pending-seen', String(total));
+        }
+        setBridgePendingBadge(Math.max(0, total - bridgeSeenRef.current));
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(doFetch, 5000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
+  // Billing pending badge (报账审核 + 支出审批 + 支取审批)
+  const [billingBadge, setBillingBadge] = React.useState(0);
+  const billingSeenRef = React.useRef(0);
+
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/billing/pending-count');
+        const total = data.data?.total || 0;
+        if (billingSeenRef.current > total) {
+          billingSeenRef.current = total;
+          localStorage.setItem('billing-pending-seen', String(total));
+        }
+        setBillingBadge(Math.max(0, total - billingSeenRef.current));
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(doFetch, 5000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
+  const markBillingSeen = () => {
+    setBillingBadge(prev => {
+      const total = prev + billingSeenRef.current;
+      billingSeenRef.current = total;
+      localStorage.setItem('billing-pending-seen', String(total));
+      return 0;
+    });
+  };
+
+  const markBridgeSeen = () => {
+    setBridgePendingBadge(prev => {
+      const total = prev + bridgeSeenRef.current;
+      bridgeSeenRef.current = total;
+      localStorage.setItem('bridge-pending-seen', String(total));
+      return 0;
+    });
+  };
 
   const markSeen = () => {
     // Read current total from state to set seen
@@ -300,6 +364,36 @@ const AppLayout: React.FC = () => {
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
+    onWalletReviewed: (data: any) => {
+      notification.info({
+        message: data.message || '支取审核结果',
+        description: `金额 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`,
+        placement: 'topRight',
+      });
+    },
+    onUserAuthorized: (data: any) => {
+      notification.success({
+        message: '审核通过',
+        description: data.message || '您的注册申请已通过审核',
+        placement: 'topRight',
+        duration: 6,
+      });
+    },
+    onUserRejected: (data: any) => {
+      notification.warning({
+        message: '审核未通过',
+        description: data.message || '您的注册申请未通过审核',
+        placement: 'topRight',
+        duration: 6,
+      });
+    },
+    onBridgeResponded: (data: any) => {
+      notification.info({
+        message: '桥接申请结果',
+        description: data.message || (data.accepted ? '对方已同意桥接' : '对方已拒绝桥接'),
+        placement: 'topRight',
+      });
+    },
   });
 
   useEffect(() => {
@@ -323,19 +417,31 @@ const AppLayout: React.FC = () => {
     if (!user) return [];
     const items = [...(roleMenus[user.role] || [])];
     const pCount = pendingBadge;
+    const bpCount = bridgePendingBadge;
+    const bCount = billingBadge;
     return items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
-        const hasPending = item.children.some((c: any) => c.label === '工作室管理' && pCount > 0);
-        const hasUnread = item.children.some((c: any) => (c.label === '陪玩管理' || c.label === '员工管理') && totalUnread > 0);
-        if (hasPending || hasUnread) {
+        const REVIEW_LABELS = ['工作室管理', '实名审核'];
+        const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
+        const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
+        const hasBridgePending = item.children.some((c: any) => c.label === '工作室桥接' && bpCount > 0);
+        const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
+        const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && totalUnread > 0);
+        if (hasPending || hasBridgePending || hasBilling || hasUnread) {
           return {
             ...item,
             children: item.children.map((child: any) => {
-              if (child.label === '工作室管理' && pCount > 0) {
+              if (REVIEW_LABELS.includes(child.label) && pCount > 0) {
                 return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
               }
-              if ((child.label === '陪玩管理' || child.label === '员工管理') && totalUnread > 0) {
+              if (child.label === '工作室桥接' && bpCount > 0) {
+                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+              }
+              if (child.label === '报账系统' && bCount > 0) {
+                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+              }
+              if (CHAT_LABELS.includes(child.label) && totalUnread > 0) {
                 return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={totalUnread} size="small" overflowCount={99} style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }} /></span> };
               }
               return child;
@@ -344,7 +450,40 @@ const AppLayout: React.FC = () => {
         }
       }
       // Top-level item check (fallback)
-      if ((item.label === '陪玩管理' || item.label === '员工管理') && totalUnread > 0) {
+      if (REVIEW_LABELS.includes(item.label as string) && pCount > 0) {
+        return {
+          ...item,
+          label: (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {item.label}
+              <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+            </span>
+          ),
+        };
+      }
+      if ((item.label === '工作室桥接') && bpCount > 0) {
+        return {
+          ...item,
+          label: (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {item.label}
+              <Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+            </span>
+          ),
+        };
+      }
+      if (item.label === '报账系统' && bCount > 0) {
+        return {
+          ...item,
+          label: (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {item.label}
+              <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+            </span>
+          ),
+        };
+      }
+      if (CHAT_LABELS.includes(item.label as string) && totalUnread > 0) {
         return {
           ...item,
           label: (
@@ -362,7 +501,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-  }, [user, totalUnread, pendingBadge]);
+  }, [user, totalUnread, pendingBadge, bridgePendingBadge, billingBadge]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -374,7 +513,9 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    setPendingBadge(0); markSeen(); // clear all badges on any menu click
+    setPendingBadge(0); markSeen();
+    setBridgePendingBadge(0); markBridgeSeen();
+    setBillingBadge(0); markBillingSeen();
     navigate(key);
   };
 
@@ -678,6 +819,7 @@ const AppLayout: React.FC = () => {
 
       {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
+      <PartnerCallNotification />
     </ChatProvider>
   );
 };

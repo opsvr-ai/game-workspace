@@ -1,0 +1,10 @@
+{
+  "axmeSessionId": "63d794bd-7ec0-4c2b-b642-1bfdb740cbb9",
+  "claudeSessionIds": [
+    "d3a0ae65-2ae1-478c-ab34-fc2519f1914c"
+  ],
+  "startedAt": "2026-07-22T16:26:04.791Z",
+  "phase": "started",
+  "model": "claude-sonnet-4-6",
+  "filesChangedCount": 65
+}

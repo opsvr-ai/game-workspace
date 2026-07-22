@@ -17,4 +17,5 @@ export const ordersApi = {
   declineAssignment: (id: string) => http.post(`/orders/${id}/decline-assignment`),
   quickGrab: (id: string) => http.post(`/orders/${id}/quick-grab`),
   markReady: (id: string) => http.post(`/orders/${id}/mark-ready`),
+  acceptPartner: (id: string) => http.post(`/orders/${id}/accept-partner`),
 };

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ForbiddenException, BadRequestExcept
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { WsGateway } from '../ws/ws.gateway';
 import { LoginDto } from './dto/login.dto';
 import type { UserInfo, LoginResponse } from '@chunlv/shared';
 import { UserRole } from '@chunlv/shared';
@@ -11,6 +12,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly wsGateway: WsGateway,
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponse> {
@@ -28,7 +30,7 @@ export class AuthService {
       throw new UnauthorizedException('用户名或密码错误');
     }
 
-    const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION];
+    const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION, UserRole.ADMIN];
     if (rolesRequiringAuth.includes(user.role as UserRole) && !user.isAuthorized) {
       throw new ForbiddenException('账号尚未通过审核，请联系管理员');
     }
@@ -55,7 +57,11 @@ export class AuthService {
     // Include pending count for OWNER/ADMIN
     let pendingReviewCount = 0;
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
-      pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+      if (user.role === 'ADMIN' && user.studioId) {
+        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false, studioId: user.studioId } });
+      } else {
+        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+      }
     }
 
     const userInfo: UserInfo = {
@@ -126,7 +132,11 @@ export class AuthService {
     // Include pending review count for OWNER/ADMIN
     let pendingReviewCount = 0;
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
-      pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+      if (user.role === 'ADMIN' && user.studioId) {
+        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false, studioId: user.studioId } });
+      } else {
+        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+      }
     }
     return {
       id: user.id,
@@ -140,16 +150,47 @@ export class AuthService {
     };
   }
 
-  async authorizeUser(userId: string): Promise<void> {
+  async authorizeUser(userId: string, reviewerStudioId?: string, reviewerRole?: string): Promise<void> {
+    // ADMIN can only authorize users in their own studio
+    if (reviewerRole === 'ADMIN' && reviewerStudioId) {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
+      if (!target || target.studioId !== reviewerStudioId) {
+        throw new ForbiddenException('无权审核其他工作室的用户');
+      }
+    }
     await this.prisma.user.update({
       where: { id: userId },
       data: { isAuthorized: true },
     });
+    // Also update companion reviewStatus if exists (unify dual approval systems)
+    const companion = await this.prisma.companion.findUnique({ where: { userId }, select: { id: true } });
+    if (companion) {
+      await this.prisma.companion.update({
+        where: { userId },
+        data: { reviewStatus: 'APPROVED' },
+      });
+    }
+    // Notify the user their registration was approved
+    this.wsGateway.notifyUser(userId, 'user:authorized', {
+      message: '您的注册申请已通过审核，请重新登录',
+    });
   }
 
-  async rejectUser(userId: string, _reason: string): Promise<void> {
+  async rejectUser(userId: string, _reason: string, reviewerStudioId?: string, reviewerRole?: string): Promise<void> {
+    // ADMIN can only reject users in their own studio
+    if (reviewerRole === 'ADMIN' && reviewerStudioId) {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
+      if (!target || target.studioId !== reviewerStudioId) {
+        throw new ForbiddenException('无权审核其他工作室的用户');
+      }
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
-    // Delete the user — rejection means application is denied
+    // Notify the user before deletion
+    this.wsGateway.notifyUser(userId, 'user:rejected', {
+      message: `您的注册申请已被拒绝${_reason ? '：' + _reason : ''}`,
+    });
+    // Delete companion first if exists (FK constraint), then user
+    await this.prisma.companion.deleteMany({ where: { userId } });
     await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
     // Also delete auto-created studio if it only has this user
     if (user?.studioId) {

@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
 import { logger } from '../common/logger';
 import { CompanionsService } from '../companions/companions.service';
+import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 
@@ -52,6 +53,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly bridgeService: BridgeService,
     @Inject(forwardRef(() => CompanionsService)) private readonly companionsService: CompanionsService,
     private readonly heartbeatService: HeartbeatService,
     private readonly blacklistIngestService: BlacklistIngestService,
@@ -98,6 +100,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.userSockets.set(user.id, client.id);
       if (user.studioId) {
         void client.join(`studio:${user.studioId}`);
+        // Join all bridged studio rooms for cross-studio real-time events
+        this.bridgeService.getBridgedStudioIds(user.studioId).then((bridgedIds) => {
+          for (const bridgedId of bridgedIds) {
+            void client.join(`studio:${bridgedId}`);
+          }
+        });
       }
       if (user.companionId) {
         void client.join(`companion:${user.companionId}`);
@@ -336,9 +344,19 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`studio:${studioId}`).emit(event, data);
   }
 
+  async broadcastToBridgedStudios(studioId: string, event: string, data: unknown): Promise<void> {
+    this.server.to(`studio:${studioId}`).emit(event, data);
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+    for (const bridgedId of bridgedIds) {
+      this.server.to(`studio:${bridgedId}`).emit(event, data);
+    }
+  }
+
   async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<void> {
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+    const studioIds = [studioId, ...bridgedIds];
     const idleCompanions = await this.prisma.companion.findMany({
-      where: { studioId, status: 'AVAILABLE' },
+      where: { studioId: { in: studioIds }, status: 'AVAILABLE' },
       select: { id: true },
     });
     for (const c of idleCompanions) {

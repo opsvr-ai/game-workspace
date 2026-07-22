@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-21T12:51:01.411Z
+**Last Updated:** 2026-07-22T18:53:54.348Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 17
+- **Total Patterns:** 18
 - **Total Feedback:** 2
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 38 occurrences
+**Frequency:** 44 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 20 occurrences
+**Frequency:** 24 occurrences
 
 ### Commonly used command: find
 
@@ -39,7 +39,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 12 occurrences
+**Frequency:** 13 occurrences
 
 ### Commonly used command: wc
 
@@ -55,7 +55,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 7 occurrences
 
 ### Commonly used command: mkdir
 
@@ -102,6 +102,13 @@
 
 **Frequency:** 1 occurrences
 
+### Commonly used command: head
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
 ## Style
 
 *0 corrections in this category*
@@ -113,7 +120,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 44 occurrences
+**Frequency:** 50 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -122,7 +129,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 27 occurrences
+**Frequency:** 30 occurrences
 
 ### Prefer async await in .ts files
 
@@ -131,7 +138,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 13 occurrences
+**Frequency:** 18 occurrences
 
 ## Framework
 
@@ -144,7 +151,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 16 occurrences
+**Frequency:** 17 occurrences
 
 ## Quality
 
@@ -157,7 +164,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 4 occurrences
+**Frequency:** 5 occurrences
 
 ## Typing
 

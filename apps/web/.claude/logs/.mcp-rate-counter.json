@@ -1,10 +1,10 @@
 {
-  "session_start": 1784554718716,
+  "session_start": 1784654443479,
   "per_server": {
-    "playwright": {
+    "codegraph": {
       "session": 1,
       "last_minute": [
-        1784554718716
+        1784654443479
       ]
     }
   }

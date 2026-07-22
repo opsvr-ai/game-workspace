@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WsGateway } from '../ws/ws.gateway';
 import { TransactionService } from './transaction.service';
 import { SettlementService } from './settlement.service';
 
@@ -8,6 +9,7 @@ import { SettlementService } from './settlement.service';
 export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly wsGateway: WsGateway,
     private readonly transactionService: TransactionService,
     private readonly settlementService: SettlementService,
   ) {}
@@ -230,6 +232,24 @@ export class BillingService {
         data: { balance: { decrement: tx.amount } },
       });
     }
+
+    // Notify the companion about the review result
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: tx.companionId },
+      select: { userId: true },
+    });
+    if (companion?.userId) {
+      const label = tx.type === 'WITHDRAW' ? '支取' : '交易';
+      const resultLabel = status === 'APPROVED' ? '已通过' : '已拒绝';
+      this.wsGateway.notifyUser(companion.userId, 'wallet:reviewed', {
+        transactionId: tx.id,
+        type: tx.type,
+        amount: tx.amount,
+        status,
+        message: `${label}申请${resultLabel}${status === 'APPROVED' ? '，¥' + tx.amount + '已到账' : ''}`,
+      });
+    }
+
     return this.prisma.walletTransaction.update({ where: { id }, data: update });
   }
 
@@ -264,5 +284,17 @@ export class BillingService {
 
   async getOverview(studioId: string, companionId?: string, month?: string) {
     return this.settlementService.getOverview(studioId, companionId, month);
+  }
+
+  // ── Sidebar Badge ──
+
+  async getPendingCount(studioId: string, role: string) {
+    const whereStudio: any = role === 'OWNER' ? {} : { companion: { studioId } };
+    const [txPending, reports, walletPending] = await Promise.all([
+      this.prisma.transaction.count({ where: { status: 'PENDING' } }),
+      this.prisma.expenseReport.findMany({ where: { ...whereStudio, status: 'PENDING' }, select: { id: true } }),
+      this.prisma.walletTransaction.count({ where: { ...whereStudio, status: 'PENDING' } }),
+    ]);
+    return { transactions: txPending, expenseReports: reports.length, walletTransactions: walletPending, total: txPending + reports.length + walletPending };
   }
 }

@@ -42,7 +42,7 @@ interface Studio {
   address?: string;
   createdAt: string;
   _count?: { users: number; companions: number };
-  users?: Array<{ id: string; username: string; role: string; displayName?: string; createdAt: string }>;
+  users?: Array<{ id: string; username: string; role: string; displayName?: string; realName?: string; phone?: string; idNumber?: string; createdAt: string }>;
 }
 
 const StudiosPage: React.FC = () => {
@@ -227,6 +227,42 @@ const StudiosPage: React.FC = () => {
               : <Tag color={STUDIO_TYPE_COLORS[r.type] || 'default'}>{STUDIO_TYPE_LABELS[r.type] || r.type}</Tag>,
           },
           {
+            title: '员工数',
+            key: 'staff',
+            width: 80,
+            render: (_: unknown, r: any) => r._type === 'studio' ? ((r._count?.users ?? 0) + (r._count?.companions ?? 0)) : 1,
+          },
+          {
+            title: '店长',
+            key: 'manager',
+            width: 90,
+            render: (_: unknown, r: any) => {
+              if (r._type === 'pending') return ROLE_LABELS[r.role] || r.role;
+              const admin = (r.users || []).find((u: any) => u.role === 'ADMIN');
+              return admin?.realName || admin?.displayName || admin?.username || '-';
+            },
+          },
+          {
+            title: '手机号',
+            key: 'phone',
+            width: 120,
+            render: (_: unknown, r: any) => {
+              if (r._type === 'pending') return r.phone || '-';
+              const admin = (r.users || []).find((u: any) => u.role === 'ADMIN');
+              return admin?.phone || '-';
+            },
+          },
+          {
+            title: '身份证号',
+            key: 'idNumber',
+            width: 180,
+            render: (_: unknown, r: any) => {
+              if (r._type === 'pending') return r.idNumber || r.companion?.idNumber || '-';
+              const admin = (r.users || []).find((u: any) => u.role === 'ADMIN');
+              return admin?.idNumber || '-';
+            },
+          },
+          {
             title: '地址',
             dataIndex: 'address',
             width: 120,
@@ -238,12 +274,6 @@ const StudiosPage: React.FC = () => {
             key: 'createdAt',
             width: 130,
             render: (_: unknown, r: any) => r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN') : '-',
-          },
-          {
-            title: '员工数',
-            key: 'staff',
-            width: 80,
-            render: (_: unknown, r: any) => r._type === 'studio' ? ((r._count?.users ?? 0) + (r._count?.companions ?? 0)) : 1,
           },
           {
             title: '操作',

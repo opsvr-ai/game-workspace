@@ -19,6 +19,11 @@ interface UseSocketOptions {
   onTypingNotify?: (data: any) => void;
   onRoomUpdated?: (data: any) => void;
   onSyncRequired?: (data: any) => void;
+  onPartnerCall?: (data: any) => void;
+  onWalletReviewed?: (data: any) => void;
+  onUserAuthorized?: (data: any) => void;
+  onUserRejected?: (data: any) => void;
+  onBridgeResponded?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -97,6 +102,26 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:urgent', (data: any) => {
       optsRef.current.onOrderUrgent?.(data);
+    });
+
+    socket.on('order:partner_call', (data: any) => {
+      optsRef.current.onPartnerCall?.(data);
+    });
+
+    socket.on('wallet:reviewed', (data: any) => {
+      optsRef.current.onWalletReviewed?.(data);
+    });
+
+    socket.on('user:authorized', (data: any) => {
+      optsRef.current.onUserAuthorized?.(data);
+    });
+
+    socket.on('user:rejected', (data: any) => {
+      optsRef.current.onUserRejected?.(data);
+    });
+
+    socket.on('bridge:responded', (data: any) => {
+      optsRef.current.onBridgeResponded?.(data);
     });
 
     return () => {

@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { BridgeService } from '../studios/bridge.service';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
 
@@ -10,6 +11,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private wsGateway: WsGateway,
+    private bridgeService: BridgeService,
     private readonly workflowService: OrderWorkflowService,
     private readonly dispatchService: OrderDispatchService,
   ) {}
@@ -112,7 +114,7 @@ export class OrdersService {
     }
 
     if (studioId && newOrder.dispatchType === 'POOL') {
-      this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
+      this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
     }
 
     // Desktop notification: DIRECT → only target companion; POOL/BROADCAST → all
@@ -127,7 +129,7 @@ export class OrdersService {
         _label: isBuDan ? '补单' : '新订单',
       });
     } else if (studioId) {
-      this.wsGateway.broadcastToStudio(studioId, 'order:new', {
+      this.wsGateway.broadcastToBridgedStudios(studioId, 'order:new', {
         ...newOrder,
         _notify: true,
       });
@@ -142,7 +144,10 @@ export class OrdersService {
       dispatchType: 'POOL',
       OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
-    if (studioId) where.studioId = studioId;
+    if (studioId) {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      where.studioId = { in: [studioId, ...bridgedIds] };
+    }
 
     // Non-DIRECT studios: exclude orders created within the last 1 minute
     if (studioType && studioType !== 'DIRECT') {
@@ -155,6 +160,7 @@ export class OrdersService {
       include: {
         customer: { select: { wechatId: true, customerCode: true, platform: true } },
         csUser: { select: { username: true, avatar: true, displayName: true, role: true } },
+        studio: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -168,9 +174,13 @@ export class OrdersService {
       where.companionId = user.companionId;
       if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
     } else if (user.role === 'CS') {
-      where.studioId = user.studioId; // H5: CS sees all studio orders for shift handoff
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
+      where.studioId = { in: [user.studioId, ...bridgedIds] };
     } else if (user.role === 'ADMIN') {
-      if (!showAll) where.studioId = user.studioId;
+      if (!showAll) {
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
+        where.studioId = { in: [user.studioId, ...bridgedIds] };
+      }
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
     return this.prisma.order.findMany({
@@ -230,13 +240,23 @@ export class OrdersService {
         },
       });
     }
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
 
   async updateAmount(orderId: string, companionId: string, amount: number) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { companionId: true, status: true, studioId: true },
+    });
     if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
-    return this.prisma.order.update({ where: { id: orderId }, data: { amount } });
+    // W2: Only allow amount updates for GRABBED or CONFIRMED orders
+    if (order.status !== 'GRABBED' && order.status !== 'CONFIRMED') {
+      throw new ForbiddenException('只能对已抢单或已确认的订单修改金额');
+    }
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data: { amount } });
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async compensateCustomer(orderId: string) {
@@ -277,6 +297,7 @@ export class OrdersService {
     if (order.companionId) {
       this.wsGateway.pushOrder(order.companionId, newOrder);
     }
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
     return newOrder;
   }
 
@@ -284,7 +305,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
-    return this.prisma.order.create({
+    const newOrder = await this.prisma.order.create({
       data: {
         type: order.type,
         studioId: order.studioId,
@@ -299,10 +320,12 @@ export class OrdersService {
       },
       include: { csUser: { select: { username: true, avatar: true, displayName: true, role: true } } },
     });
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
+    return newOrder;
   }
 
-  async assign(orderId: string, companionId: string) {
-    return this.dispatchService.assign(orderId, companionId);
+  async assign(orderId: string, companionId: string, userStudioId?: string) {
+    return this.dispatchService.assign(orderId, companionId, userStudioId);
   }
 
   async acceptAssignment(orderId: string, companionId: string) {
@@ -324,7 +347,7 @@ export class OrdersService {
       where: { id: orderId },
       data: { customFields: { partnerReady: true, partnerId: companionId } as any },
     });
-    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
 
@@ -353,16 +376,23 @@ export class OrdersService {
     return this.workflowService.completeWithBilling(orderId, companionId, dto);
   }
 
-  async cancel(orderId: string) {
-    return this.workflowService.cancel(orderId);
+  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string) {
+    return this.workflowService.cancel(orderId, userStudioId, companionId, role);
   }
 
   async callPartner(orderId: string, callerId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { customer: true } });
     if (!order) throw new NotFoundException('订单不存在');
-    this.wsGateway.broadcastToStudio(order.studioId, 'order:partner_call', {
+    // Only the assigned companion can call for a partner
+    if (order.companionId !== callerId) throw new ForbiddenException('无权操作此订单');
+    const caller = await this.prisma.companion.findUnique({
+      where: { id: callerId },
+      include: { studio: { select: { name: true } } },
+    });
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:partner_call', {
       orderId,
       callerId,
+      callerStudioName: caller?.studio?.name,
       customerName: order.customer?.customerCode,
       gameName: order.gameName,
       amount: order.amount,
@@ -373,9 +403,14 @@ export class OrdersService {
   async acceptPartner(orderId: string, partnerId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    // Prevent the assigned companion from accepting their own partner call
+    if (order.companionId === partnerId) throw new ForbiddenException('不能接受自己的协作请求');
     return this.prisma.order.update({
       where: { id: orderId },
-      data: { customFields: { ...((order.customFields as any) || {}), partnerId } },
+      data: {
+        coCompanionId: partnerId,
+        customFields: { ...((order.customFields as any) || {}), partnerId },
+      },
     });
   }
 

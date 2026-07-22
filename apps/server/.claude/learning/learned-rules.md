@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-21T12:22:30.826Z
+**Last Updated:** 2026-07-22T21:05:08.983Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 11
+- **Total Patterns:** 18
 - **Total Feedback:** 0
 
 ## Style
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 12 occurrences
+**Frequency:** 29 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 19 occurrences
+**Frequency:** 53 occurrences
 
 ### Prefer async await in .ts files
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 11 occurrences
+**Frequency:** 30 occurrences
 
 ## Bash
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 6 occurrences
+**Frequency:** 22 occurrences
 
 ### Commonly used command: git
 
@@ -61,7 +61,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 14 occurrences
 
 ### Commonly used command: npx
 
@@ -70,15 +70,16 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 7 occurrences
 
 ### Commonly used command: find
 
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 8 occurrences
 
 ### Commonly used command: fuser
 
@@ -87,6 +88,60 @@
 - Used successfully 6 times
 
 **Frequency:** 2 occurrences
+
+### Commonly used command: pnpm
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 7 occurrences
+
+### Commonly used command: docker
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
+### Commonly used command: curl
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
+### Commonly used command: TOKEN=$(curl
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
+### Commonly used command: head
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: wc
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: sleep
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
 
 ## Typing
 
@@ -99,7 +154,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 7 occurrences
+**Frequency:** 15 occurrences
 
 ## Framework
 
@@ -112,7 +167,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 7 occurrences
+**Frequency:** 15 occurrences
 
 ## Quality
 
@@ -125,7 +180,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 5 occurrences
+**Frequency:** 12 occurrences
 
 ---
 

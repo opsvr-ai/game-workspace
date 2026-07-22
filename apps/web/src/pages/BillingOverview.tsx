@@ -167,7 +167,7 @@ const BillingOverview: React.FC = () => {
 
   const handleSingleApprove = async (id: string) => {
     try {
-      await http.put(`/billing/records/${id}/approve`);
+      await http.put(`/transactions/${id}/approve`);
       message.success('已通过');
       fetchOverview();
     } catch (err: any) {
@@ -177,7 +177,7 @@ const BillingOverview: React.FC = () => {
 
   const handleSingleReject = async (id: string) => {
     try {
-      await http.put(`/billing/records/${id}/reject`);
+      await http.put(`/transactions/${id}/reject`);
       message.success('已驳回');
       fetchOverview();
     } catch (err: any) {
@@ -192,7 +192,7 @@ const BillingOverview: React.FC = () => {
     }
     setBatchProcessing(true);
     try {
-      await http.post('/billing/batch-approve', { ids: selectedRowKeys });
+      await http.put('/transactions/batch', { ids: selectedRowKeys, action: 'approve' });
       message.success(`批量通过 ${selectedRowKeys.length} 条`);
       setSelectedRowKeys([]);
       fetchOverview();
@@ -210,7 +210,7 @@ const BillingOverview: React.FC = () => {
     }
     setBatchProcessing(true);
     try {
-      await http.post('/billing/batch-reject', { ids: selectedRowKeys });
+      await http.put('/transactions/batch', { ids: selectedRowKeys, action: 'reject' });
       message.success(`批量驳回 ${selectedRowKeys.length} 条`);
       setSelectedRowKeys([]);
       fetchOverview();
@@ -225,7 +225,7 @@ const BillingOverview: React.FC = () => {
     setBatchProcessing(true);
     try {
       const month = selectedMonth.format('YYYY-MM');
-      await http.post('/billing/monthly-settlement', { month });
+      await http.post('/monthly-settlement', { month });
       message.success('月结算完成');
       fetchOverview();
     } catch (err: any) {
@@ -343,7 +343,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="今日流水"
-              value={`¥${(overviewData?.todayRevenue ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.todayRevenue ?? 0).toFixed(2)}`}
               icon={IconDollar}
               color="#2563EB"
             />
@@ -351,7 +351,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="总流水"
-              value={`¥${(overviewData?.totalRevenue ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.totalRevenue ?? 0).toFixed(2)}`}
               icon={IconWallet}
               color="#7C3AED"
             />
@@ -523,7 +523,7 @@ const BillingOverview: React.FC = () => {
           >
             <Text>
               总流水：
-              <Text strong>¥{(overviewData?.totalRevenue ?? 0).toFixed(2)}</Text>
+              <Text strong>¥{(overviewData?.summary?.totalRevenue ?? 0).toFixed(2)}</Text>
             </Text>
             <br />
             <Text>

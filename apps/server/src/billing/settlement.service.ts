@@ -7,6 +7,14 @@ export class SettlementService {
   constructor(private readonly prisma: PrismaService) {}
 
   async runMonthlySettlement(studioId: string, month: string) {
+    // Idempotency guard: check if settlement already exists for this month
+    const existing = await this.prisma.walletTransaction.findFirst({
+      where: { type: 'SETTLEMENT', companion: { studioId }, createdAt: { gte: new Date(month + '-01') } },
+    });
+    if (existing) {
+      return { skipped: true, message: `工作室 ${studioId} 的 ${month} 月结算已存在，跳过重复执行` };
+    }
+
     const [year, mon] = month.split('-').map(Number);
     const start = new Date(year, mon - 1, 1);
     const end = new Date(year, mon, 1);

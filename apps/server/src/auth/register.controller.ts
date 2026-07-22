@@ -152,9 +152,14 @@ export class RegisterController {
   @Get('users/pending-review')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async listPendingUsers(): Promise<ApiResponse<unknown>> {
+  async listPendingUsers(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const where: any = { isAuthorized: false };
+    // ADMIN can only see users in their own studio; OWNER sees all
+    if (req.user.role === 'ADMIN' && req.user.studioId) {
+      where.studioId = req.user.studioId;
+    }
     const data = await this.prisma.user.findMany({
-      where: { isAuthorized: false },
+      where,
       select: {
         id: true, username: true, role: true, displayName: true, address: true,
         leaseContractUrl: true, realName: true, idNumber: true, phone: true, createdAt: true,
@@ -170,9 +175,14 @@ export class RegisterController {
   @Get('companions/pending-review')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async listPending(): Promise<ApiResponse<unknown>> {
+  async listPending(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const where: any = { reviewStatus: 'PENDING' };
+    // ADMIN/CS can only see companions in their own studio; OWNER sees all
+    if ((req.user.role === 'ADMIN' || req.user.role === 'CS') && req.user.studioId) {
+      where.studioId = req.user.studioId;
+    }
     const data = await this.prisma.companion.findMany({
-      where: { reviewStatus: 'PENDING' },
+      where,
       include: {
         user: { select: { username: true } },
         studio: { select: { id: true, name: true } },
@@ -197,6 +207,10 @@ export class RegisterController {
     }
     if (companion.reviewStatus !== 'PENDING') {
       return { code: 400, message: '该陪玩已审核', data: null };
+    }
+    // ADMIN/CS can only review companions in their own studio; OWNER can review any
+    if ((req.user.role === 'ADMIN' || req.user.role === 'CS') && companion.studioId !== req.user.studioId) {
+      return { code: 403, message: '无权审核其他工作室的陪玩', data: null };
     }
 
     const isApproved = body.action === 'APPROVED';

@@ -2,6 +2,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 
@@ -16,6 +17,7 @@ export class OrderWorkflowService {
   constructor(
     private prisma: PrismaService,
     private wsGateway: WsGateway,
+    private bridgeService: BridgeService,
   ) {}
 
   validateTransition(order: { id: string; status: string }, targetStatus: string) {
@@ -80,7 +82,7 @@ export class OrderWorkflowService {
       },
     });
     if (!grabbedOrder) throw new NotFoundException('订单不存在');
-    this.wsGateway.broadcastToStudio(grabbedOrder.studioId, 'order:pool_updated', grabbedOrder);
+    this.wsGateway.broadcastToBridgedStudios(grabbedOrder.studioId, 'order:pool_updated', grabbedOrder);
 
     // Notify the CS who created this order about the grab
     if (grabbedOrder.csUserId) {
@@ -114,7 +116,7 @@ export class OrderWorkflowService {
       where: { id: orderId },
       data: { status: OrderStatus.CONFIRMED },
     });
-    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
 
@@ -122,7 +124,10 @@ export class OrderWorkflowService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     // Studio boundary: non-owner users can only complete orders in their own studio
-    if (userStudioId && order.studioId !== userStudioId) throw new ForbiddenException('无权操作其他工作室的订单');
+    if (userStudioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
     this.validateTransition(order, OrderStatus.DONE);
 
     // Auto-assign customer to companion if not yet assigned
@@ -157,7 +162,7 @@ export class OrderWorkflowService {
       where: { id: orderId },
       data: { status: OrderStatus.DONE },
     });
-    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
 
@@ -173,6 +178,7 @@ export class OrderWorkflowService {
       type: string; // 'COMPANION' | 'ESCORT'
       screenshotUrl?: string;
       wechatId?: string;
+      splitTo?: Array<{ companionId: string; amount: number }>;
     },
   ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
@@ -218,6 +224,7 @@ export class OrderWorkflowService {
           settlementType: dto.type,
           screenshotUrl: dto.screenshotUrl,
           wechatId: dto.wechatId,
+          splits: (dto.splitTo || []).length > 0 ? dto.splitTo : undefined,
         },
       },
     });
@@ -247,10 +254,24 @@ export class OrderWorkflowService {
         where: { id: customer.id },
         data: { totalSpent: { increment: totalAmount } },
       });
+      // Calculate split amounts
+      const splitTotal = (dto.splitTo || []).reduce((s, e) => s + e.amount, 0);
+      const primaryAmount = totalAmount - splitTotal;
       await this.prisma.companion.update({
         where: { id: companionId },
-        data: { monthlyRevenue: { increment: totalAmount } },
+        data: { monthlyRevenue: { increment: primaryAmount } },
       });
+      // Record revenue for split companions (cross-studio billing)
+      for (const split of dto.splitTo || []) {
+        try {
+          await this.prisma.companion.update({
+            where: { id: split.companionId },
+            data: { monthlyRevenue: { increment: split.amount } },
+          });
+        } catch (err) {
+          logger.error('Split revenue update failed', { error: (err as Error).message, splitCompanionId: split.companionId });
+        }
+      }
     } catch (err) {
       logger.error('Revenue update failed', { error: (err as Error).message });
     }
@@ -271,19 +292,27 @@ export class OrderWorkflowService {
       data: { status: 'ACTIVE' },
     });
 
-    this.wsGateway.broadcastToStudio(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
+    this.wsGateway.broadcastToBridgedStudios(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
     return updatedOrder;
   }
 
-  async cancel(orderId: string) {
+  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    // COMPANION can only cancel their own orders
+    if (role === 'COMPANION') {
+      if (order.companionId !== companionId) throw new ForbiddenException('只能取消自己的订单');
+    } else if (userStudioId) {
+      // CS/ADMIN can only cancel orders in their own studio or bridged studios
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
     this.validateTransition(order, OrderStatus.CANCELLED);
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.CANCELLED },
     });
-    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     if (updated.companionId) {
       this.wsGateway.pushOrder(updated.companionId, updated);
     }

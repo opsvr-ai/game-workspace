@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../prisma/prisma.module';
+import { WsModule } from '../ws/ws.module';
 import { AuthService } from './auth.service';
 import { AuthorizationService } from './authorization.service';
 import { IdentityVerifyService } from './identity-verify.service';
@@ -14,6 +15,7 @@ import { SettingsController } from './settings.controller';
   imports: [
     PrismaModule,
     PassportModule,
+    WsModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? (() => { throw new Error('FATAL: JWT_SECRET environment variable is not set'); })(),
       signOptions: { expiresIn: '15m' },

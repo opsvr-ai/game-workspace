@@ -43,6 +43,8 @@ model Studio {
   createdAt        DateTime @default(now())
 
   users             User[]
+  bridgesA          StudioBridge[]  @relation("BridgeA")
+  bridgesB          StudioBridge[]  @relation("BridgeB")
   companions        Companion[]
   orders            Order[]
   customers         Customer[]
@@ -513,7 +515,7 @@ model ChatMessage {
 
 model ChatRoom {
   id             String    @id @default(uuid())
-  studioId       String
+  studioId       String?   // null = cross-studio room between bridged studios
   participantA   String              // sorted alphabetically (smaller first)
   participantB   String
   aReadSeq       Int       @default(0)  // participantA's last-read message seq
@@ -530,10 +532,10 @@ model ChatRoom {
 
   messages       ChatMessageV3[]
 
-  @@unique([studioId, participantA, participantB])
   @@index([studioId, participantA])
   @@index([studioId, participantB])
   @@index([studioId, pinned, lastMessageAt])
+  @@index([participantA, participantB])
 }
 
 model ChatMessageV3 {
@@ -597,6 +599,34 @@ model ChatAuditLog {
 
   @@index([roomId, createdAt])
   @@index([userId])
+}
+
+model StudioBridge {
+  id         String   @id @default(uuid())
+  studioAId  String
+  studioBId  String
+  status     String   @default("PENDING") // PENDING | ACTIVE | REJECTED
+  proposedBy String
+  createdAt  DateTime @default(now())
+  acceptedAt DateTime?
+
+  studioA    Studio @relation("BridgeA", fields: [studioAId], references: [id], onDelete: Cascade)
+  studioB    Studio @relation("BridgeB", fields: [studioBId], references: [id], onDelete: Cascade)
+  permissions StudioBridgePermission[]
+
+  @@unique([studioAId, studioBId])
+}
+
+model StudioBridgePermission {
+  id        String @id @default(uuid())
+  bridgeId  String
+  function  String // ORDERS | POOL | CUSTOMERS | BILLING | KPI
+  acceptedA Boolean @default(false)
+  acceptedB Boolean @default(false)
+
+  bridge    StudioBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+
+  @@unique([bridgeId, function])
 }
 
 model CompanionStatusBlacklist {

@@ -15,6 +15,7 @@ const CompanionPoolPage = lazy(() => import('./pages/companion/PoolPage'));
 const AdminPcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
 const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
+const BridgePage = lazy(() => import('./pages/BridgePage'));
 const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage'));
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
@@ -158,6 +159,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <StudiosPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/bridges',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BridgePage />
           </Suspense>
         ),
       },
