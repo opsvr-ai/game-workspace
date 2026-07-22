@@ -103,6 +103,7 @@ export class RegisterController {
       const isOnline = registerRole.startsWith('ONLINE');
       const studioType = isOnline ? 'RENTAL' : 'DIRECT';
       const splitMode = isOnline ? 'FIXED' : 'TIERED'; // 线下=阶梯 线上=固定
+      console.log(`[Register] Creating studio: name=${body.studioName} type=${studioType} splitMode=${splitMode} registerRole=${registerRole}`);
       const studio = await this.prisma.studio.create({
         data: { name: body.studioName, type: studioType, splitMode, address: body.address || null, leaseContractUrl },
       });
