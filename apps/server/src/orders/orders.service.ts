@@ -136,12 +136,13 @@ export class OrdersService {
     return newOrder;
   }
 
-  async findPool(companionId?: string, studioType?: string) {
+  async findPool(companionId?: string, studioId?: string, studioType?: string) {
     const where: any = {
       status: 'PENDING',
       dispatchType: 'POOL',
       OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
+    if (studioId) where.studioId = studioId;
 
     // Non-DIRECT studios: exclude orders created within the last 1 minute
     if (studioType && studioType !== 'DIRECT') {

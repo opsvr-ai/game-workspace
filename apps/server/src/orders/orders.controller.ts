@@ -22,7 +22,7 @@ export class OrdersController {
 
   @Get('orders/pool')
   async findPool(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.findPool(req.user?.companionId, req.user?.studioType);
+    const data = await this.ordersService.findPool(req.user?.companionId, req.user?.studioId, req.user?.studioType);
     return { code: 200, message: 'ok', data };
   }
 
