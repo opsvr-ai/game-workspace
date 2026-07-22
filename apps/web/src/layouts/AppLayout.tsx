@@ -374,7 +374,7 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === '/owner/studios') { setPendingBadge(0); markSeen(); }
+    setPendingBadge(0); markSeen(); // clear all badges on any menu click
     navigate(key);
   };
 
