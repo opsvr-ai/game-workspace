@@ -355,8 +355,8 @@ export class OrdersService {
     return this.workflowService.confirm(orderId, companionId);
   }
 
-  async complete(orderId: string, userStudioId?: string) {
-    return this.workflowService.complete(orderId, undefined, userStudioId);
+  async complete(orderId: string, userStudioId?: string, companionId?: string, role?: string) {
+    return this.workflowService.complete(orderId, undefined, userStudioId, companionId, role);
   }
 
   async completeWithBilling(

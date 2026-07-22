@@ -120,11 +120,14 @@ export class OrderWorkflowService {
     return updated;
   }
 
-  async complete(orderId: string, _userId?: string, userStudioId?: string) {
+  async complete(orderId: string, _userId?: string, userStudioId?: string, companionId?: string, role?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
-    // Studio boundary: non-owner users can only complete orders in their own studio
-    if (userStudioId) {
+    // COMPANION can only complete their own orders
+    if (role === 'COMPANION') {
+      if (order.companionId !== companionId) throw new ForbiddenException('只能完成自己的订单');
+    } else if (userStudioId) {
+      // Studio boundary: CS/ADMIN can only complete orders in their own or bridged studios
       const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
       if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
     }

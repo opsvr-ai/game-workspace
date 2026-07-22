@@ -83,7 +83,7 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     http
-      .get('/studios')
+      .get('/studios/public')
       .then(({ data }) => setStudios(data.data ?? []))
       .catch(() => {});
   }, []);

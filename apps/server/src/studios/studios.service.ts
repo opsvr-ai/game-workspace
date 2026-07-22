@@ -6,6 +6,13 @@ import * as bcrypt from 'bcryptjs';
 export class StudiosService {
   constructor(private prisma: PrismaService) {}
 
+  async listPublic() {
+    return this.prisma.studio.findMany({
+      select: { id: true, name: true, type: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findAll() {
     return this.prisma.studio.findMany({
       include: {

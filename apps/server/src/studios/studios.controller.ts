@@ -16,8 +16,16 @@ export class StudiosController {
   constructor(private readonly studiosService: StudiosService) {}
 
   @Get('studios')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async findAll(): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.findAll();
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('studios/public')
+  async listPublic(): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.listPublic();
     return { code: 200, message: 'ok', data };
   }
 

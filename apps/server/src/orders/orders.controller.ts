@@ -109,7 +109,7 @@ export class OrdersController {
   @Post('orders/:id/complete')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION)
   async complete(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.complete(id, req.user?.studioId);
+    const data = await this.ordersService.complete(id, req.user?.studioId, req.user?.companionId, req.user?.role);
     return { code: 200, message: '完成成功', data };
   }
 
