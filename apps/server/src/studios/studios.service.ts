@@ -10,7 +10,7 @@ export class StudiosService {
     return this.prisma.studio.findMany({
       include: {
         _count: { select: { users: true, companions: true } },
-        users: { select: { id: true, username: true, role: true, displayName: true, createdAt: true }, take: 10, orderBy: { createdAt: 'desc' } },
+        users: { select: { id: true, username: true, role: true, displayName: true, realName: true, phone: true, idNumber: true, address: true, leaseContractUrl: true, createdAt: true }, take: 10, orderBy: { createdAt: 'desc' } },
       },
     });
   }
@@ -123,9 +123,40 @@ export class StudiosService {
   }
 
   async delete(id: string) {
-    // Delete all studio members first (cascade), then studio
-    await this.prisma.user.deleteMany({ where: { studioId: id } });
-    return this.prisma.studio.delete({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      // Delete all related records in dependency order
+      const companionIds = (await tx.companion.findMany({ where: { studioId: id }, select: { id: true } })).map((c: { id: string }) => c.id);
+      await tx.processKillLog.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionProcessReport.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionStatusBlacklist.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionBlacklistOverride.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionTimeLog.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionAttendance.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.pCOperationLog.deleteMany({ where: { pc: { companionId: { in: companionIds } } } });
+      await tx.companionPC.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.walletTransaction.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.expenseReport.deleteMany({ where: { companionId: { in: companionIds } } });
+
+      const orderIds = (await tx.order.findMany({ where: { studioId: id }, select: { id: true } })).map((o: { id: string }) => o.id);
+      if (orderIds.length > 0) {
+        await tx.transaction.deleteMany({ where: { orderId: { in: orderIds } } });
+        await tx.order.deleteMany({ where: { studioId: id } });
+      }
+      await tx.customerFollowUp.deleteMany({ where: { customer: { studioId: id } } });
+      await tx.customerProfile.deleteMany({ where: { customer: { studioId: id } } });
+      await tx.customer.deleteMany({ where: { studioId: id } });
+      await tx.tenantAuthorization.deleteMany({ where: { studioId: id } });
+      await tx.expense.deleteMany({ where: { studioId: id } });
+      await tx.workWechat.deleteMany({ where: { studioId: id } });
+      await tx.processBlacklist.deleteMany({ where: { studioId: id } });
+      await tx.processWhitelist.deleteMany({ where: { studioId: id } });
+      await tx.chatMessageLegacy.deleteMany({ where: { studioId: id } });
+      await tx.studioDailyStats.deleteMany({ where: { studioId: id } });
+      await tx.revenueDaily.deleteMany({ where: { studioId: id } });
+      await tx.companion.deleteMany({ where: { studioId: id } });
+      await tx.user.deleteMany({ where: { studioId: id } });
+      return tx.studio.delete({ where: { id } });
+    });
   }
 
   async deleteEmployee(userId: string) {

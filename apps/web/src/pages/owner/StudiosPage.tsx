@@ -281,18 +281,21 @@ const StudiosPage: React.FC = () => {
         {editingStudio && (
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
             {/* Members info (read-only) */}
-            {editingStudio.users && editingStudio.users.length > 0 && (
-              <div style={{ background: '#f6f8fa', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-                <Text strong style={{ fontSize: 13 }}>👤 工作室成员</Text>
-                {editingStudio.users.map((u: any) => (
-                  <div key={u.id} style={{ marginTop: 6, fontSize: 13 }}>
-                    <Tag>{u.role === 'ADMIN' ? '店长' : u.role === 'CS' ? '客服' : '陪玩'}</Tag>
-                    {u.displayName || u.username}
-                    <Text type="secondary" style={{ marginLeft: 8 }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : ''}</Text>
-                  </div>
-                ))}
+            {editingStudio.users && editingStudio.users.length > 0 && editingStudio.users.map((u: any) => (
+              <div key={u.id} style={{ background: '#f6f8fa', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <Text strong style={{ fontSize: 13 }}>👤 申请人信息</Text>
+                <div style={{ marginTop: 8, lineHeight: 2 }}>
+                  <div><Text type="secondary">角色：</Text><Tag>{u.role === 'ADMIN' ? '店长' : u.role === 'CS' ? '客服' : '陪玩'}</Tag></div>
+                  <div><Text type="secondary">用户名：</Text>{u.username}</div>
+                  <div><Text type="secondary">姓名：</Text>{u.displayName || u.realName || '-'}</div>
+                  <div><Text type="secondary">手机号：</Text>{u.phone || '-'}</div>
+                  <div><Text type="secondary">身份证号：</Text>{u.idNumber || '-'}</div>
+                  {u.address && <div><Text type="secondary">地址：</Text>{u.address}</div>}
+                  {u.leaseContractUrl && <div><Text type="secondary">合同：</Text><a href={u.leaseContractUrl} target="_blank">查看</a></div>}
+                  <div><Text type="secondary">注册时间：</Text>{u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : '-'}</div>
+                </div>
               </div>
-            )}
+            ))}
             <Form.Item
               name="name"
               label="工作室名称"
