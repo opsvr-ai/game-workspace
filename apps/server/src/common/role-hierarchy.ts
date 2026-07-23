@@ -1,9 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 
-/** Role hierarchy: OWNER > ADMIN > CS > COMPANION */
+/** Role hierarchy: OWNER > ADMIN=CS > COMPANION */
 const ROLE_LEVEL: Record<string, number> = {
-  OWNER: 4,
-  ADMIN: 3,
+  OWNER: 3,
+  ADMIN: 2,
   CS: 2,
   COMPANION: 1,
 };
