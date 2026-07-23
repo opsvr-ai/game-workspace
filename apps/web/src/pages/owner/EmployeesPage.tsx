@@ -20,7 +20,6 @@ import {
   ReloadOutlined,
   DeleteOutlined,
   KeyOutlined,
-  LogoutOutlined,
   DollarOutlined,
 } from '@ant-design/icons';
 import { employeesApi } from '../../api/employees';
@@ -246,23 +245,6 @@ const EmployeesPage: React.FC = () => {
     if (filterRole && e.role !== filterRole) return false;
     return true;
   });
-  const [kickingId, setKickingId] = useState<string | null>(null);
-
-  const handleKick = async (record: Employee) => {
-    if (!record.companion?.id) return;
-    setKickingId(record.id);
-    try {
-      await companionsApi.kick(record.companion.id);
-      message.success(`已踢出 ${record.username}`);
-      fetchEmployees();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '踢出失败';
-      message.error(msg);
-    } finally {
-      setKickingId(null);
-    }
-  };
-
   // --- Resign companion ---
   const handleResign = async (record: Employee) => {
     if (!record.companion?.id) return;
@@ -411,14 +393,6 @@ const EmployeesPage: React.FC = () => {
           )}
           {record.role === UserRole.COMPANION && record.companion && (
             <>
-              <Popconfirm
-                title="确定踢出该陪玩？Agent 将被强制下线"
-                onConfirm={() => handleKick(record)}
-                okText="踢出"
-                cancelText="取消"
-              >
-                <Button type="link" size="small" danger icon={React.createElement(LogoutOutlined)} loading={kickingId === record.id}>踢出</Button>
-              </Popconfirm>
               <Popconfirm
                 title="确定离职处理？将清空流水/余额/机号，释放工位"
                 onConfirm={() => handleResign(record)}
