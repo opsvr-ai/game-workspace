@@ -352,7 +352,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={18} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={20} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -586,41 +586,12 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Right: Stats + Chat panel */}
-        <Col span={4}>
-          <Card title="统计" size="small" style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>🟢 空闲</span>
-                <b style={{ color: '#00E676' }}>{idleCount}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>🔴 接单</span>
-                <b style={{ color: '#FF4757' }}>{busyCount}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>🟡 娱乐</span>
-                <b style={{ color: '#FFD600' }}>{entertainCount}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>🟠 休息</span>
-                <b style={{ color: '#FF9500' }}>{restingCount}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>⚪ 离线</span>
-                <b style={{ color: '#94A3B8' }}>{offlineCount}</b>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 13,
-                  borderTop: '1px solid #E2E8F0',
-                  paddingTop: 8,
-                }}
-              >
-                <span>📦 待派</span>
-                <b style={{ color: '#1677ff' }}>{poolCount}</b>
-              </div>
+        <Col span={2}>
+          <Card size="small" bodyStyle={{ padding: '6px 8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11 }}>
+              <span>🟢{idleCount} 🔴{busyCount}</span>
+              <span>🟡{entertainCount} 🟠{restingCount}</span>
+              <span>⚪{offlineCount} 📦{poolCount}</span>
             </div>
           </Card>
         {/* Chat panel below stats */}
