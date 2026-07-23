@@ -401,11 +401,11 @@ const AppLayout: React.FC = () => {
     const pCount = pendingBadge;
     const bpCount = bridgePendingBadge;
     const bCount = billingBadge;
+    const REVIEW_LABELS = ['工作室管理', '实名审核'];
+    const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
     return items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
-        const REVIEW_LABELS = ['工作室管理', '实名审核'];
-        const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
         const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
         const hasBridgePending = item.children.some((c: any) => c.label === '工作室桥接' && bpCount > 0);
         const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
