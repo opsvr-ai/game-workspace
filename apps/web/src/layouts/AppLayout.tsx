@@ -160,6 +160,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       { key: '/admin/employees?role=COMPANION', label: '陪玩' },
     ]},
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
+    { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
     { key: '/owner/bridges', icon: IconStudios, label: '工作室桥接' },
     { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
