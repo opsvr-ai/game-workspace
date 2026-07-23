@@ -30,15 +30,15 @@
       }
     },
     ".tsx": {
-      "successCount": 285,
+      "successCount": 288,
       "patterns": {
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 283
+          "count": 2,
+          "weight": 284
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 576
+          "count": 2,
+          "weight": 579
         },
         "framework:react_hooks": {
           "count": 1,
@@ -91,9 +91,9 @@
       "lastSuccess": 1784838466589
     },
     "git": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784835720534
+      "lastSuccess": 1784838644261
     },
     "rm": {
       "count": 1,
@@ -182,35 +182,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BillingOverview.tsx",
-      "patterns": [],
-      "timestamp": 1784828543540
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BillingOverview.tsx",
-      "patterns": [],
-      "timestamp": 1784828547462
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BillingOverview.tsx",
-      "patterns": [],
-      "timestamp": 1784828552499
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -2 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: getPendingCount studio scoping + BillingOv",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784828572113
-    },
     {
       "type": "bash",
       "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
@@ -2263,6 +2234,52 @@
         "hasChain": false
       },
       "timestamp": 1784838636509
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"refactor: delete 2,241 lines dead code + unify companion pool to OrderPoolPage\n\nDeleted: AdminDispatchView,",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" #!axm",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784838644261
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/router.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784839116714
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/DispatchPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784839126756
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/DispatchPage.tsx",
+      "patterns": [],
+      "timestamp": 1784839133877
     }
   ]
 }
