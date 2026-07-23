@@ -101,9 +101,9 @@ export class StudiosController {
 
   @Delete('employees/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER)
-  async deleteEmployee(@Param('id') id: string): Promise<ApiResponse<unknown>> {
-    await this.studiosService.deleteEmployee(id);
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async deleteEmployee(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    await this.studiosService.deleteEmployee(id, req.user?.studioId, req.user?.role);
     return { code: 200, message: '员工已删除', data: null };
   }
 }

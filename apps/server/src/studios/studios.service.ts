@@ -174,7 +174,14 @@ export class StudiosService {
     });
   }
 
-  async deleteEmployee(userId: string) {
+  async deleteEmployee(userId: string, adminStudioId?: string, role?: string) {
+    // ADMIN can only delete employees in their own studio
+    if (role === 'ADMIN' && adminStudioId) {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
+      if (!target || target.studioId !== adminStudioId) {
+        throw new Error('无权删除其他工作室的员工');
+      }
+    }
     // Delete companion first if exists (cascade), then user
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return;
