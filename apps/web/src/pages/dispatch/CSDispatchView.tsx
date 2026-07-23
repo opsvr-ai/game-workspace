@@ -182,7 +182,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row gutter={12}>
         {/* Left: Companion sidebar */}
-        <Col span={3}>
+        <Col span={2}>
           <Card
             title="陪玩管理"
             size="small"
@@ -352,7 +352,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={16} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={18} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -586,7 +586,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Right: Stats + Chat panel */}
-        <Col span={5}>
+        <Col span={4}>
           <Card title="统计" size="small" style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
