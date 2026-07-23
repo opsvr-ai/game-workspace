@@ -12,6 +12,7 @@ import {
   Popconfirm,
   Typography,
   InputNumber,
+  Image,
   message,
 } from 'antd';
 import {
@@ -46,6 +47,13 @@ interface Employee {
   studioId: string;
   isAuthorized: boolean;
   createdAt: string;
+  displayName?: string;
+  realName?: string;
+  idNumber?: string;
+  phone?: string;
+  address?: string;
+  leaseContractUrl?: string;
+  studio?: { id: string; name: string; type?: string };
   companion?: {
     id: string;
     status: string;
@@ -55,6 +63,11 @@ interface Employee {
     deposit?: number;
     balance?: number;
     frozen?: number;
+    realName?: string;
+    idNumber?: string;
+    phone?: string;
+    idCardFront?: string;
+    idCardBack?: string;
   } | null;
 }
 
@@ -83,6 +96,8 @@ const EmployeesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Detail modal
+  const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   // Create modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -276,6 +291,8 @@ const EmployeesPage: React.FC = () => {
     {
       title: '用户名',
       dataIndex: 'username',
+      width: 120,
+      render: (v: string, r: Employee) => <a onClick={() => setDetailEmployee(r)} style={{cursor:'pointer'}}>{v}</a>,
       key: 'username',
       width: 140,
     },
@@ -636,6 +653,24 @@ const EmployeesPage: React.FC = () => {
             <Input placeholder="请输入调整原因" />
           </Form.Item>
         </Form>
+      </Modal>
+      {/* Detail modal */}
+      <Modal title="员工详情" open={!!detailEmployee} onCancel={() => setDetailEmployee(null)} footer={<Button onClick={() => setDetailEmployee(null)}>关闭</Button>} width={520}>
+        {detailEmployee && (
+          <div style={{lineHeight:2.2}}>
+            <p><Text strong>用户名：</Text>{detailEmployee.username}</p>
+            <p><Text strong>角色：</Text><Tag color={roleLabels[detailEmployee.role]?.color}>{roleLabels[detailEmployee.role]?.label || detailEmployee.role}</Tag></p>
+            <p><Text strong>姓名：</Text>{detailEmployee.realName || detailEmployee.companion?.realName || '-'}</p>
+            <p><Text strong>手机号：</Text>{detailEmployee.phone || detailEmployee.companion?.phone || '-'}</p>
+            <p><Text strong>身份证号：</Text>{detailEmployee.idNumber || detailEmployee.companion?.idNumber || '-'}</p>
+            <p><Text strong>地址：</Text>{detailEmployee.address || '-'}</p>
+            <p><Text strong>工作室：</Text>{detailEmployee.studio?.name || '-'}</p>
+            {detailEmployee.leaseContractUrl && <p><Text strong>租赁合同：</Text><a href={detailEmployee.leaseContractUrl} target="_blank">查看</a></p>}
+            {detailEmployee.companion?.idCardFront && <p><Text strong>身份证正面：</Text><Image src={`/uploads/idcards/${detailEmployee.companion.idCardFront}`} width={200} style={{borderRadius:4}} /></p>}
+            {detailEmployee.companion?.idCardBack && <p><Text strong>身份证反面：</Text><Image src={`/uploads/idcards/${detailEmployee.companion.idCardBack}`} width={200} style={{borderRadius:4}} /></p>}
+            <p><Text strong>注册时间：</Text>{detailEmployee.createdAt ? new Date(detailEmployee.createdAt).toLocaleString('zh-CN') : '-'}</p>
+          </div>
+        )}
       </Modal>
     </div>
   );

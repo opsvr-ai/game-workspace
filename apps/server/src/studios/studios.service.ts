@@ -74,9 +74,14 @@ export class StudiosService {
         studioId: true,
         isAuthorized: true,
         createdAt: true,
-        // 排除 passwordHash 和 secondPasswordHash，防止密码哈希泄露
-        studio: { select: { id: true, name: true } },
-        companion: { select: { id: true, status: true, monthlyRevenue: true, deposit: true, balance: true, frozen: true, games: true, billingCode: true } },
+        displayName: true,
+        realName: true,
+        idNumber: true,
+        phone: true,
+        address: true,
+        leaseContractUrl: true,
+        studio: { select: { id: true, name: true, type: true } },
+        companion: { select: { id: true, status: true, monthlyRevenue: true, deposit: true, balance: true, frozen: true, games: true, billingCode: true, realName: true, idNumber: true, phone: true, idCardFront: true, idCardBack: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
