@@ -115,6 +115,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
         { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
         { key: 'owner-staff', icon: IconEmployees, label: '员工管理', children: [
+          { key: '/owner/review', label: '实名审核' },
           { key: 'owner-staff-online', type: 'group', label: '线上俱乐部', children: [
             { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
             { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
@@ -126,7 +127,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
             { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
           ]},
         ]},
-        { key: '/owner/review', icon: IconAuth, label: '实名审核' },
       ],
     },
     {
@@ -155,6 +155,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
     { key: '/admin/orders', icon: IconOrders, label: '订单管理' },
     { key: 'admin-staff', icon: IconEmployees, label: '员工管理', children: [
+      { key: '/admin/review', label: '实名审核' },
       { key: '/admin/employees?role=CS', label: '客服' },
       { key: '/admin/employees?role=COMPANION', label: '陪玩' },
     ]},
@@ -167,7 +168,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
     { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
     { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
-    { key: '/admin/review', icon: IconAuth, label: '实名审核' },
     { key: '/admin/settings', icon: IconAuth, label: '系统设置' },
   ],
   [UserRole.CS]: [
