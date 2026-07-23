@@ -182,11 +182,15 @@ export class StudiosService {
   }
 
   async deleteEmployee(userId: string, adminStudioId?: string, role?: string) {
-    // ADMIN can only delete employees in their own studio
-    if (role === 'ADMIN' && adminStudioId) {
-      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
+    // ADMIN/CS can only delete employees in their own studio
+    if ((role === 'ADMIN' || role === 'CS') && adminStudioId) {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
       if (!target || target.studioId !== adminStudioId) {
-        throw new Error('无权删除其他工作室的员工');
+        throw new ForbiddenException('无权删除其他工作室的员工');
+      }
+      // Prevent deleting users with higher role (e.g. ADMIN deleting OWNER)
+      if (role === 'ADMIN' && target.role === 'ADMIN') {
+        throw new ForbiddenException('店长不能删除其他店长');
       }
     }
     // Delete companion first if exists (cascade), then user
