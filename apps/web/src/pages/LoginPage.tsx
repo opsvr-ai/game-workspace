@@ -90,7 +90,7 @@ const LoginPage: React.FC = () => {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      message.warning('请输入用户名和密码');
+      message.warning('请输入姓名和密码');
       return;
     }
     setLoading(true);
@@ -120,7 +120,7 @@ const LoginPage: React.FC = () => {
   };
 
   const handleRegister = async () => {
-    if (!username || !password || !realName || !idNumber || !phone) {
+    if (!password || !realName || !idNumber || !phone) {
       message.warning('请填写所有必填字段');
       return;
     }
@@ -151,7 +151,7 @@ const LoginPage: React.FC = () => {
     try {
       console.log('注册提交', { username, realName, phone, apiRole, registerRole, registerStudioName, registerAddress });
       const formData = new FormData();
-      formData.append('username', username);
+      formData.append('username', realName);
       formData.append('password', password);
       formData.append('realName', realName);
       formData.append('idNumber', idNumber || '');
@@ -194,7 +194,7 @@ const LoginPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Input
                 size="large"
-                placeholder="用户名"
+                placeholder="姓名"
                 prefix={IconUser}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -239,15 +239,6 @@ const LoginPage: React.FC = () => {
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
-              <Input
-                size="large"
-                placeholder="用户名 *"
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-                onBlur={(e) => checkUsername(e.target.value)}
-                status={usernameError ? 'error' : undefined}
-              />
-              {usernameError && <Text type="danger" style={{ fontSize: 12 }}>{usernameError}</Text>}
               <Input.Password
                 size="large"
                 placeholder="密码 *"
