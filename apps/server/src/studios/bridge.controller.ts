@@ -28,11 +28,15 @@ export class BridgeController {
     const data = await this.bridgeService.respond(id, req.user.studioId, body.accept);
     // Notify the proposing admin about the response
     if (bridge && bridge.proposedBy) {
-      this.wsGateway.notifyUser(bridge.proposedBy, 'bridge:responded', {
-        bridgeId: id,
-        accepted: body.accept,
-        message: body.accept ? '对方已同意桥接申请' : '对方已拒绝桥接申请',
-      });
+      try {
+        this.wsGateway.notifyUser(bridge.proposedBy, 'bridge:responded', {
+          bridgeId: id,
+          accepted: body.accept,
+          message: body.accept ? '对方已同意桥接申请' : '对方已拒绝桥接申请',
+        });
+      } catch {
+        // wsGateway may not be initialized yet due to circular dep; notification best-effort
+      }
     }
     return { code: 200, message: body.accept ? '已同意桥接' : '已拒绝桥接', data };
   }
