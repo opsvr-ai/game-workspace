@@ -208,9 +208,11 @@ export class RegisterController {
     if (companion.reviewStatus !== 'PENDING') {
       return { code: 400, message: '该陪玩已审核', data: null };
     }
-    // ADMIN/CS can only review companions in their own studio; OWNER can review any
-    if ((req.user.role === 'ADMIN' || req.user.role === 'CS') && companion.studioId !== req.user.studioId) {
-      return { code: 403, message: '无权审核其他工作室的陪玩', data: null };
+    // Check role hierarchy + studio scope
+    if (req.user.role !== 'OWNER') {
+      if (companion.studioId !== req.user.studioId) {
+        return { code: 403, message: '无权审核其他工作室的陪玩', data: null };
+      }
     }
 
     const isApproved = body.action === 'APPROVED';

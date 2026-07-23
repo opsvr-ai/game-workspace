@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { assertCanManage } from '../common/role-hierarchy';
 import { LoginDto } from './dto/login.dto';
 import type { UserInfo, LoginResponse } from '@chunlv/shared';
 import { UserRole } from '@chunlv/shared';
@@ -151,12 +152,10 @@ export class AuthService {
   }
 
   async authorizeUser(userId: string, reviewerStudioId?: string, reviewerRole?: string): Promise<void> {
-    // ADMIN can only authorize users in their own studio
-    if (reviewerRole === 'ADMIN' && reviewerStudioId) {
-      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
-      if (!target || target.studioId !== reviewerStudioId) {
-        throw new ForbiddenException('无权审核其他工作室的用户');
-      }
+    if (reviewerRole && reviewerRole !== 'OWNER') {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
+      if (!target) throw new ForbiddenException('用户不存在');
+      assertCanManage(reviewerRole, target.role, reviewerStudioId, target.studioId);
     }
     await this.prisma.user.update({
       where: { id: userId },
@@ -177,12 +176,10 @@ export class AuthService {
   }
 
   async rejectUser(userId: string, _reason: string, reviewerStudioId?: string, reviewerRole?: string): Promise<void> {
-    // ADMIN can only reject users in their own studio
-    if (reviewerRole === 'ADMIN' && reviewerStudioId) {
-      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
-      if (!target || target.studioId !== reviewerStudioId) {
-        throw new ForbiddenException('无权审核其他工作室的用户');
-      }
+    if (reviewerRole && reviewerRole !== 'OWNER') {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
+      if (!target) throw new ForbiddenException('用户不存在');
+      assertCanManage(reviewerRole, target.role, reviewerStudioId, target.studioId);
     }
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
     // Notify the user before deletion

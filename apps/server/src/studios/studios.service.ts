@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertCanManage } from '../common/role-hierarchy';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -133,12 +134,10 @@ export class StudiosService {
   }
 
   async resetPassword(userId: string, newPassword: string, adminStudioId?: string, adminRole?: string) {
-    // ADMIN can only reset passwords for employees in their own studio
-    if (adminRole === 'ADMIN' && adminStudioId) {
-      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
-      if (!target || target.studioId !== adminStudioId) {
-        throw new Error('无权操作其他工作室的员工');
-      }
+    if (adminRole && adminRole !== 'OWNER') {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
+      if (!target) throw new ForbiddenException('用户不存在');
+      assertCanManage(adminRole, target.role, adminStudioId, target.studioId);
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -182,16 +181,10 @@ export class StudiosService {
   }
 
   async deleteEmployee(userId: string, adminStudioId?: string, role?: string) {
-    // ADMIN/CS can only delete employees in their own studio
-    if ((role === 'ADMIN' || role === 'CS') && adminStudioId) {
+    if (role && role !== 'OWNER') {
       const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true, role: true } });
-      if (!target || target.studioId !== adminStudioId) {
-        throw new ForbiddenException('无权删除其他工作室的员工');
-      }
-      // Prevent deleting users with higher role (e.g. ADMIN deleting OWNER)
-      if (role === 'ADMIN' && target.role === 'ADMIN') {
-        throw new ForbiddenException('店长不能删除其他店长');
-      }
+      if (!target) return;
+      assertCanManage(role, target.role, adminStudioId, target.studioId);
     }
     // Delete companion first if exists (cascade), then user
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
