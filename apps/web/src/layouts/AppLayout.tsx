@@ -626,6 +626,7 @@ const AppLayout: React.FC = () => {
             mode="inline"
             theme="light"
             selectedKeys={selectedKeys}
+            defaultOpenKeys={menuItems.filter((m: any) => m.children).map((m: any) => m.key)}
             items={menuItems as MenuProps['items']}
             onClick={onMenuClick}
             style={{
