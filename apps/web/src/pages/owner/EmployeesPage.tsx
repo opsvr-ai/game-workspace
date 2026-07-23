@@ -465,11 +465,13 @@ const EmployeesPage: React.FC = () => {
                   <Option key={e.id} value={e.username}>{e.username}</Option>
                 ))}
               </Select>
-             <Select placeholder="角色筛选" showSearch optionFilterProp="children" value={filterRole} onChange={(v) => setFilterRole(v)} style={{ width: 120 }} allowClear onClear={() => setFilterRole(undefined)}>
-               <Option value="COMPANION">陪玩</Option>
-               <Option value="ADMIN">管理员</Option>
-               <Option value="CS">客服</Option>
-             </Select>
+             {!urlRole && (
+               <Select placeholder="角色筛选" showSearch optionFilterProp="children" value={filterRole} onChange={(v) => setFilterRole(v)} style={{ width: 120 }} allowClear onClear={() => setFilterRole(undefined)}>
+                 <Option value="COMPANION">陪玩</Option>
+                 <Option value="ADMIN">管理员</Option>
+                 <Option value="CS">客服</Option>
+               </Select>
+             )}
           <Button
             icon={React.createElement(ReloadOutlined)}
             onClick={fetchEmployees}
