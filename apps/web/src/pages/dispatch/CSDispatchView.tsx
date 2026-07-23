@@ -450,7 +450,6 @@ const CSDispatchView: React.FC = () => {
                           borderRadius: 10,
                           padding: '8px 14px',
                           border: '1px solid #F1F5F9',
-                          borderRadius: 8,
                           transition: 'all 0.2s',
                           animation: 'fade-slide-in 0.3s ease',
                         }}
