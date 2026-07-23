@@ -239,12 +239,6 @@ const LoginPage: React.FC = () => {
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
-              <Input.Password
-                size="large"
-                placeholder="密码 *"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
               <Input
                 size="large"
                 placeholder="真实姓名 *"
@@ -265,6 +259,7 @@ const LoginPage: React.FC = () => {
                 {idNumberError || '\u00A0'}
               </div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input.Password size="large" placeholder="设置密码 *" value={password} onChange={(e) => setPassword(e.target.value)} />
               <Select
                 size="large"
                 placeholder="选择注册角色 *"
