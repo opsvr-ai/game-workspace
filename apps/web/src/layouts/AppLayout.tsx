@@ -266,7 +266,7 @@ const AppLayout: React.FC = () => {
   }, [user?.role]);
 
   const markBillingSeen = () => {
-    setBillingBadge(prev => {
+    setBillingBadge((prev) => {
       const total = prev + billingSeenRef.current;
       billingSeenRef.current = total;
       localStorage.setItem('billing-pending-seen', String(total));
@@ -275,7 +275,7 @@ const AppLayout: React.FC = () => {
   };
 
   const markBridgeSeen = () => {
-    setBridgePendingBadge(prev => {
+    setBridgePendingBadge((prev) => {
       const total = prev + bridgeSeenRef.current;
       bridgeSeenRef.current = total;
       localStorage.setItem('bridge-pending-seen', String(total));
@@ -285,7 +285,7 @@ const AppLayout: React.FC = () => {
 
   const markSeen = () => {
     // Read current total from state to set seen
-    setPendingBadge(prev => {
+    setPendingBadge((prev) => {
       const total = prev + seenRef.current; // reconstruct: badge + seen = total
       seenRef.current = total;
       localStorage.setItem('pending-seen', String(total));
@@ -433,16 +433,82 @@ const AppLayout: React.FC = () => {
             ...item,
             children: item.children.map((child: any) => {
               if (REVIEW_LABELS.includes(child.label) && pCount > 0) {
-                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+                    </span>
+                  ),
+                };
               }
               if (child.label === '工作室桥接' && bpCount > 0) {
-                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge
+                        count={bpCount}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: '0 0 10px #FF4757' }}
+                      />
+                    </span>
+                  ),
+                };
               }
               if (child.label === '报账系统' && bCount > 0) {
-                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} /></span> };
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+                    </span>
+                  ),
+                };
               }
               if (CHAT_LABELS.includes(child.label) && totalUnread > 0) {
-                return { ...child, label: <span onClick={(e: any) => { e.stopPropagation(); navigate(child.key); }} style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>{child.label}<Badge count={totalUnread} size="small" overflowCount={99} style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }} /></span> };
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge
+                        count={totalUnread}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+                      />
+                    </span>
+                  ),
+                };
               }
               return child;
             }),
@@ -461,7 +527,7 @@ const AppLayout: React.FC = () => {
           ),
         };
       }
-      if ((item.label === '工作室桥接') && bpCount > 0) {
+      if (item.label === '工作室桥接' && bpCount > 0) {
         return {
           ...item,
           label: (
@@ -513,9 +579,12 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    setPendingBadge(0); markSeen();
-    setBridgePendingBadge(0); markBridgeSeen();
-    setBillingBadge(0); markBillingSeen();
+    setPendingBadge(0);
+    markSeen();
+    setBridgePendingBadge(0);
+    markBridgeSeen();
+    setBillingBadge(0);
+    markBillingSeen();
     navigate(key);
   };
 
@@ -802,8 +871,8 @@ const AppLayout: React.FC = () => {
               </div>
             )}
             {grabbedOrder.csUser?.username && <div>发布者：{grabbedOrder.csUser.username}</div>}
-            {grabbedOrder.customFields?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
-            {grabbedOrder.customFields?.urgency !== 'later' && grabbedOrder.customFields?.urgency && (
+            {(grabbedOrder.customFields as any)?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
+            {(grabbedOrder.customFields as any)?.urgency !== 'later' && (grabbedOrder.customFields as any)?.urgency && (
               <Tag color="green">⚡立即打</Tag>
             )}
           </div>
