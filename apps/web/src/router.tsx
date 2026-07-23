@@ -222,7 +222,7 @@ export const router = createBrowserRouter([
         path: 'admin/dispatch',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
-            <DispatchPage />
+            <OrderPoolPage />
           </Suspense>
         ),
       },
