@@ -101,11 +101,19 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (user.studioId) {
         void client.join(`studio:${user.studioId}`);
         // Join all bridged studio rooms for cross-studio real-time events
-        this.bridgeService.getBridgedStudioIds(user.studioId).then((bridgedIds) => {
-          for (const bridgedId of bridgedIds) {
-            void client.join(`studio:${bridgedId}`);
-          }
-        });
+        this.bridgeService
+          .getBridgedStudioIds(user.studioId)
+          .then((bridgedIds) => {
+            for (const bridgedId of bridgedIds) {
+              void client.join(`studio:${bridgedId}`);
+            }
+          })
+          .catch((err) => {
+            logger.error('Failed to join bridged studio rooms', {
+              error: (err as Error).message,
+              studioId: user.studioId,
+            });
+          });
       }
       if (user.companionId) {
         void client.join(`companion:${user.companionId}`);
@@ -122,7 +130,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.companionsService.ensureAttendance(user.companionId);
 
         if (user.studioId) {
-          this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
+          this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
             companionId: user.companionId,
             status: 'AVAILABLE',
           });
@@ -158,7 +166,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.companionsService.finalizeAttendance(user.companionId);
 
     if (user.studioId) {
-      this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
+      this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
         companionId: user.companionId,
         status: 'OFFLINE',
       });
@@ -232,7 +240,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     if (user.studioId) {
-      this.server.to(`studio:${user.studioId}`).emit('status:broadcast', {
+      this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
         companionId: user.companionId,
         status: mappedStatus,
         mode: data.mode,
@@ -346,22 +354,34 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async broadcastToBridgedStudios(studioId: string, event: string, data: unknown): Promise<void> {
     this.server.to(`studio:${studioId}`).emit(event, data);
-    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-    for (const bridgedId of bridgedIds) {
-      this.server.to(`studio:${bridgedId}`).emit(event, data);
+    try {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      for (const bridgedId of bridgedIds) {
+        this.server.to(`studio:${bridgedId}`).emit(event, data);
+      }
+    } catch (err) {
+      logger.error('broadcastToBridgedStudios failed for bridged studios', {
+        error: (err as Error).message,
+        studioId,
+        event,
+      });
     }
   }
 
   async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<void> {
-    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-    const studioIds = [studioId, ...bridgedIds];
-    const idleCompanions = await this.prisma.companion.findMany({
-      where: { studioId: { in: studioIds }, status: 'AVAILABLE' },
-      select: { id: true },
-    });
-    for (const c of idleCompanions) {
-      const socketId = this.companionSockets.get(c.id);
-      if (socketId) this.server.to(socketId).emit(event, data);
+    try {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      const studioIds = [studioId, ...bridgedIds];
+      const idleCompanions = await this.prisma.companion.findMany({
+        where: { studioId: { in: studioIds }, status: 'AVAILABLE' },
+        select: { id: true },
+      });
+      for (const c of idleCompanions) {
+        const socketId = this.companionSockets.get(c.id);
+        if (socketId) this.server.to(socketId).emit(event, data);
+      }
+    } catch (err) {
+      logger.error('broadcastToIdleCompanions failed', { error: (err as Error).message, studioId, event });
     }
   }
 

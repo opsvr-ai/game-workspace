@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 44,
+    "frequency": 49,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-21T20:20:40.571Z"
+    "updated_at": "2026-07-23T17:08:43.749Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 51,
+    "frequency": 55,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-22T23:12:51.113Z"
+    "updated_at": "2026-07-23T17:16:02.899Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 30,
+    "frequency": 32,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-21T20:14:36.769Z"
+    "updated_at": "2026-07-23T17:14:09.140Z"
   },
   {
     "type": "code_style",
@@ -79,9 +79,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 17,
+    "frequency": 18,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-21T20:06:04.185Z"
+    "updated_at": "2026-07-23T15:01:49.412Z"
   },
   {
     "type": "workflow",
@@ -100,9 +100,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 24,
+    "frequency": 26,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-22T18:47:49.040Z"
+    "updated_at": "2026-07-23T16:27:01.199Z"
   },
   {
     "type": "code_style",
@@ -137,9 +137,9 @@
       "Used successfully 6 times"
     ],
     "rule": "find",
-    "frequency": 13,
+    "frequency": 14,
     "created_at": "2026-07-19T12:03:25.754Z",
-    "updated_at": "2026-07-22T18:46:52.328Z"
+    "updated_at": "2026-07-23T17:02:04.861Z"
   },
   {
     "type": "workflow",
@@ -164,12 +164,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "pnpm",
-    "frequency": 7,
+    "frequency": 8,
     "created_at": "2026-07-19T12:25:12.176Z",
-    "updated_at": "2026-07-21T20:14:49.310Z"
+    "updated_at": "2026-07-23T15:03:09.877Z"
   },
   {
     "type": "code_style",
@@ -188,9 +189,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 18,
+    "frequency": 20,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-22T18:53:54.348Z"
+    "updated_at": "2026-07-23T17:15:36.358Z"
   },
   {
     "type": "workflow",
@@ -212,12 +213,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 4,
+    "frequency": 5,
     "created_at": "2026-07-20T14:53:10.455Z",
-    "updated_at": "2026-07-21T12:28:03.358Z"
+    "updated_at": "2026-07-23T15:03:01.943Z"
   },
   {
     "type": "code_style",
@@ -258,12 +260,14 @@
     "description": "Commonly used command: curl",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "curl",
-    "frequency": 2,
+    "frequency": 4,
     "created_at": "2026-07-20T16:45:32.583Z",
-    "updated_at": "2026-07-20T22:49:44.958Z"
+    "updated_at": "2026-07-23T15:42:13.905Z"
   },
   {
     "type": "workflow",
@@ -300,5 +304,30 @@
     "frequency": 1,
     "created_at": "2026-07-21T19:54:30.788Z",
     "updated_at": "2026-07-21T19:54:30.788Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: tail",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "tail",
+    "frequency": 1,
+    "created_at": "2026-07-23T15:38:30.339Z",
+    "updated_at": "2026-07-23T15:38:30.339Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: #",
+    "evidence": [
+      "Used successfully 6 times",
+      "Used successfully 6 times"
+    ],
+    "rule": "#",
+    "frequency": 2,
+    "created_at": "2026-07-23T16:11:30.654Z",
+    "updated_at": "2026-07-23T16:52:23.042Z"
   }
 ]

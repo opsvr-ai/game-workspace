@@ -1,1 +1,5 @@
-{ "lastCompactionRun": "2026-07-22T00:00:00.000Z" }
+{
+  "lastCompactionRun": "2026-07-22T23:32:26.887Z",
+  "rawLinesSinceLastCompaction": 0,
+  "checkpointsSinceLastCompaction": 0
+}

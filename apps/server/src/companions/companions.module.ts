@@ -8,9 +8,10 @@ import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { ChatModule } from '../chat/chat.module';
+import { StudiosModule } from '../studios/studios.module';
 
 @Module({
-  imports: [forwardRef(() => WsModule), ChatModule],
+  imports: [forwardRef(() => WsModule), ChatModule, StudiosModule],
   controllers: [CompanionsController],
   providers: [
     CompanionsService,

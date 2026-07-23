@@ -40,7 +40,8 @@ export class OrderWorkflowService {
       where: { id: companionId },
       select: { studioId: true },
     });
-    if (companion?.studioId && companion.studioId !== order.studioId) {
+    if (!companion) throw new NotFoundException('陪玩不存在');
+    if (companion.studioId && companion.studioId !== order.studioId) {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(companion.studioId);
       if (!bridgedIds.includes(order.studioId)) {
         throw new ForbiddenException('无权抢其他工作室的订单');

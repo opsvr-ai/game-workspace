@@ -45,8 +45,8 @@ export class ChatController {
   }
 
   private getStudioId(req: any): string {
-    if (!req.user?.studioId) throw new UnauthorizedException('未登录');
-    return req.user.studioId;
+    // OWNER may have null studioId — allowed, rooms will be cross-studio (studioId=null)
+    return req.user?.studioId || '';
   }
 
   // ── Rooms ──
@@ -119,10 +119,7 @@ export class ChatController {
     });
 
     // Load room to find other participant
-    const room = await (this.chatService as any)['prisma']?.chatRoom?.findUnique?.({
-      where: { id },
-      select: { participantA: true, participantB: true },
-    });
+    const room = await this.chatService.getRoom(id);
 
     if (room) {
       const otherUserId = room.participantA === senderId ? room.participantB : room.participantA;

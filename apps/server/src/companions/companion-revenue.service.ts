@@ -1,15 +1,20 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BridgeService } from '../studios/bridge.service';
 import { computeRevenueShare } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 
 @Injectable()
 export class CompanionRevenueService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private bridgeService: BridgeService,
+  ) {}
 
   async getRanking(studioId: string, type: string) {
-    const where: any = { studioId };
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+    const where: any = { studioId: { in: [studioId, ...bridgedIds] } };
     const companions = await this.prisma.companion.findMany({
       where,
       select: { id: true, user: { select: { username: true, displayName: true } } },

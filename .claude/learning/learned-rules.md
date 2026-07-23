@@ -1,14 +1,14 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-22T23:12:51.114Z
+**Last Updated:** 2026-07-23T17:16:02.901Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 18
-- **Total Feedback:** 2
+- **Total Patterns:** 20
+- **Total Feedback:** 3
 
 ## Bash
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 44 occurrences
+**Frequency:** 49 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 24 occurrences
+**Frequency:** 26 occurrences
 
 ### Commonly used command: find
 
@@ -39,7 +39,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 13 occurrences
+**Frequency:** 14 occurrences
 
 ### Commonly used command: wc
 
@@ -55,7 +55,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 7 occurrences
+**Frequency:** 8 occurrences
 
 ### Commonly used command: mkdir
 
@@ -71,7 +71,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 5 occurrences
 
 ### Commonly used command: openspec
 
@@ -85,8 +85,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 4 occurrences
 
 ### Commonly used command: sleep
 
@@ -109,6 +110,21 @@
 
 **Frequency:** 1 occurrences
 
+### Commonly used command: tail
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: #
+
+**Examples:**
+- Used successfully 6 times
+- Used successfully 6 times
+
+**Frequency:** 2 occurrences
+
 ## Style
 
 *0 corrections in this category*
@@ -120,7 +136,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 51 occurrences
+**Frequency:** 55 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -129,7 +145,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 30 occurrences
+**Frequency:** 32 occurrences
 
 ### Prefer async await in .ts files
 
@@ -138,7 +154,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 18 occurrences
+**Frequency:** 20 occurrences
 
 ## Framework
 
@@ -151,7 +167,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 17 occurrences
+**Frequency:** 18 occurrences
 
 ## Quality
 
@@ -187,6 +203,7 @@
 
 - **general:** Background agent "Run hipocampus compaction" was stopped by the user.
 - **error_handling:** 显示 “unexpected application  error”
+- **error_handling:** electron打开后显示  unexpected application error
 
 ---
 

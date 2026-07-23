@@ -28,10 +28,14 @@ export class OrderDispatchService {
     if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
       throw new ForbiddenException('已完成或已取消的订单不可重新分配');
     }
-    const updatedOrder = await this.prisma.order.update({
-      where: { id: orderId },
+    // Atomic update: guards against order deletion between fetch and update
+    const result = await this.prisma.order.updateMany({
+      where: { id: orderId, status: { notIn: [OrderStatus.DONE, OrderStatus.CANCELLED] }, companionId: null },
       data: { dispatchType: 'DIRECT', companionId },
     });
+    if (result.count === 0) throw new ForbiddenException('订单状态已变更或已被删除');
+    const updatedOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!updatedOrder) throw new NotFoundException('订单不存在');
     // Auto-assign customer (C6 fix)
     try {
       await this.prisma.customer.updateMany({
@@ -76,11 +80,14 @@ export class OrderDispatchService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
-    // When declining, reset to PENDING+POOL so the order re-enters the pool
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
+    // Atomic update: guards against order deletion between fetch and update
+    const result = await this.prisma.order.updateMany({
+      where: { id: orderId, companionId },
       data: { companionId: null, dispatchType: 'POOL', status: OrderStatus.PENDING },
     });
+    if (result.count === 0) throw new ForbiddenException('订单状态已变更或已被删除');
+    const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!updated) throw new NotFoundException('订单不存在');
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }

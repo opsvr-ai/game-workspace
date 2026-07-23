@@ -124,6 +124,13 @@ export class ChatService {
   }
 
   /** Update room metadata (pin/archive) */
+  async getRoom(roomId: string) {
+    return this.prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      select: { id: true, participantA: true, participantB: true },
+    });
+  }
+
   async updateRoom(roomId: string, data: { pinned?: boolean; archived?: boolean; orderInfo?: string }) {
     return this.prisma.chatRoom.update({
       where: { id: roomId },
@@ -336,9 +343,12 @@ export class ChatService {
   async getTotalUnread(userId: string, studioId: string) {
     const rooms = await this.prisma.chatRoom.findMany({
       where: {
-        studioId,
-        OR: [{ participantA: userId }, { participantB: userId }],
-        archived: false,
+        OR: [
+          { studioId, participantA: userId, archived: false },
+          { studioId, participantB: userId, archived: false },
+          { studioId: null, participantA: userId, archived: false },
+          { studioId: null, participantB: userId, archived: false },
+        ],
       },
       select: {
         id: true,

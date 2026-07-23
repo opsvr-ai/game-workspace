@@ -37,6 +37,7 @@ export class OrdersService {
       const csUser = await this.prisma.user.findUnique({ where: { id: dto.csUserId } });
       studioId = csUser?.studioId ?? undefined;
     }
+    if (!studioId) throw new NotFoundException('无法确定订单所属工作室');
 
     // Resolve customerId: create a placeholder if not provided
     let customerId = dto.customerId;
@@ -144,10 +145,9 @@ export class OrdersService {
       dispatchType: 'POOL',
       OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
-    if (studioId) {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-      where.studioId = { in: [studioId, ...bridgedIds] };
-    }
+    if (!studioId) return [];
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+    where.studioId = { in: [studioId, ...bridgedIds] };
 
     // Non-DIRECT studios: exclude orders created within the last 1 minute
     if (studioType && studioType !== 'DIRECT') {
@@ -405,13 +405,26 @@ export class OrdersService {
     if (!order) throw new NotFoundException('订单不存在');
     // Prevent the assigned companion from accepting their own partner call
     if (order.companionId === partnerId) throw new ForbiddenException('不能接受自己的协作请求');
-    return this.prisma.order.update({
+    // Bridge validation: partner must be in same or bridged studio
+    const partner = await this.prisma.companion.findUnique({
+      where: { id: partnerId },
+      select: { studioId: true },
+    });
+    if (!partner) throw new NotFoundException('陪玩不存在');
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(order.studioId);
+    const allowedStudios = [order.studioId, ...bridgedIds];
+    if (!allowedStudios.includes(partner.studioId)) {
+      throw new ForbiddenException('无权接受其他工作室的协作请求');
+    }
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
         coCompanionId: partnerId,
         customFields: { ...((order.customFields as any) || {}), partnerId },
       },
     });
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async getPoolStatus(companionId: string) {
