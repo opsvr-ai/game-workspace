@@ -53,7 +53,7 @@ const CSDispatchView: React.FC = () => {
   const [chatPanelWidth, setChatPanelWidth] = useState(() => {
     try {
       const saved = localStorage.getItem('chat-panel-width');
-      return saved ? parseInt(saved, 10) : 380;
+      return saved ? parseInt(saved, 10) : 320;
     } catch { return 380; }
   });
   // Persist panel width on change (debounced)
@@ -182,7 +182,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row gutter={12}>
         {/* Left: Companion sidebar */}
-        <Col span={selectedCompanionId ? 4 : 4}>
+        <Col span={3}>
           <Card
             title="陪玩管理"
             size="small"
@@ -352,7 +352,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col flex={selectedCompanionId ? 1 : undefined} span={selectedCompanionId ? undefined : 17} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col flex={selectedCompanionId ? 1 : undefined} span={selectedCompanionId ? undefined : 21} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
