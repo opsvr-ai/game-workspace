@@ -38,18 +38,7 @@ function createMainWindow(): BrowserWindow {
     },
   });
 
-  // Load web app — dev mode uses local Vite, prod uses server's web port
-  if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else {
-    const serverUrl = getServerUrl();
-    // Web app served on port 8000 (same host as API server on 3001)
-    const webUrl = serverUrl.replace(/:3001$/, ':8000');
-    logger.info('Loading web app', { webUrl });
-    win.loadURL(webUrl);
-  }
-
-  // Handle page load failures
+  // Handle page load failures — MUST register before loadURL
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logger.error('Page load failed', { errorCode, errorDescription, url: validatedURL });
     // Show a user-visible error instead of blank page
@@ -67,6 +56,17 @@ function createMainWindow(): BrowserWindow {
       </body></html>`;
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
   });
+
+  // Load web app — dev mode uses local Vite, prod uses server's web port
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    const serverUrl = getServerUrl();
+    // Web app served on port 8000 (same host as API server on 3001)
+    const webUrl = serverUrl.replace(/:3001$/, ':8000');
+    logger.info('Loading web app', { webUrl });
+    win.loadURL(webUrl);
+  }
 
   win.once('ready-to-show', () => {
     win.show();
