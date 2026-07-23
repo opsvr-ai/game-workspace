@@ -587,11 +587,11 @@ const CSDispatchView: React.FC = () => {
 
         {/* Right: Stats + Chat panel */}
         <Col flex="0 0 auto" style={{ minWidth: 50, maxWidth: 80 }}>
-          <Card size="small" bodyStyle={{ padding: '6px 8px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11 }}>
-              <span>🟢{idleCount} 🔴{busyCount}</span>
-              <span>🟡{entertainCount} 🟠{restingCount}</span>
-              <span>⚪{offlineCount} 📦{poolCount}</span>
+          <Card size="small" bodyStyle={{ padding: '4px 6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 11 }}>
+              <span>🟢空{idleCount} 🔴忙{busyCount}</span>
+              <span>🟡娱{entertainCount} 🟠休{restingCount}</span>
+              <span>⚪离{offlineCount} 📦待{poolCount}</span>
             </div>
           </Card>
         {/* Chat panel below stats */}
