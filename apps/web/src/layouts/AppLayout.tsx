@@ -97,58 +97,34 @@ interface MenuItemDef {
 
 const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
-    {
-      key: 'grp-overview',
-      type: 'group',
-      label: '经营概览',
-      children: [
-        { key: '/admin', icon: IconDashboard, label: '数据看板' },
-        { key: '/admin/traffic', icon: IconTraffic, label: '派单管理' },
-        { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
-      ],
-    },
-    {
-      key: 'grp-people',
-      type: 'group',
-      label: '人员管理',
-      children: [
-        { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
-        { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
-        { key: 'owner-staff', icon: IconEmployees, label: '员工管理', children: [
-          { key: '/owner/review', label: '实名审核' },
-          { key: 'owner-staff-online', type: 'group', label: '线上俱乐部', children: [
-            { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
-            { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
-            { key: '/owner/employees?studioType=RENTAL&role=COMPANION', label: '陪玩' },
-          ]},
-          { key: 'owner-staff-offline', type: 'group', label: '线下工作室', children: [
-            { key: '/owner/employees?studioType=DIRECT&role=ADMIN', label: '店长' },
-            { key: '/owner/employees?studioType=DIRECT&role=CS', label: '客服' },
-            { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
-          ]},
-        ]},
-      ],
-    },
-    {
-      key: 'grp-control',
-      type: 'group',
-      label: '系统管控',
-      children: [
-        { key: '/owner/studios', icon: IconStudios, label: '工作室管理' },
-        { key: '/owner/authorizations', icon: IconAuth, label: '客户端授权' },
-        { key: '/admin/pc-control', icon: IconControl, label: '远程控制' },
-        { key: '/admin/blacklist', icon: IconStop, label: '进程黑名单' },
-        { key: '/admin/whitelist', icon: IconSafety, label: '进程白名单' },
-        { key: '/admin/process-kill-log', icon: IconHistory, label: '杀进程日志' },
-        { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
-      ],
-    },
-    {
-      key: 'grp-settings',
-      type: 'group',
-      label: '设置',
-      children: [{ key: '/owner/settings', icon: IconAuth, label: '系统设置' }],
-    },
+    { key: '/admin', icon: IconDashboard, label: '数据看板' },
+    { key: '/admin/traffic', icon: IconTraffic, label: '派单管理' },
+    { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
+    { key: 'owner-staff', icon: IconEmployees, label: '员工管理', children: [
+      { key: '/owner/review', label: '实名审核' },
+      { key: 'owner-staff-online', type: 'group', label: '线上俱乐部', children: [
+        { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
+        { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
+        { key: '/owner/employees?studioType=RENTAL&role=COMPANION', label: '陪玩' },
+      ]},
+      { key: 'owner-staff-offline', type: 'group', label: '线下工作室', children: [
+        { key: '/owner/employees?studioType=DIRECT&role=ADMIN', label: '店长' },
+        { key: '/owner/employees?studioType=DIRECT&role=CS', label: '客服' },
+        { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
+      ]},
+    ]},
+    { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
+    { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
+    { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
+    { key: 'owner-settings', icon: IconAuth, label: '系统设置', children: [
+      { key: '/owner/settings', label: '系统配置' },
+      { key: '/owner/studios', label: '工作室管理' },
+      { key: '/owner/authorizations', label: '客户端授权' },
+      { key: '/admin/pc-control', label: '远程控制' },
+      { key: '/admin/blacklist', label: '进程黑名单' },
+      { key: '/admin/whitelist', label: '进程白名单' },
+      { key: '/admin/process-kill-log', label: '杀进程日志' },
+    ]},
   ],
   [UserRole.ADMIN]: [
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
