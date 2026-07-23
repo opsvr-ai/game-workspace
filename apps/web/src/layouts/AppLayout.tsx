@@ -365,34 +365,16 @@ const AppLayout: React.FC = () => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
     onWalletReviewed: (data: any) => {
-      message.info({
-        message: data.message || '支取审核结果',
-        description: `金额 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`,
-        placement: 'topRight',
-      });
+      message.info(data.message || `支取 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`);
     },
     onUserAuthorized: (data: any) => {
-      message.success({
-        message: '审核通过',
-        description: data.message || '您的注册申请已通过审核',
-        placement: 'topRight',
-        duration: 6,
-      });
+      message.success(data.message || '注册申请已通过审核', 6);
     },
     onUserRejected: (data: any) => {
-      message.warning({
-        message: '审核未通过',
-        description: data.message || '您的注册申请未通过审核',
-        placement: 'topRight',
-        duration: 6,
-      });
+      message.warning(data.message || '注册申请未通过审核', 6);
     },
     onBridgeResponded: (data: any) => {
-      message.info({
-        message: '桥接申请结果',
-        description: data.message || (data.accepted ? '对方已同意桥接' : '对方已拒绝桥接'),
-        placement: 'topRight',
-      });
+      message.info(data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请'));
     },
   });
 
