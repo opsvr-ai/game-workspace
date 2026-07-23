@@ -37,23 +37,43 @@ export class BridgeService {
     this.visibleCache.delete(studioBId);
   }
 
-  /** Owner proposes a bridge between two studios */
+  /** Owner proposes a bridge between two studios. Proposer's side is auto-accepted. */
   async propose(studioAId: string, studioBId: string, ownerId: string) {
     const [a, b] = [studioAId, studioBId].sort();
+    const proposerIsA = a === studioAId;
     const existing = await this.prisma.studioBridge.findUnique({
       where: { studioAId_studioBId: { studioAId: a, studioBId: b } },
     });
     if (existing) {
       if (existing.status === 'ACTIVE') throw new ForbiddenException('已打通');
-      // Re-propose: reset to PENDING
-      await this.prisma.studioBridge.update({ where: { id: existing.id }, data: { status: 'PENDING', proposedBy: ownerId } });
+      // Re-propose: reset to PENDING and reset permissions
+      await this.prisma.studioBridge.update({
+        where: { id: existing.id },
+        data: { status: 'PENDING', proposedBy: ownerId },
+      });
+      await this.prisma.studioBridgePermission.updateMany({
+        where: { bridgeId: existing.id },
+        data: { acceptedA: false, acceptedB: false },
+      });
+      await this.prisma.studioBridgePermission.updateMany({
+        where: { bridgeId: existing.id },
+        data: proposerIsA ? { acceptedA: true } : { acceptedB: true },
+      });
       this.invalidateCache(a, b);
       return existing;
     }
     const bridge = await this.prisma.studioBridge.create({
       data: {
-        studioAId: a, studioBId: b, proposedBy: ownerId,
-        permissions: { create: ALL_FUNCTIONS.map((f) => ({ function: f })) },
+        studioAId: a,
+        studioBId: b,
+        proposedBy: ownerId,
+        permissions: {
+          create: ALL_FUNCTIONS.map((f) => ({
+            function: f,
+            acceptedA: proposerIsA, // proposer's side is auto-accepted
+            acceptedB: !proposerIsA,
+          })),
+        },
       },
       include: { permissions: true },
     });
@@ -67,7 +87,10 @@ export class BridgeService {
 
   /** Admin accepts a bridge for their studio */
   async respond(bridgeId: string, studioId: string, accept: boolean, functionFilter?: string[]) {
-    const bridge = await this.prisma.studioBridge.findUnique({ where: { id: bridgeId }, include: { permissions: true } });
+    const bridge = await this.prisma.studioBridge.findUnique({
+      where: { id: bridgeId },
+      include: { permissions: true },
+    });
     if (!bridge) throw new NotFoundException('Bridge not found');
     if (bridge.status === 'ACTIVE' || bridge.status === 'REJECTED') throw new ForbiddenException('已处理');
 
@@ -92,9 +115,15 @@ export class BridgeService {
     }
 
     // Check if both sides accepted all
-    const updated = await this.prisma.studioBridge.findUnique({ where: { id: bridgeId }, include: { permissions: true } });
+    const updated = await this.prisma.studioBridge.findUnique({
+      where: { id: bridgeId },
+      include: { permissions: true },
+    });
     if (updated?.permissions.every((p) => p.acceptedA && p.acceptedB)) {
-      await this.prisma.studioBridge.update({ where: { id: bridgeId }, data: { status: 'ACTIVE', acceptedAt: new Date() } });
+      await this.prisma.studioBridge.update({
+        where: { id: bridgeId },
+        data: { status: 'ACTIVE', acceptedAt: new Date() },
+      });
       this.invalidateCache(bridge.studioAId, bridge.studioBId);
       return { status: 'ACTIVE' };
     }
