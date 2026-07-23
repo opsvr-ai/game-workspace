@@ -94,8 +94,9 @@ export class StudiosController {
   async resetPassword(
     @Param('id') id: string,
     @Body('password') password: string,
+    @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    await this.studiosService.resetPassword(id, password);
+    await this.studiosService.resetPassword(id, password, req.user?.studioId, req.user?.role);
     return { code: 200, message: 'ok', data: null };
   }
 

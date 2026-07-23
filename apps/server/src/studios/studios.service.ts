@@ -132,7 +132,14 @@ export class StudiosService {
     });
   }
 
-  async resetPassword(userId: string, newPassword: string) {
+  async resetPassword(userId: string, newPassword: string, adminStudioId?: string, adminRole?: string) {
+    // ADMIN can only reset passwords for employees in their own studio
+    if (adminRole === 'ADMIN' && adminStudioId) {
+      const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { studioId: true } });
+      if (!target || target.studioId !== adminStudioId) {
+        throw new Error('无权操作其他工作室的员工');
+      }
+    }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }

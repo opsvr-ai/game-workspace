@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 166,
+      "successCount": 171,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
-          "weight": 332
+          "weight": 337
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 125
+          "count": 1,
+          "weight": 129
         },
         "style:arrow_functions": {
           "count": 0,
@@ -30,7 +30,7 @@
       }
     },
     ".tsx": {
-      "successCount": 264,
+      "successCount": 268,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -66,9 +66,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 5,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784833508418
+      "lastSuccess": 1784835094100
     },
     "npx": {
       "count": 5,
@@ -81,19 +81,19 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 5,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784832750858
+      "lastSuccess": 1784834920259
     },
     "find": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784828209772
+      "lastSuccess": 1784834982810
     },
     "git": {
-      "count": 1,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784833185317
+      "lastSuccess": 1784834698381
     },
     "rm": {
       "count": 1,
@@ -146,9 +146,9 @@
       "lastSuccess": 1784734908882
     },
     "curl": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784832484063
+      "lastSuccess": 1784833790848
     },
     "for": {
       "count": 1,
@@ -161,9 +161,9 @@
       "lastSuccess": 1784827339493
     },
     "TOKEN=$(curl": {
-      "count": 3,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784832506750
+      "lastSuccess": 1784833865963
     },
     "kill": {
       "count": 2,
@@ -176,784 +176,12 @@
       "lastSuccess": 1784735926641
     },
     "#": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784829890975
+      "lastSuccess": 1784833817231
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"ConversationList\\|notifOpen\\|BellOutlined\\|Popover\\|notification\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784752844074
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 9
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784752857192
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784752867841
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 6
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784752896075
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784752912683
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 5
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 7
-        }
-      ],
-      "timestamp": 1784752999662
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784753009423
-    },
-    {
-      "type": "bash",
-      "command": "npx tsc --noEmit --project tsconfig.build.json 2>&1 | head -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx tsc --noEmit --project tsconfig.build.json N>&N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753023351
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"pending-count\\|pendingCount\\|pending_count\" /data/project/game-workspace/apps/server/src/billing/ 2>/dev/null | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/server/src/billing/ N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753075684
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"async\\|@Get\\|@Post\\|@Put\" /data/project/game-workspace/apps/server/src/billing/billing.controller.ts | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/billing/billing.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753088761
-    },
-    {
-      "type": "bash",
-      "command": "wc -l /data/project/game-workspace/apps/server/src/billing/billing.service.ts",
-      "cmdPattern": {
-        "base": "wc",
-        "pattern": "wc -l /data/project/game-workspace/apps/server/src/billing/billing.service.ts",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753099603
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/billing/billing.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 6
-        }
-      ],
-      "timestamp": 1784753108527
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 5
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 9
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753131881
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753142144
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 6
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 9
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 9
-        }
-      ],
-      "timestamp": 1784753165618
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"user, totalUnread, pendingBadge, bridgePendingBadge\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753175549
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784753179262
-    },
-    {
-      "type": "bash",
-      "command": "npx tsc --noEmit --project tsconfig.build.json 2>&1 | head -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx tsc --noEmit --project tsconfig.build.json N>&N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753190864
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin)['data'",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784753197576
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753315592
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -name \"billing.module.ts\" -type f",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -name \"\" -type f",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753377518
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/billing/billing.service.ts",
-      "patterns": [],
-      "timestamp": 1784753388101
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/billing/billing.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 6
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753400021
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"WsModule\\|WsGateway\" /data/project/game-workspace/apps/server/src/auth/auth.module.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/auth/auth.module.ts",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753412450
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.module.ts",
-      "patterns": [],
-      "timestamp": 1784753423144
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.module.ts",
-      "patterns": [],
-      "timestamp": 1784753430741
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.service.ts",
-      "patterns": [],
-      "timestamp": 1784753439573
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.service.ts",
-      "patterns": [],
-      "timestamp": 1784753447903
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753454557
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/bridge.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784753472799
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/bridge.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784753478477
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.module.ts",
-      "patterns": [],
-      "timestamp": 1784753488062
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/hooks/useSocket.ts",
-      "patterns": [],
-      "timestamp": 1784753496285
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/hooks/useSocket.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 6
-        }
-      ],
-      "timestamp": 1784753506569
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"notification\\|message\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753516638
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"useSocket\\|ChatProvider\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753520764
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"useSocket\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753524189
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784753531906
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 5
-        }
-      ],
-      "timestamp": 1784753544204
-    },
-    {
-      "type": "bash",
-      "command": "npx tsc --noEmit --project tsconfig.build.json 2>&1 | head -10",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx tsc --noEmit --project tsconfig.build.json N>&N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753555897
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type f -name \"*.tsx\" -o -name \"*.ts\" | xargs grep -l -i \"register\\|login\\|profile.*setup\" 2>/dev/null | head -30",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type f -name \"\" -o -name \"\" | xargs grep -l -i \"\" N>",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753806777
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace -path \"*/shared*\" -name \"*.ts\" | xargs grep -l \"UserRole\\|ApiResponse\" 2>/dev/null | head -10",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace -path \"\" -name \"\" | xargs grep -l \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753807782
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type f -name \"*.tsx\" | xargs grep -l -i \"register\\|Register\" 2>/dev/null",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type f -name \"\" | xargs grep -l -i \"\" N>/dev/null",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753808474
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src/orders -type f -name '*.ts' | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src/orders -type f -name \"\" | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753809484
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -name \"router*\" -o -name \"routes*\" 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -name \"\" -o -name \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753817279
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace -path '*/node_modules' -prune -o -type f -name '*.ts' -print | xargs grep -l 'OrderStatus\\|OrderType\\|DispatchType' 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace -path \"\" -prune -o -type f -name \"\" -print | xargs grep -l \"\" N>/d",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753818143
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -type f -name \"*.ts\" | xargs grep -l -i \"companion\" 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -type f -name \"\" | xargs grep -l -i \"\" N>/dev/null",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753818989
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type f -name \"ReviewPage.tsx\" -o -name \"AuthorizationsPage.tsx\" -o -name \"AppLayout.tsx\" 2>/dev/null",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type f -name \"\" -o -name \"\" -o -name \"\" N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753828507
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -type f -name \"*.ts\" | xargs grep -l \"companion\" 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -type f -name \"\" | xargs grep -l \"\" N>/dev/null | ",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753829294
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -name \"revenue-calculator*\" -o -name \"revenue*\" 2>/dev/null",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -name \"\" -o -name \"\" N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753831626
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -name \"companion*\" -type f 2>/dev/null",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -name \"\" -type f N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753836934
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace -name \"schema.prisma\" 2>/dev/null | head -5",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace -name \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753836952
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -type f -name \"*.ts\" | xargs grep -l \"seed\\|owner.*create\\|createOwner\\|OWNER\" 2>/dev/null | head -10",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -type f -name \"\" | xargs grep -l \"\" N>/dev/null | ",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753837965
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type d | head -40",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type d | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753838220
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src/pages -name \"*.tsx\" 2>/dev/null | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src/pages -name \"\" N>/dev/null | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753838903
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -name \"order-workflow*\" -o -name \"order.service*\" 2>/dev/null | head -10",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -name \"\" -o -name \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753842573
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src -name \"*.module.ts\" | grep -v node_modules | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src -name \"\" | grep -v node_modules | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753848202
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"BillingPage\" /data/project/game-workspace/apps/web/src/ 2>/dev/null | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753848908
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"bridge\" /data/project/game-workspace/apps/web/src/router.tsx 2>/dev/null",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/router.tsx N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753849627
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"BillingPage\" /data/project/game-workspace/apps/web/src/router.tsx 2>/dev/null",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/router.tsx N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784753850364
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn 'frozen\\|FREEZE\\|UNFREEZE' /data/project/game-workspace/apps/server/src/ 2>/dev/null | head -30",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/server/src/ N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784753854478
-    },
     {
       "type": "bash",
       "command": "grep -rn 'deposit' /data/project/game-workspace/apps/server/src/companions/companions.service.ts 2>/dev/null",
@@ -2488,6 +1716,672 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
       "patterns": [],
       "timestamp": 1784833524567
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -2 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: add PII fields to getEmployees API + emplo",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833541706
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/ReviewPage.tsx",
+      "patterns": [],
+      "timestamp": 1784833548590
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -2 && git -C /data/project/game-workspace add apps/web/src/pages/admin/ReviewPage.tsx && git -C /data/project/game-workspace commit -m \"fix: Revie",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833562364
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace push origin feature/chat-3.0 #!axme pr=none repo=AxmeAI/axme-code",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace push origin feature/chat-N.N #!axme pr=none repo=AxmeAI/axme-cod",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784833571137
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833761052
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833776023
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:3001/api/employees?studioId=af357c69-c170-4ddf-8ec0-172f3a9b98a4&role=COMPANION\" -H \"Authorization: Bearer $TOKEN\" | python3 -c \"\nimport sys,json\nfor u in json.load(sys.stdin",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" -H \"\" | pythonN -c \"\"data\"\"{u[\\\"\"]}\"\" N>/dev/null",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784833790848
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833802731
+    },
+    {
+      "type": "bash",
+      "command": "# Check peiwan1 via companions API\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json",
+      "cmdPattern": {
+        "base": "#",
+        "pattern": "# Check peiwanN via companions API TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"user",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833817231
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784833865963
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"deleteEmployee\\|delete.*employee\\|DELETE\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834650493
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784834661550
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784834669860
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"deleteEmployee\\|isAdmin\\|delete.*employee\\|Popconfirm.*删除\\|handleDelete\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834678323
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/studios/ && git -C /data/project/game-workspace commit -m \"fix: ADMIN can now delete",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784834688832
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace push origin feature/chat-3.0 #!axme pr=none repo=AxmeAI/axme-code",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace push origin feature/chat-N.N #!axme pr=none repo=AxmeAI/axme-cod",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784834698381
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"kick\\|踢出\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834808014
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"踢出\\|handleKick\\|kickingId\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834848921
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+      "patterns": [],
+      "timestamp": 1784834862252
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+      "patterns": [],
+      "timestamp": 1784834882565
+    },
+    {
+      "type": "bash",
+      "command": "grep -c \"LogoutOutlined\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -c \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784834891584
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"LogoutOutlined\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784834896011
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
+      "patterns": [],
+      "timestamp": 1784834905081
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/owner/EmployeesPage.tsx && git -C /data/project/game-workspace commit -m \"fix: re",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784834920259
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server -type f -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.vue\" | head -100",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server -type f -name \"\" -o -name \"\" -o -name \"\" -o -name \"\" |",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834954870
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server -type d -maxdepth 4 | sort",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server -type d -maxdepth N | sort",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834955959
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server/apps/web/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.vue\" -o -name \"*.js\" \\) | sort",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server/apps/web/src -type f \\( -name \"\" -o -name \"\" -o -name ",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834959618
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server/src -type f -name \"*.ts\" ! -path \"*/__tests__/*\" ! -path \"*/__mocks__/*\" | sort",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server/src -type f -name \"\" ! -path \"\" ! -path \"\" | sort",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834960448
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server/apps -type f | head -80",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server/apps -type f | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834962515
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server/public -type f | head -40",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server/public -type f | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834963020
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/server/prisma -name \"*.prisma\" -type f",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/server/prisma -name \"\" -type f",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784834982810
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '\"接单记录\"|\"派单记录\"|\"已接订单\"|\"抢单池\"|\"已接单\"|\"我的订单\"|接单记录|派单记录|order:grab|order:accept' public/assets/index-BILNjSKF.js 2>/dev/null | sort | uniq -c | sort -rn",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\"接单记录\"\"派单记录\"\"已接订单\"\"抢单池\"\"已接单\"\"我的订单\"\" public/assets/index-BILNjSKF.js N>/dev/null | sort | u",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834996690
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '\"编辑财务\"|\"财务数据\"|\"updateFinance\"|\"finance\"|\"todayRevenue\"|\"totalRevenue\"|\"deposit\"' public/assets/index-BILNjSKF.js 2>/dev/null | sort | uniq -c | sort -rn",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\"编辑财务\"\"财务数据\"\"updateFinance\"\"finance\"\"todayRevenue\"\"totalRevenue\"\"deposit\"\" public/assets/i",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784834998004
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,50}resign.{0,50}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835000652
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,50}离职.{0,50}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835001322
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,50}companions.{0,100}resign.{0,50}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835002116
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}deleteEmployee|删除员工|删除该员工|确定删除.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835004876
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}employees.{0,50}password|employees.{0,50}delete|/employees/.{0,50}password|重置密码.{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835006120
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}编辑财务|updateFinance|companions.{0,50}finance.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835007062
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}报账|expense.{0,100}report|expense-report|createExpenseReport|账单审核.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835010523
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}陪玩管理|companion.*manage|manage.*companion.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835011481
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}csUserId|customerId|companionId.{0,100}create.*order|POST.*orders.{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835012510
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,80}POST.*orders.{0,80}companionId|customerId.{0,80}createOrder|create.*dispatchType.{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835016015
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,60}confirm.*离职|离职.*confirm|确认离职|resign.*confirm.{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835017072
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,60}kick|kickCompanion|踢出.{0,120}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835017796
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,60}接单记录|派单记录|已接订单|订单池.{0,120}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835021034
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,60}companion/pool|companion/orders|companion/billing|companion/workbench|companion/order.{0,120}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835022075
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,40}cs/pool|cs/order|cs/billing|cs/companion|/cs/.{0,130}' public/assets/index-BILNjSKF.js 2>/dev/null | head -30",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835023036
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP 'sr\\.\\w+\\]:\\[.*?\\]\\]' public/assets/index-BILNjSKF.js 2>/dev/null | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835025851
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,200}ACL.*companions|validatePlayAccess|console-guard|COMPANION.*can.*view|COMPANION.*权限.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835027502
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}/companion/orders|companion/people|companion.billing|companion.wallet|wallet.*withdrawable|expense-report.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835028768
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,80}派单记录|COMPANION.*path.*dispatch|companion/dispatch.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835032903
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,40}auth/register|register.*role|registerRole.{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835033822
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,80}编辑财务|finance.*companion|updateFinance|companion.*edit.{0,120}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835085418
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,100}CREATE.*ORDER|createOrder|POST.*orders.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835089223
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP '.{0,60}(order|Order).{0,10}(dispatchType|companionId).{0,100}' public/assets/index-BILNjSKF.js 2>/dev/null | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835090402
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP 'orders.{0,3}post|createOrder|new.*order|派单.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835093066
+    },
+    {
+      "type": "bash",
+      "command": "grep -oP 'create\\{.method|dispatchType.*DIRECT|dispatchType.*POOL|dispatchType.*BROADCAST.{0,200}' public/assets/index-BILNjSKF.js 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -oP \"\" public/assets/index-BILNjSKF.js N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784835094100
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784835182332
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784835190891
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784835210450
     }
   ]
 }
