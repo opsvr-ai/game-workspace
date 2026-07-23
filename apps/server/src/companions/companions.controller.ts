@@ -202,21 +202,21 @@ export class CompanionsController {
   }
 
   @Post('companions/work-wechats')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async addWorkWechat(@Req() req: any, @Body() dto: { wechatId: string }): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.addWorkWechat(req.user.studioId, dto.wechatId);
     return { code: 201, message: 'ok', data };
   }
 
   @Put('companions/work-wechats/:id/bind')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async bindWechat(@Param('id') id: string, @Body() dto: { companionId: string }): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.bindWechat(id, dto.companionId);
     return { code: 200, message: 'ok', data };
   }
 
   @Put('companions/work-wechats/:id/unbind')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async unbindWechat(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.unbindWechat(id);
     return { code: 200, message: 'ok', data };
@@ -225,7 +225,7 @@ export class CompanionsController {
   // ── Resignation (MUST be before :id routes) ──
 
   @Post('companions/:id/resign')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async resignCompanion(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     await this.companionsService.resignCompanion(id);
     return { code: 200, message: '陪玩已离职，工位和微信已释放', data: null };

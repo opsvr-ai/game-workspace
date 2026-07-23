@@ -80,7 +80,7 @@ export class StudiosController {
 
   @Post('employees')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async createEmployee(
     @Body() dto: { username: string; password: string; role: string; studioId: string },
   ): Promise<ApiResponse<unknown>> {
@@ -90,7 +90,7 @@ export class StudiosController {
 
   @Put('employees/:id/password')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async resetPassword(
     @Param('id') id: string,
     @Body('password') password: string,
