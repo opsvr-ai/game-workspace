@@ -19,8 +19,8 @@ export function canManage(managerRole: string, targetRole: string): boolean {
 export function assertCanManage(
   managerRole: string,
   targetRole: string,
-  managerStudioId: string | undefined,
-  targetStudioId: string | undefined,
+  managerStudioId?: string | null,
+  targetStudioId?: string | null,
 ): void {
   // OWNER can manage anyone regardless of studio
   if (managerRole === 'OWNER') return;

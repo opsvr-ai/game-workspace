@@ -1,11 +1,11 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 190,
+      "successCount": 195,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
-          "weight": 345
+          "weight": 349
         },
         "style:async_await": {
           "count": 2,
@@ -66,9 +66,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784841046396
+      "lastSuccess": 1784841636118
     },
     "npx": {
       "count": 5,
@@ -81,9 +81,9 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 3,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784841069393
+      "lastSuccess": 1784841366075
     },
     "find": {
       "count": 4,
@@ -116,9 +116,9 @@
       "lastSuccess": 1784736853008
     },
     "sleep": {
-      "count": 1,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784749446768
+      "lastSuccess": 1784841838004
     },
     "./node_modules/.bin/nest": {
       "count": 1,
@@ -136,9 +136,9 @@
       "lastSuccess": 1784472897704
     },
     "tail": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784749415180
+      "lastSuccess": 1784841683824
     },
     "docker": {
       "count": 5,
@@ -146,9 +146,9 @@
       "lastSuccess": 1784734908882
     },
     "curl": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784833790848
+      "lastSuccess": 1784841662636
     },
     "for": {
       "count": 1,
@@ -161,9 +161,9 @@
       "lastSuccess": 1784827339493
     },
     "TOKEN=$(curl": {
-      "count": 1,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784833865963
+      "lastSuccess": 1784841622175
     },
     "kill": {
       "count": 2,
@@ -176,213 +176,12 @@
       "lastSuccess": 1784735926641
     },
     "#": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784838636509
+      "lastSuccess": 1784841568526
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784833802731
-    },
-    {
-      "type": "bash",
-      "command": "# Check peiwan1 via companions API\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Check peiwanN via companions API TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"user",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784833817231
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784833865963
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"deleteEmployee\\|delete.*employee\\|DELETE\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834650493
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784834661550
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784834669860
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"deleteEmployee\\|isAdmin\\|delete.*employee\\|Popconfirm.*删除\\|handleDelete\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834678323
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/studios/ && git -C /data/project/game-workspace commit -m \"fix: ADMIN can now delete",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784834688832
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace push origin feature/chat-3.0 #!axme pr=none repo=AxmeAI/axme-code",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace push origin feature/chat-N.N #!axme pr=none repo=AxmeAI/axme-cod",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784834698381
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"kick\\|踢出\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834808014
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"踢出\\|handleKick\\|kickingId\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834848921
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-      "patterns": [],
-      "timestamp": 1784834862252
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-      "patterns": [],
-      "timestamp": 1784834882565
-    },
-    {
-      "type": "bash",
-      "command": "grep -c \"LogoutOutlined\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -c \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784834891584
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"LogoutOutlined\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784834896011
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx",
-      "patterns": [],
-      "timestamp": 1784834905081
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/owner/EmployeesPage.tsx && git -C /data/project/game-workspace commit -m \"fix: re",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784834920259
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -type f -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.vue\" | head -100",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -type f -name \"\" -o -name \"\" -o -name \"\" -o -name \"\" |",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834954870
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -type d -maxdepth 4 | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -type d -maxdepth N | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784834955959
-    },
     {
       "type": "bash",
       "command": "find /data/project/game-workspace/apps/server/apps/web/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.vue\" -o -name \"*.js\" \\) | sort",
@@ -2134,6 +1933,208 @@
       "file": "/data/project/game-workspace/apps/server/src/auth/register.controller.ts",
       "patterns": [],
       "timestamp": 1784841235063
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: unified role hierarchy OWNER>ADMIN>CS>COMP",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841250538
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/common/role-hierarchy.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784841328139
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/common/role-hierarchy.ts && git -C /data/project/game-workspace commit -m \"fix: role",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841339740
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/common/role-hierarchy.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784841354127
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/common/role-hierarchy.ts && git -C /data/project/game-workspace commit -m \"fix: reve",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841366075
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841559410
+    },
+    {
+      "type": "bash",
+      "command": "# Decode hanlei1's JWT to check isAuthorized\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"impo",
+      "cmdPattern": {
+        "base": "#",
+        "pattern": "# Decode hanleiN\"\"Content-Type: application/json\"\"{\"\":\"\",\"\":\"\"}\"\"import sys,json; print(json.load(sy",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841568526
+    },
+    {
+      "type": "bash",
+      "command": "grep -A6 \"enum UserRole\" /data/project/game-workspace/packages/shared/src/enums.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/packages/shared/src/enums.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784841586494
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:3001/api/health && echo \"\"\n# Check if the controller has the updated roles\ngrep -A3 \"Delete.*employees\" /data/project/game-workspace/apps/server/src/studios/studios.controller",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/api/health && echo \"\" # Check if the controller has the updated roles gre",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784841594329
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841602146
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841622175
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"employees\\|:id\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784841636118
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:3001/api/health 2>/dev/null || echo \"Server down\"\ntail -5 /tmp/server-new.log 2>/dev/null",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/api/health N>/dev/null || echo \"\" tail -N /tmp/server-new.log N>/dev/null",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784841662636
+    },
+    {
+      "type": "bash",
+      "command": "tail -10 /tmp/server-new.log",
+      "cmdPattern": {
+        "base": "tail",
+        "pattern": "tail -N /tmp/server-new.log",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784841683824
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/common/role-hierarchy.ts",
+      "patterns": [],
+      "timestamp": 1784841690132
+    },
+    {
+      "type": "bash",
+      "command": "sleep 5; tail -15 /tmp/server-new.log",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N; tail -N /tmp/server-new.log",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784841704088
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
+      "patterns": [],
+      "timestamp": 1784841715501
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784841729933
+    },
+    {
+      "type": "bash",
+      "command": "sleep 8\ncurl -s http://localhost:3001/api/health && echo \" OK\"\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' ",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N curl -s http://localhost:N/api/health && echo \"\" TOKEN=$(curl -s http://localhost:N/api/auth",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784841838004
     }
   ]
 }

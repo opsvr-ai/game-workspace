@@ -52,3 +52,7 @@
 {"ts":"2026-07-23T21:08:10.268Z","prompt":"我说的就是不需要单独填写账号，直接用实名当账号","words":1,"chars":23,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3467252"}
 {"ts":"2026-07-23T21:10:34.892Z","prompt":"为什么店长删除客服时显示 无权访问？","words":2,"chars":18,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3481626"}
 {"ts":"2026-07-23T21:12:32.369Z","prompt":"刚才不是说了？权限从上往下依次是：老板→店长→客服→陪玩。那你为什么还犯这个错误","words":1,"chars":40,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3485554"}
+{"ts":"2026-07-23T21:15:11.981Z","prompt":"各个工作室、俱乐部之间数据相互独立，职位一样，权限平等。只有老板有权限高于他们，你逻辑没搞错把？","words":1,"chars":48,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3501543"}
+{"ts":"2026-07-23T21:15:44.695Z","prompt":"我什么时候说店长跟cs一样了？","words":1,"chars":15,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3503626"}
+{"ts":"2026-07-23T21:17:00.781Z","prompt":"每个店，店长＞cs＞陪玩，店长a跟店长b是平等的，懂了么","words":1,"chars":28,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3506059"}
+{"ts":"2026-07-23T21:19:07.172Z","prompt":"为什么店长hanlei1删除客服还是删除不了？还是无权限？不是改了么","words":1,"chars":34,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"3507214"}

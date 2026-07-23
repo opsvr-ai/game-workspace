@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-23T21:13:21.194Z
+**Last Updated:** 2026-07-23T21:21:23.825Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 18
+- **Total Patterns:** 19
 - **Total Feedback:** 0
 
 ## Style
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 62 occurrences
+**Frequency:** 63 occurrences
 
 ### Prefer async await in .ts files
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 40 occurrences
+**Frequency:** 41 occurrences
 
 ### Commonly used command: git
 
@@ -96,7 +96,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 13 occurrences
+**Frequency:** 14 occurrences
 
 ### Commonly used command: docker
 
@@ -111,8 +111,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: TOKEN=$(curl
 
@@ -138,6 +139,13 @@
 **Frequency:** 1 occurrences
 
 ### Commonly used command: sleep
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: tail
 
 **Examples:**
 - Used successfully 6 times

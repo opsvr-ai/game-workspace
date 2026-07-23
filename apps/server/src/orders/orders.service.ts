@@ -40,9 +40,10 @@ export class OrdersService {
     if (!studioId) throw new NotFoundException('无法确定订单所属工作室');
 
     // COMPANION can only create orders for themselves (not for other companions)
-    const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true, companionId: true } });
+    const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true } });
     if (creator?.role === 'COMPANION' && dto.dispatchType === 'DIRECT' && dto.companionId) {
-      if (dto.companionId !== creator.companionId) {
+      const companion = await this.prisma.companion.findUnique({ where: { userId: dto.csUserId }, select: { id: true } });
+      if (!companion || dto.companionId !== companion.id) {
         throw new ForbiddenException('陪玩只能给自己创建直接派单');
       }
     }
