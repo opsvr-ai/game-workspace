@@ -74,6 +74,8 @@ const ReviewPage: React.FC = () => {
         </Space>
       ),
     },
+    { title: '地址', key: 'address', width: 100, ellipsis: true, render: (_: unknown, r: any) => r.address || '-' },
+    { title: '合同', key: 'contract', width: 80, render: (_: unknown, r: any) => r.leaseContractUrl ? <a href={r.leaseContractUrl} target="_blank">查看</a> : '-' },
     { title: '注册时间', dataIndex: 'createdAt', width: 160, render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
     {
       title: '操作', key: 'actions', width: 200,
