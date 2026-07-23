@@ -180,14 +180,14 @@ const CSDispatchView: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={12}>
+      <Row gutter={12} style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}>
         {/* Left: Companion sidebar */}
         <Col span={3}>
           <Card
-            title="陪玩管理"
+            title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
             size="small"
-            style={{ marginBottom: 12 }}
-            bodyStyle={{ padding: '8px 6px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+            style={{ borderRadius: 8 }}
+            bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
           >
             {/* Companion search filter */}
             <Input
@@ -363,22 +363,23 @@ const CSDispatchView: React.FC = () => {
                 borderBottom: '1px solid #E2E8F0',
               }}
             >
-              <Space>
-                <Text strong style={{ color: '#1E293B', fontSize: 16 }}>
-                  订单池
-                </Text>
-                <Tag
-                  color="white"
-                  style={{ color: '#7C3AED', fontWeight: 700, borderRadius: 10, padding: '2px 12px', border: 'none' }}
-                >
-                  {poolCount} 单待派
-                </Tag>
-                <span style={{ color: '#64748B', fontSize: 12, marginLeft: 8 }}>
-                  今日新增 <b style={{ color: '#2563EB' }}>{todayNew}</b> · 已接{' '}
-                  <b style={{ color: '#16A34A' }}>{todayGrabbed}</b> · 剩余{' '}
-                  <b style={{ color: '#F59E0B' }}>{poolCount}</b>
-                </span>
-              </Space>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Space>
+                  <Text strong style={{ color: '#1E293B', fontSize: 16 }}>订单池</Text>
+                  <Tag color="purple" style={{ borderRadius: 10, fontWeight: 700 }}>{poolCount} 单待派</Tag>
+                </Space>
+                <Space size={16}>
+                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                    今日新增 <b style={{ color: '#3B82F6' }}>{todayNew}</b>
+                  </span>
+                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                    已抢 <b style={{ color: '#10B981' }}>{todayGrabbed}</b>
+                  </span>
+                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                    待抢 <b style={{ color: '#F59E0B' }}>{poolCount}</b>
+                  </span>
+                </Space>
+              </div>
             </div>
             {/* Pool body */}
             <div
@@ -432,12 +433,20 @@ const CSDispatchView: React.FC = () => {
                     <List.Item style={{ marginBottom: 0 }}>
                       <div
                         style={{
-                          background: '#FFF',
-                          borderRadius: 10,
-                          padding: '8px 14px',
-                          border: '1px solid #F1F5F9',
-                          transition: 'all 0.2s',
-                          animation: 'fade-slide-in 0.3s ease',
+                          background: '#FAFBFC',
+                          borderRadius: 8,
+                          padding: '10px 16px',
+                          border: '1px solid #E8ECF0',
+                          transition: 'all 0.15s',
+                          cursor: 'default',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = '#F0F4FF';
+                          (e.currentTarget as HTMLElement).style.borderColor = '#C7D2FE';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = '#FAFBFC';
+                          (e.currentTarget as HTMLElement).style.borderColor = '#E8ECF0';
                         }}
                       >
                         <Row align="middle" gutter={8} wrap={false}>
@@ -587,7 +596,7 @@ const CSDispatchView: React.FC = () => {
 
         {/* Right: Stats + Chat panel */}
         <Col span={2}>
-          <Card size="small" bodyStyle={{ padding: '2px 4px' }}>
+          <Card size="small" style={{ borderRadius: 8 }} bodyStyle={{ padding: '6px 8px' }}>
             <div style={{ textAlign: 'right', lineHeight: 2, fontSize: 13 }}>
               <div>🟢 空闲 <b>{idleCount}</b></div>
               <div>🔴 接单 <b>{busyCount}</b></div>
