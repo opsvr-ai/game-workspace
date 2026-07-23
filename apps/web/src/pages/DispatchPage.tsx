@@ -21,6 +21,7 @@ const DispatchPage: React.FC = () => {
       case UserRole.CS:
       case UserRole.ADMIN:
       case UserRole.OWNER:
+        return '派单管理';
       default:
         return '派单管理';
     }
@@ -31,10 +32,9 @@ const DispatchPage: React.FC = () => {
       case UserRole.COMPANION:
         return <CompanionDispatchView />;
       case UserRole.CS:
-        return <CSDispatchView />;
       case UserRole.ADMIN:
       case UserRole.OWNER:
-        return <AdminDispatchView />;
+        return <CSDispatchView />;
       default:
         return (
           <div style={{ textAlign: 'center', padding: 48 }}>

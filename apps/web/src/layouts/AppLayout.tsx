@@ -170,7 +170,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/settings', icon: IconAuth, label: '系统设置' },
   ],
   [UserRole.CS]: [
-    { key: '/cs/dispatch', icon: IconDispatch, label: '派单工作台' },
+    { key: '/cs/dispatch', icon: IconDispatch, label: '派单管理' },
     { key: '/cs/billing', icon: IconBilling, label: '报账系统' },
     { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
     { key: '/cs/employees', icon: IconEmployees, label: '陪玩管理' },
