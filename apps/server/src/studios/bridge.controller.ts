@@ -15,14 +15,14 @@ export class BridgeController {
   ) {}
 
   @Post('propose')
-  @Roles(UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.ADMIN)
   async propose(@Req() req: any, @Body('targetStudioId') targetStudioId: string) {
     const data = await this.bridgeService.propose(req.user.studioId, targetStudioId, req.user.id);
     return { code: 200, message: '桥接申请已发送', data };
   }
 
   @Post(':id/respond')
-  @Roles(UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.ADMIN)
   async respond(@Param('id') id: string, @Req() req: any, @Body() body: { accept: boolean }) {
     const bridge = await this.bridgeService.find(id);
     const data = await this.bridgeService.respond(id, req.user.studioId, body.accept);
@@ -38,7 +38,7 @@ export class BridgeController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.ADMIN)
   async list(@Req() req: any) {
     const active = await this.bridgeService.getActiveBridges(req.user.studioId);
     const pending = await this.bridgeService.listPending(req.user.studioId);
@@ -52,7 +52,7 @@ export class BridgeController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.ADMIN)
   async remove(@Param('id') id: string, @Req() req: any) {
     await this.bridgeService.terminate(id, req.user.studioId);
     return { code: 200, message: '已断开桥接', data: null };
