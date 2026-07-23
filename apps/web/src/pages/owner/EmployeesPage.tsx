@@ -122,7 +122,7 @@ const EmployeesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedStudioId]);
+  }, [selectedStudioId, urlStudioType, urlRole]);
 
   useEffect(() => {
     fetchStudios();
