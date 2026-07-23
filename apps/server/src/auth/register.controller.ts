@@ -164,7 +164,7 @@ export class RegisterController {
         id: true, username: true, role: true, displayName: true, address: true,
         leaseContractUrl: true, realName: true, idNumber: true, phone: true, createdAt: true,
         studio: { select: { id: true, name: true } },
-        companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true } },
+        companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true, idCardFront: true, idCardBack: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
