@@ -78,9 +78,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 3,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784825659463
+      "lastSuccess": 1784827128627
     },
     "grep": {
       "count": 2,
@@ -218,9 +218,9 @@
       "lastSuccess": 1784586396393
     },
     "TOKEN=$(curl": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784665136207
+      "lastSuccess": 1784827313241
     },
     "pkill": {
       "count": 1,
@@ -254,46 +254,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep \"Space\\|Segmented\\|Radio\\|message\\|Popconfirm\\|Card\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx | head -3",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784664736420
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"export default\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784664741449
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "patterns": [],
-      "timestamp": 1784664753121
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784664769078
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/server/src/auth/auth.service.ts",
@@ -2452,6 +2412,50 @@
         "hasChain": true
       },
       "timestamp": 1784827104858
+    },
+    {
+      "type": "bash",
+      "command": "git add -A && git commit -m \"fix: StudioBridge comprehensive audit — 17 critical/high issues resolved\n\n- C2: handleConnection .catch() prevents process crash on DB error\n- C3: chat controller uses get",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add -A && git commit -m \"\" #!axme pr=none repo=AxmeAI/axme-code && git push origin feature/chat-",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784827117756
+    },
+    {
+      "type": "bash",
+      "command": "git push origin feature/chat-3.0 #!axme pr=none repo=AxmeAI/axme-code",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push origin feature/chat-N.N #!axme pr=none repo=AxmeAI/axme-code",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784827128627
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784827304265
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784827313241
     }
   ]
 }

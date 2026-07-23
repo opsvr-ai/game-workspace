@@ -16,9 +16,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 29,
+    "frequency": 30,
     "created_at": "2026-07-18T20:38:16.148Z",
-    "updated_at": "2026-07-22T20:50:54.558Z"
+    "updated_at": "2026-07-23T17:27:26.138Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 54,
+    "frequency": 55,
     "created_at": "2026-07-18T21:04:52.587Z",
-    "updated_at": "2026-07-22T21:07:11.364Z"
+    "updated_at": "2026-07-23T17:27:26.140Z"
   },
   {
     "type": "workflow",
@@ -58,9 +58,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 23,
+    "frequency": 25,
     "created_at": "2026-07-18T21:08:28.675Z",
-    "updated_at": "2026-07-22T21:07:48.013Z"
+    "updated_at": "2026-07-23T17:38:11.759Z"
   },
   {
     "type": "workflow",
@@ -134,12 +134,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "find",
-    "frequency": 8,
+    "frequency": 9,
     "created_at": "2026-07-19T12:40:16.710Z",
-    "updated_at": "2026-07-22T20:57:18.904Z"
+    "updated_at": "2026-07-23T17:35:57.776Z"
   },
   {
     "type": "code_style",
@@ -179,9 +180,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 15,
+    "frequency": 16,
     "created_at": "2026-07-19T12:42:38.148Z",
-    "updated_at": "2026-07-22T20:41:52.685Z"
+    "updated_at": "2026-07-23T17:27:42.406Z"
   },
   {
     "type": "code_style",
@@ -267,12 +268,13 @@
     "description": "Commonly used command: TOKEN=$(curl",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "TOKEN=$(curl",
-    "frequency": 2,
+    "frequency": 3,
     "created_at": "2026-07-22T13:43:38.450Z",
-    "updated_at": "2026-07-22T19:36:49.117Z"
+    "updated_at": "2026-07-23T17:22:51.860Z"
   },
   {
     "type": "workflow",

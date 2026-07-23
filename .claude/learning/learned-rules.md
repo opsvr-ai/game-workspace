@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-23T17:16:02.901Z
+**Last Updated:** 2026-07-23T17:21:44.266Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 20
+- **Total Patterns:** 21
 - **Total Feedback:** 3
 
 ## Bash
@@ -124,6 +124,13 @@
 - Used successfully 6 times
 
 **Frequency:** 2 occurrences
+
+### Commonly used command: TOKEN=$(curl
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
 
 ## Style
 

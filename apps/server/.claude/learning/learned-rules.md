@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-22T21:07:48.013Z
+**Last Updated:** 2026-07-23T17:38:11.760Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 29 occurrences
+**Frequency:** 30 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 54 occurrences
+**Frequency:** 55 occurrences
 
 ### Prefer async await in .ts files
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 23 occurrences
+**Frequency:** 25 occurrences
 
 ### Commonly used command: git
 
@@ -79,7 +79,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 8 occurrences
+**Frequency:** 9 occurrences
 
 ### Commonly used command: fuser
 
@@ -119,8 +119,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: head
 
@@ -167,7 +168,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 15 occurrences
+**Frequency:** 16 occurrences
 
 ## Quality
 

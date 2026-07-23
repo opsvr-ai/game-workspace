@@ -290,8 +290,13 @@ export class BillingService {
 
   async getPendingCount(studioId: string, role: string) {
     const whereStudio: any = role === 'OWNER' ? {} : { companion: { studioId } };
+    // Transaction has no studioId — filter via companion relation for non-OWNER
+    const txWhere: any = { status: 'PENDING' };
+    if (role !== 'OWNER' && studioId) {
+      txWhere.companion = { studioId };
+    }
     const [txPending, reports, walletPending] = await Promise.all([
-      this.prisma.transaction.count({ where: { status: 'PENDING' } }),
+      this.prisma.transaction.count({ where: txWhere }),
       this.prisma.expenseReport.findMany({ where: { ...whereStudio, status: 'PENDING' }, select: { id: true } }),
       this.prisma.walletTransaction.count({ where: { ...whereStudio, status: 'PENDING' } }),
     ]);

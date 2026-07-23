@@ -359,7 +359,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="已支取"
-              value={`¥${(overviewData?.totalWithdrawn ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(2)}`}
               icon={IconBank}
               color="#16A34A"
             />
@@ -367,7 +367,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="审核中"
-              value={`¥${(overviewData?.pendingWithdraw ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.pendingWithdraw ?? 0).toFixed(2)}`}
               icon={IconHourglass}
               color="#F59E0B"
             />
@@ -375,7 +375,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="待支取"
-              value={`¥${(overviewData?.withdrawable ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.withdrawable ?? 0).toFixed(2)}`}
               icon={IconSwap}
               color="#F59E0B"
             />
@@ -383,7 +383,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="押金"
-              value={`¥${(overviewData?.deposit ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.deposit ?? 0).toFixed(2)}`}
               icon={IconLock}
               color="#06B6D4"
             />
@@ -528,13 +528,13 @@ const BillingOverview: React.FC = () => {
             <br />
             <Text>
               已支取：
-              <Text strong>¥{(overviewData?.totalWithdrawn ?? 0).toFixed(2)}</Text>
+              <Text strong>¥{(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(2)}</Text>
             </Text>
             <br />
             <Text>
               可支取余额：
               <Text strong style={{ color: '#faad14', fontSize: 18 }}>
-                ¥{(overviewData?.withdrawable ?? 0).toFixed(2)}
+                ¥{(overviewData?.summary?.withdrawable ?? 0).toFixed(2)}
               </Text>
             </Text>
           </div>
@@ -545,7 +545,7 @@ const BillingOverview: React.FC = () => {
           <InputNumber
             style={{ width: '100%', marginTop: 8 }}
             min={0}
-            max={overviewData?.withdrawable ?? 0}
+            max={overviewData?.summary?.withdrawable ?? 0}
             value={withdrawAmount}
             onChange={(v) => setWithdrawAmount(v ?? 0)}
             placeholder="请输入支取金额"
