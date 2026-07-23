@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, notification } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import http from '../api/client';
@@ -365,14 +365,14 @@ const AppLayout: React.FC = () => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
     onWalletReviewed: (data: any) => {
-      notification.info({
+      message.info({
         message: data.message || '支取审核结果',
         description: `金额 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`,
         placement: 'topRight',
       });
     },
     onUserAuthorized: (data: any) => {
-      notification.success({
+      message.success({
         message: '审核通过',
         description: data.message || '您的注册申请已通过审核',
         placement: 'topRight',
@@ -380,7 +380,7 @@ const AppLayout: React.FC = () => {
       });
     },
     onUserRejected: (data: any) => {
-      notification.warning({
+      message.warning({
         message: '审核未通过',
         description: data.message || '您的注册申请未通过审核',
         placement: 'topRight',
@@ -388,7 +388,7 @@ const AppLayout: React.FC = () => {
       });
     },
     onBridgeResponded: (data: any) => {
-      notification.info({
+      message.info({
         message: '桥接申请结果',
         description: data.message || (data.accepted ? '对方已同意桥接' : '对方已拒绝桥接'),
         placement: 'topRight',
