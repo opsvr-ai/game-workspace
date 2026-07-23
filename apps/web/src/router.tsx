@@ -1,7 +1,55 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
-import { Spin } from 'antd';
+import { Spin, Button, Result } from 'antd';
 import AppLayout from './layouts/AppLayout';
+
+function RouteErrorBoundary() {
+  const error = useRouteError();
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
+        <Result
+          status={error.status === 404 ? '404' : 'error'}
+          title={error.status === 404 ? '页面未找到' : error.statusText}
+          subTitle={error.status === 404 ? '请检查URL是否正确' : error.data?.message || '发生了意外错误'}
+          extra={
+            <Button type="primary" onClick={() => (window.location.href = '/login')}>
+              返回登录
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5', padding: 24 }}>
+      <Result
+        status="error"
+        title="应用错误"
+        subTitle={message || '发生了意外错误，请刷新页面重试'}
+        extra={
+          <>
+            <Button type="primary" onClick={() => window.location.reload()}>
+              刷新页面
+            </Button>
+            <Button onClick={() => (window.location.href = '/login')}>
+              返回登录
+            </Button>
+            <details style={{ marginTop: 16, textAlign: 'left', maxWidth: 600, overflow: 'auto' }}>
+              <summary style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}>错误详情</summary>
+              <pre style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {message}{'\n\n'}{error instanceof Error ? error.stack : ''}
+              </pre>
+            </details>
+          </>
+        }
+      />
+    </div>
+  );
+}
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const UnifiedDashboard = lazy(() => import('./pages/admin/UnifiedDashboard'));
@@ -49,6 +97,7 @@ const SuspenseFallback = () => (
 export const router = createBrowserRouter([
   {
     path: '/login',
+    errorElement: <RouteErrorBoundary />,
     element: (
       <Suspense fallback={<SuspenseFallback />}>
         <LoginPage />
@@ -57,6 +106,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/profile-setup',
+    errorElement: <RouteErrorBoundary />,
     element: (
       <Suspense fallback={<SuspenseFallback />}>
         <ProfileSetupPage />
@@ -66,6 +116,7 @@ export const router = createBrowserRouter([
   {
     path: '/companion',
     element: <SuspenseOutlet />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: '',
@@ -136,6 +187,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <SuspenseOutlet />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         path: 'owner/customers',
