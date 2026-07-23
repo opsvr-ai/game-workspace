@@ -154,7 +154,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
     { key: '/admin/orders', icon: IconOrders, label: '订单管理' },
-    { key: '/admin/employees', icon: IconEmployees, label: '员工管理' },
+    { key: 'admin-staff', icon: IconEmployees, label: '员工管理', children: [
+      { key: '/admin/employees?role=CS', label: '客服' },
+      { key: '/admin/employees?role=COMPANION', label: '陪玩' },
+    ]},
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
