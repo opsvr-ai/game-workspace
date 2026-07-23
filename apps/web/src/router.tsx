@@ -230,7 +230,7 @@ export const router = createBrowserRouter([
         path: 'admin/employees',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
-            <CompanionsPage />
+            <EmployeesPage />
           </Suspense>
         ),
       },
