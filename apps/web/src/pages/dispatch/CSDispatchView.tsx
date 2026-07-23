@@ -352,7 +352,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col flex={selectedCompanionId ? 1 : undefined} span={selectedCompanionId ? undefined : 21} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={16} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -585,9 +585,8 @@ const CSDispatchView: React.FC = () => {
           </div>
         </Col>
 
-        {/* Right: Quick Stats — hidden when chat panel is open */}
-        {!selectedCompanionId && (
-        <Col span={3}>
+        {/* Right: Stats + Chat panel */}
+        <Col span={5}>
           <Card title="统计" size="small" style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
@@ -624,13 +623,9 @@ const CSDispatchView: React.FC = () => {
               </div>
             </div>
           </Card>
-        </Col>
-        )}
-
-        {/* Embedded Chat Panel (inside Row — right side) */}
+        {/* Chat panel below stats */}
         {selectedCompanionId && (
-          <Col style={{ flexShrink: 0, display: 'flex' }}>
-            {/* Resize handle (left edge of chat panel) */}
+          <div style={{ marginTop: 8 }}>
             <div
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -669,8 +664,9 @@ const CSDispatchView: React.FC = () => {
               }}
             />
             </div>
-          </Col>
+          </div>
         )}
+        </Col>
       </Row>
 
       <CreateOrderModal
