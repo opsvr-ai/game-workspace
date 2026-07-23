@@ -4,7 +4,6 @@ import { Typography } from 'antd';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
 import CSDispatchView from './dispatch/CSDispatchView';
-import AdminDispatchView from './dispatch/AdminDispatchView';
 import CompanionDispatchView from './dispatch/CompanionDispatchView';
 import PageHeader from '../components/PageHeader';
 
