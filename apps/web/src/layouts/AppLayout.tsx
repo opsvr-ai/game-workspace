@@ -103,7 +103,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       label: '经营概览',
       children: [
         { key: '/admin', icon: IconDashboard, label: '数据看板' },
-        { key: '/admin/traffic', icon: IconTraffic, label: '订单池' },
+        { key: '/admin/traffic', icon: IconTraffic, label: '派单管理' },
         { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
       ],
     },
