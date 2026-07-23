@@ -58,12 +58,15 @@ export class StudiosService {
     return this.prisma.studio.update({ where: { id }, data });
   }
 
-  async getEmployees(studioId?: string) {
+  async getEmployees(studioId?: string, studioType?: string, roleFilter?: string) {
+    const where: any = { role: { not: 'OWNER' } };
+    if (studioId) where.studioId = studioId;
+    if (roleFilter) where.role = roleFilter;
+    if (studioType) {
+      where.studio = { type: studioType };
+    }
     const users = await this.prisma.user.findMany({
-      where: {
-        ...(studioId ? { studioId } : {}),
-        role: { not: 'OWNER' },
-      },
+      where,
       select: {
         id: true,
         username: true,

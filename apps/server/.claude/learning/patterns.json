@@ -16,9 +16,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 30,
+    "frequency": 32,
     "created_at": "2026-07-18T20:38:16.148Z",
-    "updated_at": "2026-07-23T17:27:26.138Z"
+    "updated_at": "2026-07-23T18:31:41.010Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 55,
+    "frequency": 57,
     "created_at": "2026-07-18T21:04:52.587Z",
-    "updated_at": "2026-07-23T17:27:26.140Z"
+    "updated_at": "2026-07-23T18:31:24.054Z"
   },
   {
     "type": "workflow",
@@ -58,9 +58,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 25,
+    "frequency": 27,
     "created_at": "2026-07-18T21:08:28.675Z",
-    "updated_at": "2026-07-23T17:38:11.759Z"
+    "updated_at": "2026-07-23T18:14:20.612Z"
   },
   {
     "type": "workflow",
@@ -118,9 +118,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 32,
+    "frequency": 33,
     "created_at": "2026-07-19T12:37:04.641Z",
-    "updated_at": "2026-07-22T21:07:40.941Z"
+    "updated_at": "2026-07-23T18:30:31.047Z"
   },
   {
     "type": "workflow",
@@ -180,9 +180,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 16,
+    "frequency": 17,
     "created_at": "2026-07-19T12:42:38.148Z",
-    "updated_at": "2026-07-23T17:27:42.406Z"
+    "updated_at": "2026-07-23T18:31:24.057Z"
   },
   {
     "type": "code_style",
@@ -229,12 +229,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "pnpm",
-    "frequency": 7,
+    "frequency": 8,
     "created_at": "2026-07-21T13:15:08.406Z",
-    "updated_at": "2026-07-22T14:25:28.876Z"
+    "updated_at": "2026-07-23T17:42:52.114Z"
   },
   {
     "type": "workflow",

@@ -73,8 +73,8 @@ export class StudiosController {
   @Get('employees')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
-  async getEmployees(@Query('studioId') studioId: string): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.getEmployees(studioId);
+  async getEmployees(@Query('studioId') studioId: string, @Query('studioType') studioType?: string, @Query('role') role?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.getEmployees(studioId, studioType, role);
     return { code: 200, message: 'ok', data };
   }
 

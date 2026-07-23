@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Table,
   Button,
@@ -65,6 +66,14 @@ interface Studio {
 const EmployeesPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === UserRole.OWNER || user?.role === UserRole.ADMIN;
+  const [searchParams] = useSearchParams();
+  const urlStudioType = searchParams.get('studioType') || undefined;
+  const urlRole = searchParams.get('role') || undefined;
+  const pageLabel = useMemo(() => {
+    const typeLabel = urlStudioType === 'RENTAL' ? '线上俱乐部' : urlStudioType === 'DIRECT' ? '线下工作室' : '';
+    const roleLabel: Record<string, string> = { ADMIN: '店长', CS: '客服', COMPANION: '陪玩' };
+    return [typeLabel, urlRole ? roleLabel[urlRole] || '' : ''].filter(Boolean).join(' → ') || '员工管理';
+  }, [urlStudioType, urlRole]);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [studios, setStudios] = useState<Studio[]>([]);
@@ -90,7 +99,7 @@ const EmployeesPage: React.FC = () => {
   const [financeForm] = Form.useForm();
   const [financeSubmitting, setFinanceSubmitting] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [filterRole, setFilterRole] = useState<string | undefined>(undefined);
+  const [filterRole, setFilterRole] = useState<string | undefined>(urlRole);
   const fetchStudios = useCallback(async () => {
     try {
       const { data } = await studiosApi.list();
@@ -104,7 +113,7 @@ const EmployeesPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await employeesApi.list(selectedStudioId);
+      const { data } = await employeesApi.list({ studioId: selectedStudioId, studioType: urlStudioType, role: urlRole });
       setEmployees(data.data ?? []);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || '加载员工列表失败';
@@ -434,7 +443,7 @@ const EmployeesPage: React.FC = () => {
         }}
       >
         <Text strong style={{ fontSize: 16 }}>
-          员工管理
+          {pageLabel}
         </Text>
         <Space>
           <Select

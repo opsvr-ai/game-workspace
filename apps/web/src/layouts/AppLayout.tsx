@@ -114,7 +114,18 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
         { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
-        { key: '/owner/employees', icon: IconEmployees, label: '员工管理' },
+        { key: 'owner-staff', icon: IconEmployees, label: '员工管理', children: [
+          { key: 'owner-staff-online', type: 'group', label: '线上俱乐部', children: [
+            { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
+            { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
+            { key: '/owner/employees?studioType=RENTAL&role=COMPANION', label: '陪玩' },
+          ]},
+          { key: 'owner-staff-offline', type: 'group', label: '线下工作室', children: [
+            { key: '/owner/employees?studioType=DIRECT&role=ADMIN', label: '店长' },
+            { key: '/owner/employees?studioType=DIRECT&role=CS', label: '客服' },
+            { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
+          ]},
+        ]},
         { key: '/owner/review', icon: IconAuth, label: '实名审核' },
       ],
     },
