@@ -31,7 +31,10 @@ function playRingtone() {
 }
 
 export function useVoiceCall(userId?: string, userName?: string) {
-  const [callState, setCallState] = useState<CallState>({ status: 'idle', volume: 80 });
+  const [callState, setCallState] = useState<CallState>(() => {
+    const saved = localStorage.getItem('voice-volume');
+    return { status: 'idle', volume: saved ? parseInt(saved) : 80 };
+  });
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -169,6 +172,7 @@ export function useVoiceCall(userId?: string, userName?: string) {
   }, [callState.peerId, getSocket, cleanup]);
 
   const setVolume = useCallback((v: number) => {
+    localStorage.setItem('voice-volume', String(v));
     setCallState((s) => ({ ...s, volume: v }));
     if (remoteAudioRef.current) remoteAudioRef.current.volume = v / 100;
   }, []);
