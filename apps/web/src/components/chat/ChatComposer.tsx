@@ -120,8 +120,8 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
                 e.preventDefault();
                 const file = items[i].getAsFile();
                 if (file) {
-                  const url = await onUpload(file);
-                  if (url) setText((prev) => prev + `\n[img]${url}[/img]\n`);
+                  const markup = await onUpload(file);
+                  if (markup) setText((prev) => prev + '\n' + markup + '\n');
                   message.success('图片已粘贴');
                 }
                 break;
