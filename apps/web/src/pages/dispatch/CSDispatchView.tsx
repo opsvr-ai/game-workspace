@@ -574,10 +574,9 @@ const CSDispatchView: React.FC = () => {
                           {user?.role === 'COMPANION' && order.csUserId && (
                             <Col>
                               <Button size="small" type="link" onClick={async () => {
-                                const csUserId = order.csUserId;
-                                if (csUserId) {
-                                  await useChatStore.getState().openConversation(csUserId, order.customFields ? `${order.gameName} · ¥${order.amount}` : undefined);
-                                  setSelectedCompanionId(order.id);
+                                if (order.csUserId) {
+                                  await useChatStore.getState().openConversation(order.csUserId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
+                                  setSelectedCompanionId(order.csUserId);
                                 }
                               }}>沟通</Button>
                             </Col>
