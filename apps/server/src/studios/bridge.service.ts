@@ -194,11 +194,10 @@ export class BridgeService {
     return result;
   }
 
-  /** Terminate an active bridge — either side can disconnect at any time */
+  /** Terminate/cancel a bridge — any involved studio can cancel at any time */
   async terminate(bridgeId: string, studioId: string) {
     const bridge = await this.prisma.studioBridge.findUnique({ where: { id: bridgeId } });
     if (!bridge) throw new NotFoundException('桥接不存在');
-    if (bridge.status !== 'ACTIVE') throw new ForbiddenException('桥接未激活');
     if (bridge.studioAId !== studioId && bridge.studioBId !== studioId) throw new ForbiddenException('无权操作');
     await this.prisma.studioBridge.update({ where: { id: bridgeId }, data: { status: 'REJECTED' } });
     this.invalidateCache(bridge.studioAId, bridge.studioBId);
