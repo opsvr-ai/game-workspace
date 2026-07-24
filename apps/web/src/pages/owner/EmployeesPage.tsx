@@ -453,7 +453,7 @@ const EmployeesPage: React.FC = () => {
             ))}
           </Select>
           )}
-              <Select placeholder="搜索陪玩名字" showSearch value={searchText || undefined} onChange={(v) => setSearchText(v || "")} style={{ width: 190 }} allowClear onClear={() => setSearchText("")} optionFilterProp="children">
+              <Select placeholder={`搜索${urlRole === 'CS' ? '客服' : urlRole === 'COMPANION' ? '陪玩' : '员工'}名字`} showSearch value={searchText || undefined} onChange={(v) => setSearchText(v || "")} style={{ width: 190 }} allowClear onClear={() => setSearchText("")} optionFilterProp="children">
                 {employees.filter(e => e.role === "COMPANION").map((e) => (
                   <Option key={e.id} value={e.username}>{e.username}</Option>
                 ))}
