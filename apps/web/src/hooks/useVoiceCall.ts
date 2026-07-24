@@ -7,14 +7,37 @@ interface CallState {
   peerId?: string;
   startTime?: number;
   duration?: number;
+  volume?: number;
+}
+
+// Simple ringtone using oscillator (no external file needed)
+function playRingtone() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    const stop = () => { try { osc.stop(); ctx.close(); } catch {} };
+    setTimeout(() => { osc.frequency.setValueAtTime(800, ctx.currentTime); }, 600);
+    setTimeout(() => { osc.frequency.setValueAtTime(1000, ctx.currentTime); }, 900);
+    return { stop, ctx };
+  } catch { return { stop: () => {}, ctx: null }; }
 }
 
 export function useVoiceCall(userId?: string, userName?: string) {
-  const [callState, setCallState] = useState<CallState>({ status: 'idle' });
+  const [callState, setCallState] = useState<CallState>({ status: 'idle', volume: 80 });
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ringtoneRef = useRef<{ stop: () => void } | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const getSocket = useCallback(() => {
     if (!socketRef.current) {
@@ -25,10 +48,14 @@ export function useVoiceCall(userId?: string, userName?: string) {
   }, []);
 
   const cleanup = useCallback(() => {
+    ringtoneRef.current?.stop();
+    ringtoneRef.current = null;
     pcRef.current?.close();
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
+    remoteAudioRef.current?.pause();
+    remoteAudioRef.current = null;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
@@ -36,9 +63,11 @@ export function useVoiceCall(userId?: string, userName?: string) {
   useEffect(() => {
     const socket = getSocket();
     socket.on('call:offer', async (data: any) => {
-      setCallState({ status: 'ringing', peerId: data.fromUserId, peerName: data.callerName });
+      ringtoneRef.current = playRingtone();
+      setCallState({ status: 'ringing', peerId: data.fromUserId, peerName: data.callerName, volume: 80 });
     });
     socket.on('call:answer', async (data: any) => {
+      ringtoneRef.current?.stop();
       if (pcRef.current) await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
     });
     socket.on('call:ice-candidate', async (data: any) => {
@@ -47,6 +76,7 @@ export function useVoiceCall(userId?: string, userName?: string) {
       }
     });
     socket.on('call:hangup', () => {
+      ringtoneRef.current?.stop();
       cleanup();
       setCallState({ status: 'idle' });
     });
@@ -70,6 +100,8 @@ export function useVoiceCall(userId?: string, userName?: string) {
       pc.ontrack = (e) => {
         const audio = new Audio();
         audio.srcObject = e.streams[0];
+        audio.volume = (callState.volume || 80) / 100;
+        remoteAudioRef.current = audio;
         audio.play().catch(() => {});
       };
 
@@ -104,6 +136,8 @@ export function useVoiceCall(userId?: string, userName?: string) {
       pc.ontrack = (e) => {
         const audio = new Audio();
         audio.srcObject = e.streams[0];
+        audio.volume = (callState.volume || 80) / 100;
+        remoteAudioRef.current = audio;
         audio.play().catch(() => {});
       };
 
@@ -123,6 +157,7 @@ export function useVoiceCall(userId?: string, userName?: string) {
   }, [callState, getSocket, cleanup]);
 
   const rejectCall = useCallback(() => {
+    ringtoneRef.current?.stop();
     if (callState.peerId) getSocket().emit('call:hangup', { targetUserId: callState.peerId });
     setCallState({ status: 'idle' });
   }, [callState.peerId, getSocket]);
@@ -133,5 +168,10 @@ export function useVoiceCall(userId?: string, userName?: string) {
     setCallState({ status: 'idle' });
   }, [callState.peerId, getSocket, cleanup]);
 
-  return { callState, startCall, acceptCall, rejectCall, hangup, localStreamRef };
+  const setVolume = useCallback((v: number) => {
+    setCallState((s) => ({ ...s, volume: v }));
+    if (remoteAudioRef.current) remoteAudioRef.current.volume = v / 100;
+  }, []);
+
+  return { callState, startCall, acceptCall, rejectCall, hangup, setVolume, localStreamRef };
 }

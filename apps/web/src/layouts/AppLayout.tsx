@@ -209,7 +209,7 @@ const AppLayout: React.FC = () => {
   const VoiceCallHandler = () => (
     <>
       <IncomingCallModal open={vc.callState.status === 'ringing'} callerName={vc.callState.peerName} onAccept={vc.acceptCall} onReject={vc.rejectCall} />
-      {vc.callState.status === 'connected' && <VoiceCallBar peerName={vc.callState.peerName} duration={vc.callState.duration} onHangup={vc.hangup} />}
+      {vc.callState.status === 'connected' && <VoiceCallBar peerName={vc.callState.peerName} duration={vc.callState.duration} volume={vc.callState.volume} onVolumeChange={vc.setVolume} onHangup={vc.hangup} />}
     </>
   );
   // Notification bell

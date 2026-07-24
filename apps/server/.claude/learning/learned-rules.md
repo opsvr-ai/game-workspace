@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-24T21:22:05.970Z
+**Last Updated:** 2026-07-24T21:24:06.403Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 41 occurrences
+**Frequency:** 43 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 76 occurrences
+**Frequency:** 77 occurrences
 
 ### Prefer async await in .ts files
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 41 occurrences
+**Frequency:** 42 occurrences
 
 ## Bash
 
@@ -171,7 +171,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 16 occurrences
+**Frequency:** 17 occurrences
 
 ## Framework
 
@@ -197,7 +197,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 12 occurrences
+**Frequency:** 13 occurrences
 
 ---
 

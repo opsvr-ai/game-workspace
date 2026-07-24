@@ -1,44 +1,44 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 212,
+      "successCount": 218,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 385
+          "count": 2,
+          "weight": 404
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 146
+          "count": 0,
+          "weight": 149
         },
         "style:arrow_functions": {
           "count": 2,
-          "weight": 52
+          "weight": 68
         },
         "quality:error_handling": {
-          "count": 2,
-          "weight": 8
+          "count": 0,
+          "weight": 10
         },
         "typing:explicit_types": {
-          "count": 2,
-          "weight": 267
+          "count": 0,
+          "weight": 274
         },
         "framework:react_hooks": {
-          "count": 0,
-          "weight": 3
+          "count": 1,
+          "weight": 4
         }
       }
     },
     ".tsx": {
-      "successCount": 396,
+      "successCount": 398,
       "patterns": {
         "style:arrow_functions": {
           "count": 2,
           "weight": 323
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 636
+          "count": 1,
+          "weight": 639
         },
         "framework:react_hooks": {
           "count": 0,
@@ -95,9 +95,9 @@
       "lastSuccess": 1784910667948
     },
     "git": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784915956795
+      "lastSuccess": 1784928162537
     },
     "rm": {
       "count": 2,
@@ -196,100 +196,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type f \\( -name \"*.tsx\" -o -name \"*.ts\" \\) | grep -i -E \"studios|review|dispatch|store|Employees\" | head -30",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type f \\( -name \"\" -o -name \"\" \\) | grep -i -E \"\" | ",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784910647488
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type d | head -50",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type d | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784910648631
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/dispatch/CSDispatchView.tsx && git -C /data/project/game-workspace commit -m \"fix",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784910664133
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src/hooks -type f | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src/hooks -type f | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784910667948
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"useChatSync\\|wsConnected\" /data/project/game-workspace/apps/web/src/components/chat/ChatProvider.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/chat/ChatProvider.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784910804221
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"connect\\|disconnect\\|connected\\|socket.on\" /data/project/game-workspace/apps/web/src/hooks/useSocket.ts | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/hooks/useSocket.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784910809305
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/chat/ChatProvider.tsx",
-      "patterns": [],
-      "timestamp": 1784910816688
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/components/chat/ChatProvider.tsx && git -C /data/project/game-workspace commit -m \"fix:",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784910829888
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('d",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784911007782
-    },
     {
       "type": "bash",
       "command": "grep -n \"selectedStudioId\\|studios\\|Studio.*Select\\|工作室\" /data/project/game-workspace/apps/web/src/pages/owner/EmployeesPage.tsx | head -10",
@@ -2493,6 +2399,152 @@
         "hasChain": false
       },
       "timestamp": 1784928154988
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: WebRTC voice call — chat header phone button + incoming call modal + call bar\n\nCo-Authored-By: Claude",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" #!axm",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1784928162537
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 4
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 11
+        },
+        {
+          "type": "typing",
+          "pattern": "explicit_types",
+          "weight": 7
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784928218631
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 4
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1784928228971
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784928238343
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784928246398
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784928255965
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1784928266418
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/VoiceCallBar.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1784928281632
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1784928289421
     }
   ]
 }
