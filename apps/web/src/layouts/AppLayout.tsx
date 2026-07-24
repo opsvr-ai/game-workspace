@@ -739,7 +739,7 @@ const AppLayout: React.FC = () => {
                 <>
                   <div
                     onClick={() => navigate('/profile')}
-                    title="点击进入个人设置（修改头像/名字/密码）"
+                    title="点击进入个人设置（修改头像/密码）"
                     style={{
                       display: 'flex',
                       alignItems: 'center',

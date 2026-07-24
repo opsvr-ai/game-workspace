@@ -107,16 +107,6 @@ const ProfilePage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Display Name Card */}
-      <Card size="small" title="修改名字" style={{ marginBottom: 12 }}>
-        <Form form={nameForm} layout="vertical" initialValues={{ displayName: user?.displayName || '' }}>
-          <Form.Item name="displayName" label="显示名字" rules={[{ required: true, message: '请输入显示名字' }]}>
-            <Input placeholder="输入你的显示名字" prefix={React.createElement(UserOutlined)} />
-          </Form.Item>
-          <Button type="primary" loading={nameLoading} onClick={handleUpdateName}>保存名字</Button>
-        </Form>
-      </Card>
-
       {/* Password Card */}
       <Card size="small" title="修改密码">
         <Form form={pwdForm} layout="vertical">
