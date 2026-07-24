@@ -145,7 +145,8 @@ const EmployeesPage: React.FC = () => {
   }, [fetchStudios]);
 
   useEffect(() => {
-    fetchEmployees();
+    const timer = setTimeout(() => fetchEmployees(), 300);
+    return () => clearTimeout(timer);
   }, [fetchEmployees]);
 
   const getStudioName = (studioId: string): string => {
