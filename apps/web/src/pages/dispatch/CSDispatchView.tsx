@@ -50,6 +50,8 @@ const CSDispatchView: React.FC = () => {
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
+  const [grabbing, setGrabbing] = useState<string | null>(null);
+  const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(null);
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
   const [chatPanelWidth, setChatPanelWidth] = useState(() => {
     try {
@@ -96,8 +98,29 @@ const CSDispatchView: React.FC = () => {
     }
   }, []);
 
+  const fetchPoolStatus = useCallback(async () => {
+    try {
+      const { data } = await ordersApi.poolStatus();
+      setPoolStatus(data.data);
+    } catch { /* silent */ }
+  }, []);
+
+  const handleGrab = async (orderId: string) => {
+    setGrabbing(orderId);
+    try {
+      await ordersApi.grab(orderId);
+      message.success('抢单成功');
+      fetchPool();
+      fetchPoolStatus();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '抢单失败');
+    } finally { setGrabbing(null); }
+  };
+
   // Initial load
   useEffect(() => {
+    if (user?.role === 'COMPANION') fetchPoolStatus();
+  }, [user?.role]);
     fetchCompanions();
     fetchPool();
   }, [fetchCompanions, fetchPool]);
@@ -571,13 +594,20 @@ const CSDispatchView: React.FC = () => {
                             )
                           )}
                           <Col flex="auto" />
-                          {user?.role === 'COMPANION' && order.csUserId && (
+                          {user?.role === 'COMPANION' && (
                             <Col>
-                              <Button size="small" type="link" onClick={async () => {
-                                const csId = order.csUserId!;
-                                const convId = await useChatStore.getState().openConversation(csId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
-                                window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: csId, username: order.csUser?.username || '客服', role: 'CS' }, orderInfo: order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined } }));
-                              }}>沟通</Button>
+                              <Space size={4}>
+                                <Button size="small" type="primary" loading={grabbing === order.id}
+                                  disabled={!poolStatus?.isUnlocked}
+                                  onClick={() => handleGrab(order.id)}>
+                                  {!poolStatus?.isUnlocked ? `还差¥${Math.round((poolStatus?.threshold||0) - (poolStatus?.todayRevenue||0))}` : '抢单'}
+                                </Button>
+                                {order.csUserId && <Button size="small" onClick={async () => {
+                                  const csId = order.csUserId!;
+                                  const convId = await useChatStore.getState().openConversation(csId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
+                                  window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: csId, username: order.csUser?.username || '客服', role: 'CS' }, orderInfo: order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined } }));
+                                }}>沟通</Button>}
+                              </Space>
                             </Col>
                           )}
                           <Col>
