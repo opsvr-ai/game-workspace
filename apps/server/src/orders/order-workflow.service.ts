@@ -48,6 +48,12 @@ export class OrderWorkflowService {
       }
     }
 
+    // Prevent self-grabbing: companion can't grab their own created order
+    const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true } });
+    if (comp && comp.userId === order.csUserId) {
+      throw new ForbiddenException('不能抢自己发布的订单');
+    }
+
     // Revenue threshold check — skip for peer orders (created by companions)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
     const isPeerOrder = creator?.role === 'COMPANION';

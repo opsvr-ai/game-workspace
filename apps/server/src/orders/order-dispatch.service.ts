@@ -101,6 +101,10 @@ export class OrderDispatchService {
     if (!order) throw new NotFoundException('订单不存在');
     if (order.dispatchType !== 'POOL') throw new ForbiddenException('该订单不在抢单池中');
 
+    // Prevent self-grabbing
+    const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true } });
+    if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
+
     // Revenue threshold check (same as grab)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
     if (creator?.role !== 'COMPANION') {
