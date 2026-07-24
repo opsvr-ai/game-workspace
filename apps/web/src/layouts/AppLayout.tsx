@@ -890,7 +890,7 @@ const AppLayout: React.FC = () => {
       >
         <Form form={brandForm} layout="vertical" style={{ marginTop: 16 }}
           initialValues={{ displayName: studioBrand?.name || '', logoUrl: studioBrand?.logo || '' }}>
-          <Form.Item name="displayName" label="品牌名称">
+          <Form.Item name="displayName" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]}>
             <Input placeholder="如：光耀电竞" />
           </Form.Item>
           <Form.Item name="logoUrl" label="Logo 链接">
