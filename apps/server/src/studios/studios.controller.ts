@@ -61,11 +61,16 @@ export class StudiosController {
 
   @Put('studios/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateStudioDto,
+    @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
+    // ADMIN can only edit their own studio
+    if (req.user?.role === 'ADMIN' && id !== req.user?.studioId) {
+      return { code: 403, message: '无权编辑其他工作室', data: null };
+    }
     const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode, (dto as any).address, (dto as any).displayName, (dto as any).logoUrl);
     return { code: 200, message: 'ok', data };
   }

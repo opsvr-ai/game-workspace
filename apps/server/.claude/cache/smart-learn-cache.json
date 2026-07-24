@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 203,
+      "successCount": 204,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 355
+          "count": 1,
+          "weight": 356
         },
         "style:async_await": {
-          "count": 1,
-          "weight": 138
+          "count": 2,
+          "weight": 139
         },
         "style:arrow_functions": {
           "count": 0,
@@ -30,27 +30,27 @@
       }
     },
     ".tsx": {
-      "successCount": 343,
+      "successCount": 347,
       "patterns": {
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 294
+          "count": 0,
+          "weight": 296
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 587
+          "count": 2,
+          "weight": 591
         },
         "framework:react_hooks": {
-          "count": 2,
-          "weight": 56
+          "count": 0,
+          "weight": 57
         },
         "quality:error_handling": {
           "count": 1,
           "weight": 61
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 64
+          "count": 0,
+          "weight": 65
         },
         "typing:explicit_types": {
           "count": 2,
@@ -66,9 +66,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784912974815
+      "lastSuccess": 1784913205851
     },
     "npx": {
       "count": 5,
@@ -81,9 +81,9 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784912292026
+      "lastSuccess": 1784913052864
     },
     "find": {
       "count": 0,
@@ -182,100 +182,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"companion\" /data/project/game-workspace/apps/web/src/router.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/router.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784837639871
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"refactor: unify",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784837656870
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784837804607
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: COMPANION ",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784837821711
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -type f \\( -name \"*DispatchView*\" -o -name \"*Dispatch*\" -o -name \"*PoolPage*\" -o -name \"*OrdersPage*\" -o -name \"*CustomersPage*\" -o -name \"*CompanionPage*",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -type f \\( -name \"\" -o -name \"\" -o -name \"\" -o -name \"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838386282
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -type f -name \"*.tsx\" -path \"*/routes/*\" 2>/dev/null | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -type f -name \"\" -path \"\" N>/dev/null | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838386879
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -type f -name \"*.tsx\" -path \"*/components/*\" 2>/dev/null | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -type f -name \"\" -path \"\" N>/dev/null | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838387425
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server -maxdepth 3 -type d 2>/dev/null | head -80",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server -maxdepth N -type d N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838390283
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/apps/web/src -maxdepth 4 -type d 2>/dev/null | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/apps/web/src -maxdepth N -type d N>/dev/null | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838392460
-    },
     {
       "type": "bash",
       "command": "find /data/project/game-workspace -maxdepth 3 -type d -name \"components\" 2>/dev/null | head -20",
@@ -2166,6 +2072,124 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
       "patterns": [],
       "timestamp": 1784913034046
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: studio branding — displayName + logoUrl, ",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784913052864
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784913138395
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784913165634
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"setBrandModalOpen\\|brandModalOpen\\|setNotifOpen\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784913177416
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784913183632
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"CommandPalette\\|ChatModal\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784913195662
+    },
+    {
+      "type": "bash",
+      "command": "grep \"Form,\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -3",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784913205851
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1784913211562
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784913225989
     }
   ]
 }

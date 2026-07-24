@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-24T17:08:57.651Z
+**Last Updated:** 2026-07-24T17:13:45.996Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 34 occurrences
+**Frequency:** 35 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 37 occurrences
+**Frequency:** 38 occurrences
 
 ## Bash
 
@@ -183,7 +183,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 18 occurrences
+**Frequency:** 19 occurrences
 
 ## Quality
 
