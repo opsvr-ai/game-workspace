@@ -78,6 +78,15 @@ export class RegisterController {
       return { code: 409, message: '用户名已被占用', data: null };
     }
 
+    // 检查身份证号唯一（User表 + Companion表）
+    if (body.idNumber) {
+      const dupUser = await this.prisma.user.findFirst({ where: { idNumber: body.idNumber } });
+      const dupCompanion = await this.prisma.companion.findFirst({ where: { idNumber: body.idNumber } });
+      if (dupUser || dupCompanion) {
+        return { code: 409, message: '该身份证号已被注册', data: null };
+      }
+    }
+
     // 实名认证（如API已配置则验证，未配置则跳过）
     try {
       const vr = await this.identityVerify.verify(body.realName, body.idNumber);
