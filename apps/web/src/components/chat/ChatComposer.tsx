@@ -112,7 +112,22 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         </div>
 
         <textarea ref={textareaRef} value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown} placeholder="输入消息..." rows={1}
+          onKeyDown={handleKeyDown} onPaste={async (e) => {
+            const items = e.clipboardData?.items;
+            if (!items || !onUpload) return;
+            for (let i = 0; i < items.length; i++) {
+              if (items[i].type.startsWith('image/')) {
+                e.preventDefault();
+                const file = items[i].getAsFile();
+                if (file) {
+                  const url = await onUpload(file);
+                  if (url) setText((prev) => prev + `\n[img]${url}[/img]\n`);
+                  message.success('图片已粘贴');
+                }
+                break;
+              }
+            }
+          }} placeholder="输入消息..." rows={1}
           style={{
             flex: 1, height: 36, border: 'none', outline: 'none', resize: 'vertical',
             fontSize: 14, lineHeight: '22px', padding: '6px 8px', background: '#F5F6FA',
