@@ -69,7 +69,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   // HTTP polling fallback when WS is disconnected
-  useChatSync(wsConnected);
+  useChatSync(false); // Always enable HTTP polling fallback for chat reliability
 
   return <ChatContext.Provider value={{ wsConnected }}>{children}</ChatContext.Provider>;
 };
