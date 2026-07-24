@@ -184,7 +184,7 @@ const AppLayout: React.FC = () => {
     if (user?.studioId) {
       http.get('/studios/public').then(({ data }) => {
         const s = (data.data || []).find((s: any) => s.id === user.studioId);
-        if (s) setStudioBrand({ name: s.displayName || s.name, logo: s.logoUrl });
+        if (s) setStudioBrand({ name: s.name });
       }).catch(() => {});
     }
   }, [user?.studioId]);
@@ -193,8 +193,6 @@ const AppLayout: React.FC = () => {
   const [commandPalette, setCommandPalette] = React.useState(false);
   // Notification bell
   const [notifOpen, setNotifOpen] = React.useState(false);
-  const [brandModalOpen, setBrandModalOpen] = React.useState(false);
-  const [brandForm] = Form.useForm();
   // Global chat modal (opened from notification bell)
   const [globalChatPartner, setGlobalChatPartner] = React.useState<{
     conversationId: string;
@@ -625,15 +623,7 @@ const AppLayout: React.FC = () => {
                 color: '#2563EB',
               }}
             >
-              {collapsed ? '⚡' : (
-                <span
-                  style={{ cursor: (user?.role === 'ADMIN' || user?.role === 'OWNER') ? 'pointer' : 'default' }}
-                  onClick={() => { if (user?.role === 'ADMIN' || user?.role === 'OWNER') setBrandModalOpen(true); }}
-                  title={user?.role === 'ADMIN' ? '点击编辑品牌' : ''}
-                >
-                  {studioBrand?.name || '陪玩管理系统'}
-                </span>
-              )}
+              {collapsed ? '⚡' : (studioBrand?.name || '陪玩管理系统')}
             </Text>
           </div>
 
@@ -877,27 +867,6 @@ const AppLayout: React.FC = () => {
         onClose={() => setGlobalChatPartner(null)}
       />
 
-      {/* Brand Edit Modal (ADMIN/OWNER) */}
-      <Modal title="品牌设置" open={brandModalOpen} onCancel={() => setBrandModalOpen(false)}
-        onOk={async () => {
-          const values = await brandForm.validateFields();
-          await http.put(`/studios/${user?.studioId}`, { displayName: values.displayName, logoUrl: values.logoUrl });
-          setStudioBrand({ name: values.displayName || studioBrand?.name || '', logo: values.logoUrl });
-          setBrandModalOpen(false);
-          message.success('品牌已更新');
-        }}
-        okText="保存"
-      >
-        <Form form={brandForm} layout="vertical" style={{ marginTop: 16 }}
-          initialValues={{ displayName: studioBrand?.name || '', logoUrl: studioBrand?.logo || '' }}>
-          <Form.Item name="displayName" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]}>
-            <Input placeholder="如：光耀电竞" />
-          </Form.Item>
-          <Form.Item name="logoUrl" label="Logo 链接">
-            <Input placeholder="如：/uploads/logo.png" />
-          </Form.Item>
-        </Form>
-      </Modal>
       {/* Command Palette (Ctrl+K) */}
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
       <PartnerCallNotification />

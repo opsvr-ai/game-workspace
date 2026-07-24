@@ -81,7 +81,8 @@ export default function BridgePage() {
         const otherName = r.studioAId === user?.studioId ? r.studioB.name : r.studioA.name;
         return (
           <Text>
-            {otherName} {isIncoming ? <Tag color="blue">待我处理</Tag> : <Tag>已发出</Tag>}
+            {otherName}
+            {' '}{isIncoming ? <Tag color="blue">待我处理</Tag> : <Tag>已发出</Tag>}
           </Text>
         );
       },
@@ -191,7 +192,7 @@ export default function BridgePage() {
           placeholder="选择目标工作室"
           value={targetStudioId}
           onChange={setTargetStudioId}
-          options={availableStudios.map((s) => ({ label: s.name, value: s.id }))}
+          options={availableStudios.map((s: any) => ({ label: `${s.name}${s.type ? ' (' + (s.type==='RENTAL'?'线上':'线下') + ')' : ''}`, value: s.id }))}
         />
       </Modal>
     </Card>

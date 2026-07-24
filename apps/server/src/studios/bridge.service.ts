@@ -140,8 +140,8 @@ export class BridgeService {
         OR: [{ studioAId: studioId }, { studioBId: studioId }],
       },
       include: {
-        studioA: { select: { id: true, name: true } },
-        studioB: { select: { id: true, name: true } },
+        studioA: { select: { id: true, name: true, displayName: true } },
+        studioB: { select: { id: true, name: true, displayName: true } },
         permissions: true,
       },
     });
@@ -211,8 +211,8 @@ export class BridgeService {
     return this.prisma.studioBridge.findMany({
       where,
       include: {
-        studioA: { select: { id: true, name: true } },
-        studioB: { select: { id: true, name: true } },
+        studioA: { select: { id: true, name: true, displayName: true } },
+        studioB: { select: { id: true, name: true, displayName: true } },
         permissions: true,
       },
       orderBy: { createdAt: 'desc' },

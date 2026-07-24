@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 206,
+      "successCount": 207,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
@@ -30,19 +30,19 @@
       }
     },
     ".tsx": {
-      "successCount": 350,
+      "successCount": 360,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
-          "weight": 297
+          "weight": 302
         },
         "style:prefer_const": {
           "count": 0,
-          "weight": 592
+          "weight": 601
         },
         "framework:react_hooks": {
-          "count": 0,
-          "weight": 57
+          "count": 2,
+          "weight": 59
         },
         "quality:error_handling": {
           "count": 1,
@@ -66,9 +66,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784914702591
+      "lastSuccess": 1784915097060
     },
     "npx": {
       "count": 5,
@@ -81,9 +81,9 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 0,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784914640583
+      "lastSuccess": 1784914946827
     },
     "find": {
       "count": 0,
@@ -182,154 +182,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "# Verify build still works\npnpm --filter @chunlv/web exec vite build 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Verify build still works pnpm --filter @chunlv/web exec vite build N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838636509
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"refactor: delete 2,241 lines dead code + unify companion pool to OrderPoolPage\n\nDeleted: AdminDispatchView,",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" #!axm",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1784838644261
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/router.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784839116714
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/DispatchPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784839126756
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/DispatchPage.tsx",
-      "patterns": [],
-      "timestamp": 1784839133877
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: COMPANION pool now uses same CSDispatchVie",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784839146661
-    },
-    {
-      "type": "bash",
-      "command": "grep \"派单管理\\|派单工作台\\|订单池\\|派单记录\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784839310602
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"<Row\\|<Col\\|sidebar\\|companion.*list\\|pool.*width\\|chatPanel\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784839467249
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839479971
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839489839
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839500281
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/dispatch/CSDispatchView.tsx && git -C /data/project/game-workspace commit -m \"fix",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784839516000
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"stats\\|Stats\\|统计\\|今日\\|chatPanel\\|ChatPanel\\|EmbeddedChat\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784839667600
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839681511
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839691421
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784839707833
-    },
     {
       "type": "bash",
       "command": "grep -n \"^\\s*</Col>\\s*$\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | tail -5",
@@ -2191,6 +2043,188 @@
       "file": "/data/project/game-workspace/apps/server/src/auth/auth.controller.ts",
       "patterns": [],
       "timestamp": 1784914715720
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: remove all self-service name editing — acc",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784914737170
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1784914928180
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: brand name",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784914946827
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"studioA.name\\|studioB.name\\|otherName\\|studios.map\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784914987601
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1784915003913
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/studios/bridge.service.ts",
+      "patterns": [],
+      "timestamp": 1784915017522
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1784915034576
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"availableStudios\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1784915049015
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "patterns": [],
+      "timestamp": 1784915054288
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1784915068837
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784915084658
+    },
+    {
+      "type": "bash",
+      "command": "grep -c \"Form\\|Input\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -c \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784915097060
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1784915104908
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784915121328
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784915134687
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784915143110
     }
   ]
 }
