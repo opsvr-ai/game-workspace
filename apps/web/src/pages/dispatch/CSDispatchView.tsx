@@ -37,6 +37,7 @@ interface PoolOrder {
 }
 
 const CSDispatchView: React.FC = () => {
+  const user = useAuthStore((s) => s.user);
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
@@ -570,6 +571,17 @@ const CSDispatchView: React.FC = () => {
                             )
                           )}
                           <Col flex="auto" />
+                          {user?.role === 'COMPANION' && order.csUserId && (
+                            <Col>
+                              <Button size="small" type="link" onClick={async () => {
+                                const csUserId = order.csUserId;
+                                if (csUserId) {
+                                  await useChatStore.getState().openConversation(csUserId, order.customFields ? `${order.gameName} · ¥${order.amount}` : undefined);
+                                  setSelectedCompanionId(order.id);
+                                }
+                              }}>沟通</Button>
+                            </Col>
+                          )}
                           <Col>
                             <Space size={6}>
                               <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
