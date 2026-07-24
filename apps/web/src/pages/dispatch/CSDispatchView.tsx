@@ -111,12 +111,12 @@ const CSDispatchView: React.FC = () => {
     onChatNotify: () => {},
   });
 
-  // Fallback polling every 120s
+  // Fallback polling every 10s
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       fetchPool();
       fetchCompanions();
-    }, 120000);
+    }, 10000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
