@@ -1,11 +1,11 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 210,
+      "successCount": 211,
       "patterns": {
         "style:prefer_const": {
-          "count": 1,
-          "weight": 361
+          "count": 2,
+          "weight": 362
         },
         "style:async_await": {
           "count": 1,
@@ -61,14 +61,18 @@
     ".prisma": {
       "successCount": 6,
       "patterns": {}
+    },
+    ".html": {
+      "successCount": 1,
+      "patterns": {}
     }
   },
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784924241865
+      "lastSuccess": 1784924433548
     },
     "npx": {
       "count": 5,
@@ -96,9 +100,9 @@
       "lastSuccess": 1784915956795
     },
     "rm": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784458875308
+      "lastSuccess": 1784924262960
     },
     "pythonN": {
       "count": 3,
@@ -192,61 +196,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784841602146
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784841622175
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"employees\\|:id\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/studios/studios.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784841636118
-    },
-    {
-      "type": "bash",
-      "command": "curl -s http://localhost:3001/api/health 2>/dev/null || echo \"Server down\"\ntail -5 /tmp/server-new.log 2>/dev/null",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s http://localhost:N/api/health N>/dev/null || echo \"\" tail -N /tmp/server-new.log N>/dev/null",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784841662636
-    },
-    {
-      "type": "bash",
-      "command": "tail -10 /tmp/server-new.log",
-      "cmdPattern": {
-        "base": "tail",
-        "pattern": "tail -N /tmp/server-new.log",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784841683824
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/server/src/common/role-hierarchy.ts",
@@ -2432,6 +2381,57 @@
         "hasChain": false
       },
       "timestamp": 1784924241865
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/apps/web/src/pages/dispatch/CompanionDispatchView.tsx\npnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/apps/web/src/pages/dispatch/CompanionDispatchView.tsx pnpm --filt",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784924262960
+    },
+    {
+      "type": "bash",
+      "command": "grep -rn \"蠢驴\\|CHUNLV\\|Chunlv\\|chunlv\\|派单管理\" /data/project/game-workspace/apps/web/src/ --include=\"*.tsx\" --include=\"*.ts\" --include=\"*.html\" | grep -v node_modules | grep -v \".claude\"",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ --include=\"\" --include=\"\" --include=\"\" | grep",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784924426178
+    },
+    {
+      "type": "bash",
+      "command": "grep -rn \"title\\|Chunlv\\|蠢驴\" /data/project/game-workspace/apps/web/index.html 2>/dev/null\necho \"---\"\ngrep -n \"Chunlv\\|蠢驴\" /data/project/game-workspace/apps/web/src/hooks/useChatNotification.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/index.html N>/dev/null echo \"\" grep -n \"\" /data/pr",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784924433548
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1784924439902
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/hooks/useChatNotification.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1784924440847
     }
   ]
 }

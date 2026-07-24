@@ -27,7 +27,7 @@ export function useChatNotification(enabled: boolean) {
       }
 
       // Flash document title
-      const flashTitle = '🔔 新消息 — Chunlv';
+      const flashTitle = '🔔 新消息 — 陪玩管理系统';
       document.title = flashTitle;
       if (flashInterval.current) clearInterval(flashInterval.current);
       flashInterval.current = setInterval(() => {
