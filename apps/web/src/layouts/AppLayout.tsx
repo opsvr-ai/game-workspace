@@ -171,7 +171,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
 
 const roleLabels: Record<UserRole, string> = {
   [UserRole.OWNER]: '老板',
-  [UserRole.ADMIN]: '管理员',
+  [UserRole.ADMIN]: '店长',
   [UserRole.CS]: '客服',
   [UserRole.COMPANION]: '陪玩',
 };
