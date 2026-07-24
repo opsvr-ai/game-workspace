@@ -192,7 +192,7 @@ export class OrdersService {
       }
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where,
       include: {
         customer: true,
@@ -200,6 +200,16 @@ export class OrdersService {
         coCompanion: { include: { user: { select: { username: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+    });
+    // Mask source account from non-creators (privacy)
+    return orders.map((o) => {
+      if (o.csUserId !== user.id && o.customFields) {
+        const cf = o.customFields as any;
+        if (cf.customerSourceAccount) {
+          return { ...o, customFields: { ...cf, customerSourceAccount: '***' } };
+        }
+      }
+      return o;
     });
   }
 
