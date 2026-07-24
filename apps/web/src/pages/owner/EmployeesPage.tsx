@@ -114,6 +114,8 @@ const EmployeesPage: React.FC = () => {
   const [financeSubmitting, setFinanceSubmitting] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [filterRole, setFilterRole] = useState<string | undefined>(urlRole);
+  // Sync filterRole with URL when switching tabs
+  useEffect(() => { setFilterRole(urlRole); setSearchText(''); }, [urlRole]);
   const fetchStudios = useCallback(async () => {
     try {
       const { data } = await studiosApi.list();
