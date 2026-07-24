@@ -564,11 +564,8 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    setPendingBadge(0);
     markSeen();
-    setBridgePendingBadge(0);
     markBridgeSeen();
-    setBillingBadge(0);
     markBillingSeen();
     navigate(key);
   };
