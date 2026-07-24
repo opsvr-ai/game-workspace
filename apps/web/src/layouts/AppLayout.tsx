@@ -12,6 +12,9 @@ import DualCompanionModal from '../components/DualCompanionModal';
 import { ChatProvider } from '../components/chat';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
+import IncomingCallModal from '../components/IncomingCallModal';
+import VoiceCallBar from '../components/VoiceCallBar';
+import { useVoiceCall } from '../hooks/useVoiceCall';
 import { PartnerCallNotification } from '../components/PartnerCallNotification';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
@@ -191,6 +194,24 @@ const AppLayout: React.FC = () => {
   const totalUnread = useChatStore((s) => s.totalUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
+
+  // Voice call handler
+  const vc = useVoiceCall(user?.id, user?.username);
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const { targetUserId, targetUserName } = e.detail || {};
+      if (targetUserId) vc.startCall(targetUserId, targetUserName || '未知');
+    };
+    window.addEventListener('start-voice-call', handler as EventListener);
+    return () => window.removeEventListener('start-voice-call', handler as EventListener);
+  }, [vc.startCall]);
+
+  const VoiceCallHandler = () => (
+    <>
+      <IncomingCallModal open={vc.callState.status === 'ringing'} callerName={vc.callState.peerName} onAccept={vc.acceptCall} onReject={vc.rejectCall} />
+      {vc.callState.status === 'connected' && <VoiceCallBar peerName={vc.callState.peerName} duration={vc.callState.duration} onHangup={vc.hangup} />}
+    </>
+  );
   // Notification bell
   const [notifOpen, setNotifOpen] = React.useState(false);
   // Global chat modal (opened from notification bell)
@@ -875,6 +896,7 @@ const AppLayout: React.FC = () => {
       />
 
       {/* Command Palette (Ctrl+K) */}
+      <VoiceCallHandler />
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
       <PartnerCallNotification />
     </ChatProvider>

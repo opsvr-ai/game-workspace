@@ -155,6 +155,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         orderInfo={orderInfo || conv?.orderInfo}
         pinned={conv?.pinned}
         onClose={onClose}
+        onCallClick={participant?.userId ? () => {
+          window.dispatchEvent(new CustomEvent('start-voice-call', { detail: { targetUserId: participant!.userId, targetUserName: participantName } }));
+        } : undefined}
         onTogglePin={() => {
           if (roomId) chatApi.updateRoom?.(roomId, { pinned: !conv?.pinned }).catch(() => {});
         }}

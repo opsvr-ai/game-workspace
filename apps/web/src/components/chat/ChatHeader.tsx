@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
 import { Space, Tag, Typography } from 'antd';
-import { PushpinOutlined, PushpinFilled, CloseOutlined } from '@ant-design/icons';
+import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -13,6 +13,7 @@ interface ChatHeaderProps {
   pinned?: boolean;
   onTogglePin?: () => void;
   onClose?: () => void;
+  onCallClick?: () => void;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -22,7 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
   OWNER: '老板',
 };
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInfo, pinned, onTogglePin, onClose }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick }) => {
   return (
     <div
       style={{
@@ -68,6 +69,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInf
       </div>
       </div>
       <Space size={4}>
+        {onCallClick && (
+          <PhoneOutlined onClick={onCallClick} style={{ cursor: 'pointer', color: '#52c41a', padding: 4, fontSize: 16 }} title="语音通话" />
+        )}
         {onTogglePin && (
           <span onClick={onTogglePin} style={{ cursor: 'pointer', padding: 4, color: pinned ? '#F0B232' : '#949BA4' }}>
             {pinned ? <PushpinFilled /> : <PushpinOutlined />}

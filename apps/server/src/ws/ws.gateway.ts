@@ -392,6 +392,24 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  // Voice call relay
+  @SubscribeMessage('call:offer')
+  handleCallOffer(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+    this.notifyUser(data.targetUserId, 'call:offer', { fromUserId: (client.data as any)?.user?.id, sdp: data.sdp, callerName: (client.data as any)?.user?.username });
+  }
+  @SubscribeMessage('call:answer')
+  handleCallAnswer(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+    this.notifyUser(data.targetUserId, 'call:answer', { sdp: data.sdp });
+  }
+  @SubscribeMessage('call:ice-candidate')
+  handleCallIce(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+    this.notifyUser(data.targetUserId, 'call:ice-candidate', { candidate: data.candidate });
+  }
+  @SubscribeMessage('call:hangup')
+  handleCallHangup(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+    this.notifyUser(data.targetUserId, 'call:hangup', {});
+  }
+
   notifyChat(studioId: string, companionName: string, _chatKey: string, companionId?: string, orderId?: string): void {
     this.server.to(`studio:${studioId}`).emit('chat:notify', {
       companionName,

@@ -1,33 +1,53 @@
-# 品牌定制：工作室名称+Logo
+# 内置语音通话 (WebRTC)
 
 ## Context
-软件改名"陪玩管理系统"，每个工作室可设自定义名称+Logo，客户端及店内所有人看到该品牌。
+聊天系统加 WebRTC 实时语音通话功能。通过现有 Socket.IO 做信令，浏览器/Electron 内直接通话。
 
-## 修改
+## 方案
 
-### 1. 全局名称
-- 登录页标题: "CHUNLV ESPORTS · 陪玩派单管理系统" → "陪玩管理系统"
-- 侧边栏 Header: "Chunlv" → 当前工作室名称
-- 浏览器标题
+### 信令层（Backend — WsGateway）
+新增 WebSocket 事件：
+- `call:offer` — 主叫方发起通话 { targetUserId, sdp }
+- `call:answer` — 被叫方接听 { targetUserId, sdp }
+- `call:ice-candidate` — ICE 候选 { targetUserId, candidate }
+- `call:hangup` — 挂断 { targetUserId }
+- `call:ringing` — 被叫方响铃通知（通知主叫方）
 
-### 2. Studio Schema
-- `studio.displayName` String? — 对外显示名称
-- `studio.logoUrl` String? — Logo 图片路径
+WsGateway 新增方法：
+- `notifyIncomingCall(targetUserId, data)` — 通知被叫方有来电
 
-### 3. Studio 编辑 API
-- PUT /studios/:id 支持 displayName + logo 上传
+### 前端
 
-### 4. 前端
-- 侧边栏顶部显示: [Logo] [工作室名称]
-- 登录页显示工作室Logo
-- 工作室管理页可上传Logo、编辑显示名称
+**ChatHeader** — 加通话按钮（📞），点击发起呼叫
 
-### 5. JWT payload
-暂不改，studio 信息通过 API 获取。
+**IncomingCallModal**（新组件）— 来电弹窗：
+- 显示主叫方名字
+- "接听" / "拒绝" 按钮
+- 响铃动画
 
-## 修改文件
-- `schema.prisma` — Studio 加 displayName + logoUrl
-- `studios.service.ts` — update 方法支持新字段
-- `studios.controller.ts` — 上传接口
-- `LoginPage.tsx` — 标题
-- `AppLayout.tsx` — 侧边栏显示
+**VoiceCallBar**（新组件）— 通话中状态条：
+- 底部固定条，显示对方名字 + 通话时长
+- "挂断" 按钮
+- 最小化/展开
+
+**useVoiceCall hook**（新）— WebRTC 连接管理：
+- 创建 RTCPeerConnection
+- 获取本地媒体流 (getUserMedia)
+- 处理信令消息
+- 管理通话状态 (idle/ringing/calling/connected)
+
+### 修改文件
+
+| 文件 | 操作 |
+|------|------|
+| `ws.gateway.ts` | 新增 call 信令转发 |
+| `chat/ChatHeader.tsx` | 加 📞 按钮 |
+| `components/IncomingCallModal.tsx` | 新：来电弹窗 |
+| `components/VoiceCallBar.tsx` | 新：通话状态条 |
+| `hooks/useVoiceCall.ts` | 新：WebRTC 管理 |
+| `AppLayout.tsx` | 挂载 IncomingCallModal + VoiceCallBar |
+
+### 验证
+1. A 和 B 进入同一个聊天 → A 点 📞 → B 看到来电弹窗
+2. B 点接听 → 双方进入通话，可听到对方声音
+3. 任一方点挂断 → 通话结束
