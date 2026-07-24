@@ -398,15 +398,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.notifyUser(data.targetUserId, 'call:offer', { fromUserId: (client.data as any)?.user?.id, sdp: data.sdp, callerName: (client.data as any)?.user?.username });
   }
   @SubscribeMessage('call:answer')
-  handleCallAnswer(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+  handleCallAnswer(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
     this.notifyUser(data.targetUserId, 'call:answer', { sdp: data.sdp });
   }
   @SubscribeMessage('call:ice-candidate')
-  handleCallIce(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+  handleCallIce(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
     this.notifyUser(data.targetUserId, 'call:ice-candidate', { candidate: data.candidate });
   }
   @SubscribeMessage('call:hangup')
-  handleCallHangup(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+  handleCallHangup(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
     this.notifyUser(data.targetUserId, 'call:hangup', {});
   }
 

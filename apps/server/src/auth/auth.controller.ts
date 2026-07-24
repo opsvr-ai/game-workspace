@@ -17,7 +17,6 @@ import { RolesGuard, Roles } from './roles.guard';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshDto, VerifySecondDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserRole, type ApiResponse, type LoginResponse, type UserInfo } from '@chunlv/shared';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
