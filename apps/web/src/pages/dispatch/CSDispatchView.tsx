@@ -119,11 +119,13 @@ const CSDispatchView: React.FC = () => {
 
   // Initial load
   useEffect(() => {
-    if (user?.role === 'COMPANION') fetchPoolStatus();
-  }, [user?.role]);
     fetchCompanions();
     fetchPool();
   }, [fetchCompanions, fetchPool]);
+
+  useEffect(() => {
+    if (user?.role === 'COMPANION') fetchPoolStatus();
+  }, [user?.role, fetchPoolStatus]);
 
   // WebSocket real-time: refresh pool on order updates
   useSocket({
