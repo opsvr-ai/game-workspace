@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
+import { Image } from 'antd';
 import type { Message } from '../../stores/chatStore';
 import ReplyPreview from './ReplyPreview';
 import MessageReactions from './MessageReactions';
@@ -107,7 +108,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           ) : message.type === 'ORDER_CARD' ? (
             <OrderCardContent content={message.content || message.text} isMe={isMe} />
           ) : (
-            <span>{message.text}</span>
+            <RenderText text={message.text || ''} />
           )}
           <div
             style={{
@@ -215,6 +216,20 @@ const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ conten
         </span>
       </div>
     </div>
+  );
+};
+
+// Parse [img]url[/img] markup in text messages
+const RenderText: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(/(\[img\].*?\[\/img\])/g);
+  return (
+    <span>
+      {parts.map((part, i) => {
+        const m = part.match(/^\[img\](.*?)\[\/img\]$/);
+        if (m) return <Image key={i} src={m[1]} style={{ maxWidth: 200, borderRadius: 8, display: 'block', margin: '4px 0' }} />;
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
   );
 };
 
