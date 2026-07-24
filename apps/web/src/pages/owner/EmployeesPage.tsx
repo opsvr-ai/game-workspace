@@ -437,6 +437,7 @@ const EmployeesPage: React.FC = () => {
           {pageLabel}
         </Text>
         <Space>
+          {user?.role === UserRole.OWNER && (
           <Select
             placeholder="选择工作室"
             value={selectedStudioId}
@@ -451,6 +452,7 @@ const EmployeesPage: React.FC = () => {
               </Option>
             ))}
           </Select>
+          )}
               <Select placeholder="搜索陪玩名字" showSearch value={searchText || undefined} onChange={(v) => setSearchText(v || "")} style={{ width: 190 }} allowClear onClear={() => setSearchText("")} optionFilterProp="children">
                 {employees.filter(e => e.role === "COMPANION").map((e) => (
                   <Option key={e.id} value={e.username}>{e.username}</Option>
