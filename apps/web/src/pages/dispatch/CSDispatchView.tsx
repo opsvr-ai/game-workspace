@@ -356,10 +356,10 @@ const CSDispatchView: React.FC = () => {
                           <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
                             {companionStatusConfig[c.status]?.label || c.status}
                           </Tag>
-                          <Button size="small" type="link" style={{ padding: 0, fontSize: 11 }} onClick={(e) => {
+                          <Button size="small" type="text" style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }} onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCompanionId(c.id);
-                          }}>沟通</Button>
+                          }}>💬</Button>
                         </Space>
                       </div>
                       {/* Game profile */}
