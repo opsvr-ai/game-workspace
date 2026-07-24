@@ -574,10 +574,9 @@ const CSDispatchView: React.FC = () => {
                           {user?.role === 'COMPANION' && order.csUserId && (
                             <Col>
                               <Button size="small" type="link" onClick={async () => {
-                                if (order.csUserId) {
-                                  await useChatStore.getState().openConversation(order.csUserId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
-                                  setSelectedCompanionId(order.csUserId);
-                                }
+                                const csId = order.csUserId!;
+                                const convId = await useChatStore.getState().openConversation(csId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
+                                window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: csId, username: order.csUser?.username || '客服', role: 'CS' }, orderInfo: order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined } }));
                               }}>沟通</Button>
                             </Col>
                           )}

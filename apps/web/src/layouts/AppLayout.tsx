@@ -296,6 +296,13 @@ const AppLayout: React.FC = () => {
 
   // Chat 3.0: notification handled by ChatProvider
 
+  // Listen for open-chat-modal event from CSDispatchView
+  useEffect(() => {
+    const handler = (e: CustomEvent) => setGlobalChatPartner(e.detail);
+    window.addEventListener('open-chat-modal', handler as EventListener);
+    return () => window.removeEventListener('open-chat-modal', handler as EventListener);
+  }, []);
+
   // Open chat from notification
   const openChatFromNotification = useCallback((conversationId: string, participantName: string) => {
     const conv = useChatStore.getState().conversations[conversationId];
