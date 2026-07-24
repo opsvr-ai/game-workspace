@@ -10,7 +10,6 @@ const DispatchPage = lazy(() => import('./pages/DispatchPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const BillingOverview = lazy(() => import('./pages/BillingOverview'));
 const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
-const OrderPoolPage = lazy(() => import('./pages/OrderPoolPage'));
 const CompanionPoolPage = lazy(() => import('./pages/DispatchPage'));
 const AdminPcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));

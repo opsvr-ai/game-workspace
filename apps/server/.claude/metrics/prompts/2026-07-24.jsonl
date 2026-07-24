@@ -39,3 +39,8 @@
 {"ts":"2026-07-24T18:22:10.142Z","prompt":"陪玩端  订单池   沟通 按钮呢？什么时候给我删除的？为什么给我删除了？","words":4,"chars":37,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"137127"}
 {"ts":"2026-07-24T18:25:22.897Z","prompt":"点沟通怎么没反应了？我之前设计好的功能呢？","words":1,"chars":21,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"155226"}
 {"ts":"2026-07-24T20:02:19.255Z","prompt":"我之前跟你讲的，点沟通，弹出的聊天框 是什么样子的 你还记得么","words":3,"chars":31,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"202589"}
+{"ts":"2026-07-24T20:04:51.214Z","prompt":"你刚才为什么不直接给我用这个效果？","words":1,"chars":17,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"213221"}
+{"ts":"2026-07-24T20:05:23.746Z","prompt":"同类型问题，帮我查找并修改","words":1,"chars":13,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"213691"}
+{"ts":"2026-07-24T20:12:18.701Z","prompt":"同类型问题全部查完了么？帮我查找并修改","words":1,"chars":19,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"234234"}
+{"ts":"2026-07-24T20:14:35.747Z","prompt":"为什么发一个表情  对方显示2遍？","words":2,"chars":17,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"235724"}
+{"ts":"2026-07-24T20:16:56.152Z","prompt":"同类型问题全部查完了么？帮我查找并修改","words":1,"chars":19,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"243801"}
