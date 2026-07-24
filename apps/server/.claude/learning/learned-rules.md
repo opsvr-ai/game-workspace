@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-24T17:31:09.587Z
+**Last Updated:** 2026-07-24T17:37:20.585Z
 
 ---
 
@@ -96,7 +96,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 16 occurrences
+**Frequency:** 17 occurrences
 
 ### Commonly used command: docker
 

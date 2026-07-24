@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 205,
+      "successCount": 206,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
@@ -66,9 +66,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784914601222
+      "lastSuccess": 1784914702591
     },
     "npx": {
       "count": 5,
@@ -81,9 +81,9 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784914338302
+      "lastSuccess": 1784914640583
     },
     "find": {
       "count": 0,
@@ -182,46 +182,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -rn \"GrabSuccessModal\" /data/project/game-workspace/apps/web/src/ --include=\"*.tsx\" | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ --include=\"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838571050
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"grab\\|抢单\\|handleGrab\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784838576856
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/DispatchPage.tsx",
-      "patterns": [],
-      "timestamp": 1784838609678
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/router.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784838617378
-    },
     {
       "type": "bash",
       "command": "# Verify build still works\npnpm --filter @chunlv/web exec vite build 2>&1 | tail -5",
@@ -2192,6 +2152,45 @@
       "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
       "patterns": [],
       "timestamp": 1784914622238
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: remove displayName editing — accounts use ",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784914640583
+    },
+    {
+      "type": "bash",
+      "command": "grep -rn \"displayName\\|updateProfile\\|修改.*名\\|改名\\|setDisplayName\" /data/project/game-workspace/apps/web/src/ --include=\"*.tsx\" --include=\"*.ts\" | grep -v \"node_modules\\|\\.claude\\|\\.axme\" | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ --include=\"\" --include=\"\" | grep -v \"\" | head",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784914695017
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"updateProfile\\|PUT.*profile\\|displayName\" /data/project/game-workspace/apps/server/src/auth/auth.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/auth/auth.controller.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784914702591
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/auth/auth.controller.ts",
+      "patterns": [],
+      "timestamp": 1784914715720
     }
   ]
 }

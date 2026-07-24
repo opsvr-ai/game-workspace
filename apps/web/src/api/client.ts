@@ -137,9 +137,6 @@ export const authApi = {
   changePassword(oldPassword: string, newPassword: string) {
     return http.put<ApiResponse<null>>('/auth/me/password', { oldPassword, newPassword });
   },
-  updateProfile(displayName: string) {
-    return http.put<ApiResponse<null>>('/auth/me/profile', { displayName });
-  },
   async uploadAvatar(file: File) {
     const form = new FormData();
     form.append('file', file);
