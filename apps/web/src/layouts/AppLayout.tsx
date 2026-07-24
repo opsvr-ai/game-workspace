@@ -179,6 +179,15 @@ const roleLabels: Record<UserRole, string> = {
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
+  const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
+  useEffect(() => {
+    if (user?.studioId) {
+      http.get('/studios/public').then(({ data }) => {
+        const s = (data.data || []).find((s: any) => s.id === user.studioId);
+        if (s) setStudioBrand({ name: s.displayName || s.name, logo: s.logoUrl });
+      }).catch(() => {});
+    }
+  }, [user?.studioId]);
   const totalUnread = useChatStore((s) => s.totalUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
@@ -617,7 +626,7 @@ const AppLayout: React.FC = () => {
                 color: '#2563EB',
               }}
             >
-              {collapsed ? '⚡' : 'Chunlv'}
+              {collapsed ? '⚡' : (studioBrand?.name || '陪玩管理系统')}
             </Text>
           </div>
 
@@ -656,7 +665,7 @@ const AppLayout: React.FC = () => {
                 textAlign: 'center',
               }}
             >
-              {collapsed ? '' : 'Chunlv ESports v2.1'}
+              {collapsed ? '' : '陪玩管理系统'}
             </Text>
           </div>
         </Sider>

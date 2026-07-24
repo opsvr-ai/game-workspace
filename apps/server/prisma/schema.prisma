@@ -40,6 +40,8 @@ model Studio {
   splitMode        String   @default("TIERED")  // TIERED | FIXED
   address          String?                     // 工作室地址
   leaseContractUrl String?                     // 租赁合同照片URL
+  displayName      String?                     // 对外展示名称（品牌名）
+  logoUrl          String?                     // Logo 图片路径
   createdAt        DateTime @default(now())
 
   users             User[]

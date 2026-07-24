@@ -40,6 +40,8 @@ interface Studio {
   type: string;
   splitMode?: string;
   address?: string;
+  displayName?: string;
+  logoUrl?: string;
   createdAt: string;
   _count?: { users: number; companions: number };
   users?: Array<{ id: string; username: string; role: string; displayName?: string; realName?: string; phone?: string; idNumber?: string; createdAt: string }>;
@@ -129,7 +131,7 @@ const StudiosPage: React.FC = () => {
 
   const openEditModal = (record: Studio) => {
     setEditingStudio(record);
-    form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED', address: record.address || '' });
+    form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED', address: record.address || '', displayName: record.displayName || '', logoUrl: record.logoUrl || '' });
     setModalOpen(true);
   };
 
@@ -137,7 +139,7 @@ const StudiosPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await studiosApi.update(editingStudio!.id, values.name, values.type, values.splitMode, values.address);
+      await studiosApi.update(editingStudio!.id, values.name, values.type, values.splitMode, values.address, values.displayName, values.logoUrl);
       message.success('工作室已更新');
       setModalOpen(false);
       form.resetFields();
@@ -351,6 +353,12 @@ const StudiosPage: React.FC = () => {
                 <Radio.Button value="TIERED">阶梯分成</Radio.Button>
                 <Radio.Button value="FIXED">固定比例</Radio.Button>
               </Radio.Group>
+            </Form.Item>
+            <Form.Item name="displayName" label="品牌名称（对外展示）">
+              <Input placeholder="如：光耀电竞" />
+            </Form.Item>
+            <Form.Item name="logoUrl" label="Logo 图片链接">
+              <Input placeholder="如：/uploads/logo.png" />
             </Form.Item>
             <Form.Item name="address" label="工作室地址">
               <Input placeholder="请输入详细地址" />

@@ -50,12 +50,14 @@ export class StudiosService {
     });
   }
 
-  async update(id: string, name?: string, type?: string, splitMode?: string, address?: string) {
+  async update(id: string, name?: string, type?: string, splitMode?: string, address?: string, displayName?: string, logoUrl?: string) {
     const data: any = {};
     if (name !== undefined) data.name = name;
     if (type !== undefined) data.type = type;
     if (splitMode !== undefined) data.splitMode = splitMode;
     if (address !== undefined) data.address = address;
+    if (displayName !== undefined) data.displayName = displayName;
+    if (logoUrl !== undefined) data.logoUrl = logoUrl;
     return this.prisma.studio.update({ where: { id }, data });
   }
 

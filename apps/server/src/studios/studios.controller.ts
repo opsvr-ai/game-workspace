@@ -66,7 +66,7 @@ export class StudiosController {
     @Param('id') id: string,
     @Body() dto: UpdateStudioDto,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode, (dto as any).address);
+    const data = await this.studiosService.update(id, dto.name, dto.type, dto.splitMode, (dto as any).address, (dto as any).displayName, (dto as any).logoUrl);
     return { code: 200, message: 'ok', data };
   }
 
