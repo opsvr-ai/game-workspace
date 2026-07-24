@@ -356,9 +356,11 @@ const CSDispatchView: React.FC = () => {
                           <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
                             {companionStatusConfig[c.status]?.label || c.status}
                           </Tag>
-                          <Button size="small" type="text" style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }} onClick={(e) => {
+                          <Button size="small" type="text" style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }} onClick={async (e) => {
                             e.stopPropagation();
-                            setSelectedCompanionId(c.id);
+                            const u = c.user as any;
+                            const convId = await useChatStore.getState().openConversation(c.id, { userId: u?.id || c.id, username: u?.username || c.id, displayName: u?.displayName, avatar: u?.avatar, role: 'COMPANION' });
+                            window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: u?.id || c.id, username: u?.username || c.id, displayName: u?.displayName || c.id, avatar: u?.avatar, role: 'COMPANION' } } }));
                           }}>💬</Button>
                         </Space>
                       </div>
