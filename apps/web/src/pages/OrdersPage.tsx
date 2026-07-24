@@ -274,7 +274,7 @@ const OrdersPage: React.FC = () => {
             <Option value="TIP">打赏</Option>
           </Select>
           <Select
-            placeholder="陪玩筛选"
+            placeholder="员工筛选"
             allowClear
             value={companionFilter || undefined}
             onChange={(v) => setCompanionFilter(v || '')}
@@ -363,7 +363,7 @@ const OrdersPage: React.FC = () => {
               value={reassignCompanionId || undefined}
               style={{ width: '100%' }}
               onChange={(v) => setReassignCompanionId(v)}
-              placeholder="选择新陪玩"
+              placeholder="选择新员工"
             >
               {companions
                 .filter((c: any) => c.status !== 'OFFLINE')

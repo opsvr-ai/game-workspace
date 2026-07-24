@@ -343,7 +343,7 @@ const PcControlPage: React.FC = () => {
         </Text>
         <Space wrap>
           <Input.Search
-            placeholder="搜索陪玩姓名"
+            placeholder="搜索员工姓名"
             allowClear
             style={{ width: 180 }}
             value={searchText}

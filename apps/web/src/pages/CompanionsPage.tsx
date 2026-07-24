@@ -454,7 +454,7 @@ const CompanionsPage: React.FC = () => {
     <div>
       <PageHeader
         title={isAdmin ? '员工管理' : role === 'CS' ? '陪玩管理' : '陪玩状态'}
-        subtitle={`共 ${companions.length} 位陪玩 · 60s 刷新`}
+        subtitle={`共 ${companions.length} 位${isAdmin ? '员工' : '陪玩'} · 60s 刷新`}
         extra={
           <Space>
             <Button
@@ -481,7 +481,7 @@ const CompanionsPage: React.FC = () => {
           <div style={{ marginBottom: 12 }}>
             <Space size="middle" wrap style={{ marginBottom: 8 }}>
               <Input
-                placeholder="搜索陪玩姓名"
+                placeholder={isAdmin ? '搜索员工姓名' : '搜索陪玩姓名'}
                 allowClear
                 style={{ width: 180 }}
                 value={searchText}

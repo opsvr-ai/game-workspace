@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-23T21:21:23.825Z
+**Last Updated:** 2026-07-24T16:47:54.814Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 19
+- **Total Patterns:** 20
 - **Total Feedback:** 0
 
 ## Style
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 63 occurrences
+**Frequency:** 64 occurrences
 
 ### Prefer async await in .ts files
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 41 occurrences
+**Frequency:** 44 occurrences
 
 ### Commonly used command: git
 
@@ -79,7 +79,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 12 occurrences
+**Frequency:** 14 occurrences
 
 ### Commonly used command: fuser
 
@@ -96,7 +96,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 14 occurrences
+**Frequency:** 15 occurrences
 
 ### Commonly used command: docker
 
@@ -122,7 +122,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 5 occurrences
 
 ### Commonly used command: head
 
@@ -146,6 +146,13 @@
 **Frequency:** 1 occurrences
 
 ### Commonly used command: tail
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: #
 
 **Examples:**
 - Used successfully 6 times
