@@ -39,6 +39,7 @@ export class BridgeService {
 
   /** Owner proposes a bridge between two studios. Proposer's side is auto-accepted. */
   async propose(studioAId: string, studioBId: string, ownerId: string) {
+    if (studioAId === studioBId) throw new ForbiddenException('不能跟自己桥接');
     const [a, b] = [studioAId, studioBId].sort();
     const proposerIsA = a === studioAId;
     const existing = await this.prisma.studioBridge.findUnique({
