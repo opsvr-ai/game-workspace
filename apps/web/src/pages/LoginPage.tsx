@@ -186,7 +186,7 @@ const LoginPage: React.FC = () => {
     <div className="login-wrapper">
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
-        <h1>蠢驴电竞</h1>
+        <h1>陪玩管理系统</h1>
         <div className="subtitle">陪玩管理系统</div>
 
         {mode === 'login' ? (
