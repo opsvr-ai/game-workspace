@@ -72,13 +72,7 @@ export class RegisterController {
       return { code: 400, message: '请选择工作室', data: null };
     }
 
-    // 检查用户名唯一
-    const existing = await this.prisma.user.findUnique({ where: { username: body.username } });
-    if (existing) {
-      return { code: 409, message: '用户名已被占用', data: null };
-    }
-
-    // 检查身份证号唯一（User表 + Companion表）
+    // 检查身份证号唯一（User表 + Companion表）—— 实名可重名，身份证不可重复
     if (body.idNumber) {
       const dupUser = await this.prisma.user.findFirst({ where: { idNumber: body.idNumber } });
       const dupCompanion = await this.prisma.companion.findFirst({ where: { idNumber: body.idNumber } });
@@ -119,7 +113,9 @@ export class RegisterController {
       studioId = studio.id;
     }
 
-    const user = await this.prisma.user.create({
+    let user;
+    try {
+      user = await this.prisma.user.create({
       data: {
         username: body.username,
         passwordHash,
@@ -149,6 +145,12 @@ export class RegisterController {
       },
       include: { companion: true },
     });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return { code: 409, message: '该姓名已被注册，请使用其他姓名', data: null };
+      }
+      throw err;
+    }
 
     return {
       code: 201,
