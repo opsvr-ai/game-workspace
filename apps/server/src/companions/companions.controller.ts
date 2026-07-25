@@ -195,7 +195,7 @@ export class CompanionsController {
   // ── Work WeChat Management (MUST be before :id routes) ──
 
   @Get('companions/work-wechats')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
   async listWorkWechats(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.listWorkWechats(req.user.studioId);
     return { code: 200, message: 'ok', data };
@@ -220,6 +220,13 @@ export class CompanionsController {
   async unbindWechat(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.unbindWechat(id);
     return { code: 200, message: 'ok', data };
+  }
+
+  @Delete('companions/work-wechats/:id')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async deleteWorkWechat(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    await this.companionsService.deleteWorkWechat(id);
+    return { code: 200, message: '已删除', data: null };
   }
 
   // ── Resignation (MUST be before :id routes) ──

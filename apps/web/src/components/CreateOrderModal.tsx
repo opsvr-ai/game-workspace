@@ -23,6 +23,7 @@ interface Props {
     companionId?: string;
     dispatchType?: string;
     notes?: string;
+    isCompensation?: boolean;
   };
 }
 
@@ -54,6 +55,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         customerWechat: customerPreFill.customerWechat,
         amount: customerPreFill.amount || 0,
         deltaNote: customerPreFill.notes || '',
+        isCompensation: customerPreFill.isCompensation || false,
       });
     }
   }, [open, customerPreFill, form]);
@@ -62,7 +64,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
     try {
       const v = await form.validateFields();
       setLoading(true);
-      await ordersApi.create({ ...v, csUserId: userId });
+      await ordersApi.create({ ...v, csUserId: userId, isCompensation: (v as any).isCompensation });
       message.success('订单已发布');
       form.resetFields();
       onClose();
@@ -152,6 +154,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
           <Select>
             <Option value={DispatchType.POOL}>入池抢单</Option>
             <Option value="BROADCAST">📢 群发</Option>
+            <Option value={DispatchType.DIRECT}>直接分配</Option>
           </Select>
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">

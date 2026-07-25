@@ -123,6 +123,20 @@ export class OrderWorkflowService {
       logger.error('Customer assignment failed during grab', { error: (err as Error).message });
     }
 
+    // Auto-bind companion's work wechat to the order
+    try {
+      const boundWx = await this.prisma.workWechat.findUnique({ where: { companionId } });
+      if (boundWx) {
+        const cf = (grabbedOrder.customFields as any) || {};
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
+        });
+      }
+    } catch (err) {
+      logger.error('WorkWechat auto-bind failed during grab', { error: (err as Error).message });
+    }
+
     return grabbedOrder;
   }
 

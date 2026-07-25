@@ -422,6 +422,10 @@ export class CompanionsService {
     return this.wechatService.unbindWechat(id);
   }
 
+  async deleteWorkWechat(id: string) {
+    return this.wechatService.deleteWorkWechat(id);
+  }
+
   // ── Attendance ──
 
   async ensureAttendance(companionId: string) {

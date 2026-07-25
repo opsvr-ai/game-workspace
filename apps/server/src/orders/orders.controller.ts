@@ -168,4 +168,11 @@ export class OrdersController {
     const data = await this.ordersService.markReady(id, req.user.companionId);
     return { code: 200, message: '已准备就绪', data };
   }
+
+  @Get('orders/pending-contact-count')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async pendingContactCount(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.countPendingContact(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
 }

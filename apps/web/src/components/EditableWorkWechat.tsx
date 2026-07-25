@@ -8,7 +8,10 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
   const [editing, setEditing] = useState(false);
   const [wxs, setWxs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  // Local display state — survives prop staleness after save
+  const [savedName, setSavedName] = useState<string | null>(null);
   const wo = order.customFields || {};
+  const displayName = savedName ?? wo.workWechatName ?? (wo.workWechatId ? String(wo.workWechatId).slice(0, 8) : null);
 
   const startEdit = async () => {
     try {
@@ -25,7 +28,6 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
     return (
       <Select
         autoFocus
-        showSearch
         size="small"
         loading={saving}
         placeholder="选择微信"
@@ -34,9 +36,11 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
         onChange={async (wid: string) => {
           setSaving(true);
           const wx = wxs.find((w: any) => w.id === wid);
+          const name = wx?.wechatId || '';
           try {
             const http = (await import('../api/client')).default;
-            await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: wx?.wechatId || '' });
+            await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: name });
+            setSavedName(name);
           } catch {}
           setSaving(false);
           setEditing(false);
@@ -51,16 +55,10 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
     );
   }
 
-  if (wo.workWechatName)
+  if (displayName)
     return (
       <Tag color="cyan" style={{ fontSize: 11, margin: 0, cursor: 'pointer' }} onClick={startEdit}>
-        📱{wo.workWechatName}
-      </Tag>
-    );
-  if (wo.workWechatId)
-    return (
-      <Tag color="cyan" style={{ fontSize: 11, margin: 0, cursor: 'pointer' }} onClick={startEdit}>
-        📱{String(wo.workWechatId).slice(0, 8)}
+        📱{displayName}
       </Tag>
     );
   return (

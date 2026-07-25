@@ -17,10 +17,19 @@ export class CompanionWechatService {
   }
 
   async bindWechat(id: string, companionId: string) {
+    // Unbind any existing wechat already bound to this companion
+    await this.prisma.workWechat.updateMany({
+      where: { companionId },
+      data: { companionId: null, status: 'AVAILABLE' },
+    });
     return this.prisma.workWechat.update({ where: { id }, data: { companionId, status: 'BOUND' } });
   }
 
   async unbindWechat(id: string) {
     return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
+  }
+
+  async deleteWorkWechat(id: string) {
+    return this.prisma.workWechat.delete({ where: { id } });
   }
 }

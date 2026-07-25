@@ -1,6 +1,22 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Row, Col, Card, Button, Modal, Select, Tag, Typography, Space, message, List, Spin, Input } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import {
+  Row,
+  Col,
+  Card,
+  Button,
+  Modal,
+  Select,
+  Tag,
+  Typography,
+  Space,
+  message,
+  List,
+  Spin,
+  Input,
+  Divider,
+} from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
@@ -38,6 +54,15 @@ interface PoolOrder {
 
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+  const ordersPath =
+    user?.role === 'COMPANION'
+      ? '/companion/orders'
+      : user?.role === 'CS'
+        ? '/cs/orders'
+        : user?.role === 'ADMIN'
+          ? '/admin/orders'
+          : '/owner/orders';
   const [companions, setCompanions] = useState<Companion[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
@@ -51,13 +76,18 @@ const CSDispatchView: React.FC = () => {
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
   const [grabbing, setGrabbing] = useState<string | null>(null);
-  const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(null);
+  const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
+  const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(
+    null,
+  );
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
   const [chatPanelWidth, setChatPanelWidth] = useState(() => {
     try {
       const saved = localStorage.getItem('chat-panel-width');
       return saved ? parseInt(saved, 10) : 320;
-    } catch { return 380; }
+    } catch {
+      return 380;
+    }
   });
   // Persist panel width on change (debounced)
   useEffect(() => {
@@ -102,19 +132,23 @@ const CSDispatchView: React.FC = () => {
     try {
       const { data } = await ordersApi.poolStatus();
       setPoolStatus(data.data);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
     try {
-      await ordersApi.grab(orderId);
-      message.success('抢单成功');
+      const res = await ordersApi.grab(orderId);
+      setGrabbedOrder(res.data.data);
       fetchPool();
       fetchPoolStatus();
     } catch (e: any) {
       message.error(e?.response?.data?.message || '抢单失败');
-    } finally { setGrabbing(null); }
+    } finally {
+      setGrabbing(null);
+    }
   };
 
   // Initial load
@@ -206,7 +240,10 @@ const CSDispatchView: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={12} style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}>
+      <Row
+        gutter={12}
+        style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
+      >
         {/* Left: Companion sidebar */}
         <Col span={3}>
           <Card
@@ -337,9 +374,7 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
-                            <Text strong>
-                              {c.user?.username ?? c.id}
-                            </Text>
+                            <Text strong>{c.user?.username ?? c.id}</Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
                                 已限制
@@ -356,12 +391,38 @@ const CSDispatchView: React.FC = () => {
                           <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
                             {companionStatusConfig[c.status]?.label || c.status}
                           </Tag>
-                          <Button size="small" type="text" style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }} onClick={async (e) => {
-                            e.stopPropagation();
-                            const u = c.user as any;
-                            const convId = await useChatStore.getState().openConversation(c.id, { userId: u?.id || c.id, username: u?.username || '未知', displayName: u?.displayName || u?.username || '未知', avatar: u?.avatar, role: 'COMPANION' });
-                            window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: u?.id || c.id, username: u?.username || '未知', displayName: u?.displayName || u?.username || '未知', avatar: u?.avatar, role: 'COMPANION' } } }));
-                          }}>💬</Button>
+                          <Button
+                            size="small"
+                            type="text"
+                            style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const u = c.user as any;
+                              const convId = await useChatStore.getState().openConversation(c.id, {
+                                userId: u?.id || c.id,
+                                username: u?.username || '未知',
+                                displayName: u?.displayName || u?.username || '未知',
+                                avatar: u?.avatar,
+                                role: 'COMPANION',
+                              });
+                              window.dispatchEvent(
+                                new CustomEvent('open-chat-modal', {
+                                  detail: {
+                                    conversationId: convId,
+                                    participant: {
+                                      userId: u?.id || c.id,
+                                      username: u?.username || '未知',
+                                      displayName: u?.displayName || u?.username || '未知',
+                                      avatar: u?.avatar,
+                                      role: 'COMPANION',
+                                    },
+                                  },
+                                }),
+                              );
+                            }}
+                          >
+                            💬
+                          </Button>
                         </Space>
                       </div>
                       {/* Game profile */}
@@ -399,8 +460,12 @@ const CSDispatchView: React.FC = () => {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Space>
-                  <Text strong style={{ color: '#1E293B', fontSize: 16 }}>订单池</Text>
-                  <Tag color="purple" style={{ borderRadius: 10, fontWeight: 700 }}>{poolCount} 单待派</Tag>
+                  <Text strong style={{ color: '#1E293B', fontSize: 16 }}>
+                    订单池
+                  </Text>
+                  <Tag color="purple" style={{ borderRadius: 10, fontWeight: 700 }}>
+                    {poolCount} 单待派
+                  </Tag>
                 </Space>
                 <Space size={16}>
                   <span style={{ color: '#64748B', fontSize: 12 }}>
@@ -607,16 +672,48 @@ const CSDispatchView: React.FC = () => {
                           {user?.role === 'COMPANION' && (
                             <Col>
                               <Space size={4}>
-                                <Button size="small" type="primary" loading={grabbing === order.id}
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  loading={grabbing === order.id}
                                   disabled={!poolStatus?.isUnlocked}
-                                  onClick={() => handleGrab(order.id)}>
-                                  {!poolStatus?.isUnlocked ? `还差¥${Math.round((poolStatus?.threshold||0) - (poolStatus?.todayRevenue||0))}` : '抢单'}
+                                  onClick={() => handleGrab(order.id)}
+                                >
+                                  {!poolStatus?.isUnlocked
+                                    ? `还差¥${Math.round((poolStatus?.threshold || 0) - (poolStatus?.todayRevenue || 0))}`
+                                    : '抢单'}
                                 </Button>
-                                {order.csUserId && <Button size="small" onClick={async () => {
-                                  const csId = order.csUserId!;
-                                  const convId = await useChatStore.getState().openConversation(csId, order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined);
-                                  window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: { conversationId: convId, participant: { userId: csId, username: order.csUser?.username || '客服', role: 'CS' }, orderInfo: order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined } }));
-                                }}>沟通</Button>}
+                                {order.csUserId && (
+                                  <Button
+                                    size="small"
+                                    onClick={async () => {
+                                      const csId = order.csUserId!;
+                                      const convId = await useChatStore
+                                        .getState()
+                                        .openConversation(
+                                          csId,
+                                          order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined,
+                                        );
+                                      window.dispatchEvent(
+                                        new CustomEvent('open-chat-modal', {
+                                          detail: {
+                                            conversationId: convId,
+                                            participant: {
+                                              userId: csId,
+                                              username: order.csUser?.username || '客服',
+                                              role: 'CS',
+                                            },
+                                            orderInfo: order.gameName
+                                              ? `${order.gameName} · ¥${order.amount}`
+                                              : undefined,
+                                          },
+                                        }),
+                                      );
+                                    }}
+                                  >
+                                    沟通
+                                  </Button>
+                                )}
                               </Space>
                             </Col>
                           )}
@@ -648,57 +745,85 @@ const CSDispatchView: React.FC = () => {
         <Col span={2}>
           <Card size="small" style={{ borderRadius: 8 }} bodyStyle={{ padding: '6px 8px' }}>
             <div style={{ textAlign: 'right', lineHeight: 2, fontSize: 13 }}>
-              <div>🟢 空闲 <b>{idleCount}</b></div>
-              <div>🔴 接单 <b>{busyCount}</b></div>
-              <div>🟡 娱乐 <b>{entertainCount}</b></div>
-              <div>🟠 休息 <b>{restingCount}</b></div>
-              <div>⚪ 离线 <b>{offlineCount}</b></div>
-              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 4 }}>📦 待派 <b>{poolCount}</b></div>
+              <div>
+                🟢 空闲 <b>{idleCount}</b>
+              </div>
+              <div>
+                🔴 接单 <b>{busyCount}</b>
+              </div>
+              <div>
+                🟡 娱乐 <b>{entertainCount}</b>
+              </div>
+              <div>
+                🟠 休息 <b>{restingCount}</b>
+              </div>
+              <div>
+                ⚪ 离线 <b>{offlineCount}</b>
+              </div>
+              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 4 }}>
+                📦 待派 <b>{poolCount}</b>
+              </div>
             </div>
           </Card>
-        {/* Chat panel below stats */}
-        {selectedCompanionId && (
-          <div style={{ marginTop: 8 }}>
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                resizeRef.current = { startX: e.clientX, startW: chatPanelWidth };
-                const onMove = (ev: MouseEvent) => {
-                  if (!resizeRef.current) return;
-                  const delta = resizeRef.current.startX - ev.clientX;
-                  setChatPanelWidth(Math.min(600, Math.max(300, resizeRef.current.startW + delta)));
-                };
-                const onUp = () => {
-                  resizeRef.current = null;
-                  document.removeEventListener('mousemove', onMove);
-                  document.removeEventListener('mouseup', onUp);
-                };
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onUp);
-              }}
-              style={{
-                width: 4, cursor: 'col-resize', flexShrink: 0,
-                background: 'transparent', transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#E0E2E5'; }}
-              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-            />
-            <div style={{
-              background: '#FFF', borderRadius: 10,
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-              width: chatPanelWidth, minWidth: 300, maxWidth: 600,
-              height: 500, minHeight: 360, maxHeight: 'calc(100vh - 140px)',
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            }}>
-            <EmbeddedChatPanel
-              onClose={() => {
-                useChatStore.getState().closeConversation();
-                setSelectedCompanionId(null);
-              }}
-            />
+          {/* Chat panel below stats */}
+          {selectedCompanionId && (
+            <div style={{ marginTop: 8 }}>
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  resizeRef.current = { startX: e.clientX, startW: chatPanelWidth };
+                  const onMove = (ev: MouseEvent) => {
+                    if (!resizeRef.current) return;
+                    const delta = resizeRef.current.startX - ev.clientX;
+                    setChatPanelWidth(Math.min(600, Math.max(300, resizeRef.current.startW + delta)));
+                  };
+                  const onUp = () => {
+                    resizeRef.current = null;
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                  };
+                  document.addEventListener('mousemove', onMove);
+                  document.addEventListener('mouseup', onUp);
+                }}
+                style={{
+                  width: 4,
+                  cursor: 'col-resize',
+                  flexShrink: 0,
+                  background: 'transparent',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLElement).style.background = '#E0E2E5';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.background = 'transparent';
+                }}
+              />
+              <div
+                style={{
+                  background: '#FFF',
+                  borderRadius: 10,
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                  width: chatPanelWidth,
+                  minWidth: 300,
+                  maxWidth: 600,
+                  height: 500,
+                  minHeight: 360,
+                  maxHeight: 'calc(100vh - 140px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                <EmbeddedChatPanel
+                  onClose={() => {
+                    useChatStore.getState().closeConversation();
+                    setSelectedCompanionId(null);
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </Col>
       </Row>
 
@@ -768,6 +893,95 @@ const CSDispatchView: React.FC = () => {
                 <Text type="secondary">未设置游戏资料</Text>
               )}
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Grab Success Modal */}
+      <Modal
+        title="🎉 抢单成功"
+        open={!!grabbedOrder}
+        onCancel={() => {
+          setGrabbedOrder(null);
+          navigate(ordersPath);
+        }}
+        footer={null}
+        width={480}
+      >
+        {grabbedOrder && (
+          <div style={{ fontSize: 14, lineHeight: 2 }}>
+            <div>
+              📋 {grabbedOrder.gameName}
+              <Tag color="blue" style={{ marginLeft: 8 }}>
+                {grabbedOrder.type}
+              </Tag>
+              <Tag color="green">¥{Number(grabbedOrder.amount).toFixed(0)}</Tag>
+              {grabbedOrder.duration ? <Tag>{grabbedOrder.duration}h</Tag> : null}
+            </div>
+            {grabbedOrder.customFields?.customerSource && (
+              <div>📡 来源：{grabbedOrder.customFields.customerSource}</div>
+            )}
+            {grabbedOrder.customFields?.urgency === 'later' ? (
+              <Tag color="purple">📅预约</Tag>
+            ) : (
+              <Tag color="green">⚡立即打</Tag>
+            )}
+            {grabbedOrder.customFields?.deltaMode && (
+              <div>
+                🎯 模式：{grabbedOrder.customFields.deltaMode} {grabbedOrder.customFields.deltaMission || ''}{' '}
+                {grabbedOrder.customFields.deltaCount || ''}
+              </div>
+            )}
+            {grabbedOrder.customFields?.billingMode && (
+              <div>💰 计费：{grabbedOrder.customFields.billingMode === 'round' ? '按局' : '按小时'}</div>
+            )}
+            {grabbedOrder.customFields?.deltaNote && (
+              <div style={{ color: '#F59E0B' }}>📝 {grabbedOrder.customFields.deltaNote}</div>
+            )}
+            <Divider style={{ margin: '8px 0' }} />
+            <div>
+              <strong>📞 联系方式（可复制）：</strong>
+            </div>
+            {grabbedOrder.customFields?.customerWechat && (
+              <div>
+                微信：
+                <Text copyable style={{ color: '#1677ff' }}>
+                  {grabbedOrder.customFields.customerWechat}
+                </Text>
+              </div>
+            )}
+            {grabbedOrder.customFields?.customerRoomCode && (
+              <div>
+                房间码：
+                <Text copyable style={{ color: '#1677ff' }}>
+                  {grabbedOrder.customFields.customerRoomCode}
+                </Text>
+              </div>
+            )}
+            {grabbedOrder.customFields?.customerPlatformAccount && (
+              <div>
+                平台账号/YY/KOOK：
+                <Text copyable style={{ color: '#1677ff' }}>
+                  {grabbedOrder.customFields.customerPlatformAccount}
+                </Text>
+              </div>
+            )}
+            {grabbedOrder.customFields?.customerYy && (
+              <div>
+                YY：
+                <Text copyable style={{ color: '#1677ff' }}>
+                  {grabbedOrder.customFields.customerYy}
+                </Text>
+              </div>
+            )}
+            {grabbedOrder.customFields?.customerSourceAccount && (
+              <div>
+                来源账号：
+                <Text copyable style={{ color: '#1677ff' }}>
+                  {grabbedOrder.customFields.customerSourceAccount}
+                </Text>
+              </div>
+            )}
           </div>
         )}
       </Modal>

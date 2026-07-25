@@ -100,8 +100,20 @@ export class CustomersService {
   }
 
   async create(data: CreateCustomerDto) {
-    const customerCode =
-      data.customerCode || `C${Date.now().toString(36).toUpperCase()}`;
+    let customerCode = data.customerCode;
+    if (!customerCode) {
+      const recent = await this.prisma.customer.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: { customerCode: true },
+      });
+      let maxNum = 0;
+      for (const c of recent) {
+        const n = parseInt(c.customerCode, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+      customerCode = String(maxNum + 1);
+    }
 
     return this.prisma.customer.create({
       data: {
@@ -137,13 +149,11 @@ export class CustomersService {
     if (data.companionId !== undefined) updateData.companionId = data.companionId;
     if (data.platform !== undefined) updateData.platform = data.platform;
     if (data.platformAccount !== undefined) updateData.platformAccount = data.platformAccount;
-    if (data.consultDate !== undefined)
-      updateData.consultDate = data.consultDate ? new Date(data.consultDate) : null;
+    if (data.consultDate !== undefined) updateData.consultDate = data.consultDate ? new Date(data.consultDate) : null;
     if (data.wechatAddDate !== undefined)
       updateData.wechatAddDate = data.wechatAddDate ? new Date(data.wechatAddDate) : null;
     if (data.isAccountBanned !== undefined) updateData.isAccountBanned = data.isAccountBanned;
-    if (data.isDeletedByCustomer !== undefined)
-      updateData.isDeletedByCustomer = data.isDeletedByCustomer;
+    if (data.isDeletedByCustomer !== undefined) updateData.isDeletedByCustomer = data.isDeletedByCustomer;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.scheduledAt !== undefined) updateData.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
 
@@ -234,9 +244,7 @@ export class CustomersService {
     if (!lastOrder) {
       status = 'PENDING_DEVELOPMENT';
     } else {
-      const daysSince = Math.floor(
-        (Date.now() - lastOrder.createdAt.getTime()) / 86400000,
-      );
+      const daysSince = Math.floor((Date.now() - lastOrder.createdAt.getTime()) / 86400000);
       if (daysSince <= 7) status = 'ACTIVE';
       else if (daysSince <= 30) status = 'FOLLOW_UP';
       else status = 'LOST';

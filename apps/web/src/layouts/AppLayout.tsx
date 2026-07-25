@@ -103,65 +103,103 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
     { key: '/admin/traffic', icon: IconTraffic, label: '派单管理' },
     { key: '/owner/orders', icon: IconOrders, label: '订单管理' },
-    { key: 'owner-staff', icon: IconEmployees, label: '员工管理', children: [
-      { key: '/owner/review', label: '实名审核' },
-      { key: 'owner-staff-online', type: 'group', label: '线上俱乐部', children: [
-        { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
-        { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
-        { key: '/owner/employees?studioType=RENTAL&role=COMPANION', label: '陪玩' },
-      ]},
-      { key: 'owner-staff-offline', type: 'group', label: '线下工作室', children: [
-        { key: '/owner/employees?studioType=DIRECT&role=ADMIN', label: '店长' },
-        { key: '/owner/employees?studioType=DIRECT&role=CS', label: '客服' },
-        { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
-      ]},
-    ]},
+    {
+      key: 'owner-staff',
+      icon: IconEmployees,
+      label: '员工管理',
+      children: [
+        { key: '/owner/review', label: '实名审核' },
+        {
+          key: 'owner-staff-online',
+          type: 'group',
+          label: '线上俱乐部',
+          children: [
+            { key: '/owner/employees?studioType=RENTAL&role=ADMIN', label: '店长' },
+            { key: '/owner/employees?studioType=RENTAL&role=CS', label: '客服' },
+            { key: '/owner/employees?studioType=RENTAL&role=COMPANION', label: '陪玩' },
+          ],
+        },
+        {
+          key: 'owner-staff-offline',
+          type: 'group',
+          label: '线下工作室',
+          children: [
+            { key: '/owner/employees?studioType=DIRECT&role=ADMIN', label: '店长' },
+            { key: '/owner/employees?studioType=DIRECT&role=CS', label: '客服' },
+            { key: '/owner/employees?studioType=DIRECT&role=COMPANION', label: '陪玩' },
+          ],
+        },
+      ],
+    },
     { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
-    { key: 'owner-settings', icon: IconAuth, label: '系统设置', children: [
-      { key: '/owner/settings', label: '系统配置' },
-      { key: '/owner/studios', label: '工作室管理' },
-      { key: '/owner/authorizations', label: '客户端授权' },
-      { key: '/admin/pc-control', label: '远程控制' },
-      { key: '/admin/blacklist', label: '进程黑名单' },
-      { key: '/admin/whitelist', label: '进程白名单' },
-      { key: '/admin/process-kill-log', label: '杀进程日志' },
-    ]},
+    {
+      key: 'owner-settings',
+      icon: IconAuth,
+      label: '系统设置',
+      children: [
+        { key: '/owner/settings', label: '系统配置' },
+        { key: '/owner/studios', label: '工作室管理' },
+        { key: '/owner/authorizations', label: '客户端授权' },
+        { key: '/owner/work-wechats', label: '工作微信' },
+        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/blacklist', label: '进程黑名单' },
+        { key: '/admin/whitelist', label: '进程白名单' },
+        { key: '/admin/process-kill-log', label: '杀进程日志' },
+      ],
+    },
   ],
   [UserRole.ADMIN]: [
     { key: '/admin', icon: IconDashboard, label: '数据看板' },
     { key: '/admin/dispatch', icon: IconDispatch, label: '派单管理' },
     { key: '/admin/orders', icon: IconOrders, label: '订单管理' },
-    { key: 'admin-staff', icon: IconEmployees, label: '员工管理', children: [
-      { key: '/admin/review', label: '实名审核' },
-      { key: '/admin/employees?role=CS', label: '客服' },
-      { key: '/admin/employees?role=COMPANION', label: '陪玩' },
-    ]},
+    {
+      key: 'admin-staff',
+      icon: IconEmployees,
+      label: '员工管理',
+      children: [
+        { key: '/admin/review', label: '实名审核' },
+        { key: '/admin/employees?role=CS', label: '客服' },
+        { key: '/admin/employees?role=COMPANION', label: '陪玩' },
+      ],
+    },
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
-    { key: 'admin-settings', icon: IconAuth, label: '系统设置', children: [
-      { key: '/admin/settings', label: '系统配置' },
-      { key: '/owner/bridges', label: '工作室桥接' },
-      { key: '/admin/pc-control', label: '远程控制' },
-      { key: '/admin/blacklist', label: '进程黑名单' },
-      { key: '/admin/whitelist', label: '进程白名单' },
-      { key: '/admin/process-kill-log', label: '杀进程日志' },
-    ]},
+    {
+      key: 'admin-settings',
+      icon: IconAuth,
+      label: '系统设置',
+      children: [
+        { key: '/admin/settings', label: '系统配置' },
+        { key: '/owner/bridges', label: '工作室桥接' },
+        { key: '/admin/work-wechats', label: '工作微信' },
+        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/blacklist', label: '进程黑名单' },
+        { key: '/admin/whitelist', label: '进程白名单' },
+        { key: '/admin/process-kill-log', label: '杀进程日志' },
+      ],
+    },
   ],
   [UserRole.CS]: [
     { key: '/cs/dispatch', icon: IconDispatch, label: '派单管理' },
     { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
     { key: '/cs/employees', icon: IconEmployees, label: '陪玩管理' },
     { key: '/cs/billing', icon: IconBilling, label: '报账系统' },
-    { key: 'cs-settings', icon: IconAuth, label: '系统设置', children: [
-      { key: '/admin/pc-control', label: '远程控制' },
-      { key: '/admin/blacklist', label: '进程黑名单' },
-      { key: '/admin/whitelist', label: '进程白名单' },
-      { key: '/admin/process-kill-log', label: '杀进程日志' },
-      { key: '/admin/attendance', label: '考勤管理' },
-    ]},
+    {
+      key: 'cs-settings',
+      icon: IconAuth,
+      label: '系统设置',
+      children: [
+        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/cs/work-wechats', label: '工作微信' },
+        { key: '/admin/blacklist', label: '进程黑名单' },
+        { key: '/admin/whitelist', label: '进程白名单' },
+        { key: '/admin/process-kill-log', label: '杀进程日志' },
+        { key: '/admin/attendance', label: '考勤管理' },
+      ],
+    },
   ],
   [UserRole.COMPANION]: [
     { key: '/companion', icon: IconRevenue, label: '首页' },
@@ -185,10 +223,13 @@ const AppLayout: React.FC = () => {
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
   useEffect(() => {
     if (user?.studioId) {
-      http.get('/studios/public').then(({ data }) => {
-        const s = (data.data || []).find((s: any) => s.id === user.studioId);
-        if (s) setStudioBrand({ name: s.name });
-      }).catch(() => {});
+      http
+        .get('/studios/public')
+        .then(({ data }) => {
+          const s = (data.data || []).find((s: any) => s.id === user.studioId);
+          if (s) setStudioBrand({ name: s.name });
+        })
+        .catch(() => {});
     }
   }, [user?.studioId]);
   const totalUnread = useChatStore((s) => s.totalUnread);
@@ -208,8 +249,21 @@ const AppLayout: React.FC = () => {
 
   const VoiceCallHandler = () => (
     <>
-      <IncomingCallModal open={vc.callState.status === 'ringing'} callerName={vc.callState.peerName} onAccept={vc.acceptCall} onReject={vc.rejectCall} />
-      {vc.callState.status === 'connected' && <VoiceCallBar peerName={vc.callState.peerName} duration={vc.callState.duration} volume={vc.callState.volume} onVolumeChange={vc.setVolume} onHangup={vc.hangup} />}
+      <IncomingCallModal
+        open={vc.callState.status === 'ringing'}
+        callerName={vc.callState.peerName}
+        onAccept={vc.acceptCall}
+        onReject={vc.rejectCall}
+      />
+      {vc.callState.status === 'connected' && (
+        <VoiceCallBar
+          peerName={vc.callState.peerName}
+          duration={vc.callState.duration}
+          volume={vc.callState.volume}
+          onVolumeChange={vc.setVolume}
+          onHangup={vc.hangup}
+        />
+      )}
     </>
   );
   // Notification bell
@@ -311,6 +365,37 @@ const AppLayout: React.FC = () => {
       const total = prev + seenRef.current; // reconstruct: badge + seen = total
       seenRef.current = total;
       localStorage.setItem('pending-seen', String(total));
+      return 0;
+    });
+  };
+
+  // Contact pending badge (联系状态待处理 — for CS/ADMIN/OWNER)
+  const [contactBadge, setContactBadge] = React.useState(0);
+  const contactSeenRef = React.useRef(0);
+
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/orders/pending-contact-count');
+        const total = data?.data || 0;
+        if (contactSeenRef.current > total) {
+          contactSeenRef.current = total;
+          localStorage.setItem('contact-pending-seen', String(total));
+        }
+        setContactBadge(Math.max(0, total - contactSeenRef.current));
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(doFetch, 5000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
+  const markContactSeen = () => {
+    setContactBadge((prev) => {
+      const total = prev + contactSeenRef.current;
+      contactSeenRef.current = total;
+      localStorage.setItem('contact-pending-seen', String(total));
       return 0;
     });
   };
@@ -430,8 +515,10 @@ const AppLayout: React.FC = () => {
     const pCount = pendingBadge;
     const bpCount = bridgePendingBadge;
     const bCount = billingBadge;
+    const cCount = contactBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
+    const CONTACT_LABELS = ['订单管理'];
     return items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
@@ -560,6 +647,17 @@ const AppLayout: React.FC = () => {
           ),
         };
       }
+      if (CONTACT_LABELS.includes(item.label as string) && cCount > 0) {
+        return {
+          ...item,
+          label: (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {item.label}
+              <Badge count={cCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #F59E0B' }} />
+            </span>
+          ),
+        };
+      }
       if (CHAT_LABELS.includes(item.label as string) && totalUnread > 0) {
         return {
           ...item,
@@ -578,7 +676,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-  }, [user, totalUnread, pendingBadge, bridgePendingBadge, billingBadge]);
+  }, [user, totalUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -593,6 +691,7 @@ const AppLayout: React.FC = () => {
     markSeen();
     markBridgeSeen();
     markBillingSeen();
+    markContactSeen();
     navigate(key);
   };
 
@@ -651,7 +750,7 @@ const AppLayout: React.FC = () => {
                 color: '#2563EB',
               }}
             >
-              {collapsed ? '⚡' : (studioBrand?.name || '陪玩管理系统')}
+              {collapsed ? '⚡' : studioBrand?.name || '陪玩管理系统'}
             </Text>
           </div>
 

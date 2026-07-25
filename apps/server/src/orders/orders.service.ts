@@ -42,7 +42,10 @@ export class OrdersService {
     // COMPANION can only create orders for themselves (not for other companions)
     const creator = await this.prisma.user.findUnique({ where: { id: dto.csUserId }, select: { role: true } });
     if (creator?.role === 'COMPANION' && dto.dispatchType === 'DIRECT' && dto.companionId) {
-      const companion = await this.prisma.companion.findUnique({ where: { userId: dto.csUserId }, select: { id: true } });
+      const companion = await this.prisma.companion.findUnique({
+        where: { userId: dto.csUserId },
+        select: { id: true },
+      });
       if (!companion || dto.companionId !== companion.id) {
         throw new ForbiddenException('陪玩只能给自己创建直接派单');
       }
@@ -51,11 +54,24 @@ export class OrdersService {
     // Resolve customerId: create a placeholder if not provided
     let customerId = dto.customerId;
     if (!customerId && studioId) {
+      // Generate sequential numeric customer code
+      const recent = await this.prisma.customer.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: { customerCode: true },
+      });
+      let maxNum = 0;
+      for (const c of recent) {
+        const n = parseInt(c.customerCode, 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+      const customerCode = String(maxNum + 1);
+
       const placeholder = await this.prisma.customer.create({
         data: {
           studioId,
           wechatId: dto.customerWechat || '',
-          customerCode: `T${Date.now().toString(36).toUpperCase()}`,
+          customerCode,
         },
       });
       customerId = placeholder.id;
@@ -89,6 +105,7 @@ export class OrdersService {
           urgency: (dto as any).urgency,
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,
+          isCompensation: (dto as any).isCompensation === true ? true : undefined,
         },
         isOnline: dto.isOnline ?? true,
       },
@@ -196,6 +213,7 @@ export class OrdersService {
       where,
       include: {
         customer: true,
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
       },
@@ -471,5 +489,17 @@ export class OrdersService {
       threshold,
       isUnlocked: todayRevenue >= threshold,
     };
+  }
+
+  async countPendingContact(studioId: string) {
+    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+    const studioIds = [studioId, ...bridgedIds];
+    return this.prisma.order.count({
+      where: {
+        studioId: { in: studioIds },
+        contactStatus: 'not_accepted',
+        status: { not: 'CANCELLED' },
+      },
+    });
   }
 }

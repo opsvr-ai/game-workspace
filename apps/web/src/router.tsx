@@ -27,6 +27,7 @@ const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
 const CompanionPage = lazy(() => import('./pages/CompanionPage'));
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const WorkWechatPage = lazy(() => import('./pages/WorkWechatPage'));
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -202,6 +203,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'owner/work-wechats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <WorkWechatPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'owner/orders',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -338,6 +347,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/work-wechats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <WorkWechatPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'cs/billing',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -374,6 +391,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CompanionsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/work-wechats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <WorkWechatPage />
           </Suspense>
         ),
       },

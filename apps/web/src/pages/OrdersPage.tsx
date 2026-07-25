@@ -1,12 +1,27 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Select, DatePicker, message, Badge, Tag, Image, Upload, Modal, Input } from 'antd';
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Button,
+  Select,
+  DatePicker,
+  message,
+  Badge,
+  Tag,
+  Image,
+  Upload,
+  Modal,
+  Input,
+  Tooltip,
+} from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
+import { useChatStore } from '../stores/chatStore';
 import OrderTable from '../components/OrderTable';
 import CreateOrderModal from '../components/CreateOrderModal';
+import ChatModal from '../components/ChatModal';
 import { orderStatusConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
@@ -29,6 +44,7 @@ const OrdersPage: React.FC = () => {
   const [companionFilter, setCompanionFilter] = useState<string>('');
   const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  const [chatPartner, setChatPartner] = useState<any>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -49,94 +65,158 @@ const OrdersPage: React.FC = () => {
   }, [fetch]);
 
   // Companion-only action buttons
-  const renderCompanionActions = (r: any) => (
-    <>
-      <Badge count={unreadMap[r.id] || 0} size="small">
-        <Button
-          size="small"
-          onClick={() => {
-            setUnreadMap((prev) => {
-              const { [r.id]: _, ...rest } = prev;
-              return rest;
-            });
-          }}
-        >
-          沟通
-        </Button>
-      </Badge>
-      {r.status === 'GRABBED' && !r.contactStatus && (
-        <>
+  const renderCompanionActions = (r: any) => {
+    const hasWorkWechat = r.customFields?.workWechatName || r.customFields?.workWechatId;
+    const contactDisabled = !hasWorkWechat;
+
+    return (
+      <>
+        <Badge count={unreadMap[r.id] || 0} size="small">
           <Button
-            type="primary"
             size="small"
-            style={{ background: '#16A34A', borderColor: '#16A34A' }}
-            onClick={async () => {
-              try {
-                await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                message.success('已标记');
-                fetch();
-              } catch (e: any) {
-                message.error(extractErrorMessage(e, '操作失败'));
+            onClick={() => {
+              localStorage.removeItem(`unread-${r.id}`);
+              setUnreadMap((prev) => {
+                const { [r.id]: _, ...rest } = prev;
+                return rest;
+              });
+              const csUser = r.csUser;
+              if (csUser?.id) {
+                const orderInfo = [
+                  `📋 ${r.gameName}`,
+                  `¥${Number(r.amount).toFixed(0)}`,
+                  r.duration ? `${r.duration}h` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                useChatStore.getState().openConversation(
+                  csUser.id,
+                  {
+                    userId: csUser.id,
+                    username: csUser.username || '未知',
+                    displayName: csUser.displayName,
+                    avatar: csUser.avatar,
+                    role: csUser.role || 'CS',
+                  },
+                  orderInfo,
+                );
+                setChatPartner({
+                  conversationId: csUser.id,
+                  participant: {
+                    userId: csUser.id,
+                    username: csUser.username || '未知',
+                    displayName: csUser.displayName,
+                    avatar: csUser.avatar,
+                    role: csUser.role || 'CS',
+                  },
+                  orderInfo,
+                });
               }
             }}
           >
-            联系方式添加成功
+            沟通
           </Button>
-          <Upload
-            showUploadList={false}
-            accept="image/*"
-            beforeUpload={async (file) => {
-              const fd = new FormData();
-              fd.append('file', file);
-              try {
-                const { data } = await http.post('/upload/screenshot', fd);
-                await http.put(`/orders/${r.id}/contact`, {
-                  contactStatus: 'not_accepted',
-                  screenshotUrl: data.data?.url || data.url || '',
-                });
-                message.success('截图已上传，等待审核补客户');
-                fetch();
-              } catch (e: any) {
-                message.error('上传失败');
-              }
-              return false;
-            }}
-          >
-            <Button danger size="small">
-              📎 已添加未同意
-            </Button>
-          </Upload>
-        </>
-      )}
-      {r.status === 'GRABBED' && r.contactStatus === 'not_accepted' && (
-        <>
-          <Tag color="orange">待客户同意</Tag>
-          {r.screenshotUrl && <Image src={r.screenshotUrl} width={40} style={{ marginLeft: 4, borderRadius: 4 }} />}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS') && (
+        </Badge>
+        {r.status === 'GRABBED' && !r.contactStatus && (
+          <>
+            <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
+              <Button
+                type="primary"
+                size="small"
+                disabled={contactDisabled}
+                style={{
+                  background: contactDisabled ? undefined : '#16A34A',
+                  borderColor: contactDisabled ? undefined : '#16A34A',
+                }}
+                onClick={async () => {
+                  try {
+                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                    message.success('已标记');
+                    fetch();
+                  } catch (e: any) {
+                    message.error(extractErrorMessage(e, '操作失败'));
+                  }
+                }}
+              >
+                联系方式添加成功
+              </Button>
+            </Tooltip>
+            <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
+              <Upload
+                showUploadList={false}
+                accept="image/*"
+                disabled={contactDisabled}
+                beforeUpload={async (file) => {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  try {
+                    const { data } = await http.post('/upload/screenshot', fd);
+                    await http.put(`/orders/${r.id}/contact`, {
+                      contactStatus: 'not_accepted',
+                      screenshotUrl: data.data?.url || data.url || '',
+                    });
+                    message.success('截图已上传，等待审核补客户');
+                    fetch();
+                  } catch (e: any) {
+                    message.error('上传失败');
+                  }
+                  return false;
+                }}
+              >
+                <Button danger size="small" disabled={contactDisabled}>
+                  📎 已添加未同意
+                </Button>
+              </Upload>
+            </Tooltip>
+          </>
+        )}
+        {r.status === 'GRABBED' && r.contactStatus === 'not_accepted' && (
+          <>
+            <Tag color="orange">待客户同意</Tag>
+            {r.screenshotUrl && <Image src={r.screenshotUrl} width={40} style={{ marginLeft: 4, borderRadius: 4 }} />}
             <Button
-              size="small"
               type="primary"
-              style={{ background: '#F59E0B', borderColor: '#F59E0B' }}
-              onClick={() => {
-                setPreFill({
-                  customerId: r.customer?.id,
-                  customerWechat: r.customFields?.customerWechat || r.customer?.wechatId,
-                  gameName: r.gameName,
-                  amount: r.amount,
-                  companionId: r.companionId,
-                  dispatchType: 'DIRECT',
-                  notes: '补单客户',
-                });
-                setCreateOpen(true);
+              size="small"
+              style={{ background: '#16A34A', borderColor: '#16A34A' }}
+              onClick={async () => {
+                try {
+                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                  message.success('已标记为客户同意');
+                  fetch();
+                } catch (e: any) {
+                  message.error(extractErrorMessage(e, '操作失败'));
+                }
               }}
             >
-              补客户
+              客户已同意
             </Button>
-          )}
-        </>
-      )}
-    </>
-  );
+            {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS') && (
+              <Button
+                size="small"
+                type="primary"
+                style={{ background: '#F59E0B', borderColor: '#F59E0B' }}
+                onClick={() => {
+                  setPreFill({
+                    customerId: r.customer?.id,
+                    customerWechat: r.customFields?.customerWechat || r.customer?.wechatId,
+                    gameName: r.gameName,
+                    amount: r.amount,
+                    companionId: r.companionId,
+                    dispatchType: 'DIRECT',
+                    notes: '补单客户',
+                    isCompensation: true,
+                  });
+                  setCreateOpen(true);
+                }}
+              >
+                补客户
+              </Button>
+            )}
+          </>
+        )}
+      </>
+    );
+  };
 
   // Load companions for filter + reassign
   useEffect(() => {
@@ -400,6 +480,7 @@ const OrdersPage: React.FC = () => {
         userId={user?.id}
         customerPreFill={preFill || undefined}
       />
+      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
     </>
   );
 };

@@ -45,6 +45,21 @@ export class OrderDispatchService {
     } catch {
       /* non-blocking */
     }
+
+    // Auto-bind companion's work wechat to the order
+    try {
+      const boundWx = await this.prisma.workWechat.findUnique({ where: { companionId } });
+      if (boundWx) {
+        const cf = (updatedOrder.customFields as any) || {};
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
+        });
+      }
+    } catch {
+      /* non-blocking */
+    }
+
     this.wsGateway.pushOrder(companionId, updatedOrder);
     this.wsGateway.broadcastToBridgedStudios(updatedOrder.studioId, 'order:pool_updated', updatedOrder);
     return updatedOrder;
@@ -71,6 +86,22 @@ export class OrderDispatchService {
     } catch {
       /* non-blocking */
     }
+
+    // Auto-bind companion's work wechat to the order
+    try {
+      const boundWx = await this.prisma.workWechat.findUnique({ where: { companionId } });
+      if (boundWx) {
+        const existing = await this.prisma.order.findUnique({ where: { id: orderId }, select: { customFields: true } });
+        const cf = (existing?.customFields as any) || {};
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
+        });
+      }
+    } catch {
+      /* non-blocking */
+    }
+
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
@@ -138,6 +169,21 @@ export class OrderDispatchService {
         where: { id: order.customerId, companionId: null },
         data: { companionId },
       });
+    } catch {
+      /* non-blocking */
+    }
+
+    // Auto-bind companion's work wechat to the order
+    try {
+      const boundWx = await this.prisma.workWechat.findUnique({ where: { companionId } });
+      if (boundWx) {
+        const existing = await this.prisma.order.findUnique({ where: { id: orderId }, select: { customFields: true } });
+        const cf = (existing?.customFields as any) || {};
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
+        });
+      }
     } catch {
       /* non-blocking */
     }
