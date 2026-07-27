@@ -56,3 +56,14 @@
 {"ts":"2026-07-24T21:16:05.721Z","prompt":"所有的聊天框都能打语音么？","words":1,"chars":13,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"301666"}
 {"ts":"2026-07-24T21:16:16.083Z","prompt":"需要","words":1,"chars":2,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"301931"}
 {"ts":"2026-07-24T21:23:12.494Z","prompt":"也可以跟微信一样拒绝+调节来电音量么？也会有来电提示么？","words":1,"chars":28,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"346309"}
+{"ts":"2026-07-24T21:26:27.335Z","prompt":"可以提前设置来电音量么","words":1,"chars":11,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"365686"}
+{"ts":"2026-07-24T21:28:42.577Z","prompt":"可以在外部截图，进入聊天框ctrl +v  粘贴么","words":3,"chars":25,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"370890"}
+{"ts":"2026-07-24T21:30:00.671Z","prompt":"发送出去以后为什么是一串代码","words":1,"chars":14,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"374391"}
+{"ts":"2026-07-24T21:32:10.850Z","prompt":"还是不显示","words":1,"chars":5,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"383322"}
+{"ts":"2026-07-24T21:34:48.499Z","prompt":"这不是自己还是可以抢自己发的订单么？上次不是说改了么","words":1,"chars":26,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"387687"}
+{"ts":"2026-07-24T21:35:59.009Z","prompt":"同类型问题全部查完了么？帮我查找并修改","words":1,"chars":19,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"393071"}
+{"ts":"2026-07-24T21:37:35.013Z","prompt":"这不是还是能自己抢自己的么","words":1,"chars":13,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"394002"}
+{"ts":"2026-07-24T21:43:19.402Z","prompt":"打开electron 显示无法连接到服务器","words":2,"chars":21,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"407064"}
+{"ts":"2026-07-24T21:46:07.347Z","prompt":"订单管理  点沟通怎么没反应","words":2,"chars":14,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"409260"}
+{"ts":"2026-07-24T21:47:10.119Z","prompt":"左侧栏的订单管理  是包含抢过的订单+服务过老板的订单么","words":2,"chars":28,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"409838"}
+{"ts":"2026-07-24T21:49:33.362Z","prompt":"删除之前对话","words":1,"chars":6,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"411056"}

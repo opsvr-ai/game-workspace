@@ -1,0 +1,13 @@
+{
+  "axmeSessionId": "851fb3df-86e7-442f-9cfe-1ad6f93515de",
+  "claudeSessionIds": [
+    "51a392e6-67bb-4e13-89c6-d89a3ca16e55"
+  ],
+  "startedAt": "2026-07-25T15:20:20.289Z",
+  "phase": "failed",
+  "model": "claude-sonnet-4-6",
+  "filesChangedCount": 16,
+  "finishedAt": "2026-07-25T15:20:20.615Z",
+  "durationMs": 326,
+  "error": "Claude Code process exited with code 1"
+}

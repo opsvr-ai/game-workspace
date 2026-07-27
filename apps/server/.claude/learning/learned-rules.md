@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-24T21:24:06.403Z
+**Last Updated:** 2026-07-24T21:38:38.880Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 43 occurrences
+**Frequency:** 45 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 77 occurrences
+**Frequency:** 79 occurrences
 
 ### Prefer async await in .ts files
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 52 occurrences
+**Frequency:** 54 occurrences
 
 ### Commonly used command: git
 
@@ -96,7 +96,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 20 occurrences
+**Frequency:** 21 occurrences
 
 ### Commonly used command: docker
 

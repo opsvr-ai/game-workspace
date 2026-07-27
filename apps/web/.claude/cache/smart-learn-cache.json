@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 139,
+      "successCount": 140,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -62,9 +62,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "npx": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784554713483
+      "lastSuccess": 1784930376741
     },
     "git": {
       "count": 0,
@@ -143,39 +143,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec tsc --noEmit 2>&1 | grep -E \"CSDispatchView\" | grep -v \"onPointer\\|TS2739\" | head -5",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec tsc --noEmit N>&N | grep -E \"\" | grep -v \"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784647373381
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add apps/web/src/pages/dispatch/CSDispatchView.tsx && git -C /data/project/game-workspace commit -m \"fix: JS-based resize handle for embedded panel — no double-shap",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/dispatch/CSDispatchView.tsx && git -C /da",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784647380885
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace push 2>&1 | tail -3",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace push N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784647390017
-    },
     {
       "type": "write",
       "file": "/data/project/game-workspace/apps/web/src/components/ChatModal.tsx",
@@ -2554,6 +2521,34 @@
       "file": "/data/project/game-workspace/apps/server/prisma/schema.prisma",
       "patterns": [],
       "timestamp": 1784656718813
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -i \"OrdersPage\\|orders.service\" || echo \"No errors in modified files\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -i \"\" || echo \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1784930366328
+    },
+    {
+      "type": "bash",
+      "command": "npx tsc --noEmit 2>&1 | grep -c \"OrdersPage\\|orders.service\" && echo \"---\" && npx tsc --noEmit 2>&1 | grep \"OrdersPage\\|orders.service\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx tsc --noEmit N>&N | grep -c \"\" && echo \"\" && npx tsc --noEmit N>&N | grep \"\"",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1784930376741
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
+      "patterns": [],
+      "timestamp": 1784930381002
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "envVars": {
-    "AF_SESSION_ID": "1781780",
+    "AF_SESSION_ID": "2410976",
     "AF_PROJECT_TYPE": "monorepo",
     "AF_PACKAGE_MANAGER": "pnpm",
     "AF_FRAMEWORK": "",
@@ -24,5 +24,5 @@
   "contextSummary": "Type: monorepo | PM: pnpm",
   "agent": "ready",
   "phase": "-",
-  "cachedAt": 1784745365868
+  "cachedAt": 1785165749800
 }

@@ -23,7 +23,29 @@
     "/data/project/game-workspace/apps/server/src/chat/chat.service.ts",
     "/data/project/game-workspace/apps/server/src/billing/settlement.service.ts",
     "/data/project/game-workspace/apps/server/src/companions/companion-revenue.service.ts",
-    "/data/project/game-workspace/apps/server/src/companions/companions.module.ts"
+    "/data/project/game-workspace/apps/server/src/companions/companions.module.ts",
+    "/tmp/server-new.log",
+    "/tmp/server-final.log",
+    "s\"",
+    "/tmp/server-fix.log",
+    "/tmp/vite.log",
+    "/dev/null)",
+    "guangyao)",
+    "/data/project/game-workspace/apps/web/src/pages/dispatch/AdminDispatchView.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/companion/OrdersPage.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/BillingPage.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/billing/CompanionBillingView.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/billing/TransactionList.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/billing/ExpenseApproval.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/billing/SettlementPanel.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/billing/OverviewPanel.tsx",
+    "ADMIN>CS>COMPANION",
+    "CS",
+    "COMPANION",
+    "/dev/null)\"",
+    "/data/project/game-workspace/apps/web/src/pages/dispatch/CompanionDispatchView.tsx",
+    "/tmp/server-voice.log",
+    "/tmp/server-voice2.log"
   ],
   "origin": "/data/project/game-workspace",
   "pid": 1781723,
@@ -35,5 +57,8 @@
       "role": "main",
       "ide": "claude-code"
     }
-  ]
+  ],
+  "auditStatus": "pending",
+  "auditStartedAt": "2026-07-27T15:22:33.143Z",
+  "auditAttempts": 1
 }

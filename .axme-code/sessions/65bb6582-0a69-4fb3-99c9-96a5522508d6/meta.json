@@ -1,0 +1,29 @@
+{
+  "id": "65bb6582-0a69-4fb3-99c9-96a5522508d6",
+  "createdAt": "2026-07-25T17:55:08.161Z",
+  "closedAt": null,
+  "filesChanged": [
+    "/data/project/game-workspace/apps/web/src/components/EditableWorkWechat.tsx",
+    "/data/project/game-workspace/apps/server/src/orders/orders.controller.ts",
+    "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+    "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+    "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
+    "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
+    "/data/project/game-workspace/apps/server/src/orders/order-workflow.service.ts",
+    "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
+    "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
+    "/data/project/game-workspace/apps/server/src/companions/companion-wechat.service.ts"
+  ],
+  "origin": "/data/project/game-workspace",
+  "pid": 986694,
+  "claudeSessions": [
+    {
+      "id": "51a392e6-67bb-4e13-89c6-d89a3ca16e55",
+      "transcriptPath": "/root/.claude/projects/-data-project-game-workspace/51a392e6-67bb-4e13-89c6-d89a3ca16e55.jsonl",
+      "firstSeen": "2026-07-25T17:55:08.167Z",
+      "role": "main",
+      "ide": "claude-code"
+    }
+  ]
+}

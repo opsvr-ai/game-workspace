@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-23T17:21:44.266Z
+**Last Updated:** 2026-07-27T15:25:20.670Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 49 occurrences
+**Frequency:** 56 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 26 occurrences
+**Frequency:** 28 occurrences
 
 ### Commonly used command: find
 
@@ -39,14 +39,15 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 14 occurrences
+**Frequency:** 17 occurrences
 
 ### Commonly used command: wc
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: pnpm
 
@@ -55,14 +56,15 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 8 occurrences
+**Frequency:** 12 occurrences
 
 ### Commonly used command: mkdir
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: npx
 
@@ -143,7 +145,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 55 occurrences
+**Frequency:** 63 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -152,7 +154,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 32 occurrences
+**Frequency:** 37 occurrences
 
 ### Prefer async await in .ts files
 
@@ -161,7 +163,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 20 occurrences
+**Frequency:** 27 occurrences
 
 ## Framework
 
@@ -174,7 +176,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 18 occurrences
+**Frequency:** 21 occurrences
 
 ## Quality
 
@@ -187,7 +189,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 5 occurrences
+**Frequency:** 10 occurrences
 
 ## Typing
 
@@ -200,7 +202,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 10 occurrences
+**Frequency:** 12 occurrences
 
 ---
 

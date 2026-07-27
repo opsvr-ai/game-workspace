@@ -1,0 +1,22 @@
+{
+  "id": "dfd52b22-33ec-4450-bb7c-159126cc2169",
+  "createdAt": "2026-07-25T15:20:22.132Z",
+  "closedAt": "2026-07-25T15:20:22.496Z",
+  "filesChanged": [],
+  "origin": "/data/project/game-workspace",
+  "pid": 1781723,
+  "claudeSessions": [
+    {
+      "id": "51a392e6-67bb-4e13-89c6-d89a3ca16e55",
+      "transcriptPath": "/root/.claude/projects/-data-project-game-workspace/51a392e6-67bb-4e13-89c6-d89a3ca16e55.jsonl",
+      "firstSeen": "2026-07-25T15:20:22.135Z",
+      "role": "main",
+      "ide": "claude-code"
+    }
+  ],
+  "auditStatus": "failed",
+  "auditStartedAt": "2026-07-25T15:20:22.197Z",
+  "auditAttempts": 1,
+  "lastAuditError": "[runSessionAudit] Claude Code process exited with code 1",
+  "auditFinishedAt": "2026-07-25T15:20:22.490Z"
+}

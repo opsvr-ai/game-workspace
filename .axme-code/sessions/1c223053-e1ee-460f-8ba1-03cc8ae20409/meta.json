@@ -1,0 +1,23 @@
+{
+  "id": "1c223053-e1ee-460f-8ba1-03cc8ae20409",
+  "createdAt": "2026-07-27T15:22:41.190Z",
+  "closedAt": null,
+  "filesChanged": [
+    "/data/project/game-workspace/memory/.compaction-state.json",
+    "/data/project/game-workspace/memory/daily/2026-07-24.md",
+    "/data/project/game-workspace/memory/weekly/2026-W30.md",
+    "/data/project/game-workspace/memory/monthly/2026-07.md",
+    "/data/project/game-workspace/memory/ROOT.md"
+  ],
+  "origin": "/data/project/game-workspace",
+  "pid": 2410906,
+  "claudeSessions": [
+    {
+      "id": "d2905437-ac3e-4599-b9ac-c0e945814894",
+      "transcriptPath": "/root/.claude/projects/-data-project-game-workspace/d2905437-ac3e-4599-b9ac-c0e945814894.jsonl",
+      "firstSeen": "2026-07-27T15:22:41.194Z",
+      "role": "main",
+      "ide": "claude-code"
+    }
+  ]
+}
