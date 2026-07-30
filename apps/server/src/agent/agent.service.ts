@@ -68,6 +68,126 @@ export class AgentService {
     return exePath;
   }
 
+  /**
+   * Generate a PowerShell one-liner that downloads and installs the agent on a new PC.
+   * The server URL is embedded so the client auto-connects after install.
+   */
+  generateDeployScript(serverUrl: string): string {
+    const apiUrl = serverUrl.replace(/\/$/, '');
+    return [
+      `$url = "${apiUrl}/api/agent/download/latest"`,
+      `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
+      `Write-Host "正在下载蠢驴电竞客户端..." -ForegroundColor Cyan`,
+      `Invoke-WebRequest -Uri $url -OutFile $out`,
+      `Write-Host "正在安装..." -ForegroundColor Yellow`,
+      `Start-Process -FilePath $out -ArgumentList "/S" -Wait`,
+      `Remove-Item $out -Force`,
+      `Write-Host "安装完成！请从桌面启动 蠢驴电竞" -ForegroundColor Green`,
+    ].join('\n');
+  }
+
+  /**
+   * Generate a PowerShell script that uses PsExec to remotely install the agent
+   * on multiple target PCs. Admin runs this script from their Windows machine.
+   */
+  generateRemoteDeployScript(params: {
+    targetIPs: string[];
+    adminUser: string;
+    adminPass: string;
+    serverUrl: string;
+  }): string {
+    const { targetIPs, adminUser, adminPass, serverUrl } = params;
+    const apiUrl = serverUrl.replace(/\/$/, '');
+    const ipsJson = JSON.stringify(targetIPs);
+
+    return [
+      `# ============================================`,
+      `# 蠢驴电竞 - 远程批量部署脚本 (PsExec)`,
+      `# 生成时间: ${new Date().toISOString()}`,
+      `# 目标数量: ${targetIPs.length} 台电脑`,
+      `# ============================================`,
+      ``,
+      `$serverUrl = "${apiUrl}"`,
+      `$targets = ${ipsJson}`,
+      `$adminUser = "${adminUser}"`,
+      `$adminPass = "${adminPass}"`,
+      `$installerUrl = "$serverUrl/api/agent/download/latest"`,
+      ``,
+      `# 检查 PsExec 是否存在，没有则自动下载`,
+      `if (!(Test-Path ".\\PsExec.exe")) {`,
+      `    Write-Host "正在下载 PsExec (Sysinternals)..." -ForegroundColor Yellow`,
+      `    Invoke-WebRequest -Uri "https://download.sysinternals.com/files/PSTools.zip" -OutFile "PSTools.zip"`,
+      `    Expand-Archive -Path "PSTools.zip" -DestinationPath ".\\PSTools" -Force`,
+      `    Copy-Item ".\\PSTools\\PsExec.exe" -Destination ".\\PsExec.exe"`,
+      `    Remove-Item "PSTools.zip" -Recurse -Force`,
+      `    Write-Host "PsExec 准备就绪" -ForegroundColor Green`,
+      `}`,
+      ``,
+      `Write-Host ""`,
+      `Write-Host "========================================" -ForegroundColor Cyan`,
+      `Write-Host "  开始批量部署 - 共 $($targets.Count) 台电脑" -ForegroundColor Cyan`,
+      `Write-Host "========================================" -ForegroundColor Cyan`,
+      `Write-Host ""`,
+      ``,
+      `$successCount = 0`,
+      `$failCount = 0`,
+      `$results = @()`,
+      ``,
+      `foreach ($ip in $targets) {`,
+      `    $ip = $ip.Trim()`,
+      `    if ([string]::IsNullOrEmpty($ip)) { continue }`,
+      ``,
+      `    Write-Host "[$ip] 正在连接..." -ForegroundColor Cyan`,
+      ``,
+      `    try {`,
+      `        # Test connectivity first`,
+      `        $ping = Test-Connection -ComputerName $ip -Count 1 -Quiet`,
+      `        if (-not $ping) {`,
+      `            Write-Host "[$ip] ✗ 无法 ping 通，跳过" -ForegroundColor Red`,
+      `            $failCount++`,
+      `            $results += @{ IP = $ip; Status = "FAIL"; Reason = "Ping failed" }`,
+      `            continue`,
+      `        }`,
+      ``,
+      `        # Remote install command`,
+      `        $remoteCmd = "Invoke-WebRequest -Uri '$installerUrl' -OutFile ` +
+        '`' +
+        `$env:TEMP\\ChunlvAgent-Setup.exe; Start-Process ` +
+        '`' +
+        `$env:TEMP\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait"`,
+      ``,
+      `        $result = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -s -h -accepteula powershell -Command $remoteCmd 2>&1`,
+      ``,
+      `        if ($LASTEXITCODE -eq 0) {`,
+      `            Write-Host "[$ip] ✓ 安装成功" -ForegroundColor Green`,
+      `            $successCount++`,
+      `            $results += @{ IP = $ip; Status = "OK"; Reason = "" }`,
+      `        } else {`,
+      `            Write-Host "[$ip] ✗ 安装失败" -ForegroundColor Red`,
+      `            Write-Host "    错误: $result" -ForegroundColor DarkYellow`,
+      `            $failCount++`,
+      `            $results += @{ IP = $ip; Status = "FAIL"; Reason = "$result" }`,
+      `        }`,
+      `    } catch {`,
+      `        Write-Host "[$ip] ✗ 异常: $_" -ForegroundColor Red`,
+      `        $failCount++`,
+      `        $results += @{ IP = $ip; Status = "FAIL"; Reason = "$_" }`,
+      `    }`,
+      ``,
+      `    Write-Host ""`,
+      `}`,
+      ``,
+      `Write-Host "========================================" -ForegroundColor Cyan`,
+      `Write-Host "  部署完成" -ForegroundColor Cyan`,
+      `Write-Host "  成功: $successCount / $($targets.Count)" -ForegroundColor Green`,
+      `if ($failCount -gt 0) { Write-Host "  失败: $failCount" -ForegroundColor Red }`,
+      `Write-Host "========================================" -ForegroundColor Cyan`,
+      ``,
+      `# 输出结果表`,
+      `$results | Format-Table -AutoSize`,
+    ].join('\n');
+  }
+
   async buildAndPush(): Promise<{ success: boolean; version: string; output: string }> {
     const projectRoot = path.join(process.cwd(), '..');
 
@@ -98,9 +218,7 @@ export class AgentService {
       if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
       fs.copyFileSync(srcPath, path.join(destDir, 'agent-setup.exe'));
 
-      const pkgJson = JSON.parse(
-        fs.readFileSync(path.join(electronDir, 'package.json'), 'utf-8'),
-      );
+      const pkgJson = JSON.parse(fs.readFileSync(path.join(electronDir, 'package.json'), 'utf-8'));
       const version = pkgJson.version || '1.0.0';
 
       await this.prisma.systemConfig.upsert({

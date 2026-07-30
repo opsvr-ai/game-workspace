@@ -14,6 +14,7 @@ export interface ElectronAPI {
   hideWindow: () => Promise<void>;
   onStatusChanged: (status: string) => void;
   onWsEvent: (channel: string, callback: (...args: any[]) => void) => () => void;
+  executeRemoteDeploy: (script: string) => Promise<{ success: boolean; output: string }>;
 }
 
 declare global {

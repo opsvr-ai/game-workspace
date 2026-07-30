@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'path';
+import { execFile } from 'child_process';
+import * as fs from 'fs';
 import { createTray, updateTrayTooltip } from './tray';
 import { connectWebSocket, disconnectWebSocket, onWsEvent } from './websocket';
 import { showOrderNotification } from './notification';
@@ -14,7 +16,13 @@ import { showScreenLock, hideScreenLock, setAppPassword, getAppPasswordForUI } f
 import { showEntertainmentWarning, showEntertainmentForceIdle } from './entertainment-notify';
 import { handleRemoteCommand } from './remote-command';
 import { checkForUpdates, handleUpdateCommand } from './updater';
-import { emitStatus, isConnected as isWsConnected, emitBlacklistReport, emitKillResult, emitCommandAck } from './websocket';
+import {
+  emitStatus,
+  isConnected as isWsConnected,
+  emitBlacklistReport,
+  emitKillResult,
+  emitCommandAck,
+} from './websocket';
 import { logger } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
@@ -173,14 +181,22 @@ function setupIPC(): void {
   // Store get/set
   ipcMain.handle('store:get', (_e, key: string) => store.get(key));
   ipcMain.handle('store:set', (_e, key: string, value: any) => store.set(key, value));
-  ipcMain.handle('app:setPassword', (_e, password: string) => { setAppPassword(password); return { success: true }; });
+  ipcMain.handle('app:setPassword', (_e, password: string) => {
+    setAppPassword(password);
+    return { success: true };
+  });
   ipcMain.handle('app:getPassword', () => getAppPasswordForUI());
 
   // Window controls
   ipcMain.handle('window:show', () => {
-    if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
-  ipcMain.handle('window:hide', () => { mainWindow?.hide(); });
+  ipcMain.handle('window:hide', () => {
+    mainWindow?.hide();
+  });
 
   ipcMain.on('nav:orderPool', () => {
     if (mainWindow) {
@@ -193,12 +209,59 @@ function setupIPC(): void {
   ipcMain.on('status:changed', (_e, status: string) => {
     store.set('lastStatus', status);
     logger.info('Status changed', { status });
-    if (status === 'RESTING') { showScreenLock(); } else { hideScreenLock(); }
+    if (status === 'RESTING') {
+      showScreenLock();
+    } else {
+      hideScreenLock();
+    }
     const name = store.get('companionName') as string;
     logger.info('IPC status:changed received', { status, name });
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);
     // Sync to server via WebSocket
     emitStatus(status);
+  });
+
+  // Remote deploy: execute PsExec script on admin's PC
+  ipcMain.handle('deploy:execute', async (_e, script: string) => {
+    const scriptPath = path.join(app.getPath('temp'), 'chunlv-remote-deploy.ps1');
+    try {
+      // Write script to temp file
+      fs.writeFileSync(scriptPath, script, 'utf-8');
+      logger.info('Remote deploy script written', { path: scriptPath });
+
+      // Execute PowerShell
+      return await new Promise<{ success: boolean; output: string }>((resolve) => {
+        execFile(
+          'powershell',
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
+          { timeout: 600_000, maxBuffer: 1024 * 1024 },
+          (err, stdout, stderr) => {
+            // Cleanup
+            try {
+              fs.unlinkSync(scriptPath);
+            } catch {
+              /* ignore */
+            }
+            const output = stdout || stderr || '';
+            if (err) {
+              logger.warn('Remote deploy finished with error', { error: err.message });
+              resolve({ success: false, output: output + '\n' + (err.message || '') });
+            } else {
+              logger.info('Remote deploy completed successfully');
+              resolve({ success: true, output });
+            }
+          },
+        );
+      });
+    } catch (err: any) {
+      try {
+        fs.unlinkSync(scriptPath);
+      } catch {
+        /* ignore */
+      }
+      logger.error('Remote deploy failed', { error: err.message });
+      return { success: false, output: err.message || 'Unknown error' };
+    }
   });
 }
 
@@ -290,8 +353,14 @@ app.whenReady().then(() => {
   mainWindow = createMainWindow();
 
   createTray({
-    onShow: () => { mainWindow?.show(); mainWindow?.focus(); },
-    onQuit: () => { isQuitting = true; app.quit(); },
+    onShow: () => {
+      mainWindow?.show();
+      mainWindow?.focus();
+    },
+    onQuit: () => {
+      isQuitting = true;
+      app.quit();
+    },
   });
 
   const token = store.get('token') as string;
@@ -312,7 +381,9 @@ app.whenReady().then(() => {
           const { blacklist, whitelist, version } = res.data.data;
           updateBlacklist(blacklist || [], whitelist || [], version || 0);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
     setInterval(pollBlacklist, 60000); // poll every 60s
     pollBlacklist(); // immediate first fetch
@@ -330,7 +401,7 @@ app.whenReady().then(() => {
           body: { processes, totalCount },
         }).catch(() => {});
         // Also try WebSocket (real-time bonus)
-        logger.debug("Process report", { totalCount });
+        logger.debug('Process report', { totalCount });
         emitBlacklistReport(processes, totalCount);
       },
       (process) => {
@@ -352,9 +423,17 @@ app.whenReady().then(() => {
                 method: 'POST',
                 url: `${serverUrl}/api/processes/kill-report`,
                 headers: { Authorization: `Bearer ${token}` },
-                body: { processName: process.name, pid: process.pid, success: result.success, resultText: result.resultText, triggeredBy: 'PERIODIC' },
+                body: {
+                  processName: process.name,
+                  pid: process.pid,
+                  success: result.success,
+                  resultText: result.resultText,
+                  triggeredBy: 'PERIODIC',
+                },
               }).catch(() => {});
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           },
         });
       },
@@ -362,8 +441,7 @@ app.whenReady().then(() => {
   }
 });
 
-
-  checkForUpdates();
+checkForUpdates();
 
 let isSystemShutdown = false;
 
@@ -381,11 +459,9 @@ app.on('before-quit', () => {
   disconnectWebSocket();
 });
 
-
 app.on('window-all-closed', () => {
   // Don't quit on window close (tray app)
 });
-
 
 // ── Auto-silent update: poll server version and reload page on change ──
 let lastVersion = '';
@@ -405,7 +481,9 @@ const pollVersion = async () => {
       }
     }
     if (version) lastVersion = version;
-  } catch { /* server might be restarting */ }
+  } catch {
+    /* server might be restarting */
+  }
 };
 
 // Initial version fetch after window loads
@@ -421,6 +499,9 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 }

@@ -1,9 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Tag, Space, Typography, message, Popconfirm, Spin, Statistic, Row, Col } from 'antd';
-import { ReloadOutlined, CloudUploadOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Typography,
+  message,
+  Popconfirm,
+  Spin,
+  Statistic,
+  Row,
+  Col,
+  Modal,
+  Tooltip,
+  Input,
+  Divider,
+  Alert,
+} from 'antd';
+import {
+  ReloadOutlined,
+  CloudUploadOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  SendOutlined,
+  CopyOutlined,
+  LaptopOutlined,
+  ThunderboltOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 import { agentApi } from '../../api/agent';
 
-const { Text, Title } = Typography;
+const { Text, Title, Paragraph } = Typography;
 
 interface CompanionVersion {
   companionId: string;
@@ -20,6 +49,12 @@ interface VersionStatus {
   upToDateCount: number;
   pendingCount: number;
   list: CompanionVersion[];
+}
+
+interface DeployScriptData {
+  script: string;
+  downloadUrl: string;
+  serverUrl: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -44,6 +79,25 @@ const AgentVersionPage: React.FC = () => {
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [deployData, setDeployData] = useState<DeployScriptData | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Remote deploy form state
+  const [remoteIPs, setRemoteIPs] = useState('');
+  const [remoteUser, setRemoteUser] = useState('Administrator');
+  const [remotePass, setRemotePass] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [remoteScript, setRemoteScript] = useState<string | null>(null);
+  const [generatingRemote, setGeneratingRemote] = useState(false);
+  const [remoteCopied, setRemoteCopied] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [deployOutput, setDeployOutput] = useState<string | null>(null);
+
+  // Detect Electron environment
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -71,10 +125,144 @@ const AgentVersionPage: React.FC = () => {
       } else {
         message.error(data.data?.output || data.message || '构建失败');
       }
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || '构建请求失败');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      message.error(e?.response?.data?.message || '构建请求失败');
     } finally {
       setBuilding(false);
+    }
+  };
+
+  const handlePushSelected = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择陪玩');
+      return;
+    }
+    setPushing(true);
+    try {
+      const { data } = await agentApi.pushUpdate(selectedRowKeys as string[]);
+      if (data.code === 200) {
+        message.success(data.message);
+        setSelectedRowKeys([]);
+      } else {
+        message.error(data.message || '推送失败');
+      }
+    } catch {
+      message.error('推送请求失败');
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const handlePushAll = async () => {
+    setPushing(true);
+    try {
+      const { data } = await agentApi.pushUpdateStudio();
+      if (data.code === 200) {
+        message.success(data.message);
+      } else {
+        message.error(data.message || '全量推送失败');
+      }
+    } catch {
+      message.error('全量推送请求失败');
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  const handleOpenDeploy = async () => {
+    setDeployModalOpen(true);
+    try {
+      const { data } = await agentApi.getDeployScript();
+      if (data.code === 200) {
+        setDeployData(data.data as DeployScriptData);
+      }
+    } catch {
+      message.error('获取部署脚本失败');
+    }
+  };
+
+  const handleCopyScript = () => {
+    if (deployData?.script) {
+      navigator.clipboard
+        .writeText(deployData.script)
+        .then(() => {
+          setCopied(true);
+          message.success('已复制到剪贴板');
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => {
+          message.error('复制失败，请手动复制');
+        });
+    }
+  };
+
+  const handleGenerateRemote = async () => {
+    const ips = remoteIPs
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (ips.length === 0) {
+      message.warning('请输入目标电脑 IP');
+      return;
+    }
+    if (!remoteUser) {
+      message.warning('请输入管理员账号');
+      return;
+    }
+    setGeneratingRemote(true);
+    setRemoteScript(null);
+    try {
+      const { data } = await agentApi.getRemoteDeployScript({
+        targetIPs: ips,
+        adminUser: remoteUser,
+        adminPass: remotePass,
+      });
+      if (data.code === 200) {
+        setRemoteScript((data.data as { script: string }).script);
+      } else {
+        message.error(data.message || '生成失败');
+      }
+    } catch {
+      message.error('生成脚本失败');
+    } finally {
+      setGeneratingRemote(false);
+    }
+  };
+
+  const handleCopyRemote = () => {
+    if (remoteScript) {
+      navigator.clipboard
+        .writeText(remoteScript)
+        .then(() => {
+          setRemoteCopied(true);
+          message.success('脚本已复制到剪贴板');
+          setTimeout(() => setRemoteCopied(false), 2000);
+        })
+        .catch(() => {
+          message.error('复制失败');
+        });
+    }
+  };
+
+  const handleElectronDeploy = async () => {
+    if (!remoteScript || !isElectron) return;
+    setDeploying(true);
+    setDeployOutput(null);
+    try {
+      const api = (window as any).electronAPI;
+      const result = await api.executeRemoteDeploy(remoteScript);
+      setDeployOutput(result.output || (result.success ? '部署完成' : '部署失败'));
+      if (result.success) {
+        message.success('远程批量部署完成！');
+      } else {
+        message.warning('部署完成，部分可能失败，请检查输出');
+      }
+    } catch (err: any) {
+      setDeployOutput(err?.message || '执行失败');
+      message.error('部署执行失败');
+    } finally {
+      setDeploying(false);
     }
   };
 
@@ -90,9 +278,7 @@ const AgentVersionPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (s: string) => (
-        <Tag color={statusColors[s] || 'default'}>{statusLabels[s] || s}</Tag>
-      ),
+      render: (s: string) => <Tag color={statusColors[s] || 'default'}>{statusLabels[s] || s}</Tag>,
     },
     {
       title: '当前版本',
@@ -106,9 +292,13 @@ const AgentVersionPage: React.FC = () => {
       width: 100,
       render: (_: unknown, r: CompanionVersion) =>
         r.isLatest ? (
-          <Tag color="green" icon={React.createElement(CheckCircleOutlined)}>最新</Tag>
+          <Tag color="green" icon={<CheckCircleOutlined />}>
+            最新
+          </Tag>
         ) : (
-          <Tag color="orange" icon={React.createElement(SyncOutlined)}>待更新</Tag>
+          <Tag color="orange" icon={<SyncOutlined />}>
+            待更新
+          </Tag>
         ),
     },
     {
@@ -137,11 +327,31 @@ const AgentVersionPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>版本管理</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            版本管理
+          </Title>
           <Text type="secondary">管理陪玩客户端版本，一键构建并推送更新</Text>
         </div>
         <Space>
-          <Button icon={React.createElement(ReloadOutlined)} onClick={fetchStatus} loading={loading}>刷新</Button>
+          <Tooltip title="查看新电脑部署脚本">
+            <Button icon={<LaptopOutlined />} onClick={handleOpenDeploy}>
+              部署助手
+            </Button>
+          </Tooltip>
+          <Button icon={<ReloadOutlined />} onClick={fetchStatus} loading={loading}>
+            刷新
+          </Button>
+          <Popconfirm
+            title="确认全量推送？"
+            description="将立即向本工作室所有在线陪玩推送更新命令"
+            onConfirm={handlePushAll}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button icon={<SendOutlined />} loading={pushing}>
+              全量推送
+            </Button>
+          </Popconfirm>
           <Popconfirm
             title="确认构建并推送？"
             description="将执行 git pull + 构建，完成后自动推送到所有在线陪玩"
@@ -149,7 +359,7 @@ const AgentVersionPage: React.FC = () => {
             okText="确认"
             cancelText="取消"
           >
-            <Button type="primary" icon={React.createElement(CloudUploadOutlined)} loading={building}>
+            <Button type="primary" icon={<CloudUploadOutlined />} loading={building}>
               构建并推送
             </Button>
           </Popconfirm>
@@ -170,22 +380,71 @@ const AgentVersionPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="已是最新" value={versionStatus?.upToDateCount || 0} valueStyle={{ color: '#52c41a' }} suffix="人" />
+            <Statistic
+              title="已是最新"
+              value={versionStatus?.upToDateCount || 0}
+              valueStyle={{ color: '#52c41a' }}
+              suffix="人"
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="待更新" value={versionStatus?.pendingCount || 0} valueStyle={{ color: '#faad14' }} suffix="人" />
+            <Statistic
+              title="待更新"
+              value={versionStatus?.pendingCount || 0}
+              valueStyle={{ color: '#faad14' }}
+              suffix="人"
+            />
           </Card>
         </Col>
       </Row>
 
+      {/* Selection toolbar */}
+      {selectedRowKeys.length > 0 && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '8px 16px',
+            background: '#e6f4ff',
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text>
+            已选择 <Text strong>{selectedRowKeys.length}</Text> 位陪玩
+          </Text>
+          <Space>
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>
+              取消选择
+            </Button>
+            <Popconfirm
+              title={`确认推送更新？`}
+              description={`将向选中的 ${selectedRowKeys.length} 位陪玩发送更新命令`}
+              onConfirm={handlePushSelected}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button type="primary" size="small" icon={<SendOutlined />} loading={pushing}>
+                推送更新 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+          </Space>
+        </div>
+      )}
+
       {/* Version Table */}
-      <Card
-        title="陪玩版本分布"
-        extra={<Text type="secondary">共 {versionStatus?.list?.length || 0} 条记录</Text>}
-      >
+      <Card title="陪玩版本分布" extra={<Text type="secondary">共 {versionStatus?.list?.length || 0} 条记录</Text>}>
         <Table
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys) => setSelectedRowKeys(keys),
+            getCheckboxProps: (record: CompanionVersion) => ({
+              disabled: record.isLatest,
+            }),
+          }}
           columns={columns}
           dataSource={versionStatus?.list || []}
           rowKey="companionId"
@@ -195,6 +454,236 @@ const AgentVersionPage: React.FC = () => {
           locale={{ emptyText: '暂无数据' }}
         />
       </Card>
+
+      {/* Deploy Assistant Modal */}
+      <Modal
+        title={
+          <>
+            <LaptopOutlined /> 部署助手 — 新电脑安装客户端
+          </>
+        }
+        open={deployModalOpen}
+        onCancel={() => {
+          setDeployModalOpen(false);
+          setRemoteScript(null);
+          setRemotePass('');
+        }}
+        width={720}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => {
+              setDeployModalOpen(false);
+              setRemoteScript(null);
+              setRemotePass('');
+            }}
+          >
+            关闭
+          </Button>,
+        ]}
+      >
+        <Spin spinning={!deployData}>
+          {deployData && (
+            <>
+              {/* 方式一：直接下载 */}
+              <Card size="small" style={{ marginBottom: 12, background: '#f6ffed' }}>
+                <Text strong style={{ fontSize: 15 }}>
+                  方式一：手动下载安装
+                </Text>
+                <div style={{ marginTop: 6 }}>
+                  <Text type="secondary">在目标电脑打开浏览器下载，双击运行安装即可</Text>
+                  <Paragraph copyable style={{ marginTop: 6, marginBottom: 0 }}>
+                    {deployData.downloadUrl}
+                  </Paragraph>
+                </div>
+              </Card>
+
+              {/* 方式二：PowerShell 单机部署 */}
+              <Card size="small" style={{ marginBottom: 12, background: '#e6f4ff' }}>
+                <Text strong style={{ fontSize: 15 }}>
+                  方式二：PowerShell 单机部署
+                </Text>
+                <div style={{ marginTop: 6 }}>
+                  <Text type="secondary">在目标电脑的 PowerShell（管理员）中执行：</Text>
+                  <div
+                    style={{
+                      background: '#1e1e1e',
+                      color: '#d4d4d4',
+                      padding: 10,
+                      borderRadius: 6,
+                      marginTop: 6,
+                      fontFamily: 'Consolas, monospace',
+                      fontSize: 12,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      maxHeight: 140,
+                      overflow: 'auto',
+                    }}
+                  >
+                    {deployData.script}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={copied ? <CheckCircleOutlined /> : <CopyOutlined />}
+                      onClick={handleCopyScript}
+                    >
+                      {copied ? '已复制' : '复制命令'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Divider style={{ margin: '12px 0' }} />
+
+              {/* 方式三：PsExec 远程批量部署 */}
+              <Card size="small" style={{ background: '#fff7e6' }}>
+                <Text strong style={{ fontSize: 15 }}>
+                  <ThunderboltOutlined /> 方式三：PsExec 远程批量部署
+                </Text>
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  — 从管理员电脑一键远程安装多台电脑
+                </Text>
+
+                <div style={{ marginTop: 12 }}>
+                  <Row gutter={12}>
+                    <Col span={24}>
+                      <Text type="secondary">目标电脑 IP（一行一个，或用逗号分隔）：</Text>
+                      <Input.TextArea
+                        rows={3}
+                        placeholder={'192.168.1.10\n192.168.1.11\n192.168.1.12'}
+                        value={remoteIPs}
+                        onChange={(e) => setRemoteIPs(e.target.value)}
+                      />
+                    </Col>
+                  </Row>
+                  <Row gutter={12} style={{ marginTop: 8 }}>
+                    <Col span={10}>
+                      <Text type="secondary">管理员账号：</Text>
+                      <Input
+                        placeholder="Administrator"
+                        value={remoteUser}
+                        onChange={(e) => setRemoteUser(e.target.value)}
+                      />
+                    </Col>
+                    <Col span={14}>
+                      <Text type="secondary">管理员密码：</Text>
+                      <Input
+                        type={showPass ? 'text' : 'password'}
+                        placeholder="目标电脑管理员密码"
+                        value={remotePass}
+                        onChange={(e) => setRemotePass(e.target.value)}
+                        suffix={
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={showPass ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                            onClick={() => setShowPass(!showPass)}
+                          />
+                        }
+                      />
+                    </Col>
+                  </Row>
+
+                  <Alert
+                    style={{ marginTop: 8 }}
+                    message="密码仅用于生成脚本，服务器不会存储。脚本在管理员电脑本地执行。"
+                    type="info"
+                    showIcon
+                    banner
+                  />
+
+                  <div style={{ marginTop: 10 }}>
+                    <Button
+                      type="primary"
+                      icon={<ThunderboltOutlined />}
+                      loading={generatingRemote}
+                      onClick={handleGenerateRemote}
+                    >
+                      生成远程部署脚本
+                    </Button>
+                    <Text type="secondary" style={{ marginLeft: 12 }}>
+                      需提前下载 PsExec 或脚本会自动下载
+                    </Text>
+                  </div>
+
+                  {remoteScript && (
+                    <div style={{ marginTop: 12 }}>
+                      <div
+                        style={{
+                          background: '#1e1e1e',
+                          color: '#d4d4d4',
+                          padding: 12,
+                          borderRadius: 6,
+                          fontFamily: 'Consolas, monospace',
+                          fontSize: 11,
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                          maxHeight: 300,
+                          overflow: 'auto',
+                        }}
+                      >
+                        {remoteScript}
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <Space>
+                          {isElectron ? (
+                            <Button
+                              type="primary"
+                              icon={<ThunderboltOutlined />}
+                              loading={deploying}
+                              onClick={handleElectronDeploy}
+                              danger
+                            >
+                              {deploying ? '正在部署...' : '⚡ 一键部署'}
+                            </Button>
+                          ) : (
+                            <Button
+                              type="primary"
+                              icon={remoteCopied ? <CheckCircleOutlined /> : <CopyOutlined />}
+                              onClick={handleCopyRemote}
+                            >
+                              {remoteCopied ? '已复制' : '复制脚本'}
+                            </Button>
+                          )}
+                          <Text type="secondary">
+                            {isElectron
+                              ? '脚本将直接在管理员电脑执行，无需手动操作'
+                              : '在管理员 Windows 电脑上右键 → 「使用 PowerShell 运行」'}
+                          </Text>
+                        </Space>
+                        {deployOutput && (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              background: '#1e1e1e',
+                              color: '#d4d4d4',
+                              padding: 10,
+                              borderRadius: 6,
+                              fontFamily: 'Consolas, monospace',
+                              fontSize: 11,
+                              whiteSpace: 'pre-wrap',
+                              maxHeight: 200,
+                              overflow: 'auto',
+                            }}
+                          >
+                            {deployOutput}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              <div style={{ marginTop: 12 }}>
+                <Text type="secondary">💡 服务器地址：{deployData.serverUrl}</Text>
+              </div>
+            </>
+          )}
+        </Spin>
+      </Modal>
     </div>
   );
 };

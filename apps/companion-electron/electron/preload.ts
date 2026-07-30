@@ -2,15 +2,13 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Auth
-  login: (params: { username: string; password: string }) =>
-    ipcRenderer.invoke('auth:login', params),
+  login: (params: { username: string; password: string }) => ipcRenderer.invoke('auth:login', params),
   getToken: () => ipcRenderer.invoke('auth:getToken'),
   getServerUrl: () => ipcRenderer.invoke('auth:getServerUrl'),
   logout: () => ipcRenderer.invoke('auth:logout'),
 
   // API proxy
-  apiRequest: (params: { method: string; url: string; body?: any }) =>
-    ipcRenderer.invoke('api:request', params),
+  apiRequest: (params: { method: string; url: string; body?: any }) => ipcRenderer.invoke('api:request', params),
 
   // Store
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
@@ -45,4 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
     return () => {};
   },
+
+  // Remote deploy — execute PsExec script from admin's PC
+  executeRemoteDeploy: (script: string) => ipcRenderer.invoke('deploy:execute', script),
 });
