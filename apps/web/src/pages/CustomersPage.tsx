@@ -454,7 +454,8 @@ const CustomersPage: React.FC = () => {
             onClick={() => {
               setStartServicePreFill({
                 customerId: record.id,
-                companionSelfId: user?.companionId,
+                companionId: user?.companionId,
+                dispatchType: 'DIRECT',
                 gameName: record.orders?.[0]?.gameName,
                 amount: record.orders?.[0]?.amount,
               });
