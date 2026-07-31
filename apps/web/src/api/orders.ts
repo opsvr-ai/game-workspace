@@ -18,4 +18,5 @@ export const ordersApi = {
   quickGrab: (id: string) => http.post(`/orders/${id}/quick-grab`),
   markReady: (id: string) => http.post(`/orders/${id}/mark-ready`),
   acceptPartner: (id: string) => http.post(`/orders/${id}/accept-partner`),
+  renew: (id: string) => http.post(`/orders/${id}/renew`),
 };

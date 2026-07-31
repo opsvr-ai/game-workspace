@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 230,
+      "successCount": 233,
       "patterns": {
         "style:prefer_const": {
-          "count": 1,
-          "weight": 422
+          "count": 0,
+          "weight": 427
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 153
+          "count": 2,
+          "weight": 156
         },
         "style:arrow_functions": {
           "count": 1,
@@ -30,11 +30,11 @@
       }
     },
     ".tsx": {
-      "successCount": 406,
+      "successCount": 410,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 333
+          "count": 0,
+          "weight": 334
         },
         "style:prefer_const": {
           "count": 1,
@@ -45,12 +45,12 @@
           "weight": 67
         },
         "quality:error_handling": {
-          "count": 2,
-          "weight": 68
+          "count": 0,
+          "weight": 69
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 76
+          "count": 1,
+          "weight": 77
         },
         "typing:explicit_types": {
           "count": 2,
@@ -70,9 +70,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 1,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785526665814
+      "lastSuccess": 1785527313340
     },
     "npx": {
       "count": 1,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785526056514
     },
     "git": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785526466488
+      "lastSuccess": 1785526968592
     },
     "rm": {
       "count": 2,
@@ -120,9 +120,9 @@
       "lastSuccess": 1784736853008
     },
     "sleep": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785525940276
+      "lastSuccess": 1785526700676
     },
     "./node_modules/.bin/nest": {
       "count": 1,
@@ -201,236 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/LoginPage.tsx",
-      "patterns": [],
-      "timestamp": 1784915447591
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/LoginPage.tsx && git -C /data/project/game-workspace commit -m \"fix: login page t",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784915462033
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"roleLabels\\|role_label\\|ROLE_LABEL\\|店长\\|管理员\\|老板\\|陪玩\\|客服\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784915639546
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784915649601
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: role label",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784915667424
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"指定陪玩\\|companionId\\|选择陪玩\\|指定.*陪\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784915876049
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [],
-      "timestamp": 1784915887980
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [],
-      "timestamp": 1784915938563
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784915951076
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data/project/game-workspace commit -m \"fix: remove DIRECT dispatch from order creation modal\n\nCo-Authore",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1784915956795
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"orderType\\|OrderType\\|type.*Option\\|首单\\|复购\\|续单\\|RENEW\\|REPURCHASE\\|NEW\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784916091277
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784916097581
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data/project/game-workspace commit -m \"fix: ",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784916110770
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"customerSourceAccount\\|来源账号\\|customerSource\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784916513906
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784916529195
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
-      "patterns": [],
-      "timestamp": 1784916547778
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"findAll\\|return this.prisma.order.findMany\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784916562969
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784916575725
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/orders/orders.service.ts && git -C /data/project/game-workspace commit -m \"feat: mas",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784916591268
-    },
-    {
-      "type": "bash",
-      "command": "# Get tokens and IDs\nTOKEN_A=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(jso",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Get tokens and IDs TOKEN_A=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784917132299
-    },
-    {
-      "type": "bash",
-      "command": "# Bridge 蠢驴电竞 ↔ 光耀电竞\nTOKEN_A=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(jso",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Bridge 蠢驴电竞 ↔ 光耀电竞 TOKEN_A=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784917147106
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN_A=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get",
-      "cmdPattern": {
-        "base": "TOKEN_A=$(curl",
-        "pattern": "TOKEN_A=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | py",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784917157004
-    },
     {
       "type": "bash",
       "command": "# Use hanlei1 to create, use companion in same studio\nTOKEN_A=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | pytho",
@@ -2574,6 +2344,251 @@
         "hasChain": false
       },
       "timestamp": 1785526665814
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: dual companion pricing — separate amount for main and partner\" && git -C /data/project/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526693180
+    },
+    {
+      "type": "bash",
+      "command": "sleep 3 && curl -s http://localhost:3001/api/health",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && curl -s http://localhost:N/api/health",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526700676
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785526858919
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785526882454
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data/project/game-workspace commit -m \"feat: single/dual companion toggle in order form\" && git -C /data",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526900756
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"amount\\|coAmount\\|搭档\\|partner\\|DualCompanion\" /data/project/game-workspace/apps/web/src/components/DualCompanionModal.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/DualCompanionModal.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526929849
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/DualCompanionModal.tsx",
+      "patterns": [],
+      "timestamp": 1785526949619
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"findUnique\\|findFirst\\|findMany.*order\\|select.*order\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526957530
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/components/DualCompanionModal.tsx && git -C /data/project/game-workspace commit -m \"fix: show partner amount (coAmount) in dual companion popup\" &&",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/components/DualCompanionModal.tsx && git -C /da",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526968592
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"renew\\|续单\\|RENEW\\|续费\\|继续\\|extend\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527222057
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785527239238
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"renew\\|续单\\|续费\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527246634
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"续单\\|renew\\|companion.*button\\|handleRenew\\|续费\\|COMPANION\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527251912
+    },
+    {
+      "type": "bash",
+      "command": "grep \"renew\" /data/project/game-workspace/apps/web/src/api/orders.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/api/orders.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785527256628
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/api/orders.ts",
+      "patterns": [],
+      "timestamp": 1785527262142
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"acceptPartner\\|accept-partner\\|@Post.*accept\" /data/project/game-workspace/apps/server/src/orders/orders.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.controller.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527268479
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785527281092
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"isCompanion\\|companion.*Button\\|COMPANION.*Button\\|开始服务\\|handleRenew\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527289429
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"renderCompanionActions\\|handleRenew\\|message.success\\|order.*id\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527294200
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"renderCompanionActions\\|return (\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | grep -A1 \"68:\"",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | grep -AN \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785527302825
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"renderCompanionActions\\|renderAdminActions\\|^\\s*return\\|^\\s*};\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785527313340
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785527323775
     }
   ]
 }

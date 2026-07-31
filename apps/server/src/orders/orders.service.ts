@@ -321,7 +321,6 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
-    // H1 fix: create as PENDING+DIRECT, companion accepts via standard flow
     const orderCode = await this.nextGlobalCode();
     const newOrder = await this.prisma.order.create({
       data: {
@@ -331,6 +330,8 @@ export class OrdersService {
         csUserId: userId,
         customerId: order.customerId,
         companionId: order.companionId,
+        coCompanionId: order.coCompanionId,
+        coAmount: order.coAmount,
         dispatchType: 'DIRECT',
         amount: order.amount,
         gameName: order.gameName,
@@ -341,6 +342,14 @@ export class OrdersService {
     });
     if (order.companionId) {
       this.wsGateway.pushOrder(order.companionId, newOrder);
+    }
+    if (order.coCompanionId) {
+      this.wsGateway.pushOrder(order.coCompanionId, newOrder);
+      this.wsGateway.broadcastToStudio(order.studioId, 'order:dual-request', {
+        orderId: newOrder.id,
+        companionId: order.companionId,
+        coCompanionId: order.coCompanionId,
+      });
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
     return newOrder;

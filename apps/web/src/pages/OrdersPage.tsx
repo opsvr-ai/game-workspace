@@ -214,6 +214,15 @@ const OrdersPage: React.FC = () => {
             )}
           </>
         )}
+        {r.status === 'DONE' && (
+          <Button size="small" type="primary" onClick={async () => {
+            try {
+              await ordersApi.renew(r.id);
+              message.success('已续单，搭档和金额自动沿用');
+              fetch();
+            } catch (e: any) { message.error('续单失败'); }
+          }}>续单</Button>
+        )}
       </>
     );
   };
