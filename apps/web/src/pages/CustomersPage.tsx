@@ -38,7 +38,6 @@ import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
-import StartServiceModal from '../components/StartServiceModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
@@ -99,8 +98,6 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
-  const [startServiceOpen, setStartServiceOpen] = useState(false);
-  const [startServiceCustomerId, setStartServiceCustomerId] = useState('');
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
@@ -455,8 +452,14 @@ const CustomersPage: React.FC = () => {
             size="small"
             icon={React.createElement(PlayCircleOutlined)}
             onClick={() => {
-              setStartServiceCustomerId(record.id);
-              setStartServiceOpen(true);
+              setStartServicePreFill({
+                customerId: record.id,
+                companionId: user?.companionId,
+                dispatchType: 'DIRECT',
+                gameName: record.orders?.[0]?.gameName,
+                amount: record.orders?.[0]?.amount,
+              });
+              setCreateOrderOpen(true);
             }}
           >
             开始服务
@@ -622,14 +625,7 @@ const CustomersPage: React.FC = () => {
           </Form>
         </Modal>
         <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
-        <StartServiceModal
-        open={startServiceOpen}
-        onClose={() => setStartServiceOpen(false)}
-        customerId={startServiceCustomerId}
-        companionId={user?.companionId || ''}
-        onDone={() => fetchCustomers()}
-      />
-      <CreateOrderModal
+        <CreateOrderModal
           open={createOrderOpen}
           onClose={() => {
             setCreateOrderOpen(false);
