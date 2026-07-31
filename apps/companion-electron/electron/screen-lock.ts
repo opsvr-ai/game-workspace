@@ -85,7 +85,7 @@ export function showScreenLock(): void {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: (require('path') as any).join(__dirname, 'preload.js'),
+      preload: (require('path') as any).join(__dirname, '../preload-dist/preload.js'),
     },
   });
 

@@ -30,7 +30,7 @@
       }
     },
     ".tsx": {
-      "successCount": 401,
+      "successCount": 403,
       "patterns": {
         "style:arrow_functions": {
           "count": 2,
@@ -45,8 +45,8 @@
           "weight": 67
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 65
+          "count": 2,
+          "weight": 68
         },
         "style:async_await": {
           "count": 0,
@@ -63,16 +63,16 @@
       "patterns": {}
     },
     ".html": {
-      "successCount": 1,
+      "successCount": 2,
       "patterns": {}
     }
   },
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784929124049
+      "lastSuccess": 1785511373156
     },
     "npx": {
       "count": 5,
@@ -95,9 +95,9 @@
       "lastSuccess": 1784910667948
     },
     "git": {
-      "count": 4,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784929287905
+      "lastSuccess": 1785511731050
     },
     "rm": {
       "count": 2,
@@ -120,9 +120,9 @@
       "lastSuccess": 1784736853008
     },
     "sleep": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784929260924
+      "lastSuccess": 1785511156006
     },
     "./node_modules/.bin/nest": {
       "count": 1,
@@ -150,9 +150,9 @@
       "lastSuccess": 1784734908882
     },
     "curl": {
-      "count": 1,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785504972573
+      "lastSuccess": 1785511555269
     },
     "for": {
       "count": 1,
@@ -170,9 +170,9 @@
       "lastSuccess": 1784929280681
     },
     "kill": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1784749467090
+      "lastSuccess": 1785511473094
     },
     "sed": {
       "count": 1,
@@ -201,105 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784912949967
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784912961532
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"displayName\\|logoUrl\\|name.*form\\|splitMode\\|address\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784912974815
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "patterns": [],
-      "timestamp": 1784912985724
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "patterns": [],
-      "timestamp": 1784912998128
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "patterns": [],
-      "timestamp": 1784913010116
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/api/studios.ts",
-      "patterns": [
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 7
-        }
-      ],
-      "timestamp": 1784913021494
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/owner/StudiosPage.tsx",
-      "patterns": [],
-      "timestamp": 1784913034046
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: studio branding — displayName + logoUrl, ",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784913052864
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784913138395
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784913165634
-    },
     {
       "type": "bash",
       "command": "grep -n \"setBrandModalOpen\\|brandModalOpen\\|setNotifOpen\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
@@ -2590,6 +2491,124 @@
         }
       ],
       "timestamp": 1785504998698
+    },
+    {
+      "type": "bash",
+      "command": "sleep 8 && lsof -i :3001 -i :8000 -P 2>/dev/null | grep LISTEN",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && lsof -i :N -i :N -P N>/dev/null | grep LISTEN",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785511156006
+    },
+    {
+      "type": "bash",
+      "command": "kill 1022583 2>/dev/null && sleep 2 && lsof -i :3001 -P 2>/dev/null | grep LISTEN",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill N N>/dev/null && sleep N && lsof -i :N -P N>/dev/null | grep LISTEN",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785511209285
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:3001/api/health",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/api/health",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785511266448
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"baseURL\\|API_URL\\|proxy\\|axios.create\\|http://\" /data/project/game-workspace/apps/web/src/api/client.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/api/client.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785511373156
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1 && echo \"Port 8000 freed\"",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N && echo \"\"",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785511473094
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -m json.tool 2>/dev/null | head -5",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N\"\" | pyt",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785511555269
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1785511652927
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785511688211
+    },
+    {
+      "type": "bash",
+      "command": "git add /data/project/game-workspace/apps/web/index.html /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx /data/project/game-workspace/apps/server/src/main.ts && git commit -m \"fix: i",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add /data/project/game-workspace/apps/web/index.html /data/project/game-workspace/apps/web/src/p",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785511721434
+    },
+    {
+      "type": "bash",
+      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785511731050
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785511996168
     }
   ]
 }

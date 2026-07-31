@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T13:36:38.702Z
+**Last Updated:** 2026-07-31T15:28:51.051Z
 
 ---
 
@@ -61,7 +61,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 16 occurrences
+**Frequency:** 17 occurrences
 
 ### Commonly used command: npx
 
@@ -142,8 +142,9 @@
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: tail
 

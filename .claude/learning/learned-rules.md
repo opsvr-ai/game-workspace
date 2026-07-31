@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T14:48:17.643Z
+**Last Updated:** 2026-07-31T17:02:38.766Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 22
+- **Total Patterns:** 23
 - **Total Feedback:** 3
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 61 occurrences
+**Frequency:** 64 occurrences
 
 ### Commonly used command: git
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 34 occurrences
+**Frequency:** 35 occurrences
 
 ### Commonly used command: find
 
@@ -73,7 +73,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 6 occurrences
+**Frequency:** 8 occurrences
 
 ### Commonly used command: openspec
 
@@ -89,14 +89,15 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 7 occurrences
 
 ### Commonly used command: sleep
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: K_TOKEN=$(curl
 
@@ -141,6 +142,13 @@
 
 **Frequency:** 1 occurrences
 
+### Commonly used command: rm
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
 ## Style
 
 *0 corrections in this category*
@@ -152,7 +160,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 71 occurrences
+**Frequency:** 72 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -161,7 +169,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 42 occurrences
+**Frequency:** 43 occurrences
 
 ### Prefer async await in .ts files
 

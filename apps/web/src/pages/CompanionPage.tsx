@@ -250,6 +250,7 @@ const CompanionPage: React.FC = () => {
     <div>
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
+        <a href="http://192.168.0.106:8888/app.zip" style={{float:'right',fontSize:12,marginTop:4}}>⬇ 更新</a>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">

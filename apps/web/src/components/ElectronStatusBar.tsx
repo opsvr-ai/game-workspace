@@ -7,13 +7,15 @@ const COLORS: Record<string, string> = {
   RESTING: '#f97316',
 };
 
+// Always-on debug bar to verify rendering
+const DEBUG = true;
+
 const ElectronStatusBar: React.FC = () => {
   const [key, setKey] = useState(0);
   const [color, setColor] = useState('');
-  const refs = useRef({ cid: '', last: '', alive: true, tm: null as any, initDone: false });
+  const refs = useRef({ alive: true, tm: null as any });
 
   const fire = (c: string) => {
-    if (!c) return;
     clearTimeout(refs.current.tm);
     setKey((n) => n + 1);
     setColor(c);
@@ -22,54 +24,47 @@ const ElectronStatusBar: React.FC = () => {
 
   useEffect(() => {
     refs.current.alive = true;
-    const api = (window as any).electronAPI;
-    if (!api) return; // Not in Electron
 
-    // Inject CSS once
-    if (!document.getElementById('esb-bar-css')) {
+    // Inject CSS
+    if (!document.getElementById('esb-css')) {
       const s = document.createElement('style');
-      s.id = 'esb-bar-css';
-      s.textContent = `
-@keyframes esb-fill{0%{width:0%}100%{width:100%}}
-.esb-bar{position:fixed;top:0;left:0;z-index:99999;height:5px;pointer-events:none}
-.esb-fill{height:100%;border-radius:0 3px 3px 0;box-shadow:0 0 10px currentColor,0 0 4px currentColor;animation:esb-fill 1s ease-out forwards}
-`;
+      s.id = 'esb-css';
+      s.textContent = `@keyframes esb-fill{0%{width:0%}100%{width:100%}}.esb-bar{position:fixed;top:0;left:0;z-index:99999;height:5px;pointer-events:none}.esb-fill{height:100%;border-radius:0 3px 3px 0;box-shadow:0 0 10px currentColor,0 0 4px currentColor;animation:esb-fill 1s ease-out forwards}`;
       document.head.appendChild(s);
     }
 
-    // Start init
+    // Debug: flash green/red on mount to confirm component loaded
+    if (DEBUG) fire('#22c55e');
+
+    const api = (window as any).electronAPI;
+    if (!api) {
+      // Not Electron: debug bar already flashed green, component verified working
+      return;
+    }
+
     (async () => {
       try {
-        const id: any = await api.storeGet('companionId');
+        const id = await api.storeGet('companionId');
         if (!refs.current.alive) return;
-        refs.current.cid = String(id || '');
-        refs.current.initDone = true;
+        const cid = String(id || '');
 
-        // Listen for WebSocket status broadcasts
         const unsub = api.onWsEvent?.('ws:statusBroadcast', (data: any) => {
-          if (refs.current.alive && refs.current.cid && data?.companionId === refs.current.cid && data?.status) {
+          if (refs.current.alive && cid && data?.companionId === cid && data?.status) {
             const c = COLORS[data.status];
             if (c) fire(c);
           }
         });
 
-        // Fallback: poll store
-        const poll = async () => {
+        let last = '';
+        const iv = setInterval(async () => {
+          if (!refs.current.alive) return;
           try {
-            if (!refs.current.alive) return;
-            const s: any = await api.storeGet('lastStatus');
-            if (s && s !== refs.current.last) {
-              refs.current.last = String(s);
-              const c = COLORS[String(s)];
-              if (c) fire(c);
-            }
+            const s = await api.storeGet('lastStatus');
+            if (s && s !== last) { last = String(s); const c = COLORS[String(s)]; if (c) fire(c); }
           } catch { /* */ }
-        };
-        const iv = setInterval(poll, 1500);
+        }, 1500);
 
-        const deathWatch = setInterval(() => {
-          if (!refs.current.alive) { clearInterval(deathWatch); unsub?.(); clearInterval(iv); }
-        }, 200);
+        const dw = setInterval(() => { if (!refs.current.alive) { clearInterval(dw); unsub?.(); clearInterval(iv); } }, 200);
       } catch { /* */ }
     })();
 

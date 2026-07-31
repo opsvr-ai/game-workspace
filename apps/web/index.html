@@ -23,8 +23,10 @@
         var COLORS = {AVAILABLE:'#22c55e',BUSY:'#ef4444',ENTERTAINMENT:'#eab308',RESTING:'#f97316'};
         var timer = null;
 
+        var LABELS = {AVAILABLE:'空闲',BUSY:'接单中',ENTERTAINMENT:'娱乐',RESTING:'休息'};
         window.__showStatusBar = function(status) {
           var c = COLORS[status];
+          console.log('[StatusBar]', status, c);
           if (!c) return;
           var old = document.getElementById('__sb');
           if (old) old.remove();
@@ -34,10 +36,20 @@
           bar.innerHTML = '<div style="height:100%;border-radius:0 3px 3px 0;box-shadow:0 0 10px '+c+',0 0 4px '+c+';background:'+c+';color:'+c+';animation:sb-fill 1s ease-out forwards"></div>';
           bar.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;height:5px;width:100%;pointer-events:none';
           document.body.appendChild(bar);
+          var label = document.createElement('div');
+          label.textContent = (LABELS[status]||status);
+          label.style.cssText = 'position:fixed;top:5px;right:6px;z-index:99999;font-size:10px;color:'+c+';pointer-events:none;font-weight:600';
+          label.id = '__sbl';
+          document.body.appendChild(label);
           timer = setTimeout(function() {
             var el = document.getElementById('__sb');
             if (el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; }
-            setTimeout(function() { if (el && el.parentNode) el.remove(); }, 300);
+            var ll = document.getElementById('__sbl');
+            if (ll) { ll.style.transition = 'opacity 0.3s'; ll.style.opacity = '0'; }
+            setTimeout(function() {
+              if (el && el.parentNode) el.remove();
+              if (ll && ll.parentNode) ll.remove();
+            }, 300);
           }, 1200);
         };
 

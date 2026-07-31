@@ -1,31 +1,31 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 330,
+      "successCount": 334,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 322
+          "count": 0,
+          "weight": 330
         },
         "style:prefer_const": {
-          "count": 2,
-          "weight": 750
+          "count": 1,
+          "weight": 768
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 56
+          "count": 1,
+          "weight": 58
         },
         "typing:explicit_types": {
           "count": 0,
           "weight": 205
         },
         "framework:react_hooks": {
-          "count": 1,
-          "weight": 79
+          "count": 2,
+          "weight": 80
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 64
+          "count": 2,
+          "weight": 69
         }
       }
     },
@@ -38,15 +38,15 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 213,
+      "successCount": 218,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 459
+          "count": 2,
+          "weight": 465
         },
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 156
+          "count": 2,
+          "weight": 157
         },
         "style:async_await": {
           "count": 0,
@@ -61,8 +61,8 @@
           "weight": 2
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 18
+          "count": 2,
+          "weight": 20
         }
       }
     },
@@ -73,19 +73,27 @@
     "other": {
       "successCount": 3,
       "patterns": {}
+    },
+    ".bat": {
+      "successCount": 1,
+      "patterns": {}
+    },
+    ".html": {
+      "successCount": 1,
+      "patterns": {}
     }
   },
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 2,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785504215678
+      "lastSuccess": 1785514537248
     },
     "grep": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785509286274
+      "lastSuccess": 1785517366700
     },
     "wc": {
       "count": 1,
@@ -93,19 +101,19 @@
       "lastSuccess": 1785003772768
     },
     "npx": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785509738116
+      "lastSuccess": 1785517416964
     },
     "pythonN": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784585749192
+      "lastSuccess": 1785514276777
     },
     "find": {
-      "count": 3,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785509271889
+      "lastSuccess": 1785517337154
     },
     "docker": {
       "count": 2,
@@ -113,24 +121,24 @@
       "lastSuccess": 1784636423667
     },
     "pnpm": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785010649115
+      "lastSuccess": 1785510922882
     },
     "sleep": {
-      "count": 5,
-      "patterns": [],
-      "lastSuccess": 1785504199656
-    },
-    "mkdir": {
       "count": 1,
       "patterns": [],
-      "lastSuccess": 1785414003408
+      "lastSuccess": 1785513824653
     },
-    "head": {
+    "mkdir": {
       "count": 4,
       "patterns": [],
-      "lastSuccess": 1785165888865
+      "lastSuccess": 1785517377994
+    },
+    "head": {
+      "count": 5,
+      "patterns": [],
+      "lastSuccess": 1785512049056
     },
     "tail": {
       "count": 3,
@@ -148,9 +156,9 @@
       "lastSuccess": 1784556745907
     },
     "curl": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785509748910
+      "lastSuccess": 1785516348457
     },
     "kill": {
       "count": 0,
@@ -173,9 +181,9 @@
       "lastSuccess": 1784587249843
     },
     "which": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1784930327722
+      "lastSuccess": 1785512447062
     },
     "openspec": {
       "count": 1,
@@ -193,14 +201,14 @@
       "lastSuccess": 1784587461125
     },
     "ps": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784565938743
+      "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 1,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784566497792
+      "lastSuccess": 1785513846019
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -218,9 +226,9 @@
       "lastSuccess": 1784586396393
     },
     "TOKEN=$(curl": {
-      "count": 1,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784827313241
+      "lastSuccess": 1785516520591
     },
     "pkill": {
       "count": 1,
@@ -263,1088 +271,37 @@
       "lastSuccess": 1785193634455
     },
     "pmN": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785504191160
+      "lastSuccess": 1785510914245
     },
     "cp": {
+      "count": 4,
+      "patterns": [],
+      "lastSuccess": 1785514379968
+    },
+    "CSC_IDENTITY_AUTO_DISCOVERY=false": {
       "count": 2,
       "patterns": [],
-      "lastSuccess": 1785509753986
+      "lastSuccess": 1785512559964
+    },
+    "apt-get": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1785512441885
+    },
+    "zip": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1785512950432
+    },
+    "unzip": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1785517325134
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"const menuItems\\|pCount\\|bCount\\|CHAT_LABELS\\|订单管理\\|contactBadge\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785003811320
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"onMenuClick\\|markSeen\\|markBridgeSeen\\|markBillingSeen\\|markContactSeen\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785003816265
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785003820385
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 7
-        }
-      ],
-      "timestamp": 1785003842153
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1785003858218
-    },
-    {
-      "type": "bash",
-      "command": "grep \"useMemo.*contactBadge\\|}, \\[user\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785003868036
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1785003871297
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep -i \"pending-contact\\|contactBadge\\|OrdersController\\|orders.service\" || echo \"✓ no new errors\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep -i \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785003888803
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [],
-      "timestamp": 1785004035982
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"CreateOrderModal\" | grep -v TS2739 || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v TSN || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785004054534
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785004374094
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"notes: '补单客户'\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\"补单客户\"\" /data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785004380005
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-      "patterns": [],
-      "timestamp": 1785004387037
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
-      "patterns": [],
-      "timestamp": 1785004402254
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep -i \"CreateOrderModal\\|orders.service\\|OrdersPage\" | grep -v \"TS2739\\|TS6133\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep -i \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785004418823
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
-      "patterns": [
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 8
-        }
-      ],
-      "timestamp": 1785004425495
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"CreateOrderModal\" | grep -v \"TS2739\\|TS6133\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785004437993
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785008748574
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"OrdersPage\" | grep -v \"TS2739\\|TS6133\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785008764740
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"Grab Success\\|grabbedOrder\\|抢单成功\\|抢单\\|Modal\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009076858
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"setGrabbedOrder\\|grabbedOrder\\|抢单成功\\|Grab Success\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/OrderPoolPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009081714
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"grabbedOrder\\|setGrabbedOrder\\|orderStore\" /data/project/game-workspace/apps/web/src/ --include=\"*.tsx\" --include=\"*.ts\" | grep -v node_modules",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ --include=\"\" --include=\"\" | grep -v node_modu",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009085349
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"handleGrab\\|grab\\|抢单\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009127126
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"useState\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009137094
-    },
-    {
-      "type": "bash",
-      "command": "head -8 /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "head",
-        "pattern": "head -N /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785009140363
-    },
-    {
-      "type": "bash",
-      "command": "tail -5 /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "tail",
-        "pattern": "tail -N /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785009140920
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785009145936
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785009164837
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"Modal\\|CreateOrderModal\\|modalOpen\\|setModalOpen\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | tail -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009173783
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1785009188081
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1785009200447
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"CSDispatchView\" | grep -v \"TS2739\\|TS003\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009211913
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep -c \"grabbedOrder.*customerSource\\|grabbedOrder.*deltaMode\\|抢单成功\" || echo \"no new errors related to grab modal\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep -c \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009222977
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"useNavigate\\|navigate\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009574281
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785009578670
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"const CSDispatchView\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785009590561
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 5
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785009598317
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"Grab Success\\|抢单成功\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009611133
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785009614848
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"CSDispatchView\" | grep \"useNavigate\\|navigate\\|ordersPath\" || echo \"✓ no new errors\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009626842
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785009771633
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785009785712
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 4
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785009798952
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"prisma\\|PrismaService\\|constructor\" /data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009806866
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"order-workflow\\|order-dispatch\" | grep -v \"TS2739\\|TS6133\\|TS003\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785009817662
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 9
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 17
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 6
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 18
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 6
-        }
-      ],
-      "timestamp": 1785010178896
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"WorkWechatPage\" | grep -v \"TS2739\\|TS6133\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785010191204
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/companions/companion-wechat.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785010356922
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
-      "patterns": [],
-      "timestamp": 1785010528686
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785010618166
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 6
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785010626598
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/WorkWechatPage.tsx",
-      "patterns": [],
-      "timestamp": 1785010633611
-    },
-    {
-      "type": "bash",
-      "command": "pnpm build 2>&1 | grep \"WorkWechatPage\" | grep -v \"TS2739\\|TS6133\" || echo \"✓\"",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm build N>&N | grep \"\" | grep -v \"\" || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785010649115
-    },
-    {
-      "type": "bash",
-      "command": "git diff --name-only HEAD -- '*.ts' '*.tsx' | grep -v \".axme\\|.claude\\|.aura\\|node_modules\"",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --name-only HEAD -- \"\" \"\" | grep -v \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785011124756
-    },
-    {
-      "type": "bash",
-      "command": "git diff --name-only HEAD -- '*.ts' '*.tsx' | grep -v \".axme\\|.claude\\|.aura\\|node_modules\" | xargs git add && git commit -m \"feat: work wechat management, order contact flow, compensation marking, KP",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --name-only HEAD -- \"\" \"\" | grep -v \"\" | xargs git add && git commit -m \"\"s work wechat on ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785011131047
-    },
-    {
-      "type": "bash",
-      "command": "git status --short -- apps/web/src/pages/WorkWechatPage.tsx apps/web/src/pages/companion/PoolPage.tsx 2>/dev/null",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git status --short -- apps/web/src/pages/WorkWechatPage.tsx apps/web/src/pages/companion/PoolPage.ts",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785011134394
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/pages/WorkWechatPage.tsx && git commit --amend --no-edit #!axme pr=none repo=AxmeAI/axme-code",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/pages/WorkWechatPage.tsx && git commit --amend --no-edit #!axme pr=none repo=Ax",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785011137649
-    },
-    {
-      "type": "bash",
-      "command": "git status",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git status",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785165870118
-    },
-    {
-      "type": "bash",
-      "command": "git diff --stat",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --stat",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785165870587
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -n 10",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -n N",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785165888247
-    },
-    {
-      "type": "bash",
-      "command": "head -60 .gitignore 2>/dev/null || echo \"No .gitignore found\"",
-      "cmdPattern": {
-        "base": "head",
-        "pattern": "head -N .gitignore N>/dev/null || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785165888865
-    },
-    {
-      "type": "bash",
-      "command": "git remote -v",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git remote -v",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785165919711
-    },
-    {
-      "type": "bash",
-      "command": "find . -maxdepth 1 -name \".env*\" -o -name \"*credentials*\" -o -name \"*.pem\" -o -name \"*.key\" 2>/dev/null | head -5",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find . -maxdepth N -name \"\" -o -name \"\" -o -name \"\" -o -name \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785165920669
-    },
-    {
-      "type": "bash",
-      "command": "git stash push --include-untracked -m \"tool files before merge\" .axme-code/ .claude/cache/ .claude/metrics/ .claude/logs/ 2>/dev/null; git merge feature/chat-3.0",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git stash push --include-untracked -m \"\" .axme-code/ .claude/cache/ .claude/metrics/ .claude/logs/ N",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785166612039
-    },
-    {
-      "type": "bash",
-      "command": "gh pr list --state open --json number,title,headRefName,baseRefName --jq '.[] | \"#\\(.number): \\(.title) (\\(.headRefName) -> \\(.baseRefName))\"'",
-      "cmdPattern": {
-        "base": "gh",
-        "pattern": "gh pr list --state open --json number,title,headRefName,baseRefName --jq \"\"#\\(.number): \\(.title) (\\",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785166702374
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/merge/chat-3.0-to-master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/merge/chat-N.N-to-master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785167148186
-    },
-    {
-      "type": "bash",
-      "command": "git diff --name-only --diff-filter=U",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --name-only --diff-filter=U",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785167176423
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"^<<<<<<\\|^======\\|^>>>>>>\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785167178797
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785167192216
-    },
-    {
-      "type": "bash",
-      "command": "grep -c \"!\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -c \"\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785167201377
-    },
-    {
-      "type": "bash",
-      "command": "grep -c \"^<<<<<<\\|^======\\|^>>>>>>\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -c \"\" apps/web/src/pages/dispatch/CSDispatchView.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785167204786
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/pages/dispatch/CSDispatchView.tsx && git commit -m \"merge: resolve conflict in CSDispatchView styles\" #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/pages/dispatch/CSDispatchView.tsx && git commit -m \"\" #!axme pr=none repo=opsvr",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785167208874
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785167217254
-    },
-    {
-      "type": "bash",
-      "command": "git push origin --delete merge/chat-3.0-to-master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin --delete merge/chat-N.N-to-master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785167227520
-    },
-    {
-      "type": "bash",
-      "command": "npm list -g qmd 2>&1 && which qmd 2>&1 || find /usr -name \"qmd\" -type f 2>/dev/null | head -5",
-      "cmdPattern": {
-        "base": "npm",
-        "pattern": "npm list -g qmd N>&N && which qmd N>&N || find /usr -name \"\" -type f N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785193613689
-    },
-    {
-      "type": "bash",
-      "command": "npm bin -g 2>&1 && ls \"$(npm bin -g 2>/dev/null)/qmd\" 2>&1 || find /data/cache -name \"qmd\" -type f 2>/dev/null",
-      "cmdPattern": {
-        "base": "npm",
-        "pattern": "npm bin -g N>&N && ls \"\" N>&N || find /data/cache -name \"\" -type f N>/dev/null",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785193623078
-    },
-    {
-      "type": "bash",
-      "command": "npm prefix -g && ls \"$(npm prefix -g)/bin/\" 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "npm",
-        "pattern": "npm prefix -g && ls \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785193634455
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -30",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -N",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785413507494
-    },
-    {
-      "type": "bash",
-      "command": "find apps/ -maxdepth 3 -type d | grep -i agent && ls apps/server/src/agent/",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find apps/ -maxdepth N -type d | grep -i agent && ls apps/server/src/agent/",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785413872588
-    },
-    {
-      "type": "bash",
-      "command": "find apps/ -maxdepth 4 -name \"*.ts\" -o -name \"*.tsx\" | xargs grep -l \"auto.?update\\|autoUpdate\\|auto-update\\|download.*update\" 2>/dev/null | head -5",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find apps/ -maxdepth N -name \"\" -o -name \"\" | xargs grep -l \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413884562
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/companion-electron -type f | head -200",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/companion-electron -type f | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413936693
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/server/src/ -type f -name \"*.ts\" | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/server/src/ -type f -name \"\" | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413939648
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/ -name \"schema.prisma\" -o -name \"*.prisma\" | head -20",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/ -name \"\" -o -name \"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413941443
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type f \\( -name \"*.tsx\" -o -name \"*.ts\" \\) | xargs grep -l -E \"(AgentVersion|PcControl|Blacklist|Whitelist|SettingsPage|agent.*store|pc.*store|blacklist",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type f \\( -name \"\" -o -name \"\" \\) | xargs grep -l -E",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413941636
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src -type d | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src -type d | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413942122
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src/api -type f -name \"*.ts\" | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src/api -type f -name \"\" | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413952474
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src/stores -type f -name \"*.ts\" | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src/stores -type f -name \"\" | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413952947
-    },
-    {
-      "type": "bash",
-      "command": "find /data/project/game-workspace/apps/web/src/pages/settings -type f -name \"*.tsx\" | sort",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /data/project/game-workspace/apps/web/src/pages/settings -type f -name \"\" | sort",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785413953548
-    },
     {
       "type": "bash",
       "command": "find /data/project/game-workspace/apps/companion-electron/src -type f -name '*.ts' -o -name '*.tsx' | sort",
@@ -2864,6 +1821,985 @@
         "hasChain": true
       },
       "timestamp": 1785509753986
+    },
+    {
+      "type": "bash",
+      "command": "git add -A && git commit -m \"fix: direct IPC for status bar — showStatusBar via renderer→main\n\n- main.ts: add ipcMain.on('show-status-bar') → calls showStatusBar()\n- preload.ts: expose showStatusBar(s",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add -A && git commit -m \"\"show-status-bar\"\" #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785509769502
+    },
+    {
+      "type": "bash",
+      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785509779430
+    },
+    {
+      "type": "bash",
+      "command": "mkdir -p /data/project/game-workspace/apps/companion-electron/src/assets && npx electron-builder --win --x64 2>&1 | tail -15",
+      "cmdPattern": {
+        "base": "mkdir",
+        "pattern": "mkdir -p /data/project/game-workspace/apps/companion-electron/src/assets && npx electron-builder --w",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785509866979
+    },
+    {
+      "type": "bash",
+      "command": "grep -A20 '\"build\"' /data/project/game-workspace/apps/companion-electron/package.json",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\"build\"\" /data/project/game-workspace/apps/companion-electron/package.json",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785509878164
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"builder\\|appId\\|nsis\\|productName\\|win\\|target\\|output\" /data/project/game-workspace/apps/companion-electron/package.json",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/package.json",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785509882613
+    },
+    {
+      "type": "bash",
+      "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -5",
+      "cmdPattern": {
+        "base": "CSC_IDENTITY_AUTO_DISCOVERY=false",
+        "pattern": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --xN N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785509973650
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785510016087
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/components/ElectronStatusBar.tsx\" 2>&1 | head -3",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510458795
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 8
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 17
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785510471967
+    },
+    {
+      "type": "bash",
+      "command": "ps aux | grep 943055 | head -3",
+      "cmdPattern": {
+        "base": "ps",
+        "pattern": "ps aux | grep N | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510708351
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/components/ElectronStatusBar.tsx\" 2>&1 | tail -30",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510721678
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/layouts/AppLayout.tsx\" 2>&1 | grep -c \"ElectronStatusBar\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep -c \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510729319
+    },
+    {
+      "type": "bash",
+      "command": "curl -sI \"http://localhost:8000/\" 2>&1 | head -10",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -sI \"\" N>&N | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510739212
+    },
+    {
+      "type": "bash",
+      "command": "pm2 delete all 2>/dev/null; sleep 1 && echo \"stopped\"",
+      "cmdPattern": {
+        "base": "pmN",
+        "pattern": "pmN delete all N>/dev/null; sleep N && echo \"\"",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785510914245
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -5",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785510922882
+    },
+    {
+      "type": "bash",
+      "command": "npx serve -s /data/project/game-workspace/apps/web/dist -l 8000 --no-clipboard &\ncd /data/project/game-workspace && node apps/server/dist/main.js &\nsleep 3 && curl -sI http://localhost:8000/ | head -5",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx serve -s /data/project/game-workspace/apps/web/dist -l N --no-clipboard & cd /data/project/game-",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785510938592
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:3001/api/health",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/api/health",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785511015469
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -m json.tool 2>/dev/null | head -10",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N\"\" | pyt",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785511019319
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"cors\\|origin\\|8000\\|enableCors\" /data/project/game-workspace/apps/server/src/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785511027180
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/main.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785511042649
+    },
+    {
+      "type": "bash",
+      "command": "git diff e89789a..HEAD -- apps/web/src/pages/CompanionPage.tsx",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git diff eNa..HEAD -- apps/web/src/pages/CompanionPage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512043500
+    },
+    {
+      "type": "bash",
+      "command": "head -1 /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "cmdPattern": {
+        "base": "head",
+        "pattern": "head -N /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512049056
+    },
+    {
+      "type": "bash",
+      "command": "grep -A6 \"setBlockedModal\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512054051
+    },
+    {
+      "type": "bash",
+      "command": "git diff e89789a..HEAD --stat -- apps/ | head -20",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git diff eNa..HEAD --stat -- apps/ | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512061206
+    },
+    {
+      "type": "bash",
+      "command": "git add /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx && git commit -m \"fix: restore electronAPI.onStatusChanged call for screen-lock on RESTING\" #!axme pr=none repo=opsvr-ai/game-",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git add /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx && git commit -m \"\" #!axme",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785512084977
+    },
+    {
+      "type": "bash",
+      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512094693
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
+      "patterns": [],
+      "timestamp": 1785512178893
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512198128
+    },
+    {
+      "type": "bash",
+      "command": "npx vite build 2>&1 | tail -3 && echo \"vite OK\" && CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -5",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx vite build N>&N | tail -N && echo \"\" && CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder -",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785512216310
+    },
+    {
+      "type": "bash",
+      "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -3",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx electron-builder --win --xN --dir N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512236170
+    },
+    {
+      "type": "bash",
+      "command": "mkdir -p /tmp/asar-extract && npx asar extract release/win-unpacked/resources/app.asar /tmp/asar-extract && cp dist-electron/main.js /tmp/asar-extract/ && npx asar pack /tmp/asar-extract /tmp/app.asar",
+      "cmdPattern": {
+        "base": "mkdir",
+        "pattern": "mkdir -p /tmp/asar-extract && npx asar extract release/win-unpacked/resources/app.asar /tmp/asar-ext",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785512279225
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts && git -C /data/project/game-workspace commit -m \"fix: screen-lock garbled text — add charset=utf-8 to data URL\"",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts && git -C /d",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785512300181
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/uploads/app.asar 2>/dev/null || echo \"not accessible yet\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -o /dev/null -w \"\" http://localhost:N/uploads/app.asar N>/dev/null || echo \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512309031
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/uploads/fix-screen-lock.bat",
+      "patterns": [],
+      "timestamp": 1785512344115
+    },
+    {
+      "type": "bash",
+      "command": "apt-get install -y wine64 2>&1 | tail -5",
+      "cmdPattern": {
+        "base": "apt-get",
+        "pattern": "apt-get install -y wineN N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512441885
+    },
+    {
+      "type": "bash",
+      "command": "which wine64 && wine64 --version 2>&1",
+      "cmdPattern": {
+        "base": "which",
+        "pattern": "which wineN && wineN --version N>&N",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785512447062
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 && npx vite build 2>&1 | tail -3 && echo \"Build OK\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785512454801
+    },
+    {
+      "type": "bash",
+      "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -10",
+      "cmdPattern": {
+        "base": "CSC_IDENTITY_AUTO_DISCOVERY=false",
+        "pattern": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --xN N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512559964
+    },
+    {
+      "type": "bash",
+      "command": "npx electron-builder --win portable --x64 2>&1 | tail -10",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx electron-builder --win portable --xN N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512817563
+    },
+    {
+      "type": "bash",
+      "command": "rm -rf release/win-unpacked release/*.exe 2>/dev/null && npx electron-builder --win --x64 --dir -c.win.sign=null 2>&1 | grep \"⨯\\|✓\\|building\\|packaging\" | head -10",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -rf release/win-unpacked release/*.exe N>/dev/null && npx electron-builder --win --xN --dir -c.wi",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785512852440
+    },
+    {
+      "type": "bash",
+      "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -5",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx electron-builder --win --xN --dir N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512864714
+    },
+    {
+      "type": "bash",
+      "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check-asar 2>/dev/null && grep \"charset=utf-8\" /tmp/check-asar/main.js | head -1 && echo \"FIX CONFIRMED\" || echo \"Fix not found\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check-asar N>/dev/null && grep \"\" /tmp",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785512887236
+    },
+    {
+      "type": "bash",
+      "command": "find /tmp/check-asar -name \"main.js\" 2>/dev/null | head -3",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /tmp/check-asar -name \"\" N>/dev/null | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512891292
+    },
+    {
+      "type": "bash",
+      "command": "grep \"charset=utf-8\" /tmp/check-asar/dist-electron/main.js",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /tmp/check-asar/dist-electron/main.js",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785512896255
+    },
+    {
+      "type": "bash",
+      "command": "cp /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe /data/project/game-workspace/uploads/蠢驴电竞.exe && ls -la /data/project/game-workspace/uploads/蠢驴电竞.exe",
+      "cmdPattern": {
+        "base": "cp",
+        "pattern": "cp /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe /data/project/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785512905965
+    },
+    {
+      "type": "bash",
+      "command": "zip -j /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-electron/release/win-unpacked/*.exe /data/project/game-workspace/apps/companion-electron/release/win-un",
+      "cmdPattern": {
+        "base": "zip",
+        "pattern": "zip -j /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-ele",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785512950432
+    },
+    {
+      "type": "bash",
+      "command": "rm /data/project/game-workspace/uploads/蠢驴电竞.zip 2>/dev/null && zip -r /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-electron/release/win-unpacked/ 2>&1 | t",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm /data/project/game-workspace/uploads/蠢驴电竞.zip N>/dev/null && zip -r /data/project/game-workspace/",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785512985381
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts apps/companion-electron/electron-builder.yml && git -C /data/project/game-workspace commit -m \"fix: screen-lock ",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts apps/compani",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785513002366
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 5
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785513559213
+    },
+    {
+      "type": "bash",
+      "command": "rm -rf /data/project/game-workspace/uploads/蠢驴电竞.* 2>/dev/null; npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 &&",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -rf /data/project/game-workspace/uploads/蠢驴电竞.* N>/dev/null; npx esbuild electron/main.ts --bundl",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785513576467
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"READY\" || echo \"STILL BUILDING\"",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785513641159
+    },
+    {
+      "type": "bash",
+      "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check2 2>/dev/null && grep \"base64\" /tmp/check2/dist-electron/main.js | head -2 && echo \"BASE64 CONFIRMED\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx asar extract release/win-unpacked/resources/app.asar /tmp/checkN N>/dev/null && grep \"\" /tmp/che",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785513647325
+    },
+    {
+      "type": "bash",
+      "command": "grep \"text/html.*base64\" /tmp/check2/dist-electron/main.js | head -3",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /tmp/checkN/dist-electron/main.js | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785513651187
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip release/win-unpacked/ && git -C /data/project/game-workspace add apps/companion-electron/el",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785513691151
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785513747566
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 && npx vite build 2>&1 | tail -1 && npx electron-builder --win --x",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785513760599
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"READY\" || echo \"BUILDING\"",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785513824653
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip release/win-unpacked/ && git -C /data/project/game-workspace add apps/companion-electron/el",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785513846019
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"emitStatus\\|store.set.*lastStatus\\|store.set.*status\\|status:changed\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785513920820
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"AVAILABLE\\|store.set\\|emitStatus\\|status\" /data/project/game-workspace/apps/companion-electron/electron/entertainment-notify.ts | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/entertainment-notify.ts | h",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785513926772
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"data:text/html\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785513937177
+    },
+    {
+      "type": "bash",
+      "command": "curl -sI \"http://localhost:8000/uploads/蠢驴电竞.zip\" | head -3 && echo \"---\" && curl -sI \"http://localhost:3001/uploads/蠢驴电竞.zip\" | head -3",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -sI \"\" | head -N && echo \"\" && curl -sI \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785514114761
+    },
+    {
+      "type": "bash",
+      "command": "python3 -m http.server 8888 --directory /data/project/game-workspace/uploads &\nsleep 2 && curl -sI http://localhost:8888/蠢驴电竞.zip | head -3",
+      "cmdPattern": {
+        "base": "pythonN",
+        "pattern": "pythonN -m http.server N --directory /data/project/game-workspace/uploads & sleep N && curl -sI http",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785514276777
+    },
+    {
+      "type": "bash",
+      "command": "cp /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/uploads/app.zip && ls -lh /data/project/game-workspace/uploads/app.zip",
+      "cmdPattern": {
+        "base": "cp",
+        "pattern": "cp /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/uploads/app.zip && ls ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785514379968
+    },
+    {
+      "type": "bash",
+      "command": "curl -sI http://localhost:3001/uploads/app.zip | head -5",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -sI http://localhost:N/uploads/app.zip | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785514383740
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1785514516425
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/CompanionPage.tsx && git -C /data/project/game-workspace commit -m \"fix: sync lastStatus via storeSet to prevent auto re-lock after unlock\" &",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/CompanionPage.tsx && git -C /data/project",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785514537248
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -o /tmp/test-dl http://localhost:8888/app.zip 2>&1 &\nsleep 3 && ls -lh /tmp/test-dl && echo \"DOWNLOAD WORKS FROM SERVER\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -o /tmp/test-dl http://localhost:N/app.zip N>&N & sleep N && ls -lh /tmp/test-dl && echo \"\"",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785514634926
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516149582
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785516158745
+    },
+    {
+      "type": "bash",
+      "command": "grep -A2 \"__showStatusBar\\|switchStatus\\|updateStatus\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516324523
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep -c \"__showStatusBar\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep -c \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516337008
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"switchStatus\\|__showStatusBar\\|electronAPI\\|storeSet\\|onStatusChanged\\|fetchData\" | head -10",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516341647
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"showStatusBar\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516348457
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785516435412
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"接单\\|BUSY\\|switchStatus\\|onClick.*order\\|grab\\|accept\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785516450563
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785516520591
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1785516536930
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"status:changed\\|show-status-bar\\|showScreenLock\\|hideScreenLock\\|showStatusBar\\|deploy:execute\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785517235828
+    },
+    {
+      "type": "bash",
+      "command": "unzip -p /data/project/game-workspace/uploads/app.zip */resources/app.asar 2>/dev/null > /tmp/check-asar3 && npx asar extract /tmp/check-asar3 /tmp/asar3 2>/dev/null && grep \"showScreenLock\\|show-stat",
+      "cmdPattern": {
+        "base": "unzip",
+        "pattern": "unzip -p /data/project/game-workspace/uploads/app.zip */resources/app.asar N>/dev/null > /tmp/check-",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785517325134
+    },
+    {
+      "type": "bash",
+      "command": "find /tmp/asar3 -name \"preload*\" 2>/dev/null",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /tmp/asarN -name \"\" N>/dev/null",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785517337154
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=dist-electron/preload.js --format=cjs 2>&1",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=dist-electron",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785517354566
+    },
+    {
+      "type": "bash",
+      "command": "grep \"onStatusChanged\\|showStatusBar\" dist-electron/preload.js",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" dist-electron/preload.js",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785517358765
+    },
+    {
+      "type": "bash",
+      "command": "grep \"dist-electron\" /data/project/game-workspace/apps/companion-electron/.gitignore 2>/dev/null || echo \"No gitignore for dist-electron\"",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/companion-electron/.gitignore N>/dev/null || echo \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785517366700
+    },
+    {
+      "type": "bash",
+      "command": "mkdir -p /data/project/game-workspace/apps/companion-electron/preload-dist && npx esbuild electron/preload.ts --bundle --platform=node --external:electron --outfile=preload-dist/preload.js --format=cj",
+      "cmdPattern": {
+        "base": "mkdir",
+        "pattern": "mkdir -p /data/project/game-workspace/apps/companion-electron/preload-dist && npx esbuild electron/p",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785517377994
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
+      "patterns": [],
+      "timestamp": 1785517395965
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 && npx vite build 2>&1 | tail -1 && npx electron-builder --win --x",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785517411079
+    },
+    {
+      "type": "bash",
+      "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/asar4 2>/dev/null && ls /tmp/asar4/preload-dist/ && grep \"onStatusChanged\" /tmp/asar4/preload-dist/preload.js | head -1 && echo \"PRELOAD C",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx asar extract release/win-unpacked/resources/app.asar /tmp/asarN N>/dev/null && ls /tmp/asarN/pre",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785517416964
     }
   ]
 }

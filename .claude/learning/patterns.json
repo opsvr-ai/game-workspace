@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 61,
+    "frequency": 64,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-31T13:21:04.468Z"
+    "updated_at": "2026-07-31T17:02:38.766Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 71,
+    "frequency": 72,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-31T13:16:57.297Z"
+    "updated_at": "2026-07-31T15:00:16.088Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 42,
+    "frequency": 43,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-31T12:54:59.067Z"
+    "updated_at": "2026-07-31T15:07:51.968Z"
   },
   {
     "type": "code_style",
@@ -100,9 +100,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 34,
+    "frequency": 35,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-31T13:17:22.645Z"
+    "updated_at": "2026-07-31T15:34:21.207Z"
   },
   {
     "type": "code_style",
@@ -224,12 +224,14 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 6,
+    "frequency": 8,
     "created_at": "2026-07-20T14:53:10.455Z",
-    "updated_at": "2026-07-31T14:41:27.824Z"
+    "updated_at": "2026-07-31T17:02:34.567Z"
   },
   {
     "type": "code_style",
@@ -272,24 +274,28 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "curl",
-    "frequency": 4,
+    "frequency": 7,
     "created_at": "2026-07-20T16:45:32.583Z",
-    "updated_at": "2026-07-23T15:42:13.905Z"
+    "updated_at": "2026-07-31T16:45:48.459Z"
   },
   {
     "type": "workflow",
     "category": "bash",
     "description": "Commonly used command: sleep",
     "evidence": [
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "sleep",
-    "frequency": 1,
+    "frequency": 2,
     "created_at": "2026-07-20T17:01:58.896Z",
-    "updated_at": "2026-07-20T17:01:58.896Z"
+    "updated_at": "2026-07-31T16:00:41.161Z"
   },
   {
     "type": "workflow",
@@ -363,5 +369,17 @@
     "frequency": 1,
     "created_at": "2026-07-31T13:22:38.949Z",
     "updated_at": "2026-07-31T13:22:38.949Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: rm",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "rm",
+    "frequency": 1,
+    "created_at": "2026-07-31T16:04:06.020Z",
+    "updated_at": "2026-07-31T16:04:06.020Z"
   }
 ]
