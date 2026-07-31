@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T20:48:42.400Z
+**Last Updated:** 2026-07-31T21:00:28.343Z
 
 ---
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 84 occurrences
+**Frequency:** 86 occurrences
 
 ### Prefer async await in .ts files
 
