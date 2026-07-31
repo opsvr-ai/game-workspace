@@ -65,7 +65,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
       const v = await form.validateFields();
       setLoading(true);
       await ordersApi.create({ ...v, csUserId: userId, isCompensation: (v as any).isCompensation });
-      message.success('订单已发布');
+      message.success(customerPreFill ? '已开始服务' : '订单已发布');
       form.resetFields();
       onClose();
       onCreated();
@@ -86,7 +86,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         onClose();
       }}
       confirmLoading={loading}
-      okText="发布"
+      okText={customerPreFill ? '开始服务' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}
