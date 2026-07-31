@@ -44,5 +44,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   // Remote deploy — execute PsExec script from admin's PC
   executeRemoteDeploy: (script) => import_electron.ipcRenderer.invoke("deploy:execute", script),
   // Status bar animation — call directly from renderer
-  showStatusBar: (status) => import_electron.ipcRenderer.send("show-status-bar", status)
+  showStatusBar: (status) => import_electron.ipcRenderer.send("show-status-bar", status),
+  // One-click app update — download + replace + restart
+  updateApp: () => import_electron.ipcRenderer.invoke("update-app")
 });

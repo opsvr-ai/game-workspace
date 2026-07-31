@@ -226,6 +226,54 @@ function setupIPC(): void {
     showStatusBar(status);
   });
 
+  // One-click app update: download new app.asar, replace, restart
+  ipcMain.handle('update-app', async () => {
+    const serverUrl = getServerUrl();
+    const downloadUrl = `${serverUrl.replace(/:3001$/, ':8000')}/uploads/app.asar`;
+    const tmpAsar = path.join(app.getPath('temp'), 'app.asar.new');
+    const installDir = path.dirname(app.getPath('exe'));
+    const targetAsar = path.join(installDir, 'resources', 'app.asar');
+    const batPath = path.join(app.getPath('temp'), 'chunlv-update.bat');
+
+    try {
+      // Download new asar
+      logger.info('Downloading update', { url: downloadUrl });
+      const http = require('http') as typeof import('http');
+      await new Promise<void>((resolve, reject) => {
+        const file = fs.createWriteStream(tmpAsar);
+        http.get(downloadUrl, (res: any) => {
+          if (res.statusCode !== 200) { file.close(); reject(new Error(`HTTP ${res.statusCode}`)); return; }
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(); });
+        }).on('error', reject);
+      });
+
+      // Write batch script that replaces file and restarts
+      const bat = [
+        '@echo off', 'chcp 65001 >nul',
+        'echo 正在更新...',
+        `:wait`,
+        `tasklist /fi "IMAGENAME eq 蠢驴电竞.exe" 2>nul | find "蠢驴电竞.exe" >nul`,
+        `if %errorlevel% equ 0 ( timeout /t 1 /nobreak >nul & goto wait )`,
+        `copy /y "${tmpAsar}" "${targetAsar}"`,
+        `del "${tmpAsar}"`,
+        `start "" "${installDir}\\蠢驴电竞.exe"`,
+        `del "%~f0"`,
+      ].join('\r\n');
+      fs.writeFileSync(batPath, bat, 'utf-8');
+
+      // Spawn detached batch and quit
+      logger.info('Update ready, restarting...');
+      const { spawn } = require('child_process') as typeof import('child_process');
+      spawn('cmd.exe', ['/c', batPath], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      app.quit();
+      return { success: true };
+    } catch (err: any) {
+      logger.error('Update failed', { error: err.message });
+      return { success: false, error: err.message };
+    }
+  });
+
   // Remote deploy: execute PsExec script on admin's PC
   ipcMain.handle('deploy:execute', async (_e, script: string) => {
     const scriptPath = path.join(app.getPath('temp'), 'chunlv-remote-deploy.ps1');

@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T17:02:38.766Z
+**Last Updated:** 2026-07-31T17:15:11.319Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 23
+- **Total Patterns:** 24
 - **Total Feedback:** 3
 
 ## Bash
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 64 occurrences
+**Frequency:** 65 occurrences
 
 ### Commonly used command: git
 
@@ -149,6 +149,13 @@
 
 **Frequency:** 1 occurrences
 
+### Commonly used command: which
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
 ## Style
 
 *0 corrections in this category*
@@ -204,7 +211,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 16 occurrences
+**Frequency:** 17 occurrences
 
 ## Typing
 

@@ -250,7 +250,16 @@ const CompanionPage: React.FC = () => {
     <div>
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
-        <a href="http://192.168.0.106:8888/app.zip" style={{float:'right',fontSize:12,marginTop:4}}>⬇ 更新</a>
+                <Button size="small" type="link" style={{float:'right',marginTop:4}}
+          onClick={async () => {
+            try {
+              const api = (window as any).electronAPI;
+              if (!api?.updateApp) return alert('请先下载最新版exe');
+              if (!confirm('确认更新？程序将自动下载、替换并重启')) return;
+              await api.updateApp();
+            } catch(e: any) { alert('更新失败: '+e.message); }
+          }}
+        >⬇ 一键更新</Button>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">

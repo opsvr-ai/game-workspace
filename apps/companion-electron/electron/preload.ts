@@ -49,4 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Status bar animation — call directly from renderer
   showStatusBar: (status: string) => ipcRenderer.send('show-status-bar', status),
+
+  // One-click app update — download + replace + restart
+  updateApp: () => ipcRenderer.invoke('update-app'),
 });
