@@ -243,6 +243,8 @@ const CompanionPage: React.FC = () => {
       message.success(`已切换为${companionStatusConfig[status]?.label || status}`);
       // Trigger native screen lock via Electron IPC
       try { (window as any).electronAPI?.onStatusChanged?.(status); } catch { /* */ }
+      // Web-based screen lock for RESTING
+      setScreenLocked(status === 'RESTING');
       fetchData();
     } catch {
       message.error('切换失败');
