@@ -521,4 +521,51 @@ export class OrdersService {
       },
     });
   }
+
+  // ── Session management ──
+
+  async getSessions(orderId: string) {
+    return this.prisma.orderSession.findMany({
+      where: { parentOrderId: orderId },
+      orderBy: { seq: 'asc' },
+      include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
+      },
+    });
+  }
+
+  async addSession(orderId: string, dto: {
+    companionId: string; coCompanionId?: string; amount: number; coAmount?: number; duration?: number;
+  }) {
+    const sessions = await this.prisma.orderSession.findMany({
+      where: { parentOrderId: orderId },
+      orderBy: { seq: 'desc' },
+      take: 1,
+    });
+    const last = sessions[0];
+    const seq = (last?.seq || 0) + 1;
+    const session = await this.prisma.orderSession.create({
+      data: {
+        parentOrderId: orderId,
+        seq,
+        companionId: dto.companionId,
+        coCompanionId: dto.coCompanionId || last?.coCompanionId || null,
+        amount: dto.amount,
+        coAmount: dto.coAmount ?? last?.coAmount ?? null,
+        duration: dto.duration || 1,
+        status: 'ACTIVE',
+      },
+    });
+    // Notify coCompanion if set
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (order && session.coCompanionId) {
+      this.wsGateway.pushOrder(session.coCompanionId, {
+        ...session, gameName: order.gameName, customerId: order.customerId, orderId,
+        type: 'DUAL_INVITE',
+      });
+    }
+    this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);
+    return session;
+  }
 }

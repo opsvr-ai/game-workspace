@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 82,
+    "frequency": 83,
     "created_at": "2026-07-18T21:04:52.587Z",
-    "updated_at": "2026-07-31T19:48:01.093Z"
+    "updated_at": "2026-07-31T20:15:47.247Z"
   },
   {
     "type": "workflow",
@@ -58,9 +58,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 59,
+    "frequency": 60,
     "created_at": "2026-07-18T21:08:28.675Z",
-    "updated_at": "2026-07-31T19:48:33.341Z"
+    "updated_at": "2026-07-31T20:17:05.450Z"
   },
   {
     "type": "workflow",
@@ -119,9 +119,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 44,
+    "frequency": 45,
     "created_at": "2026-07-19T12:37:04.641Z",
-    "updated_at": "2026-07-31T19:24:17.358Z"
+    "updated_at": "2026-07-31T20:14:58.633Z"
   },
   {
     "type": "workflow",
@@ -161,9 +161,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "explicit_types",
-    "frequency": 17,
+    "frequency": 18,
     "created_at": "2026-07-19T12:42:01.038Z",
-    "updated_at": "2026-07-24T21:23:38.636Z"
+    "updated_at": "2026-07-31T20:15:47.249Z"
   },
   {
     "type": "code_style",

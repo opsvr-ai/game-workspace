@@ -1,106 +1,87 @@
-# Plan: Electron 端一键远程批量部署
+# 订单生命周期管理 — 极简设计方案
 
-## Context
+## 核心原则
 
-Web 端部署助手只能生成脚本让管理员复制后手动执行。在 Electron 客户端中可以直接调用系统命令执行 PowerShell 脚本，实现真正的一键部署。
+> 陪玩A录入不超3步，陪玩B一眼看明白
 
-## 方案
-
-### 核心思路
+## 场景还原
 
 ```
-AgentVersionPage (Web UI)
-  │
-  ├─ 检测 window.electronAPI 是否存在
-  │
-  ├─ 不存在 → 复制脚本按钮（现有行为）
-  │
-  └─ 存在 (Electron) → 「一键部署」按钮
-        │
-        └─ ipcRenderer.invoke('deploy:execute', { script })
-              │
-              └─ main.ts IPC handler
-                    │
-                    ├─ 写入临时 .ps1 文件
-                    ├─ child_process.execFile('powershell', ['-File', scriptPath])
-                    ├─ 实时输出到渲染进程
-                    └─ 返回结果 { success, output }
+客户张三 → 给陪玩A转账80元 → A打开App → 点客户→点开始→选双陪→选B→填40/40→确定
+→ B收到通知：「双陪 | 三角洲 | 40元 | 1h | 马上打」
+→ B点接受
+→ 打完1小时
+→ 客户加钱160 → A点续费→改金额80/80→B换C→确定
+→ C收到通知
 ```
 
-### 修改文件 (4 个)
+## 陪玩A的操作（发起方）
 
-| # | 文件 | 改动 |
-|---|------|------|
-| 1 | `apps/companion-electron/electron/preload.ts` | 暴露 `executeRemoteDeploy(script)` IPC 调用 |
-| 2 | `apps/companion-electron/electron/main.ts` | 新增 `deploy:execute` IPC handler，保存脚本并执行 |
-| 3 | `apps/companion-electron/src/types/electron.d.ts` | 补充 `executeRemoteDeploy` 类型声明 |
-| 4 | `apps/web/src/pages/admin/AgentVersionPage.tsx` | 检测 Electron 环境，新增「一键部署」按钮 + 实时输出 |
+### 开始服务
+```
+客户列表 → 点某个客户的 [开始服务] 按钮
+→ 弹出极简表单：
+  ┌──────────────────────────┐
+  │ 🎮 三角洲行动            │  ← 默认，可改
+  │ ⏱  1小时                │  ← 默认
+  │ 👤 单陪 / 👥 双陪        │  ← 开关
+  │                          │
+  │ 双陪时：                 │
+  │ 搭档: [下拉选B]          │
+  │ 我的: ¥[40]  搭档: ¥[40] │
+  │                          │
+  │       [开始服务]          │
+  └──────────────────────────┘
+```
+3步：选单/双陪 → 选搭档（双陪时）→ 填金额 → 点确定
 
-### 详细设计
-
-#### 1. preload.ts — 新增 API
-
-```typescript
-executeRemoteDeploy: (script: string) =>
-  ipcRenderer.invoke('deploy:execute', script),
+### 续费（加时）
+```
+订单详情 → [续费一小时]
+→ 弹出（沿用上一子单数据）：
+  ┌──────────────────────────┐
+  │ 搭档: [B ▼] ← 可换人     │
+  │ 主陪 ¥[80] 搭档 ¥[80]   │  ← 可改价
+  │       [续费]              │
+  └──────────────────────────┘
 ```
 
-#### 2. main.ts — 新增 IPC handler
+## 陪玩B/C看到什么（被邀请方）
 
-```typescript
-ipcMain.handle('deploy:execute', async (_e, script: string) => {
-  // 1. 写入临时脚本文件
-  const scriptPath = path.join(app.getPath('temp'), 'chunlv-remote-deploy.ps1');
-  fs.writeFileSync(scriptPath, script, 'utf-8');
-
-  // 2. 执行 PowerShell
-  return new Promise((resolve) => {
-    const child = execFile('powershell', [
-      '-NoProfile', '-ExecutionPolicy', 'Bypass',
-      '-File', scriptPath,
-    ], { timeout: 600_000 }, (err, stdout, stderr) => {
-      // 3. 清理临时文件
-      try { fs.unlinkSync(scriptPath); } catch {}
-      resolve({
-        success: !err,
-        output: stdout || stderr,
-        error: err?.message,
-      });
-    });
-  });
-});
+收到通知，一眼看清：
+```
+┌──────────────────────────────┐
+│  🤝 A邀请你一起服务            │
+│                              │
+│  🎮 三角洲行动                │
+│  👥 双陪                      │
+│  💰 你的单价：40元             │
+│  ⏱  1小时                    │
+│  📅 现在                      │
+│                              │
+│    [接受]    [拒绝]           │
+└──────────────────────────────┘
 ```
 
-#### 3. electron.d.ts — 补充类型
+## 数据记录（自动，陪玩不用管）
 
-```typescript
-executeRemoteDeploy: (script: string) => Promise<{ success: boolean; output: string; error?: string }>;
+每次续费自动产生一条记录：
+```
+订单 #20  三角洲行动  客户张三
+
+#1  7/31 14:00  A+B  80元(40+40) 1h  ✅
+#2  7/31 15:10  A+C  160元(80+80) 1h  🔄
 ```
 
-#### 4. AgentVersionPage.tsx — Electron 环境检测
+管理端看到完整链路：谁换了谁、价格怎么变的、总共多少钱。
 
-在远程部署脚本生成后，检测 `window.electronAPI`：
+## 改动清单
 
-- **有 electronAPI**：显示「⚡ 一键部署」按钮 + 实时输出区域
-  - 点击 → `electronAPI.executeRemoteDeploy(script)` 
-  - 显示 loading → 输出结果
-- **无 electronAPI**：显示现有「复制脚本」按钮（不变）
-
-```typescript
-const isElectron = typeof window !== 'undefined' && window.electronAPI;
-
-// ...在远程部署区域
-{isElectron ? (
-  <Button onClick={handleElectronDeploy}>⚡ 一键部署</Button>
-) : (
-  <Button onClick={handleCopyRemote}>复制脚本</Button>
-)}
-```
-
-## 验证
-
-1. 在 Electron 客户端中打开 AgentVersionPage
-2. 输入目标 IP + 管理员密码
-3. 点击「生成远程部署脚本」→ 生成脚本
-4. 点击「⚡ 一键部署」→ PowerShell 执行 → 查看实时输出
-5. 确认目标电脑安装成功
+| 层 | 文件 | 改动 |
+|----|------|------|
+| DB | `schema.prisma` | 新增 `OrderSession` 模型(parentOrderId, seq, companionId, coCompanionId, amount, coAmount, duration, status) |
+| 后端 | `orders.service.ts` | `createParentOrder()`、`addSession()` 自动沿用上一session数据 |
+| 后端 | `orders.controller.ts` | `POST /orders/:id/sessions` 续费端点 |
+| 前端 | `CustomersPage.tsx` | 开始服务按钮 → 极简表单（已有基础，微调） |
+| 前端 | `OrderDetailPage.tsx` | **新建**：子单列表 + 续费按钮 |
+| 前端 | 邀请通知 | 搭档邀请弹窗显示完整订单信息 |

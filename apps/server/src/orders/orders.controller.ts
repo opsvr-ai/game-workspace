@@ -155,6 +155,26 @@ export class OrdersController {
     return { code: 200, message: '已续单，搭档和金额自动沿用', data };
   }
 
+  @Get('orders/:id/sessions')
+  @Roles(UserRole.COMPANION, UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getSessions(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.getSessions(id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('orders/:id/sessions')
+  @Roles(UserRole.COMPANION)
+  async addSession(@Param('id') id: string, @Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.addSession(id, {
+      companionId: req.user.companionId,
+      coCompanionId: body.coCompanionId,
+      amount: body.amount,
+      coAmount: body.coAmount,
+      duration: body.duration,
+    });
+    return { code: 200, message: '续费成功', data };
+  }
+
   @Post('orders/:id/decline-assignment')
   @Roles(UserRole.COMPANION)
   async declineAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
