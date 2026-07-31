@@ -7,6 +7,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
+  sign: null
 nsis:
   oneClick: false
   perMachine: true
@@ -16,7 +17,3 @@ nsis:
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico
   installerHeaderIcon: public/donkey.ico
-  include: build/installer.nsh
-extraResources:
-  - from: src/assets/
-    to: assets/
