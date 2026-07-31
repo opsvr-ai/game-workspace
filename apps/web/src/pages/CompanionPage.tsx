@@ -240,10 +240,12 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      try { (window as any).electronAPI?.onStatusChanged(status); } catch { /* */ }
+      message.success(`已切换为${companionStatusConfig[status]?.label || status}`);
+      // Trigger native screen lock via Electron IPC
+      try { (window as any).electronAPI?.onStatusChanged?.(status); } catch { /* */ }
       fetchData();
     } catch {
-      /* ignore */
+      message.error('切换失败');
     }
   };
 

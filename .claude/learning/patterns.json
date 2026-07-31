@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 45,
+    "frequency": 46,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-31T17:58:07.851Z"
+    "updated_at": "2026-07-31T18:03:38.063Z"
   },
   {
     "type": "code_style",
@@ -79,9 +79,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 27,
+    "frequency": 28,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-31T18:00:43.562Z"
+    "updated_at": "2026-07-31T18:03:38.066Z"
   },
   {
     "type": "workflow",
@@ -197,9 +197,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 35,
+    "frequency": 36,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-31T17:42:27.228Z"
+    "updated_at": "2026-07-31T18:06:54.910Z"
   },
   {
     "type": "workflow",
@@ -363,12 +363,13 @@
     "category": "bash",
     "description": "Commonly used command: kill",
     "evidence": [
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "kill",
-    "frequency": 1,
+    "frequency": 2,
     "created_at": "2026-07-31T13:22:38.949Z",
-    "updated_at": "2026-07-31T13:22:38.949Z"
+    "updated_at": "2026-07-31T18:07:26.642Z"
   },
   {
     "type": "workflow",

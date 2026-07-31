@@ -11,12 +11,17 @@ const ScreenLock: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
 
   useEffect(() => {
     inputRef.current?.focus();
+    document.documentElement.requestFullscreen?.().catch(() => {});
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey && e.key === 'F4') e.preventDefault();
       if (e.ctrlKey && e.key === 'w') e.preventDefault();
+      if (e.key === 'Escape') e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.exitFullscreen?.().catch(() => {});
+    };
   }, []);
 
   const handleSubmit = () => {

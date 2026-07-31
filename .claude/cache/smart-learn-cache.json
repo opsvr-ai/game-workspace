@@ -1,31 +1,31 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 352,
+      "successCount": 354,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 344
+          "count": 1,
+          "weight": 350
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 807
+          "count": 2,
+          "weight": 810
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 66
+          "count": 0,
+          "weight": 67
         },
         "typing:explicit_types": {
           "count": 0,
           "weight": 205
         },
         "framework:react_hooks": {
-          "count": 2,
-          "weight": 83
+          "count": 0,
+          "weight": 84
         },
         "quality:error_handling": {
-          "count": 1,
-          "weight": 83
+          "count": 2,
+          "weight": 85
         }
       }
     },
@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 4,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785520719402
+      "lastSuccess": 1785521246641
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -306,76 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git add \\\n  apps/companion-electron/electron/main.ts \\\n  apps/web/src/pages/CompanionPage.tsx && \\\ngit commit -m \"fix: sync companion status to Electron store for status bar animation\n\n- main.ts: upda",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add \\ apps/companion-electron/electron/main.ts \\ apps/web/src/pages/CompanionPage.tsx && \\ git c",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785499529773
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785499539531
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 5
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 19
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 6
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785500260565
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: dramatic status banner — slides in on change, shrinks to slim bar after 3s\n\n- Full-width colored banner with icon + label ",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785500266535
-    },
     {
       "type": "bash",
       "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
@@ -2775,6 +2705,77 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
       "patterns": [],
       "timestamp": 1785520907432
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785520941340
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/ScreenLock.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 5
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785521018062
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785521214908
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && echo \"READY\"",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785521246641
     }
   ]
 }

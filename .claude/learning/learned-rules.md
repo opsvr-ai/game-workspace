@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T18:01:22.007Z
+**Last Updated:** 2026-07-31T18:07:26.643Z
 
 ---
 
@@ -139,8 +139,9 @@
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: rm
 
@@ -176,7 +177,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 45 occurrences
+**Frequency:** 46 occurrences
 
 ### Prefer async await in .ts files
 
@@ -185,7 +186,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 35 occurrences
+**Frequency:** 36 occurrences
 
 ## Framework
 
@@ -198,7 +199,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 27 occurrences
+**Frequency:** 28 occurrences
 
 ## Quality
 
