@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T17:15:11.319Z
+**Last Updated:** 2026-07-31T17:55:41.183Z
 
 ---
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 35 occurrences
+**Frequency:** 36 occurrences
 
 ### Commonly used command: find
 
@@ -167,7 +167,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 72 occurrences
+**Frequency:** 75 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -176,7 +176,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 43 occurrences
+**Frequency:** 44 occurrences
 
 ### Prefer async await in .ts files
 
@@ -185,7 +185,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 33 occurrences
+**Frequency:** 35 occurrences
 
 ## Framework
 
@@ -211,7 +211,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 17 occurrences
+**Frequency:** 19 occurrences
 
 ## Typing
 

@@ -18,7 +18,6 @@ import { useVoiceCall } from '../hooks/useVoiceCall';
 import { PartnerCallNotification } from '../components/PartnerCallNotification';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
-import ElectronStatusBar from '../components/ElectronStatusBar';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
@@ -148,7 +147,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
-        { key: '/admin/agent-version', label: '客户端版本' },
       ],
     },
   ],
@@ -181,7 +179,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
-        { key: '/admin/agent-version', label: '客户端版本' },
       ],
     },
   ],
@@ -200,7 +197,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
-        { key: '/admin/agent-version', label: '客户端版本' },
         { key: '/admin/attendance', label: '考勤管理' },
       ],
     },
@@ -722,7 +718,6 @@ const AppLayout: React.FC = () => {
 
   return (
     <ChatProvider>
-      <ElectronStatusBar />
       <Layout style={{ minHeight: '100vh' }}>
         {/* ── 浅色侧边栏 ── */}
         <Sider

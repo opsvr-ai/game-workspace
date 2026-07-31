@@ -233,10 +233,6 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      // Sync to Electron: screen-lock, status bar, local store
-      try { (window as any).electronAPI?.onStatusChanged(status); } catch { /* */ }
-      try { (window as any).electronAPI?.storeSet('lastStatus', status); } catch { /* */ }
-      try { (window as any).__showStatusBar?.(status); } catch { /* */ }
       fetchData();
     } catch {
       /* ignore */
@@ -250,16 +246,6 @@ const CompanionPage: React.FC = () => {
     <div>
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
-                <Button size="small" type="link" style={{float:'right',marginTop:4}}
-          onClick={async () => {
-            try {
-              const api = (window as any).electronAPI;
-              if (!api?.updateApp) return alert('请先下载最新版exe');
-              if (!confirm('确认更新？程序将自动下载、替换并重启')) return;
-              await api.updateApp();
-            } catch(e: any) { alert('更新失败: '+e.message); }
-          }}
-        >⬇ 一键更新</Button>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
