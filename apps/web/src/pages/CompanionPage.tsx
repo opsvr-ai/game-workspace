@@ -233,6 +233,7 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
+      try { (window as any).electronAPI?.onStatusChanged(status); } catch { /* */ }
       fetchData();
     } catch {
       /* ignore */
