@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 224,
+      "successCount": 228,
       "patterns": {
         "style:prefer_const": {
           "count": 1,
-          "weight": 413
+          "weight": 422
         },
         "style:async_await": {
-          "count": 1,
-          "weight": 151
+          "count": 0,
+          "weight": 153
         },
         "style:arrow_functions": {
           "count": 1,
@@ -70,9 +70,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785525583183
+      "lastSuccess": 1785525837371
     },
     "npx": {
       "count": 0,
@@ -95,9 +95,9 @@
       "lastSuccess": 1784910667948
     },
     "git": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785511731050
+      "lastSuccess": 1785525791898
     },
     "rm": {
       "count": 2,
@@ -170,9 +170,9 @@
       "lastSuccess": 1784929280681
     },
     "kill": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785511473094
+      "lastSuccess": 1785525809352
     },
     "sed": {
       "count": 1,
@@ -201,84 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914260496
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/bridge.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784914269585
-    },
-    {
-      "type": "bash",
-      "command": "sleep 5\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdi",
-      "cmdPattern": {
-        "base": "sleep",
-        "pattern": "sleep N TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914326951
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/studios/bridge.service.ts && git -C /data/project/game-workspace commit -m \"fix: bri",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914338302
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"profile\\|displayName\\|修改\\|编辑.*名\\|updateProfile\\|/profile\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784914581034
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"修改名字\\|displayName\\|nameForm\\|handleUpdateName\\|updateProfile\" /data/project/game-workspace/apps/web/src/pages/ProfilePage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/ProfilePage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784914601222
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/ProfilePage.tsx",
-      "patterns": [],
-      "timestamp": 1784914613334
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
@@ -2593,6 +2515,91 @@
         "hasChain": true
       },
       "timestamp": 1785525779948
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: add auto-incrementing orderCode to Order model\" && git -C /data/project/game-workspace push origin HE",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785525791898
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :3001) 2>/dev/null; sleep 2; cd /data/project/game-workspace && pnpm dev:server &\nsleep 8 && curl -s http://localhost:3001/api/health",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace && pnpm dev:server & sleep",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785525809352
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"nextOrderCode\\|nextCustomerCode\\|counter\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785525837371
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785525845342
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785525857353
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [],
+      "timestamp": 1785525876578
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/customers/customers.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        }
+      ],
+      "timestamp": 1785525885830
     }
   ]
 }

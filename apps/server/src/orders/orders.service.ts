@@ -16,16 +16,19 @@ export class OrdersService {
     private readonly dispatchService: OrderDispatchService,
   ) {}
 
-  private async nextOrderCode(): Promise<string> {
-    const recent = await this.prisma.order.findMany({
-      orderBy: { createdAt: 'desc' }, take: 50, select: { orderCode: true },
+  private async nextGlobalCode(): Promise<string> {
+    const cfg = await this.prisma.systemConfig.upsert({
+      where: { key: 'counter.global_code' },
+      create: { key: 'counter.global_code', value: '0' },
+      update: {},
     });
-    let max = 0;
-    for (const o of recent) {
-      const n = parseInt(o.orderCode || '0', 10);
-      if (!isNaN(n) && n > max) max = n;
-    }
-    return String(max + 1);
+    const current = parseInt(cfg.value as string, 10) || 0;
+    const next = current + 1;
+    await this.prisma.systemConfig.update({
+      where: { key: 'counter.global_code' },
+      data: { value: String(next) },
+    });
+    return String(next);
   }
 
   async create(dto: {
@@ -66,19 +69,7 @@ export class OrdersService {
     // Resolve customerId: create a placeholder if not provided
     let customerId = dto.customerId;
     if (!customerId && studioId) {
-      // Generate sequential numeric customer code
-      const recent = await this.prisma.customer.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        select: { customerCode: true },
-      });
-      let maxNum = 0;
-      for (const c of recent) {
-        const n = parseInt(c.customerCode, 10);
-        if (!isNaN(n) && n > maxNum) maxNum = n;
-      }
-      const customerCode = String(maxNum + 1);
-
+      const customerCode = await this.nextGlobalCode();
       const placeholder = await this.prisma.customer.create({
         data: {
           studioId,

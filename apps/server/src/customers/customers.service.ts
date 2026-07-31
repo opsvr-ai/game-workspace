@@ -102,17 +102,18 @@ export class CustomersService {
   async create(data: CreateCustomerDto) {
     let customerCode = data.customerCode;
     if (!customerCode) {
-      const recent = await this.prisma.customer.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        select: { customerCode: true },
+      const cfg = await this.prisma.systemConfig.upsert({
+        where: { key: 'counter.global_code' },
+        create: { key: 'counter.global_code', value: '0' },
+        update: {},
       });
-      let maxNum = 0;
-      for (const c of recent) {
-        const n = parseInt(c.customerCode, 10);
-        if (!isNaN(n) && n > maxNum) maxNum = n;
-      }
-      customerCode = String(maxNum + 1);
+      const current = parseInt(cfg.value as string, 10) || 0;
+      const next = current + 1;
+      await this.prisma.systemConfig.update({
+        where: { key: 'counter.global_code' },
+        data: { value: String(next) },
+      });
+      customerCode = String(next);
     }
 
     return this.prisma.customer.create({
