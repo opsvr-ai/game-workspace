@@ -12,5 +12,38 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Inline status bar — no React dependency, fires on page load
+      (function() {
+        var css = '@keyframes sb-fill{0%{width:0}100%{width:100%}}';
+        var s = document.createElement('style');
+        s.textContent = css;
+        document.head.appendChild(s);
+
+        var COLORS = {AVAILABLE:'#22c55e',BUSY:'#ef4444',ENTERTAINMENT:'#eab308',RESTING:'#f97316'};
+        var timer = null;
+
+        window.__showStatusBar = function(status) {
+          var c = COLORS[status];
+          if (!c) return;
+          var old = document.getElementById('__sb');
+          if (old) old.remove();
+          clearTimeout(timer);
+          var bar = document.createElement('div');
+          bar.id = '__sb';
+          bar.innerHTML = '<div style="height:100%;border-radius:0 3px 3px 0;box-shadow:0 0 10px '+c+',0 0 4px '+c+';background:'+c+';color:'+c+';animation:sb-fill 1s ease-out forwards"></div>';
+          bar.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;height:5px;width:100%;pointer-events:none';
+          document.body.appendChild(bar);
+          timer = setTimeout(function() {
+            var el = document.getElementById('__sb');
+            if (el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; }
+            setTimeout(function() { if (el && el.parentNode) el.remove(); }, 300);
+          }, 1200);
+        };
+
+        // Flash green on load to confirm it works
+        window.__showStatusBar('AVAILABLE');
+      })();
+    </script>
   </body>
 </html>

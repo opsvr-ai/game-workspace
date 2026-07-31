@@ -21,7 +21,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  const corsOriginEnv = process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:8000';
+  const corsOriginEnv = process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173';
   app.enableCors({
     origin: corsOriginEnv.split(','),
     credentials: true,

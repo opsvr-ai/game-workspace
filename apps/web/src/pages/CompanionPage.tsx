@@ -233,12 +233,8 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      // Direct IPC: show status bar animation in Electron window
-      try {
-        (window as any).electronAPI?.showStatusBar?.(status);
-      } catch {
-        /* ignore */
-      }
+      // Show status bar animation (works in both browser and Electron)
+      try { (window as any).__showStatusBar?.(status); } catch { /* */ }
       fetchData();
     } catch {
       /* ignore */
