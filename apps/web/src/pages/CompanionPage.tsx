@@ -233,8 +233,9 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      // Notify Electron (screen-lock, etc.) + show status bar
+      // Sync to Electron: screen-lock, status bar, local store
       try { (window as any).electronAPI?.onStatusChanged(status); } catch { /* */ }
+      try { (window as any).electronAPI?.storeSet('lastStatus', status); } catch { /* */ }
       try { (window as any).__showStatusBar?.(status); } catch { /* */ }
       fetchData();
     } catch {
