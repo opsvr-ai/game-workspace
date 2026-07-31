@@ -164,6 +164,7 @@ model Order {
   scheduledAt     DateTime?
   notes           String?
 
+  coAmount      Float?
   coCompanionId String?
 
   studio       Studio        @relation(fields: [studioId], references: [id])

@@ -160,16 +160,47 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
           {({ getFieldValue }) =>
             getFieldValue('dispatchType') === DispatchType.DIRECT ? (
-              <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
-                <Select placeholder="选择陪玩" showSearch optionFilterProp="label">
-                  {companions.map((c: any) => (
-                    <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
-                      {c.user?.displayName || c.user?.username}
-                    </Option>
-                  ))}
-                </Select>
+              <>
+                <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
+                  <Select placeholder="选择主陪" showSearch optionFilterProp="label">
+                    {companions.map((c: any) => (
+                      <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                        {c.user?.displayName || c.user?.username}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                <Form.Item name="coCompanionId" label="搭档（可选）">
+                  <Select placeholder="无搭档（单陪）" allowClear showSearch optionFilterProp="label">
+                    {companions.filter((c: any) => c.id !== getFieldValue('companionId')).map((c: any) => (
+                      <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                        {c.user?.displayName || c.user?.username}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                <Form.Item shouldUpdate={(prev, cur) => prev.coCompanionId !== cur.coCompanionId} noStyle>
+                  {({ getFieldValue: gv }) => gv('coCompanionId') ? (
+                    <Input.Group compact>
+                      <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder="主陪" prefix="¥" />
+                      </Form.Item>
+                      <Form.Item name="coAmount" label="搭档金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder="搭档" prefix="¥" />
+                      </Form.Item>
+                    </Input.Group>
+                  ) : (
+                    <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
+                      <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
+                    </Form.Item>
+                  )}
+                </Form.Item>
+              </>
+            ) : (
+              <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
+                <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
               </Form.Item>
-            ) : null
+            )
           }
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">

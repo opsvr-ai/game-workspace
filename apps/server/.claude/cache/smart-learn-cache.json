@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 228,
+      "successCount": 230,
       "patterns": {
         "style:prefer_const": {
           "count": 1,
@@ -30,7 +30,7 @@
       }
     },
     ".tsx": {
-      "successCount": 403,
+      "successCount": 406,
       "patterns": {
         "style:arrow_functions": {
           "count": 2,
@@ -59,7 +59,7 @@
       }
     },
     ".prisma": {
-      "successCount": 7,
+      "successCount": 8,
       "patterns": {}
     },
     ".html": {
@@ -70,14 +70,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 3,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785525837371
+      "lastSuccess": 1785526665814
     },
     "npx": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785525677576
+      "lastSuccess": 1785526632612
     },
     "mkdir": {
       "count": 3,
@@ -90,14 +90,14 @@
       "lastSuccess": 1785504344162
     },
     "find": {
-      "count": 0,
-      "patterns": [],
-      "lastSuccess": 1784910667948
-    },
-    "git": {
       "count": 1,
       "patterns": [],
-      "lastSuccess": 1785525791898
+      "lastSuccess": 1785526056514
+    },
+    "git": {
+      "count": 4,
+      "patterns": [],
+      "lastSuccess": 1785526466488
     },
     "rm": {
       "count": 2,
@@ -120,9 +120,9 @@
       "lastSuccess": 1784736853008
     },
     "sleep": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785511156006
+      "lastSuccess": 1785525940276
     },
     "./node_modules/.bin/nest": {
       "count": 1,
@@ -170,9 +170,9 @@
       "lastSuccess": 1784929280681
     },
     "kill": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785525809352
+      "lastSuccess": 1785525922326
     },
     "sed": {
       "count": 1,
@@ -201,255 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784914622238
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: remove displayName editing — accounts use ",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914640583
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"displayName\\|updateProfile\\|修改.*名\\|改名\\|setDisplayName\" /data/project/game-workspace/apps/web/src/ --include=\"*.tsx\" --include=\"*.ts\" | grep -v \"node_modules\\|\\.claude\\|\\.axme\" | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ --include=\"\" --include=\"\" | grep -v \"\" | head",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784914695017
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"updateProfile\\|PUT.*profile\\|displayName\" /data/project/game-workspace/apps/server/src/auth/auth.controller.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/auth/auth.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784914702591
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.controller.ts",
-      "patterns": [],
-      "timestamp": 1784914715720
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: remove all self-service name editing — acc",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914737170
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784914928180
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: brand name",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914946827
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"studioA.name\\|studioB.name\\|otherName\\|studios.map\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784914987601
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        }
-      ],
-      "timestamp": 1784915003913
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/bridge.service.ts",
-      "patterns": [],
-      "timestamp": 1784915017522
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784915034576
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"availableStudios\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784915049015
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "patterns": [],
-      "timestamp": 1784915054288
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784915068837
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784915084658
-    },
-    {
-      "type": "bash",
-      "command": "grep -c \"Form\\|Input\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -c \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784915097060
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784915104908
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784915121328
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784915134687
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/BridgePage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784915143110
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"simplify: no separate brand name — studio.name ",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784915156794
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"蠢驴\\|CHUNLV\\|Chunlv\\|chunlv\" /data/project/game-workspace/apps/web/src/pages/LoginPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/LoginPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784915441712
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/pages/LoginPage.tsx",
@@ -2600,6 +2351,229 @@
         }
       ],
       "timestamp": 1785525885830
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :3001) 2>/dev/null; sleep 2; cd /data/project/game-workspace && pnpm dev:server &\nsleep 8 && node -e \"\nconst{PrismaClient}=require('@prisma/client');\nconst p=new PrismaClient();\n(async",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace && pnpm dev:server & sleep",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785525922326
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [],
+      "timestamp": 1785525928710
+    },
+    {
+      "type": "bash",
+      "command": "sleep 3 && curl -s http://localhost:3001/api/health",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && curl -s http://localhost:N/api/health",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785525940276
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/server/src/orders/orders.service.ts && git -C /data/project/game-workspace commit -m \"fix: nextOrderCode -> nextGlobalCode\" && git -C /data/project/game-wo",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/server/src/orders/orders.service.ts && git -C /data/pro",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785525949137
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"开始服务\\|startService\\|单陪\\|双陪\\|coCompanion\\|callPartner\\|搭档\" /data/project/game-workspace/apps/web/src/pages/CustomerDetailPage.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CustomerDetailPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526031974
+    },
+    {
+      "type": "bash",
+      "command": "grep -rn \"开始服务\\|startService\\|callPartner\\|acceptPartner\\|呼叫搭档\\|双陪\\|单陪\" /data/project/game-workspace/apps/web/src/ | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -rn \"\" /data/project/game-workspace/apps/web/src/ | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526036208
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"startServicePreFill\\|companionSelfId\\|createOrderOpen\\|DualCompanion\\|单陪\\|preferredSingleDouble\" /data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526045888
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"startServicePreFill\\|companionSelfId\\|coCompanion\\|DualCompanion\\|呼叫搭档\\|acceptPartner\\|callPartner\" /data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526050219
+    },
+    {
+      "type": "bash",
+      "command": "find /data/project/game-workspace/apps/web/src -name \"OrderForm*\" -o -name \"CreateOrder*\" | head -5",
+      "cmdPattern": {
+        "base": "find",
+        "pattern": "find /data/project/game-workspace/apps/web/src -name \"\" -o -name \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526056514
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"companionSelfId\\|customerPreFill\\|startService\\|DualCompanion\\|呼叫\\|搭档\\|partner\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526061347
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
+      "patterns": [],
+      "timestamp": 1785526078734
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/CustomersPage.tsx && git -C /data/project/game-workspace commit -m \"fix: start service pre-fills companionId and DIRECT dispatch\" && git -C /",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/CustomersPage.tsx && git -C /data/project",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526095536
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"dispatchType\\|companionId\\|coCompanion\\|搭档\\|陪玩\\|DIRECT\\|POOL\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526428013
+    },
+    {
+      "type": "bash",
+      "command": "grep -A20 \"Form.Item.*companionId\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785526436622
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785526454206
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data/project/game-workspace commit -m \"feat: add companion selector for DIRECT dispatch orders\" && git -",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/components/CreateOrderModal.tsx && git -C /data",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785526466488
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"amount\\|coCompanion\\|split\\|分成\\|share\\|双陪\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526541059
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785526602010
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"coCompanionId\\|coAmount\\|coCompanion\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785526610058
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [],
+      "timestamp": 1785526617920
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "patterns": [],
+      "timestamp": 1785526626047
+    },
+    {
+      "type": "bash",
+      "command": "npx prisma db push --accept-data-loss 2>&1 | tail -3 && echo \"Schema OK\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx prisma db push --accept-data-loss N>&N | tail -N && echo \"\"",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785526632612
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"prisma.order.create\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785526665814
     }
   ]
 }

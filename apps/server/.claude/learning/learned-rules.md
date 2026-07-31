@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T19:24:17.358Z
+**Last Updated:** 2026-07-31T19:36:50.059Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 20
+- **Total Patterns:** 21
 - **Total Feedback:** 0
 
 ## Style
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 55 occurrences
+**Frequency:** 57 occurrences
 
 ### Commonly used command: git
 
@@ -160,6 +160,13 @@
 - Used successfully 6 times
 
 **Frequency:** 2 occurrences
+
+### Commonly used command: kill
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
 
 ## Typing
 
