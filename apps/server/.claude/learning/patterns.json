@@ -58,9 +58,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 61,
+    "frequency": 62,
     "created_at": "2026-07-18T21:08:28.675Z",
-    "updated_at": "2026-07-31T20:28:16.599Z"
+    "updated_at": "2026-07-31T20:48:22.957Z"
   },
   {
     "type": "workflow",
@@ -79,9 +79,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 19,
+    "frequency": 20,
     "created_at": "2026-07-19T11:02:03.985Z",
-    "updated_at": "2026-07-31T20:21:29.026Z"
+    "updated_at": "2026-07-31T20:33:21.906Z"
   },
   {
     "type": "workflow",
@@ -182,9 +182,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 23,
+    "frequency": 24,
     "created_at": "2026-07-19T12:42:38.148Z",
-    "updated_at": "2026-07-24T21:22:05.970Z"
+    "updated_at": "2026-07-31T20:48:42.400Z"
   },
   {
     "type": "code_style",

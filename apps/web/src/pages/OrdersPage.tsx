@@ -117,7 +117,7 @@ const OrdersPage: React.FC = () => {
             沟通
           </Button>
         </Badge>
-        {r.status === 'GRABBED' && !r.contactStatus && (
+        {(r.status === 'GRABBED' || r.status === 'CONFIRMED') && !r.contactStatus && (
           <>
             <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
               <Button

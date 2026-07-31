@@ -30,19 +30,19 @@
       }
     },
     ".tsx": {
-      "successCount": 428,
+      "successCount": 432,
       "patterns": {
         "style:arrow_functions": {
-          "count": 0,
-          "weight": 349
+          "count": 1,
+          "weight": 351
         },
         "style:prefer_const": {
-          "count": 1,
-          "weight": 683
+          "count": 2,
+          "weight": 685
         },
         "framework:react_hooks": {
-          "count": 2,
-          "weight": 68
+          "count": 0,
+          "weight": 69
         },
         "quality:error_handling": {
           "count": 1,
@@ -70,9 +70,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785529826227
+      "lastSuccess": 1785530909389
     },
     "npx": {
       "count": 5,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785526056514
     },
     "git": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785529893534
+      "lastSuccess": 1785530001905
     },
     "rm": {
       "count": 2,
@@ -201,135 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 20
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 23
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 5
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 11
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784927963559
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/IncomingCallModal.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1784927973763
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/VoiceCallBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        }
-      ],
-      "timestamp": 1784927983743
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx",
-      "patterns": [],
-      "timestamp": 1784928002439
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"onTogglePin\\|onClose\\|PushpinOutlined\\|CloseOutlined\\|PhoneOutlined\" /data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784928009659
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx",
-      "patterns": [],
-      "timestamp": 1784928014704
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784928022301
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx",
-      "patterns": [],
-      "timestamp": 1784928030131
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784928045395
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"ChatModal\\|CommandPalette\\|PartnerCall\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784928058209
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
@@ -2487,6 +2358,112 @@
         }
       ],
       "timestamp": 1785529989425
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: pause/resume timer for session — bathroom breaks not charged\" && git -C /data/project/game-workspace ",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785530001905
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/OrdersPage.tsx",
+      "patterns": [],
+      "timestamp": 1785530867314
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"workbench\\|今日\\|today\\|totalRevenue\\|todayOrders\" /data/project/game-workspace/apps/server/src/companions/companions.service.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785530880211
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"getWorkbench\\|todayRevenue\\|today.*amount\\|_sum.*amount\" /data/project/game-workspace/apps/server/src/companions/companions.service.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785530891221
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"todayRevenue\\|todayStats\\|今日\\|流水\\|收入\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785530896125
+    },
+    {
+      "type": "bash",
+      "command": "grep -A5 \"getMyCustomers\\|companionId.*customer\" /data/project/game-workspace/apps/server/src/customers/customers.service.ts | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/server/src/customers/customers.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785530902956
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"companionId.*customer\\|myCustomers\\|getMyCustomers\\|fetchMyCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785530909389
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785530922398
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785530929945
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/components/CreateOrderModal.tsx",
+      "patterns": [],
+      "timestamp": 1785530938643
     }
   ]
 }
