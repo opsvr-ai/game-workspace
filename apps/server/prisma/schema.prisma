@@ -194,6 +194,8 @@ model OrderSession {
   duration      Float     @default(1)
   status        String    @default("ACTIVE")  // ACTIVE | DONE
   startedAt     DateTime?
+  pausedAt      DateTime?
+  totalPausedSec Int       @default(0)
   endedAt       DateTime?
   createdAt     DateTime  @default(now())
 

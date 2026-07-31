@@ -22,5 +22,7 @@ export const ordersApi = {
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
   startSession: (sessionId: string) => http.put(`/sessions/${sessionId}/start`),
+  pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
+  resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),
   endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
 };

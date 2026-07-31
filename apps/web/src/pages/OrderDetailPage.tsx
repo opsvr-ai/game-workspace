@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlusOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { companionStatusConfig } from '../constants';
@@ -78,7 +78,9 @@ const OrderDetailPage: React.FC = () => {
     { title: '操作', render: (_: any, r: Session) => r.status === 'ACTIVE' ? (
       <Space>
         {!r.startedAt ? <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await ordersApi.startSession(r.id); fetch(); message.success('计时开始'); }}>开始</Button> : null}
-        {r.startedAt && !r.endedAt ? <Button size="small" danger icon={<StopOutlined />} onClick={async () => { await ordersApi.endSession(r.id); fetch(); message.success('已结束'); }}>结束</Button> : null}
+        {r.startedAt && !r.pausedAt ? <Button size="small" icon={<PauseCircleOutlined />} onClick={async () => { await ordersApi.pauseSession(r.id); fetch(); message.success('已暂停'); }}>暂停</Button> : null}
+        {r.pausedAt ? <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await ordersApi.resumeSession(r.id); fetch(); message.success('已继续'); }}>继续</Button> : null}
+        {r.startedAt && !r.pausedAt ? <Button size="small" danger icon={<StopOutlined />} onClick={async () => { await ordersApi.endSession(r.id); fetch(); message.success('已结束'); }}>结束</Button> : null}
       </Space>
     ) : <Text type="secondary">{r.startedAt ? new Date(r.startedAt).toLocaleTimeString('zh-CN') : '-'}</Text> },
   ];

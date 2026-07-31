@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 243,
+      "successCount": 245,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 436
+          "count": 1,
+          "weight": 441
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 164
+          "count": 0,
+          "weight": 168
         },
         "style:arrow_functions": {
           "count": 2,
@@ -30,11 +30,11 @@
       }
     },
     ".tsx": {
-      "successCount": 426,
+      "successCount": 428,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 345
+          "count": 0,
+          "weight": 349
         },
         "style:prefer_const": {
           "count": 1,
@@ -49,8 +49,8 @@
           "weight": 71
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 81
+          "count": 1,
+          "weight": 85
         },
         "typing:explicit_types": {
           "count": 0,
@@ -59,7 +59,7 @@
       }
     },
     ".prisma": {
-      "successCount": 10,
+      "successCount": 11,
       "patterns": {}
     },
     ".html": {
@@ -75,9 +75,9 @@
       "lastSuccess": 1785529826227
     },
     "npx": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785529838665
+      "lastSuccess": 1785529953038
     },
     "mkdir": {
       "count": 3,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785526056514
     },
     "git": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785529769731
+      "lastSuccess": 1785529893534
     },
     "rm": {
       "count": 2,
@@ -201,79 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"displayName\\|username\\|name\\|title\\|header\" /data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/chat/ChatHeader.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784927523296
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"ChatHeader\\|name.*participant\\|displayName\" /data/project/game-workspace/apps/web/src/components/chat/ChatPanel.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/chat/ChatPanel.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784927529520
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"ChatPanel\\|participant\" /data/project/game-workspace/apps/web/src/components/ChatModal.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/components/ChatModal.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784927535532
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [],
-      "timestamp": 1784927635657
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/dispatch/CSDispatchView.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784927649499
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/pages/dispatch/CSDispatchView.tsx && git -C /data/project/game-workspace commit -m \"fix",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784927665560
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"notifyUser\\|pushOrder\\|sendCommand\" /data/project/game-workspace/apps/server/src/ws/ws.gateway.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/ws/ws.gateway.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784927925067
-    },
     {
       "type": "write",
       "file": "/data/project/game-workspace/apps/web/src/hooks/useVoiceCall.ts",
@@ -2486,6 +2413,80 @@
         }
       ],
       "timestamp": 1785529879405
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: start/end timing buttons on order sessions\" && git -C /data/project/game-workspace push origin HEAD:r",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785529893534
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "patterns": [],
+      "timestamp": 1785529947043
+    },
+    {
+      "type": "bash",
+      "command": "npx prisma db push --accept-data-loss 2>&1 | tail -2",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx prisma db push --accept-data-loss N>&N | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785529953038
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 5
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 4
+        }
+      ],
+      "timestamp": 1785529963283
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/api/orders.ts",
+      "patterns": [],
+      "timestamp": 1785529972153
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/OrderDetailPage.tsx",
+      "patterns": [],
+      "timestamp": 1785529978584
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/OrderDetailPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 4
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 4
+        }
+      ],
+      "timestamp": 1785529989425
     }
   ]
 }

@@ -182,10 +182,35 @@ export class OrdersController {
     return { code: 200, message: '计时开始', data: null };
   }
 
+  @Put('sessions/:sessionId/pause')
+  @Roles(UserRole.COMPANION)
+  async pauseSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
+    await this.prisma.orderSession.update({ where: { id }, data: { pausedAt: new Date() } });
+    return { code: 200, message: '已暂停', data: null };
+  }
+
+  @Put('sessions/:sessionId/resume')
+  @Roles(UserRole.COMPANION)
+  async resumeSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
+    const s = await this.prisma.orderSession.findUnique({ where: { id } });
+    if (s?.pausedAt) {
+      const pausedSec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
+      await this.prisma.orderSession.update({ where: { id }, data: { pausedAt: null, totalPausedSec: (s.totalPausedSec || 0) + pausedSec } });
+    }
+    return { code: 200, message: '已继续', data: null };
+  }
+
   @Put('sessions/:sessionId/end')
   @Roles(UserRole.COMPANION)
   async endSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
-    await this.prisma.orderSession.update({ where: { id }, data: { endedAt: new Date(), status: 'DONE' } });
+    const s = await this.prisma.orderSession.findUnique({ where: { id } });
+    const data: any = { endedAt: new Date(), status: 'DONE' };
+    if (s?.pausedAt) {
+      const pausedSec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
+      data.pausedAt = null;
+      data.totalPausedSec = (s.totalPausedSec || 0) + pausedSec;
+    }
+    await this.prisma.orderSession.update({ where: { id }, data });
     return { code: 200, message: '计时结束', data: null };
   }
 
