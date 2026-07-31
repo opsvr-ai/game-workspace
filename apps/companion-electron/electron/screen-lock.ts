@@ -25,8 +25,10 @@ export function showScreenLock(): void {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
   lockWindow = new BrowserWindow({
-    x: 0, y: 0,
-    width, height,
+    x: 0,
+    y: 0,
+    width,
+    height,
     fullscreen: true,
     frame: false,
     transparent: false,
@@ -42,7 +44,8 @@ export function showScreenLock(): void {
   });
 
   const pass = getAppPassword();
-  lockWindow.loadURL(`data:text/html,${encodeURIComponent(`
+  lockWindow.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(`
     <html><head><style>
       * { margin:0; padding:0; box-sizing:border-box; }
       body { background:#000; display:flex; align-items:center; justify-content:center; height:100vh; font-family:Arial; }
@@ -87,7 +90,8 @@ export function showScreenLock(): void {
         if (e.ctrlKey && e.key === 'w') e.preventDefault();
       });
     </script></body></html>
-  `)}`);
+  `)}`,
+  );
 
   lockWindow.setAlwaysOnTop(true, 'screen-saver');
   lockWindow.setVisibleOnAllWorkspaces(true);
@@ -97,7 +101,9 @@ export function showScreenLock(): void {
     lockWindow = null;
     // Unlocked — set status to AVAILABLE
     store.set('screenLocked', 'false');
-    try { emitStatus('AVAILABLE'); } catch {}
+    try {
+      emitStatus('AVAILABLE');
+    } catch {}
     logger.info('Screen unlocked, status set to AVAILABLE');
     startIdleTimer();
   });
@@ -121,7 +127,10 @@ function startIdleTimer(): void {
 }
 
 function stopIdleTimer(): void {
-  if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
 }
 
 export function hideScreenLock(): void {
