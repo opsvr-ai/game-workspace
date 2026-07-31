@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T18:28:07.226Z
+**Last Updated:** 2026-07-31T18:38:51.984Z
 
 ---
 
@@ -140,8 +140,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: rm
 

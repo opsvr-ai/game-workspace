@@ -44,11 +44,6 @@ function buildMenu(): Menu {
         { label: '休息', click: () => { if (onStatusChange) onStatusChange('RESTING'); } },
       ],
     },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => onQuitCallback?.(),
-    },
   ]);
 }
 

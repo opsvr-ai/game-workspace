@@ -364,12 +364,13 @@
     "description": "Commonly used command: kill",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "kill",
-    "frequency": 2,
+    "frequency": 3,
     "created_at": "2026-07-31T13:22:38.949Z",
-    "updated_at": "2026-07-31T18:07:26.642Z"
+    "updated_at": "2026-07-31T18:38:51.983Z"
   },
   {
     "type": "workflow",

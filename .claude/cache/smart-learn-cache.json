@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 361,
+      "successCount": 362,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -38,7 +38,7 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 219,
+      "successCount": 220,
       "patterns": {
         "style:prefer_const": {
           "count": 2,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785522066967
     },
     "grep": {
-      "count": 1,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785522147703
+      "lastSuccess": 1785523345628
     },
     "wc": {
       "count": 1,
@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 4,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785522221933
+      "lastSuccess": 1785523131982
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -306,104 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 9
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 17
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785502582495
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"^function setupWsEvents\\|^app.whenReady\\|^function createMainWindow\" apps/companion-electron/electron/main.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/companion-electron/electron/main.ts",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785502616208
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/companion-electron/electron/main.ts apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: inject status bar from Electron main process via executeJavaScript\n\nCompletely by",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/companion-electron/electron/main.ts apps/web/src/components/ElectronStatusBar.tsx && gi",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785502652457
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785502660329
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"updateStatus\\|updateMeStatus\\|status.*update\\|PUT.*status\" apps/server/src/companions/companions.controller.ts | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/src/companions/companions.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785503775388
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"updateStatus\\|status:broadcast\\|broadcastToBridgedStudios\\|broadcastToStudio\" apps/server/src/companions/companions.service.ts | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/src/companions/companions.service.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785503778575
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"WsGateway\\|wsGateway\\|import.*ws\" apps/server/src/companions/companions.controller.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/src/companions/companions.controller.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785503795819
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
@@ -2633,6 +2535,73 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
       "patterns": [],
       "timestamp": 1785523009124
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785523032079
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785523109982
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 2 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785523131982
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/tray.ts",
+      "patterns": [],
+      "timestamp": 1785523224815
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"app.whenReady\\|app.on\\|setLoginItemSettings\\|requestSingleInstanceLock\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785523249118
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"showStatusBar\\|store.set.*lastStatus\\|COLORS\\[\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785523279352
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"before-quit\\|window-all-closed\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785523345628
     }
   ]
 }
