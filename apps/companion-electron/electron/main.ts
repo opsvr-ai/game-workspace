@@ -265,6 +265,37 @@ function setupIPC(): void {
   });
 }
 
+// ── Status bar animation (injected directly into DOM, bypasses React) ──
+const STATUS_COLORS: Record<string, string> = {
+  AVAILABLE: '#22c55e',
+  BUSY: '#ef4444',
+  ENTERTAINMENT: '#eab308',
+  RESTING: '#f97316',
+};
+
+function showStatusBar(status: string): void {
+  const color = STATUS_COLORS[status];
+  if (!color || !mainWindow) return;
+  mainWindow.webContents
+    .executeJavaScript(
+      `
+    (function() {
+      var id = 'esb-native';
+      var old = document.getElementById(id);
+      if (old) old.remove();
+      var bar = document.createElement('div');
+      bar.id = id;
+      bar.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;height:5px;width:0;background:${color};border-radius:0 3px 3px 0;box-shadow:0 0 10px ${color},0 0 4px ${color};pointer-events:none;transition:width 1s ease-out;';
+      document.body.appendChild(bar);
+      requestAnimationFrame(function() { bar.style.width = '100%'; });
+      setTimeout(function() { bar.style.transition = 'opacity 0.3s'; bar.style.opacity = '0'; }, 1200);
+      setTimeout(function() { if (bar.parentNode) bar.remove(); }, 1500);
+    })();
+  `,
+    )
+    .catch(() => {});
+}
+
 // Setup WebSocket event handlers
 function setupWsEvents(): void {
   const notifyOrder = (order: any, isUrgent: boolean) => {
@@ -304,6 +335,8 @@ function setupWsEvents(): void {
     const cid = store.get('companionId') as string;
     if (cid && data?.companionId === cid && data?.status) {
       store.set('lastStatus', data.status);
+      // Direct DOM injection — bypasses React/WebSocket entirely
+      showStatusBar(data.status);
     }
   });
 

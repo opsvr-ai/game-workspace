@@ -1,16 +1,15 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
-const api = typeof window !== 'undefined' ? (window as any).electronAPI : null;
-const isElectron = !!api;
+const eapi = typeof window !== 'undefined' ? (window as any).electronAPI : null;
+const isElectron = !!eapi;
 
-const STYLE_ID = 'esb-bar';
 const CSS = `
 @keyframes esb-fill {
   0%   { width: 0%; }
   100% { width: 100%; }
 }
 .esb-bar {
-  position: fixed; top: 0; left: 0; z-index: 9999;
+  position: fixed; top: 0; left: 0; z-index: 99999;
   height: 5px; pointer-events: none;
 }
 .esb-fill {
@@ -21,12 +20,12 @@ const CSS = `
 }
 `;
 
-let stylesInjected = false;
-function injectStyles() {
-  if (stylesInjected || document.getElementById(STYLE_ID)) return;
-  stylesInjected = true;
+let injected = false;
+function inject() {
+  if (injected || document.getElementById('esb-bar-css')) return;
+  injected = true;
   const s = document.createElement('style');
-  s.id = STYLE_ID;
+  s.id = 'esb-bar-css';
   s.textContent = CSS;
   document.head.appendChild(s);
 }
@@ -39,90 +38,78 @@ const COLORS: Record<string, string> = {
 };
 
 const ElectronStatusBar: React.FC = () => {
-  const [status, setStatus] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
-  const mountedRef = useRef(true);
-  const companionIdRef = useRef('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const readyRef = useRef(false);
+  const [color, setColor] = useState('');
+  const refs = useRef({ cid: '', last: '', alive: true, tm: null as any });
 
-  const trigger = useCallback((s: string) => {
-    if (!COLORS[s]) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
+  // Trigger bar animation
+  const fire = (s: string) => {
+    const c = COLORS[s];
+    if (!c) return;
+    clearTimeout(refs.current.tm);
+    // Use tick change to remount <div> → replay CSS animation
     setTick((n) => n + 1);
-    setStatus(s);
-    timerRef.current = setTimeout(() => setStatus(null), 1300);
-  }, []);
+    setColor(c);
+    refs.current.tm = setTimeout(() => setColor(''), 1300);
+  };
 
   useEffect(() => {
-    mountedRef.current = true;
+    refs.current.alive = true;
     if (!isElectron) return;
-    injectStyles();
+    inject();
 
-    // Step 1: get companionId first (needed to filter WS events)
-    api.storeGet('companionId').then((id: string) => {
-      if (!mountedRef.current) return;
-      companionIdRef.current = (id || '').toString();
-      readyRef.current = true;
+    // Get companion ID first, then subscribe
+    eapi.storeGet('companionId').then((id: any) => {
+      if (!refs.current.alive) return;
+      refs.current.cid = String(id || '');
 
-      // Step 2: now listen to WebSocket status broadcasts
-      const unsub = api.onWsEvent?.('ws:statusBroadcast', (data: any) => {
-        if (!mountedRef.current) return;
-        const cid = companionIdRef.current;
-        if (cid && data?.companionId === cid && data?.status) {
-          trigger(data.status);
+      // Listen to ws:statusBroadcast forwarded from main process
+      const unsub = eapi.onWsEvent?.('ws:statusBroadcast', (data: any) => {
+        if (refs.current.alive && refs.current.cid && data?.companionId === refs.current.cid && data?.status) {
+          fire(data.status);
         }
       });
 
-      // Step 3: poll as safety net
-      let lastSeen = '';
+      // Fallback poll
       const poll = async () => {
         try {
-          if (!mountedRef.current) return;
-          const s = await api.storeGet('lastStatus');
-          if (s && s !== lastSeen) {
-            lastSeen = s;
-            trigger(s);
+          if (!refs.current.alive) return;
+          const s: any = await eapi.storeGet('lastStatus');
+          if (s && s !== refs.current.last) {
+            refs.current.last = String(s);
+            fire(String(s));
           }
         } catch {
           /* */
         }
       };
       poll();
-      const interval = setInterval(poll, 2000);
+      const iv = setInterval(poll, 2000);
 
-      // Store cleanup reference
+      // cleanup
       const cleanup = () => {
-        clearInterval(interval);
-        if (unsub) unsub();
+        unsub?.();
+        clearInterval(iv);
       };
-
-      // Override the return cleanup
-      const origCleanup = () => {
-        cleanup();
-      };
-
-      // Schedule cleanup
-      const cleanupTimer = setInterval(() => {
-        if (!mountedRef.current) {
-          clearInterval(cleanupTimer);
+      // poll for unmount
+      const deathWatch = setInterval(() => {
+        if (!refs.current.alive) {
+          clearInterval(deathWatch);
           cleanup();
         }
-      }, 100);
+      }, 200);
     });
 
     return () => {
-      mountedRef.current = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
+      refs.current.alive = false;
+      clearTimeout(refs.current.tm);
     };
-  }, [trigger]);
+  }, []);
 
-  if (!isElectron || !status || !COLORS[status]) return null;
-
-  const color = COLORS[status];
+  if (!isElectron || !color) return null;
 
   return (
-    <div className="esb-bar" key={`s-${tick}`}>
+    <div className="esb-bar" key={`k${tick}`}>
       <div className="esb-fill" style={{ background: color, color }} />
     </div>
   );
