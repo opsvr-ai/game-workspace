@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785521646850
+      "lastSuccess": 1785521847188
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -210,9 +210,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785520195153
+      "lastSuccess": 1785522054298
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -306,49 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 5
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 17
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785501357997
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: 0-to-100% fill progress bar on status change, thicker 5px bar\n\n- Fills from 0% to 100% continuously (not segmented sweep)\n",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785501364316
-    },
     {
       "type": "bash",
       "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
@@ -2716,6 +2673,28 @@
         }
       ],
       "timestamp": 1785521819427
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785521847188
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd release/win-unpacked && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && cp 蠢驴电竞.exe /data/project/game-workspace/uploads/ && ls -lh",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd release/win-unpacked && zip -rq /data/proj",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785522054298
     }
   ]
 }
