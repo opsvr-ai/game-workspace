@@ -146,6 +146,12 @@ export class OrdersService {
       });
     }
 
+    // Auto-set companion to BUSY when order is CONFIRMED (DIRECT assignment)
+    if (newOrder.status === 'CONFIRMED' && newOrder.companionId) {
+      await this.prisma.companion.update({ where: { id: newOrder.companionId }, data: { status: 'BUSY' } }).catch(() => {});
+      this.wsGateway.broadcastToBridgedStudios(studioId || '', 'status:broadcast', { companionId: newOrder.companionId, status: 'BUSY' });
+    }
+
     if (studioId && newOrder.dispatchType === 'POOL') {
       this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
     }
