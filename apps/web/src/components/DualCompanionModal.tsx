@@ -41,7 +41,7 @@ const DualCompanionModal: React.FC<DualCompanionModalProps> = ({
             <Title level={4}>🎉 恭喜抢单成功</Title>
             <div style={{ lineHeight: 2.2, marginTop: 12 }}>
               <div>
-                🎮 {urgentGrabbed.gameName} · ¥{Number(urgentGrabbed.amount).toFixed(0)}
+                🎮 {urgentGrabbed.gameName} · ¥{Number(urgentGrabbed.coAmount || urgentGrabbed.amount).toFixed(0)}
               </div>
               {urgentGrabbed.customFields?.customerWechat && (
                 <div>
@@ -97,7 +97,7 @@ const DualCompanionModal: React.FC<DualCompanionModalProps> = ({
             <Title level={4}>🤝 本单将由抢单陪玩跟你一起服务老板</Title>
             <div style={{ lineHeight: 2.2, marginTop: 12 }}>
               <div>
-                🎮 {urgentGrabbed.gameName} · ¥{Number(urgentGrabbed.amount).toFixed(0)}
+                🎮 {urgentGrabbed.gameName} · ¥{Number(urgentGrabbed.coAmount || urgentGrabbed.amount).toFixed(0)}
               </div>
               {urgentGrabbed.customFields?.customerWechat && (
                 <div>
