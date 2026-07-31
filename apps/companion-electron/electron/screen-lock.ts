@@ -99,6 +99,7 @@ export function showScreenLock(): void {
   lockWindow.on('closed', () => {
     lockWindow = null;
     store.set('screenLocked', 'false');
+    store.set('lastStatus', 'AVAILABLE');
     try { emitStatus('AVAILABLE'); } catch {}
     logger.info('Screen unlocked, status set to AVAILABLE');
     startIdleTimer();
