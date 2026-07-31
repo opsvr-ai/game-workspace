@@ -2,24 +2,21 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
-const STYLE_ID = 'esb-loading-bar';
+const STYLE_ID = 'esb-bar';
 const CSS = `
-@keyframes esb-load {
-  0%   { left: -100%; width: 30%; }
-  30%  { left: 10%;  width: 50%; }
-  60%  { left: 50%;  width: 40%; }
-  90%  { left: 90%;  width: 10%; }
-  100% { left: 100%; width: 0%; }
+@keyframes esb-fill {
+  0%   { width: 0%; }
+  100% { width: 100%; }
 }
 .esb-bar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-  height: 4px; overflow: hidden; pointer-events: none;
+  position: fixed; top: 0; left: 0; z-index: 9999;
+  height: 5px; pointer-events: none;
 }
 .esb-fill {
-  position: absolute; top: 0; height: 100%;
+  height: 100%;
   border-radius: 0 3px 3px 0;
   box-shadow: 0 0 10px currentColor, 0 0 4px currentColor;
-  animation: esb-load 1.2s ease-in-out forwards;
+  animation: esb-fill 1s ease-out forwards;
 }
 `;
 
@@ -40,7 +37,6 @@ const COLORS: Record<string, string> = {
 
 const ElectronStatusBar: React.FC = () => {
   const [status, setStatus] = useState<string | null>(null);
-  // Increment key to re-mount <div> so CSS animation replays
   const [tick, setTick] = useState(0);
   const mountedRef = useRef(true);
   const lastRef = useRef('');
@@ -50,9 +46,8 @@ const ElectronStatusBar: React.FC = () => {
     if (!COLORS[s]) return;
     setStatus(s);
     setTick((n) => n + 1);
-    // Auto-hide after animation completes
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setStatus(null), 1500);
+    timerRef.current = setTimeout(() => setStatus(null), 1300);
   }, []);
 
   useEffect(() => {
@@ -75,7 +70,7 @@ const ElectronStatusBar: React.FC = () => {
     };
 
     poll();
-    const interval = setInterval(poll, 1000);
+    const interval = setInterval(poll, 800);
     return () => {
       mountedRef.current = false;
       clearInterval(interval);
