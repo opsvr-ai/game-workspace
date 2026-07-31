@@ -130,23 +130,27 @@ export class AgentController {
     };
   }
 
-  // Scan LAN for active hosts
+  // Scan LAN for Windows PCs only (filter out phones/other devices)
   @Get('deploy/scan-lan')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async scanLan(@Req() req: any): Promise<ApiResponse<unknown>> {
     const subnet = (req.get('host') || '').replace(/:\d+$/, '').replace(/\.\d+$/, '');
-    const hosts: { ip: string; hostname?: string; ms?: number }[] = [];
-    const { execSync } = require('child_process');
+    const hosts: { ip: string; ms?: number }[] = [];
+    const net = require('net');
     for (let i = 1; i <= 255; i++) {
       const ip = `${subnet}.${i}`;
-      try {
-        const t0 = Date.now();
-        execSync(`ping -c 1 -W 1 ${ip}`, { timeout: 1200, stdio: 'ignore' });
-        hosts.push({ ip, ms: Date.now() - t0 });
-      } catch {}
+      const isWin: boolean = await new Promise(resolve => {
+        const sock = new net.Socket();
+        sock.setTimeout(500);
+        sock.on('connect', () => { sock.destroy(); resolve(true); });
+        sock.on('error', () => { sock.destroy(); resolve(false); });
+        sock.on('timeout', () => { sock.destroy(); resolve(false); });
+        sock.connect(445, ip); // SMB port — Windows PCs have this open
+      });
+      if (isWin) hosts.push({ ip });
     }
-    return { code: 200, message: `发现 ${hosts.length} 台在线设备`, data: hosts };
+    return { code: 200, message: `发现 ${hosts.length} 台Windows电脑`, data: hosts };
   }
 
   // Admin only: generate PsExec remote deploy script
