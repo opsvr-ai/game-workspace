@@ -31,7 +31,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
-  const availableCompanions = companions.filter((c: any) => c.status === 'AVAILABLE' || c.status === 'BUSY');
+  const availableForPartner = companions.filter((c: any) => c.status === 'AVAILABLE');
 
   useEffect(() => {
     if (open)
@@ -167,7 +167,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
                 </Form.Item>
                 <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
                   <Select placeholder="选择主陪" showSearch optionFilterProp="label">
-                    {availableCompanions.map((c: any) => (
+                    {companions.map((c: any) => (
                       <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
                         {c.user?.displayName || c.user?.username}
                       </Option>
@@ -179,7 +179,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
                     <>
                       <Form.Item name="coCompanionId" label="搭档" rules={[{ required: true, message: '双陪必须选搭档' }]}>
                         <Select placeholder="选择搭档" showSearch optionFilterProp="label">
-                          {availableCompanions.filter((c: any) => c.id !== gv('companionId')).map((c: any) => (
+                          {availableForPartner.filter((c: any) => c.id !== gv('companionId')).map((c: any) => (
                             <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
                               {c.user?.displayName || c.user?.username}
                             </Option>
