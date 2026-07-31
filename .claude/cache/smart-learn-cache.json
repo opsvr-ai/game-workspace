@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 357,
+      "successCount": 358,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
           "weight": 350
         },
         "style:prefer_const": {
-          "count": 2,
-          "weight": 810
+          "count": 0,
+          "weight": 811
         },
         "style:async_await": {
           "count": 0,
@@ -79,7 +79,7 @@
       "patterns": {}
     },
     ".html": {
-      "successCount": 2,
+      "successCount": 3,
       "patterns": {}
     },
     ".ps1": {
@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785521482566
+      "lastSuccess": 1785521646850
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -306,39 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: status change triggers one-shot sweep animation like loading bar\n\n- Bar appears only on status change, sweeps left-to-righ",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785501042860
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -1",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -N",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785501046028
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785501053589
-    },
     {
       "type": "write",
       "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
@@ -2720,6 +2687,35 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
       "patterns": [],
       "timestamp": 1785521597266
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && curl -s \"http://localhost:8",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785521646850
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1785521811678
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785521819427
     }
   ]
 }

@@ -12,36 +12,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      window.__lockScreen = function() {
-        if (document.getElementById('__lock')) return;
-        var d = document.createElement('div');
-        d.id = '__lock';
-        d.innerHTML = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:#000;display:flex;align-items:center;justify-content:center"><div style="text-align:center"><div style="font-size:60px;margin-bottom:20px">🔒</div><div style="color:#fff;font-size:18px;margin-bottom:10px">休息中 · 屏幕已锁定</div><div style="color:#888;font-size:12px;margin-bottom:20px">输入 App 密码解锁</div><input id="__lock_pw" type="password" style="padding:10px 20px;font-size:16px;text-align:center;border:2px solid #00D4FF;border-radius:8px;background:#111;color:#fff;outline:none;width:200px" placeholder="输入密码" autofocus><div id="__lock_err" style="color:#FF4757;font-size:12px;margin-top:10px;display:none">密码错误</div></div></div>';
-        document.body.appendChild(d);
-        document.documentElement.requestFullscreen().catch(function(){});
-        var a = 0, t;
-        document.getElementById('__lock_pw').onkeydown = function(e) {
-          if (e.key === 'Enter') {
-            if (e.target.value === '123456') {
-              document.exitFullscreen().catch(function(){});
-              var el = document.getElementById('__lock'); if (el) el.remove();
-              clearTimeout(t);
-            } else {
-              a++; e.target.value = '';
-              document.getElementById('__lock_err').style.display = 'block';
-              if (a >= 5) {
-                e.target.disabled = true;
-                t = setTimeout(function(){ e.target.disabled = false; a = 0; document.getElementById('__lock_err').style.display = 'none'; }, 30000);
-              }
-            }
-          }
-        };
-      };
-      window.__unlockScreen = function() {
-        document.exitFullscreen().catch(function(){});
-        var el = document.getElementById('__lock'); if (el) el.remove();
-      };
-    </script>
   </body>
 </html>

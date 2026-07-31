@@ -234,9 +234,13 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      message.success(`已切换为${companionStatusConfig[status]?.label || status}`);
-      if (status === 'RESTING') { (window as any).__lockScreen?.(); }
-      else { (window as any).__unlockScreen?.(); }
+      // Trigger native screen lock via Electron IPC
+      const ea = (window as any).electronAPI;
+      if (ea?.onStatusChanged) {
+        ea.onStatusChanged(status);
+      } else {
+        message.warning('electronAPI 未加载，锁屏不可用。请使用最新版 exe');
+      }
       fetchData();
     } catch {
       message.error('切换失败');
