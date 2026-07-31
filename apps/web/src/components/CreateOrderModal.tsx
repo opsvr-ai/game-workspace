@@ -157,6 +157,21 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             <Option value={DispatchType.DIRECT}>直接分配</Option>
           </Select>
         </Form.Item>
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
+          {({ getFieldValue }) =>
+            getFieldValue('dispatchType') === DispatchType.DIRECT ? (
+              <Form.Item name="companionId" label="指定陪玩" rules={[{ required: true, message: '请选择陪玩' }]}>
+                <Select placeholder="选择陪玩" showSearch optionFilterProp="label">
+                  {companions.map((c: any) => (
+                    <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                      {c.user?.displayName || c.user?.username}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            ) : null
+          }
+        </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select>
             <Option value="now">⚡立即打</Option>
