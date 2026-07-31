@@ -136,20 +136,23 @@ export class AgentController {
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async scanLan(@Req() req: any): Promise<ApiResponse<unknown>> {
     const subnet = (req.get('host') || '').replace(/:\d+$/, '').replace(/\.\d+$/, '');
-    const hosts: { ip: string; ms?: number }[] = [];
     const net = require('net');
-    for (let i = 1; i <= 255; i++) {
-      const ip = `${subnet}.${i}`;
-      const isWin: boolean = await new Promise(resolve => {
-        const sock = new net.Socket();
-        sock.setTimeout(500);
-        sock.on('connect', () => { sock.destroy(); resolve(true); });
-        sock.on('error', () => { sock.destroy(); resolve(false); });
-        sock.on('timeout', () => { sock.destroy(); resolve(false); });
-        sock.connect(445, ip); // SMB port — Windows PCs have this open
-      });
-      if (isWin) hosts.push({ ip });
-    }
+    const checkPort = (ip: string): Promise<boolean> => new Promise(resolve => {
+      const sock = new net.Socket();
+      sock.setTimeout(300);
+      sock.on('connect', () => { sock.destroy(); resolve(true); });
+      sock.on('error', () => { sock.destroy(); resolve(false); });
+      sock.on('timeout', () => { sock.destroy(); resolve(false); });
+      sock.connect(445, ip);
+    });
+    const results = await Promise.all(
+      Array.from({ length: 254 }, (_, i) => i + 1).map(async i => {
+        const ip = `${subnet}.${i}`;
+        const ok = await checkPort(ip);
+        return ok ? { ip } : null;
+      })
+    );
+    const hosts = results.filter(Boolean) as { ip: string }[];
     return { code: 200, message: `发现 ${hosts.length} 台Windows电脑`, data: hosts };
   }
 
