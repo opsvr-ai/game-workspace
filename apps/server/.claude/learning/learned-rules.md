@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T21:08:32.295Z
+**Last Updated:** 2026-07-31T21:12:16.199Z
 
 ---
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 87 occurrences
+**Frequency:** 88 occurrences
 
 ### Prefer async await in .ts files
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 63 occurrences
+**Frequency:** 64 occurrences
 
 ### Commonly used command: git
 
@@ -61,7 +61,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 20 occurrences
+**Frequency:** 21 occurrences
 
 ### Commonly used command: npx
 

@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 245,
+      "successCount": 248,
       "patterns": {
         "style:prefer_const": {
-          "count": 1,
-          "weight": 441
+          "count": 0,
+          "weight": 445
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 168
+          "count": 2,
+          "weight": 172
         },
         "style:arrow_functions": {
           "count": 2,
@@ -30,19 +30,19 @@
       }
     },
     ".tsx": {
-      "successCount": 447,
+      "successCount": 450,
       "patterns": {
         "style:arrow_functions": {
-          "count": 0,
-          "weight": 359
+          "count": 1,
+          "weight": 360
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 705
+          "count": 1,
+          "weight": 708
         },
         "framework:react_hooks": {
-          "count": 1,
-          "weight": 73
+          "count": 2,
+          "weight": 74
         },
         "quality:error_handling": {
           "count": 0,
@@ -70,9 +70,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 1,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785531919574
+      "lastSuccess": 1785532336198
     },
     "npx": {
       "count": 5,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785526056514
     },
     "git": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785531981376
+      "lastSuccess": 1785532154248
     },
     "rm": {
       "count": 2,
@@ -201,134 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/components/chat/ChatComposer.tsx && git -C /data/project/game-workspace commit -m \"fix:",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784928783745
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"csUserId\\|creator\\|peer\\|self\\|自己\\|same\" /data/project/game-workspace/apps/server/src/orders/order-workflow.service.ts | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/order-workflow.service.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784928895328
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/order-dispatch.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784928924907
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/server/src/orders/ && git -C /data/project/game-workspace commit -m \"fix: prevent companion fro",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784928938744
-    },
-    {
-      "type": "bash",
-      "command": "# Test: create order as companion, then try to grab it\nTOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | pytho",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Test: create order as companion, then try to grab it TOKEN=$(curl -s http://localhost:N/api/auth/l",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784929075491
-    },
-    {
-      "type": "bash",
-      "command": "# Check if server is running latest code\ngrep \"不能抢自己发布的订单\" /data/project/game-workspace/apps/server/src/orders/order-workflow.service.ts",
-      "cmdPattern": {
-        "base": "#",
-        "pattern": "# Check if server is running latest code grep \"\" /data/project/game-workspace/apps/server/src/orders",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784929083907
-    },
-    {
-      "type": "bash",
-      "command": "curl -s http://localhost:3001/api/health 2>/dev/null || echo \"Server down\"\ntail -3 /tmp/server-voice.log 2>/dev/null",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s http://localhost:N/api/health N>/dev/null || echo \"\" tail -N /tmp/server-voice.log N>/dev/nu",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784929113745
-    },
-    {
-      "type": "bash",
-      "command": "grep -A2 \"error TS\" /tmp/server-voice.log | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -AN \"\" /tmp/server-voice.log | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784929118879
-    },
-    {
-      "type": "bash",
-      "command": "grep \"error\\|Error\" /tmp/server-voice.log | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /tmp/server-voice.log | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784929124049
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/auth/auth.controller.ts",
-      "patterns": [],
-      "timestamp": 1784929131842
-    },
-    {
-      "type": "bash",
-      "command": "tail -10 /tmp/server-voice2.log",
-      "cmdPattern": {
-        "base": "tail",
-        "pattern": "tail -N /tmp/server-voiceN.log",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784929233765
-    },
-    {
-      "type": "bash",
-      "command": "sleep 8\ncurl -s http://localhost:3001/api/health",
-      "cmdPattern": {
-        "base": "sleep",
-        "pattern": "sleep N curl -s http://localhost:N/api/health",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1784929260923
-    },
     {
       "type": "bash",
       "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get(",
@@ -2393,6 +2265,147 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/CustomersPage.tsx",
       "patterns": [],
       "timestamp": 1785532137376
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"revert: restore original CreateOrderModal for start service\" && git -C /data/project/game-workspace push or",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785532154248
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"totalRevenue\\|todayRevenue\\|wallet\\|今日汇总\\|今日统计\\|todayStats\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785532237873
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/companions/companions.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785532245294
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"getWorkbench\\|workbench\\|@Get.*me/workbench\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/companions/companions.controller.ts | head -",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785532254049
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785532272861
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/api/companions.ts",
+      "patterns": [],
+      "timestamp": 1785532281923
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | tail -3",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785532295565
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785532301798
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"fetchData\\|fetchWallet\\|fetchMyCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785532314165
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785532319681
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"⑤\\|📊\\|客户池\\|myCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785532336198
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785532351185
     }
   ]
 }

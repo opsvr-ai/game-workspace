@@ -113,6 +113,24 @@ export class CompanionsService {
     };
   }
 
+  async getTodaySessions(companionId: string) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const sessions = await this.prisma.orderSession.findMany({
+      where: { companionId, createdAt: { gte: today } },
+      include: {
+        coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
+        parentOrder: { select: { gameName: true, orderCode: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sessions.map(s => ({
+      id: s.id, seq: s.seq, gameName: s.parentOrder?.gameName, orderCode: s.parentOrder?.orderCode,
+      amount: s.amount, coAmount: s.coAmount, duration: s.duration, status: s.status,
+      coName: s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null,
+      startedAt: s.startedAt, endedAt: s.endedAt, createdAt: s.createdAt,
+    }));
+  }
+
   async getWorkbench(companionId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

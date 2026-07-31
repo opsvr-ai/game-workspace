@@ -11,6 +11,7 @@ export const companionsApi = {
     http.post(`/companions/${id}/command`, { command, params }),
   kick: (id: string) => http.post(`/companions/${id}/kick`),
   workbench: () => http.get('/companions/me/workbench'),
+  todaySessions: () => http.get('/companions/me/today-sessions'),
   wallet: () => http.get('/companions/me/wallet'),
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
   resign: (id: string) => http.post(`/companions/${id}/resign`),

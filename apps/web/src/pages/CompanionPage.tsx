@@ -106,6 +106,7 @@ const CompanionPage: React.FC = () => {
     fetchData();
     fetchWallet();
     fetchMyCustomers();
+    companionsApi.todaySessions().then((r: any) => setTodaySessions(r.data?.data || [])).catch(() => {});
     fetchRanking();
     const t = setInterval(() => {
       fetchData();
@@ -173,6 +174,7 @@ const CompanionPage: React.FC = () => {
   const [notifModalOpen, setNotifModalOpen] = useState(false);
   const [notifSound, setNotifSound] = useState(true);
   const [notifVolume, setNotifVolume] = useState(70);
+  const [todaySessions, setTodaySessions] = useState<any[]>([]);
   const [notifPrefs, setNotifPrefs] = useState<any>({
     enabled: true,
     orderTypes: { NEW: true, RENEW: true, REPURCHASE: true, TIP: true },
@@ -650,6 +652,46 @@ const CompanionPage: React.FC = () => {
           进入报账系统 →
         </Button>
       </Card>
+
+      {/* Today sessions summary */}
+      {todaySessions.length > 0 && (
+        <Card size="small" style={{ marginBottom: 12 }} title="📋 今日服务明细">
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #eee' }}>
+                <th style={{ padding: 4, textAlign: 'left' }}>#</th>
+                <th style={{ padding: 4, textAlign: 'left' }}>游戏</th>
+                <th style={{ padding: 4, textAlign: 'left' }}>搭档</th>
+                <th style={{ padding: 4, textAlign: 'right' }}>我的</th>
+                <th style={{ padding: 4, textAlign: 'right' }}>搭档</th>
+                <th style={{ padding: 4 }}>时长</th>
+                <th style={{ padding: 4 }}>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todaySessions.map((s: any) => (
+                <tr key={s.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                  <td style={{ padding: 4 }}>{s.orderCode || '-'}</td>
+                  <td style={{ padding: 4 }}>{s.gameName || '-'}</td>
+                  <td style={{ padding: 4 }}>{s.coName || '-'}</td>
+                  <td style={{ padding: 4, textAlign: 'right' }}>¥{s.amount}</td>
+                  <td style={{ padding: 4, textAlign: 'right' }}>{s.coAmount ? `¥${s.coAmount}` : '-'}</td>
+                  <td style={{ padding: 4 }}>{s.duration}h</td>
+                  <td style={{ padding: 4 }}>{s.status === 'ACTIVE' ? '🔄' : '✅'}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 'bold', borderTop: '2px solid #333' }}>
+                <td colSpan={3} style={{ padding: 4 }}>合计</td>
+                <td style={{ padding: 4, textAlign: 'right' }}>¥{todaySessions.reduce((a: number, s: any) => a + (s.amount || 0), 0)}</td>
+                <td style={{ padding: 4, textAlign: 'right' }}>¥{todaySessions.reduce((a: number, s: any) => a + (s.coAmount || 0), 0)}</td>
+                <td colSpan={2} style={{ padding: 4 }}></td>
+              </tr>
+            </tfoot>
+          </table>
+        </Card>
+      )}
 
       {/* Notification Settings Modal */}
       <Modal
