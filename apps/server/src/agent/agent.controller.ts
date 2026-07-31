@@ -130,25 +130,30 @@ export class AgentController {
     };
   }
 
-  // Scan LAN for Windows PCs only (filter out phones/other devices)
+  // Scan LAN — ping all, then detect Windows via SMB port
   @Get('deploy/scan-lan')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async scanLan(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const subnet = (req.get('host') || '').replace(/:\d+$/, '').replace(/\.\d+$/, '');
+    const clientIp = (req.ip || req.connection?.remoteAddress || '192.168.0.1').replace('::ffff:', '');
+    const subnet = clientIp.replace(/\.\d+$/, '');
     const net = require('net');
-    const checkPort = (ip: string): Promise<boolean> => new Promise(resolve => {
+    const { execSync } = require('child_process');
+
+    const checkWin = (ip: string): Promise<boolean> => new Promise(resolve => {
+      try { execSync(`ping -c 1 -W 1 ${ip}`, { timeout: 1200, stdio: 'ignore' }); } catch { return resolve(false); }
       const sock = new net.Socket();
-      sock.setTimeout(300);
+      sock.setTimeout(200);
       sock.on('connect', () => { sock.destroy(); resolve(true); });
-      sock.on('error', () => { sock.destroy(); resolve(false); });
-      sock.on('timeout', () => { sock.destroy(); resolve(false); });
+      sock.on('error', () => sock.destroy());
+      sock.on('timeout', () => sock.destroy());
       sock.connect(445, ip);
     });
+
     const results = await Promise.all(
       Array.from({ length: 254 }, (_, i) => i + 1).map(async i => {
         const ip = `${subnet}.${i}`;
-        const ok = await checkPort(ip);
+        const ok = await checkWin(ip);
         return ok ? { ip } : null;
       })
     );
