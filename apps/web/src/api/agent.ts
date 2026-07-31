@@ -9,4 +9,5 @@ export const agentApi = {
   getDeployScript: () => http.get('/agent/deploy/script'),
   getRemoteDeployScript: (data: { targetIPs: string[]; adminUser: string; adminPass: string }) =>
     http.post('/agent/deploy/remote-script', data),
+  scanLan: () => http.get('/agent/deploy/scan-lan'),
 };

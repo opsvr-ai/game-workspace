@@ -1,23 +1,23 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 253,
+      "successCount": 255,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 460
+          "count": 1,
+          "weight": 465
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 183
+          "count": 0,
+          "weight": 184
         },
         "style:arrow_functions": {
           "count": 0,
           "weight": 72
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 10
+          "count": 1,
+          "weight": 11
         },
         "typing:explicit_types": {
           "count": 2,
@@ -30,27 +30,27 @@
       }
     },
     ".tsx": {
-      "successCount": 451,
+      "successCount": 452,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 361
+          "count": 0,
+          "weight": 362
         },
         "style:prefer_const": {
-          "count": 1,
-          "weight": 708
+          "count": 2,
+          "weight": 710
         },
         "framework:react_hooks": {
           "count": 2,
           "weight": 74
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 75
+          "count": 1,
+          "weight": 76
         },
         "style:async_await": {
-          "count": 1,
-          "weight": 89
+          "count": 2,
+          "weight": 90
         },
         "typing:explicit_types": {
           "count": 1,
@@ -70,9 +70,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "grep": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785533052650
+      "lastSuccess": 1785533462909
     },
     "npx": {
       "count": 5,
@@ -95,9 +95,9 @@
       "lastSuccess": 1785533036037
     },
     "git": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785532368590
+      "lastSuccess": 1785533092660
     },
     "rm": {
       "count": 2,
@@ -201,78 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "npx prisma db push --accept-data-loss 2>&1 | tail -3 && echo \"Done\"",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx prisma db push --accept-data-loss N>&N | tail -N && echo \"\"",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785525677576
-    },
-    {
-      "type": "bash",
-      "command": "node -e \"\nconst{PrismaClient}=require('@prisma/client');\nconst p=new PrismaClient();\n(async()=>{\nconst os=await p.order.findMany({orderBy:{createdAt:'asc'}});\nfor(let i=0;i<os.length;i++){await p.orde",
-      "cmdPattern": {
-        "base": "node",
-        "pattern": "node -e \"\"@prisma/client\"\"asc\"\"_t\"\"orders migrated:\"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785525779948
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: add auto-incrementing orderCode to Order model\" && git -C /data/project/game-workspace push origin HE",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785525791898
-    },
-    {
-      "type": "bash",
-      "command": "kill $(lsof -ti :3001) 2>/dev/null; sleep 2; cd /data/project/game-workspace && pnpm dev:server &\nsleep 8 && curl -s http://localhost:3001/api/health",
-      "cmdPattern": {
-        "base": "kill",
-        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace && pnpm dev:server & sleep",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785525809352
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"nextOrderCode\\|nextCustomerCode\\|counter\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785525837371
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785525845342
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
@@ -2396,6 +2324,94 @@
         }
       ],
       "timestamp": 1785533076387
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: configurable daily settlement start hour in studio settings\" && git -C /data/project/game-workspace p",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785533092660
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"generateRemoteDeployScript\\|deploy/remote-script\" /data/project/game-workspace/apps/server/src/agent/agent.controller.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/agent/agent.controller.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785533433318
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/agent/agent.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 5
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785533447207
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/api/agent.ts",
+      "patterns": [],
+      "timestamp": 1785533456164
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"remoteIPs\\|handleGenerateRemote\\|目标电脑 IP\\|扫描\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785533462909
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785533476170
     }
   ]
 }

@@ -130,6 +130,25 @@ export class AgentController {
     };
   }
 
+  // Scan LAN for active hosts
+  @Get('deploy/scan-lan')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async scanLan(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const subnet = (req.get('host') || '').replace(/:\d+$/, '').replace(/\.\d+$/, '');
+    const hosts: { ip: string; hostname?: string; ms?: number }[] = [];
+    const { execSync } = require('child_process');
+    for (let i = 1; i <= 255; i++) {
+      const ip = `${subnet}.${i}`;
+      try {
+        const t0 = Date.now();
+        execSync(`ping -c 1 -W 1 ${ip}`, { timeout: 1200, stdio: 'ignore' });
+        hosts.push({ ip, ms: Date.now() - t0 });
+      } catch {}
+    }
+    return { code: 200, message: `发现 ${hosts.length} 台在线设备`, data: hosts };
+  }
+
   // Admin only: generate PsExec remote deploy script
   @Post('deploy/remote-script')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
