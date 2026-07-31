@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-24T21:38:38.880Z
+**Last Updated:** 2026-07-31T13:36:38.702Z
 
 ---
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 42 occurrences
+**Frequency:** 43 occurrences
 
 ## Bash
 
@@ -113,7 +113,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 3 occurrences
+**Frequency:** 4 occurrences
 
 ### Commonly used command: TOKEN=$(curl
 
@@ -197,7 +197,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 13 occurrences
+**Frequency:** 14 occurrences
 
 ---
 

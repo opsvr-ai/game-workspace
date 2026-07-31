@@ -45,6 +45,7 @@ bash:
     - file
     - stat
     - du
+    - git push
   deniedPrefixes:
     - rm -rf /
     - chmod 777

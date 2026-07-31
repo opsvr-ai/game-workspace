@@ -233,9 +233,9 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      // Notify Electron main process to update local status store
+      // Direct IPC: show status bar animation in Electron window
       try {
-        (window as any).electronAPI?.onStatusChanged(status);
+        (window as any).electronAPI?.showStatusBar?.(status);
       } catch {
         /* ignore */
       }

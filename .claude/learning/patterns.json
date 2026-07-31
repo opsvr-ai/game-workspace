@@ -16,9 +16,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 56,
+    "frequency": 61,
     "created_at": "2026-07-18T19:07:46.329Z",
-    "updated_at": "2026-07-25T19:52:17.095Z"
+    "updated_at": "2026-07-31T13:21:04.468Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 63,
+    "frequency": 71,
     "created_at": "2026-07-18T19:11:56.129Z",
-    "updated_at": "2026-07-25T20:17:06.600Z"
+    "updated_at": "2026-07-31T13:16:57.297Z"
   },
   {
     "type": "code_style",
@@ -58,9 +58,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 37,
+    "frequency": 42,
     "created_at": "2026-07-18T19:13:01.379Z",
-    "updated_at": "2026-07-25T20:09:38.898Z"
+    "updated_at": "2026-07-31T12:54:59.067Z"
   },
   {
     "type": "code_style",
@@ -79,9 +79,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "react_hooks",
-    "frequency": 21,
+    "frequency": 26,
     "created_at": "2026-07-18T19:13:01.386Z",
-    "updated_at": "2026-07-25T19:59:58.322Z"
+    "updated_at": "2026-07-31T12:56:22.496Z"
   },
   {
     "type": "workflow",
@@ -100,9 +100,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 28,
+    "frequency": 34,
     "created_at": "2026-07-18T19:24:51.440Z",
-    "updated_at": "2026-07-27T15:24:30.588Z"
+    "updated_at": "2026-07-31T13:17:22.645Z"
   },
   {
     "type": "code_style",
@@ -121,9 +121,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "error_handling",
-    "frequency": 10,
+    "frequency": 16,
     "created_at": "2026-07-18T20:33:13.318Z",
-    "updated_at": "2026-07-25T20:17:06.605Z"
+    "updated_at": "2026-07-31T14:48:17.643Z"
   },
   {
     "type": "workflow",
@@ -142,9 +142,9 @@
       "Used successfully 6 times"
     ],
     "rule": "find",
-    "frequency": 17,
+    "frequency": 19,
     "created_at": "2026-07-19T12:03:25.754Z",
-    "updated_at": "2026-07-27T15:25:20.670Z"
+    "updated_at": "2026-07-30T12:19:23.460Z"
   },
   {
     "type": "workflow",
@@ -197,9 +197,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 27,
+    "frequency": 33,
     "created_at": "2026-07-19T12:28:38.750Z",
-    "updated_at": "2026-07-25T20:12:36.923Z"
+    "updated_at": "2026-07-31T13:25:25.371Z"
   },
   {
     "type": "workflow",
@@ -223,12 +223,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "npx",
-    "frequency": 5,
+    "frequency": 6,
     "created_at": "2026-07-20T14:53:10.455Z",
-    "updated_at": "2026-07-23T15:03:01.943Z"
+    "updated_at": "2026-07-31T14:41:27.824Z"
   },
   {
     "type": "code_style",
@@ -247,9 +248,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "explicit_types",
-    "frequency": 12,
+    "frequency": 13,
     "created_at": "2026-07-20T15:17:14.040Z",
-    "updated_at": "2026-07-25T20:17:06.603Z"
+    "updated_at": "2026-07-31T12:17:40.567Z"
   },
   {
     "type": "workflow",
@@ -350,5 +351,17 @@
     "frequency": 1,
     "created_at": "2026-07-23T17:21:44.265Z",
     "updated_at": "2026-07-23T17:21:44.265Z"
+  },
+  {
+    "type": "workflow",
+    "category": "bash",
+    "description": "Commonly used command: kill",
+    "evidence": [
+      "Used successfully 6 times"
+    ],
+    "rule": "kill",
+    "frequency": 1,
+    "created_at": "2026-07-31T13:22:38.949Z",
+    "updated_at": "2026-07-31T13:22:38.949Z"
   }
 ]

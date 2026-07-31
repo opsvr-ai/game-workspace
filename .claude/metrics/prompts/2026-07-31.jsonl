@@ -1,0 +1,13 @@
+{"ts":"2026-07-31T12:04:09.050Z","prompt":"陪玩端  切换状态 怎么没看到ui效果？","words":3,"chars":20,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"848418"}
+{"ts":"2026-07-31T12:17:16.974Z","prompt":"只是上边一直有一条横线   没看到啥效果","words":2,"chars":20,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"863977"}
+{"ts":"2026-07-31T12:25:02.123Z","prompt":"我想要从左到右 进度条 那种效果","words":3,"chars":16,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"869987"}
+{"ts":"2026-07-31T12:30:20.584Z","prompt":"我切换状态的时候出现这个效果就可以   类似于加载的那种效果","words":2,"chars":30,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"874886"}
+{"ts":"2026-07-31T12:35:46.753Z","prompt":"从左到右 不要断开的那种 从0-百分百那种   粗一点","words":4,"chars":27,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"879866"}
+{"ts":"2026-07-31T12:48:42.459Z","prompt":"怎么没看到效果呢","words":1,"chars":8,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"887983"}
+{"ts":"2026-07-31T12:52:38.020Z","prompt":"没看到效果","words":1,"chars":5,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"891357"}
+{"ts":"2026-07-31T12:54:28.820Z","prompt":"我没安装  直接运行的exe那个","words":2,"chars":16,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"894666"}
+{"ts":"2026-07-31T12:55:59.164Z","prompt":"还是没看到","words":1,"chars":5,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"897812"}
+{"ts":"2026-07-31T13:16:03.820Z","prompt":"我打开的是electron  ，没看到效果","words":2,"chars":21,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"916863"}
+{"ts":"2026-07-31T13:20:44.748Z","prompt":"重启服务器","words":1,"chars":5,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"928010"}
+{"ts":"2026-07-31T13:24:58.661Z","prompt":"还是没看到效果","words":1,"chars":7,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"940057"}
+{"ts":"2026-07-31T14:46:59.991Z","prompt":"重新安装没效果","words":1,"chars":7,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"986454"}

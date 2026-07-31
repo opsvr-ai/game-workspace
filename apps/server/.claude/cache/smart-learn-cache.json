@@ -30,27 +30,27 @@
       }
     },
     ".tsx": {
-      "successCount": 400,
+      "successCount": 401,
       "patterns": {
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 325
+          "count": 2,
+          "weight": 333
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 645
+          "count": 1,
+          "weight": 661
         },
         "framework:react_hooks": {
-          "count": 0,
-          "weight": 66
+          "count": 1,
+          "weight": 67
         },
         "quality:error_handling": {
-          "count": 2,
-          "weight": 63
+          "count": 0,
+          "weight": 65
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 74
+          "count": 0,
+          "weight": 76
         },
         "typing:explicit_types": {
           "count": 2,
@@ -85,9 +85,9 @@
       "lastSuccess": 1784469389740
     },
     "pnpm": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784928938744
+      "lastSuccess": 1785504344162
     },
     "find": {
       "count": 0,
@@ -140,9 +140,9 @@
       "lastSuccess": 1784472897704
     },
     "tail": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1784929233765
+      "lastSuccess": 1785504952656
     },
     "docker": {
       "count": 5,
@@ -150,9 +150,9 @@
       "lastSuccess": 1784734908882
     },
     "curl": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1784929417608
+      "lastSuccess": 1785504972573
     },
     "for": {
       "count": 1,
@@ -193,99 +193,14 @@
       "count": 1,
       "patterns": [],
       "lastSuccess": 1784917182103
+    },
+    "pmN": {
+      "count": 1,
+      "patterns": [],
+      "lastSuccess": 1785504348252
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.service.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "typing",
-          "pattern": "explicit_types",
-          "weight": 8
-        }
-      ],
-      "timestamp": 1784912844276
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/studios/studios.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784912881785
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/LoginPage.tsx",
-      "patterns": [],
-      "timestamp": 1784912889907
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"Chunlv\\|⚡\\|logo\\|sidebar.*header\\|Logo\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784912899828
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"Chunlv\\|⚡\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784912904584
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784912915873
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 3
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 4
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784912937648
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
@@ -2577,6 +2492,104 @@
         "hasChain": false
       },
       "timestamp": 1784929417608
+    },
+    {
+      "type": "bash",
+      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -5 && cd apps/server && npx tsc -p tsconfig.build.json 2>&1 | tail -3",
+      "cmdPattern": {
+        "base": "pnpm",
+        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && cd apps/server && npx tsc -p tsconfig.bu",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785504344162
+    },
+    {
+      "type": "bash",
+      "command": "pm2 restart all 2>&1",
+      "cmdPattern": {
+        "base": "pmN",
+        "pattern": "pmN restart all N>&N",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785504348252
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8000/ | head -5",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/ | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785504348469
+    },
+    {
+      "type": "bash",
+      "command": "tail -20 /tmp/claude-0/-data-project-game-workspace/d2905437-ac3e-4599-b9ac-c0e945814894/tasks/bhr58x10j.output 2>/dev/null",
+      "cmdPattern": {
+        "base": "tail",
+        "pattern": "tail -N /tmp/claude-N/-data-project-game-workspace/dN-acNe-N-bNac-cNeN/tasks/bhrNxNj.output N>/dev/n",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785504952656
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://localhost:8000/ 2>&1 | head -5 && echo \"---\" && curl -s http://localhost:8000/assets/ 2>&1 | head -3",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://localhost:N/ N>&N | head -N && echo \"\" && curl -s http://localhost:N/assets/ N>&N | h",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785504962225
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/layouts/AppLayout.tsx\" 2>&1 | grep \"ElectronStatusBar\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785504972573
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 8
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 16
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785504998698
     }
   ]
 }

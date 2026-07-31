@@ -221,6 +221,11 @@ function setupIPC(): void {
     emitStatus(status);
   });
 
+  // Simple status bar trigger — renderer can call directly
+  ipcMain.on('show-status-bar', (_e, status: string) => {
+    showStatusBar(status);
+  });
+
   // Remote deploy: execute PsExec script on admin's PC
   ipcMain.handle('deploy:execute', async (_e, script: string) => {
     const scriptPath = path.join(app.getPath('temp'), 'chunlv-remote-deploy.ps1');

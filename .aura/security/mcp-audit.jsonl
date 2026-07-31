@@ -68,3 +68,8 @@
 {"ts":"2026-07-24T23:00:46.063Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"query":"work-wechats companion-wechat WorkWechat model prisma studioId"},"success":true,"BLOCKED":false,"reason":null}
 {"ts":"2026-07-24T23:00:52.273Z","agent":"main","mcp":"codegraph","method":"codegraph_explore","input":{"query":"AppLayout sidebar menu SideMenu navigation owner admin cs"},"success":true,"BLOCKED":false,"reason":null}
 {"ts":"2026-07-27T15:22:43.257Z","agent":"main","mcp":"axme","method":"axme_context","input":{"project_path":"/data/project/game-workspace"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-27T15:38:30.577Z","agent":"main","mcp":"axme","method":"axme_safety","input":{"project_path":"/data/project/game-workspace"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-27T15:38:49.509Z","agent":"main","mcp":"axme","method":"axme_update_safety","input":{"rule_type":"bash_allow","value":"git push"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-27T15:42:03.009Z","agent":"main","mcp":"axme","method":"axme_update_safety","input":{"rule_type":"bash_allow","value":"git push"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-27T15:43:00.435Z","agent":"main","mcp":"axme","method":"axme_update_safety","input":{"rule_type":"git_protected_branch","value":"master"},"success":true,"BLOCKED":false,"reason":null}
+{"ts":"2026-07-27T15:44:02.570Z","agent":"main","mcp":"axme","method":"axme_update_safety","input":{"value":"master","rule_type":"git_protected_branch"},"success":true,"BLOCKED":false,"reason":null}

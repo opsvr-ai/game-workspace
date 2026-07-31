@@ -46,4 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Remote deploy — execute PsExec script from admin's PC
   executeRemoteDeploy: (script: string) => ipcRenderer.invoke('deploy:execute', script),
+
+  // Status bar animation — call directly from renderer
+  showStatusBar: (status: string) => ipcRenderer.send('show-status-bar', status),
 });
