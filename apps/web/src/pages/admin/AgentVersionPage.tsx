@@ -540,7 +540,7 @@ const AgentVersionPage: React.FC = () => {
               {/* 方式三：PsExec 远程批量部署 */}
               <Card size="small" style={{ background: '#fff7e6' }}>
                 <Text strong style={{ fontSize: 15 }}>
-                  <ThunderboltOutlined /> 方式三：PsExec 远程批量部署
+                  ⚡ 方式三：PsExec 远程批量部署
                 </Text>
                 <Text type="secondary" style={{ marginLeft: 8 }}>
                   — 从管理员电脑一键远程安装多台电脑
@@ -597,7 +597,7 @@ const AgentVersionPage: React.FC = () => {
                   <div style={{ marginTop: 10 }}>
                     <Button
                       type="primary"
-                      icon={<ThunderboltOutlined />}
+                      icon={ThunderboltOutlined as any}
                       loading={generatingRemote}
                       onClick={handleGenerateRemote}
                     >
@@ -631,7 +631,7 @@ const AgentVersionPage: React.FC = () => {
                           {isElectron ? (
                             <Button
                               type="primary"
-                              icon={<ThunderboltOutlined />}
+                              icon={ThunderboltOutlined as any}
                               loading={deploying}
                               onClick={handleElectronDeploy}
                               danger
