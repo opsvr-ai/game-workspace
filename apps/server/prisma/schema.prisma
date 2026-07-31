@@ -91,6 +91,8 @@ model Companion {
   expenseReports ExpenseReport[]
   walletTransactions WalletTransaction[]
   workWechats WorkWechat[]
+  sessions     OrderSession[]
+  coSessions   OrderSession[] @relation("CoSessionCompanion")
   blacklistOverrides CompanionBlacklistOverride[]
   processReports     CompanionProcessReport[]
   processKillLogs    ProcessKillLog[]
@@ -173,6 +175,7 @@ model Order {
   coCompanion  Companion?    @relation("CoCompanion", fields: [coCompanionId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
   transactions Transaction[]
+  sessions     OrderSession[]
 
   @@index([companionId])
   @@index([customerId])

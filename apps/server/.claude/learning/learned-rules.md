@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T21:12:16.199Z
+**Last Updated:** 2026-07-31T21:24:36.388Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 21
+- **Total Patterns:** 22
 - **Total Feedback:** 0
 
 ## Style
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 49 occurrences
+**Frequency:** 50 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 88 occurrences
+**Frequency:** 89 occurrences
 
 ### Prefer async await in .ts files
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 48 occurrences
+**Frequency:** 49 occurrences
 
 ## Bash
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 64 occurrences
+**Frequency:** 65 occurrences
 
 ### Commonly used command: git
 
@@ -70,7 +70,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 8 occurrences
+**Frequency:** 9 occurrences
 
 ### Commonly used command: find
 
@@ -122,7 +122,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 5 occurrences
+**Frequency:** 6 occurrences
 
 ### Commonly used command: head
 
@@ -162,6 +162,13 @@
 **Frequency:** 2 occurrences
 
 ### Commonly used command: kill
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: node
 
 **Examples:**
 - Used successfully 6 times

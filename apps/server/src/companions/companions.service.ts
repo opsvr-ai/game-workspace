@@ -113,8 +113,22 @@ export class CompanionsService {
     };
   }
 
+  private async getDayStartHour(): Promise<number> {
+    const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'studio.day_start_hour' } });
+    return parseInt((cfg?.value as string) || '0', 10) || 0;
+  }
+
+  private async getTodayRange(): Promise<{ start: Date; end: Date }> {
+    const h = await this.getDayStartHour();
+    const now = new Date();
+    const start = new Date(now); start.setHours(h, 0, 0, 0);
+    if (now.getHours() < h) start.setDate(start.getDate() - 1);
+    const end = new Date(start); end.setDate(end.getDate() + 1);
+    return { start, end };
+  }
+
   async getTodaySessions(companionId: string) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const { start } = await this.getTodayRange();
     const sessions = await this.prisma.orderSession.findMany({
       where: { companionId, createdAt: { gte: today } },
       include: {

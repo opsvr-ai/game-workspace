@@ -207,6 +207,27 @@ const StudioSettings: React.FC = () => {
         </Space>
       </Card>
 
+      {/* Daily Settlement Time */}
+      <Card title="📅 每日结算时间" style={{ marginBottom: 16 }} extra={
+        <Button icon={React.createElement(SaveOutlined)} loading={saving} size="small" onClick={async () => {
+          setSaving(true);
+          await saveKeys({ 'studio.day_start_hour': config?.['studio.day_start_hour'] ?? 0 });
+          setSaving(false);
+          message.success('已保存');
+        }}>保存</Button>
+      }>
+        <Text type="secondary">设置每天的流水统计和娱乐计费清零的时间点</Text>
+        <div style={{ marginTop: 8 }}>
+          <Label>结算开始时间</Label>
+          <InputNumber
+            min={0} max={23}
+            value={config?.['studio.day_start_hour'] ?? 0}
+            onChange={(v) => setConfig?.((c: any) => ({ ...c, 'studio.day_start_hour': v }))}
+          />
+          <Text type="secondary" style={{ marginLeft: 8 }}>点（0=凌晨12点，6=早上6点）</Text>
+        </div>
+      </Card>
+
       {/* Dropdown Options */}
       <Card
         title="📋 下拉选项"
