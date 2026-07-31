@@ -85,6 +85,23 @@
     ".ps1": {
       "successCount": 1,
       "patterns": {}
+    },
+    ".js": {
+      "successCount": 1,
+      "patterns": {
+        "style:arrow_functions": {
+          "count": 1,
+          "weight": 1
+        },
+        "style:prefer_const": {
+          "count": 1,
+          "weight": 4
+        },
+        "style:async_await": {
+          "count": 1,
+          "weight": 1
+        }
+      }
     }
   },
   "codePatterns": {},
@@ -95,9 +112,9 @@
       "lastSuccess": 1785522066967
     },
     "grep": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785523345628
+      "lastSuccess": 1785525300040
     },
     "wc": {
       "count": 1,
@@ -160,9 +177,9 @@
       "lastSuccess": 1785517667459
     },
     "curl": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785520649020
+      "lastSuccess": 1785525355129
     },
     "kill": {
       "count": 0,
@@ -210,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785522487225
+      "lastSuccess": 1785523906614
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -230,9 +247,9 @@
       "lastSuccess": 1784586396393
     },
     "TOKEN=$(curl": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785520642198
+      "lastSuccess": 1785525339505
     },
     "pkill": {
       "count": 1,
@@ -306,74 +323,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785503804033
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785503817295
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/server/src/companions/companions.controller.ts && git commit -m \"fix: broadcast status:broadcast on REST status update\n\nREST PUT /companions/me/status and PUT /companions/:id/status\nnow b",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/server/src/companions/companions.controller.ts && git commit -m \"\" #!axme pr=none repo=",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785503834056
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785503842644
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"ThunderboltOutlined\\|createElement\" apps/web/src/pages/admin/AgentVersionPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/admin/AgentVersionPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785504064467
-    },
-    {
-      "type": "bash",
-      "command": "grep \"createElement\\|as any\" apps/web/src/pages/admin/AgentVersionPage.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" apps/web/src/pages/admin/AgentVersionPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785504070680
-    },
     {
       "type": "bash",
       "command": "grep \"createElement\\|icon={\" apps/web/src/pages/admin/AgentVersionPage.tsx",
@@ -2602,6 +2551,83 @@
         "hasChain": false
       },
       "timestamp": 1785523345628
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && ls -lh /data/project/game-workspace/uploads/蠢驴电竞.zip && git -C /data/project/game-work",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785523906614
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"customerCode\\|customer.*code\\|generateCustomerCode\" /data/project/game-workspace/apps/server/src/customers/*.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/customers/*.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785525300040
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin)['data'",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanlei\"\"password\"\"N\"\" | pytho",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785525328935
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785525339505
+    },
+    {
+      "type": "bash",
+      "command": "curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin)['dat",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N\"\" | pyt",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785525355129
+    },
+    {
+      "type": "write",
+      "file": "/tmp/migrate-codes.js",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 4
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785525371786
     }
   ]
 }

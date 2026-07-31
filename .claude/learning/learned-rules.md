@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T18:38:51.984Z
+**Last Updated:** 2026-07-31T19:15:39.508Z
 
 ---
 
@@ -132,8 +132,9 @@
 
 **Examples:**
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 1 occurrences
+**Frequency:** 2 occurrences
 
 ### Commonly used command: kill
 

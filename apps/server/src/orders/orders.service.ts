@@ -16,6 +16,18 @@ export class OrdersService {
     private readonly dispatchService: OrderDispatchService,
   ) {}
 
+  private async nextOrderCode(): Promise<string> {
+    const recent = await this.prisma.order.findMany({
+      orderBy: { createdAt: 'desc' }, take: 50, select: { orderCode: true },
+    });
+    let max = 0;
+    for (const o of recent) {
+      const n = parseInt(o.orderCode || '0', 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+    return String(max + 1);
+  }
+
   async create(dto: {
     type: string;
     studioId?: string;
@@ -77,8 +89,10 @@ export class OrdersService {
       customerId = placeholder.id;
     }
 
+    const orderCode = await this.nextOrderCode();
     const newOrder = await this.prisma.order.create({
       data: {
+        orderCode,
         type: dto.type,
         studioId: studioId!,
         csUserId: dto.csUserId,
@@ -316,8 +330,10 @@ export class OrdersService {
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     // H1 fix: create as PENDING+DIRECT, companion accepts via standard flow
+    const orderCode = await this.nextOrderCode();
     const newOrder = await this.prisma.order.create({
       data: {
+        orderCode,
         type: 'RENEW',
         studioId: order.studioId,
         csUserId: userId,
@@ -342,8 +358,10 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
+    const orderCode = await this.nextOrderCode();
     const newOrder = await this.prisma.order.create({
       data: {
+        orderCode,
         type: order.type,
         studioId: order.studioId,
         csUserId: userId,

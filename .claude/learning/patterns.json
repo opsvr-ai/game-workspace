@@ -351,12 +351,13 @@
     "category": "bash",
     "description": "Commonly used command: TOKEN=$(curl",
     "evidence": [
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "TOKEN=$(curl",
-    "frequency": 1,
+    "frequency": 2,
     "created_at": "2026-07-23T17:21:44.265Z",
-    "updated_at": "2026-07-23T17:21:44.265Z"
+    "updated_at": "2026-07-31T19:15:39.507Z"
   },
   {
     "type": "workflow",

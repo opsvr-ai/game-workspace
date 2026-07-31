@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".ts": {
-      "successCount": 222,
+      "successCount": 224,
       "patterns": {
         "style:prefer_const": {
-          "count": 2,
-          "weight": 408
+          "count": 1,
+          "weight": 413
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 149
+          "count": 1,
+          "weight": 151
         },
         "style:arrow_functions": {
           "count": 1,
@@ -59,7 +59,7 @@
       }
     },
     ".prisma": {
-      "successCount": 6,
+      "successCount": 7,
       "patterns": {}
     },
     ".html": {
@@ -72,12 +72,12 @@
     "grep": {
       "count": 2,
       "patterns": [],
-      "lastSuccess": 1785511373156
+      "lastSuccess": 1785525583183
     },
     "npx": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1784754485119
+      "lastSuccess": 1785525677576
     },
     "mkdir": {
       "count": 3,
@@ -130,9 +130,9 @@
       "lastSuccess": 1784468161075
     },
     "node": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1784470394499
+      "lastSuccess": 1785525779948
     },
     "export": {
       "count": 2,
@@ -201,145 +201,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"setBrandModalOpen\\|brandModalOpen\\|setNotifOpen\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784913177416
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 3
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784913183632
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"CommandPalette\\|ChatModal\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784913195662
-    },
-    {
-      "type": "bash",
-      "command": "grep \"Form,\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -3",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784913205851
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [],
-      "timestamp": 1784913211562
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784913225989
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: ADMIN can edit own studio brand — click s",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784913243751
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"markBridgeSeen\\|bridgePendingBadge\\|onMenuClick\\|bridge-pending-seen\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1784913546147
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1784913582334
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -1 && git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: badge clea",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N && git -C /data/project/game-workspace add ",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784913600641
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"hanleiN\"\"password\"\"N\"\" | pyth",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1784914167104
-    },
     {
       "type": "bash",
       "command": "TOKEN=$(curl -s http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"hanlei1\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin).get('",
@@ -2609,6 +2470,129 @@
         }
       ],
       "timestamp": 1785511996168
+    },
+    {
+      "type": "bash",
+      "command": "grep \"orderCode\\|OrderCode\\|order.*code\\|code\" /data/project/game-workspace/apps/server/prisma/schema.prisma | grep -i order",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/server/prisma/schema.prisma | grep -i order",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785525523791
+    },
+    {
+      "type": "bash",
+      "command": "grep -A5 \"model Order\" /data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/server/prisma/schema.prisma",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785525528850
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"model Order\" /data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/prisma/schema.prisma",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785525532554
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/prisma/schema.prisma",
+      "patterns": [],
+      "timestamp": 1785525541814
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"create.*order\\|this.prisma.order.create\\|prisma.order.create\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785525547688
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"async create\\|private async\\|class OrdersService\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785525557001
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785525574919
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"prisma.order.create\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785525583183
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/orders/orders.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785525591642
+    },
+    {
+      "type": "bash",
+      "command": "npx prisma db push --accept-data-loss 2>&1 | tail -3 && echo \"Done\"",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx prisma db push --accept-data-loss N>&N | tail -N && echo \"\"",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785525677576
+    },
+    {
+      "type": "bash",
+      "command": "node -e \"\nconst{PrismaClient}=require('@prisma/client');\nconst p=new PrismaClient();\n(async()=>{\nconst os=await p.order.findMany({orderBy:{createdAt:'asc'}});\nfor(let i=0;i<os.length;i++){await p.orde",
+      "cmdPattern": {
+        "base": "node",
+        "pattern": "node -e \"\"@prisma/client\"\"asc\"\"_t\"\"orders migrated:\"\"",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785525779948
     }
   ]
 }

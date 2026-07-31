@@ -143,6 +143,7 @@ model CompanionAttendance {
 
 model Order {
   id           String   @id @default(uuid())
+  orderCode    String?  @unique
   type         String
   studioId     String
   csUserId     String
