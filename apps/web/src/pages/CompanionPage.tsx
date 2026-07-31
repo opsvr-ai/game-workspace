@@ -28,7 +28,6 @@ import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
-import ScreenLock from '../components/ScreenLock';
 import http from '../api/client';
 import { companionStatusConfig } from '../constants';
 import EmptyState from '../components/EmptyState';
@@ -63,7 +62,6 @@ const CompanionPage: React.FC = () => {
   const [walletLoading, setWalletLoading] = useState(true);
   const [withdrawVisible, setWithdrawVisible] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
-  const [screenLocked, setScreenLocked] = useState(false);
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -140,10 +138,6 @@ const CompanionPage: React.FC = () => {
     }
   }, [data?.currentStatus]);
 
-  // Show screen lock when status is RESTING
-  useEffect(() => {
-    setScreenLocked(data?.currentStatus === 'RESTING');
-  }, [data?.currentStatus]);
 
   const handleWithdraw = async () => {
     if (withdrawAmount <= 0) {
@@ -241,10 +235,8 @@ const CompanionPage: React.FC = () => {
         return;
       }
       message.success(`已切换为${companionStatusConfig[status]?.label || status}`);
-      // Trigger native screen lock via Electron IPC
-      try { (window as any).electronAPI?.onStatusChanged?.(status); } catch { /* */ }
-      // Web-based screen lock for RESTING
-      setScreenLocked(status === 'RESTING');
+      if (status === 'RESTING') { (window as any).__lockScreen?.(); }
+      else { (window as any).__unlockScreen?.(); }
       fetchData();
     } catch {
       message.error('切换失败');
@@ -256,9 +248,6 @@ const CompanionPage: React.FC = () => {
 
   return (
     <div>
-      {screenLocked && (
-        <ScreenLock onUnlock={() => switchStatus('AVAILABLE')} />
-      )}
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
         <Row align="middle" gutter={16}>

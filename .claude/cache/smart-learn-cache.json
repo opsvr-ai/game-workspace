@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 354,
+      "successCount": 357,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -24,8 +24,8 @@
           "weight": 84
         },
         "quality:error_handling": {
-          "count": 2,
-          "weight": 85
+          "count": 0,
+          "weight": 86
         }
       }
     },
@@ -79,7 +79,7 @@
       "patterns": {}
     },
     ".html": {
-      "successCount": 1,
+      "successCount": 2,
       "patterns": {}
     },
     ".ps1": {
@@ -90,9 +90,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785520579000
+      "lastSuccess": 1785521262437
     },
     "grep": {
       "count": 5,
@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785521246641
+      "lastSuccess": 1785521482566
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -306,114 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785500274262
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 14
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785500715895
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: left-to-right sweeping progress bar for companion status\n\n- Thin 4px bar at window top\n- Sweep animation moves left-to-rig",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785500721754
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -1 && git status --short -b",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -N && git status --short -b",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785500725039
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785500734196
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 5
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 17
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785501036060
-    },
     {
       "type": "bash",
       "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"feat: status change triggers one-shot sweep animation like loading bar\n\n- Bar appears only on status change, sweeps left-to-righ",
@@ -2776,6 +2668,58 @@
         "hasChain": true
       },
       "timestamp": 1785521246641
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: dual lock screen — native IPC + web fallback, status feedback\" && git -C /data/project/game-workspace ",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785521262437
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785521445743
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785521482566
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1785521565191
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785521572895
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785521597266
     }
   ]
 }

@@ -121,9 +121,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "error_handling",
-    "frequency": 19,
+    "frequency": 20,
     "created_at": "2026-07-18T20:33:13.318Z",
-    "updated_at": "2026-07-31T17:43:58.808Z"
+    "updated_at": "2026-07-31T18:10:45.745Z"
   },
   {
     "type": "workflow",
