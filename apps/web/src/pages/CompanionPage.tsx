@@ -12,6 +12,7 @@ import {
   Modal,
   Input,
   Switch,
+  Slider,
   Table,
   message,
   Tooltip,
