@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
-const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+const api = typeof window !== 'undefined' ? (window as any).electronAPI : null;
+const isElectron = !!api;
 
 const STYLE_ID = 'esb-bar';
 const CSS = `
@@ -20,8 +21,10 @@ const CSS = `
 }
 `;
 
+let stylesInjected = false;
 function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
+  if (stylesInjected || document.getElementById(STYLE_ID)) return;
+  stylesInjected = true;
   const s = document.createElement('style');
   s.id = STYLE_ID;
   s.textContent = CSS;
@@ -41,11 +44,11 @@ const ElectronStatusBar: React.FC = () => {
   const mountedRef = useRef(true);
   const companionIdRef = useRef('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyRef = useRef(false);
 
   const trigger = useCallback((s: string) => {
     if (!COLORS[s]) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    // Force remount to replay CSS animation
     setTick((n) => n + 1);
     setStatus(s);
     timerRef.current = setTimeout(() => setStatus(null), 1300);
@@ -56,49 +59,60 @@ const ElectronStatusBar: React.FC = () => {
     if (!isElectron) return;
     injectStyles();
 
-    const api = (window as any).electronAPI;
-    if (!api) return;
-
-    // Get companionId
+    // Step 1: get companionId first (needed to filter WS events)
     api.storeGet('companionId').then((id: string) => {
-      companionIdRef.current = id || '';
-    });
+      if (!mountedRef.current) return;
+      companionIdRef.current = (id || '').toString();
+      readyRef.current = true;
 
-    // Listen to WebSocket status broadcasts — most reliable path
-    const unsub = api.onWsEvent?.('ws:statusBroadcast', (data: any) => {
-      if (
-        mountedRef.current &&
-        companionIdRef.current &&
-        data?.companionId === companionIdRef.current &&
-        data?.status
-      ) {
-        trigger(data.status);
-      }
-    });
-
-    // Fallback poll (in case onWsEvent doesn't fire)
-    let lastSeen = '';
-    const poll = async () => {
-      try {
+      // Step 2: now listen to WebSocket status broadcasts
+      const unsub = api.onWsEvent?.('ws:statusBroadcast', (data: any) => {
         if (!mountedRef.current) return;
-        const s = await api.storeGet('lastStatus');
-        if (s && s !== lastSeen) {
-          lastSeen = s;
-          // Only fire if onWsEvent didn't already trigger for this
-          // This is a fallback, so don't worry about double-fire
-          trigger(s);
+        const cid = companionIdRef.current;
+        if (cid && data?.companionId === cid && data?.status) {
+          trigger(data.status);
         }
-      } catch {
-        /* */
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 1500);
+      });
+
+      // Step 3: poll as safety net
+      let lastSeen = '';
+      const poll = async () => {
+        try {
+          if (!mountedRef.current) return;
+          const s = await api.storeGet('lastStatus');
+          if (s && s !== lastSeen) {
+            lastSeen = s;
+            trigger(s);
+          }
+        } catch {
+          /* */
+        }
+      };
+      poll();
+      const interval = setInterval(poll, 2000);
+
+      // Store cleanup reference
+      const cleanup = () => {
+        clearInterval(interval);
+        if (unsub) unsub();
+      };
+
+      // Override the return cleanup
+      const origCleanup = () => {
+        cleanup();
+      };
+
+      // Schedule cleanup
+      const cleanupTimer = setInterval(() => {
+        if (!mountedRef.current) {
+          clearInterval(cleanupTimer);
+          cleanup();
+        }
+      }, 100);
+    });
 
     return () => {
       mountedRef.current = false;
-      if (unsub) unsub();
-      clearInterval(interval);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [trigger]);
