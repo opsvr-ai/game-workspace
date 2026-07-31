@@ -92,7 +92,7 @@ export class OrdersService {
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,
-        status: 'PENDING',
+        status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'CONFIRMED' : 'PENDING',
         amount: dto.amount,
         gameName: dto.gameName,
         serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
