@@ -161,6 +161,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
           {({ getFieldValue }) =>
             getFieldValue('dispatchType') === DispatchType.DIRECT ? (
               <>
+                <Form.Item name="dualMode" label="单/双陪" initialValue="single">
+                  <Select>
+                    <Option value="single">单陪</Option>
+                    <Option value="dual">双陪</Option>
+                  </Select>
+                </Form.Item>
                 <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
                   <Select placeholder="选择主陪" showSearch optionFilterProp="label">
                     {companions.map((c: any) => (
@@ -170,25 +176,27 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
                     ))}
                   </Select>
                 </Form.Item>
-                <Form.Item name="coCompanionId" label="搭档（可选）">
-                  <Select placeholder="无搭档（单陪）" allowClear showSearch optionFilterProp="label">
-                    {companions.filter((c: any) => c.id !== getFieldValue('companionId')).map((c: any) => (
-                      <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
-                        {c.user?.displayName || c.user?.username}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-                <Form.Item shouldUpdate={(prev, cur) => prev.coCompanionId !== cur.coCompanionId} noStyle>
-                  {({ getFieldValue: gv }) => gv('coCompanionId') ? (
-                    <Input.Group compact>
-                      <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder="主陪" prefix="¥" />
+                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dualMode !== cur.dualMode}>
+                  {({ getFieldValue: gv }) => gv('dualMode') === 'dual' ? (
+                    <>
+                      <Form.Item name="coCompanionId" label="搭档" rules={[{ required: true, message: '双陪必须选搭档' }]}>
+                        <Select placeholder="选择搭档" showSearch optionFilterProp="label">
+                          {companions.filter((c: any) => c.id !== gv('companionId')).map((c: any) => (
+                            <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                              {c.user?.displayName || c.user?.username}
+                            </Option>
+                          ))}
+                        </Select>
                       </Form.Item>
-                      <Form.Item name="coAmount" label="搭档金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder="搭档" prefix="¥" />
-                      </Form.Item>
-                    </Input.Group>
+                      <Input.Group compact>
+                        <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                          <InputNumber min={0} style={{ width: '100%' }} placeholder="主陪" prefix="¥" />
+                        </Form.Item>
+                        <Form.Item name="coAmount" label="搭档金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                          <InputNumber min={0} style={{ width: '100%' }} placeholder="搭档" prefix="¥" />
+                        </Form.Item>
+                      </Input.Group>
+                    </>
                   ) : (
                     <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
                       <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
