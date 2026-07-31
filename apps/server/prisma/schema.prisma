@@ -193,6 +193,8 @@ model OrderSession {
   coAmount      Float?
   duration      Float     @default(1)
   status        String    @default("ACTIVE")  // ACTIVE | DONE
+  startedAt     DateTime?
+  endedAt       DateTime?
   createdAt     DateTime  @default(now())
 
   companion   Companion? @relation(fields: [companionId], references: [id])

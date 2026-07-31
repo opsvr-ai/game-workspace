@@ -21,4 +21,6 @@ export const ordersApi = {
   renew: (id: string) => http.post(`/orders/${id}/renew`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
+  startSession: (sessionId: string) => http.put(`/sessions/${sessionId}/start`),
+  endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
 };

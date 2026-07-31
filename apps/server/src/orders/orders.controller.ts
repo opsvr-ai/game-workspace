@@ -175,6 +175,20 @@ export class OrdersController {
     return { code: 200, message: '续费成功', data };
   }
 
+  @Put('sessions/:sessionId/start')
+  @Roles(UserRole.COMPANION)
+  async startSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
+    await this.prisma.orderSession.update({ where: { id }, data: { startedAt: new Date() } });
+    return { code: 200, message: '计时开始', data: null };
+  }
+
+  @Put('sessions/:sessionId/end')
+  @Roles(UserRole.COMPANION)
+  async endSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
+    await this.prisma.orderSession.update({ where: { id }, data: { endedAt: new Date(), status: 'DONE' } });
+    return { code: 200, message: '计时结束', data: null };
+  }
+
   @Post('orders/:id/decline-assignment')
   @Roles(UserRole.COMPANION)
   async declineAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
