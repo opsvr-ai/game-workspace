@@ -263,6 +263,13 @@ export class CompanionsController {
     const data = await this.companionsService.updateStatus(id, status, req.user);
     if (status === 'RESTING') this.restingMonitor.startResting(id);
     else this.restingMonitor.clearTimer(id);
+    // Broadcast to studio for real-time sync
+    if (req.user?.studioId) {
+      this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
+        companionId: id,
+        status,
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 
@@ -316,6 +323,13 @@ export class CompanionsController {
     const data = await this.companionsService.updateStatus(id, status, req.user);
     if (status === 'RESTING') this.restingMonitor.startResting(id);
     else this.restingMonitor.clearTimer(id);
+    // Broadcast to studio for real-time sync
+    if (req.user?.studioId) {
+      this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
+        companionId: id,
+        status,
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 
