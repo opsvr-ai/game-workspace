@@ -147,9 +147,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
         <Form.Item name="deltaNote" label="备注">
           <Input.TextArea rows={2} placeholder="补充说明" />
         </Form.Item>
-        <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
-          <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
-        </Form.Item>
         <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
           <Select>
             <Option value={DispatchType.POOL}>入池抢单</Option>
