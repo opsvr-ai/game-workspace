@@ -162,7 +162,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             getFieldValue('dispatchType') === DispatchType.DIRECT ? (
               <>
                 <Form.Item name="dualMode" label="单/双陪" initialValue="single">
-                  <Select>
+                  <Select onChange={(v) => { if (v === 'single') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
                     <Option value="single">单陪</Option>
                     <Option value="dual">双陪</Option>
                   </Select>

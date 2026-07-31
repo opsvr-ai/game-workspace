@@ -95,7 +95,7 @@ const OrderDetailPage: React.FC = () => {
           </Col>
           <Col span={12}>
             <Text>搭档</Text>
-            <Select style={{ width: '100%' }} value={renewCoId} onChange={setRenewCoId} allowClear placeholder="无搭档">
+            <Select style={{ width: '100%' }} value={renewCoId} onChange={(v) => { setRenewCoId(v); if (!v) setRenewCoAmount(undefined); }} allowClear placeholder="无搭档">
               {companions.map((c: any) => <Select.Option key={c.id} value={c.id}>{c.user?.displayName || c.user?.username}</Select.Option>)}
             </Select>
           </Col>
