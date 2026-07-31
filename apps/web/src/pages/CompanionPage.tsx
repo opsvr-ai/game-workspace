@@ -233,7 +233,8 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
-      // Show status bar animation (works in both browser and Electron)
+      // Notify Electron (screen-lock, etc.) + show status bar
+      try { (window as any).electronAPI?.onStatusChanged(status); } catch { /* */ }
       try { (window as any).__showStatusBar?.(status); } catch { /* */ }
       fetchData();
     } catch {
