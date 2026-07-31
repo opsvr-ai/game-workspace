@@ -300,6 +300,11 @@ function setupWsEvents(): void {
 
   onWsEvent('status:broadcast', (data: any) => {
     mainWindow?.webContents.send('ws:statusBroadcast', data);
+    // Sync local status store for ElectronStatusBar polling
+    const cid = store.get('companionId') as string;
+    if (cid && data?.companionId === cid && data?.status) {
+      store.set('lastStatus', data.status);
+    }
   });
 
   onWsEvent('pc:command', (data: any) => {

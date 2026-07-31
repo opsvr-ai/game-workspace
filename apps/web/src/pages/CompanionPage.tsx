@@ -233,6 +233,12 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
+      // Notify Electron main process to update local status store
+      try {
+        (window as any).electronAPI?.onStatusChanged(status);
+      } catch {
+        /* ignore */
+      }
       fetchData();
     } catch {
       /* ignore */
