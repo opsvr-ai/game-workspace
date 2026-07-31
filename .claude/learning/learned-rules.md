@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T17:55:41.183Z
+**Last Updated:** 2026-07-31T18:01:22.007Z
 
 ---
 
@@ -167,7 +167,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 75 occurrences
+**Frequency:** 76 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -176,7 +176,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 44 occurrences
+**Frequency:** 45 occurrences
 
 ### Prefer async await in .ts files
 
@@ -198,7 +198,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 26 occurrences
+**Frequency:** 27 occurrences
 
 ## Quality
 

@@ -1,19 +1,19 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 346,
+      "successCount": 352,
       "patterns": {
         "style:arrow_functions": {
           "count": 2,
-          "weight": 335
+          "weight": 344
         },
         "style:prefer_const": {
           "count": 0,
-          "weight": 793
+          "weight": 807
         },
         "style:async_await": {
-          "count": 1,
-          "weight": 65
+          "count": 2,
+          "weight": 66
         },
         "typing:explicit_types": {
           "count": 0,
@@ -21,11 +21,11 @@
         },
         "framework:react_hooks": {
           "count": 2,
-          "weight": 80
+          "weight": 83
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 81
+          "count": 1,
+          "weight": 83
         }
       }
     },
@@ -90,14 +90,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 1,
-      "patterns": [],
-      "lastSuccess": 1785520552165
-    },
-    "grep": {
       "count": 2,
       "patterns": [],
-      "lastSuccess": 1785519728057
+      "lastSuccess": 1785520579000
+    },
+    "grep": {
+      "count": 5,
+      "patterns": [],
+      "lastSuccess": 1785520876154
     },
     "wc": {
       "count": 1,
@@ -160,14 +160,14 @@
       "lastSuccess": 1785517667459
     },
     "curl": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785518994961
+      "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785520563318
+      "lastSuccess": 1785520719402
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -230,9 +230,9 @@
       "lastSuccess": 1784586396393
     },
     "TOKEN=$(curl": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785519150832
+      "lastSuccess": 1785520642198
     },
     "pkill": {
       "count": 1,
@@ -306,186 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git diff --stat -- '*.ts' '*.tsx' ':!.axme-code' ':!.claude' ':!memory' ':!apps/*/.claude' 2>/dev/null",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff --stat -- \"\" \"\" \"\" \"\" \"\" \"\" N>/dev/null",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785422209974
-    },
-    {
-      "type": "bash",
-      "command": "git add \\\n  apps/companion-electron/electron/main.ts \\\n  apps/companion-electron/electron/preload.ts \\\n  apps/companion-electron/src/types/electron.d.ts \\\n  apps/server/src/agent/agent.controller.ts \\",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add \\ apps/companion-electron/electron/main.ts \\ apps/companion-electron/electron/preload.ts \\ a",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785422218653
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785422230585
-    },
-    {
-      "type": "bash",
-      "command": "git log --oneline -3 && echo \"---\" && echo \"✅ master @ origin: 8cb9a5b\"",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git log --oneline -N && echo \"\" && echo \"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785422233362
-    },
-    {
-      "type": "bash",
-      "command": "grep \"@emotion/react\\|@emotion\" apps/web/package.json",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" apps/web/package.json",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785423700812
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 4
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 15
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785423724718
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"fix: replace @emotion/react with plain CSS keyframes in ElectronStatusBar\n\n@emotion/react was not in web dependencies, causing E",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785423740714
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785423748863
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"status.*changed\\|onStatusChanged\\|emitStatus\\|status:changed\\|PUT.*status\" apps/web/src/pages/CompanionPage.tsx 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" apps/web/src/pages/CompanionPage.tsx N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785499463331
-    },
-    {
-      "type": "bash",
-      "command": "grep -rn \"electronAPI\\|status:changed\\|onStatusChanged\" apps/web/src/pages/ 2>/dev/null | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -rn \"\" apps/web/src/pages/ N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785499464175
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"status\\|AVAILABLE\\|RESTING\\|ENTERTAINMENT\\|companion\" apps/web/src/pages/CompanionPage.tsx | head -30",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/CompanionPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785499470059
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"status:broadcast\\|statusBroadcast\" apps/companion-electron/electron/main.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/companion-electron/electron/main.ts",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785499485343
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 2
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785499511963
-    },
     {
       "type": "bash",
       "command": "git add \\\n  apps/companion-electron/electron/main.ts \\\n  apps/web/src/pages/CompanionPage.tsx && \\\ngit commit -m \"fix: sync companion status to Electron store for status bar animation\n\n- main.ts: upda",
@@ -2783,6 +2603,178 @@
         "hasChain": true
       },
       "timestamp": 1785520563318
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"revert: restore CompanionPage, index.html, AppLayout to original state\" && git -C /data/project/game-worksp",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785520579000
+    },
+    {
+      "type": "bash",
+      "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
+      "cmdPattern": {
+        "base": "TOKEN=$(curl",
+        "pattern": "TOKEN=$(curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785520642198
+    },
+    {
+      "type": "bash",
+      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"switchStatus\\|updateStatus\" | head -3",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s \"\" N>&N | grep \"\" | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785520649020
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785520687850
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785520719402
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/web/src/components/ScreenLock.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 7
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 10
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785520843561
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"currentStatus\\|return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785520852374
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"import.*from\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785520858983
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785520864366
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"useState\\|const.*=.*data\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785520876154
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785520882005
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785520894926
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785520907432
     }
   ]
 }
