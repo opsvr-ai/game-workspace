@@ -552,7 +552,12 @@ const AgentVersionPage: React.FC = () => {
                       <Text type="secondary">目标电脑 IP（一行一个，或用逗号分隔）：</Text>
                       <Button size="small" type="link" loading={generatingRemote} onClick={async () => {
                         setGeneratingRemote(true);
-                        try { const { data } = await agentApi.scanLan(); if (data.code===200) { const hosts = data.data as any[]; setRemoteIPs(hosts.map(h=>h.ip).join('\n')); message.success(`发现 ${hosts.length} 台在线设备`); } } catch { message.error('扫描失败'); }
+                        try {
+                          const res = await agentApi.scanLan();
+                          const list = (res.data as any).data || [];
+                          setRemoteIPs(list.map((h: any) => h.ip).join('\n'));
+                          message.success('发现 ' + list.length + ' 台在线设备');
+                        } catch { message.error('扫描失败'); }
                         setGeneratingRemote(false);
                       }}>📡 扫描局域网</Button>
                       <Input.TextArea
