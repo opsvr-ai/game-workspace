@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 358,
+      "successCount": 361,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -79,7 +79,7 @@
       "patterns": {}
     },
     ".html": {
-      "successCount": 3,
+      "successCount": 4,
       "patterns": {}
     },
     ".ps1": {
@@ -90,14 +90,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785521262437
+      "lastSuccess": 1785522066967
     },
     "grep": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785520876154
+      "lastSuccess": 1785522147703
     },
     "wc": {
       "count": 1,
@@ -165,9 +165,9 @@
       "lastSuccess": 1785520649020
     },
     "kill": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785521847188
+      "lastSuccess": 1785522221933
     },
     "Z_TOKEN=\"\"": {
       "count": 1,
@@ -210,9 +210,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785522054298
+      "lastSuccess": 1785522487225
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -306,147 +306,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785501373514
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"status:broadcast\\|emitStatus\\|emit.*status\\|companion:status\" apps/server/src/ws/ws.gateway.ts | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/server/src/ws/ws.gateway.ts | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785502130631
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"electronAPI\\|onStatusChanged\" apps/web/src/pages/CompanionPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" apps/web/src/pages/CompanionPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785502147145
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 7
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 18
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785502379295
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"fix: listen to ws:statusBroadcast directly instead of polling store\n\n- Primary: onWsEvent('ws:statusBroadcast') filters by compa",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\"ws:statusBroadcast\"\"lastSta",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785502392960
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785502401105
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 10
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 23
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 1
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785502499066
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"fix: load companionId before ws listener to avoid race condition\" #!axme pr=none repo=opsvr-ai/game-workspace && git push origin",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/components/ElectronStatusBar.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785502504253
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785502513211
-    },
     {
       "type": "write",
       "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
@@ -2695,6 +2554,85 @@
         "hasChain": true
       },
       "timestamp": 1785522054298
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"build: verified portable exe with working preload and screen lock\" && git -C /data/project/game-workspace p",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785522066967
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -3",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785522143094
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | tail -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | tail -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785522147703
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785522158234
+    },
+    {
+      "type": "bash",
+      "command": "kill $(lsof -ti :8000) 2>/dev/null; sleep 1; cd /data/project/game-workspace/apps/web && VITE_API_URL=http://localhost:3001 npx vite --host 0.0.0.0 --port 8000 &\nsleep 3 && git -C /data/project/game-w",
+      "cmdPattern": {
+        "base": "kill",
+        "pattern": "kill $(lsof -ti :N) N>/dev/null; sleep N; cd /data/project/game-workspace/apps/web && VITE_API_URL=h",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785522221933
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785522471024
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.exe && git -C /data/project/game-workspace add apps/web/src/pages/CompanionPage.tsx && git -C /data/project/game-workspace commit -m \"fix: link to zip i",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.exe && git -C /data/project/game-workspace add apps/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785522487225
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/index.html",
+      "patterns": [],
+      "timestamp": 1785523002509
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785523009124
     }
   ]
 }

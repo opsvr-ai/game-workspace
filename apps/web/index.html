@@ -12,5 +12,22 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function(){
+        var C={AVAILABLE:'#22c55e',BUSY:'#ef4444',ENTERTAINMENT:'#eab308',RESTING:'#f97316'};
+        var s=document.createElement('style');s.textContent='@keyframes sb{0%{width:0}100%{width:100%}}';
+        document.head.appendChild(s);
+        var t;
+        window.__showStatusBar=function(st){
+          var c=C[st];if(!c)return;clearTimeout(t);
+          var o=document.getElementById('__sb');if(o)o.remove();
+          var b=document.createElement('div');b.id='__sb';
+          b.innerHTML='<div style="height:100%;border-radius:0 3px 3px 0;box-shadow:0 0 10px '+c+',0 0 4px '+c+';background:'+c+';animation:sb 1s ease-out forwards"></div>';
+          b.style.cssText='position:fixed;top:0;left:0;z-index:99999;height:5px;width:100%;pointer-events:none';
+          document.body.appendChild(b);
+          t=setTimeout(function(){var e=document.getElementById('__sb');if(e){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){if(e.parentNode)e.remove()},300)}},1200);
+        };
+      })();
+    </script>
   </body>
 </html>
