@@ -1,14 +1,14 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-08-01T21:41:34.971Z
+**Last Updated:** 2026-08-01T21:52:13.787Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 25
-- **Total Feedback:** 3
+- **Total Patterns:** 26
+- **Total Feedback:** 4
 
 ## Bash
 
@@ -224,7 +224,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 20 occurrences
+**Frequency:** 21 occurrences
 
 ## Typing
 
@@ -239,6 +239,17 @@
 
 **Frequency:** 13 occurrences
 
+## Error handling
+
+*3 corrections in this category*
+
+### User prefers: error_handling (auto-detected from 3 corrections)
+
+**Examples:**
+- 提示 a Javascript error
+
+**Frequency:** 1 occurrences
+
 ---
 
 ## Recent Corrections
@@ -248,6 +259,7 @@
 - **general:** Background agent "Run hipocampus compaction" was stopped by the user.
 - **error_handling:** 显示 “unexpected application  error”
 - **error_handling:** electron打开后显示  unexpected application error
+- **error_handling:** 提示 a Javascript error
 
 ---
 

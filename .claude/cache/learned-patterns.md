@@ -1,6 +1,6 @@
 # Learned Patterns
 
-Auto-generated from user corrections. Updated: 2026-07-23T15:00:40.713Z
+Auto-generated from user corrections. Updated: 2026-08-01T21:52:13.786Z
 
 ---
 
@@ -15,8 +15,8 @@ Auto-generated from user corrections. Updated: 2026-07-23T15:00:40.713Z
 <!-- PATTERN:error_handling:error_handling -->
 ## error_handling: error_handling
 
-**Occurrences:** 2
-**Latest:** electron打开后显示  unexpected application error...
+**Occurrences:** 3
+**Latest:** 提示 a Javascript error...
 
 ---
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, protocol, net, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol, net } from 'electron';
 import path from 'path';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
@@ -86,8 +86,7 @@ function createMainWindow(): BrowserWindow {
       // If not logged in, just hide (companion logged out, no protection needed)
       if (!token) { win.hide(); return; }
       const pass = (store.get('appPassword') as string) || '123456';
-      const { BrowserWindow: BW, ipcMain: ipc } = require('electron');
-      const pw = new BW({
+      const pw = new BrowserWindow({
         width: 300, height: 180, frame: false, alwaysOnTop: true, resizable: false, parent: win, modal: true,
         webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, '../preload-dist/preload.js') },
       });

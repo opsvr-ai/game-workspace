@@ -55,5 +55,24 @@
       "agent": "unknown"
     },
     "created_at": "2026-07-23T15:00:40.711Z"
+  },
+  {
+    "feedback_type": "correction",
+    "reason": "提示 a Javascript error",
+    "rating": 3,
+    "metadata": {
+      "source": "auto_detect",
+      "confidence": 0.5,
+      "category": "error_handling",
+      "rule": "error_handling",
+      "hash": "a2126000ea1a",
+      "patternCount": 3,
+      "learnableReason": "no_specific_indicators",
+      "matchedKeywords": [
+        "error"
+      ],
+      "agent": "unknown"
+    },
+    "created_at": "2026-08-01T21:52:13.785Z"
   }
 ]

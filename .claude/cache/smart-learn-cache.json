@@ -38,15 +38,15 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 223,
+      "successCount": 224,
       "patterns": {
         "style:prefer_const": {
           "count": 1,
           "weight": 471
         },
         "style:arrow_functions": {
-          "count": 0,
-          "weight": 158
+          "count": 1,
+          "weight": 159
         },
         "style:async_await": {
           "count": 2,
@@ -61,8 +61,8 @@
           "weight": 2
         },
         "quality:error_handling": {
-          "count": 2,
-          "weight": 20
+          "count": 0,
+          "weight": 21
         }
       }
     },
@@ -107,14 +107,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785619457829
+      "lastSuccess": 1785621031792
     },
     "grep": {
-      "count": 1,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785619331796
+      "lastSuccess": 1785621140211
     },
     "wc": {
       "count": 1,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785620494970
+      "lastSuccess": 1785620662326
     },
     "mkdir": {
       "count": 4,
@@ -328,72 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512198128
-    },
-    {
-      "type": "bash",
-      "command": "npx vite build 2>&1 | tail -3 && echo \"vite OK\" && CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx vite build N>&N | tail -N && echo \"\" && CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder -",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785512216310
-    },
-    {
-      "type": "bash",
-      "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -3",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx electron-builder --win --xN --dir N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512236170
-    },
-    {
-      "type": "bash",
-      "command": "mkdir -p /tmp/asar-extract && npx asar extract release/win-unpacked/resources/app.asar /tmp/asar-extract && cp dist-electron/main.js /tmp/asar-extract/ && npx asar pack /tmp/asar-extract /tmp/app.asar",
-      "cmdPattern": {
-        "base": "mkdir",
-        "pattern": "mkdir -p /tmp/asar-extract && npx asar extract release/win-unpacked/resources/app.asar /tmp/asar-ext",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785512279225
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts && git -C /data/project/game-workspace commit -m \"fix: screen-lock garbled text — add charset=utf-8 to data URL\"",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add apps/companion-electron/electron/screen-lock.ts && git -C /d",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785512300181
-    },
-    {
-      "type": "bash",
-      "command": "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/uploads/app.asar 2>/dev/null || echo \"not accessible yet\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s -o /dev/null -w \"\" http://localhost:N/uploads/app.asar N>/dev/null || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512309031
-    },
     {
       "type": "write",
       "file": "/data/project/game-workspace/uploads/fix-screen-lock.bat",
@@ -2602,6 +2536,78 @@
         "hasChain": true
       },
       "timestamp": 1785620494970
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785620662326
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"logout\\|退出登录\\|authStore.*logout\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785621002756
+    },
+    {
+      "type": "bash",
+      "command": "grep -A10 \"logout.*=.*(\" /data/project/game-workspace/apps/web/src/stores/authStore.ts | head -15",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/stores/authStore.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785621009106
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/stores/authStore.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785621020732
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/game-workspace commit -m \"fix: clear Electron store token on logout\" && git -C /data/project/game-works",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/gam",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785621031792
+    },
+    {
+      "type": "bash",
+      "command": "grep \"dialog\\|showInputBoxSync\\|__exit\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785621140211
     }
   ]
 }
