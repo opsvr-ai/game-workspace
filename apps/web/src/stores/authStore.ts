@@ -29,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     sessionStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    try { (window as any).electronAPI?.logout(); } catch {}
     set({ user: null, isAuthenticated: false });
   },
 
