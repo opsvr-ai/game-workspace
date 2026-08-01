@@ -130,7 +130,7 @@ export class CompanionsService {
   async getTodaySessions(companionId: string) {
     const { start } = await this.getTodayRange();
     const sessions = await this.prisma.orderSession.findMany({
-      where: { companionId, createdAt: { gte: today } },
+      where: { companionId, createdAt: { gte: start } },
       include: {
         coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
         parentOrder: { select: { gameName: true, orderCode: true } },

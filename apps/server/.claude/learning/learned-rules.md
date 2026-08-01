@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T21:31:16.171Z
+**Last Updated:** 2026-08-01T13:41:43.799Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 51 occurrences
+**Frequency:** 52 occurrences
 
 ### Prefer prefer const in .tsx files
 
@@ -30,7 +30,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 89 occurrences
+**Frequency:** 92 occurrences
 
 ### Prefer async await in .ts files
 
@@ -39,7 +39,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 50 occurrences
+**Frequency:** 53 occurrences
 
 ## Bash
 
@@ -52,7 +52,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 65 occurrences
+**Frequency:** 67 occurrences
 
 ### Commonly used command: git
 
@@ -61,7 +61,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 21 occurrences
+**Frequency:** 22 occurrences
 
 ### Commonly used command: npx
 
@@ -113,7 +113,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 4 occurrences
+**Frequency:** 5 occurrences
 
 ### Commonly used command: TOKEN=$(curl
 
@@ -122,7 +122,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 6 occurrences
+**Frequency:** 7 occurrences
 
 ### Commonly used command: head
 
@@ -143,8 +143,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: tail
 
@@ -212,7 +213,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 16 occurrences
+**Frequency:** 18 occurrences
 
 ---
 

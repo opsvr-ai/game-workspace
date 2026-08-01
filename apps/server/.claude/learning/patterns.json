@@ -16,9 +16,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "arrow_functions",
-    "frequency": 51,
+    "frequency": 52,
     "created_at": "2026-07-18T20:38:16.148Z",
-    "updated_at": "2026-07-31T21:31:16.171Z"
+    "updated_at": "2026-07-31T21:41:29.531Z"
   },
   {
     "type": "code_style",
@@ -37,9 +37,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "prefer_const",
-    "frequency": 89,
+    "frequency": 92,
     "created_at": "2026-07-18T21:04:52.587Z",
-    "updated_at": "2026-07-31T21:24:36.388Z"
+    "updated_at": "2026-08-01T13:40:52.628Z"
   },
   {
     "type": "workflow",
@@ -58,9 +58,9 @@
       "Used successfully 6 times"
     ],
     "rule": "grep",
-    "frequency": 65,
+    "frequency": 67,
     "created_at": "2026-07-18T21:08:28.675Z",
-    "updated_at": "2026-07-31T21:23:44.343Z"
+    "updated_at": "2026-07-31T21:47:48.577Z"
   },
   {
     "type": "workflow",
@@ -79,9 +79,9 @@
       "Used successfully 6 times"
     ],
     "rule": "git",
-    "frequency": 21,
+    "frequency": 22,
     "created_at": "2026-07-19T11:02:03.985Z",
-    "updated_at": "2026-07-31T21:09:14.249Z"
+    "updated_at": "2026-07-31T21:35:38.241Z"
   },
   {
     "type": "workflow",
@@ -120,9 +120,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "async_await",
-    "frequency": 50,
+    "frequency": 53,
     "created_at": "2026-07-19T12:37:04.641Z",
-    "updated_at": "2026-07-31T21:30:47.208Z"
+    "updated_at": "2026-08-01T13:41:43.799Z"
   },
   {
     "type": "workflow",
@@ -204,9 +204,9 @@
       "Auto-detected from 3 successful operations"
     ],
     "rule": "error_handling",
-    "frequency": 16,
+    "frequency": 18,
     "created_at": "2026-07-19T12:42:38.150Z",
-    "updated_at": "2026-07-31T21:05:11.603Z"
+    "updated_at": "2026-08-01T13:40:52.630Z"
   },
   {
     "type": "workflow",
@@ -263,12 +263,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "curl",
-    "frequency": 4,
+    "frequency": 5,
     "created_at": "2026-07-22T12:44:40.977Z",
-    "updated_at": "2026-07-31T13:36:02.226Z"
+    "updated_at": "2026-07-31T21:35:09.766Z"
   },
   {
     "type": "workflow",
@@ -280,12 +281,13 @@
       "Used successfully 6 times",
       "Used successfully 6 times",
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "TOKEN=$(curl",
-    "frequency": 6,
+    "frequency": 7,
     "created_at": "2026-07-22T13:43:38.450Z",
-    "updated_at": "2026-07-31T21:16:04.425Z"
+    "updated_at": "2026-08-01T13:40:37.792Z"
   },
   {
     "type": "workflow",
@@ -317,12 +319,13 @@
     "description": "Commonly used command: sleep",
     "evidence": [
       "Used successfully 6 times",
+      "Used successfully 6 times",
       "Used successfully 6 times"
     ],
     "rule": "sleep",
-    "frequency": 2,
+    "frequency": 3,
     "created_at": "2026-07-22T19:43:31.969Z",
-    "updated_at": "2026-07-31T15:19:16.007Z"
+    "updated_at": "2026-07-31T21:41:08.825Z"
   },
   {
     "type": "workflow",

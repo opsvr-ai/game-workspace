@@ -1,59 +1,22 @@
-# 工作室6大痛点 vs 现有功能 — 差距分析与优化
+# Fix: Electron loads web UI from local files, not server
 
-## 现有功能覆盖
+## Problem
+Electron connects to server for API (port 3001) but loads web UI from port 8000. Windows Firewall blocks Electron's outbound connection to port 8000.
 
-| # | 痛点 | 已有什么 | 差什么 |
-|---|------|---------|--------|
-| 1 | 不聊客户、复购低 | 客户列表、跟进记录、AI分析 | 休眠客户提醒 |
-| 2 | 谎报不上报流水 | 订单记录、状态追踪、计时 | 订单与状态关联校验 |
-| 3 | 微信群报账混乱 | 订单金额记录 | 每日自动汇总 |
-| 4 | 派单后无反馈 | contactStatus 字段 | 强制提醒更新 |
-| 5 | 喊搭档靠吼 | 双陪WebSocket邀请 | 在线可接单陪玩列表 |
-| 6 | 微信客户不可见 | 客户画像、工作微信 | 客户消费排行、异常标记 |
+## Fix
+Change `main.ts` to load `dist/index.html` from the packaged app directory instead of `http://IP:8000`. API calls still use server URL from config.
 
-## 优化方案（最小改动、最大效果）
+## Files to modify
+1. `apps/companion-electron/electron/main.ts` — change `win.loadURL(webUrl)` to `win.loadFile()`
+2. Rebuild + repack
 
-### 1. 休眠客户提醒 — 提高复购
-- 客户列表新增"最后服务时间"列，超过3天标黄，超过7天标红
-- 陪玩端首页显示"X个客户超过7天未联系"提示
-- **不改表结构**，只加查询和显示
+## Implementation
+In `createMainWindow()`:
+```javascript
+// OLD:
+const webUrl = serverUrl.replace(/:3001$/, ':8000');
+win.loadURL(webUrl);
 
-### 2. 订单关联校验 — 防止假上报
-- 状态为"接单中(BUSY)"但没有进行中的订单 → 管理端标记异常
-- 有进行中的订单但状态不是"接单中" → 提醒陪玩切状态
-- **利用现有 OrderSession + CompanionStatus 数据**
-
-### 3. 每日自动汇总 — 告别微信群报账
-- 陪玩端首页「今日汇总」：今天接了几单、总金额、各子单明细
-- 管理端数据看板：每个陪玩今日流水一目了然
-- 客服端：所有陪玩报账状态一览，不用等
-- **利用现有 OrderSession 汇总查询**
-
-### 4. 派单反馈强制 — 不让客服追着问
-- 陪玩订单列表，PENDING 订单显示「已加微信/未通过」按钮
-- 超过30分钟未反馈 → 订单标红 → 管理端可见
-- **利用现有 contactStatus 字段**
-
-### 5. 可接单陪玩列表 — 不用喊
-- 陪玩端开始服务选搭档时，只显示「空闲中」的陪玩及其当前单价
-- 搭档邀请增加单价显示
-- **利用现有 CompanionStatus 筛选**
-
-### 6. 客户消费透明 — 管理者看得见
-- 管理端客户列表新增：累计消费、最近服务时间、服务次数
-- 标记异常：消费突增/突降、长期未消费
-- **利用现有 Customer + OrderSession 聚合**
-
-## 实施清单（按优先级）
-
-**高优先（本周）：**
-- [ ] 1. 休眠客户提醒（陪玩首页+客户列表）
-- [ ] 3. 每日自动汇总（陪玩首页+管理端数据看板）
-- [ ] 4. 派单反馈强制（订单列表+管理端可见）
-
-**中优先（下周）：**
-- [ ] 5. 在线可接单陪玩列表（搭档选择器优化）
-- [ ] 6. 客户消费透明（管理端客户列表增强）
-
-**低优先（后续）：**
-- [ ] 2. 订单状态关联校验（管理端异常检测）
+// NEW:
+win.loadFile(path.join(__dirname, '../dist/index.html'));
+```

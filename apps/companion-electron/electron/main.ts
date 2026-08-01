@@ -65,15 +65,13 @@ function createMainWindow(): BrowserWindow {
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
   });
 
-  // Load web app — dev mode uses local Vite, prod uses server's web port
+  // Load web app — dev mode uses Vite, prod loads from local dist/
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    const serverUrl = getServerUrl();
-    // Web app served on port 8000 (same host as API server on 3001)
-    const webUrl = serverUrl.replace(/:3001$/, ':8000');
-    logger.info('Loading web app', { webUrl });
-    win.loadURL(webUrl);
+    const localPath = path.join(__dirname, '../dist/index.html');
+    logger.info('Loading web app from local', { path: localPath });
+    win.loadFile(localPath);
   }
 
   win.once('ready-to-show', () => {

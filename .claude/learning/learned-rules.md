@@ -1,13 +1,13 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-07-31T19:15:39.508Z
+**Last Updated:** 2026-08-01T14:16:25.414Z
 
 ---
 
 ## Summary
 
-- **Total Patterns:** 24
+- **Total Patterns:** 25
 - **Total Feedback:** 3
 
 ## Bash
@@ -73,7 +73,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 8 occurrences
+**Frequency:** 9 occurrences
 
 ### Commonly used command: openspec
 
@@ -89,7 +89,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 7 occurrences
+**Frequency:** 8 occurrences
 
 ### Commonly used command: sleep
 
@@ -154,6 +154,13 @@
 **Frequency:** 2 occurrences
 
 ### Commonly used command: which
+
+**Examples:**
+- Used successfully 6 times
+
+**Frequency:** 1 occurrences
+
+### Commonly used command: cp
 
 **Examples:**
 - Used successfully 6 times

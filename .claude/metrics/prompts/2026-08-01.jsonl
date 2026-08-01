@@ -1,0 +1,16 @@
+{"ts":"2026-08-01T13:54:54.212Z","prompt":"打不开electron","words":1,"chars":11,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2245737"}
+{"ts":"2026-08-01T13:55:49.979Z","prompt":"打不开electron","words":1,"chars":11,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2246863"}
+{"ts":"2026-08-01T13:55:57.362Z","prompt":"electron显示无法连接到服务器","words":1,"chars":18,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2247119"}
+{"ts":"2026-08-01T14:00:01.867Z","prompt":"解压了 还是无线连接","words":2,"chars":10,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2249897"}
+{"ts":"2026-08-01T14:01:11.563Z","prompt":"在同一个文件夹","words":1,"chars":7,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2250637"}
+{"ts":"2026-08-01T14:02:46.218Z","prompt":"192.168.0.106:8000/","words":1,"chars":19,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2251533"}
+{"ts":"2026-08-01T14:03:26.366Z","prompt":"我必须要用electron","words":1,"chars":13,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2252050"}
+{"ts":"2026-08-01T14:03:59.712Z","prompt":"还是无法连接","words":1,"chars":6,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2252503"}
+{"ts":"2026-08-01T14:04:49.062Z","prompt":"解除锁定在哪","words":1,"chars":6,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2253087"}
+{"ts":"2026-08-01T14:07:57.966Z","prompt":"不会","words":1,"chars":2,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2254696"}
+{"ts":"2026-08-01T14:08:04.122Z","prompt":"你帮我弄","words":1,"chars":4,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2254924"}
+{"ts":"2026-08-01T14:10:55.937Z","prompt":"启动了","words":1,"chars":3,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2257851"}
+{"ts":"2026-08-01T14:11:18.328Z","prompt":"无法连接到服务器都还没解决","words":1,"chars":13,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2258262"}
+{"ts":"2026-08-01T14:12:46.784Z","prompt":"去哪里下载","words":1,"chars":5,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2260476"}
+{"ts":"2026-08-01T14:13:57.839Z","prompt":"下载不了","words":1,"chars":4,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2261234"}
+{"ts":"2026-08-01T14:14:56.593Z","prompt":"/plan 用superpowers+openspec技能，完成如下开发规划和设计：帮我重新检查，连接不到服务器的问题，我不想手动操作 你直接给我一次性改好","words":3,"chars":78,"intent":"command","complexity":[],"commands":["plan"],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2262275"}

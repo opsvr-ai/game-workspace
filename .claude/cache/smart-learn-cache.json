@@ -75,7 +75,7 @@
       "patterns": {}
     },
     ".bat": {
-      "successCount": 1,
+      "successCount": 3,
       "patterns": {}
     },
     ".html": {
@@ -122,9 +122,9 @@
       "lastSuccess": 1785003772768
     },
     "npx": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785520156698
+      "lastSuccess": 1785593785412
     },
     "pythonN": {
       "count": 5,
@@ -177,9 +177,9 @@
       "lastSuccess": 1785517667459
     },
     "curl": {
-      "count": 4,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785525355129
+      "lastSuccess": 1785592580441
     },
     "kill": {
       "count": 0,
@@ -227,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785523906614
+      "lastSuccess": 1785592527705
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -297,9 +297,9 @@
       "lastSuccess": 1785510914245
     },
     "cp": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785517972638
+      "lastSuccess": 1785593515602
     },
     "CSC_IDENTITY_AUTO_DISCOVERY=false": {
       "count": 3,
@@ -317,101 +317,12 @@
       "lastSuccess": 1785512950432
     },
     "unzip": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785517325134
+      "lastSuccess": 1785592508147
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep \"createElement\\|icon={\" apps/web/src/pages/admin/AgentVersionPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" apps/web/src/pages/admin/AgentVersionPage.tsx",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785504074874
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
-      "patterns": [],
-      "timestamp": 1785504085005
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
-      "patterns": [],
-      "timestamp": 1785504093958
-    },
-    {
-      "type": "bash",
-      "command": "pm2 list 2>/dev/null || echo \"pm2 not available\"",
-      "cmdPattern": {
-        "base": "pmN",
-        "pattern": "pmN list N>/dev/null || echo \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785504142609
-    },
-    {
-      "type": "bash",
-      "command": "kill 408091 923944 2>/dev/null; sleep 2 && echo \"killed\"",
-      "cmdPattern": {
-        "base": "kill",
-        "pattern": "kill N N N>/dev/null; sleep N && echo \"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785504158948
-    },
-    {
-      "type": "bash",
-      "command": "pm2 start \"pnpm dev:server\" --name chunlv-server && pm2 start \"pnpm dev:web\" --name chunlv-web 2>&1",
-      "cmdPattern": {
-        "base": "pmN",
-        "pattern": "pmN start \"\" --name chunlv-server && pmN start \"\" --name chunlv-web N>&N",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785504191160
-    },
-    {
-      "type": "bash",
-      "command": "sleep 5 && lsof -i :3001 -i :8000 2>/dev/null | grep LISTEN",
-      "cmdPattern": {
-        "base": "sleep",
-        "pattern": "sleep N && lsof -i :N -i :N N>/dev/null | grep LISTEN",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785504199656
-    },
-    {
-      "type": "bash",
-      "command": "curl -s http://localhost:3001/api/health | head -1",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s http://localhost:N/api/health | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785504203039
-    },
-    {
-      "type": "bash",
-      "command": "git add apps/web/src/pages/admin/AgentVersionPage.tsx && git commit -m \"fix: ThunderboltOutlined TS2739 type error in AgentVersionPage\" #!axme pr=none repo=opsvr-ai/game-workspace && git push origin H",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add apps/web/src/pages/admin/AgentVersionPage.tsx && git commit -m \"\" #!axme pr=none repo=opsvr-",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785504207371
-    },
     {
       "type": "bash",
       "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
@@ -2628,6 +2539,95 @@
         }
       ],
       "timestamp": 1785525371786
+    },
+    {
+      "type": "bash",
+      "command": "unzip -l /data/project/game-workspace/uploads/蠢驴电竞.zip | head -10 && echo \"---\" && unzip -l /data/project/game-workspace/uploads/蠢驴电竞.zip | grep \"exe\\|config\"",
+      "cmdPattern": {
+        "base": "unzip",
+        "pattern": "unzip -l /data/project/game-workspace/uploads/蠢驴电竞.zip | head -N && echo \"\" && unzip -l /data/projec",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785592508147
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && ls -lh",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd /data/project/game-workspace/apps/companio",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785592527705
+    },
+    {
+      "type": "bash",
+      "command": "curl -s http://192.168.0.106:3001/api/health",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -s http://N.N.N.N:N/api/health",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785592569478
+    },
+    {
+      "type": "bash",
+      "command": "curl -sI http://192.168.0.106:8000/ | head -3 && echo \"---\" && curl -s \"http://192.168.0.106:8000/\" | head -3 && echo \"---\" && curl -s \"http://192.168.0.106:3001/api/health\"",
+      "cmdPattern": {
+        "base": "curl",
+        "pattern": "curl -sI http://N.N.N.N:N/ | head -N && echo \"\" && curl -s \"\" | head -N && echo \"\" && curl -s \"\"",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785592580441
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/uploads/启动蠢驴电竞.bat",
+      "patterns": [],
+      "timestamp": 1785593295845
+    },
+    {
+      "type": "bash",
+      "command": "cp /data/project/game-workspace/uploads/启动蠢驴电竞.bat /data/project/game-workspace/apps/companion-electron/release/win-unpacked/ && rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/pr",
+      "cmdPattern": {
+        "base": "cp",
+        "pattern": "cp /data/project/game-workspace/uploads/启动蠢驴电竞.bat /data/project/game-workspace/apps/companion-elect",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785593316050
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/uploads/启动蠢驴电竞.bat",
+      "patterns": [],
+      "timestamp": 1785593498200
+    },
+    {
+      "type": "bash",
+      "command": "cp /data/project/game-workspace/uploads/启动蠢驴电竞.bat /data/project/game-workspace/apps/companion-electron/release/win-unpacked/ && rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/pr",
+      "cmdPattern": {
+        "base": "cp",
+        "pattern": "cp /data/project/game-workspace/uploads/启动蠢驴电竞.bat /data/project/game-workspace/apps/companion-elect",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785593515602
+    },
+    {
+      "type": "bash",
+      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 && npx esbuild electron/preload.ts --bundle --platform=node --exte",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785593785412
     }
   ]
 }
