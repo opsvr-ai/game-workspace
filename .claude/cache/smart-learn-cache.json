@@ -75,7 +75,7 @@
       "patterns": {}
     },
     ".bat": {
-      "successCount": 3,
+      "successCount": 4,
       "patterns": {}
     },
     ".html": {
@@ -317,9 +317,9 @@
       "lastSuccess": 1785512950432
     },
     "unzip": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785592508147
+      "lastSuccess": 1785595134328
     },
     "pwd": {
       "count": 1,
@@ -328,39 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "cp release/win-unpacked/蠢驴电竞.exe /data/project/game-workspace/uploads/agent-setup.exe && echo \"Copied to uploads\"",
-      "cmdPattern": {
-        "base": "cp",
-        "pattern": "cp release/win-unpacked/蠢驴电竞.exe /data/project/game-workspace/uploads/agent-setup.exe && echo \"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785509753986
-    },
-    {
-      "type": "bash",
-      "command": "git add -A && git commit -m \"fix: direct IPC for status bar — showStatusBar via renderer→main\n\n- main.ts: add ipcMain.on('show-status-bar') → calls showStatusBar()\n- preload.ts: expose showStatusBar(s",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add -A && git commit -m \"\"show-status-bar\"\" #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785509769502
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785509779430
-    },
     {
       "type": "bash",
       "command": "mkdir -p /data/project/game-workspace/apps/companion-electron/src/assets && npx electron-builder --win --x64 2>&1 | tail -15",
@@ -2616,6 +2583,34 @@
         "hasChain": true
       },
       "timestamp": 1785595058632
+    },
+    {
+      "type": "bash",
+      "command": "unzip -p /data/project/game-workspace/uploads/蠢驴电竞.zip companion-config.json && echo \"\" && unzip -p /data/project/game-workspace/uploads/蠢驴电竞.zip 启动蠢驴电竞.bat 2>/dev/null || echo \"no bat in zip\"",
+      "cmdPattern": {
+        "base": "unzip",
+        "pattern": "unzip -p /data/project/game-workspace/uploads/蠢驴电竞.zip companion-config.json && echo \"\" && unzip -p ",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785595111064
+    },
+    {
+      "type": "bash",
+      "command": "unzip -l /data/project/game-workspace/uploads/蠢驴电竞.zip | grep \"bat\\|config\\|exe\"",
+      "cmdPattern": {
+        "base": "unzip",
+        "pattern": "unzip -l /data/project/game-workspace/uploads/蠢驴电竞.zip | grep \"\"",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785595134328
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/release/win-unpacked/启动蠢驴电竞.bat",
+      "patterns": [],
+      "timestamp": 1785595204087
     }
   ]
 }
