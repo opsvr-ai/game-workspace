@@ -1,15 +1,15 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 362,
+      "successCount": 363,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
           "weight": 350
         },
         "style:prefer_const": {
-          "count": 0,
-          "weight": 811
+          "count": 1,
+          "weight": 813
         },
         "style:async_await": {
           "count": 0,
@@ -20,8 +20,8 @@
           "weight": 205
         },
         "framework:react_hooks": {
-          "count": 0,
-          "weight": 84
+          "count": 1,
+          "weight": 85
         },
         "quality:error_handling": {
           "count": 0,
@@ -75,7 +75,7 @@
       "patterns": {}
     },
     ".bat": {
-      "successCount": 4,
+      "successCount": 5,
       "patterns": {}
     },
     ".html": {
@@ -112,9 +112,9 @@
       "lastSuccess": 1785594835811
     },
     "grep": {
-      "count": 5,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785596128713
+      "lastSuccess": 1785619052418
     },
     "wc": {
       "count": 1,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785596221755
+      "lastSuccess": 1785619131699
     },
     "mkdir": {
       "count": 4,
@@ -227,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785595228351
+      "lastSuccess": 1785614736884
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -328,126 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/components/ElectronStatusBar.tsx\" 2>&1 | head -3",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510458795
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 8
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 17
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785510471967
-    },
-    {
-      "type": "bash",
-      "command": "ps aux | grep 943055 | head -3",
-      "cmdPattern": {
-        "base": "ps",
-        "pattern": "ps aux | grep N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510708351
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/components/ElectronStatusBar.tsx\" 2>&1 | tail -30",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510721678
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/layouts/AppLayout.tsx\" 2>&1 | grep -c \"ElectronStatusBar\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | grep -c \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510729319
-    },
-    {
-      "type": "bash",
-      "command": "curl -sI \"http://localhost:8000/\" 2>&1 | head -10",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -sI \"\" N>&N | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510739212
-    },
-    {
-      "type": "bash",
-      "command": "pm2 delete all 2>/dev/null; sleep 1 && echo \"stopped\"",
-      "cmdPattern": {
-        "base": "pmN",
-        "pattern": "pmN delete all N>/dev/null; sleep N && echo \"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785510914245
-    },
-    {
-      "type": "bash",
-      "command": "pnpm --filter @chunlv/web exec vite build 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "pnpm",
-        "pattern": "pnpm --filter @chunlv/web exec vite build N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785510922882
-    },
-    {
-      "type": "bash",
-      "command": "npx serve -s /data/project/game-workspace/apps/web/dist -l 8000 --no-clipboard &\ncd /data/project/game-workspace && node apps/server/dist/main.js &\nsleep 3 && curl -sI http://localhost:8000/ | head -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx serve -s /data/project/game-workspace/apps/web/dist -l N --no-clipboard & cd /data/project/game-",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785510938592
-    },
     {
       "type": "bash",
       "command": "curl -s http://localhost:3001/api/health",
@@ -2610,6 +2490,106 @@
         "hasChain": true
       },
       "timestamp": 1785596221755
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/companion-electron/release/win-unpacked/启动蠢驴电竞.bat",
+      "patterns": [],
+      "timestamp": 1785614721515
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && ls -lh /data/project/game-workspace/uploads/蠢驴电竞.zip",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785614736884
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"STATUS_COLORS\\|app.whenReady\\|status:changed\\|emitStatus\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785618920719
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"app.whenReady\\|mainWindow = createMainWindow\\|createTray\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785618970764
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"before-quit\\|stopProcessMonitor\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785618992849
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"fetchMyCustomers\\|myCustomers\\|dormant\\|inactive\\|休眠\\|最后\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619007301
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785619020876
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"客户\\|Customer\\|myCustomer\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619052418
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && echo \"READY\"",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785619131699
     }
   ]
 }

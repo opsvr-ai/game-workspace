@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-08-01T14:23:34.738Z
+**Last Updated:** 2026-08-01T21:15:20.720Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 67 occurrences
+**Frequency:** 68 occurrences
 
 ### Commonly used command: git
 
@@ -150,8 +150,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: which
 

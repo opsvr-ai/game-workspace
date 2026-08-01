@@ -216,6 +216,7 @@ function setupIPC(): void {
     const name = store.get('companionName') as string;
     logger.info('IPC status:changed received', { status, name });
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);
+    updateFloatBall(status);
     // Sync to server via WebSocket
     emitStatus(status);
   });
@@ -325,6 +326,49 @@ function setupIPC(): void {
       return { success: false, output: err.message || 'Unknown error' };
     }
   });
+}
+
+// ── Floating ball ──
+let floatWindow: BrowserWindow | null = null;
+const STATUS_LABELS: Record<string, string> = {
+  AVAILABLE: '空闲',
+  BUSY: '接单',
+  ENTERTAINMENT: '娱乐',
+  RESTING: '休息',
+};
+
+function updateFloatBall(status: string): void {
+  if (!floatWindow) return;
+  const c = STATUS_COLORS[status] || '#9ca3af';
+  const l = STATUS_LABELS[status] || status;
+  floatWindow.webContents
+    .executeJavaScript(
+      `try{var b=document.getElementById('fb');if(b){b.style.background='${c}';b.firstChild.textContent='${l}'}}catch(e){}`,
+    )
+    .catch(() => {});
+}
+
+function createFloatBall(): BrowserWindow {
+  const { width: sw } = require('electron').screen.getPrimaryDisplay().workAreaSize;
+  const win = new BrowserWindow({
+    width: 52,
+    height: 52,
+    x: sw - 76,
+    y: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    type: 'toolbar',
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  const c = STATUS_COLORS['AVAILABLE'];
+  win.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}body{background:transparent;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer}.b{width:44px;height:44px;border-radius:50%;background:${c};box-shadow:0 2px 12px rgba(0,0,0,.3);transition:background .3s;display:flex;align-items:center;justify-content:center}.t{color:#fff;font-size:10px;font-weight:700;user-select:none}</style></head><body><div class="b" id="fb"><span class="t">空闲</span></div><script>document.body.onclick=function(){window.electronAPI?.showWindow()}</script></body></html>`)}`,
+  );
+  win.setAlwaysOnTop(true, 'floating');
+  return win;
 }
 
 // ── Status bar animation (injected directly into DOM, bypasses React) ──
@@ -460,6 +504,8 @@ app.whenReady().then(() => {
   setupIPC();
   setupWsEvents();
   mainWindow = createMainWindow();
+  floatWindow = createFloatBall();
+  mainWindow.hide();
 
   createTray({
     onShow: () => {

@@ -1,0 +1,17 @@
+{
+  "id": "4b43c658-6d97-4f53-b447-847063ad8c5b",
+  "createdAt": "2026-08-01T21:13:51.030Z",
+  "closedAt": null,
+  "filesChanged": [],
+  "origin": "/data/project/game-workspace",
+  "pid": 2521430,
+  "claudeSessions": [
+    {
+      "id": "d2905437-ac3e-4599-b9ac-c0e945814894",
+      "transcriptPath": "/root/.claude/projects/-data-project-game-workspace/d2905437-ac3e-4599-b9ac-c0e945814894.jsonl",
+      "firstSeen": "2026-08-01T21:13:51.036Z",
+      "role": "main",
+      "ide": "claude-code"
+    }
+  ]
+}
