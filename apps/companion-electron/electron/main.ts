@@ -65,13 +65,14 @@ function createMainWindow(): BrowserWindow {
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
   });
 
-  // Load web app — dev mode uses Vite, prod loads from local dist/
+  // Load web app — dev uses Vite, prod loads from server, fallback to local
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    const localPath = path.join(__dirname, '../dist/index.html');
-    logger.info('Loading web app from local', { path: localPath });
-    win.loadFile(localPath);
+    const serverUrl = getServerUrl();
+    const webUrl = serverUrl.replace(/:3001$/, ':8000');
+    logger.info('Loading web app', { webUrl });
+    win.loadURL(webUrl);
   }
 
   win.once('ready-to-show', () => {

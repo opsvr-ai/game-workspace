@@ -107,9 +107,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785522066967
+      "lastSuccess": 1785594835811
     },
     "grep": {
       "count": 2,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785594790998
+      "lastSuccess": 1785595058632
     },
     "mkdir": {
       "count": 4,
@@ -328,28 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 && echo \"main.js OK\" && npx vite build 2>&1 | tail -3 && echo \"vite OK\" && n",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785509738116
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"showStatusBar\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | grep \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785509748910
-    },
     {
       "type": "bash",
       "command": "cp release/win-unpacked/蠢驴电竞.exe /data/project/game-workspace/uploads/agent-setup.exe && echo \"Copied to uploads\"",
@@ -2616,6 +2594,28 @@
         "hasChain": true
       },
       "timestamp": 1785594807028
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"fix: final Electron fix — dist in asar, load from local files\" && git -C /data/project/game-workspace push ",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785594835811
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"OK\" || echo \"WAITING\"",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785595058632
     }
   ]
 }
