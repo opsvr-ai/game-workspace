@@ -240,16 +240,26 @@ function setupIPC(): void {
       const http = require('http') as typeof import('http');
       await new Promise<void>((resolve, reject) => {
         const file = fs.createWriteStream(tmpAsar);
-        http.get(downloadUrl, (res: any) => {
-          if (res.statusCode !== 200) { file.close(); reject(new Error(`HTTP ${res.statusCode}`)); return; }
-          res.pipe(file);
-          file.on('finish', () => { file.close(); resolve(); });
-        }).on('error', reject);
+        http
+          .get(downloadUrl, (res: any) => {
+            if (res.statusCode !== 200) {
+              file.close();
+              reject(new Error(`HTTP ${res.statusCode}`));
+              return;
+            }
+            res.pipe(file);
+            file.on('finish', () => {
+              file.close();
+              resolve();
+            });
+          })
+          .on('error', reject);
       });
 
       // Write batch script that replaces file and restarts
       const bat = [
-        '@echo off', 'chcp 65001 >nul',
+        '@echo off',
+        'chcp 65001 >nul',
         'echo 正在更新...',
         `:wait`,
         `tasklist /fi "IMAGENAME eq 蠢驴电竞.exe" 2>nul | find "蠢驴电竞.exe" >nul`,
@@ -325,7 +335,12 @@ const STATUS_COLORS: Record<string, string> = {
   RESTING: '#f97316',
 };
 
-const STATUS_LABELS: Record<string, string> = { AVAILABLE: '空闲', BUSY: '接单', ENTERTAINMENT: '娱乐', RESTING: '休息' };
+const STATUS_LABELS: Record<string, string> = {
+  AVAILABLE: '空闲',
+  BUSY: '接单',
+  ENTERTAINMENT: '娱乐',
+  RESTING: '休息',
+};
 function updateFloatBall(status: string): void {
   const c = STATUS_COLORS[status] || '#9ca3af';
   const l = STATUS_LABELS[status] || status;
@@ -447,19 +462,25 @@ let floatWindow: BrowserWindow | null = null;
 function createFloatBall(): BrowserWindow {
   const { width: sw } = require('electron').screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
-    width: 56, height: 56,
-    x: sw - 80, y: 300,
-    frame: false, transparent: true, alwaysOnTop: true,
-    resizable: false, skipTaskbar: true,
+    width: 56,
+    height: 56,
+    x: sw - 80,
+    y: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
     type: 'toolbar',
     webPreferences: {
-      contextIsolation: true, nodeIntegration: false,
+      contextIsolation: true,
+      nodeIntegration: false,
       preload: path.join(__dirname, '../preload-dist/preload.js'),
     },
   });
   const ballHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     *{margin:0;padding:0}body{background:transparent;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer}
-    .b{width:48px;height:48px;border-radius:50%;background:${COLORS['AVAILABLE']};box-shadow:0 2px 12px rgba(0,0,0,.3);transition:background .3s;display:flex;align-items:center;justify-content:center}
+    .b{width:48px;height:48px;border-radius:50%;background:${STATUS_COLORS['AVAILABLE']};box-shadow:0 2px 12px rgba(0,0,0,.3);transition:background .3s;display:flex;align-items:center;justify-content:center}
     .t{color:#fff;font-size:10px;font-weight:700;user-select:none}
   </style></head><body><div class="b" id="b"><span class="t" id="t">空闲</span></div>
   <script>
@@ -582,7 +603,10 @@ try {
 app.on('before-quit', () => {
   logger.info('App quitting');
   isQuitting = true;
-  if (floatWindow) { floatWindow.close(); floatWindow = null; }
+  if (floatWindow) {
+    floatWindow.close();
+    floatWindow = null;
+  }
   stopProcessMonitor();
   disconnectWebSocket();
 });
@@ -598,7 +622,7 @@ const VERSION_POLL_INTERVAL = 30_000; // 30 seconds
 const pollVersion = async () => {
   try {
     const { httpRequest } = require('./http');
-    const serverUrl = defaultConfig.serverUrl; // from config
+    const serverUrl = getServerUrl();
     const fullUrl = `${serverUrl}/api/version`;
     const res = await httpRequest({ method: 'GET', url: fullUrl, label: 'version-check' });
     const version = res?.data?.version || '';

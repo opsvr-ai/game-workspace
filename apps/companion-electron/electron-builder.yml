@@ -2,6 +2,12 @@ appId: com.chunlv.companion
 productName: 蠢驴电竞
 directories:
   output: release
+files:
+  - dist-electron
+  - dist
+  - preload-dist
+  - package.json
+  - '!node_modules'
 win:
   icon: public/donkey.ico
   target:

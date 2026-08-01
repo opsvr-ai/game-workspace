@@ -21,7 +21,8 @@
     "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
     "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
     "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
-    "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts"
+    "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
+    "/data/project/game-workspace/apps/companion-electron/electron-builder.yml"
   ],
   "origin": "/data/project/game-workspace",
   "pid": 2410906,
