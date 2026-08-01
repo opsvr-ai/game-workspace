@@ -82,6 +82,9 @@ function createMainWindow(): BrowserWindow {
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault();
+      const token = store.get('token') as string;
+      // If not logged in, just hide (companion logged out, no protection needed)
+      if (!token) { win.hide(); return; }
       const pass = (store.get('appPassword') as string) || '123456';
       const { BrowserWindow: BW, ipcMain: ipc } = require('electron');
       const pw = new BW({

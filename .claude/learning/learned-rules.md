@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-08-01T21:22:58.795Z
+**Last Updated:** 2026-08-01T21:41:34.971Z
 
 ---
 
@@ -96,8 +96,9 @@
 **Examples:**
 - Used successfully 6 times
 - Used successfully 6 times
+- Used successfully 6 times
 
-**Frequency:** 2 occurrences
+**Frequency:** 3 occurrences
 
 ### Commonly used command: K_TOKEN=$(curl
 

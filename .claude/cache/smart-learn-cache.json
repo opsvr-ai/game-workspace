@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785619131699
+      "lastSuccess": 1785620494970
     },
     "mkdir": {
       "count": 4,
@@ -328,12 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
-      "patterns": [],
-      "timestamp": 1785512178893
-    },
     {
       "type": "bash",
       "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1",
@@ -2597,6 +2591,17 @@
         "hasChain": false
       },
       "timestamp": 1785619457829
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785620494970
     }
   ]
 }
