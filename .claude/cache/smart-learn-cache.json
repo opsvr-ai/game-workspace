@@ -38,19 +38,19 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 224,
+      "successCount": 228,
       "patterns": {
         "style:prefer_const": {
-          "count": 1,
-          "weight": 471
+          "count": 0,
+          "weight": 476
         },
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 159
+          "count": 0,
+          "weight": 161
         },
         "style:async_await": {
-          "count": 2,
-          "weight": 178
+          "count": 0,
+          "weight": 179
         },
         "typing:explicit_types": {
           "count": 2,
@@ -62,7 +62,7 @@
         },
         "quality:error_handling": {
           "count": 0,
-          "weight": 21
+          "weight": 24
         }
       }
     },
@@ -107,9 +107,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785621031792
+      "lastSuccess": 1785621492822
     },
     "grep": {
       "count": 4,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785620662326
+      "lastSuccess": 1785621290024
     },
     "mkdir": {
       "count": 4,
@@ -328,78 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/uploads/fix-screen-lock.bat",
-      "patterns": [],
-      "timestamp": 1785512344115
-    },
-    {
-      "type": "bash",
-      "command": "apt-get install -y wine64 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "apt-get",
-        "pattern": "apt-get install -y wineN N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512441885
-    },
-    {
-      "type": "bash",
-      "command": "which wine64 && wine64 --version 2>&1",
-      "cmdPattern": {
-        "base": "which",
-        "pattern": "which wineN && wineN --version N>&N",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785512447062
-    },
-    {
-      "type": "bash",
-      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 && npx vite build 2>&1 | tail -3 && echo \"Build OK\"",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785512454801
-    },
-    {
-      "type": "bash",
-      "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -10",
-      "cmdPattern": {
-        "base": "CSC_IDENTITY_AUTO_DISCOVERY=false",
-        "pattern": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --xN N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512559964
-    },
-    {
-      "type": "bash",
-      "command": "npx electron-builder --win portable --x64 2>&1 | tail -10",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx electron-builder --win portable --xN N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512817563
-    },
-    {
-      "type": "bash",
-      "command": "rm -rf release/win-unpacked release/*.exe 2>/dev/null && npx electron-builder --win --x64 --dir -c.win.sign=null 2>&1 | grep \"⨯\\|✓\\|building\\|packaging\" | head -10",
-      "cmdPattern": {
-        "base": "rm",
-        "pattern": "rm -rf release/win-unpacked release/*.exe N>/dev/null && npx electron-builder --win --xN --dir -c.wi",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785512852440
-    },
     {
       "type": "bash",
       "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -5",
@@ -2608,6 +2536,106 @@
         "hasChain": false
       },
       "timestamp": 1785621140211
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785621290024
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/stores/authStore.ts",
+      "patterns": [
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785621414320
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/game-workspace commit -m \"fix: sync login token to Electron store for close protection\" && git -C /data",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/gam",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785621425840
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/stores/authStore.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785621480727
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/game-workspace commit -m \"fix: require admin password to logout in Electron\" && git -C /data/project/ga",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/stores/authStore.ts && git -C /data/project/gam",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785621492822
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/preload.ts",
+      "patterns": [],
+      "timestamp": 1785621621673
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/stores/authStore.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 3
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785621630601
     }
   ]
 }

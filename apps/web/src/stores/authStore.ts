@@ -27,12 +27,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     return user;
   },
 
-  logout: () => {
+  logout: async () => {
     const ea = (window as any).electronAPI;
-    if (ea) {
-      // In Electron: require admin password to logout
+    if (ea?.verifyPassword) {
       const pw = prompt('请输入管理员密码退出');
-      if (pw !== '123456') { alert('密码错误'); return; }
+      if (!pw) return;
+      const ok = await ea.verifyPassword(pw);
+      if (!ok) { alert('密码错误'); return; }
     }
     sessionStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');

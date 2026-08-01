@@ -52,4 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // One-click app update — download + replace + restart
   updateApp: () => ipcRenderer.invoke('update-app'),
+
+  // Verify admin password
+  verifyPassword: (pw: string) => ipcRenderer.invoke('verify-password', pw),
 });

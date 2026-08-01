@@ -245,6 +245,10 @@ function setupIPC(): void {
     }
   });
 
+  ipcMain.handle('verify-password', (_e, pw: string) => {
+    return pw === ((store.get('appPassword') as string) || '123456');
+  });
+
   ipcMain.on('status:changed', (_e, status: string) => {
     store.set('lastStatus', status);
     logger.info('Status changed', { status });

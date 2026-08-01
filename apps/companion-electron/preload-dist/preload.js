@@ -46,5 +46,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   // Status bar animation — call directly from renderer
   showStatusBar: (status) => import_electron.ipcRenderer.send("show-status-bar", status),
   // One-click app update — download + replace + restart
-  updateApp: () => import_electron.ipcRenderer.invoke("update-app")
+  updateApp: () => import_electron.ipcRenderer.invoke("update-app"),
+  // Verify admin password
+  verifyPassword: (pw) => import_electron.ipcRenderer.invoke("verify-password", pw)
 });
