@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol, net } from 'electron';
 import path from 'path';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
@@ -444,8 +444,17 @@ function setupWsEvents(): void {
   });
 }
 
+// Register app:// protocol to serve files from asar
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true } }]);
+
 // App lifecycle
 app.whenReady().then(() => {
+  // Handle app:// protocol — serves from app root (asar or filesystem)
+  protocol.handle('app', (request) => {
+    const url = request.url.replace('app://', '');
+    const filePath = path.join(__dirname, '..', url);
+    return net.fetch('file://' + filePath);
+  });
   Menu.setApplicationMenu(null);
   logger.info('Electron app started', { version: app.getVersion() });
   setupIPC();
