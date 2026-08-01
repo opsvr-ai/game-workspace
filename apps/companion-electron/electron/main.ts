@@ -216,7 +216,6 @@ function setupIPC(): void {
     const name = store.get('companionName') as string;
     logger.info('IPC status:changed received', { status, name });
     updateTrayTooltip(`蠢驴电竞 - ${name} (${status})`);
-    updateFloatBall(status);
     // Sync to server via WebSocket
     emitStatus(status);
   });
@@ -336,18 +335,6 @@ const STATUS_COLORS: Record<string, string> = {
   RESTING: '#f97316',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  AVAILABLE: '空闲',
-  BUSY: '接单',
-  ENTERTAINMENT: '娱乐',
-  RESTING: '休息',
-};
-function updateFloatBall(status: string): void {
-  const c = STATUS_COLORS[status] || '#9ca3af';
-  const l = STATUS_LABELS[status] || status;
-  floatWindow?.webContents.executeJavaScript(`window.onStatusUpdate('${status}','${c}','${l}')`).catch(() => {});
-}
-
 function showStatusBar(status: string): void {
   const color = STATUS_COLORS[status];
   if (!color || !mainWindow) return;
@@ -458,44 +445,8 @@ function setupWsEvents(): void {
 }
 
 // App lifecycle
-let floatWindow: BrowserWindow | null = null;
-
-function createFloatBall(): BrowserWindow {
-  const { width: sw } = require('electron').screen.getPrimaryDisplay().workAreaSize;
-  const win = new BrowserWindow({
-    width: 56,
-    height: 56,
-    x: sw - 80,
-    y: 300,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    resizable: false,
-    skipTaskbar: true,
-    type: 'toolbar',
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, '../preload-dist/preload.js'),
-    },
-  });
-  const ballHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    *{margin:0;padding:0}body{background:transparent;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer}
-    .b{width:48px;height:48px;border-radius:50%;background:${STATUS_COLORS['AVAILABLE']};box-shadow:0 2px 12px rgba(0,0,0,.3);transition:background .3s;display:flex;align-items:center;justify-content:center}
-    .t{color:#fff;font-size:10px;font-weight:700;user-select:none}
-  </style></head><body><div class="b" id="b"><span class="t" id="t">空闲</span></div>
-  <script>
-    window.onStatusUpdate=function(s,c,l){document.getElementById('b').style.background=c;document.getElementById('t').textContent=l};
-    document.body.onclick=function(){window.electronAPI?.showWindow()};
-  </script></body></html>`;
-  win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(ballHTML)}`);
-  win.setAlwaysOnTop(true, 'floating');
-  return win;
-}
-
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
-  app.setLoginItemSettings({ openAtLogin: true, path: process.execPath });
   logger.info('Electron app started', { version: app.getVersion() });
   setupIPC();
   setupWsEvents();
@@ -604,10 +555,6 @@ try {
 app.on('before-quit', () => {
   logger.info('App quitting');
   isQuitting = true;
-  if (floatWindow) {
-    floatWindow.close();
-    floatWindow = null;
-  }
   stopProcessMonitor();
   disconnectWebSocket();
 });

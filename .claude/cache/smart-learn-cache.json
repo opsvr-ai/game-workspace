@@ -112,9 +112,9 @@
       "lastSuccess": 1785594835811
     },
     "grep": {
-      "count": 2,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785594700394
+      "lastSuccess": 1785596128713
     },
     "wc": {
       "count": 1,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785595058632
+      "lastSuccess": 1785596221755
     },
     "mkdir": {
       "count": 4,
@@ -227,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785594208535
+      "lastSuccess": 1785595228351
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -328,62 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "mkdir -p /data/project/game-workspace/apps/companion-electron/src/assets && npx electron-builder --win --x64 2>&1 | tail -15",
-      "cmdPattern": {
-        "base": "mkdir",
-        "pattern": "mkdir -p /data/project/game-workspace/apps/companion-electron/src/assets && npx electron-builder --w",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785509866979
-    },
-    {
-      "type": "bash",
-      "command": "grep -A20 '\"build\"' /data/project/game-workspace/apps/companion-electron/package.json",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -AN \"\"build\"\" /data/project/game-workspace/apps/companion-electron/package.json",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785509878164
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"builder\\|appId\\|nsis\\|productName\\|win\\|target\\|output\" /data/project/game-workspace/apps/companion-electron/package.json",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/package.json",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785509882613
-    },
-    {
-      "type": "bash",
-      "command": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --x64 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "CSC_IDENTITY_AUTO_DISCOVERY=false",
-        "pattern": "CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --xN N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785509973650
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785510016087
-    },
     {
       "type": "bash",
       "command": "curl -s \"http://localhost:8000/src/components/ElectronStatusBar.tsx\" 2>&1 | head -3",
@@ -2611,6 +2555,61 @@
       "file": "/data/project/game-workspace/apps/companion-electron/release/win-unpacked/启动蠢驴电竞.bat",
       "patterns": [],
       "timestamp": 1785595204087
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace comm",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785595228351
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"floatWindow\\|createFloatBall\\|floatBall\\|updateFloatBall\\|STATUS_COLORS\\|STATUS_LABELS\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785596040242
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"STATUS_LABELS\\|updateFloatBall\\|floatWindow\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785596096062
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"floatWindow\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts",
+        "hasPipe": false,
+        "hasChain": false
+      },
+      "timestamp": 1785596128713
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && echo \"OK\"",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785596221755
     }
   ]
 }
