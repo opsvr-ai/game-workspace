@@ -254,6 +254,7 @@ const CompanionPage: React.FC = () => {
     <div>
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
+        <a href="http://192.168.0.106:3001/uploads/蠢驴电竞.zip" download style={{float:'right',fontSize:12,color:'#1677ff'}}>⬇ 下载最新版</a>
         <Row align="middle" gutter={16}>
           <Col flex="auto">
             <Space size="middle">
