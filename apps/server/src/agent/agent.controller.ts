@@ -134,31 +134,18 @@ export class AgentController {
   @Get('deploy/scan-lan')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
-  async scanLan(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const clientIp = (req.ip || req.connection?.remoteAddress || '192.168.0.1').replace('::ffff:', '');
-    const subnet = clientIp.replace(/\.\d+$/, '');
-    const net = require('net');
+  async scanLan(): Promise<ApiResponse<unknown>> {
     const { execSync } = require('child_process');
-
-    const checkWin = (ip: string): Promise<boolean> => new Promise(resolve => {
-      try { execSync(`ping -c 1 -W 1 ${ip}`, { timeout: 1200, stdio: 'ignore' }); } catch { return resolve(false); }
-      const sock = new net.Socket();
-      sock.setTimeout(200);
-      sock.on('connect', () => { sock.destroy(); resolve(true); });
-      sock.on('error', () => sock.destroy());
-      sock.on('timeout', () => sock.destroy());
-      sock.connect(445, ip);
-    });
-
-    const results = await Promise.all(
-      Array.from({ length: 254 }, (_, i) => i + 1).map(async i => {
-        const ip = `${subnet}.${i}`;
-        const ok = await checkWin(ip);
-        return ok ? { ip } : null;
-      })
-    );
-    const hosts = results.filter(Boolean) as { ip: string }[];
-    return { code: 200, message: `发现 ${hosts.length} 台Windows电脑`, data: hosts };
+    const hosts: { ip: string; mac?: string }[] = [];
+    try {
+      const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;
+      const lines = raw.split('\n');
+      for (const line of lines) {
+        const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-f:]+)/i);
+        if (m) hosts.push({ ip: m[1], mac: m[2] });
+      }
+    } catch {}
+    return { code: 200, message: `发现 ${hosts.length} 台设备`, data: hosts };
   }
 
   // Admin only: generate PsExec remote deploy script
