@@ -112,9 +112,9 @@
       "lastSuccess": 1785522066967
     },
     "grep": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785525300040
+      "lastSuccess": 1785594214735
     },
     "wc": {
       "count": 1,
@@ -227,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 2,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785592527705
+      "lastSuccess": 1785594208535
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -323,60 +323,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785504215678
-    },
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/web/src/components/ElectronStatusBar.tsx",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 8
-        },
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 21
-        },
-        {
-          "type": "style",
-          "pattern": "async_await",
-          "weight": 2
-        },
-        {
-          "type": "framework",
-          "pattern": "react_hooks",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 2
-        }
-      ],
-      "timestamp": 1785504325370
-    },
-    {
-      "type": "bash",
-      "command": "npx vite build 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx vite build N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785508791568
-    },
     {
       "type": "bash",
       "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -10",
@@ -2628,6 +2574,39 @@
         "hasChain": true
       },
       "timestamp": 1785593785412
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && ls -lh",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && cd /data/project/game-workspace/apps/companio",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785593876958
+    },
+    {
+      "type": "bash",
+      "command": "rm -rf /tmp/check7 && npx asar extract /data/project/game-workspace/apps/companion-electron/release/win-unpacked/resources/app.asar /tmp/check7 2>&1 | tail -1 && grep \"loadFile\\|loadURL\" /tmp/check7/d",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -rf /tmp/checkN && npx asar extract /data/project/game-workspace/apps/companion-electron/release/",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785594208535
+    },
+    {
+      "type": "bash",
+      "command": "grep \"dist/index\\|loadFile\" /tmp/check7/dist-electron/main.js",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /tmp/checkN/dist-electron/main.js",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785594214735
     }
   ]
 }

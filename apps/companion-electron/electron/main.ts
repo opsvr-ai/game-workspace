@@ -478,8 +478,6 @@ app.whenReady().then(() => {
   setupIPC();
   setupWsEvents();
   mainWindow = createMainWindow();
-  mainWindow.hide(); // Hide full window, show only float ball
-  floatWindow = createFloatBall();
 
   createTray({
     onShow: () => {
