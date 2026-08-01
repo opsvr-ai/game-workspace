@@ -110,6 +110,10 @@ const CompanionPage: React.FC = () => {
       .todaySessions()
       .then((r: any) => setTodaySessions(r.data?.data || []))
       .catch(() => {});
+    companionsApi
+      .dormantCustomers()
+      .then((r: any) => setDormantCount(r.data?.data?.dormant || 0))
+      .catch(() => {});
     fetchRanking();
     const t = setInterval(() => {
       fetchData();
@@ -284,6 +288,9 @@ const CompanionPage: React.FC = () => {
                 {data.statusDurations?.entertainment || '00:00'}
               </Text>
             </Space>
+            {dormantCount > 0 && (
+              <Tag color="red" style={{ marginLeft: 8 }}>⚠ {dormantCount}位客户超7天未联系</Tag>
+            )}
           </Col>
           <Col>
             <Space>

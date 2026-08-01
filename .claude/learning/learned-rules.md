@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-08-01T21:15:20.720Z
+**Last Updated:** 2026-08-01T21:22:06.814Z
 
 ---
 
@@ -21,7 +21,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 68 occurrences
+**Frequency:** 69 occurrences
 
 ### Commonly used command: git
 
@@ -179,7 +179,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 77 occurrences
+**Frequency:** 78 occurrences
 
 ### Prefer arrow functions in .tsx files
 
@@ -188,7 +188,7 @@
 - Auto-detected from 3 successful operations
 - Auto-detected from 3 successful operations
 
-**Frequency:** 46 occurrences
+**Frequency:** 47 occurrences
 
 ### Prefer async await in .ts files
 

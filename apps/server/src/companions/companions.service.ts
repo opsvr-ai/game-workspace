@@ -127,6 +127,19 @@ export class CompanionsService {
     return { start, end };
   }
 
+  async getDormantCustomers(companionId: string) {
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const all = await this.prisma.customer.findMany({
+      where: { companionId },
+      select: { id: true, wechatId: true, totalSpent: true, createdAt: true, orders: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } } },
+    });
+    const dormant = all.filter(c => {
+      const lastOrder = c.orders[0]?.createdAt;
+      return (!lastOrder || lastOrder < weekAgo) && new Date(c.createdAt).getTime() < Date.now() - 3 * 86400000;
+    });
+    return { total: all.length, dormant: dormant.length, list: dormant.map(c => ({ id: c.id, wechatId: c.wechatId, lastContact: c.orders[0]?.createdAt || c.createdAt })) };
+  }
+
   async getTodaySessions(companionId: string) {
     const { start } = await this.getTodayRange();
     const sessions = await this.prisma.orderSession.findMany({

@@ -1,11 +1,11 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 363,
+      "successCount": 365,
       "patterns": {
         "style:arrow_functions": {
-          "count": 1,
-          "weight": 350
+          "count": 2,
+          "weight": 352
         },
         "style:prefer_const": {
           "count": 1,
@@ -38,19 +38,19 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 220,
+      "successCount": 223,
       "patterns": {
         "style:prefer_const": {
-          "count": 2,
-          "weight": 465
+          "count": 1,
+          "weight": 471
         },
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 157
+          "count": 0,
+          "weight": 158
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 174
+          "count": 2,
+          "weight": 178
         },
         "typing:explicit_types": {
           "count": 2,
@@ -112,9 +112,9 @@
       "lastSuccess": 1785594835811
     },
     "grep": {
-      "count": 4,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785619052418
+      "lastSuccess": 1785619331796
     },
     "wc": {
       "count": 1,
@@ -328,95 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "curl -s http://localhost:3001/api/health",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s http://localhost:N/api/health",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785511015469
-    },
-    {
-      "type": "bash",
-      "command": "curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -m json.tool 2>/dev/null | head -10",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N\"\" | pyt",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785511019319
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"cors\\|origin\\|8000\\|enableCors\" /data/project/game-workspace/apps/server/src/main.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/server/src/main.ts",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785511027180
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/server/src/main.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785511042649
-    },
-    {
-      "type": "bash",
-      "command": "git diff e89789a..HEAD -- apps/web/src/pages/CompanionPage.tsx",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff eNa..HEAD -- apps/web/src/pages/CompanionPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512043500
-    },
-    {
-      "type": "bash",
-      "command": "head -1 /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-      "cmdPattern": {
-        "base": "head",
-        "pattern": "head -N /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512049056
-    },
-    {
-      "type": "bash",
-      "command": "grep -A6 \"setBlockedModal\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512054051
-    },
-    {
-      "type": "bash",
-      "command": "git diff e89789a..HEAD --stat -- apps/ | head -20",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git diff eNa..HEAD --stat -- apps/ | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512061206
-    },
     {
       "type": "bash",
       "command": "git add /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx && git commit -m \"fix: restore electronAPI.onStatusChanged call for screen-lock on RESTING\" #!axme pr=none repo=opsvr-ai/game-",
@@ -2590,6 +2501,102 @@
         "hasChain": true
       },
       "timestamp": 1785619131699
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/companions/companions.service.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 4
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785619280181
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/server/src/companions/companions.controller.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785619294348
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/api/companions.ts",
+      "patterns": [],
+      "timestamp": 1785619308243
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"dormantCount\\|setDormantCount\\|myCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619315190
+    },
+    {
+      "type": "bash",
+      "command": "grep \"todaySessions\\|dormantCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619326812
+    },
+    {
+      "type": "bash",
+      "command": "grep -n -A2 \"todaySessions\\|dormantCustomers\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n -AN \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619331796
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 2
+        }
+      ],
+      "timestamp": 1785619343092
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785619361341
     }
   ]
 }

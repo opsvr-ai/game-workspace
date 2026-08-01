@@ -139,6 +139,13 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('companions/me/dormant-customers')
+  @Roles(UserRole.COMPANION)
+  async getDormantCustomers(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getDormantCustomers(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('companions/me/workbench')
   @Roles(UserRole.COMPANION)
   async getWorkbench(@Req() req: any): Promise<ApiResponse<unknown>> {
