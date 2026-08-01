@@ -1,7 +1,7 @@
 # Learned Patterns & Rules
 
 **Auto-generated from user corrections and feedback**
-**Last Updated:** 2026-08-01T21:22:06.814Z
+**Last Updated:** 2026-08-01T21:22:58.795Z
 
 ---
 
@@ -30,7 +30,7 @@
 - Used successfully 6 times
 - Used successfully 6 times
 
-**Frequency:** 36 occurrences
+**Frequency:** 37 occurrences
 
 ### Commonly used command: find
 

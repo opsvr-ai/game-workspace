@@ -107,9 +107,9 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 5,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785594835811
+      "lastSuccess": 1785619457829
     },
     "grep": {
       "count": 1,
@@ -328,28 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "git add /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx && git commit -m \"fix: restore electronAPI.onStatusChanged call for screen-lock on RESTING\" #!axme pr=none repo=opsvr-ai/game-",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git add /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx && git commit -m \"\" #!axme",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785512084977
-    },
-    {
-      "type": "bash",
-      "command": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git push origin HEAD:refs/heads/master #!axme pr=none repo=opsvr-ai/game-workspace",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512094693
-    },
     {
       "type": "edit",
       "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
@@ -2597,6 +2575,28 @@
       "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
       "patterns": [],
       "timestamp": 1785619361341
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"feat: dormant customer detection — backend endpoint + frontend alert badge\" && git -C /data/project/game-wo",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace commit -m \"\" && gi",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785619378794
+    },
+    {
+      "type": "bash",
+      "command": "git status --short | head -20",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git status --short | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785619457829
     }
   ]
 }

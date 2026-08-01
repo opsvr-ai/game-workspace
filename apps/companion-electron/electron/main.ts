@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, protocol, net, dialog } from 'electron';
 import path from 'path';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
@@ -82,7 +82,53 @@ function createMainWindow(): BrowserWindow {
   win.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault();
-      win.hide();
+      // Create a password input window
+      const { BrowserWindow: BW } = require('electron');
+      const pw = new BW({
+        width: 300, height: 180, frame: false, alwaysOnTop: true, resizable: false, parent: win, modal: true,
+        webPreferences: { contextIsolation: true, nodeIntegration: false },
+      });
+      const pass = (store.get('appPassword') as string) || '123456';
+      pw.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei",sans-serif;background:#1e1e2e;color:#cdd6f4;display:flex;align-items:center;justify-content:center;height:100vh}
+.box{text-align:center;padding:20px}
+h3{margin-bottom:12px;font-size:15px}
+input{padding:8px 14px;font-size:14px;border:1px solid #585b70;border-radius:6px;background:#313244;color:#cdd6f4;text-align:center;width:200px;outline:none}
+input:focus{border-color:#89b4fa}
+.btns{margin-top:10px}
+button{padding:6px 16px;margin:0 5px;border:none;border-radius:4px;cursor:pointer;font-size:13px}
+.btn-ok{background:#a6e3a1;color:#1e1e2e}
+.btn-cancel{background:#f38ba8;color:#1e1e2e}
+.err{color:#f38ba8;font-size:12px;margin-top:6px;display:none}
+</style></head><body>
+<div class="box">
+<h3>🔒 管理员验证</h3>
+<input type="password" id="pw" autofocus placeholder="输入密码退出">
+<div class="err" id="err">密码错误</div>
+<div class="btns">
+<button class="btn-cancel" onclick="window.close()">取消</button>
+</div>
+</div>
+<script>
+var p='${pass}',a=0;
+document.getElementById('pw').onkeydown=function(e){
+if(e.key==='Enter'){
+if(e.target.value===p){window.__exit=true;window.close()}
+else{a++;e.target.value='';document.getElementById('err').style.display='block';
+if(a>=5){e.target.disabled=true;document.getElementById('err').textContent='已锁定30秒';setTimeout(function(){e.target.disabled=false;a=0;document.getElementById('err').style.display='none'},30000)}}
+}
+};
+</script></body></html>`)}`);
+      pw.on('closed', () => {
+        if ((pw as any).__exit) {
+          isQuitting = true;
+          win.close();
+        } else {
+          win.hide();
+        }
+      });
     }
   });
 
