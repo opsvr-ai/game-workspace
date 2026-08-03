@@ -95,6 +95,7 @@ const AgentVersionPage: React.FC = () => {
   const [remoteCopied, setRemoteCopied] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [deployOutput, setDeployOutput] = useState<string | null>(null);
+  const [scannedIPs, setScannedIPs] = useState<{ip:string;mac?:string}[]>([]);
 
   // Detect Electron environment
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -488,37 +489,24 @@ const AgentVersionPage: React.FC = () => {
               <Card size="small" style={{ background: '#fff7e6' }}>
                 <Text strong style={{ fontSize: 15 }}>⚡ 方式三：PsExec 远程批量部署</Text>
                 <div style={{ marginTop: 8 }}>
-                  <Text type="secondary">目标电脑 IP（一行一个）：</Text>
-                  <Button size="small" type="link" loading={generatingRemote} onClick={async () => {
-                    setGeneratingRemote(true);
-                    try {
-                      const res = await agentApi.scanLan();
-                      const list = ((res as any).data?.data) || [];
-                      setRemoteIPs(list.map((h: any) => h.ip).join('\n'));
-                      message.success('发现 ' + list.length + ' 台Windows电脑');
-                    } catch { message.error('扫描失败'); }
-                    setGeneratingRemote(false);
-                  }}>📡 扫描局域网</Button>
-                  <Input.TextArea rows={3} value={remoteIPs} onChange={e => setRemoteIPs(e.target.value)} placeholder="192.168.1.10" />
-                  <Row gutter={12} style={{ marginTop: 8 }}>
-                    <Col span={10}><Input placeholder="Administrator" value={remoteUser} onChange={e => setRemoteUser(e.target.value)} /></Col>
-                    <Col span={14}><Input type="password" placeholder="密码" value={remotePass} onChange={e => setRemotePass(e.target.value)} /></Col>
-                  </Row>
-                  <div style={{ marginTop: 8 }}>
-                    <Button type="primary" loading={generatingRemote} onClick={handleGenerateRemote}>生成远程部署脚本</Button>
-                  </div>
-                  {remoteScript && <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 10, borderRadius: 6, fontSize: 11, whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 8 }}>{remoteScript}</pre>}
-                </div>
-              </Card>
-              <Divider style={{ margin: '12px 0' }} />
-              <Card size="small" style={{ background: '#fff7e6' }}>
-                <Text strong style={{ fontSize: 15 }}>⚡ 方式三：PsExec 远程批量部署</Text>
-                <div style={{ marginTop: 8 }}>
                   <Space><Button size="small" loading={generatingRemote} onClick={async () => {
                     setGeneratingRemote(true);
-                    try { const res = await agentApi.scanLan(); const list = (res.data as any).data || []; setRemoteIPs(list.map((h: any) => h.ip).join('\n')); message.success('发现 ' + list.length + ' 台设备'); } catch { message.error('扫描失败'); }
+                    try { const res = await agentApi.scanLan(); const list = (res.data as any).data || []; setScannedIPs(list); setRemoteIPs(list.map((h: any) => h.ip).join('\n')); message.success('发现 ' + list.length + ' 台设备'); } catch { message.error('扫描失败'); }
                     setGeneratingRemote(false);
                   }}>📡 扫描局域网</Button></Space>
+                  {scannedIPs.length > 0 && (
+                    <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
+                      {scannedIPs.map(h => (
+                        <div key={h.ip} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>
+                          <span><Text code>{h.ip}</Text>{h.mac ? <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>{h.mac}</Text> : null}</span>
+                          <Button size="small" type="primary" onClick={() => {
+                            const cmd = 'psexec \\\\' + h.ip + ' -s powershell -Command "Invoke-WebRequest http://' + (deployData?.serverUrl?.replace(/https?:\/\//,'') || '192.168.0.106') + ':3001/uploads/蠢驴电竞.zip -OutFile $env:TEMP\\c.zip; Expand-Archive $env:TEMP\\c.zip -DestinationPath $env:TEMP\\c -Force; Start-Process $env:TEMP\\c\\蠢驴电竞.exe"';
+                            navigator.clipboard.writeText(cmd).then(() => message.success('已复制安装命令'));
+                          }}>📋 复制命令</Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <Input.TextArea rows={3} style={{ marginTop: 4 }} value={remoteIPs} onChange={e => setRemoteIPs(e.target.value)} placeholder="192.168.1.10&#10;192.168.1.11" />
                   <Row gutter={8} style={{ marginTop: 4 }}>
                     <Col span={8}><Input placeholder="管理员账号" value={remoteUser} onChange={e => setRemoteUser(e.target.value)} /></Col>
