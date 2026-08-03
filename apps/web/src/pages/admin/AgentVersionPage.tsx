@@ -515,7 +515,6 @@ const AgentVersionPage: React.FC = () => {
                   {remoteScript && <pre style={{ background:'#1e1e1e',color:'#d4d4d4',padding:10,borderRadius:6,fontSize:11,whiteSpace:'pre-wrap',maxHeight:300,overflow:'auto',marginTop:8 }}>{remoteScript}</pre>}
                   <Button danger type="primary" loading={deploying} block onClick={async () => {
                     if (!remoteIPs.trim()) { message.warning('请先扫描或输入IP'); return; }
-                    if (!remotePass) { message.warning('请输入目标电脑管理员密码'); return; }
                     setDeploying(true);
                     try {
                       const res = await agentApi.getRemoteDeployScript({ targetIPs: remoteIPs.split(/[\n,]+/).filter(Boolean), adminUser: remoteUser || 'Administrator', adminPass: remotePass || '' });
