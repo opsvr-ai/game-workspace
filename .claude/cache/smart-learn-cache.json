@@ -38,19 +38,19 @@
       "patterns": {}
     },
     ".ts": {
-      "successCount": 228,
+      "successCount": 230,
       "patterns": {
         "style:prefer_const": {
-          "count": 0,
-          "weight": 476
+          "count": 1,
+          "weight": 477
         },
         "style:arrow_functions": {
-          "count": 0,
-          "weight": 161
+          "count": 1,
+          "weight": 162
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 179
+          "count": 1,
+          "weight": 180
         },
         "typing:explicit_types": {
           "count": 2,
@@ -61,8 +61,8 @@
           "weight": 2
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 24
+          "count": 1,
+          "weight": 25
         }
       }
     },
@@ -112,9 +112,9 @@
       "lastSuccess": 1785621492822
     },
     "grep": {
-      "count": 4,
+      "count": 5,
       "patterns": [],
-      "lastSuccess": 1785621140211
+      "lastSuccess": 1785766076804
     },
     "wc": {
       "count": 1,
@@ -122,9 +122,9 @@
       "lastSuccess": 1785003772768
     },
     "npx": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785594807028
+      "lastSuccess": 1785766115170
     },
     "pythonN": {
       "count": 5,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 3,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785621743927
+      "lastSuccess": 1785765914371
     },
     "mkdir": {
       "count": 4,
@@ -328,61 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check-asar 2>/dev/null && grep \"charset=utf-8\" /tmp/check-asar/main.js | head -1 && echo \"FIX CONFIRMED\" || echo \"Fix not found\"",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check-asar N>/dev/null && grep \"\" /tmp",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785512887236
-    },
-    {
-      "type": "bash",
-      "command": "find /tmp/check-asar -name \"main.js\" 2>/dev/null | head -3",
-      "cmdPattern": {
-        "base": "find",
-        "pattern": "find /tmp/check-asar -name \"\" N>/dev/null | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512891292
-    },
-    {
-      "type": "bash",
-      "command": "grep \"charset=utf-8\" /tmp/check-asar/dist-electron/main.js",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /tmp/check-asar/dist-electron/main.js",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785512896255
-    },
-    {
-      "type": "bash",
-      "command": "cp /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe /data/project/game-workspace/uploads/蠢驴电竞.exe && ls -la /data/project/game-workspace/uploads/蠢驴电竞.exe",
-      "cmdPattern": {
-        "base": "cp",
-        "pattern": "cp /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe /data/project/",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785512905965
-    },
-    {
-      "type": "bash",
-      "command": "zip -j /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-electron/release/win-unpacked/*.exe /data/project/game-workspace/apps/companion-electron/release/win-un",
-      "cmdPattern": {
-        "base": "zip",
-        "pattern": "zip -j /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-ele",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512950432
-    },
     {
       "type": "bash",
       "command": "rm /data/project/game-workspace/uploads/蠢驴电竞.zip 2>/dev/null && zip -r /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/apps/companion-electron/release/win-unpacked/ 2>&1 | t",
@@ -2636,6 +2581,72 @@
         "hasChain": true
       },
       "timestamp": 1785621743927
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785765914371
+    },
+    {
+      "type": "bash",
+      "command": "grep \"verify-password\\|verifyPassword\" /data/project/game-workspace/apps/companion-electron/dist-electron/main.js | head -2",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/companion-electron/dist-electron/main.js | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785766076804
+    },
+    {
+      "type": "bash",
+      "command": "npx asar extract /data/project/game-workspace/apps/companion-electron/release/win-unpacked/resources/app.asar /tmp/asar-latest 2>/dev/null && grep \"verifyPassword\" /tmp/asar-latest/preload-dist/preloa",
+      "cmdPattern": {
+        "base": "npx",
+        "pattern": "npx asar extract /data/project/game-workspace/apps/companion-electron/release/win-unpacked/resources",
+        "hasPipe": true,
+        "hasChain": true
+      },
+      "timestamp": 1785766115170
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/companion-electron/electron/preload.ts",
+      "patterns": [],
+      "timestamp": 1785766326038
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/stores/authStore.ts",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785766334612
     }
   ]
 }

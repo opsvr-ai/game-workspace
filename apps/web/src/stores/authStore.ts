@@ -29,11 +29,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     const ea = (window as any).electronAPI;
-    if (ea?.verifyPassword) {
-      const pw = prompt('请输入管理员密码退出');
-      if (!pw) return;
-      const ok = await ea.verifyPassword(pw);
-      if (!ok) { alert('密码错误'); return; }
+    if (ea?.promptLogoutPassword) {
+      await ea.promptLogoutPassword();
     }
     sessionStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');

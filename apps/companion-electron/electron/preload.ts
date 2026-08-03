@@ -55,4 +55,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Verify admin password
   verifyPassword: (pw: string) => ipcRenderer.invoke('verify-password', pw),
+  // Show native password prompt
+  promptLogoutPassword: () => ipcRenderer.invoke('prompt-logout-password'),
 });

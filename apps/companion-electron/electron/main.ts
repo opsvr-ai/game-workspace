@@ -206,6 +206,42 @@ function setupIPC(): void {
     return pw === ((store.get('appPassword') as string) || '123456');
   });
 
+  // Show native password prompt for logout
+  ipcMain.handle('prompt-logout-password', async () => {
+    return new Promise<string | null>(resolve => {
+      const pass = (store.get('appPassword') as string) || '123456';
+      const pw = new BrowserWindow({
+        width: 320, height: 200, frame: false, alwaysOnTop: true, resizable: false, parent: mainWindow ?? undefined, modal: true,
+        webPreferences: { contextIsolation: true, nodeIntegration: false },
+      });
+      pw.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei",sans-serif;background:#1e1e2e;color:#cdd6f4;display:flex;align-items:center;justify-content:center;height:100vh}
+h3{margin-bottom:12px;font-size:15px;text-align:center}
+input{padding:8px 14px;font-size:14px;border:1px solid #585b70;border-radius:6px;background:#313244;color:#cdd6f4;text-align:center;width:200px;outline:none}
+input:focus{border-color:#89b4fa}
+.err{color:#f38ba8;font-size:12px;margin-top:6px;display:none;text-align:center}
+</style></head><body>
+<div style="text-align:center">
+<h3>🔒 管理员验证</h3>
+<input type="password" id="pw" autofocus placeholder="输入密码退出">
+<div class="err" id="err">密码错误</div>
+</div>
+<script>
+var a=0;
+document.getElementById('pw').onkeydown=function(e){
+if(e.key==='Enter'){
+if(e.target.value==='${pass}'){window.close()}
+else{a++;e.target.value='';document.getElementById('err').style.display='block';
+if(a>=5){e.target.disabled=true;document.getElementById('err').textContent='已锁定30秒';setTimeout(function(){e.target.disabled=false;a=0;document.getElementById('err').style.display='none'},30000)}}
+}
+};
+</script></body></html>`)}`);
+      pw.on('closed', () => { resolve(null); });
+    });
+  });
+
   ipcMain.on('status:changed', (_e, status: string) => {
     store.set('lastStatus', status);
     logger.info('Status changed', { status });

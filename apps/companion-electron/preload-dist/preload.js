@@ -48,5 +48,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   // One-click app update — download + replace + restart
   updateApp: () => import_electron.ipcRenderer.invoke("update-app"),
   // Verify admin password
-  verifyPassword: (pw) => import_electron.ipcRenderer.invoke("verify-password", pw)
+  verifyPassword: (pw) => import_electron.ipcRenderer.invoke("verify-password", pw),
+  // Show native password prompt
+  promptLogoutPassword: () => import_electron.ipcRenderer.invoke("prompt-logout-password")
 });
