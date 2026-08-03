@@ -733,6 +733,10 @@ const AppLayout: React.FC = () => {
           style={{
             background: '#FFFFFF',
             borderRight: '1px solid #E2E8F0',
+            overflow: 'auto',
+            height: '100vh',
+            position: 'sticky',
+            top: 0,
           }}
         >
           {/* Logo 区域 */}
