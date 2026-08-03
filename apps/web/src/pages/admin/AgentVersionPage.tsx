@@ -487,7 +487,7 @@ const AgentVersionPage: React.FC = () => {
           {deployData && (
             <>
               <Card size="small" style={{ background: '#fff7e6' }}>
-                <Text strong style={{ fontSize: 15 }}>⚡ 方式三：PsExec 远程批量部署</Text>
+                <Text strong style={{ fontSize: 15 }}>⚡ PsExec 远程批量部署</Text>
                 <div style={{ marginTop: 8 }}>
                   <Space><Button size="small" loading={generatingRemote} onClick={async () => {
                     setGeneratingRemote(true);
