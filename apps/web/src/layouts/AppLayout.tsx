@@ -925,8 +925,8 @@ const AppLayout: React.FC = () => {
           {/* 内容区 — 白色圆角容器 */}
           <Content
             style={{
-              margin: 20,
-              padding: 24,
+              margin: '20px 20px 20px 8px',
+              padding: 20,
               background: '#FFFFFF',
               borderRadius: 12,
               minHeight: 280,
