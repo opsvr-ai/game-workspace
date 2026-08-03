@@ -508,10 +508,6 @@ const AgentVersionPage: React.FC = () => {
                     </div>
                   )}
                   <Input.TextArea rows={3} style={{ marginTop: 4 }} value={remoteIPs} onChange={e => setRemoteIPs(e.target.value)} placeholder="192.168.1.10&#10;192.168.1.11" />
-                  <Row gutter={8} style={{ marginTop: 4 }}>
-                    <Col span={8}><Input placeholder="管理员账号" value={remoteUser} onChange={e => setRemoteUser(e.target.value)} /></Col>
-                    <Col span={8}><Input.Password placeholder="目标电脑管理员密码(必填)" value={remotePass} onChange={e => setRemotePass(e.target.value)} /></Col>
-                  </Row>
                   {remoteScript && <pre style={{ background:'#1e1e1e',color:'#d4d4d4',padding:10,borderRadius:6,fontSize:11,whiteSpace:'pre-wrap',maxHeight:300,overflow:'auto',marginTop:8 }}>{remoteScript}</pre>}
                   <Button danger type="primary" loading={deploying} block onClick={async () => {
                     if (!remoteIPs.trim()) { message.warning('请先扫描或输入IP'); return; }
