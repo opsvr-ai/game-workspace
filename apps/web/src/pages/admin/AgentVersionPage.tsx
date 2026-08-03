@@ -485,57 +485,6 @@ const AgentVersionPage: React.FC = () => {
         <Spin spinning={!deployData}>
           {deployData && (
             <>
-              {/* 方式一：直接下载 */}
-              <Card size="small" style={{ marginBottom: 12, background: '#f6ffed' }}>
-                <Text strong style={{ fontSize: 15 }}>
-                  方式一：手动下载安装
-                </Text>
-                <div style={{ marginTop: 6 }}>
-                  <Text type="secondary">在目标电脑打开浏览器下载，双击运行安装即可</Text>
-                  <Paragraph copyable style={{ marginTop: 6, marginBottom: 0 }}>
-                    {deployData.downloadUrl}
-                  </Paragraph>
-                </div>
-              </Card>
-
-              {/* 方式二：PowerShell 单机部署 */}
-              <Card size="small" style={{ marginBottom: 12, background: '#e6f4ff' }}>
-                <Text strong style={{ fontSize: 15 }}>
-                  方式二：PowerShell 单机部署
-                </Text>
-                <div style={{ marginTop: 6 }}>
-                  <Text type="secondary">在目标电脑的 PowerShell（管理员）中执行：</Text>
-                  <div
-                    style={{
-                      background: '#1e1e1e',
-                      color: '#d4d4d4',
-                      padding: 10,
-                      borderRadius: 6,
-                      marginTop: 6,
-                      fontFamily: 'Consolas, monospace',
-                      fontSize: 12,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-all',
-                      maxHeight: 140,
-                      overflow: 'auto',
-                    }}
-                  >
-                    {deployData.script}
-                  </div>
-                  <div style={{ marginTop: 6 }}>
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={copied ? <CheckCircleOutlined /> : <CopyOutlined />}
-                      onClick={handleCopyScript}
-                    >
-                      {copied ? '已复制' : '复制命令'}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              <Divider style={{ margin: '12px 0' }} />
               <Card size="small" style={{ background: '#fff7e6' }}>
                 <Text strong style={{ fontSize: 15 }}>⚡ 方式三：PsExec 远程批量部署</Text>
                 <div style={{ marginTop: 8 }}>
