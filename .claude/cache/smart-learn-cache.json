@@ -75,7 +75,7 @@
       "patterns": {}
     },
     ".bat": {
-      "successCount": 5,
+      "successCount": 6,
       "patterns": {}
     },
     ".html": {
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 5,
+      "count": 0,
       "patterns": [],
-      "lastSuccess": 1785766444489
+      "lastSuccess": 1785766822545
     },
     "mkdir": {
       "count": 4,
@@ -328,34 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "write",
-      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "prefer_const",
-          "weight": 5
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785513559213
-    },
-    {
-      "type": "bash",
-      "command": "rm -rf /data/project/game-workspace/uploads/蠢驴电竞.* 2>/dev/null; npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 &&",
-      "cmdPattern": {
-        "base": "rm",
-        "pattern": "rm -rf /data/project/game-workspace/uploads/蠢驴电竞.* N>/dev/null; npx esbuild electron/main.ts --bundl",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785513576467
-    },
     {
       "type": "bash",
       "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"READY\" || echo \"STILL BUILDING\"",
@@ -2647,6 +2619,23 @@
         "hasChain": false
       },
       "timestamp": 1785766665788
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785766822545
+    },
+    {
+      "type": "write",
+      "file": "/data/project/game-workspace/apps/companion-electron/release/win-unpacked/安装为系统服务.bat",
+      "patterns": [],
+      "timestamp": 1785766932432
     }
   ]
 }
