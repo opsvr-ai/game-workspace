@@ -335,7 +335,7 @@ if(a>=5){e.target.disabled=true;document.getElementById('err').textContent='å·²é
         execFile(
           'powershell',
           ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
-          { timeout: 600_000, maxBuffer: 1024 * 1024 },
+          { timeout: 600_000, maxBuffer: 1024 * 1024, cwd: path.dirname(scriptPath) },
           (err, stdout, stderr) => {
             // Cleanup
             try {
