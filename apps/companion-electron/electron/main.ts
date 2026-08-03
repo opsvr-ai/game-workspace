@@ -29,11 +29,12 @@ let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 
 function createMainWindow(): BrowserWindow {
+  const { width: sw, height: sh } = require('electron').screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    minWidth: 1100,
-    minHeight: 700,
+    width: Math.round(sw * 0.9),
+    height: Math.round(sh * 0.85),
+    minWidth: 1024,
+    minHeight: 640,
     title: '蠢驴电竞陪玩',
     frame: true,
     titleBarStyle: 'default',
@@ -529,12 +530,12 @@ function setupWsEvents(): void {
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true } }]);
 
 // App lifecycle
-app.whenReady().then(() => {
-  // Disable GPU acceleration to fix blurry rendering
-  app.commandLine.appendSwitch('disable-gpu');
-  app.commandLine.appendSwitch('disable-software-rasterizer');
+// Enable high-DPI support before app ready
+app.commandLine.appendSwitch('high-dpi-support', '1');
+app.commandLine.appendSwitch('force-device-scale-factor', '1');
 
-  // Handle app:// protocol — serves from app root (asar or filesystem)
+app.whenReady().then(() => {
+  // Handle app:// protocol
   protocol.handle('app', (request) => {
     const url = request.url.replace('app://', '');
     const filePath = path.join(__dirname, '..', url);

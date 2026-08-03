@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 1,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785767898417
+      "lastSuccess": 1785768328688
     },
     "mkdir": {
       "count": 4,
@@ -328,17 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"接单\\|BUSY\\|switchStatus\\|onClick.*order\\|grab\\|accept\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516450563
-    },
     {
       "type": "bash",
       "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
@@ -2648,6 +2637,17 @@
         "hasChain": true
       },
       "timestamp": 1785768103538
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785768328688
     }
   ]
 }
