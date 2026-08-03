@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785621290024
+      "lastSuccess": 1785621743927
     },
     "mkdir": {
       "count": 4,
@@ -328,17 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "npx electron-builder --win --x64 --dir 2>&1 | tail -5",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx electron-builder --win --xN --dir N>&N | tail -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785512864714
-    },
     {
       "type": "bash",
       "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check-asar 2>/dev/null && grep \"charset=utf-8\" /tmp/check-asar/main.js | head -1 && echo \"FIX CONFIRMED\" || echo \"Fix not found\"",
@@ -2636,6 +2625,17 @@
         }
       ],
       "timestamp": 1785621630601
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785621743927
     }
   ]
 }
