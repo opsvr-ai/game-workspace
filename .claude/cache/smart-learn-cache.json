@@ -1,7 +1,7 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 372,
+      "successCount": 373,
       "patterns": {
         "style:arrow_functions": {
           "count": 1,
@@ -107,14 +107,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 2,
+      "count": 3,
       "patterns": [],
-      "lastSuccess": 1785767718756
+      "lastSuccess": 1785768103538
     },
     "grep": {
-      "count": 0,
+      "count": 4,
       "patterns": [],
-      "lastSuccess": 1785767758226
+      "lastSuccess": 1785768071299
     },
     "wc": {
       "count": 1,
@@ -147,9 +147,9 @@
       "lastSuccess": 1785594678713
     },
     "sleep": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785766822545
+      "lastSuccess": 1785767898417
     },
     "mkdir": {
       "count": 4,
@@ -328,78 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516149582
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-      "patterns": [],
-      "timestamp": 1785516158745
-    },
-    {
-      "type": "bash",
-      "command": "grep -A2 \"__showStatusBar\\|switchStatus\\|updateStatus\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -15",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -AN \"\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516324523
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep -c \"__showStatusBar\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | grep -c \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516337008
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"switchStatus\\|__showStatusBar\\|electronAPI\\|storeSet\\|onStatusChanged\\|fetchData\" | head -10",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | grep \"\" | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516341647
-    },
-    {
-      "type": "bash",
-      "command": "curl -s \"http://localhost:8000/src/pages/CompanionPage.tsx\" 2>&1 | grep \"showStatusBar\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s \"\" N>&N | grep \"\"",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785516348457
-    },
-    {
-      "type": "bash",
-      "command": "TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"zhangsan\",\"password\":\"123456\"}' | python3 -c \"import sys,json; print(json.load(sys.std",
-      "cmdPattern": {
-        "base": "TOKEN=$(curl",
-        "pattern": "TOKEN=$(curl -s -X POST http://localhost:N/api/auth/login -H \"\" -d \"\"username\"\"zhangsan\"\"password\"\"N",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785516435412
-    },
     {
       "type": "bash",
       "command": "grep -n \"接单\\|BUSY\\|switchStatus\\|onClick.*order\\|grab\\|accept\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -15",
@@ -2648,6 +2576,78 @@
         "hasChain": false
       },
       "timestamp": 1785767758226
+    },
+    {
+      "type": "bash",
+      "command": "sleep 60 && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && cd /data/project/game-workspace/apps/companion-electron/release/win-unpacked && rm -f /data/project",
+      "cmdPattern": {
+        "base": "sleep",
+        "pattern": "sleep N && ls /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe && ",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785767898417
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"overflow\\|height\\|scroll\\|minHeight\" /data/project/game-workspace/apps/web/src/pages/admin/ProcessKillLogPage.tsx | head -20",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/ProcessKillLogPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785768055343
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"Content\\|overflow\\|minHeight\\|height.*100\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785768060709
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"<Content\\|overflow\\|scroll\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785768065768
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"Layout.Content\\|<Content\\|<Outlet\\|SuspenseOutlet\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785768071299
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/layouts/AppLayout.tsx",
+      "patterns": [],
+      "timestamp": 1785768084772
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/game-workspace commit -m \"fix: add overflow auto to content area\" && git -C /data/project/game-worksp",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/layouts/AppLayout.tsx && git -C /data/project/g",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785768103538
     }
   ]
 }

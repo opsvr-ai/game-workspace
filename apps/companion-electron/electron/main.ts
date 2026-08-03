@@ -530,6 +530,10 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: t
 
 // App lifecycle
 app.whenReady().then(() => {
+  // Disable GPU acceleration to fix blurry rendering
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+
   // Handle app:// protocol — serves from app root (asar or filesystem)
   protocol.handle('app', (request) => {
     const url = request.url.replace('app://', '');
