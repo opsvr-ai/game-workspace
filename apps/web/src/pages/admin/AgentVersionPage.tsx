@@ -528,7 +528,25 @@ const AgentVersionPage: React.FC = () => {
                     } catch { message.error('执行失败'); }
                     setDeploying(false);
                   }}>⚡ 一键全部安装</Button>
-                  {deployOutput && <pre style={{ background:'#1e1e1e',color:'#d4d4d4',padding:10,borderRadius:6,fontSize:11,whiteSpace:'pre-wrap',maxHeight:200,overflow:'auto',marginTop:8 }}>{deployOutput}</pre>}
+                  {deployOutput && (
+                    <div style={{ marginTop: 8 }}>
+                      <Text strong>安装结果：</Text>
+                      {scannedIPs.map((h, i) => {
+                        const ok = deployOutput.includes(`${h.ip} ✓`) || deployOutput.includes(`${h.ip}`) && !deployOutput.includes(`${h.ip} ✗`);
+                        const fail = deployOutput.includes(`${h.ip} ✗`) || (deployOutput.includes(h.ip) && deployOutput.includes('fail'));
+                        return (
+                          <div key={h.ip} style={{ padding: '2px 0', fontSize: 12 }}>
+                            <Tag color={fail ? 'red' : 'green'}>{fail ? '✗' : '✓'}</Tag>
+                            {i + 1}. {h.ip} {fail ? '失败' : '成功'}
+                          </div>
+                        );
+                      })}
+                      <details style={{ marginTop: 4 }}>
+                        <summary style={{ cursor: 'pointer', fontSize: 11, color: '#888' }}>查看原始输出</summary>
+                        <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 8, borderRadius: 6, fontSize: 10, whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', marginTop: 4 }}>{deployOutput}</pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
               </Card>
               <div style={{ marginTop: 12 }}>
