@@ -1,31 +1,31 @@
 {
   "filePatterns": {
     ".tsx": {
-      "successCount": 365,
+      "successCount": 372,
       "patterns": {
         "style:arrow_functions": {
-          "count": 2,
-          "weight": 352
+          "count": 1,
+          "weight": 354
         },
         "style:prefer_const": {
-          "count": 1,
-          "weight": 813
+          "count": 2,
+          "weight": 822
         },
         "style:async_await": {
-          "count": 0,
-          "weight": 67
+          "count": 1,
+          "weight": 68
         },
         "typing:explicit_types": {
           "count": 0,
           "weight": 205
         },
         "framework:react_hooks": {
-          "count": 1,
-          "weight": 85
+          "count": 2,
+          "weight": 86
         },
         "quality:error_handling": {
-          "count": 0,
-          "weight": 86
+          "count": 2,
+          "weight": 88
         }
       }
     },
@@ -107,14 +107,14 @@
   "codePatterns": {},
   "bashPatterns": {
     "git": {
-      "count": 4,
+      "count": 2,
       "patterns": [],
-      "lastSuccess": 1785621492822
+      "lastSuccess": 1785767718756
     },
     "grep": {
       "count": 0,
       "patterns": [],
-      "lastSuccess": 1785766665788
+      "lastSuccess": 1785767758226
     },
     "wc": {
       "count": 1,
@@ -227,9 +227,9 @@
       "lastSuccess": 1785510708351
     },
     "rm": {
-      "count": 0,
+      "count": 1,
       "patterns": [],
-      "lastSuccess": 1785614736884
+      "lastSuccess": 1785766956151
     },
     "K_TOKEN=$(cat": {
       "count": 3,
@@ -328,211 +328,6 @@
     }
   },
   "successfulActions": [
-    {
-      "type": "bash",
-      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"READY\" || echo \"STILL BUILDING\"",
-      "cmdPattern": {
-        "base": "sleep",
-        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785513641159
-    },
-    {
-      "type": "bash",
-      "command": "npx asar extract release/win-unpacked/resources/app.asar /tmp/check2 2>/dev/null && grep \"base64\" /tmp/check2/dist-electron/main.js | head -2 && echo \"BASE64 CONFIRMED\"",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx asar extract release/win-unpacked/resources/app.asar /tmp/checkN N>/dev/null && grep \"\" /tmp/che",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785513647325
-    },
-    {
-      "type": "bash",
-      "command": "grep \"text/html.*base64\" /tmp/check2/dist-electron/main.js | head -3",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep \"\" /tmp/checkN/dist-electron/main.js | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785513651187
-    },
-    {
-      "type": "bash",
-      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip release/win-unpacked/ && git -C /data/project/game-workspace add apps/companion-electron/el",
-      "cmdPattern": {
-        "base": "rm",
-        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785513691151
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/companion-electron/electron/screen-lock.ts",
-      "patterns": [
-        {
-          "type": "style",
-          "pattern": "arrow_functions",
-          "weight": 1
-        },
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 1
-        }
-      ],
-      "timestamp": 1785513747566
-    },
-    {
-      "type": "bash",
-      "command": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/main.js --format=cjs 2>&1 | tail -1 && npx vite build 2>&1 | tail -1 && npx electron-builder --win --x",
-      "cmdPattern": {
-        "base": "npx",
-        "pattern": "npx esbuild electron/main.ts --bundle --platform=node --external:electron --outfile=dist-electron/ma",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785513760599
-    },
-    {
-      "type": "bash",
-      "command": "sleep 60 && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe 2>/dev/null && echo \"READY\" || echo \"BUILDING\"",
-      "cmdPattern": {
-        "base": "sleep",
-        "pattern": "sleep N && ls -la /data/project/game-workspace/apps/companion-electron/release/win-unpacked/蠢驴电竞.exe",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785513824653
-    },
-    {
-      "type": "bash",
-      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip release/win-unpacked/ && git -C /data/project/game-workspace add apps/companion-electron/el",
-      "cmdPattern": {
-        "base": "rm",
-        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785513846019
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"emitStatus\\|store.set.*lastStatus\\|store.set.*status\\|status:changed\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785513920820
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"AVAILABLE\\|store.set\\|emitStatus\\|status\" /data/project/game-workspace/apps/companion-electron/electron/entertainment-notify.ts | head -20",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/entertainment-notify.ts | h",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785513926772
-    },
-    {
-      "type": "bash",
-      "command": "grep -n \"data:text/html\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
-      "cmdPattern": {
-        "base": "grep",
-        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/*.ts",
-        "hasPipe": false,
-        "hasChain": false
-      },
-      "timestamp": 1785513937177
-    },
-    {
-      "type": "bash",
-      "command": "curl -sI \"http://localhost:8000/uploads/蠢驴电竞.zip\" | head -3 && echo \"---\" && curl -sI \"http://localhost:3001/uploads/蠢驴电竞.zip\" | head -3",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -sI \"\" | head -N && echo \"\" && curl -sI \"\" | head -N",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785514114761
-    },
-    {
-      "type": "bash",
-      "command": "python3 -m http.server 8888 --directory /data/project/game-workspace/uploads &\nsleep 2 && curl -sI http://localhost:8888/蠢驴电竞.zip | head -3",
-      "cmdPattern": {
-        "base": "pythonN",
-        "pattern": "pythonN -m http.server N --directory /data/project/game-workspace/uploads & sleep N && curl -sI http",
-        "hasPipe": true,
-        "hasChain": true
-      },
-      "timestamp": 1785514276777
-    },
-    {
-      "type": "bash",
-      "command": "cp /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/uploads/app.zip && ls -lh /data/project/game-workspace/uploads/app.zip",
-      "cmdPattern": {
-        "base": "cp",
-        "pattern": "cp /data/project/game-workspace/uploads/蠢驴电竞.zip /data/project/game-workspace/uploads/app.zip && ls ",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785514379968
-    },
-    {
-      "type": "bash",
-      "command": "curl -sI http://localhost:3001/uploads/app.zip | head -5",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -sI http://localhost:N/uploads/app.zip | head -N",
-        "hasPipe": true,
-        "hasChain": false
-      },
-      "timestamp": 1785514383740
-    },
-    {
-      "type": "edit",
-      "file": "/data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx",
-      "patterns": [
-        {
-          "type": "quality",
-          "pattern": "error_handling",
-          "weight": 3
-        }
-      ],
-      "timestamp": 1785514516425
-    },
-    {
-      "type": "bash",
-      "command": "git -C /data/project/game-workspace add apps/web/src/pages/CompanionPage.tsx && git -C /data/project/game-workspace commit -m \"fix: sync lastStatus via storeSet to prevent auto re-lock after unlock\" &",
-      "cmdPattern": {
-        "base": "git",
-        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/CompanionPage.tsx && git -C /data/project",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785514537248
-    },
-    {
-      "type": "bash",
-      "command": "curl -s -o /tmp/test-dl http://localhost:8888/app.zip 2>&1 &\nsleep 3 && ls -lh /tmp/test-dl && echo \"DOWNLOAD WORKS FROM SERVER\"",
-      "cmdPattern": {
-        "base": "curl",
-        "pattern": "curl -s -o /tmp/test-dl http://localhost:N/app.zip N>&N & sleep N && ls -lh /tmp/test-dl && echo \"\"",
-        "hasPipe": false,
-        "hasChain": true
-      },
-      "timestamp": 1785514634926
-    },
     {
       "type": "bash",
       "command": "grep -n \"return (\" /data/project/game-workspace/apps/web/src/pages/CompanionPage.tsx | head -5",
@@ -2636,6 +2431,223 @@
       "file": "/data/project/game-workspace/apps/companion-electron/release/win-unpacked/安装为系统服务.bat",
       "patterns": [],
       "timestamp": 1785766932432
+    },
+    {
+      "type": "bash",
+      "command": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/蠢驴电竞.zip . && git -C /data/project/game-workspace add -A && git -C /data/project/game-workspace comm",
+      "cmdPattern": {
+        "base": "rm",
+        "pattern": "rm -f /data/project/game-workspace/uploads/蠢驴电竞.zip && zip -rq /data/project/game-workspace/uploads/",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785766956151
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "style",
+          "pattern": "async_await",
+          "weight": 1
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785767311621
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /data/project/game-workspace commit -m \"feat: re-add PsExec remote deploy with LAN scan\" && git -C /data",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /dat",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785767327405
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785767482203
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /data/project/game-workspace commit -m \"chore: remove deploy method 1 and 2, keep only PsExec\" && git -C",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /dat",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785767498400
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"方式三\\|扫描局域网\\|scanLan\\|scannedIPs\\|setScannedIPs\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx | head -10",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767562603
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785767578280
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"scannedIPs\\|setScannedIPs\\|扫描结果\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767587191
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 4
+        },
+        {
+          "type": "framework",
+          "pattern": "react_hooks",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785767594116
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "arrow_functions",
+          "weight": 1
+        },
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785767608453
+    },
+    {
+      "type": "bash",
+      "command": "grep \"scanLan\\|scannedIPs\\|setScannedIPs\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767623896
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"setRemoteIPs\\|setScannedIPs\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767629434
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [
+        {
+          "type": "style",
+          "pattern": "prefer_const",
+          "weight": 2
+        },
+        {
+          "type": "quality",
+          "pattern": "error_handling",
+          "weight": 1
+        }
+      ],
+      "timestamp": 1785767641438
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /data/project/game-workspace commit -m \"feat: per-IP install button after LAN scan\" && git -C /data/proj",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /dat",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785767658160
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"方式三\\|Card.*style.*fff7e6\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767699864
+    },
+    {
+      "type": "edit",
+      "file": "/data/project/game-workspace/apps/web/src/pages/admin/AgentVersionPage.tsx",
+      "patterns": [],
+      "timestamp": 1785767705514
+    },
+    {
+      "type": "bash",
+      "command": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /data/project/game-workspace commit -m \"chore: rename to PsExec remote deploy\" && git -C /data/project/g",
+      "cmdPattern": {
+        "base": "git",
+        "pattern": "git -C /data/project/game-workspace add apps/web/src/pages/admin/AgentVersionPage.tsx && git -C /dat",
+        "hasPipe": false,
+        "hasChain": true
+      },
+      "timestamp": 1785767718756
+    },
+    {
+      "type": "bash",
+      "command": "grep -n \"width.*height\\|minWidth\\|minHeight\\|frame.*true\\|webPreferences\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -5",
+      "cmdPattern": {
+        "base": "grep",
+        "pattern": "grep -n \"\" /data/project/game-workspace/apps/companion-electron/electron/main.ts | head -N",
+        "hasPipe": true,
+        "hasChain": false
+      },
+      "timestamp": 1785767758226
     }
   ]
 }

@@ -32,8 +32,8 @@ function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: 1100,
+    minHeight: 700,
     title: '蠢驴电竞陪玩',
     frame: true,
     titleBarStyle: 'default',
