@@ -537,6 +537,7 @@ app.whenReady().then(() => {
     return net.fetch('file://' + filePath);
   });
   Menu.setApplicationMenu(null);
+  app.setLoginItemSettings({ openAtLogin: true });
   logger.info('Electron app started', { version: app.getVersion() });
   setupIPC();
   setupWsEvents();
