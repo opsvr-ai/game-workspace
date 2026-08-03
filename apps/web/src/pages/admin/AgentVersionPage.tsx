@@ -496,9 +496,9 @@ const AgentVersionPage: React.FC = () => {
                   }}>📡 扫描局域网</Button></Space>
                   {scannedIPs.length > 0 && (
                     <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
-                      {scannedIPs.map(h => (
+                      {scannedIPs.map((h, i) => (
                         <div key={h.ip} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>
-                          <span><Text code>{h.ip}</Text>{h.mac ? <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>{h.mac}</Text> : null}</span>
+                          <span><Text type="secondary" style={{ marginRight: 6 }}>{i + 1}.</Text><Text code>{h.ip}</Text>{h.mac ? <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>{h.mac}</Text> : null}</span>
                           <Button size="small" type="primary" onClick={() => {
                             const cmd = 'psexec \\\\' + h.ip + ' -s powershell -Command "Invoke-WebRequest http://' + (deployData?.serverUrl?.replace(/https?:\/\//,'') || '192.168.0.106') + ':3001/uploads/蠢驴电竞.zip -OutFile $env:TEMP\\c.zip; Expand-Archive $env:TEMP\\c.zip -DestinationPath $env:TEMP\\c -Force; Start-Process $env:TEMP\\c\\蠢驴电竞.exe"';
                             navigator.clipboard.writeText(cmd).then(() => message.success('已复制安装命令'));
