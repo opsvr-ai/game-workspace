@@ -561,6 +561,24 @@ const AgentVersionPage: React.FC = () => {
                   {remoteScript && <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 10, borderRadius: 6, fontSize: 11, whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 8 }}>{remoteScript}</pre>}
                 </div>
               </Card>
+              <Divider style={{ margin: '12px 0' }} />
+              <Card size="small" style={{ background: '#fff7e6' }}>
+                <Text strong style={{ fontSize: 15 }}>⚡ 方式三：PsExec 远程批量部署</Text>
+                <div style={{ marginTop: 8 }}>
+                  <Space><Button size="small" loading={generatingRemote} onClick={async () => {
+                    setGeneratingRemote(true);
+                    try { const res = await agentApi.scanLan(); const list = (res.data as any).data || []; setRemoteIPs(list.map((h: any) => h.ip).join('\n')); message.success('发现 ' + list.length + ' 台设备'); } catch { message.error('扫描失败'); }
+                    setGeneratingRemote(false);
+                  }}>📡 扫描局域网</Button></Space>
+                  <Input.TextArea rows={3} style={{ marginTop: 4 }} value={remoteIPs} onChange={e => setRemoteIPs(e.target.value)} placeholder="192.168.1.10&#10;192.168.1.11" />
+                  <Row gutter={8} style={{ marginTop: 4 }}>
+                    <Col span={8}><Input placeholder="管理员账号" value={remoteUser} onChange={e => setRemoteUser(e.target.value)} /></Col>
+                    <Col span={8}><Input.Password placeholder="管理员密码" value={remotePass} onChange={e => setRemotePass(e.target.value)} /></Col>
+                    <Col span={8}><Button type="primary" loading={generatingRemote} onClick={handleGenerateRemote} block>生成脚本</Button></Col>
+                  </Row>
+                  {remoteScript && <pre style={{ background:'#1e1e1e',color:'#d4d4d4',padding:10,borderRadius:6,fontSize:11,whiteSpace:'pre-wrap',maxHeight:300,overflow:'auto',marginTop:8 }}>{remoteScript}</pre>}
+                </div>
+              </Card>
               <div style={{ marginTop: 12 }}>
                 <Text type="secondary">💡 服务器地址：{deployData.serverUrl}</Text>
               </div>
