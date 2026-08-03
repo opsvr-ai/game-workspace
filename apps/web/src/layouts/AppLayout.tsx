@@ -739,29 +739,6 @@ const AppLayout: React.FC = () => {
             top: 0,
           }}
         >
-          {/* Logo 区域 */}
-          <div
-            style={{
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderBottom: '1px solid #F1F5F9',
-            }}
-          >
-            <Text
-              style={{
-                fontSize: collapsed ? 16 : 20,
-                fontWeight: 700,
-                letterSpacing: -0.5,
-                whiteSpace: 'nowrap',
-                color: '#2563EB',
-              }}
-            >
-              {collapsed ? '⚡' : studioBrand?.name || '陪玩管理系统'}
-            </Text>
-          </div>
-
           {/* 导航菜单 */}
           <Menu
             mode="inline"
@@ -789,16 +766,6 @@ const AppLayout: React.FC = () => {
               background: 'rgba(255,255,255,0.02)',
             }}
           >
-            <Text
-              style={{
-                color: '#64748B',
-                fontSize: 11,
-                display: 'block',
-                textAlign: 'center',
-              }}
-            >
-              {collapsed ? '' : '陪玩管理系统'}
-            </Text>
           </div>
         </Sider>
 
