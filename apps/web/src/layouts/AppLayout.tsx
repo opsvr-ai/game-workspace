@@ -929,6 +929,7 @@ const AppLayout: React.FC = () => {
               background: '#FFFFFF',
               borderRadius: 12,
               minHeight: 280,
+              overflow: 'auto',
               boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
             }}
           >
