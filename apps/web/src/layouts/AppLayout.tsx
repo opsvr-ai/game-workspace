@@ -728,7 +728,8 @@ const AppLayout: React.FC = () => {
           collapsed={collapsed}
           onCollapse={setCollapsed}
           trigger={null}
-          width={200}
+          width={160}
+          collapsedWidth={48}
           style={{
             background: '#FFFFFF',
             borderRight: '1px solid #E2E8F0',
