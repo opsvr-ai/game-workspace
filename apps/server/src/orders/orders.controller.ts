@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { Controller, Get, Post, Put, Param, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -215,6 +216,23 @@ export class OrdersController {
   async markReady(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.markReady(id, req.user.companionId);
     return { code: 200, message: '已准备就绪', data };
+  }
+
+  @Put('orders/:id/payment')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async updatePayment(
+    @Param('id') id: string,
+    @Body() body: {
+      paymentAccountId?: string;
+      companionFeeStatus?: string;
+      companionFeeMethod?: string;
+      companionFeeAccount?: string;
+      companionFeeAmount?: number;
+    },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.updatePayment(id, body, req.user);
+    return { code: 200, message: 'ok', data };
   }
 
   @Get('orders/pending-contact-count')

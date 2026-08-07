@@ -54,6 +54,7 @@ model Studio {
   expenseReports    ExpenseReport[]
   processBlacklists ProcessBlacklist[]
   processWhitelists ProcessWhitelist[]
+  paymentAccounts   StudioPaymentAccount[]
 }
 
 model Companion {
@@ -169,13 +170,21 @@ model Order {
   coAmount      Float?
   coCompanionId String?
 
-  studio       Studio        @relation(fields: [studioId], references: [id])
-  csUser       User          @relation("CSUser", fields: [csUserId], references: [id])
-  companion    Companion?    @relation(fields: [companionId], references: [id])
-  coCompanion  Companion?    @relation("CoCompanion", fields: [coCompanionId], references: [id])
-  customer     Customer      @relation(fields: [customerId], references: [id])
-  transactions Transaction[]
-  sessions     OrderSession[]
+  // Payment tracking
+  paymentAccountId    String?   // 客户付款进了哪个工作室账号
+  companionFeeStatus  String?   // PENDING | PAID — 陪玩费是否已转给陪玩
+  companionFeeMethod  String?   // WECHAT | ALIPAY — 陪玩费支付方式
+  companionFeeAccount String?   // 陪玩费转到哪个账号（自由文本）
+  companionFeeAmount  Float?    // 陪玩费金额
+
+  studio          Studio                @relation(fields: [studioId], references: [id])
+  csUser          User                  @relation("CSUser", fields: [csUserId], references: [id])
+  companion       Companion?            @relation(fields: [companionId], references: [id])
+  coCompanion     Companion?            @relation("CoCompanion", fields: [coCompanionId], references: [id])
+  customer        Customer              @relation(fields: [customerId], references: [id])
+  paymentAccount  StudioPaymentAccount? @relation(fields: [paymentAccountId], references: [id])
+  transactions    Transaction[]
+  sessions        OrderSession[]
 
   @@index([companionId])
   @@index([customerId])
@@ -672,4 +681,21 @@ model CompanionStatusBlacklist {
   companion   Companion @relation(fields: [companionId], references: [id])
   @@unique([companionId, status, processName])
   @@index([companionId, status])
+}
+
+// ── Payment Accounts ──
+
+model StudioPaymentAccount {
+  id            String   @id @default(uuid())
+  studioId      String
+  type          String   // WECHAT | ALIPAY
+  accountName   String   // 显示名，如"工作室A-微信1号"
+  accountNumber String   // 微信号/wxid/手机号/支付宝账号
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  studio  Studio  @relation(fields: [studioId], references: [id])
+  orders  Order[]
+
+  @@index([studioId])
 }

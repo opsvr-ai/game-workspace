@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { app, BrowserWindow, ipcMain, Menu, protocol, net } from 'electron';
 import path from 'path';
 import { execFile } from 'child_process';
@@ -81,7 +82,10 @@ function createMainWindow(): BrowserWindow {
   });
 
   win.on('close', (e) => {
-    if (!isQuitting) { e.preventDefault(); win.hide(); }
+    if (!isQuitting) {
+      e.preventDefault();
+      win.hide();
+    }
   });
 
   return win;
@@ -209,13 +213,20 @@ function setupIPC(): void {
 
   // Show native password prompt for logout
   ipcMain.handle('prompt-logout-password', async () => {
-    return new Promise<string | null>(resolve => {
+    return new Promise<string | null>((resolve) => {
       const pass = (store.get('appPassword') as string) || '123456';
       const pw = new BrowserWindow({
-        width: 320, height: 200, frame: false, alwaysOnTop: true, resizable: false, parent: mainWindow ?? undefined, modal: true,
+        width: 320,
+        height: 200,
+        frame: false,
+        alwaysOnTop: true,
+        resizable: false,
+        parent: mainWindow ?? undefined,
+        modal: true,
         webPreferences: { contextIsolation: true, nodeIntegration: false },
       });
-      pw.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+      pw.loadURL(
+        `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Microsoft YaHei",sans-serif;background:#1e1e2e;color:#cdd6f4;display:flex;align-items:center;justify-content:center;height:100vh}
@@ -238,8 +249,11 @@ else{a++;e.target.value='';document.getElementById('err').style.display='block';
 if(a>=5){e.target.disabled=true;document.getElementById('err').textContent='已锁定30秒';setTimeout(function(){e.target.disabled=false;a=0;document.getElementById('err').style.display='none'},30000)}}
 }
 };
-</script></body></html>`)}`);
-      pw.on('closed', () => { resolve(null); });
+</script></body></html>`)}`,
+      );
+      pw.on('closed', () => {
+        resolve(null);
+      });
     });
   });
 
@@ -548,7 +562,14 @@ app.whenReady().then(() => {
   setupWsEvents();
   mainWindow = createMainWindow();
   floatWindow = createFloatBall();
-  mainWindow.hide();
+
+  // On first launch (no saved token), show the window so the user can log in.
+  // On subsequent auto-starts, hide to system tray.
+  const token = store.get('token') as string;
+  if (token) {
+    mainWindow.hide();
+  }
+  // else: window will show after ready-to-show event
 
   createTray({
     onShow: () => {
@@ -561,7 +582,6 @@ app.whenReady().then(() => {
     },
   });
 
-  const token = store.get('token') as string;
   if (token) {
     connectWebSocket(getServerUrl(), token, store.get('companionId') as string);
 

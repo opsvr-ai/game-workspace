@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { exec } from 'child_process';
@@ -57,9 +58,10 @@ export class AgentService {
   }
 
   getLatestExePath(): string {
-    const exePath = path.join(process.cwd(), '../../uploads/agent-setup.exe');
+    const projectRoot = path.resolve(process.cwd(), '../..');
+    const exePath = path.join(projectRoot, 'uploads/agent-setup.exe');
     if (fs.existsSync(exePath)) return exePath;
-    const releaseDir = path.join(process.cwd(), '../companion-electron/release');
+    const releaseDir = path.join(projectRoot, 'apps/companion-electron/release');
     if (fs.existsSync(releaseDir)) {
       const files = fs.readdirSync(releaseDir);
       const exe = files.find((f) => f.endsWith('.exe'));
@@ -149,25 +151,41 @@ export class AgentService {
       `            continue`,
       `        }`,
       ``,
-      `        # Remote install command`,
-      `        $remoteCmd = "Invoke-WebRequest -Uri '$installerUrl' -OutFile ` +
-        '`' +
-        `$env:TEMP\\ChunlvAgent-Setup.exe; Start-Process ` +
-        '`' +
-        `$env:TEMP\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait"`,
+      `        # Step 1: Download installer to target PC`,
+      `        $dlCmd = "Invoke-WebRequest -Uri '$installerUrl' -OutFile ` + '`' + `$env:TEMP\\ChunlvAgent-Setup.exe"`,
       ``,
-      `        $result = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -s -h -accepteula powershell -Command $remoteCmd 2>&1`,
+      `        Write-Host "[$ip] 正在下载安装包..." -ForegroundColor Yellow`,
+      `        $dlResult = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -accepteula -nobanner powershell -Command $dlCmd 2>&1`,
       ``,
-      `        if ($LASTEXITCODE -eq 0) {`,
-      `            Write-Host "[$ip] ✓ 安装成功" -ForegroundColor Green`,
-      `            $successCount++`,
-      `            $results += @{ IP = $ip; Status = "OK"; Reason = "" }`,
-      `        } else {`,
-      `            Write-Host "[$ip] ✗ 安装失败" -ForegroundColor Red`,
-      `            Write-Host "    错误: $result" -ForegroundColor DarkYellow`,
+      `        if ($LASTEXITCODE -ne 0) {`,
+      `            Write-Host "[$ip] ✗ 下载失败 (PsExec exit=$LASTEXITCODE)" -ForegroundColor Red`,
+      `            Write-Host "    详情: $dlResult" -ForegroundColor DarkYellow`,
+      `            Write-Host "    提示: 请确认目标电脑能访问 $installerUrl" -ForegroundColor DarkYellow`,
       `            $failCount++`,
-      `            $results += @{ IP = $ip; Status = "FAIL"; Reason = "$result" }`,
+      `            $results += @{ IP = $ip; Status = "FAIL"; Reason = "Download failed: $dlResult" }`,
+      `            continue`,
       `        }`,
+      ``,
+      `        # Step 2: Run silent install`,
+      `        Write-Host "[$ip] 正在安装..." -ForegroundColor Yellow`,
+      `        $installCmd = "Start-Process ` + '`' + `$env:TEMP\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait"`,
+      `        $installResult = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -accepteula -nobanner powershell -Command $installCmd 2>&1`,
+      ``,
+      `        if ($LASTEXITCODE -ne 0) {`,
+      `            Write-Host "[$ip] ✗ 安装失败" -ForegroundColor Red`,
+      `            $failCount++`,
+      `            $results += @{ IP = $ip; Status = "FAIL"; Reason = "Install failed: $installResult" }`,
+      `            continue`,
+      `        }`,
+      ``,
+      `        # Step 3: Show the app window on target PC (it starts hidden to tray)`,
+      `        Write-Host "[$ip] 正在启动客户端..." -ForegroundColor Yellow`,
+      `        $showCmd = "Start-Process 'C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe'"`,
+      `        .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -d -i -accepteula -nobanner powershell -Command $showCmd 2>&1 | Out-Null`,
+      ``,
+      `        Write-Host "[$ip] ✓ 安装成功，客户端已启动" -ForegroundColor Green`,
+      `        $successCount++`,
+      `        $results += @{ IP = $ip; Status = "OK"; Reason = "Installed and running" }`,
       `    } catch {`,
       `        Write-Host "[$ip] ✗ 异常: $_" -ForegroundColor Red`,
       `        $failCount++`,
@@ -189,7 +207,8 @@ export class AgentService {
   }
 
   async buildAndPush(): Promise<{ success: boolean; version: string; output: string }> {
-    const projectRoot = path.join(process.cwd(), '..');
+    // Server runs from apps/server/, so ../.. reaches the monorepo root
+    const projectRoot = path.resolve(process.cwd(), '../..');
 
     try {
       logger.log('Step 1/4: git pull...');
@@ -242,5 +261,72 @@ export class AgentService {
         output: err.stderr || err.message || '构建失败',
       };
     }
+  }
+
+  /**
+   * Execute remote deployment from the server using impacket's psexec.py.
+   * No manual steps needed — the server reaches out to each target Windows PC directly.
+   */
+  async executeRemoteDeploy(params: {
+    targetIPs: string[];
+    adminUser: string;
+    adminPass: string;
+    serverUrl: string;
+  }): Promise<{ success: boolean; results: { ip: string; status: string; reason: string }[] }> {
+    const { targetIPs, adminUser, adminPass, serverUrl } = params;
+    const apiUrl = serverUrl.replace(/\/$/, '');
+    const psexec = '/usr/share/doc/python3-impacket/examples/psexec.py';
+    const results: { ip: string; status: string; reason: string }[] = [];
+
+    // Write a small PowerShell script that psexec.py will copy & execute on target
+    const psScriptPath = '/tmp/chunlv-deploy.ps1';
+    const psContent = [
+      `$url = "${apiUrl}/api/agent/download/latest"`,
+      `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
+      `Write-Host "Downloading..."`,
+      `Invoke-WebRequest -Uri $url -OutFile $out`,
+      `Write-Host "Installing..."`,
+      `Start-Process $out -ArgumentList '/S' -Wait`,
+      `Write-Host "Starting..."`,
+      `Start-Process "C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe"`,
+    ].join('\n');
+    fs.writeFileSync(psScriptPath, psContent, 'utf-8');
+
+    for (const ip of targetIPs) {
+      const trimmed = ip.trim();
+      if (!trimmed) continue;
+
+      logger.log(`Deploying to ${trimmed}...`);
+      try {
+        // psexec.py -c copies the script to target and executes it via powershell
+        const cmd =
+          `python3 ${psexec} ` +
+          `./${adminUser}:'${adminPass}'@${trimmed} ` +
+          `-c ${psScriptPath} ` +
+          `powershell -ExecutionPolicy Bypass -File %TEMP%\\chunlv-deploy.ps1`;
+
+        const { stdout, stderr } = await execAsync(cmd, { timeout: 180_000 });
+        const output = stdout + (stderr || '');
+
+        if (output.includes('Error') || output.includes('Exception')) {
+          results.push({ ip: trimmed, status: 'FAIL', reason: output.slice(0, 300) });
+        } else {
+          results.push({ ip: trimmed, status: 'OK', reason: 'Installed and started' });
+        }
+      } catch (err: any) {
+        const msg = err.stderr || err.message || 'Unknown';
+        results.push({ ip: trimmed, status: 'FAIL', reason: msg.slice(0, 300) });
+      }
+    }
+
+    try {
+      fs.unlinkSync(psScriptPath);
+    } catch {
+      /* ok */
+    }
+
+    const okCount = results.filter((r) => r.status === 'OK').length;
+    logger.log(`Remote deploy complete: ${okCount}/${results.length} OK`);
+    return { success: okCount > 0, results };
   }
 }

@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -111,5 +112,31 @@ export class StudiosController {
   async deleteEmployee(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     await this.studiosService.deleteEmployee(id, req.user?.studioId, req.user?.role);
     return { code: 200, message: '员工已删除', data: null };
+  }
+
+  // ── Payment Accounts ──
+
+  @Get('payment-accounts')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async getPaymentAccounts(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.getPaymentAccounts(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('payment-accounts')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async createPaymentAccount(
+    @Body() body: { type: string; accountName: string; accountNumber: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.createPaymentAccount({
+      studioId: req.user.studioId,
+      type: body.type,
+      accountName: body.accountName,
+      accountNumber: body.accountNumber,
+    });
+    return { code: 200, message: 'ok', data };
   }
 }

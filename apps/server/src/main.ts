@@ -21,7 +21,9 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  const corsOriginEnv = process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173';
+  const corsOriginEnv =
+    process.env.CORS_ORIGINS ||
+    'http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173';
   app.enableCors({
     origin: corsOriginEnv.split(','),
     credentials: true,
@@ -45,7 +47,9 @@ async function bootstrap() {
     prefix: '/uploads',
   });
 
-  await app.listen(3001);
+  const server = await app.listen(3001);
+  // Build requests can take minutes (electron-builder on Wine)
+  server.setTimeout(600_000);
   logger.info('Server started', { port: 3001 });
   console.log('Server running on http://localhost:3001');
 }

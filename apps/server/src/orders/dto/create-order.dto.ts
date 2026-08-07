@@ -32,4 +32,7 @@ export class CreateOrderDto {
 
   // Urgency
   @IsOptional() @IsString() urgency?: string;
+
+  // Payment tracking
+  @IsOptional() @IsString() paymentAccountId?: string;
 }

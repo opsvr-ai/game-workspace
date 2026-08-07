@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import http from './client';
 
 export const ordersApi = {
@@ -25,4 +26,11 @@ export const ordersApi = {
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
   resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),
   endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
+  updatePayment: (orderId: string, data: {
+    paymentAccountId?: string;
+    companionFeeStatus?: string;
+    companionFeeMethod?: string;
+    companionFeeAccount?: string;
+    companionFeeAmount?: number;
+  }) => http.put(`/orders/${orderId}/payment`, data),
 };

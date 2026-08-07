@@ -72,7 +72,8 @@ bash:
     - mkfs
     - dd if=
 filesystem:
-  readOnlyPaths: []
+  readOnlyPaths:
+    - .env
   deniedPaths:
     - /etc/passwd
     - /etc/shadow

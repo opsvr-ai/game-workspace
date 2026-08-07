@@ -1,36 +1,39 @@
-## Structure
-
 ```
 game-workspace/
 ├── apps/
-│   ├── server/              # Nest.js 后端 (端口 3001)
-│   │   ├── prisma/          # Schema + 种子数据
+│   ├── server/                    # Nest.js API (port 3001)
+│   │   ├── src/
+│   │   │   ├── agent/             # Electron agent management + remote deploy
+│   │   │   ├── auth/              # JWT auth (login, refresh, RolesGuard)
+│   │   │   ├── chat/              # Chat 3.0 (ChatRoom, ChatMessageV3, reactions)
+│   │   │   ├── companions/        # Companion CRUD + status + wallet
+│   │   │   ├── customers/         # Customer CRUD + profile + follow-ups
+│   │   │   ├── orders/            # Order lifecycle (create→grab→confirm→complete)
+│   │   │   ├── revenue/           # Revenue stats + daily aggregation
+│   │   │   ├── studios/           # Studio CRUD + bridge + payment accounts
+│   │   │   ├── transactions/      # Billing review (approve/reject)
+│   │   │   ├── blacklist/         # Process blacklist/whitelist management
+│   │   │   ├── websocket/         # Socket.IO gateway (JWT auth, studio rooms)
+│   │   │   └── app.module.ts      # Root module (imports all feature modules)
+│   │   └── prisma/
+│   │       └── schema.prisma      # 30+ models, PostgreSQL provider
+│   ├── web/                       # React SPA (port 5173 dev / 8000 prod)
 │   │   └── src/
-│   │       ├── auth/        # JWT 认证 + 角色守卫
-│   │       ├── studios/     # 工作室管理
-│   │       ├── companions/  # 陪玩师管理
-│   │       ├── customers/   # 客户管理
-│   │       ├── orders/      # 订单管理
-│   │       ├── billing/     # 账单管理
-│   │       ├── dashboard/   # 仪表盘
-│   │       ├── ws/          # WebSocket 实时通信
-│   │       ├── agent/       # 陪玩端 PC 代理
-│   │       ├── ai/          # AI 功能模块
-│   │       ├── health/      # 健康检查
-│   │       ├── process-blacklist/  # 进程黑名单管理
-│   │       └── prisma/      # Prisma 服务
-│   ├── web/                 # React 前端 (端口 5173/8000)
-│   │   └── src/
-│   │       ├── pages/       # 按角色分 admin/owner/cs/companion
-│   │       ├── components/  # 共享 UI 组件
-│   │       ├── stores/      # Zustand 状态管理
-│   │       ├── hooks/       # 自定义 hooks
-│   │       └── api/         # API 请求封装
-│   └── companion-electron/  # Electron 陪玩端桌面应用
+│   │       ├── api/               # Axios API clients (agent, orders, studios, chat)
+│   │       ├── pages/             # Route pages (admin/, cs/, owner/, login)
+│   │       ├── layouts/           # AppLayout (sider + header + content)
+│   │       ├── stores/            # Zustand stores (chat, auth)
+│   │       └── router.tsx         # 14 routes with role-based access
+│   └── companion-electron/        # Electron desktop agent
+│       └── electron/
+│           └── main.ts            # WebSocket client, process monitor, local WebUI
 ├── packages/
-│   └── shared/              # 共享 TypeScript 类型/enum
-├── docker/                  # Docker Compose (PG + Redis)
-└── docs/                    # 文档 (ARCHITECTURE/DEPLOYMENT/USER_MANUAL)
+│   └── shared/                    # Shared TypeScript types + enums
+│       └── src/enums.ts           # UserRole, OrderStatus, DispatchType, etc.
+├── docker/
+│   └── docker-compose.yaml        # PostgreSQL 16 + Redis 7
+└── docs/
+    ├── ARCHITECTURE.md            # Mermaid diagrams (system, ER, workflows, deploy)
+    ├── DEPLOYMENT.md              # Deployment guide
+    └── USER_MANUAL.md             # User manual
 ```
-
-**入口:** server main.ts | web main.tsx | shared index.ts

@@ -68,6 +68,7 @@ const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage')
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const AgentVersionPage = lazy(() => import('./pages/admin/AgentVersionPage'));
+const StatsPage = lazy(() => import('./pages/StatsPage'));
 const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
 const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
 const WhitelistPage = lazy(() => import('./pages/admin/WhitelistPage'));
@@ -192,6 +193,14 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      {
+        path: 'stats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StatsPage />
+          </Suspense>
+        ),
+      },
     ],
   },
   {
@@ -268,6 +277,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <WorkWechatPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/stats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StatsPage />
           </Suspense>
         ),
       },
@@ -432,6 +449,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/stats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StatsPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'cs/billing',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -484,6 +509,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <WorkWechatPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/stats',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StatsPage />
           </Suspense>
         ),
       },

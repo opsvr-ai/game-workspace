@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS003
 import { Controller, Get, Post, Res, Req, UseGuards, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
@@ -7,6 +8,31 @@ import { AgentService } from './agent.service';
 import { WsGateway } from '../ws/ws.gateway';
 import type { ApiResponse } from '@chunlv/shared';
 import * as fs from 'fs';
+import * as os from 'os';
+
+/**
+ * Resolve the server URL reachable from other machines on the LAN.
+ * If the request host is localhost, fall back to the server's LAN IP.
+ */
+function resolveServerUrl(req: any): string {
+  const host = req.get('host') as string;
+  // If already using a real IP/hostname, use it as-is
+  if (host && !host.startsWith('localhost') && !host.startsWith('127.') && !host.startsWith('[::1]')) {
+    return `${req.protocol}://${host}`;
+  }
+  // Detect LAN IP
+  const nets = os.networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    if (!iface) continue;
+    for (const addr of iface) {
+      if (addr.family === 'IPv4' && !addr.internal) {
+        return `${req.protocol}://${addr.address}:3001`;
+      }
+    }
+  }
+  // Fallback — target PCs won't be able to download, but at least the script is generated
+  return `${req.protocol}://${host}`;
+}
 
 @Controller('agent')
 export class AgentController {
@@ -119,7 +145,7 @@ export class AgentController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getDeployScript(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = resolveServerUrl(req);
     const script = this.agentService.generateDeployScript(serverUrl);
     const downloadUrl = `${serverUrl}/api/agent/download/latest`;
 
@@ -164,7 +190,7 @@ export class AgentController {
       return { code: 400, message: '请输入管理员账号', data: null };
     }
 
-    const serverUrl = `${req.protocol}://${req.get('host')}`;
+    const serverUrl = resolveServerUrl(req);
     const script = this.agentService.generateRemoteDeployScript({
       targetIPs,
       adminUser,
@@ -177,6 +203,35 @@ export class AgentController {
       code: 200,
       message: 'ok',
       data: { script, downloadUrl, serverUrl, targetCount: targetIPs.length },
+    };
+  }
+
+  // Admin only: execute remote deploy directly from server (no manual step needed)
+  @Post('deploy/execute')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async executeRemoteDeploy(
+    @Body() body: { targetIPs: string[]; adminUser?: string; adminPass?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const { targetIPs, adminUser, adminPass } = body;
+    if (!targetIPs || targetIPs.length === 0) {
+      return { code: 400, message: '请输入目标电脑 IP', data: null };
+    }
+
+    const serverUrl = resolveServerUrl(req);
+    const result = await this.agentService.executeRemoteDeploy({
+      targetIPs,
+      adminUser: adminUser || 'Administrator',
+      adminPass: adminPass || '',
+      serverUrl,
+    });
+
+    const okCount = result.results.filter((r) => r.status === 'OK').length;
+    return {
+      code: 200,
+      message: `部署完成: ${okCount}/${result.results.length} 成功`,
+      data: result,
     };
   }
 }

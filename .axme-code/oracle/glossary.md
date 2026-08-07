@@ -1,18 +1,24 @@
-## Glossary
+## 业务术语
+| 术语 | 英文 | 说明 |
+|------|------|------|
+| 工作室 | Studio | 顶级组织单元，包含陪玩、客户、订单 |
+| 陪玩 | Companion | 提供游戏陪玩服务的人员 |
+| 客服 | CS (Customer Service) | 创建订单、管理客户的运营人员 |
+| 老板 | Owner | 系统所有者，查看盈亏统计 |
+| 管理员 | Admin | 管理陪玩、审核报账、远程控制 |
+| 订单 | Order | 一次陪玩服务记录，含类型(NEW/RENEW/REPURCHASE/TIP) |
+| 派单 | Dispatch | 将订单分配给陪玩，分为抢单池(POOL)和指定(DIRECT) |
+| 报账 | Transaction | 陪玩完成订单后上报的收费记录，需管理员审核 |
+| 桥接 | Bridge | 两个工作室之间的合作关系，共享订单/客户/资源 |
+| 支取 | Withdraw | 陪玩从钱包余额中申请提现 |
+| 结算 | Settlement | 月底按阶梯分成结算陪玩收入 |
+| 进程黑名单 | Process Blacklist | 陪玩电脑上禁止运行的进程列表 |
+| 客户画像 | Customer Profile | 19 字段的客户特征描述，含 AI 分析 |
 
+## 技术术语
 | 术语 | 说明 |
 |------|------|
-| **Studio (工作室)** | 业务组织单元，类型 DIRECT(直营)/RENTAL(租赁)，所有数据按 studio 隔离 |
-| **Companion (陪玩师)** | 提供游戏陪玩服务的员工，有时钟记录、考勤、收益分成等子模块 |
-| **CS (客服)** | Customer Service，负责派单、跟进客户、处理订单的运营角色 |
-| **OWNER** | 最高权限角色，管理工作室、员工授权、系统配置 |
-| **ADMIN** | 工作室管理员，管理日常运营、审核陪玩师和账单 |
-| **Order (订单)** | 派单系统核心，类型 NEW/RENEW/REPURCHASE/TIP，派单方式 POOL(抢单池)/DIRECT(指定) |
-| **Dispatch (派单)** | 将订单分配给陪玩师的流程，支持抢单池和直接派单两种模式 |
-| **Billing (账单)** | 陪玩师收支管理，包括收益、提现、冻结等钱包操作 |
-| **PC Agent (陪玩端)** | Electron 桌面应用，在陪玩师电脑上运行，监控进程并定时上报心跳 |
-| **Process Blacklist (进程黑名单)** | 工作室级别的禁止运行程序列表，检测到自动强杀 |
-| **Traffic (流量池)** | 订单池概念，客服可从订单池中选取订单派发给陪玩师 |
-| **Entertainment Mode** | 陪玩师娱乐模式（非工作状态），PC Agent 默认模式 |
-| **Customer Profile** | 客户画像，包含游戏偏好、消费习惯、社交属性等市场营销信息 |
-| **Work Wechat (工作微信)** | 工作室绑定的企业微信号，可分配给陪玩师使用 |
+| broadcastToStudio | WebSocket 向工作室所有成员广播事件 |
+| RolesGuard | Nest.js 路由级角色权限守卫 |
+| secondPassword | 二级密码，用于敏感操作（如查看盈亏）|
+| dual-token | JWT accessToken + refreshToken 双 Token 认证模式 |

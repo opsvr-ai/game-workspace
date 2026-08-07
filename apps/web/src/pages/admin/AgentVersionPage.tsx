@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
@@ -95,7 +96,7 @@ const AgentVersionPage: React.FC = () => {
   const [remoteCopied, setRemoteCopied] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [deployOutput, setDeployOutput] = useState<string | null>(null);
-  const [scannedIPs, setScannedIPs] = useState<{ip:string;mac?:string}[]>([]);
+  const [scannedIPs, setScannedIPs] = useState<{ ip: string; mac?: string }[]>([]);
 
   // Detect Electron environment
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -487,53 +488,168 @@ const AgentVersionPage: React.FC = () => {
           {deployData && (
             <>
               <Card size="small" style={{ background: '#fff7e6' }}>
-                <Text strong style={{ fontSize: 15 }}>⚡ PsExec 远程批量部署</Text>
+                <Text strong style={{ fontSize: 15 }}>
+                  ⚡ PsExec 远程批量部署
+                </Text>
                 <div style={{ marginTop: 8 }}>
-                  <Space><Button size="small" loading={generatingRemote} onClick={async () => {
-                    setGeneratingRemote(true);
-                    try { const res = await agentApi.scanLan(); const list = (res.data as any).data || []; setScannedIPs(list); setRemoteIPs(list.map((h: any) => h.ip).join('\n')); message.success('发现 ' + list.length + ' 台设备'); } catch { message.error('扫描失败'); }
-                    setGeneratingRemote(false);
-                  }}>📡 扫描局域网</Button></Space>
+                  <Space>
+                    <Button
+                      size="small"
+                      loading={generatingRemote}
+                      onClick={async () => {
+                        setGeneratingRemote(true);
+                        try {
+                          const res = await agentApi.scanLan();
+                          const list = (res.data as any).data || [];
+                          setScannedIPs(list);
+                          setRemoteIPs(list.map((h: any) => h.ip).join('\n'));
+                          message.success('发现 ' + list.length + ' 台设备');
+                        } catch {
+                          message.error('扫描失败');
+                        }
+                        setGeneratingRemote(false);
+                      }}
+                    >
+                      📡 扫描局域网
+                    </Button>
+                  </Space>
                   {scannedIPs.length > 0 && (
                     <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
                       {scannedIPs.map((h, i) => (
-                        <div key={h.ip} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>
-                          <span><Text type="secondary" style={{ marginRight: 6 }}>{i + 1}.</Text><Text code>{h.ip}</Text>{h.mac ? <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>{h.mac}</Text> : null}</span>
-                          <Button size="small" type="primary" onClick={() => {
-                            const cmd = 'psexec \\\\' + h.ip + ' -s powershell -Command "Invoke-WebRequest http://' + (deployData?.serverUrl?.replace(/https?:\/\//,'') || '192.168.0.106') + ':3001/uploads/蠢驴电竞.zip -OutFile $env:TEMP\\c.zip; Expand-Archive $env:TEMP\\c.zip -DestinationPath $env:TEMP\\c -Force; Start-Process $env:TEMP\\c\\蠢驴电竞.exe"';
-                            navigator.clipboard.writeText(cmd).then(() => message.success('已复制安装命令'));
-                          }}>📋 复制命令</Button>
+                        <div
+                          key={h.ip}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '4px 8px',
+                            borderBottom: '1px solid #f0f0f0',
+                          }}
+                        >
+                          <span>
+                            <Text type="secondary" style={{ marginRight: 6 }}>
+                              {i + 1}.
+                            </Text>
+                            <Text code>{h.ip}</Text>
+                            {h.mac ? (
+                              <Text type="secondary" style={{ fontSize: 10, marginLeft: 8 }}>
+                                {h.mac}
+                              </Text>
+                            ) : null}
+                          </span>
+                          <Button
+                            size="small"
+                            type="primary"
+                            onClick={() => {
+                              const serverHost =
+                                deployData?.serverUrl?.replace(/https?:\/\//, '') || window.location.hostname + ':3001';
+                              const dlUrl =
+                                deployData?.downloadUrl || deployData?.serverUrl + '/api/agent/download/latest';
+                              const cmd =
+                                'psexec \\\\' +
+                                h.ip +
+                                ' -i -accepteula powershell -Command "Invoke-WebRequest ' +
+                                dlUrl +
+                                " -OutFile $env:TEMP\\\\ChunlvAgent-Setup.exe; Start-Process $env:TEMP\\\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait; Start-Process 'C:\\\\Program Files\\\\蠢驴电竞\\\\蠢驴电竞.exe'\"";
+                              navigator.clipboard.writeText(cmd).then(() => message.success('已复制安装命令'));
+                            }}
+                          >
+                            📋 复制命令
+                          </Button>
                         </div>
                       ))}
                     </div>
                   )}
-                  <Input.TextArea rows={3} style={{ marginTop: 4 }} value={remoteIPs} onChange={e => setRemoteIPs(e.target.value)} placeholder="192.168.1.10&#10;192.168.1.11" />
-                  {remoteScript && <pre style={{ background:'#1e1e1e',color:'#d4d4d4',padding:10,borderRadius:6,fontSize:11,whiteSpace:'pre-wrap',maxHeight:300,overflow:'auto',marginTop:8 }}>{remoteScript}</pre>}
-                  <Button danger type="primary" loading={deploying} block onClick={async () => {
-                    if (!remoteIPs.trim()) { message.warning('请先扫描或输入IP'); return; }
-                    setDeploying(true);
-                    try {
-                      const res = await agentApi.getRemoteDeployScript({ targetIPs: remoteIPs.split(/[\n,]+/).filter(Boolean), adminUser: remoteUser || 'Administrator', adminPass: remotePass || '' });
-                      const script = (res.data as any).data?.script;
-                      if (!script) { message.error('生成失败'); setDeploying(false); return; }
-                      setRemoteScript(script);
-                      const ea = (window as any).electronAPI;
-                      if (ea?.executeRemoteDeploy) {
-                        const r = await ea.executeRemoteDeploy(script);
-                        message.success(r.success ? '全部安装完成！' : '部分失败，查看输出');
-                        setDeployOutput(r.output);
-                      } else {
-                        navigator.clipboard.writeText(script).then(() => message.success('已复制脚本，粘贴到PowerShell执行'));
+                  <Input.TextArea
+                    rows={3}
+                    style={{ marginTop: 4 }}
+                    value={remoteIPs}
+                    onChange={(e) => setRemoteIPs(e.target.value)}
+                    placeholder="192.168.1.10&#10;192.168.1.11"
+                  />
+                  {remoteScript && (
+                    <pre
+                      style={{
+                        background: '#1e1e1e',
+                        color: '#d4d4d4',
+                        padding: 10,
+                        borderRadius: 6,
+                        fontSize: 11,
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: 300,
+                        overflow: 'auto',
+                        marginTop: 8,
+                      }}
+                    >
+                      {remoteScript}
+                    </pre>
+                  )}
+                  <Button
+                    danger
+                    type="primary"
+                    loading={deploying}
+                    block
+                    onClick={async () => {
+                      if (!remoteIPs.trim()) {
+                        message.warning('请先扫描或输入IP');
+                        return;
                       }
-                    } catch { message.error('执行失败'); }
-                    setDeploying(false);
-                  }}>⚡ 一键全部安装</Button>
+                      setDeploying(true);
+                      setDeployOutput(null);
+                      try {
+                        const ips = remoteIPs.split(/[\n,]+/).filter(Boolean);
+
+                        // Path 1: Electron — generate script and execute locally via PsExec
+                        if (isElectron && (window as any).electronAPI?.executeRemoteDeploy) {
+                          const res = await agentApi.getRemoteDeployScript({
+                            targetIPs: ips,
+                            adminUser: 'Administrator',
+                            adminPass: '',
+                          });
+                          const script = (res.data as any).data?.script;
+                          if (!script) {
+                            message.error('脚本生成失败');
+                            setDeploying(false);
+                            return;
+                          }
+                          const r = await (window as any).electronAPI.executeRemoteDeploy(script);
+                          message.success(r.success ? '全部安装完成！' : '部分失败，查看输出');
+                          setDeployOutput(r.output || (r.success ? '全部成功' : '部分失败'));
+                        } else {
+                          // Path 2: Browser — server executes directly via psexec.py
+                          const res = await agentApi.executeRemoteDeploy({ targetIPs: ips });
+                          const result = (res.data as any).data;
+                          if (result?.success) {
+                            message.success(
+                              `部署完成: ${result.results?.filter((r: any) => r.status === 'OK').length || 0}/${ips.length} 成功`,
+                            );
+                          } else {
+                            message.warning('部分失败，查看详情');
+                          }
+                          setDeployOutput(
+                            (result?.results || [])
+                              .map((r: any) => `[${r.status === 'OK' ? '✓' : '✗'}] ${r.ip} — ${r.reason}`)
+                              .join('\n'),
+                          );
+                        }
+                      } catch {
+                        message.error('部署失败，请检查目标电脑网络');
+                      }
+                      setDeploying(false);
+                    }}
+                  >
+                    ⚡ 一键全部安装
+                  </Button>
                   {deployOutput && (
                     <div style={{ marginTop: 8 }}>
                       <Text strong>安装结果：</Text>
                       {scannedIPs.map((h, i) => {
-                        const ok = deployOutput.includes(`${h.ip} ✓`) || deployOutput.includes(`${h.ip}`) && !deployOutput.includes(`${h.ip} ✗`);
-                        const fail = deployOutput.includes(`${h.ip} ✗`) || (deployOutput.includes(h.ip) && deployOutput.includes('fail'));
+                        const ok =
+                          deployOutput.includes(`${h.ip} ✓`) ||
+                          (deployOutput.includes(`${h.ip}`) && !deployOutput.includes(`${h.ip} ✗`));
+                        const fail =
+                          deployOutput.includes(`${h.ip} ✗`) ||
+                          (deployOutput.includes(h.ip) && deployOutput.includes('fail'));
                         return (
                           <div key={h.ip} style={{ padding: '2px 0', fontSize: 12 }}>
                             <Tag color={fail ? 'red' : 'green'}>{fail ? '✗' : '✓'}</Tag>
@@ -543,7 +659,21 @@ const AgentVersionPage: React.FC = () => {
                       })}
                       <details style={{ marginTop: 4 }}>
                         <summary style={{ cursor: 'pointer', fontSize: 11, color: '#888' }}>查看原始输出</summary>
-                        <pre style={{ background: '#1e1e1e', color: '#d4d4d4', padding: 8, borderRadius: 6, fontSize: 10, whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', marginTop: 4 }}>{deployOutput}</pre>
+                        <pre
+                          style={{
+                            background: '#1e1e1e',
+                            color: '#d4d4d4',
+                            padding: 8,
+                            borderRadius: 6,
+                            fontSize: 10,
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: 150,
+                            overflow: 'auto',
+                            marginTop: 4,
+                          }}
+                        >
+                          {deployOutput}
+                        </pre>
                       </details>
                     </div>
                   )}

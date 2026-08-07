@@ -15,6 +15,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AiModule } from './ai/ai.module';
 import { ProcessBlacklistModule } from './process-blacklist/process-blacklist.module';
 import { AgentModule } from './agent/agent.module';
+import { StatsModule } from './stats/stats.module';
 import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
@@ -56,6 +57,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     AgentModule,
     ProcessBlacklistModule,
     ChatModule,
+    StatsModule,
   ],
   providers: [
     {

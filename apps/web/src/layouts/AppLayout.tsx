@@ -134,6 +134,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/owner/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
+    { key: '/owner/stats', icon: IconDashboard, label: '每日统计' },
     {
       key: 'owner-settings',
       icon: IconAuth,
@@ -168,6 +169,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/admin/attendance', icon: IconClock, label: '考勤管理' },
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
+    { key: '/admin/stats', icon: IconDashboard, label: '每日统计' },
     {
       key: 'admin-settings',
       icon: IconAuth,
@@ -189,6 +191,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/cs/orders', icon: IconOrders, label: '订单管理' },
     { key: '/cs/employees', icon: IconEmployees, label: '陪玩管理' },
     { key: '/cs/billing', icon: IconBilling, label: '报账系统' },
+    { key: '/cs/stats', icon: IconDashboard, label: '每日统计' },
     {
       key: 'cs-settings',
       icon: IconAuth,
@@ -210,6 +213,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/companion/orders', icon: IconOrders, label: '订单管理' },
     { key: '/companion/customers', icon: IconCustomers, label: '客户管理' },
     { key: '/companion/billing', icon: IconBilling, label: '报账系统' },
+    { key: '/companion/stats', icon: IconDashboard, label: '每日统计' },
   ],
 };
 

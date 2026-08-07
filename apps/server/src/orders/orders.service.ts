@@ -114,6 +114,7 @@ export class OrdersService {
           isCompensation: (dto as any).isCompensation === true ? true : undefined,
         },
         isOnline: dto.isOnline ?? true,
+        paymentAccountId: (dto as any).paymentAccountId || null,
       },
       include: { customer: true },
     });
@@ -600,5 +601,29 @@ export class OrdersService {
       data.totalPausedSec = (s.totalPausedSec || 0) + sec;
     }
     return this.prisma.orderSession.update({ where: { id }, data });
+  }
+
+  async updatePayment(
+    orderId: string,
+    dto: {
+      paymentAccountId?: string;
+      companionFeeStatus?: string;
+      companionFeeMethod?: string;
+      companionFeeAccount?: string;
+      companionFeeAmount?: number;
+    },
+    user: any,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new Error('订单不存在');
+    if (user.role === 'CS' && order.csUserId !== user.id) throw new Error('只能更新自己的订单');
+
+    const data: any = {};
+    if (dto.paymentAccountId !== undefined) data.paymentAccountId = dto.paymentAccountId || null;
+    if (dto.companionFeeStatus !== undefined) data.companionFeeStatus = dto.companionFeeStatus;
+    if (dto.companionFeeMethod !== undefined) data.companionFeeMethod = dto.companionFeeMethod;
+    if (dto.companionFeeAccount !== undefined) data.companionFeeAccount = dto.companionFeeAccount;
+    if (dto.companionFeeAmount !== undefined) data.companionFeeAmount = dto.companionFeeAmount;
+    return this.prisma.order.update({ where: { id: orderId }, data });
   }
 }

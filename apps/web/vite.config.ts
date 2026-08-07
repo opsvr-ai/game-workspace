@@ -13,6 +13,7 @@ export default defineConfig({
       '/api': {
         target: API_URL,
         changeOrigin: true,
+        timeout: 600000,
       },
       '/socket.io': {
         target: API_URL,
