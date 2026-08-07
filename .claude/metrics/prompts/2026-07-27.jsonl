@@ -1,4 +1,0 @@
-{"ts":"2026-07-27T15:22:33.832Z","prompt":"你好","words":1,"chars":2,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2412494"}
-{"ts":"2026-07-27T15:24:20.218Z","prompt":"提交推送代码至代码库。后续完成功能开发、缺陷修复自动出发代码提交推送","words":1,"chars":34,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2418302"}
-{"ts":"2026-07-27T15:41:58.601Z","prompt":"允许 axme_update_safety 添加 git push 到 bash_allow","words":7,"chars":46,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2443579"}
-{"ts":"2026-07-27T23:06:30.257Z","prompt":"npm install -g qmdnpm install -g qmd已执行","words":7,"chars":39,"intent":"chat","complexity":[],"commands":[],"agent":null,"phase":null,"project":null,"framework":null,"sessionId":"2650852"}

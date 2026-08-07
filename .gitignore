@@ -56,3 +56,21 @@ apps/agent/agent
 
 # AI assistant artifacts
 context-snapshot.json
+firebase-debug.log
+
+# Claude Code
+.claude/cache/
+.claude/metrics/
+.claude/logs/
+
+# AXME Code
+.axme-code/sessions/
+.axme-code/audit-logs/
+.axme-code/active-sessions/
+.axme-code/worklog.jsonl
+
+# Aura
+.aura/
+
+# Nested AI artifacts
+apps/server/.claude/
