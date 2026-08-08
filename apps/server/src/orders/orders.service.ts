@@ -149,14 +149,20 @@ export class OrdersService {
 
     // Auto-create first session when order is created
     if (newOrder.companionId) {
-      await this.prisma.orderSession.create({
-        data: {
-          parentOrderId: newOrder.id, seq: 1,
-          companionId: newOrder.companionId, coCompanionId: newOrder.coCompanionId,
-          amount: newOrder.amount, coAmount: (newOrder as any).coAmount ?? null,
-          duration: newOrder.duration || 1, status: 'ACTIVE',
-        },
-      }).catch(() => {});
+      await this.prisma.orderSession
+        .create({
+          data: {
+            parentOrderId: newOrder.id,
+            seq: 1,
+            companionId: newOrder.companionId,
+            coCompanionId: newOrder.coCompanionId,
+            amount: newOrder.amount,
+            coAmount: (newOrder as any).coAmount ?? null,
+            duration: newOrder.duration || 1,
+            status: 'ACTIVE',
+          },
+        })
+        .catch(() => {});
     }
 
     if (studioId && newOrder.dispatchType === 'POOL') {
@@ -410,7 +416,10 @@ export class OrdersService {
   }
 
   async markReady(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true, customFields: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { companionId: true, customFields: true },
+    });
     if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
     const existingFields = (order.customFields as Record<string, unknown>) || {};
     const updated = await this.prisma.order.update({
@@ -549,9 +558,16 @@ export class OrdersService {
     });
   }
 
-  async addSession(orderId: string, dto: {
-    companionId: string; coCompanionId?: string; amount: number; coAmount?: number; duration?: number;
-  }) {
+  async addSession(
+    orderId: string,
+    dto: {
+      companionId: string;
+      coCompanionId?: string;
+      amount: number;
+      coAmount?: number;
+      duration?: number;
+    },
+  ) {
     const sessions = await this.prisma.orderSession.findMany({
       where: { parentOrderId: orderId },
       orderBy: { seq: 'desc' },
@@ -575,7 +591,10 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (order && session.coCompanionId) {
       this.wsGateway.pushOrder(session.coCompanionId, {
-        ...session, gameName: order.gameName, customerId: order.customerId, orderId,
+        ...session,
+        gameName: order.gameName,
+        customerId: order.customerId,
+        orderId,
         type: 'DUAL_INVITE',
       });
     }
@@ -583,20 +602,39 @@ export class OrdersService {
     return session;
   }
 
-  async startSession(id: string) { return this.prisma.orderSession.update({ where: { id }, data: { startedAt: new Date() } }); }
-  async pauseSession(id: string) { return this.prisma.orderSession.update({ where: { id }, data: { pausedAt: new Date() } }); }
-  async resumeSession(id: string) {
-    const s = await this.prisma.orderSession.findUnique({ where: { id } });
-    if (s?.pausedAt) {
+  private async getOwnedSession(id: string, companionId?: string) {
+    const s = await this.prisma.orderSession.findUnique({
+      where: { id },
+      select: { id: true, companionId: true, pausedAt: true, totalPausedSec: true },
+    });
+    if (!s) throw new NotFoundException('会话不存在');
+    if (companionId && s.companionId !== companionId) throw new ForbiddenException('只能操作自己的会话');
+    return s;
+  }
+
+  async startSession(id: string, companionId?: string) {
+    await this.getOwnedSession(id, companionId);
+    return this.prisma.orderSession.update({ where: { id }, data: { startedAt: new Date() } });
+  }
+  async pauseSession(id: string, companionId?: string) {
+    await this.getOwnedSession(id, companionId);
+    return this.prisma.orderSession.update({ where: { id }, data: { pausedAt: new Date() } });
+  }
+  async resumeSession(id: string, companionId?: string) {
+    const s = await this.getOwnedSession(id, companionId);
+    if (s.pausedAt) {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
-      return this.prisma.orderSession.update({ where: { id }, data: { pausedAt: null, totalPausedSec: (s.totalPausedSec || 0) + sec } });
+      return this.prisma.orderSession.update({
+        where: { id },
+        data: { pausedAt: null, totalPausedSec: (s.totalPausedSec || 0) + sec },
+      });
     }
     return s;
   }
-  async endSession(id: string) {
-    const s = await this.prisma.orderSession.findUnique({ where: { id } });
+  async endSession(id: string, companionId?: string) {
+    const s = await this.getOwnedSession(id, companionId);
     const data: any = { endedAt: new Date(), status: 'DONE' };
-    if (s?.pausedAt) {
+    if (s.pausedAt) {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
       data.pausedAt = null;
       data.totalPausedSec = (s.totalPausedSec || 0) + sec;

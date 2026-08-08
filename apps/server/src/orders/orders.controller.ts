@@ -171,29 +171,29 @@ export class OrdersController {
 
   @Put('sessions/:sessionId/start')
   @Roles(UserRole.COMPANION)
-  async startSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.startSession(id);
+  async startSession(@Param('sessionId') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.startSession(id, req.user.companionId);
     return { code: 200, message: '计时开始', data };
   }
 
   @Put('sessions/:sessionId/pause')
   @Roles(UserRole.COMPANION)
-  async pauseSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.pauseSession(id);
+  async pauseSession(@Param('sessionId') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.pauseSession(id, req.user.companionId);
     return { code: 200, message: '已暂停', data };
   }
 
   @Put('sessions/:sessionId/resume')
   @Roles(UserRole.COMPANION)
-  async resumeSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.resumeSession(id);
+  async resumeSession(@Param('sessionId') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.resumeSession(id, req.user.companionId);
     return { code: 200, message: '已继续', data };
   }
 
   @Put('sessions/:sessionId/end')
   @Roles(UserRole.COMPANION)
-  async endSession(@Param('sessionId') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.endSession(id);
+  async endSession(@Param('sessionId') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.endSession(id, req.user.companionId);
     return { code: 200, message: '计时结束', data };
   }
 
@@ -222,7 +222,8 @@ export class OrdersController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async updatePayment(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       paymentAccountId?: string;
       companionFeeStatus?: string;
       companionFeeMethod?: string;

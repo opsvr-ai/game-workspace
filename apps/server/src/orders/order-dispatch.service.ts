@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
+import { logger } from '../common/logger';
 
 @Injectable()
 export class OrderDispatchService {
@@ -42,7 +43,8 @@ export class OrderDispatchService {
         where: { id: order.customerId, companionId: null },
         data: { companionId },
       });
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 
@@ -56,7 +58,8 @@ export class OrderDispatchService {
           data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
         });
       }
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 
@@ -83,7 +86,8 @@ export class OrderDispatchService {
         where: { id: order.customerId, companionId: null },
         data: { companionId },
       });
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 
@@ -98,7 +102,8 @@ export class OrderDispatchService {
           data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
         });
       }
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 
@@ -169,7 +174,8 @@ export class OrderDispatchService {
         where: { id: order.customerId, companionId: null },
         data: { companionId },
       });
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 
@@ -184,7 +190,8 @@ export class OrderDispatchService {
           data: { customFields: { ...cf, workWechatId: boundWx.id, workWechatName: boundWx.wechatId } },
         });
       }
-    } catch {
+    } catch (err) {
+      logger.warn('Dispatch operation failed', { error: (err as Error).message });
       /* non-blocking */
     }
 

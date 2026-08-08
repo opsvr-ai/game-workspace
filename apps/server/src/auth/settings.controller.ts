@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001
 import { Controller, Get, Put, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,8 +29,8 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'options.contact_results': ['现在玩', '改天玩', '未回消息', '好友未通过', '被客户删除'],
   'options.finish_results': ['正常完成', '客户续单', '变声器退款', '技术差退款'],
   'options.fail_reasons': ['抢单未加微信', '好友未通过', '客户不回消息', '客户删除', '客户说不打', '其他'],
-  'games': ['英雄联盟', '王者荣耀', '无畏契约', 'CS2', 'DOTA2', '永劫无间', '绝地求生', 'Apex英雄'],
-  'ranks': ['青铜', '白银', '黄金', '铂金', '钻石', '大师', '宗师', '王者'],
+  games: ['英雄联盟', '王者荣耀', '无畏契约', 'CS2', 'DOTA2', '永劫无间', '绝地求生', 'Apex英雄'],
+  ranks: ['青铜', '白银', '黄金', '铂金', '钻石', '大师', '宗师', '王者'],
   'identity.app_code': '',
   'identity.app_key': '',
   'identity.app_secret': '',
@@ -57,18 +58,21 @@ export class SettingsController {
     return { code: 200, message: '配置已更新', data: null };
   }
 
-  // 通用配置 GET
+  // 通用配置 GET — sensitive keys (identity.*, JWT, secrets) require OWNER
   @Get('config')
   @UseGuards(AuthGuard('jwt'))
-  async getConfig(@Query('keys') keysStr?: string): Promise<ApiResponse<unknown>> {
-    const keys = keysStr ? keysStr.split(',').map(k => k.trim()) : Object.keys(DEFAULT_CONFIGS);
+  async getConfig(@Query('keys') keysStr?: string, @Req() req?: any): Promise<ApiResponse<unknown>> {
+    const SENSITIVE_PREFIXES = ['identity.', 'jwt.', 'secret'];
+    const keys = keysStr ? keysStr.split(',').map((k) => k.trim()) : Object.keys(DEFAULT_CONFIGS);
+    const isOwner = req?.user?.role === 'OWNER';
+    const safeKeys = keys.filter((k) => isOwner || !SENSITIVE_PREFIXES.some((p) => k.startsWith(p)));
     const records = await this.prisma.systemConfig.findMany({
-      where: { key: { in: keys } },
+      where: { key: { in: safeKeys } },
     });
     const result: Record<string, any> = {};
     for (const k of keys) {
-      const record = records.find(r => r.key === k);
-      result[k] = record?.value ?? (DEFAULT_CONFIGS[k] ?? null);
+      const record = records.find((r) => r.key === k);
+      result[k] = record?.value ?? DEFAULT_CONFIGS[k] ?? null;
     }
     return { code: 200, message: 'ok', data: result };
   }

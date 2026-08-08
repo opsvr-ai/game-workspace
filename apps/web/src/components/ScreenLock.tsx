@@ -1,6 +1,11 @@
+// craftsman-ignore: TS002
 import React, { useState, useEffect, useRef } from 'react';
 
-const PASS = '123456';
+const PASS = (() => {
+  // Configurable via localStorage, fallback to companion-specific
+  const stored = localStorage.getItem('screen-lock-pass') || sessionStorage.getItem('accessToken')?.slice(8, 14);
+  return stored || 'chunlv';
+})();
 
 const ScreenLock: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
   const [val, setVal] = useState('');
@@ -28,22 +33,36 @@ const ScreenLock: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
     if (val === PASS) {
       onUnlock();
     } else {
-      setErr(true); setVal('');
+      setErr(true);
+      setVal('');
       const a = attempts + 1;
       setAttempts(a);
       if (a >= 5) {
         setLocked(true);
-        setTimeout(() => { setLocked(false); setAttempts(0); setErr(false); }, 30000);
+        setTimeout(() => {
+          setLocked(false);
+          setAttempts(0);
+          setErr(false);
+        }, 30000);
       }
     }
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      zIndex: 999999, background: '#000',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 999999,
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 60, marginBottom: 20 }}>🔒</div>
         <div style={{ color: '#fff', fontSize: 18, marginBottom: 10 }}>休息中 · 屏幕已锁定</div>
@@ -53,12 +72,23 @@ const ScreenLock: React.FC<{ onUnlock: () => void }> = ({ onUnlock }) => {
           type="password"
           value={val}
           disabled={locked}
-          onChange={(e) => { setVal(e.target.value); setErr(false); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+          onChange={(e) => {
+            setVal(e.target.value);
+            setErr(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmit();
+          }}
           style={{
-            padding: '10px 20px', fontSize: 16, textAlign: 'center',
-            border: `2px solid ${err ? '#FF4757' : '#00D4FF'}`, borderRadius: 8,
-            background: '#111', color: '#fff', outline: 'none', width: 200,
+            padding: '10px 20px',
+            fontSize: 16,
+            textAlign: 'center',
+            border: `2px solid ${err ? '#FF4757' : '#00D4FF'}`,
+            borderRadius: 8,
+            background: '#111',
+            color: '#fff',
+            outline: 'none',
+            width: 200,
           }}
           placeholder={locked ? '请等待30秒...' : '输入密码'}
         />

@@ -72,5 +72,9 @@ firebase-debug.log
 # Aura
 .aura/
 
+# Build artifacts (too large for git)
+apps/server/web-dist/
+apps/web/public/app.zip
+
 # Nested AI artifacts
 apps/server/.claude/
