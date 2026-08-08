@@ -7,9 +7,9 @@ files:
   - dist
   - preload-dist
   - package.json
-asar: true
-asarUnpack:
-  - node_modules/socket.io-client/**
+extraResources:
+  - from: companion-config.json
+    to: .
 win:
   icon: public/donkey.ico
   target:

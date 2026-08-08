@@ -67,7 +67,7 @@ function createMainWindow(): BrowserWindow {
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
   });
 
-  // Load web app — dev uses Vite, prod loads from server API port
+  // Load web app — dev uses Vite, prod loads from NestJS server
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
@@ -85,6 +85,31 @@ function createMainWindow(): BrowserWindow {
       e.preventDefault();
       win.hide();
     }
+  });
+
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // Inject script to block logout (always on; admin uses Ctrl+Shift+Q to quit)
+  win.webContents.on('did-finish-load', () => {
+    win?.webContents.executeJavaScript(`
+      var __chunlv_blockLogout = true;
+      var _origRemoveItem = sessionStorage.removeItem.bind(sessionStorage);
+      sessionStorage.removeItem = function(key) {
+        if (__chunlv_blockLogout && key === 'accessToken') return;
+        _origRemoveItem(key);
+      };
+      var _origClear = sessionStorage.clear.bind(sessionStorage);
+      sessionStorage.clear = function() { __chunlv_blockLogout || _origClear(); };
+      var _origPushState = history.pushState.bind(history);
+      history.pushState = function(s,t,u) {
+        if (__chunlv_blockLogout && typeof u==='string' && u.includes('/login')) return;
+        _origPushState(s,t,u);
+      };
+      var _origReplaceState = history.replaceState.bind(history);
+      history.replaceState = function(s,t,u) {
+        if (__chunlv_blockLogout && typeof u==='string' && u.includes('/login')) return;
+        _origReplaceState(s,t,u);
+      };
+    `).catch(() => {});
   });
 
   return win;
@@ -114,6 +139,7 @@ function setupIPC(): void {
         if (meRes.data?.data) {
           store.set('companionId', meRes.data.data.companionId || '');
           store.set('companionName', meRes.data.data.displayName || meRes.data.data.username || username);
+          store.set('role', meRes.data.data.role || '');
         }
 
         const companionId = store.get('companionId') as string;
@@ -153,10 +179,16 @@ function setupIPC(): void {
   ipcMain.handle('auth:getToken', () => store.get('token'));
   ipcMain.handle('auth:getServerUrl', () => getServerUrl());
   ipcMain.handle('auth:logout', () => {
+    const role = store.get('role') as string;
+    // Only admin/owner can log out; companion stays logged in
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      return { success: false, message: '退出功能已禁用' };
+    }
     disconnectWebSocket();
     store.set('token', '');
     store.set('companionId', '');
     store.set('companionName', '');
+    store.set('role', '');
     return { success: true };
   });
 
@@ -207,53 +239,16 @@ function setupIPC(): void {
   });
 
   ipcMain.handle('verify-password', (_e, pw: string) => {
-    return pw === ((store.get('appPassword') as string) || '123456');
+    const role = store.get('role') as string;
+    if (role === 'OWNER' || role === 'ADMIN') {
+      return pw === ((store.get('appPassword') as string) || '123456');
+    }
+    return false; // Companions always denied
   });
 
-  // Show native password prompt for logout
+  // Show native password prompt for logout — disabled for companions
   ipcMain.handle('prompt-logout-password', async () => {
-    return new Promise<string | null>((resolve) => {
-      const pass = (store.get('appPassword') as string) || '123456';
-      const pw = new BrowserWindow({
-        width: 320,
-        height: 200,
-        frame: false,
-        alwaysOnTop: true,
-        resizable: false,
-        parent: mainWindow ?? undefined,
-        modal: true,
-        webPreferences: { contextIsolation: true, nodeIntegration: false },
-      });
-      pw.loadURL(
-        `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Microsoft YaHei",sans-serif;background:#1e1e2e;color:#cdd6f4;display:flex;align-items:center;justify-content:center;height:100vh}
-h3{margin-bottom:12px;font-size:15px;text-align:center}
-input{padding:8px 14px;font-size:14px;border:1px solid #585b70;border-radius:6px;background:#313244;color:#cdd6f4;text-align:center;width:200px;outline:none}
-input:focus{border-color:#89b4fa}
-.err{color:#f38ba8;font-size:12px;margin-top:6px;display:none;text-align:center}
-</style></head><body>
-<div style="text-align:center">
-<h3>🔒 管理员验证</h3>
-<input type="password" id="pw" autofocus placeholder="输入密码退出">
-<div class="err" id="err">密码错误</div>
-</div>
-<script>
-var a=0;
-document.getElementById('pw').onkeydown=function(e){
-if(e.key==='Enter'){
-if(e.target.value==='${pass}'){window.close()}
-else{a++;e.target.value='';document.getElementById('err').style.display='block';
-if(a>=5){e.target.disabled=true;document.getElementById('err').textContent='已锁定30秒';setTimeout(function(){e.target.disabled=false;a=0;document.getElementById('err').style.display='none'},30000)}}
-}
-};
-</script></body></html>`)}`,
-      );
-      pw.on('closed', () => {
-        resolve(null);
-      });
-    });
+    return null; // Always reject: companions cannot exit
   });
 
   ipcMain.on('status:changed', (_e, status: string) => {
@@ -558,31 +553,28 @@ app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true });
   logger.info('Electron app started', { version: app.getVersion() });
 
-  // Spawn watchdog process — auto-restarts the app if killed via Task Manager
-  try {
-    const watchdogScript = `
-    const { exec } = require('child_process');
-    const exePath = ${JSON.stringify(process.execPath)};
-    const appPath = ${JSON.stringify(path.join(process.resourcesPath || path.dirname(process.execPath), '..', '蠢驴电竞.exe'))};
-    setInterval(() => {
-      exec('tasklist /FI "IMAGENAME eq 蠢驴电竞.exe" /NH 2>nul', (err, stdout) => {
-        if (!stdout || !stdout.includes('蠢驴电竞.exe')) {
-          exec('start "" "' + appPath + '"', { windowsHide: false });
-        }
-      });
-    }, 5000);
-    `;
-    const { spawn } = require('child_process');
-    const wd = spawn(process.execPath, ['-e', watchdogScript], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-    });
-    wd.unref();
-    logger.info('Watchdog started', { pid: wd.pid });
-  } catch (err) {
-    logger.warn('Watchdog start failed', { error: (err as Error).message });
-  }
+  // Auto-restart if killed (Task Manager), with cooldown to prevent loops
+  let lastRestart = 0;
+  app.on('before-quit', () => {
+    if (!isQuitting) {
+      const now = Date.now();
+      if (now - lastRestart > 30000) { // 30s cooldown
+        lastRestart = now;
+        app.relaunch();
+      }
+    }
+  });
+
+  // Admin shortcut: Ctrl+Shift+Q to quit (disabled for companions via injected script)
+  let adminQuitSequence = 0;
+  ipcMain.on('admin-quit', () => {
+    const role = store.get('role') as string;
+    if (role === 'OWNER' || role === 'ADMIN') {
+      isQuitting = true;
+      app.quit();
+    }
+  });
+
   setupIPC();
   setupWsEvents();
   mainWindow = createMainWindow();
