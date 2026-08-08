@@ -81,6 +81,7 @@ const CustomersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchCode, setSearchCode] = useState('');
+  const [sortBy, setSortBy] = useState<string>('createdAt'); // createdAt | totalSpent
 
   // Companion: chat, create order, schedule
   const [chatPartner, setChatPartner] = useState<any>(null);
@@ -150,7 +151,7 @@ const CustomersPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await customersApi.list();
+      const { data } = await customersApi.list({ sortBy });
       setCustomers(data.data?.items ?? data.data ?? []);
     } catch (err: any) {
       const errorMsg = extractErrorMessage(err, '加载客户列表失败');
@@ -159,7 +160,7 @@ const CustomersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortBy]);
 
   useEffect(() => {
     fetchCustomers();
@@ -523,6 +524,16 @@ const CustomersPage: React.FC = () => {
           subtitle={isCompanion ? '管理我的客户信息' : undefined}
           extra={
             <Space>
+              <Select
+                value={sortBy}
+                onChange={(v) => setSortBy(v)}
+                style={{ width: 140 }}
+                placeholder="排序"
+                options={[
+                  { label: '添加时间', value: 'createdAt' },
+                  { label: '消费高低', value: 'totalSpent' },
+                ]}
+              />
               <Input.Search
                 placeholder="搜索客户编号"
                 value={searchCode}

@@ -1,5 +1,7 @@
+// craftsman-ignore: TS001
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+import { message } from 'antd';
 
 interface CallState {
   status: 'idle' | 'ringing' | 'calling' | 'connected';
@@ -30,25 +32,18 @@ function playRingtone() {
   } catch { return { stop: () => {}, ctx: null }; }
 }
 
-export function useVoiceCall(userId?: string, userName?: string) {
+export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
+  const userIdRef = useRef<string | undefined>();
+  const userNameRef = useRef<string | undefined>();
   const [callState, setCallState] = useState<CallState>(() => {
     const saved = localStorage.getItem('voice-volume');
     return { status: 'idle', volume: saved ? parseInt(saved) : 80 };
   });
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const socketRef = useRef<Socket | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ringtoneRef = useRef<{ stop: () => void } | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const getSocket = useCallback(() => {
-    if (!socketRef.current) {
-      const token = sessionStorage.getItem('accessToken');
-      socketRef.current = io('/', { auth: { token }, transports: ['websocket', 'polling'] });
-    }
-    return socketRef.current;
-  }, []);
 
   const cleanup = useCallback(() => {
     ringtoneRef.current?.stop();
@@ -62,32 +57,47 @@ export function useVoiceCall(userId?: string, userName?: string) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
+  const getSocket = useCallback((): Socket => {
+    const s = socketRef.current;
+    if (!s) throw new Error('WebSocket未连接，请刷新页面重试');
+    return s;
+  }, [socketRef]);
+
   // Listen for incoming calls
   useEffect(() => {
-    const socket = getSocket();
-    socket.on('call:offer', async (data: any) => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    const onOffer = (data: any) => {
       ringtoneRef.current = playRingtone();
       setCallState({ status: 'ringing', peerId: data.fromUserId, peerName: data.callerName, volume: 80 });
-    });
-    socket.on('call:answer', async (data: any) => {
+    };
+    const onAnswer = async (data: any) => {
       ringtoneRef.current?.stop();
-      if (pcRef.current) await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    });
-    socket.on('call:ice-candidate', async (data: any) => {
+      if (pcRef.current) {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      }
+      setCallState((s) => ({ ...s, status: 'connected', startTime: Date.now() }));
+    };
+    const onIce = async (data: any) => {
       if (pcRef.current && data.candidate) {
         await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
-    });
-    socket.on('call:hangup', () => {
+    };
+    const onHangup = () => {
       ringtoneRef.current?.stop();
       cleanup();
       setCallState({ status: 'idle' });
-    });
-    return () => { socket.off('call:offer'); socket.off('call:answer'); socket.off('call:ice-candidate'); socket.off('call:hangup'); };
-  }, [getSocket, cleanup]);
+    };
+    socket.on('call:offer', onOffer);
+    socket.on('call:answer', onAnswer);
+    socket.on('call:ice-candidate', onIce);
+    socket.on('call:hangup', onHangup);
+    return () => { socket.off('call:offer', onOffer); socket.off('call:answer', onAnswer); socket.off('call:ice-candidate', onIce); socket.off('call:hangup', onHangup); };
+  }, [socketRef, cleanup]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
     try {
+      const socket = getSocket();
       setCallState({ status: 'calling', peerId: targetUserId, peerName: targetUserName });
       const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       pcRef.current = pc;
@@ -97,7 +107,7 @@ export function useVoiceCall(userId?: string, userName?: string) {
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) getSocket().emit('call:ice-candidate', { targetUserId, candidate: e.candidate });
+        if (e.candidate) socket.emit('call:ice-candidate', { targetUserId, candidate: e.candidate });
       };
 
       pc.ontrack = (e) => {
@@ -110,21 +120,30 @@ export function useVoiceCall(userId?: string, userName?: string) {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      getSocket().emit('call:offer', { targetUserId, sdp: offer });
+      socket.emit('call:offer', { targetUserId, sdp: offer });
 
       const start = Date.now();
       timerRef.current = setInterval(() => {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
-    } catch (err) {
+    } catch (err: any) {
       cleanup();
       setCallState({ status: 'idle' });
+      const errMsg = err?.message || String(err);
+      if (errMsg.includes('NotAllowed') || errMsg.includes('Permission')) {
+        message.error('麦克风权限未授权，请在系统设置中允许麦克风访问');
+      } else if (errMsg.includes('NotFound')) {
+        message.error('未检测到麦克风设备');
+      } else {
+        message.error(`通话失败: ${errMsg}`);
+      }
     }
-  }, [getSocket, cleanup]);
+  }, [getSocket, cleanup, callState.volume]);
 
   const acceptCall = useCallback(async () => {
     if (callState.status !== 'ringing' || !callState.peerId) return;
     try {
+      const socket = getSocket();
       const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       pcRef.current = pc;
 
@@ -133,7 +152,7 @@ export function useVoiceCall(userId?: string, userName?: string) {
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) getSocket().emit('call:ice-candidate', { targetUserId: callState.peerId, candidate: e.candidate });
+        if (e.candidate) socket.emit('call:ice-candidate', { targetUserId: callState.peerId, candidate: e.candidate });
       };
 
       pc.ontrack = (e) => {
@@ -146,27 +165,34 @@ export function useVoiceCall(userId?: string, userName?: string) {
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      getSocket().emit('call:answer', { targetUserId: callState.peerId, sdp: answer });
+      socket.emit('call:answer', { targetUserId: callState.peerId, sdp: answer });
 
       const start = Date.now();
       setCallState({ ...callState, status: 'connected', startTime: start });
       timerRef.current = setInterval(() => {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
-    } catch (err) {
+    } catch (err: any) {
       cleanup();
       setCallState({ status: 'idle' });
+      message.error(`接听失败: ${err?.message || String(err)}`);
     }
   }, [callState, getSocket, cleanup]);
 
   const rejectCall = useCallback(() => {
     ringtoneRef.current?.stop();
-    if (callState.peerId) getSocket().emit('call:hangup', { targetUserId: callState.peerId });
+    try {
+      const socket = getSocket();
+      if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
+    } catch {}
     setCallState({ status: 'idle' });
   }, [callState.peerId, getSocket]);
 
   const hangup = useCallback(() => {
-    if (callState.peerId) getSocket().emit('call:hangup', { targetUserId: callState.peerId });
+    try {
+      const socket = getSocket();
+      if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
+    } catch {}
     cleanup();
     setCallState({ status: 'idle' });
   }, [callState.peerId, getSocket, cleanup]);

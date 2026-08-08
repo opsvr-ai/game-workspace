@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// craftsman-ignore: TS001
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UserRole } from '@chunlv/shared';
 
@@ -39,13 +40,21 @@ interface AuthenticatedUser {
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(user: AuthenticatedUser) {
+  async findAll(user: AuthenticatedUser, sortBy?: string) {
     const where: any = {};
 
     if (user.role === 'COMPANION') {
       where.companionId = user.companionId;
     } else if (user.role === 'ADMIN' || user.role === 'CS') {
       where.studioId = user.studioId;
+    }
+
+    // Sort: totalSpent=消费金额降序, createdAt=创建时间降序, updatedAt=最近更新降序(默认)
+    let orderBy: any = { updatedAt: 'desc' };
+    if (sortBy === 'totalSpent') {
+      orderBy = { totalSpent: 'desc' };
+    } else if (sortBy === 'createdAt') {
+      orderBy = { createdAt: 'desc' };
     }
 
     return this.prisma.customer.findMany({
@@ -72,13 +81,22 @@ export class CustomersService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: AuthenticatedUser) {
+    const where: any = { id };
+    // Studio isolation: non-OWNER users can only see customers in their studio
+    if (user && user.role !== 'OWNER') {
+      if (user.role === 'COMPANION') {
+        where.companionId = user.companionId;
+      } else {
+        where.studioId = user.studioId;
+      }
+    }
     const customer = await this.prisma.customer.findUnique({
-      where: { id },
+      where,
       include: {
         companion: {
           include: {
@@ -138,10 +156,16 @@ export class CustomersService {
     });
   }
 
-  async update(id: string, data: UpdateCustomerDto) {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
+  async update(id: string, data: UpdateCustomerDto, user?: AuthenticatedUser) {
+    const customer = await this.findOne(id, user); // Reuse scoped findOne
     if (!customer) {
       throw new NotFoundException('客户不存在');
+    }
+    // Prevent cross-studio companionId tampering
+    if (user && data.companionId !== undefined) {
+      if (user.role === 'COMPANION' && data.companionId !== user.companionId) {
+        throw new ForbiddenException('无权修改客户归属');
+      }
     }
 
     const updateData: any = {};
@@ -180,11 +204,8 @@ export class CustomersService {
     return this.prisma.customer.delete({ where: { id } });
   }
 
-  async reassign(id: string, companionId: string | null) {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
-    if (!customer) {
-      throw new NotFoundException('客户不存在');
-    }
+  async reassign(id: string, companionId: string | null, user?: AuthenticatedUser) {
+    await this.findOne(id, user); // Validate access
 
     if (companionId) {
       const companion = await this.prisma.companion.findUnique({
@@ -208,11 +229,8 @@ export class CustomersService {
     });
   }
 
-  async findOrders(id: string) {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
-    if (!customer) {
-      throw new NotFoundException('客户不存在');
-    }
+  async findOrders(id: string, user?: AuthenticatedUser) {
+    await this.findOne(id, user); // Validate access
 
     return this.prisma.order.findMany({
       where: { customerId: id },
@@ -227,7 +245,8 @@ export class CustomersService {
     });
   }
 
-  async detectCustomerType(customerId: string): Promise<{ type: string; orderCount: number }> {
+  async detectCustomerType(customerId: string, user?: AuthenticatedUser): Promise<{ type: string; orderCount: number }> {
+    await this.findOne(customerId, user); // Validate access
     const count = await this.prisma.order.count({
       where: { customerId, status: 'DONE' },
     });
@@ -258,7 +277,8 @@ export class CustomersService {
     return status;
   }
 
-  async getOrCreateProfile(customerId: string) {
+  async getOrCreateProfile(customerId: string, user?: AuthenticatedUser) {
+    await this.findOne(customerId, user); // Validate access
     let profile = await this.prisma.customerProfile.findUnique({
       where: { customerId },
     });
@@ -270,7 +290,8 @@ export class CustomersService {
     return profile;
   }
 
-  async updateProfile(customerId: string, data: any) {
+  async updateProfile(customerId: string, data: any, user?: AuthenticatedUser) {
+    await this.findOne(customerId, user); // Validate access
     return this.prisma.customerProfile.upsert({
       where: { customerId },
       create: { customerId, ...data },
@@ -278,7 +299,8 @@ export class CustomersService {
     });
   }
 
-  async getFollowUps(customerId: string) {
+  async getFollowUps(customerId: string, user?: AuthenticatedUser) {
+    await this.findOne(customerId, user); // Validate access
     return this.prisma.customerFollowUp.findMany({
       where: { customerId },
       orderBy: { createdAt: 'desc' },
@@ -291,7 +313,8 @@ export class CustomersService {
     adminId?: string;
     content: string;
     nextAction?: string;
-  }) {
+  }, user?: AuthenticatedUser) {
+    await this.findOne(dto.customerId, user); // Validate access
     const followUp = await this.prisma.customerFollowUp.create({ data: dto });
     // Auto-update customer status after follow-up
     await this.updateCustomerStatus(dto.customerId);

@@ -67,14 +67,13 @@ function createMainWindow(): BrowserWindow {
     win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
   });
 
-  // Load web app — dev uses Vite, prod loads from server, fallback to local
+  // Load web app — dev uses Vite, prod loads from server API port
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
     const serverUrl = getServerUrl();
-    const webUrl = serverUrl.replace(/:3001$/, ':8000');
-    logger.info('Loading web app', { webUrl });
-    win.loadURL(webUrl);
+    logger.info('Loading web app from server', { serverUrl });
+    win.loadURL(serverUrl);
   }
 
   win.once('ready-to-show', () => {
@@ -558,9 +557,36 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   app.setLoginItemSettings({ openAtLogin: true });
   logger.info('Electron app started', { version: app.getVersion() });
+
+  // Spawn watchdog process — auto-restarts the app if killed via Task Manager
+  try {
+    const watchdogScript = `
+    const { exec } = require('child_process');
+    const exePath = ${JSON.stringify(process.execPath)};
+    const appPath = ${JSON.stringify(path.join(process.resourcesPath || path.dirname(process.execPath), '..', '蠢驴电竞.exe'))};
+    setInterval(() => {
+      exec('tasklist /FI "IMAGENAME eq 蠢驴电竞.exe" /NH 2>nul', (err, stdout) => {
+        if (!stdout || !stdout.includes('蠢驴电竞.exe')) {
+          exec('start "" "' + appPath + '"', { windowsHide: false });
+        }
+      });
+    }, 5000);
+    `;
+    const { spawn } = require('child_process');
+    const wd = spawn(process.execPath, ['-e', watchdogScript], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    wd.unref();
+    logger.info('Watchdog started', { pid: wd.pid });
+  } catch (err) {
+    logger.warn('Watchdog start failed', { error: (err as Error).message });
+  }
   setupIPC();
   setupWsEvents();
   mainWindow = createMainWindow();
+  startVersionPolling();
   floatWindow = createFloatBall();
 
   // On first launch (no saved token), show the window so the user can log in.
@@ -704,10 +730,10 @@ const pollVersion = async () => {
   }
 };
 
-// Initial version fetch after window loads
-if (mainWindow) {
+function startVersionPolling() {
+  if (!mainWindow) return;
   mainWindow.webContents.on('did-finish-load', () => {
-    setTimeout(pollVersion, 5000); // initial check after 5s
+    setTimeout(pollVersion, 5000);
     setInterval(pollVersion, VERSION_POLL_INTERVAL);
   });
 }

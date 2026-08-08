@@ -36,14 +36,18 @@ export class TransactionService {
     });
   }
 
-  async approve(transactionId: string, reviewerId: string) {
+  async approve(transactionId: string, reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
     const tx = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { order: { select: { customerId: true } } },
+      include: { companion: { select: { studioId: true } } },
     });
 
     if (!tx) throw new NotFoundException('报账记录不存在');
     if (tx.status !== 'PENDING') throw new ForbiddenException('该报账已处理');
+    // Studio isolation: non-OWNER can only review own studio's transactions
+    if (reviewerRole !== 'OWNER' && reviewerStudioId && tx.companion?.studioId !== reviewerStudioId) {
+      throw new ForbiddenException('无权审核其他工作室的报账');
+    }
 
     // Revenue already recorded in OrderWorkflowService.complete() (C2 fix — unified entry point)
     // Transaction approve now only marks the audit record as reviewed
@@ -54,13 +58,17 @@ export class TransactionService {
     });
   }
 
-  async reject(transactionId: string, reviewerId: string) {
+  async reject(transactionId: string, reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
     const tx = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
+      include: { companion: { select: { studioId: true } } },
     });
 
     if (!tx) throw new NotFoundException('报账记录不存在');
     if (tx.status !== 'PENDING') throw new ForbiddenException('该报账已处理');
+    if (reviewerRole !== 'OWNER' && reviewerStudioId && tx.companion?.studioId !== reviewerStudioId) {
+      throw new ForbiddenException('无权审核其他工作室的报账');
+    }
 
     return this.prisma.transaction.update({
       where: { id: transactionId },
@@ -68,12 +76,12 @@ export class TransactionService {
     });
   }
 
-  async batchApprove(ids: string[], reviewerId: string) {
+  async batchApprove(ids: string[], reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
     const results = { succeeded: 0, failed: 0, errors: [] as string[] };
 
     for (const id of ids) {
       try {
-        await this.approve(id, reviewerId);
+        await this.approve(id, reviewerId, reviewerStudioId, reviewerRole);
         results.succeeded++;
       } catch (err: any) {
         results.failed++;
@@ -84,12 +92,12 @@ export class TransactionService {
     return results;
   }
 
-  async batchReject(ids: string[], reviewerId: string) {
+  async batchReject(ids: string[], reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
     const results = { succeeded: 0, failed: 0, errors: [] as string[] };
 
     for (const id of ids) {
       try {
-        await this.reject(id, reviewerId);
+        await this.reject(id, reviewerId, reviewerStudioId, reviewerRole);
         results.succeeded++;
       } catch (err: any) {
         results.failed++;

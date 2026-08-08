@@ -166,19 +166,14 @@ export class OrderWorkflowService {
     }
     this.validateTransition(order, OrderStatus.DONE);
 
-    // Auto-assign customer to companion if not yet assigned
-    if (order.companionId) {
-      try {
-        await this.prisma.customer.updateMany({
-          where: { id: order.customerId, companionId: null },
-          data: { companionId: order.companionId },
-        });
-      } catch (err) {
-        logger.error('Customer assignment failed during complete', { error: (err as Error).message });
-      }
-    }
+    // Step 1: Atomic status update first — prevents double-complete race
+    const statusUpdated = await this.prisma.order.updateMany({
+      where: { id: orderId, status: { in: ['CONFIRMED', 'GRABBED'] } },
+      data: { status: OrderStatus.DONE },
+    });
+    if (statusUpdated.count === 0) throw new ForbiddenException('订单状态已变更，请刷新');
 
-    // H4: Update companion monthlyRevenue + customer totalSpent (unify with completeWithBilling)
+    // Step 2: Revenue updates (only after status is safely set)
     if (order.companionId && order.amount) {
       try {
         await this.prisma.companion.update({
@@ -194,11 +189,20 @@ export class OrderWorkflowService {
       }
     }
 
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: OrderStatus.DONE },
-    });
-    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    // Auto-assign customer to companion if not yet assigned
+    if (order.companionId) {
+      try {
+        await this.prisma.customer.updateMany({
+          where: { id: order.customerId, companionId: null },
+          data: { companionId: order.companionId },
+        });
+      } catch (err) {
+        logger.error('Customer assignment failed during complete', { error: (err as Error).message });
+      }
+    }
+
+    const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
 

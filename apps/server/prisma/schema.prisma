@@ -236,6 +236,7 @@ model Customer {
   scheduledAt         DateTime?
   status              String   @default("PENDING_DEVELOPMENT")  // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
   createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
 
   studio    Studio     @relation(fields: [studioId], references: [id])
   companion Companion? @relation(fields: [companionId], references: [id])

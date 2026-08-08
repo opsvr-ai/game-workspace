@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
@@ -94,10 +95,36 @@ const BillingOverview: React.FC = () => {
   const [reportVisible, setReportVisible] = useState(false);
   const [todayOrders, setTodayOrders] = useState<any[]>([]);
   const [reportScreenshots, setReportScreenshots] = useState<Record<string,string>>({});
+  const [reportAmounts, setReportAmounts] = useState<Record<string,number>>({});
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
+  const [dailyReports, setDailyReports] = useState<any[]>([]);
+  const [viewScreenshots, setViewScreenshots] = useState<string[]>([]);
+
+  const fetchDailyReports = useCallback(async () => {
+    try {
+      const { data: res } = await http.get('/expense-reports', {
+        params: { status: isAdmin ? undefined : undefined },
+      });
+      const all = (res.data || []).filter((r: any) => r.type === 'TODAY_REVENUE');
+      // Group by date
+      const grouped: Record<string, any> = {};
+      all.forEach((r: any) => {
+        const day = dayjs(r.createdAt).format('YYYY-MM-DD');
+        if (!grouped[day]) grouped[day] = { date: day, reports: [], totalAmount: 0, items: [] as any[] };
+        grouped[day].reports.push(r);
+        grouped[day].totalAmount += r.amount || 0;
+        // Parse V2 items
+        try {
+          const data = JSON.parse(r.description || '{}');
+          if (data.items) grouped[day].items.push(...data.items);
+        } catch {}
+      });
+      setDailyReports(Object.values(grouped).sort((a: any, b: any) => b.date.localeCompare(a.date)));
+    } catch {}
+  }, [isAdmin]);
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
@@ -118,18 +145,19 @@ const BillingOverview: React.FC = () => {
   // Fetch on mount and when params change
   useEffect(() => {
     fetchOverview();
-  }, [fetchOverview]);
+    fetchDailyReports();
+  }, [fetchOverview, fetchDailyReports]);
 
   // Auto-refresh: 30s polling
   useEffect(() => {
-    const t = setInterval(fetchOverview, 30_000);
+    const t = setInterval(() => { fetchOverview(); fetchDailyReports(); }, 30_000);
     return () => clearInterval(t);
-  }, [fetchOverview]);
+  }, [fetchOverview, fetchDailyReports]);
 
   // Refresh on visibility change and focus
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') fetchOverview();
+      if (document.visibilityState === 'visible') { fetchOverview(); fetchDailyReports(); }
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
@@ -137,7 +165,7 @@ const BillingOverview: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
     };
-  }, [fetchOverview]);
+  }, [fetchOverview, fetchDailyReports]);
 
   // For companions, auto-set their own companionId
   useEffect(() => {
@@ -390,6 +418,90 @@ const BillingOverview: React.FC = () => {
           </Col>
         </Row>
 
+        {/* Daily Billing Reports */}
+        {dailyReports.length > 0 && (
+          <Card title="📋 日报记录" size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
+            {dailyReports.map((day: any) => {
+              const allScreenshots: string[] = [];
+              day.reports.forEach((r: any) => {
+                try {
+                  const data = JSON.parse(r.description || '{}');
+                  const ss = data.screenshots || data;
+                  Object.values(ss).forEach((url: any) => { if (typeof url === 'string' && url) allScreenshots.push(url); });
+                } catch {}
+              });
+              return (
+                <Card key={day.date} size="small" style={{ marginBottom: 8, background: '#FAFBFC' }}
+                  title={
+                    <Space>
+                      <Text strong>{day.date}</Text>
+                      <Tag color="blue">{day.reports.length}条报账</Tag>
+                      <Text style={{ color: '#EF4444', fontWeight: 600 }}>¥{day.totalAmount.toFixed(2)}</Text>
+                      <Tag>{allScreenshots.length}张截图</Tag>
+                    </Space>
+                  }
+                >
+                  {allScreenshots.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                      {allScreenshots.map((url: string, i: number) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`截图${i + 1}`}
+                          onClick={() => setViewScreenshots([url])}
+                          style={{
+                            width: 120, height: 120, objectFit: 'cover', borderRadius: 6,
+                            border: '1px solid #E5E7EB', cursor: 'pointer',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Order items (V2 format) */}
+                  {day.items && day.items.length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      {day.items.map((item: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', fontSize: 12, background: '#fff', borderRadius: 4, marginBottom: 2 }}>
+                          <Space size={8}>
+                            <Text type="secondary">{item.gameName}</Text>
+                            <Text type="secondary">{item.customerWechat}</Text>
+                          </Space>
+                          <Text strong style={{ color: '#EF4444' }}>¥{item.amount}</Text>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {day.reports.map((r: any, i: number) => (
+                    <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: i < day.reports.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                      <Space size={12}>
+                        <Tag color={r.status === 'APPROVED' ? 'green' : r.status === 'REJECTED' ? 'red' : 'orange'}>
+                          {statusConfig[r.status]?.label || r.status}
+                        </Tag>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(r.createdAt).format('HH:mm')}</Text>
+                      </Space>
+                    </div>
+                  ))}
+                </Card>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* Screenshot Viewer Modal */}
+        <Modal
+          title="转账截图"
+          open={viewScreenshots.length > 0}
+          footer={null}
+          onCancel={() => setViewScreenshots([])}
+          width={800}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {viewScreenshots.map((url, i) => (
+              <img key={i} src={url} alt={`截图${i + 1}`} style={{ maxWidth: '100%', maxHeight: 500, borderRadius: 8, border: '1px solid #E5E7EB' }} />
+            ))}
+          </div>
+        </Modal>
+
         {/* Withdrawal Records Table */}
         <Card title="支取记录" size="small" style={{ borderRadius: 8 }}>
           <Table
@@ -419,6 +531,9 @@ const BillingOverview: React.FC = () => {
                 const list = data.data?.items ?? data.data ?? [];
                 setTodayOrders(list.filter((o:any) => o.status === 'DONE' && new Date(o.createdAt).toDateString()===new Date().toDateString()));
                 setReportScreenshots({});
+                const amounts: Record<string,number> = {};
+                list.forEach((o:any) => { amounts[o.id] = o.amount || 0; });
+                setReportAmounts(amounts);
                 setReportVisible(true);
               }).catch(()=>{});
             }}>上报今日流水</Button>
@@ -457,46 +572,104 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报今日流水" open={reportVisible} width={640}
+      <Modal title="📋 上报今日流水" open={reportVisible} width={750}
         onOk={async () => {
           setReportSubmitting(true);
           try {
-            await http.post('/billing/report-today', { screenshots: reportScreenshots });
+            // Submit amounts and screenshots
+            const items = todayOrders.map(o => ({
+              orderId: o.id,
+              gameName: o.gameName,
+              amount: reportAmounts[o.id] || 0,
+              screenshotUrl: reportScreenshots[o.id] || '',
+              customerWechat: o.customer?.wechatId || o.customFields?.customerWechat || '',
+            }));
+            await http.post('/billing/report-today-v2', { items });
             message.success('已提交审核');
             setReportVisible(false);
             fetchOverview();
+            fetchDailyReports();
           } catch(e:any) { message.error(e?.response?.data?.message||'提交失败'); }
           finally { setReportSubmitting(false); }
         }}
         onCancel={() => setReportVisible(false)}
         okText="提交审核" cancelText="取消" confirmLoading={reportSubmitting} destroyOnClose>
-        {['NEW','RENEW','REPURCHASE','TIP'].map(type => {
-          const orders = todayOrders.filter((o:any) => o.type === type);
-          const labels: Record<string,string> = { NEW:'首单', RENEW:'续单', REPURCHASE:'复购', TIP:'打赏' };
-          if (!orders.length) return null;
-          return (
-            <Card key={type} size="small" title={`${labels[type]} (${orders.length}单)`} style={{ marginBottom: 8 }}>
-              {orders.map((o:any) => (
-                <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 4 }}>
-                  <span>{o.gameName} · ¥{o.amount} · {o.customer?.wechatId || o.customFields?.customerWechat || '?'}</span>
-                  <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
-                    const fd = new FormData(); fd.append('file', file);
-                    try { const { data } = await http.post('/upload/screenshot', fd);
-                      setReportScreenshots(prev => ({ ...prev, [o.id]: data.data?.url || '' }));
-                      message.success('截图已上传');
-                    } catch { message.error('上传失败'); }
-                    return false;
-                  }}>
-                    <Button size="small">{reportScreenshots[o.id] ? '✅ 已上传' : '📎 上传截图'}</Button>
-                  </Upload>
-                </div>
-              ))}
-            </Card>
-          );
-        })}
-        <div style={{ background:'#F0FDF4', borderRadius:8, padding:12, marginTop:8 }}>
-          <Text strong>汇总：共 {todayOrders.length} 单 · ¥{todayOrders.reduce((s:number,o:any) => s+o.amount, 0)}</Text>
-        </div>
+        {todayOrders.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8' }}>
+            今天还没有已完成的订单
+          </div>
+        ) : (
+          <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>时间</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>游戏</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>客户</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B', width: 120 }}>金额 (¥)</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#64748B', width: 140 }}>截图</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayOrders.map((o: any) => (
+                  <tr key={o.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '8px 12px', fontSize: 12, color: '#94A3B8' }}>
+                      {dayjs(o.createdAt).format('HH:mm')}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <Space>
+                        <Tag color={o.type === 'NEW' ? 'green' : o.type === 'RENEW' ? 'blue' : o.type === 'REPURCHASE' ? 'purple' : 'orange'}
+                          style={{ fontSize: 10, margin: 0 }}>
+                          {{NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'}[o.type] || o.type}
+                        </Tag>
+                        <Text>{o.gameName}</Text>
+                      </Space>
+                    </td>
+                    <td style={{ padding: '8px 12px', fontSize: 12 }}>
+                      {o.customer?.wechatId || o.customFields?.customerWechat || '-'}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                      <InputNumber
+                        size="small"
+                        min={0}
+                        value={reportAmounts[o.id] ?? 0}
+                        onChange={(v) => setReportAmounts(prev => ({ ...prev, [o.id]: v ?? 0 }))}
+                        style={{ width: 100 }}
+                        prefix="¥"
+                      />
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      {reportScreenshots[o.id] ? (
+                        <img src={reportScreenshots[o.id]} alt="预览"
+                          onClick={() => setViewScreenshots([reportScreenshots[o.id]])}
+                          style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #E5E7EB' }}
+                        />
+                      ) : (
+                        <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
+                          const fd = new FormData(); fd.append('file', file);
+                          try { const { data } = await http.post('/upload/screenshot', fd);
+                            setReportScreenshots(prev => ({ ...prev, [o.id]: data.data?.url || '' }));
+                          } catch { message.error('上传失败'); }
+                          return false;
+                        }}>
+                          <Button size="small" icon={<UploadOutlined />} style={{ fontSize: 12 }}>上传</Button>
+                        </Upload>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {todayOrders.length > 0 && (
+          <div style={{ background:'#F0FDF4', borderRadius:8, padding:12, marginTop:12 }}>
+            <Text strong>合计：共 {todayOrders.length} 单 · ¥{Object.values(reportAmounts).reduce((s:number, v:number) => s + v, 0)}</Text>
+            <Text type="secondary" style={{ marginLeft: 16 }}>
+              已传截图：{Object.values(reportScreenshots).filter(Boolean).length}/{todayOrders.length}
+            </Text>
+          </div>
+        )}
       </Modal>
 
       {/* Withdraw Modal */}

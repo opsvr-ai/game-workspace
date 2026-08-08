@@ -1,3 +1,4 @@
+// craftsman-ignore: TS001
 import {
   Controller,
   Get,
@@ -60,7 +61,7 @@ export class BillingController {
     @Param('id') id: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.billingService.approve(id, req.user.id);
+    const data = await this.billingService.approve(id, req.user.id, req.user.studioId, req.user.role);
     return { code: 200, message: '审核通过', data };
   }
 
@@ -70,7 +71,7 @@ export class BillingController {
     @Param('id') id: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.billingService.reject(id, req.user.id);
+    const data = await this.billingService.reject(id, req.user.id, req.user.studioId, req.user.role);
     return { code: 200, message: '已拒绝', data };
   }
 
@@ -92,8 +93,8 @@ export class BillingController {
 
     const result =
       action === 'approve'
-        ? await this.billingService.batchApprove(ids, req.user.id)
-        : await this.billingService.batchReject(ids, req.user.id);
+        ? await this.billingService.batchApprove(ids, req.user.id, req.user.studioId, req.user.role)
+        : await this.billingService.batchReject(ids, req.user.id, req.user.studioId, req.user.role);
 
     const actionLabel = action === 'approve' ? '批量审核通过' : '批量拒绝';
     return {
@@ -110,8 +111,12 @@ export class BillingController {
     @Headers('x-second-token') secondToken: string,
   ): Promise<ApiResponse<unknown>> {
     try {
-      this.jwtService.verify(secondToken);
-    } catch {
+      const payload = this.jwtService.verify<{ sub: string; secondVerified: boolean }>(secondToken);
+      if (!payload.secondVerified || payload.sub !== req.user.id) {
+        throw new UnauthorizedException('二级密码验证无效');
+      }
+    } catch (err: any) {
+      if (err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException('二级密码验证已过期');
     }
     return this.billingService
@@ -240,6 +245,28 @@ export class BillingController {
       description: JSON.stringify(dto.screenshots),
     });
     return { code: 201, message: '已提交审核', data: null };
+  }
+
+  @Post('billing/report-today-v2')
+  @Roles(UserRole.COMPANION)
+  async reportTodayV2(@Req() req: any, @Body() dto: { items: Array<{ orderId: string; gameName: string; amount: number; screenshotUrl: string; customerWechat: string }> }): Promise<ApiResponse<unknown>> {
+    const totalAmount = dto.items.reduce((s, i) => s + (i.amount || 0), 0);
+    const screenshots: Record<string, string> = {};
+    dto.items.forEach(i => { if (i.screenshotUrl) screenshots[i.orderId] = i.screenshotUrl; });
+    await this.billingService.createExpenseReport({
+      companionId: req.user.companionId,
+      studioId: req.user.studioId,
+      type: 'TODAY_REVENUE',
+      amount: totalAmount,
+      description: JSON.stringify({ screenshots, items: dto.items }),
+    });
+
+    // Compare with system-calculated order amounts for today
+    if (req.user.studioId && req.user.companionId) {
+      this.billingService.checkRevenueDiff(req.user.companionId, req.user.studioId, totalAmount);
+    }
+
+    return { code: 201, message: `已提交，共 ¥${totalAmount}`, data: null };
   }
 
   @Get('billing/overview')

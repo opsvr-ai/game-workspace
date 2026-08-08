@@ -24,6 +24,7 @@ interface UseSocketOptions {
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
   onBridgeResponded?: (data: any) => void;
+  onRevenueDiff?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -35,10 +36,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
     const token = sessionStorage.getItem('accessToken');
     if (!token) return;
 
-    // Always connect directly to API server on :3001 (Vite preview doesn't proxy WS)
+    // Connect to API server — dev: direct to :3001, prod: same origin
     const wsUrl = import.meta.env.DEV
       ? `http://${window.location.hostname}:3001`
-      : `http://${window.location.hostname}:3001`;
+      : `${window.location.protocol}//${window.location.host}`;
     const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
@@ -122,6 +123,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('bridge:responded', (data: any) => {
       optsRef.current.onBridgeResponded?.(data);
+    });
+
+    socket.on('billing:revenue_diff', (data: any) => {
+      optsRef.current.onRevenueDiff?.(data);
     });
 
     return () => {

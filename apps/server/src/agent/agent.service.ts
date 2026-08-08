@@ -169,7 +169,7 @@ export class AgentService {
       `        # Step 2: Run silent install`,
       `        Write-Host "[$ip] 正在安装..." -ForegroundColor Yellow`,
       `        $installCmd = "Start-Process ` + '`' + `$env:TEMP\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait"`,
-      `        $installResult = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -accepteula -nobanner powershell -Command $installCmd 2>&1`,
+      `        $installResult = .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -i -accepteula -nobanner powershell -Command $installCmd 2>&1`,
       ``,
       `        if ($LASTEXITCODE -ne 0) {`,
       `            Write-Host "[$ip] ✗ 安装失败" -ForegroundColor Red`,
@@ -178,7 +178,7 @@ export class AgentService {
       `            continue`,
       `        }`,
       ``,
-      `        # Step 3: Show the app window on target PC (it starts hidden to tray)`,
+      `        # Step 3: Show the app window on target PC`,
       `        Write-Host "[$ip] 正在启动客户端..." -ForegroundColor Yellow`,
       `        $showCmd = "Start-Process 'C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe'"`,
       `        .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -d -i -accepteula -nobanner powershell -Command $showCmd 2>&1 | Out-Null`,
@@ -292,16 +292,23 @@ export class AgentService {
     ].join('\n');
     fs.writeFileSync(psScriptPath, psContent, 'utf-8');
 
+    // Validate inputs to prevent command injection
+    const safeUser = /^[a-zA-Z0-9_.\\-]+$/.test(adminUser) ? adminUser : 'Administrator';
+    const safePass = /^[a-zA-Z0-9!@#$%^&*()_+\\-=[\\]{}|;:,.<>?/~` ]+$/.test(adminPass) ? adminPass : '';
+    if (adminUser !== safeUser || adminPass !== safePass) {
+      logger.warn('Admin credentials contained unsafe characters, using sanitized values');
+    }
+
     for (const ip of targetIPs) {
       const trimmed = ip.trim();
-      if (!trimmed) continue;
+      if (!trimmed || !/^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/.test(trimmed)) continue;
 
       logger.log(`Deploying to ${trimmed}...`);
       try {
         // psexec.py -c copies the script to target and executes it via powershell
         const cmd =
           `python3 ${psexec} ` +
-          `./${adminUser}:'${adminPass}'@${trimmed} ` +
+          `./${safeUser}:'${safePass}'@${trimmed} ` +
           `-c ${psScriptPath} ` +
           `powershell -ExecutionPolicy Bypass -File %TEMP%\\chunlv-deploy.ps1`;
 

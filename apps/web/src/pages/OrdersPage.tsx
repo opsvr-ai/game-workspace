@@ -216,7 +216,7 @@ const OrdersPage: React.FC = () => {
         )}
         {r.status === 'DONE' && (
           <Button size="small" type="primary" onClick={() => {
-            setStartServicePreFill({
+            setPreFill({
               customerId: r.customerId,
               companionId: user?.companionId,
               coCompanionId: r.coCompanionId || undefined,
@@ -225,7 +225,7 @@ const OrdersPage: React.FC = () => {
               coAmount: r.coAmount,
               dispatchType: 'DIRECT',
             });
-            setCreateOrderOpen(true);
+            setCreateOpen(true);
           }}>续单</Button>
         )}
       </>

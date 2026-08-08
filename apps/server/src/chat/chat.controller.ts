@@ -192,6 +192,14 @@ export class ChatController {
         },
       }),
       limits: { fileSize: 20 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/png','image/jpeg','image/gif','image/webp','application/pdf','application/zip','audio/mp3','audio/wav','audio/mpeg'];
+        if (allowed.includes(file.mimetype || '')) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException(`不支持的文件类型: ${file.mimetype}`), false);
+        }
+      },
     }),
   )
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
@@ -271,6 +279,7 @@ export class ChatController {
   }
 
   @Get('conversations/:id/messages')
+  @UseGuards(ParticipantGuard)
   async legacyGetMessages(
     @Req() _req: any,
     @Param('id') id: string,
@@ -287,6 +296,7 @@ export class ChatController {
   }
 
   @Post('conversations/:id/messages')
+  @UseGuards(ParticipantGuard)
   async legacySendMessage(@Req() req: any, @Param('id') id: string, @Body() body: { text: string }) {
     const senderId = this.getUserId(req);
     const message = await this.chatService.sendMessage(id, senderId, {
@@ -301,6 +311,7 @@ export class ChatController {
   }
 
   @Post('conversations/:id/read')
+  @UseGuards(ParticipantGuard)
   async legacyMarkRead(@Req() req: any, @Param('id') id: string) {
     await this.chatService.markRead(id, this.getUserId(req));
     return { data: { ok: true } };

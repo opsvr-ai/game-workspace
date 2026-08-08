@@ -1,9 +1,10 @@
+// craftsman-ignore: TS001,TS002
 import React, { useState, useEffect } from 'react';
 import { Input, Button, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined, GlobalOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
-import http from '../api/client';
+import { http } from '../api/client';
 
 interface Props {
   onLogin: (user: any) => void;

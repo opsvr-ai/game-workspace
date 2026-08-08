@@ -243,36 +243,6 @@ const AppLayout: React.FC = () => {
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
 
-  // Voice call handler
-  const vc = useVoiceCall(user?.id, user?.username);
-  useEffect(() => {
-    const handler = (e: CustomEvent) => {
-      const { targetUserId, targetUserName } = e.detail || {};
-      if (targetUserId) vc.startCall(targetUserId, targetUserName || '未知');
-    };
-    window.addEventListener('start-voice-call', handler as EventListener);
-    return () => window.removeEventListener('start-voice-call', handler as EventListener);
-  }, [vc.startCall]);
-
-  const VoiceCallHandler = () => (
-    <>
-      <IncomingCallModal
-        open={vc.callState.status === 'ringing'}
-        callerName={vc.callState.peerName}
-        onAccept={vc.acceptCall}
-        onReject={vc.rejectCall}
-      />
-      {vc.callState.status === 'connected' && (
-        <VoiceCallBar
-          peerName={vc.callState.peerName}
-          duration={vc.callState.duration}
-          volume={vc.callState.volume}
-          onVolumeChange={vc.setVolume}
-          onHangup={vc.hangup}
-        />
-      )}
-    </>
-  );
   // Notification bell
   const [notifOpen, setNotifOpen] = React.useState(false);
   // Global chat modal (opened from notification bell)
@@ -480,8 +450,7 @@ const AppLayout: React.FC = () => {
   }, []);
 
   // WebSocket connection for real-time updates
-  // WebSocket connection for real-time updates
-  useSocket({
+  const voiceSocketRef = useSocket({
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
@@ -497,7 +466,44 @@ const AppLayout: React.FC = () => {
     onBridgeResponded: (data: any) => {
       message.info(data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请'));
     },
+    onRevenueDiff: (data: any) => {
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      if (isMgmt && data.message) {
+        message.warning({ content: data.message, duration: 10 });
+      }
+    },
   });
+
+  // Voice call handler — uses the same WebSocket from useSocket
+  const vc = useVoiceCall(voiceSocketRef);
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const { targetUserId, targetUserName } = e.detail || {};
+      if (targetUserId) vc.startCall(targetUserId, targetUserName || '未知');
+    };
+    window.addEventListener('start-voice-call', handler as EventListener);
+    return () => window.removeEventListener('start-voice-call', handler as EventListener);
+  }, [vc.startCall]);
+
+  const VoiceCallHandler = () => (
+    <>
+      <IncomingCallModal
+        open={vc.callState.status === 'ringing'}
+        callerName={vc.callState.peerName}
+        onAccept={vc.acceptCall}
+        onReject={vc.rejectCall}
+      />
+      {vc.callState.status === 'connected' && (
+        <VoiceCallBar
+          peerName={vc.callState.peerName}
+          duration={vc.callState.duration}
+          volume={vc.callState.volume}
+          onVolumeChange={vc.setVolume}
+          onHangup={vc.hangup}
+        />
+      )}
+    </>
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {

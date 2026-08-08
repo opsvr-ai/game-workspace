@@ -27,20 +27,20 @@ export class BillingService {
     return this.transactionService.createTransaction(dto);
   }
 
-  async approve(transactionId: string, reviewerId: string) {
-    return this.transactionService.approve(transactionId, reviewerId);
+  async approve(transactionId: string, reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
+    return this.transactionService.approve(transactionId, reviewerId, reviewerStudioId, reviewerRole);
   }
 
-  async reject(transactionId: string, reviewerId: string) {
-    return this.transactionService.reject(transactionId, reviewerId);
+  async reject(transactionId: string, reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
+    return this.transactionService.reject(transactionId, reviewerId, reviewerStudioId, reviewerRole);
   }
 
-  async batchApprove(ids: string[], reviewerId: string) {
-    return this.transactionService.batchApprove(ids, reviewerId);
+  async batchApprove(ids: string[], reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
+    return this.transactionService.batchApprove(ids, reviewerId, reviewerStudioId, reviewerRole);
   }
 
-  async batchReject(ids: string[], reviewerId: string) {
-    return this.transactionService.batchReject(ids, reviewerId);
+  async batchReject(ids: string[], reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
+    return this.transactionService.batchReject(ids, reviewerId, reviewerStudioId, reviewerRole);
   }
 
   async findAll(user: any, status?: string) {
@@ -222,11 +222,14 @@ export class BillingService {
   async reviewWalletTransaction(id: string, status: string, reviewerId: string) {
     const tx = await this.prisma.walletTransaction.findUnique({ where: { id } });
     if (!tx) throw new NotFoundException('交易不存在');
+    if (tx.status !== 'PENDING') throw new ForbiddenException('该交易已处理，无法重复审核');
 
     const update: any = { status, reviewedById: reviewerId };
     if (status === 'APPROVED' && tx.type === 'WITHDRAW') {
       const companion = await this.prisma.companion.findUnique({ where: { id: tx.companionId } });
-      update.balanceAfter = (companion?.balance ?? 0) - tx.amount;
+      if (!companion) throw new NotFoundException('陪玩不存在');
+      if (companion.balance < tx.amount) throw new ForbiddenException('余额不足，无法通过支取');
+      update.balanceAfter = companion.balance - tx.amount;
       await this.prisma.companion.update({
         where: { id: tx.companionId },
         data: { balance: { decrement: tx.amount } },
@@ -278,6 +281,45 @@ export class BillingService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ── Revenue Diff Check ──
+
+  async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayOrders = await this.prisma.order.findMany({
+      where: {
+        companionId,
+        status: 'DONE',
+        createdAt: { gte: today, lt: tomorrow },
+      },
+      select: { amount: true },
+    });
+
+    const systemTotal = todayOrders.reduce((s, o) => s + o.amount, 0);
+    const diff = systemTotal - reportedAmount;
+
+    if (Math.abs(diff) > 0.01) {
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: companionId },
+        select: { user: { select: { username: true, displayName: true } } },
+      });
+      const name = companion?.user?.displayName || companion?.user?.username || companionId;
+
+      this.wsGateway.broadcastToBridgedStudios(studioId, 'billing:revenue_diff', {
+        companionId,
+        companionName: name,
+        systemTotal: Math.round(systemTotal * 100) / 100,
+        reportedAmount: Math.round(reportedAmount * 100) / 100,
+        diff: Math.round(diff * 100) / 100,
+        message: `${name} 上报流水 ¥${reportedAmount}，系统订单 ¥${systemTotal}，差额 ¥${diff.toFixed(2)}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   // ── Unified Billing Overview ──

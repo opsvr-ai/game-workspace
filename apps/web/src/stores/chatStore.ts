@@ -314,5 +314,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeConversationId: null,
       totalUnread: 0,
       syncing: false,
+      myUserId: null,
     }),
 }));

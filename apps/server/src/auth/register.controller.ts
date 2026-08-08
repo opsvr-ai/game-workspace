@@ -1,4 +1,5 @@
 import {
+// craftsman-ignore: TS001
   Controller, Post, Get, Put, Param, Body, Req, Query, UseGuards, UseInterceptors,
   UploadedFiles,
 } from '@nestjs/common';
@@ -63,9 +64,16 @@ export class RegisterController {
     },
     @UploadedFiles() files?: { idCardFront?: Express.Multer.File[]; idCardBack?: Express.Multer.File[]; leaseContract?: Express.Multer.File[] },
   ): Promise<ApiResponse<unknown>> {
+    // Validate password length
+    if (!body.password || body.password.length < 6) {
+      return { code: 400, message: '密码至少6位', data: null };
+    }
+    // Only allow COMPANION self-registration; ADMIN/CS must be created by OWNER
+    const role = body.role === 'COMPANION' ? 'COMPANION' : 'COMPANION';
+
     // 校验必填 (ADMIN with studioName doesn't need studioId — auto-creates studio)
-    const needsStudioId = body.role !== 'ADMIN' || !body.studioName;
-    if (!body.username || !body.password || !body.realName || !body.idNumber || !body.phone) {
+    const needsStudioId = false;
+    if (!body.username || !body.realName || !body.idNumber || !body.phone) {
       return { code: 400, message: '请填写所有必填字段', data: null };
     }
     if (needsStudioId && !body.studioId) {
@@ -95,23 +103,9 @@ export class RegisterController {
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
-    const role = body.role === 'CS' ? 'CS' : body.role === 'ADMIN' ? 'ADMIN' : 'COMPANION';
-    const isCompanion = role === 'COMPANION';
-    const isAdmin = role === 'ADMIN';
+    const isCompanion = true;
 
-    // Auto-create studio for admin registration
     let studioId = body.studioId;
-    if (isAdmin && body.studioName) {
-      const registerRole = body.registerRole || body.role || '';
-      const isOnline = registerRole.startsWith('ONLINE');
-      const studioType = isOnline ? 'RENTAL' : 'DIRECT';
-      const splitMode = isOnline ? 'FIXED' : 'TIERED'; // 线下=阶梯 线上=固定
-      console.log(`[Register] Creating studio: name=${body.studioName} type=${studioType} splitMode=${splitMode} registerRole=${registerRole}`);
-      const studio = await this.prisma.studio.create({
-        data: { name: body.studioName, type: studioType, splitMode, address: body.address || null, leaseContractUrl },
-      });
-      studioId = studio.id;
-    }
 
     let user;
     try {

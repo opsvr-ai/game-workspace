@@ -410,11 +410,12 @@ export class OrdersService {
   }
 
   async markReady(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true } });
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { companionId: true, customFields: true } });
     if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
+    const existingFields = (order.customFields as Record<string, unknown>) || {};
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { customFields: { partnerReady: true, partnerId: companionId } as any },
+      data: { customFields: { ...existingFields, partnerReady: true, partnerId: companionId } as any },
     });
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;

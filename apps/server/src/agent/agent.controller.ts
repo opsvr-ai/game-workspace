@@ -156,21 +156,71 @@ export class AgentController {
     };
   }
 
-  // Scan LAN — ping all, then detect Windows via SMB port
+  // Scan LAN — ping sweep subnet, then detect Windows via SMB port
   @Get('deploy/scan-lan')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async scanLan(): Promise<ApiResponse<unknown>> {
     const { execSync } = require('child_process');
     const hosts: { ip: string; mac?: string }[] = [];
+    const seen = new Set<string>();
+
+    // 1. ARP table (fast, already-communicated devices)
     try {
       const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;
-      const lines = raw.split('\n');
-      for (const line of lines) {
+      for (const line of raw.split('\n')) {
         const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-f:]+)/i);
-        if (m) hosts.push({ ip: m[1], mac: m[2] });
+        if (m && !seen.has(m[1])) {
+          seen.add(m[1]);
+          hosts.push({ ip: m[1], mac: m[2] });
+        }
       }
     } catch {}
+
+    // 2. Fast ping sweep using parallel fping or nmap
+    try {
+      const nets = require('os').networkInterfaces();
+      for (const iface of Object.values(nets) as any[]) {
+        for (const addr of iface as any[]) {
+          if (addr.family !== 'IPv4' || addr.internal) continue;
+          const subnet = addr.address.split('.').slice(0, 3).join('.');
+          try {
+            // fping: fastest (completes in ~2s for entire subnet)
+            const result = execSync(`fping -a -g ${subnet}.0/24 -r 1 -t 200 2>/dev/null || true`, { timeout: 5000, encoding: 'utf-8' }) as string;
+            for (const line of result.split('\n')) {
+              const ip = line.trim();
+              if (ip && !seen.has(ip) && /^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
+                seen.add(ip);
+                hosts.push({ ip });
+              }
+            }
+          } catch {
+            // fallback: nmap
+            try {
+              const result = execSync(`nmap -sn ${subnet}.0/24 --host-timeout 2s 2>/dev/null | grep 'Nmap scan' | awk '{print $NF}' | tr -d '()' || true`, { timeout: 10000, encoding: 'utf-8' }) as string;
+              for (const line of result.split('\n')) {
+                const ip = line.trim();
+                if (ip && !seen.has(ip) && /^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
+                  seen.add(ip);
+                  hosts.push({ ip });
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Sort by IP
+    hosts.sort((a, b) => {
+      const aParts = a.ip.split('.').map(Number);
+      const bParts = b.ip.split('.').map(Number);
+      for (let i = 0; i < 4; i++) {
+        if (aParts[i] !== bParts[i]) return aParts[i] - bParts[i];
+      }
+      return 0;
+    });
+
     return { code: 200, message: `发现 ${hosts.length} 台设备`, data: hosts };
   }
 

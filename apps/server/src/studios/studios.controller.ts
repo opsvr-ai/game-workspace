@@ -79,8 +79,10 @@ export class StudiosController {
   @Get('employees')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
-  async getEmployees(@Query('studioId') studioId: string, @Query('studioType') studioType?: string, @Query('role') role?: string): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.getEmployees(studioId, studioType, role);
+  async getEmployees(@Query('studioId') studioId: string, @Query('studioType') studioType?: string, @Query('role') role?: string, @Req() req?: any): Promise<ApiResponse<unknown>> {
+    // CS/ADMIN can only see their own studio; OWNER can filter by any studio
+    const effectiveStudioId = (req?.user?.role === 'OWNER') ? studioId : (req?.user?.studioId || studioId);
+    const data = await this.studiosService.getEmployees(effectiveStudioId, studioType, role);
     return { code: 200, message: 'ok', data };
   }
 
@@ -89,8 +91,17 @@ export class StudiosController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async createEmployee(
     @Body() dto: { username: string; password: string; role: string; studioId: string },
+    @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.createEmployee(dto.studioId, dto);
+    // CS can only create in own studio and cannot create ADMIN/OWNER
+    const effectiveStudioId = req.user.role === 'OWNER' ? dto.studioId : req.user.studioId;
+    if (req.user.role === 'CS' && dto.role !== UserRole.COMPANION && dto.role !== UserRole.CS) {
+      return { code: 403, message: '客服只能创建陪玩或客服账号', data: null };
+    }
+    if (req.user.role === 'ADMIN' && dto.role === UserRole.OWNER) {
+      return { code: 403, message: '管理员无法创建老板账号', data: null };
+    }
+    const data = await this.studiosService.createEmployee(effectiveStudioId, dto);
     return { code: 200, message: 'ok', data };
   }
 

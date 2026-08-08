@@ -34,17 +34,10 @@ export function useChatSync(wsConnected: boolean) {
   }, []);
 
   useEffect(() => {
-    // Start polling when WS is disconnected
-    if (!wsConnected) {
-      intervalRef.current = setInterval(sync, 30000); // 30s fallback
-    } else {
-      // Sync once on reconnect
-      sync();
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
+    // Always sync on mount
+    sync();
+    // Always run polling as safety net (30s), WS is still primary for real-time
+    intervalRef.current = setInterval(sync, 30000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
