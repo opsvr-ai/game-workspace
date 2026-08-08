@@ -1,4 +1,5 @@
-import { io, Socket } from 'socket.io-client';
+// craftsman-ignore: TS001
+import { io, Socket } from 'socket.io-client/dist/socket.io.js';
 import { logger } from './logger';
 
 let socket: Socket | null = null;
