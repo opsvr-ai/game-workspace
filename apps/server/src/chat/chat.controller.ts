@@ -57,7 +57,7 @@ export class ChatController {
       pinned: pinned === '1' || pinned === 'true',
       search,
     });
-    return { data: { rooms } };
+    return { code: 200, message: 'ok', data: { rooms } };
   }
 
   @Post('rooms')
@@ -68,7 +68,7 @@ export class ChatController {
       body.participantId,
       body.orderInfo,
     );
-    return { data: { room: { id: room.id } } };
+    return { code: 200, message: 'ok', data: { room: { id: room.id } } };
   }
 
   @Patch('rooms/:id')
@@ -78,13 +78,13 @@ export class ChatController {
     @Body() body: { pinned?: boolean; archived?: boolean; orderInfo?: string },
   ) {
     const room = await this.chatService.updateRoom(id, body);
-    return { data: { room } };
+    return { code: 200, message: 'ok', data: { room } };
   }
 
   @Post('rooms/read-all')
   async markAllRead(@Req() req: any) {
     await this.chatService.markAllRead(this.getUserId(req), this.getStudioId(req));
-    return { data: { ok: true } };
+    return { code: 200, message: 'ok', data: { ok: true } };
   }
 
   // ── Messages ──
@@ -103,7 +103,7 @@ export class ChatController {
       after ? Number(after) : undefined,
       Number(limit) || 50,
     );
-    return { data: result };
+    return { code: 200, message: 'ok', data: result };
   }
 
   @Post('rooms/:id/messages')
@@ -129,14 +129,14 @@ export class ChatController {
       });
     }
 
-    return { data: { message: this.serializeMessage(message) } };
+    return { code: 200, message: 'ok', data: { message: this.serializeMessage(message) } };
   }
 
   @Delete('rooms/:id/messages/:msgId')
   @UseGuards(ParticipantGuard)
   async recallMessage(@Req() req: any, @Param('id') roomId: string, @Param('msgId') msgId: string) {
     await this.chatService.recallMessage(roomId, msgId, this.getUserId(req));
-    return { data: { ok: true } };
+    return { code: 200, message: 'ok', data: { ok: true } };
   }
 
   // ── Reactions ──
@@ -146,14 +146,14 @@ export class ChatController {
   async addReaction(@Req() req: any, @Param('msgId') msgId: string, @Body() body: { emoji: string }) {
     if (!body.emoji) throw new BadRequestException('emoji is required');
     const reactions = await this.chatService.addReaction(msgId, this.getUserId(req), body.emoji);
-    return { data: { reactions } };
+    return { code: 200, message: 'ok', data: { reactions } };
   }
 
   @Delete('rooms/:id/messages/:msgId/reactions/:emoji')
   @UseGuards(ParticipantGuard)
   async removeReaction(@Req() req: any, @Param('msgId') msgId: string, @Param('emoji') emoji: string) {
     const reactions = await this.chatService.removeReaction(msgId, this.getUserId(req), emoji);
-    return { data: { reactions } };
+    return { code: 200, message: 'ok', data: { reactions } };
   }
 
   // ── Read Tracking ──
@@ -162,13 +162,13 @@ export class ChatController {
   @UseGuards(ParticipantGuard)
   async markRead(@Req() req: any, @Param('id') id: string) {
     const seq = await this.chatService.markRead(id, this.getUserId(req));
-    return { data: { readSeq: seq } };
+    return { code: 200, message: 'ok', data: { readSeq: seq } };
   }
 
   @Get('unread-summary')
   async unreadSummary(@Req() req: any) {
     const total = await this.chatService.getTotalUnread(this.getUserId(req), this.getStudioId(req));
-    return { data: { totalUnread: total } };
+    return { code: 200, message: 'ok', data: { totalUnread: total } };
   }
 
   // ── Sync ──
@@ -176,7 +176,7 @@ export class ChatController {
   @Post('sync')
   async sync(@Req() req: any, @Body() body: SyncRequestDto) {
     const result = await this.chatService.syncRooms(this.getUserId(req), body.rooms);
-    return { data: result };
+    return { code: 200, message: 'ok', data: result };
   }
 
   // ── Upload ──
@@ -193,7 +193,17 @@ export class ChatController {
       }),
       limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = ['image/png','image/jpeg','image/gif','image/webp','application/pdf','application/zip','audio/mp3','audio/wav','audio/mpeg'];
+        const allowed = [
+          'image/png',
+          'image/jpeg',
+          'image/gif',
+          'image/webp',
+          'application/pdf',
+          'application/zip',
+          'audio/mp3',
+          'audio/wav',
+          'audio/mpeg',
+        ];
         if (allowed.includes(file.mimetype || '')) {
           cb(null, true);
         } else {
@@ -229,7 +239,7 @@ export class ChatController {
   async typing(@Req() _req: any, @Param('id') _roomId: string, @Body() _body: { active: boolean }) {
     // Typing relay is handled via WebSocket directly
     // This REST endpoint provides HTTP fallback
-    return { data: { ok: true } };
+    return { code: 200, message: 'ok', data: { ok: true } };
   }
 
   // ── Search ──
@@ -238,7 +248,7 @@ export class ChatController {
   async search(@Req() req: any, @Query('q') q: string, @Query('roomId') roomId?: string) {
     if (!q || q.trim().length === 0) throw new BadRequestException('搜索关键词不能为空');
     const results = await this.chatService.searchMessages(this.getUserId(req as any), q, roomId);
-    return { data: { results } };
+    return { code: 200, message: 'ok', data: { results } };
   }
 
   // ── User Profile ──
@@ -264,7 +274,7 @@ export class ChatController {
   async legacyListConversations(@Req() req: any) {
     // Redirect to new endpoint
     const rooms = await this.chatService.listRooms(this.getUserId(req), this.getStudioId(req));
-    return { data: { conversations: rooms } };
+    return { code: 200, message: 'ok', data: { conversations: rooms } };
   }
 
   @Post('conversations')
@@ -275,7 +285,7 @@ export class ChatController {
       body.participantId,
       body.orderInfo,
     );
-    return { data: { id: room.id } };
+    return { code: 200, message: 'ok', data: { id: room.id } };
   }
 
   @Get('conversations/:id/messages')
@@ -292,7 +302,7 @@ export class ChatController {
       undefined,
       Number(limit) || 50,
     );
-    return { data: result };
+    return { code: 200, message: 'ok', data: result };
   }
 
   @Post('conversations/:id/messages')
@@ -314,13 +324,13 @@ export class ChatController {
   @UseGuards(ParticipantGuard)
   async legacyMarkRead(@Req() req: any, @Param('id') id: string) {
     await this.chatService.markRead(id, this.getUserId(req));
-    return { data: { ok: true } };
+    return { code: 200, message: 'ok', data: { ok: true } };
   }
 
   @Get('unread-count')
   async legacyUnreadCount(@Req() req: any) {
     const total = await this.chatService.getTotalUnread(this.getUserId(req), this.getStudioId(req));
-    return { data: { total } };
+    return { code: 200, message: 'ok', data: { total } };
   }
 
   // ── Helpers ──

@@ -71,7 +71,7 @@ async function bootstrap() {
   // Build requests can take minutes (electron-builder on Wine)
   server.setTimeout(600_000);
   logger.info('Server started', { port: 3001 });
-  console.log('Server running on http://localhost:3001');
+  logger.info('Server running', { url: 'http://localhost:3001' });
 }
 
 bootstrap();

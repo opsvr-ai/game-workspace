@@ -1,11 +1,5 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  BadRequestException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, BadRequestException, HttpStatus } from '@nestjs/common';
+import { logger } from './logger';
 
 interface ValidationErrorItem {
   field: string;
@@ -40,16 +34,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Catch-all for unexpected errors
-    console.error(exception);
+    logger.error('Unhandled exception', { error: exception.message, stack: exception.stack });
     reply.status(HttpStatus.INTERNAL_SERVER_ERROR).send({
       code: HttpStatus.INTERNAL_SERVER_ERROR,
       message: '服务器内部错误',
     });
   }
 
-  private formatValidationErrors(
-    messages: string | string[],
-  ): string | ValidationErrorItem[] {
+  private formatValidationErrors(messages: string | string[]): string | ValidationErrorItem[] {
     // If it's already a single string (custom BadRequestException), return as-is
     if (typeof messages === 'string') {
       return messages;
@@ -67,9 +59,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // If nested objects with constraints from class-validator's default format
       return (messages as any[]).map((err) => ({
         field: err.property ?? 'unknown',
-        messages: err.constraints
-          ? Object.values(err.constraints)
-          : [String(err)],
+        messages: err.constraints ? Object.values(err.constraints) : [String(err)],
       }));
     }
 

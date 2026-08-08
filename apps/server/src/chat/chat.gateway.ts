@@ -202,7 +202,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const jwt = require('jsonwebtoken');
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+      const secret = process.env.JWT_SECRET;
+      if (!secret) throw new Error('JWT_SECRET not configured');
+      const payload = jwt.verify(token, secret) as any;
       return {
         userId: payload.sub,
         username: payload.username,
