@@ -121,23 +121,40 @@ export class CompanionsService {
   private async getTodayRange(): Promise<{ start: Date; end: Date }> {
     const h = await this.getDayStartHour();
     const now = new Date();
-    const start = new Date(now); start.setHours(h, 0, 0, 0);
+    const start = new Date(now);
+    start.setHours(h, 0, 0, 0);
     if (now.getHours() < h) start.setDate(start.getDate() - 1);
-    const end = new Date(start); end.setDate(end.getDate() + 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
     return { start, end };
   }
 
   async getDormantCustomers(companionId: string) {
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
     const all = await this.prisma.customer.findMany({
       where: { companionId },
-      select: { id: true, wechatId: true, totalSpent: true, createdAt: true, orders: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } } },
+      select: {
+        id: true,
+        wechatId: true,
+        totalSpent: true,
+        createdAt: true,
+        orders: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+      },
     });
-    const dormant = all.filter(c => {
+    const dormant = all.filter((c) => {
       const lastOrder = c.orders[0]?.createdAt;
       return (!lastOrder || lastOrder < weekAgo) && new Date(c.createdAt).getTime() < Date.now() - 3 * 86400000;
     });
-    return { total: all.length, dormant: dormant.length, list: dormant.map(c => ({ id: c.id, wechatId: c.wechatId, lastContact: c.orders[0]?.createdAt || c.createdAt })) };
+    return {
+      total: all.length,
+      dormant: dormant.length,
+      list: dormant.map((c) => ({
+        id: c.id,
+        wechatId: c.wechatId,
+        lastContact: c.orders[0]?.createdAt || c.createdAt,
+      })),
+    };
   }
 
   async getTodaySessions(companionId: string) {
@@ -150,11 +167,19 @@ export class CompanionsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return sessions.map(s => ({
-      id: s.id, seq: s.seq, gameName: s.parentOrder?.gameName, orderCode: s.parentOrder?.orderCode,
-      amount: s.amount, coAmount: s.coAmount, duration: s.duration, status: s.status,
+    return sessions.map((s) => ({
+      id: s.id,
+      seq: s.seq,
+      gameName: s.parentOrder?.gameName,
+      orderCode: s.parentOrder?.orderCode,
+      amount: s.amount,
+      coAmount: s.coAmount,
+      duration: s.duration,
+      status: s.status,
       coName: s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null,
-      startedAt: s.startedAt, endedAt: s.endedAt, createdAt: s.createdAt,
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+      createdAt: s.createdAt,
     }));
   }
 
@@ -174,18 +199,17 @@ export class CompanionsService {
     });
     const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
 
-    // Order type breakdown
-    const orderStats = await Promise.all(
-      ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].map(async (type) => {
-        const orders = await this.prisma.order.findMany({
-          where: { companionId, type, status: 'DONE' },
-          select: { amount: true },
-        });
-        const count = orders.length;
-        const amount = orders.reduce((s, o) => s + o.amount, 0);
-        return { type, count, amount };
-      }),
-    );
+    // Order type breakdown (single query with groupBy)
+    const typeStats = await this.prisma.order.groupBy({
+      by: ['type'],
+      where: { companionId, status: 'DONE' },
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+    const orderStats = ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].map((type) => {
+      const row = typeStats.find((r) => r.type === type);
+      return { type, count: row?._count?.id ?? 0, amount: row?._sum?.amount ?? 0 };
+    });
     const totalCount = orderStats.reduce((s, o) => s + o.count, 0);
     const statsMap: Record<string, any> = {};
     orderStats.forEach(({ type, count, amount }) => {
@@ -196,28 +220,35 @@ export class CompanionsService {
       };
     });
 
-    // Today's order type breakdown
+    // Today's order type breakdown (single groupBy query)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    const todayBreakdownOrders = await this.prisma.order.findMany({
+    const todayTypeStats = await this.prisma.order.groupBy({
+      by: ['type'],
       where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
-      select: { type: true, amount: true, customFields: true, notes: true },
+      _sum: { amount: true },
+      _count: { id: true },
     });
     const todayStats: Record<string, any> = {};
     ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].forEach((t) => {
-      todayStats[t] = { count: 0, amount: 0 };
+      const row = todayTypeStats.find((r) => r.type === t);
+      todayStats[t] = { count: row?._count?.id ?? 0, amount: Math.round((row?._sum?.amount ?? 0) * 100) / 100 };
     });
-    todayBreakdownOrders.forEach((o) => {
-      todayStats[o.type].count++;
-      todayStats[o.type].amount += o.amount;
-    });
-    const todayTotal = todayBreakdownOrders.reduce((s, o) => s + o.amount, 0);
+    const todayTotal = Object.values(todayStats).reduce((s: number, v: any) => s + v.amount, 0);
     Object.keys(todayStats).forEach((k) => {
-      todayStats[k].amount = Math.round(todayStats[k].amount * 100) / 100;
       todayStats[k].ratio = todayTotal > 0 ? Math.round((todayStats[k].amount / todayTotal) * 100) : 0;
     });
+
+    // Fetch today's budan/notes in one query
+    const todayBudanOrders = await this.prisma.order.findMany({
+      where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
+      select: { customFields: true, notes: true },
+    });
+    const todayBudanCount = todayBudanOrders.filter((o) =>
+      (((o.customFields as Record<string, unknown> | null)?.deltaNote as string) || o.notes || '').includes('补单'),
+    ).length;
 
     // Config thresholds
     const [unlockCfg, freeCfg, entRevenueCfg, entDepositCfg] = await Promise.all([
