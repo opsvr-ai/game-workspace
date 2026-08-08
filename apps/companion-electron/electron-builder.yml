@@ -7,6 +7,9 @@ files:
   - dist
   - preload-dist
   - package.json
+asar: true
+asarUnpack:
+  - node_modules/socket.io-client/**
 win:
   icon: public/donkey.ico
   target:
