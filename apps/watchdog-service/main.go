@@ -117,17 +117,11 @@ func findClient() string {
 	return ""
 }
 
-// cleanUnpacked removes the asar.unpacked directory left by a killed Electron process.
-// TerminateProcess during asar unpacking corrupts it — causes ENOENT on next launch.
-func cleanUnpacked() {
-	if clientPath != "" {
-		unpacked := filepath.Join(filepath.Dir(clientPath), "resources", "app.asar.unpacked")
-		if _, err := os.Stat(unpacked); err == nil {
-			safeInfo(fmt.Sprintf("Cleaning unpacked: %s", unpacked))
-			os.RemoveAll(unpacked)
-		}
-	}
-}
+// NOTE: deliberately NO cleanUnpacked() here. Deleting resources/app.asar.unpacked
+// permanently breaks the client: asarUnpack files (e.g. socket.io-client) are
+// extracted at BUILD time by electron-builder and are NOT regenerated at runtime.
+// After removal every launch of 蠢驴电竞.exe fails to load main.js and shows a
+// stuck "Error" window — while the watchdog wrongly treats the live PID as healthy.
 
 // killAllClientProcesses kills every 蠢驴电竞.exe process on the system.
 // This cleans up orphan GPU/renderer children that outlive the main process.
@@ -267,9 +261,8 @@ func launchClient() {
 		atomic.StoreInt32(&restartCount, 0)
 	}
 
-	// Kill orphans + clean corrupted unpacked files from TerminateProcess
+	// Kill orphans from previous killed launches
 	killAllClientProcesses()
-	cleanUnpacked()
 	time.Sleep(2 * time.Second) // let file handles fully release
 
 	safeInfo(fmt.Sprintf("Launching: %s", path))
@@ -277,7 +270,6 @@ func launchClient() {
 	if err != nil {
 		safeWarn(fmt.Sprintf("CreateProcessAsUser failed: %v — fallback exec", err))
 		killAllClientProcesses()
-		cleanUnpacked()
 		time.Sleep(500 * time.Millisecond)
 		cmd := exec.Command(path)
 		cmd.Dir = filepath.Dir(path)

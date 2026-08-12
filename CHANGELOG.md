@@ -27,9 +27,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-
-### Fixed
-
+- **看门狗误删 app.asar.unpacked：** 修复 SystemHelper 服务 `cleanUnpacked()` 删除 `resources/app.asar.unpacked` 后客户端永久无法启动的问题（asarUnpack 文件是构建时产物，Electron 运行时不会重建；删除后客户端弹 Error 窗口卡死，看门狗误判为健康）
+- **无限更新循环：** 修复 updater 版本比较用 `!==` 导致服务器版本与本地不一致（哪怕更旧）时客户端每次启动都下载安装器自杀重装的循环（改为语义化数字比较，仅服务器版本更高才更新）
+- **build 脚本残留引用：** 移除 `package.json` build/build:win 中 `cp electron/watchdog.js` 引用（该文件已随应用内看门狗一起删除，导致构建失败）
 - **陪玩状态同步：** 修复 Electron 客户端状态变更不通知服务端的 bug（`status:changed` IPC 缺少 `emitStatus` 调用）
 - **心跳覆盖状态：** 修复 REST 心跳每 30 秒无条件设为 ONLINE 导致覆写用户主动设置的状态
 - **OWNER 空 studioId：** 修复 OWNER 角色黑名单/白名单 API 500 错误（null studioId 不兼容 Prisma 复合唯一键 upsert）

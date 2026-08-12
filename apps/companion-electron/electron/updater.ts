@@ -8,6 +8,22 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 
 /**
+ * Compare two dot-separated version strings numerically.
+ * Handles long segments like 1.0.20260810 (release-date style).
+ * Returns 1 if a > b, -1 if a < b, 0 if equal.
+ */
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
+/**
  * Check server for latest version, compare with local version.
  * If newer version available, download and install.
  */
@@ -28,8 +44,13 @@ export async function checkForUpdates(): Promise<void> {
 
     const { version: latestVersion, downloadUrl } = json.data;
 
-    if (latestVersion === localVersion) {
-      logger.info('Already up-to-date', { version: localVersion });
+    // Only update when the server version is strictly NEWER than local.
+    // A plain !== here caused an endless update loop whenever the server
+    // config held an older version string (e.g. 1.0.0 vs 1.0.20260810):
+    // every launch downloaded the installer, which killed the app, which
+    // the watchdog then relaunched — forever.
+    if (compareVersions(latestVersion, localVersion) <= 0) {
+      logger.info('Already up-to-date', { local: localVersion, latest: latestVersion });
       return;
     }
 
