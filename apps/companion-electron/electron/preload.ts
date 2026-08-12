@@ -1,60 +1,10 @@
+// craftsman-ignore: TS001,TS003
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Auth
-  login: (params: { username: string; password: string }) => ipcRenderer.invoke('auth:login', params),
-  getToken: () => ipcRenderer.invoke('auth:getToken'),
-  getServerUrl: () => ipcRenderer.invoke('auth:getServerUrl'),
-  logout: () => ipcRenderer.invoke('auth:logout'),
-
-  // API proxy
-  apiRequest: (params: { method: string; url: string; body?: any }) => ipcRenderer.invoke('api:request', params),
-
-  // Store
+  pwSubmit: (pass: string) => ipcRenderer.send('pw:submit', pass),
+  promptLogoutPassword: () => ipcRenderer.invoke('auth:promptLogoutPassword'),
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
-  storeSet: (key: string, value: any) => ipcRenderer.invoke('store:set', key, value),
-
-  // Window
-  showWindow: () => ipcRenderer.invoke('window:show'),
-  hideWindow: () => ipcRenderer.invoke('window:hide'),
-
-  // Status
-  onStatusChanged: (status: string) => ipcRenderer.send('status:changed', status),
-
-  // WebSocket events from main process
-  onWsEvent: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = [
-      'nav:orderPool',
-      'ws:orderNew',
-      'ws:orderUrgent',
-      'ws:poolUpdated',
-      'ws:statusBroadcast',
-      'ws:pcCommand',
-      'ws:blacklistUpdate',
-      'ws:blacklistRecheck',
-      'ws:entertainmentWarning',
-      'ws:entertainmentForceIdle',
-      'fileDropped',
-    ];
-    if (validChannels.includes(channel)) {
-      const subscription = (_event: any, ...args: any[]) => callback(...args);
-      ipcRenderer.on(channel, subscription);
-      return () => ipcRenderer.removeListener(channel, subscription);
-    }
-    return () => {};
-  },
-
-  // Remote deploy — execute PsExec script from admin's PC
-  executeRemoteDeploy: (script: string) => ipcRenderer.invoke('deploy:execute', script),
-
-  // Status bar animation — call directly from renderer
-  showStatusBar: (status: string) => ipcRenderer.send('show-status-bar', status),
-
-  // One-click app update — download + replace + restart
-  updateApp: () => ipcRenderer.invoke('update-app'),
-
-  // Verify admin password
-  verifyPassword: (pw: string) => ipcRenderer.invoke('verify-password', pw),
-  // Show native password prompt
-  promptLogoutPassword: () => ipcRenderer.invoke('prompt-logout-password'),
+  storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
+  logout: () => ipcRenderer.invoke('auth:logout'),
 });

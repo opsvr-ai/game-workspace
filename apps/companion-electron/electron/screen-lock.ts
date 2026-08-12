@@ -46,7 +46,7 @@ var attempts=0;
 document.getElementById('pw').addEventListener('keydown',function(e){
 if(e.key==='Enter'){
 if(e.target.value===pass){
-window.electronAPI&&window.electronAPI.storeSet&&window.electronAPI.storeSet('screenLocked','false');
+window.electronAPI&&window.electronAPI.storeSet&&window.electronAPI.storeSet('screenLocked','unlocked');
 window.close();
 }else{
 attempts++;

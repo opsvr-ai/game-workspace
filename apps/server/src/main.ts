@@ -19,6 +19,10 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Body size limits — needed for large payloads (installer uploads, process reports)
+  app.use(express.json({ limit: '200mb' }));
+  app.use(express.urlencoded({ limit: '200mb', extended: true }));
+
   // Security middleware
   app.use(
     helmet({
@@ -50,13 +54,13 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Serve uploaded files
-  app.useStaticAssets(join(process.cwd(), '../../uploads'), {
+  // Serve uploaded files (resolve from dist/ → ../../../ = repo root)
+  app.useStaticAssets(join(__dirname, '../../../uploads'), {
     prefix: '/uploads',
   });
 
-  // Serve web frontend (if built)
-  const webDistPath = join(process.cwd(), 'web-dist');
+  // Serve web frontend (if built, at apps/server/web-dist)
+  const webDistPath = join(__dirname, '../web-dist');
   if (existsSync(webDistPath)) {
     const expressApp = app.getHttpAdapter().getInstance();
     // Serve static assets first

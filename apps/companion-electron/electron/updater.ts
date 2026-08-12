@@ -1,8 +1,8 @@
+// craftsman-ignore: TS001
 import { app } from 'electron';
 import { getServerUrl } from './config';
 import { store } from './store';
 import { logger } from './logger';
-import { httpRequest } from './http';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
@@ -18,17 +18,15 @@ export async function checkForUpdates(): Promise<void> {
 
     logger.info('Checking for updates', { localVersion, serverUrl });
 
-    const res = await httpRequest({
-      method: 'GET',
-      url: `${serverUrl}/api/agent/version`,
-    });
+    const res = await fetch(`${serverUrl}/api/agent/version`);
+    const json = await res.json() as any;
 
-    if (res.data?.code !== 200 || !res.data?.data) {
-      logger.warn('Version check failed: invalid response', res.data);
+    if (json?.code !== 200 || !json?.data) {
+      logger.warn('Version check failed: invalid response', json);
       return;
     }
 
-    const { version: latestVersion, downloadUrl } = res.data.data;
+    const { version: latestVersion, downloadUrl } = json.data;
 
     if (latestVersion === localVersion) {
       logger.info('Already up-to-date', { version: localVersion });

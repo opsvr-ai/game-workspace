@@ -13,6 +13,14 @@ const logger = new Logger('AgentService');
 export class AgentService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAllOnlineCompanionIds(): Promise<string[]> {
+    const companions = await this.prisma.companion.findMany({
+      where: { status: { not: 'OFFLINE' } },
+      select: { id: true },
+    });
+    return companions.map((c) => c.id);
+  }
+
   async getLatestVersion() {
     const [versionCfg, urlCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'agent.latest_version' } }),
@@ -294,7 +302,7 @@ export class AgentService {
 
     // Validate inputs to prevent command injection
     const safeUser = /^[a-zA-Z0-9_.\\-]+$/.test(adminUser) ? adminUser : 'Administrator';
-    const safePass = /^[a-zA-Z0-9!@#$%^&*()_+\\-=[\\]{}|;:,.<>?/~` ]+$/.test(adminPass) ? adminPass : '';
+    const safePass = /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~` ]+$/.test(adminPass) ? adminPass : '';
     if (adminUser !== safeUser || adminPass !== safePass) {
       logger.warn('Admin credentials contained unsafe characters, using sanitized values');
     }
@@ -306,9 +314,10 @@ export class AgentService {
       logger.log(`Deploying to ${trimmed}...`);
       try {
         // psexec.py -c copies the script to target and executes it via powershell
+        const creds = safePass ? `./${safeUser}:${safePass}@${trimmed}` : `./${safeUser}@${trimmed}`;
+        const noPassFlag = safePass ? '' : ' -no-pass';
         const cmd =
-          `python3 ${psexec} ` +
-          `./${safeUser}:'${safePass}'@${trimmed} ` +
+          `python3 ${psexec} ${creds}${noPassFlag} ` +
           `-c ${psScriptPath} ` +
           `powershell -ExecutionPolicy Bypass -File %TEMP%\\chunlv-deploy.ps1`;
 

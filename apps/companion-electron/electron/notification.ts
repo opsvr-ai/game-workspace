@@ -107,40 +107,33 @@ export function showOrderNotification(
 
   notificationWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
-  // @ts-ignore - inject callback
-  (notificationWindow as any).webContents.executeJavaScript(
-    `window.__acceptCallback = function() { window.close(); };`,
-  );
+  // Inject accept callback: sets flag that main process reads on close
+  notificationWindow.webContents.executeJavaScript(`
+    window.__didAccept = false;
+    window.__acceptCallback = function() {
+      window.__didAccept = true;
+      window.close();
+    };
+  `);
 
   notificationWindow.on('closed', () => {
     notificationWindow = null;
     if (autoCloseTimer) clearTimeout(autoCloseTimer);
   });
 
-  // Auto close after 35 seconds (just in case the countdown fails)
+  // Auto close after 20 seconds timeout
   autoCloseTimer = setTimeout(() => {
     closeNotification();
   }, 20_000);
 
-  // Accept button handler via IPC
-  notificationWindow.webContents.on('ipc-message', (_e, channel) => {
-    if (channel === 'accept-order') {
-      closeNotification();
-      onAccept();
-    }
-  });
-
-  // Override window.close to trigger accept
-  notificationWindow.webContents.executeJavaScript(`
-    const origClose = window.close;
-    window.close = function() { origClose.call(window); };
-  `);
-
-  // Monitor: when notification is closing because user clicked accept,
-  // check if it was explicit close vs timeout
-  notificationWindow.on('close', () => {
-    // We can't easily distinguish accept vs ignore in data: URL mode,
-    // so both just close the notification
+  // When user clicks "查看", call onAccept to show main window + navigate to order pool
+  notificationWindow.on('close', async () => {
+    try {
+      const didAccept = await notificationWindow?.webContents.executeJavaScript('window.__didAccept');
+      if (didAccept) {
+        onAccept();
+      }
+    } catch { /* ignore */ }
   });
 }
 

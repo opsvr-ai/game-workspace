@@ -23,8 +23,12 @@ export function createTray(opts: TrayOptions): Tray {
   tray.setToolTip('蠢驴电竞陪玩');
   tray.setContextMenu(buildMenu());
 
-  tray.on('double-click', () => { onShowCallback?.(); });
-  tray.on('click', () => { onShowCallback?.(); });
+  tray.on('double-click', () => {
+    onShowCallback?.();
+  });
+  tray.on('click', () => {
+    onShowCallback?.();
+  });
 
   return tray;
 }
@@ -38,12 +42,34 @@ function buildMenu(): Menu {
     {
       label: '切换状态',
       submenu: [
-        { label: '空闲', click: () => { if (onStatusChange) onStatusChange('AVAILABLE'); } },
-        { label: '接单', click: () => { if (onStatusChange) onStatusChange('BUSY'); } },
-        { label: '娱乐', click: () => { if (onStatusChange) onStatusChange('ENTERTAINMENT'); } },
-        { label: '休息', click: () => { if (onStatusChange) onStatusChange('RESTING'); } },
+        {
+          label: '空闲',
+          click: () => {
+            if (onStatusChange) onStatusChange('AVAILABLE');
+          },
+        },
+        {
+          label: '接单',
+          click: () => {
+            if (onStatusChange) onStatusChange('BUSY');
+          },
+        },
+        {
+          label: '娱乐',
+          click: () => {
+            if (onStatusChange) onStatusChange('ENTERTAINMENT');
+          },
+        },
+        {
+          label: '休息',
+          click: () => {
+            if (onStatusChange) onStatusChange('RESTING');
+          },
+        },
       ],
     },
+    { type: 'separator' },
+    { label: '退出', click: () => onQuitCallback?.() },
   ]);
 }
 
@@ -66,8 +92,17 @@ function createTrayIcon() {
       for (let x = 0; x < size; x++) {
         const px = (y * size + x) * 4;
         const dist = Math.sqrt((x - 8) ** 2 + (y - 8) ** 2);
-        if (dist <= 6) { buf[px] = 0x8B; buf[px+1] = 0x45; buf[px+2] = 0x13; buf[px+3] = 0xFF; }
-        else { buf[px] = 0; buf[px+1] = 0; buf[px+2] = 0; buf[px+3] = 0; }
+        if (dist <= 6) {
+          buf[px] = 0x8b;
+          buf[px + 1] = 0x45;
+          buf[px + 2] = 0x13;
+          buf[px + 3] = 0xff;
+        } else {
+          buf[px] = 0;
+          buf[px + 1] = 0;
+          buf[px + 2] = 0;
+          buf[px + 3] = 0;
+        }
       }
     }
     return nativeImage.createFromBuffer(buf, { width: size, height: size });

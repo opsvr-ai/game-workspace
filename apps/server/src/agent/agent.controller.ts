@@ -20,18 +20,21 @@ function resolveServerUrl(req: any): string {
   if (host && !host.startsWith('localhost') && !host.startsWith('127.') && !host.startsWith('[::1]')) {
     return `${req.protocol}://${host}`;
   }
-  // Detect LAN IP
+  // Detect LAN IP — prefer 192.168.x.x or 10.x.x.x, skip Docker bridges
   const nets = os.networkInterfaces();
+  const candidates: string[] = [];
   for (const iface of Object.values(nets)) {
     if (!iface) continue;
     for (const addr of iface) {
       if (addr.family === 'IPv4' && !addr.internal) {
-        return `${req.protocol}://${addr.address}:3001`;
+        candidates.push(addr.address);
       }
     }
   }
-  // Fallback — target PCs won't be able to download, but at least the script is generated
-  return `${req.protocol}://${host}`;
+  // Prefer real LAN IPs over Docker bridges (172.17-19.x.x)
+  const lan = candidates.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.'));
+  const selected = lan || candidates[0] || '127.0.0.1';
+  return `${req.protocol}://${selected}:3001`;
 }
 
 @Controller('agent')
@@ -117,21 +120,29 @@ export class AgentController {
     };
   }
 
-  // Admin only: push update to entire studio
+  // Admin only: push update to entire studio (OWNER pushes to all companions)
   @Post('update/push-studio')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async pushUpdateStudio(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const { version, downloadUrl } = await this.agentService.getLatestVersion();
     const studioId = req.user?.studioId;
-    if (!studioId) {
+
+    if (!studioId && req.user?.role !== 'OWNER') {
       return { code: 400, message: '未找到所属工作室', data: null };
     }
-    const { version, downloadUrl } = await this.agentService.getLatestVersion();
-    this.wsGateway.broadcastToStudio(studioId, 'pc:command', {
-      command: 'update',
-      downloadUrl,
-      version,
-    });
+
+    if (studioId) {
+      this.wsGateway.broadcastToStudio(studioId, 'pc:command', {
+        command: 'update', downloadUrl, version,
+      });
+    } else {
+      // OWNER with no studioId: push to ALL online companions
+      const companions = await this.agentService.getAllOnlineCompanionIds();
+      for (const cid of companions) {
+        this.wsGateway.sendCommand(cid, 'update', { downloadUrl, version });
+      }
+    }
 
     return {
       code: 200,

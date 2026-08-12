@@ -34,7 +34,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     // Catch-all for unexpected errors
-    logger.error('Unhandled exception', { error: exception.message, stack: exception.stack });
+    const err = exception as Error;
+    logger.error('Unhandled exception', { error: err.message, stack: err.stack });
     reply.status(HttpStatus.INTERNAL_SERVER_ERROR).send({
       code: HttpStatus.INTERNAL_SERVER_ERROR,
       message: '服务器内部错误',

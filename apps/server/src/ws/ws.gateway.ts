@@ -27,12 +27,17 @@ export interface ConnectedUser {
   companionId?: string;
 }
 
-const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000').split(',');
+const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://localhost:3001').split(',');
+
+/** Check if origin is a LAN IP (192.168.x.x or 10.x.x.x or 172.16-31.x.x) on allowed ports */
+function isLanOrigin(origin: string): boolean {
+  return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)(\d{1,3}\.)?\d{1,3}(:\d+)?$/.test(origin);
+}
 
 @WebSocketGateway({
   cors: {
     origin: (origin: string | undefined, callback: (err: Error | null, allowed?: boolean) => void) => {
-      if (!origin || wsAllowedOrigins.includes(origin)) {
+      if (!origin || wsAllowedOrigins.includes(origin) || isLanOrigin(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

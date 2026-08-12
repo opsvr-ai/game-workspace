@@ -246,10 +246,6 @@ export class CompanionsService {
       where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
       select: { customFields: true, notes: true },
     });
-    const todayBudanCount = todayBudanOrders.filter((o) =>
-      (((o.customFields as Record<string, unknown> | null)?.deltaNote as string) || o.notes || '').includes('补单'),
-    ).length;
-
     // Config thresholds
     const [unlockCfg, freeCfg, entRevenueCfg, entDepositCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } }),
@@ -393,13 +389,13 @@ export class CompanionsService {
       entertainmentDepositThreshold,
       isEntertainmentUnlocked: todayRevenue >= entertainmentThreshold,
       // New analytics metrics
-      todayOrderCount: todayBreakdownOrders.length,
+      todayOrderCount: todayBudanOrders.length,
       monthlyOrderCount: monthlyAll,
       wechatAddRate,
       conversionRate,
       renewRate,
       repurchaseRate,
-      todayBudanCount: todayBreakdownOrders.filter((o) =>
+      todayBudanCount: todayBudanOrders.filter((o) =>
         (((o.customFields as Record<string, unknown> | null)?.deltaNote as string) || o.notes || '').includes('补单'),
       ).length,
       currentStatus: companion?.status ?? 'OFFLINE',

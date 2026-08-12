@@ -1,13 +1,13 @@
 {
   "name": "@chunlv/companion-electron",
-  "version": "1.0.0",
+  "version": "1.0.20260810",
   "description": "蠢驴电竞陪玩师桌面客户端",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc -p tsconfig.electron.json && cp electron/watchdog.js dist-electron/watchdog.js && vite build && electron-builder",
     "postbuild": "cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://192.168.0.106:3001/uploads/蠢驴电竞-portable.zip'",
-    "build:win": "tsc && vite build && electron-builder --win dir && cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://192.168.0.106:3001/uploads/蠢驴电竞-portable.zip'",
+    "build:win": "tsc -p tsconfig.electron.json && cp electron/watchdog.js dist-electron/watchdog.js && vite build && electron-builder --win dir && cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://192.168.0.106:3001/uploads/蠢驴电竞-portable.zip'",
     "preview": "vite preview",
     "lint": "eslint src/ --ext .ts,.tsx --max-warnings 50",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\""

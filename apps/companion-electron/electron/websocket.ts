@@ -1,4 +1,5 @@
 // craftsman-ignore: TS001
+import { app } from 'electron';
 import { io, Socket } from 'socket.io-client/dist/socket.io.js';
 import { logger } from './logger';
 
@@ -15,130 +16,54 @@ export function onWsEvent(event: string, handler: (data: any) => void): void {
 
 function emitEvent(event: string, data: any): void {
   const handlers = eventHandlers.get(event) || [];
-  for (const h of handlers) {
-    try { h(data); } catch { /* ignore */ }
-  }
-}
-
-// Wrapper: log all outgoing Socket.IO events
-function wsEmit(event: string, data: any): void {
-  logger.info(`WS SEND ${event}`, data);
-  socket?.emit(event, data);
-}
-
-// Wrapper: log all incoming Socket.IO events
-function wsOn(event: string, handler: (data: any) => void): void {
-  socket?.on(event, (data: any) => {
-    logger.info(`WS RECV ${event}`, data);
-    handler(data);
-  });
+  for (const h of handlers) { try { h(data); } catch { /* ignore */ } }
 }
 
 export function connectWebSocket(serverUrl: string, token: string, companionId: string): void {
   disconnectWebSocket();
-
   const wsUrl = serverUrl.replace(/^http/, 'ws');
 
   socket = io(wsUrl, {
     auth: { token },
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionDelay: 5000,
+    reconnectionDelay: 10000,
     reconnectionAttempts: Infinity,
   });
 
   socket.on('connect', () => {
-    logger.info('WS CONNECTED', { serverUrl: wsUrl });
-
+    logger.info('WS connected');
     heartbeatTimer = setInterval(() => {
-      wsEmit('companion:heartbeat', {
-        agentVersion: require('electron').app.getVersion(),
-        currentMode: 'WORK',
+      socket?.emit('companion:heartbeat', {
         companionId,
+        agentVersion: app.getVersion(),
       });
-    }, 30_000);
+    }, 60_000);
   });
 
   socket.on('connect_error', (err: any) => {
-    logger.error('WS CONNECT_ERROR', { message: err?.message || String(err) });
+    logger.warn('WS connect error', { message: err?.message || String(err) });
   });
 
   socket.on('disconnect', (reason: any) => {
-    logger.warn('WS DISCONNECTED', { reason: reason?.toString() || String(reason) });
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
-    }
+    logger.warn('WS disconnected', { reason: String(reason) });
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
   });
 
-  wsOn('order:new', (data: any) => {
-    emitEvent('order:new', data);
-  });
-
-  wsOn('order:urgent', (data: any) => {
-    emitEvent('order:urgent', data);
-  });
-
-  wsOn('order:pool_updated', (data: any) => {
-    emitEvent('order:pool_updated', data);
-  });
-
-  wsOn('status:broadcast', (data: any) => {
-    emitEvent('status:broadcast', data);
-  });
-
-  wsOn('pc:command', (data: any) => {
-    emitEvent('pc:command', data);
-  });
-
-  wsOn('blacklist:update', (data: any) => {
-    emitEvent('blacklist:update', data);
-  });
-
-  wsOn('blacklist:recheck', (data: any) => {
-    emitEvent('blacklist:recheck', data);
-  });
-
-  wsOn('entertainment:warning', (data: any) => {
-    emitEvent('entertainment:warning', data);
-  });
-
-  wsOn('entertainment:forceIdle', (data: any) => {
-    emitEvent('entertainment:forceIdle', data);
-  });
+  // Only listen for events we still care about
+  socket.on('order:new', (data) => emitEvent('order:new', data));
+  socket.on('order:urgent', (data) => emitEvent('order:urgent', data));
+  socket.on('order:pool_updated', (data) => emitEvent('order:pool_updated', data));
+  socket.on('pc:command', (data) => emitEvent('pc:command', data));
 }
 
 export function disconnectWebSocket(): void {
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  if (socket) { socket.disconnect(); socket = null; }
 }
 
-export function emitStatus(status: string, mode?: string): void {
-  wsEmit('companion:status', { status, mode });
-}
-
-export function emitBlacklistReport(processes: any[], totalCount: number): void {
-  wsEmit('blacklist:report', { processes, totalCount });
-}
-
-export function emitKillResult(result: { processName: string; pid: number; success: boolean; resultText: string }): void {
-  wsEmit('blacklist:kill_result', {
-    processName: result.processName,
-    pid: result.pid,
-    success: result.success,
-    resultText: result.resultText,
-    triggeredBy: 'PERIODIC',
-  });
-}
-
-export function emitCommandAck(command: string, success: boolean): void {
-  socket?.emit('pc:command_ack', { command, success });
+export function emitStatus(status: string): void {
+  socket?.emit('companion:status', { status });
 }
 
 export function isConnected(): boolean {
