@@ -267,6 +267,14 @@ pnpm build
 
 ---
 
+## Deployment (Auto)
+
+服务器端已启用自动部署：每分钟检查 `master` 更新，检测到变更后自动安装依赖、构建前后端、执行 Prisma 迁移并重建应用容器。
+
+- 部署脚本: `deploy/chunlv-deploy.sh`
+- systemd 单元: `deploy/chunlv-deploy.service` + `deploy/chunlv-deploy.timer`
+- 日志: `/var/log/chunlv-deploy.log`
+
 ## API Reference
 
 All endpoints are prefixed with `/api`. The global prefix is set in `main.ts` via `app.setGlobalPrefix('api')`.
