@@ -74,11 +74,30 @@ export class SessionShotsController {
       },
     }),
   )
-  async uploadShot(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const session = await this.prisma.orderSession.findUnique({ where: { id }, select: { companionId: true } });
+  async uploadShot(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const session = await this.prisma.orderSession.findUnique({
+      where: { id },
+      select: { companionId: true, status: true, flagged: true },
+    });
     if (!session) throw new NotFoundException('会话不存在');
     if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能上传自己会话的截图');
     if (!file) throw new BadRequestException('未收到文件');
+
+    // 补传场景：会话已结束时收到迟到截图 → 重建长图；若之前因 0 截图标红，重新分析
+    if (session.status === 'DONE') {
+      const compositeUrl = await this.composite.buildComposite(id);
+      const update: any = { compositeUrl: compositeUrl || undefined };
+      if (session.flagged === 'red' && this.composite.countShots(id) > 0) {
+        const newFlag = await this.baseline.analyze(id);
+        update.flagged = newFlag || 'processed'; // 无其他异常则清除红标
+      }
+      await this.prisma.orderSession.update({ where: { id }, data: update });
+    }
+
     return { code: 200, message: 'ok', data: { url: `/uploads/session-shots/${id}/${file.filename}` } };
   }
 
@@ -86,7 +105,10 @@ export class SessionShotsController {
   @Put('sessions/:id/finish')
   @Roles(UserRole.COMPANION)
   async finishSession(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const session = await this.prisma.orderSession.findUnique({ where: { id }, select: { companionId: true, status: true } });
+    const session = await this.prisma.orderSession.findUnique({
+      where: { id },
+      select: { companionId: true, status: true },
+    });
     if (!session) throw new NotFoundException('会话不存在');
     if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能操作自己的会话');
 
@@ -98,6 +120,13 @@ export class SessionShotsController {
       await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'red' } });
     } else {
       flagged = await this.baseline.analyze(id);
+      // 截图不全：时长 × 4 为预期张数，实际不足一半 → 黄标（可能是补传未完成）
+      const full = await this.prisma.orderSession.findUnique({ where: { id }, select: { duration: true } });
+      const expected = Math.max(1, Math.round((full?.duration || 1) * 4));
+      if (shotCount < expected / 2 && flagged !== 'red') {
+        flagged = 'yellow';
+        await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'yellow' } });
+      }
     }
 
     const compositeUrl = await this.composite.buildComposite(id);
@@ -117,7 +146,10 @@ export class SessionShotsController {
   /** 管理端：某陪玩的工作记录 */
   @Get('companions/:companionId/work-records')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async workRecords(@Param('companionId') companionId: string, @Query('date') date?: string): Promise<ApiResponse<unknown>> {
+  async workRecords(
+    @Param('companionId') companionId: string,
+    @Query('date') date?: string,
+  ): Promise<ApiResponse<unknown>> {
     this.composite.cleanupOldDirs();
     const where: any = { companionId, status: 'DONE' };
     if (date) {
@@ -134,7 +166,11 @@ export class SessionShotsController {
       orderBy: { endedAt: 'desc' },
       take: 100,
     });
-    return { code: 200, message: 'ok', data: sessions.map((s) => ({ ...s, shotCount: this.composite.countShots(s.id) })) };
+    return {
+      code: 200,
+      message: 'ok',
+      data: sessions.map((s) => ({ ...s, shotCount: this.composite.countShots(s.id) })),
+    };
   }
 
   /** 管理端：待抽查队列（flagged + 随机 5% 样本） */
@@ -157,7 +193,11 @@ export class SessionShotsController {
       orderBy: { endedAt: 'desc' },
       take: 100,
     });
-    return { code: 200, message: 'ok', data: flagged.map((s) => ({ ...s, shotCount: this.composite.countShots(s.id) })) };
+    return {
+      code: 200,
+      message: 'ok',
+      data: flagged.map((s) => ({ ...s, shotCount: this.composite.countShots(s.id) })),
+    };
   }
 
   @Get('admin/review-queue-count')

@@ -14,7 +14,7 @@ import { logger } from './logger';
 import { connectWebSocket, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray } from './tray';
-import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures } from './capture';
+import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending } from './capture';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -141,6 +141,24 @@ app.whenReady().then(() => {
   cleanupStaleCaptures();
   setupIPC();
   trace('2-ipc');
+
+  // 开机/联网后补传未上传的截图（token 存在时）
+  if (store.get('token')) {
+    (async () => {
+      await flushAllPending();
+    })();
+  }
+  // 每 10 分钟重试一次补传（覆盖断网恢复场景，服务中会跳过）
+  setInterval(
+    () => {
+      if (store.get('token')) {
+        (async () => {
+          await flushAllPending();
+        })();
+      }
+    },
+    10 * 60 * 1000,
+  );
 
   mainWindow = new BrowserWindow({
     width: 1280,

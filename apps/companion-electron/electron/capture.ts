@@ -100,6 +100,32 @@ export function cleanupStaleCaptures(): void {
   }
 }
 
+/**
+ * 补传所有未上传的截图（断网/被杀进程后，下次联网或开机时调用）。
+ * 跳过当前正在服务的 session（避免服务中上传占用网络）。
+ */
+export async function flushAllPending(): Promise<void> {
+  if (flushing) return;
+  try {
+    const base = path.join(app.getPath('userData'), 'captures');
+    if (!fs.existsSync(base)) return;
+    for (const d of fs.readdirSync(base)) {
+      if (d === sessionId) continue; // 正在服务的 session 不传
+      const p = path.join(base, d);
+      if (!fs.statSync(p).isDirectory()) continue;
+      const files = fs.readdirSync(p).filter((f) => f.endsWith('.jpg'));
+      if (files.length === 0) {
+        fs.rmSync(p, { recursive: true, force: true }); // 空目录清理
+        continue;
+      }
+      log(`retry flush session=${d} files=${files.length}`);
+      await flushUploadFor(d);
+    }
+  } catch (err: any) {
+    log('flushAll error: ' + (err.message || err));
+  }
+}
+
 /** 停止截图并等待批量上传完成（返回后服务端已收到全部截图） */
 export async function stopCaptureAndFlush(): Promise<void> {
   if (timer) {
