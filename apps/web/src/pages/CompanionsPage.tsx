@@ -11,6 +11,7 @@ import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import TableSkeleton from '../components/TableSkeleton';
+import WorkRecordsDrawer from '../components/WorkRecordsDrawer';
 
 const { Text } = Typography;
 
@@ -85,6 +86,7 @@ const CompanionsPage: React.FC = () => {
 
   // Filters
   const [searchText, setSearchText] = useState('');
+  const [wrCompanion, setWrCompanion] = useState<Companion | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
 
@@ -356,20 +358,25 @@ const CompanionsPage: React.FC = () => {
       cols.push({
         title: '操作',
         key: 'actions',
-        width: 90,
+        width: 170,
         render: (_: unknown, record: Companion) => (
-          <Popconfirm
-            title="确认离职处理？"
-            description="离职后陪玩状态将设为离线，余额、押金等将清零"
-            onConfirm={() => handleResign(record.id)}
-            okText="确认"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" danger size="small">
-              离职处理
+          <Space size={0}>
+            <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
+              工作记录
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title="确认离职处理？"
+              description="离职后陪玩状态将设为离线，余额、押金等将清零"
+              onConfirm={() => handleResign(record.id)}
+              okText="确认"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" danger size="small">
+                离职处理
+              </Button>
+            </Popconfirm>
+          </Space>
         ),
       });
     }
@@ -554,6 +561,13 @@ const CompanionsPage: React.FC = () => {
           />
         </Card>
       )}
+
+      <WorkRecordsDrawer
+        open={!!wrCompanion}
+        companionId={wrCompanion?.id || null}
+        companionName={wrCompanion?.user?.username || undefined}
+        onClose={() => setWrCompanion(null)}
+      />
     </div>
   );
 };

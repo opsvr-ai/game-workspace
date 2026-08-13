@@ -318,6 +318,22 @@ const AppLayout: React.FC = () => {
     return () => clearInterval(t);
   }, [user?.role]);
 
+  // 工作抽查 badge（ADMIN/OWNER）
+  const [reviewBadge, setReviewBadge] = React.useState(0);
+  useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/admin/review-queue-count');
+        const count = data.data?.count || 0;
+        setReviewBadge((prev) => Math.max(prev, count));
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(doFetch, 30000);
+    return () => clearInterval(t);
+  }, [user?.role]);
+
   const markBillingSeen = () => {
     setBillingBadge((prev) => {
       const total = prev + billingSeenRef.current;
@@ -472,6 +488,16 @@ const AppLayout: React.FC = () => {
         message.warning({ content: data.message, duration: 10 });
       }
     },
+    onReviewAlert: (data: any) => {
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      if (isMgmt) {
+        setReviewBadge((p) => p + 1);
+        message.warning({
+          content: `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`,
+          duration: 10,
+        });
+      }
+    },
   });
 
   // Voice call handler — uses the same WebSocket from useSocket
@@ -529,9 +555,11 @@ const AppLayout: React.FC = () => {
     const bpCount = bridgePendingBadge;
     const bCount = billingBadge;
     const cCount = contactBadge;
+    const rvCount = reviewBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
     const CONTACT_LABELS = ['订单管理'];
+    const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
     return items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
@@ -539,7 +567,8 @@ const AppLayout: React.FC = () => {
         const hasBridgePending = item.children.some((c: any) => c.label === '工作室桥接' && bpCount > 0);
         const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
         const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && totalUnread > 0);
-        if (hasPending || hasBridgePending || hasBilling || hasUnread) {
+        const hasReview = item.children.some((c: any) => REVIEW_WORK_LABELS.includes(c.label) && rvCount > 0);
+        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview) {
           return {
             ...item,
             children: item.children.map((child: any) => {
@@ -595,6 +624,28 @@ const AppLayout: React.FC = () => {
                     >
                       {child.label}
                       <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+                    </span>
+                  ),
+                };
+              }
+              if (REVIEW_WORK_LABELS.includes(child.label) && rvCount > 0) {
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge
+                        count={rvCount}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: '0 0 10px #FAAD14' }}
+                      />
                     </span>
                   ),
                 };
@@ -708,8 +759,8 @@ const AppLayout: React.FC = () => {
     navigate(key);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try { await logout(); } catch { return; } // Password required — abort if wrong
     useChatStore.getState().reset();
     navigate('/login', { replace: true });
   };
@@ -897,9 +948,11 @@ const AppLayout: React.FC = () => {
                   <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
                 </>
               )}
-              <Button type="text" icon={IconLogout} onClick={handleLogout} style={{ color: '#64748B' }}>
-                退出
-              </Button>
+              {user?.role !== 'COMPANION' && (
+                <Button type="text" icon={IconLogout} onClick={handleLogout} style={{ color: '#64748B' }}>
+                  退出
+                </Button>
+              )}
             </Space>
           </Header>
 

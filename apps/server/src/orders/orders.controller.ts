@@ -171,8 +171,12 @@ export class OrdersController {
 
   @Put('sessions/:sessionId/start')
   @Roles(UserRole.COMPANION)
-  async startSession(@Param('sessionId') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.startSession(id, req.user.companionId);
+  async startSession(@Param('sessionId') id: string, @Req() req: any, @Body() body: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.startSession(id, req.user.companionId, {
+      claimedMode: body?.claimedMode,
+      claimedPrice: body?.claimedPrice,
+      transferScreenshotUrl: body?.transferScreenshotUrl,
+    });
     return { code: 200, message: '计时开始', data };
   }
 

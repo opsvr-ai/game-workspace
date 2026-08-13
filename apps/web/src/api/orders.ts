@@ -22,10 +22,14 @@ export const ordersApi = {
   renew: (id: string) => http.post(`/orders/${id}/renew`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
-  startSession: (sessionId: string) => http.put(`/sessions/${sessionId}/start`),
+  startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string }) =>
+    http.put(`/sessions/${sessionId}/start`, claims || {}),
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
   resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),
   endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
+  finishSession: (sessionId: string) => http.put(`/sessions/${sessionId}/finish`),
+  uploadShot: (sessionId: string, form: FormData) =>
+    http.post(`/sessions/${sessionId}/screenshots`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
   updatePayment: (orderId: string, data: {
     paymentAccountId?: string;
     companionFeeStatus?: string;

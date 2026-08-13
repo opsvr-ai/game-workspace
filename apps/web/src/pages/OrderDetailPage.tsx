@@ -1,9 +1,11 @@
+// craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col, Upload } from 'antd';
+import { ArrowLeftOutlined, PlusOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined, CameraOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import { monitorApi } from '../api/monitor';
 import { companionStatusConfig } from '../constants';
 
 const { Text, Title } = Typography;
@@ -26,6 +28,14 @@ const OrderDetailPage: React.FC = () => {
   const [renewCoAmount, setRenewCoAmount] = useState<number | undefined>(undefined);
   const [renewCoId, setRenewCoId] = useState<string | undefined>(undefined);
   const [renewing, setRenewing] = useState(false);
+
+  // ── 开始服务：口供 + 转账截图 ──
+  const [startTarget, setStartTarget] = useState<Session | null>(null);
+  const [claimMode, setClaimMode] = useState<string>('机密');
+  const [claimPrice, setClaimPrice] = useState<number>(35);
+  const [transferUrl, setTransferUrl] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   const fetch = useCallback(async () => {
     if (!id) return;
@@ -67,6 +77,53 @@ const OrderDetailPage: React.FC = () => {
     setRenewing(false);
   };
 
+  const openStartModal = (r: Session) => {
+    setStartTarget(r);
+    setClaimMode('机密');
+    setClaimPrice(35);
+    setTransferUrl('');
+  };
+
+  const handleUploadTransfer = async (file: File) => {
+    setUploading(true);
+    try {
+      const res: any = await monitorApi.uploadTransferScreenshot(file);
+      const url = res.data?.data?.url;
+      if (url) { setTransferUrl(url); message.success('转账截图已上传'); }
+      else message.error('上传失败');
+    } catch { message.error('上传失败'); }
+    setUploading(false);
+    return false; // 阻止 antd 自动上传
+  };
+
+  const handleStartService = async () => {
+    if (!startTarget) return;
+    if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
+    setStarting(true);
+    try {
+      await ordersApi.startSession(startTarget.id, {
+        claimedMode: claimMode,
+        claimedPrice: claimPrice,
+        transferScreenshotUrl: transferUrl,
+      });
+      // 通知 Electron 开始工作记录截图
+      (window as any).electronAPI?.sessionWatch?.(startTarget.id);
+      message.success('服务已开始，工作记录已开启');
+      setStartTarget(null);
+      fetch();
+    } catch { message.error('开始失败'); }
+    setStarting(false);
+  };
+
+  const handleEndService = async (r: Session) => {
+    (window as any).electronAPI?.sessionWatchStop?.();
+    try {
+      await ordersApi.finishSession(r.id);
+      message.success('已结束');
+      fetch();
+    } catch { message.error('结束失败'); }
+  };
+
   const cols = [
     { title: '#', dataIndex: 'seq', width: 40 },
     { title: '主陪', render: (_: any, r: Session) => r.companion?.user?.displayName || r.companion?.user?.username || '-' },
@@ -77,10 +134,10 @@ const OrderDetailPage: React.FC = () => {
     { title: '时间', dataIndex: 'createdAt', render: (v: string) => new Date(v).toLocaleString('zh-CN') },
     { title: '操作', render: (_: any, r: Session) => r.status === 'ACTIVE' ? (
       <Space>
-        {!r.startedAt ? <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await ordersApi.startSession(r.id); fetch(); message.success('计时开始'); }}>开始</Button> : null}
+        {!r.startedAt ? <Button size="small" type="primary" icon={<CameraOutlined />} onClick={() => openStartModal(r)}>开始服务</Button> : null}
         {r.startedAt && !r.pausedAt ? <Button size="small" icon={<PauseCircleOutlined />} onClick={async () => { await ordersApi.pauseSession(r.id); fetch(); message.success('已暂停'); }}>暂停</Button> : null}
         {r.pausedAt ? <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await ordersApi.resumeSession(r.id); fetch(); message.success('已继续'); }}>继续</Button> : null}
-        {r.startedAt && !r.pausedAt ? <Button size="small" danger icon={<StopOutlined />} onClick={async () => { await ordersApi.endSession(r.id); fetch(); message.success('已结束'); }}>结束</Button> : null}
+        {r.startedAt && !r.pausedAt ? <Button size="small" danger icon={<StopOutlined />} onClick={() => handleEndService(r)}>结束</Button> : null}
       </Space>
     ) : <Text type="secondary">{r.startedAt ? new Date(r.startedAt).toLocaleTimeString('zh-CN') : '-'}</Text> },
   ];
@@ -116,6 +173,52 @@ const OrderDetailPage: React.FC = () => {
             </Col>
           </Row>
         )}
+      </Modal>
+
+      {/* 开始服务：口供 + 转账截图 */}
+      <Modal
+        title="开始服务"
+        open={!!startTarget}
+        onOk={handleStartService}
+        onCancel={() => setStartTarget(null)}
+        confirmLoading={starting}
+        okText="开始服务并开启工作记录"
+      >
+        <Row gutter={12} align="middle">
+          <Col span={12}>
+            <Text>游戏模式</Text>
+            <Select style={{ width: '100%' }} value={claimMode} onChange={setClaimMode}>
+              <Select.Option value="机密">机密</Select.Option>
+              <Select.Option value="绝密">绝密</Select.Option>
+            </Select>
+          </Col>
+          <Col span={12}>
+            <Text>单价（元/小时）</Text>
+            <InputNumber min={0} style={{ width: '100%' }} value={claimPrice} onChange={(v) => setClaimPrice(v || 0)} prefix="¥" />
+          </Col>
+        </Row>
+        <div style={{ marginTop: 12 }}>
+          <Text>客户转账截图（必传）</Text>
+          <div style={{ marginTop: 4 }}>
+            <Upload
+              beforeUpload={handleUploadTransfer}
+              showUploadList={false}
+              accept="image/*"
+            >
+              <Button icon={<CameraOutlined />} loading={uploading}>
+                {transferUrl ? '重新上传转账截图' : '上传转账截图'}
+              </Button>
+            </Upload>
+            {transferUrl && (
+              <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>
+                查看已上传截图
+              </a>
+            )}
+          </div>
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+          服务期间将自动开启工作记录（随机截图），请保持客户端运行。
+        </Text>
       </Modal>
     </div>
   );

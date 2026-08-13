@@ -25,6 +25,7 @@ interface UseSocketOptions {
   onUserRejected?: (data: any) => void;
   onBridgeResponded?: (data: any) => void;
   onRevenueDiff?: (data: any) => void;
+  onReviewAlert?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -127,6 +128,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('billing:revenue_diff', (data: any) => {
       optsRef.current.onRevenueDiff?.(data);
+    });
+
+    socket.on('review:alert', (data: any) => {
+      optsRef.current.onReviewAlert?.(data);
     });
 
     return () => {

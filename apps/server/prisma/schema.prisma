@@ -211,12 +211,20 @@ model OrderSession {
   endedAt       DateTime?
   createdAt     DateTime  @default(now())
 
+  // ── 工作记录监控（口供+证据）──
+  claimedMode             String?  // 陪玩声称的游戏模式（机密/绝密）
+  claimedPrice            Float?   // 陪玩声称的单价
+  transferScreenshotUrl   String?  // 客户转账截图
+  flagged                 String?  // null | 'red' | 'yellow' 异常标记
+  compositeUrl            String?  // 合并长图路径
+
   companion   Companion? @relation(fields: [companionId], references: [id])
   coCompanion Companion? @relation("CoSessionCompanion", fields: [coCompanionId], references: [id])
 
   @@index([parentOrderId, seq])
   @@index([companionId])
   @@index([coCompanionId])
+  @@index([flagged])
 }
 
 model Customer {

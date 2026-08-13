@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeGet: (key: string) => ipcRenderer.invoke('store:get', key),
   storeSet: (key: string, value: unknown) => ipcRenderer.invoke('store:set', key, value),
   logout: () => ipcRenderer.invoke('auth:logout'),
+  sessionWatch: (sessionId: string) => ipcRenderer.send('session:watch', sessionId),
+  sessionWatchStop: () => ipcRenderer.send('session:watch-stop'),
 });

@@ -612,9 +612,19 @@ export class OrdersService {
     return s;
   }
 
-  async startSession(id: string, companionId?: string) {
+  async startSession(
+    id: string,
+    companionId?: string,
+    claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string },
+  ) {
     await this.getOwnedSession(id, companionId);
-    return this.prisma.orderSession.update({ where: { id }, data: { startedAt: new Date() } });
+    const data: any = { startedAt: new Date() };
+    if (claims) {
+      if (claims.claimedMode !== undefined) data.claimedMode = claims.claimedMode;
+      if (claims.claimedPrice !== undefined) data.claimedPrice = claims.claimedPrice;
+      if (claims.transferScreenshotUrl !== undefined) data.transferScreenshotUrl = claims.transferScreenshotUrl;
+    }
+    return this.prisma.orderSession.update({ where: { id }, data });
   }
   async pauseSession(id: string, companionId?: string) {
     await this.getOwnedSession(id, companionId);

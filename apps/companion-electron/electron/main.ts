@@ -14,6 +14,7 @@ import { logger } from './logger';
 import { connectWebSocket, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray } from './tray';
+import { startCapture, stopCapture } from './capture';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -101,6 +102,13 @@ function setupIPC(): void {
   ipcMain.handle('auth:logout', () => {
     store.set('token', ''); store.set('companionId', '');
     return { success: true };
+  });
+  // 工作记录截图
+  ipcMain.on('session:watch', (_e, sessionId: string) => {
+    startCapture(sessionId);
+  });
+  ipcMain.on('session:watch-stop', () => {
+    stopCapture();
   });
 }
 
