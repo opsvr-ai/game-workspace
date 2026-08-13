@@ -8,5 +8,3 @@ Type=oneshot
 User=root
 ExecStart=/usr/local/bin/chunlv-deploy.sh
 Nice=10
-StandardOutput=append:/var/log/chunlv-deploy.log
-StandardError=append:/var/log/chunlv-deploy.log
