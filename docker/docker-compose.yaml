@@ -38,3 +38,35 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    image: chunlv-app:latest
+    container_name: chunlv-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/chunlv
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173}
+      PORT: '3001'
+    ports:
+      - '3001:3001'
+    volumes:
+      - ../uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3001/api/health | grep -q ok || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
