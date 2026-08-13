@@ -113,3 +113,13 @@ apps/companion-electron/src/api/client.ts.local-bak
 .gocache/
 .update-fail-test/
 .claude/settings.local.json
+
+# AI assistant working memory / audit (machine-local)
+.claude/
+.axme-code/
+.aura/
+memory/
+mcp-audit.jsonl
+SCRATCHPAD.md
+apps/server/.aura/
+apps/web/.claude/
