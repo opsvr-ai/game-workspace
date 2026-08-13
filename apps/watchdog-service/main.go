@@ -228,9 +228,16 @@ func findAnyClientPID() uint32 {
 
 // setupExitEvent creates (or opens) the global named event that the client
 // signals when an authorized exit was approved. It stays unsignaled until
-// the client requests exit.
+// the client requests exit. The event DACL grants Everyone access so the
+// non-elevated companion client can signal it from the user session.
 func setupExitEvent() {
-	h, _ := windows.CreateEvent(nil, 1, 0, windows.StringToUTF16Ptr(exitEventName))
+	sa := windows.SecurityAttributes{Length: uint32(unsafe.Sizeof(windows.SecurityAttributes{}))}
+	if sd, err := windows.SecurityDescriptorFromString("D:(A;;GA;;;WD)"); err == nil {
+		sa.SecurityDescriptor = sd
+	} else {
+		safeWarn(fmt.Sprintf("SecurityDescriptorFromString failed: %v", err))
+	}
+	h, _ := windows.CreateEvent(&sa, 1, 0, windows.StringToUTF16Ptr(exitEventName))
 	if h != 0 {
 		exitEvent = h
 		return
