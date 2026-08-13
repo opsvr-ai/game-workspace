@@ -116,7 +116,8 @@ const OrderDetailPage: React.FC = () => {
   };
 
   const handleEndService = async (r: Session) => {
-    (window as any).electronAPI?.sessionWatchStop?.();
+    // 先停截图并等待全部截图上传完成
+    try { await (window as any).electronAPI?.sessionWatchStop?.(); } catch {}
     try {
       await ordersApi.finishSession(r.id);
       message.success('已结束');

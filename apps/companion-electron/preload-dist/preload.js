@@ -9,5 +9,5 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     storeSet: (key, value) => electron_1.ipcRenderer.invoke('store:set', key, value),
     logout: () => electron_1.ipcRenderer.invoke('auth:logout'),
     sessionWatch: (sessionId) => electron_1.ipcRenderer.send('session:watch', sessionId),
-    sessionWatchStop: () => electron_1.ipcRenderer.send('session:watch-stop'),
+    sessionWatchStop: () => electron_1.ipcRenderer.invoke('session:watch-stop'),
 });

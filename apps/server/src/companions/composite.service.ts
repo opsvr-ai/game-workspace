@@ -88,15 +88,15 @@ export class CompositeService {
         }
       }
 
-      // ③-⑥ 游戏截图（文件名即实际时间）
+      // ③+ 游戏截图（文件名即实际时间；_black 为黑屏标记；不限制张数）
       const shots = fs
         .readdirSync(dir)
-        .filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.jpg$/.test(f))
-        .sort()
-        .slice(0, 4);
+        .filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_black)?\.jpg$/.test(f))
+        .sort();
 
       for (const f of shots) {
-        const timeLabel = f.replace('.jpg', '').replace('_', ' ');
+        const base = f.replace(/_black\.jpg$/, '').replace(/\.jpg$/, '');
+        const timeLabel = base.replace('_', ' ') + (f.includes('_black') ? ' ⚠黑屏' : '');
         const buf = fs.readFileSync(path.join(dir, f));
         parts.push(await this.addLabel(buf, timeLabel));
       }
@@ -131,7 +131,7 @@ export class CompositeService {
   countShots(sessionId: string): number {
     const dir = path.join(UPLOAD_DIR, sessionId);
     if (!fs.existsSync(dir)) return 0;
-    return fs.readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.jpg$/.test(f)).length;
+    return fs.readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_black)?\.jpg$/.test(f)).length;
   }
 
   /** 惰性清理 30 天前的会话目录 */
