@@ -180,6 +180,15 @@ const PcControlPage: React.FC = () => {
       },
     },
     {
+      title: 'Agent版本',
+      dataIndex: ['pc', 'agentVersion'],
+      key: 'agentVersion',
+      width: 140,
+      render: (v: string | undefined) => (
+        <Text code style={{ fontSize: 12 }}>{v || '-'}</Text>
+      ),
+    },
+    {
       title: '心跳时间',
       key: 'heartbeat',
       width: 170,

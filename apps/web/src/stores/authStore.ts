@@ -22,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     sessionStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     try { (window as any).electronAPI?.storeSet('token', accessToken); } catch {}
+    try { (window as any).electronAPI?.onLoggedIn?.(); } catch {}
 
     set({ user, isAuthenticated: true });
     return user;

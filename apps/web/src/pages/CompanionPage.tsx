@@ -299,17 +299,34 @@ const CompanionPage: React.FC = () => {
                     : undefined
                 }
               >
-                <Button icon={IconPlay} onClick={() => switchStatus('ENTERTAINMENT')} disabled={belowEntertainment}>
+                <Button
+                  type={data.currentStatus === 'ENTERTAINMENT' ? 'primary' : 'default'}
+                  icon={IconPlay}
+                  onClick={() => switchStatus('ENTERTAINMENT')}
+                  disabled={belowEntertainment}
+                >
                   娱乐
                 </Button>
               </Tooltip>
-              <Button type="primary" icon={IconSearch} onClick={() => switchStatus('AVAILABLE')}>
+              <Button
+                type={data.currentStatus === 'AVAILABLE' ? 'primary' : 'default'}
+                icon={IconSearch}
+                onClick={() => switchStatus('AVAILABLE')}
+              >
                 空闲
               </Button>
-              <Button icon={IconThunder} onClick={() => switchStatus('BUSY')}>
+              <Button
+                type={data.currentStatus === 'BUSY' ? 'primary' : 'default'}
+                icon={IconThunder}
+                onClick={() => switchStatus('BUSY')}
+              >
                 接单
               </Button>
-              <Button icon={IconCoffee} onClick={() => switchStatus('RESTING')}>
+              <Button
+                type={data.currentStatus === 'RESTING' ? 'primary' : 'default'}
+                icon={IconCoffee}
+                onClick={() => switchStatus('RESTING')}
+              >
                 休息
               </Button>
               <Button

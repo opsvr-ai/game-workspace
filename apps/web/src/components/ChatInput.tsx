@@ -79,12 +79,6 @@ const ChatInput: React.FC<Props> = ({ onSend }) => {
   const inputRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const _syncEmojis = (next: string[]) => {
-    setCustomEmojis(next);
-    localStorage.setItem('custom-emojis', JSON.stringify(next));
-    http.put('/auth/me/emojis', { emojis: next }).catch(() => {});
-  };
-
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
