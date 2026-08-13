@@ -14,7 +14,7 @@ import { logger } from './logger';
 import { connectWebSocket, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray } from './tray';
-import { startCapture, stopCaptureAndFlush } from './capture';
+import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures } from './capture';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -22,7 +22,9 @@ let isQuitting = false;
 // ── Trace log on Desktop ──
 const TRACE = path.join(app.getPath('desktop'), 'chunlv-trace.txt');
 function trace(msg: string) {
-  try { fs.appendFileSync(TRACE, `${new Date().toISOString().slice(11,23)} ${msg}\n`); } catch {}
+  try {
+    fs.appendFileSync(TRACE, `${new Date().toISOString().slice(11, 23)} ${msg}\n`);
+  } catch {}
 }
 
 // ── Utils ──
@@ -37,17 +39,23 @@ function promptPassword(title: string): Promise<boolean> {
   return new Promise((resolve) => {
     pwResolve = resolve;
     const pwWin = new BrowserWindow({
-      width: 360, height: 200,
+      width: 360,
+      height: 200,
       parent: mainWindow || undefined,
-      modal: true, resizable: false, frame: false,
-      transparent: true, alwaysOnTop: true,
+      modal: true,
+      resizable: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
       backgroundColor: '#00000000',
       webPreferences: {
-        contextIsolation: true, nodeIntegration: false,
+        contextIsolation: true,
+        nodeIntegration: false,
         preload: path.join(__dirname, '../preload-dist/preload.js'),
       },
     });
-    pwWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
+    pwWin.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0F172A;color:#e2e8f0;font-family:"Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;border:2px solid #00D4FF;border-radius:12px;overflow:hidden}
@@ -74,8 +82,14 @@ button:hover{opacity:0.85}
 function submit(){window.electronAPI.pwSubmit(document.getElementById('pw').value);}
 document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')submit();});
 window.__onPwResult=function(ok){if(!ok){document.getElementById('err').style.display='block';document.getElementById('pw').value='';document.getElementById('pw').focus();}else{window.close();}};
-</script></body></html>`)}`);
-    pwWin.on('closed', () => { if (pwResolve) { pwResolve(false); pwResolve = null; } });
+</script></body></html>`)}`,
+    );
+    pwWin.on('closed', () => {
+      if (pwResolve) {
+        pwResolve(false);
+        pwResolve = null;
+      }
+    });
   });
 }
 
@@ -83,7 +97,11 @@ window.__onPwResult=function(ok){if(!ok){document.getElementById('err').style.di
 function setupIPC(): void {
   ipcMain.on('pw:submit', (_e, pass: string) => {
     const ok = pass === getAppPassword();
-    if (ok && pwResolve) { pwResolve(true); pwResolve = null; return; }
+    if (ok && pwResolve) {
+      pwResolve(true);
+      pwResolve = null;
+      return;
+    }
     _e.sender.executeJavaScript('window.__onPwResult(false)').catch(() => {});
   });
   ipcMain.handle('auth:promptLogoutPassword', async () => {
@@ -100,7 +118,8 @@ function setupIPC(): void {
     return { success: true };
   });
   ipcMain.handle('auth:logout', () => {
-    store.set('token', ''); store.set('companionId', '');
+    store.set('token', '');
+    store.set('companionId', '');
     return { success: true };
   });
   // 工作记录截图
@@ -119,22 +138,32 @@ app.whenReady().then(() => {
   trace('1-ready');
   Menu.setApplicationMenu(null);
   app.setLoginItemSettings({ openAtLogin: true });
+  cleanupStaleCaptures();
   setupIPC();
   trace('2-ipc');
 
   mainWindow = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 900, minHeight: 600,
-    title: '蠢驴电竞陪玩', show: true,
+    width: 1280,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    title: '蠢驴电竞陪玩',
+    show: true,
     webPreferences: {
-      contextIsolation: true, nodeIntegration: false,
+      contextIsolation: true,
+      nodeIntegration: false,
       preload: path.join(__dirname, '../preload-dist/preload.js'),
     },
   });
   trace('3-win');
   mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
   mainWindow.on('close', (e) => {
-    trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0,200));
-    if (!isQuitting) { e.preventDefault(); mainWindow?.hide(); trace('CLOSE-hidden'); }
+    trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0, 200));
+    if (!isQuitting) {
+      e.preventDefault();
+      mainWindow?.hide();
+      trace('CLOSE-hidden');
+    }
   });
   mainWindow.webContents.on('did-finish-load', () => trace('4-loaded'));
   mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
@@ -142,13 +171,18 @@ app.whenReady().then(() => {
   });
 
   createTray({
-    onShow: () => { mainWindow?.show(); mainWindow?.focus(); },
+    onShow: () => {
+      mainWindow?.show();
+      mainWindow?.focus();
+    },
     onQuit: async () => {
       // Password-protected graceful exit
       try {
         const ok = await promptPassword('退出确认');
         if (!ok) return;
-      } catch { return; }
+      } catch {
+        return;
+      }
       isQuitting = true;
       app.quit();
     },
@@ -179,9 +213,17 @@ app.whenReady().then(() => {
   trace('6-done');
 });
 
-app.on('before-quit', () => { trace('quit'); });
+app.on('before-quit', () => {
+  trace('quit');
+});
 app.on('window-all-closed', () => {});
 
 const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) { app.quit(); }
-else { app.on('second-instance', () => { mainWindow?.show(); mainWindow?.focus(); }); }
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
+}

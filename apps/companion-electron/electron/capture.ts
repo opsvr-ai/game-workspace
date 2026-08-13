@@ -17,8 +17,10 @@ function localDir(sid: string): string {
 
 function log(msg: string) {
   try {
-    fs.appendFileSync(path.join(app.getPath('userData'), 'captures', 'capture.log'),
-      `${new Date().toISOString().slice(11,23)} ${msg}\n`);
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'captures', 'capture.log'),
+      `${new Date().toISOString().slice(11, 23)} ${msg}\n`,
+    );
   } catch {}
 }
 
@@ -36,9 +38,15 @@ async function takeShot(): Promise<void> {
   if (!sessionId || capturing || flushing) return;
   capturing = true;
   try {
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1280, height: 720 } });
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1280, height: 720 },
+    });
     const primary = sources[0];
-    if (!primary || !primary.thumbnail) { log('no screen source'); return; }
+    if (!primary || !primary.thumbnail) {
+      log('no screen source');
+      return;
+    }
     const jpeg = primary.thumbnail.toJPEG(60);
     const black = isBlack(jpeg);
     // 本地保存：文件名 = 实际截图时间；黑屏加 _black 后缀
@@ -63,16 +71,41 @@ function scheduleNext(): void {
 
 export function startCapture(sid: string): void {
   // 先清理定时器但保留旧 session 本地文件（不触发上传，新 session 开始）
-  if (timer) { clearTimeout(timer); timer = null; }
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
   sessionId = sid;
   log(`START session=${sid}`);
   // 首张延迟 1-3 分钟（刚开局截图无意义）
   timer = setTimeout(takeShot, (60 + Math.random() * 120) * 1000);
 }
 
+/** 启动时清理 7 天前的残留截图目录（未上传成功的历史文件） */
+export function cleanupStaleCaptures(): void {
+  try {
+    const base = path.join(app.getPath('userData'), 'captures');
+    if (!fs.existsSync(base)) return;
+    const now = Date.now();
+    for (const d of fs.readdirSync(base)) {
+      const p = path.join(base, d);
+      const st = fs.statSync(p);
+      if (st.isDirectory() && now - st.mtimeMs > 7 * 24 * 3600 * 1000) {
+        fs.rmSync(p, { recursive: true, force: true });
+        log(`cleaned stale dir ${d}`);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /** 停止截图并等待批量上传完成（返回后服务端已收到全部截图） */
 export async function stopCaptureAndFlush(): Promise<void> {
-  if (timer) { clearTimeout(timer); timer = null; }
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
   const sid = sessionId;
   sessionId = null;
   if (!sid) return;
@@ -83,7 +116,9 @@ export async function stopCaptureAndFlush(): Promise<void> {
 
 /** 兼容旧调用（不等待） */
 export function stopCapture(): void {
-  (async () => { await stopCaptureAndFlush(); })();
+  (async () => {
+    await stopCaptureAndFlush();
+  })();
 }
 
 /** 对指定 session 批量上传本地截图，成功后删除 */
@@ -91,9 +126,15 @@ async function flushUploadFor(sid: string): Promise<void> {
   const dir = localDir(sid);
   try {
     const token = store.get('token') as string;
-    if (!token) { log('flush: no token'); return; }
+    if (!token) {
+      log('flush: no token');
+      return;
+    }
     const files = fs.existsSync(dir)
-      ? fs.readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_black)?\.jpg$/.test(f)).sort()
+      ? fs
+          .readdirSync(dir)
+          .filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_black)?\.jpg$/.test(f))
+          .sort()
       : [];
     log(`flush: ${files.length} files`);
 
