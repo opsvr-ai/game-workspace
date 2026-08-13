@@ -211,18 +211,19 @@ func findAnyClientPID() uint32 {
 	var pe windows.ProcessEntry32
 	pe.Size = uint32(unsafe.Sizeof(pe))
 
+	var found uint32
 	err = windows.Process32First(snapshot, &pe)
 	for err == nil {
 		name := windows.UTF16PtrToString(&pe.ExeFile[0])
 		if strings.EqualFold(name, "蠢驴电竞.exe") {
 			pid := pe.ProcessID
-			if pid != 0 && pid != 4 {
-				return uint32(pid)
+			if pid != 0 && pid != 4 && (found == 0 || pid < found) {
+				found = uint32(pid)
 			}
 		}
 		err = windows.Process32Next(snapshot, &pe)
 	}
-	return 0
+	return found
 }
 
 // setupExitEvent creates (or opens) the global named event that the client
