@@ -14,6 +14,7 @@ export enum OrderType {
 
 export enum OrderStatus {
   PENDING = 'PENDING',
+  CLAIMED = 'CLAIMED',
   GRABBED = 'GRABBED',
   CONFIRMED = 'CONFIRMED',
   DONE = 'DONE',

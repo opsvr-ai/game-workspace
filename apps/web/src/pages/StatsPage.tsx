@@ -55,6 +55,7 @@ const StatsPage: React.FC = () => {
       <Row gutter={[12,12]} style={{marginBottom:16}}>
         {(() => { const m=new Map(); for(const cs of csList) for(const b of(cs.studioBreakdown||[])) { const p=m.get(b.studioName)||{c:0,a:0,t:b.studioType};p.c+=b.count;p.a+=b.amount;m.set(b.studioName,p); } return Array.from(m.entries()).map(([name,info]:any)=>(<Col xs={12} sm={6} key={name}><Card size="small"><Text type="secondary">{name}</Text><div><Text strong style={{fontSize:18,color:info.t==='RENTAL'?'#722ed1':'#52c41a'}}>{info.c}单 ¥{info.a.toFixed(0)}</Text></div></Card></Col>)); })()}
         <Col xs={12} sm={6}><Card size="small"><Text type="secondary">发单总数</Text><div><Text strong style={{fontSize:24}}>{s.totalOrders} 单</Text></div></Card></Col>
+        <Col xs={12} sm={6}><Card size="small"><Text type="secondary">客服认领</Text><div><Text strong style={{fontSize:24,color:'#722ed1'}}>{s.claimedCount || 0} 单</Text></div></Card></Col>
         <Col xs={12} sm={6}><Card size="small"><Text type="secondary">总金额</Text><div><Text strong style={{fontSize:24,color:'#cf1322'}}>¥{s.totalAmount.toFixed(0)}</Text></div></Card></Col>
         <Col xs={12} sm={6}><Card size="small"><Text type="secondary">未接单</Text><div><Text strong style={{fontSize:24,color:s.unassignedCount>0?'#faad14':'#8c8c8c'}}>{s.unassignedCount} 单</Text></div></Card></Col>
         <Col xs={12} sm={6}><Card size="small"><Text type="secondary">已付 / 未付</Text><div><Text strong style={{fontSize:22}}>{s.feePaidCount} / {s.feeUnpaidCount}</Text></div></Card></Col>
@@ -71,6 +72,7 @@ const StatsPage: React.FC = () => {
                   {cs.unassignedCount > 0 && <Text style={{color:'#faad14',fontSize:12,marginLeft:4,fontWeight:'bold'}}>⚠未接{cs.unassignedCount}</Text>}
                 </Col>
                 <Col xs={12} sm={2}><Text>发单 {cs.totalOrders}</Text></Col>
+                <Col xs={12} sm={2}><Text style={{color:'#722ed1'}}>认领 {cs.claimedCount || 0}</Text></Col>
                 <Col xs={12} sm={2}><Text style={{color:'#cf1322'}}>¥{cs.totalAmount.toFixed(0)}</Text></Col>
                 <Col xs={24} sm={4}>
                   {(cs.studioBreakdown||[]).map((b:any) => (

@@ -2,7 +2,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import sharp from 'sharp';
 import { PrismaService } from '../prisma/prisma.service';
 
 const UPLOAD_DIR = path.join(process.cwd(), '..', '..', 'uploads', 'session-shots');
@@ -18,8 +17,20 @@ export class CompositeService {
 
   constructor(private prisma: PrismaService) {}
 
+  /** 延迟加载 sharp，避免该可选依赖缺失时阻断服务端启动。 */
+  private loadSharp(): any {
+    try {
+      return require('sharp');
+    } catch {
+      this.logger.warn('sharp 未安装，长图合成功能不可用');
+      return null;
+    }
+  }
+
   /** 口供信息表 → SVG 渲染成图 */
   private async renderClaimCard(session: any, companionName: string, customerCode: string): Promise<Buffer> {
+    const sharp = this.loadSharp();
+    if (!sharp) throw new Error('sharp not available');
     const svg = `
     <svg width="1280" height="200" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#0F172A"/>
@@ -35,6 +46,8 @@ export class CompositeService {
 
   /** 每张小图顶部加标签条（黑底白字） */
   private async addLabel(input: Buffer, label: string): Promise<Buffer> {
+    const sharp = this.loadSharp();
+    if (!sharp) throw new Error('sharp not available');
     const meta = await sharp(input).metadata();
     const width = meta.width || 1280;
     const labelSvg = `
@@ -104,9 +117,11 @@ export class CompositeService {
       if (parts.length <= 1) return null; // 只有口供表，没有截图
 
       // 纵向拼接
+      const sharp = this.loadSharp();
+      if (!sharp) throw new Error('sharp not available');
       const metas = await Promise.all(parts.map((p) => sharp(p).metadata()));
       const width = 1280;
-      const height = metas.reduce((s, m) => s + (m.height || 0), 0);
+      const height = metas.reduce((s: number, m: any) => s + (m.height || 0), 0);
 
       let composite = sharp({ create: { width, height, channels: 3, background: '#000' } });
       const layers: any[] = [];

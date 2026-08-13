@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo } from 'react';
 import { Table, Tag, Typography, Space, Image } from 'antd';
-import { orderTypeConfig, orderStatusConfig } from '../constants';
+import { orderTypeConfig, orderStatusConfig, customerPaidToConfig } from '../constants';
 import EditableWorkWechat from './EditableWorkWechat';
 
 const { Text } = Typography;
@@ -74,6 +74,28 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
           ),
       },
       { title: '工作微信', key: 'workWechat', width: 90, align: 'center' as const, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
+      {
+        title: '认领客服', key: 'claimedCs', width: 90, align: 'center' as const,
+        render: (_: any, r: any) => <Text>{r.claimedCsUser?.username || (r.claimedCsUserId ? '已认领' : '-')}</Text>,
+      },
+      {
+        title: '认领微信', key: 'csWorkWechat', width: 100, align: 'center' as const,
+        render: (_: any, r: any) => <Text ellipsis style={{ maxWidth: 100 }}>{r.csWorkWechatName || '-'}</Text>,
+      },
+      {
+        title: '收款去向', key: 'customerPaidTo', width: 110, align: 'center' as const,
+        render: (_: any, r: any) => {
+          const cfg = customerPaidToConfig[r.customerPaidTo];
+          return (
+            <Space size={2} direction="vertical" style={{ gap: 0 }}>
+              {cfg ? <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag> : <Text>{r.customerPaidTo || '-'}</Text>}
+              {r.customerPaymentAccountName && (
+                <Text type="secondary" style={{ fontSize: 11 }}>{r.customerPaymentAccountName}</Text>
+              )}
+            </Space>
+          );
+        },
+      },
       {
         title: '金额', key: 'amount', width: 90, align: 'center' as const,
         render: (_: any, r: any) => <Text strong style={{ color: '#EF4444' }}>¥{Number(r.amount || 0).toFixed(0)}</Text>,

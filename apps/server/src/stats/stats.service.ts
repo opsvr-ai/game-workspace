@@ -11,6 +11,8 @@ export interface DailyStatsItem {
   studioType: string;
   totalOrders: number;
   totalAmount: number;
+  claimedCount: number;
+  claimedAmount: number;
   directCount: number;
   directAmount: number;
   bridgeCount: number;
@@ -34,6 +36,8 @@ export interface DailyStatsResponse {
   summary: {
     totalOrders: number;
     totalAmount: number;
+    claimedCount: number;
+    claimedAmount: number;
     directCount: number;
     directAmount: number;
     bridgeCount: number;
@@ -51,6 +55,43 @@ export interface DailyStatsResponse {
   };
   csList: DailyStatsItem[];
   orders: any[];
+}
+
+function emptyDailyStatsItem(
+  csUserId: string,
+  csName: string,
+  csDisplayName: string | null | undefined,
+  studioId: string,
+  studioName: string,
+  studioType: string,
+): DailyStatsItem {
+  return {
+    csUserId,
+    csName,
+    csDisplayName: csDisplayName || null,
+    studioId,
+    studioName,
+    studioType,
+    totalOrders: 0,
+    totalAmount: 0,
+    claimedCount: 0,
+    claimedAmount: 0,
+    directCount: 0,
+    directAmount: 0,
+    bridgeCount: 0,
+    bridgeAmount: 0,
+    clubCount: 0,
+    clubAmount: 0,
+    unassignedCount: 0,
+    unassignedAmount: 0,
+    feePaidCount: 0,
+    feeUnpaidCount: 0,
+    wechatCount: 0,
+    wechatAmount: 0,
+    alipayCount: 0,
+    alipayAmount: 0,
+    studioBreakdown: [],
+  };
 }
 
 @Injectable()
@@ -117,6 +158,7 @@ export class StatsService {
       where,
       include: {
         csUser: { select: { id: true, username: true, displayName: true } },
+        claimedCsUser: { select: { id: true, username: true, displayName: true } },
         companion: {
           include: {
             studio: { select: { id: true, name: true, type: true } },
@@ -135,31 +177,17 @@ export class StatsService {
     for (const order of orders) {
       const csId = order.csUserId;
       if (!csMap.has(csId)) {
-        csMap.set(csId, {
-          csUserId: csId,
-          csName: order.csUser?.username || '未知',
-          csDisplayName: order.csUser?.displayName,
-          studioId: order.studioId,
-          studioName: (order.studio as any)?.name || '',
-          studioType: (order.studio as any)?.type || '',
-          totalOrders: 0,
-          totalAmount: 0,
-          directCount: 0,
-          directAmount: 0,
-          bridgeCount: 0,
-          bridgeAmount: 0,
-          clubCount: 0,
-          clubAmount: 0,
-          unassignedCount: 0,
-          unassignedAmount: 0,
-          feePaidCount: 0,
-          feeUnpaidCount: 0,
-          wechatCount: 0,
-          wechatAmount: 0,
-          alipayCount: 0,
-          alipayAmount: 0,
-          studioBreakdown: [],
-        });
+        csMap.set(
+          csId,
+          emptyDailyStatsItem(
+            csId,
+            order.csUser?.username || '未知',
+            order.csUser?.displayName,
+            order.studioId,
+            (order.studio as any)?.name || '',
+            (order.studio as any)?.type || '',
+          ),
+        );
       }
 
       const item = csMap.get(csId)!;
@@ -218,11 +246,65 @@ export class StatsService {
       }
     }
 
+    // CS self-claim attribution for the same date/scope
+    const claimedWhere: any = { claimedAt: { gte: startOfDay, lt: endOfDay } };
+    if (user) {
+      if (user.role === 'CS') {
+        claimedWhere.claimedCsUserId = user.id;
+      } else if (user.role === 'ADMIN') {
+        claimedWhere.studioId = user.studioId;
+      }
+    }
+    if (filters.csUserId && user?.role !== 'CS') claimedWhere.claimedCsUserId = filters.csUserId;
+    if (filters.studioId && user?.role === 'OWNER') claimedWhere.studioId = filters.studioId;
+    if (filters.status) claimedWhere.status = filters.status;
+    const claimedOrders = await this.prisma.order.findMany({
+      where: claimedWhere,
+      select: {
+        claimedCsUserId: true,
+        amount: true,
+        csWorkWechatName: true,
+        studio: { select: { id: true, name: true, type: true } },
+        claimedCsUser: { select: { id: true, username: true, displayName: true } },
+      },
+    });
+    const claimedMap = new Map<string, { count: number; amount: number }>();
+    for (const co of claimedOrders) {
+      if (!co.claimedCsUserId) continue;
+      const entry = claimedMap.get(co.claimedCsUserId) || { count: 0, amount: 0 };
+      entry.count += 1;
+      entry.amount += co.amount;
+      claimedMap.set(co.claimedCsUserId, entry);
+    }
+
+    for (const co of claimedOrders) {
+      if (!co.claimedCsUserId || csMap.has(co.claimedCsUserId)) continue;
+      csMap.set(
+        co.claimedCsUserId,
+        emptyDailyStatsItem(
+          co.claimedCsUserId,
+          co.claimedCsUser?.username || '未知',
+          co.claimedCsUser?.displayName,
+          co.studio?.id || '',
+          co.studio?.name || '',
+          co.studio?.type || '',
+        ),
+      );
+    }
+
+    for (const item of csMap.values()) {
+      const claimed = claimedMap.get(item.csUserId);
+      item.claimedCount = claimed?.count || 0;
+      item.claimedAmount = claimed?.amount || 0;
+    }
+
     const csList = Array.from(csMap.values());
 
     const summary = {
       totalOrders: 0,
       totalAmount: 0,
+      claimedCount: 0,
+      claimedAmount: 0,
       directCount: 0, directAmount: 0,
       bridgeCount: 0, bridgeAmount: 0,
       clubCount: 0, clubAmount: 0,
@@ -235,6 +317,8 @@ export class StatsService {
     for (const item of csList) {
       summary.totalOrders += item.totalOrders;
       summary.totalAmount += item.totalAmount;
+      summary.claimedCount += item.claimedCount;
+      summary.claimedAmount += item.claimedAmount;
       summary.directCount += item.directCount;
       summary.directAmount += item.directAmount;
       summary.bridgeCount += item.bridgeCount;
@@ -267,6 +351,11 @@ export class StatsService {
         createdAt: o.createdAt,
         csUserId: o.csUserId,
         csName: o.csUser?.username,
+        claimedCsUserId: o.claimedCsUserId,
+        claimedCsName: o.claimedCsUser?.username || null,
+        csWorkWechatName: o.csWorkWechatName,
+        customerPaidTo: o.customerPaidTo,
+        customerPaymentAccountName: o.customerPaymentAccountName,
         companionId: o.companionId,
         companionName: (o.companion as any)?.user?.username || null,
         companionStudio: (o.companion as any)?.studio?.name || null,

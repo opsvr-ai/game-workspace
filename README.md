@@ -9,6 +9,7 @@
 - **进程黑名单管理:** 陪玩终端进程采集上报, 黑/白名单 CRUD, 双模式添加(多选+手动), 推送下发, 5秒倒计时杀进程通知, REST/WS 双通道, 全链路日志
 - **远程控制增强:** 陪玩姓名搜索+状态筛选, 30s自动刷新, 按钮在线判断优化
 - **陪玩客户端与看门狗稳定性:** 看门狗非阻塞重启, 更新失败保护, 退出登录断连, 锁屏安全加固, 30s 心跳对齐
+- **客服自抢单/线索养客:** 客服可认领暂时不玩的池子订单到工作微信，客户要打时一键放回抢单池并标记立即打；订单记录收款去向，便于核对客服提成与资金流
 
 ## Recent Updates (v3.0.0)
 
@@ -299,12 +300,14 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/orders/pool` | JWT | -- | Get the dispatch pool (PENDING orders). |
 | `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`. Data isolation applied. |
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
+| `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
+| `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
 | `POST` | `/api/orders/:id/confirm` | JWT | COMPANION | Confirm a grabbed order (start service). |
 | `POST` | `/api/orders/:id/complete` | JWT | CS, ADMIN, COMPANION | Mark order as completed. |
 | `POST` | `/api/orders/:id/cancel` | JWT | CS, ADMIN | Cancel an order. |
 
-**Order Status Flow:** `PENDING` -> `GRABBED` -> `CONFIRMED` -> `DONE` (or `CANCELLED` at any point)
+**Order Status Flow:** `PENDING` -> `GRABBED` -> `CONFIRMED` -> `DONE`; `PENDING` <-> `CLAIMED` for CS lead handling (or `CANCELLED` at any point)
 
 | `POST` | `/api/orders/:id/complete-billing` | JWT | COMPANION | Complete order with billing detail. |
 | `POST` | `/api/orders/:id/call-partner` | JWT | COMPANION | Call partner for dual companion order. |

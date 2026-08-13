@@ -243,6 +243,40 @@ const OrdersPage: React.FC = () => {
   const [reassignOrder, setReassignOrder] = useState<any>(null);
   const [reassignCompanionId, setReassignCompanionId] = useState<string>('');
   const [reassignNote, setReassignNote] = useState('');
+  const [paymentOrder, setPaymentOrder] = useState<any>(null);
+  const [paidTo, setPaidTo] = useState<string>('');
+  const [paymentAccountName, setPaymentAccountName] = useState('');
+
+  const releaseClaim = async (r: any) => {
+    try {
+      await http.post(`/orders/${r.id}/release`, { urgency: 'now' });
+      message.success('已放回抢单池并标记为立即打');
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    }
+  };
+
+  const openPayment = (r: any) => {
+    setPaymentOrder(r);
+    setPaidTo(r.customerPaidTo || '');
+    setPaymentAccountName(r.customerPaymentAccountName || '');
+  };
+
+  const savePayment = async () => {
+    if (!paymentOrder) return;
+    try {
+      await http.put(`/orders/${paymentOrder.id}/payment`, {
+        customerPaidTo: paidTo || null,
+        customerPaymentAccountName: paymentAccountName || null,
+      });
+      message.success('收款去向已保存');
+      setPaymentOrder(null);
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '保存失败'));
+    }
+  };
 
   const renderAdminActions = (r: any) => (
     <>
@@ -257,6 +291,16 @@ const OrdersPage: React.FC = () => {
           }}
         >
           归属调整
+        </Button>
+      )}
+      {r.status === 'CLAIMED' && (
+        <Button size="small" type="primary" style={{ background: '#7C3AED', borderColor: '#7C3AED' }} onClick={() => releaseClaim(r)}>
+          放回抢单池
+        </Button>
+      )}
+      {(r.status === 'CLAIMED' || r.status === 'GRABBED' || r.status === 'CONFIRMED' || r.status === 'DONE') && (
+        <Button size="small" onClick={() => openPayment(r)}>
+          收款去向
         </Button>
       )}
       {r.contactStatus === 'not_accepted' && r.screenshotUrl && (
@@ -475,6 +519,38 @@ const OrdersPage: React.FC = () => {
               value={reassignNote}
               onChange={(e) => setReassignNote(e.target.value)}
               placeholder="请填写归属调整原因"
+            />
+          </div>
+        </Modal>
+        <Modal
+          title="💰 收款去向"
+          open={!!paymentOrder}
+          onOk={savePayment}
+          onCancel={() => setPaymentOrder(null)}
+          okText="保存"
+          cancelText="取消"
+        >
+          <div style={{ marginBottom: 12 }}>
+            <Text>客户实际付款到：</Text>
+            <Select
+              value={paidTo || undefined}
+              placeholder="选择付款去向"
+              style={{ width: '100%', marginTop: 8 }}
+              onChange={(v) => setPaidTo(v)}
+            >
+              <Option value="CS_WECHAT">客服工作微信</Option>
+              <Option value="COMPANION_WECHAT">陪玩微信</Option>
+              <Option value="STUDIO_ACCOUNT">工作室收款账号</Option>
+              <Option value="OTHER">其他</Option>
+            </Select>
+          </div>
+          <div>
+            <Text>收款账号名称/微信号：</Text>
+            <Input
+              value={paymentAccountName}
+              onChange={(e) => setPaymentAccountName(e.target.value)}
+              placeholder="例如：工作室微信1号 / 陪玩张三微信"
+              style={{ marginTop: 8 }}
             />
           </div>
         </Modal>

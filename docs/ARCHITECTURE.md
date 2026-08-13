@@ -94,8 +94,10 @@ graph LR
 stateDiagram-v2
     [*] --> PENDING: 客服创建订单
     PENDING --> GRABBED: 陪玩抢单 (POOL)
+    PENDING --> CLAIMED: 客服自抢单/认领线索
     PENDING --> CONFIRMED: 指定派单 (DIRECT)
     PENDING --> CANCELLED: 客服取消
+    CLAIMED --> PENDING: 客服放回抢单池（立即打）
     GRABBED --> CONFIRMED: 陪玩确认接单
     GRABBED --> CANCELLED: 客服取消
     CONFIRMED --> DONE: 陪玩完成
@@ -116,6 +118,12 @@ sequenceDiagram
     API->>API: create order status=PENDING
     API->>WS: broadcastToStudio('order:pool_updated')
     WS-->>CP: order:new 推送
+
+    Note over CS,API: 暂时不玩的线索由客服养客
+    CS->>API: POST /api/orders/:id/claim
+    API->>API: status=PENDING → CLAIMED, 记录工作微信
+    CS->>API: POST /api/orders/:id/release
+    API->>API: status=CLAIMED → PENDING, urgency=now
 
     CP->>API: POST /api/orders/:id/grab
     API->>API: validateTransition → GRABBED

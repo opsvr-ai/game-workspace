@@ -17,6 +17,14 @@ export const ordersApi = {
   acceptAssignment: (id: string) => http.post(`/orders/${id}/accept-assignment`),
   declineAssignment: (id: string) => http.post(`/orders/${id}/decline-assignment`),
   quickGrab: (id: string) => http.post(`/orders/${id}/quick-grab`),
+  claim: (id: string, data: {
+    workWechatId?: string;
+    workWechatName?: string;
+    customerPaidTo?: string;
+    customerPaymentAccountId?: string;
+    customerPaymentAccountName?: string;
+  }) => http.post(`/orders/${id}/claim`, data),
+  release: (id: string, urgency?: string) => http.post(`/orders/${id}/release`, { urgency }),
   markReady: (id: string) => http.post(`/orders/${id}/mark-ready`),
   acceptPartner: (id: string) => http.post(`/orders/${id}/accept-partner`),
   renew: (id: string) => http.post(`/orders/${id}/renew`),
@@ -36,5 +44,8 @@ export const ordersApi = {
     companionFeeMethod?: string;
     companionFeeAccount?: string;
     companionFeeAmount?: number;
+    customerPaidTo?: string;
+    customerPaymentAccountId?: string;
+    customerPaymentAccountName?: string;
   }) => http.put(`/orders/${orderId}/payment`, data),
 };

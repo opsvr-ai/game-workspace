@@ -12,6 +12,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **Chat history endpoint:** `GET /api/companions/chat-history/:companionId` returns full chat message history between a studio and a specific companion.
+- **客服自抢单/线索养客流程:** 新增 `CLAIMED` 状态、`POST /api/orders/:id/claim` 与 `POST /api/orders/:id/release`，客服可把暂时不玩的池子订单认领到工作微信，待客户要打时再放回抢单池并标记“立即打”。
+- **客服发单与认领统计:** 每日统计新增客服认领单数/金额，订单列表展示认领客服、认领工作微信和客户实际收款去向，便于核对客服提成与资金流向。
 
 ### Changed
 
@@ -27,6 +29,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **服务端可选图像依赖阻断启动:** 长图合成改为延迟加载 `sharp`，未安装该依赖时服务端仍可正常启动，仅在合成截图时优雅降级。
 - **远程部署脚本凭据注入：** 远程批量部署脚本改用 PowerShell 单引号字面量安全转义管理员账号/密码，并对服务端 URL 做协议与主机白名单校验，阻止恶意凭据或 Host 头注入脚本
 - **刷新令牌绕过审核状态：** `refresh` 在签发新令牌前校验 `isAuthorized`，被禁用或未通过审核的 CS/ADMIN/COMPANION 账号无法再通过旧 refreshToken 续期
 - **Docker 弱凭据与全网卡暴露：** PostgreSQL/Redis 仅绑定 `127.0.0.1`，密码改为必须通过 `docker/.env` 显式提供，并为 Redis 启用认证

@@ -14,6 +14,7 @@ export const orderTypeConfig: Record<string, { color: string; label: string }> =
 
 export const orderStatusConfig: Record<string, { color: string; label: string }> = {
   PENDING: { color: 'gold', label: '待派单' },
+  CLAIMED: { color: 'purple', label: '客服认领' },
   GRABBED: { color: 'blue', label: '已接单' },
   CONFIRMED: { color: 'green', label: '进行中' },
   DONE: { color: 'green', label: '已完成' },
@@ -49,4 +50,11 @@ export const serviceTypeConfig: Record<string, { color: string; label: string }>
   PLAY_WITH: { color: 'blue', label: '陪玩' },
   ESCORT: { color: 'orange', label: '护航' },
   DO_TASK: { color: 'purple', label: '做任务' },
+};
+
+export const customerPaidToConfig: Record<string, { color: string; label: string }> = {
+  CS_WECHAT: { color: 'purple', label: '客服工作微信' },
+  COMPANION_WECHAT: { color: 'blue', label: '陪玩微信' },
+  STUDIO_ACCOUNT: { color: 'green', label: '工作室收款账号' },
+  OTHER: { color: 'default', label: '其他' },
 };

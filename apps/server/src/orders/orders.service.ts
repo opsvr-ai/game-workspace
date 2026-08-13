@@ -239,6 +239,7 @@ export class OrdersService {
       include: {
         customer: true,
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
       },
@@ -413,6 +414,98 @@ export class OrdersService {
 
   async quickGrab(orderId: string, companionId: string) {
     return this.dispatchService.quickGrab(orderId, companionId);
+  }
+
+  async claim(
+    orderId: string,
+    csUserId: string,
+    dto: {
+      workWechatId?: string;
+      workWechatName?: string;
+      customerPaidTo?: string;
+      customerPaymentAccountId?: string;
+      customerPaymentAccountName?: string;
+    },
+    userStudioId?: string,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status !== 'PENDING' || order.dispatchType !== 'POOL' || order.companionId) {
+      throw new ForbiddenException('该订单当前不可认领');
+    }
+    if (userStudioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权认领其他工作室的订单');
+    }
+
+    const result = await this.prisma.order.updateMany({
+      where: {
+        id: orderId,
+        status: 'PENDING',
+        dispatchType: 'POOL',
+        companionId: null,
+        claimedCsUserId: null,
+      },
+      data: {
+        status: 'CLAIMED',
+        claimedCsUserId: csUserId,
+        claimedAt: new Date(),
+        csWorkWechatId: dto.workWechatId || null,
+        csWorkWechatName: dto.workWechatName || null,
+        customerPaidTo: dto.customerPaidTo || null,
+        customerPaymentAccountId: dto.customerPaymentAccountId || null,
+        customerPaymentAccountName: dto.customerPaymentAccountName || null,
+      },
+    });
+    if (result.count === 0) throw new ForbiddenException('订单已被他人认领或状态已变更');
+
+    const updated = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        claimedCsUser: { select: { id: true, username: true, displayName: true, avatar: true } },
+        customer: { select: { wechatId: true, customerCode: true, platform: true } },
+      },
+    });
+    if (!updated) throw new NotFoundException('订单不存在');
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  async releaseClaim(orderId: string, csUserId: string, userStudioId: string | undefined, role: string | undefined, urgency?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status !== 'CLAIMED') throw new ForbiddenException('该订单当前不是客服认领状态');
+    if (role === 'CS' && order.claimedCsUserId !== csUserId) {
+      throw new ForbiddenException('只能放回自己认领的订单');
+    }
+    if (userStudioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+
+    const existingFields = (order.customFields as Record<string, unknown>) || {};
+    const result = await this.prisma.order.updateMany({
+      where: { id: orderId, status: 'CLAIMED' },
+      data: {
+        status: 'PENDING',
+        dispatchType: 'POOL',
+        customFields: { ...existingFields, urgency: urgency || 'now' } as any,
+      },
+    });
+    if (result.count === 0) throw new ForbiddenException('订单状态已变更');
+
+    const updated = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        claimedCsUser: { select: { id: true, username: true, displayName: true, avatar: true } },
+        customer: { select: { wechatId: true, customerCode: true, platform: true } },
+      },
+    });
+    if (!updated) throw new NotFoundException('订单不存在');
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   async markReady(orderId: string, companionId: string) {
@@ -660,12 +753,17 @@ export class OrdersService {
       companionFeeMethod?: string;
       companionFeeAccount?: string;
       companionFeeAmount?: number;
+      customerPaidTo?: string;
+      customerPaymentAccountId?: string;
+      customerPaymentAccountName?: string;
     },
     user: any,
   ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new Error('订单不存在');
-    if (user.role === 'CS' && order.csUserId !== user.id) throw new Error('只能更新自己的订单');
+    if (user.role === 'CS' && order.csUserId !== user.id && order.claimedCsUserId !== user.id) {
+      throw new Error('只能更新自己发布或认领的订单');
+    }
 
     const data: any = {};
     if (dto.paymentAccountId !== undefined) data.paymentAccountId = dto.paymentAccountId || null;
@@ -673,6 +771,9 @@ export class OrdersService {
     if (dto.companionFeeMethod !== undefined) data.companionFeeMethod = dto.companionFeeMethod;
     if (dto.companionFeeAccount !== undefined) data.companionFeeAccount = dto.companionFeeAccount;
     if (dto.companionFeeAmount !== undefined) data.companionFeeAmount = dto.companionFeeAmount;
+    if (dto.customerPaidTo !== undefined) data.customerPaidTo = dto.customerPaidTo || null;
+    if (dto.customerPaymentAccountId !== undefined) data.customerPaymentAccountId = dto.customerPaymentAccountId || null;
+    if (dto.customerPaymentAccountName !== undefined) data.customerPaymentAccountName = dto.customerPaymentAccountName || null;
     return this.prisma.order.update({ where: { id: orderId }, data });
   }
 }

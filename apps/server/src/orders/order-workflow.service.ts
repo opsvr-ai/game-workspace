@@ -7,7 +7,8 @@ import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CANCELLED],
+  [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
+  [OrderStatus.CLAIMED]: [OrderStatus.PENDING, OrderStatus.CANCELLED],
   [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PENDING], // H2: allow re-pool
   [OrderStatus.CONFIRMED]: [OrderStatus.DONE, OrderStatus.CANCELLED],
 };

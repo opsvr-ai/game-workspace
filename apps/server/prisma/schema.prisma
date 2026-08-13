@@ -28,6 +28,7 @@ model User {
   studio    Studio?     @relation(fields: [studioId], references: [id])
   companion Companion?
   csOrders  Order[]     @relation("CSUser")
+  claimedOrders Order[] @relation("ClaimedCS")
 
   @@index([studioId])
   @@index([role])
@@ -177,8 +178,18 @@ model Order {
   companionFeeAccount String?   // 陪玩费转到哪个账号（自由文本）
   companionFeeAmount  Float?    // 陪玩费金额
 
+  // 客服自抢单/线索认领
+  claimedCsUserId             String?    // 认领该线索的客服
+  claimedAt                   DateTime?
+  csWorkWechatId              String?    // 客服认领时使用的工作微信ID
+  csWorkWechatName            String?    // 客服认领时使用的工作微信号
+  customerPaidTo              String?    // CS_WECHAT | COMPANION_WECHAT | STUDIO_ACCOUNT | OTHER
+  customerPaymentAccountId    String?    // 客户实际付款的收款账号ID
+  customerPaymentAccountName  String?    // 客户实际付款的收款账号名
+
   studio          Studio                @relation(fields: [studioId], references: [id])
   csUser          User                  @relation("CSUser", fields: [csUserId], references: [id])
+  claimedCsUser   User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])
   companion       Companion?            @relation(fields: [companionId], references: [id])
   coCompanion     Companion?            @relation("CoCompanion", fields: [coCompanionId], references: [id])
   customer        Customer              @relation(fields: [customerId], references: [id])
@@ -189,6 +200,7 @@ model Order {
   @@index([companionId])
   @@index([customerId])
   @@index([csUserId])
+  @@index([claimedCsUserId])
   @@index([status])
   @@index([studioId, createdAt])
   @@index([status, dispatchType])

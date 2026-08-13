@@ -215,6 +215,35 @@ export class OrdersController {
     return { code: 200, message: '抢单成功', data };
   }
 
+  @Post('orders/:id/claim')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async claim(@Param('id') id: string, @Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.claim(
+      id,
+      req.user.id,
+      {
+        workWechatId: body?.workWechatId,
+        workWechatName: body?.workWechatName,
+        customerPaidTo: body?.customerPaidTo,
+        customerPaymentAccountId: body?.customerPaymentAccountId,
+        customerPaymentAccountName: body?.customerPaymentAccountName,
+      },
+      req.user?.studioId,
+    );
+    return { code: 200, message: '认领成功', data };
+  }
+
+  @Post('orders/:id/release')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async releaseClaim(
+    @Param('id') id: string,
+    @Body('urgency') urgency: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.releaseClaim(id, req.user.id, req.user?.studioId, req.user?.role, urgency);
+    return { code: 200, message: '已放回抢单池', data };
+  }
+
   @Post('orders/:id/mark-ready')
   @Roles(UserRole.COMPANION)
   async markReady(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
@@ -233,6 +262,9 @@ export class OrdersController {
       companionFeeMethod?: string;
       companionFeeAccount?: string;
       companionFeeAmount?: number;
+      customerPaidTo?: string;
+      customerPaymentAccountId?: string;
+      customerPaymentAccountName?: string;
     },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
