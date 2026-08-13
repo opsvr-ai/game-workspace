@@ -43,6 +43,7 @@ describe('AuthService', () => {
     mockPrisma = createMockPrisma();
     jwtService = mockJwtService();
     service = new AuthService(mockPrisma as any, jwtService as any);
+    mockPrisma.user.count.mockResolvedValue(0);
     vi.clearAllMocks();
   });
 
@@ -70,6 +71,9 @@ describe('AuthService', () => {
           role: UserRole.OWNER,
           studioId: 'studio-001',
           companionId: 'comp-001',
+          displayName: undefined,
+          avatar: undefined,
+          pendingReviewCount: 0,
         },
       });
 
@@ -188,6 +192,29 @@ describe('AuthService', () => {
       );
       await expect(service.refresh('expired-token')).rejects.toThrow(
         'refreshToken 无效或已过期',
+      );
+    });
+
+    it('should throw ForbiddenException for unauthorized role on refresh', async () => {
+      const user = createUser({
+        role: 'ADMIN',
+        isAuthorized: false,
+        companion: { id: 'comp-001' },
+      });
+      jwtService.verify.mockReturnValue({
+        sub: 'user-001',
+        username: 'testuser',
+        role: 'ADMIN',
+        studioId: 'studio-001',
+        companionId: 'comp-001',
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+
+      await expect(service.refresh('valid-refresh-token')).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(service.refresh('valid-refresh-token')).rejects.toThrow(
+        '账号尚未通过审核或已被禁用',
       );
     });
   });

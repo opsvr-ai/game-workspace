@@ -102,6 +102,11 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在');
     }
 
+    const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION, UserRole.ADMIN];
+    if (rolesRequiringAuth.includes(user.role as UserRole) && !user.isAuthorized) {
+      throw new ForbiddenException('账号尚未通过审核或已被禁用');
+    }
+
     const newPayload: JwtPayload = {
       sub: user.id,
       username: user.username,

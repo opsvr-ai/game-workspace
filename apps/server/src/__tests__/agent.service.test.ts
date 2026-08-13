@@ -103,4 +103,25 @@ describe('AgentService', () => {
       expect(result.list[0].isLatest).toBe(false);
     });
   });
+
+  describe('deploy script generation', () => {
+    it('should escape single quotes in remote deploy credentials', () => {
+      const script = service.generateRemoteDeployScript({
+        targetIPs: ['192.168.1.10'],
+        adminUser: 'admin',
+        adminPass: "p'$(value)\"",
+        serverUrl: 'http://192.168.1.2:3001',
+      });
+
+      expect(script).toContain(`$adminUser = 'admin'`);
+      expect(script).toContain(`$adminPass = 'p''$(value)"'`);
+      expect(script).not.toContain(`$adminPass = "p'$(value)\""`);
+    });
+
+    it('should reject malformed server URLs when generating scripts', () => {
+      const script = service.generateDeployScript('http://192.168.1.2:3001 bad path');
+
+      expect(script).toContain(`$url = 'http://127.0.0.1:3001/api/agent/download/latest'`);
+    });
+  });
 });

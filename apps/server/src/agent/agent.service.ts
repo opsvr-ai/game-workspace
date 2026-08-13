@@ -1,12 +1,13 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const logger = new Logger('AgentService');
 
 @Injectable()
@@ -83,9 +84,10 @@ export class AgentService {
    * The server URL is embedded so the client auto-connects after install.
    */
   generateDeployScript(serverUrl: string): string {
-    const apiUrl = serverUrl.replace(/\/$/, '');
+    const apiUrl = this.sanitizeServerUrl(serverUrl);
+    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/latest`);
     return [
-      `$url = "${apiUrl}/api/agent/download/latest"`,
+      `$url = ${installerUrl}`,
       `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
       `Write-Host "正在下载蠢驴电竞客户端..." -ForegroundColor Cyan`,
       `Invoke-WebRequest -Uri $url -OutFile $out`,
@@ -107,7 +109,10 @@ export class AgentService {
     serverUrl: string;
   }): string {
     const { targetIPs, adminUser, adminPass, serverUrl } = params;
-    const apiUrl = serverUrl.replace(/\/$/, '');
+    const apiUrl = this.sanitizeServerUrl(serverUrl);
+    const serverUrlLiteral = this.escapePowerShellLiteral(apiUrl);
+    const adminUserLiteral = this.escapePowerShellLiteral(adminUser);
+    const adminPassLiteral = this.escapePowerShellLiteral(adminPass);
     const ipsJson = JSON.stringify(targetIPs);
 
     return [
@@ -117,10 +122,10 @@ export class AgentService {
       `# 目标数量: ${targetIPs.length} 台电脑`,
       `# ============================================`,
       ``,
-      `$serverUrl = "${apiUrl}"`,
+      `$serverUrl = ${serverUrlLiteral}`,
       `$targets = ${ipsJson}`,
-      `$adminUser = "${adminUser}"`,
-      `$adminPass = "${adminPass}"`,
+      `$adminUser = ${adminUserLiteral}`,
+      `$adminPass = ${adminPassLiteral}`,
       `$installerUrl = "$serverUrl/api/agent/download/latest"`,
       ``,
       `# 检查 PsExec 是否存在，没有则自动下载`,
@@ -282,14 +287,15 @@ export class AgentService {
     serverUrl: string;
   }): Promise<{ success: boolean; results: { ip: string; status: string; reason: string }[] }> {
     const { targetIPs, adminUser, adminPass, serverUrl } = params;
-    const apiUrl = serverUrl.replace(/\/$/, '');
+    const apiUrl = this.sanitizeServerUrl(serverUrl);
     const psexec = '/usr/share/doc/python3-impacket/examples/psexec.py';
     const results: { ip: string; status: string; reason: string }[] = [];
 
     // Write a small PowerShell script that psexec.py will copy & execute on target
     const psScriptPath = '/tmp/chunlv-deploy.ps1';
+    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/latest`);
     const psContent = [
-      `$url = "${apiUrl}/api/agent/download/latest"`,
+      `$url = ${installerUrl}`,
       `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
       `Write-Host "Downloading..."`,
       `Invoke-WebRequest -Uri $url -OutFile $out`,
@@ -316,12 +322,11 @@ export class AgentService {
         // psexec.py -c copies the script to target and executes it via powershell
         const creds = safePass ? `./${safeUser}:${safePass}@${trimmed}` : `./${safeUser}@${trimmed}`;
         const noPassFlag = safePass ? '' : ' -no-pass';
-        const cmd =
-          `python3 ${psexec} ${creds}${noPassFlag} ` +
-          `-c ${psScriptPath} ` +
-          `powershell -ExecutionPolicy Bypass -File %TEMP%\\chunlv-deploy.ps1`;
+        const args = [psexec];
+        if (noPassFlag) args.push('-no-pass');
+        args.push(creds, '-c', psScriptPath, 'powershell', '-ExecutionPolicy', 'Bypass', '-File', '%TEMP%\\chunlv-deploy.ps1');
 
-        const { stdout, stderr } = await execAsync(cmd, { timeout: 180_000 });
+        const { stdout, stderr } = await execFileAsync('python3', args, { timeout: 180_000 });
         const output = stdout + (stderr || '');
 
         if (output.includes('Error') || output.includes('Exception')) {
@@ -344,5 +349,27 @@ export class AgentService {
     const okCount = results.filter((r) => r.status === 'OK').length;
     logger.log(`Remote deploy complete: ${okCount}/${results.length} OK`);
     return { success: okCount > 0, results };
+  }
+
+  private escapePowerShellLiteral(value: string): string {
+    return `'${String(value).replace(/'/g, "''")}'`;
+  }
+
+  private sanitizeServerUrl(input: string): string {
+    const fallback = 'http://127.0.0.1:3001';
+    const candidate = input?.trim();
+    if (!candidate) return fallback;
+
+    try {
+      const url = new URL(candidate);
+      const safeHost = /^[a-zA-Z0-9.:\[\]-]+$/.test(url.host);
+      if ((url.protocol === 'http:' || url.protocol === 'https:') && safeHost) {
+        return `${url.protocol}//${url.host}`;
+      }
+    } catch {
+      // Fall back to localhost for invalid URLs.
+    }
+
+    return fallback;
   }
 }
