@@ -19,6 +19,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **忽略打包与本地测试产物:** 新增 `.gitignore` 规则，排除 Electron 打包文件、运行时资源和本地部署/测试临时目录，避免误提交。
+- **服务端自动部署:** 新增定时拉取部署脚本与 systemd timer，检测到 `master` 更新后自动安装依赖、构建前后端、执行 Prisma 迁移并重建应用容器。
 - **全角色页面统一化：** 6 个功能页面的 12 个 per-role 版本合并为统一的共享组件
   - CustomersPage: 合并 owner/admin/companion 三个客户管理页面
   - OrdersPage: 合并 companion 订单工作流与 CS 订单卡片视图

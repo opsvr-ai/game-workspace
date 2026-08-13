@@ -639,6 +639,30 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost/
 # 预期: 200
 ```
 
+### 6.4 自动部署（定时拉取）
+
+服务器已内置自动部署：systemd timer 每分钟运行 `chunlv-deploy.sh`，检测到 `master` 新提交后自动执行：
+
+1. `git pull --rebase --autostash`
+2. `pnpm install --frozen-lockfile`
+3. Prisma generate + migrate deploy（不会重置数据）
+4. 构建 shared/server/web
+5. 重建并重启 `chunlv-app` 容器
+6. 等待健康检查通过
+
+```bash
+# 查看自动部署日志
+sudo tail -f /var/log/chunlv-deploy.log
+
+# 查看定时器状态
+sudo systemctl status chunlv-deploy.timer
+
+# 手动触发一次
+sudo systemctl start chunlv-deploy.service
+```
+
+脚本位置：`deploy/chunlv-deploy.sh`，生产机安装至 `/usr/local/bin/chunlv-deploy.sh`。
+
 ---
 
 ## 7. 备份策略
