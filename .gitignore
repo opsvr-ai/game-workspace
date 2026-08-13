@@ -80,3 +80,36 @@ apps/web/public/app.zip
 apps/server/.claude/
 apps/companion-electron/renderer-dist/
 apps/watchdog-service/*.exe
+# Electron packaging artifacts
+apps/app.zip
+apps/app (1).zip
+apps/release/
+apps/win-unpacked/
+apps/chrome_100_percent.pak
+apps/chrome_200_percent.pak
+apps/d3dcompiler_47.dll
+apps/ffmpeg.dll
+apps/icudtl.dat
+apps/libEGL.dll
+apps/libGLESv2.dll
+apps/LICENSE.electron.txt
+apps/LICENSES.chromium.html
+apps/locales/
+apps/resources/
+apps/resources.pak
+apps/snapshot_blob.bin
+apps/v8_context_snapshot.bin
+apps/vk_swiftshader.dll
+apps/vk_swiftshader_icd.json
+apps/vulkan-1.dll
+apps/companion-config.json
+apps/companion-electron/app.asar
+apps/companion-electron/src/app.zip
+apps/companion-electron/src/win-unpacked/
+apps/companion-electron/src/api/client.ts.local-bak
+
+# Local deploy / test scratch
+.deploy-tools/
+.gocache/
+.update-fail-test/
+.claude/settings.local.json
