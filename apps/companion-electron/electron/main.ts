@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -45,6 +45,29 @@ const STORE_KEYS = new Set([
   'username',
   'companionName',
 ]);
+
+type SavedCredentials = { username?: string; password?: string };
+
+function isTrustedSender(event: any): boolean {
+  try {
+    const url = event?.senderFrame?.url || event?.sender?.getURL?.() || '';
+    return new URL(url).origin === new URL(getServerUrl()).origin;
+  } catch {
+    return false;
+  }
+}
+
+function decryptSavedCredentials(): SavedCredentials | null {
+  const raw = store.get('savedCredentials');
+  if (!raw || !safeStorage.isEncryptionAvailable()) return null;
+  try {
+    const json = safeStorage.decryptString(Buffer.from(String(raw), 'base64'));
+    const parsed = JSON.parse(json) as SavedCredentials;
+    return parsed?.username ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Password prompt ──
 let pwResolve: ((ok: boolean) => void) | null = null;
@@ -132,6 +155,36 @@ function setupIPC(): void {
     if (key === 'token' && value) {
       connectWebSocket(getServerUrl(), String(value), (store.get('companionId') || '') as string);
     }
+    return { success: true };
+  });
+  ipcMain.handle('credentials:get', (event) => {
+    if (!isTrustedSender(event)) return null;
+    return decryptSavedCredentials();
+  });
+  ipcMain.handle('credentials:save', (event, creds: { username?: unknown; password?: unknown }) => {
+    if (!isTrustedSender(event)) return { success: false, reason: 'untrusted-origin' };
+    const username = typeof creds?.username === 'string' ? creds.username.trim() : '';
+    const password = typeof creds?.password === 'string' ? creds.password : '';
+    if (!username || !password) {
+      store.set('savedCredentials', '');
+      return { success: true };
+    }
+    if (!safeStorage.isEncryptionAvailable()) {
+      return { success: false, reason: 'safe-storage-unavailable' };
+    }
+    try {
+      const encrypted = safeStorage
+        .encryptString(JSON.stringify({ username, password }))
+        .toString('base64');
+      store.set('savedCredentials', encrypted);
+      return { success: true };
+    } catch {
+      return { success: false, reason: 'encrypt-failed' };
+    }
+  });
+  ipcMain.handle('credentials:clear', (event) => {
+    if (!isTrustedSender(event)) return { success: false };
+    store.set('savedCredentials', '');
     return { success: true };
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());

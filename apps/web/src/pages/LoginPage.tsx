@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Button, Typography, message, Select, Upload, Modal } from 'antd';
+import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
@@ -23,7 +23,21 @@ const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [usernameError, setUsernameError] = useState('');
+
+  // Electron 端自动填充上次安全保存的登录凭据
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.getSavedCredentials) return;
+    api.getSavedCredentials().then((creds: any) => {
+      if (creds?.username && creds?.password) {
+        setUsername(creds.username);
+        setPassword(creds.password);
+        setRememberMe(true);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Check username availability on blur
   const checkUsername = async (val: string) => {
@@ -96,6 +110,19 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const user = await login({ username, password });
+      const api = (window as any).electronAPI;
+      if (api?.saveCredentials) {
+        try {
+          const saved = await api.saveCredentials(
+            rememberMe ? { username, password } : { username: '', password: '' },
+          );
+          if (rememberMe && saved?.success === false) {
+            message.warning('当前系统无法安全保存密码，本次登录不会记住账号密码');
+          }
+        } catch {
+          // 凭据保存失败不影响登录流程
+        }
+      }
       message.success(`欢迎回来，${user.username}`);
       // 陪玩首次登录 → 完善资料
       if (user.role === 'COMPANION') {
@@ -208,6 +235,11 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 onPressEnter={handleLogin}
               />
+              <div style={{ textAlign: 'left', marginTop: 4 }}>
+                <Checkbox checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}>
+                  记住账号密码
+                </Checkbox>
+              </div>
               <Button
                 type="primary"
                 size="large"

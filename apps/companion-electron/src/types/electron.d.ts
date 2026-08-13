@@ -10,6 +10,12 @@ export interface ElectronAPI {
   apiRequest: (params: { method: string; url: string; body?: any }) => Promise<any>;
   storeGet: (key: string) => Promise<any>;
   storeSet: (key: string, value: any) => Promise<void>;
+  getSavedCredentials: () => Promise<{ username?: string; password?: string } | null>;
+  saveCredentials: (creds: { username: string; password: string }) => Promise<{
+    success: boolean;
+    reason?: string;
+  }>;
+  clearSavedCredentials: () => Promise<{ success: boolean }>;
   unlockScreen: (pass: string) => Promise<boolean>;
   showWindow: () => Promise<void>;
   hideWindow: () => Promise<void>;

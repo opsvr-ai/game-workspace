@@ -14,6 +14,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Chat history endpoint:** `GET /api/companions/chat-history/:companionId` returns full chat message history between a studio and a specific companion.
 - **客服自抢单/线索养客流程:** 新增 `CLAIMED` 状态、`POST /api/orders/:id/claim` 与 `POST /api/orders/:id/release`，客服可把暂时不玩的池子订单认领到工作微信，待客户要打时再放回抢单池并标记“立即打”。
 - **客服发单与认领统计:** 每日统计新增客服认领单数/金额，订单列表展示认领客服、认领工作微信和客户实际收款去向，便于核对客服提成与资金流向。
+- **陪玩端安全记住密码:** Electron 登录页新增“记住账号密码”，凭据使用 `safeStorage` 加密后存储，并校验调用页面来源，避免明文保存或跨来源读取。
 
 ### Changed
 
