@@ -18,6 +18,7 @@ import (
 )
 
 const serviceName = "SystemHelper"
+const exitEventName = `Global\ChunlvExitRequested`
 
 var searchPaths = []string{
 	`C:\Program Files\@chunlvcompanion-electron\蠢驴电竞.exe`,
@@ -38,6 +39,8 @@ var (
 	launchBackoffUntil int64
 	launching          int32
 	stopping           int32
+	exitEvent          windows.Handle
+	suppressLaunch     int32
 )
 
 var (
@@ -167,25 +170,85 @@ func killAllClientProcesses() {
 	}
 }
 
-// isClientRunning checks if OUR launched PID is still alive.
+// isClientRunning checks if OUR launched PID is still alive. If we do not
+// currently own a PID, it adopts any running client process so a manually
+// started client is protected as well.
 func isClientRunning() bool {
-	if clientPID == 0 {
-		return false
+	if clientPID != 0 {
+		h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, clientPID)
+		if err != nil {
+			safeWarn(fmt.Sprintf("PID %d gone: %v", clientPID, err))
+			clientPID = 0
+			return false
+		}
+		var exitCode uint32
+		windows.GetExitCodeProcess(h, &exitCode)
+		windows.CloseHandle(h)
+		if exitCode != 259 { // STILL_ACTIVE
+			safeWarn(fmt.Sprintf("PID %d exited code=%d", clientPID, exitCode))
+			clientPID = 0
+			return false
+		}
+		return true
 	}
-	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, clientPID)
+
+	if pid := findAnyClientPID(); pid != 0 {
+		clientPID = pid
+		safeInfo(fmt.Sprintf("Adopted running client pid=%d", pid))
+		return true
+	}
+	return false
+}
+
+// findAnyClientPID returns the first running client process PID, or zero.
+func findAnyClientPID() uint32 {
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
-		safeWarn(fmt.Sprintf("PID %d gone: %v", clientPID, err))
-		clientPID = 0
+		return 0
+	}
+	defer windows.CloseHandle(snapshot)
+
+	var pe windows.ProcessEntry32
+	pe.Size = uint32(unsafe.Sizeof(pe))
+
+	err = windows.Process32First(snapshot, &pe)
+	for err == nil {
+		name := windows.UTF16PtrToString(&pe.ExeFile[0])
+		if strings.EqualFold(name, "蠢驴电竞.exe") {
+			pid := pe.ProcessID
+			if pid != 0 && pid != 4 {
+				return uint32(pid)
+			}
+		}
+		err = windows.Process32Next(snapshot, &pe)
+	}
+	return 0
+}
+
+// setupExitEvent creates (or opens) the global named event that the client
+// signals when an authorized exit was approved. It stays unsignaled until
+// the client requests exit.
+func setupExitEvent() {
+	h, _ := windows.CreateEvent(nil, 1, 0, windows.StringToUTF16Ptr(exitEventName))
+	if h != 0 {
+		exitEvent = h
+		return
+	}
+	safeWarn("CreateEvent for authorized exit failed")
+}
+
+// consumeExitRequest returns true when the client has just requested an
+// authorized exit. The event is reset so a single request triggers once.
+func consumeExitRequest() bool {
+	if exitEvent == 0 {
 		return false
 	}
-	var exitCode uint32
-	windows.GetExitCodeProcess(h, &exitCode)
-	windows.CloseHandle(h)
-	if exitCode != 259 { // STILL_ACTIVE
-		safeWarn(fmt.Sprintf("PID %d exited code=%d", clientPID, exitCode))
-		clientPID = 0
+	rc, err := windows.WaitForSingleObject(exitEvent, 0)
+	if err != nil || rc != windows.WAIT_OBJECT_0 {
 		return false
 	}
+	windows.ResetEvent(exitEvent)
+	atomic.StoreInt32(&suppressLaunch, 1)
 	return true
 }
 
@@ -334,6 +397,7 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	}
 
 	status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	setupExitEvent()
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
@@ -346,7 +410,23 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	for {
 		select {
 		case <-ticker.C:
-			if atomic.LoadInt32(&stopping) == 0 && !isClientRunning() {
+			if atomic.LoadInt32(&stopping) != 0 {
+				continue
+			}
+			if consumeExitRequest() {
+				safeInfo("Authorized exit requested — suppressing auto-relaunch until reboot")
+				continue
+			}
+			if atomic.LoadInt32(&suppressLaunch) != 0 {
+				// A different client PID means the user manually started the app again.
+				if pid := findAnyClientPID(); pid != 0 && pid != clientPID {
+					clientPID = pid
+					atomic.StoreInt32(&suppressLaunch, 0)
+					safeInfo(fmt.Sprintf("Manual client start detected pid=%d — resuming watchdog", pid))
+				}
+				continue
+			}
+			if !isClientRunning() {
 				safeWarn("Client PID gone — relaunching")
 				maybeLaunchClient()
 			}
@@ -477,6 +557,7 @@ func removeService() error {
 func runForeground() {
 	log.SetOutput(os.Stdout)
 	log.Println("SystemHelper watchdog foreground mode")
+	setupExitEvent()
 
 	if p := findClient(); p != "" {
 		log.Printf("Client found at: %s", p)
@@ -491,6 +572,18 @@ func runForeground() {
 	defer ticker.Stop()
 
 	for range ticker.C {
+		if consumeExitRequest() {
+			log.Println("Authorized exit requested — suppressing auto-relaunch until reboot")
+			continue
+		}
+		if atomic.LoadInt32(&suppressLaunch) != 0 {
+			if pid := findAnyClientPID(); pid != 0 && pid != clientPID {
+				clientPID = pid
+				atomic.StoreInt32(&suppressLaunch, 0)
+				log.Printf("Manual client start detected pid=%d — resuming watchdog", pid)
+			}
+			continue
+		}
 		if !isClientRunning() {
 			log.Println("Client gone — relaunching...")
 			maybeLaunchClient()

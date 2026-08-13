@@ -2,6 +2,7 @@
 import { app, BrowserWindow, Menu, ipcMain, safeStorage } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { execFile } from 'child_process';
 
 // Write startup trace IMMEDIATELY at module load time
 try {
@@ -71,6 +72,20 @@ function decryptSavedCredentials(): SavedCredentials | null {
 
 // ── Password prompt ──
 let pwResolve: ((ok: boolean) => void) | null = null;
+
+// Signal the watchdog that this is an administrator-authorized exit.
+// The watchdog consumes the signal and stops relaunching until reboot.
+function signalAuthorizedExit(): Promise<void> {
+  return new Promise((resolve) => {
+    const script = '[System.Threading.EventWaitHandle]::OpenExisting("Global\\ChunlvExitRequested").Set()';
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', script],
+      { timeout: 5000, windowsHide: true },
+      () => resolve(),
+    );
+  });
+}
 
 function promptPassword(title: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -299,6 +314,7 @@ app.whenReady().then(() => {
       try {
         const ok = await promptPassword('退出确认');
         if (!ok) return;
+        await signalAuthorizedExit();
       } catch {
         return;
       }

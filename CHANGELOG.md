@@ -32,6 +32,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **授权退出仍被看门狗拉起:** 陪玩端管理员密码退出后通过全局事件通知 `SystemHelper`，看门狗本次开机内不再自动拉起；重启电脑后恢复正常守护。
 - **服务端可选图像依赖阻断启动:** 长图合成改为延迟加载 `sharp`，未安装该依赖时服务端仍可正常启动，仅在合成截图时优雅降级。
 - **远程部署脚本凭据注入：** 远程批量部署脚本改用 PowerShell 单引号字面量安全转义管理员账号/密码，并对服务端 URL 做协议与主机白名单校验，阻止恶意凭据或 Host 头注入脚本
 - **刷新令牌绕过审核状态：** `refresh` 在签发新令牌前校验 `isAuthorized`，被禁用或未通过审核的 CS/ADMIN/COMPANION 账号无法再通过旧 refreshToken 续期
