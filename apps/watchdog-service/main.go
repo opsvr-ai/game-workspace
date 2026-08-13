@@ -30,11 +30,14 @@ var searchPaths = []string{
 }
 
 var (
-	elog              *eventlog.Log
-	clientPath        string
-	clientPID         uint32 // the PID we launched — only this one counts
-	restartCount      int32
-	lastRestartWindow int64
+	elog               *eventlog.Log
+	clientPath         string
+	clientPID          uint32 // the PID we launched — only this one counts
+	restartCount       int32
+	lastRestartWindow  int64
+	launchBackoffUntil int64
+	launching          int32
+	stopping           int32
 )
 
 var (
@@ -243,27 +246,40 @@ func launchInUserSession(exePath string) (uint32, error) {
 }
 
 func launchClient() {
+	if atomic.LoadInt32(&stopping) != 0 {
+		return
+	}
+
+	now := time.Now().UnixNano()
+	if now < atomic.LoadInt64(&launchBackoffUntil) {
+		return
+	}
+
 	path := findClient()
 	if path == "" {
 		safeWarn("Client exe not found")
 		return
 	}
 
-	now := time.Now().UnixNano()
 	window := atomic.LoadInt64(&lastRestartWindow)
 	if now-window > 10*60*1e9 {
 		atomic.StoreInt32(&restartCount, 0)
 		atomic.StoreInt64(&lastRestartWindow, now)
 	}
 	if atomic.AddInt32(&restartCount, 1) > 5 {
-		safeErr("Crash-loop — pausing 5 min")
-		time.Sleep(5 * time.Minute)
+		atomic.StoreInt64(&launchBackoffUntil, time.Now().Add(5*time.Minute).UnixNano())
 		atomic.StoreInt32(&restartCount, 0)
+		atomic.StoreInt64(&lastRestartWindow, time.Now().UnixNano())
+		safeErr("Crash-loop — pausing 5 min")
+		return
 	}
 
 	// Kill orphans from previous killed launches
 	killAllClientProcesses()
-	time.Sleep(2 * time.Second) // let file handles fully release
+	time.Sleep(1 * time.Second) // let file handles fully release
+	if atomic.LoadInt32(&stopping) != 0 {
+		return
+	}
 
 	safeInfo(fmt.Sprintf("Launching: %s", path))
 	pid, err := launchInUserSession(path)
@@ -284,10 +300,30 @@ func launchClient() {
 	}
 }
 
+// maybeLaunchClient starts a launch in the background so the service control
+// loop is never blocked by kill/launch operations or crash-loop backoff.
+func maybeLaunchClient() {
+	if atomic.LoadInt32(&stopping) != 0 {
+		return
+	}
+	if !atomic.CompareAndSwapInt32(&launching, 0, 1) {
+		return
+	}
+
+	go func() {
+		defer atomic.StoreInt32(&launching, 0)
+		if atomic.LoadInt32(&stopping) != 0 {
+			return
+		}
+		launchClient()
+	}()
+}
+
 type watchdogService struct{}
 
 func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	atomic.StoreInt32(&stopping, 0)
 
 	status <- svc.Status{State: svc.StartPending}
 
@@ -301,7 +337,7 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
-		launchClient()
+		maybeLaunchClient()
 	}
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -310,9 +346,9 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	for {
 		select {
 		case <-ticker.C:
-			if !isClientRunning() {
+			if atomic.LoadInt32(&stopping) == 0 && !isClientRunning() {
 				safeWarn("Client PID gone — relaunching")
-				launchClient()
+				maybeLaunchClient()
 			}
 
 		case c := <-r:
@@ -320,6 +356,7 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 			case svc.Interrogate:
 				status <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
+				atomic.StoreInt32(&stopping, 1)
 				safeInfo("Service stopping")
 				status <- svc.Status{State: svc.StopPending}
 				return false, 0
@@ -447,7 +484,7 @@ func runForeground() {
 
 	if !isClientRunning() {
 		log.Println("Launching client...")
-		launchClient()
+		maybeLaunchClient()
 	}
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -456,7 +493,7 @@ func runForeground() {
 	for range ticker.C {
 		if !isClientRunning() {
 			log.Println("Client gone — relaunching...")
-			launchClient()
+			maybeLaunchClient()
 		}
 	}
 }

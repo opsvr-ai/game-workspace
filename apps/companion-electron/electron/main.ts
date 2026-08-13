@@ -11,9 +11,10 @@ try {
 import { store } from './store';
 import { getServerUrl } from './config';
 import { logger } from './logger';
-import { connectWebSocket, onWsEvent } from './websocket';
+import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray } from './tray';
+import { handleStatusChanged } from './screen-lock';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -28,6 +29,19 @@ function trace(msg: string) {
 function getAppPassword(): string {
   return (store.get('appPassword') as string) || '123456';
 }
+
+const STORE_KEYS = new Set([
+  'token',
+  'companionId',
+  'appPassword',
+  'notificationPrefs',
+  'notifSound',
+  'notifVolume',
+  'screenLocked',
+  'lastStatus',
+  'username',
+  'companionName',
+]);
 
 // ── Password prompt ──
 let pwResolve: ((ok: boolean) => void) | null = null;
@@ -90,16 +104,32 @@ function setupIPC(): void {
     if (!ok) throw new Error('密码错误');
     return true;
   });
-  ipcMain.handle('store:get', (_e, key: string) => store.get(key));
+  ipcMain.handle('store:get', (_e, key: string) => {
+    return STORE_KEYS.has(key) ? store.get(key) : undefined;
+  });
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => {
+    if (!STORE_KEYS.has(key)) return { success: false };
     store.set(key, value);
     if (key === 'token' && value) {
       connectWebSocket(getServerUrl(), String(value), (store.get('companionId') || '') as string);
     }
     return { success: true };
   });
+  ipcMain.handle('config:getServerUrl', () => getServerUrl());
+  ipcMain.handle('screen:unlock', (_e, pass: string) => {
+    if (pass !== getAppPassword()) return false;
+    store.set('screenLocked', 'unlocked');
+    return true;
+  });
+  ipcMain.on('companion:status', (_e, status: string) => {
+    if (typeof status !== 'string') return;
+    emitStatus(status);
+    handleStatusChanged(status);
+  });
   ipcMain.handle('auth:logout', () => {
-    store.set('token', ''); store.set('companionId', '');
+    store.set('token', '');
+    store.set('companionId', '');
+    disconnectWebSocket();
     return { success: true };
   });
 }
@@ -121,6 +151,25 @@ app.whenReady().then(() => {
     },
   });
   trace('3-win');
+  const allowedOrigin = new URL(getServerUrl()).origin;
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    try {
+      if (new URL(url).origin !== allowedOrigin) event.preventDefault();
+    } catch {
+      event.preventDefault();
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      if (new URL(url).origin === allowedOrigin) return { action: 'allow' };
+    } catch {
+      // deny invalid or external URLs
+    }
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => {
+    callback(false);
+  });
   mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
   mainWindow.on('close', (e) => {
     trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0,200));
@@ -165,8 +214,6 @@ app.whenReady().then(() => {
 
   trace('6-done');
   checkForUpdates();
-
-  trace('6-done');
 });
 
 app.on('before-quit', () => { trace('quit'); });

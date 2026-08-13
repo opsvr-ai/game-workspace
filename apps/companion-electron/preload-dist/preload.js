@@ -8,4 +8,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     storeGet: (key) => electron_1.ipcRenderer.invoke('store:get', key),
     storeSet: (key, value) => electron_1.ipcRenderer.invoke('store:set', key, value),
     logout: () => electron_1.ipcRenderer.invoke('auth:logout'),
+    unlockScreen: (pass) => electron_1.ipcRenderer.invoke('screen:unlock', pass),
+    getServerUrl: () => electron_1.ipcRenderer.invoke('config:getServerUrl'),
+    onStatusChanged: (status) => electron_1.ipcRenderer.send('companion:status', status),
 });

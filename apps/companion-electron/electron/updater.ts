@@ -73,6 +73,16 @@ export async function checkForUpdates(): Promise<void> {
  * Download installer exe and run silent install, then quit + relaunch.
  */
 export async function downloadAndInstall(downloadUrl: string): Promise<void> {
+  return downloadAndInstallWithRedirects(downloadUrl, 0);
+}
+
+const MAX_REDIRECTS = 5;
+const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
+
+async function downloadAndInstallWithRedirects(
+  downloadUrl: string,
+  redirectCount: number,
+): Promise<void> {
   const tmpDir = path.join(app.getPath('temp'), 'chunlv-update');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
@@ -96,7 +106,12 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           file.close();
           fs.unlinkSync(installerPath);
-          downloadAndInstall(response.headers.location).then(resolve).catch(reject);
+          if (redirectCount >= MAX_REDIRECTS) {
+            reject(new Error(`Too many redirects: ${downloadUrl}`));
+            return;
+          }
+          const nextUrl = new URL(response.headers.location, downloadUrl).toString();
+          downloadAndInstallWithRedirects(nextUrl, redirectCount + 1).then(resolve).catch(reject);
           return;
         }
 
@@ -108,12 +123,25 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
         }
 
         const totalSize = parseInt(response.headers['content-length'] || '0', 10);
+        if (totalSize > MAX_DOWNLOAD_BYTES) {
+          file.close();
+          fs.unlinkSync(installerPath);
+          response.destroy();
+          reject(new Error(`Download too large: ${totalSize} bytes`));
+          return;
+        }
         response.pipe(file);
 
         file.on('finish', () => {
           file.close();
           const actualSize = fs.statSync(installerPath).size;
-          if (totalSize > 0 && actualSize !== totalSize) {
+          if (actualSize <= 0) {
+            fs.unlinkSync(installerPath);
+            reject(new Error('Downloaded file is empty'));
+          } else if (actualSize > MAX_DOWNLOAD_BYTES) {
+            fs.unlinkSync(installerPath);
+            reject(new Error(`Downloaded file exceeds limit: ${actualSize} bytes`));
+          } else if (totalSize > 0 && actualSize !== totalSize) {
             fs.unlinkSync(installerPath);
             reject(new Error(`Download incomplete: expected ${totalSize}, got ${actualSize}`));
           } else {
@@ -149,8 +177,9 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
       { timeout: 120_000 },
       (err) => {
         if (err) {
-          // NSIS /S can return non-zero even on success; log and proceed
-          logger.warn('Installer exited with error', { error: err.message });
+          logger.error('Installer failed', { error: err.message });
+          reject(new Error(`Installer failed: ${err.message}`));
+          return;
         }
         resolve();
       },

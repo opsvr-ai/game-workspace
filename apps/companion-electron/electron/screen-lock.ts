@@ -19,7 +19,7 @@ export function getAppPasswordForUI(): string {
   return getAppPassword();
 }
 
-function buildLockHTML(pass: string): string {
+function buildLockHTML(): string {
   // Use base64 to avoid encoding issues with Chinese characters
   return Buffer.from(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -41,14 +41,13 @@ input:focus{border-color:#52c41a}
 <div class="error" id="err">密码错误</div>
 </div>
 <script>
-var pass=${JSON.stringify(pass)};
 var attempts=0;
 document.getElementById('pw').addEventListener('keydown',function(e){
 if(e.key==='Enter'){
-if(e.target.value===pass){
-window.electronAPI&&window.electronAPI.storeSet&&window.electronAPI.storeSet('screenLocked','unlocked');
-window.close();
-}else{
+var value=e.target.value;
+window.electronAPI&&window.electronAPI.unlockScreen&&window.electronAPI.unlockScreen(value).then(function(ok){
+if(ok){window.close();}
+else{
 attempts++;
 document.getElementById('err').style.display='block';
 e.target.value='';
@@ -58,6 +57,7 @@ e.target.disabled=true;
 setTimeout(function(){e.target.disabled=false;attempts=0;document.getElementById('err').style.display='none'},30000);
 }
 }
+});
 }
 });
 document.addEventListener('keydown',function(e){
@@ -89,8 +89,7 @@ export function showScreenLock(): void {
     },
   });
 
-  const pass = getAppPassword();
-  lockWindow.loadURL(`data:text/html;charset=utf-8;base64,${buildLockHTML(pass)}`);
+  lockWindow.loadURL(`data:text/html;charset=utf-8;base64,${buildLockHTML()}`);
 
   lockWindow.setAlwaysOnTop(true, 'screen-saver');
   lockWindow.setVisibleOnAllWorkspaces(true);
@@ -130,5 +129,15 @@ export function hideScreenLock(): void {
   if (lockWindow) {
     store.set('screenLocked', 'unlocked');
     lockWindow.close();
+  }
+}
+
+export function handleStatusChanged(status: string): void {
+  store.set('lastStatus', status);
+  if (status === 'RESTING') {
+    startIdleTimer();
+  } else {
+    stopIdleTimer();
+    hideScreenLock();
   }
 }
