@@ -27,6 +27,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **远程部署脚本凭据注入：** 远程批量部署脚本改用 PowerShell 单引号字面量安全转义管理员账号/密码，并对服务端 URL 做协议与主机白名单校验，阻止恶意凭据或 Host 头注入脚本
+- **刷新令牌绕过审核状态：** `refresh` 在签发新令牌前校验 `isAuthorized`，被禁用或未通过审核的 CS/ADMIN/COMPANION 账号无法再通过旧 refreshToken 续期
+- **Docker 弱凭据与全网卡暴露：** PostgreSQL/Redis 仅绑定 `127.0.0.1`，密码改为必须通过 `docker/.env` 显式提供，并为 Redis 启用认证
+
 - **看门狗阻塞服务控制：** `SystemHelper` 崩溃退避由阻塞 `time.Sleep(5m)` 改为后台并发启动 + 非阻塞退避，服务可及时响应 Windows SCM 停止/关机请求
 - **更新失败重启循环：** 安装器非零退出时不再重启旧版本，避免“下载→失败→看门狗重启→再下载”的无限循环；同时增加重定向上限与 500MB 下载大小限制
 - **退出登录残留 WebSocket：** 客户端退出登录时同步断开 Socket.IO，避免旧 token 连接继续存活

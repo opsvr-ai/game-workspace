@@ -120,7 +120,7 @@ cp .env.example apps/server/.env
 ```bash
 # 完整示例配置
 DATABASE_URL=postgresql://postgres:<你的密码>@localhost:5432/chunlv
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://:<你的Redis密码>@localhost:6379
 JWT_SECRET=<生成的随机密钥>
 JWT_REFRESH_SECRET=<生成的另一个随机密钥>
 PORT=3001
@@ -130,8 +130,8 @@ PORT=3001
 
 | 变量 | 说明 | 示例值 |
 |------|------|--------|
-| `DATABASE_URL` | PostgreSQL 数据库连接字符串。格式：`postgresql://用户名:密码@主机:端口/数据库名`。开发环境使用默认值 `postgresql://postgres:postgres@localhost:5432/chunlv`。生产环境务必修改密码。 | `postgresql://postgres:mysecurepassword@localhost:5432/chunlv` |
-| `REDIS_URL` | Redis 连接字符串。格式：`redis://主机:端口`。默认端口 6379，无需认证。生产环境建议设置 Redis 密码（`redis://:password@localhost:6379`）。 | `redis://localhost:6379` |
+| `DATABASE_URL` | PostgreSQL 数据库连接字符串。格式：`postgresql://用户名:密码@主机:端口/数据库名`。生产环境务必使用强密码，并与 `docker/.env` 中的 `POSTGRES_PASSWORD` 保持一致。 | `postgresql://postgres:mysecurepassword@localhost:5432/chunlv` |
+| `REDIS_URL` | Redis 连接字符串。格式：`redis://:密码@主机:端口`。Redis 已启用认证，必须包含与 `docker/.env` 中 `REDIS_PASSWORD` 一致的密码。 | `redis://:myredispassword@localhost:6379` |
 | `JWT_SECRET` | 用于签发用户访问令牌（access token）的密钥。访问令牌有效期 15 分钟。必须使用随机长字符串，绝对不要使用默认值。 | 通过以下命令生成（见下方） |
 | `JWT_REFRESH_SECRET` | 用于签发刷新令牌（refresh token）的密钥。刷新令牌有效期 7 天。与 `JWT_SECRET` 使用不同的随机字符串。 | 通过以下命令生成（见下方） |
 | `PORT` | 后端 HTTP 服务监听端口。默认 3001。如果端口冲突可修改，但需同步更新前端代理配置。 | `3001` |
@@ -159,6 +159,8 @@ openssl rand -hex 32
 
 ```bash
 # 在项目根目录执行
+cp docker/.env.example docker/.env
+# 编辑 docker/.env，设置强随机 POSTGRES_PASSWORD 和 REDIS_PASSWORD
 docker compose -f docker/docker-compose.yaml up -d
 ```
 
@@ -166,8 +168,8 @@ docker compose -f docker/docker-compose.yaml up -d
 
 | 容器 | 镜像 | 端口 | 用户名/密码 | 数据库 |
 |------|------|------|-------------|--------|
-| `chunlv-postgres` | `postgres:16-alpine` | `5432` | `postgres` / `postgres` | `chunlv` |
-| `chunlv-redis` | `redis:7-alpine` | `6379` | 无认证 | -- |
+| `chunlv-postgres` | `postgres:16-alpine` | `127.0.0.1:5432` | `postgres` / `docker/.env` 中的 `POSTGRES_PASSWORD` | `chunlv` |
+| `chunlv-redis` | `redis:7-alpine` | `127.0.0.1:6379` | `docker/.env` 中的 `REDIS_PASSWORD` | -- |
 
 ### 3.2 验证容器运行状态
 
@@ -617,7 +619,7 @@ healthcheck:
 
 # Redis
 healthcheck:
-  test: ["CMD", "redis-cli", "ping"]
+  test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
   interval: 5s
   timeout: 3s
   retries: 5

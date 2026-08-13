@@ -214,12 +214,16 @@ pnpm install
 ### 2. Start Infrastructure (PostgreSQL + Redis)
 
 ```bash
+cp docker/.env.example docker/.env
+# 编辑 docker/.env，设置 POSTGRES_PASSWORD 和 REDIS_PASSWORD
 docker compose -f docker/docker-compose.yaml up -d
 ```
 
 This starts:
-- **PostgreSQL 16** on port `5432` (user: `postgres`, password: `postgres`, database: `chunlv`)
-- **Redis 7** on port `6379`
+- **PostgreSQL 16** on port `5432` (user: `postgres`, password: from `docker/.env`, database: `chunlv`)
+- **Redis 7** on port `6379` (password: from `docker/.env`)
+
+PostgreSQL and Redis only listen on `127.0.0.1` by default.
 
 ### 3. Initialize Database
 
@@ -610,8 +614,8 @@ Every endpoint returns a standard JSON envelope:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/chunlv` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:<your-password>@localhost:5432/chunlv` |
+| `REDIS_URL` | Redis connection string | `redis://:<your-password>@localhost:6379` |
 | `JWT_SECRET` | Secret for signing access tokens | _Required_ |
 | `JWT_REFRESH_SECRET` | Secret for signing refresh tokens | _Required_ |
 | `PORT` | HTTP server port | `3001` |
@@ -621,9 +625,9 @@ Every endpoint returns a standard JSON envelope:
 | Service | Variable | Default |
 |---------|----------|---------|
 | PostgreSQL | `POSTGRES_USER` | `postgres` |
-| | `POSTGRES_PASSWORD` | `postgres` |
+| | `POSTGRES_PASSWORD` | _Required_ |
 | | `POSTGRES_DB` | `chunlv` |
-| Redis | _(none)_ | Default config |
+| Redis | `REDIS_PASSWORD` | _Required_ |
 
 ---
 
