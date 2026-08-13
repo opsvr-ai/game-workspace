@@ -9,4 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logout: () => ipcRenderer.invoke('auth:logout'),
   sessionWatch: (sessionId: string) => ipcRenderer.send('session:watch', sessionId),
   sessionWatchStop: () => ipcRenderer.invoke('session:watch-stop'),
+  unlockScreen: (pass: string) => ipcRenderer.invoke('screen:unlock', pass),
+  getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
+  onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),
 });

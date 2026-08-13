@@ -27,9 +27,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **看门狗阻塞服务控制：** `SystemHelper` 崩溃退避由阻塞 `time.Sleep(5m)` 改为后台并发启动 + 非阻塞退避，服务可及时响应 Windows SCM 停止/关机请求
+- **更新失败重启循环：** 安装器非零退出时不再重启旧版本，避免“下载→失败→看门狗重启→再下载”的无限循环；同时增加重定向上限与 500MB 下载大小限制
+- **退出登录残留 WebSocket：** 客户端退出登录时同步断开 Socket.IO，避免旧 token 连接继续存活
+- **锁屏密码泄露与解锁竞态：** 移除锁屏 HTML 中内嵌明文密码，改为主进程 IPC 校验；修复异步 `storeSet` 后立即 `window.close()` 的竞态
+- **Electron 状态上报缺失：** 增加 preload `onStatusChanged` → 主进程 `companion:status` WS 上报，并接入休息状态锁屏定时器
+- **远程页面安全边界：** 限制 Electron 主窗口跨 origin 导航、禁止新窗口与页面权限请求，降低远程页面 XSS/篡改风险
+- **心跳间隔不一致：** Electron 客户端心跳由 60 秒统一为服务端期望的 30 秒
 
-### Fixed
-
+- **看门狗误删 app.asar.unpacked：** 修复 SystemHelper 服务 `cleanUnpacked()` 删除 `resources/app.asar.unpacked` 后客户端永久无法启动的问题（asarUnpack 文件是构建时产物，Electron 运行时不会重建；删除后客户端弹 Error 窗口卡死，看门狗误判为健康）
+- **无限更新循环：** 修复 updater 版本比较用 `!==` 导致服务器版本与本地不一致（哪怕更旧）时客户端每次启动都下载安装器自杀重装的循环（改为语义化数字比较，仅服务器版本更高才更新）
+- **build 脚本残留引用：** 移除 `package.json` build/build:win 中 `cp electron/watchdog.js` 引用（该文件已随应用内看门狗一起删除，导致构建失败）
 - **陪玩状态同步：** 修复 Electron 客户端状态变更不通知服务端的 bug（`status:changed` IPC 缺少 `emitStatus` 调用）
 - **心跳覆盖状态：** 修复 REST 心跳每 30 秒无条件设为 ONLINE 导致覆写用户主动设置的状态
 - **OWNER 空 studioId：** 修复 OWNER 角色黑名单/白名单 API 500 错误（null studioId 不兼容 Prisma 复合唯一键 upsert）

@@ -38,7 +38,7 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
         companionId,
         agentVersion: app.getVersion(),
       });
-    }, 60_000);
+    }, 30_000);
   });
 
   socket.on('connect_error', (err: any) => {
