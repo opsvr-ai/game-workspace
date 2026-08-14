@@ -34,6 +34,7 @@ const OrderDetailPage: React.FC = () => {
   const [startTarget, setStartTarget] = useState<Session | null>(null);
   const [claimMode, setClaimMode] = useState<string>('机密');
   const [claimPrice, setClaimPrice] = useState<number>(35);
+  const [claimDuration, setClaimDuration] = useState<number>(1);
   const [transferUrl, setTransferUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -85,6 +86,7 @@ const OrderDetailPage: React.FC = () => {
     setStartTarget(r);
     setClaimMode('机密');
     setClaimPrice(35);
+    setClaimDuration(r.duration || 1);
     setTransferUrl('');
   };
 
@@ -103,11 +105,13 @@ const OrderDetailPage: React.FC = () => {
   const handleStartService = async () => {
     if (!startTarget) return;
     if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
+    if (!claimDuration || claimDuration <= 0) { message.warning('请填写有效时长'); return; }
     setStarting(true);
     try {
       await ordersApi.startSession(startTarget.id, {
         claimedMode: claimMode,
         claimedPrice: claimPrice,
+        duration: claimDuration,
         transferScreenshotUrl: transferUrl,
       });
       // 通知 Electron 开始工作记录截图
@@ -209,6 +213,12 @@ const OrderDetailPage: React.FC = () => {
           <Col span={12}>
             <Text>单价（元/小时）</Text>
             <InputNumber min={0} style={{ width: '100%' }} value={claimPrice} onChange={(v) => setClaimPrice(v || 0)} prefix="¥" />
+          </Col>
+        </Row>
+        <Row gutter={12} style={{ marginTop: 8 }}>
+          <Col span={12}>
+            <Text>实际时长（小时）</Text>
+            <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} value={claimDuration} onChange={(v) => setClaimDuration(v || 0)} placeholder="至少 0.5 小时" />
           </Col>
         </Row>
         <div style={{ marginTop: 12 }}>

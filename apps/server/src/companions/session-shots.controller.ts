@@ -120,33 +120,29 @@ export class SessionShotsController {
 
     const shotCount = this.composite.countShots(id);
     let flagged: 'red' | 'yellow' | null = null;
+    let flaggedReason: string | null = null;
 
     if (shotCount === 0) {
       flagged = 'red';
+      flaggedReason = '工作记录截图数量为 0，无法证明服务过程';
       await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'red' } });
     } else {
-      flagged = await this.baseline.analyze(id);
-      // 截图不全：时长 × 4 为预期张数，实际不足一半 → 黄标（可能是补传未完成）
+      const analysis = await this.baseline.analyzeDetailed(id);
+      flagged = analysis.level;
+      flaggedReason = analysis.reason;
+
       const full = await this.prisma.orderSession.findUnique({ where: { id }, select: { duration: true } });
       const expected = Math.max(1, Math.round((full?.duration || 1) * 4));
       if (shotCount < expected / 2 && flagged !== 'red') {
         flagged = 'yellow';
+        flaggedReason = flaggedReason
+          ? `${flaggedReason}；截图数量不足（${shotCount}/${expected}）`
+          : `截图数量不足（${shotCount}/${expected}）`;
         await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'yellow' } });
       }
     }
 
-    const compositeUrl = await this.composite.buildComposite(id);
-    await this.prisma.orderSession.update({
-      where: { id },
-      data: {
-        status: 'DONE',
-        endedAt: new Date(),
-        compositeUrl: compositeUrl || undefined,
-        flagged: flagged || undefined,
-      },
-    });
-
-    // 财务审核：审核金额 = 填写时长 × 声明单价；转账合计 ≥ 审核金额即通过
+    // 财务审核：先落库再合成证据长图，确保长图包含财务核对卡
     let auditStatus: string | null = null;
     try {
       const filledHours = session.duration || 1;
@@ -163,14 +159,27 @@ export class SessionShotsController {
           auditStatus,
         },
       });
+      if (auditStatus === 'FLAGGED' && flagged !== 'red') {
+        flagged = 'yellow';
+        flaggedReason = flaggedReason ? `${flaggedReason}；实收转账低于审核金额` : '实收转账低于审核金额';
+      }
     } catch (err) {
-      // 财务审核字段写入失败不阻断会话结束
       console.error('finance audit write failed', err);
     }
 
-    return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus } };
-  }
+    const compositeUrl = await this.composite.buildComposite(id, flaggedReason, flagged);
+    await this.prisma.orderSession.update({
+      where: { id },
+      data: {
+        status: 'DONE',
+        endedAt: new Date(),
+        compositeUrl: compositeUrl || undefined,
+        flagged: flagged || undefined,
+      },
+    });
 
+    return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason } };
+  }
   /** 管理端：某陪玩的工作记录 */
   @Get('companions/:companionId/work-records')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)

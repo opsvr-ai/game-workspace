@@ -20,7 +20,7 @@ export class CustomerBaselineService {
   ) {}
 
   /** 分析 session，返回标记：'red' | 'yellow' | null */
-  async analyze(sessionId: string): Promise<'red' | 'yellow' | null> {
+  async analyzeDetailed(sessionId: string): Promise<{ level: 'red' | 'yellow' | null; reason: string | null }> {
     const session = await this.prisma.orderSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -28,7 +28,7 @@ export class CustomerBaselineService {
         companion: { include: { user: { select: { username: true, displayName: true } } } },
       },
     });
-    if (!session || !session.parentOrder) return null;
+    if (!session || !session.parentOrder) return { level: null, reason: null };
 
     // 通用红标：DONE 但 0 截图由外部检查（需要文件系统）——这里只做基线分析
     const alerts: Array<{ type: string; level: 'red' | 'yellow' }> = [];
@@ -69,7 +69,7 @@ export class CustomerBaselineService {
     }
 
     // 黑屏率检查（黑屏截图由 upload 时记录在文件名后缀，这里由 controller 统计后更新）
-    if (alerts.length === 0) return null;
+    if (alerts.length === 0) return { level: null, reason: null };
 
     const level = alerts.some((a) => a.level === 'red') ? 'red' : 'yellow';
     const reason = alerts.map((a) => a.type).join('；');
@@ -92,7 +92,12 @@ export class CustomerBaselineService {
     });
 
     this.logger.log(`Session ${sessionId} flagged ${level}: ${reason}`);
-    return level;
+    return { level, reason };
+  }
+
+  /** 兼容旧调用：只返回标记级别。 */
+  async analyze(sessionId: string): Promise<'red' | 'yellow' | null> {
+    return (await this.analyzeDetailed(sessionId)).level;
   }
 
   /** 判断该客户此单是否为续单/复购（历史上已有 DONE 订单） */

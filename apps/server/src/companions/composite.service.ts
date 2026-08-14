@@ -44,6 +44,52 @@ export class CompositeService {
     return sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
   }
 
+  /** 财务核对卡：审核金额 / 实际转账 / 审核状态 */
+  private async renderFinanceCard(parentOrder: any): Promise<Buffer> {
+    const sharp = this.loadSharp();
+    if (!sharp) throw new Error('sharp not available');
+    const auditCents = parentOrder?.auditAmountCents;
+    const transferCents = parentOrder?.transferTotalCents;
+    const auditStatus = parentOrder?.auditStatus;
+    const auditText = auditCents != null ? `¥${(auditCents / 100).toFixed(2)}` : '—';
+    const transferText = transferCents != null ? `¥${(transferCents / 100).toFixed(2)}` : '—';
+    let statusText = '待核对';
+    let color = '#fbbf24';
+    if (auditStatus === 'OK') { statusText = '✅ 转账金额 >= 审核金额'; color = '#22c55e'; }
+    else if (auditStatus === 'FLAGGED') { statusText = '⚠ 转账金额低于审核金额'; color = '#ef4444'; }
+    else if (auditStatus === 'PENDING') { statusText = '⏳ 待核对（未填写转账合计）'; color = '#fbbf24'; }
+    const svg = `
+    <svg width="1280" height="220" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#111827"/>
+      <rect x="0" y="0" width="1280" height="6" fill="${color}"/>
+      <text x="40" y="55" font-size="30" fill="#00D4FF" font-weight="bold">财务核对</text>
+      <text x="40" y="110" font-size="26" fill="#e2e8f0">审核金额（填写时长 x 单价）：${auditText}</text>
+      <text x="40" y="155" font-size="26" fill="#e2e8f0">客户实际转账合计：${transferText}</text>
+      <text x="40" y="200" font-size="26" fill="${color}" font-weight="bold">状态：${statusText}</text>
+    </svg>`;
+    return sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
+  }
+
+  /** AI 异常分析卡（放在长图最后一张） */
+  private async renderAnalysisCard(reason: string | null, level?: string | null): Promise<Buffer> {
+    const sharp = this.loadSharp();
+    if (!sharp) throw new Error('sharp not available');
+    const color = level === 'red' ? '#ef4444' : level === 'yellow' ? '#fbbf24' : '#22c55e';
+    const lines = (reason || '暂无异常').split('；').filter(Boolean);
+    const lineSvg = lines
+      .map((line, i) => `<text x="40" y="${120 + i * 42}" font-size="24" fill="#e2e8f0">• ${line}</text>`)
+      .join('');
+    const height = Math.max(220, 120 + lines.length * 42 + 30);
+    const svg = `
+    <svg width="1280" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#111827"/>
+      <rect x="0" y="0" width="1280" height="6" fill="${color}"/>
+      <text x="40" y="55" font-size="30" fill="${color}" font-weight="bold">AI 异常分析</text>
+      ${lineSvg}
+    </svg>`;
+    return sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
+  }
+
   /** 每张小图顶部加标签条（黑底白字） */
   private async addLabel(input: Buffer, label: string): Promise<Buffer> {
     const sharp = this.loadSharp();
@@ -70,7 +116,7 @@ export class CompositeService {
    * 合并长图：①口供信息表 ②转账截图 ③-⑥ 游戏截图（每张左上角实际截图时间）
    * 文件名格式 {YYYY-MM-DD_HH-mm-ss}.jpg，文件名即实际截屏时间
    */
-  async buildComposite(sessionId: string): Promise<string | null> {
+  async buildComposite(sessionId: string, flaggedReason?: string | null, flaggedLevel?: string | null): Promise<string | null> {
     try {
       const session = await this.prisma.orderSession.findUnique({
         where: { id: sessionId },
@@ -112,6 +158,14 @@ export class CompositeService {
         const timeLabel = base.replace('_', ' ') + (f.includes('_black') ? ' ⚠黑屏' : '');
         const buf = fs.readFileSync(path.join(dir, f));
         parts.push(await this.addLabel(buf, timeLabel));
+      }
+
+      if (session.parentOrder?.auditStatus || session.parentOrder?.auditAmountCents != null) {
+        parts.push(await this.renderFinanceCard(session.parentOrder));
+      }
+
+      if (flaggedReason) {
+        parts.push(await this.renderAnalysisCard(flaggedReason, flaggedLevel));
       }
 
       if (parts.length <= 1) return null; // 只有口供表，没有截图

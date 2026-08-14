@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
@@ -709,14 +709,19 @@ export class OrdersService {
   async startSession(
     id: string,
     companionId?: string,
-    claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string },
+    claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string; duration?: number },
   ) {
     await this.getOwnedSession(id, companionId);
     const data: any = { startedAt: new Date() };
     if (claims) {
-      if (claims.claimedMode !== undefined) data.claimedMode = claims.claimedMode;
-      if (claims.claimedPrice !== undefined) data.claimedPrice = claims.claimedPrice;
-      if (claims.transferScreenshotUrl !== undefined) data.transferScreenshotUrl = claims.transferScreenshotUrl;
+      if (!claims.claimedMode) throw new BadRequestException('请填写游戏模式');
+      if (claims.claimedPrice == null || !Number.isFinite(claims.claimedPrice) || claims.claimedPrice <= 0) throw new BadRequestException('请填写有效单价');
+      if (claims.duration == null || !Number.isFinite(claims.duration) || claims.duration <= 0) throw new BadRequestException('请填写有效时长');
+      if (!claims.transferScreenshotUrl) throw new BadRequestException('请上传客户转账截图');
+      data.claimedMode = claims.claimedMode;
+      data.claimedPrice = claims.claimedPrice;
+      data.transferScreenshotUrl = claims.transferScreenshotUrl;
+      data.duration = claims.duration;
     }
     return this.prisma.orderSession.update({ where: { id }, data });
   }

@@ -176,6 +176,7 @@ export class OrdersController {
       claimedMode: body?.claimedMode,
       claimedPrice: body?.claimedPrice,
       transferScreenshotUrl: body?.transferScreenshotUrl,
+      duration: body?.duration,
     });
     return { code: 200, message: '计时开始', data };
   }
