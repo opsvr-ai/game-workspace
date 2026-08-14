@@ -47,6 +47,7 @@ app.whenReady().then(() => {
     callback(allowed.includes(permission));
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
+  ipcMain.handle('app:getVersion', () => app.getVersion());
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

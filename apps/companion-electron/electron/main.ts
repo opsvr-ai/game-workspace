@@ -203,6 +203,7 @@ function setupIPC(): void {
     return { success: true };
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
+  ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('screen:unlock', (_e, pass: string) => {
     if (pass !== getAppPassword()) return false;
     store.set('screenLocked', 'unlocked');
@@ -262,7 +263,7 @@ app.whenReady().then(() => {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: '蠢驴电竞陪玩',
+    title: `蠢驴电竞陪玩 v${app.getVersion()}`,
     show: true,
     webPreferences: {
       contextIsolation: true,

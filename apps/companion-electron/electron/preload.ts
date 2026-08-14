@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sessionWatchStop: () => ipcRenderer.invoke('session:watch-stop'),
   unlockScreen: (pass: string) => ipcRenderer.invoke('screen:unlock', pass),
   getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
+  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
   onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),
 });

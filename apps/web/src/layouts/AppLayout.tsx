@@ -263,6 +263,11 @@ const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
+  const [appVersion, setAppVersion] = React.useState('');
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
+  }, []);
   useEffect(() => {
     if (user?.studioId) {
       http
@@ -862,6 +867,11 @@ const AppLayout: React.FC = () => {
               background: 'rgba(255,255,255,0.02)',
             }}
           >
+            {appVersion && (
+              <div style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>
+                客户端 v{appVersion}
+              </div>
+            )}
           </div>
         </Sider>
 
