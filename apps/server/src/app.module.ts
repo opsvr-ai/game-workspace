@@ -18,6 +18,7 @@ import { AgentModule } from './agent/agent.module';
 import { StatsModule } from './stats/stats.module';
 import { FinanceModule } from './finance/finance.module';
 import { ChatModule } from './chat/chat.module';
+import { CustomerTrackingModule } from './customer-tracking/customer-tracking.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 
@@ -60,6 +61,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     ChatModule,
     StatsModule,
     FinanceModule,
+    CustomerTrackingModule,
   ],
   providers: [
     {

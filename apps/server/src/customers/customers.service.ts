@@ -45,6 +45,7 @@ export class CustomersService {
 
     if (user.role === 'COMPANION') {
       where.companionId = user.companionId;
+      where.isDeletedByCustomer = false;
     } else if (user.role === 'ADMIN' || user.role === 'CS') {
       where.studioId = user.studioId;
     }
@@ -91,6 +92,7 @@ export class CustomersService {
     if (user && user.role !== 'OWNER') {
       if (user.role === 'COMPANION') {
         where.companionId = user.companionId;
+        where.isDeletedByCustomer = false;
       } else {
         where.studioId = user.studioId;
       }
