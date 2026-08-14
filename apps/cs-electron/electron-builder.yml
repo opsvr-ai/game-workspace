@@ -1,0 +1,25 @@
+appId: com.chunlv.cs
+productName: 蠢驴电竞客服端
+directories:
+  output: release
+files:
+  - main.js
+  - preload.js
+  - package.json
+extraResources:
+  - from: config.json
+    to: config.json
+win:
+  icon: public/donkey.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  sign: null
+nsis:
+  oneClick: true
+  perMachine: true
+  runAfterFinish: true
+  createDesktopShortcut: true
+  shortcutName: 蠢驴电竞客服端
+  installerIcon: public/donkey.ico
+  uninstallerIcon: public/donkey.ico

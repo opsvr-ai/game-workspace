@@ -91,6 +91,15 @@ importers:
         specifier: ^0.14.0
         version: 0.14.7
 
+  apps/cs-electron:
+    devDependencies:
+      electron:
+        specifier: ^30.0.0
+        version: 30.0.0
+      electron-builder:
+        specifier: ^24.13.0
+        version: 24.13.0
+
   apps/server:
     dependencies:
       '@chunlv/shared':
