@@ -83,6 +83,7 @@ const CommissionPage = lazy(() => import('./pages/finance/CommissionPage'));
 const SettlementPage = lazy(() => import('./pages/finance/SettlementPage'));
 const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage'));
 const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
+const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -370,6 +371,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <ReconciliationPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/expenses',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ExpenseReviewPage />
           </Suspense>
         ),
       },

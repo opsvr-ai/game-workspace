@@ -11,6 +11,15 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let capturing = false;
 let flushing = false;
 
+const DEFAULT_CAPTURE_CONFIG = {
+  intervalMinMinutes: 12,
+  intervalMaxMinutes: 18,
+  firstDelayMinMinutes: 1,
+  firstDelayMaxMinutes: 3,
+  blackJpegKb: 15,
+};
+let captureConfig = { ...DEFAULT_CAPTURE_CONFIG };
+
 function localDir(sid: string): string {
   return path.join(app.getPath('userData'), 'captures', sid);
 }
@@ -26,7 +35,7 @@ function log(msg: string) {
 
 /** JPEG 近全黑检测（压缩后极小视为黑屏） */
 function isBlack(jpeg: Buffer): boolean {
-  return jpeg.length < 15 * 1024;
+  return jpeg.length < captureConfig.blackJpegKb * 1024;
 }
 
 function fmtName(d: Date): string {
@@ -63,13 +72,37 @@ async function takeShot(): Promise<void> {
   }
 }
 
+async function fetchCaptureConfig(): Promise<void> {
+  try {
+    const token = store.get('token') as string;
+    if (!token) return;
+    const keys = 'capture.interval_min_minutes,capture.interval_max_minutes,capture.first_delay_min_minutes,capture.first_delay_max_minutes,capture.black_jpeg_kb';
+    const res = await fetch(`${getServerUrl()}/api/config?keys=${encodeURIComponent(keys)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const json: any = await res.json();
+    const d = json?.data || {};
+    const num = (v: any, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
+    captureConfig = {
+      intervalMinMinutes: num(d['capture.interval_min_minutes'], DEFAULT_CAPTURE_CONFIG.intervalMinMinutes),
+      intervalMaxMinutes: num(d['capture.interval_max_minutes'], DEFAULT_CAPTURE_CONFIG.intervalMaxMinutes),
+      firstDelayMinMinutes: num(d['capture.first_delay_min_minutes'], DEFAULT_CAPTURE_CONFIG.firstDelayMinMinutes),
+      firstDelayMaxMinutes: num(d['capture.first_delay_max_minutes'], DEFAULT_CAPTURE_CONFIG.firstDelayMaxMinutes),
+      blackJpegKb: num(d['capture.black_jpeg_kb'], DEFAULT_CAPTURE_CONFIG.blackJpegKb),
+    };
+  } catch {
+    // keep local defaults
+  }
+}
+
 function scheduleNext(): void {
   if (!sessionId) return;
-  const delay = (12 + Math.random() * 6) * 60 * 1000; // 12-18 分钟随机
+  const delay = (captureConfig.intervalMinMinutes + Math.random() * (captureConfig.intervalMaxMinutes - captureConfig.intervalMinMinutes)) * 60 * 1000;
   timer = setTimeout(takeShot, delay);
 }
 
-export function startCapture(sid: string): void {
+export async function startCapture(sid: string): Promise<void> {
   // 先清理定时器但保留旧 session 本地文件（不触发上传，新 session 开始）
   if (timer) {
     clearTimeout(timer);
@@ -77,8 +110,11 @@ export function startCapture(sid: string): void {
   }
   sessionId = sid;
   log(`START session=${sid}`);
-  // 首张延迟 1-3 分钟（刚开局截图无意义）
-  timer = setTimeout(takeShot, (60 + Math.random() * 120) * 1000);
+  // 拉取后台截图配置（失败则用本地默认值）
+  await fetchCaptureConfig();
+  // 首张延迟（默认 1-3 分钟，刚开局截图无意义）
+  const firstDelay = (captureConfig.firstDelayMinMinutes + Math.random() * (captureConfig.firstDelayMaxMinutes - captureConfig.firstDelayMinMinutes)) * 60 * 1000;
+  timer = setTimeout(takeShot, firstDelay);
 }
 
 /** 启动时清理 7 天前的残留截图目录（未上传成功的历史文件） */

@@ -466,6 +466,9 @@ graph TB
 - 证据长图按「服务信息表 → 转账截图 → 游戏截图 → 财务核对卡 → AI 异常分析卡」顺序拼接；`CompositeService.buildComposite(sessionId, flaggedReason, flaggedLevel)` 在结束服务时调用，0 截图红标、转账低于审核金额黄标
 - 「每日统计」页复用 `GET /api/stats/daily`，升级为客服派单/提成核对工作台：发单客服、认领客服、工作微信、客户付款去向、收款账号、陪玩费状态与方式
 - 报账协商：`PUT /api/transactions/:id/propose` 发起改价（`NEGOTIATING`），`accept-proposal` / `reject-proposal` 由陪玩确认或退回
+- 支出/支取审核：`GET/PUT /api/expense-reports*` 与 `GET/PUT /api/wallet-transactions*` 审核陪玩支出、支取与钱包流水（`PENDING → APPROVED/REJECTED`）
+- 提成复核：`PATCH /api/finance/commission/ledgers/:id/status` 将 `CommissionLedger` 在 `DRAFT / CONFIRMED` 间流转
+- 截图阈值：`GET/PUT /api/config` 读取/更新 `capture.*`（截图间隔、首张延迟、黑屏判定、每小时期望张数与合格率），Electron 客户端开始服务时拉取并动态执行
 
 **API 端点:**
 - `GET/POST/PATCH /api/finance/price-rules` — 价格规则 CRUD（内置默认机密 35/绝密 45）
@@ -475,3 +478,7 @@ graph TB
 - `GET /api/finance/commission/:month` — 提成结算列表
 - `GET /api/finance/reconciliation?day=` — 每日到账对账
 - `GET /api/finance/risk-queue` — 客户画像 + AI 私单风险工作台
+- `PATCH /api/finance/commission/ledgers/:id/status` — 提成结算确认/撤销
+- `GET/PUT /api/expense-reports*` — 支出/支取申请查询与审核
+- `GET/PUT /api/wallet-transactions*` — 钱包流水查询与审核
+- `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

@@ -89,6 +89,12 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Patch('commission/ledgers/:id/status')
+  async updateCommissionLedgerStatus(@Param('id') id: string, @Req() req: any, @Body() body: any) {
+    const data = await this.commissions.setLedgerStatus(id, studioIdFor(req, body?.studioId), body?.status);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('reconciliation')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async reconciliation(@Req() req: any, @Query('day') day: string, @Query('studioId') studioId?: string) {

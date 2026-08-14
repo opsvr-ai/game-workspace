@@ -203,6 +203,13 @@ export class CompositeService {
     return fs.readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_black)?\.jpg$/.test(f)).length;
   }
 
+  /** 统计黑屏截图数量（文件名带 _black 后缀） */
+  countBlackShots(sessionId: string): number {
+    const dir = path.join(UPLOAD_DIR, sessionId);
+    if (!fs.existsSync(dir)) return 0;
+    return fs.readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_black\.jpg$/.test(f)).length;
+  }
+
   /** 惰性清理 30 天前的会话目录 */
   cleanupOldDirs(): void {
     try {

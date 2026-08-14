@@ -36,6 +36,14 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'identity.app_secret': '',
   'agent.latest_version': '1.0.0',
   'agent.latest_download_url': '/api/agent/download/latest',
+  'capture.interval_min_minutes': 12,
+  'capture.interval_max_minutes': 18,
+  'capture.first_delay_min_minutes': 1,
+  'capture.first_delay_max_minutes': 3,
+  'capture.black_jpeg_kb': 15,
+  'capture.expected_per_hour': 4,
+  'capture.min_rate_percent': 50,
+  'capture.black_rate_max_percent': 30,
 };
 
 @Controller()

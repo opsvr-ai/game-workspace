@@ -142,6 +142,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/admin/finance/risk', label: '风险工作台' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
+        { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
         { key: '/admin/finance/commission', label: '提成结算' },
         { key: '/admin/finance/price-rules', label: '价格规则' },
@@ -189,6 +190,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/admin/finance/risk', label: '风险工作台' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
+        { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
         { key: '/admin/finance/commission', label: '提成结算' },
         { key: '/admin/finance/price-rules', label: '价格规则' },

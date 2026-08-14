@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Typography, message, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Statistic, Row, Col } from 'antd';
+import { Card, Table, Button, Space, Typography, message, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Statistic, Row, Col, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, CalculatorOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';
@@ -124,6 +124,16 @@ const CommissionPage: React.FC = () => {
     }
   };
 
+  const setLedgerStatus = async (id: string, status: string) => {
+    try {
+      await financeApi.commission.setLedgerStatus(id, status);
+      message.success(status === 'CONFIRMED' ? '已确认提成' : '已撤销为草稿');
+      await fetchLedgers();
+    } catch {
+      message.error('操作失败');
+    }
+  };
+
   const calculate = async () => {
     setCalculating(true);
     try {
@@ -227,6 +237,23 @@ const CommissionPage: React.FC = () => {
           <Table.Column title="计提基数" dataIndex="basisValue" render={(v: number, r: any) => (r.basis === 'CLAIMED_AMOUNT' ? `¥${Number(v || 0).toFixed(2)}` : `${v} 单`)} />
           <Table.Column title="提成金额" dataIndex="amountYuan" render={(v: number) => <Text strong>¥{Number(v || 0).toFixed(2)}</Text>} />
           <Table.Column title="状态" dataIndex="status" render={(v: string) => (v === 'CONFIRMED' ? <Tag color="green">已确认</Tag> : <Tag color="gold">草稿</Tag>)} />
+          {canWrite && (
+            <Table.Column
+              title="操作"
+              width={120}
+              render={(_: any, r: any) =>
+                r.status === 'DRAFT' ? (
+                  <Popconfirm title="确认该提成金额？" onConfirm={() => setLedgerStatus(r.id, 'CONFIRMED')}>
+                    <Button size="small" type="link">确认</Button>
+                  </Popconfirm>
+                ) : (
+                  <Popconfirm title="撤销为草稿？" onConfirm={() => setLedgerStatus(r.id, 'DRAFT')}>
+                    <Button size="small" type="link">撤销</Button>
+                  </Popconfirm>
+                )
+              }
+            />
+          )}
         </Table>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
           📌 计算幂等：重复计算会覆盖同月同规则记录；规则快照随结算锁定，后续改规则不影响已结算月份。

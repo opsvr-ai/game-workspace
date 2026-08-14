@@ -21,6 +21,7 @@ export const financeApi = {
     upsertRule: (data: Record<string, unknown>) => http.post('/finance/commission/rules', data),
     calculate: (month: string, studioId?: string) => http.post(`/finance/commission/calculate/${month}`, undefined, { params: { studioId } }),
     list: (month: string, studioId?: string) => http.get(`/finance/commission/${month}`, { params: { studioId } }),
+    setLedgerStatus: (id: string, status: string) => http.patch(`/finance/commission/ledgers/${id}/status`, { status }),
   },
 
   // ── 每日到账对账 ──

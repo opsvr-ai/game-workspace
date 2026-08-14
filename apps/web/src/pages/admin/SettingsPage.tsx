@@ -6,6 +6,7 @@ import PaymentSettings from '../settings/PaymentSettings';
 import StudioSettings from '../settings/StudioSettings';
 import NotificationSettings from '../settings/NotificationSettings';
 import AttendanceSettings from '../settings/AttendanceSettings';
+import CaptureSettings from '../settings/CaptureSettings';
 
 const { Text, Title } = Typography;
 
@@ -14,6 +15,7 @@ const SettingsPage: React.FC = () => {
     { key: 'revenue', label: '💰 流水与价格 + 支取', children: <RevenueSettings /> },
     { key: 'payment', label: '📊 分账规则', children: <PaymentSettings /> },
     { key: 'studio', label: '⚙️ 运营设置', children: <StudioSettings /> },
+    { key: 'capture', label: '📸 截图阈值', children: <CaptureSettings /> },
     // TODO: notification/attendance features coming soon
   ];
 

@@ -119,12 +119,17 @@ export class SessionShotsController {
     if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能操作自己的会话');
 
     const shotCount = this.composite.countShots(id);
+    const blackCount = this.composite.countBlackShots(id);
+    const validShots = Math.max(0, shotCount - blackCount);
+    const cfg = await this.getCaptureConfig();
     let flagged: 'red' | 'yellow' | null = null;
     let flaggedReason: string | null = null;
 
-    if (shotCount === 0) {
+    if (validShots === 0) {
       flagged = 'red';
-      flaggedReason = '工作记录截图数量为 0，无法证明服务过程';
+      flaggedReason = shotCount > 0
+        ? `黑屏截图 ${blackCount} 张，无有效工作记录`
+        : '工作记录截图数量为 0，无法证明服务过程';
       await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'red' } });
     } else {
       const analysis = await this.baseline.analyzeDetailed(id);
@@ -132,16 +137,27 @@ export class SessionShotsController {
       flaggedReason = analysis.reason;
 
       const full = await this.prisma.orderSession.findUnique({ where: { id }, select: { duration: true } });
-      const expected = Math.max(1, Math.round((full?.duration || 1) * 4));
-      if (shotCount < expected / 2 && flagged !== 'red') {
+      const expected = Math.max(1, Math.round((full?.duration || 1) * cfg.expectedPerHour));
+      const required = Math.max(1, Math.ceil(expected * cfg.minRatePercent / 100));
+      if (validShots < required && flagged !== 'red') {
         flagged = 'yellow';
         flaggedReason = flaggedReason
-          ? `${flaggedReason}；截图数量不足（${shotCount}/${expected}）`
-          : `截图数量不足（${shotCount}/${expected}）`;
+          ? `${flaggedReason}；有效截图不足（${validShots}/${required}，预期 ${expected}）`
+          : `有效截图不足（${validShots}/${required}，预期 ${expected}）`;
         await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'yellow' } });
       }
-    }
 
+      if (shotCount > 0) {
+        const blackRate = (blackCount / shotCount) * 100;
+        if (blackRate > cfg.blackRateMaxPercent && flagged !== 'red') {
+          flagged = 'yellow';
+          flaggedReason = flaggedReason
+            ? `${flaggedReason}；黑屏率过高（${blackRate.toFixed(0)}%，上限 ${cfg.blackRateMaxPercent}%）`
+            : `黑屏率过高（${blackRate.toFixed(0)}%，上限 ${cfg.blackRateMaxPercent}%）`;
+          await this.prisma.orderSession.update({ where: { id }, data: { flagged: 'yellow' } });
+        }
+      }
+    }
     // 财务审核：先落库再合成证据长图，确保长图包含财务核对卡
     let auditStatus: string | null = null;
     try {
@@ -180,6 +196,27 @@ export class SessionShotsController {
 
     return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason } };
   }
+  private async getCaptureConfig(): Promise<{ expectedPerHour: number; minRatePercent: number; blackRateMaxPercent: number }> {
+    const keys = ['capture.expected_per_hour', 'capture.min_rate_percent', 'capture.black_rate_max_percent'];
+    const defaults: Record<string, number> = {
+      'capture.expected_per_hour': 4,
+      'capture.min_rate_percent': 50,
+      'capture.black_rate_max_percent': 30,
+    };
+    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const map: Record<string, number> = {};
+    for (const r of records) {
+      const v = (r.value as any) as number;
+      map[r.key] = typeof v === 'number' ? v : Number(v);
+    }
+    const num = (k: string) => (Number.isFinite(map[k]) ? map[k] : defaults[k]);
+    return {
+      expectedPerHour: num('capture.expected_per_hour'),
+      minRatePercent: num('capture.min_rate_percent'),
+      blackRateMaxPercent: num('capture.black_rate_max_percent'),
+    };
+  }
+
   /** 管理端：某陪玩的工作记录 */
   @Get('companions/:companionId/work-records')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)

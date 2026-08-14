@@ -221,7 +221,7 @@ function setupIPC(): void {
   });
   // 工作记录截图
   ipcMain.on('session:watch', (_e, sessionId: string) => {
-    startCapture(sessionId);
+    void startCapture(sessionId);
   });
   // 停止并等待全部截图上传完成
   ipcMain.handle('session:watch-stop', async () => {

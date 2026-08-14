@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
@@ -109,6 +109,13 @@ export class CommissionService {
     }
 
     return { created: created.length, items: created };
+  }
+
+  /** 确认/撤销客服、店长提成结算记录。 */
+  async setLedgerStatus(id: string, studioId: string, status: 'DRAFT' | 'CONFIRMED') {
+    const ledger = await this.prisma.commissionLedger.findFirst({ where: { id, studioId } });
+    if (!ledger) throw new NotFoundException('提成记录不存在');
+    return this.prisma.commissionLedger.update({ where: { id }, data: { status } });
   }
 
   async listLedgers(studioId: string, month: string) {
