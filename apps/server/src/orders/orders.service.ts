@@ -543,6 +543,7 @@ export class OrdersService {
       type: string;
       screenshotUrl?: string;
       wechatId?: string;
+      transferTotalYuan?: number;
     },
   ) {
     return this.workflowService.completeWithBilling(orderId, companionId, dto);

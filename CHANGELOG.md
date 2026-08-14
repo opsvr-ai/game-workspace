@@ -10,6 +10,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **订单服务结束接入财务审核:** 陪玩结束服务时填写客户实际转账合计（微信 + 支付宝），服务端按「填写时长 × 声明单价」计算审核金额并落库 `auditAmountCents / transferTotalCents / auditStatus`；转账合计低于审核金额自动标红，留空则待核对。
 
 - **财务对账与防私单体系:** 新增 `finance` 模块，统一金额整数分存储与营业日 12 点边界；价格规则（首单底价/续单区间）、客服/店长提成规则与月度结算、月度分成快照（5200/10000 阶梯 + 满 6 个月七三门槛）、每日到账对账（员工收款码实到 vs 应收差额标红）、客户画像与 AI 私单风险工作台（单价偏低/时长腰斩/周消费突降/流失风险评分排序，管理者角色均可查看）。
 - **Chat history endpoint:** `GET /api/companions/chat-history/:companionId` returns full chat message history between a studio and a specific companion.

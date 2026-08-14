@@ -37,6 +37,9 @@ const OrderDetailPage: React.FC = () => {
   const [transferUrl, setTransferUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [endTarget, setEndTarget] = useState<Session | null>(null);
+  const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
+  const [ending, setEnding] = useState(false);
 
   const fetch = useCallback(async () => {
     if (!id) return;
@@ -117,13 +120,22 @@ const OrderDetailPage: React.FC = () => {
   };
 
   const handleEndService = async (r: Session) => {
+    setEndTarget(r);
+    setEndTransferTotal(undefined);
+  };
+
+  const confirmEndService = async () => {
+    if (!endTarget) return;
     // 先停截图并等待全部截图上传完成
     try { await (window as any).electronAPI?.sessionWatchStop?.(); } catch {}
+    setEnding(true);
     try {
-      await ordersApi.finishSession(r.id);
+      await ordersApi.finishSession(endTarget.id, { transferTotalYuan: endTransferTotal });
       message.success('已结束');
+      setEndTarget(null);
       fetch();
     } catch { message.error('结束失败'); }
+    setEnding(false);
   };
 
   const cols = [
@@ -220,6 +232,33 @@ const OrderDetailPage: React.FC = () => {
         </div>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
           服务期间将自动开启工作记录（随机截图），请保持客户端运行。
+        </Text>
+      </Modal>
+
+      {/* 结束服务：实收转账合计 */}
+      <Modal
+        title="结束服务"
+        open={!!endTarget}
+        onOk={confirmEndService}
+        onCancel={() => setEndTarget(null)}
+        confirmLoading={ending}
+        okText="确认结束"
+      >
+        <Text>请填写客户本次实际转账合计（微信 + 支付宝，元）</Text>
+        <div style={{ marginTop: 8 }}>
+          <InputNumber
+            min={0}
+            step={10}
+            precision={2}
+            style={{ width: '100%' }}
+            value={endTransferTotal}
+            onChange={(v) => setEndTransferTotal(v ?? undefined)}
+            prefix="¥"
+            placeholder="留空则记为待核对"
+          />
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+          转账合计低于「填写时长 × 单价」将被标记异常，供管理端复核。
         </Text>
       </Modal>
     </div>

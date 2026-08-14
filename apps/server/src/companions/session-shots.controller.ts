@@ -4,6 +4,7 @@ import {
   Post,
   Get,
   Put,
+  Body,
   Param,
   Query,
   Req,
@@ -26,6 +27,7 @@ import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
+import { yuanToCents } from '../common/money';
 
 const SHOTS_DIR = join(process.cwd(), '..', '..', 'uploads', 'session-shots');
 
@@ -104,10 +106,14 @@ export class SessionShotsController {
   /** 结束会话：生成合并长图 + 基线分析标记 */
   @Put('sessions/:id/finish')
   @Roles(UserRole.COMPANION)
-  async finishSession(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+  async finishSession(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: { transferTotalYuan?: number },
+  ): Promise<ApiResponse<unknown>> {
     const session = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { companionId: true, status: true },
+      select: { companionId: true, status: true, parentOrderId: true, claimedPrice: true, duration: true, amount: true },
     });
     if (!session) throw new NotFoundException('会话不存在');
     if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能操作自己的会话');
@@ -140,7 +146,29 @@ export class SessionShotsController {
       },
     });
 
-    return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl } };
+    // 财务审核：审核金额 = 填写时长 × 声明单价；转账合计 ≥ 审核金额即通过
+    let auditStatus: string | null = null;
+    try {
+      const filledHours = session.duration || 1;
+      const declaredPrice =
+        session.claimedPrice ?? (filledHours > 0 ? session.amount / filledHours : session.amount);
+      const auditCents = yuanToCents(filledHours * declaredPrice);
+      const transferCents = body?.transferTotalYuan != null ? yuanToCents(body.transferTotalYuan) : null;
+      auditStatus = transferCents == null ? 'PENDING' : transferCents < auditCents ? 'FLAGGED' : 'OK';
+      await this.prisma.order.update({
+        where: { id: session.parentOrderId },
+        data: {
+          auditAmountCents: auditCents,
+          transferTotalCents: transferCents,
+          auditStatus,
+        },
+      });
+    } catch (err) {
+      // 财务审核字段写入失败不阻断会话结束
+      console.error('finance audit write failed', err);
+    }
+
+    return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus } };
   }
 
   /** 管理端：某陪玩的工作记录 */

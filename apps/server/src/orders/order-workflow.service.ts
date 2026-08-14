@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
+import { yuanToCents } from '../common/money';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
@@ -219,6 +220,7 @@ export class OrderWorkflowService {
       type: string; // 'COMPANION' | 'ESCORT'
       screenshotUrl?: string;
       wechatId?: string;
+      transferTotalYuan?: number;
       splitTo?: Array<{ companionId: string; amount: number }>;
     },
   ) {
@@ -246,6 +248,9 @@ export class OrderWorkflowService {
     const renewAmount = dto.hasRenew && dto.renewOrder ? dto.renewOrder.duration * dto.renewOrder.price : 0;
     const totalAmount = firstAmount + renewAmount;
     const totalDuration = dto.firstOrder.duration + (dto.renewOrder?.duration || 0);
+    const auditCents = yuanToCents(totalAmount);
+    const transferCents = dto.transferTotalYuan != null ? yuanToCents(dto.transferTotalYuan) : null;
+    const auditStatus = transferCents == null ? 'PENDING' : transferCents < auditCents ? 'FLAGGED' : 'OK';
 
     // Update the main order as DONE
     const updatedOrder = await this.prisma.order.update({
@@ -256,6 +261,9 @@ export class OrderWorkflowService {
         amount: totalAmount,
         duration: totalDuration,
         gameName: dto.gameName,
+        auditAmountCents: auditCents,
+        transferTotalCents: transferCents,
+        auditStatus,
         customFields: {
           ...((order.customFields as any) || {}),
           firstOrder: dto.firstOrder,

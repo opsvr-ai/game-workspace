@@ -461,6 +461,7 @@ graph TB
 - 金额统一整数分存储，营业日以每日 12:00 为界，月结周期 = 当月 1 日 12:00 至次月 1 日 12:00
 - 分成阶梯：<5200 五五；5200–10000 六四；≥10000 且入职满 6 个月七三
 - 审核金额 = 填写时长 × 声明单价；转账截图合计 >= 审核金额即通过，超出算加价，低于标红
+- 服务结束时由 `PUT /api/companions/sessions/:id/finish` 接收 `transferTotalYuan`，将审核金额、转账合计与审核状态写入订单 `auditAmountCents / transferTotalCents / auditStatus`
 
 **API 端点:**
 - `GET/POST/PATCH /api/finance/price-rules` — 价格规则 CRUD（内置默认机密 35/绝密 45）
