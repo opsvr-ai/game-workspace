@@ -250,7 +250,7 @@ export class CustomerTrackingService {
 
   async getKpi(user: AuthUser) {
     const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
-    const [totalCustomers, consumedCustomers, retainedCustomers, trackedRecent, noReply, deletePending] =
+    const [totalCustomers, consumedCustomers, retainedCustomers, trackedRecent, noReply, deletePending, notConsumed, trackedTimelyCustomers] =
       await Promise.all([
         this.prisma.customer.count({ where: studioWhere }),
         this.prisma.customer.count({ where: { ...studioWhere, totalSpent: { gt: 0 } } }),
@@ -260,6 +260,12 @@ export class CustomerTrackingService {
         }),
         this.prisma.customerContact.count({ where: { ...studioWhere, result: 'NO_REPLY' } }),
         this.prisma.customerDeleteRequest.count({ where: { ...studioWhere, status: 'PENDING' } }),
+        this.prisma.customer.count({ where: { ...studioWhere, totalSpent: { lte: 0 }, isDeletedByCustomer: false } }),
+        this.prisma.customerTrack.findMany({
+          where: { ...studioWhere, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+          distinct: ['customerId'],
+          select: { customerId: true },
+        }),
       ]);
 
     return {
@@ -269,6 +275,7 @@ export class CustomerTrackingService {
       retentionRate: totalCustomers > 0 ? Math.round((retainedCustomers / totalCustomers) * 100) : 0,
       conversionRate: totalCustomers > 0 ? Math.round((consumedCustomers / totalCustomers) * 100) : 0,
       trackedRecentCount: trackedRecent,
+      trackingTimelyRate: notConsumed > 0 ? Math.round((trackedTimelyCustomers.length / notConsumed) * 100) : 0,
       responseRiskCount: noReply + deletePending,
     };
   }
