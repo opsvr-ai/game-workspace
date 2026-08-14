@@ -204,6 +204,10 @@ function setupIPC(): void {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('watchdog:test', () => {
+    trace('TEST-WATCHDOG');
+    app.exit(0);
+  });
   ipcMain.handle('screen:unlock', (_e, pass: string) => {
     if (pass !== getAppPassword()) return false;
     store.set('screenLocked', 'unlocked');
@@ -354,6 +358,7 @@ app.whenReady().then(() => {
 
   onWsEvent('pc:command', (data: any) => {
     if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
+    else if (data.command === 'test_watchdog') app.exit(0);
   });
   const token = store.get('token') as string;
   if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string);

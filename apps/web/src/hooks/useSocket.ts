@@ -77,6 +77,12 @@ export function useSocket(opts: UseSocketOptions = {}) {
       optsRef.current.onOrderPoolUpdated?.(data);
     });
 
+    socket.on('pc:command', (data: any) => {
+      if (data?.command === 'test_watchdog') {
+        (window as any).electronAPI?.testWatchdog?.();
+      }
+    });
+
     socket.on('order:grabbed', (data: any) => {
       optsRef.current.onOrderGrabbed?.(data);
     });

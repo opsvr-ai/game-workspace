@@ -63,6 +63,18 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 远程自测：让陪玩端自杀进程，验证看门狗是否会自动拉起
+  @Post('test-watchdog')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async testWatchdog(@Body() body: { companionId: string }): Promise<ApiResponse<unknown>> {
+    if (!body?.companionId) {
+      return { code: 400, message: '缺少陪玩ID', data: null };
+    }
+    this.wsGateway.sendCommand(body.companionId, 'test_watchdog', {});
+    return { code: 200, message: '自测指令已发送', data: { companionId: body.companionId } };
+  }
+
   // Public: companion downloads installer
   @Get('download/latest')
   async downloadLatest(@Res() res: Response): Promise<void> {
