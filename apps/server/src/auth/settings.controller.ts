@@ -49,6 +49,19 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'notification.sound': true,
   'notification.desktop': true,
   'notification.badge': true,
+  'pool.unlock_revenue_enabled': true,
+  'pool.unlock_revenue_threshold': 200,
+  'pool.daily_customer_quota_enabled': true,
+  'pool.daily_customer_quota': 3,
+  'pool.success_rate_gate_enabled': true,
+  'pool.success_rate_gate_threshold': 90,
+  'pool.daily_grab_limit_enabled': false,
+  'pool.daily_grab_limit': 20,
+  'pool.supplement_max_daily_requests': 5,
+  'anomaly.revenue_drop_percent': 50,
+  'anomaly.hours_drop_percent': 50,
+  'anomaly.spend_drop_percent': 50,
+  'anomaly.price_tier_downgrade_enabled': true,
 };
 
 @Controller()

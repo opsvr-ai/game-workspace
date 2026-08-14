@@ -55,3 +55,25 @@ export enum ServiceType {
   ESCORT = 'ESCORT',
   DO_TASK = 'DO_TASK',
 }
+
+export enum ContactResult {
+  NOW = 'NOW',
+  RESCHEDULE = 'RESCHEDULE',
+  REJECT = 'REJECT',
+  NO_REPLY = 'NO_REPLY',
+  DELETED = 'DELETED',
+  DONGGU = 'DONGGU',
+  REFUND = 'REFUND',
+}
+
+export enum TrackType {
+  TEXT = 'TEXT',
+  IMAGE = 'IMAGE',
+  TEXT_IMAGE = 'TEXT_IMAGE',
+}
+
+export enum DeleteRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
