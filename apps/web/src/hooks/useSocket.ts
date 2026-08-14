@@ -47,6 +47,32 @@ export function useSocket(opts: UseSocketOptions = {}) {
     });
     socketRef.current = socket;
 
+    // 用已连通的网页 Socket 上报陪玩端心跳和客户端版本，
+    // 避免依赖 Electron 主进程那条独立的 WebSocket 连接。
+    const emitHeartbeat = () => {
+      const api = (window as any).electronAPI;
+      const fallback = '0.0.0';
+      if (api?.getAppVersion) {
+        api
+          .getAppVersion()
+          .then((v: string) => socket.emit('companion:heartbeat', { agentVersion: v || fallback }))
+          .catch(() => socket.emit('companion:heartbeat', { agentVersion: fallback }));
+      } else {
+        socket.emit('companion:heartbeat', { agentVersion: fallback });
+      }
+    };
+    socket.on('connect', () => {
+      emitHeartbeat();
+      const timer = setInterval(emitHeartbeat, 30_000);
+      (socket as any).__hbTimer = timer;
+    });
+    socket.on('disconnect', () => {
+      if ((socket as any).__hbTimer) {
+        clearInterval((socket as any).__hbTimer);
+        (socket as any).__hbTimer = null;
+      }
+    });
+
     socket.on('order:pool_updated', (data: any) => {
       optsRef.current.onOrderPoolUpdated?.(data);
     });
