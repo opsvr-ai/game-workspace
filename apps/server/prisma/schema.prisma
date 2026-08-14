@@ -30,6 +30,7 @@ model User {
   csOrders          Order[]            @relation("CSUser")
   claimedOrders     Order[]            @relation("ClaimedCS")
   commissionLedgers CommissionLedger[]
+  reviewedDeleteRequests CustomerDeleteRequest[] @relation("Reviewer")
 
   @@index([studioId])
   @@index([role])
@@ -62,6 +63,9 @@ model Studio {
   commissionRules     CommissionRule[]
   commissionLedgers   CommissionLedger[]
   settlementSnapshots SettlementSnapshot[]
+  customerContacts        CustomerContact[]
+  customerTracks          CustomerTrack[]
+  customerDeleteRequests  CustomerDeleteRequest[]
 }
 
 model Companion {
@@ -108,6 +112,9 @@ model Companion {
   processReports      CompanionProcessReport[]
   processKillLogs     ProcessKillLog[]
   statusBlacklists    CompanionStatusBlacklist[]
+  customerContacts        CustomerContact[]
+  customerTracks          CustomerTrack[]
+  customerDeleteRequests  CustomerDeleteRequest[]
 
   @@index([studioId])
   @@index([status])
@@ -278,6 +285,9 @@ model Customer {
   orders    Order[]
   profile   CustomerProfile?
   followUps CustomerFollowUp[]
+  contacts      CustomerContact[]
+  tracks        CustomerTrack[]
+  deleteRequests CustomerDeleteRequest[]
 
   @@index([studioId])
   @@index([companionId])
@@ -837,4 +847,67 @@ model SettlementSnapshot {
   companion Companion @relation(fields: [companionId], references: [id])
 
   @@unique([studioId, companionId, month])
+}
+
+model CustomerContact {
+  id          String   @id @default(uuid())
+  studioId    String
+  companionId String
+  customerId  String
+  orderId     String?
+  result      String // NOW | RESCHEDULE | REJECT | NO_REPLY | DELETED | DONGGU | REFUND
+  evidenceUrl String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  studio    Studio    @relation(fields: [studioId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([studioId])
+  @@index([companionId, createdAt])
+  @@index([customerId])
+  @@index([result])
+}
+
+model CustomerTrack {
+  id          String   @id @default(uuid())
+  studioId    String
+  companionId String
+  customerId  String
+  type        String   @default("TEXT") // TEXT | IMAGE | TEXT_IMAGE
+  content     String?
+  images      Json     @default("[]")
+  createdAt   DateTime @default(now())
+
+  studio    Studio    @relation(fields: [studioId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([studioId])
+  @@index([companionId, createdAt])
+  @@index([customerId])
+}
+
+model CustomerDeleteRequest {
+  id           String    @id @default(uuid())
+  studioId     String
+  companionId  String
+  customerId   String
+  evidenceUrl  String?
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById String?
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime  @default(now())
+
+  studio    Studio    @relation(fields: [studioId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+  reviewer  User?     @relation("Reviewer", fields: [reviewedById], references: [id])
+
+  @@index([studioId])
+  @@index([companionId])
+  @@index([customerId])
+  @@index([status])
 }

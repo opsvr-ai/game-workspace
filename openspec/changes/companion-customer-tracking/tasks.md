@@ -6,9 +6,9 @@
 
 ## 2. 数据模型与迁移
 
-- [ ] 2.1 在 `schema.prisma` 新增 `CustomerContact`、`CustomerTrack`、`CustomerDeleteRequest` 模型
-- [ ] 2.2 生成 Prisma 迁移
-- [ ] 2.3 更新 `packages/shared` 类型与枚举导出
+- [x] 2.1 在 `schema.prisma` 新增 `CustomerContact`、`CustomerTrack`、`CustomerDeleteRequest` 模型
+- [x] 2.2 生成 Prisma 迁移
+- [x] 2.3 更新 `packages/shared` 类型与枚举导出
 
 ## 3. 服务端 - 名额与联系登记
 
