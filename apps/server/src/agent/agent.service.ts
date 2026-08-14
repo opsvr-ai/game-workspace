@@ -22,6 +22,24 @@ export class AgentService {
     return companions.map((c) => c.id);
   }
 
+  async recordHeartbeat(companionId: string, agentVersion?: string) {
+    return this.prisma.companionPC.upsert({
+      where: { companionId },
+      create: {
+        companionId,
+        agentVersion: agentVersion ?? '0.0.0',
+        lastHeartbeat: new Date(),
+        currentMode: 'ENTERTAINMENT',
+        isThrottled: false,
+        throttleLimitKB: null,
+      },
+      update: {
+        agentVersion: agentVersion ?? undefined,
+        lastHeartbeat: new Date(),
+      },
+    });
+  }
+
   async getLatestVersion() {
     const [versionCfg, urlCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'agent.latest_version' } }),

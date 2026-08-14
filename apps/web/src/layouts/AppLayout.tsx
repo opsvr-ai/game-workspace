@@ -269,6 +269,14 @@ const AppLayout: React.FC = () => {
     api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
   }, []);
   useEffect(() => {
+    const send = () => {
+      http.post('/agent/heartbeat', { agentVersion: appVersion || undefined }).catch(() => {});
+    };
+    send();
+    const timer = setInterval(send, 30_000);
+    return () => clearInterval(timer);
+  }, [appVersion]);
+  useEffect(() => {
     if (user?.studioId) {
       http
         .get('/studios/public')

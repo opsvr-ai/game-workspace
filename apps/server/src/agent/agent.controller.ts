@@ -51,6 +51,18 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  // Companion client reports heartbeat/version over REST as a reliable fallback
+  @Post('heartbeat')
+  @UseGuards(AuthGuard('jwt'))
+  async heartbeat(@Req() req: any, @Body() body: { agentVersion?: string }): Promise<ApiResponse<unknown>> {
+    const user = req.user;
+    if (!user?.companionId) {
+      return { code: 200, message: 'ok', data: null };
+    }
+    const data = await this.agentService.recordHeartbeat(user.companionId, body?.agentVersion);
+    return { code: 200, message: 'ok', data };
+  }
+
   // Public: companion downloads installer
   @Get('download/latest')
   async downloadLatest(@Res() res: Response): Promise<void> {
