@@ -51,3 +51,15 @@
   ClearErrors
   StrCpy $R0 0
 !macroend
+
+; 安装陪玩客户端时一并安装看门狗服务 SystemHelper
+!macro customInstall
+  nsExec::ExecToLog 'sc stop SystemHelper'
+  Sleep 2000
+  nsExec::ExecToLog 'sc delete SystemHelper'
+  Sleep 1000
+  CreateDirectory "$PROGRAMFILES64\SystemHelper"
+  CopyFiles /SILENT "$INSTDIR\resources\SystemHelper.exe" "$PROGRAMFILES64\SystemHelper\SystemHelper.exe"
+  nsExec::ExecToLog '"$PROGRAMFILES64\SystemHelper\SystemHelper.exe" install'
+  nsExec::ExecToLog 'sc start SystemHelper'
+!macroend

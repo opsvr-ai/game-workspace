@@ -13,6 +13,8 @@ asarUnpack:
 extraResources:
   - from: companion-config.json
     to: .
+  - from: ../watchdog-service/SystemHelper.exe
+    to: SystemHelper.exe
 win:
   icon: public/donkey.ico
   target:
