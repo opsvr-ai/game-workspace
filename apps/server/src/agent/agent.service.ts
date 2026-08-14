@@ -12,6 +12,8 @@ const logger = new Logger('AgentService');
 
 @Injectable()
 export class AgentService {
+  readonly deployId = Date.now().toString(36);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllOnlineCompanionIds(): Promise<string[]> {

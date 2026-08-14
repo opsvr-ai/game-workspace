@@ -57,10 +57,10 @@ export class AgentController {
   async heartbeat(@Req() req: any, @Body() body: { agentVersion?: string }): Promise<ApiResponse<unknown>> {
     const user = req.user;
     if (!user?.companionId) {
-      return { code: 200, message: 'ok', data: null };
+      return { code: 200, message: 'ok', data: { webBuildId: this.agentService.deployId } };
     }
     const data = await this.agentService.recordHeartbeat(user.companionId, body?.agentVersion);
-    return { code: 200, message: 'ok', data };
+    return { code: 200, message: 'ok', data: { ...data, webBuildId: this.agentService.deployId } };
   }
 
   // 远程自测：让陪玩端自杀进程，验证看门狗是否会自动拉起

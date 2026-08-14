@@ -270,7 +270,20 @@ const AppLayout: React.FC = () => {
   }, []);
   useEffect(() => {
     const send = () => {
-      http.post('/agent/heartbeat', { agentVersion: appVersion || undefined }).catch(() => {});
+      http
+        .post('/agent/heartbeat', { agentVersion: appVersion || undefined })
+        .then((res: any) => {
+          const id = res?.data?.data?.webBuildId;
+          if (!id) return;
+          const prev = localStorage.getItem('webBuildId');
+          if (prev && prev !== id) {
+            localStorage.setItem('webBuildId', id);
+            window.location.reload();
+          } else if (!prev) {
+            localStorage.setItem('webBuildId', id);
+          }
+        })
+        .catch(() => {});
     };
     send();
     const timer = setInterval(send, 30_000);
