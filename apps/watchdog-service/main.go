@@ -338,11 +338,9 @@ func launchClient() {
 		atomic.StoreInt64(&lastRestartWindow, now)
 	}
 	if atomic.AddInt32(&restartCount, 1) > 5 {
-		atomic.StoreInt64(&launchBackoffUntil, time.Now().Add(5*time.Minute).UnixNano())
 		atomic.StoreInt32(&restartCount, 0)
 		atomic.StoreInt64(&lastRestartWindow, time.Now().UnixNano())
-		safeErr("Crash-loop — pausing 5 min")
-		return
+		safeWarn("Frequent relaunches detected — continuing without long backoff")
 	}
 
 	// Kill orphans from previous killed launches

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
@@ -25,16 +25,19 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [usernameError, setUsernameError] = useState('');
+  const didAutoLogin = useRef(false);
 
   // Electron 端自动填充上次安全保存的登录凭据
   useEffect(() => {
     const api = (window as any).electronAPI;
-    if (!api?.getSavedCredentials) return;
+    if (!api?.getSavedCredentials || didAutoLogin.current) return;
     api.getSavedCredentials().then((creds: any) => {
       if (creds?.username && creds?.password) {
+        didAutoLogin.current = true;
         setUsername(creds.username);
         setPassword(creds.password);
         setRememberMe(true);
+        setTimeout(() => handleLogin(), 600);
       }
     }).catch(() => {});
   }, []);

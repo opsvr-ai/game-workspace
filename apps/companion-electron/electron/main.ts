@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile } from 'child_process';
@@ -302,6 +302,21 @@ app.whenReady().then(() => {
   mainWindow.webContents.on('did-finish-load', () => trace('4-loaded'));
   mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
     trace('FAIL-' + code + '-' + desc);
+    if (code !== -3 && !isQuitting) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
+          mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
+        }
+      }, 3000);
+    }
+  });
+
+  // 系统唤醒后重新加载页面，避免唤醒后白屏
+  powerMonitor.on('resume', () => {
+    trace('POWER-RESUME');
+    if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
+      mainWindow.reload();
+    }
   });
 
   createTray({
