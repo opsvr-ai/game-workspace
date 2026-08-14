@@ -37,6 +37,7 @@ import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
 import CardSkeleton from '../components/CardSkeleton';
+import TransactionReviewSection from '../components/TransactionReviewSection';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -726,6 +727,7 @@ const BillingOverview: React.FC = () => {
           />
         </div>
       </Modal>
+      <TransactionReviewSection />
     </div>
   );
 };

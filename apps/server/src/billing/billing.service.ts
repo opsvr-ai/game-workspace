@@ -35,6 +35,24 @@ export class BillingService {
     return this.transactionService.reject(transactionId, reviewerId, reviewerStudioId, reviewerRole);
   }
 
+  async proposeTransactionAmount(
+    transactionId: string,
+    reviewerId: string,
+    reviewerStudioId: string | undefined,
+    reviewerRole: string,
+    amount: number,
+    note?: string,
+  ) {
+    return this.transactionService.proposeAmount(transactionId, reviewerId, reviewerStudioId, reviewerRole, amount, note);
+  }
+
+  async acceptTransactionProposal(transactionId: string, companionId: string) {
+    return this.transactionService.acceptProposal(transactionId, companionId);
+  }
+
+  async rejectTransactionProposal(transactionId: string, companionId: string) {
+    return this.transactionService.rejectProposal(transactionId, companionId);
+  }
   async batchApprove(ids: string[], reviewerId: string, reviewerStudioId?: string, reviewerRole?: string) {
     return this.transactionService.batchApprove(ids, reviewerId, reviewerStudioId, reviewerRole);
   }
@@ -56,7 +74,7 @@ export class BillingService {
     }
 
     const studioFilter =
-      (user.role === 'ADMIN' || user.role === 'OWNER') && user.studioId
+      ['ADMIN','OWNER','CS'].includes(user.role) && user.studioId
         ? { companion: { studioId: user.studioId } }
         : {};
 

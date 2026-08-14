@@ -46,7 +46,7 @@ export class BillingController {
   }
 
   @Get('transactions')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION, UserRole.CS)
   async findAll(
     @Req() req: any,
     @Query('status') status?: string,
@@ -56,7 +56,7 @@ export class BillingController {
   }
 
   @Put('transactions/:id/approve')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async approve(
     @Param('id') id: string,
     @Req() req: any,
@@ -66,7 +66,7 @@ export class BillingController {
   }
 
   @Put('transactions/:id/reject')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async reject(
     @Param('id') id: string,
     @Req() req: any,
@@ -75,8 +75,45 @@ export class BillingController {
     return { code: 200, message: '已拒绝', data };
   }
 
+  @Put('transactions/:id/propose')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async proposeAmount(
+    @Param('id') id: string,
+    @Body() dto: { amount: number; note?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.billingService.proposeTransactionAmount(
+      id,
+      req.user.id,
+      req.user.studioId,
+      req.user.role,
+      dto.amount,
+      dto.note,
+    );
+    return { code: 200, message: '已发起金额协商', data };
+  }
+
+  @Put('transactions/:id/accept-proposal')
+  @Roles(UserRole.COMPANION)
+  async acceptProposal(
+    @Param('id') id: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.billingService.acceptTransactionProposal(id, req.user.companionId);
+    return { code: 200, message: '已确认调整金额', data };
+  }
+
+  @Put('transactions/:id/reject-proposal')
+  @Roles(UserRole.COMPANION)
+  async rejectProposal(
+    @Param('id') id: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.billingService.rejectTransactionProposal(id, req.user.companionId);
+    return { code: 200, message: '已拒绝调整金额', data };
+  }
   @Put('transactions/batch')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async batchUpdate(
     @Body() dto: { ids: string[]; action: 'approve' | 'reject' },
     @Req() req: any,

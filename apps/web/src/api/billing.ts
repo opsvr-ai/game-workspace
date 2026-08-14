@@ -6,6 +6,10 @@ export const billingApi = {
     http.get('/transactions', { params }),
   approve: (id: string) => http.put(`/transactions/${id}/approve`),
   reject: (id: string) => http.put(`/transactions/${id}/reject`),
+  propose: (id: string, data: { amount: number; note?: string }) =>
+    http.put(`/transactions/${id}/propose`, data),
+  acceptProposal: (id: string) => http.put(`/transactions/${id}/accept-proposal`),
+  rejectProposal: (id: string) => http.put(`/transactions/${id}/reject-proposal`),
   batchApprove: (ids: string[]) =>
     http.put('/transactions/batch', { ids, action: 'approve' }),
   batchReject: (ids: string[]) =>

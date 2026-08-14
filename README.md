@@ -13,6 +13,7 @@
 - **陪玩端安全记住密码:** Electron 客户端支持记住账号密码，使用操作系统安全存储加密凭据，并限制仅受信任服务端页面可读取
 - **财务对账与防私单:** 价格规则配置、客服/店长提成结算、月度分成快照、每日到账对账、客户画像与 AI 私单风险工作台，统一金额整数分与营业日 12 点边界
 - **服务结束财务审核:** 陪玩结束服务时填写客户实际转账合计，系统自动与「填写时长 × 单价」核对，低于审核金额标红、留空待核对
+- **报账金额协商:** 管理端改价发起协商，陪玩端接受/拒绝；客服可参与报账审核
 
 ## Recent Updates (v3.0.0)
 
@@ -443,10 +444,13 @@ Every endpoint returns a standard JSON envelope:
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
 | `POST` | `/api/transactions` | JWT | COMPANION | Submit a billing transaction (expense report). |
-| `GET` | `/api/transactions` | JWT | ADMIN, OWNER, COMPANION | List transactions. Query: `?status=PENDING\|APPROVED\|REJECTED`. |
-| `PUT` | `/api/transactions/:id/approve` | JWT | ADMIN, OWNER | Approve a transaction. |
-| `PUT` | `/api/transactions/:id/reject` | JWT | ADMIN, OWNER | Reject a transaction. |
-| `PUT` | `/api/transactions/batch` | JWT | ADMIN, OWNER | Batch approve or reject. Body: `{ ids: string[], action: "approve" \| "reject" }`. |
+| `GET` | `/api/transactions` | JWT | ADMIN, OWNER, CS, COMPANION | List transactions. Query: `?status=PENDING\|APPROVED\|REJECTED\|NEGOTIATING`. |
+| `PUT` | `/api/transactions/:id/approve` | JWT | ADMIN, OWNER, CS | Approve a transaction. |
+| `PUT` | `/api/transactions/:id/reject` | JWT | ADMIN, OWNER, CS | Reject a transaction. |
+| `PUT` | `/api/transactions/:id/propose` | JWT | ADMIN, OWNER, CS | Propose an adjusted amount. Body: `{ amount, note? }`. |
+| `PUT` | `/api/transactions/:id/accept-proposal` | JWT | COMPANION | Accept the proposed adjustment. |
+| `PUT` | `/api/transactions/:id/reject-proposal` | JWT | COMPANION | Reject the proposed adjustment. |
+| `PUT` | `/api/transactions/batch` | JWT | ADMIN, OWNER, CS | Batch approve or reject. Body: `{ ids: string[], action: "approve" \| "reject" }`. |
 
 ### Billing -- Revenue
 

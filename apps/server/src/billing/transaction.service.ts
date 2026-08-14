@@ -107,4 +107,70 @@ export class TransactionService {
 
     return results;
   }
+  async proposeAmount(
+    transactionId: string,
+    reviewerId: string,
+    reviewerStudioId: string | undefined,
+    reviewerRole: string,
+    amount: number,
+    note?: string,
+  ) {
+    const tx = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: { companion: { select: { studioId: true } } },
+    });
+
+    if (!tx) throw new NotFoundException('报账记录不存在');
+    if (tx.status !== 'PENDING') throw new ForbiddenException('该报账已处理');
+    if (reviewerRole !== 'OWNER' && reviewerStudioId && tx.companion?.studioId !== reviewerStudioId) {
+      throw new ForbiddenException('无权审核其他工作室的报账');
+    }
+    if (!Number.isFinite(amount) || amount <= 0) throw new ForbiddenException('调整金额无效');
+    if (Math.abs(amount - tx.amount) < 0.01) throw new ForbiddenException('调整金额与原金额一致');
+
+    return this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'NEGOTIATING',
+        reviewAmount: amount,
+        reviewNote: note || null,
+        negotiatedAt: new Date(),
+        negotiatedById: reviewerId,
+      },
+    });
+  }
+
+  async acceptProposal(transactionId: string, companionId: string) {
+    const tx = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
+    if (!tx) throw new NotFoundException('报账记录不存在');
+    if (tx.companionId !== companionId) throw new ForbiddenException('只能操作自己的报账');
+    if (tx.status !== 'NEGOTIATING' || tx.reviewAmount == null) throw new ForbiddenException('当前无可确认的调整');
+
+    return this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'APPROVED',
+        amount: tx.reviewAmount,
+        reviewedById: tx.negotiatedById || tx.reviewedById || null,
+      },
+    });
+  }
+
+  async rejectProposal(transactionId: string, companionId: string) {
+    const tx = await this.prisma.transaction.findUnique({ where: { id: transactionId } });
+    if (!tx) throw new NotFoundException('报账记录不存在');
+    if (tx.companionId !== companionId) throw new ForbiddenException('只能操作自己的报账');
+    if (tx.status !== 'NEGOTIATING') throw new ForbiddenException('当前无待确认的调整');
+
+    return this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'PENDING',
+        reviewAmount: null,
+        reviewNote: null,
+        negotiatedAt: null,
+        negotiatedById: null,
+      },
+    });
+  }
 }

@@ -292,6 +292,10 @@ model Transaction {
   paymentMethod String
   screenshotUrl String
   status        String   @default("PENDING")
+  reviewAmount    Float?
+  reviewNote      String?
+  negotiatedAt    DateTime?
+  negotiatedById  String?
   reviewedById  String?
   paidAt        DateTime
   createdAt     DateTime @default(now())
