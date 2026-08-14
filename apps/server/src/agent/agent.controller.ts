@@ -77,7 +77,7 @@ export class AgentController {
   // Admin only: view version distribution
   @Get('version-status')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getVersionStatus(): Promise<ApiResponse<unknown>> {
     const data = await this.agentService.getVersionStatus();
     return { code: 200, message: 'ok', data };
