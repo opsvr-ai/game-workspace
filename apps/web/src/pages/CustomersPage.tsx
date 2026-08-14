@@ -18,6 +18,7 @@ import {
   DatePicker,
   ConfigProvider,
   Card,
+  Tabs,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -39,6 +40,7 @@ import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, 
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
+import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
@@ -552,26 +554,44 @@ const CustomersPage: React.FC = () => {
             </Space>
           }
         />
-        {error && <ErrorBanner message={error} onRetry={fetchCustomers} />}
-        {loading && customers.length === 0 ? (
-          <TableSkeleton columns={6} rows={5} />
-        ) : (
-          <Card size="small" style={{ overflow: 'auto' }}>
-            <Table
-              size="small"
-              columns={columns}
-              dataSource={customers.filter(
-                (c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()),
-              )}
-              rowKey="id"
-              loading={loading}
-              onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
-              scroll={{ x: 1000 }}
-              locale={{ emptyText: '暂无客户数据' }}
-              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
-            />
-          </Card>
-        )}
+        <Tabs
+          defaultActiveKey="list"
+          items={[
+            {
+              key: 'list',
+              label: '客户列表',
+              children: (
+                <>
+                  {error && <ErrorBanner message={error} onRetry={fetchCustomers} />}
+                  {loading && customers.length === 0 ? (
+                    <TableSkeleton columns={6} rows={5} />
+                  ) : (
+                    <Card size="small" style={{ overflow: 'auto' }}>
+                      <Table
+                        size="small"
+                        columns={columns}
+                        dataSource={customers.filter(
+                          (c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()),
+                        )}
+                        rowKey="id"
+                        loading={loading}
+                        onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
+                        scroll={{ x: 1000 }}
+                        locale={{ emptyText: '暂无客户数据' }}
+                        pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
+                      />
+                    </Card>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: 'tracking',
+              label: '客户追踪中心',
+              children: <CustomerTrackingCenter />,
+            },
+          ]}
+        />
         <Modal
           title={editingCustomer ? '编辑客户' : '新建客户'}
           open={modalOpen}
