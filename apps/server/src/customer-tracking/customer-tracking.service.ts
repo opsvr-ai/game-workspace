@@ -247,4 +247,72 @@ export class CustomerTrackingService {
     }
     return updated;
   }
+
+  async getKpi(user: AuthUser) {
+    const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
+    const [totalCustomers, consumedCustomers, retainedCustomers, trackedRecent, noReply, deletePending] =
+      await Promise.all([
+        this.prisma.customer.count({ where: studioWhere }),
+        this.prisma.customer.count({ where: { ...studioWhere, totalSpent: { gt: 0 } } }),
+        this.prisma.customer.count({ where: { ...studioWhere, isDeletedByCustomer: false } }),
+        this.prisma.customerTrack.count({
+          where: { ...studioWhere, createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+        }),
+        this.prisma.customerContact.count({ where: { ...studioWhere, result: 'NO_REPLY' } }),
+        this.prisma.customerDeleteRequest.count({ where: { ...studioWhere, status: 'PENDING' } }),
+      ]);
+
+    return {
+      totalCustomers,
+      consumedCustomers,
+      retainedCustomers,
+      retentionRate: totalCustomers > 0 ? Math.round((retainedCustomers / totalCustomers) * 100) : 0,
+      conversionRate: totalCustomers > 0 ? Math.round((consumedCustomers / totalCustomers) * 100) : 0,
+      trackedRecentCount: trackedRecent,
+      responseRiskCount: noReply + deletePending,
+    };
+  }
+
+  async listAnomalies(user: AuthUser) {
+    const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
+    const keys = ['anomaly.spend_drop_percent', 'anomaly.revenue_drop_percent', 'anomaly.hours_drop_percent'];
+    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const cfg: Record<string, any> = {};
+    for (const r of records) cfg[r.key] = r.value;
+    const pct = typeof cfg['anomaly.spend_drop_percent'] === 'number' ? cfg['anomaly.spend_drop_percent'] : 50;
+
+    const customers = await this.prisma.customer.findMany({
+      where: studioWhere,
+      include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        orders: { select: { createdAt: true, amount: true } },
+      },
+    });
+
+    const now = Date.now();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const out: any[] = [];
+
+    for (const c of customers) {
+      const recent = c.orders.filter((o) => now - new Date(o.createdAt).getTime() <= week);
+      const prev = c.orders.filter((o) => {
+        const t = new Date(o.createdAt).getTime();
+        return now - t > week && now - t <= 5 * week;
+      });
+      const recentSpend = recent.reduce((s, o) => s + (o.amount || 0), 0);
+      const prevAvg = prev.length > 0 ? prev.reduce((s, o) => s + (o.amount || 0), 0) / prev.length : 0;
+      if (prevAvg > 0 && recentSpend < prevAvg * (1 - pct / 100)) {
+        out.push({
+          customerId: c.id,
+          wechatId: c.wechatId,
+          companion: c.companion,
+          recentSpend,
+          baselineWeekly: prevAvg,
+          dropPercent: Math.round((1 - recentSpend / prevAvg) * 100),
+        });
+      }
+    }
+
+    return out.sort((a, b) => b.dropPercent - a.dropPercent);
+  }
 }

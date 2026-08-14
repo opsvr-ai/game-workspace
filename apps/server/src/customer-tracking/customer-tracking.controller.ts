@@ -76,4 +76,18 @@ export class CustomerTrackingController {
     const data = await this.tracking.reviewDeleteRequest(req.user, id, dto.approve, dto.rejectReason);
     return { code: 200, message: 'ok', data };
   }
+
+  @Get('kpi')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getKpi(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.tracking.getKpi(req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('anomalies')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listAnomalies(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.tracking.listAnomalies(req.user);
+    return { code: 200, message: 'ok', data };
+  }
 }
