@@ -44,6 +44,11 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'capture.expected_per_hour': 4,
   'capture.min_rate_percent': 50,
   'capture.black_rate_max_percent': 30,
+  'attendance.workStart': '09:00',
+  'attendance.workEnd': '18:00',
+  'notification.sound': true,
+  'notification.desktop': true,
+  'notification.badge': true,
 };
 
 @Controller()
