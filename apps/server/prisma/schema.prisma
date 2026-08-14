@@ -19,16 +19,17 @@ model User {
   avatar             String?
   address            String?
   leaseContractUrl   String?
-  realName           String?                     // 真实姓名（非陪玩角色注册时填写）
-  idNumber           String?                     // 身份证号（非陪玩角色注册时填写）
-  phone              String?                     // 手机号（非陪玩角色注册时填写）
-  customEmojis       Json      @default("[]")
+  realName           String? // 真实姓名（非陪玩角色注册时填写）
+  idNumber           String? // 身份证号（非陪玩角色注册时填写）
+  phone              String? // 手机号（非陪玩角色注册时填写）
+  customEmojis       Json     @default("[]")
   createdAt          DateTime @default(now())
 
-  studio    Studio?     @relation(fields: [studioId], references: [id])
-  companion Companion?
-  csOrders  Order[]     @relation("CSUser")
-  claimedOrders Order[] @relation("ClaimedCS")
+  studio            Studio?            @relation(fields: [studioId], references: [id])
+  companion         Companion?
+  csOrders          Order[]            @relation("CSUser")
+  claimedOrders     Order[]            @relation("ClaimedCS")
+  commissionLedgers CommissionLedger[]
 
   @@index([studioId])
   @@index([role])
@@ -37,68 +38,76 @@ model User {
 model Studio {
   id               String   @id @default(uuid())
   name             String
-  type             String   @default("DIRECT")  // DIRECT | RENTAL
-  splitMode        String   @default("TIERED")  // TIERED | FIXED
-  address          String?                     // 工作室地址
-  leaseContractUrl String?                     // 租赁合同照片URL
-  displayName      String?                     // 对外展示名称（品牌名）
-  logoUrl          String?                     // Logo 图片路径
+  type             String   @default("DIRECT") // DIRECT | RENTAL
+  splitMode        String   @default("TIERED") // TIERED | FIXED
+  address          String? // 工作室地址
+  leaseContractUrl String? // 租赁合同照片URL
+  displayName      String? // 对外展示名称（品牌名）
+  logoUrl          String? // Logo 图片路径
   createdAt        DateTime @default(now())
 
-  users             User[]
-  bridgesA          StudioBridge[]  @relation("BridgeA")
-  bridgesB          StudioBridge[]  @relation("BridgeB")
-  companions        Companion[]
-  orders            Order[]
-  customers         Customer[]
-  expenses          Expense[]
-  expenseReports    ExpenseReport[]
-  processBlacklists ProcessBlacklist[]
-  processWhitelists ProcessWhitelist[]
-  paymentAccounts   StudioPaymentAccount[]
+  users               User[]
+  bridgesA            StudioBridge[]          @relation("BridgeA")
+  bridgesB            StudioBridge[]          @relation("BridgeB")
+  companions          Companion[]
+  orders              Order[]
+  customers           Customer[]
+  expenses            Expense[]
+  expenseReports      ExpenseReport[]
+  processBlacklists   ProcessBlacklist[]
+  processWhitelists   ProcessWhitelist[]
+  paymentAccounts     StudioPaymentAccount[]
+  priceRules          PriceRule[]
+  merchantRecords     MerchantPaymentRecord[]
+  commissionRules     CommissionRule[]
+  commissionLedgers   CommissionLedger[]
+  settlementSnapshots SettlementSnapshot[]
 }
 
 model Companion {
-  id             String   @id @default(uuid())
-  userId         String   @unique
+  id             String    @id @default(uuid())
+  userId         String    @unique
   studioId       String
-  games          Json     @default("[]")
-  status         String   @default("OFFLINE")
-  billingCode    String   @unique
-  revenueShare   Float    @default(0.6)
-  monthlyRevenue Float    @default(0)
-  deposit        Float    @default(0)
-  balance        Float    @default(0)
-  frozen         Float    @default(0)
+  games          Json      @default("[]")
+  status         String    @default("OFFLINE")
+  billingCode    String    @unique
+  revenueShare   Float     @default(0.6)
+  monthlyRevenue Float     @default(0)
+  deposit        Float     @default(0)
+  balance        Float     @default(0)
+  frozen         Float     @default(0)
   realName       String?
   idNumber       String?
   phone          String?
   idCardFront    String?
   idCardBack     String?
-  reviewStatus   String   @default("PENDING")  // PENDING | APPROVED | REJECTED
+  reviewStatus   String    @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewedById   String?
   reviewedAt     DateTime?
   reviewNote     String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
-  user      User            @relation(fields: [userId], references: [id])
-  studio    Studio          @relation(fields: [studioId], references: [id])
-  pc        CompanionPC?
-  timeLogs          CompanionTimeLog[]
-  attendanceRecords CompanionAttendance[]
-  orders            Order[]
-  coOrders          Order[]        @relation("CoCompanion")
-  customers Customer[]
-  transactions Transaction[]
-  expenseReports ExpenseReport[]
-  walletTransactions WalletTransaction[]
-  workWechats WorkWechat[]
-  sessions     OrderSession[]
-  coSessions   OrderSession[] @relation("CoSessionCompanion")
-  blacklistOverrides CompanionBlacklistOverride[]
-  processReports     CompanionProcessReport[]
-  processKillLogs    ProcessKillLog[]
-  statusBlacklists   CompanionStatusBlacklist[]
+  user                User                         @relation(fields: [userId], references: [id])
+  studio              Studio                       @relation(fields: [studioId], references: [id])
+  pc                  CompanionPC?
+  timeLogs            CompanionTimeLog[]
+  attendanceRecords   CompanionAttendance[]
+  orders              Order[]
+  coOrders            Order[]                      @relation("CoCompanion")
+  customers           Customer[]
+  transactions        Transaction[]
+  expenseReports      ExpenseReport[]
+  walletTransactions  WalletTransaction[]
+  workWechats         WorkWechat[]
+  paymentAccounts     StudioPaymentAccount[]
+  merchantRecords     MerchantPaymentRecord[]
+  settlementSnapshots SettlementSnapshot[]
+  sessions            OrderSession[]
+  coSessions          OrderSession[]               @relation("CoSessionCompanion")
+  blacklistOverrides  CompanionBlacklistOverride[]
+  processReports      CompanionProcessReport[]
+  processKillLogs     ProcessKillLog[]
+  statusBlacklists    CompanionStatusBlacklist[]
 
   @@index([studioId])
   @@index([status])
@@ -114,8 +123,8 @@ model CompanionPC {
   throttleLimitKB Int?
   createdAt       DateTime  @default(now())
 
-  companion      Companion        @relation(fields: [companionId], references: [id])
-  operationLogs  PCOperationLog[]
+  companion     Companion        @relation(fields: [companionId], references: [id])
+  operationLogs PCOperationLog[]
 }
 
 model CompanionTimeLog {
@@ -142,60 +151,66 @@ model CompanionAttendance {
   isEarlyLeave Boolean   @default(false)
   createdAt    DateTime  @default(now())
   companion    Companion @relation(fields: [companionId], references: [id])
+
   @@unique([companionId, date])
 }
 
 model Order {
-  id           String   @id @default(uuid())
-  orderCode    String?  @unique
-  type         String
-  studioId     String
-  csUserId     String
-  companionId  String?
-  customerId   String
-  dispatchType String
-  status       String   @default("PENDING")
-  amount       Float
-  gameName     String
-  serviceType  String   @default("PLAY_WITH")
-  duration     Float?
-  customFields Json?
-  isOnline     Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  grabbedAt       DateTime?
-  contactStatus   String?
-  screenshotUrl   String?
-  scheduledAt     DateTime?
-  notes           String?
+  id            String    @id @default(uuid())
+  orderCode     String?   @unique
+  type          String
+  studioId      String
+  csUserId      String
+  companionId   String?
+  customerId    String
+  dispatchType  String
+  status        String    @default("PENDING")
+  amount        Float
+  gameName      String
+  serviceType   String    @default("PLAY_WITH")
+  duration      Float?
+  customFields  Json?
+  isOnline      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  grabbedAt     DateTime?
+  contactStatus String?
+  screenshotUrl String?
+  scheduledAt   DateTime?
+  notes         String?
 
   coAmount      Float?
   coCompanionId String?
 
   // Payment tracking
-  paymentAccountId    String?   // 客户付款进了哪个工作室账号
-  companionFeeStatus  String?   // PENDING | PAID — 陪玩费是否已转给陪玩
-  companionFeeMethod  String?   // WECHAT | ALIPAY — 陪玩费支付方式
-  companionFeeAccount String?   // 陪玩费转到哪个账号（自由文本）
-  companionFeeAmount  Float?    // 陪玩费金额
+  paymentAccountId    String? // 客户付款进了哪个工作室账号
+  companionFeeStatus  String? // PENDING | PAID — 陪玩费是否已转给陪玩
+  companionFeeMethod  String? // WECHAT | ALIPAY — 陪玩费支付方式
+  companionFeeAccount String? // 陪玩费转到哪个账号（自由文本）
+  companionFeeAmount  Float? // 陪玩费金额
 
   // 客服自抢单/线索认领
-  claimedCsUserId             String?    // 认领该线索的客服
-  claimedAt                   DateTime?
-  csWorkWechatId              String?    // 客服认领时使用的工作微信ID
-  csWorkWechatName            String?    // 客服认领时使用的工作微信号
-  customerPaidTo              String?    // CS_WECHAT | COMPANION_WECHAT | STUDIO_ACCOUNT | OTHER
-  customerPaymentAccountId    String?    // 客户实际付款的收款账号ID
-  customerPaymentAccountName  String?    // 客户实际付款的收款账号名
+  claimedCsUserId            String? // 认领该线索的客服
+  claimedAt                  DateTime?
+  csWorkWechatId             String? // 客服认领时使用的工作微信ID
+  csWorkWechatName           String? // 客服认领时使用的工作微信号
+  customerPaidTo             String? // CS_WECHAT | COMPANION_WECHAT | STUDIO_ACCOUNT | OTHER
+  customerPaymentAccountId   String? // 客户实际付款的收款账号ID
+  customerPaymentAccountName String? // 客户实际付款的收款账号名
 
-  studio          Studio                @relation(fields: [studioId], references: [id])
-  csUser          User                  @relation("CSUser", fields: [csUserId], references: [id])
-  claimedCsUser   User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])
-  companion       Companion?            @relation(fields: [companionId], references: [id])
-  coCompanion     Companion?            @relation("CoCompanion", fields: [coCompanionId], references: [id])
-  customer        Customer              @relation(fields: [customerId], references: [id])
-  paymentAccount  StudioPaymentAccount? @relation(fields: [paymentAccountId], references: [id])
-  transactions    Transaction[]
-  sessions        OrderSession[]
+  // 财务审核（P0 finance-reconciliation）
+  auditStatus        String? // PENDING | OK | REVIEW | FLAGGED
+  auditAmountCents   Int? // 审核金额（分）= 填写时长 x 声明单价
+  transferTotalCents Int? // 转账截屏合计（分）
+
+  studio         Studio                @relation(fields: [studioId], references: [id])
+  csUser         User                  @relation("CSUser", fields: [csUserId], references: [id])
+  claimedCsUser  User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])
+  companion      Companion?            @relation(fields: [companionId], references: [id])
+  coCompanion    Companion?            @relation("CoCompanion", fields: [coCompanionId], references: [id])
+  customer       Customer              @relation(fields: [customerId], references: [id])
+  paymentAccount StudioPaymentAccount? @relation(fields: [paymentAccountId], references: [id])
+  transactions   Transaction[]
+  sessions       OrderSession[]
 
   @@index([companionId])
   @@index([customerId])
@@ -207,28 +222,28 @@ model Order {
 }
 
 model OrderSession {
-  id            String    @id @default(uuid())
-  parentOrderId String
-  parentOrder   Order     @relation(fields: [parentOrderId], references: [id], onDelete: Cascade)
-  seq           Int
-  companionId   String?
-  coCompanionId String?
-  amount        Float
-  coAmount      Float?
-  duration      Float     @default(1)
-  status        String    @default("ACTIVE")  // ACTIVE | DONE
-  startedAt     DateTime?
-  pausedAt      DateTime?
+  id             String    @id @default(uuid())
+  parentOrderId  String
+  parentOrder    Order     @relation(fields: [parentOrderId], references: [id], onDelete: Cascade)
+  seq            Int
+  companionId    String?
+  coCompanionId  String?
+  amount         Float
+  coAmount       Float?
+  duration       Float     @default(1)
+  status         String    @default("ACTIVE") // ACTIVE | DONE
+  startedAt      DateTime?
+  pausedAt       DateTime?
   totalPausedSec Int       @default(0)
-  endedAt       DateTime?
-  createdAt     DateTime  @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime  @default(now())
 
   // ── 工作记录监控（口供+证据）──
-  claimedMode             String?  // 陪玩声称的游戏模式（机密/绝密）
-  claimedPrice            Float?   // 陪玩声称的单价
-  transferScreenshotUrl   String?  // 客户转账截图
-  flagged                 String?  // null | 'red' | 'yellow' 异常标记
-  compositeUrl            String?  // 合并长图路径
+  claimedMode           String? // 陪玩声称的游戏模式（机密/绝密）
+  claimedPrice          Float? // 陪玩声称的单价
+  transferScreenshotUrl String? // 客户转账截图
+  flagged               String? // null | 'red' | 'yellow' 异常标记
+  compositeUrl          String? // 合并长图路径
 
   companion   Companion? @relation(fields: [companionId], references: [id])
   coCompanion Companion? @relation("CoSessionCompanion", fields: [coCompanionId], references: [id])
@@ -240,26 +255,26 @@ model OrderSession {
 }
 
 model Customer {
-  id                  String   @id @default(uuid())
+  id                  String    @id @default(uuid())
   studioId            String
-  customerCode        String   @unique
+  customerCode        String    @unique
   wechatId            String
   companionId         String?
   platform            String?
   platformAccount     String?
   consultDate         DateTime?
   wechatAddDate       DateTime?
-  isAccountBanned     Boolean  @default(false)
-  isDeletedByCustomer Boolean  @default(false)
+  isAccountBanned     Boolean   @default(false)
+  isDeletedByCustomer Boolean   @default(false)
   notes               String?
-  totalSpent          Float    @default(0)
+  totalSpent          Float     @default(0)
   scheduledAt         DateTime?
-  status              String   @default("PENDING_DEVELOPMENT")  // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @default(now()) @updatedAt
+  status              String    @default("PENDING_DEVELOPMENT") // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
 
-  studio    Studio     @relation(fields: [studioId], references: [id])
-  companion Companion? @relation(fields: [companionId], references: [id])
+  studio    Studio             @relation(fields: [studioId], references: [id])
+  companion Companion?         @relation(fields: [companionId], references: [id])
   orders    Order[]
   profile   CustomerProfile?
   followUps CustomerFollowUp[]
@@ -270,16 +285,16 @@ model Customer {
 }
 
 model Transaction {
-  id              String   @id @default(uuid())
-  orderId         String
-  companionId     String
-  amount          Float
-  paymentMethod   String
-  screenshotUrl   String
-  status          String   @default("PENDING")
-  reviewedById    String?
-  paidAt          DateTime
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  orderId       String
+  companionId   String
+  amount        Float
+  paymentMethod String
+  screenshotUrl String
+  status        String   @default("PENDING")
+  reviewedById  String?
+  paidAt        DateTime
+  createdAt     DateTime @default(now())
 
   order     Order     @relation(fields: [orderId], references: [id])
   companion Companion @relation(fields: [companionId], references: [id])
@@ -336,16 +351,16 @@ model SystemConfig {
 }
 
 model StudioDailyStats {
-  id                String   @id @default(uuid())
-  date              DateTime
-  studioId          String
-  totalRevenue      Float    @default(0)
-  orderCount        Int      @default(0)
-  onlineCompanions  Int      @default(0)
-  totalCompanions   Int      @default(0)
-  acceptRate        Float    @default(0)
-  entertainmentFee  Float    @default(0)
-  createdAt         DateTime @default(now())
+  id               String   @id @default(uuid())
+  date             DateTime
+  studioId         String
+  totalRevenue     Float    @default(0)
+  orderCount       Int      @default(0)
+  onlineCompanions Int      @default(0)
+  totalCompanions  Int      @default(0)
+  acceptRate       Float    @default(0)
+  entertainmentFee Float    @default(0)
+  createdAt        DateTime @default(now())
 
   @@unique([date, studioId])
 }
@@ -354,18 +369,18 @@ model ExpenseReport {
   id            String    @id @default(uuid())
   companionId   String
   studioId      String
-  type          String    @default("EXPENSE")  // EXPENSE | WITHDRAW
+  type          String    @default("EXPENSE") // EXPENSE | WITHDRAW
   amount        Float
   screenshotUrl String?
   description   String?
-  status        String    @default("PENDING")  // PENDING | APPROVED | REJECTED
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewedById  String?
   reviewedAt    DateTime?
   reviewNote    String?
   createdAt     DateTime  @default(now())
 
-  companion     Companion @relation(fields: [companionId], references: [id])
-  studio        Studio    @relation(fields: [studioId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+  studio    Studio    @relation(fields: [studioId], references: [id])
 
   @@index([companionId])
   @@index([studioId, status])
@@ -374,7 +389,7 @@ model ExpenseReport {
 model WalletTransaction {
   id            String   @id @default(uuid())
   companionId   String
-  type          String   // DEPOSIT | WITHDRAW | FREEZE | UNFREEZE | SETTLEMENT
+  type          String // DEPOSIT | WITHDRAW | FREEZE | UNFREEZE | SETTLEMENT
   amount        Float
   balanceBefore Float
   balanceAfter  Float
@@ -416,27 +431,27 @@ model CustomerProfile {
 }
 
 model CustomerFollowUp {
-  id          String   @id @default(uuid())
-  customerId  String
-  playerId    String?
-  adminId     String?
-  content     String
-  nextAction  String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  customerId String
+  playerId   String?
+  adminId    String?
+  content    String
+  nextAction String?
+  createdAt  DateTime @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id])
 }
 
 model TenantAuthorization {
-  id               String   @id @default(uuid())
-  studioId         String
-  csUserId         String
-  canViewPlayers   Boolean  @default(false)
-  canViewOrders    Boolean  @default(false)
-  canViewAlerts    Boolean  @default(false)
-  canHandleOrders  Boolean  @default(false)
-  canDispatchOrders Boolean @default(false)
-  createdAt        DateTime @default(now())
+  id                String   @id @default(uuid())
+  studioId          String
+  csUserId          String
+  canViewPlayers    Boolean  @default(false)
+  canViewOrders     Boolean  @default(false)
+  canViewAlerts     Boolean  @default(false)
+  canHandleOrders   Boolean  @default(false)
+  canDispatchOrders Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@unique([studioId, csUserId])
 }
@@ -463,21 +478,21 @@ model ProcessBlacklist {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  studio      Studio   @relation(fields: [studioId], references: [id])
+  studio Studio @relation(fields: [studioId], references: [id])
 
   @@unique([studioId, processName])
 }
 
 model CompanionBlacklistOverride {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   companionId String
   processName String
   processPath String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  companion   Companion @relation(fields: [companionId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
 
   @@unique([companionId, processName])
 }
@@ -491,37 +506,37 @@ model ProcessWhitelist {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  studio      Studio   @relation(fields: [studioId], references: [id])
+  studio Studio @relation(fields: [studioId], references: [id])
 
   @@unique([studioId, processName])
 }
 
 model CompanionProcessReport {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   companionId String
-  reportTime  DateTime  @default(now())
+  reportTime  DateTime @default(now())
   processes   Json
   totalCount  Int
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
-  companion   Companion @relation(fields: [companionId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
 
   @@index([companionId, createdAt])
 }
 
 model ProcessKillLog {
-  id           String    @id @default(uuid())
-  companionId  String
-  processName  String
-  processPath  String?
-  pid          Int?
-  success      Boolean
-  resultText   String?
-  triggeredBy  String    @default("PERIODIC")
-  operatorId   String?
-  createdAt    DateTime  @default(now())
+  id          String   @id @default(uuid())
+  companionId String
+  processName String
+  processPath String?
+  pid         Int?
+  success     Boolean
+  resultText  String?
+  triggeredBy String   @default("PERIODIC")
+  operatorId  String?
+  createdAt   DateTime @default(now())
 
-  companion    Companion @relation(fields: [companionId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
 
   @@index([companionId, createdAt])
 }
@@ -542,18 +557,18 @@ model ChatMessageLegacy {
 
 // ── @deprecated Chat V2 — migrate to Chat 3.0, then drop ──
 model Conversation {
-  id             String    @id @default(uuid())
-  studioId       String
-  participantA   String
-  participantB   String
-  aReadAt        DateTime?
-  bReadAt        DateTime?
-  lastMessage    String?
-  lastMessageAt  DateTime?
-  orderInfo      String?
-  createdAt      DateTime  @default(now())
+  id            String    @id @default(uuid())
+  studioId      String
+  participantA  String
+  participantB  String
+  aReadAt       DateTime?
+  bReadAt       DateTime?
+  lastMessage   String?
+  lastMessageAt DateTime?
+  orderInfo     String?
+  createdAt     DateTime  @default(now())
 
-  messages       ChatMessage[]
+  messages ChatMessage[]
 
   @@unique([studioId, participantA, participantB])
   @@index([studioId, participantA])
@@ -568,7 +583,7 @@ model ChatMessage {
   text           String
   createdAt      DateTime @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@map("ChatMessageV2")
@@ -578,22 +593,22 @@ model ChatMessage {
 
 model ChatRoom {
   id             String    @id @default(uuid())
-  studioId       String?   // null = cross-studio room between bridged studios
-  participantA   String              // sorted alphabetically (smaller first)
+  studioId       String? // null = cross-studio room between bridged studios
+  participantA   String // sorted alphabetically (smaller first)
   participantB   String
-  aReadSeq       Int       @default(0)  // participantA's last-read message seq
-  bReadSeq       Int       @default(0)  // participantB's last-read message seq
-  lastMessage    String?              // preview text, truncated to 100 chars
+  aReadSeq       Int       @default(0) // participantA's last-read message seq
+  bReadSeq       Int       @default(0) // participantB's last-read message seq
+  lastMessage    String? // preview text, truncated to 100 chars
   lastMessageAt  DateTime?
-  lastMessageSeq Int       @default(0)  // auto-incrementing per room
-  orderInfo      String?              // order summary (gameName · ¥amount · duration)
+  lastMessageSeq Int       @default(0) // auto-incrementing per room
+  orderInfo      String? // order summary (gameName · ¥amount · duration)
   pinned         Boolean   @default(false)
   pinnedAt       DateTime?
   archived       Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  messages       ChatMessageV3[]
+  messages ChatMessageV3[]
 
   @@index([studioId, participantA])
   @@index([studioId, participantB])
@@ -602,21 +617,21 @@ model ChatRoom {
 }
 
 model ChatMessageV3 {
-  id          String    @id @default(uuid())
-  roomId      String
-  room        ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  senderId    String
-  type        String    @default("TEXT")   // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
-  content     String?
-  seq         Int                          // per-room incrementing sequence number
-  replyToId   String?                      // quoted reply message ID
-  replyTo     ChatMessageV3? @relation("Reply", fields: [replyToId], references: [id])
-  deletedAt   DateTime?                    // soft-delete = recall
-  createdAt   DateTime  @default(now())
+  id        String         @id @default(uuid())
+  roomId    String
+  room      ChatRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  String
+  type      String         @default("TEXT") // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
+  content   String?
+  seq       Int // per-room incrementing sequence number
+  replyToId String? // quoted reply message ID
+  replyTo   ChatMessageV3? @relation("Reply", fields: [replyToId], references: [id])
+  deletedAt DateTime? // soft-delete = recall
+  createdAt DateTime       @default(now())
 
-  attachments  MessageAttachment[]
-  reactions    MessageReaction[]
-  repliedBy    ChatMessageV3[] @relation("Reply")
+  attachments MessageAttachment[]
+  reactions   MessageReaction[]
+  repliedBy   ChatMessageV3[]     @relation("Reply")
 
   @@unique([roomId, seq])
   @@index([roomId, createdAt])
@@ -625,10 +640,10 @@ model ChatMessageV3 {
 }
 
 model MessageAttachment {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   messageId    String
   message      ChatMessageV3 @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  type         String              // IMAGE | FILE | AUDIO
+  type         String // IMAGE | FILE | AUDIO
   url          String
   thumbnailUrl String?
   fileName     String?
@@ -636,17 +651,17 @@ model MessageAttachment {
   mimeType     String?
   width        Int?
   height       Int?
-  duration     Int?                // audio seconds
-  createdAt    DateTime @default(now())
+  duration     Int? // audio seconds
+  createdAt    DateTime      @default(now())
 }
 
 model MessageReaction {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   messageId String
   message   ChatMessageV3 @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    String
   emoji     String
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
@@ -656,7 +671,7 @@ model ChatAuditLog {
   id        String   @id @default(uuid())
   roomId    String
   userId    String
-  action    String              // SEND | RECALL | DELETE | REACT | READ
+  action    String // SEND | RECALL | DELETE | REACT | READ
   metadata  Json?
   createdAt DateTime @default(now())
 
@@ -665,29 +680,29 @@ model ChatAuditLog {
 }
 
 model StudioBridge {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   studioAId  String
   studioBId  String
-  status     String   @default("PENDING") // PENDING | ACTIVE | REJECTED
+  status     String    @default("PENDING") // PENDING | ACTIVE | REJECTED
   proposedBy String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   acceptedAt DateTime?
 
-  studioA    Studio @relation("BridgeA", fields: [studioAId], references: [id], onDelete: Cascade)
-  studioB    Studio @relation("BridgeB", fields: [studioBId], references: [id], onDelete: Cascade)
+  studioA     Studio                   @relation("BridgeA", fields: [studioAId], references: [id], onDelete: Cascade)
+  studioB     Studio                   @relation("BridgeB", fields: [studioBId], references: [id], onDelete: Cascade)
   permissions StudioBridgePermission[]
 
   @@unique([studioAId, studioBId])
 }
 
 model StudioBridgePermission {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   bridgeId  String
   function  String // ORDERS | POOL | CUSTOMERS | BILLING | KPI
   acceptedA Boolean @default(false)
   acceptedB Boolean @default(false)
 
-  bridge    StudioBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+  bridge StudioBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
 
   @@unique([bridgeId, function])
 }
@@ -695,11 +710,12 @@ model StudioBridgePermission {
 model CompanionStatusBlacklist {
   id          String   @id @default(uuid())
   companionId String
-  status      String   // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
+  status      String // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
   processName String
   createdAt   DateTime @default(now())
 
-  companion   Companion @relation(fields: [companionId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+
   @@unique([companionId, status, processName])
   @@index([companionId, status])
 }
@@ -709,14 +725,112 @@ model CompanionStatusBlacklist {
 model StudioPaymentAccount {
   id            String   @id @default(uuid())
   studioId      String
-  type          String   // WECHAT | ALIPAY
-  accountName   String   // 显示名，如"工作室A-微信1号"
-  accountNumber String   // 微信号/wxid/手机号/支付宝账号
+  companionId   String?
+  type          String // WECHAT | ALIPAY
+  accountName   String // 显示名，如"工作室A-微信1号"
+  accountNumber String // 微信号/wxid/手机号/支付宝账号
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
 
-  studio  Studio  @relation(fields: [studioId], references: [id])
-  orders  Order[]
+  studio          Studio                  @relation(fields: [studioId], references: [id])
+  companion       Companion?              @relation(fields: [companionId], references: [id])
+  orders          Order[]
+  merchantRecords MerchantPaymentRecord[]
 
   @@index([studioId])
+  @@index([companionId])
+}
+
+model PriceRule {
+  id          String   @id @default(uuid())
+  studioId    String?
+  gameName    String
+  serviceType String   @default("PLAY_WITH")
+  mode        String // 机密 / 绝密
+  orderType   String   @default("FIRST") // FIRST | RENEW
+  floorPrice  Int // 底价（分）
+  maxPrice    Int? // 区间上限（分）
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio Studio? @relation(fields: [studioId], references: [id])
+
+  @@index([studioId, gameName, mode, orderType])
+}
+
+model MerchantPaymentRecord {
+  id               String   @id @default(uuid())
+  studioId         String
+  paymentAccountId String
+  companionId      String?
+  amount           Int // 到账金额（分）
+  paidAt           DateTime
+  source           String   @default("IMPORT") // IMPORT | MANUAL
+  note             String?
+  createdAt        DateTime @default(now())
+
+  studio         Studio               @relation(fields: [studioId], references: [id])
+  paymentAccount StudioPaymentAccount @relation(fields: [paymentAccountId], references: [id])
+  companion      Companion?           @relation(fields: [companionId], references: [id])
+
+  @@index([studioId, paidAt])
+  @@index([companionId, paidAt])
+  @@index([paymentAccountId])
+}
+
+model CommissionRule {
+  id          String   @id @default(uuid())
+  studioId    String
+  role        String   @default("CS") // CS | ADMIN | STORE_MANAGER
+  basis       String   @default("CLAIMED_AMOUNT") // CLAIMED_AMOUNT | ORDER_COUNT | CLAIMED_COUNT | REVENUE
+  type        String   @default("RATE") // RATE | FIXED
+  rate        Float? // 比例，如 0.02
+  fixedAmount Int? // 固定金额（分）
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio  Studio             @relation(fields: [studioId], references: [id])
+  ledgers CommissionLedger[]
+
+  @@index([studioId, role])
+}
+
+model CommissionLedger {
+  id           String   @id @default(uuid())
+  studioId     String
+  ruleId       String
+  userId       String // 客服/店长 User id
+  month        String // YYYY-MM 营业月
+  basisValue   Float // 计提基数（流水元或单量）
+  amount       Int // 提成金额（分）
+  ruleSnapshot Json // 规则快照
+  status       String   @default("DRAFT") // DRAFT | CONFIRMED
+  createdAt    DateTime @default(now())
+
+  studio Studio         @relation(fields: [studioId], references: [id])
+  rule   CommissionRule @relation(fields: [ruleId], references: [id])
+  user   User           @relation(fields: [userId], references: [id])
+
+  @@unique([studioId, ruleId, userId, month])
+}
+
+model SettlementSnapshot {
+  id             String   @id @default(uuid())
+  studioId       String
+  companionId    String
+  month          String // YYYY-MM 营业月
+  monthlyRevenue Int // 业绩（分）
+  companionPct   Int // 分成比例 %
+  companionShare Int // 陪玩分成（分）
+  studioShare    Int // 工作室分成（分）
+  tenureMonths   Int // 结算时工龄（月）
+  snapshot       Json // 明细快照
+  createdAt      DateTime @default(now())
+
+  studio    Studio    @relation(fields: [studioId], references: [id])
+  companion Companion @relation(fields: [companionId], references: [id])
+
+  @@unique([studioId, companionId, month])
 }

@@ -67,6 +67,7 @@ const TagListEditor: React.FC<TagListEditorProps> = ({ label, tags, onChange }) 
 const StudioSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [savingTimeout, setSavingTimeout] = useState(false);
   const [savingEntertainment, setSavingEntertainment] = useState(false);
   const [savingOptions, setSavingOptions] = useState(false);
@@ -211,9 +212,8 @@ const StudioSettings: React.FC = () => {
       <Card title="📅 每日结算时间" style={{ marginBottom: 16 }} extra={
         <Button icon={React.createElement(SaveOutlined)} loading={saving} size="small" onClick={async () => {
           setSaving(true);
-          await saveKeys({ 'studio.day_start_hour': config?.['studio.day_start_hour'] ?? 0 });
+          await saveKeys({ 'studio.day_start_hour': config?.['studio.day_start_hour'] ?? 0 }, '每日结算时间');
           setSaving(false);
-          message.success('已保存');
         }}>保存</Button>
       }>
         <Text type="secondary">设置每天的流水统计和娱乐计费清零的时间点</Text>

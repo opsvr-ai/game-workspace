@@ -11,6 +11,7 @@
 - **陪玩客户端与看门狗稳定性:** 看门狗非阻塞重启, 更新失败保护, 退出登录断连, 锁屏安全加固, 30s 心跳对齐
 - **客服自抢单/线索养客:** 客服可认领暂时不玩的池子订单到工作微信，客户要打时一键放回抢单池并标记立即打；订单记录收款去向，便于核对客服提成与资金流
 - **陪玩端安全记住密码:** Electron 客户端支持记住账号密码，使用操作系统安全存储加密凭据，并限制仅受信任服务端页面可读取
+- **财务对账与防私单:** 价格规则配置、客服/店长提成结算、月度分成快照、每日到账对账、客户画像与 AI 私单风险工作台，统一金额整数分与营业日 12 点边界
 
 ## Recent Updates (v3.0.0)
 
@@ -126,6 +127,12 @@ chunlv-esports/
 │   │       │       ├── CompanionsStatusPage.tsx
 │   │       │       ├── DispatchPage.tsx
 │   │       │       └── OrdersPage.tsx
+│   │       │   └── finance/         # Finance pages (5 pages)
+│   │       │       ├── PriceRulesPage.tsx
+│   │       │       ├── CommissionPage.tsx
+│   │       │       ├── SettlementPage.tsx
+│   │       │       ├── ReconciliationPage.tsx
+│   │       │       └── RiskWorkbenchPage.tsx
 │   │       └── router.tsx           # 14 frontend routes
 │   │
 │   ├── server/                       # Nest.js backend
@@ -299,6 +306,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/auth/refresh` | None | -- | Refresh tokens. Body: `{ refreshToken }`. Returns new token pair. |
 | `POST` | `/api/auth/verify-2nd` | JWT | -- | Verify second password. Body: `{ password }`. Returns `secondToken` (5 min expiry). |
 | `GET` | `/api/auth/me` | JWT | -- | Get current user info from token. |
+| `PUT` | `/api/auth/me` | JWT | -- | Update current user displayName. Body: `{ displayName }`. |
 | `PUT` | `/api/auth/users/:id/authorize` | JWT | OWNER | Authorize a user account (required for CS/COMPANION roles). |
 
 ### Orders
@@ -361,6 +369,23 @@ Every endpoint returns a standard JSON envelope:
 | `PUT` | `/api/wallet-transactions/:id/review` | JWT | ADMIN, OWNER | Review wallet transaction. |
 | `POST` | `/api/monthly-settlement` | JWT | ADMIN, OWNER | Run monthly settlement. |
 | `GET` | `/api/monthly-settlement` | JWT | ADMIN, OWNER | Get settlement history. |
+
+### Finance
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/finance/price-rules` | JWT | ADMIN, OWNER, CS | List studio price rules. |
+| `POST` | `/api/finance/price-rules` | JWT | ADMIN, OWNER | Create price rule (floor/max price in yuan). |
+| `PATCH` | `/api/finance/price-rules/:id` | JWT | ADMIN, OWNER | Update price rule. |
+| `GET` | `/api/finance/price-rules/builtin` | JWT | ADMIN, OWNER, CS | Builtin mode price rules (机密/绝密). |
+| `POST` | `/api/finance/settlement/:month` | JWT | ADMIN, OWNER | Run monthly share settlement (immutable snapshot). |
+| `GET` | `/api/finance/settlement/:month` | JWT | ADMIN, OWNER, CS | List settlement snapshot for month. |
+| `GET` | `/api/finance/commission/rules` | JWT | ADMIN, OWNER, CS | List commission rules. |
+| `POST` | `/api/finance/commission/rules` | JWT | ADMIN, OWNER | Create/update commission rule. |
+| `POST` | `/api/finance/commission/calculate/:month` | JWT | ADMIN, OWNER | Calculate monthly commission (idempotent). |
+| `GET` | `/api/finance/commission/:month` | JWT | ADMIN, OWNER, CS | List commission ledgers for month. |
+| `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
+| `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue. |
 
 ### Customer Profiles & AI
 

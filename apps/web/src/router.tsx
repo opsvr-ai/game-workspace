@@ -78,6 +78,11 @@ const CompanionPage = lazy(() => import('./pages/CompanionPage'));
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const WorkWechatPage = lazy(() => import('./pages/WorkWechatPage'));
+const PriceRulesPage = lazy(() => import('./pages/finance/PriceRulesPage'));
+const CommissionPage = lazy(() => import('./pages/finance/CommissionPage'));
+const SettlementPage = lazy(() => import('./pages/finance/SettlementPage'));
+const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage'));
+const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -353,6 +358,46 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/finance/risk',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <RiskWorkbenchPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/reconciliation',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ReconciliationPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/settlement',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <SettlementPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/commission',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CommissionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/price-rules',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <PriceRulesPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'admin/pc-control',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -461,6 +506,22 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <BillingOverview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/finance/risk',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <RiskWorkbenchPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/finance/reconciliation',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ReconciliationPage />
           </Suspense>
         ),
       },

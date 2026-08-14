@@ -77,6 +77,14 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Put('me')
+  async updateProfile(@Request() req: any, @Body() body: { displayName?: string }): Promise<ApiResponse<UserInfo>> {
+    await this.authService.updateProfile(req.user.id, body?.displayName);
+    const data = await this.authService.getMe(req.user.id);
+    return { code: 200, message: '资料已更新', data };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('me/emojis')
   async getEmojis(@Request() req: any): Promise<ApiResponse<string[]>> {
     const data = await this.authService.getCustomEmojis(req.user.id);

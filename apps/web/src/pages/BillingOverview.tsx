@@ -620,7 +620,7 @@ const BillingOverview: React.FC = () => {
                       <Space>
                         <Tag color={o.type === 'NEW' ? 'green' : o.type === 'RENEW' ? 'blue' : o.type === 'REPURCHASE' ? 'purple' : 'orange'}
                           style={{ fontSize: 10, margin: 0 }}>
-                          {{NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'}[o.type] || o.type}
+                          {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
                         <Text>{o.gameName}</Text>
                       </Space>

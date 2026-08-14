@@ -24,7 +24,7 @@ export function useChatSync(wsConnected: boolean) {
       if (result?.missedMessages?.length) {
         useChatStore.getState().setSyncing(true);
         for (const msg of result.missedMessages) {
-          useChatStore.getState().receiveMessage(msg.roomId || msg.conversationId, msg);
+          useChatStore.getState().receiveMessage((msg as any).roomId || (msg as any).conversationId, msg);
         }
         useChatStore.getState().setSyncing(false);
       }

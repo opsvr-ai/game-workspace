@@ -445,7 +445,7 @@ const CompanionPage: React.FC = () => {
                             outerRadius={50}
                             innerRadius={25}
                             label={({ name, value, percent, payload }) =>
-                              `${name} ${value}单 ¥${payload.amount || 0} ${(percent * 100).toFixed(0)}%`
+                              `${name} ${value}单 ¥${payload.amount || 0} ${((percent ?? 0) * 100).toFixed(0)}%`
                             }
                           >
                             {pieData.map((d, i) => (

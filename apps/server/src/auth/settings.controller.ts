@@ -12,8 +12,8 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'revenue.free_threshold': 300,
   'revenue.low_warning': 300,
   'revenue.share_tiers': [
-    { min: 0, max: 5999.9, studio: 50, companion: 50 },
-    { min: 6000, max: 9999, studio: 40, companion: 60 },
+    { min: 0, max: 5199.99, studio: 50, companion: 50 },
+    { min: 5200, max: 9999.99, studio: 40, companion: 60 },
     { min: 10000, max: null, studio: 30, companion: 70 },
   ],
   'withdraw.advance_ratio': 50,
@@ -111,3 +111,4 @@ export class SettingsController {
     return { code: 200, message: 'ok', data };
   }
 }
+

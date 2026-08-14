@@ -37,8 +37,8 @@ export class SettlementService {
       : null;
     const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
       (config?.value as any) ?? [
-        { min: 0, max: 5999.99, studio: 50, companion: 50 },
-        { min: 6000, max: 9999, studio: 40, companion: 60 },
+        { min: 0, max: 5199.99, studio: 50, companion: 50 },
+        { min: 5200, max: 9999.99, studio: 40, companion: 60 },
         { min: 10000, max: null, studio: 30, companion: 70 },
       ];
 
@@ -244,8 +244,8 @@ export class SettlementService {
         });
         const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
           (config?.value as any) ?? [
-            { min: 0, max: 5999.99, studio: 50, companion: 50 },
-            { min: 6000, max: 9999, studio: 40, companion: 60 },
+            { min: 0, max: 5199.99, studio: 50, companion: 50 },
+            { min: 5200, max: 9999.99, studio: 40, companion: 60 },
             { min: 10000, max: null, studio: 30, companion: 70 },
           ];
         const tier =
@@ -377,3 +377,4 @@ export class SettlementService {
     };
   }
 }
+

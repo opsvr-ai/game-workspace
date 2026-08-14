@@ -11,6 +11,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **财务对账与防私单体系:** 新增 `finance` 模块，统一金额整数分存储与营业日 12 点边界；价格规则（首单底价/续单区间）、客服/店长提成规则与月度结算、月度分成快照（5200/10000 阶梯 + 满 6 个月七三门槛）、每日到账对账（员工收款码实到 vs 应收差额标红）、客户画像与 AI 私单风险工作台（单价偏低/时长腰斩/周消费突降/流失风险评分排序，管理者角色均可查看）。
 - **Chat history endpoint:** `GET /api/companions/chat-history/:companionId` returns full chat message history between a studio and a specific companion.
 - **客服自抢单/线索养客流程:** 新增 `CLAIMED` 状态、`POST /api/orders/:id/claim` 与 `POST /api/orders/:id/release`，客服可把暂时不玩的池子订单认领到工作微信，待客户要打时再放回抢单池并标记“立即打”。
 - **客服发单与认领统计:** 每日统计新增客服认领单数/金额，订单列表展示认领客服、认领工作微信和客户实际收款去向，便于核对客服提成与资金流向。
@@ -32,6 +33,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **前端 `tsc` 构建失败（部署阻塞）：** 升级 `@ant-design/icons` 修复 JSX 图标类型必填错误，并修复历史遗留的多处类型错误（个人中心改名接口缺失、每日结算时间保存、订单会话字段、客服沟通会话参数、抢单成功弹窗字段等），`pnpm build` 现可完整通过。
+- **个人中心改名报错：** 新增 `PUT /api/auth/me` 更新昵称接口，修复前端调用不存在的 `updateProfile`。
 - **授权退出仍被看门狗拉起:** 陪玩端管理员密码退出后通过全局事件通知 `SystemHelper`，看门狗本次开机内不再自动拉起；重启电脑后恢复正常守护。
 - **服务端可选图像依赖阻断启动:** 长图合成改为延迟加载 `sharp`，未安装该依赖时服务端仍可正常启动，仅在合成截图时优雅降级。
 - **远程部署脚本凭据注入：** 远程批量部署脚本改用 PowerShell 单引号字面量安全转义管理员账号/密码，并对服务端 URL 做协议与主机白名单校验，阻止恶意凭据或 Host 头注入脚本

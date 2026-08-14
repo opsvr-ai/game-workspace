@@ -449,3 +449,24 @@ graph TB
 - process-killer.ts: taskkill /F /PID 杀进程 + 速率限制
 - blacklist-notification.ts: 5秒倒计时气泡弹窗
 - 60秒 REST 轮询拉取黑名单 (WebSocket 断开时兜底)
+### 财务对账与防私单模块 (Finance)
+
+**数据模型:**
+- PriceRule: 游戏/模式价格规则 (首单底价、续单区间，金额整数分)
+- MerchantPaymentRecord: 员工收款码到账流水
+- CommissionRule / CommissionLedger: 客服/店长提成规则与月度结算
+- SettlementSnapshot: 陪玩月度分成不可变快照
+
+**核心规则:**
+- 金额统一整数分存储，营业日以每日 12:00 为界，月结周期 = 当月 1 日 12:00 至次月 1 日 12:00
+- 分成阶梯：<5200 五五；5200–10000 六四；≥10000 且入职满 6 个月七三
+- 审核金额 = 填写时长 × 声明单价；转账截图合计 >= 审核金额即通过，超出算加价，低于标红
+
+**API 端点:**
+- `GET/POST/PATCH /api/finance/price-rules` — 价格规则 CRUD（内置默认机密 35/绝密 45）
+- `POST/GET /api/finance/settlement/:month` — 月度分成结算快照
+- `GET/POST /api/finance/commission/rules` — 提成规则
+- `POST /api/finance/commission/calculate/:month` — 幂等月度提成计算
+- `GET /api/finance/commission/:month` — 提成结算列表
+- `GET /api/finance/reconciliation?day=` — 每日到账对账
+- `GET /api/finance/risk-queue` — 客户画像 + AI 私单风险工作台

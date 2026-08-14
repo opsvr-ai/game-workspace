@@ -276,7 +276,6 @@ const EmployeesPage: React.FC = () => {
     {
       title: '用户名',
       dataIndex: 'username',
-      width: 120,
       render: (v: string, r: Employee) => <a onClick={() => setDetailEmployee(r)} style={{cursor:'pointer'}}>{v}</a>,
       key: 'username',
       width: 140,

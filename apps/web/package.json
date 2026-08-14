@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ant-design/charts": "^2.6.7",
-    "@ant-design/icons": "^5.3.0",
+    "@ant-design/icons": "^5.6.1",
     "@chunlv/shared": "workspace:*",
     "@tanstack/react-virtual": "^3.14.7",
     "antd": "^5.18.0",

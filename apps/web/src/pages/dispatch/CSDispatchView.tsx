@@ -49,7 +49,7 @@ interface PoolOrder {
   createdAt: string;
   customFields?: any;
   customer?: { wechatId: string; customerCode?: string };
-  csUser?: { username: string };
+  csUser?: { id?: string; username: string };
 }
 
 const CSDispatchView: React.FC = () => {
@@ -727,15 +727,20 @@ const CSDispatchView: React.FC = () => {
                                     ? `还差¥${Math.round((poolStatus?.threshold || 0) - (poolStatus?.todayRevenue || 0))}`
                                     : '抢单'}
                                 </Button>
-                                {order.csUserId && (
+                                {order.csUser?.id && (
                                   <Button
                                     size="small"
                                     onClick={async () => {
-                                      const csId = order.csUserId!;
+                                      const csId = order.csUser!.id!;
                                       const convId = await useChatStore
                                         .getState()
                                         .openConversation(
                                           csId,
+                                          {
+                                            userId: csId,
+                                            username: order.csUser?.username || '客服',
+                                            role: 'CS',
+                                          },
                                           order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined,
                                         );
                                       window.dispatchEvent(

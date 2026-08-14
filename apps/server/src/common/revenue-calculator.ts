@@ -20,19 +20,61 @@ export interface RevenueSplitResult {
   monthlyRevenue?: number;
 }
 
-const DEFAULT_TIERS: RevenueSplitTier[] = [
-  { min: 0, max: 5999.99, companion: 50 },
-  { min: 6000, max: 9999, companion: 60 },
+/** 线下阶梯（老板确认口径）：<5200 五五、5200–10000 六四、≥10000 七三（需满 6 个月） */
+export const DEFAULT_TIERS: RevenueSplitTier[] = [
+  { min: 0, max: 5199.99, companion: 50 },
+  { min: 5200, max: 9999.99, companion: 60 },
   { min: 10000, max: null, companion: 70 },
 ];
 
+/** 享受最高档（七三）所需的最低工龄（月） */
+export const TENURE_MONTHS_FOR_TOP_TIER = 6;
+
 /**
  * Resolve the applicable tier for a given total revenue.
- * Returns the highest-matching tier, or the last tier as fallback.
+ * Returns the last tier whose `min` is not greater than totalRevenue.
+ * Robust against gaps between adjacent tier boundaries.
  */
 export function resolveTier(totalRevenue: number, tiers: RevenueSplitTier[] = DEFAULT_TIERS): RevenueSplitTier {
-  const match = tiers.find((t) => totalRevenue >= t.min && (t.max === null || totalRevenue <= t.max));
-  return match ?? tiers[tiers.length - 1];
+  let match = tiers[0];
+  for (const t of tiers) {
+    if (totalRevenue >= t.min) match = t;
+  }
+  return match;
+}
+
+/**
+ * Resolve companion percentage for TIERED mode with tenure gate:
+ * the top 70% tier only applies when tenureMonths >= 6, otherwise falls back to 60%.
+ */
+export function resolveCompanionPctTiered(
+  totalRevenue: number,
+  tenureMonths: number,
+  tiers: RevenueSplitTier[] = DEFAULT_TIERS,
+): number {
+  const tier = resolveTier(totalRevenue, tiers);
+  if (tier.companion === 70 && tenureMonths < TENURE_MONTHS_FOR_TOP_TIER) {
+    return 60;
+  }
+  return tier.companion;
+}
+
+/**
+ * Compute companion percentage (0-100) for either TIERED or FIXED mode.
+ */
+export function computeSharePct(params: {
+  splitMode: string;
+  monthlyRevenue: number;
+  tenureMonths?: number;
+  revenueShare?: number | null;
+  defaultClubSharePct?: number;
+  tiers?: RevenueSplitTier[];
+}): number {
+  if (params.splitMode === 'FIXED') {
+    const pct = params.revenueShare ? Math.round(params.revenueShare * 100) : (params.defaultClubSharePct ?? 80);
+    return pct;
+  }
+  return resolveCompanionPctTiered(params.monthlyRevenue, params.tenureMonths ?? 0, params.tiers);
 }
 
 /**
@@ -57,7 +99,6 @@ export function computeRevenueShare(params: {
     return pct / 100;
   }
 
-  // TIERED
   const tiers = params.tiers ?? DEFAULT_TIERS;
   const tier = resolveTier(params.totalRevenue, tiers);
   return tier.companion / 100;
@@ -88,7 +129,6 @@ export function computeRevenueSplit(params: {
     };
   }
 
-  // TIERED
   const tiers = params.tiers ?? DEFAULT_TIERS;
   const tier = resolveTier(params.totalRevenue, tiers);
   return {

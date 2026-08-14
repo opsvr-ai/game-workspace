@@ -90,9 +90,9 @@ const CustomersPage: React.FC = () => {
   const openChat = (record: Customer) => {
     const o = record.orders?.[0];
     setChatPartner({
-      conversationId: o?.companionId || o?.id || record.id,
+      conversationId: (o as any)?.companionId || o?.id || record.id,
       participant: {
-        userId: o?.companionId || o?.id || record.id,
+        userId: (o as any)?.companionId || o?.id || record.id,
         username: record.wechatId || record.customerCode,
         role: 'COMPANION',
       },

@@ -13,6 +13,7 @@ const { Text, Title } = Typography;
 interface Session {
   id: string; seq: number; companionId: string; coCompanionId?: string;
   amount: number; coAmount?: number; duration: number; status: string; createdAt: string;
+  startedAt?: string; pausedAt?: string;
   companion?: any; coCompanion?: any;
 }
 

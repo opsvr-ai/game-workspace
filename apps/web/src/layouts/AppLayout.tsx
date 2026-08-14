@@ -136,6 +136,18 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
     { key: '/owner/stats', icon: IconDashboard, label: '每日统计' },
     {
+      key: 'owner-finance',
+      icon: IconRevenue,
+      label: '财务管理',
+      children: [
+        { key: '/admin/finance/risk', label: '风险工作台' },
+        { key: '/admin/finance/reconciliation', label: '到账对账' },
+        { key: '/admin/finance/settlement', label: '月度分成' },
+        { key: '/admin/finance/commission', label: '提成结算' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
+      ],
+    },
+    {
       key: 'owner-settings',
       icon: IconAuth,
       label: '系统设置',
@@ -171,6 +183,18 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/admin/billing', icon: IconBilling, label: '报账系统' },
     { key: '/admin/stats', icon: IconDashboard, label: '每日统计' },
     {
+      key: 'admin-finance',
+      icon: IconRevenue,
+      label: '财务管理',
+      children: [
+        { key: '/admin/finance/risk', label: '风险工作台' },
+        { key: '/admin/finance/reconciliation', label: '到账对账' },
+        { key: '/admin/finance/settlement', label: '月度分成' },
+        { key: '/admin/finance/commission', label: '提成结算' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
+      ],
+    },
+    {
       key: 'admin-settings',
       icon: IconAuth,
       label: '系统设置',
@@ -192,6 +216,15 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     { key: '/cs/employees', icon: IconEmployees, label: '陪玩管理' },
     { key: '/cs/billing', icon: IconBilling, label: '报账系统' },
     { key: '/cs/stats', icon: IconDashboard, label: '每日统计' },
+    {
+      key: 'cs-finance',
+      icon: IconRevenue,
+      label: '财务管理',
+      children: [
+        { key: '/cs/finance/risk', label: '风险工作台' },
+        { key: '/cs/finance/reconciliation', label: '到账对账' },
+      ],
+    },
     {
       key: 'cs-settings',
       icon: IconAuth,
@@ -993,37 +1026,39 @@ const AppLayout: React.FC = () => {
 
       {/* Global Grab Success Modal — survives navigation */}
       <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
-        {grabbedOrder && (
-          <div style={{ fontSize: 14, lineHeight: 2 }}>
-            <div>
-              📋 {grabbedOrder.gameName} · {orderTypeConfig[grabbedOrder.type]?.label || grabbedOrder.type} · ¥
-              {Number(grabbedOrder.amount).toFixed(0)} · {grabbedOrder.duration}h
-            </div>
-            {grabbedOrder.customer?.customerCode && <div>客户编号：{grabbedOrder.customer.customerCode}</div>}
-            {grabbedOrder.customFields?.customerSource && <div>来源：{grabbedOrder.customFields.customerSource}</div>}
-            {grabbedOrder.customFields?.customerWechat && (
-              <div>
-                💬 微信：<Typography.Text copyable>{grabbedOrder.customFields.customerWechat}</Typography.Text>
+        {grabbedOrder &&
+          (() => {
+            const g = grabbedOrder as any;
+            return (
+              <div style={{ fontSize: 14, lineHeight: 2 }}>
+                <div>
+                  📋 {g.gameName} · {orderTypeConfig[g.type]?.label || g.type} · ¥
+                  {Number(g.amount).toFixed(0)} · {g.duration}h
+                </div>
+                {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
+                {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
+                {g.customFields?.customerWechat && (
+                  <div>
+                    💬 微信：<Typography.Text copyable>{g.customFields.customerWechat}</Typography.Text>
+                  </div>
+                )}
+                {g.customFields?.customerRoomCode && (
+                  <div>
+                    🏠 房间码：<Typography.Text copyable>{g.customFields.customerRoomCode}</Typography.Text>
+                  </div>
+                )}
+                {g.customFields?.customerPlatformAccount && (
+                  <div>
+                    🔗 平台号：
+                    <Typography.Text copyable>{g.customFields.customerPlatformAccount}</Typography.Text>
+                  </div>
+                )}
+                {g.csUser?.username && <div>发布者：{g.csUser.username}</div>}
+                {g.customFields?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
+                {g.customFields?.urgency !== 'later' && g.customFields?.urgency && <Tag color="green">⚡立即打</Tag>}
               </div>
-            )}
-            {grabbedOrder.customFields?.customerRoomCode && (
-              <div>
-                🏠 房间码：<Typography.Text copyable>{grabbedOrder.customFields.customerRoomCode}</Typography.Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerPlatformAccount && (
-              <div>
-                🔗 平台号：
-                <Typography.Text copyable>{grabbedOrder.customFields.customerPlatformAccount}</Typography.Text>
-              </div>
-            )}
-            {grabbedOrder.csUser?.username && <div>发布者：{grabbedOrder.csUser.username}</div>}
-            {(grabbedOrder.customFields as any)?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
-            {(grabbedOrder.customFields as any)?.urgency !== 'later' && (grabbedOrder.customFields as any)?.urgency && (
-              <Tag color="green">⚡立即打</Tag>
-            )}
-          </div>
-        )}
+            );
+          })()}
       </Modal>
 
       {/* Global Chat Modal (opened from notification bell) */}
