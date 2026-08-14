@@ -139,12 +139,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             <Option value="绝密">绝密</Option>
           </Select>
         </Form.Item>
-        <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
-          <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
-            <Option value="单">单陪</Option>
-            <Option value="双">双陪</Option>
-          </Select>
-        </Form.Item>
         <Form.Item name="deltaNote" label="备注">
           <Input.TextArea rows={2} placeholder="补充说明" />
         </Form.Item>
@@ -159,6 +153,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
           {({ getFieldValue }) =>
             getFieldValue('dispatchType') === DispatchType.DIRECT ? (
               <>
+                <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
+                  <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
+                    <Option value="单">单陪</Option>
+                    <Option value="双">双陪</Option>
+                  </Select>
+                </Form.Item>
                 <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
                   <Select placeholder="选择主陪" showSearch optionFilterProp="label">
                     {companions.map((c: any) => (
