@@ -41,6 +41,7 @@ import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
+import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
@@ -585,11 +586,9 @@ const CustomersPage: React.FC = () => {
                 </>
               ),
             },
-            {
-              key: 'tracking',
-              label: '客户追踪中心',
-              children: <CustomerTrackingCenter />,
-            },
+            ...(isCompanion
+              ? [{ key: 'tracking', label: '我的追踪', children: <CompanionTrackingPanel /> }]
+              : [{ key: 'tracking', label: '客户追踪中心', children: <CustomerTrackingCenter /> }]),
           ]}
         />
         <Modal
