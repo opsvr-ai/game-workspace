@@ -1,8 +1,10 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useCallback } from 'react';
+import { message } from 'antd';
 import { useChatStore, type Message } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
+import http from '../../api/client';
 import ChatHeader from './ChatHeader';
 import MessageList from './MessageList';
 import ChatComposer from './ChatComposer';
@@ -125,6 +127,35 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
     try { await chatApi.removeReaction?.(roomId, msgId, emoji); } catch {}
   }, [roomId]);
 
+  const extractCollectableUrl = (msg: any): string | undefined => {
+    if (msg?.attachments?.length) {
+      const img = msg.attachments.find(
+        (a: any) => a?.type === 'IMAGE' || /\.(png|jpe?g|gif|webp)(\?|$)/i.test(a?.url || ''),
+      );
+      if (img) return img.thumbnailUrl || img.url;
+    }
+    const m = (msg?.text || msg?.content || '').match(/\[img\](.*?)\[\/img\]/);
+    return m?.[1];
+  };
+
+  const collectEmoji = async (url: string) => {
+    try {
+      let list: string[] = [];
+      try {
+        list = JSON.parse(localStorage.getItem('custom-emojis') || '[]');
+      } catch {
+        list = [];
+      }
+      if (!Array.isArray(list)) list = [];
+      if (!list.includes(url)) list = [...list, url];
+      localStorage.setItem('custom-emojis', JSON.stringify(list));
+      await http.put('/auth/me/emojis', { emojis: list }).catch(() => {});
+      message.success('已收藏到表情');
+    } catch {
+      message.error('收藏失败');
+    }
+  };
+
   const handleLoadMore = useCallback(() => {
     if (!roomId || !conv?.hasMore) return;
     const oldest = conv.messages[0];
@@ -183,6 +214,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
           x={contextMenu.x} y={contextMenu.y}
           isMine={contextMenu.message.senderId === user?.id}
           canRecall={Date.now() - contextMenu.message.createdAt < 2 * 60 * 1000}
+          showCollect={!!extractCollectableUrl(contextMenu.message)}
+          onCollectEmoji={() => {
+            const url = extractCollectableUrl(contextMenu.message);
+            if (url) collectEmoji(url);
+          }}
           onClose={() => setContextMenu(null)}
           onCopy={() => navigator.clipboard.writeText(contextMenu.message.text)}
           onReply={() => handleReply(contextMenu.message)}

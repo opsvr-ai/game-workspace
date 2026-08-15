@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useRef } from 'react';
-import { CopyOutlined, UndoOutlined, DeleteOutlined } from '@ant-design/icons';
+import { CopyOutlined, UndoOutlined, DeleteOutlined, StarOutlined } from '@ant-design/icons';
 
 interface MessageContextMenuProps {
   x: number;
@@ -13,6 +13,8 @@ interface MessageContextMenuProps {
   onRecall: () => void;
   onDelete: () => void;
   onReaction: (emoji: string) => void;
+  showCollect?: boolean;
+  onCollectEmoji?: () => void;
 }
 
 const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
@@ -26,6 +28,8 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onRecall,
   onDelete,
   onReaction,
+  showCollect,
+  onCollectEmoji,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,6 +85,16 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
           onClose();
         }}
       />
+      {showCollect && onCollectEmoji && (
+        <MenuItem
+          icon={<StarOutlined />}
+          label="收藏表情"
+          onClick={() => {
+            onCollectEmoji();
+            onClose();
+          }}
+        />
+      )}
       <MenuItem
         icon={<UndoOutlined />}
         label="引用回复"
