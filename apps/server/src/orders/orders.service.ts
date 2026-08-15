@@ -142,6 +142,10 @@ export class OrdersService {
         where: { id: dto.csUserId },
         select: { username: true, role: true },
       });
+      const bridgeWindowCfg = await this.prisma.systemConfig.findUnique({
+        where: { key: 'dispatch.bridge_immediate_window_sec' },
+      });
+      const bridgeWindowSec = Number(bridgeWindowCfg?.value ?? 60);
       const payload = {
         ...newOrder,
         _createdBy: csUser?.username || '未知',
@@ -152,6 +156,17 @@ export class OrdersService {
         const bridgeSent = await this.wsGateway.broadcastToBridgedIdleCompanions(studioId, 'order:urgent', payload);
         if (bridgeSent === 0) {
           await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+        } else {
+          // 线上有推送但限时内未接，则回落到线下普通空闲
+          setTimeout(async () => {
+            const stillPending = await this.prisma.order.findFirst({
+              where: { id: newOrder.id, status: 'PENDING' },
+              select: { id: true },
+            });
+            if (stillPending) {
+              await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+            }
+          }, bridgeWindowSec * 1000);
         }
       }
     }
