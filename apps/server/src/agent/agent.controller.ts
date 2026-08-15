@@ -218,6 +218,22 @@ export class AgentController {
     const hosts: { ip: string; mac?: string }[] = [];
     const seen = new Set<string>();
 
+    // 读取宿主机 ARP 表（容器通过只读挂载 /proc/net/arp 共享）
+    try {
+      if (fs.existsSync('/host-arp')) {
+        const raw = fs.readFileSync('/host-arp', 'utf-8');
+        for (const line of raw.split('\n')) {
+          const parts = line.trim().split(/\s+/);
+          const ip = parts[0];
+          const mac = parts[3];
+          if (ip && /^\d+\.\d+\.\d+\.\d+$/.test(ip) && !seen.has(ip)) {
+            seen.add(ip);
+            hosts.push({ ip, mac: mac && mac !== '00:00:00:00:00:00' ? mac : undefined });
+          }
+        }
+      }
+    } catch {}
+
     // 1. ARP table (fast, already-communicated devices)
     try {
       const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;

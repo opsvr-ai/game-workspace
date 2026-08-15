@@ -48,6 +48,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **扫描局域网发现 0 台设备:** 服务端容器现在只读共享宿主机 ARP 表，局域网扫描可列出已通信设备，不再因容器内缺少网络工具而返回 0。
 - **语音通话媒体接口不可用:** 客服端/陪玩端现在把局域网地址标记为安全来源，修复点击语音通话时报 `Cannot read properties of undefined (reading 'getUserMedia')`；同时前端在非 Electron/非 HTTPS 环境给出明确提示。
 - **管理端退出仍需密码:** 老板/店长/客服点退出现在直接退出，不再要求输入密码；陪玩端仍保留密码保护。
 - **聊天输入框高度不记忆:** 手动调整输入框高度后会保存到本地，下次打开聊天窗口自动恢复。
