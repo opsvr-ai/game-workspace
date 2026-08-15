@@ -58,33 +58,30 @@ export class OrderWorkflowService {
 
     // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
     if (order.type === 'NEW' && companion.studioId === order.studioId) {
-      const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
-      const studioShare = Number(shareCfg?.value ?? 30);
-      const mode = String((order.customFields as any)?.deltaMission || '');
-      const isJueju = mode.includes('绝密');
-      const returnKey = isJueju ? 'dispatch.bridge_return_jueju_cents' : 'dispatch.bridge_return_jimi_cents';
-      const returnCfg = await this.prisma.systemConfig.findUnique({ where: { key: returnKey } });
-      const bridgeReturnYuan = Number(returnCfg?.value ?? (isJueju ? 1500 : 100)) / 100;
-      const csCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
-      const csBridgeYuan = Number(csCfg?.value ?? 100) / 100;
-      const done = await this.prisma.order.findMany({
-        where: { companionId, status: 'DONE' },
-        select: { type: true, amount: true },
-      });
-      const newCount = done.filter((o) => o.type === 'NEW').length;
-      const renewIncome = done
-        .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-        .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
-      const gap = order.amount * (1 - studioShare / 100) - bridgeReturnYuan - csBridgeYuan;
-      if (newCount > 0 && renewIncome / newCount < gap) {
-        const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
-        const limit = Number(limitCfg?.value ?? 1);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayNew = await this.prisma.order.count({
-          where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+      const game = order.gameName || '';
+      const listCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.game_break_even_hours' } });
+      const list = (listCfg?.value as any[]) || [];
+      const entry = list.find((e: any) => e?.game === game);
+      const breakEvenHours = Number(entry?.hours ?? 0);
+      if (breakEvenHours > 0) {
+        const done = await this.prisma.order.findMany({
+          where: { companionId, status: 'DONE' },
+          select: { type: true, duration: true },
         });
-        if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
+        const newCount = done.filter((o) => o.type === 'NEW').length;
+        const renewHours = done
+          .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
+          .reduce((s, o) => s + (o.duration || 1), 0);
+        if (newCount > 0 && renewHours / newCount < breakEvenHours) {
+          const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
+          const limit = Number(limitCfg?.value ?? 1);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayNew = await this.prisma.order.count({
+            where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+          });
+          if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
+        }
       }
     }
 

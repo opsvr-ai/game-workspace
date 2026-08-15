@@ -391,17 +391,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 只推送给「空闲且综合能力达标」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
-      const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
-      const studioShare = Number(shareCfg?.value ?? 30);
-      const orderAmount = (data as any)?.amount ?? 0;
-      const mode = String((data as any)?.customFields?.deltaMission || '');
-      const isJueju = mode.includes('绝密');
-      const returnKey = isJueju ? 'dispatch.bridge_return_jueju_cents' : 'dispatch.bridge_return_jimi_cents';
-      const returnCfg = await this.prisma.systemConfig.findUnique({ where: { key: returnKey } });
-      const bridgeReturnYuan = Number(returnCfg?.value ?? (isJueju ? 1500 : 100)) / 100;
-      const csCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
-      const csBridgeYuan = Number(csCfg?.value ?? 100) / 100;
-      const gap = orderAmount * (1 - studioShare / 100) - bridgeReturnYuan - csBridgeYuan;
+      const game = (data as any)?.gameName || '';
+      const listCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.game_break_even_hours' } });
+      const list = (listCfg?.value as any[]) || [];
+      const entry = list.find((e: any) => e?.game === game);
+      const breakEvenHours = Number(entry?.hours ?? 0);
       const idle = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
@@ -410,13 +404,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       for (const c of idle) {
         const done = await this.prisma.order.findMany({
           where: { companionId: c.id, status: 'DONE' },
-          select: { type: true, amount: true },
+          select: { type: true, duration: true },
         });
         const newCount = done.filter((o) => o.type === 'NEW').length;
-        const renewIncome = done
+        const renewHours = done
           .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-          .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
-        if (newCount === 0 || renewIncome / newCount >= gap) {
+          .reduce((s, o) => s + (o.duration || 1), 0);
+        if (breakEvenHours <= 0 || newCount === 0 || renewHours / newCount >= breakEvenHours) {
           const socketId = this.companionSockets.get(c.id);
           if (socketId) {
             this.server.to(socketId).emit(event, data);

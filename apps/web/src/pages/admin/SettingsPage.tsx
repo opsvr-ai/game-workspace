@@ -8,6 +8,7 @@ import NotificationSettings from '../settings/NotificationSettings';
 import AttendanceSettings from '../settings/AttendanceSettings';
 import CaptureSettings from '../settings/CaptureSettings';
 import DispatchCommissionSettings from '../settings/DispatchCommissionSettings';
+import GameBreakEvenSettings from '../settings/GameBreakEvenSettings';
 
 const { Text, Title } = Typography;
 
@@ -18,6 +19,7 @@ const SettingsPage: React.FC = () => {
     { key: 'studio', label: '⚙️ 运营设置', children: <StudioSettings /> },
     { key: 'capture', label: '📸 截图阈值', children: <CaptureSettings /> },
     { key: 'dispatch', label: '🧭 派单与提成', children: <DispatchCommissionSettings /> },
+    { key: 'game-break-even', label: '🎮 游戏平衡点', children: <GameBreakEvenSettings /> },
     { key: 'notification', label: '🔔 通知设置', children: <NotificationSettings /> },
     { key: 'attendance', label: '🕘 考勤设置', children: <AttendanceSettings /> },
   ];
