@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 interface UseSocketOptions {
+  namespace?: string;
   onOrderPoolUpdated?: (data: any) => void;
   onOrderGrabbed?: (data: any) => void;
   onOrderNew?: (data: any) => void;
@@ -38,9 +39,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
     if (!token) return;
 
     // Connect to API server — dev: direct to :3001, prod: same origin
-    const wsUrl = import.meta.env.DEV
+    const baseWsUrl = import.meta.env.DEV
       ? `http://${window.location.hostname}:3001`
       : `${window.location.protocol}//${window.location.host}`;
+    const wsUrl = opts.namespace ? `${baseWsUrl}${opts.namespace}` : baseWsUrl;
     const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],

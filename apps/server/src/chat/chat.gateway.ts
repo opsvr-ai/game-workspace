@@ -27,9 +27,21 @@ interface ConnectedUser {
  * Handles real-time messaging events: typing indicators, message ACKs,
  * and pushes new messages to connected users.
  */
+function isLanOrigin(origin: string): boolean {
+  return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)(\d{1,3}\.)?\d{1,3}(:\d+)?$/.test(origin);
+}
+
 @WebSocketGateway({
+  namespace: '/chat',
   cors: {
-    origin: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000').split(','),
+    origin: (origin: string | undefined, callback: (err: Error | null, allowed?: boolean) => void) => {
+      const allowed = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000').split(',');
+      if (!origin || allowed.includes(origin) || isLanOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'), false);
+      }
+    },
     credentials: true,
   },
 })

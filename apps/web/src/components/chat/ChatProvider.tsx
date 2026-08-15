@@ -49,6 +49,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // WebSocket: handle incoming messages — use getState() to avoid stale closures
   useSocket({
+    namespace: '/chat',
     onChatMessage: (data: any) => {
       if (data?.conversationId && data?.message) {
         useChatStore.getState().receiveMessage(
