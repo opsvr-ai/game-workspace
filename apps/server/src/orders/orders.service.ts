@@ -167,7 +167,11 @@ export class OrdersService {
     }
 
     if (studioId && newOrder.dispatchType === 'POOL') {
-      this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
+      if (isUrgent) {
+        this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
+      } else {
+        this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
+      }
     }
 
     // Desktop notification: DIRECT → only target companion; POOL/BROADCAST → all
@@ -182,10 +186,17 @@ export class OrdersService {
         _label: isBuDan ? '补单' : '新订单',
       });
     } else if (studioId) {
-      this.wsGateway.broadcastToBridgedStudios(studioId, 'order:new', {
-        ...newOrder,
-        _notify: true,
-      });
+      if (isUrgent) {
+        this.wsGateway.broadcastToBridgedStudios(studioId, 'order:new', {
+          ...newOrder,
+          _notify: true,
+        });
+      } else {
+        this.wsGateway.broadcastToStudio(studioId, 'order:new', {
+          ...newOrder,
+          _notify: true,
+        });
+      }
     }
 
     return newOrder;
