@@ -3,6 +3,8 @@ FROM node:24-bookworm-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tini openssl wget ca-certificates iputils-ping fping net-tools python3-impacket python3-pip \
  && pip3 install --no-cache-dir --break-system-packages impacket \
+ && curl -L https://raw.githubusercontent.com/fortra/impacket/master/examples/psexec.py -o /usr/local/bin/psexec.py \
+ && chmod +x /usr/local/bin/psexec.py \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY node_modules ./node_modules
