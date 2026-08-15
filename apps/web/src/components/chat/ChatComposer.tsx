@@ -38,10 +38,26 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const [activeTab, setActiveTab] = useState('😊 表情');
   const [customEmojis, setCustomEmojis] = useState<string[]>(loadCustomEmojis);
   const [addEmojiInput, setAddEmojiInput] = useState('');
+  const [inputHeight, setInputHeight] = useState<number>(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('chat-input-height') || '', 10);
+      return Number.isFinite(saved) && saved >= 36 ? saved : 36;
+    } catch {
+      return 36;
+    }
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLSpanElement>(null);
   const emojiPanelRef = useRef<HTMLDivElement>(null);
+
+  const persistInputHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const height = Math.max(36, el.offsetHeight);
+    setInputHeight(height);
+    localStorage.setItem('chat-input-height', String(height));
+  }, []);
 
   // 微信式交互：点击面板外或按 Esc 关闭表情面板
   useEffect(() => {
@@ -151,7 +167,8 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         </div>
 
         <textarea ref={textareaRef} value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown} onPaste={async (e) => {
+          onKeyDown={handleKeyDown} onMouseUp={persistInputHeight} onBlur={persistInputHeight}
+          onPaste={async (e) => {
             const items = e.clipboardData?.items;
             if (!items || !onUpload) return;
             for (let i = 0; i < items.length; i++) {
@@ -168,7 +185,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
             }
           }} placeholder="输入消息..." rows={1}
           style={{
-            flex: 1, height: 36, border: 'none', outline: 'none', resize: 'vertical',
+            flex: 1, height: inputHeight, border: 'none', outline: 'none', resize: 'vertical',
             fontSize: 14, lineHeight: '22px', padding: '6px 8px', background: '#F5F6FA',
             borderRadius: 6, fontFamily: 'inherit', minHeight: 36, maxHeight: 200,
           }}
