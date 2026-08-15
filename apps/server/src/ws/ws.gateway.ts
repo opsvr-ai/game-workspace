@@ -393,10 +393,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
       const studioShare = Number(shareCfg?.value ?? 30);
-      const bridgeCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
-      const bridgeFixedYuan = Number(bridgeCfg?.value ?? 100) / 100;
       const orderAmount = (data as any)?.amount ?? 0;
-      const gap = orderAmount * (1 - studioShare / 100) - bridgeFixedYuan;
+      const mode = String((data as any)?.customFields?.deltaMission || '');
+      const isJueju = mode.includes('绝密');
+      const returnKey = isJueju ? 'dispatch.bridge_return_jueju_cents' : 'dispatch.bridge_return_jimi_cents';
+      const returnCfg = await this.prisma.systemConfig.findUnique({ where: { key: returnKey } });
+      const bridgeReturnYuan = Number(returnCfg?.value ?? (isJueju ? 1500 : 100)) / 100;
+      const gap = orderAmount * (1 - studioShare / 100) - bridgeReturnYuan;
       const idle = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },

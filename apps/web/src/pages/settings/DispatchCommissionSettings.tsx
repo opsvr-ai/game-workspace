@@ -50,6 +50,8 @@ const DispatchCommissionSettings: React.FC = () => {
         'dispatch.studio_share_percent': config?.['dispatch.studio_share_percent'] ?? 30,
         'dispatch.nonqualified_daily_new_limit': config?.['dispatch.nonqualified_daily_new_limit'] ?? 1,
         'dispatch.bridge_immediate_window_sec': config?.['dispatch.bridge_immediate_window_sec'] ?? 60,
+        'dispatch.bridge_return_jimi_cents': Math.round((config?.['dispatch.bridge_return_jimi_cents'] ?? 100)),
+        'dispatch.bridge_return_jueju_cents': Math.round((config?.['dispatch.bridge_return_jueju_cents'] ?? 1500)),
         'commission.cs_offline_rate_percent': config?.['commission.cs_offline_rate_percent'] ?? 0.5,
         'commission.cs_offline_floor_cents': Math.round((config?.['commission.cs_offline_floor_cents'] ?? 200)),
         'commission.cs_bridge_fixed_cents': Math.round((config?.['commission.cs_bridge_fixed_cents'] ?? 100)),
@@ -70,6 +72,8 @@ const DispatchCommissionSettings: React.FC = () => {
   const floorYuan = (config?.['commission.cs_offline_floor_cents'] ?? 200) / 100;
   const bridgeYuan = (config?.['commission.cs_bridge_fixed_cents'] ?? 100) / 100;
   const capYuan = (config?.['commission.cs_month_cap_cents'] ?? 2000) / 100;
+  const jimiReturnYuan = (config?.['dispatch.bridge_return_jimi_cents'] ?? 100) / 100;
+  const juejuReturnYuan = (config?.['dispatch.bridge_return_jueju_cents'] ?? 1500) / 100;
 
   return (
     <div>
@@ -96,6 +100,8 @@ const DispatchCommissionSettings: React.FC = () => {
             <Field label="线下保底（元/单）" value={floorYuan} step={0.5} onChange={(v) => update('commission.cs_offline_floor_cents', Math.round(v * 100))} />
             <Field label="线上固定（元/单）" value={bridgeYuan} step={0.5} onChange={(v) => update('commission.cs_bridge_fixed_cents', Math.round(v * 100))} />
             <Field label="客服月封顶（元）" value={capYuan} step={1} onChange={(v) => update('commission.cs_month_cap_cents', Math.round(v * 100))} />
+            <Field label="机密线上返款（元）" value={jimiReturnYuan} step={1} onChange={(v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100))} />
+            <Field label="绝密线上返款（元）" value={juejuReturnYuan} step={1} onChange={(v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100))} />
           </Col>
         </Row>
       </Card>

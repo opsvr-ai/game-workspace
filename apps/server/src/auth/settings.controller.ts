@@ -67,6 +67,8 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.nonqualified_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   'dispatch.studio_share_percent': 30,
+  'dispatch.bridge_return_jimi_cents': 100,
+  'dispatch.bridge_return_jueju_cents': 1500,
   'commission.cs_offline_rate_percent': 0.5,
   'commission.cs_offline_floor_cents': 200,
   'commission.cs_bridge_fixed_cents': 100,
