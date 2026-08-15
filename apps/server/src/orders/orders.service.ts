@@ -425,6 +425,8 @@ export class OrdersService {
         csUserId: userId,
         customerId: order.customerId,
         dispatchType: 'POOL',
+        source: order.source,
+        attributedCsUserId: order.attributedCsUserId ?? order.claimedCsUserId ?? order.csUserId,
         amount: order.amount,
         gameName: order.gameName,
         duration: order.duration,
