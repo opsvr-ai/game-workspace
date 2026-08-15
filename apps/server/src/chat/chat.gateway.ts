@@ -3,8 +3,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
@@ -45,7 +43,7 @@ function isLanOrigin(origin: string): boolean {
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway {
   @WebSocketServer()
   server: Server;
 
@@ -59,30 +57,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  // ─── Connection Lifecycle ───
+  afterInit(server: Server): void {
+    // 在握手阶段完成用户注册，避免多网关共用默认命名空间时 OnGatewayConnection 不触发。
+    server.use((socket, next) => {
+      const user = this.extractUser(socket as unknown as Socket);
+      if (!user) {
+        next(new Error('Unauthorized'));
+        return;
+      }
+      (socket as unknown as Socket).data.user = user;
+      this.userSockets.set(user.userId, socket.id);
+      this.socketUsers.set(socket.id, user);
+      void socket.join(`user:${user.userId}`);
+      this.logger.log(`Chat WS connected: ${user.username} (${user.userId})`);
+      next();
+    });
 
-  handleConnection(client: Socket): void {
-    const user = this.extractUser(client);
-    if (!user) {
-      client.disconnect();
-      return;
-    }
-
-    this.userSockets.set(user.userId, client.id);
-    this.socketUsers.set(client.id, user);
-
-    // Join personal room for direct message delivery
-    client.join(`user:${user.userId}`);
-    this.logger.log(`Chat WS connected: ${user.username} (${user.userId})`);
-  }
-
-  handleDisconnect(client: Socket): void {
-    const user = this.socketUsers.get(client.id);
-    if (user) {
-      this.userSockets.delete(user.userId);
-      this.socketUsers.delete(client.id);
-      this.logger.log(`Chat WS disconnected: ${user.username}`);
-    }
+    server.on('connection', (socket) => {
+      socket.on('disconnect', () => {
+        const user = this.socketUsers.get(socket.id);
+        if (user) {
+          this.userSockets.delete(user.userId);
+          this.socketUsers.delete(socket.id);
+          this.logger.log(`Chat WS disconnected: ${user.username}`);
+        }
+      });
+    });
   }
 
   // ─── Inbound Events ───
