@@ -2,7 +2,7 @@
 FROM node:24-bookworm-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tini openssl wget ca-certificates iputils-ping fping net-tools python3-impacket python3-pip \
- && pip3 install --no-cache-dir impacket \
+ && pip3 install --no-cache-dir --break-system-packages impacket \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY node_modules ./node_modules
