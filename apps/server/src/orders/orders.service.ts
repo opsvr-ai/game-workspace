@@ -90,6 +90,7 @@ export class OrdersService {
         customerId: customerId!,
         dispatchType: dto.dispatchType === 'BROADCAST' ? 'POOL' : dto.dispatchType,
         source: (dto as any).source ?? 'OFFLINE',
+        attributedCsUserId: (dto as any).attributedCsUserId ?? dto.csUserId,
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,

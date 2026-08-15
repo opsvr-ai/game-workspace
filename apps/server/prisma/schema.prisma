@@ -198,6 +198,7 @@ model Order {
 
   // 客服自抢单/线索认领
   claimedCsUserId            String? // 认领该线索的客服
+  attributedCsUserId         String? // 归属客服（按月归集提成）
   claimedAt                  DateTime?
   csWorkWechatId             String? // 客服认领时使用的工作微信ID
   csWorkWechatName           String? // 客服认领时使用的工作微信号

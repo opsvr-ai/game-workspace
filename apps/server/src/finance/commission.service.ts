@@ -52,9 +52,9 @@ export class CommissionService {
       const users = await this.prisma.user.findMany({ where: { studioId, role: rule.role } });
       for (const u of users) {
         const baseWhere: any = {
-          claimedCsUserId: u.id,
           status: 'DONE',
           createdAt: { gte: start, lt: end },
+          OR: [{ attributedCsUserId: u.id }, { claimedCsUserId: u.id }],
         };
         if (rule.source) baseWhere.source = rule.source;
 
