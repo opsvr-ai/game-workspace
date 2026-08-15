@@ -802,6 +802,8 @@ model CommissionRule {
   type        String   @default("RATE") // RATE | FIXED
   rate        Float? // 比例，如 0.02
   fixedAmount Int? // 固定金额（分）
+  source      String? // OFFLINE | BRIDGE | null
+  floorAmount Int? // 每单保底（分）
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

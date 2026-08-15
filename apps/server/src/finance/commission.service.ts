@@ -20,6 +20,8 @@ export class CommissionService {
       type?: string;
       rate?: number | null;
       fixedAmountYuan?: number | null;
+      source?: string | null;
+      floorAmountYuan?: number | null;
       isActive?: boolean;
     },
   ) {
@@ -30,6 +32,8 @@ export class CommissionService {
       type: dto.type ?? 'RATE',
       rate: dto.rate ?? null,
       fixedAmount: dto.fixedAmountYuan != null ? yuanToCents(dto.fixedAmountYuan) : null,
+      source: dto.source ?? null,
+      floorAmount: dto.floorAmountYuan != null ? yuanToCents(dto.floorAmountYuan) : null,
       isActive: dto.isActive ?? true,
     };
     if (dto.id) {
@@ -47,29 +51,38 @@ export class CommissionService {
     for (const rule of rules) {
       const users = await this.prisma.user.findMany({ where: { studioId, role: rule.role } });
       for (const u of users) {
-        let basisValue = 0; // 元（流水）或单量
-        let basisCents = 0;
+        const baseWhere: any = {
+          claimedCsUserId: u.id,
+          status: 'DONE',
+          createdAt: { gte: start, lt: end },
+        };
+        if (rule.source) baseWhere.source = rule.source;
 
-        if (rule.basis === 'CLAIMED_AMOUNT') {
-          const agg = await this.prisma.order.aggregate({
-            where: { claimedCsUserId: u.id, status: 'DONE', createdAt: { gte: start, lt: end } },
-            _sum: { amount: true },
-          });
-          basisValue = agg._sum.amount ?? 0;
-          basisCents = yuanToCents(basisValue);
-        } else {
+        let basisValue = 0;
+        let amountCents = 0;
+
+        if (rule.type === 'FIXED' && rule.basis === 'ORDER_COUNT') {
           const count = await this.prisma.order.count({
-            where: { claimedCsUserId: u.id, status: 'DONE', createdAt: { gte: start, lt: end } },
+            where: baseWhere,
           });
           basisValue = count;
-        }
-
-        let amountCents = 0;
-        if (rule.type === 'RATE') {
-          amountCents = Math.round(basisCents * (rule.rate ?? 0));
-        } else if (rule.type === 'FIXED') {
-          const unit = rule.basis === 'CLAIMED_AMOUNT' ? 1 : Math.round(basisValue);
-          amountCents = (rule.fixedAmount ?? 0) * unit;
+          amountCents = (rule.fixedAmount ?? 0) * count;
+        } else if (rule.type === 'RATE') {
+          const orders = await this.prisma.order.findMany({ where: baseWhere, select: { amount: true } });
+          const totalYuan = orders.reduce((s, o) => s + (o.amount || 0), 0);
+          basisValue = totalYuan;
+          if (rule.floorAmount != null && rule.floorAmount > 0) {
+            amountCents = orders.reduce((s, o) => {
+              const base = Math.round((o.amount || 0) * 100 * (rule.rate ?? 0));
+              return s + Math.max(rule.floorAmount!, base);
+            }, 0);
+          } else {
+            amountCents = Math.round(yuanToCents(totalYuan) * (rule.rate ?? 0));
+          }
+        } else {
+          const agg = await this.prisma.order.aggregate({ where: baseWhere, _sum: { amount: true } });
+          basisValue = agg._sum.amount ?? 0;
+          amountCents = rule.fixedAmount ?? 0;
         }
 
         if (amountCents <= 0) continue;
