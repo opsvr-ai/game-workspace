@@ -22,7 +22,7 @@ export class CompanionsService {
     const companions = await this.prisma.companion.findMany({
       where,
       include: {
-        user: { select: { username: true, avatar: true, displayName: true } },
+        user: { select: { id: true, username: true, avatar: true, displayName: true } },
         pc: { select: { currentMode: true, isThrottled: true, lastHeartbeat: true } },
       },
     });

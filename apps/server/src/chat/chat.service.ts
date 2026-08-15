@@ -14,11 +14,25 @@ export class ChatService {
 
   /** Create or get existing ChatRoom between two users. studioId=null for cross-studio rooms. */
   async getOrCreateRoom(studioId: string, userId: string, participantId: string, orderInfo?: string) {
-    const [participantA, participantB] = [userId, participantId].sort();
+    // Normalize companionId to its underlying userId when callers pass a companion id.
+    let normalizedParticipantId = participantId;
+    const participantUser = await this.prisma.user.findUnique({
+      where: { id: participantId },
+      select: { id: true },
+    });
+    if (!participantUser) {
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: participantId },
+        select: { userId: true },
+      });
+      if (companion) normalizedParticipantId = companion.userId;
+    }
+
+    const [participantA, participantB] = [userId, normalizedParticipantId].sort();
 
     // Determine if this is a cross-studio conversation
     const otherUser = await this.prisma.user.findUnique({
-      where: { id: participantId },
+      where: { id: normalizedParticipantId },
       select: { studioId: true },
     });
     const isCrossStudio = otherUser?.studioId && otherUser.studioId !== studioId;
