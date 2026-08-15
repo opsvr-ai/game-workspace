@@ -47,6 +47,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **收藏网络表情发送后显示为地址:** 收藏的网络图片 URL 现在会以图片形式插入和显示，收藏列表里也会显示缩略图，而不是发出去一串地址。
 - **聊天连接鉴权异常:** `/chat` 通道改为使用注入的 JWT 服务验证 token，修复握手中间件中环境变量读取不稳定导致的 Unauthorized。
 - **聊天 WebSocket 连接未注册:** 改用 Socket.IO 握手中间件注册用户连接，解决独立 `/chat` 通道下连接生命周期不触发导致用户无法被找到的问题。
 - **聊天消息无法实时收到:** 聊天 WebSocket 此前与业务 WebSocket 共用默认命名空间，导致聊天连接未注册、新消息无法实时推送；现在聊天使用独立 `/chat` 命名空间，双向新消息都能即时送达。

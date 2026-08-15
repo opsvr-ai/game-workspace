@@ -66,12 +66,15 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     const el = textareaRef.current;
     const start = el?.selectionStart ?? text.length;
     const end = el?.selectionEnd ?? text.length;
+    const value = /^https?:\/\//i.test(emoji) || emoji.startsWith('/uploads/')
+      ? `[img]${emoji}[/img]`
+      : emoji;
     setText((prev) => {
-      const next = prev.slice(0, start) + emoji + prev.slice(end);
+      const next = prev.slice(0, start) + value + prev.slice(end);
       requestAnimationFrame(() => {
         if (el) {
           el.focus();
-          const pos = start + emoji.length;
+          const pos = start + value.length;
           el.setSelectionRange(pos, pos);
         }
       });
@@ -219,7 +222,13 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
                         style={{ cursor: 'pointer', fontSize: 28, padding: 4, borderRadius: 6, display: 'inline-block', transition: 'background 0.1s' }}
                         onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#F0F0F0'; }}
                         onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-                      >{emoji}</span>
+                      >
+                        {/^https?:\/\//i.test(emoji) || emoji.startsWith('/uploads/') ? (
+                          <img src={emoji} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                        ) : (
+                          emoji
+                        )}
+                      </span>
                       <DeleteOutlined
                         onClick={() => removeCustomEmoji(emoji)}
                         style={{ position: 'absolute', top: -2, right: -2, fontSize: 10, color: '#F23F42', cursor: 'pointer', background: '#FFF', borderRadius: '50%', padding: 1 }}
