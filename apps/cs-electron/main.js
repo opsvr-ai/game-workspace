@@ -2,6 +2,9 @@ const { app, BrowserWindow, session, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+// 低配电脑无独显/驱动老旧时，关闭硬件加速避免黑屏
+app.disableHardwareAcceleration();
+
 function getServerUrl() {
   const candidates = [
     path.join(process.resourcesPath, 'config.json'),
