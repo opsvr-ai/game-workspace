@@ -336,7 +336,12 @@ export class AgentService {
   }): Promise<{ success: boolean; results: { ip: string; status: string; reason: string }[] }> {
     const { targetIPs, adminUser, adminPass, serverUrl } = params;
     const apiUrl = this.sanitizeServerUrl(serverUrl);
-    const psexec = '/usr/share/doc/python3-impacket/examples/psexec.py';
+    const psexecCandidates = [
+      '/usr/share/impacket-scripts/psexec.py',
+      '/usr/bin/psexec.py',
+      '/usr/share/doc/python3-impacket/examples/psexec.py',
+    ];
+    const psexec = psexecCandidates.find((p) => fs.existsSync(p)) || psexecCandidates[0];
     const results: { ip: string; status: string; reason: string }[] = [];
 
     // Write a small PowerShell script that psexec.py will copy & execute on target

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM node:24-bookworm-slim
 RUN apt-get update \
- && apt-get install -y --no-install-recommends tini openssl wget ca-certificates iputils-ping fping net-tools python3-impacket \
+ && apt-get install -y --no-install-recommends tini openssl wget ca-certificates iputils-ping fping net-tools python3-impacket impacket-scripts \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY node_modules ./node_modules
