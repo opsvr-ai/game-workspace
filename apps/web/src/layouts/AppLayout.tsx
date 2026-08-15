@@ -945,7 +945,13 @@ const AppLayout: React.FC = () => {
                     <ConversationList onOpenChat={openChatFromNotification} onClose={() => setNotifOpen(false)} />
                   }
                 >
-                  <Badge count={totalUnread} overflowCount={99} size="default" offset={[-2, 8]}>
+                  <Badge
+                    count={totalUnread}
+                    overflowCount={99}
+                    size="default"
+                    offset={[-2, 8]}
+                    className={totalUnread > 0 ? 'badge-pop-active' : undefined}
+                  >
                     <div
                       style={{
                         borderRadius: 8,
@@ -964,7 +970,7 @@ const AppLayout: React.FC = () => {
                           color: totalUnread > 0 ? '#2563EB' : '#64748B',
                           fontSize: 20,
                         }}
-                        className={totalUnread > 0 ? 'bell-animate' : ''}
+                        className={totalUnread > 0 ? 'bell-glow-active' : ''}
                       />
                     </div>
                   </Badge>

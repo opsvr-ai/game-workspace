@@ -339,6 +339,10 @@ body {
   animation: bell-glow 2s ease-in-out infinite;
 }
 
+.badge-pop-active {
+  animation: badge-pop 0.8s ease-in-out infinite;
+}
+
 /* ── 水波动画 ── */
 .wave-container {
   overflow: hidden;

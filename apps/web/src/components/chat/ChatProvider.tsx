@@ -5,6 +5,7 @@ import { useChatSync } from '../../hooks/useChatSync';
 import { useChatStore } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
+import { playMessageSound } from '../../utils/notificationSound';
 
 interface ChatContextValue {
   wsConnected: boolean;
@@ -59,6 +60,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     onMessageNew: (data: any) => {
       if (data?.roomId && data?.message) {
+        const state = useChatStore.getState();
+        const isMine = data.message.senderId === state.myUserId;
+        const isActive = state.activeConversationId === data.roomId;
+        if (!isMine && !isActive) playMessageSound();
         useChatStore.getState().receiveMessage(data.roomId, data.message);
       }
     },
