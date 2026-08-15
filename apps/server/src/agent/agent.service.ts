@@ -53,6 +53,17 @@ export class AgentService {
     };
   }
 
+  async getCsLatestVersion() {
+    const [versionCfg, urlCfg] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_version' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_download_url' } }),
+    ]);
+    return {
+      version: (versionCfg?.value as string) ?? '1.0.0',
+      downloadUrl: (urlCfg?.value as string) ?? '/api/agent/download/cs',
+    };
+  }
+
   async getVersionStatus() {
     const companions = await this.prisma.companion.findMany({
       where: { status: { not: 'OFFLINE' } },
@@ -92,6 +103,23 @@ export class AgentService {
     if (fs.existsSync(exePath)) return exePath;
     const releaseDir = path.join(projectRoot, 'apps/companion-electron/release');
     if (fs.existsSync(releaseDir)) {
+      const files = fs.readdirSync(releaseDir);
+      const exe = files.find((f) => f.endsWith('.exe'));
+      if (exe) return path.join(releaseDir, exe);
+    }
+    return exePath;
+  }
+
+  getLatestCsExePath(): string {
+    const projectRoot = path.resolve(process.cwd(), '../..');
+    const exePath = path.join(projectRoot, 'uploads/agent-cs-setup.exe');
+    if (fs.existsSync(exePath)) return exePath;
+    const releaseDirs = [
+      path.join(projectRoot, 'apps/cs-electron/release4'),
+      path.join(projectRoot, 'apps/cs-electron/release'),
+    ];
+    for (const releaseDir of releaseDirs) {
+      if (!fs.existsSync(releaseDir)) continue;
       const files = fs.readdirSync(releaseDir);
       const exe = files.find((f) => f.endsWith('.exe'));
       if (exe) return path.join(releaseDir, exe);

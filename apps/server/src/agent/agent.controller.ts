@@ -51,6 +51,13 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  // Public: CS client checks for its own updates
+  @Get('cs-version')
+  async getCsVersion(): Promise<ApiResponse<unknown>> {
+    const data = await this.agentService.getCsLatestVersion();
+    return { code: 200, message: 'ok', data };
+  }
+
   // Companion client reports heartbeat/version over REST as a reliable fallback
   @Post('heartbeat')
   @UseGuards(AuthGuard('jwt'))
@@ -84,6 +91,17 @@ export class AgentController {
       return;
     }
     res.download(exePath, 'ChunlvAgent-Setup.exe');
+  }
+
+  // Public: CS client downloads its own installer
+  @Get('download/cs')
+  async downloadCs(@Res() res: Response): Promise<void> {
+    const exePath = this.agentService.getLatestCsExePath();
+    if (!fs.existsSync(exePath)) {
+      res.status(404).json({ code: 404, message: '客服端安装包不存在，请先构建', data: null });
+      return;
+    }
+    res.download(exePath, 'Chunlv-CS-Setup.exe');
   }
 
   // Admin only: view version distribution

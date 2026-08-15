@@ -25,6 +25,34 @@ function getServerUrl() {
 
 let mainWindow = null;
 
+function checkForUpdates() {
+  try {
+    const serverUrl = getServerUrl().replace(/\/$/, '');
+    fetch(`${serverUrl}/api/agent/cs-version`)
+      .then((res) => res.json())
+      .then((json) => {
+        const latest = json?.data?.version;
+        const downloadUrl = json?.data?.downloadUrl;
+        if (!latest || !downloadUrl || latest === app.getVersion()) return;
+        const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${serverUrl}${downloadUrl}`;
+        const out = path.join(app.getPath('temp'), `Chunlv-CS-Setup-${latest}.exe`);
+        const ps = [
+          `$ProgressPreference='SilentlyContinue'`,
+          `Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}'`,
+          `Start-Process -FilePath '${out}' -ArgumentList '/S' -Wait`,
+          `Remove-Item '${out}' -Force`,
+        ].join('; ');
+        const { spawn } = require('child_process');
+        spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
+          detached: true,
+          stdio: 'ignore',
+        }).unref();
+        setTimeout(() => app.quit(), 1500);
+      })
+      .catch(() => {});
+  } catch {}
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -64,6 +92,8 @@ app.whenReady().then(() => {
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
   createWindow();
+  setTimeout(checkForUpdates, 20000);
+  setInterval(checkForUpdates, 5 * 60 * 1000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
