@@ -72,10 +72,11 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.game_break_even_hours': [
     { game: '三角洲行动', hours: 1.75 },
     { game: '无畏契约', hours: 0 },
-    { game: 'PUBG', hours: 0 },
+    { game: '绝地求生', hours: 0 },
     { game: 'CS2', hours: 0 },
     { game: '永劫无间', hours: 0 },
     { game: '王者荣耀', hours: 0 },
+    { game: '英雄联盟', hours: 0 },
     { game: '金铲铲', hours: 0 },
     { game: '三角洲手游', hours: 0 },
     { game: '和平精英', hours: 0 },
