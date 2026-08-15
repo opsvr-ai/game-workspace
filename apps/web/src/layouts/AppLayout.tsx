@@ -264,6 +264,7 @@ const AppLayout: React.FC = () => {
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
   const [appVersion, setAppVersion] = React.useState('');
+  const [myCommission, setMyCommission] = React.useState<number | null>(null);
   useEffect(() => {
     const api = (window as any).electronAPI;
     api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
@@ -289,6 +290,17 @@ const AppLayout: React.FC = () => {
     const timer = setInterval(send, 30_000);
     return () => clearInterval(timer);
   }, [appVersion]);
+  useEffect(() => {
+    if (user?.role === 'CS') {
+      http
+        .get('/finance/commission/my-month')
+        .then(({ data }: any) => {
+          const rows = data?.data?.rows;
+          setMyCommission(rows?.[0]?.totalYuan ?? 0);
+        })
+        .catch(() => {});
+    }
+  }, [user?.role]);
   useEffect(() => {
     if (user?.studioId) {
       http
@@ -1012,6 +1024,11 @@ const AppLayout: React.FC = () => {
                     <Text style={{ color: '#1E293B', fontWeight: 500 }}>{user.displayName || user.username}</Text>
                   </div>
                   <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
+                  {user?.role === 'CS' && myCommission != null && (
+                    <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>
+                      本月预计提成 ¥{Number(myCommission).toFixed(2)}
+                    </Text>
+                  )}
                 </>
               )}
               {user?.role !== 'COMPANION' && (
