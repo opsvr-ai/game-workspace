@@ -35,7 +35,17 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
-  mainWindow.loadURL(getServerUrl());
+  const serverUrl = getServerUrl().replace(/\/$/, '');
+  mainWindow.loadURL(`${serverUrl}/login`);
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    if (code !== -3) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(`${serverUrl}/login`);
+        }
+      }, 2000);
+    }
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
