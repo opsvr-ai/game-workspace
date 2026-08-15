@@ -329,7 +329,6 @@ const CSDispatchView: React.FC = () => {
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
                       }}
                       onClick={() => {
-                        setSelectedCompanionId(c.id);
                         // Mark read via chatStore instead of localStorage
                         const store = useChatStore.getState();
                         if (store.conversations[c.id]) {
@@ -341,17 +340,20 @@ const CSDispatchView: React.FC = () => {
                         const orderInfo = order
                           ? `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 客户' + order.customer.customerCode : ''}`
                           : undefined;
-                        // Open conversation via new store
-                        useChatStore.getState().openConversation(
-                          c.id,
-                          {
-                            userId: u?.id || c.id,
-                            username: u?.username || c.id,
-                            displayName: u?.displayName,
-                            avatar: u?.avatar,
-                            role: 'COMPANION',
-                          },
-                          orderInfo,
+                        window.dispatchEvent(
+                          new CustomEvent('open-chat-modal', {
+                            detail: {
+                              conversationId: c.id,
+                              participant: {
+                                userId: u?.id || c.id,
+                                username: u?.username || c.id,
+                                displayName: u?.displayName,
+                                avatar: u?.avatar,
+                                role: 'COMPANION',
+                              },
+                              orderInfo,
+                            },
+                          }),
                         );
                       }}
                     >
@@ -429,7 +431,7 @@ const CSDispatchView: React.FC = () => {
                             onClick={async (e) => {
                               e.stopPropagation();
                               const u = c.user as any;
-                              const convId = await useChatStore.getState().openConversation(c.id, {
+                              await useChatStore.getState().openConversation(c.id, {
                                 userId: u?.id || c.id,
                                 username: u?.username || '未知',
                                 displayName: u?.displayName || u?.username || '未知',
@@ -439,7 +441,7 @@ const CSDispatchView: React.FC = () => {
                               window.dispatchEvent(
                                 new CustomEvent('open-chat-modal', {
                                   detail: {
-                                    conversationId: convId,
+                                    conversationId: c.id,
                                     participant: {
                                       userId: u?.id || c.id,
                                       username: u?.username || '未知',
