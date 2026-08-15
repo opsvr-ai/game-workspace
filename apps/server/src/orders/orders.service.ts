@@ -149,7 +149,10 @@ export class OrdersService {
       };
       const sent = await this.wsGateway.broadcastToQualifiedIdleCompanions(studioId, 'order:urgent', payload);
       if (sent === 0) {
-        await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+        const bridgeSent = await this.wsGateway.broadcastToBridgedIdleCompanions(studioId, 'order:urgent', payload);
+        if (bridgeSent === 0) {
+          await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+        }
       }
     }
 

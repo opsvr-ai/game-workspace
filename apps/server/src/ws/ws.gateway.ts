@@ -424,6 +424,31 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /** 推送给桥接工作室的空闲陪玩，返回实际推送人数。 */
+  async broadcastToBridgedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
+    try {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      let sent = 0;
+      for (const bid of bridgedIds) {
+        const idle = await this.prisma.companion.findMany({
+          where: { studioId: bid, status: 'AVAILABLE' },
+          select: { id: true },
+        });
+        for (const c of idle) {
+          const socketId = this.companionSockets.get(c.id);
+          if (socketId) {
+            this.server.to(socketId).emit(event, data);
+            sent += 1;
+          }
+        }
+      }
+      return sent;
+    } catch (err) {
+      logger.error('broadcastToBridgedIdleCompanions failed', { error: (err as Error).message, studioId, event });
+      return 0;
+    }
+  }
+
   notifyUser(userId: string, event: string, data: unknown): void {
     const socketId = this.userSockets.get(userId);
     if (socketId) {
