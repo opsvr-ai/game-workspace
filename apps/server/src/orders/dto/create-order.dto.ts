@@ -8,6 +8,7 @@ export class CreateOrderDto {
   @IsOptional() @IsString() studioId?: string;
   @IsOptional() @IsString() customerId?: string;
   @IsEnum(DispatchType) dispatchType: DispatchType;
+  @IsOptional() @IsString() source?: string;
   @IsNumber() @Min(0) amount: number;
   @IsString() gameName: string;
   @IsOptional() @IsNumber() duration?: number;

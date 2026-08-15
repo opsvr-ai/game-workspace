@@ -89,6 +89,7 @@ export class OrdersService {
         csUserId: dto.csUserId,
         customerId: customerId!,
         dispatchType: dto.dispatchType === 'BROADCAST' ? 'POOL' : dto.dispatchType,
+        source: (dto as any).source ?? 'OFFLINE',
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,
