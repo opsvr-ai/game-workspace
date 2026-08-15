@@ -8,6 +8,7 @@ import { companionsApi } from '../api/companions';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
+import { useChatStore } from '../stores/chatStore';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import PageHeader from '../components/PageHeader';
@@ -135,6 +136,30 @@ const OrderPoolPage: React.FC = () => {
         role: 'CS',
       },
       orderInfo: `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}`,
+    });
+  };
+
+  const openCompanionChat = async (companion: any) => {
+    const u = companion.user as any;
+    await useChatStore.getState().openConversation(
+      companion.id,
+      {
+        userId: u?.id || companion.id,
+        username: u?.username || companion.id,
+        displayName: u?.displayName || u?.username || companion.id,
+        avatar: u?.avatar,
+        role: 'COMPANION',
+      },
+    );
+    setChatPartner({
+      conversationId: companion.id,
+      participant: {
+        userId: u?.id || companion.id,
+        username: u?.username || companion.id,
+        displayName: u?.displayName || u?.username || companion.id,
+        avatar: u?.avatar,
+        role: 'COMPANION',
+      },
     });
   };
 
@@ -397,9 +422,19 @@ const OrderPoolPage: React.FC = () => {
                       </div>
                       <Text strong>{u?.displayName || u?.username || c.id}</Text>
                     </Space>
-                    <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
-                      {companionStatusConfig[c.status]?.label || c.status}
-                    </Tag>
+                    <Space size={4}>
+                      <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
+                        {companionStatusConfig[c.status]?.label || c.status}
+                      </Tag>
+                      <Button
+                        size="small"
+                        type="text"
+                        style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
+                        onClick={() => openCompanionChat(c)}
+                      >
+                        💬
+                      </Button>
+                    </Space>
                   </div>
                   {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
                     <div style={{ marginTop: 4, marginLeft: 40, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
