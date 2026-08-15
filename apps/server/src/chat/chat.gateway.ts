@@ -10,6 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
+import { JwtService } from '@nestjs/jwt';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
 interface ConnectedUser {
@@ -55,7 +56,10 @@ export class ChatGateway {
   /** Map socketId → user data */
   private readonly socketUsers = new Map<string, ConnectedUser>();
 
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly jwt: JwtService,
+  ) {}
 
   afterInit(server: Server): void {
     // 在握手阶段完成用户注册，避免多网关共用默认命名空间时 OnGatewayConnection 不触发。
@@ -213,10 +217,9 @@ export class ChatGateway {
     if (!token) return null;
 
     try {
-      const jwt = require('jsonwebtoken');
       const secret = process.env.JWT_SECRET;
       if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as any;
+      const payload = this.jwt.verify(token, { secret }) as any;
       return {
         userId: payload.sub,
         username: payload.username,

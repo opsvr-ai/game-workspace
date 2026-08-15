@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
@@ -11,7 +12,12 @@ import { WsModule } from '../ws/ws.module';
 import { StudiosModule } from '../studios/studios.module';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => WsModule), StudiosModule],
+  imports: [
+    JwtModule.register({ secret: process.env.JWT_SECRET }),
+    PrismaModule,
+    forwardRef(() => WsModule),
+    StudiosModule,
+  ],
   controllers: [ChatController],
   providers: [
     ChatService,
