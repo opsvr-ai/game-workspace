@@ -48,6 +48,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **远程安装账号密码无法填写:** 「一键全部安装」上方新增管理员账号和密码输入框，避免固定使用 Administrator 空密码导致认证失败。
 - **远程安装找不到 psexec.py:** 补充安装 `impacket-scripts` 并让服务端自动探测多个 psexec.py 路径。
 - **一键全部安装误报成功:** 前端现在按实际返回结果标记每台设备成功/失败；服务端容器补充远程安装所需的 `impacket` 工具。
 - **扫描局域网继续优化:** 容器镜像安装 `fping/ping`，扫描时会快速扫 `192.168.0.0/24` 与 `192.168.1.0/24`，能直接发现局域网存活设备。

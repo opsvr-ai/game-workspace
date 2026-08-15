@@ -567,6 +567,20 @@ const AgentVersionPage: React.FC = () => {
                     onChange={(e) => setRemoteIPs(e.target.value)}
                     placeholder="192.168.1.10&#10;192.168.1.11"
                   />
+                  <Space size={8} style={{ marginTop: 8, width: '100%' }}>
+                    <Input
+                      value={remoteUser}
+                      onChange={(e) => setRemoteUser(e.target.value)}
+                      placeholder="管理员账号"
+                      style={{ width: 150 }}
+                    />
+                    <Input.Password
+                      value={remotePass}
+                      onChange={(e) => setRemotePass(e.target.value)}
+                      placeholder="管理员密码（空密码留空）"
+                      style={{ width: 210 }}
+                    />
+                  </Space>
                   {remoteScript && (
                     <pre
                       style={{
@@ -603,8 +617,8 @@ const AgentVersionPage: React.FC = () => {
                         if (isElectron && (window as any).electronAPI?.executeRemoteDeploy) {
                           const res = await agentApi.getRemoteDeployScript({
                             targetIPs: ips,
-                            adminUser: 'Administrator',
-                            adminPass: '',
+                            adminUser: remoteUser,
+                            adminPass: remotePass,
                           });
                           const script = (res.data as any).data?.script;
                           if (!script) {
@@ -617,7 +631,11 @@ const AgentVersionPage: React.FC = () => {
                           setDeployOutput(r.output || (r.success ? '全部成功' : '部分失败'));
                         } else {
                           // Path 2: Browser — server executes directly via psexec.py
-                          const res = await agentApi.executeRemoteDeploy({ targetIPs: ips });
+                          const res = await agentApi.executeRemoteDeploy({
+                            targetIPs: ips,
+                            adminUser: remoteUser,
+                            adminPass: remotePass,
+                          });
                           const result = (res.data as any).data;
                           if (result?.success) {
                             message.success(
