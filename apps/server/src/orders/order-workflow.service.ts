@@ -58,27 +58,25 @@ export class OrderWorkflowService {
 
     // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
     if (order.type === 'NEW' && companion.studioId === order.studioId) {
-      const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.qualified_threshold' } });
-      const threshold = Number(cfg?.value ?? 90);
+      const breakCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.break_even_hours' } });
+      const breakHours = Number(breakCfg?.value ?? 2.5);
       const done = await this.prisma.order.findMany({
         where: { companionId, status: 'DONE' },
-        select: { type: true },
+        select: { type: true, duration: true },
       });
-      if (done.length > 0) {
-        const renew = done.filter((o) => o.type === 'RENEW').length;
-        const repurchase = done.filter((o) => o.type === 'REPURCHASE').length;
-        const firstDone = done.filter((o) => o.type === 'NEW').length;
-        const score = Math.round(((renew + repurchase + firstDone) / done.length) * 100);
-        if (score < threshold) {
-          const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
-          const limit = Number(limitCfg?.value ?? 1);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayNew = await this.prisma.order.count({
-            where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
-          });
-          if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
-        }
+      const newCount = done.filter((o) => o.type === 'NEW').length;
+      const renewHours = done
+        .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
+        .reduce((s, o) => s + (o.duration || 1), 0);
+      if (newCount > 0 && renewHours / newCount < breakHours) {
+        const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
+        const limit = Number(limitCfg?.value ?? 1);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayNew = await this.prisma.order.count({
+          where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+        });
+        if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
       }
     }
 

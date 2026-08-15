@@ -391,8 +391,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 只推送给「空闲且综合能力达标」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
-      const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.qualified_threshold' } });
-      const threshold = Number(cfg?.value ?? 90);
+      const breakCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.break_even_hours' } });
+      const breakHours = Number(breakCfg?.value ?? 2.5);
       const idle = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
@@ -401,15 +401,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       for (const c of idle) {
         const done = await this.prisma.order.findMany({
           where: { companionId: c.id, status: 'DONE' },
-          select: { type: true },
+          select: { type: true, duration: true },
         });
-        const total = done.length;
-        if (total === 0) continue;
-        const renew = done.filter((o) => o.type === 'RENEW').length;
-        const repurchase = done.filter((o) => o.type === 'REPURCHASE').length;
-        const firstDone = done.filter((o) => o.type === 'NEW').length;
-        const score = Math.round(((renew + repurchase + firstDone) / total) * 100);
-        if (score >= threshold) {
+        const newCount = done.filter((o) => o.type === 'NEW').length;
+        const renewHours = done
+          .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
+          .reduce((s, o) => s + (o.duration || 1), 0);
+        if (newCount === 0 || renewHours / newCount >= breakHours) {
           const socketId = this.companionSockets.get(c.id);
           if (socketId) {
             this.server.to(socketId).emit(event, data);
