@@ -265,6 +265,10 @@ const AppLayout: React.FC = () => {
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
   const [appVersion, setAppVersion] = React.useState('');
   const [myCommission, setMyCommission] = React.useState<number | null>(null);
+  const isCsClient = typeof window !== 'undefined'
+    && !!(window as any).electronAPI
+    && !(window as any).electronAPI?.getSavedCredentials
+    && !(window as any).electronAPI?.onStatusChanged;
   useEffect(() => {
     const api = (window as any).electronAPI;
     api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
@@ -1024,6 +1028,11 @@ const AppLayout: React.FC = () => {
                     <Text style={{ color: '#1E293B', fontWeight: 500 }}>{user.displayName || user.username}</Text>
                   </div>
                   <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
+                  {isCsClient && (
+                    <Tag color="cyan" style={{ marginInlineEnd: 0, fontWeight: 600 }}>
+                      客服端
+                    </Tag>
+                  )}
                   {user?.role === 'CS' && myCommission != null && (
                     <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>
                       本月预计提成 ¥{Number(myCommission).toFixed(2)}
