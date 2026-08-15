@@ -234,6 +234,26 @@ export class AgentController {
       }
     } catch {}
 
+    // 2. 用 fping 快速扫常见局域网段，触发宿主机 ARP 更新并直接发现存活设备
+    try {
+      const subnets = ['192.168.0.0/24', '192.168.1.0/24'];
+      for (const subnet of subnets) {
+        try {
+          const result = execSync(`fping -a -g ${subnet} -r 1 -t 300 2>/dev/null || true`, {
+            timeout: 8000,
+            encoding: 'utf-8',
+          }) as string;
+          for (const line of result.split('\n')) {
+            const ip = line.trim();
+            if (ip && /^\d+\.\d+\.\d+\.\d+$/.test(ip) && !seen.has(ip)) {
+              seen.add(ip);
+              hosts.push({ ip });
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+
     // 1. ARP table (fast, already-communicated devices)
     try {
       const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;
