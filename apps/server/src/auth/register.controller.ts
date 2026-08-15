@@ -68,8 +68,8 @@ export class RegisterController {
     if (!body.password || body.password.length < 6) {
       return { code: 400, message: '密码至少6位', data: null };
     }
-    // Only allow COMPANION self-registration; ADMIN/CS must be created by OWNER
-    const role = body.role === 'COMPANION' ? 'COMPANION' : 'COMPANION';
+    const allowedRoles = ['ADMIN', 'CS', 'COMPANION'];
+    const role = allowedRoles.includes(body.role as string) ? (body.role as string) : 'COMPANION';
 
     // 校验必填 (ADMIN with studioName doesn't need studioId — auto-creates studio)
     const needsStudioId = false;
@@ -103,7 +103,7 @@ export class RegisterController {
 
     const passwordHash = await bcrypt.hash(body.password, 10);
 
-    const isCompanion = true;
+    const isCompanion = role === 'COMPANION';
 
     let studioId = body.studioId;
 
