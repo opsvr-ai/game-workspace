@@ -645,11 +645,11 @@ const AgentVersionPage: React.FC = () => {
                       <Text strong>安装结果：</Text>
                       {scannedIPs.map((h, i) => {
                         const ok =
-                          deployOutput.includes(`${h.ip} ✓`) ||
-                          (deployOutput.includes(`${h.ip}`) && !deployOutput.includes(`${h.ip} ✗`));
+                          deployOutput.includes(`[✓] ${h.ip}`) ||
+                          deployOutput.includes(`${h.ip} ✓`);
                         const fail =
-                          deployOutput.includes(`${h.ip} ✗`) ||
-                          (deployOutput.includes(h.ip) && deployOutput.includes('fail'));
+                          deployOutput.includes(`[✗] ${h.ip}`) ||
+                          deployOutput.includes(`${h.ip} ✗`);
                         return (
                           <div key={h.ip} style={{ padding: '2px 0', fontSize: 12 }}>
                             <Tag color={fail ? 'red' : 'green'}>{fail ? '✗' : '✓'}</Tag>

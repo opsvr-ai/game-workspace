@@ -48,6 +48,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **一键全部安装误报成功:** 前端现在按实际返回结果标记每台设备成功/失败；服务端容器补充远程安装所需的 `impacket` 工具。
 - **扫描局域网继续优化:** 容器镜像安装 `fping/ping`，扫描时会快速扫 `192.168.0.0/24` 与 `192.168.1.0/24`，能直接发现局域网存活设备。
 - **扫描局域网发现 0 台设备:** 服务端容器现在只读共享宿主机 ARP 表，局域网扫描可列出已通信设备，不再因容器内缺少网络工具而返回 0。
 - **语音通话媒体接口不可用:** 客服端/陪玩端现在把局域网地址标记为安全来源，修复点击语音通话时报 `Cannot read properties of undefined (reading 'getUserMedia')`；同时前端在非 Electron/非 HTTPS 环境给出明确提示。
