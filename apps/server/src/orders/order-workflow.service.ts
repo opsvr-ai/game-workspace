@@ -65,6 +65,8 @@ export class OrderWorkflowService {
       const returnKey = isJueju ? 'dispatch.bridge_return_jueju_cents' : 'dispatch.bridge_return_jimi_cents';
       const returnCfg = await this.prisma.systemConfig.findUnique({ where: { key: returnKey } });
       const bridgeReturnYuan = Number(returnCfg?.value ?? (isJueju ? 1500 : 100)) / 100;
+      const csCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
+      const csBridgeYuan = Number(csCfg?.value ?? 100) / 100;
       const done = await this.prisma.order.findMany({
         where: { companionId, status: 'DONE' },
         select: { type: true, amount: true },
@@ -73,7 +75,7 @@ export class OrderWorkflowService {
       const renewIncome = done
         .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
         .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
-      const gap = order.amount * (1 - studioShare / 100) - bridgeReturnYuan;
+      const gap = order.amount * (1 - studioShare / 100) - bridgeReturnYuan - csBridgeYuan;
       if (newCount > 0 && renewIncome / newCount < gap) {
         const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
         const limit = Number(limitCfg?.value ?? 1);
