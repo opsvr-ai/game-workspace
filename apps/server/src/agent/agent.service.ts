@@ -374,7 +374,7 @@ export class AgentService {
       logger.log(`Deploying to ${trimmed}...`);
       try {
         // psexec.py -c copies the script to target and executes it via powershell
-        const creds = safePass ? `./${safeUser}:${safePass}@${trimmed}` : `./${safeUser}@${trimmed}`;
+        const creds = safePass ? `${safeUser}:${safePass}@${trimmed}` : `${safeUser}@${trimmed}`;
         const noPassFlag = safePass ? '' : ' -no-pass';
         const args = [psexec];
         if (noPassFlag) args.push('-no-pass');
