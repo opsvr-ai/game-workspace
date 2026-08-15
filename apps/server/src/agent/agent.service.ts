@@ -376,9 +376,10 @@ export class AgentService {
         // psexec.py -c copies the script to target and executes it via powershell
         const creds = safePass ? `${safeUser}:${safePass}@${trimmed}` : `${safeUser}@${trimmed}`;
         const noPassFlag = safePass ? '' : ' -no-pass';
+        const remoteCommand = 'powershell -ExecutionPolicy Bypass -File %TEMP%\\chunlv-deploy.ps1';
         const args = [psexec];
         if (noPassFlag) args.push('-no-pass');
-        args.push('-c', psScriptPath, creds, 'powershell', '-ExecutionPolicy', 'Bypass', '-File', '%TEMP%\\chunlv-deploy.ps1');
+        args.push('-c', psScriptPath, creds, remoteCommand);
 
         const { stdout, stderr } = await execFileAsync('python3', args, { timeout: 180_000 });
         const output = stdout + (stderr || '');
