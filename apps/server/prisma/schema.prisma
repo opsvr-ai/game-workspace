@@ -171,6 +171,7 @@ model Order {
   companionId   String?
   customerId    String
   dispatchType  String
+  source        String    @default("OFFLINE") // OFFLINE | BRIDGE
   status        String    @default("PENDING")
   amount        Float
   gameName      String

@@ -26,6 +26,11 @@ export enum DispatchType {
   DIRECT = 'DIRECT',
 }
 
+export enum OrderSource {
+  OFFLINE = 'OFFLINE',
+  BRIDGE = 'BRIDGE',
+}
+
 export enum CompanionStatus {
   AVAILABLE = 'AVAILABLE',
   BUSY = 'BUSY',

@@ -62,6 +62,12 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'anomaly.hours_drop_percent': 50,
   'anomaly.spend_drop_percent': 50,
   'anomaly.price_tier_downgrade_enabled': true,
+  'dispatch.bridge_immediate_window_sec': 60,
+  'dispatch.qualified_threshold': 90,
+  'commission.cs_offline_rate_percent': 1,
+  'commission.cs_offline_floor_cents': 100,
+  'commission.cs_bridge_fixed_cents': 100,
+  'commission.attribution_window': 'month',
 };
 
 @Controller()
