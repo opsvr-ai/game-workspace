@@ -47,7 +47,8 @@ const DispatchCommissionSettings: React.FC = () => {
     setSaving(true);
     try {
       await configApi.update({
-        'dispatch.qualified_threshold': config?.['dispatch.qualified_threshold'] ?? 90,
+        'dispatch.break_even_hours': config?.['dispatch.break_even_hours'] ?? 2.5,
+        'dispatch.nonqualified_daily_new_limit': config?.['dispatch.nonqualified_daily_new_limit'] ?? 1,
         'dispatch.bridge_immediate_window_sec': config?.['dispatch.bridge_immediate_window_sec'] ?? 60,
         'commission.cs_offline_rate_percent': config?.['commission.cs_offline_rate_percent'] ?? 0.5,
         'commission.cs_offline_floor_cents': Math.round((config?.['commission.cs_offline_floor_cents'] ?? 200)),
@@ -86,7 +87,8 @@ const DispatchCommissionSettings: React.FC = () => {
         </Text>
         <Row gutter={24}>
           <Col span={12}>
-            <Field label="优秀阈值（%）" value={config?.['dispatch.qualified_threshold'] ?? 90} max={300} onChange={(v) => update('dispatch.qualified_threshold', v)} suffix="综合成功率达标线" />
+            <Field label="盈亏平衡点（小时）" value={config?.['dispatch.break_even_hours'] ?? 2.5} step={0.1} onChange={(v) => update('dispatch.break_even_hours', v)} suffix="每首单需带来这么多续单/复购" />
+            <Field label="不优秀每日新客名额" value={config?.['dispatch.nonqualified_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.nonqualified_daily_new_limit', v)} suffix="兜底名额" />
             <Field label="线上响应窗口（秒）" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
             <Field label="线下续购比例（%）" value={config?.['commission.cs_offline_rate_percent'] ?? 0.5} step={0.1} max={100} onChange={(v) => update('commission.cs_offline_rate_percent', v)} />
           </Col>
