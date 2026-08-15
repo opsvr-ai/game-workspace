@@ -154,7 +154,14 @@ export class OrderDispatchService {
         const firstDone = done.filter((o) => o.type === 'NEW').length;
         const score = Math.round(((renew + repurchase + firstDone) / done.length) * 100);
         if (score < threshold) {
-          throw new ForbiddenException('综合能力未达标，不能抢新客首单');
+          const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
+          const limit = Number(limitCfg?.value ?? 1);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayNew = await this.prisma.order.count({
+            where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+          });
+          if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
         }
       }
     }
