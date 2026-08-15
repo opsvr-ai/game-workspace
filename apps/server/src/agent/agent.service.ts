@@ -337,6 +337,7 @@ export class AgentService {
     const { targetIPs, adminUser, adminPass, serverUrl } = params;
     const apiUrl = this.sanitizeServerUrl(serverUrl);
     const psexecCandidates = [
+      '/usr/local/bin/psexec.py',
       '/usr/share/impacket-scripts/psexec.py',
       '/usr/bin/psexec.py',
       '/usr/share/doc/python3-impacket/examples/psexec.py',
