@@ -102,6 +102,13 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('account-reconciliation')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async accountReconciliation(@Req() req: any, @Query('day') day: string, @Query('studioId') studioId?: string) {
+    const data = await this.reconciliations.getAccountReconciliation(studioIdFor(req, studioId), day);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('risk-queue')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async riskQueue(@Req() req: any, @Query('studioId') studioId?: string) {
