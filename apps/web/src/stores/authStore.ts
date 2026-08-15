@@ -11,7 +11,7 @@ interface AuthState {
   setUser: (user: UserInfo) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: !!sessionStorage.getItem('accessToken'),
 
@@ -30,7 +30,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     const ea = (window as any).electronAPI;
-    if (ea?.promptLogoutPassword) {
+    const role = get().user?.role;
+    if (role === 'COMPANION' && ea?.promptLogoutPassword) {
       await ea.promptLogoutPassword();
     }
     sessionStorage.removeItem('accessToken');
