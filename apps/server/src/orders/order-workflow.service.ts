@@ -56,6 +56,25 @@ export class OrderWorkflowService {
       throw new ForbiddenException('不能抢自己发布的订单');
     }
 
+    // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
+    if (order.type === 'NEW' && companion.studioId === order.studioId) {
+      const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.qualified_threshold' } });
+      const threshold = Number(cfg?.value ?? 90);
+      const done = await this.prisma.order.findMany({
+        where: { companionId, status: 'DONE' },
+        select: { type: true },
+      });
+      if (done.length > 0) {
+        const renew = done.filter((o) => o.type === 'RENEW').length;
+        const repurchase = done.filter((o) => o.type === 'REPURCHASE').length;
+        const firstDone = done.filter((o) => o.type === 'NEW').length;
+        const score = Math.round(((renew + repurchase + firstDone) / done.length) * 100);
+        if (score < threshold) {
+          throw new ForbiddenException('综合能力未达标，不能抢新客首单');
+        }
+      }
+    }
+
     // Revenue threshold check — skip for peer orders (created by companions)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
     const isPeerOrder = creator?.role === 'COMPANION';

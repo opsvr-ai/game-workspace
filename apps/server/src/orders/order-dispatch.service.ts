@@ -132,14 +132,32 @@ export class OrderDispatchService {
     // First fetch order to get customerId and validate
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true, studioId: true, dispatchType: true, csUserId: true },
+      select: { id: true, customerId: true, studioId: true, dispatchType: true, csUserId: true, type: true, source: true },
     });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.dispatchType !== 'POOL') throw new ForbiddenException('该订单不在抢单池中');
 
     // Prevent self-grabbing
-    const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true } });
+    const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
+
+    if (order.type === 'NEW' && comp && comp.studioId === order.studioId) {
+      const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.qualified_threshold' } });
+      const threshold = Number(cfg?.value ?? 90);
+      const done = await this.prisma.order.findMany({
+        where: { companionId, status: 'DONE' },
+        select: { type: true },
+      });
+      if (done.length > 0) {
+        const renew = done.filter((o) => o.type === 'RENEW').length;
+        const repurchase = done.filter((o) => o.type === 'REPURCHASE').length;
+        const firstDone = done.filter((o) => o.type === 'NEW').length;
+        const score = Math.round(((renew + repurchase + firstDone) / done.length) * 100);
+        if (score < threshold) {
+          throw new ForbiddenException('综合能力未达标，不能抢新客首单');
+        }
+      }
+    }
 
     // Revenue threshold check (same as grab)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
