@@ -142,11 +142,15 @@ export class OrdersService {
         where: { id: dto.csUserId },
         select: { username: true, role: true },
       });
-      this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
+      const payload = {
         ...newOrder,
         _createdBy: csUser?.username || '未知',
         _creatorRole: csUser?.role || 'CS',
-      });
+      };
+      const sent = await this.wsGateway.broadcastToQualifiedIdleCompanions(studioId, 'order:urgent', payload);
+      if (sent === 0) {
+        await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+      }
     }
 
     // Auto-create first session when order is created

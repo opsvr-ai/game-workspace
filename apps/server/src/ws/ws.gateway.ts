@@ -388,6 +388,42 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /** 只推送给「空闲且综合能力达标」的线下陪玩，返回实际推送人数。 */
+  async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
+    try {
+      const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.qualified_threshold' } });
+      const threshold = Number(cfg?.value ?? 90);
+      const idle = await this.prisma.companion.findMany({
+        where: { studioId, status: 'AVAILABLE' },
+        select: { id: true },
+      });
+      let sent = 0;
+      for (const c of idle) {
+        const done = await this.prisma.order.findMany({
+          where: { companionId: c.id, status: 'DONE' },
+          select: { type: true },
+        });
+        const total = done.length;
+        if (total === 0) continue;
+        const renew = done.filter((o) => o.type === 'RENEW').length;
+        const repurchase = done.filter((o) => o.type === 'REPURCHASE').length;
+        const firstDone = done.filter((o) => o.type === 'NEW').length;
+        const score = Math.round(((renew + repurchase + firstDone) / total) * 100);
+        if (score >= threshold) {
+          const socketId = this.companionSockets.get(c.id);
+          if (socketId) {
+            this.server.to(socketId).emit(event, data);
+            sent += 1;
+          }
+        }
+      }
+      return sent;
+    } catch (err) {
+      logger.error('broadcastToQualifiedIdleCompanions failed', { error: (err as Error).message, studioId, event });
+      return 0;
+    }
+  }
+
   notifyUser(userId: string, event: string, data: unknown): void {
     const socketId = this.userSockets.get(userId);
     if (socketId) {
