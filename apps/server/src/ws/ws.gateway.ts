@@ -375,10 +375,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<void> {
     try {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-      const studioIds = [studioId, ...bridgedIds];
       const idleCompanions = await this.prisma.companion.findMany({
-        where: { studioId: { in: studioIds }, status: 'AVAILABLE' },
+        where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
       });
       for (const c of idleCompanions) {
