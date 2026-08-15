@@ -292,8 +292,9 @@ app.whenReady().then(() => {
     }
     return { action: 'deny' };
   });
-  mainWindow.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => {
-    callback(false);
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, callback) => {
+    // 允许语音通话所需的麦克风权限，以及系统通知和剪贴板权限
+    callback(['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
   });
   mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
   mainWindow.on('close', (e) => {

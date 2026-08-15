@@ -15,5 +15,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     sessionWatchStop: () => electron_1.ipcRenderer.invoke('session:watch-stop'),
     unlockScreen: (pass) => electron_1.ipcRenderer.invoke('screen:unlock', pass),
     getServerUrl: () => electron_1.ipcRenderer.invoke('config:getServerUrl'),
+    getAppVersion: () => electron_1.ipcRenderer.invoke('app:getVersion'),
+    testWatchdog: () => electron_1.ipcRenderer.invoke('watchdog:test'),
     onStatusChanged: (status) => electron_1.ipcRenderer.send('companion:status', status),
 });

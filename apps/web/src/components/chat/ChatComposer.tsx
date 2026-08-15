@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button, Input, message } from 'antd';
 import { SendOutlined, SmileOutlined, PaperClipOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import http from '../../api/client';
@@ -40,11 +40,45 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const [addEmojiInput, setAddEmojiInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiButtonRef = useRef<HTMLSpanElement>(null);
+  const emojiPanelRef = useRef<HTMLDivElement>(null);
+
+  // 微信式交互：点击面板外或按 Esc 关闭表情面板
+  useEffect(() => {
+    if (!showEmoji) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (emojiPanelRef.current?.contains(target) || emojiButtonRef.current?.contains(target)) return;
+      setShowEmoji(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowEmoji(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showEmoji]);
 
   const insertEmoji = useCallback((emoji: string) => {
-    setText((prev) => prev + emoji);
-    textareaRef.current?.focus();
-  }, []);
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    setText((prev) => {
+      const next = prev.slice(0, start) + emoji + prev.slice(end);
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus();
+          const pos = start + emoji.length;
+          el.setSelectionRange(pos, pos);
+        }
+      });
+      return next;
+    });
+    setShowEmoji(false);
+  }, [text]);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
@@ -52,6 +86,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     onSend(trimmed, replyTo?.id);
     setText('');
     setReplyTo(null);
+    setShowEmoji(false);
   }, [text, replyTo, onSend]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -94,6 +129,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '8px 12px' }}>
         <div style={{ display: 'flex', gap: 2, paddingBottom: 4 }}>
           <span
+            ref={emojiButtonRef}
             onClick={() => { setShowEmoji(!showEmoji); textareaRef.current?.focus(); }}
             style={{ cursor: 'pointer', padding: 4, color: showEmoji ? '#2B579A' : '#949BA4' }}
           >
@@ -143,7 +179,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
 
       {/* Emoji picker panel */}
       {showEmoji && (
-        <div style={{ borderTop: '1px solid #F0F0F0', maxHeight: 280, display: 'flex', flexDirection: 'column' }}>
+        <div ref={emojiPanelRef} style={{ borderTop: '1px solid #F0F0F0', maxHeight: 280, display: 'flex', flexDirection: 'column' }}>
           {/* Tab bar */}
           <div style={{ display: 'flex', gap: 0, padding: '4px 8px', borderBottom: '1px solid #F0F0F0', overflowX: 'auto' }}>
             {tabs.map((tab) => (
