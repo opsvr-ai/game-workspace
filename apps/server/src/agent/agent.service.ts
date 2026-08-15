@@ -378,7 +378,7 @@ export class AgentService {
         const noPassFlag = safePass ? '' : ' -no-pass';
         const args = [psexec];
         if (noPassFlag) args.push('-no-pass');
-        args.push(creds, '-c', psScriptPath, 'powershell', '-ExecutionPolicy', 'Bypass', '-File', '%TEMP%\\chunlv-deploy.ps1');
+        args.push('-c', psScriptPath, creds, 'powershell', '-ExecutionPolicy', 'Bypass', '-File', '%TEMP%\\chunlv-deploy.ps1');
 
         const { stdout, stderr } = await execFileAsync('python3', args, { timeout: 180_000 });
         const output = stdout + (stderr || '');
