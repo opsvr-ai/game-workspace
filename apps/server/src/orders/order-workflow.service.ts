@@ -58,17 +58,20 @@ export class OrderWorkflowService {
 
     // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
     if (order.type === 'NEW' && companion.studioId === order.studioId) {
-      const breakCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.break_even_hours' } });
-      const breakHours = Number(breakCfg?.value ?? 2.5);
+      const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
+      const studioShare = Number(shareCfg?.value ?? 30);
+      const bridgeCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
+      const bridgeFixedYuan = Number(bridgeCfg?.value ?? 100) / 100;
       const done = await this.prisma.order.findMany({
         where: { companionId, status: 'DONE' },
-        select: { type: true, duration: true },
+        select: { type: true, amount: true },
       });
       const newCount = done.filter((o) => o.type === 'NEW').length;
-      const renewHours = done
+      const renewIncome = done
         .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-        .reduce((s, o) => s + (o.duration || 1), 0);
-      if (newCount > 0 && renewHours / newCount < breakHours) {
+        .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
+      const gap = order.amount * (1 - studioShare / 100) - bridgeFixedYuan;
+      if (newCount > 0 && renewIncome / newCount < gap) {
         const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
         const limit = Number(limitCfg?.value ?? 1);
         const today = new Date();

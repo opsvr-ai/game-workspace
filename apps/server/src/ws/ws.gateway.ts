@@ -391,8 +391,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 只推送给「空闲且综合能力达标」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
-      const breakCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.break_even_hours' } });
-      const breakHours = Number(breakCfg?.value ?? 2.5);
+      const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
+      const studioShare = Number(shareCfg?.value ?? 30);
+      const bridgeCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
+      const bridgeFixedYuan = Number(bridgeCfg?.value ?? 100) / 100;
+      const orderAmount = (data as any)?.amount ?? 0;
+      const gap = orderAmount * (1 - studioShare / 100) - bridgeFixedYuan;
       const idle = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
@@ -401,13 +405,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       for (const c of idle) {
         const done = await this.prisma.order.findMany({
           where: { companionId: c.id, status: 'DONE' },
-          select: { type: true, duration: true },
+          select: { type: true, amount: true },
         });
         const newCount = done.filter((o) => o.type === 'NEW').length;
-        const renewHours = done
+        const renewIncome = done
           .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-          .reduce((s, o) => s + (o.duration || 1), 0);
-        if (newCount === 0 || renewHours / newCount >= breakHours) {
+          .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
+        if (newCount === 0 || renewIncome / newCount >= gap) {
           const socketId = this.companionSockets.get(c.id);
           if (socketId) {
             this.server.to(socketId).emit(event, data);

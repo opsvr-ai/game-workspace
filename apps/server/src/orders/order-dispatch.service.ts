@@ -132,7 +132,7 @@ export class OrderDispatchService {
     // First fetch order to get customerId and validate
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true, studioId: true, dispatchType: true, csUserId: true, type: true, source: true },
+      select: { id: true, customerId: true, studioId: true, dispatchType: true, csUserId: true, type: true, source: true, amount: true },
     });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.dispatchType !== 'POOL') throw new ForbiddenException('该订单不在抢单池中');
@@ -142,17 +142,20 @@ export class OrderDispatchService {
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
 
     if (order.type === 'NEW' && comp && comp.studioId === order.studioId) {
-      const breakCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.break_even_hours' } });
-      const breakHours = Number(breakCfg?.value ?? 2.5);
+      const shareCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.studio_share_percent' } });
+      const studioShare = Number(shareCfg?.value ?? 30);
+      const bridgeCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_fixed_cents' } });
+      const bridgeFixedYuan = Number(bridgeCfg?.value ?? 100) / 100;
       const done = await this.prisma.order.findMany({
         where: { companionId, status: 'DONE' },
-        select: { type: true, duration: true },
+        select: { type: true, amount: true },
       });
       const newCount = done.filter((o) => o.type === 'NEW').length;
-      const renewHours = done
+      const renewIncome = done
         .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-        .reduce((s, o) => s + (o.duration || 1), 0);
-      if (newCount > 0 && renewHours / newCount < breakHours) {
+        .reduce((s, o) => s + (o.amount * studioShare) / 100, 0);
+      const gap = order.amount * (1 - studioShare / 100) - bridgeFixedYuan;
+      if (newCount > 0 && renewIncome / newCount < gap) {
         const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
         const limit = Number(limitCfg?.value ?? 1);
         const today = new Date();
