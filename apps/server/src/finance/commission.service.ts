@@ -155,4 +155,97 @@ export class CommissionService {
       month: r.month,
     }));
   }
+
+  /** 读取客服提成配置（系统设置） */
+  private async csConfig() {
+    const keys = [
+      'commission.cs_offline_rate_percent',
+      'commission.cs_offline_floor_cents',
+      'commission.cs_bridge_fixed_cents',
+      'commission.cs_month_cap_cents',
+    ];
+    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const map: Record<string, number> = {};
+    for (const r of records) map[r.key] = Number(r.value);
+    return {
+      ratePercent: map['commission.cs_offline_rate_percent'] ?? 0.5,
+      floorCents: map['commission.cs_offline_floor_cents'] ?? 200,
+      bridgeFixedCents: map['commission.cs_bridge_fixed_cents'] ?? 100,
+      monthCapCents: map['commission.cs_month_cap_cents'] ?? 2000,
+    };
+  }
+
+  /** 实时估算某营业月的客服提成（不落库）。 */
+  async computeCsCommission(studioId: string, month: string, userId?: string) {
+    const { start, end } = settlementMonthRange(month);
+    const cfg = await this.csConfig();
+    const users = await this.prisma.user.findMany({
+      where: { studioId, role: 'CS', ...(userId ? { id: userId } : {}) },
+      select: { id: true, username: true, displayName: true },
+    });
+    const rows: Array<Record<string, unknown>> = [];
+    for (const u of users) {
+      const orders = await this.prisma.order.findMany({
+        where: {
+          status: 'DONE',
+          createdAt: { gte: start, lt: end },
+          OR: [{ attributedCsUserId: u.id }, { claimedCsUserId: u.id }],
+        },
+        select: { amount: true, source: true },
+      });
+      let offlineCents = 0;
+      let bridgeCents = 0;
+      for (const o of orders) {
+        if (o.source === 'BRIDGE') {
+          bridgeCents += cfg.bridgeFixedCents;
+        } else {
+          const base = Math.round(o.amount * 100 * (cfg.ratePercent / 100));
+          offlineCents += Math.max(cfg.floorCents, base);
+        }
+      }
+      if (cfg.monthCapCents > 0) offlineCents = Math.min(offlineCents, cfg.monthCapCents);
+      rows.push({
+        userId: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        offlineYuan: centsToYuan(offlineCents),
+        bridgeYuan: centsToYuan(bridgeCents),
+        totalYuan: centsToYuan(offlineCents + bridgeCents),
+      });
+    }
+    return { month, rows };
+  }
+
+  /** 确保工作室存在默认的客服提成规则（线下比例+保底、线上固定）。 */
+  async ensureDefaultCsRules(studioId: string) {
+    const cfg = await this.csConfig();
+
+    const offline = await this.prisma.commissionRule.findFirst({
+      where: { studioId, role: 'CS', OR: [{ source: 'OFFLINE' }, { source: null }] },
+    });
+    if (offline) {
+      await this.prisma.commissionRule.update({
+        where: { id: offline.id },
+        data: { basis: 'CLAIMED_AMOUNT', type: 'RATE', rate: cfg.ratePercent / 100, floorAmount: cfg.floorCents, source: 'OFFLINE', isActive: true },
+      });
+    } else {
+      await this.prisma.commissionRule.create({
+        data: { studioId, role: 'CS', basis: 'CLAIMED_AMOUNT', type: 'RATE', rate: cfg.ratePercent / 100, floorAmount: cfg.floorCents, source: 'OFFLINE', isActive: true },
+      });
+    }
+
+    const bridge = await this.prisma.commissionRule.findFirst({
+      where: { studioId, role: 'CS', source: 'BRIDGE' },
+    });
+    if (bridge) {
+      await this.prisma.commissionRule.update({
+        where: { id: bridge.id },
+        data: { basis: 'ORDER_COUNT', type: 'FIXED', fixedAmount: cfg.bridgeFixedCents, isActive: true },
+      });
+    } else {
+      await this.prisma.commissionRule.create({
+        data: { studioId, role: 'CS', basis: 'ORDER_COUNT', type: 'FIXED', fixedAmount: cfg.bridgeFixedCents, source: 'BRIDGE', isActive: true },
+      });
+    }
+  }
 }

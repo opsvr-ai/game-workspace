@@ -89,6 +89,22 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('commission/my-month')
+  @Roles(UserRole.CS)
+  async myCommission(@Req() req: any, @Query('month') month?: string): Promise<any> {
+    const d = new Date();
+    const m = month || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const data = await this.commissions.computeCsCommission(studioIdFor(req), m, req.user.id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('commission/live/:month')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async liveCommission(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string): Promise<any> {
+    const data = await this.commissions.computeCsCommission(studioIdFor(req, studioId), month);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Patch('commission/ledgers/:id/status')
   async updateCommissionLedgerStatus(@Param('id') id: string, @Req() req: any, @Body() body: any) {
     const data = await this.commissions.setLedgerStatus(id, studioIdFor(req, body?.studioId), body?.status);
