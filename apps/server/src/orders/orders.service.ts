@@ -366,6 +366,8 @@ export class OrdersService {
         coCompanionId: order.coCompanionId,
         coAmount: order.coAmount,
         dispatchType: 'DIRECT',
+        source: order.source,
+        attributedCsUserId: order.attributedCsUserId ?? order.claimedCsUserId ?? order.csUserId,
         amount: order.amount,
         gameName: order.gameName,
         duration: order.duration,
