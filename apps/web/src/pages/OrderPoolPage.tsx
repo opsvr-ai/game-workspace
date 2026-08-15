@@ -1,9 +1,10 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin } from 'antd';
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
+import { companionsApi } from '../api/companions';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -14,6 +15,7 @@ import EmptyState from '../components/EmptyState';
 import CardSkeleton from '../components/CardSkeleton';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
+import { companionStatusConfig, STATUS_SORT } from '../constants/companions';
 
 const { Text } = Typography;
 
@@ -35,6 +37,11 @@ const OrderPoolPage: React.FC = () => {
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<any>(null);
+
+  // Companion sidebar state (visible to companion users)
+  const [companions, setCompanions] = useState<any[]>([]);
+  const [loadingCompanions, setLoadingCompanions] = useState(false);
+  const [companionSearch, setCompanionSearch] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,6 +65,41 @@ const OrderPoolPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const fetchCompanions = useCallback(async () => {
+    if (!isCompanion) return;
+    setLoadingCompanions(true);
+    try {
+      const { data } = await companionsApi.list();
+      setCompanions(data.data ?? []);
+    } catch {
+      // 自动刷新失败不打断主流程
+    } finally {
+      setLoadingCompanions(false);
+    }
+  }, [isCompanion]);
+
+  useEffect(() => {
+    if (!isCompanion) return;
+    fetchCompanions();
+    const timer = setInterval(fetchCompanions, 10000);
+    return () => clearInterval(timer);
+  }, [isCompanion, fetchCompanions]);
+
+  const sortedCompanions = useMemo(
+    () =>
+      [...companions].sort(
+        (a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9),
+      ),
+    [companions],
+  );
+
+  const filteredCompanions = companionSearch
+    ? sortedCompanions.filter((c) => {
+        const name = c.user?.displayName || c.user?.username || '';
+        return name.toLowerCase().includes(companionSearch.toLowerCase());
+      })
+    : sortedCompanions;
 
   // Real-time pool updates via WebSocket
   useSocket({ onOrderPoolUpdated: fetchData });
@@ -301,6 +343,82 @@ const OrderPoolPage: React.FC = () => {
     </Card>
   );
 
+  const renderCompanionSidebar = () => (
+    <Col span={3}>
+      <Card
+        title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
+        size="small"
+        style={{ borderRadius: 8 }}
+        bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
+      >
+        <Input
+          size="small"
+          placeholder="搜索陪玩..."
+          value={companionSearch}
+          onChange={(e) => setCompanionSearch(e.target.value)}
+          allowClear
+          style={{ marginBottom: 8 }}
+        />
+        {loadingCompanions && companions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <Spin />
+          </div>
+        ) : filteredCompanions.length === 0 ? (
+          <Text type="secondary">暂无陪玩</Text>
+        ) : (
+          <List
+            size="small"
+            dataSource={filteredCompanions}
+            renderItem={(c) => {
+              const u = c.user as any;
+              const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
+              const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
+              return (
+                <List.Item style={{ padding: '8px 6px', display: 'block', borderBottom: '1px solid #F1F5F9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <Space size="small">
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow:
+                            c.status !== 'OFFLINE'
+                              ? `0 0 6px ${c.status === 'BUSY' ? '#FF4757' : c.status === 'ENTERTAINMENT' ? '#00E676' : '#FFD600'}`
+                              : 'none',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {!avatarUrl && <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>}
+                      </div>
+                      <Text strong>{u?.displayName || u?.username || c.id}</Text>
+                    </Space>
+                    <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
+                      {companionStatusConfig[c.status]?.label || c.status}
+                    </Tag>
+                  </div>
+                  {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
+                    <div style={{ marginTop: 4, marginLeft: 40, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {c.games.slice(0, 3).map((g: any, i: number) => (
+                        <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
+                          {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
+                </List.Item>
+              );
+            }}
+          />
+        )}
+      </Card>
+    </Col>
+  );
+
   return (
     <div>
       <PageHeader
@@ -317,44 +435,52 @@ const OrderPoolPage: React.FC = () => {
         }
       />
 
-      {/* Companion: unlock threshold card */}
-      {isCompanion && poolStatus && (
-        <Card
-          size="small"
-          style={{
-            marginBottom: 12,
-            background: isUnlocked ? '#f6ffed' : '#fff7e6',
-          }}
-        >
-          <Row align="middle" justify="space-between">
-            <Col>
-              <Text strong>
-                当日流水：¥{todayRevenue} ｜ 解锁门槛：¥{threshold}
-                {isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}
-              </Text>
-            </Col>
-            <Col>
-              <Tag color={isUnlocked ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>
-                {isUnlocked ? '✅ 可抢单' : `还差 ¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
-              </Tag>
-            </Col>
-          </Row>
-          {!isUnlocked && <Progress percent={pct} size="small" style={{ marginTop: 8 }} />}
-        </Card>
-      )}
+      <Row
+        gutter={12}
+        style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
+      >
+        {isCompanion && renderCompanionSidebar()}
+        <Col span={isCompanion ? 21 : 24}>
+          {/* Companion: unlock threshold card */}
+          {isCompanion && poolStatus && (
+            <Card
+              size="small"
+              style={{
+                marginBottom: 12,
+                background: isUnlocked ? '#f6ffed' : '#fff7e6',
+              }}
+            >
+              <Row align="middle" justify="space-between">
+                <Col>
+                  <Text strong>
+                    当日流水：¥{todayRevenue} ｜ 解锁门槛：¥{threshold}
+                    {isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}
+                  </Text>
+                </Col>
+                <Col>
+                  <Tag color={isUnlocked ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>
+                    {isUnlocked ? '✅ 可抢单' : `还差 ¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
+                  </Tag>
+                </Col>
+              </Row>
+              {!isUnlocked && <Progress percent={pct} size="small" style={{ marginTop: 8 }} />}
+            </Card>
+          )}
 
-      {orders.length === 0 && <EmptyState description="暂无待派订单" />}
+          {orders.length === 0 && <EmptyState description="暂无待派订单" />}
 
-      {/* Horizontal order rows — all info in one row */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {orders.map((order: any, idx: number) => renderPoolCard(order, idx))}
-      </div>
+          {/* Horizontal order rows — all info in one row */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {orders.map((order: any, idx: number) => renderPoolCard(order, idx))}
+          </div>
 
-      {isCompanion && (
-        <Card size="small" style={{ marginTop: 16 }}>
-          <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
-        </Card>
-      )}
+          {isCompanion && (
+            <Card size="small" style={{ marginTop: 16 }}>
+              <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
+            </Card>
+          )}
+        </Col>
+      </Row>
 
       {/* Create Order Modal */}
       <CreateOrderModal
