@@ -46,6 +46,8 @@ export class CommissionService {
   async calculateMonth(studioId: string, month: string) {
     const { start, end } = settlementMonthRange(month);
     const rules = await this.prisma.commissionRule.findMany({ where: { studioId, isActive: true } });
+    const capCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_month_cap_cents' } });
+    const monthCapCents = Number(capCfg?.value ?? 0);
     const created: Array<Record<string, unknown>> = [];
 
     for (const rule of rules) {
@@ -83,6 +85,10 @@ export class CommissionService {
           const agg = await this.prisma.order.aggregate({ where: baseWhere, _sum: { amount: true } });
           basisValue = agg._sum.amount ?? 0;
           amountCents = rule.fixedAmount ?? 0;
+        }
+
+        if (monthCapCents > 0 && rule.source !== 'BRIDGE') {
+          amountCents = Math.min(amountCents, monthCapCents);
         }
 
         if (amountCents <= 0) continue;

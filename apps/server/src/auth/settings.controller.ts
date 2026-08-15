@@ -64,9 +64,10 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'anomaly.price_tier_downgrade_enabled': true,
   'dispatch.bridge_immediate_window_sec': 60,
   'dispatch.qualified_threshold': 90,
-  'commission.cs_offline_rate_percent': 1,
-  'commission.cs_offline_floor_cents': 100,
+  'commission.cs_offline_rate_percent': 0.5,
+  'commission.cs_offline_floor_cents': 200,
   'commission.cs_bridge_fixed_cents': 100,
+  'commission.cs_month_cap_cents': 2000,
   'commission.attribution_window': 'month',
 };
 
