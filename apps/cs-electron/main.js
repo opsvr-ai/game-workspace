@@ -4,6 +4,8 @@ const path = require('path');
 
 // 低配电脑无独显/驱动老旧时，关闭硬件加速避免黑屏
 app.disableHardwareAcceleration();
+// 允许局域网 http 地址使用麦克风/媒体接口
+app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
 
 function getServerUrl() {
   const candidates = [

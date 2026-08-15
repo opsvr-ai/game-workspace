@@ -99,10 +99,17 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     try {
       const socket = getSocket();
       setCallState({ status: 'calling', peerId: targetUserId, peerName: targetUserName });
+      const media = navigator.mediaDevices;
+      if (!media?.getUserMedia) {
+        cleanup();
+        setCallState({ status: 'idle' });
+        message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
+        return;
+      }
       const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       pcRef.current = pc;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await media.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
@@ -144,10 +151,17 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     if (callState.status !== 'ringing' || !callState.peerId) return;
     try {
       const socket = getSocket();
+      const media = navigator.mediaDevices;
+      if (!media?.getUserMedia) {
+        cleanup();
+        setCallState({ status: 'idle' });
+        message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
+        return;
+      }
       const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
       pcRef.current = pc;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await media.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 

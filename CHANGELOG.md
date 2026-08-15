@@ -47,6 +47,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **语音通话媒体接口不可用:** 客服端/陪玩端现在把局域网地址标记为安全来源，修复点击语音通话时报 `Cannot read properties of undefined (reading 'getUserMedia')`；同时前端在非 Electron/非 HTTPS 环境给出明确提示。
 - **管理端退出仍需密码:** 老板/店长/客服点退出现在直接退出，不再要求输入密码；陪玩端仍保留密码保护。
 - **聊天输入框高度不记忆:** 手动调整输入框高度后会保存到本地，下次打开聊天窗口自动恢复。
 - **来消息无提醒:** 顶部消息铃铛的未读数字现在会持续跳动，并恢复发光动画；非当前聊天的新消息会播放提示音。

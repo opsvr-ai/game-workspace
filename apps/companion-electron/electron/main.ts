@@ -21,6 +21,9 @@ import { handleStatusChanged } from './screen-lock';
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 
+// 允许局域网 http 地址使用麦克风/媒体接口
+app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
+
 // ── Trace log on Desktop ──
 const TRACE = path.join(app.getPath('desktop'), 'chunlv-trace.txt');
 function trace(msg: string) {
