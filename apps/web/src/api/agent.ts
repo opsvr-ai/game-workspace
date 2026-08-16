@@ -3,6 +3,7 @@ import http from './client';
 export const agentApi = {
   getVersion: () => http.get('/agent/version'),
   getVersionStatus: () => http.get('/agent/version-status'),
+  getCsVersionStatus: () => http.get('/agent/cs-version-status'),
   buildAndPush: () => http.post('/agent/build-and-push', {}, { timeout: 600000 }),
   pushUpdate: (companionIds: string[]) => http.post('/agent/update/push', { companionIds }),
   pushUpdateStudio: () => http.post('/agent/update/push-studio'),

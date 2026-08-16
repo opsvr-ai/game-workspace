@@ -78,6 +78,7 @@ const statusLabels: Record<string, string> = {
 
 const AgentVersionPage: React.FC = () => {
   const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
+  const [csVersionStatus, setCsVersionStatus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
   const [pushing, setPushing] = useState(false);
@@ -116,6 +117,12 @@ const AgentVersionPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  useEffect(() => {
+    agentApi.getCsVersionStatus()
+      .then(({ data }: any) => setCsVersionStatus(data.data || []))
+      .catch(() => {});
+  }, []);
 
   const handleBuildAndPush = async () => {
     setBuilding(true);
@@ -454,6 +461,22 @@ const AgentVersionPage: React.FC = () => {
           size="small"
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 位陪玩` }}
           locale={{ emptyText: '暂无数据' }}
+        />
+      </Card>
+
+      <Card title="客服端版本" style={{ marginTop: 16 }} extra={<Text type="secondary">共 {csVersionStatus.length} 条记录</Text>}>
+        <Table
+          rowKey="userId"
+          dataSource={csVersionStatus}
+          size="small"
+          pagination={{ pageSize: 20 }}
+          locale={{ emptyText: '暂无客服端版本上报' }}
+          columns={[
+            { title: '账号', dataIndex: 'username' },
+            { title: '角色', dataIndex: 'role', render: (v: string) => v === 'CS' ? '客服' : v === 'ADMIN' ? '店长' : v },
+            { title: '客户端版本', dataIndex: 'version' },
+            { title: '最后上报', dataIndex: 'lastSeen', render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+          ]}
         />
       </Card>
 
