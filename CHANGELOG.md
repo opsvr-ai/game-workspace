@@ -49,6 +49,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **记住密码后开机未自动登录:** 修正自动登录仍使用空输入框状态的问题，勾选记住密码后开机可直接进入系统。
 - **远程安装账号密码无法填写:** 「一键全部安装」上方新增管理员账号和密码输入框，避免固定使用 Administrator 空密码导致认证失败。
 - **远程安装找不到 psexec.py:** 补充安装 `impacket-scripts` 并让服务端自动探测多个 psexec.py 路径。
 - **一键全部安装误报成功:** 前端现在按实际返回结果标记每台设备成功/失败；服务端容器补充远程安装所需的 `impacket` 工具。

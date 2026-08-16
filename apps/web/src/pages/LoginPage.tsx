@@ -37,7 +37,7 @@ const LoginPage: React.FC = () => {
         setUsername(creds.username);
         setPassword(creds.password);
         setRememberMe(true);
-        setTimeout(() => handleLogin(), 600);
+        performLogin(creds.username, creds.password, true);
       }
     }).catch(() => {});
   }, []);
@@ -105,21 +105,21 @@ const LoginPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const handleLogin = async () => {
-    if (!username || !password) {
+  const performLogin = async (uname: string, pwd: string, remember: boolean) => {
+    if (!uname || !pwd) {
       message.warning('请输入姓名和密码');
       return;
     }
     setLoading(true);
     try {
-      const user = await login({ username, password });
+      const user = await login({ username: uname, password: pwd });
       const api = (window as any).electronAPI;
       if (api?.saveCredentials) {
         try {
           const saved = await api.saveCredentials(
-            rememberMe ? { username, password } : { username: '', password: '' },
+            remember ? { username: uname, password: pwd } : { username: '', password: '' },
           );
-          if (rememberMe && saved?.success === false) {
+          if (remember && saved?.success === false) {
             message.warning('当前系统无法安全保存密码，本次登录不会记住账号密码');
           }
         } catch {
@@ -148,6 +148,8 @@ const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handleLogin = () => performLogin(username, password, rememberMe);
 
   const handleRegister = async () => {
     if (!password || !realName || !idNumber || !phone) {
