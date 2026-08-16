@@ -64,6 +64,9 @@ const DEFAULT_GUARDED_PROCESSES = [
 ];
 
 let loginGuardTimer: ReturnType<typeof setInterval> | null = null;
+let blacklistGuardTimer: ReturnType<typeof setInterval> | null = null;
+let activeBlacklist: string[] = [];
+let activeWhitelist: string[] = [];
 function startLoginGuard() {
   if (loginGuardTimer) return;
   loginGuardTimer = setInterval(() => {
@@ -85,6 +88,19 @@ function stopLoginGuard() {
     clearInterval(loginGuardTimer);
     loginGuardTimer = null;
   }
+}
+
+function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
+  activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
+  activeWhitelist = (whitelist || []).map((w) => w.processName).filter(Boolean);
+  if (blacklistGuardTimer) clearInterval(blacklistGuardTimer);
+  if (activeBlacklist.length === 0) return;
+  blacklistGuardTimer = setInterval(() => {
+    for (const name of activeBlacklist) {
+      if (activeWhitelist.includes(name)) continue;
+      execFile('taskkill', ['/F', '/IM', name, '/T'], () => {});
+    }
+  }, 10000);
 }
 
 async function collectAndReportProcesses() {
@@ -435,6 +451,9 @@ app.whenReady().then(() => {
     if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
     else if (data.command === 'test_watchdog') app.exit(0);
     else if (data.command === 'collect_processes') void collectAndReportProcesses();
+  });
+  onWsEvent('blacklist:update', (data: any) => {
+    startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });
   const token = store.get('token') as string;
   if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string);

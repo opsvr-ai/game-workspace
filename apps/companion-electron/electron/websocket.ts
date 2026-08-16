@@ -54,6 +54,7 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   socket.on('order:new', (data) => emitEvent('order:new', data));
   socket.on('order:urgent', (data) => emitEvent('order:urgent', data));
   socket.on('order:pool_updated', (data) => emitEvent('order:pool_updated', data));
+  socket.on('blacklist:update', (data) => emitEvent('blacklist:update', data));
   socket.on('pc:command', (data) => emitEvent('pc:command', data));
 }
 
