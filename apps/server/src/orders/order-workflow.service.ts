@@ -29,6 +29,25 @@ export class OrderWorkflowService {
     }
   }
 
+  private async setCompanionBusy(companionId: string) {
+    await this.prisma.companion
+      .update({ where: { id: companionId }, data: { status: 'BUSY' } })
+      .catch(() => {});
+  }
+
+  private async refreshCompanionAvailable(companionId: string) {
+    const activeCount = await this.prisma.order
+      .count({
+        where: { companionId, status: { in: ['GRABBED', 'CONFIRMED'] } },
+      })
+      .catch(() => 1);
+    if (activeCount === 0) {
+      await this.prisma.companion
+        .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
+        .catch(() => {});
+    }
+  }
+
   async grab(orderId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
@@ -132,6 +151,7 @@ export class OrderWorkflowService {
       },
     });
     if (!grabbedOrder) throw new NotFoundException('订单不存在');
+    await this.setCompanionBusy(companionId);
     this.wsGateway.broadcastToBridgedStudios(grabbedOrder.studioId, 'order:pool_updated', grabbedOrder);
 
     // Notify the CS who created this order about the grab
@@ -180,6 +200,7 @@ export class OrderWorkflowService {
       where: { id: orderId },
       data: { status: OrderStatus.CONFIRMED },
     });
+    if (updated.companionId) await this.setCompanionBusy(updated.companionId);
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
@@ -233,6 +254,7 @@ export class OrderWorkflowService {
     }
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (order.companionId) await this.refreshCompanionAvailable(order.companionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
@@ -393,6 +415,7 @@ export class OrderWorkflowService {
       where: { id: orderId },
       data: { status: OrderStatus.CANCELLED },
     });
+    if (updated.companionId) await this.refreshCompanionAvailable(updated.companionId);
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     if (updated.companionId) {
       this.wsGateway.pushOrder(updated.companionId, updated);

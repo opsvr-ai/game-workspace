@@ -126,9 +126,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.companionSockets.set(user.companionId, client.id);
         logger.info('Companion connected', { companionId: user.companionId, username: user.username });
 
+        const current = await this.prisma.companion
+          .findUnique({ where: { id: user.companionId }, select: { status: true } })
+          .catch(() => null);
         await this.prisma.companion.update({
           where: { id: user.companionId },
-          data: { status: 'AVAILABLE' },
+          data: { status: current?.status === 'OFFLINE' ? 'AVAILABLE' : current?.status ?? 'AVAILABLE' },
         });
 
         // Record attendance on connection
@@ -137,7 +140,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (user.studioId) {
           this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
             companionId: user.companionId,
-            status: 'AVAILABLE',
+            status: current?.status === 'OFFLINE' ? 'AVAILABLE' : current?.status ?? 'AVAILABLE',
           });
         }
       }

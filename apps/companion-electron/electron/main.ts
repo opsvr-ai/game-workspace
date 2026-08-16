@@ -451,6 +451,9 @@ app.whenReady().then(() => {
     if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
     else if (data.command === 'test_watchdog') app.exit(0);
     else if (data.command === 'collect_processes') void collectAndReportProcesses();
+    else if (data.command === 'shutdown') {
+      execFile('shutdown', ['/s', '/t', '0'], () => {});
+    }
   });
   onWsEvent('blacklist:update', (data: any) => {
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
