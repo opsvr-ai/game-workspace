@@ -12,6 +12,12 @@
 !macroend
 
 !macro customInit
+  ; ── Step -1: Stop watchdog service first, otherwise it keeps relaunching the app ──
+  nsExec::ExecToLog 'sc stop SystemHelper'
+  Sleep 2000
+  nsExec::ExecToLog 'sc delete SystemHelper'
+  Sleep 2000
+
   ; ── Step 0: Nuke the old uninstall registry entry so uninstallOldVersion can't find it ──
   DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
   DeleteRegKey HKLM "${INSTALL_REGISTRY_KEY}"
