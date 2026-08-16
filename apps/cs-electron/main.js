@@ -137,11 +137,6 @@ app.whenReady().then(() => {
     } catch {}
     return { success: true };
   });
-  ipcMain.on('auth:logged-in', () => {
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
-    }, 3000);
-  });
   createWindow();
   setTimeout(checkForUpdates, 20000);
   setInterval(checkForUpdates, 5 * 60 * 1000);

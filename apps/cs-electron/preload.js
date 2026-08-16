@@ -7,5 +7,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveCredentials: (creds) => ipcRenderer.invoke('credentials:save', creds),
   clearSavedCredentials: () => ipcRenderer.invoke('credentials:clear'),
   logout: () => ipcRenderer.invoke('auth:logout'),
-  onLoggedIn: () => ipcRenderer.send('auth:logged-in'),
 });
