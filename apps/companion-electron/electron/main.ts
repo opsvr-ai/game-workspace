@@ -50,46 +50,9 @@ const STORE_KEYS = new Set([
   'companionName',
 ]);
 
-// 未登录时默认禁止启动的常见游戏进程，登录成功后自动解除。
-const DEFAULT_GUARDED_PROCESSES = [
-  'DeltaForceClient-Win64-Shipping.exe',
-  'DeltaForce.exe',
-  'VALORANT.exe',
-  'RiotClientServices.exe',
-  'TslGame.exe',
-  'PUBG.exe',
-  'cs2.exe',
-  'csgo.exe',
-  'NarakaBladepoint.exe',
-];
-
-let loginGuardTimer: ReturnType<typeof setInterval> | null = null;
 let blacklistGuardTimer: ReturnType<typeof setInterval> | null = null;
 let activeBlacklist: string[] = [];
 let activeWhitelist: string[] = [];
-function startLoginGuard() {
-  if (loginGuardTimer) return;
-  loginGuardTimer = setInterval(() => {
-    if (store.get('token')) {
-      if (loginGuardTimer) {
-        clearInterval(loginGuardTimer);
-        loginGuardTimer = null;
-      }
-      return;
-    }
-    for (const name of DEFAULT_GUARDED_PROCESSES) {
-      new Notification({ title: '蠢驴电竞', body: `正在结束未授权游戏进程：${name}` }).show();
-      execFile('taskkill', ['/F', '/IM', name, '/T'], () => {});
-    }
-  }, 5000);
-}
-
-function stopLoginGuard() {
-  if (loginGuardTimer) {
-    clearInterval(loginGuardTimer);
-    loginGuardTimer = null;
-  }
-}
 
 function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
   activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
@@ -97,6 +60,9 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   if (blacklistGuardTimer) clearInterval(blacklistGuardTimer);
   if (activeBlacklist.length === 0) return;
   blacklistGuardTimer = setInterval(() => {
+    // 只有登录成功且当前状态为“空闲”时才执行黑名单杀进程。
+    if (!store.get('token')) return;
+    if (store.get('lastStatus') !== 'AVAILABLE') return;
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
       new Notification({ title: '蠢驴电竞', body: `正在结束黑名单进程：${name}` }).show();
@@ -258,7 +224,6 @@ function setupIPC(): void {
     if (!STORE_KEYS.has(key)) return { success: false };
     store.set(key, value);
     if (key === 'token' && value) {
-      stopLoginGuard();
       connectWebSocket(getServerUrl(), String(value), (store.get('companionId') || '') as string);
     }
     return { success: true };
@@ -331,7 +296,6 @@ app.whenReady().then(() => {
   trace('1-ready');
   Menu.setApplicationMenu(null);
   app.setLoginItemSettings({ openAtLogin: true });
-  startLoginGuard();
   cleanupStaleCaptures();
   setupIPC();
   trace('2-ipc');
