@@ -24,6 +24,7 @@ import {
 import { SaveOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
+import { ordersApi } from '../api/orders';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -214,6 +215,23 @@ const CustomerDetailPage: React.FC = () => {
   const platformLabel = platformLabels[customer?.platform] ?? customer?.platform ?? '-';
   const orderCount = orders.length;
 
+  const handleOrderAction = async (action: 'complete' | 'refund' | 'deposit') => {
+    const active = orders.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+    if (!active) {
+      message.warning('当前没有进行中的订单');
+      return;
+    }
+    try {
+      if (action === 'complete') await ordersApi.complete(active.id);
+      else if (action === 'refund') await ordersApi.refund(active.id);
+      else await ordersApi.deposit(active.id);
+      message.success(action === 'complete' ? '已完成服务' : action === 'refund' ? '已退款' : '已存单');
+      fetchOrders();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '操作失败'));
+    }
+  };
+
   // Order table columns
   const orderColumns = [
     {
@@ -291,18 +309,23 @@ const CustomerDetailPage: React.FC = () => {
             客户详情
           </Title>
         </Space>
-        <Button
-          icon={React.createElement(ReloadOutlined)}
-          onClick={() => {
-            fetchCustomer();
-            fetchProfile();
-            fetchType();
-            fetchOrders();
-            fetchFollowUps();
-          }}
-        >
-          刷新
-        </Button>
+        <Space>
+          <Button type="primary" size="small" onClick={() => handleOrderAction('complete')}>完成服务</Button>
+          <Button danger size="small" onClick={() => handleOrderAction('refund')}>退款</Button>
+          <Button size="small" onClick={() => handleOrderAction('deposit')}>存单</Button>
+          <Button
+            icon={React.createElement(ReloadOutlined)}
+            onClick={() => {
+              fetchCustomer();
+              fetchProfile();
+              fetchType();
+              fetchOrders();
+              fetchFollowUps();
+            }}
+          >
+            刷新
+          </Button>
+        </Space>
       </div>
 
       {/* ── Section 1: Basic Info ────────────────────────── */}

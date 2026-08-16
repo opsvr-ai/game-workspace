@@ -644,6 +644,51 @@ export class OrdersService {
     return updated;
   }
 
+  async markRefund(orderId: string, companionId?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new ForbiddenException('订单不存在');
+    if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED', notes: order.notes ? `${order.notes}\n[退款]` : '[退款]' },
+    });
+    if (order.companionId) {
+      await this.prisma.companion
+        .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
+        .catch(() => {});
+    }
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  async markDeposit(orderId: string, companionId?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new ForbiddenException('订单不存在');
+    if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'DEPOSITED', notes: order.notes ? `${order.notes}\n[存单]` : '[存单]' },
+    });
+    if (order.customerId) {
+      const customer = await this.prisma.customer.findUnique({ where: { id: order.customerId }, select: { notes: true } });
+      await this.prisma.customer.update({
+        where: { id: order.customerId },
+        data: {
+          notes: customer?.notes
+            ? `${customer.notes}\n[存单 ¥${order.amount || 0}]`
+            : `[存单 ¥${order.amount || 0}]`,
+        },
+      });
+    }
+    if (order.companionId) {
+      await this.prisma.companion
+        .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
+        .catch(() => {});
+    }
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
   async getPoolStatus(companionId: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

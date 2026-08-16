@@ -114,6 +114,20 @@ export class OrdersController {
     return { code: 200, message: '完成成功', data };
   }
 
+  @Post('orders/:id/refund')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  async refund(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markRefund(id, req.user?.companionId);
+    return { code: 200, message: '已退款', data };
+  }
+
+  @Post('orders/:id/deposit')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  async deposit(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markDeposit(id, req.user?.companionId);
+    return { code: 200, message: '已存单', data };
+  }
+
   @Post('orders/:id/complete-billing')
   @Roles(UserRole.COMPANION)
   async completeWithBilling(@Param('id') id: string, @Req() req: any, @Body() dto: any): Promise<ApiResponse<unknown>> {
