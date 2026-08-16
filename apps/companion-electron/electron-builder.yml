@@ -7,9 +7,8 @@ files:
   - dist
   - preload-dist
   - package.json
-asar: true
-asarUnpack:
   - node_modules/socket.io-client/**
+asar: true
 extraResources:
   - from: companion-config.json
     to: .
