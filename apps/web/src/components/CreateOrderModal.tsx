@@ -1,9 +1,10 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, message, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { DispatchType } from '@chunlv/shared';
+import http from '../api/client';
 
 const { Option } = Select;
 
@@ -32,6 +33,8 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
+  const [transferUrl, setTransferUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
   const availableForPartner = companions.filter((c: any) => c.status === 'AVAILABLE');
 
   useEffect(() => {
@@ -66,7 +69,17 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
     try {
       const v = await form.validateFields();
       setLoading(true);
-      await ordersApi.create({ ...v, csUserId: userId, isCompensation: (v as any).isCompensation });
+      if (customerPreFill && !transferUrl) {
+        message.warning('请上传客户转账截图');
+        setLoading(false);
+        return;
+      }
+      await ordersApi.create({
+        ...v,
+        csUserId: userId,
+        isCompensation: (v as any).isCompensation,
+        transferScreenshotUrl: transferUrl || undefined,
+      });
       message.success(customerPreFill ? '已开始服务' : '订单已发布');
       form.resetFields();
       onClose();
@@ -118,6 +131,33 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             ))}
           </Select>
         </Form.Item>
+        {customerPreFill && (
+          <Form.Item label="客户转账截图" required>
+            <Upload
+              beforeUpload={async (file) => {
+                setUploading(true);
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const res = await http.post('/upload/screenshot', fd);
+                  const url = res.data?.data?.url || res.data?.url || '';
+                  setTransferUrl(url);
+                  message.success('转账截图已上传');
+                } catch {
+                  message.error('上传失败');
+                } finally {
+                  setUploading(false);
+                }
+                return false;
+              }}
+              maxCount={1}
+              accept="image/*"
+            >
+              <Button loading={uploading}>{transferUrl ? '重新上传转账截图' : '上传转账截图'}</Button>
+            </Upload>
+            {transferUrl && <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看截图</a>}
+          </Form.Item>
+        )}
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>
           <Select showSearch>
             {gameList.map((g) => (

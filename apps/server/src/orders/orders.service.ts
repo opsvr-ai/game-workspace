@@ -110,6 +110,7 @@ export class OrdersService {
           deltaCount: (dto as any).deltaCount,
           deltaNote: (dto as any).deltaNote,
           billingMode: (dto as any).billingMode,
+          transferScreenshotUrl: (dto as any).transferScreenshotUrl || undefined,
           urgency: (dto as any).urgency,
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,

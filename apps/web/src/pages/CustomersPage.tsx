@@ -314,6 +314,7 @@ const CustomersPage: React.FC = () => {
       render: (code: string, record: Customer) => (
         <>
           <Text>{code}</Text>
+          {record.notes?.includes('[存单') && <Tag color="blue" style={{ marginLeft: 6 }}>存单</Tag>}
           {record.scheduledAt &&
             (() => {
               const d = new Date(record.scheduledAt);
