@@ -645,13 +645,16 @@ export class OrdersService {
     return updated;
   }
 
-  async markRefund(orderId: string, companionId?: string) {
+  async markRefund(orderId: string, companionId?: string, reason?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new ForbiddenException('订单不存在');
     if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: 'CANCELLED', notes: order.notes ? `${order.notes}\n[退款]` : '[退款]' },
+      data: {
+        status: 'CANCELLED',
+        notes: order.notes ? `${order.notes}\n[退款] ${reason || ''}` : `[退款] ${reason || ''}`,
+      },
     });
     if (order.companionId) {
       await this.prisma.companion

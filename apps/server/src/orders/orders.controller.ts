@@ -116,8 +116,11 @@ export class OrdersController {
 
   @Post('orders/:id/refund')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
-  async refund(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.markRefund(id, req.user?.companionId);
+  async refund(@Param('id') id: string, @Req() req: any, @Body() body: { reason?: string }): Promise<ApiResponse<unknown>> {
+    if (!body?.reason?.trim()) {
+      return { code: 400, message: '请填写退款原因', data: null };
+    }
+    const data = await this.ordersService.markRefund(id, req.user?.companionId, body.reason.trim());
     return { code: 200, message: '已退款', data };
   }
 

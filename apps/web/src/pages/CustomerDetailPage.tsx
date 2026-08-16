@@ -84,6 +84,8 @@ const CustomerDetailPage: React.FC = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingFollowUps, setLoadingFollowUps] = useState(true);
+  const [refundTarget, setRefundTarget] = useState<any>(null);
+  const [refundReason, setRefundReason] = useState('');
 
   // Modal states
   const [submittingProfile, setSubmittingProfile] = useState(false);
@@ -221,14 +223,35 @@ const CustomerDetailPage: React.FC = () => {
       message.warning('当前没有进行中的订单');
       return;
     }
+    if (action === 'refund') {
+      setRefundTarget(active);
+      setRefundReason('');
+      return;
+    }
     try {
       if (action === 'complete') await ordersApi.complete(active.id);
-      else if (action === 'refund') await ordersApi.refund(active.id);
       else await ordersApi.deposit(active.id);
-      message.success(action === 'complete' ? '已完成服务' : action === 'refund' ? '已退款' : '已存单');
+      message.success(action === 'complete' ? '已完成服务' : '已存单');
       fetchOrders();
     } catch (err: any) {
       message.error(extractErrorMessage(err, '操作失败'));
+    }
+  };
+
+  const submitRefund = async () => {
+    if (!refundTarget) return;
+    if (!refundReason.trim()) {
+      message.warning('请填写退款原因');
+      return;
+    }
+    try {
+      await ordersApi.refund(refundTarget.id, refundReason.trim());
+      message.success('已退款');
+      setRefundTarget(null);
+      setRefundReason('');
+      fetchOrders();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '退款失败'));
     }
   };
 
@@ -699,6 +722,28 @@ const CustomerDetailPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      <Modal
+        title="退款"
+        open={!!refundTarget}
+        onOk={submitRefund}
+        onCancel={() => {
+          setRefundTarget(null);
+          setRefundReason('');
+        }}
+        okText="确认退款"
+        cancelText="取消"
+      >
+        <div style={{ marginTop: 12 }}>
+          <Text strong>退款原因（必填）</Text>
+          <Input.TextArea
+            rows={3}
+            value={refundReason}
+            onChange={(e) => setRefundReason(e.target.value)}
+            placeholder="例如：客户不喜欢陪玩声音 / 客户临时有事 / 技术差"
+          />
+        </div>
+      </Modal>
     </div>
   );
 };
