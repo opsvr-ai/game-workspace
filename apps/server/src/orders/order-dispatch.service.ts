@@ -14,12 +14,6 @@ export class OrderDispatchService {
     private bridgeService: BridgeService,
   ) {}
 
-  private async setCompanionBusy(companionId: string) {
-    await this.prisma.companion
-      .update({ where: { id: companionId }, data: { status: 'BUSY' } })
-      .catch(() => {});
-  }
-
   private async refreshCompanionAvailable(companionId: string) {
     const activeCount = await this.prisma.order
       .count({ where: { companionId, status: { in: ['GRABBED', 'CONFIRMED'] } } })
@@ -125,7 +119,6 @@ export class OrderDispatchService {
     }
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (updated) await this.setCompanionBusy(companionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
@@ -256,7 +249,6 @@ export class OrderDispatchService {
     }
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (updated) await this.setCompanionBusy(companionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }

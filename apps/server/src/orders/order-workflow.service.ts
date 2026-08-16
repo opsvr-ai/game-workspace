@@ -29,12 +29,6 @@ export class OrderWorkflowService {
     }
   }
 
-  private async setCompanionBusy(companionId: string) {
-    await this.prisma.companion
-      .update({ where: { id: companionId }, data: { status: 'BUSY' } })
-      .catch(() => {});
-  }
-
   private async refreshCompanionAvailable(companionId: string) {
     const activeCount = await this.prisma.order
       .count({
@@ -151,7 +145,6 @@ export class OrderWorkflowService {
       },
     });
     if (!grabbedOrder) throw new NotFoundException('订单不存在');
-    await this.setCompanionBusy(companionId);
     this.wsGateway.broadcastToBridgedStudios(grabbedOrder.studioId, 'order:pool_updated', grabbedOrder);
 
     // Notify the CS who created this order about the grab
@@ -200,7 +193,6 @@ export class OrderWorkflowService {
       where: { id: orderId },
       data: { status: OrderStatus.CONFIRMED },
     });
-    if (updated.companionId) await this.setCompanionBusy(updated.companionId);
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }

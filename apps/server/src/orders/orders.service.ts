@@ -173,6 +173,11 @@ export class OrdersService {
 
     // Auto-create first session when order is created
     if (newOrder.companionId) {
+      if (newOrder.dispatchType === 'DIRECT') {
+        await this.prisma.companion
+          .update({ where: { id: newOrder.companionId }, data: { status: 'BUSY' } })
+          .catch(() => {});
+      }
       await this.prisma.orderSession
         .create({
           data: {
