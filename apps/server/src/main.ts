@@ -63,8 +63,19 @@ async function bootstrap() {
   const webDistPath = join(__dirname, '../web-dist');
   if (existsSync(webDistPath)) {
     const expressApp = app.getHttpAdapter().getInstance();
-    // Serve static assets first
-    expressApp.use(express.static(webDistPath, { etag: false, maxAge: 0 }));
+    // Serve static assets first. Vite 产物带内容哈希，可以安全缓存；
+    // index.html 单独设置 no-cache，确保前端版本更新后客户端能立即看到。
+    expressApp.use(
+      express.static(webDistPath, {
+        etag: true,
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+        },
+      }),
+    );
     // Fallback: SPA routing — serve index.html for non-API routes
     const indexHtml = join(webDistPath, 'index.html');
     if (existsSync(indexHtml)) {

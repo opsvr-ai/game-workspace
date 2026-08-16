@@ -38,7 +38,7 @@ function checkForUpdates() {
         const out = path.join(app.getPath('temp'), `Chunlv-CS-Setup-${latest}.exe`);
         const ps = [
           `$ProgressPreference='SilentlyContinue'`,
-          `Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}'`,
+          `if (!(Test-Path '${out}')) { Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}' }`,
           `Start-Process -FilePath '${out}' -ArgumentList '/S' -Wait`,
           `Remove-Item '${out}' -Force`,
         ].join('; ');
@@ -138,7 +138,8 @@ app.whenReady().then(() => {
     return { success: true };
   });
   createWindow();
-  setTimeout(checkForUpdates, 20000);
+  // 随机错峰，避免多台客服机同时下载 74MB 安装包。
+  setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
   setInterval(checkForUpdates, 5 * 60 * 1000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

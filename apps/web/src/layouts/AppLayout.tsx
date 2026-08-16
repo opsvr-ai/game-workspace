@@ -361,7 +361,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 5000);
+    const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
   }, [user?.role]);
 
@@ -384,7 +384,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 5000);
+    const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
   }, [user?.role]);
 
@@ -406,7 +406,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 5000);
+    const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
   }, [user?.role]);
 
@@ -472,7 +472,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 5000);
+    const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
   }, [user?.role]);
 

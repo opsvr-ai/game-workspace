@@ -29,6 +29,8 @@ function compareVersions(a: string, b: string): number {
  */
 export async function checkForUpdates(): Promise<void> {
   try {
+    // 开机自动检查时随机错峰，避免所有客户端同时拉版本和安装包。
+    await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 120_000)));
     const serverUrl = getServerUrl();
     const localVersion = app.getVersion();
 
@@ -78,6 +80,26 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
 
 const MAX_REDIRECTS = 5;
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
+const MIN_REUSABLE_INSTALLER_BYTES = 10 * 1024 * 1024;
+
+function runInstaller(installerPath: string): Promise<void> {
+  const installDir = path.dirname(app.getPath('exe'));
+  return new Promise<void>((resolve, reject) => {
+    execFile(
+      installerPath,
+      ['/S', `/D=${installDir}`],
+      { timeout: 120_000 },
+      (err) => {
+        if (err) {
+          logger.error('Installer failed', { error: err.message });
+          reject(new Error(`Installer failed: ${err.message}`));
+          return;
+        }
+        resolve();
+      },
+    );
+  });
+}
 
 async function downloadAndInstallWithRedirects(
   downloadUrl: string,
@@ -88,6 +110,17 @@ async function downloadAndInstallWithRedirects(
 
   const installerPath = path.join(tmpDir, 'ChunlvAgent-Setup.exe');
   const token = store.get('token') as string;
+
+  // 如果上次下载已经成功、但安装过程中被杀掉或锁文件失败，直接复用安装包，
+  // 避免每次看门狗拉起进程都重新从服务器拉 80MB+ 安装包。
+  if (fs.existsSync(installerPath) && fs.statSync(installerPath).size >= MIN_REUSABLE_INSTALLER_BYTES) {
+    logger.info('Reusing previously downloaded installer', { installerPath });
+    await runInstaller(installerPath);
+    try { fs.unlinkSync(installerPath); } catch { /* ignore */ }
+    app.relaunch();
+    app.quit();
+    return;
+  }
 
   logger.info('Downloading update', { url: downloadUrl, dest: installerPath });
 
@@ -168,23 +201,7 @@ async function downloadAndInstallWithRedirects(
 
   // Run silent install
   logger.info('Running silent install', { installerPath });
-  const installDir = path.dirname(app.getPath('exe'));
-
-  await new Promise<void>((resolve, reject) => {
-    execFile(
-      installerPath,
-      ['/S', `/D=${installDir}`],
-      { timeout: 120_000 },
-      (err) => {
-        if (err) {
-          logger.error('Installer failed', { error: err.message });
-          reject(new Error(`Installer failed: ${err.message}`));
-          return;
-        }
-        resolve();
-      },
-    );
-  });
+  await runInstaller(installerPath);
 
   logger.info('Install complete, restarting...');
 
@@ -202,6 +219,9 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
   try {
     const serverUrl = getServerUrl();
     const url = downloadUrl || `${serverUrl}/api/agent/download/latest`;
+    // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
+    const staggerMs = Math.floor(Math.random() * 60_000);
+    await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url });
     await downloadAndInstall(url);
   } catch (err: any) {

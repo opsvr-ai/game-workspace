@@ -250,13 +250,27 @@ export class AgentController {
       }
     } catch {}
 
-    // 2. 用 fping 快速扫常见局域网段，触发宿主机 ARP 更新并直接发现存活设备
+    // ARP table (fast, already-communicated devices)
+    try {
+      const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;
+      for (const line of raw.split('\n')) {
+        const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-f:]+)/i);
+        if (m && !seen.has(m[1])) {
+          seen.add(m[1]);
+          hosts.push({ ip: m[1], mac: m[2] });
+        }
+      }
+    } catch {}
+
+    // 安全慢速扫描常见局域网段。
+    // 之前用 `fping -r 1` 对两个 /24 一次性高速打 ICMP，廉价路由器/交换机很容易瞬间拥塞。
+    // 改为 `-c 1 -i 50`：每个 IP 只 ping 一次，间隔 50ms，单个 /24 约 13 秒，不会再形成 ping 风暴。
     try {
       const subnets = ['192.168.0.0/24', '192.168.1.0/24'];
       for (const subnet of subnets) {
         try {
-          const result = execSync(`fping -a -g ${subnet} -r 1 -t 300 2>/dev/null || true`, {
-            timeout: 8000,
+          const result = execSync(`fping -a -c 1 -i 50 -t 300 -g ${subnet} 2>/dev/null || true`, {
+            timeout: 20000,
             encoding: 'utf-8',
           }) as string;
           for (const line of result.split('\n')) {
@@ -270,48 +284,31 @@ export class AgentController {
       }
     } catch {}
 
-    // 1. ARP table (fast, already-communicated devices)
-    try {
-      const raw = execSync('arp -a', { timeout: 3000, encoding: 'utf-8' }) as string;
-      for (const line of raw.split('\n')) {
-        const m = line.match(/\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-f:]+)/i);
-        if (m && !seen.has(m[1])) {
-          seen.add(m[1]);
-          hosts.push({ ip: m[1], mac: m[2] });
-        }
-      }
-    } catch {}
-
-    // 2. Fast ping sweep using parallel fping or nmap
+    // 容器里没有主机网卡时，再用当前进程网卡补充一次（慢速，且跳过 docker 网段）。
     try {
       const nets = require('os').networkInterfaces();
+      const scanned = new Set<string>();
       for (const iface of Object.values(nets) as any[]) {
         for (const addr of iface as any[]) {
           if (addr.family !== 'IPv4' || addr.internal) continue;
-          const subnet = addr.address.split('.').slice(0, 3).join('.');
+          const ip = addr.address;
+          if (!/^192\.168\.\d+\.\d+$/.test(ip)) continue;
+          const subnet = ip.split('.').slice(0, 3).join('.');
+          if (scanned.has(subnet)) continue;
+          scanned.add(subnet);
           try {
-            // fping: fastest (completes in ~2s for entire subnet)
-            const result = execSync(`fping -a -g ${subnet}.0/24 -r 1 -t 200 2>/dev/null || true`, { timeout: 5000, encoding: 'utf-8' }) as string;
+            const result = execSync(`fping -a -c 1 -i 50 -t 300 -g ${subnet}.0/24 2>/dev/null || true`, {
+              timeout: 20000,
+              encoding: 'utf-8',
+            }) as string;
             for (const line of result.split('\n')) {
-              const ip = line.trim();
-              if (ip && !seen.has(ip) && /^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
-                seen.add(ip);
-                hosts.push({ ip });
+              const found = line.trim();
+              if (found && !seen.has(found) && /^\d+\.\d+\.\d+\.\d+$/.test(found)) {
+                seen.add(found);
+                hosts.push({ ip: found });
               }
             }
-          } catch {
-            // fallback: nmap
-            try {
-              const result = execSync(`nmap -sn ${subnet}.0/24 --host-timeout 2s 2>/dev/null | grep 'Nmap scan' | awk '{print $NF}' | tr -d '()' || true`, { timeout: 10000, encoding: 'utf-8' }) as string;
-              for (const line of result.split('\n')) {
-                const ip = line.trim();
-                if (ip && !seen.has(ip) && /^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
-                  seen.add(ip);
-                  hosts.push({ ip });
-                }
-              }
-            } catch {}
-          }
+          } catch {}
         }
       }
     } catch {}
