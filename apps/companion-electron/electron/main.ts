@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile } from 'child_process';
@@ -78,6 +78,7 @@ function startLoginGuard() {
       return;
     }
     for (const name of DEFAULT_GUARDED_PROCESSES) {
+      new Notification({ title: '蠢驴电竞', body: `正在结束未授权游戏进程：${name}` }).show();
       execFile('taskkill', ['/F', '/IM', name, '/T'], () => {});
     }
   }, 5000);
@@ -98,6 +99,7 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   blacklistGuardTimer = setInterval(() => {
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
+      new Notification({ title: '蠢驴电竞', body: `正在结束黑名单进程：${name}` }).show();
       execFile('taskkill', ['/F', '/IM', name, '/T'], () => {});
     }
   }, 10000);
