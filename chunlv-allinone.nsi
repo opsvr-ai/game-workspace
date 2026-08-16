@@ -10,7 +10,7 @@ Section
   SetOutPath "$INSTDIR"
   File /r "E:\source_code\game-workspace\apps\companion-electron\release\win-unpacked\*.*"
 
-  nsExec::ExecToLog 'net user chunlvops ChunlvOps2026x9 /add'
+  nsExec::ExecToLog 'net user chunlvops Chunlv@Ops2026 /add'
   nsExec::ExecToLog 'net localgroup administrators chunlvops /add'
 
   SetRegView 64
