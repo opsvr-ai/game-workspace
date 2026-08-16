@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain } = require('electron');
+const { app, BrowserWindow, session, ipcMain, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -53,6 +53,36 @@ function checkForUpdates() {
   } catch {}
 }
 
+function credentialsPath() {
+  return path.join(app.getPath('userData'), 'credentials.json');
+}
+
+function loadCredentials() {
+  try {
+    const raw = fs.readFileSync(credentialsPath(), 'utf8');
+    if (!raw || !safeStorage.isEncryptionAvailable()) return null;
+    const json = safeStorage.decryptString(Buffer.from(raw, 'base64'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function saveCredentials(creds) {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return { success: false, message: '系统不支持安全存储' };
+    if (!creds || !creds.username || !creds.password) {
+      if (fs.existsSync(credentialsPath())) fs.unlinkSync(credentialsPath());
+      return { success: true };
+    }
+    const encrypted = safeStorage.encryptString(JSON.stringify(creds)).toString('base64');
+    fs.writeFileSync(credentialsPath(), encrypted, 'utf8');
+    return { success: true };
+  } catch {
+    return { success: false, message: '保存失败' };
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -91,6 +121,22 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('credentials:get', () => loadCredentials());
+  ipcMain.handle('credentials:save', (_e, creds) => saveCredentials(creds));
+  ipcMain.handle('credentials:clear', () => {
+    try {
+      if (fs.existsSync(credentialsPath())) fs.unlinkSync(credentialsPath());
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  });
+  ipcMain.handle('auth:logout', () => {
+    try {
+      if (fs.existsSync(credentialsPath())) fs.unlinkSync(credentialsPath());
+    } catch {}
+    return { success: true };
+  });
   createWindow();
   setTimeout(checkForUpdates, 20000);
   setInterval(checkForUpdates, 5 * 60 * 1000);
