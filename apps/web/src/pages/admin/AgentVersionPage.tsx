@@ -52,6 +52,15 @@ interface VersionStatus {
   list: CompanionVersion[];
 }
 
+interface PushResultItem {
+  companionId: string;
+  name: string;
+  status: string;
+  agentVersion: string;
+  lastHeartbeat: string | null;
+  sent: boolean;
+}
+
 interface DeployScriptData {
   script: string;
   downloadUrl: string;
@@ -98,6 +107,9 @@ const AgentVersionPage: React.FC = () => {
   const [deploying, setDeploying] = useState(false);
   const [deployOutput, setDeployOutput] = useState<string | null>(null);
   const [scannedIPs, setScannedIPs] = useState<{ ip: string; mac?: string }[]>([]);
+  const [pushResults, setPushResults] = useState<PushResultItem[]>([]);
+  const [pushResultOpen, setPushResultOpen] = useState(false);
+  const [pushSummary, setPushSummary] = useState('');
 
   // Detect Electron environment
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -151,7 +163,9 @@ const AgentVersionPage: React.FC = () => {
     try {
       const { data } = await agentApi.pushUpdate(selectedRowKeys as string[]);
       if (data.code === 200) {
-        message.success(data.message);
+        setPushSummary(data.message);
+        setPushResults(data.data?.results || []);
+        setPushResultOpen(true);
         setSelectedRowKeys([]);
       } else {
         message.error(data.message || '推送失败');
@@ -168,7 +182,9 @@ const AgentVersionPage: React.FC = () => {
     try {
       const { data } = await agentApi.pushUpdateStudio();
       if (data.code === 200) {
-        message.success(data.message);
+        setPushSummary(data.message);
+        setPushResults(data.data?.results || []);
+        setPushResultOpen(true);
       } else {
         message.error(data.message || '全量推送失败');
       }
@@ -479,6 +495,44 @@ const AgentVersionPage: React.FC = () => {
           ]}
         />
       </Card>
+
+      <Modal
+        title="更新推送结果"
+        open={pushResultOpen}
+        onCancel={() => setPushResultOpen(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setPushResultOpen(false)}>
+            知道了
+          </Button>,
+        ]}
+        width={760}
+      >
+        <Alert
+          type={pushResults.some((r) => !r.sent) ? 'warning' : 'success'}
+          showIcon
+          message={pushSummary}
+          description="「已发送」表示更新命令已经推送到该电脑正在运行的客户端；是否真正下载安装完成，稍后点右上角「刷新」看当前版本是否变成最新。离线电脑不会收到命令。"
+          style={{ marginBottom: 12 }}
+        />
+        <Table
+          rowKey="companionId"
+          dataSource={pushResults}
+          size="small"
+          pagination={false}
+          locale={{ emptyText: '没有找到在线陪玩' }}
+          columns={[
+            { title: '陪玩', dataIndex: 'name' },
+            { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={statusColors[s] || 'default'}>{statusLabels[s] || s}</Tag> },
+            { title: '当前版本', dataIndex: 'agentVersion' },
+            {
+              title: '推送结果',
+              dataIndex: 'sent',
+              render: (sent: boolean) =>
+                sent ? <Tag color="green">已发送</Tag> : <Tag color="red">未在线</Tag>,
+            },
+          ]}
+        />
+      </Modal>
 
       {/* Deploy Assistant Modal */}
       <Modal

@@ -24,6 +24,63 @@ export class AgentService {
     return companions.map((c) => c.id);
   }
 
+  async getOnlineCompanionTargets(studioId?: string): Promise<
+    Array<{
+      companionId: string;
+      name: string;
+      status: string;
+      agentVersion: string;
+      lastHeartbeat: Date | null;
+    }>
+  > {
+    const companions = await this.prisma.companion.findMany({
+      where: {
+        status: { not: 'OFFLINE' },
+        ...(studioId ? { studioId } : {}),
+      },
+      select: {
+        id: true,
+        status: true,
+        user: { select: { username: true, displayName: true } },
+        pc: { select: { agentVersion: true, lastHeartbeat: true } },
+      },
+    });
+    return companions.map((c) => ({
+      companionId: c.id,
+      name: c.user?.displayName || c.user?.username || c.id,
+      status: c.status,
+      agentVersion: c.pc?.agentVersion ?? '0.0.0',
+      lastHeartbeat: c.pc?.lastHeartbeat ?? null,
+    }));
+  }
+
+  async getCompanionTargetsByIds(ids: string[]): Promise<
+    Array<{
+      companionId: string;
+      name: string;
+      status: string;
+      agentVersion: string;
+      lastHeartbeat: Date | null;
+    }>
+  > {
+    const companions = await this.prisma.companion.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        status: true,
+        user: { select: { username: true, displayName: true } },
+        pc: { select: { agentVersion: true, lastHeartbeat: true } },
+      },
+    });
+    return companions.map((c) => ({
+      companionId: c.id,
+      name: c.user?.displayName || c.user?.username || c.id,
+      status: c.status,
+      agentVersion: c.pc?.agentVersion ?? '0.0.0',
+      lastHeartbeat: c.pc?.lastHeartbeat ?? null,
+    }));
+  }
+
   async recordHeartbeat(companionId: string, agentVersion?: string) {
     return this.prisma.companionPC.upsert({
       where: { companionId },

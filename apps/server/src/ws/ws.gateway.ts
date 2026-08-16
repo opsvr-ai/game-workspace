@@ -336,14 +336,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ── outbound ───────────────────────────────────────────────────────
 
-  sendCommand(companionId: string, command: string, params?: unknown): void {
+  sendCommand(companionId: string, command: string, params?: unknown): boolean {
     const socketId = this.companionSockets.get(companionId);
     if (!socketId) {
       logger.warn('SEND pc:command FAILED (offline)', { companionId, command });
-      return;
+      return false;
     }
     logger.info('SEND pc:command', { companionId, command, params });
     this.server.to(`companion:${companionId}`).emit('pc:command', { command, params });
+    return true;
   }
 
   pushOrder(companionId: string, order: unknown): void {

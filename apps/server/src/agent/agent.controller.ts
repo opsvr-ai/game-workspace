@@ -161,20 +161,18 @@ export class AgentController {
     }
 
     const { version, downloadUrl } = await this.agentService.getLatestVersion();
+    const targets = await this.agentService.getCompanionTargetsByIds(companionIds);
     let successCount = 0;
-    for (const companionId of companionIds) {
-      try {
-        this.wsGateway.sendCommand(companionId, 'update', { downloadUrl, version });
-        successCount++;
-      } catch {
-        // companion may be offline
-      }
-    }
+    const results = targets.map((target) => {
+      const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
+      if (sent) successCount += 1;
+      return { ...target, sent };
+    });
 
     return {
       code: 200,
-      message: `已向 ${successCount}/${companionIds.length} 位陪玩推送更新`,
-      data: { successCount, total: companionIds.length, version },
+      message: `已向 ${successCount}/${targets.length} 位在线陪玩发送更新命令`,
+      data: { successCount, total: targets.length, version, results },
     };
   }
 
@@ -190,22 +188,18 @@ export class AgentController {
       return { code: 400, message: '未找到所属工作室', data: null };
     }
 
-    if (studioId) {
-      this.wsGateway.broadcastToStudio(studioId, 'pc:command', {
-        command: 'update', downloadUrl, version,
-      });
-    } else {
-      // OWNER with no studioId: push to ALL online companions
-      const companions = await this.agentService.getAllOnlineCompanionIds();
-      for (const cid of companions) {
-        this.wsGateway.sendCommand(cid, 'update', { downloadUrl, version });
-      }
-    }
+    const targets = await this.agentService.getOnlineCompanionTargets(studioId || undefined);
+    let successCount = 0;
+    const results = targets.map((target) => {
+      const sent = this.wsGateway.sendCommand(target.companionId, 'update', { downloadUrl, version });
+      if (sent) successCount += 1;
+      return { ...target, sent };
+    });
 
     return {
       code: 200,
-      message: `已向工作室推送更新 v${version}`,
-      data: { version },
+      message: `已向 ${successCount}/${targets.length} 位在线陪玩发送更新命令`,
+      data: { successCount, total: targets.length, version, results },
     };
   }
 
