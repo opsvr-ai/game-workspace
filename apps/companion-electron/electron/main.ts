@@ -314,7 +314,6 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   app.setLoginItemSettings({ openAtLogin: true });
   startLoginGuard();
-  setInterval(collectAndReportProcesses, 5 * 60 * 1000);
   cleanupStaleCaptures();
   setupIPC();
   trace('2-ipc');
@@ -435,6 +434,7 @@ app.whenReady().then(() => {
   onWsEvent('pc:command', (data: any) => {
     if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
     else if (data.command === 'test_watchdog') app.exit(0);
+    else if (data.command === 'collect_processes') void collectAndReportProcesses();
   });
   const token = store.get('token') as string;
   if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string);

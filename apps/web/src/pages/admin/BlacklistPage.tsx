@@ -26,6 +26,7 @@ const BlacklistPage: React.FC = () => {
   const [selectedProcess, setSelectedProcess] = useState<string[]>([]);
   const [reportedProcesses, setReportedProcesses] = useState<string[]>([]);
   const [loadingProcesses, setLoadingProcesses] = useState(false);
+  const [collecting, setCollecting] = useState(false);
   const [pushModalOpen, setPushModalOpen] = useState(false);
   const [pushTarget, setPushTarget] = useState<'all' | 'selected'>('all');
   const [selectedCompanions, setSelectedCompanions] = useState<string[]>([]);
@@ -223,6 +224,31 @@ const BlacklistPage: React.FC = () => {
                 value={selectedCompanionForAdd}
                 onChange={(cid) => { setSelectedCompanionForAdd(cid); setSelectedProcess([]); loadReportedProcesses(cid); }}
                 options={companions.map((c: any) => ({ label: c.user?.username || c.id, value: c.id }))} />
+              <Button
+                size="small"
+                loading={collecting}
+                disabled={!selectedCompanionForAdd}
+                style={{ marginBottom: 12 }}
+                onClick={async () => {
+                  if (!selectedCompanionForAdd) {
+                    message.warning('请先选择陪玩');
+                    return;
+                  }
+                  setCollecting(true);
+                  try {
+                    const { companionsApi } = await import('../../api/companions');
+                    await companionsApi.sendCommand(selectedCompanionForAdd, 'collect_processes');
+                    message.success('采集指令已发送，几秒后可刷新查看');
+                    setTimeout(() => loadReportedProcesses(selectedCompanionForAdd!), 4000);
+                  } catch {
+                    message.error('采集指令发送失败');
+                  } finally {
+                    setCollecting(false);
+                  }
+                }}
+              >
+                📡 立即采集该陪玩进程
+              </Button>
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择进程</Text>
               <Select placeholder={selectedCompanionForAdd ? '选择进程' : '请先选择陪玩'} style={{ width: '100%' }}
                 mode="multiple" value={selectedProcess} onChange={setSelectedProcess}
