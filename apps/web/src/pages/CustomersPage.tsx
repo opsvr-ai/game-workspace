@@ -19,6 +19,7 @@ import {
   ConfigProvider,
   Card,
   Tabs,
+  Upload,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -33,7 +34,9 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
+import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import http from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
@@ -61,7 +64,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string }>;
 }
 
 interface CompanionOption {
@@ -102,6 +105,10 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
+  const [compensateTarget, setCompensateTarget] = useState<any>(null);
+  const [compensateReason, setCompensateReason] = useState('');
+  const [compensateFile, setCompensateFile] = useState<File | null>(null);
+  const [compensateSubmitting, setCompensateSubmitting] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
@@ -224,6 +231,42 @@ const CustomersPage: React.FC = () => {
       fetchCustomers();
     } catch (err: any) {
       message.error(extractErrorMessage(err, '删除失败'));
+    }
+  };
+
+  const submitCompensate = async () => {
+    if (!compensateTarget) return;
+    if (!compensateReason.trim()) {
+      message.warning('请填写补单原因');
+      return;
+    }
+    if (!compensateFile) {
+      message.warning('请上传添加微信失败的截图');
+      return;
+    }
+    setCompensateSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', compensateFile);
+      const upload = await http.post('/upload/screenshot', fd);
+      const screenshotUrl = upload.data?.data?.url || upload.data?.url || '';
+      const order = compensateTarget.orders?.[0];
+      if (order?.id) {
+        await ordersApi.updateContact(order.id, {
+          contactStatus: 'not_accepted',
+          screenshotUrl,
+          notes: compensateReason,
+        });
+      }
+      message.success('补单申请已提交');
+      setCompensateTarget(null);
+      setCompensateReason('');
+      setCompensateFile(null);
+      fetchCustomers();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '提交失败'));
+    } finally {
+      setCompensateSubmitting(false);
     }
   };
 
@@ -444,8 +487,26 @@ const CustomersPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 280,
-      render: (_: unknown, record: Customer) => (
-        <Space size={4}>
+      render: (_: unknown, record: Customer) => {
+        const contactStatus = record.orders?.[0]?.contactStatus;
+        if (contactStatus === 'not_accepted') {
+          return (
+            <Button
+              type="primary"
+              danger
+              size="small"
+              onClick={() => {
+                setCompensateTarget(record);
+                setCompensateReason('');
+                setCompensateFile(null);
+              }}
+            >
+              📎 申请补单
+            </Button>
+          );
+        }
+        return (
+          <Space size={4}>
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>
               沟通
@@ -509,8 +570,9 @@ const CustomersPage: React.FC = () => {
           <Button type="link" size="small" onClick={() => navigate(`/companion/customers/${record.id}`)}>
             查看
           </Button>
-        </Space>
-      ),
+          </Space>
+        );
+      },
     });
   } else {
     columns.push({
@@ -656,6 +718,46 @@ const CustomersPage: React.FC = () => {
               <Input.TextArea rows={3} placeholder="请输入备注信息" />
             </Form.Item>
           </Form>
+        </Modal>
+
+        <Modal
+          title="申请补单"
+          open={!!compensateTarget}
+          onOk={submitCompensate}
+          onCancel={() => {
+            setCompensateTarget(null);
+            setCompensateReason('');
+            setCompensateFile(null);
+          }}
+          confirmLoading={compensateSubmitting}
+          okText="提交补单申请"
+          cancelText="取消"
+        >
+          <div style={{ marginTop: 12 }}>
+            <Text strong>客户：{compensateTarget?.wechatId || compensateTarget?.customerCode || '-'}</Text>
+            <div style={{ marginTop: 12 }}>
+              <Text>失败原因</Text>
+              <Input.TextArea
+                rows={3}
+                value={compensateReason}
+                onChange={(e) => setCompensateReason(e.target.value)}
+                placeholder="例如：客户现在不玩 / 微信未通过 / 客户已删除"
+              />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Text>失败截图（必传）</Text>
+              <Upload
+                beforeUpload={(f) => {
+                  setCompensateFile(f);
+                  return false;
+                }}
+                maxCount={1}
+                accept="image/*"
+              >
+                <Button>{compensateFile ? '✓ 截图已选' : '上传截图'}</Button>
+              </Upload>
+            </div>
+          </div>
         </Modal>
         <Modal
           title="归属调整"
