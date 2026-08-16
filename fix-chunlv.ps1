@@ -1,4 +1,11 @@
-$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'Continue'
+
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+  Write-Host '请以管理员身份运行这个修复工具。' -ForegroundColor Red
+  Start-Sleep -Seconds 5
+  exit 1
+}
 
 $installerUrl = 'http://192.168.0.106:3001/uploads/%E8%A0%A2%E9%A9%B4%E7%94%B5%E7%AB%9E%20Setup%201.0.20260826.exe'
 $out = Join-Path $env:TEMP 'Chunlv-Setup-20260826.exe'
@@ -55,3 +62,7 @@ $newExe = 'C:\Program Files\蠢驴电竞\蠢驴电竞.exe'
 if (Test-Path $newExe) {
   Start-Process $newExe
 }
+
+Write-Host ''
+Write-Host '修复完成。如果安装成功，新客户端会自动启动。' -ForegroundColor Green
+Read-Host '按回车键退出'
