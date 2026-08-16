@@ -343,7 +343,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return false;
     }
     logger.info('SEND pc:command', { companionId, command, params });
-    this.server.to(`companion:${companionId}`).emit('pc:command', { command, params });
+    // 客户端主进程目前按平铺字段处理，例如 update 需要 { command, downloadUrl, version }，
+    // 因此这里不能包在 params 里，否则旧客户端收不到 downloadUrl。
+    const payload: any = { command };
+    if (params && typeof params === 'object') {
+      Object.assign(payload, params);
+    }
+    this.server.to(`companion:${companionId}`).emit('pc:command', payload);
     return true;
   }
 
