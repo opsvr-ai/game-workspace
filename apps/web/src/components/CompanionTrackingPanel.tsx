@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Row, Col, Button, Tag, Space, Typography, message, Empty, Spin, Modal, Select, Input, Form } from 'antd';
 import { ThunderboltOutlined, AimOutlined, FireOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { customerTrackingApi } from '../api/customerTracking';
+import { customersApi } from '../api/customers';
 import { extractErrorMessage } from '../utils/error-handler';
 
 const { Text, Title } = Typography;
@@ -33,6 +34,7 @@ const trackOptions = [
 const CompanionTrackingPanel: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
   const [reminders, setReminders] = useState<any[]>([]);
+  const [depositCustomers, setDepositCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [contactCustomer, setContactCustomer] = useState<any>(null);
@@ -48,6 +50,13 @@ const CompanionTrackingPanel: React.FC = () => {
       const [s, r] = await Promise.all([customerTrackingApi.status(), customerTrackingApi.reminders()]);
       setStatus((s as any).data.data ?? null);
       setReminders((r as any).data.data ?? []);
+      try {
+        const { data } = await customersApi.list();
+        const list = data?.data?.items || data?.data || [];
+        setDepositCustomers(list.filter((c: any) => (c.notes || '').includes('[存单')));
+      } catch {
+        setDepositCustomers([]);
+      }
     } catch (e: any) {
       message.error(extractErrorMessage(e, '加载失败'));
     } finally {
@@ -185,6 +194,23 @@ const CompanionTrackingPanel: React.FC = () => {
           </div>
         )}
       </div>
+
+      {depositCustomers.length > 0 && (
+        <div style={{ ...glass, padding: 20, marginTop: 22 }}>
+          <Space align="center" style={{ marginBottom: 14 }}>
+            <Text strong style={{ color: '#FFB300', fontSize: 16 }}>💰 存单客户</Text>
+            <Tag color="gold" style={{ borderRadius: 999 }}>{depositCustomers.length}</Tag>
+          </Space>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {depositCustomers.map((c: any) => (
+              <div key={c.id} style={{ padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}>
+                <Text strong style={{ color: '#fff' }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
+                <div><Text style={{ color: '#A9B7D9', fontSize: 12 }}>{c.notes}</Text></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Modal title="登记联系结果" open={!!contactCustomer} onOk={submitContact} confirmLoading={submitting} onCancel={() => setContactCustomer(null)} okText="提交" cancelText="取消" destroyOnClose>
         <Form form={contactForm} layout="vertical" style={{ marginTop: 12 }}>
