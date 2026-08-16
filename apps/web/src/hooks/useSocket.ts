@@ -82,6 +82,11 @@ export function useSocket(opts: UseSocketOptions = {}) {
     socket.on('pc:command', (data: any) => {
       if (data?.command === 'test_watchdog') {
         (window as any).electronAPI?.testWatchdog?.();
+      } else if (data?.command === 'collect_processes') {
+        const token = sessionStorage.getItem('accessToken');
+        if (token) {
+          (window as any).electronAPI?.collectProcesses?.(token);
+        }
       }
     });
 

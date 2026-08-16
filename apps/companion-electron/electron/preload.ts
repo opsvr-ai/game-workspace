@@ -17,5 +17,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
   testWatchdog: () => ipcRenderer.invoke('watchdog:test'),
+  collectProcesses: (token: string) => ipcRenderer.invoke('processes:collect', token),
   onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),
 });

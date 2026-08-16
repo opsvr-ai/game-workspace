@@ -71,8 +71,8 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   }, 10000);
 }
 
-async function collectAndReportProcesses() {
-  const token = store.get('token') as string;
+async function collectAndReportProcesses(tokenOverride?: string) {
+  const token = tokenOverride || (store.get('token') as string);
   if (!token) return;
   execFile(
     'tasklist',
@@ -287,6 +287,10 @@ function setupIPC(): void {
   // 停止并等待全部截图上传完成
   ipcMain.handle('session:watch-stop', async () => {
     await stopCaptureAndFlush();
+    return { success: true };
+  });
+  ipcMain.handle('processes:collect', async (_e, token?: string) => {
+    await collectAndReportProcesses(token);
     return { success: true };
   });
 }
