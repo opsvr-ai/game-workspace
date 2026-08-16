@@ -59,6 +59,7 @@ interface PushResultItem {
   agentVersion: string;
   lastHeartbeat: string | null;
   sent: boolean;
+  state: 'updating' | 'success' | 'failed' | 'offline';
 }
 
 interface DeployScriptData {
@@ -110,6 +111,9 @@ const AgentVersionPage: React.FC = () => {
   const [pushResults, setPushResults] = useState<PushResultItem[]>([]);
   const [pushResultOpen, setPushResultOpen] = useState(false);
   const [pushSummary, setPushSummary] = useState('');
+  const pushPollTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const pushStartAtRef = React.useRef<number>(0);
+  const pushLatestVersionRef = React.useRef<string>('');
 
   // Detect Electron environment
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
@@ -129,6 +133,12 @@ const AgentVersionPage: React.FC = () => {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (pushPollTimerRef.current) clearInterval(pushPollTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     agentApi.getCsVersionStatus()
@@ -164,7 +174,7 @@ const AgentVersionPage: React.FC = () => {
       const { data } = await agentApi.pushUpdate(selectedRowKeys as string[]);
       if (data.code === 200) {
         setPushSummary(data.message);
-        setPushResults(data.data?.results || []);
+        startPushResultPolling(data.data?.results || [], data.data?.version || '');
         setPushResultOpen(true);
         setSelectedRowKeys([]);
       } else {
@@ -183,7 +193,7 @@ const AgentVersionPage: React.FC = () => {
       const { data } = await agentApi.pushUpdateStudio();
       if (data.code === 200) {
         setPushSummary(data.message);
-        setPushResults(data.data?.results || []);
+        startPushResultPolling(data.data?.results || [], data.data?.version || '');
         setPushResultOpen(true);
       } else {
         message.error(data.message || '全量推送失败');
@@ -193,6 +203,73 @@ const AgentVersionPage: React.FC = () => {
     } finally {
       setPushing(false);
     }
+  };
+
+  const startPushResultPolling = (items: PushResultItem[], latestVersion: string) => {
+    const initial: PushResultItem[] = items.map((item) => ({
+      ...item,
+      state: item.sent ? 'updating' : 'offline',
+    }));
+    setPushResults(initial);
+    pushLatestVersionRef.current = latestVersion;
+    pushStartAtRef.current = Date.now();
+    if (pushPollTimerRef.current) clearInterval(pushPollTimerRef.current);
+    pushPollTimerRef.current = setInterval(() => {
+      void pollPushResults();
+    }, 5000);
+    void pollPushResults();
+  };
+
+  const pollPushResults = async () => {
+    try {
+      const { data } = await agentApi.getVersionStatus();
+      const status: VersionStatus = data.data as VersionStatus;
+      const latestVersion = pushLatestVersionRef.current || status.latestVersion;
+      const onlineMap = new Map(
+        (status.list || []).map((c) => [c.companionId, c]),
+      );
+      const now = Date.now();
+      const timedOut = now - pushStartAtRef.current > 5 * 60 * 1000;
+      setPushResults((prev) => {
+        let allSuccess = true;
+        const next = prev.map((item) => {
+          if (item.state === 'offline' || !item.sent) {
+            return item;
+          }
+          const online = onlineMap.get(item.companionId);
+          if (online && online.agentVersion === latestVersion) {
+            return { ...item, agentVersion: online.agentVersion, state: 'success' as const };
+          }
+          if (online && online.agentVersion !== latestVersion) {
+            allSuccess = false;
+            return timedOut
+              ? { ...item, agentVersion: online.agentVersion, state: 'failed' as const }
+              : { ...item, agentVersion: online.agentVersion, state: 'updating' as const };
+          }
+          // 未出现在在线列表：命令可能已收到，客户端正在下载/安装中。
+          allSuccess = false;
+          return timedOut
+            ? { ...item, state: 'failed' as const }
+            : { ...item, state: 'updating' as const };
+        });
+        if (prev.some((i) => i.sent && i.state !== 'success') && next.every((i) => !i.sent || i.state === 'success')) {
+          message.success('全部在线电脑已更新到最新版本');
+        }
+        if (timedOut && next.some((i) => i.state === 'updating')) {
+          // 防止重复提示：直接在这里把仍在更新的标记为失败
+          return next.map((i) => (i.state === 'updating' ? { ...i, state: 'failed' as const } : i));
+        }
+        return next;
+      });
+    } catch {
+      // 轮询失败静默重试
+    }
+  };
+
+  const closePushResult = () => {
+    if (pushPollTimerRef.current) clearInterval(pushPollTimerRef.current);
+    pushPollTimerRef.current = null;
+    setPushResultOpen(false);
   };
 
   const handleOpenDeploy = async () => {
@@ -499,9 +576,9 @@ const AgentVersionPage: React.FC = () => {
       <Modal
         title="更新推送结果"
         open={pushResultOpen}
-        onCancel={() => setPushResultOpen(false)}
+        onCancel={closePushResult}
         footer={[
-          <Button key="close" type="primary" onClick={() => setPushResultOpen(false)}>
+          <Button key="close" type="primary" onClick={closePushResult}>
             知道了
           </Button>,
         ]}
@@ -511,7 +588,7 @@ const AgentVersionPage: React.FC = () => {
           type={pushResults.some((r) => !r.sent) ? 'warning' : 'success'}
           showIcon
           message={pushSummary}
-          description="「已发送」表示更新命令已经推送到该电脑正在运行的客户端；是否真正下载安装完成，稍后点右上角「刷新」看当前版本是否变成最新。离线电脑不会收到命令。"
+          description="系统会自动等待客户端上报新版本：显示「更新成功」才是真正更新完成。正在下载/安装期间显示「更新中」，5 分钟内仍未更新会标记为「更新失败」。"
           style={{ marginBottom: 12 }}
         />
         <Table
@@ -526,9 +603,13 @@ const AgentVersionPage: React.FC = () => {
             { title: '当前版本', dataIndex: 'agentVersion' },
             {
               title: '推送结果',
-              dataIndex: 'sent',
-              render: (sent: boolean) =>
-                sent ? <Tag color="green">已发送</Tag> : <Tag color="red">未在线</Tag>,
+              key: 'state',
+              render: (_: unknown, item: PushResultItem) => {
+                if (item.state === 'success') return <Tag color="green">更新成功</Tag>;
+                if (item.state === 'failed') return <Tag color="red">更新失败</Tag>;
+                if (item.state === 'offline') return <Tag color="default">未在线</Tag>;
+                return <Tag color="processing">更新中</Tag>;
+              },
             },
           ]}
         />
