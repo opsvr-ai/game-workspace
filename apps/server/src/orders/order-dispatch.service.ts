@@ -15,14 +15,9 @@ export class OrderDispatchService {
   ) {}
 
   private async refreshCompanionAvailable(companionId: string) {
-    const activeCount = await this.prisma.order
-      .count({ where: { companionId, status: { in: ['GRABBED', 'CONFIRMED'] } } })
-      .catch(() => 1);
-    if (activeCount === 0) {
-      await this.prisma.companion
-        .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
-        .catch(() => {});
-    }
+    await this.prisma.companion
+      .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
+      .catch(() => {});
   }
 
   async assign(orderId: string, companionId: string, userStudioId?: string) {
