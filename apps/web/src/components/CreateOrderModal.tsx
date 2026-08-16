@@ -7,7 +7,7 @@ import { DispatchType } from '@chunlv/shared';
 
 const { Option } = Select;
 
-const orderTypeConfig: Record<string, string> = { NEW: '首单', REPURCHASE: '复购' };
+const orderTypeConfig: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购' };
 const gameList = ['王者荣耀', '三角洲行动', '英雄联盟', '永劫无间', '无畏契约', 'CS2', '绝地求生', '金铲铲', '三角洲手游', '和平精英'];
 
 interface Props {
@@ -24,6 +24,7 @@ interface Props {
     dispatchType?: string;
     notes?: string;
     isCompensation?: boolean;
+    type?: string;
   };
 }
 
@@ -44,7 +45,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
   useEffect(() => {
     if (open && customerPreFill) {
       form.setFieldsValue({
-        type: 'NEW',
+        type: customerPreFill.type || 'NEW',
         gameName: customerPreFill.gameName || '三角洲行动',
         dispatchType: customerPreFill.dispatchType || DispatchType.DIRECT,
         urgency: 'now',

@@ -468,6 +468,38 @@ const CustomersPage: React.FC = () => {
           >
             开始服务
           </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setStartServicePreFill({
+                customerId: record.id,
+                companionId: user?.companionId,
+                dispatchType: 'DIRECT',
+                gameName: record.orders?.[0]?.gameName,
+                amount: record.orders?.[0]?.amount,
+                type: 'RENEW',
+              });
+              setCreateOrderOpen(true);
+            }}
+          >
+            续单
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setStartServicePreFill({
+                customerId: record.id,
+                companionId: user?.companionId,
+                dispatchType: 'DIRECT',
+                gameName: record.orders?.[0]?.gameName,
+                amount: record.orders?.[0]?.amount,
+                type: 'REPURCHASE',
+              });
+              setCreateOrderOpen(true);
+            }}
+          >
+            复购
+          </Button>
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>
             发布订单
           </Button>
