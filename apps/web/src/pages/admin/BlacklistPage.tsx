@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Button, Space, Modal, Input, Switch, Popconfirm, message, Typography, Select, Tabs, Radio } from 'antd';
+import { Table, Button, Space, Modal, Input, Switch, Popconfirm, message, Typography, Select, Tabs, Radio, Progress } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
 import StatusBlacklistConfigModal from '../../components/StatusBlacklistConfigModal';
@@ -27,6 +27,8 @@ const BlacklistPage: React.FC = () => {
   const [reportedProcesses, setReportedProcesses] = useState<string[]>([]);
   const [loadingProcesses, setLoadingProcesses] = useState(false);
   const [collecting, setCollecting] = useState(false);
+  const [collectProgress, setCollectProgress] = useState(0);
+  const [collectText, setCollectText] = useState('');
   const [pushModalOpen, setPushModalOpen] = useState(false);
   const [pushTarget, setPushTarget] = useState<'all' | 'selected'>('all');
   const [selectedCompanions, setSelectedCompanions] = useState<string[]>([]);
@@ -35,6 +37,7 @@ const BlacklistPage: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [statusBlacklistVisible, setStatusBlacklistVisible] = useState(false);
+  const collectTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -47,6 +50,7 @@ const BlacklistPage: React.FC = () => {
   }, []);
 
   useEffect(() => { fetchItems(); import('../../api/companions').then(m => m.companionsApi.list().then(({ data }: any) => setCompanions(data.data ?? [])).catch(() => {})); }, [fetchItems]);
+  useEffect(() => () => { if (collectTimerRef.current) clearInterval(collectTimerRef.current); }, []);
 
   const loadReportedProcesses = async (companionId: string) => {
     setLoadingProcesses(true);
@@ -235,20 +239,52 @@ const BlacklistPage: React.FC = () => {
                     return;
                   }
                   setCollecting(true);
+                  setCollectProgress(0);
+                  setCollectText('正在发送采集指令...');
+                  if (collectTimerRef.current) clearInterval(collectTimerRef.current);
                   try {
                     const { companionsApi } = await import('../../api/companions');
                     await companionsApi.sendCommand(selectedCompanionForAdd, 'collect_processes');
-                    message.success('采集指令已发送，几秒后可刷新查看');
-                    setTimeout(() => loadReportedProcesses(selectedCompanionForAdd!), 4000);
+                    let attempts = 0;
+                    collectTimerRef.current = setInterval(async () => {
+                      attempts += 1;
+                      setCollectProgress(Math.min(90, attempts * 8));
+                      setCollectText('陪玩端正在采集进程，请稍候...');
+                      try {
+                        const { data } = await blacklistApi.getUniqueNames(selectedCompanionForAdd!);
+                        if (data.data && data.data.length > 0) {
+                          setReportedProcesses(data.data);
+                          setCollectProgress(100);
+                          setCollectText('采集完成');
+                          if (collectTimerRef.current) clearInterval(collectTimerRef.current);
+                          setCollecting(false);
+                          message.success(`采集完成，共 ${data.data.length} 个进程`);
+                          return;
+                        }
+                      } catch {}
+                      if (attempts >= 15) {
+                        if (collectTimerRef.current) clearInterval(collectTimerRef.current);
+                        setCollectProgress(100);
+                        setCollectText('采集超时，暂未收到上报');
+                        setCollecting(false);
+                        message.warning('采集超时，请确认陪玩端在线');
+                      }
+                    }, 1000);
                   } catch {
-                    message.error('采集指令发送失败');
-                  } finally {
                     setCollecting(false);
+                    setCollectText('');
+                    message.error('采集指令发送失败');
                   }
                 }}
               >
-                📡 立即采集该陪玩进程
-              </Button>
+                 📡 立即采集该陪玩进程
+               </Button>
+               {collecting && (
+                 <div style={{ marginBottom: 12 }}>
+                   <Progress percent={collectProgress} size="small" status={collectProgress >= 100 ? 'success' : 'active'} />
+                   <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{collectText}</Text>
+                 </div>
+               )}
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择进程</Text>
               <Select placeholder={selectedCompanionForAdd ? '选择进程' : '请先选择陪玩'} style={{ width: '100%' }}
                 mode="multiple" value={selectedProcess} onChange={setSelectedProcess}
