@@ -429,6 +429,10 @@ app.whenReady().then(() => {
 
   trace('6-done');
   checkForUpdates();
+  // 登录或未登录都每 5 分钟检查一次更新，避免只能靠重启或手动推送才能更新。
+  setInterval(() => {
+    void checkForUpdates();
+  }, 5 * 60 * 1000);
 });
 
 app.on('before-quit', () => {

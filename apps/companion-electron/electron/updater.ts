@@ -28,6 +28,8 @@ function compareVersions(a: string, b: string): number {
  * If newer version available, download and install.
  */
 export async function checkForUpdates(): Promise<void> {
+  if (updateCheckRunning) return;
+  updateCheckRunning = true;
   try {
     // 开机自动检查时随机错峰，避免所有客户端同时拉版本和安装包。
     await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 120_000)));
@@ -68,6 +70,8 @@ export async function checkForUpdates(): Promise<void> {
     await downloadAndInstall(fullDownloadUrl);
   } catch (err: any) {
     logger.warn('Update check failed (non-fatal)', { error: err.message });
+  } finally {
+    updateCheckRunning = false;
   }
 }
 
@@ -81,6 +85,7 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
 const MAX_REDIRECTS = 5;
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
 const MIN_REUSABLE_INSTALLER_BYTES = 10 * 1024 * 1024;
+let updateCheckRunning = false;
 
 function runInstaller(installerPath: string): Promise<void> {
   const installDir = path.dirname(app.getPath('exe'));

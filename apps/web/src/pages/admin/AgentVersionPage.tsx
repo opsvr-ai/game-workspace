@@ -132,6 +132,8 @@ const AgentVersionPage: React.FC = () => {
 
   useEffect(() => {
     fetchStatus();
+    const timer = setInterval(fetchStatus, 15000);
+    return () => clearInterval(timer);
   }, [fetchStatus]);
 
   useEffect(() => {
@@ -141,9 +143,14 @@ const AgentVersionPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    agentApi.getCsVersionStatus()
-      .then(({ data }: any) => setCsVersionStatus(data.data || []))
-      .catch(() => {});
+    const load = () => {
+      agentApi.getCsVersionStatus()
+        .then(({ data }: any) => setCsVersionStatus(data.data || []))
+        .catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 60000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleBuildAndPush = async () => {
