@@ -58,6 +58,22 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Post('cs-heartbeat')
+  @UseGuards(AuthGuard('jwt'))
+  async csHeartbeat(@Req() req: any, @Body() body: { agentVersion?: string }): Promise<ApiResponse<unknown>> {
+    if (!req.user?.id) return { code: 401, message: '未登录', data: null };
+    await this.agentService.reportCsVersion(req.user.id, body?.agentVersion || '0.0.0');
+    return { code: 200, message: 'ok', data: null };
+  }
+
+  @Get('cs-version-status')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async csVersionStatus(): Promise<ApiResponse<unknown>> {
+    const data = await this.agentService.listCsVersionStatus();
+    return { code: 200, message: 'ok', data };
+  }
+
   // Companion client reports heartbeat/version over REST as a reliable fallback
   @Post('heartbeat')
   @UseGuards(AuthGuard('jwt'))

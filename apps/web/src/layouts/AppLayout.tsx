@@ -316,6 +316,21 @@ const AppLayout: React.FC = () => {
         .catch(() => {});
     }
   }, [user?.studioId]);
+
+  // 客服端/陪玩端版本上报，让管理端能直接看到各客户端版本
+  useEffect(() => {
+    if (!user?.id) return;
+    const api = (window as any).electronAPI;
+    if (!api?.getAppVersion) return;
+    const report = () => {
+      api.getAppVersion().then((v: string) => {
+        http.post('/agent/cs-heartbeat', { agentVersion: v }).catch(() => {});
+      }).catch(() => {});
+    };
+    report();
+    const timer = setInterval(report, 60_000);
+    return () => clearInterval(timer);
+  }, [user?.id]);
   const totalUnread = useChatStore((s) => s.totalUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);

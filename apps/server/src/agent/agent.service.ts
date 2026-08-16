@@ -64,6 +64,42 @@ export class AgentService {
     };
   }
 
+  async reportCsVersion(userId: string, version: string) {
+    return this.prisma.systemConfig.upsert({
+      where: { key: `cs.client.version.${userId}` },
+      create: {
+        key: `cs.client.version.${userId}`,
+        value: { version, lastSeen: new Date().toISOString() },
+      },
+      update: {
+        value: { version, lastSeen: new Date().toISOString() },
+      },
+    });
+  }
+
+  async listCsVersionStatus() {
+    const records = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'cs.client.version.' } },
+    });
+    const users = await this.prisma.user.findMany({
+      where: { role: { in: ['CS', 'ADMIN', 'OWNER'] } },
+      select: { id: true, username: true, role: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return records.map((r) => {
+      const userId = r.key.replace('cs.client.version.', '');
+      const value = (r.value as any) || {};
+      const user = userMap.get(userId);
+      return {
+        userId,
+        username: user?.username || userId,
+        role: user?.role || '-',
+        version: value.version || '0.0.0',
+        lastSeen: value.lastSeen || null,
+      };
+    });
+  }
+
   async getVersionStatus() {
     const companions = await this.prisma.companion.findMany({
       where: { status: { not: 'OFFLINE' } },
