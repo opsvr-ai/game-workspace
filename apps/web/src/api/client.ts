@@ -91,6 +91,9 @@ http.interceptors.response.use(
 
         sessionStorage.setItem('accessToken', newAccessToken);
         localStorage.setItem('refreshToken', newRefreshToken);
+        try {
+          (window as any).electronAPI?.storeSet?.('token', newAccessToken);
+        } catch {}
 
         processQueue(null, newAccessToken);
 
