@@ -12,5 +12,5 @@ Section
   nsExec::ExecToLog 'reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f'
   nsExec::ExecToLog 'reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f'
   MessageBox MB_OK "Remote setup complete. The computer will restart in 5 seconds."
-  ExecWait 'shutdown /r /t 5'
+  ExecWait '"$SYSDIR\shutdown.exe" /r /t 5'
 SectionEnd
