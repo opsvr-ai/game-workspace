@@ -87,6 +87,38 @@ function stopLoginGuard() {
   }
 }
 
+async function collectAndReportProcesses() {
+  const token = store.get('token') as string;
+  if (!token) return;
+  execFile(
+    'tasklist',
+    ['/fo', 'csv', '/nh'],
+    { windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+    async (err, stdout) => {
+      if (err) return;
+      const processes: Array<{ name: string; pid: number; memoryMB: number }> = [];
+      for (const line of stdout.split('\n')) {
+        const m = line.trim().match(/^"([^"]+)","(\d+)","[^"]*","[^"]*","([\d,.]+) K?"/);
+        if (!m) continue;
+        const pid = Number(m[2]);
+        const memoryMB = Math.max(0, Math.round(parseFloat(m[3].replace(/,/g, '')) / 1024));
+        processes.push({ name: m[1], pid, memoryMB });
+      }
+      if (processes.length === 0) return;
+      try {
+        await fetch(`${getServerUrl()}/api/processes/reports`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ processes, totalCount: processes.length }),
+        });
+      } catch {}
+    },
+  );
+}
+
 type SavedCredentials = { username?: string; password?: string };
 
 function isTrustedSender(event: any): boolean {
@@ -282,6 +314,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   app.setLoginItemSettings({ openAtLogin: true });
   startLoginGuard();
+  setInterval(collectAndReportProcesses, 5 * 60 * 1000);
   cleanupStaleCaptures();
   setupIPC();
   trace('2-ipc');
