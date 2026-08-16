@@ -384,7 +384,7 @@ export class OrderWorkflowService {
     return updatedOrder;
   }
 
-  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string) {
+  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string, reason?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     // COMPANION can only cancel their own orders
@@ -398,7 +398,10 @@ export class OrderWorkflowService {
     this.validateTransition(order, OrderStatus.CANCELLED);
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: OrderStatus.CANCELLED },
+      data: {
+        status: OrderStatus.CANCELLED,
+        notes: reason ? (order.notes ? `${order.notes}\n[取消] ${reason}` : `[取消] ${reason}`) : order.notes,
+      },
     });
     if (updated.companionId) await this.refreshCompanionAvailable(updated.companionId);
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);

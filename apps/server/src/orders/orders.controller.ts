@@ -140,8 +140,17 @@ export class OrdersController {
 
   @Post('orders/:id/cancel')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
-  async cancel(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.cancel(id, req.user?.studioId, req.user?.companionId, req.user?.role);
+  async cancel(@Param('id') id: string, @Req() req: any, @Body() body: { reason?: string }): Promise<ApiResponse<unknown>> {
+    if (req.user?.role === 'COMPANION' && !body?.reason?.trim()) {
+      return { code: 400, message: '请填写取消原因', data: null };
+    }
+    const data = await this.ordersService.cancel(
+      id,
+      req.user?.studioId,
+      req.user?.companionId,
+      req.user?.role,
+      body?.reason?.trim(),
+    );
     return { code: 200, message: '取消成功', data };
   }
 

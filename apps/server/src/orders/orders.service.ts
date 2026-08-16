@@ -594,8 +594,8 @@ export class OrdersService {
     return this.workflowService.completeWithBilling(orderId, companionId, dto);
   }
 
-  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string) {
-    return this.workflowService.cancel(orderId, userStudioId, companionId, role);
+  async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string, reason?: string) {
+    return this.workflowService.cancel(orderId, userStudioId, companionId, role, reason);
   }
 
   async callPartner(orderId: string, callerId: string) {

@@ -86,6 +86,8 @@ const CustomerDetailPage: React.FC = () => {
   const [loadingFollowUps, setLoadingFollowUps] = useState(true);
   const [refundTarget, setRefundTarget] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Modal states
   const [submittingProfile, setSubmittingProfile] = useState(false);
@@ -238,6 +240,33 @@ const CustomerDetailPage: React.FC = () => {
     }
   };
 
+  const openCancel = () => {
+    const active = orders.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+    if (!active) {
+      message.warning('当前没有进行中的订单');
+      return;
+    }
+    setCancelTarget(active);
+    setCancelReason('');
+  };
+
+  const submitCancel = async () => {
+    if (!cancelTarget) return;
+    if (!cancelReason.trim()) {
+      message.warning('请填写取消原因');
+      return;
+    }
+    try {
+      await ordersApi.cancel(cancelTarget.id, cancelReason.trim());
+      message.success('已取消');
+      setCancelTarget(null);
+      setCancelReason('');
+      fetchOrders();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '取消失败'));
+    }
+  };
+
   const submitRefund = async () => {
     if (!refundTarget) return;
     if (!refundReason.trim()) {
@@ -335,6 +364,7 @@ const CustomerDetailPage: React.FC = () => {
         <Space>
           <Button type="primary" size="small" onClick={() => handleOrderAction('complete')}>完成服务</Button>
           <Button danger size="small" onClick={() => handleOrderAction('refund')}>退款</Button>
+          <Button danger size="small" onClick={openCancel}>取消</Button>
           <Button size="small" onClick={() => handleOrderAction('deposit')}>存单</Button>
           <Button
             icon={React.createElement(ReloadOutlined)}
@@ -741,6 +771,28 @@ const CustomerDetailPage: React.FC = () => {
             value={refundReason}
             onChange={(e) => setRefundReason(e.target.value)}
             placeholder="例如：客户不喜欢陪玩声音 / 客户临时有事 / 技术差"
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        title="取消订单"
+        open={!!cancelTarget}
+        onOk={submitCancel}
+        onCancel={() => {
+          setCancelTarget(null);
+          setCancelReason('');
+        }}
+        okText="确认取消"
+        cancelText="返回"
+      >
+        <div style={{ marginTop: 12 }}>
+          <Text strong>取消原因（必填）</Text>
+          <Input.TextArea
+            rows={3}
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="例如：客户临时有事 / 客户不打了 / 其他原因"
           />
         </div>
       </Modal>
