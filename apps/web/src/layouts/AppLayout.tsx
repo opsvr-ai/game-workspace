@@ -591,19 +591,12 @@ const AppLayout: React.FC = () => {
   const VoiceCallHandler = () => (
     <>
       <IncomingCallModal
-        open={vc.callState.status === 'ringing'}
+        open={vc.callState.status === 'ringing' || vc.callState.status === 'calling'}
         callerName={vc.callState.peerName}
+        calling={vc.callState.status === 'calling'}
         onAccept={vc.acceptCall}
         onReject={vc.rejectCall}
       />
-      {vc.callState.status === 'calling' && (
-        <VoiceCallBar
-          peerName={vc.callState.peerName || '正在呼叫'}
-          duration={0}
-          volume={vc.callState.volume}
-          onHangup={vc.hangup}
-        />
-      )}
       {vc.callState.status === 'connected' && (
         <VoiceCallBar
           peerName={vc.callState.peerName}

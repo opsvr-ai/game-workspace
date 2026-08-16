@@ -8,22 +8,27 @@ const { Text, Title } = Typography;
 interface Props {
   open: boolean;
   callerName?: string;
+  calling?: boolean;
   onAccept: () => void;
   onReject: () => void;
 }
 
-const IncomingCallModal: React.FC<Props> = ({ open, callerName, onAccept, onReject }) => {
+const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccept, onReject }) => {
   return (
-    <Modal open={open} closable={false} footer={null} width={320} centered>
-      <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <div style={{ fontSize: 48, animation: 'pulse 1s infinite', marginBottom: 16 }}>📞</div>
-        <Title level={4} style={{ marginBottom: 4 }}>{callerName || '未知'}</Title>
-        <Text type="secondary">邀请你进行语音通话</Text>
-        <div style={{ marginTop: 24 }}>
-          <Space size={24}>
-            <Button type="primary" size="large" shape="circle" icon={<PhoneOutlined />} onClick={onAccept} style={{ background: '#52c41a', borderColor: '#52c41a' }} />
+    <Modal open={open} closable={false} footer={null} width="100vw" centered style={{ top: 0, maxWidth: '100%' }} bodyStyle={{ padding: 0, height: '100vh' }}>
+      <div style={{ textAlign: 'center', height: '100vh', paddingTop: '20vh', background: 'linear-gradient(180deg,#1E293B,#0F172A)', color: '#fff' }}>
+        <div style={{ fontSize: 72, animation: 'pulse 1s infinite', marginBottom: 24 }}>📞</div>
+        <Title level={3} style={{ marginBottom: 8, color: '#fff' }}>{callerName || '未知'}</Title>
+        <Text style={{ color: 'rgba(255,255,255,0.7)' }}>{calling ? '正在呼叫...' : '邀请你进行语音通话'}</Text>
+        <div style={{ marginTop: 48 }}>
+          {calling ? (
             <Button danger size="large" shape="circle" icon={<CloseOutlined />} onClick={onReject} />
-          </Space>
+          ) : (
+            <Space size={40}>
+              <Button type="primary" size="large" shape="circle" icon={<PhoneOutlined />} onClick={onAccept} style={{ background: '#52c41a', borderColor: '#52c41a' }} />
+              <Button danger size="large" shape="circle" icon={<CloseOutlined />} onClick={onReject} />
+            </Space>
+          )}
         </div>
       </div>
     </Modal>
