@@ -168,8 +168,8 @@ const LoginPage: React.FC = () => {
       message.warning('线下工作室店长需要填写地址');
       return;
     }
-    if (isCompanionRole && (!idCardFront || !idCardBack)) {
-      message.warning('陪玩注册需要上传身份证正反面照片');
+    if (!idCardFront || !idCardBack) {
+      message.warning('注册需要上传身份证正反面照片');
       return;
     }
     // Role mapping: OFFLINE_/ONLINE_ prefix → UserRole
@@ -353,7 +353,6 @@ const LoginPage: React.FC = () => {
                   </div>
                 </>
               )}
-              {isCompanionRole && (
               <div style={{ display: 'flex', gap: 12 }}>
                 <Upload
                   beforeUpload={(f) => {
@@ -380,7 +379,6 @@ const LoginPage: React.FC = () => {
                   </Button>
                 </Upload>
               </div>
-              )}
               <Button
                 type="primary"
                 size="large"
