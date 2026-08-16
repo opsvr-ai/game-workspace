@@ -124,7 +124,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         void client.join(`companion:${user.companionId}`);
         void client.join(`pc:${user.companionId}`);
         this.companionSockets.set(user.companionId, client.id);
-        logger.info('Companion connected', { companionId: user.companionId, username: user.username });
+        logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
 
         const current = await this.prisma.companion
           .findUnique({ where: { id: user.companionId }, select: { status: true } })
@@ -342,7 +342,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       logger.warn('SEND pc:command FAILED (offline)', { companionId, command });
       return false;
     }
-    logger.info('SEND pc:command', { companionId, command, params });
+    logger.debug('SEND pc:command', { companionId, command, params });
     // 客户端主进程目前按平铺字段处理，例如 update 需要 { command, downloadUrl, version }，
     // 因此这里不能包在 params 里，否则旧客户端收不到 downloadUrl。
     const payload: any = { command };
