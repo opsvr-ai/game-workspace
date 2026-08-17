@@ -102,7 +102,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
     {
       key: 'owner-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/admin/traffic', label: '派单工作台' }],
+      children: [{ key: '/admin/dispatch', label: '派单工作台' }],
     },
     {
       key: 'owner-orders', icon: IconOrders, label: '订单管理',
@@ -218,7 +218,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [{ key: '/cs/orders', label: '全部订单' }],
     },
     {
-      key: 'cs-customers', icon: IconCustomers, label: '客户管理',
+      key: 'cs-customers', icon: IconCustomers, label: '陪玩管理',
       children: [{ key: '/cs/employees', label: '陪玩管理' }],
     },
     {
