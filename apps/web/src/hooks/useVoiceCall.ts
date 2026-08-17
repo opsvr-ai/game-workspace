@@ -106,7 +106,16 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
         return;
       }
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+      const env = (import.meta as any).env || {};
+      if (env.VITE_TURN_URL) {
+        iceServers.push({
+          urls: env.VITE_TURN_URL,
+          username: env.VITE_TURN_USERNAME || 'chunlv',
+          credential: env.VITE_TURN_CREDENTIAL || 'Chunlv@2026',
+        });
+      }
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
       const stream = await media.getUserMedia({ audio: true });
@@ -158,7 +167,16 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
         return;
       }
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+      const env = (import.meta as any).env || {};
+      if (env.VITE_TURN_URL) {
+        iceServers.push({
+          urls: env.VITE_TURN_URL,
+          username: env.VITE_TURN_USERNAME || 'chunlv',
+          credential: env.VITE_TURN_CREDENTIAL || 'Chunlv@2026',
+        });
+      }
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
       const stream = await media.getUserMedia({ audio: true });

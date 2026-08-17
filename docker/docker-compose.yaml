@@ -39,6 +39,21 @@ services:
       timeout: 10s
       retries: 3
 
+  coturn:
+    image: docker.io/coturn/coturn:4.6.2-alpine
+    container_name: chunlv-coturn
+    restart: unless-stopped
+    network_mode: host
+    command: ['-c', '/etc/coturn/turnserver.conf']
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    ports:
+      - '3478:3478/udp'
+      - '3478:3478/tcp'
+      - '5349:5349/udp'
+      - '5349:5349/tcp'
+      - '49160-49200:49160-49200/udp'
+
   app:
     build:
       context: ..
