@@ -17,5 +17,6 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     getServerUrl: () => electron_1.ipcRenderer.invoke('config:getServerUrl'),
     getAppVersion: () => electron_1.ipcRenderer.invoke('app:getVersion'),
     testWatchdog: () => electron_1.ipcRenderer.invoke('watchdog:test'),
+    collectProcesses: (token) => electron_1.ipcRenderer.invoke('processes:collect', token),
     onStatusChanged: (status) => electron_1.ipcRenderer.send('companion:status', status),
 });
