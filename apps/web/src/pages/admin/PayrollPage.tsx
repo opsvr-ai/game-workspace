@@ -75,6 +75,8 @@ const PayrollPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="baseSalary" label="基本工资" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>
           <Form.Item name="performancePercent" label="绩效比例%" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>
+          <Form.Item name="offlinePercent" label="线下流水提成%" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>
+          <Form.Item name="bridgeFixed" label="桥接固定提成" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>
           <Form.Item name="fullAttendanceDays" label="满勤天数" rules={[{ required: true }]}><InputNumber min={1} /></Form.Item>
           <Form.Item name="lateDeduction" label="迟到扣款" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>
           <Form.Item name="absentDeduction" label="缺勤扣款" rules={[{ required: true }]}><InputNumber min={0} /></Form.Item>

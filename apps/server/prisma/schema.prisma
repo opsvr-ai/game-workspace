@@ -935,6 +935,8 @@ model PayrollConfig {
   role              String   @unique
   baseSalary        Float
   performancePercent Float
+  offlinePercent    Float
+  bridgeFixed       Float
   fullAttendanceDays Int
   lateDeduction     Float
   absentDeduction   Float

@@ -14,6 +14,8 @@ export class PayrollService {
       role: dto.role,
       baseSalary: Number(dto.baseSalary),
       performancePercent: Number(dto.performancePercent),
+      offlinePercent: Number(dto.offlinePercent ?? 0),
+      bridgeFixed: Number(dto.bridgeFixed ?? 0),
       fullAttendanceDays: Number(dto.fullAttendanceDays),
       lateDeduction: Number(dto.lateDeduction),
       absentDeduction: Number(dto.absentDeduction),
@@ -55,10 +57,12 @@ export class PayrollService {
       const attendanceDeduction = absent * config.absentDeduction + late * config.lateDeduction;
       const completedOrders = await this.prisma.order.findMany({
         where: { csUserId: user.id, status: 'DONE', createdAt: { gte: start, lt: end } },
-        select: { amount: true },
+        select: { amount: true, source: true },
       });
-      const revenue = completedOrders.reduce((s, o) => s + o.amount, 0);
-      const performance = revenue * (config.performancePercent / 100);
+      const performance = completedOrders.reduce((sum, o) => {
+        if (o.source === 'BRIDGE') return sum + config.bridgeFixed;
+        return sum + o.amount * (config.offlinePercent / 100);
+      }, 0);
       const total = base + performance - attendanceDeduction;
       const record = await this.prisma.payrollRecord.upsert({
         where: { userId_month: { userId: user.id, month } },
