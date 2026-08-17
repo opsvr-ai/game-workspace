@@ -39,6 +39,10 @@ export class AnalyticsService {
         const tags = [quality, activity, topGame, topMode];
         if (c.profile?.likesTalkative) tags.push('喜欢话多');
         if (c.profile?.likesSkill) tags.push('重视技术');
+        const suggestions: string[] = [];
+        if (daysSince > 7) suggestions.push('超过7天未消费，建议主动回访');
+        if (total >= 500) suggestions.push('优质客户，建议安排固定陪玩维护');
+        if (orders.length === 0) suggestions.push('暂无消费记录，建议优先跟进');
         return {
           id: c.id,
           wechatId: c.wechatId,
@@ -51,6 +55,7 @@ export class AnalyticsService {
           preferredTime: c.profile?.preferredTime || '-',
           lastOrderAt,
           tags,
+          suggestions,
         };
       })
       .sort((a, b) => b.totalSpent - a.totalSpent);
@@ -87,6 +92,10 @@ export class AnalyticsService {
         if (repurchaseRate >= 30) tags.push('复购强');
         if (total >= 500) tags.push('高流水');
         if (orders.length >= 10) tags.push('努力型');
+        const suggestions: string[] = [];
+        if (renewRate < 30) suggestions.push('续单率偏低，建议培训复购话术');
+        if (repurchaseRate < 30) suggestions.push('复购率偏低，建议加强客户维护');
+        if (total >= 500) suggestions.push('高流水陪玩，建议优先派优质客户');
         return {
           id: comp.id,
           name: comp.user?.username || comp.id,
@@ -98,8 +107,59 @@ export class AnalyticsService {
           topGame,
           workWechatCount: comp.workWechats?.length || 0,
           tags,
+          suggestions,
         };
       })
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }
+
+  async csAnalytics(studioId: string) {
+    const users = await this.prisma.user.findMany({
+      where: { studioId, role: 'CS' },
+      include: { csOrders: true, claimedOrders: true },
+    });
+    return users
+      .map((u) => {
+        const created = u.csOrders || [];
+        const claimed = u.claimedOrders || [];
+        const completed = created.filter((o) => o.status === 'DONE');
+        const revenue = completed.reduce((s, o) => s + o.amount, 0);
+        const tags: string[] = [];
+        if (created.length >= 10) tags.push('派单量大');
+        if (claimed.length > 0) tags.push('会养客');
+        if (revenue >= 500) tags.push('高转化');
+        return {
+          id: u.id,
+          name: u.username,
+          createdCount: created.length,
+          claimedCount: claimed.length,
+          completedCount: completed.length,
+          revenue,
+          tags,
+          suggestions: completed.length < created.length ? ['有未完成订单，建议跟进'] : [],
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }
+
+  async adminAnalytics(studioId: string) {
+    const users = await this.prisma.user.findMany({
+      where: { studioId, role: 'ADMIN' },
+      include: { csOrders: true },
+    });
+    return users
+      .map((u) => {
+        const orders = u.csOrders || [];
+        const revenue = orders.filter((o) => o.status === 'DONE').reduce((s, o) => s + o.amount, 0);
+        return {
+          id: u.id,
+          name: u.username,
+          orderCount: orders.length,
+          revenue,
+          tags: revenue >= 1000 ? ['高产出'] : [],
+          suggestions: [],
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
   }
 }

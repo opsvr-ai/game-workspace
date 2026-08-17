@@ -24,4 +24,20 @@ export class AnalyticsController {
     if (!studioId) return { code: 400, message: '未找到所属工作室', data: [] };
     return { code: 200, data: await this.service.companionAnalytics(studioId) };
   }
+
+  @Get('cs')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async cs(@Req() req: any) {
+    const studioId = req.user?.studioId;
+    if (!studioId) return { code: 400, message: '未找到所属工作室', data: [] };
+    return { code: 200, data: await this.service.csAnalytics(studioId) };
+  }
+
+  @Get('admins')
+  @Roles(UserRole.OWNER)
+  async admins(@Req() req: any) {
+    const studioId = req.user?.studioId;
+    if (!studioId) return { code: 400, message: '未找到所属工作室', data: [] };
+    return { code: 200, data: await this.service.adminAnalytics(studioId) };
+  }
 }
