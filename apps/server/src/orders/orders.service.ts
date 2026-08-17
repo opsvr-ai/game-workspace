@@ -516,13 +516,14 @@ export class OrdersService {
             urgent: true,
             requireCsContact: waitingSeconds >= 600,
             csContactStatus: o.contactStatus || '',
+            csContactEvidenceUrl: (o.customFields as any)?.csContactEvidenceUrl || '',
             availableCompanions,
           };
         }),
     );
   }
 
-  async markCsContact(orderId: string, status: string) {
+  async markCsContact(orderId: string, status: string, evidenceUrl?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     const cf = (order.customFields as any) || {};
@@ -530,7 +531,7 @@ export class OrdersService {
       where: { id: orderId },
       data: {
         contactStatus: status,
-        customFields: { ...cf, csContactAt: new Date().toISOString() },
+        customFields: { ...cf, csContactAt: new Date().toISOString(), csContactEvidenceUrl: evidenceUrl || '' },
       },
     });
   }

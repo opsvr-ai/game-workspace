@@ -106,6 +106,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
           <Space size={2} wrap style={{ justifyContent: 'center' }}>
             {r.screenshotUrl && <Image src={r.screenshotUrl} width={20} height={20} style={{ borderRadius: 4, cursor: 'pointer' }} preview={{ mask: '查看' }} />}
             {r.contactStatus === 'not_accepted' && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>待审</Tag>}
+            {r.contactStatus === 'added' && !r.customFields?.csContactEvidenceUrl && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>未传凭证</Tag>}
             {(r.customFields?.deltaNote || r.notes || '').includes('补单') && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>补单</Tag>}
             <Text ellipsis style={{ fontSize: 11, maxWidth: 60 }}>{(r.notes || r.customFields?.deltaNote || '').slice(0, 12)}</Text>
           </Space>

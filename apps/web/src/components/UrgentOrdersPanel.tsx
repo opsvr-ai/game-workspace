@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, List, Tag, message } from 'antd';
+import { Button, Card, List, Tag, Upload, message } from 'antd';
 import { ordersApi } from '../api/orders';
+import http from '../api/client';
 
 function fmt(s: number) {
   const m = Math.floor(s / 60);
@@ -11,6 +12,7 @@ function fmt(s: number) {
 const UrgentOrdersPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [evidences, setEvidences] = useState<Record<string, string>>({});
 
   const load = async () => {
     try {
@@ -37,9 +39,19 @@ const UrgentOrdersPanel: React.FC = () => {
   };
 
   const markContact = async (orderId: string) => {
-    await ordersApi.markCsContact(orderId, 'added');
-    message.success('已标记客服已添加客户');
+    const evidenceUrl = evidences[orderId];
+    await ordersApi.markCsContact(orderId, 'added', evidenceUrl);
+    message.success(evidenceUrl ? '已标记客服已添加客户' : '已标记（未上传凭证，老板后台可查）');
     load();
+  };
+
+  const uploadEvidence = async (orderId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const { data } = await http.post('/upload/screenshot', fd);
+    setEvidences((prev) => ({ ...prev, [orderId]: data.data?.url || data.url || '' }));
+    message.success('凭证已上传');
+    return false;
   };
 
   if (items.length === 0) return null;
@@ -62,9 +74,18 @@ const UrgentOrdersPanel: React.FC = () => {
                   <div>客户微信：{item.customerWechat || '未填写'}</div>
                   <div>
                     客服联系状态：
-                    {item.csContactStatus === 'added' ? <Tag color="green">已添加</Tag> : <Tag color="red">未添加</Tag>}
-                    {item.csContactStatus !== 'added' && (
-                      <Button size="small" type="link" onClick={() => markContact(item.id)}>标记已添加</Button>
+                    {item.csContactStatus === 'added' ? (
+                      <>
+                        <Tag color="green">已添加</Tag>
+                        {!item.csContactEvidenceUrl && <Tag color="orange">未传凭证</Tag>}
+                      </>
+                    ) : (
+                      <>
+                        <Upload showUploadList={false} beforeUpload={(file) => uploadEvidence(item.id, file)}>
+                          <Button size="small">上传凭证</Button>
+                        </Upload>
+                        <Button size="small" type="link" onClick={() => markContact(item.id)}>标记已添加</Button>
+                      </>
                     )}
                   </div>
                   {item.availableCompanions?.length > 0 && (

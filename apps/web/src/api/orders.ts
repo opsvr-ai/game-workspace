@@ -3,7 +3,7 @@ import http from './client';
 
 export const ordersApi = {
   urgent: () => http.get('/orders/urgent'),
-  markCsContact: (id: string, status: string) => http.put(`/orders/${id}/cs-contact`, { status }),
+  markCsContact: (id: string, status: string, evidenceUrl?: string) => http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl }),
   list: (params?: any) => http.get('/orders', { params }),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),
