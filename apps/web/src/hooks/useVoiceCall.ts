@@ -109,11 +109,24 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       cleanup();
       setCallState({ status: 'idle' });
     };
+    // 断线/重连时自动挂断并清理，避免“挂断不了”或残留通话
+    const onDisconnect = () => {
+      ringtoneRef.current?.stop();
+      cleanup();
+      setCallState({ status: 'idle' });
+    };
     socket.on('call:offer', onOffer);
     socket.on('call:answer', onAnswer);
     socket.on('call:ice-candidate', onIce);
     socket.on('call:hangup', onHangup);
-    return () => { socket.off('call:offer', onOffer); socket.off('call:answer', onAnswer); socket.off('call:ice-candidate', onIce); socket.off('call:hangup', onHangup); };
+    socket.on('disconnect', onDisconnect);
+    return () => {
+      socket.off('call:offer', onOffer);
+      socket.off('call:answer', onAnswer);
+      socket.off('call:ice-candidate', onIce);
+      socket.off('call:hangup', onHangup);
+      socket.off('disconnect', onDisconnect);
+    };
   }, [socketRef, cleanup]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
