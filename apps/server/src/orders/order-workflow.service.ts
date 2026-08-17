@@ -43,6 +43,27 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单不可抢');
     }
 
+    // 跨小红书账号去重：同一客户微信已经被其他陪玩添加过时，不允许再抢。
+    const orderCustomer = await this.prisma.customer.findUnique({
+      where: { id: order.customerId },
+      select: { wechatId: true },
+    });
+    const customerWechat = ((order.customFields as any)?.customerWechat || orderCustomer?.wechatId || '').trim();
+    if (customerWechat) {
+      const existing = await this.prisma.customer.findFirst({
+        where: {
+          studioId: order.studioId,
+          wechatId: customerWechat,
+          companionId: { not: null },
+          id: { not: order.customerId },
+        },
+        select: { companionId: true },
+      });
+      if (existing) {
+        throw new ForbiddenException('该客户微信已被其他陪玩添加过，不能重复抢单');
+      }
+    }
+
     // Cross-studio scope: companion can only grab from own or bridged studios
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
