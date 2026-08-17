@@ -84,7 +84,6 @@ export async function downloadAndInstall(downloadUrl: string): Promise<void> {
 
 const MAX_REDIRECTS = 5;
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
-const MIN_REUSABLE_INSTALLER_BYTES = 10 * 1024 * 1024;
 let updateCheckRunning = false;
 
 function runInstaller(installerPath: string): Promise<void> {
@@ -116,16 +115,9 @@ async function downloadAndInstallWithRedirects(
   const installerPath = path.join(tmpDir, 'ChunlvAgent-Setup.exe');
   const token = store.get('token') as string;
 
-  // 如果上次下载已经成功、但安装过程中被杀掉或锁文件失败，直接复用安装包，
-  // 避免每次看门狗拉起进程都重新从服务器拉 80MB+ 安装包。
-  if (fs.existsSync(installerPath) && fs.statSync(installerPath).size >= MIN_REUSABLE_INSTALLER_BYTES) {
-    logger.info('Reusing previously downloaded installer', { installerPath });
-    await runInstaller(installerPath);
-    try { fs.unlinkSync(installerPath); } catch { /* ignore */ }
-    app.relaunch();
-    app.quit();
-    return;
-  }
+  // 每次更新都重新下载，避免复用上一次可能错误的安装包（例如旧的 AllInOne 修复工具），
+  // 导致反复弹出「Install complete」并重启的死循环。
+  try { fs.unlinkSync(installerPath); } catch { /* ignore */ }
 
   logger.info('Downloading update', { url: downloadUrl, dest: installerPath });
 
