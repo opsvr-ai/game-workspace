@@ -127,15 +127,16 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/profit-split', label: '利润分成' },
       ],
     },
-    {
-      key: 'owner-other', icon: IconDashboard, label: '其他',
-      children: [
-        { key: '/admin', label: '数据看板' },
-        { key: '/admin/analytics', label: '动态分析' },
-        { key: '/admin/attendance', label: '考勤管理' },
-        { key: '/owner/review', label: '实名审核' },
-        { key: '/owner/employees?role=ADMIN', label: '员工管理' },
-        { key: '/admin/pc-control', label: '远程控制' },
+      {
+        key: 'owner-other', icon: IconDashboard, label: '其他',
+        children: [
+          { key: '/admin', label: '数据看板' },
+          { key: '/admin/analytics', label: '动态分析' },
+          { key: '/admin/attendance', label: '考勤管理' },
+          { key: '/owner/review', label: '实名审核' },
+          { key: '/owner/employees?role=ADMIN', label: '员工管理' },
+          { key: '/admin/traffic-accounts', label: '引流账号管理' },
+          { key: '/admin/pc-control', label: '远程控制' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
       ],
     },
@@ -181,15 +182,16 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/profit-split', label: '利润分成' },
       ],
     },
-    {
-      key: 'admin-other', icon: IconDashboard, label: '其他',
-      children: [
-        { key: '/admin', label: '数据看板' },
-        { key: '/admin/analytics', label: '动态分析' },
-        { key: '/admin/attendance', label: '考勤管理' },
-        { key: '/admin/review', label: '实名审核' },
-        { key: '/admin/employees?role=CS', label: '员工管理' },
-        { key: '/admin/pc-control', label: '远程控制' },
+      {
+        key: 'admin-other', icon: IconDashboard, label: '其他',
+        children: [
+          { key: '/admin', label: '数据看板' },
+          { key: '/admin/analytics', label: '动态分析' },
+          { key: '/admin/attendance', label: '考勤管理' },
+          { key: '/admin/review', label: '实名审核' },
+          { key: '/admin/employees?role=CS', label: '员工管理' },
+          { key: '/admin/traffic-accounts', label: '引流账号管理' },
+          { key: '/admin/pc-control', label: '远程控制' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
       ],
     },
@@ -228,10 +230,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/cs/finance/reconciliation', label: '到账对账' },
       ],
     },
-    {
-      key: 'cs-other', icon: IconDashboard, label: '其他',
-      children: [
-        { key: '/admin/pc-control', label: '远程控制' },
+      {
+        key: 'cs-other', icon: IconDashboard, label: '其他',
+        children: [
+          { key: '/cs/traffic-accounts', label: '引流账号管理' },
+          { key: '/admin/pc-control', label: '远程控制' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/analytics', label: '动态分析' },
         { key: '/admin/payroll', label: '工资管理' },

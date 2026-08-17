@@ -65,6 +65,7 @@ const ManagedPcPage = lazy(() => import('./pages/admin/ManagedPcPage'));
 const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
 const ProfitSplitPage = lazy(() => import('./pages/admin/ProfitSplitPage'));
+const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
 const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
 const BridgePage = lazy(() => import('./pages/BridgePage'));
@@ -451,6 +452,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/traffic-accounts',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <TrafficAccountPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'admin/review',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -623,6 +632,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <StatsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/traffic-accounts',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <TrafficAccountPage />
           </Suspense>
         ),
       },

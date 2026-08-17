@@ -28,11 +28,12 @@ model User {
   studio            Studio?            @relation(fields: [studioId], references: [id])
   companion         Companion?
   csOrders          Order[]            @relation("CSUser")
-  claimedOrders     Order[]            @relation("ClaimedCS")
-  commissionLedgers CommissionLedger[]
-  reviewedDeleteRequests CustomerDeleteRequest[] @relation("Reviewer")
-
-  @@index([studioId])
+    claimedOrders     Order[]            @relation("ClaimedCS")
+    commissionLedgers CommissionLedger[]
+    reviewedDeleteRequests CustomerDeleteRequest[] @relation("Reviewer")
+    trafficAccounts   TrafficAccount[]
+  
+    @@index([studioId])
   @@index([role])
 }
 
@@ -55,8 +56,9 @@ model Studio {
   customers           Customer[]
   expenses            Expense[]
   expenseReports      ExpenseReport[]
-  processBlacklists   ProcessBlacklist[]
-  processWhitelists   ProcessWhitelist[]
+    processBlacklists   ProcessBlacklist[]
+    processWhitelists   ProcessWhitelist[]
+    trafficAccounts     TrafficAccount[]
   paymentAccounts     StudioPaymentAccount[]
   priceRules          PriceRule[]
   merchantRecords     MerchantPaymentRecord[]
@@ -925,16 +927,35 @@ model ManagedPC {
     loginAccount String
     macAddress   String?
     label        String?
-  enabled      Boolean  @default(true)
-  lastAction   String?
-  lastActionAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+    enabled      Boolean  @default(true)
+    lastAction   String?
+    lastActionAt DateTime?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+  
+    @@unique([ip])
+  }
 
-  @@unique([ip])
-}
+  model TrafficAccount {
+    id        String   @id @default(uuid())
+    studioId  String
+    userId    String
+    type      String
+    nickname  String
+    accountId String?
+    status    String   @default("ACTIVE") // ACTIVE | INACTIVE
+    notes     String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-model PayrollConfig {
+    user   User   @relation(fields: [userId], references: [id])
+    studio Studio @relation(fields: [studioId], references: [id])
+
+    @@index([studioId])
+    @@index([userId])
+  }
+  
+  model PayrollConfig {
   id                String   @id @default(uuid())
   role              String   @unique
   baseSalary        Float
