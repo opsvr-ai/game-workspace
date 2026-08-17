@@ -241,10 +241,19 @@ export class OrdersService {
     const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
     where.studioId = { in: [studioId, ...bridgedIds] };
 
-    // Non-DIRECT studios: exclude orders created within the last 1 minute
+    const [priorityCfg, offlineCfg, bridgeCfg] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.priority_delay_seconds' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.offline_delay_seconds' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_delay_seconds' } }),
+    ]);
+    const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
+    const offlineDelay = Number(offlineCfg?.value ?? 60) * 1000;
+    const bridgeDelay = Number(bridgeCfg?.value ?? 120) * 1000;
     if (studioType && studioType !== 'DIRECT') {
-      const oneMinuteAgo = new Date(Date.now() - 60_000);
-      where.createdAt = { lte: oneMinuteAgo };
+      where.createdAt = { lte: new Date(Date.now() - bridgeDelay) };
+    } else if (companionId) {
+      const excellent = await this.isExcellentCompanion(companionId);
+      where.createdAt = { lte: new Date(Date.now() - (excellent ? priorityDelay : offlineDelay)) };
     }
 
     const orders = await this.prisma.order.findMany({
@@ -254,22 +263,19 @@ export class OrdersService {
         csUser: { select: { username: true, avatar: true, displayName: true, role: true } },
         studio: { select: { name: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
-    const score = (o: any): number => {
-      const cf = o.customFields || {};
-      let s = 0;
-      if ((cf.urgency || '').includes('立即')) s += 100;
-      else if ((cf.urgency || '').includes('预约')) s += 20;
-      if ((cf.gameMode || '').includes('绝密')) s += 150;
-      else if ((cf.gameMode || '').includes('机密')) s += 80;
-      if (o.coCompanionId || (cf.deltaCount || '').includes('双')) s += 60;
-      if (o.amount >= 45) s += 30;
-      if (cf.customerWechat || cf.customerRoomCode) s += 20;
-      if (cf.deltaNote) s += 5;
-      return s;
-    };
-    return orders.sort((a, b) => score(b) - score(a));
+    return orders;
+  }
+
+  private async isExcellentCompanion(companionId: string): Promise<boolean> {
+    const done = await this.prisma.order.findMany({
+      where: { companionId, status: 'DONE' },
+      select: { type: true },
+    });
+    if (done.length === 0) return false;
+    const renew = done.filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE').length;
+    return renew / done.length >= 0.3;
   }
 
   async findAll(user: any, status?: string, showAll?: boolean) {
