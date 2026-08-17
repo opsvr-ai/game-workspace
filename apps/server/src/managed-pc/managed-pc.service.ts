@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import * as fs from 'fs';
+import * as dgram from 'dgram';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,9 +52,14 @@ export class ManagedPcService {
     }
   }
 
-  async powerAction(id: string, action: 'shutdown' | 'restart' | 'sleep' | 'hibernate') {
+  async powerAction(id: string, action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') {
     const pc = await this.prisma.managedPC.findUnique({ where: { id } });
     if (!pc) throw new Error('未找到该电脑');
+
+    if (action === 'wake') {
+      await this.wakeOnLan(pc.ip);
+      return { success: true, action };
+    }
 
     const commands: Record<string, string> = {
       shutdown: 'cmd /c shutdown /s /t 0',
@@ -75,5 +82,39 @@ export class ManagedPcService {
       this.logger.warn('power action failed', { ip: pc.ip, action, error: err?.message || err });
       throw new Error(`执行失败：${err?.message || err}`);
     }
+  }
+
+  private async wakeOnLan(ip: string): Promise<void> {
+    const mac = this.resolveMacFromHostArp(ip);
+    if (!mac) throw new Error('未找到该电脑的 MAC 地址，请先让电脑开机一次');
+    const magic = Buffer.concat([
+      Buffer.alloc(6, 0xff),
+      ...Array(16).fill(Buffer.from(mac.replace(/:/g, ''), 'hex')),
+    ]);
+    for (const target of ['192.168.0.255', '255.255.255.255']) {
+      await new Promise<void>((resolve) => {
+        const socket = dgram.createSocket('udp4');
+        socket.bind(() => {
+          socket.setBroadcast(true);
+          socket.send(magic, 9, target, () => {
+            socket.close();
+            resolve();
+          });
+        });
+      });
+    }
+  }
+
+  private resolveMacFromHostArp(ip: string): string | null {
+    try {
+      const raw = fs.readFileSync('/host-arp', 'utf-8');
+      for (const line of raw.split('\n')) {
+        const parts = line.trim().split(/\s+/);
+        if (parts[0] === ip && parts[3] && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(parts[3])) {
+          return parts[3];
+        }
+      }
+    } catch {}
+    return null;
   }
 }

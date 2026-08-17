@@ -3,7 +3,7 @@ import {
   Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Switch, Popconfirm,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, PoweroffOutlined, RedoOutlined, MoonOutlined, CloudOutlined, DeleteOutlined,
+  PlusOutlined, ReloadOutlined, PoweroffOutlined, RedoOutlined, MoonOutlined, CloudOutlined, DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import { managedPcApi, ManagedPcItem } from '../../api/managedPc';
 
@@ -68,7 +68,7 @@ const ManagedPcPage: React.FC = () => {
     }
   };
 
-  const runAction = async (record: ManagedPcItem, action: 'shutdown' | 'restart' | 'sleep' | 'hibernate') => {
+  const runAction = async (record: ManagedPcItem, action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') => {
     setActionLoading((prev) => ({ ...prev, [record.id]: true }));
     try {
       await managedPcApi.power(record.id, action);
@@ -97,6 +97,9 @@ const ManagedPcPage: React.FC = () => {
       width: 420,
       render: (_: unknown, record: ManagedPcItem) => (
         <Space size="small" wrap>
+          <Popconfirm title="确定远程开机？" onConfirm={() => runAction(record, 'wake')}>
+            <Button size="small" type="primary" icon={<ThunderboltOutlined />}>开机</Button>
+          </Popconfirm>
           <Popconfirm title="确定关机？" onConfirm={() => runAction(record, 'shutdown')}>
             <Button size="small" danger icon={<PoweroffOutlined />} loading={actionLoading[record.id]}>关机</Button>
           </Popconfirm>

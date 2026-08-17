@@ -17,6 +17,6 @@ export const managedPcApi = {
   update: (id: string, data: Partial<{ ip: string; loginAccount: string; label?: string; enabled: boolean }>) =>
     http.put(`/managed-pcs/${id}`, data),
   remove: (id: string) => http.delete(`/managed-pcs/${id}`),
-  power: (id: string, action: 'shutdown' | 'restart' | 'sleep' | 'hibernate') =>
+  power: (id: string, action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') =>
     http.post(`/managed-pcs/${id}/power`, { action }),
 };

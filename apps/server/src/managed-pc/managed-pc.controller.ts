@@ -36,7 +36,7 @@ export class ManagedPcController {
   @Post(':id/power')
   async power(
     @Param('id') id: string,
-    @Body() body: { action: 'shutdown' | 'restart' | 'sleep' | 'hibernate' },
+    @Body() body: { action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate' },
   ) {
     return { code: 200, data: await this.service.powerAction(id, body.action) };
   }
