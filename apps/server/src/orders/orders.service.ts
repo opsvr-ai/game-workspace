@@ -260,7 +260,10 @@ export class OrdersService {
       const cf = o.customFields || {};
       let s = 0;
       if ((cf.urgency || '').includes('立即')) s += 100;
-      if ((cf.gameMode || '').includes('绝密')) s += 80;
+      else if ((cf.urgency || '').includes('预约')) s += 20;
+      if ((cf.gameMode || '').includes('绝密')) s += 150;
+      else if ((cf.gameMode || '').includes('机密')) s += 80;
+      if (o.coCompanionId || (cf.deltaCount || '').includes('双')) s += 60;
       if (o.amount >= 45) s += 30;
       if (cf.customerWechat || cf.customerRoomCode) s += 20;
       if (cf.deltaNote) s += 5;
