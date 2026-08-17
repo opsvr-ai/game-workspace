@@ -23,11 +23,17 @@ export class ManagedPcService {
   }
 
   async create(dto: { ip: string; loginAccount: string; label?: string }) {
-    return this.prisma.managedPC.create({ data: dto });
+    return this.prisma.managedPC.create({
+      data: { ip: dto.ip.trim(), loginAccount: dto.loginAccount.trim(), label: dto.label?.trim() || null },
+    });
   }
 
   async update(id: string, dto: Partial<{ ip: string; loginAccount: string; label?: string; enabled: boolean }>) {
-    return this.prisma.managedPC.update({ where: { id }, data: dto });
+    const data: any = { ...dto };
+    if (data.ip) data.ip = data.ip.trim();
+    if (data.loginAccount) data.loginAccount = data.loginAccount.trim();
+    if (data.label) data.label = data.label.trim();
+    return this.prisma.managedPC.update({ where: { id }, data });
   }
 
   async remove(id: string) {
@@ -37,7 +43,7 @@ export class ManagedPcService {
 
   async isOnline(ip: string): Promise<boolean> {
     try {
-      await execFileAsync('ping', ['-c', '1', '-W', '1', ip], { timeout: 2500 });
+      await execFileAsync('ping', ['-c', '1', '-W', '1', ip.trim()], { timeout: 2500 });
       return true;
     } catch {
       return false;
