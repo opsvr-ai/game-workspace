@@ -94,9 +94,9 @@ const ManagedPcPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 180,
+      width: 520,
       render: (_: unknown, record: ManagedPcItem) => (
-        <Space size={4}>
+        <Space size={4} wrap={false} style={{ whiteSpace: 'nowrap' }}>
           <Popconfirm title="确定远程开机？" onConfirm={() => runAction(record, 'wake')}>
             <Button size="small" type="primary" icon={<ThunderboltOutlined />}>开机</Button>
           </Popconfirm>
