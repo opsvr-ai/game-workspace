@@ -24,8 +24,12 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
   const [size, setSize] = useState(() => {
     try {
       const saved = localStorage.getItem('chat-modal-size');
-      return saved ? JSON.parse(saved) : { w: 420, h: 500 };
-    } catch { return { w: 420, h: 500 }; }
+      if (saved) {
+        const s = JSON.parse(saved);
+        return { w: s.w || 420, h: Math.min(s.h || 500, window.innerHeight - 100) };
+      }
+    } catch {}
+    return { w: 420, h: Math.min(500, window.innerHeight - 100) };
   });
   const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number; dir: string } | null>(null);
   const wasResizing = useRef(false);

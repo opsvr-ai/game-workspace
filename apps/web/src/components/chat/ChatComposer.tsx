@@ -59,6 +59,24 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
     localStorage.setItem('chat-input-height', String(height));
   }, []);
 
+  // 用 ResizeObserver 可靠地捕捉用户拖拽调整的高度（原生 resize 不触发 React onMouseUp）
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    let last = el.offsetHeight;
+    const ro = new ResizeObserver(() => {
+      const h = el.offsetHeight;
+      if (h !== last) {
+        last = h;
+        const height = Math.max(36, h);
+        setInputHeight(height);
+        localStorage.setItem('chat-input-height', String(height));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // 微信式交互：点击面板外或按 Esc 关闭表情面板
   useEffect(() => {
     if (!showEmoji) return;

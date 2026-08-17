@@ -51,14 +51,23 @@ const CompanionItem: React.FC<CompanionItemProps> = ({ companion: c, isSelected,
             {hasUnread && (
               <span
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  padding: '0 4px',
                   background: '#F23F42',
+                  color: '#FFF',
+                  fontSize: 10,
+                  lineHeight: '16px',
+                  textAlign: 'center',
                   flexShrink: 0,
-                  boxShadow: '0 0 4px #F23F42',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
             <Text strong style={{ color: '#F2F3F5', fontSize: 13 }}>
               {name}

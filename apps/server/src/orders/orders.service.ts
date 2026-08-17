@@ -658,9 +658,13 @@ export class OrdersService {
   async markReady(orderId: string, companionId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { companionId: true, customFields: true },
+      select: { companionId: true, coCompanionId: true, customFields: true },
     });
-    if (!order || order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
+    if (!order) throw new NotFoundException('订单不存在');
+    // 允许主陪或搭档标记就绪（双陪中通常由搭档点“我已准备好”）
+    if (order.companionId !== companionId && order.coCompanionId !== companionId) {
+      throw new ForbiddenException('无权操作此订单');
+    }
     const existingFields = (order.customFields as Record<string, unknown>) || {};
     const updated = await this.prisma.order.update({
       where: { id: orderId },
@@ -864,20 +868,20 @@ export class OrdersService {
     });
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     const session = await this.prisma.orderSession.create({
       data: {
         parentOrderId: orderId,
         seq,
         companionId: dto.companionId,
-        coCompanionId: dto.coCompanionId || last?.coCompanionId || null,
+        coCompanionId: dto.coCompanionId || order?.coCompanionId || last?.coCompanionId || null,
         amount: dto.amount,
-        coAmount: dto.coAmount ?? last?.coAmount ?? null,
+        coAmount: dto.coAmount ?? last?.coAmount ?? (order?.coAmount ?? null),
         duration: dto.duration || 1,
         status: 'ACTIVE',
       },
     });
     // Notify coCompanion if set
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (order && session.coCompanionId) {
       this.wsGateway.pushOrder(session.coCompanionId, {
         ...session,
