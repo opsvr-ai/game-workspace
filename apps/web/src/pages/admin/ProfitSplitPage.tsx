@@ -104,6 +104,7 @@ const ProfitSplitPage: React.FC = () => {
                   <Col span={4}><Text>陪玩月流水最高</Text><InputNumber style={{ width: '100%' }} value={tier.max ?? undefined} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, max: v } : x))} /></Col>
                   <Col span={4}><Text>陪玩%</Text><InputNumber style={{ width: '100%' }} value={tier.companion} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, companion: v } : x))} /></Col>
                   <Col span={4}><Text>工作室%</Text><InputNumber style={{ width: '100%' }} value={tier.studio} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, studio: v } : x))} /></Col>
+                  <Col span={4}><Text>注册满N月</Text><InputNumber style={{ width: '100%' }} min={0} value={tier.minTenureMonths ?? 0} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, minTenureMonths: Number(v || 0) } : x))} /></Col>
                 </Row>
               ))}
               <Button type="primary" loading={saving} onClick={save}>保存阶梯分成</Button>

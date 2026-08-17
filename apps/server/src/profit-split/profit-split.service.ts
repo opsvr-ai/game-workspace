@@ -8,7 +8,7 @@ const DEFAULTS: Record<string, any> = {
     tiers: [
       { min: 0, max: 5999.9, companion: 50, studio: 50 },
       { min: 6000, max: 9999, companion: 60, studio: 40 },
-      { min: 10000, max: null, companion: 70, studio: 30 },
+      { min: 10000, max: null, companion: 70, studio: 30, minTenureMonths: 6 },
     ],
   },
   online: { studio: 50, admin: 10, cs: 5, companion: 35 },
