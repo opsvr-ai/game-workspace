@@ -205,7 +205,7 @@ export class BillingController {
   }
 
   @Get('expense-reports')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
   async findExpenseReports(
     @Req() req: any,
     @Query('status') status?: string,
