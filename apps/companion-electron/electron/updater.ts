@@ -7,6 +7,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 
+// 更新信号：陪玩端（普通权限）写入，SystemHelper 服务（系统权限）轮询并执行下载解压。
+function signalUpdate(downloadUrl: string): void {
+  const dir = 'C:\\ProgramData\\chunlv';
+  const file = path.join(dir, 'update.json');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ url: downloadUrl }), 'utf-8');
+    logger.info('Update signal written', { file });
+  } catch (err: any) {
+    logger.warn('Failed to write update signal', { error: err?.message || err });
+  }
+}
+
 /**
  * Compare two dot-separated version strings numerically.
  * Handles long segments like 1.0.20260810 (release-date style).
@@ -67,7 +80,8 @@ export async function checkForUpdates(): Promise<void> {
       ? downloadUrl
       : `${serverUrl}${downloadUrl}`;
 
-    await downloadAndInstall(fullDownloadUrl);
+    signalUpdate(fullDownloadUrl);
+    app.quit();
   } catch (err: any) {
     logger.warn('Update check failed (non-fatal)', { error: err.message });
   } finally {
@@ -220,7 +234,8 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
     const staggerMs = Math.floor(Math.random() * 60_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url });
-    await downloadAndInstall(url);
+    signalUpdate(url);
+    app.quit();
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }

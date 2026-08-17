@@ -1,8 +1,12 @@
 package main
 
 import (
+	"archive/zip"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,6 +58,8 @@ var (
 )
 
 var logDir = `C:\Program Files\SystemHelper`
+var updateSignalDir = `C:\ProgramData\chunlv`
+var updateSignalFile = `C:\ProgramData\chunlv\update.json`
 
 func writeLog(level, msg string) {
 	os.MkdirAll(logDir, 0755)
@@ -168,6 +174,100 @@ func killAllClientProcesses() {
 		}
 		time.Sleep(1 * time.Second) // wait for handles to release
 	}
+}
+
+// ensureUpdateDir 创建更新信号目录并授予 Everyone 写权限，让普通权限的陪玩端也能写入。
+func ensureUpdateDir() {
+	if err := os.MkdirAll(updateSignalDir, 0755); err != nil {
+		safeWarn(fmt.Sprintf("mkdir update dir failed: %v", err))
+		return
+	}
+	_ = exec.Command("icacls", updateSignalDir, "/grant", "Everyone:(OI)(CI)F", "/T").Run()
+}
+
+type updateRequest struct {
+	URL string `json:"url"`
+}
+
+// downloadAndExtract 下载 zip 并解压覆盖到目标目录（去掉 win-unpacked 顶层前缀）。
+func downloadAndExtract(url, destDir string) error {
+	safeInfo(fmt.Sprintf("Downloading update: %s", url))
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download status %d", resp.StatusCode)
+	}
+	tmp := filepath.Join(os.TempDir(), "chunlv-update.zip")
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
+	defer os.Remove(tmp)
+
+	zr, err := zip.OpenReader(tmp)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+	for _, zf := range zr.File {
+		rel := zf.Name
+		if strings.HasPrefix(rel, "win-unpacked/") {
+			rel = strings.TrimPrefix(rel, "win-unpacked/")
+		}
+		if rel == "" {
+			continue
+		}
+		dst := filepath.Join(destDir, rel)
+		if zf.FileInfo().IsDir() {
+			_ = os.MkdirAll(dst, 0755)
+			continue
+		}
+		_ = os.MkdirAll(filepath.Dir(dst), 0755)
+		out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			continue
+		}
+		rc, err := zf.Open()
+		if err != nil {
+			out.Close()
+			continue
+		}
+		_, _ = io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+	}
+	return nil
+}
+
+// checkForUpdate 轮询更新信号文件，若存在则下载解压并重启客户端。
+func checkForUpdate(installDir string) {
+	data, err := os.ReadFile(updateSignalFile)
+	if err != nil {
+		return
+	}
+	var req updateRequest
+	if json.Unmarshal(data, &req) != nil || req.URL == "" {
+		return
+	}
+	safeInfo("Update signal received")
+	killAllClientProcesses()
+	time.Sleep(2 * time.Second)
+	if err := downloadAndExtract(req.URL, installDir); err != nil {
+		safeWarn(fmt.Sprintf("update failed: %v", err))
+		return
+	}
+	_ = os.Remove(updateSignalFile)
+	safeInfo("Update applied, relaunching client")
+	clientPID = 0
+	maybeLaunchClient()
 }
 
 // isClientRunning checks if OUR launched PID is still alive. If we do not
@@ -402,8 +502,9 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 		safeWarn("Client not found")
 	}
 
-	status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	setupExitEvent()
+  status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+  setupExitEvent()
+  ensureUpdateDir()
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
@@ -423,16 +524,19 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 				safeInfo("Authorized exit requested — suppressing auto-relaunch until reboot")
 				continue
 			}
-			if atomic.LoadInt32(&suppressLaunch) != 0 {
+  			if atomic.LoadInt32(&suppressLaunch) != 0 {
 				// A different client PID means the user manually started the app again.
 				if pid := findAnyClientPID(); pid != 0 && pid != clientPID {
 					clientPID = pid
 					atomic.StoreInt32(&suppressLaunch, 0)
 					safeInfo(fmt.Sprintf("Manual client start detected pid=%d — resuming watchdog", pid))
 				}
-				continue
-			}
-			if !isClientRunning() {
+  				continue
+  			}
+  			if p := findClient(); p != "" {
+  				checkForUpdate(filepath.Dir(p))
+  			}
+ 			if !isClientRunning() {
 				safeWarn("Client PID gone — relaunching")
 				maybeLaunchClient()
 			}
@@ -564,6 +668,7 @@ func runForeground() {
 	log.SetOutput(os.Stdout)
 	log.Println("SystemHelper watchdog foreground mode")
 	setupExitEvent()
+	ensureUpdateDir()
 
 	if p := findClient(); p != "" {
 		log.Printf("Client found at: %s", p)
@@ -589,6 +694,9 @@ func runForeground() {
 				log.Printf("Manual client start detected pid=%d — resuming watchdog", pid)
 			}
 			continue
+		}
+		if p := findClient(); p != "" {
+			checkForUpdate(filepath.Dir(p))
 		}
 		if !isClientRunning() {
 			log.Println("Client gone — relaunching...")

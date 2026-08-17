@@ -81,6 +81,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **自动更新改为看门狗执行:** 陪玩端检测到新版本后不再自己装，而是写更新信号，由 SystemHelper 服务以系统权限下载解压并重启，解决普通权限装不上 `C:\Program Files` 的问题。
 - **聊天细节修复:** 陪玩侧边栏未读改为显示数字角标；输入框高度用 ResizeObserver 可靠记忆；聊天弹窗高度自适应窗口避免被裁切。
 - **双陪流程修复:** 搭档「我已准备好」不再报无权操作；双陪会话自动继承订单里的搭档和搭档金额。
 - **客户端更新死循环:** 修复陪玩端更新时复用旧安装包导致反复弹「Install complete, the computer will restart in 5 seconds」并重启的问题；现在每次更新都重新下载最新安装包。
