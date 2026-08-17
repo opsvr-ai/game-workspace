@@ -140,7 +140,7 @@ export class ManagedPcService {
       const mac = this.resolveMacFromHostArp(item.ip);
       if (mac) {
         await this.prisma.managedPC.updateMany({
-          where: { ip: item.ip, macAddress: { not: mac } },
+          where: { ip: item.ip, OR: [{ macAddress: null }, { macAddress: { not: mac } }] },
           data: { macAddress: mac },
         });
         updated += 1;
