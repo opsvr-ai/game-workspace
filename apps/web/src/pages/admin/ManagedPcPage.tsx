@@ -112,7 +112,6 @@ const ManagedPcPage: React.FC = () => {
           <Popconfirm title="确定休眠？" onConfirm={() => runAction(record, 'hibernate')}>
             <Button size="small" icon={<MoonOutlined />}>休眠</Button>
           </Popconfirm>
-          <Button size="small" onClick={() => openEdit(record)}>编辑</Button>
           <Popconfirm title="确定删除？" onConfirm={async () => { await managedPcApi.remove(record.id); fetchItems(); }}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
