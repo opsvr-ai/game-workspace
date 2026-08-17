@@ -929,3 +929,41 @@ model ManagedPC {
 
   @@unique([ip])
 }
+
+model PayrollConfig {
+  id                String   @id @default(uuid())
+  role              String   @unique
+  baseSalary        Float
+  performancePercent Float
+  fullAttendanceDays Int
+  lateDeduction     Float
+  absentDeduction   Float
+  isActive          Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+model StaffAttendance {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  status    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model PayrollRecord {
+  id                 String   @id @default(uuid())
+  userId             String
+  month              String
+  baseSalary         Float
+  performanceSalary  Float
+  attendanceDeduction Float
+  totalSalary        Float
+  status             String   @default("DRAFT")
+  createdAt          DateTime @default(now())
+
+  @@unique([userId, month])
+  @@index([month])
+}
