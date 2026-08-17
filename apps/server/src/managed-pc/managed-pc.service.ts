@@ -151,7 +151,7 @@ export class ManagedPcService {
 
   private resolveMacFromHostArp(ip: string): string | null {
     try {
-      const raw = fs.readFileSync('/host-arp', 'utf-8');
+      const raw = fs.readFileSync('/app/uploads/host-arp.txt', 'utf-8');
       for (const line of raw.split('\n')) {
         const parts = line.trim().split(/\s+/);
         if (parts[0] === ip && parts[3] && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(parts[3])) {
