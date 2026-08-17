@@ -937,16 +937,33 @@ model ManagedPC {
   }
 
   model TrafficAccount {
-    id        String   @id @default(uuid())
-    studioId  String
-    userId    String
-    type      String
-    nickname  String
-    accountId String?
-    status    String   @default("ACTIVE") // ACTIVE | INACTIVE
-    notes     String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    id               String   @id @default(uuid())
+    studioId         String
+    userId           String
+    type             String
+    code             String?
+    trafficLevel     String? // 优 / 中 / 差
+    accountStyle     String?
+    nickname         String
+    accountId        String?
+    wifi             String?
+    wifiRegion       String?
+    riskPopped       String? // 是 / 否
+    riskNote         String?
+    banned           String? // 是 / 否
+    banNote          String?
+    phone            String?
+    promotionContact String?
+    realName         String?
+    registerDate     String?
+    banDate          String?
+    imageSourceNote  String?
+    imageFolder      String?
+    otherNote        String?
+    status           String   @default("ACTIVE") // ACTIVE | INACTIVE
+    notes            String?
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
 
     user   User   @relation(fields: [userId], references: [id])
     studio Studio @relation(fields: [studioId], references: [id])

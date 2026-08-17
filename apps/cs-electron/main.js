@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, session, ipcMain, safeStorage, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -121,6 +121,10 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('folder:open', (_e, path) => {
+    if (typeof path !== 'string' || !path.trim()) return { success: false };
+    return shell.openPath(path.trim()).then(() => ({ success: true })).catch((err) => ({ success: false, error: String(err) }));
+  });
   ipcMain.handle('credentials:get', () => loadCredentials());
   ipcMain.handle('credentials:save', (_e, creds) => saveCredentials(creds));
   ipcMain.handle('credentials:clear', () => {

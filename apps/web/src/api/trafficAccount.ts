@@ -5,8 +5,25 @@ export interface TrafficAccountItem {
   studioId: string;
   userId: string;
   type: string;
+  code?: string | null;
+  trafficLevel?: string | null;
+  accountStyle?: string | null;
   nickname: string;
   accountId?: string | null;
+  wifi?: string | null;
+  wifiRegion?: string | null;
+  riskPopped?: string | null;
+  riskNote?: string | null;
+  banned?: string | null;
+  banNote?: string | null;
+  phone?: string | null;
+  promotionContact?: string | null;
+  realName?: string | null;
+  registerDate?: string | null;
+  banDate?: string | null;
+  imageSourceNote?: string | null;
+  imageFolder?: string | null;
+  otherNote?: string | null;
   status: string;
   notes?: string | null;
   createdAt: string;
@@ -16,9 +33,9 @@ export interface TrafficAccountItem {
 
 export const trafficAccountApi = {
   list: () => http.get('/traffic-accounts'),
-  create: (data: { type: string; nickname: string; accountId?: string; notes?: string; userId?: string }) =>
+  create: (data: any) =>
     http.post('/traffic-accounts', data),
-  update: (id: string, data: Partial<{ type: string; nickname: string; accountId?: string; status?: string; notes?: string }>) =>
+  update: (id: string, data: any) =>
     http.put(`/traffic-accounts/${id}`, data),
   remove: (id: string) => http.delete(`/traffic-accounts/${id}`),
 };

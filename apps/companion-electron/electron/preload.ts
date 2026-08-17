@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unlockScreen: (pass: string) => ipcRenderer.invoke('screen:unlock', pass),
   getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+  openFolder: (path: string) => ipcRenderer.invoke('folder:open', path),
   testWatchdog: () => ipcRenderer.invoke('watchdog:test'),
   collectProcesses: (token: string) => ipcRenderer.invoke('processes:collect', token),
   onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),

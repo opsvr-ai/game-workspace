@@ -22,7 +22,24 @@ export class TrafficAccountService {
   async create(user: any, dto: {
     type: string;
     nickname: string;
+    code?: string;
+    trafficLevel?: string;
+    accountStyle?: string;
     accountId?: string;
+    wifi?: string;
+    wifiRegion?: string;
+    riskPopped?: string;
+    riskNote?: string;
+    banned?: string;
+    banNote?: string;
+    phone?: string;
+    promotionContact?: string;
+    realName?: string;
+    registerDate?: string;
+    banDate?: string;
+    imageSourceNote?: string;
+    imageFolder?: string;
+    otherNote?: string;
     notes?: string;
     userId?: string;
   }) {
@@ -36,8 +53,25 @@ export class TrafficAccountService {
         studioId: user.studioId,
         userId: ownerId,
         type: dto.type.trim(),
+        code: dto.code?.trim() || null,
+        trafficLevel: dto.trafficLevel?.trim() || null,
+        accountStyle: dto.accountStyle?.trim() || null,
         nickname: dto.nickname.trim(),
         accountId: dto.accountId?.trim() || null,
+        wifi: dto.wifi?.trim() || null,
+        wifiRegion: dto.wifiRegion?.trim() || null,
+        riskPopped: dto.riskPopped?.trim() || null,
+        riskNote: dto.riskNote?.trim() || null,
+        banned: dto.banned?.trim() || null,
+        banNote: dto.banNote?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        promotionContact: dto.promotionContact?.trim() || null,
+        realName: dto.realName?.trim() || null,
+        registerDate: dto.registerDate?.trim() || null,
+        banDate: dto.banDate?.trim() || null,
+        imageSourceNote: dto.imageSourceNote?.trim() || null,
+        imageFolder: dto.imageFolder?.trim() || null,
+        otherNote: dto.otherNote?.trim() || null,
         notes: dto.notes?.trim() || null,
       },
     });
@@ -45,8 +79,25 @@ export class TrafficAccountService {
 
   async update(user: any, id: string, dto: {
     type?: string;
+    code?: string;
+    trafficLevel?: string;
+    accountStyle?: string;
     nickname?: string;
     accountId?: string;
+    wifi?: string;
+    wifiRegion?: string;
+    riskPopped?: string;
+    riskNote?: string;
+    banned?: string;
+    banNote?: string;
+    phone?: string;
+    promotionContact?: string;
+    realName?: string;
+    registerDate?: string;
+    banDate?: string;
+    imageSourceNote?: string;
+    imageFolder?: string;
+    otherNote?: string;
     status?: string;
     notes?: string;
   }) {
@@ -60,8 +111,25 @@ export class TrafficAccountService {
     }
     const data: any = {};
     if (dto.type !== undefined) data.type = dto.type.trim();
+    if (dto.code !== undefined) data.code = dto.code?.trim() || null;
+    if (dto.trafficLevel !== undefined) data.trafficLevel = dto.trafficLevel?.trim() || null;
+    if (dto.accountStyle !== undefined) data.accountStyle = dto.accountStyle?.trim() || null;
     if (dto.nickname !== undefined) data.nickname = dto.nickname.trim();
     if (dto.accountId !== undefined) data.accountId = dto.accountId?.trim() || null;
+    if (dto.wifi !== undefined) data.wifi = dto.wifi?.trim() || null;
+    if (dto.wifiRegion !== undefined) data.wifiRegion = dto.wifiRegion?.trim() || null;
+    if (dto.riskPopped !== undefined) data.riskPopped = dto.riskPopped?.trim() || null;
+    if (dto.riskNote !== undefined) data.riskNote = dto.riskNote?.trim() || null;
+    if (dto.banned !== undefined) data.banned = dto.banned?.trim() || null;
+    if (dto.banNote !== undefined) data.banNote = dto.banNote?.trim() || null;
+    if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null;
+    if (dto.promotionContact !== undefined) data.promotionContact = dto.promotionContact?.trim() || null;
+    if (dto.realName !== undefined) data.realName = dto.realName?.trim() || null;
+    if (dto.registerDate !== undefined) data.registerDate = dto.registerDate?.trim() || null;
+    if (dto.banDate !== undefined) data.banDate = dto.banDate?.trim() || null;
+    if (dto.imageSourceNote !== undefined) data.imageSourceNote = dto.imageSourceNote?.trim() || null;
+    if (dto.imageFolder !== undefined) data.imageFolder = dto.imageFolder?.trim() || null;
+    if (dto.otherNote !== undefined) data.otherNote = dto.otherNote?.trim() || null;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.notes !== undefined) data.notes = dto.notes?.trim() || null;
     return this.prisma.trafficAccount.update({ where: { id }, data });

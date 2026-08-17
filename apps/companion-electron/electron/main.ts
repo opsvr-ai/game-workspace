@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile } from 'child_process';
@@ -260,6 +260,10 @@ function setupIPC(): void {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('folder:open', (_e, path: string) => {
+    if (typeof path !== 'string' || !path.trim()) return { success: false };
+    return shell.openPath(path.trim()).then(() => ({ success: true })).catch((err) => ({ success: false, error: String(err) }));
+  });
   ipcMain.handle('watchdog:test', () => {
     trace('TEST-WATCHDOG');
     app.exit(0);

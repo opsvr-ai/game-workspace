@@ -1,0 +1,17 @@
+ALTER TABLE "TrafficAccount" ADD COLUMN "code" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "trafficLevel" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "accountStyle" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "wifi" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "wifiRegion" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "riskPopped" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "riskNote" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "banned" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "banNote" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "phone" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "promotionContact" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "realName" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "registerDate" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "banDate" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "imageSourceNote" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "imageFolder" TEXT;
+ALTER TABLE "TrafficAccount" ADD COLUMN "otherNote" TEXT;
