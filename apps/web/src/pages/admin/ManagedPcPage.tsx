@@ -17,6 +17,7 @@ const ManagedPcPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [labelEditing, setLabelEditing] = useState<Record<string, string>>({});
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -91,7 +92,26 @@ const ManagedPcPage: React.FC = () => {
       width: 170,
       render: (v?: string | null) => v ? <Text code>{v}</Text> : <Text type="secondary">未填写</Text>,
     },
-    { title: '备注', dataIndex: 'label', key: 'label', render: (v?: string | null) => v || '-' },
+    {
+      title: '备注',
+      key: 'label',
+      width: 200,
+      render: (_: unknown, r: ManagedPcItem) => (
+        <Input
+          size="small"
+          placeholder="输入备注"
+          value={labelEditing[r.id] ?? r.label ?? ''}
+          onChange={(e) => setLabelEditing((prev) => ({ ...prev, [r.id]: e.target.value }))}
+          onBlur={() => {
+            const v = labelEditing[r.id];
+            if (v !== undefined && v !== r.label) {
+              managedPcApi.update(r.id, { label: v }).then(() => fetchItems()).catch(() => {});
+            }
+          }}
+          onPressEnter={(e: any) => e.target.blur()}
+        />
+      ),
+    },
     {
       title: '状态',
       key: 'online',
