@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Card, Form, InputNumber, message, Typography } from 'antd';
 import { configApi } from '../../api/config';
 
-const KEYS = ['pool.priority_delay_seconds', 'pool.offline_delay_seconds', 'pool.bridge_delay_seconds'];
+const KEYS = ['pool.priority_delay_seconds', 'pool.offline_delay_seconds', 'pool.bridge_delay_seconds', 'pool.online_delay_seconds'];
 
 const DispatchTimingSettings: React.FC = () => {
   const [form] = Form.useForm();
@@ -31,6 +31,7 @@ const DispatchTimingSettings: React.FC = () => {
         <Form.Item name="pool.priority_delay_seconds" label="优秀陪玩等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.offline_delay_seconds" label="其他线下陪玩等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.bridge_delay_seconds" label="桥接工作室等待（秒）"><InputNumber min={0} /></Form.Item>
+        <Form.Item name="pool.online_delay_seconds" label="线上俱乐部等待（秒）"><InputNumber min={0} /></Form.Item>
         <Button type="primary" loading={saving} onClick={save}>保存等待时间</Button>
       </Form>
     </Card>

@@ -241,15 +241,19 @@ export class OrdersService {
     const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
     where.studioId = { in: [studioId, ...bridgedIds] };
 
-    const [priorityCfg, offlineCfg, bridgeCfg] = await Promise.all([
+    const [priorityCfg, offlineCfg, bridgeCfg, onlineCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.priority_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.offline_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_delay_seconds' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.online_delay_seconds' } }),
     ]);
     const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
     const offlineDelay = Number(offlineCfg?.value ?? 60) * 1000;
     const bridgeDelay = Number(bridgeCfg?.value ?? 120) * 1000;
-    if (studioType && studioType !== 'DIRECT') {
+    const onlineDelay = Number(onlineCfg?.value ?? 180) * 1000;
+    if (studioType === 'RENTAL') {
+      where.createdAt = { lte: new Date(Date.now() - onlineDelay) };
+    } else if (studioType && studioType !== 'DIRECT') {
       where.createdAt = { lte: new Date(Date.now() - bridgeDelay) };
     } else if (companionId) {
       const excellent = await this.isExcellentCompanion(companionId);
