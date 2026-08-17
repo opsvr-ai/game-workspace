@@ -126,6 +126,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.companionSockets.set(user.companionId, client.id);
         logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
         void this.pushCurrentBlacklist(user.companionId, user.studioId);
+        void this.syncManagedPc(client.handshake.address, user.username);
 
         const current = await this.prisma.companion
           .findUnique({ where: { id: user.companionId }, select: { status: true } })
@@ -558,6 +559,22 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     } catch (err) {
       logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });
+    }
+  }
+
+  /** 陪玩端连接时，按来源 IP 自动回填电脑管理里的 app 登录账号。 */
+  async syncManagedPc(address: string, username: string): Promise<void> {
+    try {
+      const ip = address?.replace(/^::ffff:/, '') || '';
+      if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return;
+      const pc = await this.prisma.managedPC.findFirst({ where: { ip } });
+      if (!pc) return;
+      await this.prisma.managedPC.update({
+        where: { id: pc.id },
+        data: { loginAccount: username, updatedAt: new Date() },
+      });
+    } catch {
+      // 电脑管理表可能尚未迁移，忽略即可
     }
   }
 
