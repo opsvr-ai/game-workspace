@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
@@ -11,13 +11,13 @@ export class ProfitSplitController {
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async get() {
-    return { code: 200, data: await this.service.get() };
+  async get(@Query('mode') mode = 'offline') {
+    return { code: 200, data: await this.service.get(mode) };
   }
 
   @Post()
   @Roles(UserRole.OWNER)
   async save(@Body() dto: any) {
-    return { code: 200, data: await this.service.save(dto) };
+    return { code: 200, data: await this.service.save(dto.mode || 'offline', dto) };
   }
 }
