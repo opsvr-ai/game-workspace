@@ -64,6 +64,7 @@ const AdminPcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
 const ManagedPcPage = lazy(() => import('./pages/admin/ManagedPcPage'));
 const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
+const ProfitSplitPage = lazy(() => import('./pages/admin/ProfitSplitPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
 const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
 const BridgePage = lazy(() => import('./pages/BridgePage'));
@@ -438,6 +439,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <PayrollPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/profit-split',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ProfitSplitPage />
           </Suspense>
         ),
       },

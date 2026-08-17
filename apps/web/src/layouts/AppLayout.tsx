@@ -124,6 +124,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/finance/commission', label: '提成结算' },
         { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/payroll', label: '工资管理' },
+        { key: '/admin/profit-split', label: '利润分成' },
       ],
     },
     {
@@ -177,6 +178,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/finance/commission', label: '提成结算' },
         { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/payroll', label: '工资管理' },
+        { key: '/admin/profit-split', label: '利润分成' },
       ],
     },
     {
