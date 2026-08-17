@@ -35,10 +35,6 @@ const OrderDetailPage: React.FC = () => {
   const [endTarget, setEndTarget] = useState<Session | null>(null);
   const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
   const [ending, setEnding] = useState(false);
-  const [outcomeTarget, setOutcomeTarget] = useState<Session | null>(null);
-  const [outcome, setOutcome] = useState('');
-  const [outcomeReason, setOutcomeReason] = useState('');
-  const [outcomeSubmitting, setOutcomeSubmitting] = useState(false);
 
   const fetch = useCallback(async () => {
     if (!id) return;
@@ -160,45 +156,21 @@ const OrderDetailPage: React.FC = () => {
     try {
       await ordersApi.finishSession(endTarget.id, { transferTotalYuan: endTransferTotal });
       message.success('已结束');
-      const endedId = endTarget.id;
       setEndTarget(null);
       fetch();
-      setOutcomeTarget({ ...endTarget, id: endedId } as Session);
-      setOutcome('');
-      setOutcomeReason('');
+      notification.success({
+        message: '🙌 祝你续单',
+        description: '本单已结束。客户玩得开心的话，记得问一句「要不要再来一单」！',
+        placement: 'bottomRight',
+        duration: 6,
+        btn: (
+          <Button size="small" type="primary" onClick={() => openRenew()}>
+            去续单
+          </Button>
+        ),
+      });
     } catch { message.error('结束失败'); }
     setEnding(false);
-  };
-
-  const submitOutcome = async () => {
-    if (!outcomeTarget) return;
-    if (!outcome) {
-      message.warning('请选择客户接下来的安排');
-      return;
-    }
-    if (outcome === 'NO_RENEW' && !outcomeReason.trim()) {
-      message.warning('请填写不续单原因');
-      return;
-    }
-    setOutcomeSubmitting(true);
-    try {
-      await ordersApi.setRenewOutcome(outcomeTarget.id, {
-        outcome,
-        reason: outcome === 'NO_RENEW' ? outcomeReason.trim() : undefined,
-      });
-      setOutcomeTarget(null);
-      setOutcome('');
-      setOutcomeReason('');
-      if (outcome === 'RENEW') {
-        openRenew();
-      } else {
-        message.success('已记录');
-      }
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '记录失败');
-    } finally {
-      setOutcomeSubmitting(false);
-    }
   };
 
   const cols = [
@@ -314,46 +286,6 @@ const OrderDetailPage: React.FC = () => {
         </Text>
       </Modal>
 
-      {/* 结束服务后的续单反馈 */}
-      <Modal
-        title="本单已结束，客户接下来怎么安排？"
-        open={!!outcomeTarget}
-        onOk={submitOutcome}
-        onCancel={() => { setOutcomeTarget(null); setOutcome(''); setOutcomeReason(''); }}
-        confirmLoading={outcomeSubmitting}
-        okText="提交"
-        cancelText="跳过"
-      >
-        <Space direction="vertical" style={{ width: '100%', marginTop: 12 }} size={8}>
-          <Button block type={outcome === 'RENEW' ? 'primary' : 'default'} onClick={() => setOutcome('RENEW')}>
-            🔁 客户续单（继续打）
-          </Button>
-          <Button block type={outcome === 'SCHEDULE_LATER' ? 'primary' : 'default'} onClick={() => setOutcome('SCHEDULE_LATER')}>
-            📅 约改天玩
-          </Button>
-          <Button block type={outcome === 'NO_RENEW' ? 'primary' : 'default'} onClick={() => setOutcome('NO_RENEW')}>
-            ❌ 不续单
-          </Button>
-        </Space>
-        {outcome === 'NO_RENEW' && (
-          <div style={{ marginTop: 12 }}>
-            <Text>为什么不续单？（必填）</Text>
-            <Select
-              value={outcomeReason || undefined}
-              placeholder="选择原因"
-              style={{ width: '100%', marginTop: 8 }}
-              onChange={(v) => setOutcomeReason(v)}
-            >
-              <Select.Option value="客户嫌贵">客户嫌贵</Select.Option>
-              <Select.Option value="客户有事">客户有事</Select.Option>
-              <Select.Option value="客户不满意">客户不满意</Select.Option>
-              <Select.Option value="时间到了">时间到了</Select.Option>
-              <Select.Option value="客户说改天">客户说改天</Select.Option>
-              <Select.Option value="其他">其他</Select.Option>
-            </Select>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };

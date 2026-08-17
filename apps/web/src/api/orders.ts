@@ -39,8 +39,6 @@ export const ordersApi = {
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
   resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),
   endSession: (sessionId: string) => http.put(`/sessions/${sessionId}/end`),
-  setRenewOutcome: (sessionId: string, data: { outcome: string; reason?: string }) =>
-    http.put(`/sessions/${sessionId}/renew-outcome`, data),
   finishSession: (sessionId: string, data?: { transferTotalYuan?: number }) =>
     http.put(`/sessions/${sessionId}/finish`, data || {}),
   uploadShot: (sessionId: string, form: FormData) =>

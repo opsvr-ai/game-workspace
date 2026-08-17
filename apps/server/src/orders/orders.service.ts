@@ -946,25 +946,6 @@ export class OrdersService {
     return this.prisma.orderSession.update({ where: { id }, data });
   }
 
-  async setRenewOutcome(
-    id: string,
-    companionId: string | undefined,
-    outcome: string,
-    reason?: string,
-  ) {
-    await this.getOwnedSession(id, companionId);
-    if (!['RENEW', 'NO_RENEW', 'SCHEDULE_LATER'].includes(outcome)) {
-      throw new BadRequestException('无效的续单结果');
-    }
-    if (outcome === 'NO_RENEW' && !reason?.trim()) {
-      throw new BadRequestException('请填写不续单原因');
-    }
-    return this.prisma.orderSession.update({
-      where: { id },
-      data: { renewOutcome: outcome, renewOutcomeReason: reason?.trim() || null },
-    });
-  }
-
   async updatePayment(
     orderId: string,
     dto: {
