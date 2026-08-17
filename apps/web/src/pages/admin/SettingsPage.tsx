@@ -21,7 +21,7 @@ const SettingsPage: React.FC = () => {
     { key: 'capture', label: '📸 截图阈值', children: <CaptureSettings /> },
     { key: 'dispatch', label: '🧭 派单与提成', children: <DispatchCommissionSettings /> },
     { key: 'game-break-even', label: '🎮 游戏平衡点', children: <GameBreakEvenSettings /> },
-    { key: 'dispatch-timing', label: '⏱️ 派单时间', children: <DispatchTimingSettings /> },
+    { key: 'dispatch-timing', label: '⏱️ 按照陪玩等级看到订单等待时间', children: <DispatchTimingSettings /> },
     { key: 'notification', label: '🔔 通知设置', children: <NotificationSettings /> },
     { key: 'attendance', label: '🕘 考勤设置', children: <AttendanceSettings /> },
   ];
