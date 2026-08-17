@@ -518,14 +518,12 @@ const CustomersPage: React.FC = () => {
             size="small"
             icon={React.createElement(PlayCircleOutlined)}
             onClick={() => {
-              setStartServicePreFill({
-                customerId: record.id,
-                companionId: user?.companionId,
-                dispatchType: 'DIRECT',
-                gameName: record.orders?.[0]?.gameName,
-                amount: record.orders?.[0]?.amount,
-              });
-              setCreateOrderOpen(true);
+              const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+              if (active?.id) {
+                navigate(`/companion/orders/${active.id}`);
+              } else {
+                message.warning('当前没有进行中的订单，请先在抢单池抢单');
+              }
             }}
           >
             开始服务
@@ -533,15 +531,12 @@ const CustomersPage: React.FC = () => {
           <Button
             size="small"
             onClick={() => {
-              setStartServicePreFill({
-                customerId: record.id,
-                companionId: user?.companionId,
-                dispatchType: 'DIRECT',
-                gameName: record.orders?.[0]?.gameName,
-                amount: record.orders?.[0]?.amount,
-                type: 'RENEW',
-              });
-              setCreateOrderOpen(true);
+              const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+              if (active?.id) {
+                navigate(`/companion/orders/${active.id}`);
+              } else {
+                message.warning('当前没有进行中的订单');
+              }
             }}
           >
             续单

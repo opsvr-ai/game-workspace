@@ -70,13 +70,15 @@ export class CustomersService {
           orderBy: { createdAt: 'desc' },
           take: 5,
         },
-        orders: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: {
-            gameName: true,
-            type: true,
-            amount: true,
+          orders: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              status: true,
+              gameName: true,
+              type: true,
+              amount: true,
             duration: true,
             customFields: true,
           },

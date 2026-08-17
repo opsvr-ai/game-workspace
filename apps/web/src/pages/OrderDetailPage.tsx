@@ -90,6 +90,20 @@ const OrderDetailPage: React.FC = () => {
     setTransferUrl('');
   };
 
+  const startFirstService = async () => {
+    if (!id) return;
+    try {
+      const res: any = await ordersApi.addSession(id, { amount: 35, duration: 1 });
+      const session = res?.data?.data || res?.data;
+      if (session?.id) {
+        fetch();
+        openStartModal(session);
+      }
+    } catch {
+      message.error('创建会话失败');
+    }
+  };
+
   const handleUploadTransfer = async (file: File) => {
     setUploading(true);
     try {
@@ -167,7 +181,13 @@ const OrderDetailPage: React.FC = () => {
         <Title level={4} style={{ margin: 0 }}>订单详情</Title>
         <Text type="secondary">{order?.gameName}</Text>
       </Space>
-      <Card extra={last?.status === 'ACTIVE' ? <Button type="primary" icon={<PlusOutlined />} onClick={openRenew}>续费一小时</Button> : null}>
+      <Card
+        extra={
+          last?.status === 'ACTIVE'
+            ? <Button type="primary" icon={<PlusOutlined />} onClick={openRenew}>续费一小时</Button>
+            : <Button type="primary" icon={<PlayCircleOutlined />} onClick={startFirstService}>开始服务</Button>
+        }
+      >
         <Table columns={cols} dataSource={sessions} rowKey="id" loading={loading} size="small" pagination={false} />
       </Card>
       <Modal title="续费一小时" open={renewOpen} onOk={handleRenew} onCancel={() => setRenewOpen(false)} confirmLoading={renewing} okText="确认续费">

@@ -10,7 +10,7 @@ import { yuanToCents } from '../common/money';
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
   [OrderStatus.CLAIMED]: [OrderStatus.PENDING, OrderStatus.CANCELLED],
-  [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PENDING], // H2: allow re-pool
+  [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.DONE, OrderStatus.CANCELLED, OrderStatus.PENDING], // H2: allow re-pool; allow direct complete (unified flow)
   [OrderStatus.CONFIRMED]: [OrderStatus.DONE, OrderStatus.CANCELLED],
 };
 
