@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import http from '../api/client';
 
 interface UseSocketOptions {
   namespace?: string;
@@ -83,10 +84,15 @@ export function useSocket(opts: UseSocketOptions = {}) {
       if (data?.command === 'test_watchdog') {
         (window as any).electronAPI?.testWatchdog?.();
       } else if (data?.command === 'collect_processes') {
-        const token = sessionStorage.getItem('accessToken');
-        if (token) {
-          (window as any).electronAPI?.collectProcesses?.(token);
-        }
+        (async () => {
+          // 先走 axios 触发一次鉴权，若 access token 已过期会自动续期，
+          // 避免把过期的 token 交给主进程导致上报 401。
+          try { await http.get('/auth/me'); } catch {}
+          const token = sessionStorage.getItem('accessToken');
+          if (token) {
+            (window as any).electronAPI?.collectProcesses?.(token);
+          }
+        })();
       }
     });
 
