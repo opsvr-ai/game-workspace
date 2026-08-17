@@ -125,6 +125,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         void client.join(`pc:${user.companionId}`);
         this.companionSockets.set(user.companionId, client.id);
         logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
+        void this.pushCurrentBlacklist(user.companionId, user.studioId);
 
         const current = await this.prisma.companion
           .findUnique({ where: { id: user.companionId }, select: { status: true } })
@@ -535,6 +536,29 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     }
     logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, skipped, version });
+  }
+
+  /** 客户端连接成功后自动推送一次当前黑名单，覆盖离线/未登录后补连接的情况。 */
+  async pushCurrentBlacklist(companionId: string, studioId: string | null): Promise<void> {
+    if (!studioId) return;
+    try {
+      const blacklist = await this.prisma.processBlacklist.findMany({
+        where: { studioId, isActive: true },
+        select: { processName: true, processPath: true },
+      });
+      const whitelist = await this.prisma.processWhitelist.findMany({
+        where: { studioId },
+        select: { processName: true },
+      });
+      this.sendBlacklistUpdate(
+        companionId,
+        blacklist,
+        whitelist.map((w) => ({ processName: w.processName, isSystem: false })),
+        Date.now(),
+      );
+    } catch (err) {
+      logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });
+    }
   }
 
   // ── chat inbound / outbound ──────────────────────────────────────────
