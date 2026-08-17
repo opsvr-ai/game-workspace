@@ -2,6 +2,7 @@
 import http from './client';
 
 export const ordersApi = {
+  urgent: () => http.get('/orders/urgent'),
   list: (params?: any) => http.get('/orders', { params }),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),

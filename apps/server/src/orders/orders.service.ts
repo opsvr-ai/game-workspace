@@ -485,6 +485,69 @@ export class OrdersService {
     return this.dispatchService.quickGrab(orderId, companionId);
   }
 
+  async findUrgent(studioId: string) {
+    const now = Date.now();
+    const orders = await this.prisma.order.findMany({
+      where: { studioId, status: 'PENDING', dispatchType: 'POOL' },
+      include: {
+        customer: { select: { wechatId: true, customerCode: true } },
+        csUser: { select: { username: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return Promise.all(
+      orders
+        .filter((o) => String((o.customFields as any)?.urgency || '').includes('立即'))
+        .map(async (o) => {
+          const waitingSeconds = Math.max(0, Math.floor((now - o.createdAt.getTime()) / 1000));
+          const availableCompanions =
+            waitingSeconds >= 300
+              ? await this.getSoonEndingCompanions(studioId)
+              : [];
+          return {
+            id: o.id,
+            orderCode: o.orderCode,
+            customerWechat: o.customer?.wechatId || (o.customFields as any)?.customerWechat || '',
+            gameName: o.gameName,
+            gameMode: (o.customFields as any)?.gameMode || '',
+            amount: o.amount,
+            waitingSeconds,
+            urgent: true,
+            requireCsContact: waitingSeconds >= 600,
+            availableCompanions,
+          };
+        }),
+    );
+  }
+
+  private async getSoonEndingCompanions(studioId: string) {
+    const companions = await this.prisma.companion.findMany({
+      where: { studioId, status: 'BUSY' },
+      include: {
+        user: { select: { username: true } },
+        sessions: {
+          where: { endedAt: null },
+          include: { parentOrder: { select: { duration: true, amount: true } } },
+        },
+      },
+    });
+    const list = await Promise.all(
+      companions.map(async (c) => {
+        const excellent = await this.isExcellentCompanion(c.id);
+        const remainingMinutes = c.sessions
+          .map((s) => {
+            if (!s.startedAt) return 999;
+            const durationMs = (s.parentOrder?.duration || 1) * 3600_000;
+            return Math.max(0, Math.round((durationMs - (Date.now() - s.startedAt.getTime())) / 60000));
+          })
+          .sort((a, b) => a - b)[0] ?? 999;
+        return { id: c.id, name: c.user?.username || c.id, excellent, remainingMinutes };
+      }),
+    );
+    return list.sort((a, b) => Number(b.excellent) - Number(a.excellent) || a.remainingMinutes - b.remainingMinutes);
+  }
+
   async claim(
     orderId: string,
     csUserId: string,

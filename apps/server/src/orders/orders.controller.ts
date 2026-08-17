@@ -25,6 +25,13 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('orders/urgent')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async urgent(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.findUrgent(req.user?.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

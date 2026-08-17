@@ -25,6 +25,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
 import { EmbeddedChatPanel } from '../../components/chat';
+import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
@@ -257,6 +258,7 @@ const CSDispatchView: React.FC = () => {
 
   return (
     <div>
+      <UrgentOrdersPanel />
       <div
         style={{
           display: 'flex',
