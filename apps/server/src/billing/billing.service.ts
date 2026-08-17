@@ -307,16 +307,19 @@ export class BillingService {
   async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
     const { start, end } = currentBusinessDayRange();
 
-    const todayOrders = await this.prisma.order.findMany({
+    const sessions = await this.prisma.orderSession.findMany({
       where: {
         companionId,
         status: 'DONE',
-        createdAt: { gte: start, lt: end },
+        startedAt: { gte: start, lt: end },
       },
-      select: { amount: true },
+      select: { amount: true, claimedPrice: true, duration: true },
     });
 
-    const systemTotal = todayOrders.reduce((s, o) => s + o.amount, 0);
+    const systemTotal = sessions.reduce((s, o) => {
+      const price = Number(o.claimedPrice || 0) > 0 ? Number(o.claimedPrice) : Number(o.amount || 0);
+      return s + price * (o.duration || 1);
+    }, 0);
     const diff = systemTotal - reportedAmount;
 
     if (Math.abs(diff) > 0.01) {
@@ -366,10 +369,19 @@ export class BillingService {
   /** 获取某陪玩当前营业日的系统累计流水与转公户金额 */
   async getCompanionDailyReconciliation(companionId: string) {
     const { start, end } = currentBusinessDayRange();
-    const systemAgg = await this.prisma.order.aggregate({
-      where: { companionId, status: 'DONE', createdAt: { gte: start, lt: end } },
-      _sum: { amount: true },
+    // 系统累计：以开始服务时填的客单价×时长为准（会话口径），匹配“点开始服务自动累计”的语义
+    const sessions = await this.prisma.orderSession.findMany({
+      where: {
+        companionId,
+        status: 'DONE',
+        startedAt: { gte: start, lt: end },
+      },
+      select: { amount: true, claimedPrice: true, duration: true },
     });
+    const systemTotal = sessions.reduce((s, o) => {
+      const price = Number(o.claimedPrice || 0) > 0 ? Number(o.claimedPrice) : Number(o.amount || 0);
+      return s + price * (o.duration || 1);
+    }, 0);
     const transferAgg = await this.prisma.expenseReport.aggregate({
       where: {
         companionId,
@@ -378,7 +390,6 @@ export class BillingService {
       },
       _sum: { amount: true },
     });
-    const systemTotal = systemAgg._sum.amount ?? 0;
     const transferTotal = transferAgg._sum.amount ?? 0;
     const finalAmount = transferTotal > 0 ? transferTotal : systemTotal;
     return {
