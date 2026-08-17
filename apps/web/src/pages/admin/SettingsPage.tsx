@@ -10,6 +10,7 @@ import CaptureSettings from '../settings/CaptureSettings';
 import DispatchCommissionSettings from '../settings/DispatchCommissionSettings';
 import GameBreakEvenSettings from '../settings/GameBreakEvenSettings';
 import DispatchTimingSettings from '../settings/DispatchTimingSettings';
+import VoiceSettings from '../settings/VoiceSettings';
 
 const { Text, Title } = Typography;
 
@@ -22,6 +23,7 @@ const SettingsPage: React.FC = () => {
     { key: 'dispatch', label: '🧭 派单与提成', children: <DispatchCommissionSettings /> },
     { key: 'game-break-even', label: '🎮 游戏平衡点', children: <GameBreakEvenSettings /> },
     { key: 'dispatch-timing', label: '⏱️ 按照陪玩等级看到订单等待时间', children: <DispatchTimingSettings /> },
+    { key: 'voice', label: '🎙️ 语音通话', children: <VoiceSettings /> },
     { key: 'notification', label: '🔔 通知设置', children: <NotificationSettings /> },
     { key: 'attendance', label: '🕘 考勤设置', children: <AttendanceSettings /> },
   ];

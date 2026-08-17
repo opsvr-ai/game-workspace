@@ -2,6 +2,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
 import { message } from 'antd';
+import http from '../api/client';
 
 interface CallState {
   status: 'idle' | 'ringing' | 'calling' | 'connected';
@@ -30,6 +31,26 @@ function playRingtone() {
     setTimeout(() => { osc.frequency.setValueAtTime(1000, ctx.currentTime); }, 900);
     return { stop, ctx };
   } catch { return { stop: () => {}, ctx: null }; }
+}
+
+// TURN 服务器配置从后台读取（老板在设置页填写），不再写死在构建环境变量里
+async function loadIceServers(): Promise<RTCIceServer[]> {
+  const servers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  try {
+    const { data } = await http.get('/config', {
+      params: { keys: 'turn.url,turn.username,turn.credential' },
+    });
+    const cfg = data?.data || {};
+    const url = cfg['turn.url'];
+    if (url) {
+      servers.push({
+        urls: url,
+        username: cfg['turn.username'] || undefined,
+        credential: cfg['turn.credential'] || undefined,
+      });
+    }
+  } catch {}
+  return servers;
 }
 
 export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
@@ -106,15 +127,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
         return;
       }
-      const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-      const env = (import.meta as any).env || {};
-      if (env.VITE_TURN_URL) {
-        iceServers.push({
-          urls: env.VITE_TURN_URL,
-          username: env.VITE_TURN_USERNAME || 'chunlv',
-          credential: env.VITE_TURN_CREDENTIAL || 'Chunlv@2026',
-        });
-      }
+      const iceServers = await loadIceServers();
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
@@ -167,15 +180,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
         return;
       }
-      const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-      const env = (import.meta as any).env || {};
-      if (env.VITE_TURN_URL) {
-        iceServers.push({
-          urls: env.VITE_TURN_URL,
-          username: env.VITE_TURN_USERNAME || 'chunlv',
-          credential: env.VITE_TURN_CREDENTIAL || 'Chunlv@2026',
-        });
-      }
+      const iceServers = await loadIceServers();
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
