@@ -247,7 +247,7 @@ export class OrdersService {
       where.createdAt = { lte: oneMinuteAgo };
     }
 
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where,
       include: {
         customer: { select: { wechatId: true, customerCode: true, platform: true } },
@@ -256,6 +256,17 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    const score = (o: any): number => {
+      const cf = o.customFields || {};
+      let s = 0;
+      if ((cf.urgency || '').includes('立即')) s += 100;
+      if ((cf.gameMode || '').includes('绝密')) s += 80;
+      if (o.amount >= 45) s += 30;
+      if (cf.customerWechat || cf.customerRoomCode) s += 20;
+      if (cf.deltaNote) s += 5;
+      return s;
+    };
+    return orders.sort((a, b) => score(b) - score(a));
   }
 
   async findAll(user: any, status?: string, showAll?: boolean) {
