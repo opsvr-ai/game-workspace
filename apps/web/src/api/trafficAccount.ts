@@ -24,6 +24,7 @@ export interface TrafficAccountItem {
   imageSourceNote?: string | null;
   imageFolder?: string | null;
   otherNote?: string | null;
+  extra?: Record<string, any>;
   status: string;
   notes?: string | null;
   createdAt: string;

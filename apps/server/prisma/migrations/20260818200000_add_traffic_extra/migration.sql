@@ -1,0 +1,1 @@
+ALTER TABLE "TrafficAccount" ADD COLUMN "extra" JSONB NOT NULL DEFAULT '{}';

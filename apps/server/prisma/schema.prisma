@@ -960,6 +960,7 @@ model ManagedPC {
     imageSourceNote  String?
     imageFolder      String?
     otherNote        String?
+    extra            Json     @default("{}")
     status           String   @default("ACTIVE") // ACTIVE | INACTIVE
     notes            String?
     createdAt        DateTime @default(now())

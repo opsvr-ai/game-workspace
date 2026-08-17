@@ -40,6 +40,7 @@ export class TrafficAccountService {
     imageSourceNote?: string;
     imageFolder?: string;
     otherNote?: string;
+    extra?: Record<string, any>;
     notes?: string;
     userId?: string;
   }) {
@@ -72,6 +73,7 @@ export class TrafficAccountService {
         imageSourceNote: dto.imageSourceNote?.trim() || null,
         imageFolder: dto.imageFolder?.trim() || null,
         otherNote: dto.otherNote?.trim() || null,
+        extra: dto.extra || {},
         notes: dto.notes?.trim() || null,
       },
     });
@@ -98,6 +100,7 @@ export class TrafficAccountService {
     imageSourceNote?: string;
     imageFolder?: string;
     otherNote?: string;
+    extra?: Record<string, any>;
     status?: string;
     notes?: string;
   }) {
@@ -130,6 +133,7 @@ export class TrafficAccountService {
     if (dto.imageSourceNote !== undefined) data.imageSourceNote = dto.imageSourceNote?.trim() || null;
     if (dto.imageFolder !== undefined) data.imageFolder = dto.imageFolder?.trim() || null;
     if (dto.otherNote !== undefined) data.otherNote = dto.otherNote?.trim() || null;
+    if (dto.extra !== undefined) data.extra = dto.extra;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.notes !== undefined) data.notes = dto.notes?.trim() || null;
     return this.prisma.trafficAccount.update({ where: { id }, data });

@@ -4,7 +4,8 @@ import {
   Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, DeleteOutlined, TagsOutlined, FolderOpenOutlined,
+  PlusOutlined, ReloadOutlined, DeleteOutlined, TagsOutlined, FolderOpenOutlined, SettingOutlined,
+  LeftOutlined, RightOutlined,
 } from '@ant-design/icons';
 import { trafficAccountApi, TrafficAccountItem } from '../../api/trafficAccount';
 import { configApi } from '../../api/config';
@@ -12,31 +13,34 @@ import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
 const TYPE_COLORS: Record<string, string> = {
-  小红书: 'volcano',
-  抖音: 'blue',
-  咸鱼: 'gold',
-  B站: 'purple',
-  视频号: 'green',
+  小红书: 'volcano', 抖音: 'blue', 咸鱼: 'gold', B站: 'purple', 视频号: 'green',
 };
 const TRAFFIC_LEVELS = ['优', '中', '差'];
 const YES_NO = ['是', '否'];
 
+interface ColumnDef { key: string; label: string; custom: boolean }
+
 const TrafficAccountPage: React.FC = () => {
   const [items, setItems] = useState<TrafficAccountItem[]>([]);
   const [types, setTypes] = useState<string[]>([]);
+  const [columns, setColumns] = useState<ColumnDef[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TrafficAccountItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [typeModalOpen, setTypeModalOpen] = useState(false);
   const [newType, setNewType] = useState('');
+  const [colModalOpen, setColModalOpen] = useState(false);
+  const [newColLabel, setNewColLabel] = useState('');
   const [form] = Form.useForm();
 
-  const fetchTypes = useCallback(async () => {
+  const fetchConfig = useCallback(async () => {
     try {
-      const { data } = await configApi.get(['traffic.account_types']);
-      const list = data?.data?.['traffic.account_types'];
-      setTypes(Array.isArray(list) ? list : []);
+      const { data } = await configApi.get(['traffic.account_types', 'traffic.account_columns']);
+      const t = data?.data?.['traffic.account_types'];
+      const c = data?.data?.['traffic.account_columns'];
+      setTypes(Array.isArray(t) ? t : []);
+      setColumns(Array.isArray(c) && c.length ? c : []);
     } catch {}
   }, []);
 
@@ -53,9 +57,9 @@ const TrafficAccountPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchTypes();
+    fetchConfig();
     fetchItems();
-  }, [fetchTypes, fetchItems]);
+  }, [fetchConfig, fetchItems]);
 
   const openCreate = () => {
     setEditing(null);
@@ -69,17 +73,22 @@ const TrafficAccountPage: React.FC = () => {
       ...record,
       registerDate: record.registerDate ? dayjs(record.registerDate) : null,
       banDate: record.banDate ? dayjs(record.banDate) : null,
+      ...(record.extra || {}),
     });
     setModalOpen(true);
   };
 
   const submit = async () => {
     const values = await form.validateFields();
-    const payload = {
-      ...values,
-      registerDate: values.registerDate ? dayjs(values.registerDate).format('YYYY-MM-DD') : null,
-      banDate: values.banDate ? dayjs(values.banDate).format('YYYY-MM-DD') : null,
-    };
+    const extra: Record<string, any> = {};
+    const base: any = {};
+    for (const [k, v] of Object.entries(values)) {
+      const col = columns.find((c) => c.key === k);
+      if (col?.custom) extra[k] = v;
+      else if (k === 'registerDate' || k === 'banDate') base[k] = v ? dayjs(v as any).format('YYYY-MM-DD') : null;
+      else base[k] = v;
+    }
+    const payload = { ...base, extra };
     setSubmitting(true);
     try {
       if (editing) {
@@ -101,68 +110,68 @@ const TrafficAccountPage: React.FC = () => {
   const addType = async () => {
     const t = newType.trim();
     if (!t) return;
-    if (types.includes(t)) {
-      message.warning('该类型已存在');
-      return;
-    }
+    if (types.includes(t)) { message.warning('该类型已存在'); return; }
     const updated = [...types, t];
     setTypes(updated);
     await configApi.update({ 'traffic.account_types': updated });
-    setNewType('');
-    setTypeModalOpen(false);
+    setNewType(''); setTypeModalOpen(false);
     message.success('类型已添加');
   };
 
+  const addColumn = async () => {
+    const label = newColLabel.trim();
+    if (!label) return;
+    if (columns.some((c) => c.label === label)) { message.warning('该列已存在'); return; }
+    const key = `c_${Date.now().toString(36)}`;
+    const updated = [...columns, { key, label, custom: true }];
+    setColumns(updated);
+    await configApi.update({ 'traffic.account_columns': updated });
+    setNewColLabel('');
+    message.success('列已添加');
+  };
+
+  const removeColumn = async (key: string) => {
+    const updated = columns.filter((c) => c.key !== key);
+    setColumns(updated);
+    await configApi.update({ 'traffic.account_columns': updated });
+  };
+
+  const moveColumn = async (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= columns.length) return;
+    const updated = [...columns];
+    [updated[index], updated[target]] = [updated[target], updated[index]];
+    setColumns(updated);
+    await configApi.update({ 'traffic.account_columns': updated });
+  };
+
   const openFolder = (path?: string | null) => {
-    if (!path) {
-      message.warning('请先填写图片文件夹路径');
-      return;
-    }
+    if (!path) { message.warning('请先填写图片文件夹路径'); return; }
     const api = (window as any).electronAPI;
-    if (api?.openFolder) {
-      api.openFolder(path).catch(() => message.info(`文件夹路径：${path}`));
-    } else {
-      navigator.clipboard?.writeText(path);
-      message.info(`已复制文件夹路径：${path}`);
-    }
+    if (api?.openFolder) api.openFolder(path).catch(() => message.info(`文件夹路径：${path}`));
+    else { navigator.clipboard?.writeText(path); message.info(`已复制文件夹路径：${path}`); }
   };
 
-  const tag = (v?: string | null, yesColor = 'green', noColor = 'red') => {
-    if (v === '是') return <Tag color={yesColor}>是</Tag>;
-    if (v === '否') return <Tag color={noColor}>否</Tag>;
-    return '-';
+  const renderField = (col: ColumnDef, r: TrafficAccountItem): React.ReactNode => {
+    const v = col.custom ? r.extra?.[col.key] : (r as any)[col.key];
+    if (col.key === 'type') return <Tag color={TYPE_COLORS[v] || 'default'}>{v}</Tag>;
+    if (col.key === 'trafficLevel') return v ? <Tag color={v === '优' ? 'green' : v === '中' ? 'gold' : 'red'}>{v}</Tag> : '-';
+    if (col.key === 'riskPopped' || col.key === 'banned') return v === '是' ? <Tag color="green">是</Tag> : v === '否' ? <Tag color="red">否</Tag> : '-';
+    if (col.key === 'accountId') return v ? <Text copyable>{v}</Text> : '-';
+    if (col.key === 'imageSourceNote') return (
+      <Space size={4}>
+        <Text ellipsis style={{ maxWidth: 90 }}>{v || '-'}</Text>
+        <Button size="small" type="link" icon={<FolderOpenOutlined />} onClick={() => openFolder(r.imageFolder)}>文件夹</Button>
+      </Space>
+    );
+    return v || '-';
   };
 
-  const columns = [
-    { title: '平台', dataIndex: 'type', key: 'type', width: 90, fixed: 'left' as const,
-      render: (v: string) => <Tag color={TYPE_COLORS[v] || 'default'}>{v}</Tag> },
-    { title: '编号', dataIndex: 'code', key: 'code', width: 90, render: (v?: string | null) => v || '-' },
-    { title: '流量', dataIndex: 'trafficLevel', key: 'trafficLevel', width: 70,
-      render: (v?: string | null) => v ? <Tag color={v === '优' ? 'green' : v === '中' ? 'gold' : 'red'}>{v}</Tag> : '-' },
-    { title: '账号风格', dataIndex: 'accountStyle', key: 'accountStyle', width: 110, render: (v?: string | null) => v || '-' },
-    { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 130 },
-    { title: 'ID', dataIndex: 'accountId', key: 'accountId', width: 130, render: (v?: string | null) => v ? <Text copyable>{v}</Text> : '-' },
-    { title: 'WiFi', dataIndex: 'wifi', key: 'wifi', width: 110, render: (v?: string | null) => v || '-' },
-    { title: 'WiFi地区', dataIndex: 'wifiRegion', key: 'wifiRegion', width: 100, render: (v?: string | null) => v || '-' },
-    { title: '弹过风险', dataIndex: 'riskPopped', key: 'riskPopped', width: 90, render: (v?: string | null) => tag(v) },
-    { title: '风险备注', dataIndex: 'riskNote', key: 'riskNote', width: 120, render: (v?: string | null) => v || '-' },
-    { title: '封禁过', dataIndex: 'banned', key: 'banned', width: 80, render: (v?: string | null) => tag(v) },
-    { title: '封禁备注', dataIndex: 'banNote', key: 'banNote', width: 120, render: (v?: string | null) => v || '-' },
-    { title: '注册手机号', dataIndex: 'phone', key: 'phone', width: 120, render: (v?: string | null) => v || '-' },
-    { title: '地推联系人', dataIndex: 'promotionContact', key: 'promotionContact', width: 110, render: (v?: string | null) => v || '-' },
-    { title: '实名', dataIndex: 'realName', key: 'realName', width: 90, render: (v?: string | null) => v || '-' },
-    { title: '注册日期', dataIndex: 'registerDate', key: 'registerDate', width: 110, render: (v?: string | null) => v || '-' },
-    { title: '封禁日期', dataIndex: 'banDate', key: 'banDate', width: 110, render: (v?: string | null) => v || '-' },
-    {
-      title: '图片来源备注', dataIndex: 'imageSourceNote', key: 'imageSourceNote', width: 170,
-      render: (v?: string | null, r?: TrafficAccountItem) => (
-        <Space size={4}>
-          <Text ellipsis style={{ maxWidth: 90 }}>{v || '-'}</Text>
-          <Button size="small" type="link" icon={<FolderOpenOutlined />} onClick={() => openFolder(r?.imageFolder)}>文件夹</Button>
-        </Space>
-      ),
-    },
-    { title: '其他备注', dataIndex: 'otherNote', key: 'otherNote', width: 140, render: (v?: string | null) => v || '-' },
+  const tableColumns = [
+    ...columns.map((col) => ({
+      title: col.label, key: col.key, dataIndex: col.custom ? undefined : col.key, width: 110,
+      render: (_: unknown, r: TrafficAccountItem) => renderField(col, r),
+    })),
     {
       title: '操作', key: 'actions', width: 120, fixed: 'right' as const,
       render: (_: unknown, r: TrafficAccountItem) => (
@@ -186,11 +195,13 @@ const TrafficAccountPage: React.FC = () => {
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
           <Button icon={<TagsOutlined />} onClick={() => setTypeModalOpen(true)}>管理类型</Button>
+          <Button icon={<SettingOutlined />} onClick={() => setColModalOpen(true)}>列设置</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加账号</Button>
         </Space>
       </div>
-      <Table rowKey="id" columns={columns} dataSource={items} loading={loading} scroll={{ x: 2200 }} pagination={{ pageSize: 20 }} />
+      <Table rowKey="id" columns={tableColumns} dataSource={items} loading={loading} scroll={{ x: 2200 }} pagination={{ pageSize: 20 }} />
 
+      {/* 账号编辑/新增 */}
       <Modal
         title={editing ? '编辑引流账号' : '添加引流账号'}
         open={modalOpen}
@@ -220,29 +231,45 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="registerDate" label="注册日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={8}><Form.Item name="banDate" label="封禁日期"><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
             <Col span={12}><Form.Item name="imageSourceNote" label="图片来源备注"><Input placeholder="图片来源说明" /></Form.Item></Col>
-            <Col span={12}>
-              <Form.Item name="imageFolder" label="本地图片文件夹">
-                <Input addonAfter={<Button type="link" size="small" icon={<FolderOpenOutlined />} onClick={() => openFolder(form.getFieldValue('imageFolder'))} style={{ padding: 0 }} />} placeholder="本地文件夹路径" />
-              </Form.Item>
-            </Col>
+            <Col span={12}><Form.Item name="imageFolder" label="本地图片文件夹"><Input addonAfter={<Button type="link" size="small" icon={<FolderOpenOutlined />} onClick={() => openFolder(form.getFieldValue('imageFolder'))} style={{ padding: 0 }} />} placeholder="本地文件夹路径" /></Form.Item></Col>
             <Col span={24}><Form.Item name="otherNote" label="其他备注"><Input.TextArea rows={2} placeholder="其他备注" /></Form.Item></Col>
+            {columns.filter((c) => c.custom).map((c) => (
+              <Col span={12} key={c.key}><Form.Item name={c.key} label={c.label}><Input placeholder={`填写 ${c.label}`} /></Form.Item></Col>
+            ))}
           </Row>
         </Form>
       </Modal>
 
-      <Modal
-        title="管理平台类型"
-        open={typeModalOpen}
-        onCancel={() => setTypeModalOpen(false)}
-        onOk={addType}
-        okText="添加"
-        cancelText="关闭"
-      >
+      {/* 平台类型管理 */}
+      <Modal title="管理平台类型" open={typeModalOpen} onCancel={() => setTypeModalOpen(false)} onOk={addType} okText="添加" cancelText="关闭">
         <div style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {types.map((t) => <Tag key={t} color={TYPE_COLORS[t] || 'default'}>{t}</Tag>)}
           </div>
           <Input value={newType} onChange={(e) => setNewType(e.target.value)} onPressEnter={addType} placeholder="输入新平台类型，例如 快手" />
+        </div>
+      </Modal>
+
+      {/* 列设置：添加列 + 左右移动 */}
+      <Modal title="列设置" open={colModalOpen} onCancel={() => setColModalOpen(false)} footer={null} width={520}>
+        <div style={{ marginTop: 12 }}>
+          <Space style={{ width: '100%', marginBottom: 12 }}>
+            <Input value={newColLabel} onChange={(e) => setNewColLabel(e.target.value)} onPressEnter={addColumn} placeholder="新列名称" style={{ width: 220 }} />
+            <Button type="primary" icon={<PlusOutlined />} onClick={addColumn}>添加列</Button>
+          </Space>
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+            {columns.map((c, i) => (
+              <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <Text style={{ flex: 1 }}>{c.label}{c.custom ? <Tag color="cyan" style={{ marginLeft: 8 }}>自定义</Tag> : null}</Text>
+                <Space size={4}>
+                  <Button size="small" icon={<LeftOutlined />} disabled={i === 0} onClick={() => moveColumn(i, -1)} />
+                  <Button size="small" icon={<RightOutlined />} disabled={i === columns.length - 1} onClick={() => moveColumn(i, 1)} />
+                  {c.custom && <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeColumn(c.key)} />}
+                </Space>
+              </div>
+            ))}
+          </div>
+          <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>左右箭头调整列顺序，自定义列可删除。</Text>
         </div>
       </Modal>
     </div>
