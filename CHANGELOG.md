@@ -81,6 +81,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **远程开机修复:** 应用容器改为使用主机网络（host network），使 Wake-on-LAN 广播包能真正发到局域网，远程开机不再失效。
 - **自动更新改为看门狗执行:** 陪玩端检测到新版本后不再自己装，而是写更新信号，由 SystemHelper 服务以系统权限下载解压并重启，解决普通权限装不上 `C:\Program Files` 的问题。
 - **聊天细节修复:** 陪玩侧边栏未读改为显示数字角标；输入框高度用 ResizeObserver 可靠记忆；聊天弹窗高度自适应窗口避免被裁切。
 - **双陪流程修复:** 搭档「我已准备好」不再报无权操作；双陪会话自动继承订单里的搭档和搭档金额。

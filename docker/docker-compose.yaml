@@ -61,21 +61,19 @@ services:
     image: chunlv-app:latest
     container_name: chunlv-app
     restart: unless-stopped
+    network_mode: host
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/chunlv
-      REDIS_HOST: redis
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5432/chunlv
+      REDIS_HOST: 127.0.0.1
       REDIS_PORT: '6379'
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173}
       PORT: '3001'
-    ports:
-      - '3001:3001'
     volumes:
       - ../uploads:/app/uploads
-      - /proc/net/arp:/host-arp:ro
     depends_on:
       postgres:
         condition: service_healthy
