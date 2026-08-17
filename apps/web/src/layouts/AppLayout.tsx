@@ -856,6 +856,13 @@ const AppLayout: React.FC = () => {
         };
       }
       return item;
+    }).map((item) => {
+      // 单子菜单直接平铺：点击父级直接跳转，省掉再点一次二级菜单
+      if (item.children && item.children.length === 1) {
+        const child = item.children[0];
+        return { key: child.key, icon: item.icon, label: item.label };
+      }
+      return item;
     });
   }, [user, totalUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge]);
 
