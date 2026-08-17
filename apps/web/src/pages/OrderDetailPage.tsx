@@ -158,13 +158,43 @@ const OrderDetailPage: React.FC = () => {
       message.success('已结束');
       setEndTarget(null);
       fetch();
+      const nk = `renew-${endTarget.id}`;
       notification.success({
+        key: nk,
         message: '🙌 祝你续单',
         placement: 'bottomRight',
-        duration: 3,
+        duration: 0,
+        btn: (
+          <Space>
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => { notification.destroy(nk); openRenew(); }}
+            >
+              续单
+            </Button>
+            <Button
+              size="small"
+              onClick={() => { notification.destroy(nk); completeOrder(); }}
+            >
+              结束服务
+            </Button>
+          </Space>
+        ),
       });
     } catch { message.error('结束失败'); }
     setEnding(false);
+  };
+
+  const completeOrder = async () => {
+    if (!id) return;
+    try {
+      await ordersApi.complete(id);
+      message.success('本单已结束服务');
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '结束服务失败');
+    }
   };
 
   const cols = [
