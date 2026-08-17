@@ -58,6 +58,10 @@ export class ManagedPcService {
 
     if (action === 'wake') {
       await this.wakeOnLan(pc.ip);
+      await this.prisma.managedPC.update({
+        where: { id },
+        data: { lastAction: 'wake', lastActionAt: new Date(), updatedAt: new Date() },
+      });
       return { success: true, action };
     }
 
@@ -77,6 +81,10 @@ export class ManagedPcService {
         ['/usr/local/bin/atexec.py', target, remoteCommand],
         { timeout: 20000 },
       );
+      await this.prisma.managedPC.update({
+        where: { id },
+        data: { lastAction: action, lastActionAt: new Date(), updatedAt: new Date() },
+      });
       return { success: true, action };
     } catch (err: any) {
       this.logger.warn('power action failed', { ip: pc.ip, action, error: err?.message || err });

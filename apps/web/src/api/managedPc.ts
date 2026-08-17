@@ -7,6 +7,8 @@ export interface ManagedPcItem {
   label?: string | null;
   enabled: boolean;
   online?: boolean;
+  lastAction?: string | null;
+  lastActionAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -89,7 +89,24 @@ const ManagedPcPage: React.FC = () => {
       title: '状态',
       key: 'online',
       width: 90,
-      render: (_: unknown, r: ManagedPcItem) => <Tag color={r.online ? 'green' : 'default'}>{r.online ? '在线' : '离线'}</Tag>,
+      render: (_: unknown, r: ManagedPcItem) => {
+        let label = '离线';
+        let color = 'default';
+        if (r.online) {
+          label = '在线';
+          color = 'green';
+        } else if (r.lastAction === 'shutdown') {
+          label = '已关机';
+          color = 'red';
+        } else if (r.lastAction === 'sleep') {
+          label = '睡眠中';
+          color = 'blue';
+        } else if (r.lastAction === 'hibernate') {
+          label = '休眠中';
+          color = 'purple';
+        }
+        return <Tag color={color}>{label}</Tag>;
+      },
     },
     {
       title: '操作',

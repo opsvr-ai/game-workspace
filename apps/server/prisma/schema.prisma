@@ -922,6 +922,8 @@ model ManagedPC {
   loginAccount String
   label        String?
   enabled      Boolean  @default(true)
+  lastAction   String?
+  lastActionAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
