@@ -19,6 +19,7 @@ import { StatsModule } from './stats/stats.module';
 import { FinanceModule } from './finance/finance.module';
 import { ChatModule } from './chat/chat.module';
 import { CustomerTrackingModule } from './customer-tracking/customer-tracking.module';
+import { ManagedPcModule } from './managed-pc/managed-pc.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 
@@ -62,6 +63,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     StatsModule,
     FinanceModule,
     CustomerTrackingModule,
+    ManagedPcModule,
   ],
   providers: [
     {

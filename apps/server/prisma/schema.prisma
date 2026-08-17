@@ -915,3 +915,15 @@ model CustomerDeleteRequest {
   @@index([customerId])
   @@index([status])
 }
+
+model ManagedPC {
+  id           String   @id @default(uuid())
+  ip           String
+  loginAccount String
+  label        String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([ip])
+}

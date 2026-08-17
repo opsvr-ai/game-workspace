@@ -158,6 +158,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/authorizations', label: '客户端授权' },
         { key: '/owner/work-wechats', label: '工作微信' },
         { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
@@ -205,6 +206,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/admin/work-wechats', label: '工作微信' },
         { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
@@ -233,6 +235,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       label: '系统设置',
       children: [
         { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/cs/work-wechats', label: '工作微信' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
