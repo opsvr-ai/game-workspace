@@ -936,7 +936,7 @@ export class OrdersService {
     return s;
   }
   async endSession(id: string, companionId?: string) {
-    const s = await this.getOwnedSession(id, companionId);
+      const s = await this.getOwnedSession(id, companionId);
     const data: any = { endedAt: new Date(), status: 'DONE' };
     if (s.pausedAt) {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
@@ -944,6 +944,25 @@ export class OrdersService {
       data.totalPausedSec = (s.totalPausedSec || 0) + sec;
     }
     return this.prisma.orderSession.update({ where: { id }, data });
+  }
+
+  async setRenewOutcome(
+    id: string,
+    companionId: string | undefined,
+    outcome: string,
+    reason?: string,
+  ) {
+    await this.getOwnedSession(id, companionId);
+    if (!['RENEW', 'NO_RENEW', 'SCHEDULE_LATER'].includes(outcome)) {
+      throw new BadRequestException('无效的续单结果');
+    }
+    if (outcome === 'NO_RENEW' && !reason?.trim()) {
+      throw new BadRequestException('请填写不续单原因');
+    }
+    return this.prisma.orderSession.update({
+      where: { id },
+      data: { renewOutcome: outcome, renewOutcomeReason: reason?.trim() || null },
+    });
   }
 
   async updatePayment(

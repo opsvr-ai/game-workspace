@@ -250,10 +250,12 @@ model OrderSession {
   // ── 工作记录监控（口供+证据）──
   claimedMode           String? // 陪玩声称的游戏模式（机密/绝密）
   claimedPrice          Float? // 陪玩声称的单价
-  transferScreenshotUrl String? // 客户转账截图
-  flagged               String? // null | 'red' | 'yellow' 异常标记
-  compositeUrl          String? // 合并长图路径
-
+    transferScreenshotUrl String? // 客户转账截图
+    flagged               String? // null | 'red' | 'yellow' 异常标记
+    compositeUrl          String? // 合并长图路径
+    renewOutcome          String? // RENEW | NO_RENEW | SCHEDULE_LATER 结束服务后客户去向
+    renewOutcomeReason    String? // 不续单原因
+  
   companion   Companion? @relation(fields: [companionId], references: [id])
   coCompanion Companion? @relation("CoSessionCompanion", fields: [coCompanionId], references: [id])
 

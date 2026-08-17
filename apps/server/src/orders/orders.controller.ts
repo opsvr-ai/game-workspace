@@ -242,6 +242,22 @@ export class OrdersController {
     return { code: 200, message: '计时结束', data };
   }
 
+  @Put('sessions/:sessionId/renew-outcome')
+  @Roles(UserRole.COMPANION)
+  async setRenewOutcome(
+    @Param('sessionId') id: string,
+    @Req() req: any,
+    @Body() body: { outcome: string; reason?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.setRenewOutcome(
+      id,
+      req.user.companionId,
+      body?.outcome,
+      body?.reason,
+    );
+    return { code: 200, message: '已记录续单结果', data };
+  }
+
   @Post('orders/:id/decline-assignment')
   @Roles(UserRole.COMPANION)
   async declineAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
