@@ -100,8 +100,8 @@ const ProfitSplitPage: React.FC = () => {
             <Card title="阶梯分成设置" size="small">
               {offlineTiers.map((tier: any, idx: number) => (
                 <Row key={idx} gutter={12} style={{ marginBottom: 8 }}>
-                  <Col span={4}><Text>最低流水</Text><InputNumber style={{ width: '100%' }} value={tier.min} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, min: v } : x))} /></Col>
-                  <Col span={4}><Text>最高流水</Text><InputNumber style={{ width: '100%' }} value={tier.max ?? undefined} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, max: v } : x))} /></Col>
+                  <Col span={4}><Text>陪玩月流水最低</Text><InputNumber style={{ width: '100%' }} value={tier.min} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, min: v } : x))} /></Col>
+                  <Col span={4}><Text>陪玩月流水最高</Text><InputNumber style={{ width: '100%' }} value={tier.max ?? undefined} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, max: v } : x))} /></Col>
                   <Col span={4}><Text>陪玩%</Text><InputNumber style={{ width: '100%' }} value={tier.companion} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, companion: v } : x))} /></Col>
                   <Col span={4}><Text>工作室%</Text><InputNumber style={{ width: '100%' }} value={tier.studio} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, studio: v } : x))} /></Col>
                 </Row>
