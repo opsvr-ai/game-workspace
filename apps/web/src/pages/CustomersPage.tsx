@@ -32,6 +32,7 @@ import {
   CalendarOutlined,
   PlayCircleOutlined,
   SendOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
 import { ordersApi } from '../api/orders';
@@ -112,6 +113,10 @@ const CustomersPage: React.FC = () => {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteScreenshot, setDeleteScreenshot] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const openScheduleModal = (record: Customer) => {
     setScheduleCustomer(record);
@@ -566,6 +571,18 @@ const CustomersPage: React.FC = () => {
           <Button type="link" size="small" onClick={() => navigate(`/companion/customers/${record.id}`)}>
             查看
           </Button>
+          <Button
+            type="link"
+            danger
+            size="small"
+            onClick={() => {
+              setDeleteCustomer(record);
+              setDeleteReason('');
+              setDeleteScreenshot('');
+            }}
+          >
+            删除
+          </Button>
           </Space>
         );
       },
@@ -825,6 +842,82 @@ const CustomersPage: React.FC = () => {
               onChange={(v) => setScheduleTime(v)}
               style={{ width: '100%' }}
             />
+          </div>
+        </Modal>
+        <Modal
+          title="删除客户"
+          open={!!deleteCustomer}
+          onOk={async () => {
+            if (!deleteReason.trim()) {
+              message.warning('请填写删除原因');
+              return Promise.reject();
+            }
+            if (!deleteScreenshot) {
+              message.warning('请上传删除截图');
+              return Promise.reject();
+            }
+            setDeleteSubmitting(true);
+            try {
+              await http.post('/customer-tracking/delete-requests', {
+                customerId: deleteCustomer?.id,
+                reason: deleteReason.trim(),
+                evidenceUrl: deleteScreenshot,
+              });
+              message.success('删除申请已提交，等待管理端审核');
+              setDeleteCustomer(null);
+              fetchCustomers();
+            } catch (e: any) {
+              message.error(extractErrorMessage(e, '申请失败'));
+              return Promise.reject();
+            } finally {
+              setDeleteSubmitting(false);
+            }
+          }}
+          onCancel={() => setDeleteCustomer(null)}
+          okText="提交申请"
+          cancelText="取消"
+          confirmLoading={deleteSubmitting}
+          destroyOnClose
+        >
+          <div style={{ marginTop: 12 }}>
+            <Text>
+              确认删除客户 <Text strong>{deleteCustomer?.wechatId || deleteCustomer?.customerCode}</Text> ？删除需填写原因并上传截图，提交后管理端审核。
+            </Text>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Text>删除原因（必填）：</Text>
+            <Input.TextArea
+              rows={3}
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="例如：客户已删除我 / 客户拉黑 / 不再合作"
+            />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Text>删除截图（必传）：</Text>
+            <div style={{ marginTop: 8 }}>
+              <Upload
+                showUploadList={false}
+                accept="image/*"
+                beforeUpload={async (file) => {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  try {
+                    const { data } = await http.post('/upload/screenshot', fd);
+                    setDeleteScreenshot(data.data?.url || data.url || '');
+                    message.success('截图已上传');
+                  } catch {
+                    message.error('上传失败');
+                  }
+                  return false;
+                }}
+              >
+                <Button icon={<UploadOutlined />}>
+                  {deleteScreenshot ? '重新上传截图' : '上传截图'}
+                </Button>
+              </Upload>
+              {deleteScreenshot && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
+            </div>
           </div>
         </Modal>
       </div>

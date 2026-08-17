@@ -196,14 +196,15 @@ export class CustomerTrackingService {
     });
     if (existing) return existing;
 
-    return this.prisma.customerDeleteRequest.create({
-      data: {
-        studioId: customer.studioId,
-        companionId,
-        customerId: dto.customerId,
-        evidenceUrl: dto.evidenceUrl ?? null,
-      },
-    });
+      return this.prisma.customerDeleteRequest.create({
+        data: {
+          studioId: customer.studioId,
+          companionId,
+          customerId: dto.customerId,
+          reason: dto.reason ?? null,
+          evidenceUrl: dto.evidenceUrl ?? null,
+        },
+      });
   }
 
   async listDeleteRequests(user: AuthUser, status?: string) {

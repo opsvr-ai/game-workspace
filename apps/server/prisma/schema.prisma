@@ -894,12 +894,13 @@ model CustomerTrack {
 }
 
 model CustomerDeleteRequest {
-  id           String    @id @default(uuid())
-  studioId     String
-  companionId  String
-  customerId   String
-  evidenceUrl  String?
-  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+    id           String    @id @default(uuid())
+    studioId     String
+    companionId  String
+    customerId   String
+    reason       String?
+    evidenceUrl  String?
+    status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewedById String?
   reviewedAt   DateTime?
   rejectReason String?
