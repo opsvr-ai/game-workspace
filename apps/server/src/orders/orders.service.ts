@@ -515,10 +515,24 @@ export class OrdersService {
             waitingSeconds,
             urgent: true,
             requireCsContact: waitingSeconds >= 600,
+            csContactStatus: o.contactStatus || '',
             availableCompanions,
           };
         }),
     );
+  }
+
+  async markCsContact(orderId: string, status: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    const cf = (order.customFields as any) || {};
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        contactStatus: status,
+        customFields: { ...cf, csContactAt: new Date().toISOString() },
+      },
+    });
   }
 
   private async getSoonEndingCompanions(studioId: string) {

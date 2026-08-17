@@ -32,6 +32,13 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Put('orders/:id/cs-contact')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async markCsContact(@Param('id') id: string, @Body() body: { status: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markCsContact(id, body?.status || 'added');
+    return { code: 200, message: '已记录客服联系状态', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

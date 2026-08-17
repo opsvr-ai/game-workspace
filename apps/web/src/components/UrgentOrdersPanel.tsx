@@ -36,6 +36,12 @@ const UrgentOrdersPanel: React.FC = () => {
     }
   };
 
+  const markContact = async (orderId: string) => {
+    await ordersApi.markCsContact(orderId, 'added');
+    message.success('已标记客服已添加客户');
+    load();
+  };
+
   if (items.length === 0) return null;
 
   return (
@@ -52,8 +58,15 @@ const UrgentOrdersPanel: React.FC = () => {
             <List.Item.Meta
               title={<span>🔥 {item.gameName} {item.gameMode} · ¥{item.amount} · 已等待 {fmt(item.waitingSeconds)}</span>}
               description={
-                <>
+              <>
                   <div>客户微信：{item.customerWechat || '未填写'}</div>
+                  <div>
+                    客服联系状态：
+                    {item.csContactStatus === 'added' ? <Tag color="green">已添加</Tag> : <Tag color="red">未添加</Tag>}
+                    {item.csContactStatus !== 'added' && (
+                      <Button size="small" type="link" onClick={() => markContact(item.id)}>标记已添加</Button>
+                    )}
+                  </div>
                   {item.availableCompanions?.length > 0 && (
                     <div style={{ marginTop: 6 }}>
                       {item.availableCompanions.map((c: any) => (
