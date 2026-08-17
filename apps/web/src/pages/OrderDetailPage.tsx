@@ -158,27 +158,10 @@ const OrderDetailPage: React.FC = () => {
       message.success('已结束');
       setEndTarget(null);
       fetch();
-      const nk = `renew-${endTarget.id}`;
       notification.success({
-        key: nk,
         message: '🙌 祝你续单',
-        description: '本单已结束。客户还要继续就点「去续单」，不续了就点「不续单」收工。',
         placement: 'bottomRight',
-        duration: 0,
-        btn: (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              onClick={() => { notification.destroy(nk); openRenew(); }}
-            >
-              去续单
-            </Button>
-            <Button size="small" onClick={() => notification.destroy(nk)}>
-              不续单
-            </Button>
-          </Space>
-        ),
+        duration: 3,
       });
     } catch { message.error('结束失败'); }
     setEnding(false);
