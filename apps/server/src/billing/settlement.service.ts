@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { currentBusinessDayRange } from '../common/business-day';
 
 @Injectable()
 export class SettlementService {
@@ -171,15 +172,12 @@ export class SettlementService {
     const targetIds = companionId ? [companionId] : allCompanions.map((c) => c.id);
     const companionFilter = companionId ? companionId : { in: targetIds.length > 0 ? targetIds : ['__none__'] };
 
-    // Today's date range
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+      // Today's date range（营业日：当日 12:00 至次日 11:59）
+      const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
 
     // Today's DONE revenue
     const todayAgg = await this.prisma.order.aggregate({
-      where: { studioId, status: 'DONE', companionId: companionFilter, createdAt: { gte: todayStart, lte: todayEnd } },
+      where: { studioId, status: 'DONE', companionId: companionFilter, createdAt: { gte: todayStart, lt: todayEnd } },
       _sum: { amount: true },
     });
 

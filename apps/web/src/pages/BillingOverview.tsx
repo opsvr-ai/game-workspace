@@ -98,6 +98,10 @@ const BillingOverview: React.FC = () => {
   const [reportScreenshots, setReportScreenshots] = useState<Record<string,string>>({});
   const [reportAmounts, setReportAmounts] = useState<Record<string,number>>({});
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [transferVisible, setTransferVisible] = useState(false);
+  const [transferAmount, setTransferAmount] = useState<number | null>(null);
+  const [transferScreenshot, setTransferScreenshot] = useState('');
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
@@ -538,9 +542,14 @@ const BillingOverview: React.FC = () => {
                 setReportVisible(true);
               }).catch(()=>{});
             }}>上报今日流水</Button>
-            <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>申请支取</Button>
-          </Space>
-        )}
+              <Button type="primary" icon={IconBank} onClick={() => {
+                setTransferAmount(null);
+                setTransferScreenshot('');
+                setTransferVisible(true);
+              }}>转公户</Button>
+              <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>申请支取</Button>
+            </Space>
+          )}
         {isAdmin && (
           <Space>
             <Button
@@ -671,6 +680,92 @@ const BillingOverview: React.FC = () => {
             </Text>
           </div>
         )}
+      </Modal>
+
+      {/* Company Transfer Modal */}
+      <Modal
+        title="🏦 转公户（当日实际流水最终口径）"
+        open={transferVisible}
+        onOk={async () => {
+          if (!transferAmount || transferAmount <= 0) {
+            message.warning('请填写业绩金额');
+            return;
+          }
+          if (!transferScreenshot) {
+            message.warning('请上传转给公户的转账截图');
+            return;
+          }
+          setTransferSubmitting(true);
+          try {
+            await http.post('/billing/company-transfer', {
+              amount: transferAmount,
+              screenshotUrl: transferScreenshot,
+            });
+            message.success('转公户已提交，以该金额作为今日实际流水');
+            setTransferVisible(false);
+            fetchOverview();
+            fetchDailyReports();
+          } catch (err: any) {
+            message.error(err?.response?.data?.message || '提交失败');
+          } finally {
+            setTransferSubmitting(false);
+          }
+        }}
+        onCancel={() => setTransferVisible(false)}
+        okText="提交"
+        cancelText="取消"
+        confirmLoading={transferSubmitting}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Text>业绩金额（今日实际转入公户的金额）</Text>
+          <InputNumber
+            min={0}
+            style={{ width: '100%', marginTop: 4 }}
+            value={transferAmount}
+            onChange={(v) => setTransferAmount(v || null)}
+            prefix="¥"
+            placeholder="例如 290"
+          />
+        </div>
+        <div>
+          <Text>转给公户的转账截图（必传，作为最终流水依据）</Text>
+          <div style={{ marginTop: 4 }}>
+            <Upload
+              showUploadList={false}
+              accept="image/*"
+              beforeUpload={async (file) => {
+                const fd = new FormData();
+                fd.append('file', file);
+                try {
+                  const res: any = await http.post('/upload/screenshot', fd);
+                  const url = res?.data?.data?.url || res?.data?.url;
+                  if (url) {
+                    setTransferScreenshot(url);
+                    message.success('截图已上传');
+                  } else {
+                    message.error('上传失败');
+                  }
+                } catch {
+                  message.error('上传失败');
+                }
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />}>
+                {transferScreenshot ? '重新上传截图' : '上传转账截图'}
+              </Button>
+            </Upload>
+            {transferScreenshot && (
+              <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>
+            )}
+          </div>
+        </div>
+        <div style={{ marginTop: 12, background: '#FFF7E6', borderRadius: 8, padding: 10 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            说明：每次开始服务/续单/复购上传的客户转账截图是参考；下班前转给公户的这笔金额才是当日实际流水，最终以这笔为准。
+          </Text>
+        </div>
       </Modal>
 
       {/* Withdraw Modal */}

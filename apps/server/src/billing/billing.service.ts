@@ -1,9 +1,10 @@
 // craftsman-ignore: TS001
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { TransactionService } from './transaction.service';
 import { SettlementService } from './settlement.service';
+import { currentBusinessDayRange } from '../common/business-day';
 
 @Injectable()
 export class BillingService {
@@ -304,16 +305,13 @@ export class BillingService {
   // ── Revenue Diff Check ──
 
   async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start, end } = currentBusinessDayRange();
 
     const todayOrders = await this.prisma.order.findMany({
       where: {
         companionId,
         status: 'DONE',
-        createdAt: { gte: today, lt: tomorrow },
+        createdAt: { gte: start, lt: end },
       },
       select: { amount: true },
     });
@@ -338,6 +336,57 @@ export class BillingService {
         timestamp: new Date().toISOString(),
       });
     }
+  }
+
+  /** 下班前转公户：业绩金额 + 公户转账截图，作为当日实际流水的最终口径 */
+  async submitCompanyTransfer(
+    companionId: string,
+    studioId: string,
+    amount: number,
+    screenshotUrl: string,
+  ) {
+    if (!amount || !Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('请填写正确的业绩金额');
+    }
+    if (!screenshotUrl) {
+      throw new BadRequestException('请上传转给公户的转账截图');
+    }
+    const report = await this.createExpenseReport({
+      companionId,
+      studioId,
+      type: 'COMPANY_TRANSFER',
+      amount,
+      screenshotUrl,
+    });
+    // 用转公户金额与系统累计流水做一次对账提示（仅提示，不影响最终口径）
+    await this.checkRevenueDiff(companionId, studioId, amount);
+    return report;
+  }
+
+  /** 获取某陪玩当前营业日的系统累计流水与转公户金额 */
+  async getCompanionDailyReconciliation(companionId: string) {
+    const { start, end } = currentBusinessDayRange();
+    const systemAgg = await this.prisma.order.aggregate({
+      where: { companionId, status: 'DONE', createdAt: { gte: start, lt: end } },
+      _sum: { amount: true },
+    });
+    const transferAgg = await this.prisma.expenseReport.aggregate({
+      where: {
+        companionId,
+        type: 'COMPANY_TRANSFER',
+        createdAt: { gte: start, lt: end },
+      },
+      _sum: { amount: true },
+    });
+    const systemTotal = systemAgg._sum.amount ?? 0;
+    const transferTotal = transferAgg._sum.amount ?? 0;
+    const finalAmount = transferTotal > 0 ? transferTotal : systemTotal;
+    return {
+      systemTotal: Math.round(systemTotal * 100) / 100,
+      transferTotal: Math.round(transferTotal * 100) / 100,
+      finalAmount: Math.round(finalAmount * 100) / 100,
+      isAuthoritative: transferTotal > 0,
+    };
   }
 
   // ── Unified Billing Overview ──

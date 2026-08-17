@@ -33,6 +33,16 @@ export function businessDayRange(day: string): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** 当前营业日范围：当日 12:00（含）至次日 12:00（不含） */
+export function currentBusinessDayRange(now: Date = new Date()): { start: Date; end: Date } {
+  const day = businessDayOf(now);
+  const start = new Date(day);
+  start.setHours(BUSINESS_DAY_BOUNDARY_HOUR, 0, 0, 0);
+  const end = new Date(start.getTime());
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
 /** 对局时长容忍度（分钟）：计时差异在此范围内不标记异常 */
 export const ROUND_TOLERANCE_MINUTES = 20;
 export const ROUND_TOLERANCE_MAX_MINUTES = 30;

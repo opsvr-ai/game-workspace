@@ -319,6 +319,38 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
+  // ── 下班转公户（当日实际流水的最终口径）──
+
+  @Post('billing/company-transfer')
+  @Roles(UserRole.COMPANION)
+  async submitCompanyTransfer(
+    @Req() req: any,
+    @Body() body: { amount: number; screenshotUrl: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.billingService.submitCompanyTransfer(
+      req.user.companionId,
+      req.user.studioId,
+      body?.amount,
+      body?.screenshotUrl,
+    );
+    return { code: 201, message: '转公户已提交，以该金额作为今日实际流水', data };
+  }
+
+  @Get('billing/daily-reconciliation')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
+  async getDailyReconciliation(
+    @Req() req: any,
+    @Query('companionId') companionId?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const effectiveCompanionId =
+      req.user.role === 'COMPANION' ? req.user.companionId : companionId;
+    if (!effectiveCompanionId) return { code: 400, message: '请指定陪玩', data: null };
+    const data = await this.billingService.getCompanionDailyReconciliation(
+      effectiveCompanionId,
+    );
+    return { code: 200, message: 'ok', data };
+  }
+
   // ── Monthly Settlement ──
 
   @Post('monthly-settlement')
