@@ -14,6 +14,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
 import { logger } from '../common/logger';
+import * as fs from 'fs';
 import { CompanionsService } from '../companions/companions.service';
 import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
@@ -569,13 +570,31 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return;
       const pc = await this.prisma.managedPC.findFirst({ where: { ip } });
       if (!pc) return;
+      const mac = this.resolveMacFromArp(ip);
       await this.prisma.managedPC.update({
         where: { id: pc.id },
-        data: { loginAccount: username, updatedAt: new Date() },
+        data: {
+          loginAccount: username,
+          ...(mac ? { macAddress: mac } : {}),
+          updatedAt: new Date(),
+        },
       });
     } catch {
       // 电脑管理表可能尚未迁移，忽略即可
     }
+  }
+
+  private resolveMacFromArp(ip: string): string | null {
+    try {
+      const raw = fs.readFileSync('/host-arp', 'utf-8');
+      for (const line of raw.split('\n')) {
+        const parts = line.trim().split(/\s+/);
+        if (parts[0] === ip && parts[3] && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(parts[3])) {
+          return parts[3].toLowerCase();
+        }
+      }
+    } catch {}
+    return null;
   }
 
   // ── chat inbound / outbound ──────────────────────────────────────────

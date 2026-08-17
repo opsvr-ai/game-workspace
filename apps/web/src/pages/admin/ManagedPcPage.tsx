@@ -84,6 +84,13 @@ const ManagedPcPage: React.FC = () => {
   const columns = [
     { title: 'IP 地址', dataIndex: 'ip', key: 'ip', width: 150, render: (v: string) => <Text code>{v}</Text> },
     { title: '登录账号', dataIndex: 'loginAccount', key: 'loginAccount', width: 150 },
+    {
+      title: 'MAC 地址',
+      dataIndex: 'macAddress',
+      key: 'macAddress',
+      width: 170,
+      render: (v?: string | null) => v ? <Text code>{v}</Text> : <Text type="secondary">未填写</Text>,
+    },
     { title: '备注', dataIndex: 'label', key: 'label', render: (v?: string | null) => v || '-' },
     {
       title: '状态',
@@ -143,6 +150,20 @@ const ManagedPcPage: React.FC = () => {
         <Title level={4} style={{ margin: 0 }}>电脑管理</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
+          <Button
+            icon={<ThunderboltOutlined />}
+            onClick={async () => {
+              try {
+                const { data } = await managedPcApi.syncMac();
+                message.success(`MAC 已同步（${data?.data?.updated ?? 0} 台已更新）`);
+                fetchItems();
+              } catch {
+                message.error('同步 MAC 失败');
+              }
+            }}
+          >
+            同步MAC
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加电脑</Button>
         </Space>
       </div>
@@ -161,6 +182,9 @@ const ManagedPcPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="loginAccount" label="登录账号" rules={[{ required: true, message: '请输入登录账号' }]}>
             <Input placeholder="例如 chunlvops" />
+          </Form.Item>
+          <Form.Item name="macAddress" label="MAC 地址">
+            <Input placeholder="例如 50:eb:f6:ee:0d:7f（用于远程开机，在线会自动填）" />
           </Form.Item>
           <Form.Item name="label" label="备注">
             <Input placeholder="例如 王昊电脑" />

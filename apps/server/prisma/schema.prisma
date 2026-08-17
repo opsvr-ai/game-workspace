@@ -920,10 +920,11 @@ model CustomerDeleteRequest {
 }
 
 model ManagedPC {
-  id           String   @id @default(uuid())
-  ip           String
-  loginAccount String
-  label        String?
+    id           String   @id @default(uuid())
+    ip           String
+    loginAccount String
+    macAddress   String?
+    label        String?
   enabled      Boolean  @default(true)
   lastAction   String?
   lastActionAt DateTime?

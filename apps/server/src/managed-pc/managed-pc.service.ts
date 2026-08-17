@@ -24,16 +24,22 @@ export class ManagedPcService {
     })));
   }
 
-  async create(dto: { ip: string; loginAccount: string; label?: string }) {
+  async create(dto: { ip: string; loginAccount: string; macAddress?: string; label?: string }) {
     return this.prisma.managedPC.create({
-      data: { ip: dto.ip.trim(), loginAccount: dto.loginAccount.trim(), label: dto.label?.trim() || null },
+      data: {
+        ip: dto.ip.trim(),
+        loginAccount: dto.loginAccount.trim(),
+        macAddress: dto.macAddress?.trim() || null,
+        label: dto.label?.trim() || null,
+      },
     });
   }
 
-  async update(id: string, dto: Partial<{ ip: string; loginAccount: string; label?: string; enabled: boolean }>) {
+  async update(id: string, dto: Partial<{ ip: string; loginAccount: string; macAddress?: string; label?: string; enabled: boolean }>) {
     const data: any = { ...dto };
     if (data.ip) data.ip = data.ip.trim();
     if (data.loginAccount) data.loginAccount = data.loginAccount.trim();
+    if (data.macAddress !== undefined) data.macAddress = data.macAddress ? data.macAddress.trim() : null;
     if (data.label) data.label = data.label.trim();
     return this.prisma.managedPC.update({ where: { id }, data });
   }
@@ -57,7 +63,7 @@ export class ManagedPcService {
     if (!pc) throw new Error('未找到该电脑');
 
     if (action === 'wake') {
-      await this.wakeOnLan(pc.ip);
+      await this.wakeOnLan(pc.ip, pc.macAddress);
       await this.prisma.managedPC.update({
         where: { id },
         data: { lastAction: 'wake', lastActionAt: new Date(), updatedAt: new Date() },
@@ -92,9 +98,10 @@ export class ManagedPcService {
     }
   }
 
-  private async wakeOnLan(ip: string): Promise<void> {
-    const mac = this.resolveMacFromHostArp(ip);
-    if (!mac) throw new Error('未找到该电脑的 MAC 地址，请先让电脑开机一次');
+  private async wakeOnLan(ip: string, storedMac?: string | null): Promise<void> {
+    let mac = storedMac || this.resolveMacFromHostArp(ip);
+    if (!mac) throw new Error('未找到该电脑的 MAC 地址，请在电脑管理里手动填写或让电脑开机一次');
+    mac = mac.toLowerCase();
     const magic = Buffer.concat([
       Buffer.alloc(6, 0xff),
       ...Array(16).fill(Buffer.from(mac.replace(/:/g, ''), 'hex')),
@@ -111,6 +118,35 @@ export class ManagedPcService {
         });
       });
     }
+  }
+
+  /** 从 ARP 缓存解析 MAC，并回写到电脑管理表（仅在线时可解析） */
+  async syncMacAddress(ip: string): Promise<string | null> {
+    const mac = this.resolveMacFromHostArp(ip);
+    if (mac) {
+      await this.prisma.managedPC.updateMany({
+        where: { ip },
+        data: { macAddress: mac },
+      });
+    }
+    return mac;
+  }
+
+  /** 给所有电脑管理里的机器解析并回写 MAC（在线时能解析，离线时保留旧值） */
+  async syncAllMacAddresses(): Promise<{ updated: number; total: number }> {
+    const items = await this.prisma.managedPC.findMany({ select: { ip: true } });
+    let updated = 0;
+    for (const item of items) {
+      const mac = this.resolveMacFromHostArp(item.ip);
+      if (mac) {
+        await this.prisma.managedPC.updateMany({
+          where: { ip: item.ip, macAddress: { not: mac } },
+          data: { macAddress: mac },
+        });
+        updated += 1;
+      }
+    }
+    return { updated, total: items.length };
   }
 
   private resolveMacFromHostArp(ip: string): string | null {

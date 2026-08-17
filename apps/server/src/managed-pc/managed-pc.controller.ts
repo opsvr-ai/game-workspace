@@ -16,16 +16,21 @@ export class ManagedPcController {
   }
 
   @Post()
-  async create(@Body() body: { ip: string; loginAccount: string; label?: string }) {
+  async create(@Body() body: { ip: string; loginAccount: string; macAddress?: string; label?: string }) {
     return { code: 200, data: await this.service.create(body) };
   }
 
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() body: Partial<{ ip: string; loginAccount: string; label?: string; enabled: boolean }>,
+    @Body() body: Partial<{ ip: string; loginAccount: string; macAddress?: string; label?: string; enabled: boolean }>,
   ) {
     return { code: 200, data: await this.service.update(id, body) };
+  }
+
+  @Post('sync-mac')
+  async syncMac() {
+    return { code: 200, data: await this.service.syncAllMacAddresses() };
   }
 
   @Delete(':id')
