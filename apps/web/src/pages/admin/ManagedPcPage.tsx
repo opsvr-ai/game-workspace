@@ -94,26 +94,26 @@ const ManagedPcPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 420,
+      width: 180,
       render: (_: unknown, record: ManagedPcItem) => (
-        <Space size="small" wrap>
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
           <Popconfirm title="确定远程开机？" onConfirm={() => runAction(record, 'wake')}>
-            <Button size="small" type="primary" icon={<ThunderboltOutlined />}>开机</Button>
+            <Button size="small" block type="primary" icon={<ThunderboltOutlined />}>开机</Button>
           </Popconfirm>
           <Popconfirm title="确定关机？" onConfirm={() => runAction(record, 'shutdown')}>
-            <Button size="small" danger icon={<PoweroffOutlined />} loading={actionLoading[record.id]}>关机</Button>
+            <Button size="small" block danger icon={<PoweroffOutlined />} loading={actionLoading[record.id]}>关机</Button>
           </Popconfirm>
           <Popconfirm title="确定重启？" onConfirm={() => runAction(record, 'restart')}>
-            <Button size="small" icon={<RedoOutlined />}>重启</Button>
+            <Button size="small" block icon={<RedoOutlined />}>重启</Button>
           </Popconfirm>
           <Popconfirm title="确定睡眠？" onConfirm={() => runAction(record, 'sleep')}>
-            <Button size="small" icon={<CloudOutlined />}>睡眠</Button>
+            <Button size="small" block icon={<CloudOutlined />}>睡眠</Button>
           </Popconfirm>
           <Popconfirm title="确定休眠？" onConfirm={() => runAction(record, 'hibernate')}>
-            <Button size="small" icon={<MoonOutlined />}>休眠</Button>
+            <Button size="small" block icon={<MoonOutlined />}>休眠</Button>
           </Popconfirm>
           <Popconfirm title="确定删除？" onConfirm={async () => { await managedPcApi.remove(record.id); fetchItems(); }}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" block danger icon={<DeleteOutlined />}>删除</Button>
           </Popconfirm>
         </Space>
       ),
