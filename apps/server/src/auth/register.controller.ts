@@ -176,6 +176,19 @@ export class RegisterController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 工作室客服列表（用于绑定工作室/客服微信）
+  @Get('users/cs')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async listCsUsers(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.prisma.user.findMany({
+      where: { studioId: req.user.studioId, role: 'CS' },
+      select: { id: true, username: true, displayName: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { code: 200, message: 'ok', data };
+  }
+
   // @deprecated 待审核陪玩列表（保留兼容）
   @Get('companions/pending-review')
   @UseGuards(AuthGuard('jwt'), RolesGuard)

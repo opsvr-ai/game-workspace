@@ -481,6 +481,7 @@ model WorkWechat {
     studioId    String
     wechatId    String   @unique
     companionId String?  @unique
+    csUserId    String?  // STUDIO 类型时绑定给客服
     type        String   @default("COMPANION") // COMPANION | STUDIO
     status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
     createdAt   DateTime @default(now())

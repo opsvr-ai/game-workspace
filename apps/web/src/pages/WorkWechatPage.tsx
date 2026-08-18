@@ -14,6 +14,7 @@ const WorkWechatPage: React.FC = () => {
   const [newWechatId, setNewWechatId] = useState('');
   const [newType, setNewType] = useState('COMPANION');
   const [companions, setCompanions] = useState<any[]>([]);
+  const [csUsers, setCsUsers] = useState<any[]>([]);
   const [bindingId, setBindingId] = useState<string | null>(null);
   const [boundNames, setBoundNames] = useState<Record<string, string>>({});
 
@@ -38,10 +39,20 @@ const WorkWechatPage: React.FC = () => {
     }
   }, []);
 
+  const fetchCsUsers = useCallback(async () => {
+    try {
+      const { data } = await http.get('/users/cs');
+      setCsUsers(data?.data || []);
+    } catch {
+      /* non-critical */
+    }
+  }, []);
+
   useEffect(() => {
     fetch();
     fetchCompanions();
-  }, [fetch, fetchCompanions]);
+    fetchCsUsers();
+  }, [fetch, fetchCompanions, fetchCsUsers]);
 
   const handleAdd = async () => {
     const v = newWechatId.trim();
@@ -83,6 +94,29 @@ const WorkWechatPage: React.FC = () => {
         const { [wechatId]: _, ...rest } = prev;
         return rest;
       });
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '解绑失败');
+    }
+  };
+
+  const handleBindCs = async (wechatId: string, csUserId: string) => {
+    const name = csUsers.find((u: any) => u.id === csUserId)?.username || csUserId;
+    try {
+      await http.put(`/companions/work-wechats/${wechatId}/bind-cs`, { csUserId });
+      message.success('已绑定客服');
+      setBoundNames((prev) => ({ ...prev, [wechatId]: name }));
+      setBindingId(null);
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '绑定失败');
+    }
+  };
+
+  const handleUnbindCs = async (wechatId: string) => {
+    try {
+      await http.put(`/companions/work-wechats/${wechatId}/unbind-cs`);
+      message.success('已解绑客服');
       fetch();
     } catch (e: any) {
       message.error(e?.response?.data?.message || '解绑失败');
@@ -160,11 +194,27 @@ const WorkWechatPage: React.FC = () => {
               r.status === 'BOUND' ? <Tag color="blue">已绑定</Tag> : <Tag color="green">可用</Tag>,
           },
           {
-            title: '绑定陪玩',
-            key: 'companion',
+            title: '绑定对象',
+            key: 'binding',
             width: 180,
             render: (_: any, r: any) => {
               if (bindingId === r.id) {
+                if (r.type === 'STUDIO') {
+                  return (
+                    <Select
+                      autoFocus
+                      size="small"
+                      showSearch
+                      placeholder="选择客服"
+                      style={{ width: 150 }}
+                      onChange={(csUserId) => handleBindCs(r.id, csUserId)}
+                      options={csUsers.map((u: any) => ({
+                        label: u.displayName || u.username,
+                        value: u.id,
+                      }))}
+                    />
+                  );
+                }
                 return (
                   <Select
                     autoFocus
@@ -180,6 +230,24 @@ const WorkWechatPage: React.FC = () => {
                         value: c.id,
                       }))}
                   />
+                );
+              }
+              if (r.type === 'STUDIO') {
+                const cs = csUsers.find((u: any) => u.id === r.csUserId);
+                if (cs || boundNames[r.id]) {
+                  return (
+                    <Space size={4}>
+                      <Text>{cs?.username || boundNames[r.id]}</Text>
+                      <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
+                        解绑
+                      </Button>
+                    </Space>
+                  );
+                }
+                return (
+                  <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
+                    绑定客服
+                  </Button>
                 );
               }
               if (r.companion?.user?.username || boundNames[r.id]) {

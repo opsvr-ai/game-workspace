@@ -29,6 +29,22 @@ export class CompanionWechatService {
     return this.prisma.workWechat.update({ where: { id }, data: { companionId: null, status: 'AVAILABLE' } });
   }
 
+  async bindCsUser(id: string, csUserId: string) {
+    // 同一个客服只能绑一个工作室微信，绑定新微信时先解绑旧微信
+    await this.prisma.workWechat.updateMany({
+      where: { csUserId },
+      data: { csUserId: null, status: 'AVAILABLE' },
+    });
+    return this.prisma.workWechat.update({
+      where: { id },
+      data: { csUserId, companionId: null, status: 'BOUND' },
+    });
+  }
+
+  async unbindCsUser(id: string) {
+    return this.prisma.workWechat.update({ where: { id }, data: { csUserId: null, status: 'AVAILABLE' } });
+  }
+
   async deleteWorkWechat(id: string) {
     return this.prisma.workWechat.delete({ where: { id } });
   }
