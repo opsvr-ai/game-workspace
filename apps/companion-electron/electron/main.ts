@@ -419,12 +419,12 @@ app.whenReady().then(() => {
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
     trace('RENDER-GONE ' + details.reason);
     app.relaunch();
-    app.quit();
+    app.exit(0);
   });
   app.on('child-process-gone', (_e, details) => {
     trace('CHILD-GONE ' + details.type + ' ' + details.reason);
     app.relaunch();
-    app.quit();
+    app.exit(0);
   });
 
   onWsEvent('pc:command', (data: any) => {

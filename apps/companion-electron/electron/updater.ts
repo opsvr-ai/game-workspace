@@ -81,7 +81,7 @@ export async function checkForUpdates(): Promise<void> {
       : `${serverUrl}${downloadUrl}`;
 
     signalUpdate(fullDownloadUrl);
-    app.quit();
+    app.exit(0);
   } catch (err: any) {
     logger.warn('Update check failed (non-fatal)', { error: err.message });
   } finally {
@@ -219,7 +219,7 @@ async function downloadAndInstallWithRedirects(
   // Cleanup and restart
   try { fs.unlinkSync(installerPath); } catch { /* ignore */ }
   app.relaunch();
-  app.quit();
+  app.exit(0);
 }
 
 /**
@@ -235,7 +235,7 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url });
     signalUpdate(url);
-    app.quit();
+    app.exit(0);
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }
