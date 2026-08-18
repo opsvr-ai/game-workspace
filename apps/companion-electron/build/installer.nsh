@@ -18,6 +18,11 @@
 !macroend
 
 !macro customInit
+  ; 关键：initMultiUser 在 preInit 之后会把 $INSTDIR 覆盖成包名目录
+  ; （中文 productName 过不了 electron-builder 的 ASCII 校验，回退成 @chunlvcompanion-electron），
+  ; 所以必须在这里、在 initMultiUser 之后，再把安装目录写死回 蠢驴电竞。
+  StrCpy $INSTDIR "$PROGRAMFILES64\蠢驴电竞"
+
   ; ── Step -1: Stop watchdog service first, otherwise it keeps relaunching the app ──
   nsExec::ExecToLog 'sc stop SystemHelper'
   Sleep 2000
