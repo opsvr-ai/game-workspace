@@ -17,7 +17,7 @@ win:
   sign: null
 nsis:
   oneClick: true
-  perMachine: false
+  perMachine: true
   runAfterFinish: true
   createDesktopShortcut: true
   shortcutName: 蠢驴电竞客服端

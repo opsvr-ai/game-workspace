@@ -36,6 +36,43 @@ function compareVersions(a, b) {
   return 0;
 }
 
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const http = require('http');
+    const https = require('https');
+    const protocol = url.startsWith('https') ? https : http;
+    const file = fs.createWriteStream(dest);
+    const req = protocol.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        file.close();
+        try { fs.unlinkSync(dest); } catch {}
+        resolve(downloadFile(new URL(res.headers.location, url).toString(), dest));
+        return;
+      }
+      if (res.statusCode !== 200) {
+        file.close();
+        try { fs.unlinkSync(dest); } catch {}
+        reject(new Error('HTTP ' + res.statusCode));
+        return;
+      }
+      res.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+    });
+    req.on('error', (err) => {
+      file.close();
+      try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch {}
+      reject(err);
+    });
+    req.setTimeout(300000, () => {
+      req.destroy();
+      reject(new Error('download timeout'));
+    });
+  });
+}
+
 function checkForUpdates() {
   try {
     const serverUrl = getServerUrl().replace(/\/$/, '');
@@ -50,21 +87,21 @@ function checkForUpdates() {
         if (compareVersions(latest, app.getVersion()) <= 0) return;
         const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${serverUrl}${downloadUrl}`;
         const out = path.join(app.getPath('temp'), `Chunlv-CS-Setup-${latest}.exe`);
-        const ps = [
-          `$ProgressPreference='SilentlyContinue'`,
-          `try { Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}' -UseBasicParsing } catch { exit 1 }`,
-          `Start-Sleep -Seconds 3`,
-          `Start-Process -FilePath '${out}' -ArgumentList '/S' -Wait`,
-          `Remove-Item '${out}' -Force -ErrorAction SilentlyContinue`,
-        ].join('; ');
-        const { spawn } = require('child_process');
-        spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
-          detached: true,
-          stdio: 'ignore',
-        }).unref();
-        // 等安装包下载完成并让安装器接管后再退出，释放正在运行的文件锁，
-        // 避免固定 1.5 秒退出打断安装导致版本一直不更新。
-        setTimeout(() => app.quit(), 2000);
+        // 先在主进程把安装包完整下载下来，再退出安装；避免之前用后台 PowerShell
+        // 下载时应用一退出就把下载进程一起杀掉，导致永远装不上。
+        downloadFile(fullUrl, out)
+          .then(() => {
+            const ps = `Start-Process -FilePath '${out}' -ArgumentList '/S' -Verb RunAs -Wait; Remove-Item '${out}' -Force -ErrorAction SilentlyContinue`;
+            const { spawn } = require('child_process');
+            spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
+              detached: true,
+              stdio: 'ignore',
+            }).unref();
+            app.quit();
+          })
+          .catch(() => {
+            // 下载失败时保持应用运行，避免闪退死循环。
+          });
       })
       .catch(() => {});
   } catch {}
