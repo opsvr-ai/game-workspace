@@ -600,8 +600,8 @@ const CSDispatchView: React.FC = () => {
                     const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
                     const wait = now - new Date(order.createdAt).getTime();
                     const scheduledTime =
-                      order.customFields?.urgency === 'later' && order.scheduledAt
-                        ? fmtDateTime(order.scheduledAt)
+                      order.customFields?.urgency === 'later'
+                        ? order.customFields?.scheduledTimeText || ''
                         : '';
                     let countdown;
                     if (order.customFields?.urgency === 'later' && order.scheduledAt) {

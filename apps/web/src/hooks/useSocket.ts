@@ -9,6 +9,7 @@ interface UseSocketOptions {
   onOrderGrabbed?: (data: any) => void;
   onOrderNew?: (data: any) => void;
   onOrderUrgent?: (data: any) => void;
+  onScheduledReminder?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
   // Legacy chat events (deprecated, remove after migration)
   onChatNotify?: (data: any) => void;
@@ -98,6 +99,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:grabbed', (data: any) => {
       optsRef.current.onOrderGrabbed?.(data);
+    });
+
+    socket.on('order:scheduled_reminder', (data: any) => {
+      optsRef.current.onScheduledReminder?.(data);
     });
 
     socket.on('status:broadcast', (data: any) => {

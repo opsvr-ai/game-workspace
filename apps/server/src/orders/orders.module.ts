@@ -5,11 +5,12 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
+import { ScheduledOrderReminderService } from './scheduled-order-reminder.service';
 
 @Module({
   imports: [WsModule, StudiosModule],
   controllers: [OrdersController],
-  providers: [OrdersService, OrderWorkflowService, OrderDispatchService],
+  providers: [OrdersService, OrderWorkflowService, OrderDispatchService, ScheduledOrderReminderService],
   exports: [OrdersService],
 })
 export class OrdersModule {}

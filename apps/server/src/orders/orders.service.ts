@@ -112,6 +112,7 @@ export class OrdersService {
           billingMode: (dto as any).billingMode,
           transferScreenshotUrl: (dto as any).transferScreenshotUrl || undefined,
           urgency: (dto as any).urgency,
+          scheduledTimeText: (dto as any).scheduledTimeText || undefined,
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,
           isCompensation: (dto as any).isCompensation === true ? true : undefined,

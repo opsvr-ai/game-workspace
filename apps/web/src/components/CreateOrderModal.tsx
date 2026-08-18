@@ -250,6 +250,15 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
             <Option value="later">📅预约</Option>
           </Select>
         </Form.Item>
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.urgency !== cur.urgency}>
+          {({ getFieldValue }) =>
+            getFieldValue('urgency') === 'later' ? (
+              <Form.Item name="scheduledTimeText" label="预约时间" style={{ marginBottom: 0 }}>
+                <Input placeholder="自由填写，如：明天晚上8点 / 8/20 20:00" />
+              </Form.Item>
+            ) : null
+          }
+        </Form.Item>
         <Form.Item label="客户来源" required>
           <Input.Group compact>
             <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>

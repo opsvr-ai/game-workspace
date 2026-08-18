@@ -34,6 +34,9 @@ export class CreateOrderDto {
   // Urgency
   @IsOptional() @IsString() urgency?: string;
 
+  // 预约时间（客服自由文本）
+  @IsOptional() @IsString() scheduledTimeText?: string;
+
   // Payment tracking
   @IsOptional() @IsString() paymentAccountId?: string;
 }

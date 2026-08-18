@@ -587,6 +587,11 @@ const AppLayout: React.FC = () => {
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
+    onScheduledReminder: (data: any) => {
+      if (user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') {
+        message.warning({ content: data.message || '你发布的预约单已超时未接，请跟进对接客户', duration: 10 });
+      }
+    },
     onWalletReviewed: (data: any) => {
       message.info(data.message || `支取 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`);
     },
