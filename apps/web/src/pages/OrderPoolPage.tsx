@@ -224,6 +224,8 @@ const OrderPoolPage: React.FC = () => {
       mission,
       dur,
       sd,
+      `¥${Number(order.amount || 0).toFixed(0)}`,
+      order.customFields?.urgency === 'later' ? '预约' : '立即打',
       fmtClock(order.createdAt),
       fmtSpan(wait),
       countdown,
