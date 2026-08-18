@@ -87,6 +87,7 @@ const PriceRulesPage = lazy(() => import('./pages/finance/PriceRulesPage'));
 const CommissionPage = lazy(() => import('./pages/finance/CommissionPage'));
 const SettlementPage = lazy(() => import('./pages/finance/SettlementPage'));
 const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage'));
+const MoneyReconciliationPage = lazy(() => import('./pages/finance/MoneyReconciliationPage'));
 const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
 const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
 
@@ -380,6 +381,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/finance/money-reconciliation',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <MoneyReconciliationPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'admin/finance/expenses',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -576,6 +585,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <ReconciliationPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/finance/money-reconciliation',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <MoneyReconciliationPage />
           </Suspense>
         ),
       },

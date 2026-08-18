@@ -637,6 +637,59 @@ export class OrdersService {
     });
   }
 
+  async listMoneyReconciliation(studioId: string) {
+    const [orders, bridgeCfg] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { studioId },
+        include: {
+          moneyFlows: true,
+          customer: { select: { wechatId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+    ]);
+    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+
+    const rows = orders
+      .filter((o) => o.moneyFlows.length > 0)
+      .map((o) => {
+        const cf = (o.customFields as any) || {};
+        const inTotal = o.moneyFlows
+          .filter((f) => f.direction === 'IN')
+          .reduce((s, f) => s + f.amount, 0);
+        const outTotal = o.moneyFlows
+          .filter((f) => f.direction === 'OUT')
+          .reduce((s, f) => s + f.amount, 0);
+        const isDouble = o.coCompanionId || cf.deltaCount === '双';
+        const companions = isDouble ? 2 : 1;
+        const bridgeReturn =
+          cf.deltaMission === '绝密' ? (juejuCents / 100) * (o.duration || 1) * companions : 0;
+        const profit = inTotal - outTotal;
+        return {
+          orderId: o.id,
+          orderCode: o.orderCode,
+          gameName: o.gameName,
+          customerWechat: o.customer?.wechatId || cf.customerWechat || '',
+          csWorkWechatName: cf.csWorkWechatName || '',
+          deltaMission: cf.deltaMission || '',
+          inTotal,
+          outTotal,
+          bridgeReturn,
+          profit,
+          flagged: profit < 0 || outTotal > inTotal,
+        };
+      });
+
+    return {
+      rows,
+      totalIn: rows.reduce((s, r) => s + r.inTotal, 0),
+      totalOut: rows.reduce((s, r) => s + r.outTotal, 0),
+      totalBridgeReturn: rows.reduce((s, r) => s + r.bridgeReturn, 0),
+      totalProfit: rows.reduce((s, r) => s + r.profit, 0),
+    };
+  }
+
   private async getSoonEndingCompanions(studioId: string) {
     const companions = await this.prisma.companion.findMany({
       where: { studioId, status: 'BUSY' },

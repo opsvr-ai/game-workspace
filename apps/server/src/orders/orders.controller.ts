@@ -84,6 +84,13 @@ export class OrdersController {
     return { code: 201, message: '已记录', data };
   }
 
+  @Get('orders/money-reconciliation')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async moneyReconciliation(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listMoneyReconciliation(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

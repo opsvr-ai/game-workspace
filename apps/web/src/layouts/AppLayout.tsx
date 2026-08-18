@@ -144,6 +144,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/billing', label: '报账系统' },
+        { key: '/admin/finance/money-reconciliation', label: '资金对账' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
         { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
@@ -215,6 +216,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/billing', label: '报账系统' },
+        { key: '/admin/finance/money-reconciliation', label: '资金对账' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
         { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
@@ -260,6 +262,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'cs-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/cs/billing', label: '报账系统' },
+        { key: '/cs/finance/money-reconciliation', label: '资金对账' },
         { key: '/cs/finance/reconciliation', label: '到账对账' },
       ],
     },
