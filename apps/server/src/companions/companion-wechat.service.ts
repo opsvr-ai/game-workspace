@@ -12,8 +12,8 @@ export class CompanionWechatService {
     });
   }
 
-  async addWorkWechat(studioId: string, wechatId: string) {
-    return this.prisma.workWechat.create({ data: { studioId, wechatId } });
+  async addWorkWechat(studioId: string, wechatId: string, type?: string) {
+    return this.prisma.workWechat.create({ data: { studioId, wechatId, type: type || 'COMPANION' } });
   }
 
   async bindWechat(id: string, companionId: string) {

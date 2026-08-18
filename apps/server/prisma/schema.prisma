@@ -477,15 +477,16 @@ model TenantAuthorization {
 }
 
 model WorkWechat {
-  id          String   @id @default(uuid())
-  studioId    String
-  wechatId    String   @unique
-  companionId String?  @unique
-  status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
-  createdAt   DateTime @default(now())
-
-  companion Companion? @relation(fields: [companionId], references: [id])
-}
+    id          String   @id @default(uuid())
+    studioId    String
+    wechatId    String   @unique
+    companionId String?  @unique
+    type        String   @default("COMPANION") // COMPANION | STUDIO
+    status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
+    createdAt   DateTime @default(now())
+  
+    companion Companion? @relation(fields: [companionId], references: [id])
+  }
 
 // ── Blacklist Process Management ──
 

@@ -12,6 +12,7 @@ const WorkWechatPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newWechatId, setNewWechatId] = useState('');
+  const [newType, setNewType] = useState('COMPANION');
   const [companions, setCompanions] = useState<any[]>([]);
   const [bindingId, setBindingId] = useState<string | null>(null);
   const [boundNames, setBoundNames] = useState<Record<string, string>>({});
@@ -50,7 +51,7 @@ const WorkWechatPage: React.FC = () => {
     }
     setAdding(true);
     try {
-      await http.post('/companions/work-wechats', { wechatId: v });
+      await http.post('/companions/work-wechats', { wechatId: v, type: newType });
       message.success('已添加');
       setNewWechatId('');
       fetch();
@@ -118,6 +119,15 @@ const WorkWechatPage: React.FC = () => {
           onPressEnter={handleAdd}
           style={{ width: 200 }}
         />
+        <Select
+          value={newType}
+          onChange={setNewType}
+          style={{ width: 150 }}
+          options={[
+            { label: '陪玩微信', value: 'COMPANION' },
+            { label: '工作室/客服微信', value: 'STUDIO' },
+          ]}
+        />
         <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
           添加
         </Button>
@@ -129,6 +139,13 @@ const WorkWechatPage: React.FC = () => {
         loading={loading}
         pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个` }}
         columns={[
+          {
+            title: '类型',
+            key: 'type',
+            width: 120,
+            render: (_: any, r: any) =>
+              r.type === 'STUDIO' ? <Tag color="purple">工作室/客服</Tag> : <Tag color="blue">陪玩</Tag>,
+          },
           {
             title: '微信号',
             dataIndex: 'wechatId',

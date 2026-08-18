@@ -217,8 +217,8 @@ export class CompanionsController {
 
   @Post('companions/work-wechats')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async addWorkWechat(@Req() req: any, @Body() dto: { wechatId: string }): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.addWorkWechat(req.user.studioId, dto.wechatId);
+  async addWorkWechat(@Req() req: any, @Body() dto: { wechatId: string; type?: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.addWorkWechat(req.user.studioId, dto.wechatId, dto.type);
     return { code: 201, message: 'ok', data };
   }
 
