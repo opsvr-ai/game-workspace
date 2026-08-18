@@ -60,6 +60,30 @@ export class OrdersController {
     return { code: 200, message: '已标记处理完成', data };
   }
 
+  @Get('orders/cs-followup')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async csFollowup(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listCsFollowup(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('orders/:id/money-flows')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async listMoneyFlows(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listMoneyFlows(id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('orders/:id/money-flows')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async addMoneyFlow(
+    @Param('id') id: string,
+    @Body() body: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.addMoneyFlow(id, body);
+    return { code: 201, message: '已记录', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

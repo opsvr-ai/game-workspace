@@ -7,6 +7,10 @@ export const ordersApi = {
     http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
   redispatch: (id: string) => http.post(`/orders/${id}/redispatch`),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
+  csFollowup: () => http.get('/orders/cs-followup'),
+  listMoneyFlows: (id: string) => http.get(`/orders/${id}/money-flows`),
+  addMoneyFlow: (id: string, data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string }) =>
+    http.post(`/orders/${id}/money-flows`, data),
   list: (params?: any) => http.get('/orders', { params }),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),

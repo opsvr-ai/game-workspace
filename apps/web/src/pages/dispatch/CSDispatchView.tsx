@@ -27,6 +27,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
 import { EmbeddedChatPanel } from '../../components/chat';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
+import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
@@ -228,6 +229,30 @@ const CSDispatchView: React.FC = () => {
     }
   };
 
+  const handleDispatch = (item: any) => {
+    const cf = item.customFields || {};
+    setDispatchPrefill({
+      gameName: item.gameName,
+      amount: item.amount,
+      duration: item.duration,
+      serviceType: cf.serviceType,
+      deltaMission: cf.deltaMission,
+      deltaNote: cf.deltaNote,
+      deltaCount: cf.deltaCount,
+      billingMode: cf.billingMode,
+      customerSource: cf.customerSource,
+      customerSourceAccount: cf.customerSourceAccount,
+      customerWechat: item.customerWechat || cf.customerWechat,
+      customerYy: cf.customerYy,
+      customerPlatformAccount: cf.customerPlatformAccount,
+      customerRoomCode: cf.customerRoomCode,
+      urgency: item.isScheduled ? 'later' : 'now',
+      scheduledTimeText: cf.scheduledTimeText,
+    });
+    setDispatchSourceOrderId(item.id);
+    setModalOpen(true);
+  };
+
   // Initial load
   useEffect(() => {
     fetchCompanions();
@@ -304,30 +329,9 @@ const CSDispatchView: React.FC = () => {
   return (
     <div>
       <UrgentOrdersPanel
-        onDispatch={(item) => {
-          const cf = item.customFields || {};
-          setDispatchPrefill({
-            gameName: item.gameName,
-            amount: item.amount,
-            duration: item.duration,
-            serviceType: cf.serviceType,
-            deltaMission: cf.deltaMission,
-            deltaNote: cf.deltaNote,
-            deltaCount: cf.deltaCount,
-            billingMode: cf.billingMode,
-            customerSource: cf.customerSource,
-            customerSourceAccount: cf.customerSourceAccount,
-            customerWechat: item.customerWechat || cf.customerWechat,
-            customerYy: cf.customerYy,
-            customerPlatformAccount: cf.customerPlatformAccount,
-            customerRoomCode: cf.customerRoomCode,
-            urgency: item.isScheduled ? 'later' : 'now',
-            scheduledTimeText: cf.scheduledTimeText,
-          });
-          setDispatchSourceOrderId(item.id);
-          setModalOpen(true);
-        }}
+        onDispatch={handleDispatch}
       />
+      <CsFollowupPanel onRedispatch={handleDispatch} />
       <div
         style={{
           display: 'flex',

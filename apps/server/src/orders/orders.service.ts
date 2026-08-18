@@ -605,6 +605,38 @@ export class OrdersService {
     });
   }
 
+  async listCsFollowup(studioId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: { studioId, status: 'PENDING' },
+      include: {
+        customer: { select: { wechatId: true, customerCode: true } },
+        csUser: { select: { username: true, displayName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return orders.filter((o) => (o.customFields as any)?.csAddResult === 'passed');
+  }
+
+  async listMoneyFlows(orderId: string) {
+    return this.prisma.orderMoneyFlow.findMany({ where: { orderId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async addMoneyFlow(
+    orderId: string,
+    data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string },
+  ) {
+    return this.prisma.orderMoneyFlow.create({
+      data: {
+        orderId,
+        direction: data.direction,
+        amount: data.amount,
+        counterpart: data.counterpart,
+        counterpartId: data.counterpartId,
+        note: data.note,
+      },
+    });
+  }
+
   private async getSoonEndingCompanions(studioId: string) {
     const companions = await this.prisma.companion.findMany({
       where: { studioId, status: 'BUSY' },

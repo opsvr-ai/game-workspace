@@ -222,6 +222,7 @@ model Order {
   paymentAccount StudioPaymentAccount? @relation(fields: [paymentAccountId], references: [id])
   transactions   Transaction[]
   sessions       OrderSession[]
+  moneyFlows     OrderMoneyFlow[]
 
   @@index([companionId])
   @@index([customerId])
@@ -1013,4 +1014,19 @@ model PayrollRecord {
 
   @@unique([userId, month])
   @@index([month])
+}
+
+model OrderMoneyFlow {
+  id            String   @id @default(uuid())
+  orderId       String
+  direction     String   // IN | OUT
+  amount        Float    // 元
+  counterpart   String   // 对方名称：客户 / 陪玩 / 桥接工作室
+  counterpartId String?  // 陪玩id 或 工作室id
+  note          String?
+  createdAt     DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
