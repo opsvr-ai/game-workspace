@@ -504,28 +504,36 @@ export class OrdersService {
 
     const list = await Promise.all(
       orders
-        .filter((o) => (o.customFields as any)?.urgency === 'now' && !(o.customFields as any)?.poolHandled)
+        .filter((o) => {
+          const cf = (o.customFields as any) || {};
+          if (cf.poolHandled) return false;
+          // 立即打：全部显示（加急+待处理）；预约：只显示已过期的待处理
+          return cf.urgency === 'now' || (cf.urgency === 'later' && cf.poolExpired);
+        })
         .map(async (o) => {
+          const cf = (o.customFields as any) || {};
+          const isScheduled = cf.urgency === 'later';
           const waitingSeconds = Math.max(0, Math.floor((now - o.createdAt.getTime()) / 1000));
-          const poolExpired = !!(o.customFields as any)?.poolExpired;
+          const poolExpired = !!cf.poolExpired;
           const availableCompanions =
-            waitingSeconds >= 300
+            !isScheduled && waitingSeconds >= 300
               ? await this.getSoonEndingCompanions(studioId)
               : [];
           return {
             id: o.id,
             orderCode: o.orderCode,
-            customerWechat: o.customer?.wechatId || (o.customFields as any)?.customerWechat || '',
+            customerWechat: o.customer?.wechatId || cf.customerWechat || '',
             gameName: o.gameName,
-            gameMode: (o.customFields as any)?.gameMode || '',
+            gameMode: cf.gameMode || '',
             amount: o.amount,
             waitingSeconds,
-            urgent: true,
+            urgent: !isScheduled,
             poolExpired,
-            poolExpiredAt: (o.customFields as any)?.poolExpiredAt || '',
-            requireCsContact: poolExpired || waitingSeconds >= disappearSeconds,
+            poolExpiredAt: cf.poolExpiredAt || '',
+            isScheduled,
+            requireCsContact: poolExpired || (!isScheduled && waitingSeconds >= disappearSeconds),
             csContactStatus: o.contactStatus || '',
-            csContactEvidenceUrl: (o.customFields as any)?.csContactEvidenceUrl || '',
+            csContactEvidenceUrl: cf.csContactEvidenceUrl || '',
             availableCompanions,
           };
         }),
