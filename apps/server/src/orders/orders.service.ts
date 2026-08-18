@@ -104,6 +104,7 @@ export class OrdersService {
           customerSourceAccount: (dto as any).customerSourceAccount,
           customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
+          customerWechatQr: (dto as any).customerWechatQr || undefined,
           customerRoomCode: dto.customerRoomCode,
           customerYy: (dto as any).customerYy,
           deltaMission: (dto as any).deltaMission,

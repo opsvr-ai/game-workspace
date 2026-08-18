@@ -341,6 +341,16 @@ const PoolPage: React.FC = () => {
                 </Text>
               </div>
             )}
+            {grabbedOrder.customFields?.customerWechatQr && (
+              <div>
+                微信二维码（扫码添加）：
+                <img
+                  src={grabbedOrder.customFields.customerWechatQr}
+                  alt="客户微信二维码"
+                  style={{ maxWidth: 180, borderRadius: 8, display: 'block', marginTop: 4 }}
+                />
+              </div>
+            )}
             {grabbedOrder.customFields?.customerRoomCode && (
               <div>
                 房间码：

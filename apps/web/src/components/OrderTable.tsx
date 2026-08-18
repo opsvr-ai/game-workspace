@@ -27,7 +27,12 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
       },
       {
         title: '微信', key: 'wechatId', width: 90, align: 'center' as const,
-        render: (_: any, r: any) => <Text ellipsis style={{ maxWidth: 90 }}>{r.customFields?.customerWechat || r.customer?.wechatId || '-'}</Text>,
+        render: (_: any, r: any) => {
+          const wx = r.customFields?.customerWechat || r.customer?.wechatId;
+          if (wx) return <Text ellipsis style={{ maxWidth: 90 }}>{wx}</Text>;
+          if (r.customFields?.customerWechatQr) return <Text style={{ color: '#1677ff' }}>📷 二维码</Text>;
+          return <Text>-</Text>;
+        },
       },
       {
         title: '订单', key: 'order', width: 140,

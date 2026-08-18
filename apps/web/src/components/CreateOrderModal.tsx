@@ -35,6 +35,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
   const [transferUrl, setTransferUrl] = useState('');
+  const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
   const availableForPartner = companions.filter((c: any) => c.status === 'AVAILABLE');
 
@@ -296,6 +297,32 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
               <Input style={{ width: '25%' }} placeholder="房间码" />
             </Form.Item>
           </Input.Group>
+        </Form.Item>
+        <Form.Item label="客户微信二维码（没有微信文字时上传）">
+          <Upload
+            beforeUpload={async (file) => {
+              setUploading(true);
+              try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const res = await http.post('/upload/screenshot', fd);
+                const url = res.data?.data?.url || res.data?.url || '';
+                setCustomerWechatQr(url);
+                form.setFieldsValue({ customerWechatQr: url });
+                message.success('二维码已上传');
+              } catch {
+                message.error('上传失败');
+              } finally {
+                setUploading(false);
+              }
+              return false;
+            }}
+            maxCount={1}
+            accept="image/*"
+          >
+            <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>
+          </Upload>
+          <Form.Item name="customerWechatQr" hidden><Input /></Form.Item>
         </Form.Item>
         <Form.Item name="billingMode" label="计费方式" initialValue="hour">
           <Select>
