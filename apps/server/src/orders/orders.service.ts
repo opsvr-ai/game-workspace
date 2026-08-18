@@ -545,11 +545,16 @@ export class OrdersService {
     return list.sort((a, b) => Number(b.poolExpired) - Number(a.poolExpired));
   }
 
-  async markCsContact(orderId: string, status: string, evidenceUrl?: string) {
+  async markCsContact(
+    orderId: string,
+    status: string,
+    evidenceUrl?: string,
+    extra?: { workWechatId?: string; workWechatName?: string; addResult?: string },
+  ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     const cf = (order.customFields as any) || {};
-    const handled = status === 'added' && !!evidenceUrl;
+    const handled = status === 'added' && !!evidenceUrl && extra?.addResult === 'passed';
     return this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -558,6 +563,9 @@ export class OrdersService {
           ...cf,
           csContactAt: new Date().toISOString(),
           csContactEvidenceUrl: evidenceUrl || '',
+          ...(extra?.workWechatId !== undefined ? { csWorkWechatId: extra.workWechatId } : {}),
+          ...(extra?.workWechatName !== undefined ? { csWorkWechatName: extra.workWechatName } : {}),
+          ...(extra?.addResult !== undefined ? { csAddResult: extra.addResult } : {}),
           ...(handled ? { poolHandled: true } : {}),
         },
       },

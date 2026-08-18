@@ -3,7 +3,8 @@ import http from './client';
 
 export const ordersApi = {
   urgent: () => http.get('/orders/urgent'),
-  markCsContact: (id: string, status: string, evidenceUrl?: string) => http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl }),
+  markCsContact: (id: string, status: string, evidenceUrl?: string, extra?: { workWechatId?: string; workWechatName?: string; addResult?: string }) =>
+    http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
   redispatch: (id: string) => http.post(`/orders/${id}/redispatch`),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
   list: (params?: any) => http.get('/orders', { params }),

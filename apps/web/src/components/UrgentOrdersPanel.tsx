@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, List, Tag, Upload, message } from 'antd';
+import { Button, Card, List, Tag, Upload, Modal, Select, message } from 'antd';
 import { ordersApi } from '../api/orders';
+import { companionsApi } from '../api/companions';
 import http from '../api/client';
 
 function fmt(s: number) {
@@ -15,7 +16,11 @@ interface Props {
 
 const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
-  const [evidences, setEvidences] = useState<Record<string, string>>({});
+  const [workWechats, setWorkWechats] = useState<any[]>([]);
+  const [contactOrder, setContactOrder] = useState<any>(null);
+  const [contactWechatId, setContactWechatId] = useState<string | undefined>();
+  const [contactResult, setContactResult] = useState<string>('passed');
+  const [contactEvidence, setContactEvidence] = useState<string>('');
 
   const load = async () => {
     try {
@@ -26,22 +31,39 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
 
   useEffect(() => {
     load();
+    companionsApi
+      .listWorkWechats()
+      .then(({ data }: any) => setWorkWechats(data?.data || []))
+      .catch(() => {});
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, []);
 
-  const markContact = async (orderId: string) => {
-    const evidenceUrl = evidences[orderId];
-    await ordersApi.markCsContact(orderId, 'added', evidenceUrl);
-    message.success(evidenceUrl ? '已标记客服已添加客户' : '已标记（未上传凭证，老板后台可查）');
+  const openContact = (item: any) => {
+    setContactOrder(item);
+    setContactWechatId(item.customFields?.csWorkWechatId || undefined);
+    setContactResult(item.customFields?.csAddResult || 'passed');
+    setContactEvidence(item.customFields?.csContactEvidenceUrl || '');
+  };
+
+  const submitContact = async () => {
+    if (!contactOrder) return;
+    const wx = workWechats.find((w: any) => w.id === contactWechatId);
+    await ordersApi.markCsContact(contactOrder.id, 'added', contactEvidence || undefined, {
+      workWechatId: contactWechatId,
+      workWechatName: wx?.wechatId,
+      addResult: contactResult,
+    });
+    message.success('已记录添加结果');
+    setContactOrder(null);
     load();
   };
 
-  const uploadEvidence = async (orderId: string, file: File) => {
+  const uploadEvidence = async (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
     const { data } = await http.post('/upload/screenshot', fd);
-    setEvidences((prev) => ({ ...prev, [orderId]: data.data?.url || data.url || '' }));
+    setContactEvidence(data.data?.url || data.url || '');
     message.success('凭证已上传');
     return false;
   };
@@ -64,20 +86,19 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
           <>
             <div>客户微信：{item.customerWechat || '未填写'}</div>
             <div>
-              客服联系状态：
+              添加状态：
               {item.csContactStatus === 'added' ? (
-                item.csContactEvidenceUrl ? (
-                  <Tag color="green">已添加</Tag>
-                ) : (
-                  <Tag color="orange">未传凭证</Tag>
-                )
-              ) : (
                 <>
-                  <Upload showUploadList={false} beforeUpload={(file) => uploadEvidence(item.id, file)}>
-                    <Button size="small">上传凭证</Button>
-                  </Upload>
-                  <Button size="small" type="link" onClick={() => markContact(item.id)}>标记已添加</Button>
+                  <Tag color="green">已添加</Tag>
+                  {item.customFields?.csWorkWechatName && <Tag color="blue">{item.customFields.csWorkWechatName}</Tag>}
+                  {item.customFields?.csAddResult && (
+                    <Tag color={item.customFields.csAddResult === 'passed' ? 'green' : item.customFields.csAddResult === 'failed' ? 'red' : 'orange'}>
+                      {item.customFields.csAddResult === 'passed' ? '已通过' : item.customFields.csAddResult === 'failed' ? '未通过' : '没回复'}
+                    </Tag>
+                  )}
                 </>
+              ) : (
+                <Button size="small" type="link" onClick={() => openContact(item)}>添加客户</Button>
               )}
             </div>
             <div style={{ marginTop: 6 }}>
@@ -92,26 +113,76 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   );
 
   return (
-    <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>⚡ 立即打待处理</div>
-          {immediateItems.length === 0 ? (
-            <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
-          ) : (
-            <List size="small" dataSource={immediateItems} renderItem={renderItem} />
-          )}
+    <>
+      <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>⚡ 立即打待处理</div>
+            {immediateItems.length === 0 ? (
+              <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
+            ) : (
+              <List size="small" dataSource={immediateItems} renderItem={renderItem} />
+            )}
+          </div>
+          <div style={{ flex: 1, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: '#722ed1' }}>📅 预约待处理</div>
+            {scheduledItems.length === 0 ? (
+              <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
+            ) : (
+              <List size="small" dataSource={scheduledItems} renderItem={renderItem} />
+            )}
+          </div>
         </div>
-        <div style={{ flex: 1, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, color: '#722ed1' }}>📅 预约待处理</div>
-          {scheduledItems.length === 0 ? (
-            <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
-          ) : (
-            <List size="small" dataSource={scheduledItems} renderItem={renderItem} />
-          )}
-        </div>
-      </div>
-    </Card>
+      </Card>
+
+      <Modal
+        title="添加客户"
+        open={!!contactOrder}
+        onOk={submitContact}
+        onCancel={() => setContactOrder(null)}
+        okText="提交"
+        cancelText="取消"
+        width={460}
+      >
+        {contactOrder && (
+          <div style={{ lineHeight: 2.4 }}>
+            <div>📋 {contactOrder.gameName} · ¥{contactOrder.amount}</div>
+            <div>
+              <strong>工作微信：</strong>
+              <Select
+                placeholder="选择工作微信"
+                value={contactWechatId}
+                onChange={setContactWechatId}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                {workWechats.map((w: any) => (
+                  <Select.Option key={w.id} value={w.id}>
+                    {w.wechatId}
+                    {w.companion?.user?.username ? ` (${w.companion.user.username})` : ''}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <strong>添加结果：</strong>
+              <Select value={contactResult} onChange={setContactResult} style={{ width: '100%' }}>
+                <Select.Option value="passed">已通过</Select.Option>
+                <Select.Option value="failed">未通过</Select.Option>
+                <Select.Option value="no_reply">没回复</Select.Option>
+              </Select>
+            </div>
+            <div>
+              <strong>截图凭证：</strong>{' '}
+              <Upload showUploadList={false} beforeUpload={uploadEvidence}>
+                <Button size="small">上传截图</Button>
+              </Upload>
+              {contactEvidence && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 };
 
