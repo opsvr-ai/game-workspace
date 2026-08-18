@@ -22,5 +22,7 @@ export const managedPcApi = {
   remove: (id: string) => http.delete(`/managed-pcs/${id}`),
   power: (id: string, action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') =>
     http.post(`/managed-pcs/${id}/power`, { action }),
+  powerBatch: (ids: string[], action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') =>
+    http.post('/managed-pcs/batch-power', { ids, action }),
   syncMac: () => http.post('/managed-pcs/sync-mac'),
 };

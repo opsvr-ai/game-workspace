@@ -33,6 +33,13 @@ export class ManagedPcController {
     return { code: 200, data: await this.service.syncAllMacAddresses() };
   }
 
+  @Post('batch-power')
+  async batchPower(
+    @Body() body: { ids: string[]; action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate' },
+  ) {
+    return { code: 200, data: await this.service.batchPower(body.ids, body.action) };
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return { code: 200, data: await this.service.remove(id) };

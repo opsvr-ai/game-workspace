@@ -98,6 +98,21 @@ export class ManagedPcService {
     }
   }
 
+  async batchPower(ids: string[], action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') {
+    if (!ids || ids.length === 0) throw new Error('请至少选择一台电脑');
+    const results: Array<{ id: string; success: boolean; error?: string }> = [];
+    for (const id of ids) {
+      try {
+        await this.powerAction(id, action);
+        results.push({ id, success: true });
+      } catch (err: any) {
+        results.push({ id, success: false, error: err?.message || String(err) });
+      }
+    }
+    const success = results.filter((r) => r.success).length;
+    return { success, total: ids.length, results };
+  }
+
   private async wakeOnLan(ip: string, storedMac?: string | null): Promise<void> {
     let mac = storedMac || this.resolveMacFromHostArp(ip);
     if (!mac) throw new Error('未找到该电脑的 MAC 地址，请在电脑管理里手动填写或让电脑开机一次');

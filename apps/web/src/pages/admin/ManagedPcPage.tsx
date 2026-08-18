@@ -18,6 +18,8 @@ const ManagedPcPage: React.FC = () => {
   const [form] = Form.useForm();
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [labelEditing, setLabelEditing] = useState<Record<string, string>>({});
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -81,6 +83,29 @@ const ManagedPcPage: React.FC = () => {
       setTimeout(fetchItems, 2000);
     }
   };
+
+  const runBatchAction = async (action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先勾选电脑');
+      return;
+    }
+    setBatchLoading(true);
+    try {
+      const { data } = await managedPcApi.powerBatch(selectedRowKeys, action);
+      const ok = data?.data?.success ?? 0;
+      const total = data?.data?.total ?? selectedRowKeys.length;
+      message.success(`批量${actionLabel(action)}完成：${ok}/${total} 台成功`);
+      setSelectedRowKeys([]);
+      setTimeout(fetchItems, 2000);
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '批量执行失败');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const actionLabel = (action: string) =>
+    ({ wake: '开机', shutdown: '关机', restart: '重启', sleep: '睡眠', hibernate: '休眠' } as Record<string, string>)[action] || action;
 
   const columns = [
     { title: 'IP 地址', dataIndex: 'ip', key: 'ip', width: 150, render: (v: string) => <Text code>{v}</Text> },
@@ -187,7 +212,27 @@ const ManagedPcPage: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加电脑</Button>
         </Space>
       </div>
-      <Table rowKey="id" columns={columns} dataSource={items} loading={loading} pagination={{ pageSize: 20 }} />
+      {selectedRowKeys.length > 0 && (
+        <div style={{ marginBottom: 8, padding: '8px 12px', background: '#e6f7ff', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text>已选 {selectedRowKeys.length} 台</Text>
+          <Space size={4} wrap>
+            <Button size="small" type="primary" icon={<ThunderboltOutlined />} loading={batchLoading} onClick={() => runBatchAction('wake')}>批量开机</Button>
+            <Button size="small" danger icon={<PoweroffOutlined />} onClick={() => runBatchAction('shutdown')}>批量关机</Button>
+            <Button size="small" icon={<RedoOutlined />} onClick={() => runBatchAction('restart')}>批量重启</Button>
+            <Button size="small" icon={<CloudOutlined />} onClick={() => runBatchAction('sleep')}>批量睡眠</Button>
+            <Button size="small" icon={<MoonOutlined />} onClick={() => runBatchAction('hibernate')}>批量休眠</Button>
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>取消选择</Button>
+          </Space>
+        </div>
+      )}
+      <Table
+        rowKey="id"
+        rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }}
+        columns={columns}
+        dataSource={items}
+        loading={loading}
+        pagination={{ pageSize: 20 }}
+      />
 
       <Modal
         title={editing ? '编辑电脑' : '添加电脑'}
