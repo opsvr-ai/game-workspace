@@ -18,6 +18,15 @@ interface MessageBubbleProps {
   myUserId?: string | null;
 }
 
+const stringToColor = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 52%)`;
+};
+
 const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   isMe,
@@ -33,6 +42,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isRecalled = !!message.deletedAt;
   const isPending = message.status === 'pending';
   const isFailed = message.status === 'failed';
+  const fallbackColor = stringToColor(message.senderId || participantName || '?');
 
   const bubbleStyle: React.CSSProperties = {
     maxWidth: '70%',
@@ -72,7 +82,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             {/* Initials fallback (always shown, below the image) */}
             <div style={{
               width: 36, height: 36, borderRadius: '50%',
-              background: isMe ? '#2B579A' : '#CBD5E1',
+              background: avatarUrl ? 'transparent' : fallbackColor,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#FFF', fontSize: 14, fontWeight: 700,
               position: 'absolute', top: 0, left: 0,
