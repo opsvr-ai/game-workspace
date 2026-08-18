@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, List, Tag, Upload, Modal, Select, message } from 'antd';
+import { Button, Card, Tag, Upload, Modal, Select, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import http from '../api/client';
@@ -74,42 +74,39 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const scheduledItems = items.filter((i) => i.isScheduled);
 
   const renderItem = (item: any) => (
-    <List.Item
+    <div
       key={item.id}
-      actions={[
-        item.poolExpired ? <Tag color="red">待处理</Tag> : item.requireCsContact ? <Tag color="red">需添加客户联系方式</Tag> : null,
-      ]}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 4px',
+        borderBottom: '1px solid #f0f0f0',
+        fontSize: 12,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+      }}
     >
-      <List.Item.Meta
-        title={<span>{item.poolExpired ? '⏳ ' : '🔥 '}{item.gameName} {item.gameMode} · ¥{item.amount} · 已等待 {fmt(item.waitingSeconds)}</span>}
-        description={
-          <>
-            <div>客户微信：{item.customerWechat || '未填写'}</div>
-            <div>
-              添加状态：
-              {item.csContactStatus === 'added' ? (
-                <>
-                  <Tag color="green">已添加</Tag>
-                  {item.customFields?.csWorkWechatName && <Tag color="blue">{item.customFields.csWorkWechatName}</Tag>}
-                  {item.customFields?.csAddResult && (
-                    <Tag color={item.customFields.csAddResult === 'passed' ? 'green' : item.customFields.csAddResult === 'failed' ? 'red' : 'orange'}>
-                      {item.customFields.csAddResult === 'passed' ? '已通过' : item.customFields.csAddResult === 'failed' ? '未通过' : '没回复'}
-                    </Tag>
-                  )}
-                </>
-              ) : (
-                <Button size="small" type="link" onClick={() => openContact(item)}>添加客户</Button>
-              )}
-            </div>
-            <div style={{ marginTop: 6 }}>
-              <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>
-                发布订单
-              </Button>
-            </div>
-          </>
-        }
-      />
-    </List.Item>
+      <span style={{ fontWeight: 600 }}>{item.poolExpired ? '⏳ ' : '🔥 '}{item.gameName}</span>
+      <span style={{ color: '#d4380d' }}>¥{item.amount}</span>
+      <span style={{ color: '#888' }}>{item.customerWechat || '-'}</span>
+      {item.csContactStatus === 'added' ? (
+        <span style={{ color: '#52c41a' }}>
+          已添加
+          {item.customFields?.csAddResult === 'passed' ? '·通过' : item.customFields?.csAddResult === 'failed' ? '·未通过' : '·没回复'}
+        </span>
+      ) : null}
+      <span style={{ flex: 1 }} />
+      {item.poolExpired ? (
+        <Tag color="red" style={{ margin: 0 }}>待处理</Tag>
+      ) : item.requireCsContact ? (
+        <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
+      ) : null}
+      {item.csContactStatus !== 'added' && (
+        <Button size="small" onClick={() => openContact(item)}>添加客户</Button>
+      )}
+      <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>发布订单</Button>
+    </div>
   );
 
   return (
@@ -121,7 +118,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
             {immediateItems.length === 0 ? (
               <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
             ) : (
-              <List size="small" dataSource={immediateItems} renderItem={renderItem} />
+              <div>{immediateItems.map(renderItem)}</div>
             )}
           </div>
           <div style={{ flex: 1, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
@@ -129,7 +126,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
             {scheduledItems.length === 0 ? (
               <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
             ) : (
-              <List size="small" dataSource={scheduledItems} renderItem={renderItem} />
+              <div>{scheduledItems.map(renderItem)}</div>
             )}
           </div>
         </div>
