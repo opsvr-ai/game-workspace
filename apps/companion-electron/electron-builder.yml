@@ -25,7 +25,7 @@ nsis:
   perMachine: true
   runAfterFinish: true
   createDesktopShortcut: true
-  shortcutName: 蠢驴电竞陪玩
+  shortcutName: 蠢驴电竞
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico
   installerHeaderIcon: public/donkey.ico
