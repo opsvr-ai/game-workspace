@@ -46,6 +46,13 @@ export class OrdersController {
     return { code: 200, message: '已重新派到抢单池', data };
   }
 
+  @Post('orders/:id/pool-handled')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async markPoolHandled(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markPoolHandled(id);
+    return { code: 200, message: '已标记处理完成', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

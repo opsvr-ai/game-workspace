@@ -587,6 +587,16 @@ export class OrdersService {
     return updated;
   }
 
+  async markPoolHandled(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    const cf = (order.customFields as any) || {};
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { customFields: { ...cf, poolHandled: true, poolHandledAt: new Date().toISOString() } },
+    });
+  }
+
   private async getSoonEndingCompanions(studioId: string) {
     const companions = await this.prisma.companion.findMany({
       where: { studioId, status: 'BUSY' },

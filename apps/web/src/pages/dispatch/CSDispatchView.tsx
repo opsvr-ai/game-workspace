@@ -92,6 +92,7 @@ const CSDispatchView: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [dispatchPrefill, setDispatchPrefill] = useState<any>(null);
+  const [dispatchSourceOrderId, setDispatchSourceOrderId] = useState<string | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
@@ -323,6 +324,7 @@ const CSDispatchView: React.FC = () => {
             urgency: item.isScheduled ? 'later' : 'now',
             scheduledTimeText: cf.scheduledTimeText,
           });
+          setDispatchSourceOrderId(item.id);
           setModalOpen(true);
         }}
       />
@@ -850,8 +852,15 @@ const CSDispatchView: React.FC = () => {
         onClose={() => {
           setModalOpen(false);
           setDispatchPrefill(null);
+          setDispatchSourceOrderId(null);
         }}
-        onCreated={fetchPool}
+        onCreated={() => {
+          fetchPool();
+          if (dispatchSourceOrderId) {
+            ordersApi.markPoolHandled(dispatchSourceOrderId).catch(() => {});
+            setDispatchSourceOrderId(null);
+          }
+        }}
         userId={useAuthStore.getState().user?.id}
         initialValues={dispatchPrefill || undefined}
       />
