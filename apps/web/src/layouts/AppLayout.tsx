@@ -251,7 +251,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'cs-customers', icon: IconCustomers, label: '客户 / 陪玩',
-      children: [{ key: '/cs/employees', label: '陪玩管理' }],
+      children: [
+        { key: '/cs/employees', label: '陪玩管理' },
+        { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+      ],
     },
     {
       key: 'cs-finance', icon: IconRevenue, label: '财务管理',
@@ -260,16 +263,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/cs/finance/reconciliation', label: '到账对账' },
       ],
     },
-      {
-        key: 'cs-other', icon: IconDashboard, label: '其他',
-        children: [
-          { key: '/cs/traffic-accounts', label: '引流账号管理' },
-      ],
-    },
     {
-      key: 'cs-settings', icon: IconAuth, label: '设置',
+      key: 'cs-work', icon: IconEmployees, label: '客服工作',
       children: [
-        { key: '/cs/work-wechats', label: '工作微信' },
+        { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
+        { key: '/cs/traffic-accounts', label: '引流账号管理' },
       ],
     },
   ],
