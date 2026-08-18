@@ -213,13 +213,14 @@ const OrderPoolPage: React.FC = () => {
       order.customFields?.urgency === 'later'
         ? order.customFields?.scheduledTimeText || '\u00A0'
         : '\u00A0';
-    let countdown;
+    let disappearIn;
     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
-      const rem = new Date(order.scheduledAt).getTime() - now;
-      countdown = rem > 0 ? fmtSpan(rem) : '已到点';
+      disappearIn = new Date(order.scheduledAt).getTime() - now;
     } else {
-      countdown = fmtSpan(wait);
+      // 立即打订单默认 10 分钟生命期，10 分钟后视为从抢单池消失
+      disappearIn = 10 * 60 * 1000 - wait;
     }
+    const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
 
     const fields = [
       order.gameName,
@@ -233,7 +234,7 @@ const OrderPoolPage: React.FC = () => {
       scheduledTime,
       fmtClock(order.createdAt),
       `已等待 ${fmtSpan(wait)}`,
-      `倒计时 ${countdown}`,
+      `距离消失 ${disappearText}`,
     ];
 
     return (
