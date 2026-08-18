@@ -254,7 +254,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
           {({ getFieldValue }) =>
             getFieldValue('urgency') === 'later' ? (
               <Form.Item name="scheduledTimeText" label="预约时间" style={{ marginBottom: 0 }}>
-                <Input placeholder="自由填写，如：明天晚上8点 / 8/20 20:00" />
+                <Input placeholder="自由填写，请带年月日，如：2026/8/20 20:00 或 8月20日晚上8点" />
               </Form.Item>
             ) : null
           }

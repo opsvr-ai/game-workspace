@@ -23,11 +23,7 @@ const { Text } = Typography;
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const fmtClock = (v: string) => {
   const d = new Date(v);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-};
-const fmtDateTime = (v: string) => {
-  const d = new Date(v);
-  return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 };
 const fmtSpan = (ms: number) => {
   if (ms < 0) ms = 0;
