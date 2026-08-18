@@ -5,6 +5,7 @@ import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badg
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import { configApi } from '../api/config';
 import { useSocket } from '../hooks/useSocket';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
@@ -59,10 +60,21 @@ const OrderPoolPage: React.FC = () => {
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [companionSearch, setCompanionSearch] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [disappearMinutes, setDisappearMinutes] = useState(10);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    configApi
+      .get(['pool.immediate_disappear_minutes'])
+      .then(({ data }) => {
+        const v = Number(data?.data?.['pool.immediate_disappear_minutes']);
+        if (Number.isFinite(v) && v > 0) setDisappearMinutes(v);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -217,8 +229,7 @@ const OrderPoolPage: React.FC = () => {
     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
       disappearIn = new Date(order.scheduledAt).getTime() - now;
     } else {
-      // 立即打订单默认 10 分钟生命期，10 分钟后视为从抢单池消失
-      disappearIn = 10 * 60 * 1000 - wait;
+      disappearIn = disappearMinutes * 60 * 1000 - wait;
     }
     const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
 

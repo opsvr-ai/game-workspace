@@ -21,6 +21,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 import { ordersApi } from '../../api/orders';
+import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
@@ -95,9 +96,19 @@ const CSDispatchView: React.FC = () => {
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [disappearMinutes, setDisappearMinutes] = useState(10);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    configApi
+      .get(['pool.immediate_disappear_minutes'])
+      .then(({ data }) => {
+        const v = Number(data?.data?.['pool.immediate_disappear_minutes']);
+        if (Number.isFinite(v) && v > 0) setDisappearMinutes(v);
+      })
+      .catch(() => {});
   }, []);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
@@ -610,8 +621,7 @@ const CSDispatchView: React.FC = () => {
                     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
                       disappearIn = new Date(order.scheduledAt).getTime() - now;
                     } else {
-                      // 立即打订单默认 10 分钟生命期，10 分钟后视为从抢单池消失
-                      disappearIn = 10 * 60 * 1000 - wait;
+                      disappearIn = disappearMinutes * 60 * 1000 - wait;
                     }
                     const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
                     const fields = [
