@@ -320,7 +320,8 @@ const CSDispatchView: React.FC = () => {
             customerYy: cf.customerYy,
             customerPlatformAccount: cf.customerPlatformAccount,
             customerRoomCode: cf.customerRoomCode,
-            urgency: 'now',
+            urgency: item.isScheduled ? 'later' : 'now',
+            scheduledTimeText: cf.scheduledTimeText,
           });
           setModalOpen(true);
         }}

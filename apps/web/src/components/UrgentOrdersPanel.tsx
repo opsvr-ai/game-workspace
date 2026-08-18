@@ -15,7 +15,6 @@ interface Props {
 
 const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
-  const [redispatching, setRedispatching] = useState<string | null>(null);
   const [evidences, setEvidences] = useState<Record<string, string>>({});
 
   const load = async () => {
@@ -36,17 +35,6 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
     await ordersApi.markCsContact(orderId, 'added', evidenceUrl);
     message.success(evidenceUrl ? '已标记客服已添加客户' : '已标记（未上传凭证，老板后台可查）');
     load();
-  };
-
-  const redispatch = async (orderId: string) => {
-    setRedispatching(orderId);
-    try {
-      await ordersApi.redispatch(orderId);
-      message.success('已重新派到抢单池');
-      load();
-    } finally {
-      setRedispatching(null);
-    }
   };
 
   const uploadEvidence = async (orderId: string, file: File) => {
@@ -92,21 +80,11 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
                 </>
               )}
             </div>
-            {!item.isScheduled ? (
-              <div style={{ marginTop: 6 }}>
-                <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>
-                  派单
-                </Button>
-              </div>
-            ) : (
-              item.poolExpired && (
-                <div style={{ marginTop: 6 }}>
-                  <Button size="small" type="primary" loading={redispatching === item.id} onClick={() => redispatch(item.id)}>
-                    一键重新派到抢单池
-                  </Button>
-                </div>
-              )
-            )}
+            <div style={{ marginTop: 6 }}>
+              <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>
+                发布订单
+              </Button>
+            </div>
           </>
         }
       />
