@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testWatchdog: () => ipcRenderer.invoke('watchdog:test'),
   collectProcesses: (token: string) => ipcRenderer.invoke('processes:collect', token),
   onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),
+  setRole: (role: string) => ipcRenderer.send('auth:setRole', role),
 });

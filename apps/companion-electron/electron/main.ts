@@ -20,6 +20,7 @@ import { handleStatusChanged } from './screen-lock';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+let currentRole = 'COMPANION';
 
 // 允许局域网 http 地址使用麦克风/媒体接口
 app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
@@ -260,6 +261,11 @@ function setupIPC(): void {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.on('auth:setRole', (_e, role: string) => {
+    if (typeof role === 'string' && role) {
+      currentRole = role;
+    }
+  });
   ipcMain.handle('folder:open', (_e, path: string) => {
     if (typeof path !== 'string' || !path.trim()) return { success: false };
     return shell.openPath(path.trim()).then(() => ({ success: true })).catch((err) => ({ success: false, error: String(err) }));
@@ -276,7 +282,7 @@ function setupIPC(): void {
   ipcMain.on('companion:status', (_e, status: string) => {
     if (typeof status !== 'string') return;
     emitStatus(status);
-    handleStatusChanged(status);
+    if (currentRole === 'COMPANION') handleStatusChanged(status);
   });
   ipcMain.handle('auth:logout', () => {
     store.set('token', '');
@@ -331,7 +337,7 @@ app.whenReady().then(() => {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: `蠢驴电竞陪玩 v${app.getVersion()}`,
+    title: `蠢驴电竞 v${app.getVersion()}`,
     show: true,
     webPreferences: {
       contextIsolation: true,
@@ -360,7 +366,7 @@ app.whenReady().then(() => {
     // 允许语音通话所需的麦克风权限，以及系统通知和剪贴板权限
     callback(['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
   });
-  mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
+  mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/login');
   mainWindow.on('close', (e) => {
     trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0, 200));
     if (!isQuitting) {
@@ -375,7 +381,7 @@ app.whenReady().then(() => {
     if (code !== -3 && !isQuitting) {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
-          mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/companion');
+          mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/login');
         }
       }, 3000);
     }
@@ -430,6 +436,7 @@ app.whenReady().then(() => {
     }
   });
   onWsEvent('blacklist:update', (data: any) => {
+    if (currentRole !== 'COMPANION') return;
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });
   const token = store.get('token') as string;
