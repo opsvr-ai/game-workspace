@@ -210,23 +210,21 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   ],
   [UserRole.CS]: [
     {
-      key: 'cs-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/cs/dispatch', label: '派单工作台' }],
+      key: 'cs-dispatch', icon: IconDispatch, label: '客服工作台',
+      children: [{ key: '/cs/dispatch', label: '派单 / 待处理 / 跟进' }],
     },
     {
       key: 'cs-orders', icon: IconOrders, label: '订单管理',
       children: [{ key: '/cs/orders', label: '全部订单' }],
     },
     {
-      key: 'cs-customers', icon: IconCustomers, label: '陪玩管理',
+      key: 'cs-customers', icon: IconCustomers, label: '客户 / 陪玩',
       children: [{ key: '/cs/employees', label: '陪玩管理' }],
     },
     {
       key: 'cs-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/cs/billing', label: '报账系统' },
-        { key: '/cs/stats', label: '每日统计' },
-        { key: '/cs/finance/risk', label: '风险工作台' },
         { key: '/cs/finance/reconciliation', label: '到账对账' },
       ],
     },
@@ -234,21 +232,12 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         key: 'cs-other', icon: IconDashboard, label: '其他',
         children: [
           { key: '/cs/traffic-accounts', label: '引流账号管理' },
-          { key: '/admin/pc-control', label: '远程控制' },
-        { key: '/admin/managed-pcs', label: '电脑管理' },
-        { key: '/admin/analytics', label: '动态分析' },
-        { key: '/admin/payroll', label: '工资管理' },
-        { key: '/admin/attendance', label: '考勤管理' },
       ],
     },
     {
       key: 'cs-settings', icon: IconAuth, label: '设置',
       children: [
         { key: '/cs/work-wechats', label: '工作微信' },
-        { key: '/admin/blacklist', label: '进程黑名单' },
-        { key: '/admin/whitelist', label: '进程白名单' },
-        { key: '/admin/process-kill-log', label: '杀进程日志' },
-        { key: '/admin/agent-version', label: '客户端版本' },
       ],
     },
   ],

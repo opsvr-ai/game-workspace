@@ -15,6 +15,7 @@ import {
   List,
   Spin,
   Input,
+  Tabs,
   Divider,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -328,23 +329,27 @@ const CSDispatchView: React.FC = () => {
 
   return (
     <div>
-      <UrgentOrdersPanel
-        onDispatch={handleDispatch}
-      />
-      <CsFollowupPanel onRedispatch={handleDispatch} />
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <div />
-        <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setModalOpen(true)}>
-          发布订单
-        </Button>
-      </div>
+      <Tabs
+        defaultActiveKey="dispatch"
+        items={[
+          {
+            key: 'dispatch',
+            label: '派单工作台',
+            children: (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <div />
+                  <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setModalOpen(true)}>
+                    发布订单
+                  </Button>
+                </div>
 
       <Row
         gutter={12}
@@ -850,6 +855,21 @@ const CSDispatchView: React.FC = () => {
           )}
         </Col>
       </Row>
+              </>
+            ),
+          },
+          {
+            key: 'pending',
+            label: '客服待处理',
+            children: <UrgentOrdersPanel onDispatch={handleDispatch} />,
+          },
+          {
+            key: 'followup',
+            label: '客服跟进',
+            children: <CsFollowupPanel onRedispatch={handleDispatch} />,
+          },
+        ]}
+      />
 
       <CreateOrderModal
         open={modalOpen}
