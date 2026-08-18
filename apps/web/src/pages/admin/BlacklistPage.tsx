@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Button, Space, Modal, Input, Switch, Popconfirm, message, Typography, Select, Tabs, Radio, Progress } from 'antd';
+import { Table, Button, Space, Modal, Input, Switch, Popconfirm, message, Typography, Select, Tabs, Radio, Progress, Checkbox, Tag, Badge } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
 import StatusBlacklistConfigModal from '../../components/StatusBlacklistConfigModal';
@@ -60,6 +60,17 @@ const BlacklistPage: React.FC = () => {
     } catch { setReportedProcesses([]); }
     finally { setLoadingProcesses(false); }
   };
+
+  // 已加入黑名单的进程名（小写集合），用于在采集列表里标记“已添加”，避免重复添加
+  const addedNames = new Set(items.map((i) => i.processName.trim().toLowerCase()));
+  const selectableProcesses = reportedProcesses.filter((n) => !addedNames.has(n.trim().toLowerCase()));
+
+  const toggleProcess = (name: string, checked: boolean) => {
+    setSelectedProcess((prev) => (checked ? [...prev, name] : prev.filter((p) => p !== name)));
+  };
+
+  const selectAllProcesses = () => setSelectedProcess(selectableProcesses);
+  const clearProcesses = () => setSelectedProcess([]);
 
   const handleAdd = async () => {
     const names = addMode === 'select' ? selectedProcess : [processName.trim()];
@@ -285,15 +296,52 @@ const BlacklistPage: React.FC = () => {
                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{collectText}</Text>
                  </div>
                )}
-              <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>选择进程</Text>
-              <Select placeholder={selectedCompanionForAdd ? '选择进程' : '请先选择陪玩'} style={{ width: '100%' }}
-                mode="multiple" value={selectedProcess} onChange={setSelectedProcess}
-                loading={loadingProcesses}
-                disabled={!selectedCompanionForAdd}
-                options={reportedProcesses.map((n) => ({ label: n, value: n }))}
-                showSearch filterOption={(input, option) => (option?.label as string || '').toLowerCase().includes(input.toLowerCase())} />
-              {selectedCompanionForAdd && reportedProcesses.length === 0 && !loadingProcesses && (
-                <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>该陪玩暂无进程上报数据</Text>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>选择进程</Text>
+                <Space size={4}>
+                  <Badge count={selectedProcess.length} size="small" showZero color="#2563EB">
+                    <Text type="secondary" style={{ fontSize: 12, marginRight: 4 }}>已选</Text>
+                  </Badge>
+                  <Button size="small" type="link" disabled={!selectableProcesses.length} onClick={selectAllProcesses}>全选</Button>
+                  <Button size="small" type="link" disabled={!selectedProcess.length} onClick={clearProcesses}>清空</Button>
+                </Space>
+              </div>
+
+              {reportedProcesses.length > 0 ? (
+                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 0', background: '#fff' }}>
+                  {reportedProcesses.map((name) => {
+                    const isAdded = addedNames.has(name.trim().toLowerCase());
+                    return (
+                      <div
+                        key={name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 12px',
+                          borderBottom: '1px solid #f5f5f5',
+                          background: isAdded ? '#f6ffed' : undefined,
+                          opacity: isAdded ? 0.75 : 1,
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedProcess.includes(name)}
+                          disabled={isAdded}
+                          onChange={(e) => toggleProcess(name, e.target.checked)}
+                        >
+                          <Text code={!isAdded} style={{ fontSize: 13 }}>{name}</Text>
+                        </Checkbox>
+                        {isAdded && <Tag color="green" style={{ margin: 0 }}>已添加</Tag>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#999', fontSize: 12 }}>
+                  {selectedCompanionForAdd
+                    ? (loadingProcesses ? '加载中...' : '该陪玩暂无进程上报数据，点上方“立即采集”获取')
+                    : '请先选择陪玩'}
+                </div>
               )}
             </div>
           ) : (
