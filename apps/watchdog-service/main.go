@@ -25,8 +25,8 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 var searchPaths = []string{
-	`C:\Program Files\@chunlvcompanion-electron\蠢驴电竞.exe`,
 	`C:\Program Files\蠢驴电竞\蠢驴电竞.exe`,
+	`C:\Program Files\@chunlvcompanion-electron\蠢驴电竞.exe`,
 	`C:\Program Files (x86)\@chunlvcompanion-electron\蠢驴电竞.exe`,
 	`C:\Program Files (x86)\蠢驴电竞\蠢驴电竞.exe`,
 	filepath.Join(os.Getenv("LOCALAPPDATA"), `Programs\蠢驴电竞\蠢驴电竞.exe`),
