@@ -81,19 +81,25 @@ async function collectAndReportProcesses(tokenOverride?: string) {
   const collectNow = Date.now();
   if (collectNow - lastCollectAt < 5000) return;
   lastCollectAt = collectNow;
+  // 只采集“应用程序”：排除 C:\Windows 下的系统进程/服务/后台进程，
+  // 并带上可执行文件路径，方便后台识别。
+  const psCmd =
+    "Get-CimInstance Win32_Process | " +
+    "Where-Object { $_.ExecutablePath -and $_.ExecutablePath -notmatch 'Windows' } | " +
+    "ForEach-Object { [PSCustomObject]@{ name = $_.Name; pid = $_.ProcessId; path = $_.ExecutablePath; memoryMB = [math]::Round($_.WorkingSetSize / 1MB) } } | " +
+    "ConvertTo-Json -Compress";
   execFile(
-    'tasklist',
-    ['/fo', 'csv', '/nh'],
-    { windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-Command', psCmd],
+    { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
     async (err, stdout) => {
       if (err) return;
-      const processes: Array<{ name: string; pid: number; memoryMB: number }> = [];
-      for (const line of stdout.split('\n')) {
-        const m = line.trim().match(/^"([^"]+)","(\d+)","[^"]*","[^"]*","([\d,.]+) K?"/);
-        if (!m) continue;
-        const pid = Number(m[2]);
-        const memoryMB = Math.max(0, Math.round(parseFloat(m[3].replace(/,/g, '')) / 1024));
-        processes.push({ name: m[1], pid, memoryMB });
+      let processes: Array<{ name: string; pid: number; path?: string; memoryMB: number }> = [];
+      try {
+        const parsed = JSON.parse(stdout);
+        processes = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+      } catch {
+        return;
       }
       if (processes.length === 0) return;
       try {
