@@ -122,7 +122,19 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'owner-employees', icon: IconEmployees, label: '员工管理',
       children: [
-        { key: '/owner/employees?role=ADMIN', label: '员工管理' },
+        { key: '/owner/employees?role=ADMIN', label: '店长管理' },
+        {
+          key: 'owner-companion-mgmt', label: '陪玩管理',
+          children: [
+            { key: '/owner/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+          ],
+        },
+        {
+          key: 'owner-cs-mgmt', label: '客服管理',
+          children: [
+            { key: '/owner/work-wechats?type=STUDIO', label: '客服工作微信' },
+          ],
+        },
         { key: '/owner/review', label: '实名审核' },
         { key: '/admin/attendance', label: '考勤管理' },
       ],
@@ -181,7 +193,19 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'admin-employees', icon: IconEmployees, label: '员工管理',
       children: [
-        { key: '/admin/employees?role=CS', label: '员工管理' },
+        { key: '/admin/employees?role=CS', label: '店长/客服' },
+        {
+          key: 'admin-companion-mgmt', label: '陪玩管理',
+          children: [
+            { key: '/admin/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+          ],
+        },
+        {
+          key: 'admin-cs-mgmt', label: '客服管理',
+          children: [
+            { key: '/admin/work-wechats?type=STUDIO', label: '客服工作微信' },
+          ],
+        },
         { key: '/admin/review', label: '实名审核' },
         { key: '/admin/attendance', label: '考勤管理' },
       ],

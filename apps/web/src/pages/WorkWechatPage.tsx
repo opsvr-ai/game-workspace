@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
@@ -8,6 +9,8 @@ import PageHeader from '../components/PageHeader';
 const { Text } = Typography;
 
 const WorkWechatPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const typeFilter = searchParams.get('type') || '';
   const [wechats, setWechats] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -22,7 +25,8 @@ const WorkWechatPage: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await http.get('/companions/work-wechats');
-      setWechats(data?.data || []);
+      const list = data?.data || [];
+      setWechats(typeFilter ? list.filter((w: any) => w.type === typeFilter) : list);
     } catch {
       message.error('加载失败');
     } finally {
@@ -37,7 +41,7 @@ const WorkWechatPage: React.FC = () => {
     } catch {
       /* non-critical */
     }
-  }, []);
+  }, [typeFilter]);
 
   const fetchCsUsers = useCallback(async () => {
     try {
@@ -62,7 +66,7 @@ const WorkWechatPage: React.FC = () => {
     }
     setAdding(true);
     try {
-      await http.post('/companions/work-wechats', { wechatId: v, type: newType });
+      await http.post('/companions/work-wechats', { wechatId: v, type: typeFilter || newType });
       message.success('已添加');
       setNewWechatId('');
       fetch();
@@ -136,8 +140,8 @@ const WorkWechatPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="📱 工作微信管理"
-        subtitle="管理本店工作微信并绑定给陪玩，绑定的微信会在陪玩接单时自动填入"
+        title={typeFilter === 'STUDIO' ? '📱 客服工作微信' : typeFilter === 'COMPANION' ? '📱 陪玩工作微信' : '📱 工作微信管理'}
+        subtitle={typeFilter === 'STUDIO' ? '管理客服使用的工作微信，并绑定给客服' : typeFilter === 'COMPANION' ? '管理陪玩使用的工作微信，并绑定给陪玩' : '管理本店工作微信'}
         extra={
           <Button icon={<ReloadOutlined />} onClick={fetch} loading={loading}>
             刷新
@@ -153,15 +157,17 @@ const WorkWechatPage: React.FC = () => {
           onPressEnter={handleAdd}
           style={{ width: 200 }}
         />
-        <Select
-          value={newType}
-          onChange={setNewType}
-          style={{ width: 150 }}
-          options={[
-            { label: '陪玩微信', value: 'COMPANION' },
-            { label: '工作室/客服微信', value: 'STUDIO' },
-          ]}
-        />
+        {!typeFilter && (
+          <Select
+            value={newType}
+            onChange={setNewType}
+            style={{ width: 150 }}
+            options={[
+              { label: '陪玩微信', value: 'COMPANION' },
+              { label: '工作室/客服微信', value: 'STUDIO' },
+            ]}
+          />
+        )}
         <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
           添加
         </Button>
