@@ -101,23 +101,36 @@ interface MenuItemDef {
 const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
     {
-      key: 'owner-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/admin/dispatch', label: '派单工作台' }],
+      key: 'owner-home', icon: IconDashboard, label: '首页',
+      children: [
+        { key: '/admin', label: '数据看板' },
+        { key: '/admin/analytics', label: '动态分析' },
+        { key: '/owner/stats', label: '每日统计' },
+      ],
     },
     {
       key: 'owner-orders', icon: IconOrders, label: '订单管理',
-      children: [{ key: '/owner/orders', label: '全部订单' }],
+      children: [
+        { key: '/admin/dispatch', label: '派单工作台' },
+        { key: '/owner/orders', label: '全部订单' },
+      ],
     },
     {
       key: 'owner-customers', icon: IconCustomers, label: '客户管理',
       children: [{ key: '/owner/customers', label: '客户列表' }],
     },
     {
+      key: 'owner-employees', icon: IconEmployees, label: '员工管理',
+      children: [
+        { key: '/owner/employees?role=ADMIN', label: '员工管理' },
+        { key: '/owner/review', label: '实名审核' },
+        { key: '/admin/attendance', label: '考勤管理' },
+      ],
+    },
+    {
       key: 'owner-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/billing', label: '报账系统' },
-        { key: '/owner/stats', label: '每日统计' },
-        { key: '/admin/finance/risk', label: '风险工作台' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
         { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
@@ -125,19 +138,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/payroll', label: '工资管理' },
         { key: '/admin/profit-split', label: '利润分成' },
-      ],
-    },
-      {
-        key: 'owner-other', icon: IconDashboard, label: '其他',
-        children: [
-          { key: '/admin', label: '数据看板' },
-          { key: '/admin/analytics', label: '动态分析' },
-          { key: '/admin/attendance', label: '考勤管理' },
-          { key: '/owner/review', label: '实名审核' },
-          { key: '/owner/employees?role=ADMIN', label: '员工管理' },
-          { key: '/admin/traffic-accounts', label: '引流账号管理' },
-          { key: '/admin/pc-control', label: '远程控制' },
-        { key: '/admin/managed-pcs', label: '电脑管理' },
+        { key: '/admin/finance/risk', label: '风险工作台' },
       ],
     },
     {
@@ -147,6 +148,9 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/studios', label: '工作室管理' },
         { key: '/owner/authorizations', label: '客户端授权' },
         { key: '/owner/work-wechats', label: '工作微信' },
+        { key: '/admin/traffic-accounts', label: '引流账号管理' },
+        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
@@ -156,23 +160,36 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   ],
   [UserRole.ADMIN]: [
     {
-      key: 'admin-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/admin/dispatch', label: '派单工作台' }],
+      key: 'admin-home', icon: IconDashboard, label: '首页',
+      children: [
+        { key: '/admin', label: '数据看板' },
+        { key: '/admin/analytics', label: '动态分析' },
+        { key: '/admin/stats', label: '每日统计' },
+      ],
     },
     {
       key: 'admin-orders', icon: IconOrders, label: '订单管理',
-      children: [{ key: '/admin/orders', label: '全部订单' }],
+      children: [
+        { key: '/admin/dispatch', label: '派单工作台' },
+        { key: '/admin/orders', label: '全部订单' },
+      ],
     },
     {
       key: 'admin-customers', icon: IconCustomers, label: '客户管理',
       children: [{ key: '/admin/customers', label: '客户列表' }],
     },
     {
+      key: 'admin-employees', icon: IconEmployees, label: '员工管理',
+      children: [
+        { key: '/admin/employees?role=CS', label: '员工管理' },
+        { key: '/admin/review', label: '实名审核' },
+        { key: '/admin/attendance', label: '考勤管理' },
+      ],
+    },
+    {
       key: 'admin-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/admin/billing', label: '报账系统' },
-        { key: '/admin/stats', label: '每日统计' },
-        { key: '/admin/finance/risk', label: '风险工作台' },
         { key: '/admin/finance/reconciliation', label: '到账对账' },
         { key: '/admin/finance/expenses', label: '支出/支取审核' },
         { key: '/admin/finance/settlement', label: '月度分成' },
@@ -180,19 +197,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/payroll', label: '工资管理' },
         { key: '/admin/profit-split', label: '利润分成' },
-      ],
-    },
-      {
-        key: 'admin-other', icon: IconDashboard, label: '其他',
-        children: [
-          { key: '/admin', label: '数据看板' },
-          { key: '/admin/analytics', label: '动态分析' },
-          { key: '/admin/attendance', label: '考勤管理' },
-          { key: '/admin/review', label: '实名审核' },
-          { key: '/admin/employees?role=CS', label: '员工管理' },
-          { key: '/admin/traffic-accounts', label: '引流账号管理' },
-          { key: '/admin/pc-control', label: '远程控制' },
-        { key: '/admin/managed-pcs', label: '电脑管理' },
+        { key: '/admin/finance/risk', label: '风险工作台' },
       ],
     },
     {
@@ -201,6 +206,9 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/settings', label: '系统配置' },
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/admin/work-wechats', label: '工作微信' },
+        { key: '/admin/traffic-accounts', label: '引流账号管理' },
+        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
         { key: '/admin/process-kill-log', label: '杀进程日志' },
