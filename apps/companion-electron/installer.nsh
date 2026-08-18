@@ -1,5 +1,11 @@
 ; Force install directory to use product name (蠢驴电竞), not package name (@chunlvcompanion-electron)
 !macro preInit
+  ; 关键：先删掉旧注册表的 InstallLocation，否则 initMultiUser 会复用旧的
+  ; @chunlvcompanion-electron 目录，把下面的 $INSTDIR 覆盖掉。
+  DeleteRegKey HKLM "${INSTALL_REGISTRY_KEY}"
+  DeleteRegKey HKCU "${INSTALL_REGISTRY_KEY}"
+  DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
+  DeleteRegKey HKCU "${UNINSTALL_REGISTRY_KEY}"
   StrCpy $INSTDIR "$PROGRAMFILES64\蠢驴电竞"
 !macroend
 
