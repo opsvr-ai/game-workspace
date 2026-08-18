@@ -32,6 +32,21 @@ import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig 
 
 const { Text } = Typography;
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const fmtClock = (v: string) => {
+  const d = new Date(v);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const fmtSpan = (ms: number) => {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h${m % 60}m`;
+  if (m > 0) return `${m}分${s % 60}秒`;
+  return `${s}秒`;
+};
+
 interface Companion {
   id: string;
   user?: { username: string };
@@ -48,6 +63,8 @@ interface PoolOrder {
   duration?: number;
   status: string;
   createdAt: string;
+  coCompanionId?: string;
+  scheduledAt?: string;
   customFields?: any;
   customer?: { wechatId: string; customerCode?: string };
   csUser?: { id?: string; username: string };
@@ -76,6 +93,11 @@ const CSDispatchView: React.FC = () => {
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
   const [claimingOrder, setClaimingOrder] = useState<any>(null);
@@ -563,231 +585,123 @@ const CSDispatchView: React.FC = () => {
                 <List
                   grid={{ gutter: [0, 8], column: 1 }}
                   dataSource={filteredOrders}
-                  renderItem={(order, idx) => (
-                    <List.Item style={{ marginBottom: 0 }}>
-                      <div
-                        style={{
-                          background: '#FAFBFC',
-                          borderRadius: 8,
-                          padding: '10px 16px',
-                          border: '1px solid #E8ECF0',
-                          transition: 'all 0.15s',
-                          cursor: 'default',
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = '#F0F4FF';
-                          (e.currentTarget as HTMLElement).style.borderColor = '#C7D2FE';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = '#FAFBFC';
-                          (e.currentTarget as HTMLElement).style.borderColor = '#E8ECF0';
-                        }}
-                      >
-                        <Row align="middle" gutter={8} wrap={false}>
-                          <Col>
-                            <Tag
-                              style={{
-                                background: '#f0f0f0',
-                                color: '#666',
-                                fontWeight: 700,
-                                minWidth: 24,
-                                textAlign: 'center',
-                                margin: 0,
-                              }}
-                            >
-                              {idx + 1}
-                            </Tag>
-                          </Col>
-                          <Col>
-                            <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
-                              {orderTypeConfig[order.type]?.label || order.type}
-                            </Tag>
-                          </Col>
-                          <Col>
-                            <Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>
-                              {order.gameName}
-                            </Text>
-                          </Col>
-                          <Col>
-                            <Text style={{ fontSize: 14, fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
-                              ¥{Number(order.amount).toFixed(0)}
-                            </Text>
-                          </Col>
-                          {order.customFields?.deltaMission && (
-                            <Col>
-                              <Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.deltaCount && (
-                            <Col>
-                              <Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.serviceType && (
-                            <Col>
-                              <Tag
-                                color={serviceTypeConfig[order.customFields.serviceType]?.color}
-                                style={{ margin: 0 }}
-                              >
-                                {serviceTypeConfig[order.customFields.serviceType]?.label ||
-                                  order.customFields.serviceType}
-                              </Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.gameMode && (
-                            <Col>
-                              <Tag color="geekblue" style={{ margin: 0 }}>
-                                {order.customFields.gameMode}
-                              </Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.customerSource && (
-                            <Col>
-                              <Tag color="orange" style={{ margin: 0 }}>
-                                📡{order.customFields.customerSource}
-                              </Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.customerWechat && (
-                            <Col>
-                              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                                💬{order.customFields.customerWechat}
-                              </Text>
-                            </Col>
-                          )}
-                          {order.customFields?.customerRoomCode && (
-                            <Col>
-                              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                                🏠{order.customFields.customerRoomCode}
-                              </Text>
-                            </Col>
-                          )}
-                          {order.customFields?.urgency === 'later' && (
-                            <Col>
-                              <Tag color="purple" style={{ margin: 0 }}>
-                                📅预约
-                              </Tag>
-                            </Col>
-                          )}
-                          {order.customFields?.urgency !== 'later' && (
-                            <Col>
-                              <Tag color="green" style={{ margin: 0 }}>
-                                ⚡立即打
-                              </Tag>
-                            </Col>
-                          )}
+                  renderItem={(order, idx) => {
+                    const type = orderTypeConfig[order.type]?.label || order.type || '首单';
+                    const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
+                    const mission = order.customFields?.deltaMission;
+                    const isRound = order.customFields?.billingMode === 'round';
+                    const dur = isRound
+                      ? `${order.duration || order.customFields?.deltaCount || '?'}局`
+                      : `${order.duration || '?'}h`;
+                    const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
+                    const wait = now - new Date(order.createdAt).getTime();
+                    let countdown;
+                    if (order.customFields?.urgency === 'later' && order.scheduledAt) {
+                      const rem = new Date(order.scheduledAt).getTime() - now;
+                      countdown = rem > 0 ? `距开始${fmtSpan(rem)}` : '已到点';
+                    } else {
+                      countdown = `等待${fmtSpan(wait)}`;
+                    }
+                    const fields = [
+                      order.gameName,
+                      type,
+                      svc,
+                      mission,
+                      dur,
+                      sd,
+                      fmtClock(order.createdAt),
+                      fmtSpan(wait),
+                      countdown,
+                    ].filter(Boolean);
+
+                    return (
+                      <List.Item style={{ marginBottom: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '9px 12px',
+                            background: '#fff',
+                            borderBottom: '1px solid #f0f0f0',
+                            fontSize: 13,
+                            color: '#1f2329',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {fields.map((t, i) => (
+                            <React.Fragment key={i}>
+                              {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
+                              <span>{t}</span>
+                            </React.Fragment>
+                          ))}
+                          <span style={{ flex: 1 }} />
                           {(user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') && (
-                            <Col>
+                            <Button
+                              size="small"
+                              type="primary"
+                              style={{ background: '#7C3AED', borderColor: '#7C3AED' }}
+                              loading={claimingOrder?.id === order.id}
+                              onClick={() => openClaim(order)}
+                            >
+                              自己抢单
+                            </Button>
+                          )}
+                          {user?.role === 'COMPANION' && (
+                            <Space size={8}>
                               <Button
                                 size="small"
                                 type="primary"
-                                style={{ background: '#7C3AED', borderColor: '#7C3AED' }}
-                                loading={claimingOrder?.id === order.id}
-                                onClick={() => openClaim(order)}
+                                loading={grabbing === order.id}
+                                disabled={!poolStatus?.isUnlocked}
+                                onClick={() => handleGrab(order.id)}
                               >
-                                自己抢单
+                                {!poolStatus?.isUnlocked
+                                  ? `还差¥${Math.round((poolStatus?.threshold || 0) - (poolStatus?.todayRevenue || 0))}`
+                                  : '抢单'}
                               </Button>
-                            </Col>
-                          )}
-                          <Col>
-                            <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                              发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
-                            </Text>
-                          </Col>
-                          {order.customFields?.deltaNote && (
-                            <Col>
-                              <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                                📝{order.customFields.deltaNote}
-                              </Text>
-                            </Col>
-                          )}
-                          {order.customFields?.billingMode === 'round' ? (
-                            <Col>
-                              <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                                🎯{order.duration || order.customFields?.deltaCount || '?'}局
-                              </Text>
-                            </Col>
-                          ) : (
-                            order.duration && (
-                              <Col>
-                                <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                                  ⏱{order.duration}h
-                                </Text>
-                              </Col>
-                            )
-                          )}
-                          <Col flex="auto" />
-                          {user?.role === 'COMPANION' && (
-                            <Col>
-                              <Space size={4}>
+                              {order.csUser?.id && (
                                 <Button
                                   size="small"
-                                  type="primary"
-                                  loading={grabbing === order.id}
-                                  disabled={!poolStatus?.isUnlocked}
-                                  onClick={() => handleGrab(order.id)}
-                                >
-                                  {!poolStatus?.isUnlocked
-                                    ? `还差¥${Math.round((poolStatus?.threshold || 0) - (poolStatus?.todayRevenue || 0))}`
-                                    : '抢单'}
-                                </Button>
-                                {order.csUser?.id && (
-                                  <Button
-                                    size="small"
-                                    onClick={async () => {
-                                      const csId = order.csUser!.id!;
-                                      const convId = await useChatStore
-                                        .getState()
-                                        .openConversation(
-                                          csId,
-                                          {
+                                  onClick={async () => {
+                                    const csId = order.csUser!.id!;
+                                    const convId = await useChatStore
+                                      .getState()
+                                      .openConversation(
+                                        csId,
+                                        {
+                                          userId: csId,
+                                          username: order.csUser?.username || '客服',
+                                          role: 'CS',
+                                        },
+                                        order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined,
+                                      );
+                                    window.dispatchEvent(
+                                      new CustomEvent('open-chat-modal', {
+                                        detail: {
+                                          conversationId: convId,
+                                          participant: {
                                             userId: csId,
                                             username: order.csUser?.username || '客服',
                                             role: 'CS',
                                           },
-                                          order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined,
-                                        );
-                                      window.dispatchEvent(
-                                        new CustomEvent('open-chat-modal', {
-                                          detail: {
-                                            conversationId: convId,
-                                            participant: {
-                                              userId: csId,
-                                              username: order.csUser?.username || '客服',
-                                              role: 'CS',
-                                            },
-                                            orderInfo: order.gameName
-                                              ? `${order.gameName} · ¥${order.amount}`
-                                              : undefined,
-                                          },
-                                        }),
-                                      );
-                                    }}
-                                  >
-                                    沟通
-                                  </Button>
-                                )}
-                              </Space>
-                            </Col>
-                          )}
-                          <Col>
-                            <Space size={6}>
-                              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                                {order.createdAt
-                                  ? new Date(order.createdAt).toLocaleString('zh-CN', {
-                                      month: '2-digit',
-                                      day: '2-digit',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })
-                                  : ''}
-                              </Text>
+                                          orderInfo: order.gameName
+                                            ? `${order.gameName} · ¥${order.amount}`
+                                            : undefined,
+                                        },
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  沟通
+                                </Button>
+                              )}
                             </Space>
-                          </Col>
-                        </Row>
-                      </div>
-                    </List.Item>
-                  )}
+                          )}
+                        </div>
+                      </List.Item>
+                    );
+                  }}
                 />
               )}
             </div>

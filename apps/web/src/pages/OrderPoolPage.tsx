@@ -20,6 +20,21 @@ import { companionStatusConfig, STATUS_SORT } from '../constants/companions';
 
 const { Text } = Typography;
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const fmtClock = (v: string) => {
+  const d = new Date(v);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const fmtSpan = (ms: number) => {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h${m % 60}m`;
+  if (m > 0) return `${m}分${s % 60}秒`;
+  return `${s}秒`;
+};
+
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
@@ -43,6 +58,12 @@ const OrderPoolPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [companionSearch, setCompanionSearch] = useState('');
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -178,195 +199,95 @@ const OrderPoolPage: React.FC = () => {
   const pct = Math.min(Math.round((todayRevenue / threshold) * 100), 100);
 
   // Render a single pool card row
-  const renderPoolCard = (order: any, idx: number) => (
-    <Card
-      key={order.id}
-      size="small"
-      style={{
-        borderLeft: `3px solid ${orderTypeConfig[order.type]?.color || '#1677ff'}`,
-      }}
-    >
-      <Row align="middle" gutter={8} wrap={false}>
-        <Col>
-          <Tag
-            style={{
-              background: '#f0f0f0',
-              color: '#666',
-              fontWeight: 700,
-              minWidth: 24,
-              textAlign: 'center',
-              margin: 0,
-            }}
-          >
-            {idx + 1}
-          </Tag>
-        </Col>
-        <Col>
-          <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
-            {orderTypeConfig[order.type]?.label || order.type}
-          </Tag>
-        </Col>
-        <Col>
-          <Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>
-            {order.gameName}
-          </Text>
-        </Col>
-        <Col>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: '#1677ff',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ¥{Number(order.amount).toFixed(0)}
-          </Text>
-        </Col>
-        {order.customFields?.deltaMission && (
-          <Col>
-            <Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag>
-          </Col>
-        )}
-        {order.customFields?.deltaCount && (
-          <Col>
-            <Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag>
-          </Col>
-        )}
-        {order.customFields?.serviceType && (
-          <Col>
-            <Tag color={serviceTypeConfig[order.customFields.serviceType]?.color} style={{ margin: 0 }}>
-              {serviceTypeConfig[order.customFields.serviceType]?.label || order.customFields.serviceType}
-            </Tag>
-          </Col>
-        )}
-        {order.customFields?.gameMode && (
-          <Col>
-            <Tag color="geekblue" style={{ margin: 0 }}>
-              {order.customFields.gameMode}
-            </Tag>
-          </Col>
-        )}
-        {order.customer?.customerCode && (
-          <Col>
-            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              👤{order.customer.customerCode}
-            </Text>
-          </Col>
-        )}
-        {(order.customFields?.customerSource || order.customer?.platform) && (
-          <Col>
-            <Tag color="orange" style={{ margin: 0 }}>
-              📡
-              {order.customFields?.customerSource || order.customer?.platform}
-            </Tag>
-          </Col>
-        )}
-        {order.customFields?.customerWechat && (
-          <Col>
-            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              💬{order.customFields.customerWechat}
-            </Text>
-          </Col>
-        )}
-        {order.customFields?.deltaNote && (
-          <Col>
-            <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-              📝{order.customFields.deltaNote}
-            </Text>
-          </Col>
-        )}
-        {order.customFields?.urgency === 'later' && (
-          <Col>
-            <Tag color="purple" style={{ margin: 0 }}>
-              📅预约
-            </Tag>
-          </Col>
-        )}
-        {order.customFields?.urgency !== 'later' && (
-          <Col>
-            <Tag color="green" style={{ margin: 0 }}>
-              ⚡立即打
-            </Tag>
-          </Col>
-        )}
-        {order.customFields?.billingMode === 'round' ? (
-          <Col>
-            <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-              🎯{order.duration || order.customFields?.deltaCount || '?'}局
-            </Text>
-          </Col>
-        ) : (
-          order.duration && (
-            <Col>
-              <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                ⏱{order.duration}h
-              </Text>
-            </Col>
-          )
-        )}
-        <Col flex="auto" />
-        <Col>
-          {isCompanion ? (
-            <Space size={6}>
-              {order.companionId && (
-                <Tag color="red" style={{ margin: 0, fontWeight: 600 }}>
-                  该订单客服指定给你接
-                </Tag>
-              )}
-              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                📋{order.csUser?.username || '-'}
-              </Text>
-              <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
-                <Button
-                  size="small"
-                  icon={React.createElement(MessageOutlined)}
-                  onClick={() => openChat(order)}
-                  className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
-                >
-                  沟通
-                </Button>
-              </Badge>
-              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                {React.createElement(ClockCircleOutlined)}{' '}
-                {(() => {
-                  const d = new Date(order.createdAt);
-                  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                })()}
-              </Text>
+  const renderPoolCard = (order: any, idx: number) => {
+    const type = orderTypeConfig[order.type]?.label || order.type || '首单';
+    const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
+    const mission = order.customFields?.deltaMission;
+    const isRound = order.customFields?.billingMode === 'round';
+    const dur = isRound
+      ? `${order.duration || order.customFields?.deltaCount || '?'}局`
+      : `${order.duration || '?'}h`;
+    const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
+    const wait = now - new Date(order.createdAt).getTime();
+    let countdown;
+    if (order.customFields?.urgency === 'later' && order.scheduledAt) {
+      const rem = new Date(order.scheduledAt).getTime() - now;
+      countdown = rem > 0 ? `距开始${fmtSpan(rem)}` : '已到点';
+    } else {
+      countdown = `等待${fmtSpan(wait)}`;
+    }
+
+    const fields = [
+      order.gameName,
+      type,
+      svc,
+      mission,
+      dur,
+      sd,
+      fmtClock(order.createdAt),
+      fmtSpan(wait),
+      countdown,
+    ].filter(Boolean);
+
+    return (
+      <div
+        key={order.id}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '9px 12px',
+          background: '#fff',
+          borderBottom: '1px solid #f0f0f0',
+          fontSize: 13,
+          color: '#1f2329',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {fields.map((t, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
+            <span>{t}</span>
+          </React.Fragment>
+        ))}
+        <span style={{ flex: 1 }} />
+        {isCompanion ? (
+          <Space size={8}>
+            {order.companionId && <Text type="danger" style={{ fontSize: 12 }}>客服指定给你接</Text>}
+            <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
               <Button
-                type="primary"
                 size="small"
-                danger
-                disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
-                loading={grabbing === order.id}
-                onClick={() => handleGrab(order.id)}
+                icon={React.createElement(MessageOutlined)}
+                onClick={() => openChat(order)}
+                className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
               >
-                {!isUnlocked && order.csUser?.role !== 'COMPANION'
-                  ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
-                  : '抢单'}
+                沟通
               </Button>
-            </Space>
-          ) : (
-            <Space size={6}>
-              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                发布:
-                {order.csUser?.username || order.customFields?.createdBy || '未知'}
-              </Text>
-              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                {React.createElement(ClockCircleOutlined)} {new Date(order.createdAt).toLocaleDateString('zh-CN')}{' '}
-                {new Date(order.createdAt).toLocaleTimeString('zh-CN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-              <Tag color="orange">待派单</Tag>
-            </Space>
-          )}
-        </Col>
-      </Row>
-    </Card>
-  );
+            </Badge>
+            <Button
+              type="primary"
+              size="small"
+              danger
+              disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
+              loading={grabbing === order.id}
+              onClick={() => handleGrab(order.id)}
+            >
+              {!isUnlocked && order.csUser?.role !== 'COMPANION'
+                ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
+                : '抢单'}
+            </Button>
+          </Space>
+        ) : (
+          <Space size={8}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
+          </Space>
+        )}
+      </div>
+    );
+  };
 
   const renderCompanionSidebar = () => (
     <Col span={3}>
