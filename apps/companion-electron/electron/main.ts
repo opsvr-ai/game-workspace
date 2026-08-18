@@ -72,9 +72,15 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   }, 10000);
 }
 
+let lastCollectAt = 0;
 async function collectAndReportProcesses(tokenOverride?: string) {
   const token = tokenOverride || (store.get('token') as string);
   if (!token) return;
+  // 页面里多个 useSocket 实例都会收到 pc:command，这里在 IPC 汇聚点做 5 秒去重，
+  // 避免同一指令被重复上报。token 校验放在去重之前，防止无 token 的空调用误占去重位。
+  const collectNow = Date.now();
+  if (collectNow - lastCollectAt < 5000) return;
+  lastCollectAt = collectNow;
   execFile(
     'tasklist',
     ['/fo', 'csv', '/nh'],
