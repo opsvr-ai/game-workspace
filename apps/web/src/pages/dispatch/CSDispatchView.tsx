@@ -29,6 +29,7 @@ import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
+import { currentBusinessDayStart } from '../../utils/businessDay';
 
 const { Text } = Typography;
 
@@ -144,9 +145,15 @@ const CSDispatchView: React.FC = () => {
       setPoolOrders(poolRes.data.data ?? []);
       const all = allRes.data.data ?? [];
       setAllOrders(all);
-      const today = new Date().toDateString();
-      setTodayNew(all.filter((o: any) => new Date(o.createdAt).toDateString() === today).length);
-      setTodayGrabbed(all.filter((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED').length);
+      const bizStart = currentBusinessDayStart().getTime();
+      setTodayNew(all.filter((o: any) => new Date(o.createdAt).getTime() >= bizStart).length);
+      setTodayGrabbed(
+        all.filter(
+          (o: any) =>
+            (o.status === 'GRABBED' || o.status === 'CONFIRMED') &&
+            new Date(o.grabbedAt || o.createdAt).getTime() >= bizStart,
+        ).length,
+      );
     } catch {
       // silent fail on auto-refresh
     } finally {
