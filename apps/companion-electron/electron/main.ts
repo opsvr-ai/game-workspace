@@ -81,20 +81,20 @@ async function collectAndReportProcesses(tokenOverride?: string) {
   const collectNow = Date.now();
   if (collectNow - lastCollectAt < 5000) return;
   lastCollectAt = collectNow;
-  // 只采集“应用程序”：排除 C:\Windows 下的系统进程/服务/后台进程，
-  // 并带上可执行文件路径，方便后台识别。
-  const psCmd =
-    "Get-CimInstance Win32_Process | " +
-    "Where-Object { $_.ExecutablePath -and $_.ExecutablePath -notmatch 'Windows' } | " +
-    "ForEach-Object { [PSCustomObject]@{ name = $_.Name; pid = $_.ProcessId; path = $_.ExecutablePath; memoryMB = [math]::Round($_.WorkingSetSize / 1MB) } } | " +
-    "ConvertTo-Json -Compress";
+  // 采集“已安装软件”（从 Windows 卸载注册表读取），带上 DisplayName、主程序 exe、发行商、安装时间、安装目录。
+  const psCmd = String.raw`$paths = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+Get-ItemProperty $paths -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -and $_.DisplayName -notmatch '更新|Update|Hotfix|补丁|Driver|驱动|Runtime|Redistributable|SDK|Language|语言' } | ForEach-Object {
+  $exe = ''
+  if ($_.DisplayIcon) { try { $i = ($_.DisplayIcon -split ',')[0]; if ($i -match '\.exe$' -and $i -notmatch '(?i)unins|setup|install') { $exe = [IO.Path]::GetFileName($i) } } catch {} }
+  [PSCustomObject]@{ name = $_.DisplayName; exe = $exe; publisher = $_.Publisher; installDate = $_.InstallDate; location = $_.InstallLocation }
+} | ConvertTo-Json -Compress`;
   execFile(
     'powershell.exe',
     ['-NoProfile', '-NonInteractive', '-Command', psCmd],
     { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
     async (err, stdout) => {
       if (err) return;
-      let processes: Array<{ name: string; pid: number; path?: string; memoryMB: number }> = [];
+      let processes: Array<{ name: string; exe?: string; publisher?: string; installDate?: string; location?: string }> = [];
       try {
         const parsed = JSON.parse(stdout);
         processes = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
@@ -102,6 +102,12 @@ async function collectAndReportProcesses(tokenOverride?: string) {
         return;
       }
       if (processes.length === 0) return;
+      // 安装时间倒序（最近的排最前），无安装时间的排最后
+      processes.sort((a, b) => {
+        const da = a.installDate || '';
+        const db = b.installDate || '';
+        return db.localeCompare(da);
+      });
       try {
         await fetch(`${getServerUrl()}/api/processes/reports`, {
           method: 'POST',

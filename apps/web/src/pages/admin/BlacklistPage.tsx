@@ -14,6 +14,14 @@ interface BlacklistEntry {
   createdAt: string;
 }
 
+interface InstalledApp {
+  name: string;
+  exe?: string;
+  publisher?: string;
+  installDate?: string;
+  location?: string;
+}
+
 const BlacklistPage: React.FC = () => {
   const [items, setItems] = useState<BlacklistEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,7 +32,7 @@ const BlacklistPage: React.FC = () => {
   const [addMode, setAddMode] = useState<'select' | 'manual'>('select');
   const [selectedCompanionForAdd, setSelectedCompanionForAdd] = useState<string | undefined>();
   const [selectedProcess, setSelectedProcess] = useState<string[]>([]);
-  const [reportedProcesses, setReportedProcesses] = useState<string[]>([]);
+  const [reportedProcesses, setReportedProcesses] = useState<InstalledApp[]>([]);
   const [loadingProcesses, setLoadingProcesses] = useState(false);
   const [collecting, setCollecting] = useState(false);
   const [collectProgress, setCollectProgress] = useState(0);
@@ -63,13 +71,13 @@ const BlacklistPage: React.FC = () => {
 
   // 已加入黑名单的进程名（小写集合），用于在采集列表里标记“已添加”，避免重复添加
   const addedNames = new Set(items.map((i) => i.processName.trim().toLowerCase()));
-  const selectableProcesses = reportedProcesses.filter((n) => !addedNames.has(n.trim().toLowerCase()));
+  const selectableProcesses = reportedProcesses.filter((a) => !addedNames.has((a.exe || a.name).trim().toLowerCase()));
 
-  const toggleProcess = (name: string, checked: boolean) => {
-    setSelectedProcess((prev) => (checked ? [...prev, name] : prev.filter((p) => p !== name)));
+  const toggleProcess = (appName: string, checked: boolean) => {
+    setSelectedProcess((prev) => (checked ? [...prev, appName] : prev.filter((p) => p !== appName)));
   };
 
-  const selectAllProcesses = () => setSelectedProcess(selectableProcesses);
+  const selectAllProcesses = () => setSelectedProcess(selectableProcesses.map((a) => a.name));
   const clearProcesses = () => setSelectedProcess([]);
 
   const handleAdd = async () => {
@@ -77,7 +85,11 @@ const BlacklistPage: React.FC = () => {
     if (names.length === 0 || !names[0]) { message.warning(addMode === 'select' ? '请选择进程' : '请输入进程名称'); return; }
     setSubmitting(true);
     try {
-      await Promise.all(names.map(name => blacklistApi.add({ processName: name, processPath: addMode === 'manual' ? (processPath.trim() || undefined) : undefined })));
+      await Promise.all(names.map(name => {
+        const app = reportedProcesses.find((a) => a.name === name);
+        const targetName = (app?.exe && app.exe.trim()) || name.trim();
+        return blacklistApi.add({ processName: targetName, processPath: addMode === 'manual' ? (processPath.trim() || undefined) : (app?.location || undefined) });
+      }));
       message.success(`已添加 ${names.length} 个进程到黑名单`);
       setModalOpen(false);
       setProcessName('');
@@ -226,7 +238,7 @@ const BlacklistPage: React.FC = () => {
         confirmLoading={submitting} okText="添加" cancelText="取消" destroyOnClose width={480}>
         <div style={{ marginTop: 16 }}>
           <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 12 }}>
-            <Radio.Button value="select">从陪玩已上报进程选择</Radio.Button>
+            <Radio.Button value="select">从陪玩已安装软件选择</Radio.Button>
             <Radio.Button value="manual">手动输入</Radio.Button>
           </Radio.Group>
 
@@ -267,7 +279,7 @@ const BlacklistPage: React.FC = () => {
                           setCollectText('采集完成');
                           if (collectTimerRef.current) clearInterval(collectTimerRef.current);
                           setCollecting(false);
-                          message.success(`采集完成，共 ${data.data.length} 个进程`);
+                          message.success(`采集完成，共 ${data.data.length} 个软件`);
                           return;
                         }
                       } catch {}
@@ -286,7 +298,7 @@ const BlacklistPage: React.FC = () => {
                   }
                 }}
               >
-                 📡 立即采集该陪玩进程
+                 📡 立即采集已安装软件
                </Button>
                {collecting && (
                  <div style={{ marginBottom: 12 }}>
@@ -295,7 +307,7 @@ const BlacklistPage: React.FC = () => {
                  </div>
                )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>选择进程</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>选择软件</Text>
                 <Space size={4}>
                   <Badge count={selectedProcess.length} size="small" showZero color="#2563EB">
                     <Text type="secondary" style={{ fontSize: 12, marginRight: 4 }}>已选</Text>
@@ -307,11 +319,15 @@ const BlacklistPage: React.FC = () => {
 
               {reportedProcesses.length > 0 ? (
                 <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, padding: '4px 0', background: '#fff' }}>
-                  {reportedProcesses.map((name) => {
-                    const isAdded = addedNames.has(name.trim().toLowerCase());
+                  {reportedProcesses.map((app) => {
+                    const targetName = (app.exe || app.name).trim().toLowerCase();
+                    const isAdded = addedNames.has(targetName);
+                    const date = app.installDate
+                      ? `${app.installDate.slice(0, 4)}-${app.installDate.slice(4, 6)}-${app.installDate.slice(6, 8)}`
+                      : '';
                     return (
                       <div
-                        key={name}
+                        key={app.name}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -323,13 +339,17 @@ const BlacklistPage: React.FC = () => {
                         }}
                       >
                         <Checkbox
-                          checked={selectedProcess.includes(name)}
+                          checked={selectedProcess.includes(app.name)}
                           disabled={isAdded}
-                          onChange={(e) => toggleProcess(name, e.target.checked)}
+                          onChange={(e) => toggleProcess(app.name, e.target.checked)}
                         >
-                          <Text code={!isAdded} style={{ fontSize: 13 }}>{name}</Text>
+                          <Text code={!isAdded} style={{ fontSize: 13 }}>{app.name}</Text>
+                          {app.exe && <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{app.exe}</Text>}
                         </Checkbox>
-                        {isAdded && <Tag color="green" style={{ margin: 0 }}>已添加</Tag>}
+                        <Space size={8}>
+                          {date && <Text type="secondary" style={{ fontSize: 11 }}>{date}</Text>}
+                          {isAdded && <Tag color="green" style={{ margin: 0 }}>已添加</Tag>}
+                        </Space>
                       </div>
                     );
                   })}
@@ -337,7 +357,7 @@ const BlacklistPage: React.FC = () => {
               ) : (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#999', fontSize: 12 }}>
                   {selectedCompanionForAdd
-                    ? (loadingProcesses ? '加载中...' : '该陪玩暂无进程上报数据，点上方“立即采集”获取')
+                    ? (loadingProcesses ? '加载中...' : '该陪玩暂无软件数据，点上方“立即采集”获取')
                     : '请先选择陪玩'}
                 </div>
               )}

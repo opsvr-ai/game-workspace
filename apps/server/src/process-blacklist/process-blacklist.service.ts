@@ -185,21 +185,33 @@ export class ProcessBlacklistService {
   }
 
   
-  /** Extract unique process names from a companion latest report. */
-  async getUniqueProcessNames(companionId: string): Promise<string[]> {
+  /** Extract unique installed apps from a companion latest report. */
+  async getUniqueProcessNames(companionId: string): Promise<any[]> {
     const report = await this.prisma.companionProcessReport.findFirst({
       where: { companionId },
       orderBy: { createdAt: "desc" },
       select: { processes: true },
     });
     if (!report) return [];
-    const processes = report.processes as Array<{ name?: string }> | null;
+    const processes = report.processes as Array<{ name?: string; exe?: string; publisher?: string; installDate?: string; location?: string }> | null;
     if (!processes || !Array.isArray(processes)) return [];
-    const names = new Set<string>();
+    const map = new Map<string, any>();
     for (const p of processes) {
-      if (p.name && typeof p.name === "string") names.add(p.name);
+      if (!p.name || typeof p.name !== "string") continue;
+      const key = (p.exe || p.name).toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          name: p.name,
+          exe: p.exe || '',
+          publisher: p.publisher || '',
+          installDate: p.installDate || '',
+          location: p.location || '',
+        });
+      }
     }
-    return Array.from(names).sort();
+    const list = Array.from(map.values());
+    list.sort((a, b) => (b.installDate || '').localeCompare(a.installDate || ''));
+    return list;
   }
 
   async getLatestReport(companionId: string) {
