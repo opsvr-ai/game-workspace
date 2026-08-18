@@ -142,6 +142,13 @@ export class ChatGateway {
     payload: {
       roomId: string;
       message: Record<string, unknown>;
+      sender?: {
+        userId: string;
+        username: string;
+        displayName?: string;
+        avatar?: string;
+        role: string;
+      };
     },
   ): void {
     const socketId = this.userSockets.get(userId);

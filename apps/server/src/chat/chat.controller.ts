@@ -123,9 +123,19 @@ export class ChatController {
 
     if (room) {
       const otherUserId = room.participantA === senderId ? room.participantB : room.participantA;
+      const senderProfile = await this.chatService.getUserProfile(senderId);
       this.chatGateway.notifyNewMessage(otherUserId, {
         roomId: id,
         message: this.serializeMessage(message),
+        sender: senderProfile
+          ? {
+              userId: senderProfile.id,
+              username: senderProfile.username,
+              displayName: senderProfile.displayName || undefined,
+              avatar: senderProfile.avatar || undefined,
+              role: senderProfile.role,
+            }
+          : undefined,
       });
     }
 

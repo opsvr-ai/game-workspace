@@ -25,7 +25,12 @@ export class ChatService {
         where: { id: participantId },
         select: { userId: true },
       });
-      if (companion) normalizedParticipantId = companion.userId;
+      if (companion) {
+        normalizedParticipantId = companion.userId;
+      } else {
+        // 防止把 roomId 等非法 id 当成参与者，创建出幽灵会话。
+        throw new Error('CHAT_INVALID_PARTICIPANT');
+      }
     }
 
     const [participantA, participantB] = [userId, normalizedParticipantId].sort();

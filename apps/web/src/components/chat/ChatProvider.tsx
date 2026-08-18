@@ -64,7 +64,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const isMine = data.message.senderId === state.myUserId;
         const isActive = state.activeConversationId === data.roomId;
         if (!isMine && !isActive) playMessageSound();
-        useChatStore.getState().receiveMessage(data.roomId, data.message);
+        useChatStore.getState().receiveMessage(data.roomId, data.message, undefined, data.sender);
       }
     },
     onMessageUpdated: (data: any) => {

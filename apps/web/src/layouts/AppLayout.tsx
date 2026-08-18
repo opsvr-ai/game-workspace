@@ -525,9 +525,10 @@ const AppLayout: React.FC = () => {
     setGlobalChatPartner({
       conversationId,
       participant: conv?.participant || {
-        userId: conversationId,
+        // 未知对方时不要用 roomId 冒充 userId，否则会在服务端建出幽灵会话。
+        userId: '',
         username: participantName,
-        role: 'COMPANION',
+        role: '',
       },
       orderInfo: conv?.orderInfo,
     });

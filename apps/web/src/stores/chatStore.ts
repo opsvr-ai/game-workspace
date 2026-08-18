@@ -51,7 +51,7 @@ interface ChatState {
   syncing: boolean;
 
   /** THE single write path for incoming messages (WS + send response) */
-  receiveMessage: (convId: string, msg: any, orderInfo?: string) => void;
+  receiveMessage: (convId: string, msg: any, orderInfo?: string, senderInfo?: any) => void;
 
   setConversations: (list: ConversationSummary[]) => void;
   loadMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
@@ -115,10 +115,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
   myUserId: null,
   syncing: false,
 
-  receiveMessage: (convId: string, msg: any, orderInfo?: string) =>
+  receiveMessage: (convId: string, msg: any, orderInfo?: string, senderInfo?: any) =>
     set((s) => {
-      const s2 = ensureConv(s, convId);
-      const conv = s2.conversations[convId];
+      const participant = senderInfo
+        ? {
+            userId: senderInfo.userId,
+            username: senderInfo.username || '...',
+            displayName: senderInfo.displayName,
+            avatar: senderInfo.avatar,
+            role: senderInfo.role || '',
+          }
+        : undefined;
+      let s2 = ensureConv(s, convId, participant);
+      let conv = s2.conversations[convId];
+
+      // 首次收到实时消息时，本地还没有会话、participant 是空占位；用发送者信息补全。
+      if (participant && conv && !conv.participant.userId) {
+        conv = {
+          ...conv,
+          participant,
+        };
+        s2 = {
+          ...s2,
+          conversations: { ...s2.conversations, [convId]: conv },
+        };
+      }
 
       // Dedup by server UUID
       if (conv.messages.some((m) => m.id === msg.id)) return s2;
@@ -230,10 +251,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string) => {
     let convId = participantId;
-    try {
-      const { data } = await chatApi.createConversation(participant.userId || participantId, orderInfo);
-      convId = data?.data?.id || participantId;
-    } catch {}
+    // 只有拿到真实 userId 才去服务端建/查会话；否则（例如从通知进入且 participant 缺失）
+    // 直接用传入的 roomId，避免把 roomId 当 userId 再建出幽灵会话。
+    if (participant?.userId) {
+      try {
+        const { data } = await chatApi.createConversation(participant.userId, orderInfo);
+        convId = data?.data?.id || participantId;
+      } catch {}
+    }
 
     set((s) => {
       const s2 = ensureConv(s, convId, participant);
