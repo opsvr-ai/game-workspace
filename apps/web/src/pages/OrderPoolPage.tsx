@@ -225,13 +225,16 @@ const OrderPoolPage: React.FC = () => {
       order.customFields?.urgency === 'later'
         ? order.customFields?.scheduledTimeText || '\u00A0'
         : '\u00A0';
-    let disappearIn;
-    if (order.customFields?.urgency === 'later' && order.scheduledAt) {
-      disappearIn = new Date(order.scheduledAt).getTime() - now;
+    let disappearIn: number | null = null;
+    if (order.customFields?.urgency === 'later') {
+      if (order.scheduledAt) {
+        disappearIn = new Date(order.scheduledAt).getTime() - now;
+      }
     } else {
       disappearIn = disappearMinutes * 60 * 1000 - wait;
     }
-    const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
+    const disappearText =
+      disappearIn == null ? '\u00A0' : disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
 
     const fields = [
       order.gameName,
