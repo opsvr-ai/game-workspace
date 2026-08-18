@@ -563,17 +563,28 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  /** 陪玩端连接时，按来源 IP 自动回填电脑管理里的 app 登录账号。 */
+  /** 陪玩端连接时，优先按 MAC / 登录账号识别电脑，不靠 IP（IP 会变）。 */
   async syncManagedPc(address: string, username: string): Promise<void> {
     try {
       const ip = address?.replace(/^::ffff:/, '') || '';
       if (!ip || !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return;
-      const pc = await this.prisma.managedPC.findFirst({ where: { ip } });
-      if (!pc) return;
       const mac = this.resolveMacFromArp(ip);
+
+      // 1. 优先按 MAC 识别（IP 会变，MAC 更稳定）
+      let pc = mac ? await this.prisma.managedPC.findFirst({ where: { macAddress: mac } }) : null;
+      // 2. 再按登录账号识别（同一人换电脑/IP 也能对上）
+      if (!pc) {
+        pc = await this.prisma.managedPC.findFirst({ where: { loginAccount: username } });
+      }
+      // 3. 最后兜底按 IP 识别
+      if (!pc) {
+        pc = await this.prisma.managedPC.findFirst({ where: { ip } });
+      }
+      if (!pc) return;
       await this.prisma.managedPC.update({
         where: { id: pc.id },
         data: {
+          ip,
           loginAccount: username,
           ...(mac ? { macAddress: mac } : {}),
           updatedAt: new Date(),
