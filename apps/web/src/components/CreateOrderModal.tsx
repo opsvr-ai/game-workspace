@@ -16,6 +16,7 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
   userId?: string;
+  initialValues?: any;
   customerPreFill?: {
     customerId?: string;
     customerWechat?: string;
@@ -29,7 +30,7 @@ interface Props {
   };
 }
 
-const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, customerPreFill }) => {
+const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, initialValues, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
@@ -64,6 +65,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, c
       });
     }
   }, [open, customerPreFill, form]);
+
+  useEffect(() => {
+    if (open && initialValues) {
+      form.setFieldsValue(initialValues);
+    }
+  }, [open, initialValues, form]);
 
   const handleOk = async () => {
     try {

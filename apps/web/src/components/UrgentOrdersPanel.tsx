@@ -9,9 +9,12 @@ function fmt(s: number) {
   return `${m}分${sec}秒`;
 }
 
-const UrgentOrdersPanel: React.FC = () => {
+interface Props {
+  onDispatch?: (item: any) => void;
+}
+
+const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
-  const [assigning, setAssigning] = useState<string | null>(null);
   const [redispatching, setRedispatching] = useState<string | null>(null);
   const [evidences, setEvidences] = useState<Record<string, string>>({});
 
@@ -27,17 +30,6 @@ const UrgentOrdersPanel: React.FC = () => {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, []);
-
-  const assign = async (orderId: string, companionId: string, name: string) => {
-    setAssigning(orderId);
-    try {
-      await ordersApi.assign(orderId, companionId);
-      message.success(`已指派给 ${name}`);
-      load();
-    } finally {
-      setAssigning(null);
-    }
-  };
 
   const markContact = async (orderId: string) => {
     const evidenceUrl = evidences[orderId];
@@ -100,24 +92,20 @@ const UrgentOrdersPanel: React.FC = () => {
                 </>
               )}
             </div>
-            {item.availableCompanions?.length > 0 && (
+            {!item.isScheduled ? (
               <div style={{ marginTop: 6 }}>
-                {item.availableCompanions.map((c: any) => (
-                  <Tag key={c.id} color={c.excellent ? 'gold' : 'default'}>
-                    {c.name} · 剩余{c.remainingMinutes}分
-                    <Button size="small" type="link" loading={assigning === item.id} onClick={() => assign(item.id, c.id, c.name)}>
-                      指派
-                    </Button>
-                  </Tag>
-                ))}
-              </div>
-            )}
-            {item.poolExpired && (
-              <div style={{ marginTop: 6 }}>
-                <Button size="small" type="primary" loading={redispatching === item.id} onClick={() => redispatch(item.id)}>
-                  一键重新派到抢单池
+                <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>
+                  派单
                 </Button>
               </div>
+            ) : (
+              item.poolExpired && (
+                <div style={{ marginTop: 6 }}>
+                  <Button size="small" type="primary" loading={redispatching === item.id} onClick={() => redispatch(item.id)}>
+                    一键重新派到抢单池
+                  </Button>
+                </div>
+              )
             )}
           </>
         }

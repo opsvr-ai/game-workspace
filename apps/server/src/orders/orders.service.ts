@@ -526,6 +526,7 @@ export class OrdersService {
             gameName: o.gameName,
             gameMode: cf.gameMode || '',
             amount: o.amount,
+            duration: o.duration,
             waitingSeconds,
             urgent: !isScheduled,
             poolExpired,
@@ -534,6 +535,7 @@ export class OrdersService {
             requireCsContact: poolExpired || (!isScheduled && waitingSeconds >= disappearSeconds),
             csContactStatus: o.contactStatus || '',
             csContactEvidenceUrl: cf.csContactEvidenceUrl || '',
+            customFields: cf,
             availableCompanions,
           };
         }),

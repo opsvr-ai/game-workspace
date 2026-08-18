@@ -91,6 +91,7 @@ const CSDispatchView: React.FC = () => {
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [dispatchPrefill, setDispatchPrefill] = useState<any>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
@@ -301,7 +302,29 @@ const CSDispatchView: React.FC = () => {
 
   return (
     <div>
-      <UrgentOrdersPanel />
+      <UrgentOrdersPanel
+        onDispatch={(item) => {
+          const cf = item.customFields || {};
+          setDispatchPrefill({
+            gameName: item.gameName,
+            amount: item.amount,
+            duration: item.duration,
+            serviceType: cf.serviceType,
+            deltaMission: cf.deltaMission,
+            deltaNote: cf.deltaNote,
+            deltaCount: cf.deltaCount,
+            billingMode: cf.billingMode,
+            customerSource: cf.customerSource,
+            customerSourceAccount: cf.customerSourceAccount,
+            customerWechat: item.customerWechat || cf.customerWechat,
+            customerYy: cf.customerYy,
+            customerPlatformAccount: cf.customerPlatformAccount,
+            customerRoomCode: cf.customerRoomCode,
+            urgency: 'now',
+          });
+          setModalOpen(true);
+        }}
+      />
       <div
         style={{
           display: 'flex',
@@ -823,9 +846,13 @@ const CSDispatchView: React.FC = () => {
 
       <CreateOrderModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setDispatchPrefill(null);
+        }}
         onCreated={fetchPool}
         userId={useAuthStore.getState().user?.id}
+        initialValues={dispatchPrefill || undefined}
       />
 
       {/* Companion detail modal */}
