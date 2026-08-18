@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 
@@ -7,8 +7,6 @@ import { WsGateway } from '../ws/ws.gateway';
  */
 @Injectable()
 export class ScheduledOrderReminderService implements OnModuleInit {
-  private readonly logger = new Logger(ScheduledOrderReminderService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly wsGateway: WsGateway,
@@ -23,7 +21,7 @@ export class ScheduledOrderReminderService implements OnModuleInit {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const orders = await this.prisma.order.findMany({
       where: { status: 'PENDING', dispatchType: 'POOL', createdAt: { lte: oneHourAgo } },
-      select: { id: true, csUserId: true, customFields: true },
+      select: { id: true, csUserId: true, gameName: true, customFields: true },
     });
 
     for (const order of orders) {
@@ -32,7 +30,7 @@ export class ScheduledOrderReminderService implements OnModuleInit {
 
       this.wsGateway.notifyUser(order.csUserId, 'order:scheduled_reminder', {
         orderId: order.id,
-        message: '你发布的预约单已发布 1 小时还未被接，请跟进对接客户',
+        message: `你发布的预约单「${order.gameName}」已发布 1 小时还未被接，请把客户加到你的工作微信上，并上传添加截图凭证`,
       });
 
       await this.prisma.order.update({
