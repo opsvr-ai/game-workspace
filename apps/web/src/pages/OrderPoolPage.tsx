@@ -399,7 +399,10 @@ const OrderPoolPage: React.FC = () => {
               const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
               const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
               return (
-                <List.Item style={{ padding: '8px 6px', display: 'block', borderBottom: '1px solid #F1F5F9' }}>
+                <List.Item
+                  style={{ padding: '8px 6px', display: 'block', borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
+                  onClick={() => openCompanionChat(c)}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <Space size="small">
                       <div
@@ -430,14 +433,17 @@ const OrderPoolPage: React.FC = () => {
                         size="small"
                         type="text"
                         style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
-                        onClick={() => openCompanionChat(c)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCompanionChat(c);
+                        }}
                       >
                         💬
                       </Button>
                     </Space>
                   </div>
                   {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
-                    <div style={{ marginTop: 4, marginLeft: 40, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {c.games.slice(0, 3).map((g: any, i: number) => (
                         <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
                           {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>

@@ -75,10 +75,11 @@ const UrgentOrdersPanel: React.FC = () => {
                   <div>
                     客服联系状态：
                     {item.csContactStatus === 'added' ? (
-                      <>
+                      item.csContactEvidenceUrl ? (
                         <Tag color="green">已添加</Tag>
-                        {!item.csContactEvidenceUrl && <Tag color="orange">未传凭证</Tag>}
-                      </>
+                      ) : (
+                        <Tag color="orange">未传凭证</Tag>
+                      )
                     ) : (
                       <>
                         <Upload showUploadList={false} beforeUpload={(file) => uploadEvidence(item.id, file)}>

@@ -409,7 +409,7 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
-                            <Text strong>{c.user?.username ?? c.id}</Text>
+                            <Text strong>{(c.user as any)?.displayName || c.user?.username || c.id}</Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
                                 已限制
@@ -463,7 +463,7 @@ const CSDispatchView: React.FC = () => {
                       {/* Game profile */}
                       {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
                         <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {c.games.map((g: any, i: number) => (
+                          {c.games.slice(0, 3).map((g: any, i: number) => (
                             <Tag
                               key={i}
                               style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}
