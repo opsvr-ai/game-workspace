@@ -482,8 +482,8 @@ export class CompanionsService {
     return this.wechatService.listWorkWechats(studioId);
   }
 
-  async addWorkWechat(studioId: string, wechatId: string) {
-    return this.wechatService.addWorkWechat(studioId, wechatId);
+  async addWorkWechat(studioId: string, wechatId: string, type?: string) {
+    return this.wechatService.addWorkWechat(studioId, wechatId, type);
   }
 
   async bindWechat(id: string, companionId: string) {
@@ -492,6 +492,14 @@ export class CompanionsService {
 
   async unbindWechat(id: string) {
     return this.wechatService.unbindWechat(id);
+  }
+
+  async bindCsUser(id: string, csUserId: string) {
+    return this.wechatService.bindCsUser(id, csUserId);
+  }
+
+  async unbindCsUser(id: string) {
+    return this.wechatService.unbindCsUser(id);
   }
 
   async deleteWorkWechat(id: string) {
