@@ -12,6 +12,7 @@ function fmt(s: number) {
 const UrgentOrdersPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [redispatching, setRedispatching] = useState<string | null>(null);
   const [evidences, setEvidences] = useState<Record<string, string>>({});
 
   const load = async () => {
@@ -45,6 +46,17 @@ const UrgentOrdersPanel: React.FC = () => {
     load();
   };
 
+  const redispatch = async (orderId: string) => {
+    setRedispatching(orderId);
+    try {
+      await ordersApi.redispatch(orderId);
+      message.success('已重新派到抢单池');
+      load();
+    } finally {
+      setRedispatching(null);
+    }
+  };
+
   const uploadEvidence = async (orderId: string, file: File) => {
     const fd = new FormData();
     fd.append('file', file);
@@ -64,11 +76,11 @@ const UrgentOrdersPanel: React.FC = () => {
           <List.Item
             key={item.id}
             actions={[
-              item.requireCsContact ? <Tag color="red">需添加客户联系方式</Tag> : null,
+              item.poolExpired ? <Tag color="red">待处理</Tag> : item.requireCsContact ? <Tag color="red">需添加客户联系方式</Tag> : null,
             ]}
           >
             <List.Item.Meta
-              title={<span>🔥 {item.gameName} {item.gameMode} · ¥{item.amount} · 已等待 {fmt(item.waitingSeconds)}</span>}
+              title={<span>{item.poolExpired ? '⏳ ' : '🔥 '}{item.gameName} {item.gameMode} · ¥{item.amount} · 已等待 {fmt(item.waitingSeconds)}</span>}
               description={
               <>
                   <div>客户微信：{item.customerWechat || '未填写'}</div>
@@ -99,6 +111,13 @@ const UrgentOrdersPanel: React.FC = () => {
                           </Button>
                         </Tag>
                       ))}
+                    </div>
+                  )}
+                  {item.poolExpired && (
+                    <div style={{ marginTop: 6 }}>
+                      <Button size="small" type="primary" loading={redispatching === item.id} onClick={() => redispatch(item.id)}>
+                        一键重新派到抢单池
+                      </Button>
                     </div>
                   )}
                 </>

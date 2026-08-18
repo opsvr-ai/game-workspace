@@ -39,6 +39,13 @@ export class OrdersController {
     return { code: 200, message: '已记录客服联系状态', data };
   }
 
+  @Post('orders/:id/redispatch')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async redispatch(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.redispatch(id, req.user?.studioId || undefined);
+    return { code: 200, message: '已重新派到抢单池', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(

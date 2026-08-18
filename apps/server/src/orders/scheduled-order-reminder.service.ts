@@ -18,6 +18,26 @@ export class ScheduledOrderReminderService implements OnModuleInit {
   }
 
   async tick() {
+    // 1. 标记已过「消失时间」的立即打订单，使其从抢单池消失并进入客服待处理
+    const disappearCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'pool.immediate_disappear_minutes' },
+    });
+    const disappearMin = Number(disappearCfg?.value ?? 10);
+    const expireBefore = new Date(Date.now() - disappearMin * 60 * 1000);
+    const expiring = await this.prisma.order.findMany({
+      where: { status: 'PENDING', dispatchType: 'POOL', createdAt: { lte: expireBefore } },
+      select: { id: true, customFields: true },
+    });
+    for (const o of expiring) {
+      const cf = (o.customFields as any) || {};
+      if (cf.urgency !== 'now' || cf.poolExpired) continue;
+      await this.prisma.order.update({
+        where: { id: o.id },
+        data: { customFields: { ...cf, poolExpired: true, poolExpiredAt: new Date().toISOString() } },
+      });
+    }
+
+    // 2. 预约单发布 1 小时后仍无人接，通知发单客服
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const orders = await this.prisma.order.findMany({
       where: { status: 'PENDING', dispatchType: 'POOL', createdAt: { lte: oneHourAgo } },

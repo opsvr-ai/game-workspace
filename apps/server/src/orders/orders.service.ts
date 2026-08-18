@@ -270,7 +270,8 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'asc' },
     });
-    return orders;
+    // 已过消失时间、标记为待客服处理的订单不再出现在抢单池
+    return orders.filter((o) => !(o.customFields as any)?.poolExpired);
   }
 
   private async isExcellentCompanion(companionId: string): Promise<boolean> {
@@ -488,6 +489,10 @@ export class OrdersService {
 
   async findUrgent(studioId: string) {
     const now = Date.now();
+    const disappearCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'pool.immediate_disappear_minutes' },
+    });
+    const disappearSeconds = Number(disappearCfg?.value ?? 10) * 60;
     const orders = await this.prisma.order.findMany({
       where: { studioId, status: 'PENDING', dispatchType: 'POOL' },
       include: {
@@ -497,11 +502,12 @@ export class OrdersService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return Promise.all(
+    const list = await Promise.all(
       orders
-        .filter((o) => String((o.customFields as any)?.urgency || '').includes('立即'))
+        .filter((o) => (o.customFields as any)?.urgency === 'now' && !(o.customFields as any)?.poolHandled)
         .map(async (o) => {
           const waitingSeconds = Math.max(0, Math.floor((now - o.createdAt.getTime()) / 1000));
+          const poolExpired = !!(o.customFields as any)?.poolExpired;
           const availableCompanions =
             waitingSeconds >= 300
               ? await this.getSoonEndingCompanions(studioId)
@@ -515,26 +521,60 @@ export class OrdersService {
             amount: o.amount,
             waitingSeconds,
             urgent: true,
-            requireCsContact: waitingSeconds >= 600,
+            poolExpired,
+            poolExpiredAt: (o.customFields as any)?.poolExpiredAt || '',
+            requireCsContact: poolExpired || waitingSeconds >= disappearSeconds,
             csContactStatus: o.contactStatus || '',
             csContactEvidenceUrl: (o.customFields as any)?.csContactEvidenceUrl || '',
             availableCompanions,
           };
         }),
     );
+
+    // 已消失（待客服处理）的订单排最前
+    return list.sort((a, b) => Number(b.poolExpired) - Number(a.poolExpired));
   }
 
   async markCsContact(orderId: string, status: string, evidenceUrl?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     const cf = (order.customFields as any) || {};
+    const handled = status === 'added' && !!evidenceUrl;
     return this.prisma.order.update({
       where: { id: orderId },
       data: {
         contactStatus: status,
-        customFields: { ...cf, csContactAt: new Date().toISOString(), csContactEvidenceUrl: evidenceUrl || '' },
+        customFields: {
+          ...cf,
+          csContactAt: new Date().toISOString(),
+          csContactEvidenceUrl: evidenceUrl || '',
+          ...(handled ? { poolHandled: true } : {}),
+        },
       },
     });
+  }
+
+  async redispatch(orderId: string, studioId?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status !== 'PENDING' || order.dispatchType !== 'POOL') {
+      throw new ForbiddenException('该订单当前不可重新派单');
+    }
+    if (studioId && order.studioId !== studioId) {
+      throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    const cf = (order.customFields as any) || {};
+    delete cf.poolExpired;
+    delete cf.poolExpiredAt;
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        customFields: cf,
+        createdAt: new Date(), // 重置发单时间，让等待时间重新计算
+      },
+    });
+    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
+    return updated;
   }
 
   private async getSoonEndingCompanions(studioId: string) {
