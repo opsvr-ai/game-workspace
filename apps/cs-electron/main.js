@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, safeStorage, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, session, ipcMain, safeStorage, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -24,6 +24,8 @@ function getServerUrl() {
 }
 
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
 
 function compareVersions(a, b) {
   const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
@@ -163,9 +165,53 @@ function createWindow() {
       }, 2000);
     }
   });
+  // 点 ❌ 最小化到托盘，不退出
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function showWindow() {
+  if (!mainWindow) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray() {
+  const iconPath = path.join(process.resourcesPath, 'donkey.ico');
+  let icon;
+  try {
+    icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  } catch {
+    icon = nativeImage.createEmpty();
+  }
+  tray = new Tray(icon);
+  tray.setToolTip('蠢驴电竞·客服端');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: '显示主窗口', click: () => showWindow() },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on('click', () => showWindow());
+  tray.on('double-click', () => showWindow());
 }
 
 app.whenReady().then(() => {
@@ -196,6 +242,7 @@ app.whenReady().then(() => {
     return { success: true };
   });
   createWindow();
+  createTray();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。
   setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
   setInterval(checkForUpdates, 5 * 60 * 1000);
@@ -205,5 +252,5 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // 隐藏到托盘时不退出；只有托盘“退出”才真正退出
 });
