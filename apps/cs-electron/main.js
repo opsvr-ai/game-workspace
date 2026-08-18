@@ -25,6 +25,17 @@ function getServerUrl() {
 
 let mainWindow = null;
 
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
 function checkForUpdates() {
   try {
     const serverUrl = getServerUrl().replace(/\/$/, '');
@@ -33,21 +44,27 @@ function checkForUpdates() {
       .then((json) => {
         const latest = json?.data?.version;
         const downloadUrl = json?.data?.downloadUrl;
-        if (!latest || !downloadUrl || latest === app.getVersion()) return;
+        if (!latest || !downloadUrl) return;
+        // 只有服务器版本严格更新时才更新；本地已是最新/更新时不触发，
+        // 避免字符串不等（===）导致反复下载安装并退出（闪退）。
+        if (compareVersions(latest, app.getVersion()) <= 0) return;
         const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${serverUrl}${downloadUrl}`;
         const out = path.join(app.getPath('temp'), `Chunlv-CS-Setup-${latest}.exe`);
         const ps = [
           `$ProgressPreference='SilentlyContinue'`,
-          `if (!(Test-Path '${out}')) { Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}' }`,
+          `try { Invoke-WebRequest -Uri '${fullUrl}' -OutFile '${out}' -UseBasicParsing } catch { exit 1 }`,
+          `Start-Sleep -Seconds 3`,
           `Start-Process -FilePath '${out}' -ArgumentList '/S' -Wait`,
-          `Remove-Item '${out}' -Force`,
+          `Remove-Item '${out}' -Force -ErrorAction SilentlyContinue`,
         ].join('; ');
         const { spawn } = require('child_process');
         spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
           detached: true,
           stdio: 'ignore',
         }).unref();
-        setTimeout(() => app.quit(), 1500);
+        // 等安装包下载完成并让安装器接管后再退出，释放正在运行的文件锁，
+        // 避免固定 1.5 秒退出打断安装导致版本一直不更新。
+        setTimeout(() => app.quit(), 2000);
       })
       .catch(() => {});
   } catch {}
