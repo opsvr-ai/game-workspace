@@ -177,8 +177,17 @@ const BlacklistPage: React.FC = () => {
         </Space>
       </div>
 
-      
-      {/* Drag & Drop zone for .lnk files */}
+      {selectedRowKeys.length > 0 && (
+        <div style={{ marginBottom: 8, padding: '8px 12px', background: '#e6f7ff', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text>已选 {selectedRowKeys.length} 项</Text>
+          <Button size="small" danger onClick={handleBatchDelete}>批量删除</Button>
+        </div>
+      )}
+      <Table size="small" rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }} columns={columns} dataSource={items} rowKey="id" loading={loading}
+        locale={{ emptyText: '暂无黑名单规则' }}
+        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
+
+      {/* Drag & Drop quick-add — 移到列表下方，避免抢占主视觉 */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -197,30 +206,19 @@ const BlacklistPage: React.FC = () => {
           }
         }}
         style={{
-          border: `2px dashed ${dragOver ? '#2563EB' : '#d9d9d9'}`,
-          borderRadius: 8,
-          padding: '12px 16px',
-          marginBottom: 12,
+          border: `1px dashed ${dragOver ? '#2563EB' : '#d9d9d9'}`,
+          borderRadius: 6,
+          padding: '8px 12px',
+          marginTop: 12,
           textAlign: 'center',
           background: dragOver ? 'rgba(0,212,255,0.06)' : '#fafafa',
           transition: 'all 0.2s',
-          cursor: 'pointer',
         }}
       >
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          📎 拖拽桌面快捷方式(.lnk)或可执行文件(.exe)到此区域快速添加进程
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          📎 拖拽 .lnk / .exe 文件到此处快速添加进程
         </Text>
       </div>
-
-      {selectedRowKeys.length > 0 && (
-        <div style={{ marginBottom: 8, padding: '8px 12px', background: '#e6f7ff', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text>已选 {selectedRowKeys.length} 项</Text>
-          <Button size="small" danger onClick={handleBatchDelete}>批量删除</Button>
-        </div>
-      )}
-      <Table size="small" rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }} columns={columns} dataSource={items} rowKey="id" loading={loading}
-        locale={{ emptyText: '暂无黑名单规则' }}
-        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
 
       {/* Add Modal */}
       <Modal title="添加黑名单进程" open={modalOpen} onOk={handleAdd}
