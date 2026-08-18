@@ -147,15 +147,18 @@ const ManagedPcPage: React.FC = () => {
         if (r.online) {
           label = '在线';
           color = 'green';
-        } else if (r.lastAction === 'shutdown') {
-          label = '已关机';
-          color = 'red';
-        } else if (r.lastAction === 'sleep') {
-          label = '睡眠中';
-          color = 'blue';
-        } else if (r.lastAction === 'hibernate') {
-          label = '休眠中';
-          color = 'purple';
+        } else if (r.lastActionAt && Date.now() - new Date(r.lastActionAt).getTime() < 5 * 60 * 1000) {
+          // 只在最近 5 分钟内确实执行过电源操作时，才显示“已关机/睡眠/休眠”，避免旧记录一直误显示
+          if (r.lastAction === 'shutdown') {
+            label = '已关机';
+            color = 'red';
+          } else if (r.lastAction === 'sleep') {
+            label = '睡眠中';
+            color = 'blue';
+          } else if (r.lastAction === 'hibernate') {
+            label = '休眠中';
+            color = 'purple';
+          }
         }
         return <Tag color={color}>{label}</Tag>;
       },
