@@ -133,6 +133,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           key: 'owner-cs-mgmt', label: '客服管理',
           children: [
             { key: '/owner/work-wechats?type=STUDIO', label: '客服工作微信' },
+            { key: '/admin/traffic-accounts', label: '引流账号管理' },
           ],
         },
         { key: '/owner/review', label: '实名审核' },
@@ -160,7 +161,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/owner/studios', label: '工作室管理' },
         { key: '/owner/authorizations', label: '客户端授权' },
         { key: '/owner/work-wechats', label: '工作微信' },
-        { key: '/admin/traffic-accounts', label: '引流账号管理' },
         { key: '/admin/pc-control', label: '远程控制' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
@@ -204,6 +204,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           key: 'admin-cs-mgmt', label: '客服管理',
           children: [
             { key: '/admin/work-wechats?type=STUDIO', label: '客服工作微信' },
+            { key: '/admin/traffic-accounts', label: '引流账号管理' },
           ],
         },
         { key: '/admin/review', label: '实名审核' },
@@ -230,7 +231,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         { key: '/admin/settings', label: '系统配置' },
         { key: '/owner/bridges', label: '工作室桥接' },
         { key: '/admin/work-wechats', label: '工作微信' },
-        { key: '/admin/traffic-accounts', label: '引流账号管理' },
         { key: '/admin/pc-control', label: '远程控制' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
