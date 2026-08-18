@@ -143,16 +143,19 @@ export class AgentService {
       select: { id: true, username: true, role: true },
     });
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const latestVersion = (await this.getCsLatestVersion()).version;
     return records.map((r) => {
       const userId = r.key.replace('cs.client.version.', '');
       const value = (r.value as any) || {};
       const user = userMap.get(userId);
+      const version = value.version || '0.0.0';
       return {
         userId,
         username: user?.username || userId,
         role: user?.role || '-',
-        version: value.version || '0.0.0',
+        version,
         lastSeen: value.lastSeen || null,
+        isLatest: version === latestVersion,
       };
     });
   }

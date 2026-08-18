@@ -390,12 +390,6 @@ const AgentVersionPage: React.FC = () => {
       render: (s: string) => <Tag color={statusColors[s] || 'default'}>{statusLabels[s] || s}</Tag>,
     },
     {
-      title: '当前版本',
-      dataIndex: 'agentVersion',
-      key: 'agentVersion',
-      width: 100,
-    },
-    {
       title: '版本状态',
       key: 'versionStatus',
       width: 100,
@@ -406,7 +400,7 @@ const AgentVersionPage: React.FC = () => {
           </Tag>
         ) : (
           <Tag color="orange" icon={<SyncOutlined />}>
-            待更新
+            未更新
           </Tag>
         ),
     },
@@ -477,17 +471,12 @@ const AgentVersionPage: React.FC = () => {
 
       {/* Stat Cards */}
       <Row gutter={16} style={{ marginBottom: 12 }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="最新版本" value={versionStatus?.latestVersion || '-'} />
-          </Card>
-        </Col>
-        <Col span={6}>
+        <Col span={8}>
           <Card size="small">
             <Statistic title="在线陪玩" value={versionStatus?.onlineCount || 0} suffix="人" />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={8}>
           <Card size="small">
             <Statistic
               title="已是最新"
@@ -497,10 +486,10 @@ const AgentVersionPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={8}>
           <Card size="small">
             <Statistic
-              title="待更新"
+              title="未更新"
               value={versionStatus?.pendingCount || 0}
               valueStyle={{ color: '#faad14' }}
               suffix="人"
@@ -574,7 +563,12 @@ const AgentVersionPage: React.FC = () => {
           columns={[
             { title: '账号', dataIndex: 'username' },
             { title: '角色', dataIndex: 'role', render: (v: string) => v === 'CS' ? '客服' : v === 'ADMIN' ? '店长' : v },
-            { title: '客户端版本', dataIndex: 'version' },
+            {
+              title: '版本状态',
+              key: 'isLatest',
+              render: (_: unknown, r: any) =>
+                r.isLatest ? <Tag color="green">最新</Tag> : <Tag color="orange">未更新</Tag>,
+            },
             { title: '最后上报', dataIndex: 'lastSeen', render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
           ]}
         />
