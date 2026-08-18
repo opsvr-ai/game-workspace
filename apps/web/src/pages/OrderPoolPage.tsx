@@ -202,7 +202,7 @@ const OrderPoolPage: React.FC = () => {
   const renderPoolCard = (order: any, idx: number) => {
     const type = orderTypeConfig[order.type]?.label || order.type || '首单';
     const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
-    const mission = order.customFields?.deltaMission;
+    const mission = order.customFields?.deltaMission || '\u00A0';
     const isRound = order.customFields?.billingMode === 'round';
     const dur = isRound
       ? `${order.duration || order.customFields?.deltaCount || '?'}局`
@@ -210,7 +210,9 @@ const OrderPoolPage: React.FC = () => {
     const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
     const wait = now - new Date(order.createdAt).getTime();
     const scheduledTime =
-      order.customFields?.urgency === 'later' ? order.customFields?.scheduledTimeText || '' : '';
+      order.customFields?.urgency === 'later'
+        ? order.customFields?.scheduledTimeText || '\u00A0'
+        : '\u00A0';
     let countdown;
     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
       const rem = new Date(order.scheduledAt).getTime() - now;
@@ -232,7 +234,7 @@ const OrderPoolPage: React.FC = () => {
       fmtClock(order.createdAt),
       `已等待 ${fmtSpan(wait)}`,
       `倒计时 ${countdown}`,
-    ].filter(Boolean);
+    ];
 
     return (
       <div
