@@ -98,6 +98,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.nonqualified_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   'dispatch.studio_share_percent': 30,
+  // 桥接工作室首单返还：机密首单不结（0）；绝密按 15 元/小时/陪玩返还（双陪×2）。
   'dispatch.bridge_return_jimi_cents': 0,
   'dispatch.bridge_return_jueju_cents': 1500,
   'dispatch.game_break_even_hours': [
