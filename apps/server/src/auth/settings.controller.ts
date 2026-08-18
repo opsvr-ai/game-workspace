@@ -88,6 +88,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'pool.bridge_delay_seconds': 120,
   'pool.online_delay_seconds': 180,
   'pool.immediate_disappear_minutes': 10,
+  'pool.scheduled_disappear_minutes': 60,
   'anomaly.revenue_drop_percent': 50,
   'anomaly.hours_drop_percent': 50,
   'anomaly.spend_drop_percent': 50,

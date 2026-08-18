@@ -61,6 +61,7 @@ const OrderPoolPage: React.FC = () => {
   const [companionSearch, setCompanionSearch] = useState('');
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
+  const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -69,10 +70,12 @@ const OrderPoolPage: React.FC = () => {
 
   useEffect(() => {
     configApi
-      .get(['pool.immediate_disappear_minutes'])
+      .get(['pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes'])
       .then(({ data }) => {
         const v = Number(data?.data?.['pool.immediate_disappear_minutes']);
         if (Number.isFinite(v) && v > 0) setDisappearMinutes(v);
+        const sv = Number(data?.data?.['pool.scheduled_disappear_minutes']);
+        if (Number.isFinite(sv) && sv > 0) setScheduledDisappearMinutes(sv);
       })
       .catch(() => {});
   }, []);
@@ -225,16 +228,10 @@ const OrderPoolPage: React.FC = () => {
       order.customFields?.urgency === 'later'
         ? order.customFields?.scheduledTimeText || '\u00A0'
         : '\u00A0';
-    let disappearIn: number | null = null;
-    if (order.customFields?.urgency === 'later') {
-      if (order.scheduledAt) {
-        disappearIn = new Date(order.scheduledAt).getTime() - now;
-      }
-    } else {
-      disappearIn = disappearMinutes * 60 * 1000 - wait;
-    }
-    const disappearText =
-      disappearIn == null ? '\u00A0' : disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
+    const disappearMins =
+      order.customFields?.urgency === 'later' ? scheduledDisappearMinutes : disappearMinutes;
+    const disappearIn = disappearMins * 60 * 1000 - wait;
+    const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
 
     const fields = [
       order.gameName,
