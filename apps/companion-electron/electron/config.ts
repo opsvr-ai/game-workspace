@@ -15,8 +15,9 @@ const defaultConfig: AppConfig = {
 
 export function loadConfig(): AppConfig {
   try {
-    // Check next to exe first, then resources (electron-builder extraResources)
-    for (const p of [CONFIG_PATH, RESOURCE_CONFIG_PATH]) {
+    // 先读打包进 resources 的官方配置（始终指向 192.168.0.106），
+    // 再读 exe 旁边的用户覆盖配置。这样不会被历史上写坏的 localhost 配置污染。
+    for (const p of [RESOURCE_CONFIG_PATH, CONFIG_PATH]) {
       if (fs.existsSync(p)) {
         const raw = fs.readFileSync(p, 'utf-8');
         return { ...defaultConfig, ...JSON.parse(raw) };
