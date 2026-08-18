@@ -88,6 +88,22 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
       >
         {flowOrder && (
           <div>
+            {(() => {
+              const cf = flowOrder.customFields || {};
+              const isDouble = flowOrder.coCompanionId || cf.deltaCount === '双';
+              const companions = isDouble ? 2 : 1;
+              const bridgeReturn = cf.deltaMission === '绝密' ? 15 * (flowOrder.duration || 1) * companions : 0;
+              const inTotal = flows.filter((f: any) => f.direction === 'IN').reduce((s: number, f: any) => s + (f.amount || 0), 0);
+              const outTotal = flows.filter((f: any) => f.direction === 'OUT').reduce((s: number, f: any) => s + (f.amount || 0), 0);
+              const profit = inTotal - outTotal - bridgeReturn;
+              return (
+                <div style={{ background: '#f6f8fb', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 13, lineHeight: 2 }}>
+                  <div>类型：{cf.deltaMission || '-'} · {isDouble ? '双陪' : '单陪'} · {flowOrder.duration || '?'}h</div>
+                  <div>桥接应返还：<b style={{ color: '#d4380d' }}>¥{bridgeReturn}</b>（仅桥接单适用）</div>
+                  <div>转入合计：<b>¥{inTotal}</b> · 转出合计：<b>¥{outTotal}</b> · 利润：<b style={{ color: '#389e0d' }}>¥{profit}</b></div>
+                </div>
+              );
+            })()}
             <List
               size="small"
               dataSource={flows}
