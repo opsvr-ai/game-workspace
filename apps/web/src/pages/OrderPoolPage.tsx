@@ -214,9 +214,9 @@ const OrderPoolPage: React.FC = () => {
     let countdown;
     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
       const rem = new Date(order.scheduledAt).getTime() - now;
-      countdown = rem > 0 ? `距开始${fmtSpan(rem)}` : '已到点';
+      countdown = rem > 0 ? fmtSpan(rem) : '已到点';
     } else {
-      countdown = `等待${fmtSpan(wait)}`;
+      countdown = fmtSpan(wait);
     }
 
     const fields = [
@@ -230,8 +230,8 @@ const OrderPoolPage: React.FC = () => {
       order.customFields?.urgency === 'later' ? '预约' : '立即打',
       scheduledTime,
       fmtClock(order.createdAt),
-      fmtSpan(wait),
-      countdown,
+      `已等待 ${fmtSpan(wait)}`,
+      `倒计时 ${countdown}`,
     ].filter(Boolean);
 
     return (
