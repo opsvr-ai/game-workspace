@@ -25,6 +25,10 @@ const fmtClock = (v: string) => {
   const d = new Date(v);
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 };
+const fmtDateTime = (v: string) => {
+  const d = new Date(v);
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
 const fmtSpan = (ms: number) => {
   if (ms < 0) ms = 0;
   const s = Math.floor(ms / 1000);
@@ -209,6 +213,8 @@ const OrderPoolPage: React.FC = () => {
       : `${order.duration || '?'}h`;
     const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
     const wait = now - new Date(order.createdAt).getTime();
+    const scheduledTime =
+      order.customFields?.urgency === 'later' && order.scheduledAt ? fmtDateTime(order.scheduledAt) : '';
     let countdown;
     if (order.customFields?.urgency === 'later' && order.scheduledAt) {
       const rem = new Date(order.scheduledAt).getTime() - now;
@@ -224,8 +230,9 @@ const OrderPoolPage: React.FC = () => {
       mission,
       dur,
       sd,
-      `¥${Number(order.amount || 0).toFixed(0)}`,
+      `${Number(order.amount || 0).toFixed(0)}元`,
       order.customFields?.urgency === 'later' ? '预约' : '立即打',
+      scheduledTime,
       fmtClock(order.createdAt),
       fmtSpan(wait),
       countdown,
