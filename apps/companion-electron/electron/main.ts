@@ -72,13 +72,7 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   }, 10000);
 }
 
-let lastCollectAt = 0;
 async function collectAndReportProcesses(tokenOverride?: string) {
-  // 主进程和渲染进程都会收到 collect_processes，这里做 5 秒去重，避免重复上报两份。
-  const collectNow = Date.now();
-  if (collectNow - lastCollectAt < 5000) return;
-  lastCollectAt = collectNow;
-
   const token = tokenOverride || (store.get('token') as string);
   if (!token) return;
   execFile(
@@ -436,7 +430,6 @@ app.whenReady().then(() => {
   onWsEvent('pc:command', (data: any) => {
     if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
     else if (data.command === 'test_watchdog') app.exit(0);
-    else if (data.command === 'collect_processes') void collectAndReportProcesses();
     else if (data.command === 'shutdown') {
       execFile('shutdown', ['/s', '/t', '0'], () => {});
     }
