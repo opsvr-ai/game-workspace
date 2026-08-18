@@ -4,12 +4,6 @@ import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import http from '../api/client';
 
-function fmt(s: number) {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}分${sec}秒`;
-}
-
 interface Props {
   onDispatch?: (item: any) => void;
 }
