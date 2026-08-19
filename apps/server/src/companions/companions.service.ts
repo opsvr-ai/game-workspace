@@ -85,9 +85,9 @@ export class CompanionsService {
     }));
   }
 
-  /** 优秀判定：月流水≥3000 或 (续单率+复购率)≥50%。 */
+  /** 综合分 = 月流水(60%) + 续单率(20%) + 复购率(20%) + 首单成功率(10%)。 */
   private async computeExcellence(companionIds: string[]) {
-    const result = new Map<string, { isExcellent: boolean; rankScore: number; renewRate: number; repurchaseRate: number; orderCount: number }>();
+    const result = new Map<string, { isExcellent: boolean; rankScore: number; renewRate: number; repurchaseRate: number; newRate: number; orderCount: number }>();
     if (companionIds.length === 0) return result;
 
     const orderStats = await this.prisma.order.groupBy({
@@ -97,25 +97,31 @@ export class CompanionsService {
       _count: { id: true },
     });
 
-    const m = new Map<string, { revenue: number; count: number; renew: number; repurchase: number }>();
+    const m = new Map<string, { revenue: number; count: number; newCount: number; renew: number; repurchase: number }>();
     for (const row of orderStats) {
       const cid = row.companionId!;
-      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, renew: 0, repurchase: 0 });
+      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, newCount: 0, renew: 0, repurchase: 0 });
       const s = m.get(cid)!;
       s.revenue += row._sum.amount || 0;
       s.count += row._count.id;
+      if (row.type === 'NEW') s.newCount = row._count.id;
       if (row.type === 'RENEW') s.renew = row._count.id;
       if (row.type === 'REPURCHASE') s.repurchase = row._count.id;
     }
 
     for (const [cid, s] of m) {
+      const newRate = s.count > 0 ? (s.newCount / s.count) * 100 : 0;
       const renewRate = s.count > 0 ? (s.renew / s.count) * 100 : 0;
       const repurchaseRate = s.count > 0 ? (s.repurchase / s.count) * 100 : 0;
+      // 月流水 3000 元封顶 60 分；续单/复购率各占 20%，首单成功率占 10%
+      const revenueScore = Math.min(60, s.revenue / 50);
+      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + newRate * 0.1);
       result.set(cid, {
-        isExcellent: s.revenue >= 3000 || renewRate + repurchaseRate >= 50,
-        rankScore: Math.round(s.revenue),
+        isExcellent: rankScore >= 50,
+        rankScore,
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
+        newRate: Math.round(newRate),
         orderCount: s.count,
       });
     }

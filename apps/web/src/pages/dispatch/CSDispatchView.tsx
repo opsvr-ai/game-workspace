@@ -292,6 +292,9 @@ const CSDispatchView: React.FC = () => {
         const aExc = a.isExcellent ? 1 : 0;
         const bExc = b.isExcellent ? 1 : 0;
         if (aExc !== bExc) return bExc - aExc;
+        const aScore = a.rankScore ?? 0;
+        const bScore = b.rankScore ?? 0;
+        if (aScore !== bScore) return bScore - aScore;
         return (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9);
       }),
     [companions, conversations],
