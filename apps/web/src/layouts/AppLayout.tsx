@@ -10,6 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import DualCompanionModal from '../components/DualCompanionModal';
 import { ChatProvider } from '../components/chat';
+import { commander } from '../styles/commander';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
@@ -944,8 +945,8 @@ const AppLayout: React.FC = () => {
           width={170}
           collapsedWidth={48}
           style={{
-            background: '#FFFFFF',
-            borderRight: '1px solid #E2E8F0',
+            background: commander.background,
+            borderRight: '1px solid rgba(255,255,255,0.08)',
             overflow: 'auto',
             height: '100vh',
             position: 'sticky',
@@ -955,7 +956,7 @@ const AppLayout: React.FC = () => {
           {/* 导航菜单 */}
           <Menu
             mode="inline"
-            theme="light"
+            theme="dark"
             selectedKeys={selectedKeys}
             defaultOpenKeys={menuItems.filter((m: any) => m.children).map((m: any) => m.key)}
             items={menuItems as MenuProps['items']}
@@ -980,7 +981,7 @@ const AppLayout: React.FC = () => {
             }}
           >
             {appVersion && (
-              <div style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: commander.textMuted, textAlign: 'center' }}>
                 客户端 v{appVersion}
               </div>
             )}
@@ -995,17 +996,17 @@ const AppLayout: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              borderBottom: '1px solid #E2E8F0',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
               zIndex: 1,
               height: 56,
-              background: '#FFFFFF',
+              background: 'linear-gradient(90deg, rgba(11,16,36,0.98), rgba(19,11,46,0.98))',
             }}
           >
             <Button
               type="text"
               icon={collapsed ? IconUnfold : IconFold}
               onClick={() => setCollapsed(!collapsed)}
-              style={{ color: '#64748B' }}
+              style={{ color: commander.textSecondary }}
             />
             <Space size="middle">
               {/* Notification bell */}
@@ -1042,7 +1043,7 @@ const AppLayout: React.FC = () => {
                         type="text"
                         icon={React.createElement(BellOutlined)}
                         style={{
-                          color: totalUnread > 0 ? '#2563EB' : '#64748B',
+                          color: totalUnread > 0 ? '#2563EB' : commander.textSecondary,
                           fontSize: 20,
                         }}
                         className={totalUnread > 0 ? 'bell-glow-active' : ''}
@@ -1065,7 +1066,7 @@ const AppLayout: React.FC = () => {
                       borderRadius: 20,
                       transition: 'background 0.2s',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f0f0')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -1106,9 +1107,9 @@ const AppLayout: React.FC = () => {
                         <span style={{ color: '#fff', fontSize: 8 }}>📷</span>
                       </div>
                     </div>
-                    <Text style={{ color: '#1E293B', fontWeight: 500 }}>{user.displayName || user.username}</Text>
+                    <Text style={{ color: commander.textPrimary, fontWeight: 500 }}>{user.displayName || user.username}</Text>
                   </div>
-                  <Text style={{ color: '#2563EB', fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
+                  <Text style={{ color: commander.cyan, fontSize: 12, fontWeight: 600 }}>{roleLabels[user.role]}</Text>
                   {isCsClient && (
                     <Tag color="cyan" style={{ marginInlineEnd: 0, fontWeight: 600 }}>
                       客服端
@@ -1122,7 +1123,7 @@ const AppLayout: React.FC = () => {
                 </>
               )}
               {user?.role !== 'COMPANION' && (
-                <Button type="text" icon={IconLogout} onClick={handleLogout} style={{ color: '#64748B' }}>
+                <Button type="text" icon={IconLogout} onClick={handleLogout} style={{ color: commander.textSecondary }}>
                   退出
                 </Button>
               )}
