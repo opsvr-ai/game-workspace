@@ -149,7 +149,6 @@ export const authApi = {
     const token = sessionStorage.getItem('accessToken');
     return axios.post<ApiResponse<{ filename: string }>>('/api/auth/me/avatar', form, {
       headers: {
-        'Content-Type': 'multipart/form-data',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });

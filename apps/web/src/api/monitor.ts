@@ -10,6 +10,6 @@ export const monitorApi = {
   uploadTransferScreenshot: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return http.post('/upload/screenshot', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return http.post('/upload/screenshot', form);
   },
 };
