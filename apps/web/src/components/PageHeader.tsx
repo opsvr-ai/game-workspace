@@ -2,6 +2,7 @@
 import React, { memo } from 'react';
 import { Typography, Breadcrumb } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { commander } from '../styles/commander';
 
 const { Title, Text } = Typography;
 
@@ -39,7 +40,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcr
             }))}
           />
         )}
-        <Title level={5} style={{ margin: 0 }}>
+        <Title level={5} style={{ margin: 0, fontSize: 20, fontWeight: 700, ...commander.gradientText }}>
           {title}
         </Title>
         {subtitle && (

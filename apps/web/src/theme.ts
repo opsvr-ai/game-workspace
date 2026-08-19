@@ -5,18 +5,18 @@ export const chunlvTheme: ThemeConfig = {
   hashed: false,
   token: {
     // 色彩 — 经典蓝主色调
-    colorPrimary: '#2563EB',
+    colorPrimary: '#7C4DFF',
     colorSuccess: '#16A34A',
     colorWarning: '#F59E0B',
     colorError: '#EF4444',
-    colorInfo: '#2563EB',
+    colorInfo: '#7C4DFF',
     colorTextBase: '#1E293B',
     colorBgBase: '#F8FAFC',
     colorBgContainer: '#FFFFFF',
     colorBgElevated: '#FFFFFF',
     colorBorder: '#E2E8F0',
     colorBorderSecondary: '#F1F5F9',
-    colorLink: '#2563EB',
+    colorLink: '#7C4DFF',
 
     // 排版
     fontFamily:
@@ -24,10 +24,10 @@ export const chunlvTheme: ThemeConfig = {
     fontSize: 14,
     fontSizeLG: 16,
     fontSizeSM: 12,
-    borderRadius: 8,
-    borderRadiusLG: 8,
-    borderRadiusSM: 6,
-    borderRadiusXS: 4,
+    borderRadius: 10,
+    borderRadiusLG: 12,
+    borderRadiusSM: 8,
+    borderRadiusXS: 6,
 
     // 控件
     controlHeight: 36,
@@ -36,9 +36,9 @@ export const chunlvTheme: ThemeConfig = {
     lineHeight: 1.6,
 
     // 阴影 — 干净轻阴影
-    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-    boxShadowSecondary: '0 2px 8px rgba(0,0,0,0.06)',
-    boxShadowTertiary: '0 4px 16px rgba(0,0,0,0.08)',
+    boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
+    boxShadowSecondary: '0 6px 16px rgba(15,23,42,0.08)',
+    boxShadowTertiary: '0 12px 32px rgba(15,23,42,0.12)',
   },
 
   components: {
@@ -50,8 +50,8 @@ export const chunlvTheme: ThemeConfig = {
     },
     Menu: {
       itemBg: 'transparent',
-      itemSelectedBg: '#EFF6FF',
-      itemSelectedColor: '#2563EB',
+      itemSelectedBg: '#F3EEFF',
+      itemSelectedColor: '#7C4DFF',
       itemHoverBg: '#F8FAFC',
       itemBorderRadius: 8,
       itemMarginInline: 8,
@@ -72,7 +72,7 @@ export const chunlvTheme: ThemeConfig = {
       colorBgContainer: '#FFFFFF',
       headerBg: '#F8FAFC',
       headerColor: '#64748B',
-      rowHoverBg: '#EFF6FF',
+      rowHoverBg: '#F3EEFF',
       borderColor: '#E2E8F0',
       headerBorderRadius: 8,
     },
@@ -85,15 +85,15 @@ export const chunlvTheme: ThemeConfig = {
       defaultBorderColor: '#E2E8F0',
       defaultColor: '#1E293B',
       defaultHoverBg: '#F8FAFC',
-      defaultHoverBorderColor: '#2563EB',
-      defaultHoverColor: '#2563EB',
+      defaultHoverBorderColor: '#7C4DFF',
+      defaultHoverColor: '#7C4DFF',
       fontWeight: 600,
     },
     Input: {
       colorBgContainer: '#FFFFFF',
       colorBorder: '#E2E8F0',
       colorTextPlaceholder: '#94A3B8',
-      activeBorderColor: '#2563EB',
+      activeBorderColor: '#7C4DFF',
       borderRadius: 8,
       paddingBlock: 8,
       paddingInline: 14,
@@ -101,7 +101,7 @@ export const chunlvTheme: ThemeConfig = {
     Select: {
       colorBgContainer: '#FFFFFF',
       colorBgElevated: '#FFFFFF',
-      optionSelectedBg: '#EFF6FF',
+      optionSelectedBg: '#F3EEFF',
       borderRadius: 8,
     },
     Modal: {
@@ -111,9 +111,9 @@ export const chunlvTheme: ThemeConfig = {
     },
     Tabs: {
       colorBgContainer: 'transparent',
-      itemSelectedColor: '#2563EB',
-      inkBarColor: '#2563EB',
-      itemHoverColor: '#2563EB',
+      itemSelectedColor: '#7C4DFF',
+      inkBarColor: '#7C4DFF',
+      itemHoverColor: '#7C4DFF',
     },
     Tag: { borderRadiusSM: 6, lineHeight: 1.6 },
     Statistic: { colorTextDescription: '#64748B' },
@@ -126,7 +126,7 @@ export const chunlvTheme: ThemeConfig = {
     Breadcrumb: {
       colorText: '#94A3B8',
       lastItemColor: '#1E293B',
-      linkColor: '#2563EB',
+      linkColor: '#7C4DFF',
     },
   },
 };
