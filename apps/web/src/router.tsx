@@ -56,7 +56,6 @@ const UnifiedDashboard = lazy(() => import('./pages/admin/UnifiedDashboard'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const DispatchPage = lazy(() => import('./pages/DispatchPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
-const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage'));
 const BillingOverview = lazy(() => import('./pages/BillingOverview'));
 const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
 const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
@@ -182,14 +181,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'orders/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderDetailPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'dispatch',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -305,14 +296,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'owner/orders/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderDetailPage />
           </Suspense>
         ),
       },
@@ -485,14 +468,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/orders/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderDetailPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'admin/traffic',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -609,14 +584,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'cs/orders/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderDetailPage />
           </Suspense>
         ),
       },
