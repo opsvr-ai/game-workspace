@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
+import { currentBusinessDayRange } from '../common/business-day';
 
 @Injectable()
 export class OrdersService {
@@ -955,10 +956,7 @@ export class OrdersService {
   }
 
   async getPoolStatus(companionId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = currentBusinessDayRange();
 
     const todayOrders = await this.prisma.order.findMany({
       where: {

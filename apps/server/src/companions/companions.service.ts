@@ -3,7 +3,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
-import { settlementMonthRange } from '../common/business-day';
+import { settlementMonthRange, currentBusinessDayRange } from '../common/business-day';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
@@ -198,21 +198,18 @@ export class CompanionsService {
     });
     const blockedSet = new Set(blockedKills.map((k) => k.companionId));
 
-    // Today's order counts per companion
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // Today's order counts per companion（营业日 12:00 至次日 12:00）
+    const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
     const todayOrders = await this.prisma.order.groupBy({
       by: ['companionId'],
-      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELLED' } },
+      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lt: todayEnd }, status: { not: 'CANCELLED' } },
       _count: { id: true },
     });
     const orderCounts = new Map(todayOrders.map((o) => [o.companionId, o._count.id]));
 
     // Today's budan counts
     const budanData = await this.prisma.order.findMany({
-      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lte: todayEnd } },
+      where: { companionId: { in: ids }, createdAt: { gte: todayStart, lt: todayEnd } },
       select: { companionId: true, customFields: true, notes: true },
     });
     const budanCounts = new Map<string, number>();
@@ -333,10 +330,7 @@ export class CompanionsService {
   }
 
   async getWorkbench(companionId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = currentBusinessDayRange();
 
     // Today's revenue from completed orders
     const todayOrders = await this.prisma.order.findMany({
@@ -369,14 +363,11 @@ export class CompanionsService {
       };
     });
 
-    // Today's order type breakdown (single groupBy query)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    // Today's order type breakdown（营业日 12:00 至次日 12:00）
+    const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
     const todayTypeStats = await this.prisma.order.groupBy({
       by: ['type'],
-      where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
+      where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lt: todayEnd } },
       _sum: { amount: true },
       _count: { id: true },
     });

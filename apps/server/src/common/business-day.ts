@@ -43,6 +43,12 @@ export function currentBusinessDayRange(now: Date = new Date()): { start: Date; 
   return { start, end };
 }
 
+/** 当前结算月范围：本月 1 日 12:00（含）至次月 1 日 12:00（不含） */
+export function currentSettlementMonthRange(now: Date = new Date()): { start: Date; end: Date } {
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return settlementMonthRange(month);
+}
+
 /** 对局时长容忍度（分钟）：计时差异在此范围内不标记异常 */
 export const ROUND_TOLERANCE_MINUTES = 20;
 export const ROUND_TOLERANCE_MAX_MINUTES = 30;

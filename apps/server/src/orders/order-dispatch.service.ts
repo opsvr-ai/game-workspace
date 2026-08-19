@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
+import { currentBusinessDayRange } from '../common/business-day';
 
 @Injectable()
 export class OrderDispatchService {
@@ -166,8 +167,7 @@ export class OrderDispatchService {
         if (newCount > 0 && renewHours / newCount < breakEvenHours) {
           const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
           const limit = Number(limitCfg?.value ?? 1);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          const { start: today } = currentBusinessDayRange();
           const todayNew = await this.prisma.order.count({
             where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
           });
@@ -179,10 +179,7 @@ export class OrderDispatchService {
     // Revenue threshold check (same as grab)
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
     if (creator?.role !== 'COMPANION') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const { start: today, end: tomorrow } = currentBusinessDayRange();
       const todayOrders = await this.prisma.order.findMany({
         where: { companionId, status: 'DONE', createdAt: { gte: today, lt: tomorrow } },
       });

@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  currentBusinessDayRange,
+  businessDayRange,
+  businessDayOf,
+  currentSettlementMonthRange,
+} from '../common/business-day';
 
 @Injectable()
 export class DashboardService {
@@ -8,10 +14,7 @@ export class DashboardService {
   async getDashboard(studioId: string | null) {
     const studioWhere: any = studioId ? { studioId } : {};
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { start: today, end: tomorrow } = currentBusinessDayRange();
 
     // Today's completed orders
     const todayOrders = await this.prisma.order.findMany({
@@ -114,22 +117,22 @@ export class DashboardService {
   async getTrend(studioId: string | null, days: number = 7) {
     const studioWhere: any = studioId ? { studioId } : {};
     const result: { date: string; revenue: number; orderCount: number }[] = [];
+    const todayBiz = businessDayOf(new Date());
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(todayBiz);
       d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
+      const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const { start, end } = businessDayRange(dayKey);
 
       const orders = await this.prisma.order.findMany({
         where: {
           ...studioWhere,
           status: 'DONE',
-          createdAt: { gte: d, lt: next },
+          createdAt: { gte: start, lt: end },
         },
       });
       result.push({
-        date: d.toISOString().slice(0, 10),
+        date: dayKey,
         revenue: orders.reduce((s, o) => s + o.amount, 0),
         orderCount: orders.length,
       });
@@ -153,19 +156,16 @@ export class DashboardService {
 
   async getRevenueOverview(studioId: string | null) {
     const studioWhere: any = studioId ? { studioId } : {};
-    const now = new Date();
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    yesterday.setHours(0, 0, 0, 0);
-    const yesterdayEnd = new Date(yesterday);
-    yesterdayEnd.setDate(yesterdayEnd.getDate() + 1);
+    const yesterdayBiz = businessDayOf(new Date());
+    yesterdayBiz.setDate(yesterdayBiz.getDate() - 1);
+    const yesterdayKey = `${yesterdayBiz.getFullYear()}-${String(yesterdayBiz.getMonth() + 1).padStart(2, '0')}-${String(yesterdayBiz.getDate()).padStart(2, '0')}`;
+    const { start: yesterday, end: yesterdayEnd } = businessDayRange(yesterdayKey);
     const yesterdayOrders = await this.prisma.order.findMany({
       where: { ...studioWhere, status: 'DONE', createdAt: { gte: yesterday, lt: yesterdayEnd } },
     });
     const yesterdayRevenue = yesterdayOrders.reduce((s, o) => s + o.amount, 0);
 
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const { start: monthStart } = currentSettlementMonthRange();
     const monthOrders = await this.prisma.order.findMany({
       where: { ...studioWhere, status: 'DONE', createdAt: { gte: monthStart } },
     });
@@ -187,8 +187,7 @@ export class DashboardService {
   }
 
   async getCompanionRevenueDetail(companionId: string) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const { start: monthStart } = currentSettlementMonthRange();
     const orders = await this.prisma.order.findMany({
       where: { companionId, status: 'DONE', createdAt: { gte: monthStart } },
     });

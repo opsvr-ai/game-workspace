@@ -23,6 +23,7 @@ import { RestingMonitorService } from './resting-monitor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
+import { currentBusinessDayRange } from '../common/business-day';
 import { ChatService } from '../chat/chat.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
@@ -328,13 +329,10 @@ export class CompanionsController {
         const minRevenue = (revenueCfg?.value as number) ?? 200;
         const d = companion.deposit || 0;
 
-        // Calculate today's revenue from DONE orders
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+        // Calculate today's revenue from DONE orders（营业日 12:00 至次日 12:00）
+        const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
         const todayOrders = await this.prisma.order.findMany({
-          where: { companionId: id, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
+          where: { companionId: id, status: 'DONE', createdAt: { gte: todayStart, lt: todayEnd } },
           select: { amount: true },
         });
         const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);

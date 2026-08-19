@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { TransactionService } from './transaction.service';
 import { SettlementService } from './settlement.service';
-import { currentBusinessDayRange } from '../common/business-day';
+import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 
 @Injectable()
 export class BillingService {
@@ -196,9 +196,7 @@ export class BillingService {
   async getExpenseMonthlySummary(studioId: string, month?: string) {
     const now = new Date();
     const targetMonth = month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const [year, mon] = targetMonth.split('-').map(Number);
-    const start = new Date(year, mon - 1, 1);
-    const end = new Date(year, mon, 1);
+    const { start, end } = settlementMonthRange(targetMonth);
 
     const reports = await this.prisma.expenseReport.findMany({
       where: {
@@ -283,9 +281,7 @@ export class BillingService {
 
   async getMonthlySettlement(studioId: string, month?: string) {
     const targetMonth = month || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const [year, mon] = targetMonth.split('-').map(Number);
-    const start = new Date(year, mon - 1, 1);
-    const end = new Date(year, mon, 1);
+    const { start, end } = settlementMonthRange(targetMonth);
 
     return this.prisma.walletTransaction.findMany({
       where: {

@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { businessDayOf, businessDayRange } from '../common/business-day';
 
 /**
  * Daily KPI aggregation service.
@@ -14,14 +15,10 @@ export class DailyStatsService {
 
   /** Aggregate yesterday's revenue into RevenueDaily */
   async aggregateRevenue(date?: string) {
-    const target = date ? new Date(date) : new Date();
-    target.setDate(target.getDate() - 1); // yesterday
-    target.setHours(0, 0, 0, 0);
-    const nextDay = new Date(target);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const { target, start, end } = this.resolveYesterday(date);
 
     const orders = await this.prisma.order.findMany({
-      where: { status: 'DONE', createdAt: { gte: target, lt: nextDay } },
+      where: { status: 'DONE', createdAt: { gte: start, lt: end } },
       select: { studioId: true, companionId: true, type: true, amount: true },
     });
 
@@ -66,25 +63,21 @@ export class DailyStatsService {
 
   /** Aggregate daily studio stats */
   async aggregateStudioStats(date?: string) {
-    const target = date ? new Date(date) : new Date();
-    target.setDate(target.getDate() - 1);
-    target.setHours(0, 0, 0, 0);
-    const nextDay = new Date(target);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const { target, start, end } = this.resolveYesterday(date);
 
     const studios = await this.prisma.studio.findMany({ select: { id: true } });
 
     for (const studio of studios) {
       const [doneOrders, companions, timeLogs] = await Promise.all([
         this.prisma.order.aggregate({
-          where: { studioId: studio.id, status: 'DONE', createdAt: { gte: target, lt: nextDay } },
+          where: { studioId: studio.id, status: 'DONE', createdAt: { gte: start, lt: end } },
           _sum: { amount: true }, _count: true,
         }),
         this.prisma.companion.count({
           where: { studioId: studio.id, status: { in: ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'] } },
         }),
         this.prisma.companionTimeLog.aggregate({
-          where: { companion: { studioId: studio.id }, startedAt: { gte: target, lt: nextDay }, mode: 'ENTERTAINMENT' },
+          where: { companion: { studioId: studio.id }, startedAt: { gte: start, lt: end }, mode: 'ENTERTAINMENT' },
           _sum: { durationSeconds: true },
         }),
       ]);
@@ -103,5 +96,21 @@ export class DailyStatsService {
     }
 
     this.logger.log(`Aggregated stats for ${studios.length} studios`);
+  }
+
+  /** 解析要聚合的「昨天」营业日，返回该营业日 00:00 标签和 12:00 起止区间 */
+  private resolveYesterday(date?: string): { target: Date; start: Date; end: Date } {
+    let key: string;
+    if (date) {
+      key = date;
+    } else {
+      const y = businessDayOf(new Date());
+      y.setDate(y.getDate() - 1);
+      key = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+    }
+    const [yy, mm, dd] = key.split('-').map(Number);
+    const target = new Date(yy, mm - 1, dd, 0, 0, 0, 0);
+    const { start, end } = businessDayRange(key);
+    return { target, start, end };
   }
 }

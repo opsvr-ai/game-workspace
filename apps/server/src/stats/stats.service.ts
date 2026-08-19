@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { currentBusinessDayRange, businessDayRange } from '../common/business-day';
 
 export interface DailyStatsItem {
   csUserId: string;
@@ -116,20 +117,16 @@ export class StatsService {
     let endOfDay: Date;
 
     if (filters.dateFrom && filters.dateTo) {
-      startOfDay = new Date(filters.dateFrom);
-      startOfDay.setHours(0, 0, 0, 0);
-      endOfDay = new Date(filters.dateTo);
-      endOfDay.setHours(23, 59, 59, 999);
+      startOfDay = businessDayRange(filters.dateFrom).start;
+      endOfDay = businessDayRange(filters.dateTo).end;
     } else if (filters.date) {
-      startOfDay = new Date(filters.date);
-      startOfDay.setHours(0, 0, 0, 0);
-      endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
+      const range = businessDayRange(filters.date);
+      startOfDay = range.start;
+      endOfDay = range.end;
     } else {
-      startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
+      const range = currentBusinessDayRange();
+      startOfDay = range.start;
+      endOfDay = range.end;
     }
 
     // Build where clause

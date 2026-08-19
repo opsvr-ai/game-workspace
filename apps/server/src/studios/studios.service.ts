@@ -3,6 +3,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertCanManage } from '../common/role-hierarchy';
 import * as bcrypt from 'bcryptjs';
+import { currentBusinessDayRange } from '../common/business-day';
 
 @Injectable()
 export class StudiosService {
@@ -90,20 +91,19 @@ export class StudiosService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Add today's order counts per companion
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+    // Add today's order counts per companion（营业日 12:00 至次日 12:00）
+    const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
     const companionIds = users.filter((u: any) => u.companion?.id).map((u: any) => u.companion!.id);
     if (companionIds.length > 0) {
       const todayOrders = await this.prisma.order.groupBy({
         by: ['companionId'],
-        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lte: todayEnd }, status: { not: 'CANCELLED' } },
+        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lt: todayEnd }, status: { not: 'CANCELLED' } },
         _count: { id: true },
       });
       const counts = new Map(todayOrders.map((o: any) => [o.companionId, o._count.id]));
       // Add budan counts
       const budanData = await this.prisma.order.findMany({
-        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lte: todayEnd } },
+        where: { companionId: { in: companionIds }, createdAt: { gte: todayStart, lt: todayEnd } },
         select: { companionId: true, customFields: true, notes: true },
       });
       const budanCounts = new Map<string, number>();

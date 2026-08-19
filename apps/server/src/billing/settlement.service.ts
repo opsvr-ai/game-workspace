@@ -1,7 +1,12 @@
 // craftsman-ignore: TS001
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { currentBusinessDayRange } from '../common/business-day';
+import {
+  currentBusinessDayRange,
+  businessDayRange,
+  settlementMonthRange,
+  currentSettlementMonthRange,
+} from '../common/business-day';
 
 @Injectable()
 export class SettlementService {
@@ -16,9 +21,7 @@ export class SettlementService {
       return { skipped: true, message: `工作室 ${studioId} 的 ${month} 月结算已存在，跳过重复执行` };
     }
 
-    const [year, mon] = month.split('-').map(Number);
-    const start = new Date(year, mon - 1, 1);
-    const end = new Date(year, mon, 1);
+    const { start, end } = settlementMonthRange(month);
 
     // Get all companions in studio
     const companions = await this.prisma.companion.findMany({
@@ -260,8 +263,8 @@ export class SettlementService {
     // Records — all wallet transaction types, filtered by month if provided
     const recordsWhere: any = { companionId: companionFilter };
     if (month) {
-      const [y, m] = month.split('-').map(Number);
-      recordsWhere.createdAt = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+      const { start, end } = settlementMonthRange(month);
+      recordsWhere.createdAt = { gte: start, lt: end };
     }
 
     const records = await this.prisma.walletTransaction.findMany({
@@ -305,8 +308,7 @@ export class SettlementService {
       };
     }
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const { start: startOfMonth, end: endOfMonth } = currentSettlementMonthRange();
 
     // Total revenue from DONE orders
     const revenueAgg = await this.prisma.order.aggregate({
@@ -340,9 +342,7 @@ export class SettlementService {
   }
 
   async getDailyRevenue(studioId: string, date: string) {
-    const start = new Date(date);
-    const end = new Date(date);
-    end.setDate(end.getDate() + 1);
+    const { start, end } = businessDayRange(date);
 
     const orders = await this.prisma.order.aggregate({
       where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
@@ -358,9 +358,7 @@ export class SettlementService {
   }
 
   async getMonthlyRevenue(studioId: string, month: string) {
-    const [year, mon] = month.split('-').map(Number);
-    const start = new Date(year, mon - 1, 1);
-    const end = new Date(year, mon, 1);
+    const { start, end } = settlementMonthRange(month);
 
     const orders = await this.prisma.order.aggregate({
       where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end } },
