@@ -213,6 +213,12 @@ model Order {
   auditAmountCents   Int? // 审核金额（分）= 填写时长 x 声明单价
   transferTotalCents Int? // 转账截屏合计（分）
 
+  // 退款 / 存单结构化字段
+  refundedAt    DateTime? // 退款时间
+  refundReason  String? // 退款原因（必填）
+  depositedAt   DateTime? // 存单时间
+  depositAmount Float? // 存单金额（元）
+
   studio         Studio                @relation(fields: [studioId], references: [id])
   csUser         User                  @relation("CSUser", fields: [csUserId], references: [id])
   claimedCsUser  User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])

@@ -911,10 +911,18 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new ForbiddenException('订单不存在');
     if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
+
+    // 已完成过的订单在退款时回冲累计流水与客户总消费，避免财务虚高
+    if (order.status === 'DONE') {
+      await this.reverseOrderRevenue(order);
+    }
+
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
         status: 'CANCELLED',
+        refundedAt: new Date(),
+        refundReason: reason || null,
         notes: order.notes ? `${order.notes}\n[退款] ${reason || ''}` : `[退款] ${reason || ''}`,
       },
     });
@@ -933,7 +941,12 @@ export class OrdersService {
     if (companionId && order.companionId !== companionId) throw new ForbiddenException('只能操作自己的订单');
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: 'DEPOSITED', notes: order.notes ? `${order.notes}\n[存单]` : '[存单]' },
+      data: {
+        status: 'DEPOSITED',
+        depositedAt: new Date(),
+        depositAmount: order.amount,
+        notes: order.notes ? `${order.notes}\n[存单]` : '[存单]',
+      },
     });
     if (order.customerId) {
       const customer = await this.prisma.customer.findUnique({ where: { id: order.customerId }, select: { notes: true } });
@@ -953,6 +966,39 @@ export class OrdersService {
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
     return updated;
+  }
+
+  /** 回冲一笔已完成订单已累计的流水与总消费 */
+  private async reverseOrderRevenue(order: any) {
+    const splits: Array<{ companionId: string; amount: number }> =
+      (order.customFields as any)?.splits || [];
+    const splitTotal = splits.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+    try {
+      if (order.companionId) {
+        await this.prisma.companion.update({
+          where: { id: order.companionId },
+          data: { monthlyRevenue: { decrement: Math.max(0, order.amount - splitTotal) } },
+        });
+      }
+      for (const split of splits) {
+        if (!split.companionId) continue;
+        await this.prisma.companion
+          .update({
+            where: { id: split.companionId },
+            data: { monthlyRevenue: { decrement: Math.max(0, Number(split.amount) || 0) } },
+          })
+          .catch(() => {});
+      }
+      if (order.customerId) {
+        await this.prisma.customer.update({
+          where: { id: order.customerId },
+          data: { totalSpent: { decrement: Math.max(0, order.amount) } },
+        });
+      }
+    } catch (err) {
+      console.error('reverseOrderRevenue failed', { error: (err as Error).message, orderId: order.id });
+    }
   }
 
   async getPoolStatus(companionId: string) {

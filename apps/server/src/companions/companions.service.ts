@@ -116,6 +116,7 @@ export class CompanionsService {
       where: {
         companionId: { in: companionIds },
         status: 'DONE',
+        type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
         createdAt: { gte: monthStart, lt: monthEnd },
       },
       _sum: { amount: true },
