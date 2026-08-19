@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState } from 'react';
-import { Modal, Select, InputNumber, Button, Row, Col, Radio, message, Upload, Typography } from 'antd';
+import { Modal, Select, InputNumber, Button, Row, Col, Radio, message, notification, Upload, Typography } from 'antd';
 import { CameraOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
@@ -140,9 +140,22 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       if (dual) {
         if (partnerMode === 'broadcast') {
           await ordersApi.broadcastPartnerInvite(sessionId);
-          message.success('已广播找搭档，等待搭档接受');
+          notification.info({
+            message: '📣 已广播找搭档',
+            description: '等待搭档接受，20 秒未接受会自动取消',
+            placement: 'bottomRight',
+            duration: 5,
+          });
         } else {
-          message.success('已邀请搭档，等待对方确认后开始计时');
+          const partnerName = companions.find((c: any) => c.id === coId)?.user?.displayName
+            || companions.find((c: any) => c.id === coId)?.user?.username
+            || '对方';
+          notification.info({
+            message: `🤝 已邀请 ${partnerName} 搭档`,
+            description: '等待对方确认后开始计时，20 秒未接受会自动取消',
+            placement: 'bottomRight',
+            duration: 5,
+          });
         }
       } else {
         const isHandoff = !!(mainId && mainId !== user?.companionId);
