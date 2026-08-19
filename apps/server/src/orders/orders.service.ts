@@ -122,6 +122,9 @@ export class OrdersService {
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,
           isCompensation: (dto as any).isCompensation === true ? true : undefined,
+          dispatchCount: 1,
+          firstDispatchedAt: new Date().toISOString(),
+          dispatchHistory: [{ at: new Date().toISOString(), action: 'DISPATCH' }],
         },
         isOnline: dto.isOnline ?? true,
         paymentAccountId: (dto as any).paymentAccountId || null,
@@ -522,6 +525,9 @@ export class OrdersService {
             urgent: !isScheduled,
             poolExpired,
             poolExpiredAt: cf.poolExpiredAt || '',
+            dispatchCount: cf.dispatchCount || 1,
+            firstDispatchedAt: cf.firstDispatchedAt || '',
+            dispatchHistory: cf.dispatchHistory || [],
             isScheduled,
             requireCsContact: poolExpired || (!isScheduled && waitingSeconds >= disappearSeconds),
             csContactStatus: o.contactStatus || '',
@@ -575,10 +581,19 @@ export class OrdersService {
     const cf = (order.customFields as any) || {};
     delete cf.poolExpired;
     delete cf.poolExpiredAt;
+    const dispatchHistory = (cf.dispatchHistory || []).concat({
+      at: new Date().toISOString(),
+      action: 'REDISPATCH',
+    });
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
-        customFields: cf,
+        customFields: {
+          ...cf,
+          dispatchCount: (cf.dispatchCount || 1) + 1,
+          firstDispatchedAt: cf.firstDispatchedAt || new Date().toISOString(),
+          dispatchHistory,
+        },
         createdAt: new Date(), // 重置发单时间，让等待时间重新计算
       },
     });

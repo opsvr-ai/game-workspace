@@ -91,6 +91,9 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
         </span>
       ) : null}
       <span style={{ flex: 1 }} />
+      {item.dispatchCount > 1 && (
+        <Tag color="orange" style={{ margin: 0 }}>第{item.dispatchCount}次派</Tag>
+      )}
       {item.poolExpired ? (
         <Tag color="red" style={{ margin: 0 }}>待处理</Tag>
       ) : item.requireCsContact ? (
