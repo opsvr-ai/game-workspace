@@ -145,6 +145,19 @@ const CustomersPage: React.FC = () => {
       message.error(extractErrorMessage(e, '设置失败'));
     }
   };
+  const cancelPendingSession = async (sessionId: string, orderId?: string, orderType?: string) => {
+    try {
+      await ordersApi.endSession(sessionId);
+      // 复购（REPURCHASE）是新建订单，搭档没接受时把整单也结束，避免卡在「进行中」
+      if (orderId && orderType === 'REPURCHASE') {
+        try { await ordersApi.complete(orderId); } catch { /* ignore */ }
+      }
+      message.success('已取消搭档邀请');
+      fetchCustomers();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '取消失败');
+    }
+  };
   const [notesEditing, setNotesEditing] = useState<Record<string, string>>({});
   const [detailCustomer, setDetailCustomer] = useState<Customer | null>(null);
   const saveNotes = (id: string, notes: string) => {
@@ -629,28 +642,35 @@ const CustomersPage: React.FC = () => {
           {(() => {
             const activeOrder = record.orders?.find((o: any) => o.status === 'CONFIRMED');
             const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
-            if (activeOrder) {
+            if (!activeOrder || !activeSession) return null;
+            if (activeSession.startedAt) {
               return (
                 <Space size={4}>
                   <Tag color="blue">服务中</Tag>
-                  {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
+                  <ServiceTimer startedAt={activeSession.startedAt} />
                   <Button
                     size="small"
                     danger
-                    onClick={() => {
-                      if (activeSession?.id) {
-                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id });
-                      } else {
-                        message.warning('当前没有进行中的服务会话');
-                      }
-                    }}
+                    onClick={() => setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id })}
                   >
                     结束服务
                   </Button>
                 </Space>
               );
             }
-            return null;
+            // 双陪：搭档还没接受，不显示“服务中”
+            return (
+              <Space size={4}>
+                <Tag color="orange">等待搭档接受</Tag>
+                <Button
+                  size="small"
+                  danger
+                  onClick={() => cancelPendingSession(activeSession.id, activeOrder.id, activeOrder.type)}
+                >
+                  取消邀请
+                </Button>
+              </Space>
+            );
           })()}
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>
             发布订单

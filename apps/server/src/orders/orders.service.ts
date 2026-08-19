@@ -1183,6 +1183,16 @@ export class OrdersService {
           where: { id: sessionId },
           data: { status: 'DONE', endedAt: new Date() },
         });
+        // 复购/直接派单的双陪邀请超时未接受：把订单也结束，避免卡在「进行中」
+        await this.prisma.order.updateMany({
+          where: {
+            id: s.parentOrderId,
+            status: 'CONFIRMED',
+            dispatchType: 'DIRECT',
+            sessions: { none: { status: 'ACTIVE' } },
+          },
+          data: { status: 'DONE' },
+        }).catch(() => {});
         this.wsGateway.broadcastToStudio(studioId, 'order:dual_invite_expired', {
           sessionId,
           orderId: s.parentOrderId,
