@@ -1,10 +1,12 @@
 // craftsman-ignore: TS001,TS002,TS003
-import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col, Upload, notification } from 'antd';
-import { ArrowLeftOutlined, PlusOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined, CameraOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined, CameraOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { monitorApi } from '../api/monitor';
+import { companionsApi } from '../api/companions';
+import { useAuthStore } from '../stores/authStore';
 
 const { Text, Title } = Typography;
 
@@ -19,6 +21,8 @@ interface Session {
 const OrderDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const user = useAuthStore((s) => s.user);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<any>(null);
@@ -26,6 +30,10 @@ const OrderDetailPage: React.FC = () => {
   // ── 开始服务：口供 + 转账截图 ──
   const [startTarget, setStartTarget] = useState<Session | null>(null);
   const [isRenew, setIsRenew] = useState(false);
+  const [dual, setDual] = useState(false);
+  const [coId, setCoId] = useState<string | undefined>(undefined);
+  const [coPrice, setCoPrice] = useState<number | null>(null);
+  const [companions, setCompanions] = useState<any[]>([]);
   const [claimMode, setClaimMode] = useState<string>('机密');
   const [claimPrice, setClaimPrice] = useState<number | null>(35);
   const [claimDuration, setClaimDuration] = useState<number>(1);
@@ -35,6 +43,7 @@ const OrderDetailPage: React.FC = () => {
   const [endTarget, setEndTarget] = useState<Session | null>(null);
   const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
   const [ending, setEnding] = useState(false);
+  const autoOpened = useRef(false);
 
   const fetch = useCallback(async () => {
     if (!id) return;
@@ -53,38 +62,50 @@ const OrderDetailPage: React.FC = () => {
   useEffect(() => { fetch(); }, [fetch]);
 
   const last = sessions[sessions.length - 1];
+  const loadCompanions = async () => {
+    try {
+      const { data } = await companionsApi.list();
+      setCompanions((data.data || []).filter((c: any) => c.status === 'AVAILABLE'));
+    } catch {
+      setCompanions([]);
+    }
+  };
+
   const openRenew = () => {
     // 续单：时长/模式沿用首单，单价留空让陪玩重新填
     setStartTarget(null);
     setIsRenew(true);
+    setDual(false);
+    setCoId(undefined);
+    setCoPrice(null);
     setClaimMode(last?.claimedMode || '机密');
     setClaimPrice(null);
     setClaimDuration(last?.duration || 1);
     setTransferUrl('');
+    loadCompanions();
   };
 
-  const openStartModal = (r: Session) => {
+  const openStartModal = (r: Session | null) => {
     setStartTarget(r);
     setIsRenew(false);
+    setDual(false);
+    setCoId(undefined);
+    setCoPrice(null);
     setClaimMode('机密');
     setClaimPrice(35);
-    setClaimDuration(r.duration || 1);
+    setClaimDuration(r?.duration || 1);
     setTransferUrl('');
+    loadCompanions();
   };
 
-  const startFirstService = async () => {
-    if (!id) return;
-    try {
-      const res: any = await ordersApi.addSession(id, { amount: 35, duration: 1 });
-      const session = res?.data?.data || res?.data;
-      if (session?.id) {
-        fetch();
-        openStartModal(session);
-      }
-    } catch {
-      message.error('创建会话失败');
+  // 从客户管理「开始服务」跳转时自动弹出开始服务弹窗
+  useEffect(() => {
+    if (searchParams.get('start') === '1' && !loading && !autoOpened.current) {
+      autoOpened.current = true;
+      openStartModal(null);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, loading]);
 
   const handleUploadTransfer = async (file: File) => {
     setUploading(true);
@@ -102,14 +123,18 @@ const OrderDetailPage: React.FC = () => {
     if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
     if (!claimDuration || claimDuration <= 0) { message.warning('请填写有效时长'); return; }
     if (claimPrice == null || claimPrice <= 0) { message.warning('请填写单价'); return; }
+    if (dual && !coId) { message.warning('双陪请选择搭档'); return; }
+    if (dual && (coPrice == null || coPrice <= 0)) { message.warning('双陪请填写搭档单价'); return; }
     const price = claimPrice;
     setStarting(true);
     try {
       let targetId = startTarget?.id;
-      if (isRenew) {
+      if (!targetId) {
         const res: any = await ordersApi.addSession(id!, {
           amount: price * claimDuration,
           duration: claimDuration,
+          coCompanionId: dual ? coId : undefined,
+          coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
         });
         targetId = res?.data?.data?.id || res?.data?.id;
       }
@@ -224,9 +249,9 @@ const OrderDetailPage: React.FC = () => {
       </Space>
       <Card
         extra={
-          last?.status === 'ACTIVE'
-            ? <Button type="primary" icon={<PlusOutlined />} onClick={openRenew}>续单</Button>
-            : <Button type="primary" icon={<PlayCircleOutlined />} onClick={startFirstService}>开始服务</Button>
+          last?.status !== 'ACTIVE'
+            ? <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>开始服务</Button>
+            : null
         }
       >
         <Table columns={cols} dataSource={sessions} rowKey="id" loading={loading} size="small" pagination={false} />
@@ -240,7 +265,14 @@ const OrderDetailPage: React.FC = () => {
         confirmLoading={starting}
         okText={isRenew ? '确认续单' : '开始服务并开启工作记录'}
       >
-        <Row gutter={12} align="middle">
+        <Row gutter={12} align="middle" style={{ marginBottom: 8 }}>
+          <Col span={12}>
+            <Text>单/双陪</Text>
+            <div>
+              <Button size="small" type={!dual ? 'primary' : 'default'} onClick={() => setDual(false)} style={{ marginRight: 8 }}>单陪</Button>
+              <Button size="small" type={dual ? 'primary' : 'default'} onClick={() => setDual(true)}>双陪</Button>
+            </div>
+          </Col>
           <Col span={12}>
             <Text>游戏模式</Text>
             <Select style={{ width: '100%' }} value={claimMode} onChange={setClaimMode}>
@@ -248,17 +280,45 @@ const OrderDetailPage: React.FC = () => {
               <Select.Option value="绝密">绝密</Select.Option>
             </Select>
           </Col>
+        </Row>
+        <Row gutter={12} align="middle">
           <Col span={12}>
             <Text>单价（元/小时）</Text>
             <InputNumber min={0} style={{ width: '100%' }} value={claimPrice ?? undefined} onChange={(v) => setClaimPrice(v ?? null)} prefix="¥" placeholder={isRenew ? '续单价格会变，请重新填写' : ''} />
           </Col>
-        </Row>
-        <Row gutter={12} style={{ marginTop: 8 }}>
           <Col span={12}>
             <Text>实际时长（小时）</Text>
             <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} value={claimDuration} onChange={(v) => setClaimDuration(v || 0)} placeholder="至少 0.5 小时" />
           </Col>
         </Row>
+        {dual && (
+          <>
+            <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
+              <Col span={12}>
+                <Text>搭档</Text>
+                <Select
+                  style={{ width: '100%' }}
+                  value={coId}
+                  onChange={setCoId}
+                  placeholder="选择搭档"
+                  allowClear
+                >
+                  {companions
+                    .filter((c: any) => c.id !== user?.companionId)
+                    .map((c: any) => (
+                      <Select.Option key={c.id} value={c.id}>
+                        {c.user?.displayName || c.user?.username}
+                      </Select.Option>
+                    ))}
+                </Select>
+              </Col>
+              <Col span={12}>
+                <Text>搭档单价（元/小时）</Text>
+                <InputNumber min={0} style={{ width: '100%' }} value={coPrice ?? undefined} onChange={(v) => setCoPrice(v ?? null)} prefix="¥" placeholder="？/人/h" />
+              </Col>
+            </Row>
+          </>
+        )}
         <div style={{ marginTop: 12 }}>
           <Text>客户转账截图（必传）</Text>
           <div style={{ marginTop: 4 }}>

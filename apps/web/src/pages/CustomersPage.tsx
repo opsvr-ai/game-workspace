@@ -525,7 +525,7 @@ const CustomersPage: React.FC = () => {
             onClick={() => {
               const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
               if (active?.id) {
-                navigate(`/companion/orders/${active.id}`);
+                navigate(`/companion/orders/${active.id}?start=1`);
               } else {
                 message.warning('当前没有进行中的订单，请先在抢单池抢单');
               }
