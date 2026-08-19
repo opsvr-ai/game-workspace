@@ -366,7 +366,6 @@ const OrderDetailPage: React.FC = () => {
         sessionId={endTarget?.sessionId}
         orderId={endTarget?.orderId}
         onClose={() => setEndTarget(null)}
-        onRenew={() => openRenew()}
         onDone={() => fetch()}
       />
 

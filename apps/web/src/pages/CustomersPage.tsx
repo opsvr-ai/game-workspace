@@ -110,7 +110,7 @@ const CustomersPage: React.FC = () => {
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; initialValues?: any } | null>(null);
-  const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string; order?: any } | null>(null);
+  const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -572,7 +572,7 @@ const CustomersPage: React.FC = () => {
                     danger
                     onClick={() => {
                       if (activeSession?.id) {
-                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id, order: activeOrder });
+                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id });
                       } else {
                         message.warning('当前没有进行中的服务会话');
                       }
@@ -890,27 +890,8 @@ const CustomersPage: React.FC = () => {
           open={!!endServiceTarget}
           sessionId={endServiceTarget?.sessionId}
           orderId={endServiceTarget?.orderId}
-          order={endServiceTarget?.order}
           onClose={() => setEndServiceTarget(null)}
           onDone={() => fetchCustomers()}
-          onRenew={(o) => {
-            setEndServiceTarget(null);
-            if (o?.id) {
-              const lastSession = o.sessions?.[0];
-              setStartServiceOrder({
-                id: o.id,
-                gameName: o.gameName,
-                initialValues: {
-                  dual: !!lastSession?.coCompanionId,
-                  coId: lastSession?.coCompanionId,
-                  coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
-                  claimMode: lastSession?.claimedMode || '机密',
-                  claimPrice: null,
-                  claimDuration: lastSession?.duration || 1,
-                },
-              });
-            }
-          }}
         />
         <CustomerDetailDrawer
           customerId={detailCustomer?.id ?? null}

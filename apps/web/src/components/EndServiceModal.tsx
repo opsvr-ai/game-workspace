@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { Modal, InputNumber, Space, Button, Typography, notification, message } from 'antd';
+import { Modal, InputNumber, Typography, message } from 'antd';
 import { ordersApi } from '../api/orders';
 
 const { Text } = Typography;
@@ -9,13 +9,11 @@ interface Props {
   open: boolean;
   sessionId?: string | null;
   orderId?: string | null;
-  order?: any;
   onClose: () => void;
-  onRenew?: (order?: any) => void;
   onDone?: () => void;
 }
 
-const EndServiceModal: React.FC<Props> = ({ open, sessionId, orderId, order, onClose, onRenew, onDone }) => {
+const EndServiceModal: React.FC<Props> = ({ open, sessionId, orderId, onClose, onDone }) => {
   const [transferTotal, setTransferTotal] = useState<number | undefined>(undefined);
   const [ending, setEnding] = useState(false);
 
@@ -23,56 +21,23 @@ const EndServiceModal: React.FC<Props> = ({ open, sessionId, orderId, order, onC
     if (open) setTransferTotal(undefined);
   }, [open]);
 
-  const completeOrder = async () => {
-    if (!orderId) return;
-    try {
-      await ordersApi.complete(orderId);
-      message.success('本单已结束服务');
-      onDone?.();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '结束服务失败');
-    }
-  };
-
   const confirm = async () => {
     if (!sessionId) return;
     try { await (window as any).electronAPI?.sessionWatchStop?.(); } catch {}
     setEnding(true);
     try {
       await ordersApi.finishSession(sessionId, { transferTotalYuan: transferTotal });
-      message.success('已结束');
+      // 结束服务 = 结束会话 + 完成订单，避免订单一直停在「进行中」
+      if (orderId) {
+        try {
+          await ordersApi.complete(orderId);
+        } catch {
+          /* 订单可能已结束，忽略 */
+        }
+      }
+      message.success('已结束服务');
       onDone?.();
       onClose();
-      const nk = `renew-${sessionId}`;
-      notification.success({
-        key: nk,
-        message: '🙌 祝你续单',
-        placement: 'bottomRight',
-        duration: 0,
-        btn: (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              onClick={() => {
-                notification.destroy(nk);
-                onRenew?.(order);
-              }}
-            >
-              续单
-            </Button>
-            <Button
-              size="small"
-              onClick={() => {
-                notification.destroy(nk);
-                completeOrder();
-              }}
-            >
-              结束服务
-            </Button>
-          </Space>
-        ),
-      });
     } catch (e: any) {
       message.error(e?.response?.data?.message || '结束失败');
     }
