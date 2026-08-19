@@ -105,6 +105,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
     if (dual && partnerMode === 'assign' && !coId) return message.warning('双陪请选择搭档');
     if (dual && (coPrice == null || coPrice <= 0)) return message.warning('双陪请填写搭档单价');
+    if (dual && partnerMode !== 'assign') return message.warning('请先通过「广播」或「入池」找到搭档');
 
     const price = claimPrice;
     setStarting(true);
@@ -114,6 +115,9 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
         duration: claimDuration,
         coCompanionId: dual ? coId : undefined,
         coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+        claimedMode: claimMode,
+        claimedPrice: price,
+        transferScreenshotUrl: transferUrl,
       });
       const sessionId = res?.data?.data?.id || res?.data?.id;
       if (!sessionId) {
@@ -121,14 +125,18 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
         setStarting(false);
         return;
       }
-      await ordersApi.startSession(sessionId, {
-        claimedMode: claimMode,
-        claimedPrice: price,
-        duration: claimDuration,
-        transferScreenshotUrl: transferUrl,
-      });
-      (window as any).electronAPI?.sessionWatch?.(sessionId);
-      message.success('服务已开始，工作记录已开启');
+      if (dual) {
+        message.success('已邀请搭档，等待对方确认后开始计时');
+      } else {
+        await ordersApi.startSession(sessionId, {
+          claimedMode: claimMode,
+          claimedPrice: price,
+          duration: claimDuration,
+          transferScreenshotUrl: transferUrl,
+        });
+        (window as any).electronAPI?.sessionWatch?.(sessionId);
+        message.success('服务已开始，工作记录已开启');
+      }
       onDone();
     } catch (e: any) {
       message.error(e?.response?.data?.message || '开始失败');

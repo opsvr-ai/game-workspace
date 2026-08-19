@@ -368,6 +368,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(socketId).emit('order:new', order);
   }
 
+  pushToCompanion(companionId: string, event: string, data: unknown): void {
+    const socketId = this.companionSockets.get(companionId);
+    if (!socketId) return;
+    this.server.to(socketId).emit(event, data);
+  }
+
   broadcastToStudio(studioId: string, event: string, data: unknown): void {
     this.server.to(`studio:${studioId}`).emit(event, data);
   }

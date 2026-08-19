@@ -257,8 +257,18 @@ export class OrdersController {
       amount: body.amount,
       coAmount: body.coAmount,
       duration: body.duration,
+      claimedMode: body.claimedMode,
+      claimedPrice: body.claimedPrice,
+      transferScreenshotUrl: body.transferScreenshotUrl,
     });
     return { code: 200, message: '续费成功', data };
+  }
+
+  @Post('sessions/:sessionId/partner-accept')
+  @Roles(UserRole.COMPANION)
+  async acceptPartnerInvite(@Param('sessionId') sessionId: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.acceptPartnerInvite(sessionId, req.user.companionId);
+    return { code: 200, message: '已接受搭档邀请，开始计时', data };
   }
 
   @Put('sessions/:sessionId/start')

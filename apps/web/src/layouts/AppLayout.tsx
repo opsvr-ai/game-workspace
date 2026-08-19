@@ -5,6 +5,7 @@ import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popov
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import http from '../api/client';
+import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
@@ -607,6 +608,28 @@ const AppLayout: React.FC = () => {
 
   // WebSocket connection for real-time updates
   const voiceSocketRef = useSocket({
+    onOrderNew: (data: any) => {
+      if (data?.type !== 'DUAL_INVITE') return;
+      if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
+      Modal.confirm({
+        title: '🤝 搭档邀请',
+        content: `有陪玩邀请你搭档服务：${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h，是否接受？`,
+        okText: '接受',
+        cancelText: '拒绝',
+        onOk: async () => {
+          try {
+            await ordersApi.acceptPartnerInvite(data.id);
+            message.success('已接受搭档邀请，开始计时');
+          } catch (e: any) {
+            message.error(e?.response?.data?.message || '接受失败');
+          }
+        },
+      });
+    },
+    onPartnerAccepted: (data: any) => {
+      message.success('搭档已同意，开始计时');
+      (window as any).electronAPI?.sessionWatch?.(data.sessionId);
+    },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },

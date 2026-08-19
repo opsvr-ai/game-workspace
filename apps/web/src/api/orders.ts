@@ -44,6 +44,7 @@ export const ordersApi = {
   renew: (id: string) => http.post(`/orders/${id}/renew`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
+  acceptPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-accept`),
   startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; duration?: number; transferScreenshotUrl?: string }) =>
     http.put(`/sessions/${sessionId}/start`, claims || {}),
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),

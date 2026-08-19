@@ -1074,6 +1074,9 @@ export class OrdersService {
       amount: number;
       coAmount?: number;
       duration?: number;
+      claimedMode?: string;
+      claimedPrice?: number;
+      transferScreenshotUrl?: string;
     },
   ) {
     const sessions = await this.prisma.orderSession.findMany({
@@ -1093,6 +1096,9 @@ export class OrdersService {
         amount: dto.amount,
         coAmount: dto.coAmount ?? last?.coAmount ?? (order?.coAmount ?? null),
         duration: dto.duration || 1,
+        claimedMode: dto.claimedMode ?? null,
+        claimedPrice: dto.claimedPrice ?? null,
+        transferScreenshotUrl: dto.transferScreenshotUrl ?? null,
         status: 'ACTIVE',
       },
     });
@@ -1108,6 +1114,38 @@ export class OrdersService {
     }
     this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);
     return session;
+  }
+
+  /** 搭档接受双陪邀请：确认后开始计时，并通知主陪 */
+  async acceptPartnerInvite(sessionId: string, partnerId: string) {
+    const session = await this.prisma.orderSession.findUnique({
+      where: { id: sessionId },
+      include: { parentOrder: { select: { id: true, companionId: true, gameName: true, studioId: true } } },
+    });
+    if (!session) throw new NotFoundException('会话不存在');
+    if (session.coCompanionId !== partnerId) throw new ForbiddenException('无权接受此搭档邀请');
+    if (session.startedAt) throw new ForbiddenException('该服务已开始');
+
+    await this.prisma.order.update({
+      where: { id: session.parentOrderId },
+      data: { coCompanionId: partnerId },
+    }).catch(() => {});
+
+    await this.prisma.orderSession.update({
+      where: { id: sessionId },
+      data: { startedAt: new Date() },
+    });
+
+    if (session.companionId) {
+      this.wsGateway.pushToCompanion(session.companionId, 'order:partner_accepted', {
+        sessionId,
+        orderId: session.parentOrderId,
+        gameName: session.parentOrder?.gameName || '',
+        partnerId,
+      });
+    }
+    this.wsGateway.broadcastToStudio(session.parentOrder?.studioId || '', 'order:pool_updated', { id: sessionId });
+    return { ok: true };
   }
 
   private async getOwnedSession(id: string, companionId?: string) {

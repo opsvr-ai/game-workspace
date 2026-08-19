@@ -94,6 +94,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **双陪搭档确认流程:** 陪玩选双陪并指定搭档后，不再直接开始计时；改为先向搭档发出邀请，搭档端弹窗「接受/拒绝」，搭档接受后才开始计时，并通知主陪。单陪仍直接开始。
 - **截图上传 500 修复:** 修复 `/app/uploads/screenshots` 目录被坏符号链接占用导致上传报“服务器内部错误”的问题；上传目录现在会自动清理坏链接/同名文件并重建，且已手动清理线上残留的坏链接。
 - **截图上传放宽格式与大小:** 上传截图支持更多图片格式（JPG/PNG/WebP/GIF/BMP/HEIC/TIFF），单文件上限提到 20MB，并放宽空 mimeType 判断；上传失败时前端显示具体错误，便于排查。
 - **上传类接口统一修复:** 去掉聊天发图、聊天文件、会话截图、工作室创建、注册上传等所有手动写死的 `Content-Type: multipart/form-data`，交给 axios 自动加 boundary，避免同类上传失败。
