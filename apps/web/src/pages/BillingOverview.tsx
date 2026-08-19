@@ -35,6 +35,7 @@ const IconClose = React.createElement(CloseCircleOutlined);
 const IconReload = React.createElement(ReloadOutlined);
 import { UserRole } from '@chunlv/shared';
 import http from '../api/client';
+import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
 import CardSkeleton from '../components/CardSkeleton';
@@ -472,13 +473,20 @@ const BillingOverview: React.FC = () => {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Space size={8}>
                               <Text type="secondary">{item.gameName}</Text>
+                              {item.claimedMode && <Tag color="geekblue" style={{ fontSize: 10, margin: 0 }}>{item.claimedMode}</Tag>}
                               <Text type="secondary">{item.customerWechat}</Text>
+                              {item.coName && <Text type="secondary">搭档：{item.coName}</Text>}
                               {item.screenshotUrl && (
                                 <img src={item.screenshotUrl} alt="截图" onClick={() => setViewScreenshots([item.screenshotUrl])}
                                   style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 3, cursor: 'pointer', border: '1px solid #E5E7EB' }} />
                               )}
                             </Space>
-                            <Text strong style={{ color: '#EF4444' }}>¥{item.amount}</Text>
+                            <Space size={6}>
+                              {item.claimedPrice != null && (
+                                <Text type="secondary" style={{ fontSize: 10 }}>{item.claimedPrice}×{item.duration || 1}h</Text>
+                              )}
+                              <Text strong style={{ color: '#EF4444' }}>¥{item.amount}</Text>
+                            </Space>
                           </div>
                           {item.remark && (
                             <div style={{ fontSize: 12, color: '#B45309', background: '#FFFBEB', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>
@@ -545,14 +553,31 @@ const BillingOverview: React.FC = () => {
         {isCompanion && (
           <Space>
             <Button icon={<UploadOutlined />} onClick={() => {
-              http.get('/orders?all=true').then(({data}:any) => {
-                const list = data.data?.items ?? data.data ?? [];
-                setTodayOrders(list.filter((o:any) => o.status === 'DONE' && new Date(o.createdAt).toDateString()===new Date().toDateString()));
-                setReportScreenshots({});
+              companionsApi.todaySessions().then(({data}:any) => {
+                const sessions = data.data || [];
+                const mapped = sessions.map((s:any) => ({
+                  id: s.parentOrderId || s.id,
+                  sessionId: s.id,
+                  gameName: s.gameName,
+                  customerWechat: s.customerWechat,
+                  duration: s.duration,
+                  claimedMode: s.claimedMode,
+                  claimedPrice: s.claimedPrice,
+                  transferScreenshotUrl: s.transferScreenshotUrl,
+                  coName: s.coName,
+                  amount: s.amount,
+                  createdAt: s.createdAt,
+                }));
+                setTodayOrders(mapped);
                 setReportRemarks({});
                 const amounts: Record<string,number> = {};
-                list.forEach((o:any) => { amounts[o.id] = o.amount || 0; });
+                const shots: Record<string,string> = {};
+                mapped.forEach((o:any) => {
+                  amounts[o.id] = o.amount || 0;
+                  if (o.transferScreenshotUrl) shots[o.id] = o.transferScreenshotUrl;
+                });
                 setReportAmounts(amounts);
+                setReportScreenshots(shots);
                 setReportVisible(true);
               }).catch(()=>{});
             }}>上报今日流水</Button>
@@ -603,10 +628,15 @@ const BillingOverview: React.FC = () => {
             // Submit amounts and screenshots
             const items = todayOrders.map(o => ({
               orderId: o.id,
+              sessionId: o.sessionId,
               gameName: o.gameName,
               amount: reportAmounts[o.id] || 0,
               screenshotUrl: reportScreenshots[o.id] || '',
-              customerWechat: o.customer?.wechatId || o.customFields?.customerWechat || '',
+              customerWechat: o.customerWechat || '',
+              claimedMode: o.claimedMode,
+              claimedPrice: o.claimedPrice,
+              duration: o.duration,
+              coName: o.coName,
               remark: reportRemarks[o.id] || '',
             }));
             await http.post('/billing/report-today-v2', { items });
@@ -650,6 +680,8 @@ const BillingOverview: React.FC = () => {
                           {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
                         <Text>{o.gameName}</Text>
+                        {o.claimedMode && <Tag color="geekblue" style={{ fontSize: 10, margin: 0 }}>{o.claimedMode}</Tag>}
+                        {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>搭档：{o.coName}</Tag>}
                       </Space>
                     </td>
                     <td style={{ padding: '8px 12px', fontSize: 12 }}>
@@ -667,6 +699,11 @@ const BillingOverview: React.FC = () => {
                         style={{ width: 100 }}
                         prefix="¥"
                       />
+                      {o.claimedPrice != null && (
+                        <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
+                          单价 {o.claimedPrice} × {o.duration || 1}h
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                       {reportScreenshots[o.id] ? (
