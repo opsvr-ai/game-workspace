@@ -56,6 +56,9 @@ export class CompanionsService {
       csSeen.set(uid, v.lastSeen || null);
     }
 
+    const companionIds = users.filter((u) => u.companion).map((u) => u.companion!.id);
+    const excellence = await this.computeExcellence(companionIds);
+
     return users.map((u) => ({
       id: u.id,
       username: u.username,
@@ -74,7 +77,49 @@ export class CompanionsService {
       monthlyRevenue: u.companion?.monthlyRevenue ?? null,
       lastHeartbeat: u.companion?.pc?.lastHeartbeat ?? csSeen.get(u.id) ?? null,
       currentMode: u.companion?.pc?.currentMode ?? null,
+      isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,
+      rankScore: u.companion ? excellence.get(u.companion.id)?.rankScore ?? 0 : 0,
+      renewRate: u.companion ? excellence.get(u.companion.id)?.renewRate ?? 0 : 0,
+      repurchaseRate: u.companion ? excellence.get(u.companion.id)?.repurchaseRate ?? 0 : 0,
+      orderCount: u.companion ? excellence.get(u.companion.id)?.orderCount ?? 0 : 0,
     }));
+  }
+
+  /** 优秀判定：月流水≥3000 或 (续单率+复购率)≥50%。 */
+  private async computeExcellence(companionIds: string[]) {
+    const result = new Map<string, { isExcellent: boolean; rankScore: number; renewRate: number; repurchaseRate: number; orderCount: number }>();
+    if (companionIds.length === 0) return result;
+
+    const orderStats = await this.prisma.order.groupBy({
+      by: ['companionId', 'type'],
+      where: { companionId: { in: companionIds }, status: 'DONE' },
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+
+    const m = new Map<string, { revenue: number; count: number; renew: number; repurchase: number }>();
+    for (const row of orderStats) {
+      const cid = row.companionId!;
+      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, renew: 0, repurchase: 0 });
+      const s = m.get(cid)!;
+      s.revenue += row._sum.amount || 0;
+      s.count += row._count.id;
+      if (row.type === 'RENEW') s.renew = row._count.id;
+      if (row.type === 'REPURCHASE') s.repurchase = row._count.id;
+    }
+
+    for (const [cid, s] of m) {
+      const renewRate = s.count > 0 ? (s.renew / s.count) * 100 : 0;
+      const repurchaseRate = s.count > 0 ? (s.repurchase / s.count) * 100 : 0;
+      result.set(cid, {
+        isExcellent: s.revenue >= 3000 || renewRate + repurchaseRate >= 50,
+        rankScore: Math.round(s.revenue),
+        renewRate: Math.round(renewRate),
+        repurchaseRate: Math.round(repurchaseRate),
+        orderCount: s.count,
+      });
+    }
+    return result;
   }
 
   async findAll(user: any) {

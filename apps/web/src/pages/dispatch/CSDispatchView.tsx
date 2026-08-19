@@ -47,6 +47,8 @@ interface Personnel {
   companionId?: string | null;
   status?: CompanionStatus | null;
   lastHeartbeat?: string | null;
+  isExcellent?: boolean;
+  rankScore?: number;
   games?: any[];
 }
 
@@ -287,6 +289,9 @@ const CSDispatchView: React.FC = () => {
         const aMsg = conversations[a.id]?.unreadCount > 0 ? 1 : 0;
         const bMsg = conversations[b.id]?.unreadCount > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
+        const aExc = a.isExcellent ? 1 : 0;
+        const bExc = b.isExcellent ? 1 : 0;
+        if (aExc !== bExc) return bExc - aExc;
         return (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9);
       }),
     [companions, conversations],
@@ -481,6 +486,9 @@ const CSDispatchView: React.FC = () => {
                               <Text type="secondary" style={{ fontSize: 10, fontWeight: 400, flexShrink: 0 }}>
                                 {c.studioName}
                               </Text>
+                            )}
+                            {c.isExcellent && (
+                              <span title="优秀" style={{ color: '#FAAD14', fontSize: 12, lineHeight: 1, flexShrink: 0 }}>⭐</span>
                             )}
                             <Text strong>{c.displayName || c.username || c.id}</Text>
                             {(c as any).processStatus === 'BLOCKED' && (
