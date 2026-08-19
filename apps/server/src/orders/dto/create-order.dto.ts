@@ -16,11 +16,17 @@ export class CreateOrderDto {
   @IsOptional() @IsBoolean() isOnline?: boolean;
   @IsOptional() @IsString() companionId?: string;
   @IsOptional() @IsString() coCompanionId?: string;
+  @IsOptional() @IsNumber() @Min(0) coAmount?: number;
+  @IsOptional() @IsString() serviceType?: string;
 
   // Customer info fields
   @IsOptional() @IsString() customerSource?: string;
+  @IsOptional() @IsString() customerSourceAccount?: string;
+  @IsOptional() @IsString() customerAccountId?: string;
   @IsOptional() @IsString() customerPlatformAccount?: string;
   @IsOptional() @IsString() customerWechat?: string;
+  @IsOptional() @IsString() customerYy?: string;
+  @IsOptional() @IsString() customerWechatQr?: string;
   @IsOptional() @IsString() customerRoomCode?: string;
 
   // Delta Force sub-fields
@@ -39,4 +45,6 @@ export class CreateOrderDto {
 
   // Payment tracking
   @IsOptional() @IsString() paymentAccountId?: string;
+  @IsOptional() @IsBoolean() isCompensation?: boolean;
+  @IsOptional() @IsString() transferScreenshotUrl?: string;
 }

@@ -105,6 +105,7 @@ export class OrdersService {
         customFields: {
           customerSource: (dto as any).customerSource,
           customerSourceAccount: (dto as any).customerSourceAccount,
+          customerAccountId: (dto as any).customerAccountId,
           customerPlatformAccount: (dto as any).customerPlatformAccount,
           customerWechat: dto.customerWechat,
           customerWechatQr: (dto as any).customerWechatQr || undefined,

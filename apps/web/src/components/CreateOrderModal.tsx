@@ -263,6 +263,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             </Form.Item>
           </Input.Group>
         </Form.Item>
+        <Form.Item name="customerAccountId" label="客户账号ID">
+          <Input placeholder="客户自己的小红书ID/抖音号/快手号（具体是哪个客户）" />
+        </Form.Item>
         <Form.Item label="客户联系方式">
           <Input.Group compact>
             <Form.Item name="customerWechat" noStyle>
