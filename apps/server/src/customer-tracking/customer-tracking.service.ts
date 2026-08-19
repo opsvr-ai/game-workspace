@@ -185,6 +185,95 @@ export class CustomerTrackingService {
     });
   }
 
+  /** 客户全链路轨迹：把进入系统、派单/重派、抢单、服务、联系、资金等按时间串联成一条时间线。 */
+  async getJourney(user: AuthUser, customerId: string) {
+    const where: any = { id: customerId };
+    if (user.role !== 'OWNER' && user.studioId) where.studioId = user.studioId;
+
+    const customer = await this.prisma.customer.findUnique({
+      where,
+      include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        orders: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            companion: { include: { user: { select: { username: true, displayName: true } } } },
+            csUser: { select: { username: true, displayName: true } },
+            sessions: { orderBy: { seq: 'asc' }, include: { companion: { include: { user: { select: { username: true } } } } } },
+            moneyFlows: { orderBy: { createdAt: 'asc' } },
+          },
+        },
+        contacts: { orderBy: { createdAt: 'asc' }, include: { companion: { include: { user: { select: { username: true } } } } } },
+        tracks: { orderBy: { createdAt: 'asc' }, include: { companion: { include: { user: { select: { username: true } } } } } },
+      },
+    });
+    if (!customer) throw new NotFoundException('客户不存在');
+
+    const events: Array<{ at: string; type: string; label: string; detail?: string }> = [];
+    const push = (at: Date | string | null | undefined, type: string, label: string, detail?: string) => {
+      if (!at) return;
+      const t = new Date(at);
+      if (Number.isNaN(t.getTime())) return;
+      events.push({ at: t.toISOString(), type, label, detail });
+    };
+
+    push(customer.createdAt, 'CUSTOMER', '客户进入系统', customer.wechatId || customer.customerCode || '');
+
+    const contactLabel: Record<string, string> = {
+      NOW: '现在打', RESCHEDULE: '改天', REJECT: '不同意', NO_REPLY: '未回复', DELETED: '已删除', DONGGU: '存单', REFUND: '退款',
+    };
+
+    for (const o of customer.orders) {
+      const cf = (o.customFields as any) || {};
+      for (const d of cf.dispatchHistory || []) {
+        push(d.at, d.action === 'REDISPATCH' ? 'REDISPATCH' : 'DISPATCH', d.action === 'REDISPATCH' ? '重新派单' : '派单', `${o.gameName} · ¥${o.amount}`);
+      }
+      if (o.grabbedAt) {
+        const name = o.companion?.user?.displayName || o.companion?.user?.username || '陪玩';
+        push(o.grabbedAt, 'GRAB', '陪玩抢单', `${name} · ${o.gameName}`);
+      }
+      if (o.status === 'DONE') {
+        push(o.updatedAt || o.createdAt, 'DONE', '订单完成', `${o.gameName} · ¥${o.amount}`);
+      } else if (o.status === 'CANCELLED') {
+        const isRefund = (o.notes || '').includes('退款');
+        push(o.updatedAt || o.createdAt, isRefund ? 'REFUND' : 'CANCEL', isRefund ? '退款' : '取消订单', o.notes || '');
+      } else if (o.status === 'DEPOSITED') {
+        push(o.updatedAt || o.createdAt, 'DEPOSIT', '存单', `¥${o.amount}`);
+      }
+      for (const s of o.sessions) {
+        if (s.startedAt) push(s.startedAt, 'SERVICE_START', '开始服务', `${o.gameName} · ${s.duration || 1}h`);
+        if (s.endedAt) push(s.endedAt, 'SERVICE_END', '结束服务', `${o.gameName}`);
+      }
+      for (const mf of o.moneyFlows) {
+        push(mf.createdAt, 'MONEY', mf.direction === 'IN' ? '资金转入' : '资金转出', `¥${mf.amount} · ${mf.counterpart || ''}`);
+      }
+    }
+
+    for (const c of customer.contacts) {
+      const name = c.companion?.user?.username || '陪玩';
+      push(c.createdAt, 'CONTACT', `联系结果：${contactLabel[c.result] || c.result}`, `${name}${c.note ? ' · ' + c.note : ''}`);
+    }
+
+    for (const t of customer.tracks) {
+      const name = t.companion?.user?.username || '';
+      push(t.createdAt, 'TRACK', '追踪记录', `${name}${t.content ? ' · ' + t.content : ''}`);
+    }
+
+    events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+    return {
+      customer: {
+        id: customer.id,
+        wechatId: customer.wechatId,
+        customerCode: customer.customerCode,
+        status: customer.status,
+        totalSpent: customer.totalSpent,
+        companion: customer.companion?.user?.displayName || customer.companion?.user?.username || null,
+      },
+      events,
+    };
+  }
+
   async submitDeleteRequest(user: AuthUser, dto: any) {
     const companionId = user.companionId ?? dto.companionId;
     if (!companionId) throw new ForbiddenException('缺少陪玩标识');

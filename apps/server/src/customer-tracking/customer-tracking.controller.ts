@@ -53,6 +53,13 @@ export class CustomerTrackingController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('journey/:customerId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getJourney(@Req() req: any, @Param('customerId') customerId: string): Promise<ApiResponse<unknown>> {
+    const data = await this.tracking.getJourney(req.user, customerId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Post('delete-requests')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async submitDeleteRequest(@Req() req: any, @Body() dto: any): Promise<ApiResponse<unknown>> {

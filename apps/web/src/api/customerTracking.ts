@@ -12,4 +12,5 @@ export const customerTrackingApi = {
     http.post(`/customer-tracking/delete-requests/${id}/review`, { approve, rejectReason }),
   kpi: () => http.get('/customer-tracking/kpi'),
   anomalies: () => http.get('/customer-tracking/anomalies'),
+  journey: (customerId: string) => http.get(`/customer-tracking/journey/${customerId}`),
 };

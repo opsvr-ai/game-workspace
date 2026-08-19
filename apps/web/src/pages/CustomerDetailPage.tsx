@@ -25,6 +25,7 @@ import { SaveOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@
 import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
 import { ordersApi } from '../api/orders';
+import { customerTrackingApi } from '../api/customerTracking';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -66,6 +67,25 @@ const formatDate = (d: string | null | undefined) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
+const journeyColor = (type: string) => {
+  const map: Record<string, string> = {
+    CUSTOMER: 'green',
+    DISPATCH: 'blue',
+    REDISPATCH: 'orange',
+    GRAB: 'cyan',
+    DONE: 'green',
+    CANCEL: 'gray',
+    REFUND: 'red',
+    DEPOSIT: 'purple',
+    SERVICE_START: 'geekblue',
+    SERVICE_END: 'blue',
+    MONEY: 'gold',
+    CONTACT: 'magenta',
+    TRACK: 'default',
+  };
+  return map[type] || 'gray';
+};
+
 // ── Component ──────────────────────────────────────────────────
 
 const CustomerDetailPage: React.FC = () => {
@@ -78,12 +98,14 @@ const CustomerDetailPage: React.FC = () => {
   const [customerType, setCustomerType] = useState<any>(null);
   const [followUps, setFollowUps] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [journey, setJourney] = useState<any>(null);
 
   // Loading states
   const [loadingCustomer, setLoadingCustomer] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingFollowUps, setLoadingFollowUps] = useState(true);
+  const [loadingJourney, setLoadingJourney] = useState(true);
   const [refundTarget, setRefundTarget] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<any>(null);
@@ -162,13 +184,27 @@ const CustomerDetailPage: React.FC = () => {
     }
   }, [id]);
 
+  const fetchJourney = useCallback(async () => {
+    if (!id) return;
+    setLoadingJourney(true);
+    try {
+      const { data } = await customerTrackingApi.journey(id);
+      setJourney(data.data ?? null);
+    } catch {
+      // non-critical
+    } finally {
+      setLoadingJourney(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchCustomer();
     fetchProfile();
     fetchType();
     fetchOrders();
     fetchFollowUps();
-  }, [fetchCustomer, fetchProfile, fetchType, fetchOrders, fetchFollowUps]);
+    fetchJourney();
+  }, [fetchCustomer, fetchProfile, fetchType, fetchOrders, fetchFollowUps, fetchJourney]);
 
   // ── Profile edit ───────────────────────────────────────────
 
@@ -657,6 +693,37 @@ const CustomerDetailPage: React.FC = () => {
             </div>
           );
         })()}
+      </Card>
+
+      {/* ── Section 4.5: 客户轨迹（来龙去脉） ─────────────────── */}
+      <Card
+        title="客户轨迹（来龙去脉）"
+        loading={loadingJourney}
+        style={{ marginBottom: 12 }}
+        extra={<Text type="secondary">{journey?.events?.length ?? 0} 条</Text>}
+      >
+        {journey?.events?.length > 0 ? (
+          <Timeline
+            items={journey.events.map((e: any) => ({
+              color: journeyColor(e.type),
+              children: (
+                <div>
+                  <Text strong>{e.label}</Text>
+                  {e.detail && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{e.detail}</Text>
+                    </div>
+                  )}
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(e.at)}</Text>
+                  </div>
+                </div>
+              ),
+            }))}
+          />
+        ) : (
+          <Text type="secondary">暂无轨迹</Text>
+        )}
       </Card>
 
       {/* ── Section 5: Service History ────────────────────── */}
