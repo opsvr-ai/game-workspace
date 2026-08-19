@@ -108,7 +108,7 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
-  const [startServiceOrder, setStartServiceOrder] = useState<{ id: string; gameName?: string } | null>(null);
+  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -579,15 +579,10 @@ const CustomersPage: React.FC = () => {
           <Button
             size="small"
             onClick={() => {
-              setStartServicePreFill({
+              setStartServiceOrder({
                 customerId: record.id,
-                companionId: user?.companionId,
-                dispatchType: 'DIRECT',
                 gameName: record.orders?.[0]?.gameName,
-                amount: record.orders?.[0]?.amount,
-                type: 'REPURCHASE',
               });
-              setCreateOrderOpen(true);
             }}
           >
             复购
@@ -848,6 +843,7 @@ const CustomersPage: React.FC = () => {
         <StartServiceModal
           open={!!startServiceOrder}
           orderId={startServiceOrder?.id ?? null}
+          customerId={startServiceOrder?.customerId ?? null}
           gameName={startServiceOrder?.gameName}
           onClose={() => setStartServiceOrder(null)}
           onDone={() => {

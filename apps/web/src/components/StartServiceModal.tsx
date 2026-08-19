@@ -12,12 +12,13 @@ const { Text } = Typography;
 interface Props {
   open: boolean;
   orderId: string | null;
+  customerId?: string | null;
   gameName?: string;
   onClose: () => void;
   onDone: () => void;
 }
 
-const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, onDone }) => {
+const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
   const [dual, setDual] = useState(false);
   const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast' | 'pool'>('assign');
@@ -99,7 +100,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
   };
 
   const handleStart = async () => {
-    if (!orderId) return;
+    if (!orderId && !customerId) return;
     if (!transferUrl) return message.warning('请先上传客户转账截图');
     if (!claimDuration || claimDuration <= 0) return message.warning('请填写有效时长');
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
@@ -110,16 +111,42 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
     const price = claimPrice;
     setStarting(true);
     try {
-      const res: any = await ordersApi.addSession(orderId, {
-        amount: price * claimDuration,
-        duration: claimDuration,
-        coCompanionId: dual ? coId : undefined,
-        coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
-        claimedMode: claimMode,
-        claimedPrice: price,
-        transferScreenshotUrl: transferUrl,
-      });
-      const sessionId = res?.data?.data?.id || res?.data?.id;
+      let sessionId: string | undefined;
+      if (customerId && !orderId) {
+        // 复购：先创建直接派单（会自动建会话），再开始会话
+        const orderRes: any = await ordersApi.create({
+          type: 'REPURCHASE',
+          dispatchType: 'DIRECT',
+          companionId: user?.companionId,
+          customerId,
+          gameName: gameName || '三角洲行动',
+          amount: price * claimDuration,
+          duration: claimDuration,
+          coCompanionId: dual ? coId : undefined,
+          coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+          deltaMission: claimMode,
+          deltaCount: dual ? '双' : '单',
+        });
+        const newOrder = orderRes?.data?.data;
+        if (!newOrder?.id) {
+          message.error('创建订单失败');
+          setStarting(false);
+          return;
+        }
+        const sessionsRes: any = await ordersApi.getSessions(newOrder.id);
+        sessionId = sessionsRes?.data?.data?.[0]?.id;
+      } else {
+        const res: any = await ordersApi.addSession(orderId!, {
+          amount: price * claimDuration,
+          duration: claimDuration,
+          coCompanionId: dual ? coId : undefined,
+          coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+          claimedMode: claimMode,
+          claimedPrice: price,
+          transferScreenshotUrl: transferUrl,
+        });
+        sessionId = res?.data?.data?.id || res?.data?.id;
+      }
       if (!sessionId) {
         message.error('创建会话失败');
         setStarting(false);
