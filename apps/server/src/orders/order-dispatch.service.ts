@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { currentBusinessDayRange } from '../common/business-day';
+import { ExcellenceService } from '../companions/excellence.service';
 
 @Injectable()
 export class OrderDispatchService {
@@ -13,6 +14,7 @@ export class OrderDispatchService {
     private prisma: PrismaService,
     private wsGateway: WsGateway,
     private bridgeService: BridgeService,
+    private readonly excellence: ExcellenceService,
   ) {}
 
   private async refreshCompanionAvailable(companionId: string) {
@@ -150,29 +152,15 @@ export class OrderDispatchService {
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
 
     if (order.type === 'NEW' && comp && comp.studioId === order.studioId) {
-      const game = order.gameName || '';
-      const listCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.game_break_even_hours' } });
-      const list = (listCfg?.value as any[]) || [];
-      const entry = list.find((e: any) => e?.game === game);
-      const breakEvenHours = Number(entry?.hours ?? 0);
-      if (breakEvenHours > 0) {
-        const done = await this.prisma.order.findMany({
-          where: { companionId, status: 'DONE' },
-          select: { type: true, duration: true },
+      const excellent = await this.excellence.isExcellent(companionId);
+      if (!excellent) {
+        const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
+        const limit = Number(limitCfg?.value ?? 1);
+        const { start: today } = currentBusinessDayRange();
+        const todayNew = await this.prisma.order.count({
+          where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
         });
-        const newCount = done.filter((o) => o.type === 'NEW').length;
-        const renewHours = done
-          .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-          .reduce((s, o) => s + (o.duration || 1), 0);
-        if (newCount > 0 && renewHours / newCount < breakEvenHours) {
-          const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
-          const limit = Number(limitCfg?.value ?? 1);
-          const { start: today } = currentBusinessDayRange();
-          const todayNew = await this.prisma.order.count({
-            where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
-          });
-          if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
-        }
+        if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
       }
     }
 

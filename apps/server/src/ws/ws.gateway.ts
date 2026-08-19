@@ -16,6 +16,7 @@ import type { JwtPayload } from '../auth/auth.service';
 import { logger } from '../common/logger';
 import * as fs from 'fs';
 import { CompanionsService } from '../companions/companions.service';
+import { ExcellenceService } from '../companions/excellence.service';
 import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
@@ -61,6 +62,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly prisma: PrismaService,
     private readonly bridgeService: BridgeService,
     @Inject(forwardRef(() => CompanionsService)) private readonly companionsService: CompanionsService,
+    @Inject(forwardRef(() => ExcellenceService)) private readonly excellence: ExcellenceService,
     private readonly heartbeatService: HeartbeatService,
     private readonly blacklistIngestService: BlacklistIngestService,
   ) {}
@@ -401,29 +403,16 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  /** 只推送给「空闲且综合能力达标」的线下陪玩，返回实际推送人数。 */
+  /** 只推送给「空闲且优秀」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
-      const game = (data as any)?.gameName || '';
-      const listCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.game_break_even_hours' } });
-      const list = (listCfg?.value as any[]) || [];
-      const entry = list.find((e: any) => e?.game === game);
-      const breakEvenHours = Number(entry?.hours ?? 0);
       const idle = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
       });
       let sent = 0;
       for (const c of idle) {
-        const done = await this.prisma.order.findMany({
-          where: { companionId: c.id, status: 'DONE' },
-          select: { type: true, duration: true },
-        });
-        const newCount = done.filter((o) => o.type === 'NEW').length;
-        const renewHours = done
-          .filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE')
-          .reduce((s, o) => s + (o.duration || 1), 0);
-        if (breakEvenHours <= 0 || newCount === 0 || renewHours / newCount >= breakEvenHours) {
+        if (await this.excellence.isExcellent(c.id)) {
           const socketId = this.companionSockets.get(c.id);
           if (socketId) {
             this.server.to(socketId).emit(event, data);
