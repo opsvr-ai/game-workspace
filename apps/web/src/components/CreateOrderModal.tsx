@@ -198,16 +198,16 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             <Option value={DispatchType.DIRECT}>直接分配</Option>
           </Select>
         </Form.Item>
+        <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
+          <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
+            <Option value="单">单陪</Option>
+            <Option value="双">双陪</Option>
+          </Select>
+        </Form.Item>
         <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
           {({ getFieldValue }) =>
             getFieldValue('dispatchType') === DispatchType.DIRECT ? (
               <>
-                <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
-                  <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
-                    <Option value="单">单陪</Option>
-                    <Option value="双">双陪</Option>
-                  </Select>
-                </Form.Item>
                 <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
                   <Select placeholder="选择主陪" showSearch optionFilterProp="label">
                     {companions.map((c: any) => (
@@ -217,9 +217,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
                     ))}
                   </Select>
                 </Form.Item>
-                <Form.Item noStyle shouldUpdate={(prev, cur) => prev.deltaCount !== cur.deltaCount}>
-                  {({ getFieldValue: gv }) => gv('deltaCount') === '双' ? (
-                    <>
+                <Form.Item noStyle shouldUpdate={(p, c) => p.deltaCount !== c.deltaCount}>
+                  {({ getFieldValue: gv }) =>
+                    gv('deltaCount') === '双' ? (
                       <Form.Item name="coCompanionId" label="搭档" rules={[{ required: true, message: '双陪必须选搭档' }]}>
                         <Select placeholder="选择搭档" showSearch optionFilterProp="label">
                           {availableForPartner.filter((c: any) => c.id !== gv('companionId')).map((c: any) => (
@@ -229,28 +229,35 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
                           ))}
                         </Select>
                       </Form.Item>
-                      <Input.Group compact>
-                        <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
-                          <InputNumber min={0} style={{ width: '100%' }} placeholder="主陪" prefix="¥" />
-                        </Form.Item>
-                        <Form.Item name="coAmount" label="搭档金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
-                          <InputNumber min={0} style={{ width: '100%' }} placeholder="搭档" prefix="¥" />
-                        </Form.Item>
-                      </Input.Group>
-                    </>
-                  ) : (
-                    <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
-                      <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
-                    </Form.Item>
-                  )}
+                    ) : null
+                  }
                 </Form.Item>
               </>
-            ) : (
+            ) : null
+          }
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(p, c) => p.dispatchType !== c.dispatchType || p.deltaCount !== c.deltaCount}>
+          {({ getFieldValue: gv }) => {
+            const isDirect = gv('dispatchType') === DispatchType.DIRECT;
+            const isDouble = gv('deltaCount') === '双';
+            if (isDirect && isDouble) {
+              return (
+                <Input.Group compact>
+                  <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="主陪" prefix="¥" />
+                  </Form.Item>
+                  <Form.Item name="coAmount" label="搭档金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="搭档" prefix="¥" />
+                  </Form.Item>
+                </Input.Group>
+              );
+            }
+            return (
               <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
                 <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
               </Form.Item>
-            )
-          }
+            );
+          }}
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select>
