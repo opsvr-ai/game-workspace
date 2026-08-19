@@ -45,6 +45,7 @@ import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import StartServiceModal from '../components/StartServiceModal';
 import ServiceTimer from '../components/ServiceTimer';
+import EndServiceModal from '../components/EndServiceModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
@@ -109,6 +110,7 @@ const CustomersPage: React.FC = () => {
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; initialValues?: any } | null>(null);
+  const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string; order?: any } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -565,7 +567,17 @@ const CustomersPage: React.FC = () => {
                 <Space size={4}>
                   <Tag color="blue">服务中</Tag>
                   {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
-                  <Button size="small" danger onClick={() => navigate(`/companion/orders/${activeOrder.id}`)}>
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => {
+                      if (activeSession?.id) {
+                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id, order: activeOrder });
+                      } else {
+                        message.warning('当前没有进行中的服务会话');
+                      }
+                    }}
+                  >
                     结束服务
                   </Button>
                 </Space>
@@ -872,6 +884,32 @@ const CustomersPage: React.FC = () => {
           onDone={() => {
             setStartServiceOrder(null);
             fetchCustomers();
+          }}
+        />
+        <EndServiceModal
+          open={!!endServiceTarget}
+          sessionId={endServiceTarget?.sessionId}
+          orderId={endServiceTarget?.orderId}
+          order={endServiceTarget?.order}
+          onClose={() => setEndServiceTarget(null)}
+          onDone={() => fetchCustomers()}
+          onRenew={(o) => {
+            setEndServiceTarget(null);
+            if (o?.id) {
+              const lastSession = o.sessions?.[0];
+              setStartServiceOrder({
+                id: o.id,
+                gameName: o.gameName,
+                initialValues: {
+                  dual: !!lastSession?.coCompanionId,
+                  coId: lastSession?.coCompanionId,
+                  coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
+                  claimMode: lastSession?.claimedMode || '机密',
+                  claimPrice: null,
+                  claimDuration: lastSession?.duration || 1,
+                },
+              });
+            }
           }}
         />
         <CustomerDetailDrawer

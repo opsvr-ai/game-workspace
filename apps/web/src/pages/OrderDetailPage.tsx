@@ -8,6 +8,7 @@ import { monitorApi } from '../api/monitor';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import ServiceTimer from '../components/ServiceTimer';
+import EndServiceModal from '../components/EndServiceModal';
 
 const { Text, Title } = Typography;
 
@@ -42,9 +43,7 @@ const OrderDetailPage: React.FC = () => {
   const [transferUrl, setTransferUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [endTarget, setEndTarget] = useState<Session | null>(null);
-  const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
-  const [ending, setEnding] = useState(false);
+  const [endTarget, setEndTarget] = useState<{ sessionId: string; orderId?: string } | null>(null);
   const autoOpened = useRef(false);
 
   const fetch = useCallback(async () => {
@@ -191,9 +190,8 @@ const OrderDetailPage: React.FC = () => {
     setStarting(false);
   };
 
-  const handleEndService = async (r: Session) => {
-    setEndTarget(r);
-    setEndTransferTotal(undefined);
+  const handleEndService = (r: Session) => {
+    setEndTarget({ sessionId: r.id, orderId: id });
   };
 
   const cancelPendingSession = async (r: Session) => {
@@ -204,44 +202,6 @@ const OrderDetailPage: React.FC = () => {
     } catch (e: any) {
       message.error(e?.response?.data?.message || '取消失败');
     }
-  };
-
-  const confirmEndService = async () => {
-    if (!endTarget) return;
-    // 先停截图并等待全部截图上传完成
-    try { await (window as any).electronAPI?.sessionWatchStop?.(); } catch {}
-    setEnding(true);
-    try {
-      await ordersApi.finishSession(endTarget.id, { transferTotalYuan: endTransferTotal });
-      message.success('已结束');
-      setEndTarget(null);
-      fetch();
-      const nk = `renew-${endTarget.id}`;
-      notification.success({
-        key: nk,
-        message: '🙌 祝你续单',
-        placement: 'bottomRight',
-        duration: 0,
-        btn: (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              onClick={() => { notification.destroy(nk); openRenew(); }}
-            >
-              续单
-            </Button>
-            <Button
-              size="small"
-              onClick={() => { notification.destroy(nk); completeOrder(); }}
-            >
-              结束服务
-            </Button>
-          </Space>
-        ),
-      });
-    } catch { message.error('结束失败'); }
-    setEnding(false);
   };
 
   const completeOrder = async () => {
@@ -401,32 +361,14 @@ const OrderDetailPage: React.FC = () => {
         </Text>
       </Modal>
 
-      {/* 结束服务：实收转账合计 */}
-      <Modal
-        title="结束服务"
+      <EndServiceModal
         open={!!endTarget}
-        onOk={confirmEndService}
-        onCancel={() => setEndTarget(null)}
-        confirmLoading={ending}
-        okText="确认结束"
-      >
-        <Text>请填写客户本次实际转账合计（微信 + 支付宝，元）</Text>
-        <div style={{ marginTop: 8 }}>
-          <InputNumber
-            min={0}
-            step={10}
-            precision={1}
-            style={{ width: '100%' }}
-            value={endTransferTotal}
-            onChange={(v) => setEndTransferTotal(v ?? undefined)}
-            prefix="¥"
-            placeholder="留空则记为待核对"
-          />
-        </div>
-        <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-          转账合计低于「填写时长 × 单价」将被标记异常，供管理端复核。
-        </Text>
-      </Modal>
+        sessionId={endTarget?.sessionId}
+        orderId={endTarget?.orderId}
+        onClose={() => setEndTarget(null)}
+        onRenew={() => openRenew()}
+        onDone={() => fetch()}
+      />
 
     </div>
   );
