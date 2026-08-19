@@ -3,6 +3,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
+import { settlementMonthRange } from '../common/business-day';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
@@ -93,20 +94,35 @@ export class CompanionsService {
     const orderStats = await this.prisma.order.groupBy({
       by: ['companionId', 'type'],
       where: { companionId: { in: companionIds }, status: 'DONE' },
-      _sum: { amount: true },
       _count: { id: true },
     });
 
-    const m = new Map<string, { revenue: number; count: number; renew: number; repurchase: number }>();
+    const m = new Map<string, { count: number; renew: number; repurchase: number }>();
     for (const row of orderStats) {
       const cid = row.companionId!;
-      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, renew: 0, repurchase: 0 });
+      if (!m.has(cid)) m.set(cid, { count: 0, renew: 0, repurchase: 0 });
       const s = m.get(cid)!;
-      s.revenue += row._sum.amount || 0;
       s.count += row._count.id;
       if (row.type === 'RENEW') s.renew = row._count.id;
       if (row.type === 'REPURCHASE') s.repurchase = row._count.id;
     }
+
+    // 月流水：按营业月统计（当月 1 日 12:00 至次月 1 日 12:00，不含）
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { start: monthStart, end: monthEnd } = settlementMonthRange(monthKey);
+    const monthlyRevenue = await this.prisma.order.groupBy({
+      by: ['companionId'],
+      where: {
+        companionId: { in: companionIds },
+        status: 'DONE',
+        createdAt: { gte: monthStart, lt: monthEnd },
+      },
+      _sum: { amount: true },
+    });
+    const monthlyRevenueMap = new Map(
+      monthlyRevenue.map((r) => [r.companionId!, r._sum.amount || 0]),
+    );
 
     // 总抢单数：该陪玩抢到的所有首单（type=NEW，任意状态）
     const newGrabs = await this.prisma.order.groupBy({
@@ -134,7 +150,8 @@ export class CompanionsService {
       const customerCount = customerMap.get(cid) || 0;
       const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
       // 月流水 10000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
-      const revenueScore = Math.min(50, s.revenue / 200);
+      const revenue = monthlyRevenueMap.get(cid) || 0;
+      const revenueScore = Math.min(50, revenue / 200);
       const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1);
       result.set(cid, {
         isExcellent: rankScore >= 50,
