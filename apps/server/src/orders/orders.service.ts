@@ -1131,10 +1131,20 @@ export class OrdersService {
       data: { coCompanionId: partnerId },
     }).catch(() => {});
 
+    await this.prisma.order.updateMany({
+      where: { id: session.parentOrderId, status: 'GRABBED' },
+      data: { status: 'CONFIRMED' },
+    }).catch(() => {});
+
     await this.prisma.orderSession.update({
       where: { id: sessionId },
       data: { startedAt: new Date() },
     });
+
+    if (session.companionId) {
+      await this.prisma.companion.update({ where: { id: session.companionId }, data: { status: 'BUSY' } }).catch(() => {});
+    }
+    await this.prisma.companion.update({ where: { id: partnerId }, data: { status: 'BUSY' } }).catch(() => {});
 
     if (session.companionId) {
       this.wsGateway.pushToCompanion(session.companionId, 'order:partner_accepted', {
@@ -1175,7 +1185,25 @@ export class OrdersService {
       data.transferScreenshotUrl = claims.transferScreenshotUrl;
       data.duration = claims.duration;
     }
-    return this.prisma.orderSession.update({ where: { id }, data });
+    const updated = await this.prisma.orderSession.update({ where: { id }, data });
+
+    const s = await this.prisma.orderSession.findUnique({
+      where: { id },
+      select: { parentOrderId: true, companionId: true, coCompanionId: true },
+    });
+    if (s) {
+      await this.prisma.order.updateMany({
+        where: { id: s.parentOrderId, status: 'GRABBED' },
+        data: { status: 'CONFIRMED' },
+      }).catch(() => {});
+      if (s.companionId) {
+        await this.prisma.companion.update({ where: { id: s.companionId }, data: { status: 'BUSY' } }).catch(() => {});
+      }
+      if (s.coCompanionId) {
+        await this.prisma.companion.update({ where: { id: s.coCompanionId }, data: { status: 'BUSY' } }).catch(() => {});
+      }
+    }
+    return updated;
   }
   async pauseSession(id: string, companionId?: string) {
     await this.getOwnedSession(id, companionId);
@@ -1200,7 +1228,8 @@ export class OrdersService {
       data.pausedAt = null;
       data.totalPausedSec = (s.totalPausedSec || 0) + sec;
     }
-    return this.prisma.orderSession.update({ where: { id }, data });
+    const updated = await this.prisma.orderSession.update({ where: { id }, data });
+    return updated;
   }
 
   async updatePayment(

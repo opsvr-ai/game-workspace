@@ -183,6 +183,11 @@ const CustomersPage: React.FC = () => {
     fetchCustomers();
   }, [fetchCustomers]);
   useEffect(() => {
+    const onServiceStarted = () => fetchCustomers();
+    window.addEventListener('chunlv:service-started', onServiceStarted);
+    return () => window.removeEventListener('chunlv:service-started', onServiceStarted);
+  }, [fetchCustomers]);
+  useEffect(() => {
     if (canReassign) {
       companionsApi
         .list()
@@ -525,16 +530,19 @@ const CustomersPage: React.FC = () => {
             size="small"
             icon={React.createElement(PlayCircleOutlined)}
             onClick={() => {
-              const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+              const active = record.orders?.find((o: any) => o.status === 'GRABBED');
               if (active?.id) {
                 setStartServiceOrder({ id: active.id, gameName: active.gameName });
               } else {
-                message.warning('当前没有进行中的订单，请先在抢单池抢单');
+                message.warning('当前没有可开始服务的订单，请先在抢单池抢单');
               }
             }}
           >
             开始服务
           </Button>
+          {record.orders?.some((o: any) => o.status === 'CONFIRMED') && (
+            <Tag color="blue">服务中</Tag>
+          )}
           <Button
             size="small"
             onClick={() => {

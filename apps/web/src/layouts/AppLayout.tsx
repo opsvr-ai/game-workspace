@@ -615,7 +615,7 @@ const AppLayout: React.FC = () => {
       notification.open({
         key: nk,
         message: '🤝 搭档邀请',
-        description: `有陪玩邀请你搭档服务：${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`,
+        description: `有陪玩邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`,
         placement: 'bottomRight',
         duration: 0,
         btn: (
@@ -643,8 +643,14 @@ const AppLayout: React.FC = () => {
       });
     },
     onPartnerAccepted: (data: any) => {
-      message.success('搭档已同意，开始计时');
+      notification.success({
+        message: '✅ 搭档已同意',
+        description: '开始计时，进入接单中，用心服务',
+        placement: 'bottomRight',
+        duration: 4,
+      });
       (window as any).electronAPI?.sessionWatch?.(data.sessionId);
+      window.dispatchEvent(new Event('chunlv:service-started'));
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
