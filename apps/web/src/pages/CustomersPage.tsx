@@ -165,18 +165,20 @@ const CustomersPage: React.FC = () => {
   const [companionsLoading, setCompanionsLoading] = useState(false);
   const [reassignForm] = Form.useForm();
 
-  const fetchCustomers = useCallback(async () => {
-    setLoading(true);
+  const fetchCustomers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const { data } = await customersApi.list({ sortBy });
       setCustomers(data.data?.items ?? data.data ?? []);
     } catch (err: any) {
-      const errorMsg = extractErrorMessage(err, '加载客户列表失败');
-      setError(errorMsg);
-      message.error(errorMsg);
+      if (!silent) {
+        const errorMsg = extractErrorMessage(err, '加载客户列表失败');
+        setError(errorMsg);
+        message.error(errorMsg);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [sortBy]);
 
@@ -187,6 +189,10 @@ const CustomersPage: React.FC = () => {
     const onServiceStarted = () => fetchCustomers();
     window.addEventListener('chunlv:service-started', onServiceStarted);
     return () => window.removeEventListener('chunlv:service-started', onServiceStarted);
+  }, [fetchCustomers]);
+  useEffect(() => {
+    const t = setInterval(() => fetchCustomers(true), 30000);
+    return () => clearInterval(t);
   }, [fetchCustomers]);
   useEffect(() => {
     if (canReassign) {
@@ -549,6 +555,9 @@ const CustomersPage: React.FC = () => {
                 <Space size={4}>
                   <Tag color="blue">服务中</Tag>
                   {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
+                  <Button size="small" danger onClick={() => navigate(`/companion/orders/${activeOrder.id}`)}>
+                    结束服务
+                  </Button>
                 </Space>
               );
             }
@@ -672,7 +681,7 @@ const CustomersPage: React.FC = () => {
                 style={{ width: 200 }}
                 allowClear
               />
-              <Button icon={React.createElement(ReloadOutlined)} onClick={fetchCustomers} loading={loading}>
+              <Button icon={React.createElement(ReloadOutlined)} onClick={() => fetchCustomers()} loading={loading}>
                 刷新
               </Button>
               {canManage && (
