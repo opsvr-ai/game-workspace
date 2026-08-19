@@ -1177,6 +1177,11 @@ const AppLayout: React.FC = () => {
                 </div>
                 {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
                 {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
+                {g.customFields?.csAddResult === 'passed' && (
+                  <div style={{ color: '#1677ff', fontWeight: 500 }}>
+                    ✅ 该客户已添加到客服工作微信（{g.customFields?.csWorkWechatName || '客服微信'}），无需重复添加
+                  </div>
+                )}
                 {g.customFields?.customerWechat && (
                   <div>
                     💬 微信：<Typography.Text copyable>{g.customFields.customerWechat}</Typography.Text>
