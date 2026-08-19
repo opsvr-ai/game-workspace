@@ -43,6 +43,7 @@ import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
+import StartServiceModal from '../components/StartServiceModal';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
@@ -106,6 +107,7 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
+  const [startServiceOrder, setStartServiceOrder] = useState<{ id: string; gameName?: string } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -525,7 +527,7 @@ const CustomersPage: React.FC = () => {
             onClick={() => {
               const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
               if (active?.id) {
-                navigate(`/companion/orders/${active.id}?start=1`);
+                setStartServiceOrder({ id: active.id, gameName: active.gameName });
               } else {
                 message.warning('当前没有进行中的订单，请先在抢单池抢单');
               }
@@ -814,6 +816,16 @@ const CustomersPage: React.FC = () => {
           }}
           userId={user?.id}
           customerPreFill={startServicePreFill}
+        />
+        <StartServiceModal
+          open={!!startServiceOrder}
+          orderId={startServiceOrder?.id ?? null}
+          gameName={startServiceOrder?.gameName}
+          onClose={() => setStartServiceOrder(null)}
+          onDone={() => {
+            setStartServiceOrder(null);
+            fetchCustomers();
+          }}
         />
         <CustomerDetailDrawer
           customerId={detailCustomer?.id ?? null}
