@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, Form, Input } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, notification, Form, Input } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import http from '../api/client';
@@ -611,19 +611,35 @@ const AppLayout: React.FC = () => {
     onOrderNew: (data: any) => {
       if (data?.type !== 'DUAL_INVITE') return;
       if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
-      Modal.confirm({
-        title: '🤝 搭档邀请',
-        content: `有陪玩邀请你搭档服务：${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h，是否接受？`,
-        okText: '接受',
-        cancelText: '拒绝',
-        onOk: async () => {
-          try {
-            await ordersApi.acceptPartnerInvite(data.id);
-            message.success('已接受搭档邀请，开始计时');
-          } catch (e: any) {
-            message.error(e?.response?.data?.message || '接受失败');
-          }
-        },
+      const nk = `dual-invite-${data.id}`;
+      notification.open({
+        key: nk,
+        message: '🤝 搭档邀请',
+        description: `有陪玩邀请你搭档服务：${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`,
+        placement: 'bottomRight',
+        duration: 0,
+        btn: (
+          <Space>
+            <Button
+              size="small"
+              type="primary"
+              onClick={async () => {
+                notification.destroy(nk);
+                try {
+                  await ordersApi.acceptPartnerInvite(data.id);
+                  message.success('已接受搭档邀请，开始计时');
+                } catch (e: any) {
+                  message.error(e?.response?.data?.message || '接受失败');
+                }
+              }}
+            >
+              接受
+            </Button>
+            <Button size="small" onClick={() => notification.destroy(nk)}>
+              拒绝
+            </Button>
+          </Space>
+        ),
       });
     },
     onPartnerAccepted: (data: any) => {

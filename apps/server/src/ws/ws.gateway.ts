@@ -359,19 +359,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   pushOrder(companionId: string, order: unknown): void {
-    const socketId = this.companionSockets.get(companionId);
-    if (!socketId) {
-      logger.warn('SEND order:new FAILED (offline)', { companionId });
-      return;
-    }
     logger.info('SEND order:new', { companionId, orderId: (order as any)?.id });
-    this.server.to(socketId).emit('order:new', order);
+    this.server.to(`companion:${companionId}`).emit('order:new', order);
   }
 
   pushToCompanion(companionId: string, event: string, data: unknown): void {
-    const socketId = this.companionSockets.get(companionId);
-    if (!socketId) return;
-    this.server.to(socketId).emit(event, data);
+    this.server.to(`companion:${companionId}`).emit(event, data);
   }
 
   broadcastToStudio(studioId: string, event: string, data: unknown): void {
@@ -401,8 +394,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         select: { id: true },
       });
       for (const c of idleCompanions) {
-        const socketId = this.companionSockets.get(c.id);
-        if (socketId) this.server.to(socketId).emit(event, data);
+        this.server.to(`companion:${c.id}`).emit(event, data);
       }
     } catch (err) {
       logger.error('broadcastToIdleCompanions failed', { error: (err as Error).message, studioId, event });
@@ -419,11 +411,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       let sent = 0;
       for (const c of idle) {
         if (await this.excellence.isExcellent(c.id)) {
-          const socketId = this.companionSockets.get(c.id);
-          if (socketId) {
-            this.server.to(socketId).emit(event, data);
-            sent += 1;
-          }
+          this.server.to(`companion:${c.id}`).emit(event, data);
+          sent += 1;
         }
       }
       return sent;
@@ -444,11 +433,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           select: { id: true },
         });
         for (const c of idle) {
-          const socketId = this.companionSockets.get(c.id);
-          if (socketId) {
-            this.server.to(socketId).emit(event, data);
-            sent += 1;
-          }
+          this.server.to(`companion:${c.id}`).emit(event, data);
+          sent += 1;
         }
       }
       return sent;
@@ -459,10 +445,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   notifyUser(userId: string, event: string, data: unknown): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, data);
-    }
+    this.server.to(`user:${userId}`).emit(event, data);
   }
 
   // Voice call relay
@@ -500,18 +483,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     whitelist: { processName: string; isSystem: boolean }[],
     version: number,
   ): void {
-    const socketId = this.companionSockets.get(companionId);
-    if (!socketId) {
-      logger.warn('SEND blacklist:update FAILED (offline)', { companionId, version });
-      return;
-    }
     logger.info('SEND blacklist:update', {
       companionId,
       blacklistCount: blacklist.length,
       whitelistCount: whitelist.length,
       version,
     });
-    this.server.to(socketId).emit('blacklist:update', { blacklist, whitelist, version });
+    this.server.to(`companion:${companionId}`).emit('blacklist:update', { blacklist, whitelist, version });
   }
 
   async broadcastBlacklistToStudio(
@@ -521,18 +499,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<void> {
     const companions = await this.prisma.companion.findMany({ where: { studioId }, select: { id: true } });
     const version = Date.now();
-    let pushed = 0,
-      skipped = 0;
+    let pushed = 0;
     for (const c of companions) {
-      const socketId = this.companionSockets.get(c.id);
-      if (socketId) {
-        this.server.to(socketId).emit('blacklist:update', { blacklist, whitelist, version });
-        pushed++;
-      } else {
-        skipped++;
-      }
+      this.server.to(`companion:${c.id}`).emit('blacklist:update', { blacklist, whitelist, version });
+      pushed++;
     }
-    logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, skipped, version });
+    logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, version });
   }
 
   /** 客户端连接成功后自动推送一次当前黑名单，覆盖离线/未登录后补连接的情况。 */
