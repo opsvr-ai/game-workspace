@@ -37,10 +37,16 @@ import { buildOrderInfoFields } from '../../utils/orderPool';
 
 const { Text } = Typography;
 
-interface Companion {
+interface Personnel {
   id: string;
-  user?: { username: string };
-  status: CompanionStatus;
+  username: string;
+  role: 'COMPANION' | 'CS' | 'ADMIN' | 'OWNER';
+  displayName?: string;
+  avatar?: string;
+  studioName?: string | null;
+  companionId?: string | null;
+  status?: CompanionStatus | null;
+  lastHeartbeat?: string | null;
   games?: any[];
 }
 
@@ -71,7 +77,7 @@ const CSDispatchView: React.FC = () => {
         : user?.role === 'ADMIN'
           ? '/admin/orders'
           : '/owner/orders';
-  const [companions, setCompanions] = useState<Companion[]>([]);
+  const [companions, setCompanions] = useState<Personnel[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [todayNew, setTodayNew] = useState(0);
@@ -81,7 +87,7 @@ const CSDispatchView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [dispatchPrefill, setDispatchPrefill] = useState<any>(null);
   const [dispatchSourceOrderId, setDispatchSourceOrderId] = useState<string | null>(null);
-  const [selectedCompanion, setSelectedCompanion] = useState<Companion | null>(null);
+  const [selectedCompanion, setSelectedCompanion] = useState<Personnel | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
@@ -133,7 +139,7 @@ const CSDispatchView: React.FC = () => {
   const fetchCompanions = useCallback(async () => {
     setLoadingCompanions(true);
     try {
-      const { data } = await companionsApi.list();
+      const { data } = await companionsApi.listPersonnel();
       setCompanions(data.data ?? []);
     } catch {
       // silent fail on auto-refresh
@@ -281,7 +287,7 @@ const CSDispatchView: React.FC = () => {
         const aMsg = conversations[a.id]?.unreadCount > 0 ? 1 : 0;
         const bMsg = conversations[b.id]?.unreadCount > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
-        return (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9);
+        return (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9);
       }),
     [companions, conversations],
   );
@@ -291,7 +297,7 @@ const CSDispatchView: React.FC = () => {
     () =>
       companionSearch
         ? sortedCompanions.filter((c) => {
-            const name = (c.user as any)?.displayName || c.user?.username || '';
+            const name = c.displayName || c.username || '';
             return name.toLowerCase().includes(companionSearch.toLowerCase());
           })
         : sortedCompanions,
@@ -344,7 +350,7 @@ const CSDispatchView: React.FC = () => {
         {/* Left: Companion sidebar */}
         <Col span={3}>
           <Card
-            title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
+            title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
             size="small"
             style={{ borderRadius: 8 }}
             bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
@@ -352,7 +358,7 @@ const CSDispatchView: React.FC = () => {
             {/* Companion search filter */}
             <Input
               size="small"
-              placeholder="搜索陪玩..."
+              placeholder="搜索人员..."
               value={companionSearch}
               onChange={(e) => setCompanionSearch(e.target.value)}
               allowClear
@@ -363,9 +369,9 @@ const CSDispatchView: React.FC = () => {
                 <Spin />
               </div>
             ) : filteredCompanions.length === 0 && companionSearch ? (
-              <Text type="secondary">未找到匹配的陪玩</Text>
+              <Text type="secondary">未找到匹配的人员</Text>
             ) : companions.length === 0 ? (
-              <Text type="secondary">暂无陪玩</Text>
+              <Text type="secondary">暂无人员</Text>
             ) : (
               <List
                 size="small"
@@ -400,9 +406,8 @@ const CSDispatchView: React.FC = () => {
                         if (store.conversations[c.id]) {
                           store.markRead(c.id);
                         }
-                        const u = c.user as any;
                         // Find matching order for this companion (check both pool and assigned)
-                        const order = [...poolOrders, ...allOrders].find((o: any) => o.companionId === c.id);
+                        const order = [...poolOrders, ...allOrders].find((o: any) => o.companionId === c.companionId);
                         const orderInfo = order
                           ? `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 客户' + order.customer.customerCode : ''}`
                           : undefined;
@@ -411,11 +416,11 @@ const CSDispatchView: React.FC = () => {
                             detail: {
                               conversationId: c.id,
                               participant: {
-                                userId: u?.id || c.id,
-                                username: u?.username || c.id,
-                                displayName: u?.displayName,
-                                avatar: u?.avatar,
-                                role: 'COMPANION',
+                                userId: c.id,
+                                username: c.username || c.id,
+                                displayName: c.displayName,
+                                avatar: c.avatar,
+                                role: c.role,
                               },
                               orderInfo,
                             },
@@ -433,9 +438,8 @@ const CSDispatchView: React.FC = () => {
                       >
                         <Space size="small">
                           {(() => {
-                            const u = c.user as any;
-                            const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
-                            const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
+                            const avatarUrl = c.avatar ? `/uploads/avatars/${c.avatar}?v=${c.avatar}` : null;
+                            const initial = (c.displayName || c.username || '?')[0].toUpperCase();
                             return (
                               <div
                                 style={{
@@ -447,7 +451,7 @@ const CSDispatchView: React.FC = () => {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   boxShadow:
-                                    c.status !== CompanionStatus.OFFLINE
+                                    c.status && c.status !== CompanionStatus.OFFLINE
                                       ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
                                       : 'none',
                                   flexShrink: 0,
@@ -473,7 +477,7 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
-                            <Text strong>{(c.user as any)?.displayName || c.user?.username || c.id}</Text>
+                            <Text strong>{c.displayName || c.username || c.id}</Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
                                 已限制
@@ -487,33 +491,38 @@ const CSDispatchView: React.FC = () => {
                           </span>
                         </Space>
                         <Space size={4}>
-                          <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
-                            {companionStatusConfig[c.status]?.label || c.status}
-                          </Tag>
+                          {c.status ? (
+                            <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
+                              {companionStatusConfig[c.status]?.label || c.status}
+                            </Tag>
+                          ) : (
+                            <Tag color={{ COMPANION: 'blue', CS: 'green', ADMIN: 'orange', OWNER: 'purple' }[c.role] || 'default'}>
+                              {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[c.role] || c.role}
+                            </Tag>
+                          )}
                           <Button
                             size="small"
                             type="text"
                             style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
                             onClick={async (e) => {
                               e.stopPropagation();
-                              const u = c.user as any;
                               await useChatStore.getState().openConversation(c.id, {
-                                userId: u?.id || c.id,
-                                username: u?.username || '未知',
-                                displayName: u?.displayName || u?.username || '未知',
-                                avatar: u?.avatar,
-                                role: 'COMPANION',
+                                userId: c.id,
+                                username: c.username || '未知',
+                                displayName: c.displayName || c.username || '未知',
+                                avatar: c.avatar,
+                                role: c.role,
                               });
                               window.dispatchEvent(
                                 new CustomEvent('open-chat-modal', {
                                   detail: {
                                     conversationId: c.id,
                                     participant: {
-                                      userId: u?.id || c.id,
-                                      username: u?.username || '未知',
-                                      displayName: u?.displayName || u?.username || '未知',
-                                      avatar: u?.avatar,
-                                      role: 'COMPANION',
+                                      userId: c.id,
+                                      username: c.username || '未知',
+                                      displayName: c.displayName || c.username || '未知',
+                                      avatar: c.avatar,
+                                      role: c.role,
                                     },
                                   },
                                 }),
@@ -870,19 +879,25 @@ const CSDispatchView: React.FC = () => {
                         ? '#FFD600'
                         : '#94A3B8',
                 boxShadow:
-                  selectedCompanion.status !== CompanionStatus.OFFLINE
+                  selectedCompanion.status && selectedCompanion.status !== CompanionStatus.OFFLINE
                     ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
                     : 'none',
                 animation:
-                  selectedCompanion.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+                  selectedCompanion.status && selectedCompanion.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
               }}
             />
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-              {selectedCompanion.user?.username ?? selectedCompanion.id}
+              {selectedCompanion.displayName || selectedCompanion.username || selectedCompanion.id}
             </div>
-            <Tag color={companionStatusConfig[selectedCompanion.status]?.color || 'default'}>
-              {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
-            </Tag>
+            {selectedCompanion.status ? (
+              <Tag color={companionStatusConfig[selectedCompanion.status]?.color || 'default'}>
+                {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
+              </Tag>
+            ) : (
+              <Tag color={{ COMPANION: 'blue', CS: 'green', ADMIN: 'orange', OWNER: 'purple' }[selectedCompanion.role] || 'default'}>
+                {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[selectedCompanion.role] || selectedCompanion.role}
+              </Tag>
+            )}
             <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
               {selectedCompanion.games &&
               selectedCompanion.games.length > 0 &&
