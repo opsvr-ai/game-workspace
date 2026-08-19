@@ -371,4 +371,10 @@ export class OrdersController {
     const data = await this.ordersService.countPendingContact(req.user.studioId);
     return { code: 200, message: 'ok', data };
   }
+
+  @Get('orders/:id')
+  async findOne(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.findOne(id);
+    return { code: 200, message: 'ok', data };
+  }
 }

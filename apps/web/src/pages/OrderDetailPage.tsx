@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col, Upload, notification } from 'antd';
+import { Card, Table, Button, Tag, Space, Typography, message, Modal, InputNumber, Select, Row, Col, Upload, notification, Radio } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined, StopOutlined, PauseCircleOutlined, CameraOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { monitorApi } from '../api/monitor';
@@ -33,6 +33,7 @@ const OrderDetailPage: React.FC = () => {
   const [dual, setDual] = useState(false);
   const [coId, setCoId] = useState<string | undefined>(undefined);
   const [coPrice, setCoPrice] = useState<number | null>(null);
+  const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast' | 'pool'>('assign');
   const [companions, setCompanions] = useState<any[]>([]);
   const [claimMode, setClaimMode] = useState<string>('机密');
   const [claimPrice, setClaimPrice] = useState<number | null>(35);
@@ -52,10 +53,10 @@ const OrderDetailPage: React.FC = () => {
     try {
       const [sRes, oRes] = await Promise.all([
         ordersApi.getSessions(id),
-        ordersApi.list({ page: 1, pageSize: 1 }),
+        ordersApi.getOrder(id),
       ]);
       setSessions((sRes.data as any).data || []);
-      setOrder((oRes.data as any).data?.[0] || { gameName: '?', id });
+      setOrder((oRes.data as any).data || { gameName: '?', id });
     } catch { /* */ }
     setLoading(false);
   }, [id]);
@@ -79,6 +80,7 @@ const OrderDetailPage: React.FC = () => {
     setDual(false);
     setCoId(undefined);
     setCoPrice(null);
+    setPartnerMode('assign');
     setClaimMode(last?.claimedMode || '机密');
     setClaimPrice(null);
     setClaimDuration(last?.duration || 1);
@@ -92,6 +94,7 @@ const OrderDetailPage: React.FC = () => {
     setDual(false);
     setCoId(undefined);
     setCoPrice(null);
+    setPartnerMode('assign');
     setClaimMode('机密');
     setClaimPrice(35);
     setClaimDuration(r?.duration || 1);
@@ -132,11 +135,34 @@ const OrderDetailPage: React.FC = () => {
     setCallingPartner(false);
   };
 
+  const handleFindPartnerPool = async () => {
+    if (!id) return;
+    setCallingPartner(true);
+    try {
+      await ordersApi.create({
+        type: 'NEW',
+        dispatchType: 'POOL',
+        gameName: order?.gameName || '三角洲行动',
+        amount: (coPrice ?? 0) * claimDuration,
+        duration: claimDuration,
+        customerId: order?.customerId,
+        customerWechat: order?.customFields?.customerWechat || order?.customer?.wechatId,
+        deltaMission: claimMode,
+        deltaCount: '双',
+        deltaNote: `找搭档（主陪订单 ${id}）`,
+      });
+      message.success('已放入订单池，等待搭档抢单');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '放入订单池失败');
+    }
+    setCallingPartner(false);
+  };
+
   const handleStartService = async () => {
     if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
     if (!claimDuration || claimDuration <= 0) { message.warning('请填写有效时长'); return; }
     if (claimPrice == null || claimPrice <= 0) { message.warning('请填写单价'); return; }
-    if (dual && !coId) { message.warning('双陪请先选择搭档，或点击下方「呼叫搭档」寻找搭档'); return; }
+    if (dual && partnerMode === 'assign' && !coId) { message.warning('双陪请选择搭档'); return; }
     if (dual && (coPrice == null || coPrice <= 0)) { message.warning('双陪请填写搭档单价'); return; }
     const price = claimPrice;
     setStarting(true);
@@ -146,7 +172,7 @@ const OrderDetailPage: React.FC = () => {
         const res: any = await ordersApi.addSession(id!, {
           amount: price * claimDuration,
           duration: claimDuration,
-          coCompanionId: dual ? coId : undefined,
+          coCompanionId: dual ? (coId || order?.coCompanionId) : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
         });
         targetId = res?.data?.data?.id || res?.data?.id;
@@ -308,33 +334,52 @@ const OrderDetailPage: React.FC = () => {
           <>
             <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
               <Col span={12}>
-                <Text>搭档</Text>
-                <Select
-                  style={{ width: '100%' }}
-                  value={coId}
-                  onChange={setCoId}
-                  placeholder="选择搭档"
-                  allowClear
-                >
-                  {companions
-                    .filter((c: any) => c.id !== user?.companionId)
-                    .map((c: any) => (
-                      <Select.Option key={c.id} value={c.id}>
-                        {c.user?.displayName || c.user?.username}
-                      </Select.Option>
-                    ))}
-                </Select>
+                <Text>找搭档方式</Text>
+                <div>
+                  <Radio.Group size="small" value={partnerMode} onChange={(e) => setPartnerMode(e.target.value)}>
+                    <Radio.Button value="assign">👤 指定</Radio.Button>
+                    <Radio.Button value="broadcast">📣 广播</Radio.Button>
+                    <Radio.Button value="pool">🏊 入池</Radio.Button>
+                  </Radio.Group>
+                </div>
               </Col>
               <Col span={12}>
                 <Text>搭档单价（元/小时）</Text>
                 <InputNumber min={0} style={{ width: '100%' }} value={coPrice ?? undefined} onChange={(v) => setCoPrice(v ?? null)} prefix="¥" placeholder="？/人/h" />
               </Col>
             </Row>
-            <div style={{ marginTop: 8 }}>
-              <Button block size="small" loading={callingPartner} onClick={handleCallPartner}>
-                📣 呼叫搭档（找不到搭档时点这里）
-              </Button>
-            </div>
+            {partnerMode === 'assign' && (
+              <Row gutter={12} align="middle" style={{ marginTop: 8 }}>
+                <Col span={24}>
+                  <Text>搭档</Text>
+                  <Select
+                    style={{ width: '100%' }}
+                    value={coId}
+                    onChange={setCoId}
+                    placeholder="选择搭档"
+                    allowClear
+                  >
+                    {companions
+                      .filter((c: any) => c.id !== user?.companionId)
+                      .map((c: any) => (
+                        <Select.Option key={c.id} value={c.id}>
+                          {c.user?.displayName || c.user?.username}
+                        </Select.Option>
+                      ))}
+                  </Select>
+                </Col>
+              </Row>
+            )}
+            {partnerMode === 'broadcast' && (
+              <div style={{ marginTop: 8 }}>
+                <Button block size="small" loading={callingPartner} onClick={handleCallPartner}>📣 广播找搭档</Button>
+              </div>
+            )}
+            {partnerMode === 'pool' && (
+              <div style={{ marginTop: 8 }}>
+                <Button block size="small" loading={callingPartner} onClick={handleFindPartnerPool}>🏊 放入订单池找搭档</Button>
+              </div>
+            )}
           </>
         )}
         <div style={{ marginTop: 12 }}>

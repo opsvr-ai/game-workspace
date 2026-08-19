@@ -13,6 +13,7 @@ export const ordersApi = {
     http.post(`/orders/${id}/money-flows`, data),
   moneyReconciliation: () => http.get('/orders/money-reconciliation'),
   list: (params?: any) => http.get('/orders', { params }),
+  getOrder: (id: string) => http.get(`/orders/${id}`),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),
   create: (data: any) => http.post('/orders', data),

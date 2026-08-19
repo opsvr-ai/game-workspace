@@ -1029,6 +1029,18 @@ export class OrdersService {
     });
   }
 
+  async findOne(orderId: string) {
+    return this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true } } } },
+      },
+    });
+  }
+
   // ── Session management ──
 
   async getSessions(orderId: string) {
