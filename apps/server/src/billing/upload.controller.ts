@@ -13,7 +13,7 @@ import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { mkdirSync, rmSync } from 'fs';
 import type { Request } from 'express';
 
 const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'screenshots');
@@ -35,7 +35,11 @@ export class UploadController {
           _file: Express.Multer.File,
           cb: (error: Error | null, destination: string) => void,
         ) => {
-          if (!existsSync(UPLOAD_DIR)) {
+          try {
+            mkdirSync(UPLOAD_DIR, { recursive: true });
+          } catch {
+            // 处理同名文件或坏符号链接：清掉后重建真实目录
+            rmSync(UPLOAD_DIR, { force: true });
             mkdirSync(UPLOAD_DIR, { recursive: true });
           }
           cb(null, UPLOAD_DIR);
