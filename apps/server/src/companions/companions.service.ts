@@ -85,7 +85,7 @@ export class CompanionsService {
     }));
   }
 
-  /** 综合分 = 月流水(60%) + 续单率(20%) + 复购率(20%) + 首单成功率(10%)。 */
+  /** 综合分 = 月流水(50%) + 续单率(20%) + 复购率(20%) + 首单成功率(10%)。 */
   private async computeExcellence(companionIds: string[]) {
     const result = new Map<string, { isExcellent: boolean; rankScore: number; renewRate: number; repurchaseRate: number; newRate: number; orderCount: number }>();
     if (companionIds.length === 0) return result;
@@ -133,8 +133,8 @@ export class CompanionsService {
       const grabCount = grabMap.get(cid) || 0;
       const customerCount = customerMap.get(cid) || 0;
       const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
-      // 月流水 3000 元封顶 60 分；续单/复购率各占 20%，首单成功率占 10%
-      const revenueScore = Math.min(60, s.revenue / 50);
+      // 月流水 3000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
+      const revenueScore = Math.min(50, s.revenue / 60);
       const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1);
       result.set(cid, {
         isExcellent: rankScore >= 50,
