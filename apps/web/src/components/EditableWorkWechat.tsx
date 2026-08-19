@@ -4,7 +4,7 @@ import { Tag, Select, Typography } from 'antd';
 
 const { Text } = Typography;
 
-const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
+const EditableWorkWechat: React.FC<{ order: any; onSaved?: (workWechatId: string, workWechatName: string) => void }> = ({ order, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [wxs, setWxs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -41,6 +41,7 @@ const EditableWorkWechat: React.FC<{ order: any }> = ({ order }) => {
             const http = (await import('../api/client')).default;
             await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: name });
             setSavedName(name);
+            onSaved?.(wid, name);
           } catch {}
           setSaving(false);
           setEditing(false);

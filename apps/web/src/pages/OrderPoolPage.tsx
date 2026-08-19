@@ -66,8 +66,8 @@ const OrderPoolPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       if (isCompanion) {
         const [poolRes, statusRes] = await Promise.all([ordersApi.pool(), ordersApi.poolStatus()]);
@@ -78,15 +78,23 @@ const OrderPoolPage: React.FC = () => {
         setOrders(data.data ?? []);
       }
     } catch (e) {
-      console.error('Pool fetch error', e);
-      message.error('加载订单池失败');
+      if (!silent) {
+        console.error('Pool fetch error', e);
+        message.error('加载订单池失败');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [isCompanion]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // 周期轮询：普通陪玩要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新
+  useEffect(() => {
+    const timer = setInterval(() => fetchData(true), 5000);
+    return () => clearInterval(timer);
   }, [fetchData]);
 
   const fetchCompanions = useCallback(async () => {
@@ -125,7 +133,7 @@ const OrderPoolPage: React.FC = () => {
     : sortedCompanions;
 
   // Real-time pool updates via WebSocket
-  useSocket({ onOrderPoolUpdated: fetchData });
+  useSocket({ onOrderPoolUpdated: () => fetchData(true) });
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
@@ -364,7 +372,7 @@ const OrderPoolPage: React.FC = () => {
             <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setCreateOpen(true)}>
               发布订单
             </Button>
-            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchData} loading={loading}>
+            <Button icon={React.createElement(ReloadOutlined)} onClick={() => fetchData()} loading={loading}>
               刷新
             </Button>
           </Space>

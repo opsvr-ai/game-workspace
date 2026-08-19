@@ -455,6 +455,15 @@ const OrdersPage: React.FC = () => {
             loading={loading}
             unreadMap={unreadMap}
             renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
+            onWorkWechatSaved={(order, wid, name) => {
+              setOrders((prev) =>
+                prev.map((o) =>
+                  o.id === order.id
+                    ? { ...o, customFields: { ...(o.customFields || {}), workWechatId: wid, workWechatName: name } }
+                    : o,
+                ),
+              );
+            }}
           />
         )}
         <Modal

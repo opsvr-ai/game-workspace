@@ -11,9 +11,10 @@ interface Props {
   loading?: boolean;
   unreadMap?: Record<string, number>;
   renderActions?: (r: any) => React.ReactNode;
+  onWorkWechatSaved?: (order: any, workWechatId: string, workWechatName: string) => void;
 }
 
-const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => (
+const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWorkWechatSaved }) => (
   <Table
     size="middle"
     dataSource={dataSource}
@@ -78,7 +79,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions }) => 
             <Text>{r.companion?.user?.username || '-'}</Text>
           ),
       },
-      { title: '工作微信', key: 'workWechat', width: 90, align: 'center' as const, render: (_: any, r: any) => <EditableWorkWechat order={r} /> },
+      { title: '工作微信', key: 'workWechat', width: 90, align: 'center' as const, render: (_: any, r: any) => <EditableWorkWechat order={r} onSaved={(wid, name) => onWorkWechatSaved?.(r, wid, name)} /> },
       {
         title: '认领客服', key: 'claimedCs', width: 90, align: 'center' as const,
         render: (_: any, r: any) => <Text>{r.claimedCsUser?.username || (r.claimedCsUserId ? '已认领' : '-')}</Text>,
