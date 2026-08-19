@@ -540,6 +540,8 @@ const CustomersPage: React.FC = () => {
               const active = record.orders?.find((o: any) => o.status === 'GRABBED');
               if (active?.id) {
                 setStartServiceOrder({ id: active.id, gameName: active.gameName });
+              } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
+                message.warning('此订单正在服务中');
               } else {
                 message.warning('当前没有可开始服务的订单，请先在抢单池抢单');
               }
