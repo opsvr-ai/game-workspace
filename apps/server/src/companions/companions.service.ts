@@ -30,6 +30,7 @@ export class CompanionsService {
         displayName: true,
         avatar: true,
         isAuthorized: true,
+        studio: { select: { id: true, name: true, type: true } },
         companion: {
           select: {
             id: true,
@@ -62,6 +63,9 @@ export class CompanionsService {
       displayName: u.displayName,
       avatar: u.avatar,
       isAuthorized: u.isAuthorized,
+      studioId: u.studio?.id ?? null,
+      studioName: u.studio?.name ?? null,
+      studioType: u.studio?.type ?? null,
       companionId: u.companion?.id ?? null,
       status: u.companion?.status ?? null,
       games: u.companion?.games ?? [],

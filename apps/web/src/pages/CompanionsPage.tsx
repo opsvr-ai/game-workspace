@@ -28,6 +28,9 @@ interface Personnel {
   displayName?: string;
   avatar?: string;
   isAuthorized?: boolean;
+  studioId?: string | null;
+  studioName?: string | null;
+  studioType?: string | null;
   companionId?: string | null;
   status?: CompanionStatus | null;
   games?: any[];
@@ -263,6 +266,21 @@ const CompanionsPage: React.FC = () => {
                 )}
               </div>
             </Space>
+          );
+        },
+      },
+      {
+        title: '工作室/俱乐部',
+        dataIndex: 'studioName',
+        key: 'studioName',
+        width: 140,
+        render: (_: unknown, r: Personnel) => {
+          if (!r.studioName) return <Text type="secondary">-</Text>;
+          const isRental = r.studioType === 'RENTAL';
+          return (
+            <Tag color={isRental ? 'purple' : 'blue'} style={{ margin: 0 }}>
+              {r.studioName}
+            </Tag>
           );
         },
       },
