@@ -7,6 +7,7 @@ import {
   settlementMonthRange,
   currentSettlementMonthRange,
 } from '../common/business-day';
+import { companionOrderRevenue } from '../common/order-revenue';
 
 @Injectable()
 export class SettlementService {
@@ -64,22 +65,8 @@ export class SettlementService {
           OR: [{ companionId: c.id }, { coCompanionId: c.id }],
         },
       });
-      // Include split revenue from customFields.splits
-      let monthlyRevenue = orders.reduce((s, o) => {
-        // For primary orders: use full amount (minus splits recorded at complete time)
-        if (o.companionId === c.id) {
-          const splits: Array<{ companionId: string; amount: number }> = (o.customFields as any)?.splits || [];
-          const splitOut = splits.filter((sp) => sp.companionId !== c.id).reduce((sum, sp) => sum + sp.amount, 0);
-          return s + o.amount - splitOut;
-        }
-        // For coCompanion orders: use the split amount
-        if (o.coCompanionId === c.id) {
-          const splits: Array<{ companionId: string; amount: number }> = (o.customFields as any)?.splits || [];
-          const mySplit = splits.filter((sp) => sp.companionId === c.id).reduce((sum, sp) => sum + sp.amount, 0);
-          return s + (mySplit || 0);
-        }
-        return s;
-      }, 0);
+      // 统一口径：主陪/搭档/splits 一并计算
+      let monthlyRevenue = orders.reduce((s, o) => s + companionOrderRevenue(o, c.id), 0);
 
       if (monthlyRevenue === 0) continue; // skip companions with no revenue
 

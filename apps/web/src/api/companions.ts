@@ -2,7 +2,7 @@ import http from './client';
 
 export const companionsApi = {
   listWorkWechats: () => http.get('/companions/work-wechats'),
-  list: () => http.get('/companions'),
+  list: (params?: any) => http.get('/companions', { params }),
   listPersonnel: () => http.get('/personnel'),
   getById: (id: string) => http.get(`/companions/${id}`),
   updateStatus: (id: string, status: string) =>

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { computeSharePct } from '../common/revenue-calculator';
 import { settlementMonthRange } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
+import { companionOrderRevenue } from '../common/order-revenue';
 
 function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
@@ -36,17 +37,13 @@ export class SettlementSnapshotService {
           createdAt: { gte: start, lt: end },
           OR: [{ companionId: c.id }, { coCompanionId: c.id }],
         },
-        select: { amount: true, coAmount: true, companionId: true, coCompanionId: true },
+        select: { amount: true, coAmount: true, companionId: true, coCompanionId: true, customFields: true },
       });
 
-      // 现有 Order.amount/coAmount 仍为 Float 元，转分计算
+      // 现有 Order.amount/coAmount 仍为 Float 元，统一口径转分计算
       let monthlyRevenueCents = 0;
       for (const o of orders) {
-        if (o.companionId === c.id) {
-          monthlyRevenueCents += yuanToCents(o.amount) - (o.coAmount != null ? yuanToCents(o.coAmount) : 0);
-        } else if (o.coCompanionId === c.id) {
-          monthlyRevenueCents += o.coAmount != null ? yuanToCents(o.coAmount) : 0;
-        }
+        monthlyRevenueCents += yuanToCents(companionOrderRevenue(o, c.id));
       }
 
       if (monthlyRevenueCents <= 0) continue;

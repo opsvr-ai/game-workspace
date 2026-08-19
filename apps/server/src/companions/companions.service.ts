@@ -8,6 +8,7 @@ import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { ExcellenceService } from './excellence.service';
+import { BridgeService } from '../studios/bridge.service';
 
 @Injectable()
 export class CompanionsService {
@@ -17,6 +18,7 @@ export class CompanionsService {
     private readonly attendanceService: CompanionAttendanceService,
     private readonly wechatService: CompanionWechatService,
     private readonly excellence: ExcellenceService,
+    private readonly bridgeService: BridgeService,
   ) {}
 
   /** 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。 */
@@ -88,9 +90,16 @@ export class CompanionsService {
     }));
   }
 
-  async findAll(user: any) {
+  async findAll(user: any, includeBridged = false) {
     const where: any = {};
-    if (user.role !== 'OWNER') where.studioId = user.studioId;
+    if (user.role !== 'OWNER') {
+      if (includeBridged && user.studioId) {
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
+        where.studioId = { in: [user.studioId, ...bridgedIds] };
+      } else {
+        where.studioId = user.studioId;
+      }
+    }
     const companions = await this.prisma.companion.findMany({
       where,
       include: {

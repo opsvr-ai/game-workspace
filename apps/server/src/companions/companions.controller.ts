@@ -43,8 +43,8 @@ export class CompanionsController {
   ) {}
 
   @Get('companions')
-  async findAll(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.findAll(req.user);
+  async findAll(@Req() req: any, @Query('includeBridged') includeBridged?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.findAll(req.user, includeBridged === 'true');
     return { code: 200, message: 'ok', data };
   }
 

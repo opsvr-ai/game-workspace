@@ -66,7 +66,7 @@ const OrderDetailPage: React.FC = () => {
   const last = sessions[sessions.length - 1];
   const loadCompanions = async () => {
     try {
-      const { data } = await companionsApi.list();
+      const { data } = await companionsApi.list({ includeBridged: true });
       setCompanions((data.data || []).filter((c: any) => c.status === 'AVAILABLE'));
     } catch {
       setCompanions([]);
