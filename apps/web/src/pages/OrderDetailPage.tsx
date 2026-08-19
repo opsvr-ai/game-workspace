@@ -253,7 +253,7 @@ const OrderDetailPage: React.FC = () => {
                 {order?.status === 'CONFIRMED' && (
                   <Button danger onClick={() => completeOrder()}>结束服务</Button>
                 )}
-                <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>开始服务</Button>
+                <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>首单</Button>
               </Space>
             )
             : null
@@ -263,12 +263,12 @@ const OrderDetailPage: React.FC = () => {
       </Card>
       {/* 开始服务：口供 + 转账截图 */}
       <Modal
-        title={isRenew ? '续单' : '开始服务'}
+        title={isRenew ? '续单' : '首单'}
         open={!!startTarget || isRenew}
         onOk={handleStartService}
         onCancel={() => { setStartTarget(null); setIsRenew(false); }}
         confirmLoading={starting}
-        okText={isRenew ? '确认续单' : '开始服务并开启工作记录'}
+        okText={isRenew ? '确认续单' : '开始首单并开启工作记录'}
       >
         <Row gutter={12} align="middle" style={{ marginBottom: 8 }}>
           <Col span={12}>

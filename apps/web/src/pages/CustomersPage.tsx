@@ -557,34 +557,8 @@ const CustomersPage: React.FC = () => {
               }
             }}
           >
-            开始服务
+            首单
           </Button>
-          {(() => {
-            const activeOrder = record.orders?.find((o: any) => o.status === 'CONFIRMED');
-            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
-            if (activeOrder) {
-              return (
-                <Space size={4}>
-                  <Tag color="blue">服务中</Tag>
-                  {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
-                  <Button
-                    size="small"
-                    danger
-                    onClick={() => {
-                      if (activeSession?.id) {
-                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id });
-                      } else {
-                        message.warning('当前没有进行中的服务会话');
-                      }
-                    }}
-                  >
-                    结束服务
-                  </Button>
-                </Space>
-              );
-            }
-            return null;
-          })()}
           <Button
             size="small"
             onClick={() => {
@@ -621,6 +595,32 @@ const CustomersPage: React.FC = () => {
           >
             复购
           </Button>
+          {(() => {
+            const activeOrder = record.orders?.find((o: any) => o.status === 'CONFIRMED');
+            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
+            if (activeOrder) {
+              return (
+                <Space size={4}>
+                  <Tag color="blue">服务中</Tag>
+                  {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => {
+                      if (activeSession?.id) {
+                        setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id });
+                      } else {
+                        message.warning('当前没有进行中的服务会话');
+                      }
+                    }}
+                  >
+                    结束服务
+                  </Button>
+                </Space>
+              );
+            }
+            return null;
+          })()}
           <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>
             发布订单
           </Button>

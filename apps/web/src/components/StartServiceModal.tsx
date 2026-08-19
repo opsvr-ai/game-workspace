@@ -160,11 +160,11 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   return (
     <Modal
       open={open}
-      title={`开始服务${gameName ? ` · ${gameName}` : ''}`}
+      title={`首单${gameName ? ` · ${gameName}` : ''}`}
       onOk={handleStart}
       onCancel={onClose}
       confirmLoading={starting}
-      okText="开始服务并开启工作记录"
+      okText="开始首单并开启工作记录"
       cancelText="取消"
       width={480}
       destroyOnClose
