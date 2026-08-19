@@ -77,6 +77,12 @@ export class SettlementSnapshotService {
         },
       });
 
+      // 严格按月清算：结算后清零陪玩的累计月流水，下个月重新累计
+      await this.prisma.companion.update({
+        where: { id: c.id },
+        data: { monthlyRevenue: 0 },
+      }).catch(() => {});
+
       results.push({
         companionId: c.id,
         companionName: c.user?.displayName || c.user?.username || c.id,

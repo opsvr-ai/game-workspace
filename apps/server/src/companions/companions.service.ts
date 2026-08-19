@@ -3,7 +3,8 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
-import { currentBusinessDayRange } from '../common/business-day';
+import { currentBusinessDayRange, currentSettlementMonthRange } from '../common/business-day';
+import { companionOrderRevenue } from '../common/order-revenue';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
@@ -261,6 +262,19 @@ export class CompanionsService {
     }));
   }
 
+  private async computeMonthRevenue(companionId: string): Promise<number> {
+    const { start, end } = currentSettlementMonthRange();
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: 'DONE',
+        createdAt: { gte: start, lt: end },
+        OR: [{ companionId }, { coCompanionId: companionId }],
+      },
+      select: { amount: true, coAmount: true, companionId: true, coCompanionId: true, customFields: true },
+    });
+    return orders.reduce((sum, o) => sum + companionOrderRevenue(o, companionId), 0);
+  }
+
   async getWorkbench(companionId: string) {
     const { start: today, end: tomorrow } = currentBusinessDayRange();
 
@@ -387,24 +401,27 @@ export class CompanionsService {
         mode: 'FIXED',
         companionPct: Math.round((companion?.revenueShare ?? 0.6) * 100),
       };
-    } else if (companion?.monthlyRevenue) {
-      // TIERED: compute which tier the companion is in (delegated to revenue-calculator)
-      const config = await this.prisma.systemConfig.findUnique({
-        where: { key: 'revenue.share_tiers' },
-      });
-      const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
-      const splitResult = computeRevenueSplit({
-        splitMode,
-        totalRevenue: companion.monthlyRevenue,
-        revenueShare: companion?.revenueShare,
-        tiers: tiers.length > 0 ? tiers : undefined,
-        monthlyRevenue: companion.monthlyRevenue,
-      });
-      tierInfo = {
-        mode: splitResult.mode,
-        companionPct: splitResult.companionPct,
-        monthlyRevenue: splitResult.monthlyRevenue,
-      };
+    } else {
+      // TIERED：严格按营业月流水计算当前所在阶梯
+      const monthRevenue = await this.computeMonthRevenue(companionId);
+      if (monthRevenue > 0) {
+        const config = await this.prisma.systemConfig.findUnique({
+          where: { key: 'revenue.share_tiers' },
+        });
+        const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
+        const splitResult = computeRevenueSplit({
+          splitMode,
+          totalRevenue: monthRevenue,
+          revenueShare: companion?.revenueShare,
+          tiers: tiers.length > 0 ? tiers : undefined,
+          monthlyRevenue: monthRevenue,
+        });
+        tierInfo = {
+          mode: splitResult.mode,
+          companionPct: splitResult.companionPct,
+          monthlyRevenue: splitResult.monthlyRevenue,
+        };
+      }
     }
 
     // Total revenue and balance for entertainment fee check

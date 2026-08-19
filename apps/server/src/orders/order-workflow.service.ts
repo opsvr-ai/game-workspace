@@ -8,6 +8,7 @@ import { logger } from '../common/logger';
 import { yuanToCents } from '../common/money';
 import { currentBusinessDayRange } from '../common/business-day';
 import { ExcellenceService } from '../companions/excellence.service';
+import { companionOrderRevenue } from '../common/order-revenue';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
@@ -227,10 +228,19 @@ export class OrderWorkflowService {
     // Step 2: Revenue updates (only after status is safely set)
     if (order.companionId && order.amount) {
       try {
+        const primaryRevenue = companionOrderRevenue(order, order.companionId);
         await this.prisma.companion.update({
           where: { id: order.companionId },
-          data: { monthlyRevenue: { increment: order.amount } },
+          data: { monthlyRevenue: { increment: primaryRevenue } },
         });
+        if (order.coCompanionId) {
+          const coRevenue = companionOrderRevenue(order, order.coCompanionId);
+          if (coRevenue > 0) {
+            await this.prisma.companion
+              .update({ where: { id: order.coCompanionId }, data: { monthlyRevenue: { increment: coRevenue } } })
+              .catch(() => {});
+          }
+        }
         await this.prisma.customer.update({
           where: { id: order.customerId },
           data: { totalSpent: { increment: order.amount } },
