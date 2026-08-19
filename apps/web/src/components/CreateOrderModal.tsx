@@ -226,7 +226,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
                 <InputNumber
                   min={0}
                   style={{ width: '100%' }}
-                  placeholder={isDouble ? '填主陪（陪玩A）的金额，搭档金额由陪玩自己填' : '填陪玩单价'}
+                  placeholder={isDouble ? '填主陪（陪玩A）的金额，搭档金额由陪玩自己填' : '？/人/h'}
                   prefix="¥"
                 />
               </Form.Item>
