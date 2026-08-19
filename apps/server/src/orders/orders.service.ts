@@ -187,12 +187,12 @@ export class OrdersService {
 
     // Auto-create first session when order is created
     if (newOrder.companionId) {
-      if (newOrder.dispatchType === 'DIRECT') {
+      if (newOrder.dispatchType === 'DIRECT' && !newOrder.coCompanionId) {
         await this.prisma.companion
           .update({ where: { id: newOrder.companionId }, data: { status: 'BUSY' } })
           .catch(() => {});
       }
-      await this.prisma.orderSession
+      const session = await this.prisma.orderSession
         .create({
           data: {
             parentOrderId: newOrder.id,
@@ -205,7 +205,26 @@ export class OrdersService {
             status: 'ACTIVE',
           },
         })
-        .catch(() => {});
+        .catch(() => null);
+
+      // 双陪（指定搭档）：创建后立即通知搭档接受邀请
+      if (session && session.coCompanionId) {
+        const inviter = await this.prisma.companion.findUnique({
+          where: { id: session.companionId || '' },
+          select: { user: { select: { displayName: true, username: true } } },
+        }).catch(() => null);
+        const inviterName = inviter?.user?.displayName || inviter?.user?.username || '';
+        this.wsGateway.pushOrder(session.coCompanionId, {
+          ...session,
+          gameName: newOrder.gameName,
+          customerId: newOrder.customerId,
+          orderId: newOrder.id,
+          type: 'DUAL_INVITE',
+          inviterName,
+          expiresInSec: PARTNER_INVITE_TTL_SEC,
+        });
+        this.schedulePartnerInviteExpiry(session.id, newOrder.studioId || '');
+      }
     }
 
     if (studioId && newOrder.dispatchType === 'POOL') {
