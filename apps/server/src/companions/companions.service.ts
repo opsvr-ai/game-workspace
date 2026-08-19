@@ -133,8 +133,8 @@ export class CompanionsService {
       const grabCount = grabMap.get(cid) || 0;
       const customerCount = customerMap.get(cid) || 0;
       const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
-      // 月流水 3000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
-      const revenueScore = Math.min(50, s.revenue / 60);
+      // 月流水 10000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
+      const revenueScore = Math.min(50, s.revenue / 200);
       const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1);
       result.set(cid, {
         isExcellent: rankScore >= 50,
