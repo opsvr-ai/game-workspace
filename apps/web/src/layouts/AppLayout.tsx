@@ -126,6 +126,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: 'owner-companion-mgmt', label: '人员管理',
           children: [
+            { key: '/admin/companions', label: '人员列表' },
             { key: '/owner/work-wechats?type=COMPANION', label: '陪玩工作微信' },
           ],
         },
@@ -198,6 +199,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: 'admin-companion-mgmt', label: '人员管理',
           children: [
+            { key: '/admin/companions', label: '人员列表' },
             { key: '/admin/work-wechats?type=COMPANION', label: '陪玩工作微信' },
           ],
         },
