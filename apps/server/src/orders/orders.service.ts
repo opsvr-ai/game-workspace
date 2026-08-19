@@ -428,11 +428,6 @@ export class OrdersService {
     }
     if (order.coCompanionId) {
       this.wsGateway.pushOrder(order.coCompanionId, newOrder);
-      this.wsGateway.broadcastToStudio(order.studioId, 'order:dual-request', {
-        orderId: newOrder.id,
-        companionId: order.companionId,
-        coCompanionId: order.coCompanionId,
-      });
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
     return newOrder;

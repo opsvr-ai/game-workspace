@@ -519,17 +519,6 @@ export class CompanionsService {
     });
   }
 
-  // TASK-11: Request dual companion
-  async requestDualCompanion(companionId: string, studioId: string, username: string) {
-    const companion = await this.prisma.companion.findUnique({
-      where: { id: companionId },
-      select: { user: { select: { username: true, displayName: true } } },
-    });
-    const name = companion?.user?.displayName || companion?.user?.username || username;
-    // Broadcast to studio via WS gateway will be handled by controller
-    return { companionId, companionName: name, studioId };
-  }
-
   // ── Resignation ──
 
   async resignCompanion(companionId: string) {

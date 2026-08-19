@@ -182,24 +182,6 @@ export class CompanionsController {
     return { code: 201, message: '解锁申请已提交，请等待管理员审核', data: null };
   }
 
-  // TASK-11: Request dual companion
-  @Post('companions/me/request-dual')
-  @Roles(UserRole.COMPANION)
-  async requestDualCompanion(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const result = await this.companionsService.requestDualCompanion(
-      req.user.companionId,
-      req.user.studioId,
-      req.user.username,
-    );
-    if (result.studioId) {
-      this.wsGateway.broadcastToStudio(result.studioId, 'order:dual-request', {
-        companionId: result.companionId,
-        companionName: result.companionName,
-      });
-    }
-    return { code: 200, message: '双陪请求已发送', data: result };
-  }
-
   // ── Attendance ──
 
   @Get('companions/attendance')
