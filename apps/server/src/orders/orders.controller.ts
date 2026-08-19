@@ -134,20 +134,6 @@ export class OrdersController {
     return { code: 200, message: '已补客户', data: null };
   }
 
-  @Post('orders/:id/renew')
-  @Roles(UserRole.COMPANION)
-  async renew(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.renew(id, req.user.id, req.user.companionId);
-    return { code: 200, message: '已续单', data };
-  }
-
-  @Post('orders/:id/republish')
-  @Roles(UserRole.COMPANION)
-  async republish(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.republish(id, req.user.id, req.user.companionId);
-    return { code: 200, message: '已发布到抢单池', data };
-  }
-
   @Get('orders/pool/status')
   @Roles(UserRole.COMPANION)
   async getPoolStatus(@Req() req: any): Promise<ApiResponse<unknown>> {
@@ -195,13 +181,6 @@ export class OrdersController {
   async deposit(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.markDeposit(id, req.user?.companionId);
     return { code: 200, message: '已存单', data };
-  }
-
-  @Post('orders/:id/complete-billing')
-  @Roles(UserRole.COMPANION)
-  async completeWithBilling(@Param('id') id: string, @Req() req: any, @Body() dto: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.completeWithBilling(id, req.user.companionId, dto);
-    return { code: 200, message: '服务结算完成', data };
   }
 
   @Post('orders/:id/cancel')
