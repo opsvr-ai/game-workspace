@@ -40,6 +40,7 @@ const OrderDetailPage: React.FC = () => {
   const [transferUrl, setTransferUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [callingPartner, setCallingPartner] = useState(false);
   const [endTarget, setEndTarget] = useState<Session | null>(null);
   const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
   const [ending, setEnding] = useState(false);
@@ -119,11 +120,23 @@ const OrderDetailPage: React.FC = () => {
     return false; // 阻止 antd 自动上传
   };
 
+  const handleCallPartner = async () => {
+    if (!id) return;
+    setCallingPartner(true);
+    try {
+      await ordersApi.callPartner(id);
+      message.success('已向工作室发出找搭档请求，等待搭档接受');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '呼叫搭档失败');
+    }
+    setCallingPartner(false);
+  };
+
   const handleStartService = async () => {
     if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
     if (!claimDuration || claimDuration <= 0) { message.warning('请填写有效时长'); return; }
     if (claimPrice == null || claimPrice <= 0) { message.warning('请填写单价'); return; }
-    if (dual && !coId) { message.warning('双陪请选择搭档'); return; }
+    if (dual && !coId) { message.warning('双陪请先选择搭档，或点击下方「呼叫搭档」寻找搭档'); return; }
     if (dual && (coPrice == null || coPrice <= 0)) { message.warning('双陪请填写搭档单价'); return; }
     const price = claimPrice;
     setStarting(true);
@@ -317,6 +330,11 @@ const OrderDetailPage: React.FC = () => {
                 <InputNumber min={0} style={{ width: '100%' }} value={coPrice ?? undefined} onChange={(v) => setCoPrice(v ?? null)} prefix="¥" placeholder="？/人/h" />
               </Col>
             </Row>
+            <div style={{ marginTop: 8 }}>
+              <Button block size="small" loading={callingPartner} onClick={handleCallPartner}>
+                📣 呼叫搭档（找不到搭档时点这里）
+              </Button>
+            </div>
           </>
         )}
         <div style={{ marginTop: 12 }}>

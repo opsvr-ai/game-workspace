@@ -39,6 +39,7 @@ export const ordersApi = {
   release: (id: string, urgency?: string) => http.post(`/orders/${id}/release`, { urgency }),
   markReady: (id: string) => http.post(`/orders/${id}/mark-ready`),
   acceptPartner: (id: string) => http.post(`/orders/${id}/accept-partner`),
+  callPartner: (id: string) => http.post(`/orders/${id}/call-partner`),
   renew: (id: string) => http.post(`/orders/${id}/renew`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
