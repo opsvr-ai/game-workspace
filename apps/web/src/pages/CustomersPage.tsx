@@ -67,7 +67,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string }> }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
 }
 
 interface CompanionOption {
@@ -108,7 +108,7 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
-  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string } | null>(null);
+  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; initialValues?: any } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -568,7 +568,19 @@ const CustomersPage: React.FC = () => {
             onClick={() => {
               const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
               if (active?.id) {
-                navigate(`/companion/orders/${active.id}`);
+                const lastSession = active.sessions?.[0];
+                setStartServiceOrder({
+                  id: active.id,
+                  gameName: active.gameName,
+                  initialValues: {
+                    dual: !!lastSession?.coCompanionId,
+                    coId: lastSession?.coCompanionId,
+                    coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
+                    claimMode: lastSession?.claimedMode || '机密',
+                    claimPrice: null,
+                    claimDuration: lastSession?.duration || 1,
+                  },
+                });
               } else {
                 message.warning('当前没有进行中的订单');
               }
@@ -845,6 +857,7 @@ const CustomersPage: React.FC = () => {
           orderId={startServiceOrder?.id ?? null}
           customerId={startServiceOrder?.customerId ?? null}
           gameName={startServiceOrder?.gameName}
+          initialValues={startServiceOrder?.initialValues}
           onClose={() => setStartServiceOrder(null)}
           onDone={() => {
             setStartServiceOrder(null);

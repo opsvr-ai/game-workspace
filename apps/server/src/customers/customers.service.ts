@@ -84,7 +84,7 @@ export class CustomersService {
               sessions: {
                 orderBy: { seq: 'desc' },
                 take: 1,
-                select: { id: true, startedAt: true, status: true },
+                select: { id: true, startedAt: true, status: true, coCompanionId: true, coAmount: true, claimedMode: true, claimedPrice: true, duration: true },
               },
             },
           },

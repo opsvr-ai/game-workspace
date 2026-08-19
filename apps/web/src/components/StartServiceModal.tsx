@@ -14,11 +14,19 @@ interface Props {
   orderId: string | null;
   customerId?: string | null;
   gameName?: string;
+  initialValues?: {
+    dual?: boolean;
+    coId?: string;
+    coPrice?: number | null;
+    claimMode?: string;
+    claimPrice?: number | null;
+    claimDuration?: number;
+  };
   onClose: () => void;
   onDone: () => void;
 }
 
-const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, onClose, onDone }) => {
+const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, initialValues, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
   const [dual, setDual] = useState(false);
   const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast' | 'pool'>('assign');
@@ -44,6 +52,14 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
 
   useEffect(() => {
     if (open) {
+      setDual(initialValues?.dual ?? false);
+      setCoId(initialValues?.coId);
+      setCoPrice(initialValues?.coPrice ?? null);
+      setClaimMode(initialValues?.claimMode ?? '机密');
+      setClaimPrice(initialValues?.claimPrice ?? 35);
+      setClaimDuration(initialValues?.claimDuration ?? 1);
+      setPartnerMode('assign');
+      setTransferUrl('');
       loadCompanions();
     }
   }, [open]);
