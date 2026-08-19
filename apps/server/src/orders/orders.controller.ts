@@ -199,20 +199,6 @@ export class OrdersController {
     return { code: 200, message: '取消成功', data };
   }
 
-  @Post('orders/:id/call-partner')
-  @Roles(UserRole.COMPANION)
-  async callPartner(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.callPartner(id, req.user.companionId);
-    return { code: 200, message: 'ok', data };
-  }
-
-  @Post('orders/:id/accept-partner')
-  @Roles(UserRole.COMPANION)
-  async acceptPartner(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.acceptPartner(id, req.user.companionId);
-    return { code: 200, message: 'ok', data };
-  }
-
   @Post('orders/:id/accept-assignment')
   @Roles(UserRole.COMPANION)
   async acceptAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
@@ -248,6 +234,13 @@ export class OrdersController {
   async acceptPartnerInvite(@Param('sessionId') sessionId: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.acceptPartnerInvite(sessionId, req.user.companionId);
     return { code: 200, message: '已接受搭档邀请，开始计时', data };
+  }
+
+  @Post('sessions/:sessionId/partner-broadcast')
+  @Roles(UserRole.COMPANION)
+  async broadcastPartnerInvite(@Param('sessionId') sessionId: string): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.broadcastPartnerInvite(sessionId);
+    return { code: 200, message: '已广播找搭档', data };
   }
 
   @Put('sessions/:sessionId/start')
@@ -324,13 +317,6 @@ export class OrdersController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.releaseClaim(id, req.user.id, req.user?.studioId, req.user?.role, urgency);
     return { code: 200, message: '已放回抢单池', data };
-  }
-
-  @Post('orders/:id/mark-ready')
-  @Roles(UserRole.COMPANION)
-  async markReady(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.markReady(id, req.user.companionId);
-    return { code: 200, message: '已准备就绪', data };
   }
 
   @Put('orders/:id/payment')

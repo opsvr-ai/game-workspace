@@ -815,25 +815,6 @@ export class OrdersService {
     return updated;
   }
 
-  async markReady(orderId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      select: { companionId: true, coCompanionId: true, customFields: true },
-    });
-    if (!order) throw new NotFoundException('订单不存在');
-    // 允许主陪或搭档标记就绪（双陪中通常由搭档点“我已准备好”）
-    if (order.companionId !== companionId && order.coCompanionId !== companionId) {
-      throw new ForbiddenException('无权操作此订单');
-    }
-    const existingFields = (order.customFields as Record<string, unknown>) || {};
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { customFields: { ...existingFields, partnerReady: true, partnerId: companionId } as any },
-    });
-    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
-    return updated;
-  }
-
   async confirm(orderId: string, companionId: string) {
     return this.workflowService.confirm(orderId, companionId);
   }
@@ -842,73 +823,8 @@ export class OrdersService {
     return this.workflowService.complete(orderId, undefined, userStudioId, companionId, role);
   }
 
-  async completeWithBilling(
-    orderId: string,
-    companionId: string,
-    dto: {
-      customerCode?: string;
-      firstOrder: { duration: number; price: number };
-      hasRenew?: boolean;
-      renewOrder?: { duration: number; price: number };
-      gameName: string;
-      type: string;
-      screenshotUrl?: string;
-      wechatId?: string;
-      transferTotalYuan?: number;
-    },
-  ) {
-    return this.workflowService.completeWithBilling(orderId, companionId, dto);
-  }
-
   async cancel(orderId: string, userStudioId?: string, companionId?: string, role?: string, reason?: string) {
     return this.workflowService.cancel(orderId, userStudioId, companionId, role, reason);
-  }
-
-  async callPartner(orderId: string, callerId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { customer: true } });
-    if (!order) throw new NotFoundException('订单不存在');
-    // Only the assigned companion can call for a partner
-    if (order.companionId !== callerId) throw new ForbiddenException('无权操作此订单');
-    const caller = await this.prisma.companion.findUnique({
-      where: { id: callerId },
-      include: { studio: { select: { name: true } } },
-    });
-    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:partner_call', {
-      orderId,
-      callerId,
-      callerStudioName: caller?.studio?.name,
-      customerName: order.customer?.customerCode,
-      gameName: order.gameName,
-      amount: order.amount,
-    });
-    return { ok: true };
-  }
-
-  async acceptPartner(orderId: string, partnerId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    // Prevent the assigned companion from accepting their own partner call
-    if (order.companionId === partnerId) throw new ForbiddenException('不能接受自己的协作请求');
-    // Bridge validation: partner must be in same or bridged studio
-    const partner = await this.prisma.companion.findUnique({
-      where: { id: partnerId },
-      select: { studioId: true },
-    });
-    if (!partner) throw new NotFoundException('陪玩不存在');
-    const bridgedIds = await this.bridgeService.getBridgedStudioIds(order.studioId);
-    const allowedStudios = [order.studioId, ...bridgedIds];
-    if (!allowedStudios.includes(partner.studioId)) {
-      throw new ForbiddenException('无权接受其他工作室的协作请求');
-    }
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        coCompanionId: partnerId,
-        customFields: { ...((order.customFields as any) || {}), partnerId },
-      },
-    });
-    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
-    return updated;
   }
 
   async markRefund(orderId: string, companionId?: string, reason?: string) {
@@ -1123,12 +1039,14 @@ export class OrdersService {
       include: { parentOrder: { select: { id: true, companionId: true, gameName: true, studioId: true } } },
     });
     if (!session) throw new NotFoundException('会话不存在');
-    if (session.coCompanionId !== partnerId) throw new ForbiddenException('无权接受此搭档邀请');
+    // 允许指定搭档或广播找搭档：未指定搭档时，第一个接受者成为搭档
+    if (session.companionId === partnerId) throw new ForbiddenException('不能接受自己的搭档邀请');
+    if (session.coCompanionId && session.coCompanionId !== partnerId) throw new ForbiddenException('无权接受此搭档邀请');
     if (session.startedAt) throw new ForbiddenException('该服务已开始');
 
     await this.prisma.order.update({
       where: { id: session.parentOrderId },
-      data: { coCompanionId: partnerId },
+      data: { coCompanionId: session.coCompanionId || partnerId },
     }).catch(() => {});
 
     await this.prisma.order.updateMany({
@@ -1138,7 +1056,7 @@ export class OrdersService {
 
     await this.prisma.orderSession.update({
       where: { id: sessionId },
-      data: { startedAt: new Date() },
+      data: { startedAt: new Date(), coCompanionId: session.coCompanionId || partnerId },
     });
 
     if (session.companionId) {
@@ -1155,6 +1073,26 @@ export class OrdersService {
       });
     }
     this.wsGateway.broadcastToStudio(session.parentOrder?.studioId || '', 'order:pool_updated', { id: sessionId });
+    return { ok: true };
+  }
+
+  /** 广播找搭档：把双陪会话邀请广播给工作室，任意陪玩可接受 */
+  async broadcastPartnerInvite(sessionId: string) {
+    const session = await this.prisma.orderSession.findUnique({
+      where: { id: sessionId },
+      include: { parentOrder: { select: { studioId: true, gameName: true } } },
+    });
+    if (!session) throw new NotFoundException('会话不存在');
+    this.wsGateway.broadcastToStudio(session.parentOrder?.studioId || '', 'order:dual_invite', {
+      sessionId,
+      orderId: session.parentOrderId,
+      companionId: session.companionId,
+      gameName: session.parentOrder?.gameName || '',
+      amount: session.amount,
+      duration: session.duration,
+      type: 'DUAL_INVITE',
+      coCompanionId: null,
+    });
     return { ok: true };
   }
 

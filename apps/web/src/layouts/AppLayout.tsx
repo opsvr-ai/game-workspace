@@ -9,7 +9,6 @@ import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
-import DualCompanionModal from '../components/DualCompanionModal';
 import { ChatProvider } from '../components/chat';
 import { commander } from '../styles/commander';
 import CommandPalette from '../components/CommandPalette';
@@ -17,7 +16,6 @@ import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
-import { PartnerCallNotification } from '../components/PartnerCallNotification';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
@@ -598,7 +596,6 @@ const AppLayout: React.FC = () => {
   // ── Urgent order + dual-companion popup ──
   const [urgentOrder, setUrgentOrder] = React.useState<any>(null);
   const [urgentGrabbed, setUrgentGrabbed] = React.useState<any>(null);
-  const [dualReady, setDualReady] = React.useState<any>(null);
 
   useEffect(() => {
     if (!user && isAuthenticated) {
@@ -628,6 +625,7 @@ const AppLayout: React.FC = () => {
                 try {
                   await ordersApi.acceptPartnerInvite(data.id);
                   message.success('已接受搭档邀请，开始计时');
+                  (window as any).electronAPI?.sessionWatch?.(data.id);
                 } catch (e: any) {
                   message.error(e?.response?.data?.message || '接受失败');
                 }
@@ -651,6 +649,42 @@ const AppLayout: React.FC = () => {
       });
       (window as any).electronAPI?.sessionWatch?.(data.sessionId);
       window.dispatchEvent(new Event('chunlv:service-started'));
+    },
+    onDualInvite: (data: any) => {
+      // 广播找搭档：主陪未指定搭档，工作室任意陪玩可接受，第一个接受者成为搭档
+      if (!user?.companionId || !data?.sessionId) return;
+      if (data?.companionId === user.companionId) return; // 主陪自己不看自己的广播
+      const nk = `dual-broadcast-${data.sessionId}`;
+      notification.open({
+        key: nk,
+        message: '🤝 找搭档邀请',
+        description: `有陪玩广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`,
+        placement: 'bottomRight',
+        duration: 0,
+        btn: (
+          <Space>
+            <Button
+              size="small"
+              type="primary"
+              onClick={async () => {
+                notification.destroy(nk);
+                try {
+                  await ordersApi.acceptPartnerInvite(data.sessionId);
+                  message.success('已接受搭档邀请，开始计时');
+                  (window as any).electronAPI?.sessionWatch?.(data.sessionId);
+                } catch (e: any) {
+                  message.error(e?.response?.data?.message || '接受失败');
+                }
+              }}
+            >
+              接受
+            </Button>
+            <Button size="small" onClick={() => notification.destroy(nk)}>
+              拒绝
+            </Button>
+          </Space>
+        ),
+      });
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
@@ -1202,14 +1236,6 @@ const AppLayout: React.FC = () => {
         setUrgentGrabbed={setUrgentGrabbed}
       />
 
-      {/* Dual-companion modal */}
-      <DualCompanionModal
-        urgentGrabbed={urgentGrabbed}
-        dualReady={!!dualReady}
-        setUrgentGrabbed={setUrgentGrabbed}
-        setDualReady={(v: boolean) => setDualReady(v || null)}
-      />
-
       {/* Global Grab Success Modal — survives navigation */}
       <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
         {grabbedOrder &&
@@ -1262,7 +1288,6 @@ const AppLayout: React.FC = () => {
       {/* Command Palette (Ctrl+K) */}
       <VoiceCallHandler />
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
-      <PartnerCallNotification />
     </ChatProvider>
   );
 };

@@ -29,7 +29,7 @@ interface Props {
 const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, initialValues, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
   const [dual, setDual] = useState(false);
-  const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast' | 'pool'>('assign');
+  const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast'>('assign');
   const [coId, setCoId] = useState<string | undefined>();
   const [coPrice, setCoPrice] = useState<number | null>(null);
   const [companions, setCompanions] = useState<any[]>([]);
@@ -39,7 +39,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const [transferUrl, setTransferUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [callingPartner, setCallingPartner] = useState(false);
 
   const loadCompanions = async () => {
     try {
@@ -82,39 +81,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
     return false;
   };
 
-  const handleCallPartner = async () => {
-    if (!orderId) return;
-    setCallingPartner(true);
-    try {
-      await ordersApi.callPartner(orderId);
-      message.success('已向工作室发出找搭档请求，等待搭档接受');
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '呼叫搭档失败');
-    }
-    setCallingPartner(false);
-  };
-
-  const handleFindPartnerPool = async () => {
-    if (!orderId) return;
-    setCallingPartner(true);
-    try {
-      await ordersApi.create({
-        type: 'NEW',
-        dispatchType: 'POOL',
-        gameName: gameName || '三角洲行动',
-        amount: (coPrice ?? 0) * claimDuration,
-        duration: claimDuration,
-        deltaMission: claimMode,
-        deltaCount: '双',
-        deltaNote: `找搭档（主陪订单 ${orderId}）`,
-      });
-      message.success('已放入订单池，等待搭档抢单');
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '放入订单池失败');
-    }
-    setCallingPartner(false);
-  };
-
   const handleStart = async () => {
     if (!orderId && !customerId) return;
     if (!transferUrl) return message.warning('请先上传客户转账截图');
@@ -122,7 +88,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
     if (dual && partnerMode === 'assign' && !coId) return message.warning('双陪请选择搭档');
     if (dual && (coPrice == null || coPrice <= 0)) return message.warning('双陪请填写搭档单价');
-    if (dual && partnerMode !== 'assign') return message.warning('请先通过「广播」或「入池」找到搭档');
 
     const price = claimPrice;
     setStarting(true);
@@ -138,7 +103,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           gameName: gameName || '三角洲行动',
           amount: price * claimDuration,
           duration: claimDuration,
-          coCompanionId: dual ? coId : undefined,
+          coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
           deltaMission: claimMode,
           deltaCount: dual ? '双' : '单',
@@ -155,7 +120,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         const res: any = await ordersApi.addSession(orderId!, {
           amount: price * claimDuration,
           duration: claimDuration,
-          coCompanionId: dual ? coId : undefined,
+          coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
           claimedMode: claimMode,
           claimedPrice: price,
@@ -169,7 +134,12 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         return;
       }
       if (dual) {
-        message.success('已邀请搭档，等待对方确认后开始计时');
+        if (partnerMode === 'broadcast') {
+          await ordersApi.broadcastPartnerInvite(sessionId);
+          message.success('已广播找搭档，等待搭档接受');
+        } else {
+          message.success('已邀请搭档，等待对方确认后开始计时');
+        }
       } else {
         await ordersApi.startSession(sessionId, {
           claimedMode: claimMode,
@@ -234,7 +204,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
                 <Radio.Group size="small" value={partnerMode} onChange={(e) => setPartnerMode(e.target.value)}>
                   <Radio.Button value="assign">👤 指定</Radio.Button>
                   <Radio.Button value="broadcast">📣 广播</Radio.Button>
-                  <Radio.Button value="pool">🏊 入池</Radio.Button>
                 </Radio.Group>
               </div>
             </Col>
@@ -254,16 +223,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
                 </Select>
               </Col>
             </Row>
-          )}
-          {partnerMode === 'broadcast' && (
-            <div style={{ marginTop: 8 }}>
-              <Button block size="small" loading={callingPartner} onClick={handleCallPartner}>📣 广播找搭档</Button>
-            </div>
-          )}
-          {partnerMode === 'pool' && (
-            <div style={{ marginTop: 8 }}>
-              <Button block size="small" loading={callingPartner} onClick={handleFindPartnerPool}>🏊 放入订单池找搭档</Button>
-            </div>
           )}
         </>
       )}

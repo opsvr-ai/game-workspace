@@ -37,12 +37,10 @@ export const ordersApi = {
     customerPaymentAccountName?: string;
   }) => http.post(`/orders/${id}/claim`, data),
   release: (id: string, urgency?: string) => http.post(`/orders/${id}/release`, { urgency }),
-  markReady: (id: string) => http.post(`/orders/${id}/mark-ready`),
-  acceptPartner: (id: string) => http.post(`/orders/${id}/accept-partner`),
-  callPartner: (id: string) => http.post(`/orders/${id}/call-partner`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
   acceptPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-accept`),
+  broadcastPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-broadcast`),
   startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; duration?: number; transferScreenshotUrl?: string }) =>
     http.put(`/sessions/${sessionId}/start`, claims || {}),
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),

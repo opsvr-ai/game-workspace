@@ -34,7 +34,7 @@ const OrderDetailPage: React.FC = () => {
   const [dual, setDual] = useState(false);
   const [coId, setCoId] = useState<string | undefined>(undefined);
   const [coPrice, setCoPrice] = useState<number | null>(null);
-  const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast' | 'pool'>('assign');
+  const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast'>('assign');
   const [companions, setCompanions] = useState<any[]>([]);
   const [claimMode, setClaimMode] = useState<string>('机密');
   const [claimPrice, setClaimPrice] = useState<number | null>(35);
@@ -42,7 +42,6 @@ const OrderDetailPage: React.FC = () => {
   const [transferUrl, setTransferUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [callingPartner, setCallingPartner] = useState(false);
   const [endTarget, setEndTarget] = useState<Session | null>(null);
   const [endTransferTotal, setEndTransferTotal] = useState<number | undefined>(undefined);
   const [ending, setEnding] = useState(false);
@@ -124,41 +123,6 @@ const OrderDetailPage: React.FC = () => {
     return false; // 阻止 antd 自动上传
   };
 
-  const handleCallPartner = async () => {
-    if (!id) return;
-    setCallingPartner(true);
-    try {
-      await ordersApi.callPartner(id);
-      message.success('已向工作室发出找搭档请求，等待搭档接受');
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '呼叫搭档失败');
-    }
-    setCallingPartner(false);
-  };
-
-  const handleFindPartnerPool = async () => {
-    if (!id) return;
-    setCallingPartner(true);
-    try {
-      await ordersApi.create({
-        type: 'NEW',
-        dispatchType: 'POOL',
-        gameName: order?.gameName || '三角洲行动',
-        amount: (coPrice ?? 0) * claimDuration,
-        duration: claimDuration,
-        customerId: order?.customerId,
-        customerWechat: order?.customFields?.customerWechat || order?.customer?.wechatId,
-        deltaMission: claimMode,
-        deltaCount: '双',
-        deltaNote: `找搭档（主陪订单 ${id}）`,
-      });
-      message.success('已放入订单池，等待搭档抢单');
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '放入订单池失败');
-    }
-    setCallingPartner(false);
-  };
-
   const handleStartService = async () => {
     if (!transferUrl) { message.warning('请先上传客户转账截图'); return; }
     if (!claimDuration || claimDuration <= 0) { message.warning('请填写有效时长'); return; }
@@ -173,8 +137,11 @@ const OrderDetailPage: React.FC = () => {
         const res: any = await ordersApi.addSession(id!, {
           amount: price * claimDuration,
           duration: claimDuration,
-          coCompanionId: dual ? (coId || order?.coCompanionId) : undefined,
+          coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
+          claimedMode: claimMode,
+          claimedPrice: price,
+          transferScreenshotUrl: transferUrl,
         });
         targetId = res?.data?.data?.id || res?.data?.id;
       }
@@ -183,23 +150,32 @@ const OrderDetailPage: React.FC = () => {
         setStarting(false);
         return;
       }
-      await ordersApi.startSession(targetId, {
-        claimedMode: claimMode,
-        claimedPrice: price,
-        duration: claimDuration,
-        transferScreenshotUrl: transferUrl,
-      });
-      // 通知 Electron 开始工作记录截图
-      (window as any).electronAPI?.sessionWatch?.(targetId);
-      if (isRenew) {
-        notification.success({
-          message: '🎉 祝贺你续单成功',
-          description: '新的服务时段已开启，工作记录同步启动。',
-          placement: 'bottomRight',
-          duration: 4,
-        });
+      if (dual) {
+        if (partnerMode === 'broadcast') {
+          await ordersApi.broadcastPartnerInvite(targetId);
+          message.success('已广播找搭档，等待搭档接受');
+        } else {
+          message.success('已邀请搭档，等待对方确认后开始计时');
+        }
       } else {
-        message.success('服务已开始，工作记录已开启');
+        await ordersApi.startSession(targetId, {
+          claimedMode: claimMode,
+          claimedPrice: price,
+          duration: claimDuration,
+          transferScreenshotUrl: transferUrl,
+        });
+        // 通知 Electron 开始工作记录截图
+        (window as any).electronAPI?.sessionWatch?.(targetId);
+        if (isRenew) {
+          notification.success({
+            message: '🎉 祝贺你续单成功',
+            description: '新的服务时段已开启，工作记录同步启动。',
+            placement: 'bottomRight',
+            duration: 4,
+          });
+        } else {
+          message.success('服务已开始，工作记录已开启');
+        }
       }
       setStartTarget(null);
       setIsRenew(false);
@@ -345,7 +321,6 @@ const OrderDetailPage: React.FC = () => {
                   <Radio.Group size="small" value={partnerMode} onChange={(e) => setPartnerMode(e.target.value)}>
                     <Radio.Button value="assign">👤 指定</Radio.Button>
                     <Radio.Button value="broadcast">📣 广播</Radio.Button>
-                    <Radio.Button value="pool">🏊 入池</Radio.Button>
                   </Radio.Group>
                 </div>
               </Col>
@@ -375,16 +350,6 @@ const OrderDetailPage: React.FC = () => {
                   </Select>
                 </Col>
               </Row>
-            )}
-            {partnerMode === 'broadcast' && (
-              <div style={{ marginTop: 8 }}>
-                <Button block size="small" loading={callingPartner} onClick={handleCallPartner}>📣 广播找搭档</Button>
-              </div>
-            )}
-            {partnerMode === 'pool' && (
-              <div style={{ marginTop: 8 }}>
-                <Button block size="small" loading={callingPartner} onClick={handleFindPartnerPool}>🏊 放入订单池找搭档</Button>
-              </div>
             )}
           </>
         )}

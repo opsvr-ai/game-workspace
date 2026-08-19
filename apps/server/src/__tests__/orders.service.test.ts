@@ -18,7 +18,6 @@ function createMockWorkflowService() {
     confirm: vi.fn(),
     complete: vi.fn(),
     cancel: vi.fn(),
-    completeWithBilling: vi.fn(),
   };
 }
 

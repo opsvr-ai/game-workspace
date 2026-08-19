@@ -22,8 +22,8 @@ interface UseSocketOptions {
   onTypingNotify?: (data: any) => void;
   onRoomUpdated?: (data: any) => void;
   onSyncRequired?: (data: any) => void;
-  onPartnerCall?: (data: any) => void;
   onPartnerAccepted?: (data: any) => void;
+  onDualInvite?: (data: any) => void;
   onWalletReviewed?: (data: any) => void;
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
@@ -157,12 +157,12 @@ export function useSocket(opts: UseSocketOptions = {}) {
       optsRef.current.onOrderUrgent?.(data);
     });
 
-    socket.on('order:partner_call', (data: any) => {
-      optsRef.current.onPartnerCall?.(data);
-    });
-
     socket.on('order:partner_accepted', (data: any) => {
       optsRef.current.onPartnerAccepted?.(data);
+    });
+
+    socket.on('order:dual_invite', (data: any) => {
+      optsRef.current.onDualInvite?.(data);
     });
 
     socket.on('wallet:reviewed', (data: any) => {
