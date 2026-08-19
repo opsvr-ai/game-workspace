@@ -58,8 +58,8 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, gameName, onClose, 
       } else {
         message.error('上传失败');
       }
-    } catch {
-      message.error('上传失败');
+    } catch (e: any) {
+      message.error(`上传失败：${e?.response?.data?.message || e?.message || '未知错误'}`);
     }
     setUploading(false);
     return false;

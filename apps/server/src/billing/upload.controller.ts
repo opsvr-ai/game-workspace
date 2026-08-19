@@ -18,9 +18,9 @@ import type { Request } from 'express';
 
 const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'screenshots');
 
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
-const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/heic', 'image/heif', 'image/tiff'];
+const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic', '.heif', '.tif', '.tiff'];
+const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -56,8 +56,9 @@ export class UploadController {
         cb: (error: Error | null, acceptFile: boolean) => void,
       ) => {
         const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_MIMES.includes(file.mimetype) || !ALLOWED_EXTS.includes(ext)) {
-          return cb(new BadRequestException('仅支持 JPG/PNG/WebP 格式'), false);
+        const mimeOk = !file.mimetype || ALLOWED_MIMES.includes(file.mimetype);
+        if (!mimeOk || !ALLOWED_EXTS.includes(ext)) {
+          return cb(new BadRequestException('仅支持图片格式（JPG/PNG/WebP/GIF/BMP/HEIC）'), false);
         }
         cb(null, true);
       },
