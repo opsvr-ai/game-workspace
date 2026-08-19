@@ -29,7 +29,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       .listWorkWechats()
       .then(({ data }: any) => setWorkWechats(data?.data || []))
       .catch(() => {});
-    const t = setInterval(load, 5000);
+    const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, []);
 

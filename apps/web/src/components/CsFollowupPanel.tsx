@@ -22,7 +22,7 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 10000);
+    const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, []);
 

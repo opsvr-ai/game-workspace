@@ -50,7 +50,7 @@ const OrderPoolPage: React.FC = () => {
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(t);
   }, []);
 
@@ -93,7 +93,7 @@ const OrderPoolPage: React.FC = () => {
 
   // 周期轮询：普通陪玩要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新
   useEffect(() => {
-    const timer = setInterval(() => fetchData(true), 5000);
+    const timer = setInterval(() => fetchData(true), 10000);
     return () => clearInterval(timer);
   }, [fetchData]);
 
@@ -113,7 +113,7 @@ const OrderPoolPage: React.FC = () => {
   useEffect(() => {
     if (!isCompanion) return;
     fetchCompanions();
-    const timer = setInterval(fetchCompanions, 10000);
+    const timer = setInterval(fetchCompanions, 30000);
     return () => clearInterval(timer);
   }, [isCompanion, fetchCompanions]);
 
