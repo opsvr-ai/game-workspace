@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
 import { currentBusinessDayRange } from '../common/business-day';
+import { ExcellenceService } from '../companions/excellence.service';
 
 @Injectable()
 export class OrdersService {
@@ -15,6 +16,7 @@ export class OrdersService {
     private bridgeService: BridgeService,
     private readonly workflowService: OrderWorkflowService,
     private readonly dispatchService: OrderDispatchService,
+    private readonly excellence: ExcellenceService,
   ) {}
 
   private async nextGlobalCode(): Promise<string> {
@@ -259,7 +261,7 @@ export class OrdersService {
     } else if (studioType && studioType !== 'DIRECT') {
       where.createdAt = { lte: new Date(Date.now() - bridgeDelay) };
     } else if (companionId) {
-      const excellent = await this.isExcellentCompanion(companionId);
+      const excellent = await this.excellence.isExcellent(companionId);
       where.createdAt = { lte: new Date(Date.now() - (excellent ? priorityDelay : offlineDelay)) };
     }
 
@@ -274,16 +276,6 @@ export class OrdersService {
     });
     // 已过消失时间、标记为待客服处理的订单不再出现在抢单池
     return orders.filter((o) => !(o.customFields as any)?.poolExpired);
-  }
-
-  private async isExcellentCompanion(companionId: string): Promise<boolean> {
-    const done = await this.prisma.order.findMany({
-      where: { companionId, status: 'DONE' },
-      select: { type: true },
-    });
-    if (done.length === 0) return false;
-    const renew = done.filter((o) => o.type === 'RENEW' || o.type === 'REPURCHASE').length;
-    return renew / done.length >= 0.3;
   }
 
   async findAll(user: any, status?: string, showAll?: boolean) {
@@ -705,7 +697,7 @@ export class OrdersService {
     });
     const list = await Promise.all(
       companions.map(async (c) => {
-        const excellent = await this.isExcellentCompanion(c.id);
+        const excellent = await this.excellence.isExcellent(c.id);
         const remainingMinutes = c.sessions
           .map((s) => {
             if (!s.startedAt) return 999;

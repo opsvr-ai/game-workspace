@@ -10,6 +10,7 @@ import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
+import { ExcellenceService } from './excellence.service';
 import { ChatModule } from '../chat/chat.module';
 import { StudiosModule } from '../studios/studios.module';
 
@@ -25,7 +26,8 @@ import { StudiosModule } from '../studios/studios.module';
     CompanionWechatService,
     CompositeService,
     CustomerBaselineService,
+    ExcellenceService,
   ],
-  exports: [CompanionsService, CompositeService, CustomerBaselineService],
+  exports: [CompanionsService, CompositeService, CustomerBaselineService, ExcellenceService],
 })
 export class CompanionsModule {}
