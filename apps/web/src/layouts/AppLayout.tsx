@@ -307,6 +307,17 @@ const roleLabels: Record<UserRole, string> = {
   [UserRole.COMPANION]: '陪玩',
 };
 
+const InviteCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
+  const [left, setLeft] = React.useState(seconds);
+  React.useEffect(() => {
+    const t = setInterval(() => setLeft((v) => (v <= 1 ? 0 : v - 1)), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span style={{ color: '#f5222d', fontWeight: 600 }}>⏳ {left} 秒后自动取消</span>
+  );
+};
+
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
@@ -613,10 +624,18 @@ const AppLayout: React.FC = () => {
       const nk = `dual-invite-${data.id}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
+      const ttl = data.expiresInSec ?? 20;
       notification.open({
         key: nk,
         message: '🤝 搭档邀请',
-        description: desc,
+        description: (
+          <div>
+            {desc}
+            <div style={{ marginTop: 4 }}>
+              <InviteCountdown seconds={ttl} />
+            </div>
+          </div>
+        ),
         placement: 'bottomRight',
         duration: 0,
         btn: (
@@ -644,6 +663,7 @@ const AppLayout: React.FC = () => {
           </Space>
         ),
       });
+      setTimeout(() => notification.destroy(nk), ttl * 1000);
       showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
     },
     onPartnerAccepted: (data: any) => {
@@ -663,10 +683,18 @@ const AppLayout: React.FC = () => {
       const nk = `dual-broadcast-${data.sessionId}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
+      const ttl = data.expiresInSec ?? 20;
       notification.open({
         key: nk,
         message: '🤝 找搭档邀请',
-        description: desc,
+        description: (
+          <div>
+            {desc}
+            <div style={{ marginTop: 4 }}>
+              <InviteCountdown seconds={ttl} />
+            </div>
+          </div>
+        ),
         placement: 'bottomRight',
         duration: 0,
         btn: (
@@ -694,7 +722,16 @@ const AppLayout: React.FC = () => {
           </Space>
         ),
       });
+      setTimeout(() => notification.destroy(nk), ttl * 1000);
       showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
+    },
+    onDualInviteExpired: (data: any) => {
+      const sid = data?.sessionId;
+      if (sid) {
+        notification.destroy(`dual-invite-${sid}`);
+        notification.destroy(`dual-broadcast-${sid}`);
+      }
+      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);

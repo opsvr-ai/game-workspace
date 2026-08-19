@@ -24,6 +24,7 @@ interface UseSocketOptions {
   onSyncRequired?: (data: any) => void;
   onPartnerAccepted?: (data: any) => void;
   onDualInvite?: (data: any) => void;
+  onDualInviteExpired?: (data: any) => void;
   onWalletReviewed?: (data: any) => void;
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
@@ -163,6 +164,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:dual_invite', (data: any) => {
       optsRef.current.onDualInvite?.(data);
+    });
+
+    socket.on('order:dual_invite_expired', (data: any) => {
+      optsRef.current.onDualInviteExpired?.(data);
     });
 
     socket.on('wallet:reviewed', (data: any) => {

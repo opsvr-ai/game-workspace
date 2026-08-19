@@ -63,6 +63,13 @@ const OrderDetailPage: React.FC = () => {
 
   useEffect(() => { fetch(); }, [fetch]);
 
+  // 搭档邀请 20 秒未接受自动取消后，刷新会话列表让「取消邀请」按钮消失
+  useEffect(() => {
+    const onExpired = () => fetch();
+    window.addEventListener('chunlv:dual-invite-expired', onExpired);
+    return () => window.removeEventListener('chunlv:dual-invite-expired', onExpired);
+  }, [fetch]);
+
   const last = sessions[sessions.length - 1];
   const loadCompanions = async () => {
     try {

@@ -8,6 +8,9 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { currentBusinessDayRange } from '../common/business-day';
 import { ExcellenceService } from '../companions/excellence.service';
 import { roundToJiao } from '../common/money';
+import { logger } from '../common/logger';
+
+const PARTNER_INVITE_TTL_SEC = 20;
 
 @Injectable()
 export class OrdersService {
@@ -1035,7 +1038,9 @@ export class OrdersService {
         orderId,
         type: 'DUAL_INVITE',
         inviterName,
+        expiresInSec: PARTNER_INVITE_TTL_SEC,
       });
+      this.schedulePartnerInviteExpiry(session.id, order.studioId || '');
     }
     this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);
     return session;
@@ -1052,6 +1057,15 @@ export class OrdersService {
     if (session.companionId === partnerId) throw new ForbiddenException('不能接受自己的搭档邀请');
     if (session.coCompanionId && session.coCompanionId !== partnerId) throw new ForbiddenException('无权接受此搭档邀请');
     if (session.startedAt) throw new ForbiddenException('该服务已开始');
+    // 20 秒未接受则视为过期，防止定时器因服务重启失效后仍能接受过期邀请
+    const ageSec = (Date.now() - new Date(session.createdAt).getTime()) / 1000;
+    if (ageSec > PARTNER_INVITE_TTL_SEC) {
+      await this.prisma.orderSession.update({
+        where: { id: sessionId },
+        data: { status: 'DONE', endedAt: new Date() },
+      }).catch(() => {});
+      throw new ForbiddenException('该搭档邀请已过期');
+    }
 
     await this.prisma.order.update({
       where: { id: session.parentOrderId },
@@ -1107,8 +1121,34 @@ export class OrdersService {
       type: 'DUAL_INVITE',
       coCompanionId: null,
       inviterName,
+      expiresInSec: PARTNER_INVITE_TTL_SEC,
     });
+    this.schedulePartnerInviteExpiry(sessionId, session.parentOrder?.studioId || '');
     return { ok: true };
+  }
+
+  /** 20 秒内未接受搭档邀请则自动取消该待接受会话 */
+  private schedulePartnerInviteExpiry(sessionId: string, studioId: string) {
+    setTimeout(async () => {
+      try {
+        const s = await this.prisma.orderSession.findUnique({
+          where: { id: sessionId },
+          select: { id: true, status: true, startedAt: true, parentOrderId: true },
+        });
+        if (!s || s.status !== 'ACTIVE' || s.startedAt) return;
+        await this.prisma.orderSession.update({
+          where: { id: sessionId },
+          data: { status: 'DONE', endedAt: new Date() },
+        });
+        this.wsGateway.broadcastToStudio(studioId, 'order:dual_invite_expired', {
+          sessionId,
+          orderId: s.parentOrderId,
+        });
+        this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', { id: sessionId, expired: true });
+      } catch (e) {
+        logger.error('partner invite expiry failed', { error: (e as Error).message, sessionId });
+      }
+    }, PARTNER_INVITE_TTL_SEC * 1000);
   }
 
   private async getOwnedSession(id: string, companionId?: string) {
