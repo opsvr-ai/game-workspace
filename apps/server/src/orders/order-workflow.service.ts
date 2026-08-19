@@ -263,6 +263,7 @@ export class OrderWorkflowService {
 
     const updated = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (order.companionId) await this.refreshCompanionAvailable(order.companionId);
+    if (order.coCompanionId) await this.refreshCompanionAvailable(order.coCompanionId);
     if (updated) this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }
@@ -287,6 +288,7 @@ export class OrderWorkflowService {
       },
     });
     if (updated.companionId) await this.refreshCompanionAvailable(updated.companionId);
+    if (updated.coCompanionId) await this.refreshCompanionAvailable(updated.coCompanionId);
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     if (updated.companionId) {
       this.wsGateway.pushOrder(updated.companionId, updated);

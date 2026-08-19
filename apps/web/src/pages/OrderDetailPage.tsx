@@ -189,6 +189,16 @@ const OrderDetailPage: React.FC = () => {
     setEndTransferTotal(undefined);
   };
 
+  const cancelPendingSession = async (r: Session) => {
+    try {
+      await ordersApi.endSession(r.id);
+      message.success('已取消搭档邀请');
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '取消失败');
+    }
+  };
+
   const confirmEndService = async () => {
     if (!endTarget) return;
     // 先停截图并等待全部截图上传完成
@@ -253,7 +263,7 @@ const OrderDetailPage: React.FC = () => {
     { title: '时间', dataIndex: 'createdAt', render: (v: string) => new Date(v).toLocaleString('zh-CN') },
     { title: '操作', render: (_: any, r: Session) => r.status === 'ACTIVE' ? (
       <Space>
-        {!r.startedAt ? <Button size="small" type="primary" icon={<CameraOutlined />} onClick={() => openStartModal(r)}>开始服务</Button> : null}
+        {!r.startedAt ? <Button size="small" danger onClick={() => cancelPendingSession(r)}>取消邀请</Button> : null}
         {r.startedAt && !r.pausedAt ? <Button size="small" icon={<PauseCircleOutlined />} onClick={async () => { await ordersApi.pauseSession(r.id); fetch(); message.success('已暂停'); }}>暂停</Button> : null}
         {r.pausedAt ? <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={async () => { await ordersApi.resumeSession(r.id); fetch(); message.success('已继续'); }}>继续</Button> : null}
         {r.startedAt && !r.pausedAt ? <Button size="small" danger icon={<StopOutlined />} onClick={() => handleEndService(r)}>结束</Button> : null}
