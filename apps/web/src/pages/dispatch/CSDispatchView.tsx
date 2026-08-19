@@ -477,6 +477,11 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
+                            {c.studioName && (
+                              <Text type="secondary" style={{ fontSize: 10, fontWeight: 400, flexShrink: 0 }}>
+                                {c.studioName}
+                              </Text>
+                            )}
                             <Text strong>{c.displayName || c.username || c.id}</Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
