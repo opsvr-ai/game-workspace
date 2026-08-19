@@ -2,6 +2,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, InputNumber, message, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
+import { companionsApi } from '../api/companions';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 
@@ -32,9 +33,19 @@ interface Props {
 const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, initialValues, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const [companions, setCompanions] = useState<any[]>([]);
   const [transferUrl, setTransferUrl] = useState('');
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
+  const availableForPartner = companions.filter((c: any) => c.status === 'AVAILABLE');
+
+  useEffect(() => {
+    if (open)
+      companionsApi
+        .list()
+        .then(({ data }: any) => setCompanions(data.data || []))
+        .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (open && customerPreFill) {
@@ -193,9 +204,43 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             <Option value={DispatchType.DIRECT}>直接分配</Option>
           </Select>
         </Form.Item>
-        <Form.Item noStyle shouldUpdate={(p, c) => p.deltaCount !== c.deltaCount}>
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
+          {({ getFieldValue }) =>
+            getFieldValue('dispatchType') === DispatchType.DIRECT ? (
+              <>
+                <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
+                  <Select placeholder="选择主陪" showSearch optionFilterProp="label">
+                    {companions.map((c: any) => (
+                      <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                        {c.user?.displayName || c.user?.username}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                <Form.Item noStyle shouldUpdate={(p, c) => p.deltaCount !== c.deltaCount}>
+                  {({ getFieldValue: gv }) =>
+                    gv('deltaCount') === '双' ? (
+                      <Form.Item name="coCompanionId" label="搭档" rules={[{ required: true, message: '双陪必须选搭档' }]}>
+                        <Select placeholder="选择搭档" showSearch optionFilterProp="label">
+                          {availableForPartner.filter((c: any) => c.id !== gv('companionId')).map((c: any) => (
+                            <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                              {c.user?.displayName || c.user?.username}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    ) : null
+                  }
+                </Form.Item>
+              </>
+            ) : null
+          }
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(p, c) => p.dispatchType !== c.dispatchType || p.deltaCount !== c.deltaCount}>
           {({ getFieldValue: gv }) => {
-            if (gv('deltaCount') === '双') {
+            const isDirect = gv('dispatchType') === DispatchType.DIRECT;
+            const isDouble = gv('deltaCount') === '双';
+            if (isDirect && isDouble) {
               return (
                 <Input.Group compact>
                   <Form.Item name="amount" label="主陪金额" rules={[{ required: true }]} style={{ width: '50%', display: 'inline-block', marginBottom: 0 }}>
