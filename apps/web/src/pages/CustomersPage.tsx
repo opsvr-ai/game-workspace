@@ -552,9 +552,9 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
-                message.warning('首单已完成，请使用「续单」或「结束服务」');
+                message.warning('正在服务中，请使用「续单」或「结束服务」');
               } else if (record.orders?.some((o: any) => o.status === 'DONE')) {
-                message.warning('此客户已服务过，请使用「复购」');
+                message.warning('首单已完成，请使用「复购」');
               } else {
                 message.warning('当前没有可打首单的订单，请先在抢单池抢单');
               }
