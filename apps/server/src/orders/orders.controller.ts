@@ -217,7 +217,7 @@ export class OrdersController {
   @Roles(UserRole.COMPANION)
   async addSession(@Param('id') id: string, @Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.addSession(id, {
-      companionId: req.user.companionId,
+      companionId: body.companionId || req.user.companionId,
       coCompanionId: body.coCompanionId,
       amount: body.amount,
       coAmount: body.coAmount,

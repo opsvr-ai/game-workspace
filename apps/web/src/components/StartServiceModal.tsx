@@ -29,6 +29,7 @@ interface Props {
 
 const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', initialValues, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
+  const [mainId, setMainId] = useState<string | undefined>(undefined);
   const [dual, setDual] = useState(false);
   const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast'>('assign');
   const [coId, setCoId] = useState<string | undefined>();
@@ -44,7 +45,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const loadCompanions = async () => {
     try {
       const { data } = await companionsApi.list({ includeBridged: true });
-      setCompanions((data.data || []).filter((c: any) => c.status === 'AVAILABLE'));
+      setCompanions(data.data || []);
     } catch {
       setCompanions([]);
     }
@@ -52,6 +53,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
 
   useEffect(() => {
     if (open) {
+      setMainId(user?.companionId || undefined);
       setDual(initialValues?.dual ?? false);
       setCoId(initialValues?.coId);
       setCoPrice(initialValues?.coPrice ?? null);
@@ -99,7 +101,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         const orderRes: any = await ordersApi.create({
           type: 'REPURCHASE',
           dispatchType: 'DIRECT',
-          companionId: user?.companionId,
+          companionId: mainId || user?.companionId,
           customerId,
           gameName: gameName || '三角洲行动',
           amount: price * claimDuration,
@@ -119,6 +121,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         sessionId = sessionsRes?.data?.data?.[0]?.id;
       } else {
         const res: any = await ordersApi.addSession(orderId!, {
+          companionId: mainId || user?.companionId,
           amount: price * claimDuration,
           duration: claimDuration,
           coCompanionId: dual && partnerMode === 'assign' ? coId : undefined,
@@ -142,14 +145,17 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           message.success('已邀请搭档，等待对方确认后开始计时');
         }
       } else {
+        const isHandoff = !!(mainId && mainId !== user?.companionId);
         await ordersApi.startSession(sessionId, {
           claimedMode: claimMode,
           claimedPrice: price,
           duration: claimDuration,
           transferScreenshotUrl: transferUrl,
         });
-        (window as any).electronAPI?.sessionWatch?.(sessionId);
-        message.success('服务已开始，工作记录已开启');
+        if (!isHandoff) {
+          (window as any).electronAPI?.sessionWatch?.(sessionId);
+        }
+        message.success(isHandoff ? '已交给对方接单' : '服务已开始，工作记录已开启');
       }
       onDone();
     } catch (e: any) {
@@ -170,6 +176,16 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       width={480}
       destroyOnClose
     >
+      <Row gutter={12} align="middle" style={{ marginBottom: 8 }}>
+        <Col span={24}>
+          <Text>主陪（当前账号默认自己，可换人）</Text>
+          <Select style={{ width: '100%' }} value={mainId} onChange={setMainId} placeholder="选择主陪" showSearch optionFilterProp="children">
+            {companions.map((c: any) => (
+              <Select.Option key={c.id} value={c.id}>{c.user?.displayName || c.user?.username}</Select.Option>
+            ))}
+          </Select>
+        </Col>
+      </Row>
       <Row gutter={12} align="middle" style={{ marginBottom: 8 }}>
         <Col span={12}>
           <Text>单/双陪</Text>
@@ -218,7 +234,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
               <Col span={24}>
                 <Text>搭档</Text>
                 <Select style={{ width: '100%' }} value={coId} onChange={setCoId} placeholder="选择搭档" allowClear>
-                  {companions.filter((c: any) => c.id !== user?.companionId).map((c: any) => (
+                  {companions.filter((c: any) => c.id !== mainId).map((c: any) => (
                     <Select.Option key={c.id} value={c.id}>{c.user?.displayName || c.user?.username}</Select.Option>
                   ))}
                 </Select>

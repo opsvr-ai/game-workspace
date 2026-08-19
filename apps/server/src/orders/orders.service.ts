@@ -66,10 +66,19 @@ export class OrdersService {
     if (creator?.role === 'COMPANION' && dto.dispatchType === 'DIRECT' && dto.companionId) {
       const companion = await this.prisma.companion.findUnique({
         where: { userId: dto.csUserId },
-        select: { id: true },
+        select: { id: true, studioId: true },
       });
-      if (!companion || dto.companionId !== companion.id) {
-        throw new ForbiddenException('陪玩只能给自己创建直接派单');
+      if (!companion) {
+        throw new ForbiddenException('陪玩信息不存在');
+      }
+      if (dto.companionId !== companion.id) {
+        const target = await this.prisma.companion.findUnique({
+          where: { id: dto.companionId },
+          select: { studioId: true },
+        }).catch(() => null);
+        if (!target || target.studioId !== companion.studioId) {
+          throw new ForbiddenException('陪玩只能给自己或同工作室的陪玩创建直接派单');
+        }
       }
     }
 
@@ -1028,6 +1037,16 @@ export class OrdersService {
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    // 换主陪：主陪必须属于同一工作室
+    if (dto.companionId) {
+      const target = await this.prisma.companion.findUnique({
+        where: { id: dto.companionId },
+        select: { studioId: true },
+      }).catch(() => null);
+      if (!target || target.studioId !== order?.studioId) {
+        throw new ForbiddenException('主陪必须属于同一工作室');
+      }
+    }
     // 续单场景：自动结束上一个仍在计时的会话（首单/上一段续单）
     await this.prisma.orderSession.updateMany({
       where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
@@ -1190,7 +1209,22 @@ export class OrdersService {
     companionId?: string,
     claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string; duration?: number },
   ) {
-    await this.getOwnedSession(id, companionId);
+    const own = await this.prisma.orderSession.findUnique({
+      where: { id },
+      select: { id: true, companionId: true, parentOrderId: true },
+    });
+    if (!own) throw new NotFoundException('会话不存在');
+    const isHandoff = !!(companionId && own.companionId && own.companionId !== companionId);
+    if (isHandoff) {
+      // 换主陪：允许同工作室的陪玩代为启动该会话
+      const [caller, main] = await Promise.all([
+        this.prisma.companion.findUnique({ where: { id: companionId! }, select: { studioId: true } }).catch(() => null),
+        this.prisma.companion.findUnique({ where: { id: own.companionId! }, select: { studioId: true } }).catch(() => null),
+      ]);
+      if (!caller || !main || caller.studioId !== main.studioId) {
+        throw new ForbiddenException('只能操作自己的会话');
+      }
+    }
     const data: any = { startedAt: new Date() };
     if (claims) {
       if (!claims.claimedMode) throw new BadRequestException('请填写游戏模式');
@@ -1218,6 +1252,12 @@ export class OrdersService {
       }
       if (s.coCompanionId) {
         await this.prisma.companion.update({ where: { id: s.coCompanionId }, data: { status: 'BUSY' } }).catch(() => {});
+      }
+      if (isHandoff && s.companionId) {
+        this.wsGateway.pushToCompanion(s.companionId, 'order:service_handoff', {
+          sessionId: id,
+          orderId: s.parentOrderId,
+        });
       }
     }
     return updated;

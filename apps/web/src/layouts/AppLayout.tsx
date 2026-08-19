@@ -733,6 +733,17 @@ const AppLayout: React.FC = () => {
       }
       window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
     },
+    onServiceHandoff: (data: any) => {
+      // 换主陪：原主陪把订单交给自己启动，这里开启自己的计时和工作记录
+      notification.success({
+        message: '🤝 有陪玩把订单交给你',
+        description: '已进入接单中，用心服务',
+        placement: 'bottomRight',
+        duration: 4,
+      });
+      (window as any).electronAPI?.sessionWatch?.(data?.sessionId);
+      window.dispatchEvent(new Event('chunlv:service-started'));
+    },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
