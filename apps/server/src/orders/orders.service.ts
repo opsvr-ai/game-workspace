@@ -1009,6 +1009,11 @@ export class OrdersService {
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    // 续单场景：自动结束上一个仍在计时的会话（首单/上一段续单）
+    await this.prisma.orderSession.updateMany({
+      where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
+      data: { status: 'DONE', endedAt: new Date() },
+    });
     const session = await this.prisma.orderSession.create({
       data: {
         parentOrderId: orderId,

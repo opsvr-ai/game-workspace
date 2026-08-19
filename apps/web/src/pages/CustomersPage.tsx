@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 // craftsman-ignore: TS001,TS002
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { extractErrorMessage } from '../utils/error-handler';
 import {
   Table,
@@ -20,6 +20,7 @@ import {
   Card,
   Tabs,
   Upload,
+  notification,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -40,6 +41,7 @@ import { companionsApi } from '../api/companions';
 import http from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { showSystemNotification } from '../utils/notify';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
@@ -111,6 +113,7 @@ const CustomersPage: React.FC = () => {
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any } | null>(null);
   const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
+  const remindedSessions = useRef<Set<string>>(new Set());
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
   const [compensateFile, setCompensateFile] = useState<File | null>(null);
@@ -196,6 +199,29 @@ const CustomersPage: React.FC = () => {
     const t = setInterval(() => fetchCustomers(true), 30000);
     return () => clearInterval(t);
   }, [fetchCustomers]);
+  // 服务时长到点提醒：引导陪玩续单（右下角系统通知，5 秒自动消失）
+  useEffect(() => {
+    const check = () => {
+      for (const c of customers) {
+        for (const o of c.orders || []) {
+          for (const s of o.sessions || []) {
+            if (s.status !== 'ACTIVE' || !s.startedAt) continue;
+            const durationH = Number(s.duration) || Number(o.duration) || 1;
+            const endAt = new Date(s.startedAt).getTime() + durationH * 3600 * 1000;
+            if (Date.now() >= endAt && !remindedSessions.current.has(s.id)) {
+              remindedSessions.current.add(s.id);
+              const msg = `已服务 ${durationH} 小时，时间到了，请引导客户续单`;
+              showSystemNotification('蠢驴电竞 · 时间提醒', msg);
+              notification.warning({ message: '⏰ 时间到了', description: msg, placement: 'bottomRight', duration: 5 });
+            }
+          }
+        }
+      }
+    };
+    check();
+    const t = setInterval(check, 3000);
+    return () => clearInterval(t);
+  }, [customers]);
   useEffect(() => {
     if (canReassign) {
       companionsApi
