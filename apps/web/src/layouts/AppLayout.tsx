@@ -16,6 +16,8 @@ import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
+import { showSystemNotification } from '../utils/notify';
+import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
@@ -609,10 +611,12 @@ const AppLayout: React.FC = () => {
       if (data?.type !== 'DUAL_INVITE') return;
       if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
       const nk = `dual-invite-${data.id}`;
+      const inviter = data.inviterName || '有陪玩';
+      const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
       notification.open({
         key: nk,
         message: '🤝 搭档邀请',
-        description: `有陪玩邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`,
+        description: desc,
         placement: 'bottomRight',
         duration: 0,
         btn: (
@@ -626,6 +630,7 @@ const AppLayout: React.FC = () => {
                   await ordersApi.acceptPartnerInvite(data.id);
                   message.success('已接受搭档邀请，开始计时');
                   (window as any).electronAPI?.sessionWatch?.(data.id);
+                  window.dispatchEvent(new Event('chunlv:service-started'));
                 } catch (e: any) {
                   message.error(e?.response?.data?.message || '接受失败');
                 }
@@ -639,6 +644,7 @@ const AppLayout: React.FC = () => {
           </Space>
         ),
       });
+      showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
     },
     onPartnerAccepted: (data: any) => {
       notification.success({
@@ -655,10 +661,12 @@ const AppLayout: React.FC = () => {
       if (!user?.companionId || !data?.sessionId) return;
       if (data?.companionId === user.companionId) return; // 主陪自己不看自己的广播
       const nk = `dual-broadcast-${data.sessionId}`;
+      const inviter = data.inviterName || '有陪玩';
+      const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
       notification.open({
         key: nk,
         message: '🤝 找搭档邀请',
-        description: `有陪玩广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`,
+        description: desc,
         placement: 'bottomRight',
         duration: 0,
         btn: (
@@ -672,6 +680,7 @@ const AppLayout: React.FC = () => {
                   await ordersApi.acceptPartnerInvite(data.sessionId);
                   message.success('已接受搭档邀请，开始计时');
                   (window as any).electronAPI?.sessionWatch?.(data.sessionId);
+                  window.dispatchEvent(new Event('chunlv:service-started'));
                 } catch (e: any) {
                   message.error(e?.response?.data?.message || '接受失败');
                 }
@@ -685,6 +694,7 @@ const AppLayout: React.FC = () => {
           </Space>
         ),
       });
+      showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
@@ -1287,6 +1297,7 @@ const AppLayout: React.FC = () => {
 
       {/* Command Palette (Ctrl+K) */}
       <VoiceCallHandler />
+      <ServiceStartOverlay />
       <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
     </ChatProvider>
   );

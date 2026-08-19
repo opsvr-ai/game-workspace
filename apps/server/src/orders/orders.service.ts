@@ -288,7 +288,10 @@ export class OrdersService {
     if (status) where.status = status;
     // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
     if (user.role === 'COMPANION') {
-      where.companionId = user.companionId;
+      where.OR = [
+        { companionId: user.companionId },
+        { coCompanionId: user.companionId },
+      ];
       if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
     } else if (user.role === 'CS') {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
@@ -1020,12 +1023,18 @@ export class OrdersService {
     });
     // Notify coCompanion if set
     if (order && session.coCompanionId) {
+      const inviter = await this.prisma.companion.findUnique({
+        where: { id: session.companionId || '' },
+        select: { user: { select: { displayName: true, username: true } } },
+      }).catch(() => null);
+      const inviterName = inviter?.user?.displayName || inviter?.user?.username || '';
       this.wsGateway.pushOrder(session.coCompanionId, {
         ...session,
         gameName: order.gameName,
         customerId: order.customerId,
         orderId,
         type: 'DUAL_INVITE',
+        inviterName,
       });
     }
     this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);
@@ -1083,6 +1092,11 @@ export class OrdersService {
       include: { parentOrder: { select: { studioId: true, gameName: true } } },
     });
     if (!session) throw new NotFoundException('会话不存在');
+    const inviter = await this.prisma.companion.findUnique({
+      where: { id: session.companionId || '' },
+      select: { user: { select: { displayName: true, username: true } } },
+    }).catch(() => null);
+    const inviterName = inviter?.user?.displayName || inviter?.user?.username || '';
     this.wsGateway.broadcastToStudio(session.parentOrder?.studioId || '', 'order:dual_invite', {
       sessionId,
       orderId: session.parentOrderId,
@@ -1092,6 +1106,7 @@ export class OrdersService {
       duration: session.duration,
       type: 'DUAL_INVITE',
       coCompanionId: null,
+      inviterName,
     });
     return { ok: true };
   }
