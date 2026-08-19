@@ -14,6 +14,7 @@ interface Props {
   orderId: string | null;
   customerId?: string | null;
   gameName?: string;
+  mode?: 'first' | 'renew' | 'repurchase';
   initialValues?: {
     dual?: boolean;
     coId?: string;
@@ -26,7 +27,7 @@ interface Props {
   onDone: () => void;
 }
 
-const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, initialValues, onClose, onDone }) => {
+const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', initialValues, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
   const [dual, setDual] = useState(false);
   const [partnerMode, setPartnerMode] = useState<'assign' | 'broadcast'>('assign');
@@ -160,11 +161,11 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   return (
     <Modal
       open={open}
-      title={`首单${gameName ? ` · ${gameName}` : ''}`}
+      title={`${mode === 'renew' ? '续单' : mode === 'repurchase' ? '复购' : '首单'}${gameName ? ` · ${gameName}` : ''}`}
       onOk={handleStart}
       onCancel={onClose}
       confirmLoading={starting}
-      okText="开始首单并开启工作记录"
+      okText={mode === 'renew' ? '确认续单' : mode === 'repurchase' ? '确认复购' : '开始首单并开启工作记录'}
       cancelText="取消"
       width={480}
       destroyOnClose

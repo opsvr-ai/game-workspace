@@ -253,7 +253,11 @@ const OrderDetailPage: React.FC = () => {
                 {order?.status === 'CONFIRMED' && (
                   <Button danger onClick={() => completeOrder()}>结束服务</Button>
                 )}
-                <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>首单</Button>
+                {order?.status === 'GRABBED' ? (
+                  <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>首单</Button>
+                ) : (
+                  <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openRenew()}>续单</Button>
+                )}
               </Space>
             )
             : null

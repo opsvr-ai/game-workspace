@@ -109,7 +109,7 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
-  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; initialValues?: any } | null>(null);
+  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any } | null>(null);
   const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
@@ -544,6 +544,7 @@ const CustomersPage: React.FC = () => {
                 setStartServiceOrder({
                   id: active.id,
                   gameName: active.gameName,
+                  mode: 'first',
                   initialValues: {
                     claimPrice: active.amount || null,
                     claimDuration: active.duration || 1,
@@ -551,9 +552,11 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
-                message.warning('此订单正在服务中');
+                message.warning('首单已完成，请使用「续单」或「结束服务」');
+              } else if (record.orders?.some((o: any) => o.status === 'DONE')) {
+                message.warning('此客户已服务过，请使用「复购」');
               } else {
-                message.warning('当前没有可开始服务的订单，请先在抢单池抢单');
+                message.warning('当前没有可打首单的订单，请先在抢单池抢单');
               }
             }}
           >
@@ -568,6 +571,7 @@ const CustomersPage: React.FC = () => {
                 setStartServiceOrder({
                   id: active.id,
                   gameName: active.gameName,
+                  mode: 'renew',
                   initialValues: {
                     dual: !!lastSession?.coCompanionId,
                     coId: lastSession?.coCompanionId,
@@ -590,6 +594,7 @@ const CustomersPage: React.FC = () => {
               setStartServiceOrder({
                 customerId: record.id,
                 gameName: record.orders?.[0]?.gameName,
+                mode: 'repurchase',
               });
             }}
           >
@@ -879,6 +884,7 @@ const CustomersPage: React.FC = () => {
           orderId={startServiceOrder?.id ?? null}
           customerId={startServiceOrder?.customerId ?? null}
           gameName={startServiceOrder?.gameName}
+          mode={startServiceOrder?.mode}
           initialValues={startServiceOrder?.initialValues}
           onClose={() => setStartServiceOrder(null)}
           onDone={() => {
