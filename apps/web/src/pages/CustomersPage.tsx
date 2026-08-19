@@ -44,6 +44,7 @@ import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, 
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import StartServiceModal from '../components/StartServiceModal';
+import ServiceTimer from '../components/ServiceTimer';
 import { CustomerDetailDrawer } from '../components/CustomerDetailDrawer';
 import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
@@ -66,7 +67,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string }> }>;
 }
 
 interface CompanionOption {
@@ -540,9 +541,19 @@ const CustomersPage: React.FC = () => {
           >
             开始服务
           </Button>
-          {record.orders?.some((o: any) => o.status === 'CONFIRMED') && (
-            <Tag color="blue">服务中</Tag>
-          )}
+          {(() => {
+            const activeOrder = record.orders?.find((o: any) => o.status === 'CONFIRMED');
+            const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
+            if (activeOrder) {
+              return (
+                <Space size={4}>
+                  <Tag color="blue">服务中</Tag>
+                  {activeSession?.startedAt && <ServiceTimer startedAt={activeSession.startedAt} />}
+                </Space>
+              );
+            }
+            return null;
+          })()}
           <Button
             size="small"
             onClick={() => {

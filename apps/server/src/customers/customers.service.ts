@@ -79,10 +79,15 @@ export class CustomersService {
               gameName: true,
               type: true,
               amount: true,
-            duration: true,
-            customFields: true,
+              duration: true,
+              customFields: true,
+              sessions: {
+                orderBy: { seq: 'desc' },
+                take: 1,
+                select: { id: true, startedAt: true, status: true },
+              },
+            },
           },
-        },
       },
       orderBy,
     });
