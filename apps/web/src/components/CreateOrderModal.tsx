@@ -198,9 +198,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
         </Form.Item>
         <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
           <Select>
-            <Option value={DispatchType.POOL}>入池抢单</Option>
-            <Option value="BROADCAST">📢 群发</Option>
-            <Option value={DispatchType.DIRECT}>直接分配</Option>
+            <Option value={DispatchType.POOL}>入池</Option>
+            <Option value="BROADCAST">广播</Option>
+            <Option value={DispatchType.DIRECT}>指定</Option>
           </Select>
         </Form.Item>
         <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>

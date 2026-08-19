@@ -22,8 +22,9 @@ export const orderStatusConfig: Record<string, { color: string; label: string }>
 };
 
 export const dispatchTypeConfig: Record<string, { color: string; label: string }> = {
-  POOL: { color: 'blue', label: '抢单池' },
-  DIRECT: { color: 'green', label: '直接分配' },
+  POOL: { color: 'blue', label: '入池' },
+  BROADCAST: { color: 'purple', label: '广播' },
+  DIRECT: { color: 'green', label: '指定' },
 };
 
 export const contactStatusConfig: Record<string, { color: string; label: string }> = {
