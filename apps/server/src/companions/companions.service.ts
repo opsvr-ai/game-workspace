@@ -16,6 +16,63 @@ export class CompanionsService {
     private readonly wechatService: CompanionWechatService,
   ) {}
 
+  /** 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。 */
+  async listPersonnel(user: any) {
+    const where: any = { role: { in: ['COMPANION', 'CS', 'ADMIN', 'OWNER'] } };
+    if (user.role !== 'OWNER') where.studioId = user.studioId;
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        displayName: true,
+        avatar: true,
+        isAuthorized: true,
+        companion: {
+          select: {
+            id: true,
+            status: true,
+            games: true,
+            realName: true,
+            phone: true,
+            monthlyRevenue: true,
+            pc: { select: { lastHeartbeat: true, currentMode: true } },
+          },
+        },
+      },
+    });
+
+    // 客服/店长/老板 的在线状态来自 cs.client.version.<userId> 的 lastSeen
+    const csRecords = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'cs.client.version.' } },
+    });
+    const csSeen = new Map<string, string | null>();
+    for (const r of csRecords) {
+      const uid = r.key.replace('cs.client.version.', '');
+      const v = (r.value as any) || {};
+      csSeen.set(uid, v.lastSeen || null);
+    }
+
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      displayName: u.displayName,
+      avatar: u.avatar,
+      isAuthorized: u.isAuthorized,
+      companionId: u.companion?.id ?? null,
+      status: u.companion?.status ?? null,
+      games: u.companion?.games ?? [],
+      realName: u.companion?.realName ?? null,
+      phone: u.companion?.phone ?? null,
+      monthlyRevenue: u.companion?.monthlyRevenue ?? null,
+      lastHeartbeat: u.companion?.pc?.lastHeartbeat ?? csSeen.get(u.id) ?? null,
+      currentMode: u.companion?.pc?.currentMode ?? null,
+    }));
+  }
+
   async findAll(user: any) {
     const where: any = {};
     if (user.role !== 'OWNER') where.studioId = user.studioId;

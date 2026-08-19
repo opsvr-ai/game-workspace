@@ -21,17 +21,21 @@ interface CompanionPC {
   lastHeartbeat: string | null;
 }
 
-interface Companion {
+interface Personnel {
   id: string;
-  status: CompanionStatus;
+  username: string;
+  role: 'COMPANION' | 'CS' | 'ADMIN' | 'OWNER';
+  displayName?: string;
+  avatar?: string;
+  isAuthorized?: boolean;
+  companionId?: string | null;
+  status?: CompanionStatus | null;
   games?: any[];
-  monthlyRevenue?: number;
-  billingCode?: string;
-  revenueShare?: number;
-  phone?: string;
-  realName?: string;
-  user?: { username: string; avatar?: string };
-  pc?: CompanionPC | null;
+  monthlyRevenue?: number | null;
+  phone?: string | null;
+  realName?: string | null;
+  lastHeartbeat?: string | null;
+  currentMode?: string | null;
 }
 
 interface TimeLog {
@@ -80,13 +84,13 @@ const CompanionsPage: React.FC = () => {
   const role = user?.role;
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
 
-  const [companions, setCompanions] = useState<Companion[]>([]);
+  const [companions, setCompanions] = useState<Personnel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [searchText, setSearchText] = useState('');
-  const [wrCompanion, setWrCompanion] = useState<Companion | null>(null);
+  const [wrCompanion, setWrCompanion] = useState<Personnel | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
 
@@ -110,7 +114,7 @@ const CompanionsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await companionsApi.list();
+      const { data } = await companionsApi.listPersonnel();
       setCompanions(data.data ?? []);
     } catch (err: any) {
       setError(extractErrorMessage(err, '加载陪玩列表失败'));
@@ -135,7 +139,7 @@ const CompanionsPage: React.FC = () => {
     // Name search
     if (searchText) {
       const lower = searchText.toLowerCase();
-      list = list.filter((c) => (c.user?.username || '').toLowerCase().includes(lower));
+      list = list.filter((c) => (c.username || '').toLowerCase().includes(lower));
     }
 
     // Status filter
@@ -154,7 +158,7 @@ const CompanionsPage: React.FC = () => {
       });
     }
 
-    return list.sort((a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9));
+    return list.sort((a, b) => (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9));
   }, [companions, searchText, statusFilter, gameFilter]);
 
   const loadTimeLogs = useCallback(async (companionId: string) => {
@@ -206,12 +210,27 @@ const CompanionsPage: React.FC = () => {
   const columns = useMemo(() => {
     const cols: any[] = [
       {
-        title: '陪玩姓名',
+        title: '角色',
+        dataIndex: 'role',
+        key: 'role',
+        width: 70,
+        render: (role: string) => {
+          const cfg: Record<string, { label: string; color: string }> = {
+            COMPANION: { label: '陪玩', color: 'blue' },
+            CS: { label: '客服', color: 'green' },
+            ADMIN: { label: '店长', color: 'orange' },
+            OWNER: { label: '老板', color: 'purple' },
+          };
+          return <Tag color={cfg[role]?.color}>{cfg[role]?.label || role}</Tag>;
+        },
+      },
+      {
+        title: '姓名',
         key: 'name',
         width: 90,
-        render: (_: unknown, r: Companion) => {
-          const username = r.user?.username || r.id;
-          const avatarUrl = r.user?.avatar ? `/uploads/avatars/${r.user.avatar}?v=${r.user.avatar}` : null;
+        render: (_: unknown, r: Personnel) => {
+          const username = r.username || r.id;
+          const avatarUrl = r.avatar ? `/uploads/avatars/${r.avatar}?v=${r.avatar}` : null;
           return (
             <Space size={8}>
               <div
@@ -252,7 +271,8 @@ const CompanionsPage: React.FC = () => {
         dataIndex: 'status',
         key: 'status',
         width: 70,
-        render: (status: CompanionStatus) => {
+        render: (status: CompanionStatus | null) => {
+          if (!status) return <Text type="secondary">-</Text>;
           const cfg = companionStatusConfig[status];
           return <Tag color={cfg?.color}>{cfg?.label ?? status}</Tag>;
         },
@@ -327,18 +347,18 @@ const CompanionsPage: React.FC = () => {
         title: 'PC状态',
         key: 'pcStatus',
         width: 140,
-        render: (_: unknown, record: Companion) => {
-          const hb = formatHeartbeat(record.pc?.lastHeartbeat);
-          const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.pc?.lastHeartbeat !== null;
+        render: (_: unknown, record: Personnel) => {
+          const hb = formatHeartbeat(record.lastHeartbeat);
+          const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.lastHeartbeat !== null;
           return (
             <Space size={4}>
               <Tag color={isAbnormal ? 'red' : hb.online ? 'green' : 'default'}>
                 {React.createElement(DesktopOutlined)} {isAbnormal ? '异常离线' : hb.online ? '在线' : '离线'}
               </Tag>
-              {record.pc?.lastHeartbeat && (
-                <Tooltip title={`心跳: ${new Date(record.pc.lastHeartbeat).toLocaleString('zh-CN')}`}>
+              {record.lastHeartbeat && (
+                <Tooltip title={`心跳: ${new Date(record.lastHeartbeat).toLocaleString('zh-CN')}`}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    {new Date(record.pc.lastHeartbeat).toLocaleString('zh-CN', {
+                    {new Date(record.lastHeartbeat).toLocaleString('zh-CN', {
                       month: '2-digit',
                       day: '2-digit',
                       hour: '2-digit',
@@ -359,23 +379,30 @@ const CompanionsPage: React.FC = () => {
         title: '操作',
         key: 'actions',
         width: 170,
-        render: (_: unknown, record: Companion) => (
+        render: (_: unknown, record: Personnel) => (
           <Space size={0}>
-            <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
-              工作记录
-            </Button>
-            <Popconfirm
-              title="确认离职处理？"
-              description="离职后陪玩状态将设为离线，余额、押金等将清零"
-              onConfirm={() => handleResign(record.id)}
-              okText="确认"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" danger size="small">
-                离职处理
-              </Button>
-            </Popconfirm>
+            {record.role === 'COMPANION' && (
+              <>
+                <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
+                  工作记录
+                </Button>
+                <Popconfirm
+                  title="确认离职处理？"
+                  description="离职后陪玩状态将设为离线，余额、押金等将清零"
+                  onConfirm={() => handleResign(record.companionId || '')}
+                  okText="确认"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button type="link" danger size="small">
+                    离职处理
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            {record.role !== 'COMPANION' && (
+              <Text type="secondary" style={{ fontSize: 12 }}>-</Text>
+            )}
           </Space>
         ),
       });
@@ -386,12 +413,19 @@ const CompanionsPage: React.FC = () => {
   }, [isAdmin]);
 
   // Inner component for expandable time log rows
-  const ExpandableRow: React.FC<{ record: Companion }> = ({ record }) => {
-    const cache = timeLogsCache[record.id];
+  const ExpandableRow: React.FC<{ record: Personnel }> = ({ record }) => {
+    if (!record.companionId) {
+      return (
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <Text type="secondary">非陪玩人员，无时间日志</Text>
+        </div>
+      );
+    }
+    const cache = timeLogsCache[record.companionId];
 
     useEffect(() => {
-      loadTimeLogs(record.id);
-    }, [record.id, loadTimeLogs]);
+      loadTimeLogs(record.companionId!);
+    }, [record.companionId, loadTimeLogs]);
 
     if (!cache) {
       return (
@@ -460,8 +494,8 @@ const CompanionsPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={isAdmin ? '员工管理' : role === 'CS' ? '陪玩管理' : '陪玩状态'}
-        subtitle={`共 ${companions.length} 位${isAdmin ? '员工' : '陪玩'} · 60s 刷新`}
+        title={isAdmin ? '人员管理' : role === 'CS' ? '人员管理' : '人员状态'}
+        subtitle={`共 ${companions.length} 位人员 · 60s 刷新`}
         extra={
           <Space>
             <Button
@@ -488,7 +522,7 @@ const CompanionsPage: React.FC = () => {
           <div style={{ marginBottom: 12 }}>
             <Space size="middle" wrap style={{ marginBottom: 8 }}>
               <Input
-                placeholder={isAdmin ? '搜索员工姓名' : '搜索陪玩姓名'}
+                placeholder="搜索人员姓名"
                 allowClear
                 style={{ width: 180 }}
                 value={searchText}
@@ -548,11 +582,11 @@ const CompanionsPage: React.FC = () => {
             dataSource={sorted}
             rowKey="id"
             size="small"
-            locale={{ emptyText: '暂无陪玩数据' }}
+            locale={{ emptyText: '暂无人员数据' }}
             pagination={{
               pageSize: 20,
               showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 位陪玩`,
+              showTotal: (t) => `共 ${t} 位人员`,
             }}
             expandable={{
               expandedRowRender: (record) => <ExpandableRow record={record} />,
@@ -564,8 +598,8 @@ const CompanionsPage: React.FC = () => {
 
       <WorkRecordsDrawer
         open={!!wrCompanion}
-        companionId={wrCompanion?.id || null}
-        companionName={wrCompanion?.user?.username || undefined}
+        companionId={wrCompanion?.companionId || null}
+        companionName={wrCompanion?.username || undefined}
         onClose={() => setWrCompanion(null)}
       />
     </div>
