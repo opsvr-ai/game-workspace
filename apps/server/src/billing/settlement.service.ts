@@ -8,6 +8,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { roundToJiao } from '../common/money';
 
 @Injectable()
 export class SettlementService {
@@ -80,16 +81,16 @@ export class SettlementService {
         const defaultClubShare = (clubCfg?.value as number) ?? 80;
         const share = (c.revenueShare as number) || defaultClubShare / 100;
         companionPct = Math.round(share * 100);
-        companionShare = Math.round(monthlyRevenue * share * 100) / 100;
-        studioShare = Math.round((monthlyRevenue - companionShare) * 100) / 100;
+        companionShare = roundToJiao(monthlyRevenue * share);
+        studioShare = roundToJiao(monthlyRevenue - companionShare);
       } else {
         // TIERED mode: find applicable tier
         const tier =
           tiers.find((t) => monthlyRevenue >= t.min && (t.max === null || monthlyRevenue <= t.max)) ||
           tiers[tiers.length - 1];
         companionPct = tier.companion;
-        companionShare = Math.round(monthlyRevenue * (tier.companion / 100) * 100) / 100;
-        studioShare = Math.round(monthlyRevenue * (tier.studio / 100) * 100) / 100;
+        companionShare = roundToJiao(monthlyRevenue * (tier.companion / 100));
+        studioShare = roundToJiao(monthlyRevenue * (tier.studio / 100));
       }
 
       // Create settlement transaction
@@ -117,7 +118,7 @@ export class SettlementService {
       results.push({
         companionId: c.id,
         companionName: c.user?.username ?? c.id,
-        monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
+        monthlyRevenue: roundToJiao(monthlyRevenue),
         tierCompanionPct: companionPct,
         companionShare,
         studioShare,
@@ -127,7 +128,7 @@ export class SettlementService {
     return {
       month,
       results,
-      totalDistributed: Math.round(results.reduce((s, r) => s + r.companionShare, 0) * 100) / 100,
+      totalDistributed: roundToJiao(results.reduce((s, r) => s + r.companionShare, 0)),
     };
   }
 

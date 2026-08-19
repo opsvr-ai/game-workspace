@@ -5,6 +5,7 @@ import { computeRevenueSplit } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 import { currentBusinessDayRange, currentSettlementMonthRange } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { roundToJiao } from '../common/money';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
@@ -304,7 +305,7 @@ export class CompanionsService {
     orderStats.forEach(({ type, count, amount }) => {
       statsMap[type] = {
         count,
-        amount: Math.round(amount * 100) / 100,
+        amount: roundToJiao(amount),
         ratio: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0,
       };
     });
@@ -320,7 +321,7 @@ export class CompanionsService {
     const todayStats: Record<string, any> = {};
     ['NEW', 'RENEW', 'REPURCHASE', 'TIP'].forEach((t) => {
       const row = todayTypeStats.find((r) => r.type === t);
-      todayStats[t] = { count: row?._count?.id ?? 0, amount: Math.round((row?._sum?.amount ?? 0) * 100) / 100 };
+      todayStats[t] = { count: row?._count?.id ?? 0, amount: roundToJiao(row?._sum?.amount ?? 0) };
     });
     const todayTotal = Object.values(todayStats).reduce((s: number, v: any) => s + v.amount, 0);
     Object.keys(todayStats).forEach((k) => {
@@ -370,7 +371,7 @@ export class CompanionsService {
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
     const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
     const hourlyRate = (rateCfg?.value as number) ?? 60; // default ¥60/hour
-    const entertainmentFee = Math.round(entertainmentMinutes * (hourlyRate / 60) * 100) / 100;
+    const entertainmentFee = roundToJiao(entertainmentMinutes * (hourlyRate / 60));
 
     // Online companions (same studio) — also fetch split mode info
     const companion = await this.prisma.companion.findUnique({
@@ -460,7 +461,7 @@ export class CompanionsService {
     const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
 
     return {
-      todayRevenue: Math.round(todayRevenue * 100) / 100,
+      todayRevenue: roundToJiao(todayRevenue),
       orderStats: statsMap,
       todayStats,
       totalCount,
@@ -470,8 +471,8 @@ export class CompanionsService {
       entertainmentMinutes,
       entertainmentFee,
       hourlyRate,
-      totalRevenue: Math.round(totalRev * 100) / 100,
-      availableFunds: Math.round(availableFunds * 100) / 100,
+      totalRevenue: roundToJiao(totalRev),
+      availableFunds: roundToJiao(availableFunds),
       feeBalanceWarning,
       feeBalanceAlert,
       entertainmentThreshold,

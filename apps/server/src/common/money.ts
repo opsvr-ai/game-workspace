@@ -15,6 +15,11 @@ export function centsToYuan(cents: number): number {
   return (Number.isFinite(cents) ? cents : 0) / CENTS_PER_YUAN;
 }
 
+/** 元 → 四舍五入到「毛」（1 位小数），用于报账/统计展示，避免精确到分 */
+export function roundToJiao(yuan: number): number {
+  return Math.round((Number.isFinite(yuan) ? yuan : 0) * 10) / 10;
+}
+
 /** 分求和（多笔金额累加，结果仍为整数分） */
 export function sumCents(values: number[]): number {
   return values.reduce((sum, v) => sum + (Number.isFinite(v) ? Math.round(v) : 0), 0);

@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { TransactionService } from './transaction.service';
 import { SettlementService } from './settlement.service';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
+import { roundToJiao } from '../common/money';
 
 @Injectable()
 export class BillingService {
@@ -328,10 +329,10 @@ export class BillingService {
       this.wsGateway.broadcastToBridgedStudios(studioId, 'billing:revenue_diff', {
         companionId,
         companionName: name,
-        systemTotal: Math.round(systemTotal * 100) / 100,
-        reportedAmount: Math.round(reportedAmount * 100) / 100,
-        diff: Math.round(diff * 100) / 100,
-        message: `${name} 上报流水 ¥${reportedAmount}，系统订单 ¥${systemTotal}，差额 ¥${diff.toFixed(2)}`,
+        systemTotal: roundToJiao(systemTotal),
+        reportedAmount: roundToJiao(reportedAmount),
+        diff: roundToJiao(diff),
+        message: `${name} 上报流水 ¥${roundToJiao(reportedAmount)}，系统订单 ¥${roundToJiao(systemTotal)}，差额 ¥${roundToJiao(diff)}`,
         timestamp: new Date().toISOString(),
       });
     }
@@ -389,9 +390,9 @@ export class BillingService {
     const transferTotal = transferAgg._sum.amount ?? 0;
     const finalAmount = transferTotal > 0 ? transferTotal : systemTotal;
     return {
-      systemTotal: Math.round(systemTotal * 100) / 100,
-      transferTotal: Math.round(transferTotal * 100) / 100,
-      finalAmount: Math.round(finalAmount * 100) / 100,
+      systemTotal: roundToJiao(systemTotal),
+      transferTotal: roundToJiao(transferTotal),
+      finalAmount: roundToJiao(finalAmount),
       isAuthoritative: transferTotal > 0,
     };
   }

@@ -6,6 +6,7 @@ import {
   businessDayOf,
   currentSettlementMonthRange,
 } from '../common/business-day';
+import { roundToJiao } from '../common/money';
 
 @Injectable()
 export class DashboardService {
@@ -180,7 +181,7 @@ export class DashboardService {
     const companionRevenue: any[] = [];
     for (const c of companions) {
       const rev = monthOrders.filter(o => o.companionId === c.id).reduce((s, o) => s + o.amount, 0);
-      if (rev > 0) companionRevenue.push({ companionId: c.id, name: c.user?.username || '?', revenue: Math.round(rev * 100) / 100 });
+      if (rev > 0) companionRevenue.push({ companionId: c.id, name: c.user?.username || '?', revenue: roundToJiao(rev) });
     }
     companionRevenue.sort((a, b) => b.revenue - a.revenue);
     return { yesterdayRevenue, monthlyRevenue, typeBreakdown, companionRevenue };

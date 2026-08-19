@@ -7,6 +7,7 @@ import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
 import { currentBusinessDayRange } from '../common/business-day';
 import { ExcellenceService } from '../companions/excellence.service';
+import { roundToJiao } from '../common/money';
 
 @Injectable()
 export class OrdersService {
@@ -1007,7 +1008,7 @@ export class OrdersService {
     const threshold = (config?.value as number) ?? 100;
 
     return {
-      todayRevenue: Math.round(todayRevenue * 100) / 100,
+      todayRevenue: roundToJiao(todayRevenue),
       threshold,
       isUnlocked: todayRevenue >= threshold,
     };
