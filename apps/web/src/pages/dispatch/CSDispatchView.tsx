@@ -344,8 +344,8 @@ const CSDispatchView: React.FC = () => {
                 </div>
 
       <Row
-        gutter={12}
-        style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
+        gutter={6}
+        style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
         <Col span={3}>
