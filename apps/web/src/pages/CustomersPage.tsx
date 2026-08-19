@@ -552,9 +552,9 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
-                message.warning('正在服务中，请使用「续单」或「结束服务」');
+                message.warning('正在服务中，当场继续请用「续单」，打完请点「结束服务」');
               } else if (record.orders?.some((o: any) => o.status === 'DONE')) {
-                message.warning('首单已完成，请使用「复购」');
+                message.warning('首单已完成，下次玩请使用「复购」');
               } else {
                 message.warning('当前没有可打首单的订单，请先在抢单池抢单');
               }
@@ -565,7 +565,7 @@ const CustomersPage: React.FC = () => {
           <Button
             size="small"
             onClick={() => {
-              const active = record.orders?.find((o: any) => o.status === 'GRABBED' || o.status === 'CONFIRMED');
+              const active = record.orders?.find((o: any) => o.status === 'CONFIRMED');
               if (active?.id) {
                 const lastSession = active.sessions?.[0];
                 setStartServiceOrder({
@@ -582,7 +582,7 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               } else {
-                message.warning('当前没有进行中的订单');
+                message.warning('当前没有进行中的服务，无法续单');
               }
             }}
           >
