@@ -281,7 +281,14 @@ const OrderDetailPage: React.FC = () => {
       <Card
         extra={
           last?.status !== 'ACTIVE'
-            ? <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>开始服务</Button>
+            ? (
+              <Space>
+                {order?.status === 'CONFIRMED' && (
+                  <Button danger onClick={() => completeOrder()}>结束服务</Button>
+                )}
+                <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => openStartModal(null)}>开始服务</Button>
+              </Space>
+            )
             : null
         }
       >
