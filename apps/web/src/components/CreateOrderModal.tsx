@@ -188,6 +188,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             <Option value="绝密">绝密</Option>
           </Select>
         </Form.Item>
+        <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
+          <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
+            <Option value="单">单陪</Option>
+            <Option value="双">双陪</Option>
+          </Select>
+        </Form.Item>
         <Form.Item name="deltaNote" label="备注">
           <Input.TextArea rows={2} placeholder="补充说明" />
         </Form.Item>
@@ -196,12 +202,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             <Option value={DispatchType.POOL}>入池抢单</Option>
             <Option value="BROADCAST">📢 群发</Option>
             <Option value={DispatchType.DIRECT}>直接分配</Option>
-          </Select>
-        </Form.Item>
-        <Form.Item name="deltaCount" label="单/双陪" initialValue="单">
-          <Select onChange={(v) => { if (v === '单') { form.setFieldsValue({ coCompanionId: undefined, coAmount: undefined }); } }}>
-            <Option value="单">单陪</Option>
-            <Option value="双">双陪</Option>
           </Select>
         </Form.Item>
         <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
