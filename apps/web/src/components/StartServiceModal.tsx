@@ -55,7 +55,7 @@ const StartServiceModal: React.FC<Props> = ({ open, onClose, customerId, compani
       </Row>
       <Row gutter={12} align="middle" style={{ marginBottom: 12 }}>
         <Col span={8}><Typography.Text>我的金额</Typography.Text></Col>
-        <Col span={16}><InputNumber min={0} value={amount} onChange={v => setAmount(v || 0)} prefix="¥" style={{ width: '100%' }} /></Col>
+        <Col span={16}><InputNumber min={0} value={amount} onChange={v => setAmount(v || 0)} prefix="¥" placeholder="？/人/h" style={{ width: '100%' }} /></Col>
       </Row>
       {dual && (
         <>
@@ -69,7 +69,7 @@ const StartServiceModal: React.FC<Props> = ({ open, onClose, customerId, compani
           </Row>
           <Row gutter={12} align="middle" style={{ marginBottom: 12 }}>
             <Col span={8}><Typography.Text>搭档金额</Typography.Text></Col>
-            <Col span={16}><InputNumber min={0} value={coAmount} onChange={v => setCoAmount(v || 0)} prefix="¥" style={{ width: '100%' }} /></Col>
+            <Col span={16}><InputNumber min={0} value={coAmount} onChange={v => setCoAmount(v || 0)} prefix="¥" placeholder="？/人/h" style={{ width: '100%' }} /></Col>
           </Row>
         </>
       )}
