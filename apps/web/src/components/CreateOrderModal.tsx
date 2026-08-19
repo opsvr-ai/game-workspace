@@ -218,8 +218,20 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
             ) : null
           }
         </Form.Item>
-        <Form.Item name="amount" label="金额" rules={[{ required: true }]}>
-          <InputNumber min={0} style={{ width: '100%' }} placeholder="单价" prefix="¥" />
+        <Form.Item noStyle shouldUpdate={(p, c) => p.deltaCount !== c.deltaCount}>
+          {({ getFieldValue }) => {
+            const isDouble = getFieldValue('deltaCount') === '双';
+            return (
+              <Form.Item name="amount" label={isDouble ? '主陪金额' : '金额'} rules={[{ required: true }]}>
+                <InputNumber
+                  min={0}
+                  style={{ width: '100%' }}
+                  placeholder={isDouble ? '填主陪（陪玩A）的金额，搭档金额由陪玩自己填' : '填陪玩单价'}
+                  prefix="¥"
+                />
+              </Form.Item>
+            );
+          }}
         </Form.Item>
         <Form.Item name="urgency" label="打单时间" initialValue="now">
           <Select>
