@@ -286,7 +286,7 @@ export class BillingController {
 
   @Post('billing/report-today-v2')
   @Roles(UserRole.COMPANION)
-  async reportTodayV2(@Req() req: any, @Body() dto: { items: Array<{ orderId: string; gameName: string; amount: number; screenshotUrl: string; customerWechat: string }> }): Promise<ApiResponse<unknown>> {
+  async reportTodayV2(@Req() req: any, @Body() dto: { items: Array<{ orderId: string; gameName: string; amount: number; screenshotUrl: string; customerWechat: string; remark?: string }> }): Promise<ApiResponse<unknown>> {
     const totalAmount = dto.items.reduce((s, i) => s + (i.amount || 0), 0);
     const screenshots: Record<string, string> = {};
     dto.items.forEach(i => { if (i.screenshotUrl) screenshots[i.orderId] = i.screenshotUrl; });
