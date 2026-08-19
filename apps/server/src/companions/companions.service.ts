@@ -97,31 +97,51 @@ export class CompanionsService {
       _count: { id: true },
     });
 
-    const m = new Map<string, { revenue: number; count: number; newCount: number; renew: number; repurchase: number }>();
+    const m = new Map<string, { revenue: number; count: number; renew: number; repurchase: number }>();
     for (const row of orderStats) {
       const cid = row.companionId!;
-      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, newCount: 0, renew: 0, repurchase: 0 });
+      if (!m.has(cid)) m.set(cid, { revenue: 0, count: 0, renew: 0, repurchase: 0 });
       const s = m.get(cid)!;
       s.revenue += row._sum.amount || 0;
       s.count += row._count.id;
-      if (row.type === 'NEW') s.newCount = row._count.id;
       if (row.type === 'RENEW') s.renew = row._count.id;
       if (row.type === 'REPURCHASE') s.repurchase = row._count.id;
     }
 
+    // 总抢单数：该陪玩抢到的所有首单（type=NEW，任意状态）
+    const newGrabs = await this.prisma.order.groupBy({
+      by: ['companionId'],
+      where: { companionId: { in: companionIds }, type: 'NEW' },
+      _count: { id: true },
+    });
+    const grabMap = new Map(newGrabs.map((g) => [g.companionId!, g._count.id]));
+
+    // 首单消费客户数：DONE 首单的去重客户数
+    const doneNewCustomers = await this.prisma.order.findMany({
+      where: { companionId: { in: companionIds }, type: 'NEW', status: 'DONE' },
+      select: { companionId: true, customerId: true },
+      distinct: ['companionId', 'customerId'],
+    });
+    const customerMap = new Map<string, number>();
+    for (const r of doneNewCustomers) {
+      customerMap.set(r.companionId!, (customerMap.get(r.companionId!) || 0) + 1);
+    }
+
     for (const [cid, s] of m) {
-      const newRate = s.count > 0 ? (s.newCount / s.count) * 100 : 0;
       const renewRate = s.count > 0 ? (s.renew / s.count) * 100 : 0;
       const repurchaseRate = s.count > 0 ? (s.repurchase / s.count) * 100 : 0;
+      const grabCount = grabMap.get(cid) || 0;
+      const customerCount = customerMap.get(cid) || 0;
+      const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
       // 月流水 3000 元封顶 60 分；续单/复购率各占 20%，首单成功率占 10%
       const revenueScore = Math.min(60, s.revenue / 50);
-      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + newRate * 0.1);
+      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1);
       result.set(cid, {
         isExcellent: rankScore >= 50,
         rankScore,
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
-        newRate: Math.round(newRate),
+        newRate: Math.round(firstSuccessRate),
         orderCount: s.count,
       });
     }
