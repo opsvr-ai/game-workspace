@@ -7,6 +7,7 @@ import { ordersApi } from '../api/orders';
 import { monitorApi } from '../api/monitor';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
+import ServiceTimer from '../components/ServiceTimer';
 
 const { Text, Title } = Typography;
 
@@ -267,7 +268,12 @@ const OrderDetailPage: React.FC = () => {
     { title: '搭档', render: (_: any, r: Session) => r.coCompanion?.user?.displayName || r.coCompanion?.user?.username || '-' },
     { title: '金额', render: (_: any, r: Session) => r.coAmount ? `¥${r.amount}+¥${r.coAmount}` : `¥${r.amount}` },
     { title: '时长', dataIndex: 'duration', render: (v: number) => `${v}h` },
-    { title: '状态', dataIndex: 'status', render: (s: string) => <Tag color={s === 'ACTIVE' ? 'blue' : 'green'}>{s === 'ACTIVE' ? '进行中' : '已完成'}</Tag> },
+    { title: '状态', dataIndex: 'status', render: (s: string, r: Session) => (
+      <Space size={4}>
+        <Tag color={s === 'ACTIVE' ? 'blue' : 'green'}>{s === 'ACTIVE' ? '进行中' : '已完成'}</Tag>
+        {s === 'ACTIVE' && r.startedAt && <ServiceTimer startedAt={r.startedAt} />}
+      </Space>
+    ) },
     { title: '时间', dataIndex: 'createdAt', render: (v: string) => new Date(v).toLocaleString('zh-CN') },
     { title: '操作', render: (_: any, r: Session) => r.status === 'ACTIVE' ? (
       <Space>
