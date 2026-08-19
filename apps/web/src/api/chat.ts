@@ -103,9 +103,7 @@ export const chatApi = {
         height?: number;
         duration?: number;
       };
-    }>('/chat/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    }>('/chat/upload', form);
   },
 
   /** Delete (recall) a room message */

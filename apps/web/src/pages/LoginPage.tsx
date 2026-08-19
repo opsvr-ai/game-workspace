@@ -197,9 +197,7 @@ const LoginPage: React.FC = () => {
       if (idCardFront) formData.append('idCardFront', idCardFront);
       if (idCardBack) formData.append('idCardBack', idCardBack);
 
-      const res = await http.post('/auth/register', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await http.post('/auth/register', formData);
       if (res.data?.code === 201) {
         message.success('✅ 注册成功！请等待管理员审核通过后登录', 8);
         setMode('login');

@@ -52,7 +52,7 @@ export const ordersApi = {
   finishSession: (sessionId: string, data?: { transferTotalYuan?: number }) =>
     http.put(`/sessions/${sessionId}/finish`, data || {}),
   uploadShot: (sessionId: string, form: FormData) =>
-    http.post(`/sessions/${sessionId}/screenshots`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    http.post(`/sessions/${sessionId}/screenshots`, form),
   updatePayment: (orderId: string, data: {
     paymentAccountId?: string;
     companionFeeStatus?: string;

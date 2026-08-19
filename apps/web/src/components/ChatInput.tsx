@@ -86,9 +86,7 @@ const ChatInput: React.FC<Props> = ({ onSend }) => {
     try {
       const form = new FormData();
       form.append('file', file);
-      const { data } = await http.post('/companions/chat-upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const { data } = await http.post('/companions/chat-upload', form);
       const url = data?.data?.url;
       const name = data?.data?.name || file.name;
       if (url) {
