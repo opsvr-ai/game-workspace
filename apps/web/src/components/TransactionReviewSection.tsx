@@ -147,13 +147,13 @@ const TransactionReviewSection: React.FC = () => {
       title: '金额',
       dataIndex: 'amount',
       width: 100,
-      render: (v: number) => <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(2)}</Text>,
+      render: (v: number) => <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(1)}</Text>,
     },
     {
       title: '协商后',
       dataIndex: 'reviewAmount',
       width: 100,
-      render: (v: number | null) => (v != null ? <Text type="warning">¥{v.toFixed(2)}</Text> : '-'),
+      render: (v: number | null) => (v != null ? <Text type="warning">¥{v.toFixed(1)}</Text> : '-'),
     },
     {
       title: '状态',
@@ -263,13 +263,13 @@ const TransactionReviewSection: React.FC = () => {
         destroyOnClose
       >
         <Text>原报账金额：</Text>
-        <Text strong>¥{adjustTarget?.amount?.toFixed(2) ?? '0.00'}</Text>
+        <Text strong>¥{adjustTarget?.amount?.toFixed(1) ?? '0.00'}</Text>
         <div style={{ marginTop: 12 }}>
           <Text>调整为（元）：</Text>
           <InputNumber
             style={{ width: '100%', marginTop: 8 }}
             min={0}
-            precision={2}
+            precision={1}
             value={adjustAmount}
             onChange={(v) => setAdjustAmount(v ?? undefined)}
             prefix="¥"

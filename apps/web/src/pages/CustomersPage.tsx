@@ -461,7 +461,7 @@ const CustomersPage: React.FC = () => {
       dataIndex: 'totalSpent',
       key: 'totalSpent',
       width: 120,
-      render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(2)}</span>,
+      render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(1)}</span>,
     },
     {
       title: '备注',

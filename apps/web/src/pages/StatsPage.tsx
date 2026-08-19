@@ -71,7 +71,7 @@ const StatsPage: React.FC = () => {
     { title: '时间', dataIndex: 'createdAt', width: 120, render: (v: string) => dayjs(v).format('MM/DD HH:mm') },
     { title: '订单号', dataIndex: 'orderCode', width: 120, render: (v: string) => v || '-' },
     { title: '游戏', dataIndex: 'gameName', width: 90 },
-    { title: '金额', dataIndex: 'amount', width: 90, render: (v: number) => <Text strong style={{ color: '#cf1322' }}>¥{v?.toFixed(2)}</Text> },
+    { title: '金额', dataIndex: 'amount', width: 90, render: (v: number) => <Text strong style={{ color: '#cf1322' }}>¥{v?.toFixed(1)}</Text> },
     { title: '状态', dataIndex: 'status', width: 90, render: (v: string) => {
       const cfg = orderStatusConfig[v] ?? { color: 'default', label: v };
       return <Tag color={cfg.color}>{cfg.label}</Tag>;
@@ -83,7 +83,7 @@ const StatsPage: React.FC = () => {
     { title: '收款账号', dataIndex: 'customerPaymentAccountName', width: 100, render: (v: string) => v || '-' },
     { title: '陪玩', dataIndex: 'companionName', width: 90, render: (v: string) => v || '-' },
     { title: '陪玩工作室', dataIndex: 'companionStudio', width: 100, render: (v: string) => v || '-' },
-    { title: '陪玩费', dataIndex: 'companionFeeAmount', width: 90, render: (v: number) => v != null ? `¥${v.toFixed(2)}` : '-' },
+    { title: '陪玩费', dataIndex: 'companionFeeAmount', width: 90, render: (v: number) => v != null ? `¥${v.toFixed(1)}` : '-' },
     { title: '费状态', dataIndex: 'companionFeeStatus', width: 80, render: (v: string) => <Tag color={v === 'PAID' ? 'green' : 'orange'}>{v === 'PAID' ? '已付' : '未付'}</Tag> },
     { title: '费方式', dataIndex: 'companionFeeMethod', width: 80, render: (v: string) => v === 'WECHAT' ? '微信' : v === 'ALIPAY' ? '支付宝' : '-' },
     { title: '费账号', dataIndex: 'companionFeeAccount', width: 100, render: (v: string) => v || '-' },

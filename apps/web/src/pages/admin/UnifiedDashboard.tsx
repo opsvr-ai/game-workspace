@@ -112,14 +112,14 @@ const RevenueDashboard: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card size="small" style={{ background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 100%)', border: 'none' }}>
             <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>昨日总流水</span>}
-              value={data?.yesterdayRevenue} prefix="¥" precision={2}
+              value={data?.yesterdayRevenue} prefix="¥" precision={1}
               valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 28 }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ background: 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)', border: 'none' }}>
             <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>全月总流水</span>}
-              value={data?.monthlyRevenue} prefix="¥" precision={2}
+              value={data?.monthlyRevenue} prefix="¥" precision={1}
               valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 28 }} />
           </Card>
         </Col>
@@ -201,7 +201,7 @@ const RevenueDashboard: React.FC = () => {
         {detail && (
           <div>
             <Row gutter={16} style={{ marginBottom: 12 }}>
-              <Col span={12}><Statistic title="月流水" value={detail.totalRevenue} prefix="¥" precision={2} /></Col>
+              <Col span={12}><Statistic title="月流水" value={detail.totalRevenue} prefix="¥" precision={1} /></Col>
               <Col span={12}><Statistic title="订单数" value={detail.orderCount} suffix="单" /></Col>
             </Row>
             {detailBarData.length > 0 && (

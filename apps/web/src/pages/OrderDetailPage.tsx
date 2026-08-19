@@ -420,7 +420,7 @@ const OrderDetailPage: React.FC = () => {
           <InputNumber
             min={0}
             step={10}
-            precision={2}
+            precision={1}
             style={{ width: '100%' }}
             value={endTransferTotal}
             onChange={(v) => setEndTransferTotal(v ?? undefined)}

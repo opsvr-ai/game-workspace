@@ -281,7 +281,7 @@ const BillingOverview: React.FC = () => {
     {
       title: '金额', dataIndex: 'amount', key: 'amount', width: 100,
       render: (v: number) => (
-        <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(2) ?? '0.00'}</Text>
+        <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(1) ?? '0.00'}</Text>
       ),
     },
     {
@@ -376,7 +376,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="今日流水"
-              value={`¥${(overviewData?.summary?.todayRevenue ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.todayRevenue ?? 0).toFixed(1)}`}
               icon={IconDollar}
               color="#2563EB"
             />
@@ -384,7 +384,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="总流水"
-              value={`¥${(overviewData?.summary?.totalRevenue ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.totalRevenue ?? 0).toFixed(1)}`}
               icon={IconWallet}
               color="#7C3AED"
             />
@@ -392,7 +392,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="已支取"
-              value={`¥${(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(1)}`}
               icon={IconBank}
               color="#16A34A"
             />
@@ -400,7 +400,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="审核中"
-              value={`¥${(overviewData?.summary?.pendingWithdraw ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.pendingWithdraw ?? 0).toFixed(1)}`}
               icon={IconHourglass}
               color="#F59E0B"
             />
@@ -408,7 +408,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="待支取"
-              value={`¥${(overviewData?.summary?.withdrawable ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.withdrawable ?? 0).toFixed(1)}`}
               icon={IconSwap}
               color="#F59E0B"
             />
@@ -416,7 +416,7 @@ const BillingOverview: React.FC = () => {
           <Col span={4}>
             <StatBlock
               label="押金"
-              value={`¥${(overviewData?.summary?.deposit ?? 0).toFixed(2)}`}
+              value={`¥${(overviewData?.summary?.deposit ?? 0).toFixed(1)}`}
               icon={IconLock}
               color="#06B6D4"
             />
@@ -441,7 +441,7 @@ const BillingOverview: React.FC = () => {
                     <Space>
                       <Text strong>{day.date}</Text>
                       <Tag color="blue">{day.reports.length}条报账</Tag>
-                      <Text style={{ color: '#EF4444', fontWeight: 600 }}>¥{day.totalAmount.toFixed(2)}</Text>
+                      <Text style={{ color: '#EF4444', fontWeight: 600 }}>¥{day.totalAmount.toFixed(1)}</Text>
                       <Tag>{allScreenshots.length}张截图</Tag>
                     </Space>
                   }
@@ -792,18 +792,18 @@ const BillingOverview: React.FC = () => {
           >
             <Text>
               总流水：
-              <Text strong>¥{(overviewData?.summary?.totalRevenue ?? 0).toFixed(2)}</Text>
+              <Text strong>¥{(overviewData?.summary?.totalRevenue ?? 0).toFixed(1)}</Text>
             </Text>
             <br />
             <Text>
               已支取：
-              <Text strong>¥{(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(2)}</Text>
+              <Text strong>¥{(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(1)}</Text>
             </Text>
             <br />
             <Text>
               可支取余额：
               <Text strong style={{ color: '#faad14', fontSize: 18 }}>
-                ¥{(overviewData?.summary?.withdrawable ?? 0).toFixed(2)}
+                ¥{(overviewData?.summary?.withdrawable ?? 0).toFixed(1)}
               </Text>
             </Text>
           </div>

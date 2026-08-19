@@ -887,25 +887,25 @@ const CompanionPage: React.FC = () => {
           <p>您当前没有未支取的余额，无法开启娱乐模式：</p>
           <div style={{ background: '#fff7e6', borderRadius: 8, padding: 12, marginTop: 8 }}>
             <div>
-              📊 总流水：<Text strong>¥{blockedModal?.totalRevenue?.toFixed(2) ?? '0.00'}</Text>
+              📊 总流水：<Text strong>¥{blockedModal?.totalRevenue?.toFixed(1) ?? '0.00'}</Text>
             </div>
             <div>
               🔢 可分账金额（
               {blockedModal?.totalRevenue > 0
                 ? Math.round((blockedModal?.withdrawable / blockedModal.totalRevenue) * 100)
                 : 50}
-              %）：<Text strong>¥{blockedModal?.withdrawable?.toFixed(2) ?? '0.00'}</Text>
+              %）：<Text strong>¥{blockedModal?.withdrawable?.toFixed(1) ?? '0.00'}</Text>
             </div>
             <div>
-              💸 已支取：<Text strong>¥{blockedModal?.totalWithdrawn?.toFixed(2) ?? '0.00'}</Text>
+              💸 已支取：<Text strong>¥{blockedModal?.totalWithdrawn?.toFixed(1) ?? '0.00'}</Text>
             </div>
             <div>
               🏦 剩余未支取：
               <Text strong style={{ color: '#ff4d4f' }}>
-                ¥{blockedModal?.remaining?.toFixed(2) ?? '0.00'}
+                ¥{blockedModal?.remaining?.toFixed(1) ?? '0.00'}
               </Text>
             </div>
-            <div style={{ marginTop: 4 }}>💰 账户余额：¥{blockedModal?.totalBalance?.toFixed(2) ?? '0.00'}</div>
+            <div style={{ marginTop: 4 }}>💰 账户余额：¥{blockedModal?.totalBalance?.toFixed(1) ?? '0.00'}</div>
           </div>
           <p style={{ marginTop: 12 }}>请支取部分流水后，有剩余未支取余额即可开启娱乐模式。</p>
           <div style={{ marginTop: 16, textAlign: 'center' }}>

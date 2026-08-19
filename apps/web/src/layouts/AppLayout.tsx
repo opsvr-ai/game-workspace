@@ -1116,7 +1116,7 @@ const AppLayout: React.FC = () => {
                   )}
                   {user?.role === 'CS' && myCommission != null && (
                     <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>
-                      本月预计提成 ¥{Number(myCommission).toFixed(2)}
+                      本月预计提成 ¥{Number(myCommission).toFixed(1)}
                     </Text>
                   )}
                 </>

@@ -167,7 +167,7 @@ const CommissionPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Card size="small">
-            <Statistic title={`${month.format('YYYY-MM')} 提成合计`} value={totalAmount} precision={2} prefix="¥" />
+            <Statistic title={`${month.format('YYYY-MM')} 提成合计`} value={totalAmount} precision={1} prefix="¥" />
           </Card>
         </Col>
         <Col span={8}>
@@ -234,8 +234,8 @@ const CommissionPage: React.FC = () => {
           <Table.Column title="姓名" dataIndex="displayName" render={(v: string, r: any) => v || r.username || '-'} />
           <Table.Column title="账号" dataIndex="username" />
           <Table.Column title="角色" dataIndex="role" render={(v: string) => (v === 'CS' ? '客服' : v === 'ADMIN' ? '店长' : v)} />
-          <Table.Column title="计提基数" dataIndex="basisValue" render={(v: number, r: any) => (r.basis === 'CLAIMED_AMOUNT' ? `¥${Number(v || 0).toFixed(2)}` : `${v} 单`)} />
-          <Table.Column title="提成金额" dataIndex="amountYuan" render={(v: number) => <Text strong>¥{Number(v || 0).toFixed(2)}</Text>} />
+          <Table.Column title="计提基数" dataIndex="basisValue" render={(v: number, r: any) => (r.basis === 'CLAIMED_AMOUNT' ? `¥${Number(v || 0).toFixed(1)}` : `${v} 单`)} />
+          <Table.Column title="提成金额" dataIndex="amountYuan" render={(v: number) => <Text strong>¥{Number(v || 0).toFixed(1)}</Text>} />
           <Table.Column title="状态" dataIndex="status" render={(v: string) => (v === 'CONFIRMED' ? <Tag color="green">已确认</Tag> : <Tag color="gold">草稿</Tag>)} />
           {canWrite && (
             <Table.Column
@@ -286,7 +286,7 @@ const CommissionPage: React.FC = () => {
                 </Form.Item>
               ) : (
                 <Form.Item name="fixedAmountYuan" label="固定金额（元/单）" rules={[{ required: true, message: '请输入固定金额' }]}>
-                  <InputNumber min={0} step={1} precision={2} style={{ width: '100%' }} />
+                  <InputNumber min={0} step={1} precision={1} style={{ width: '100%' }} />
                 </Form.Item>
               )
             }

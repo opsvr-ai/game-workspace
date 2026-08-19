@@ -63,7 +63,7 @@ const CompanionListPage: React.FC = () => {
             },
           },
           { title: '月收入', dataIndex: 'monthlyRevenue', width: 110,
-            render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v?.toFixed(2) || '0.00'}</span> },
+            render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v?.toFixed(1) || '0.00'}</span> },
           { title: '手机', dataIndex: 'phone', width: 120, render: (v: string) => v || '-' },
           { title: 'PC状态', key: 'pc', width: 100,
             render: (_: any, r: any) => {

@@ -312,7 +312,7 @@ const CustomerDetailPage: React.FC = () => {
       dataIndex: 'amount',
       key: 'amount',
       width: 100,
-      render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v.toFixed(2)}</span>,
+      render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v.toFixed(1)}</span>,
     },
     {
       title: '类型',
@@ -395,7 +395,7 @@ const CustomerDetailPage: React.FC = () => {
             <Descriptions.Item label="平台账号">{customer.platformAccount || '-'}</Descriptions.Item>
             <Descriptions.Item label="累计消费">
               <span style={{ color: '#FF4757', fontWeight: 700, fontSize: 16 }}>
-                ¥{(customer.totalSpent ?? 0).toFixed(2)}
+                ¥{(customer.totalSpent ?? 0).toFixed(1)}
               </span>
             </Descriptions.Item>
             <Descriptions.Item label="订单数">
@@ -645,7 +645,7 @@ const CustomerDetailPage: React.FC = () => {
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 16 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  累计消费：¥{totalSpent.toFixed(2)}
+                  累计消费：¥{totalSpent.toFixed(1)}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   订单数：{orderCount}单

@@ -351,7 +351,7 @@ const CompanionsPage: React.FC = () => {
         key: 'monthlyRevenue',
         width: 80,
         render: (val: number | undefined) => (
-          <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{val?.toFixed(2) || '0.00'}</span>
+          <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{val?.toFixed(1) || '0.00'}</span>
         ),
       },
       {

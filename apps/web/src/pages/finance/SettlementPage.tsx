@@ -80,9 +80,9 @@ const SettlementPage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}><Card size="small"><Statistic title="总业绩" value={totalRevenue} precision={2} prefix="¥" /></Card></Col>
-        <Col span={8}><Card size="small"><Statistic title="陪玩分成合计" value={totalCompanion} precision={2} prefix="¥" /></Card></Col>
-        <Col span={8}><Card size="small"><Statistic title="工作室分成合计" value={totalStudio} precision={2} prefix="¥" /></Card></Col>
+        <Col span={8}><Card size="small"><Statistic title="总业绩" value={totalRevenue} precision={1} prefix="¥" /></Card></Col>
+        <Col span={8}><Card size="small"><Statistic title="陪玩分成合计" value={totalCompanion} precision={1} prefix="¥" /></Card></Col>
+        <Col span={8}><Card size="small"><Statistic title="工作室分成合计" value={totalStudio} precision={1} prefix="¥" /></Card></Col>
       </Row>
 
       <Card size="small" title={`${month.format('YYYY-MM')} 结算快照`}>
@@ -95,11 +95,11 @@ const SettlementPage: React.FC = () => {
           locale={{ emptyText: '暂无结算记录，请点击「运行结算」' }}
         >
           <Table.Column title="陪玩" dataIndex="companionName" />
-          <Table.Column title="业绩" dataIndex="monthlyRevenueYuan" render={(v: number) => `¥${Number(v || 0).toFixed(2)}`} />
+          <Table.Column title="业绩" dataIndex="monthlyRevenueYuan" render={(v: number) => `¥${Number(v || 0).toFixed(1)}`} />
           <Table.Column title="工龄（月）" dataIndex="tenureMonths" />
           <Table.Column title="分成比例" dataIndex="companionPct" render={(v: number) => <Tag color={v >= 70 ? 'red' : v >= 60 ? 'blue' : 'default'}>{v}%</Tag>} />
-          <Table.Column title="陪玩分成" dataIndex="companionShareYuan" render={(v: number) => <Text strong>¥{Number(v || 0).toFixed(2)}</Text>} />
-          <Table.Column title="工作室分成" dataIndex="studioShareYuan" render={(v: number) => `¥${Number(v || 0).toFixed(2)}`} />
+          <Table.Column title="陪玩分成" dataIndex="companionShareYuan" render={(v: number) => <Text strong>¥{Number(v || 0).toFixed(1)}</Text>} />
+          <Table.Column title="工作室分成" dataIndex="studioShareYuan" render={(v: number) => `¥${Number(v || 0).toFixed(1)}`} />
           <Table.Column title="结算时间" dataIndex="createdAt" render={(v: string) => dayjs(v).format('YYYY-MM-DD HH:mm')} />
         </Table>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>

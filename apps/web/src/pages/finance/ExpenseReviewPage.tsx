@@ -119,7 +119,7 @@ const ExpenseReviewPage: React.FC = () => {
   const expenseColumns = [
     { title: '陪玩', dataIndex: ['companion', 'user', 'username'], render: (_: any, r: any) => r.companion?.user?.username || '-' },
     { title: '类型', dataIndex: 'type', render: (v: string) => <Tag color={expenseTypeConfig[v]?.color}>{expenseTypeConfig[v]?.label || v}</Tag> },
-    { title: '金额', dataIndex: 'amount', render: (v: number) => <Text strong>¥{Number(v || 0).toFixed(2)}</Text> },
+    { title: '金额', dataIndex: 'amount', render: (v: number) => <Text strong>¥{Number(v || 0).toFixed(1)}</Text> },
     { title: '说明', dataIndex: 'description', ellipsis: true },
     {
       title: '截图', dataIndex: 'screenshotUrl', width: 90,
@@ -143,9 +143,9 @@ const ExpenseReviewPage: React.FC = () => {
   const walletColumns = [
     { title: '陪玩', dataIndex: ['companion', 'user', 'username'], render: (_: any, r: any) => r.companion?.user?.username || '-' },
     { title: '类型', dataIndex: 'type', render: (v: string) => <Tag color={walletTypeConfig[v]?.color}>{walletTypeConfig[v]?.label || v}</Tag> },
-    { title: '金额', dataIndex: 'amount', render: (v: number) => <Text strong>¥{Number(v || 0).toFixed(2)}</Text> },
-    { title: '变动前', dataIndex: 'balanceBefore', render: (v: number) => `¥${Number(v || 0).toFixed(2)}` },
-    { title: '变动后', dataIndex: 'balanceAfter', render: (v: number) => `¥${Number(v || 0).toFixed(2)}` },
+    { title: '金额', dataIndex: 'amount', render: (v: number) => <Text strong>¥{Number(v || 0).toFixed(1)}</Text> },
+    { title: '变动前', dataIndex: 'balanceBefore', render: (v: number) => `¥${Number(v || 0).toFixed(1)}` },
+    { title: '变动后', dataIndex: 'balanceAfter', render: (v: number) => `¥${Number(v || 0).toFixed(1)}` },
     { title: '备注', dataIndex: 'note', ellipsis: true },
     { title: '时间', dataIndex: 'createdAt', render: (v: string) => dayjs(v).format('MM-DD HH:mm') },
     { title: '状态', dataIndex: 'status', render: (v: string) => <Tag color={reviewStatusConfig[v]?.color}>{reviewStatusConfig[v]?.label || v}</Tag> },
@@ -178,9 +178,9 @@ const ExpenseReviewPage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card size="small"><Statistic title="当月已通过支出" value={summary?.totalExpense || 0} precision={2} prefix="¥" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="当月已通过支取" value={summary?.totalWithdraw || 0} precision={2} prefix="¥" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="待审金额" value={summary?.pendingAmount || 0} precision={2} prefix="¥" valueStyle={{ color: '#d48806' }} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="当月已通过支出" value={summary?.totalExpense || 0} precision={1} prefix="¥" /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="当月已通过支取" value={summary?.totalWithdraw || 0} precision={1} prefix="¥" /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="待审金额" value={summary?.pendingAmount || 0} precision={1} prefix="¥" valueStyle={{ color: '#d48806' }} /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="待审单数" value={summary?.pendingCount || 0} suffix="单" /></Card></Col>
       </Row>
 
@@ -239,7 +239,7 @@ const ExpenseReviewPage: React.FC = () => {
           <div>
             <div style={{ marginBottom: 12 }}>
               <Text>{reviewRecord.companion?.user?.username || '-'} · {expenseTypeConfig[reviewRecord.type]?.label || reviewRecord.type} · </Text>
-              <Text strong>¥{Number(reviewRecord.amount || 0).toFixed(2)}</Text>
+              <Text strong>¥{Number(reviewRecord.amount || 0).toFixed(1)}</Text>
             </div>
             <TextArea rows={3} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="审核备注（可选）" />
           </div>
