@@ -539,7 +539,15 @@ const CustomersPage: React.FC = () => {
             onClick={() => {
               const active = record.orders?.find((o: any) => o.status === 'GRABBED');
               if (active?.id) {
-                setStartServiceOrder({ id: active.id, gameName: active.gameName });
+                setStartServiceOrder({
+                  id: active.id,
+                  gameName: active.gameName,
+                  initialValues: {
+                    claimPrice: active.amount || null,
+                    claimDuration: active.duration || 1,
+                    claimMode: active.customFields?.deltaMission || '机密',
+                  },
+                });
               } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
                 message.warning('此订单正在服务中');
               } else {
