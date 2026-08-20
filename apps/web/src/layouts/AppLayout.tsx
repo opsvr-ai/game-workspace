@@ -811,6 +811,16 @@ const AppLayout: React.FC = () => {
       });
       showSystemNotification('蠢驴电竞 · 服务结束', desc);
     },
+    onServiceDurationReminder: (data: any) => {
+      const desc = data?.message || '服务时间已到，请引导客户续单';
+      notification.warning({
+        message: '⏰ 时间到了',
+        description: desc,
+        placement: 'bottomRight',
+        duration: 5,
+      });
+      showSystemNotification('蠢驴电竞 · 时间提醒', desc);
+    },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },

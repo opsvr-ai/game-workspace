@@ -29,6 +29,7 @@ interface UseSocketOptions {
   onDualInviteExpired?: (data: any) => void;
   onServiceHandoff?: (data: any) => void;
   onSegmentFinished?: (data: any) => void;
+  onServiceDurationReminder?: (data: any) => void;
   onWalletReviewed?: (data: any) => void;
   onUserAuthorized?: (data: any) => void;
   onUserRejected?: (data: any) => void;
@@ -188,6 +189,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:segment_finished', (data: any) => {
       optsRef.current.onSegmentFinished?.(data);
+    });
+
+    socket.on('service:duration_reminder', (data: any) => {
+      optsRef.current.onServiceDurationReminder?.(data);
     });
 
     socket.on('wallet:reviewed', (data: any) => {
