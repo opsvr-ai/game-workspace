@@ -769,7 +769,7 @@ const CustomersPage: React.FC = () => {
               <Button icon={React.createElement(ReloadOutlined)} onClick={() => fetchCustomers()} loading={loading}>
                 刷新
               </Button>
-              {canManage && (
+              {(canManage || isCompanion) && (
                 <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>
                   新建客户
                 </Button>

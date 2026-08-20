@@ -52,9 +52,15 @@ export class CustomersController {
   }
 
   @Post('customers')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async create(@Body() dto: CreateCustomerDto): Promise<ApiResponse<unknown>> {
-    const data = await this.customersService.create(dto);
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
+  async create(@Body() dto: CreateCustomerDto, @Req() req: any): Promise<ApiResponse<unknown>> {
+    // 陪玩也能录入自己的老客户：归属到当前陪玩名下；CS/店长/老板按各自工作室。
+    const user = req.user;
+    const data = await this.customersService.create({
+      ...dto,
+      studioId: dto.studioId || user?.studioId || '',
+      companionId: dto.companionId ?? (user?.role === 'COMPANION' ? user?.companionId ?? null : null),
+    });
     return { code: 200, message: 'ok', data };
   }
 
