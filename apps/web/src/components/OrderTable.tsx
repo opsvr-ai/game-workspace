@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Table, Tag, Typography, Space, Image } from 'antd';
 import { orderTypeConfig, orderStatusConfig, customerPaidToConfig } from '../constants';
 import EditableWorkWechat from './EditableWorkWechat';
+import ServiceTimer from './ServiceTimer';
 
 const { Text } = Typography;
 
@@ -73,6 +74,13 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWor
       {
         title: '状态', dataIndex: 'status', key: 'status', width: 70, align: 'center' as const,
         render: (s: string) => <Tag color={orderStatusConfig[s]?.color || 'default'}>{orderStatusConfig[s]?.label || s}</Tag>,
+      },
+      {
+        title: '计时', key: 'timer', width: 90, align: 'center' as const,
+        render: (_: any, r: any) => {
+          const active = (r.sessions || []).find((s: any) => s.status === 'ACTIVE' && s.startedAt);
+          return active ? <ServiceTimer startedAt={active.startedAt} /> : <Text type="secondary">-</Text>;
+        },
       },
       {
         title: '陪玩', key: 'companion', width: 90, align: 'center' as const,

@@ -360,18 +360,29 @@ export class OrdersService {
         claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
+        sessions: {
+          where: { status: 'ACTIVE', startedAt: { not: null } },
+          orderBy: { seq: 'desc' },
+          take: 1,
+          select: { id: true, startedAt: true, duration: true, seq: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
-    // Mask source account from non-creators (privacy)
+    // 隐私：非发布者看不到来源账号；副陪（搭档）看不到主陪的客户微信。
     return orders.map((o) => {
-      if (o.csUserId !== user.id && o.customFields) {
-        const cf = o.customFields as any;
-        if (cf.customerSourceAccount) {
-          return { ...o, customFields: { ...cf, customerSourceAccount: '***' } };
-        }
+      const cf = o.customFields as any;
+      const isCoCompanion =
+        user.role === 'COMPANION' && o.companionId !== user.companionId && o.coCompanionId === user.companionId;
+      let customer = o.customer;
+      let customFields = cf;
+      if (isCoCompanion) {
+        customer = o.customer ? { ...o.customer, wechatId: '' } : o.customer;
+        customFields = cf ? { ...cf, customerWechat: '', customerWechatQr: undefined } : cf;
+      } else if (o.csUserId !== user.id && cf?.customerSourceAccount) {
+        customFields = { ...cf, customerSourceAccount: '***' };
       }
-      return o;
+      return { ...o, customer, customFields };
     });
   }
 
