@@ -297,7 +297,7 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const renderCompanionSidebar = () => (
-    <Col span={2}>
+    <Col flex="0 0 180px">
       <Card
         title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
         size="small"
@@ -459,7 +459,7 @@ const OrderPoolPage: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
       >
         {isCompanion && renderCompanionSidebar()}
-        <Col span={isCompanion ? 22 : 24}>
+        <Col flex="1 1 auto">
           {/* Companion: unlock threshold card */}
           {isCompanion && poolStatus && (
             <Card

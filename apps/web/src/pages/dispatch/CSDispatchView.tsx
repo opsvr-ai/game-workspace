@@ -401,7 +401,7 @@ const CSDispatchView: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
-        <Col span={2}>
+        <Col flex="0 0 200px">
           <Card
             title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
             size="small"
@@ -647,7 +647,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={20} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col flex="1 1 auto" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -826,7 +826,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Right: Stats + Chat panel */}
-        <Col span={2}>
+        <Col flex="0 0 150px">
           <Card size="small" style={{ borderRadius: 8 }} bodyStyle={{ padding: '6px 8px' }}>
             <div style={{ textAlign: 'right', lineHeight: 2, fontSize: 13 }}>
               <div>
