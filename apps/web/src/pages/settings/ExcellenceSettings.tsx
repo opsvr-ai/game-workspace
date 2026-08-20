@@ -74,7 +74,9 @@ const ExcellenceSettings: React.FC = () => {
         'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 50,
         'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 25,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,
-        'dispatch.nonqualified_daily_new_limit': config?.['dispatch.nonqualified_daily_new_limit'] ?? 1,
+        'dispatch.top_tier_daily_new_limit': config?.['dispatch.top_tier_daily_new_limit'] ?? 999,
+        'dispatch.middle_tier_daily_new_limit': config?.['dispatch.middle_tier_daily_new_limit'] ?? 2,
+        'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'] ?? 1,
         'pool.daily_customer_quota': config?.['pool.daily_customer_quota'] ?? 3,
         'pool.daily_grab_limit': config?.['pool.daily_grab_limit'] ?? 20,
       });
@@ -121,7 +123,9 @@ const ExcellenceSettings: React.FC = () => {
           </Col>
           <Col span={12}>
             <Field label="战绩图每组加分（分）" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
-            <Field label="不优秀每日新客名额" value={config?.['dispatch.nonqualified_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.nonqualified_daily_new_limit', v)} suffix="优秀陪玩不限名额" />
+            <Field label="优秀（上等马）每日新客名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} />
+            <Field label="普通（中等马）每日新客名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} />
+            <Field label="不优秀（下等马）每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} />
             <Field label="每日有效客户名额" value={config?.['pool.daily_customer_quota'] ?? 3} step={1} onChange={(v) => update('pool.daily_customer_quota', v)} />
             <Field label="每日抢单上限" value={config?.['pool.daily_grab_limit'] ?? 20} step={1} onChange={(v) => update('pool.daily_grab_limit', v)} />
             <div style={{ marginTop: 16 }}>

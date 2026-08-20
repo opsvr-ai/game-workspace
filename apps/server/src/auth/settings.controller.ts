@@ -96,6 +96,9 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.bridge_immediate_window_sec': 60,
   'dispatch.qualified_threshold': 90,
   'dispatch.nonqualified_daily_new_limit': 1,
+  'dispatch.top_tier_daily_new_limit': 999,
+  'dispatch.middle_tier_daily_new_limit': 2,
+  'dispatch.low_tier_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   'dispatch.studio_share_percent': 30,
   // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）

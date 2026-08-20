@@ -96,16 +96,20 @@ export class OrderWorkflowService {
 
     // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
     if (order.type === 'NEW' && companion.studioId === order.studioId) {
-      const excellent = await this.excellence.isExcellent(companionId);
-      if (!excellent) {
-        const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'dispatch.nonqualified_daily_new_limit' } });
-        const limit = Number(limitCfg?.value ?? 1);
-        const { start: today } = currentBusinessDayRange();
-        const todayNew = await this.prisma.order.count({
-          where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
-        });
-        if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
-      }
+      const ex = await this.excellence.computeOne(companionId);
+      const tier = ex.tier || 'LOW';
+      const limitKey = tier === 'TOP'
+        ? 'dispatch.top_tier_daily_new_limit'
+        : tier === 'MIDDLE'
+          ? 'dispatch.middle_tier_daily_new_limit'
+          : 'dispatch.low_tier_daily_new_limit';
+      const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: limitKey } });
+      const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
+      const { start: today } = currentBusinessDayRange();
+      const todayNew = await this.prisma.order.count({
+        where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+      });
+      if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
     }
 
     // Revenue threshold check — skip for peer orders (created by companions)
