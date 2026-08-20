@@ -331,9 +331,8 @@ export class CompanionsService {
     return sessions.map((s) => {
       const isPartner = s.coCompanionId === companionId;
       const myAmount = isPartner ? (s.coAmount ?? 0) : s.amount;
-      const peerName = isPartner
-        ? (s.companion?.user?.displayName || s.companion?.user?.username || null)
-        : (s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null);
+      const mainName = s.companion?.user?.displayName || s.companion?.user?.username || null;
+      const coName = s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null;
       const dual = !!s.coCompanionId || (s.parentOrder?.customFields as any)?.deltaCount === '双';
       const unitPrice = isPartner
         ? (s.coAmount ?? 0) / (s.duration || 1)
@@ -365,7 +364,8 @@ export class CompanionsService {
         claimedPrice: unitPrice,
         transferScreenshotUrl: s.transferScreenshotUrl,
         status: s.status,
-        coName: peerName,
+        mainName,
+        coName,
         startedAt: s.startedAt,
         endedAt: s.endedAt,
         createdAt: s.createdAt,

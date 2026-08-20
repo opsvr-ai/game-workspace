@@ -570,6 +570,7 @@ const BillingOverview: React.FC = () => {
                   unitPrice: s.unitPrice,
                   systemAmount: s.systemAmount,
                   transferScreenshotUrl: s.transferScreenshotUrl,
+                  mainName: s.mainName,
                   coName: s.coName,
                   isPartner: s.isPartner,
                   dual: s.dual,
@@ -694,7 +695,8 @@ const BillingOverview: React.FC = () => {
                         </Tag>
                         <Tag color={o.dual ? 'magenta' : 'cyan'} style={{ fontSize: 10, margin: 0 }}>{o.dual ? '双陪' : '单陪'}</Tag>
                         {o.isPartner && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>副陪</Tag>}
-                        {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>{o.isPartner ? '主陪' : '搭档'}：{o.coName}</Tag>}
+                        <Tag color="green" style={{ fontSize: 10, margin: 0 }}>主陪：{o.mainName || '-'}</Tag>
+                        {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>副陪：{o.coName}</Tag>}
                       </Space>
                       <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{o.customerWechat || '-'}</div>
                     </td>
