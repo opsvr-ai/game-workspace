@@ -9,6 +9,7 @@ import { currentBusinessDayRange } from '../common/business-day';
 import { ExcellenceService } from '../companions/excellence.service';
 import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
+import { maskCustomerWechat } from '../common/order-privacy';
 
 const PARTNER_INVITE_TTL_SEC = 20;
 
@@ -388,18 +389,12 @@ export class OrdersService {
     });
     // 隐私：非发布者看不到来源账号；副陪（搭档）看不到主陪的客户微信。
     return orders.map((o) => {
-      const cf = o.customFields as any;
-      const isCoCompanion =
-        user.role === 'COMPANION' && o.companionId !== user.companionId && o.coCompanionId === user.companionId;
-      let customer = o.customer;
-      let customFields = cf;
-      if (isCoCompanion) {
-        customer = o.customer ? { ...o.customer, wechatId: '' } : o.customer;
-        customFields = cf ? { ...cf, customerWechat: '', customerWechatQr: undefined } : cf;
-      } else if (o.csUserId !== user.id && cf?.customerSourceAccount) {
-        customFields = { ...cf, customerSourceAccount: '***' };
+      const masked = maskCustomerWechat(o, user);
+      const cf = masked.customFields as any;
+      if (o.csUserId !== user.id && cf?.customerSourceAccount) {
+        return { ...masked, customFields: { ...cf, customerSourceAccount: '***' } };
       }
-      return { ...o, customer, customFields };
+      return masked;
     });
   }
 
@@ -1037,8 +1032,8 @@ export class OrdersService {
     });
   }
 
-  async findOne(orderId: string) {
-    return this.prisma.order.findUnique({
+  async findOne(orderId: string, user?: any) {
+    const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
         customer: true,
@@ -1047,6 +1042,16 @@ export class OrdersService {
         coCompanion: { include: { user: { select: { username: true } } } },
       },
     });
+    if (!order) return null;
+    if (user) {
+      if (user.role === 'COMPANION') {
+        const involved = order.companionId === user.companionId || order.coCompanionId === user.companionId;
+        if (!involved) throw new ForbiddenException('无权查看该订单');
+      } else if ((user.role === 'CS' || user.role === 'ADMIN') && order.studioId !== user.studioId) {
+        throw new ForbiddenException('无权查看该订单');
+      }
+    }
+    return maskCustomerWechat(order, user);
   }
 
   // ── Session management ──

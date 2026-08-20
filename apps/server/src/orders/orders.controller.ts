@@ -355,8 +355,8 @@ export class OrdersController {
   }
 
   @Get('orders/:id')
-  async findOne(@Param('id') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.findOne(id, req.user);
     return { code: 200, message: 'ok', data };
   }
 }
