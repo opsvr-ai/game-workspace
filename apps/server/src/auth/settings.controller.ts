@@ -60,7 +60,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'turn.username': '',
   'turn.credential': '',
   'agent.latest_version': '1.0.0',
-  'agent.latest_download_url': '/api/agent/download/latest',
+  'agent.latest_download_url': '/uploads/chunlv-latest.zip',
   'capture.interval_min_minutes': 12,
   'capture.interval_max_minutes': 18,
   'capture.first_delay_min_minutes': 1,

@@ -262,6 +262,11 @@ func checkForUpdate(installDir string) {
 	time.Sleep(2 * time.Second)
 	if err := downloadAndExtract(req.URL, installDir); err != nil {
 		safeWarn(fmt.Sprintf("update failed: %v", err))
+		// 下载/解压失败时也要清掉信号文件，否则每 5 秒都会重新下载一遍，
+		// 造成全机反复下载大安装包、卡顿、并不断杀死/重启客户端。
+		_ = os.Remove(updateSignalFile)
+		clientPID = 0
+		maybeLaunchClient()
 		return
 	}
 	_ = os.Remove(updateSignalFile)

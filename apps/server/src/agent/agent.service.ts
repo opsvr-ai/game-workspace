@@ -106,7 +106,7 @@ export class AgentService {
     ]);
     return {
       version: (versionCfg?.value as string) ?? '1.0.0',
-      downloadUrl: (urlCfg?.value as string) ?? '/api/agent/download/latest',
+      downloadUrl: (urlCfg?.value as string) ?? '/uploads/chunlv-latest.zip',
     };
   }
 
@@ -383,7 +383,7 @@ export class AgentService {
         env: { ...process.env, CI: 'true' },
       });
 
-      logger.log('Step 4/4: copy installer...');
+      logger.log('Step 4/5: copy installer + generate auto-update zip...');
       const releaseDir = path.join(electronDir, 'release');
       const files = fs.readdirSync(releaseDir);
       const setupExe = files.find((f) => f.endsWith('.exe'));
@@ -396,6 +396,19 @@ export class AgentService {
       if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
       fs.copyFileSync(srcPath, path.join(destDir, 'agent-setup.exe'));
 
+      // 自动更新走 SystemHelper 服务：它按 zip 解压 win-unpacked 覆盖安装目录。
+      // 如果这里只发布 exe 安装器，SystemHelper 会把 exe 当 zip 解压失败，陷入反复下载/退出/重启的死循环。
+      const winUnpackedDir = path.join(releaseDir, 'win-unpacked');
+      if (!fs.existsSync(winUnpackedDir)) {
+        return { success: false, version: '', output: '构建完成但未找到 win-unpacked 目录' };
+      }
+      const zipName = 'chunlv-latest.zip';
+      const zipLocal = path.join(releaseDir, zipName);
+      await execAsync(`rm -f "${zipLocal}" && zip -r "${zipLocal}" win-unpacked/ -q`, {
+        cwd: releaseDir,
+      });
+      fs.copyFileSync(zipLocal, path.join(destDir, zipName));
+
       const pkgJson = JSON.parse(fs.readFileSync(path.join(electronDir, 'package.json'), 'utf-8'));
       const version = pkgJson.version || '1.0.0';
 
@@ -406,8 +419,8 @@ export class AgentService {
       });
       await this.prisma.systemConfig.upsert({
         where: { key: 'agent.latest_download_url' },
-        create: { key: 'agent.latest_download_url', value: '/api/agent/download/latest' },
-        update: { value: '/api/agent/download/latest' },
+        create: { key: 'agent.latest_download_url', value: '/uploads/chunlv-latest.zip' },
+        update: { value: '/uploads/chunlv-latest.zip' },
       });
 
       logger.log(`Build complete: version ${version}`);

@@ -140,7 +140,7 @@ export class AgentController {
       if (req.user?.studioId) {
         this.wsGateway.broadcastToStudio(req.user.studioId, 'pc:command', {
           command: 'update',
-          downloadUrl: '/api/agent/download/latest',
+          downloadUrl: '/uploads/chunlv-latest.zip',
           version: result.version,
         });
       }
