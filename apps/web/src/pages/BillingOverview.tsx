@@ -99,9 +99,13 @@ const BillingOverview: React.FC = () => {
   const [reportVisible, setReportVisible] = useState(false);
   const [todayOrders, setTodayOrders] = useState<any[]>([]);
   const [reportScreenshots, setReportScreenshots] = useState<Record<string,string>>({});
+  const [reportTotalScreenshot, setReportTotalScreenshot] = useState('');
   const [reportAmounts, setReportAmounts] = useState<Record<string,number>>({});
   const [reportRemarks, setReportRemarks] = useState<Record<string,string>>({});
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const reportSystemTotal = todayOrders.reduce((s: number, o: any) => s + (Number(o.systemAmount) || 0), 0);
+  const reportActualTotal = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
+  const reportDiff = reportActualTotal - reportSystemTotal;
   const [transferVisible, setTransferVisible] = useState(false);
   const [transferAmount, setTransferAmount] = useState<number | null>(null);
   const [transferScreenshot, setTransferScreenshot] = useState('');
@@ -589,6 +593,7 @@ const BillingOverview: React.FC = () => {
                 });
                 setReportAmounts(amounts);
                 setReportScreenshots(shots);
+                setReportTotalScreenshot('');
                 setReportVisible(true);
               }).catch(()=>{});
             }}>上报今日流水</Button>
@@ -634,6 +639,15 @@ const BillingOverview: React.FC = () => {
       {/* Report Today Modal */}
       <Modal title="📋 上报今日流水" open={reportVisible} width={1400}
         onOk={async () => {
+          const total = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
+          if (total <= 0) {
+            message.warning('请填写实际报账金额');
+            return;
+          }
+          if (!reportTotalScreenshot) {
+            message.warning('请上传转账截图');
+            return;
+          }
           setReportSubmitting(true);
           try {
             // Submit amounts and screenshots
@@ -642,7 +656,6 @@ const BillingOverview: React.FC = () => {
               sessionId: o.sessionId,
               gameName: o.gameName,
               amount: reportAmounts[o.id] || 0,
-              screenshotUrl: reportScreenshots[o.id] || '',
               customerWechat: o.customerWechat || '',
               claimedMode: o.claimedMode,
               claimedPrice: o.claimedPrice,
@@ -650,7 +663,7 @@ const BillingOverview: React.FC = () => {
               coName: o.coName,
               remark: reportRemarks[o.id] || '',
             }));
-            await http.post('/billing/report-today-v2', { items });
+            await http.post('/billing/report-today-v2', { items, totalScreenshotUrl: reportTotalScreenshot });
             message.success('已提交审核');
             setReportVisible(false);
             fetchOverview();
@@ -679,7 +692,6 @@ const BillingOverview: React.FC = () => {
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 90 }}>单价</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>系统应上报</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>实际</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 80 }}>截图</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 180 }}>备注</th>
                 </tr>
               </thead>
@@ -717,24 +729,6 @@ const BillingOverview: React.FC = () => {
                         prefix="¥"
                       />
                     </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      {reportScreenshots[o.id] ? (
-                        <img src={reportScreenshots[o.id]} alt="预览"
-                          onClick={() => setViewScreenshots([reportScreenshots[o.id]])}
-                          style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #E5E7EB' }}
-                        />
-                      ) : (
-                        <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
-                          const fd = new FormData(); fd.append('file', file);
-                          try { const { data } = await http.post('/upload/screenshot', fd);
-                            setReportScreenshots(prev => ({ ...prev, [o.id]: data.data?.url || '' }));
-                          } catch { message.error('上传失败'); }
-                          return false;
-                        }}>
-                          <Button size="small" icon={<UploadOutlined />} style={{ fontSize: 12 }}>上传</Button>
-                        </Upload>
-                      )}
-                    </td>
                     <td style={{ padding: '8px 10px' }}>
                       <Input
                         size="small"
@@ -750,11 +744,34 @@ const BillingOverview: React.FC = () => {
           </div>
         )}
         {todayOrders.length > 0 && (
-          <div style={{ background:'#F0FDF4', borderRadius:8, padding:12, marginTop:12 }}>
-            <Text strong>合计：共 {todayOrders.length} 单 · ¥{Object.values(reportAmounts).reduce((s:number, v:number) => s + v, 0)}</Text>
-            <Text type="secondary" style={{ marginLeft: 16 }}>
-              已传截图：{Object.values(reportScreenshots).filter(Boolean).length}/{todayOrders.length}
-            </Text>
+          <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Text>共 {todayOrders.length} 单</Text>
+              <Text>系统应报总额：<b style={{ color: '#2563EB' }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
+              <Text>实际报账总额：<b style={{ color: '#16A34A' }}>¥{reportActualTotal.toFixed(1)}</b></Text>
+              <Text>
+                差额：
+                <b style={{ color: Math.abs(reportDiff) < 0.01 ? '#16A34A' : '#F59E0B' }}>
+                  {reportDiff >= 0 ? '+' : ''}{reportDiff.toFixed(1)}
+                </b>
+                {Math.abs(reportDiff) >= 0.01 && <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>请核对每单实际到账金额</Text>}
+              </Text>
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Text strong>转账截图（必传）：</Text>
+              <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
+                const fd = new FormData(); fd.append('file', file);
+                try {
+                  const { data } = await http.post('/upload/screenshot', fd);
+                  setReportTotalScreenshot(data.data?.url || '');
+                  message.success('截图已上传');
+                } catch { message.error('上传失败'); }
+                return false;
+              }}>
+                <Button icon={<UploadOutlined />}>{reportTotalScreenshot ? '重新上传截图' : '上传截图'}</Button>
+              </Upload>
+              {reportTotalScreenshot && <a href={reportTotalScreenshot} target="_blank" rel="noreferrer">查看已传截图</a>}
+            </div>
           </div>
         )}
       </Modal>

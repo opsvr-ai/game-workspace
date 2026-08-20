@@ -286,7 +286,7 @@ export class BillingController {
 
   @Post('billing/report-today-v2')
   @Roles(UserRole.COMPANION)
-  async reportTodayV2(@Req() req: any, @Body() dto: { items: Array<{ orderId: string; sessionId?: string; gameName: string; amount: number; screenshotUrl: string; customerWechat: string; claimedMode?: string; claimedPrice?: number; duration?: number; coName?: string; remark?: string }> }): Promise<ApiResponse<unknown>> {
+  async reportTodayV2(@Req() req: any, @Body() dto: { items: Array<{ orderId: string; sessionId?: string; gameName: string; amount: number; screenshotUrl?: string; customerWechat: string; claimedMode?: string; claimedPrice?: number; duration?: number; coName?: string; remark?: string }>; totalScreenshotUrl?: string }): Promise<ApiResponse<unknown>> {
     const totalAmount = dto.items.reduce((s, i) => s + (i.amount || 0), 0);
     const screenshots: Record<string, string> = {};
     dto.items.forEach(i => { if (i.screenshotUrl) screenshots[i.orderId] = i.screenshotUrl; });
@@ -295,7 +295,8 @@ export class BillingController {
       studioId: req.user.studioId,
       type: 'TODAY_REVENUE',
       amount: totalAmount,
-      description: JSON.stringify({ screenshots, items: dto.items }),
+      screenshotUrl: dto.totalScreenshotUrl || undefined,
+      description: JSON.stringify({ screenshots, totalScreenshotUrl: dto.totalScreenshotUrl, items: dto.items }),
     });
 
     // Compare with system-calculated order amounts for today
