@@ -1142,24 +1142,12 @@ export class OrdersService {
           amount: r.amount ?? 0,
           message: `${name}，你这一段服务已结束，本段计入流水 ¥${Number(r.amount || 0).toFixed(1)}`,
         });
-        // 若该陪玩没有其他进行中的服务会话，则释放回空闲
-        const stillActive = await this.prisma.orderSession
-          .findFirst({
-            where: {
-              OR: [{ companionId: r.id as string }, { coCompanionId: r.id as string }],
-              status: 'ACTIVE',
-              startedAt: { not: null },
-            },
-            select: { id: true },
-          })
-          .catch(() => null);
-        if (!stillActive) {
-          await this.prisma.companion.update({ where: { id: r.id as string }, data: { status: 'AVAILABLE' } }).catch(() => {});
-          this.wsGateway.broadcastToBridgedStudios(order?.studioId || '', 'status:broadcast', {
-            companionId: r.id,
-            status: 'AVAILABLE',
-          });
-        }
+        // 被换掉的旧陪玩：无条件放回空闲
+        await this.prisma.companion.update({ where: { id: r.id as string }, data: { status: 'AVAILABLE' } }).catch(() => {});
+        this.wsGateway.broadcastToBridgedStudios(order?.studioId || '', 'status:broadcast', {
+          companionId: r.id,
+          status: 'AVAILABLE',
+        });
       }
     }
 
