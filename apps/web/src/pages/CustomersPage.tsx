@@ -70,7 +70,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
 }
 
 interface CompanionOption {
@@ -101,13 +101,18 @@ const CustomersPage: React.FC = () => {
 
   const openChat = (record: Customer) => {
     const o = record.orders?.[0];
+    // 「沟通」应和订单发布者（客服）聊天，而不是和自己（companionId）聊。
+    const csUserId = o?.csUserId;
     setChatPartner({
-      conversationId: (o as any)?.companionId || o?.id || record.id,
+      conversationId: csUserId || record.id,
       participant: {
-        userId: (o as any)?.companionId || o?.id || record.id,
-        username: record.wechatId || record.customerCode,
-        role: 'COMPANION',
+        userId: csUserId || record.id,
+        username: o?.csUser?.displayName || o?.csUser?.username || '客服',
+        displayName: o?.csUser?.displayName,
+        avatar: o?.csUser?.avatar,
+        role: 'CS',
       },
+      orderInfo: o ? `${o.gameName} · ¥${Number(o.amount || 0).toFixed(0)}` : undefined,
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);

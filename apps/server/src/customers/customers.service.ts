@@ -75,6 +75,8 @@ export class CustomersService {
             take: 5,
             select: {
               id: true,
+              csUserId: true,
+              csUser: { select: { username: true, displayName: true, avatar: true } },
               status: true,
               gameName: true,
               type: true,
