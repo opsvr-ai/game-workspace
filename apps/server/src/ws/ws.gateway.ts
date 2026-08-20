@@ -93,7 +93,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
+      // 客户端主进程可能用 accessToken 或 refreshToken 连接（两者签名密钥不同）
+      let payload: JwtPayload;
+      try {
+        payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
+      } catch {
+        payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
+      }
 
       const user: ConnectedUser = {
         id: payload.sub,

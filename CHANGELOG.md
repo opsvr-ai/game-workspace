@@ -105,6 +105,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **WebSocket 兼容 refreshToken:** 客户端主进程改用 refreshToken 后，WebSocket 网关增加对 refreshToken 的校验（原只认 accessToken），避免客户端更新后主进程连不上。
+
 - **订单池人员列表去重与排版:** 左侧人员列表不再显示重复的「在线」标签，改为单一状态（在线/离线/空闲/接单/娱乐/休息），角色以小字跟在名字后，不再与名字重叠；并修复陪玩端订单池侧栏显示乱码 id 的问题。
 
 - **陪玩端长连接改用 refreshToken:** 客户端主进程 WebSocket 之前用 15 分钟过期的 accessToken，开机后若 token 过期就连不上、显示离线；现在优先用 7 天有效期的 refreshToken 保持连接，配合之前的多连接修复，只要电脑开机、客户端运行就不会误判离线（需重新安装客户端生效）。
