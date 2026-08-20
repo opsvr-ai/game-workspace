@@ -1065,6 +1065,11 @@ export class OrdersService {
         throw new ForbiddenException('主陪必须属于同一工作室');
       }
     }
+    // 记录续单前仍在计时的会话，用于通知被换掉的旧陪玩并释放其状态
+    const previousActive = await this.prisma.orderSession.findMany({
+      where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
+      select: { id: true, companionId: true, coCompanionId: true, amount: true, coAmount: true },
+    });
     // 续单场景：自动结束上一个仍在计时的会话（首单/上一段续单）
     await this.prisma.orderSession.updateMany({
       where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
@@ -1103,6 +1108,50 @@ export class OrdersService {
       });
       this.schedulePartnerInviteExpiry(session.id, order.studioId || '');
     }
+
+    // 通知被续单换掉的旧陪玩：这一段已结束 + 本段计入流水，并释放其状态
+    const newMemberIds = new Set([dto.companionId, session.coCompanionId].filter(Boolean) as string[]);
+    for (const prev of previousActive) {
+      const replaced = [
+        { id: prev.companionId, amount: prev.amount },
+        { id: prev.coCompanionId, amount: prev.coAmount ?? prev.amount },
+      ].filter((x) => x.id && !newMemberIds.has(x.id as string));
+      for (const r of replaced) {
+        const companion = await this.prisma.companion
+          .findUnique({
+            where: { id: r.id as string },
+            select: { user: { select: { displayName: true, username: true } } },
+          })
+          .catch(() => null);
+        const name = companion?.user?.displayName || companion?.user?.username || '陪玩';
+        this.wsGateway.pushToCompanion(r.id as string, 'order:segment_finished', {
+          sessionId: prev.id,
+          orderId,
+          gameName: order?.gameName || '',
+          amount: r.amount ?? 0,
+          message: `${name}，你这一段服务已结束，本段计入流水 ¥${Number(r.amount || 0).toFixed(1)}`,
+        });
+        // 若该陪玩没有其他进行中的服务会话，则释放回空闲
+        const stillActive = await this.prisma.orderSession
+          .findFirst({
+            where: {
+              OR: [{ companionId: r.id as string }, { coCompanionId: r.id as string }],
+              status: 'ACTIVE',
+              startedAt: { not: null },
+            },
+            select: { id: true },
+          })
+          .catch(() => null);
+        if (!stillActive) {
+          await this.prisma.companion.update({ where: { id: r.id as string }, data: { status: 'AVAILABLE' } }).catch(() => {});
+          this.wsGateway.broadcastToBridgedStudios(order?.studioId || '', 'status:broadcast', {
+            companionId: r.id,
+            status: 'AVAILABLE',
+          });
+        }
+      }
+    }
+
     this.wsGateway.broadcastToStudio(order?.studioId || '', 'order:pool_updated', session);
     return session;
   }

@@ -800,6 +800,17 @@ const AppLayout: React.FC = () => {
       (window as any).electronAPI?.sessionWatch?.(data?.sessionId);
       window.dispatchEvent(new Event('chunlv:service-started'));
     },
+    onSegmentFinished: (data: any) => {
+      const amount = Number(data?.amount || 0).toFixed(1);
+      const desc = data?.message || `你这一段服务已结束，本段计入流水 ¥${amount}`;
+      notification.info({
+        message: '🏁 这一段服务已结束',
+        description: desc,
+        placement: 'bottomRight',
+        duration: 6,
+      });
+      showSystemNotification('蠢驴电竞 · 服务结束', desc);
+    },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') setUrgentOrder(data);
     },
