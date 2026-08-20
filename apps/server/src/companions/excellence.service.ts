@@ -78,6 +78,13 @@ export class ExcellenceService {
       customerMap.set(r.companionId!, (customerMap.get(r.companionId!) || 0) + 1);
     }
 
+    // 战绩图采纳加分：直接叠加到综合分。
+    const bonusRows = await this.prisma.companion.findMany({
+      where: { id: { in: companionIds } },
+      select: { id: true, bonusScore: true },
+    });
+    const bonusMap = new Map(bonusRows.map((b) => [b.id, b.bonusScore || 0]));
+
     for (const [cid, s] of m) {
       const renewRate = s.count > 0 ? (s.renew / s.count) * 100 : 0;
       const repurchaseRate = s.count > 0 ? (s.repurchase / s.count) * 100 : 0;
@@ -87,7 +94,8 @@ export class ExcellenceService {
       // 月流水 10000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
       const revenue = monthlyRevenueMap.get(cid) || 0;
       const revenueScore = Math.min(50, revenue / 200);
-      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1);
+      const bonus = bonusMap.get(cid) || 0;
+      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1 + bonus);
       result.set(cid, {
         isExcellent: rankScore >= 50,
         rankScore,

@@ -64,6 +64,7 @@ import {
   AuditOutlined,
   FileTextOutlined,
   FundOutlined,
+  PictureOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -89,6 +90,7 @@ const IconAuth = React.createElement(KeyOutlined);
 const IconDispatch = React.createElement(SendOutlined);
 const IconBilling = React.createElement(AuditOutlined);
 const IconOrders = React.createElement(FileTextOutlined);
+const IconPicture = React.createElement(PictureOutlined);
 // Process管控菜单统一图标
 const IconControl = React.createElement(ControlOutlined);
 const IconStop = React.createElement(StopOutlined);
@@ -149,6 +151,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         },
         { key: '/owner/review', label: '实名审核' },
         { key: '/admin/attendance', label: '考勤管理' },
+        { key: '/admin/battle-screenshots', label: '战绩图审核' },
       ],
     },
     {
@@ -221,6 +224,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         },
         { key: '/admin/review', label: '实名审核' },
         { key: '/admin/attendance', label: '考勤管理' },
+        { key: '/admin/battle-screenshots', label: '战绩图审核' },
       ],
     },
     {
@@ -298,6 +302,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'companion-customers', icon: IconCustomers, label: '客户管理',
       children: [{ key: '/companion/customers', label: '我的客户' }],
+    },
+    {
+      key: 'companion-battle-screenshots', icon: IconPicture, label: '战绩图上传',
+      children: [{ key: '/companion/battle-screenshots', label: '上传战绩图' }],
     },
     {
       key: 'companion-finance', icon: IconRevenue, label: '财务管理',

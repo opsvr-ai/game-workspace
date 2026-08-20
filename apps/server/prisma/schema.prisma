@@ -32,6 +32,7 @@ model User {
     commissionLedgers CommissionLedger[]
     reviewedDeleteRequests CustomerDeleteRequest[] @relation("Reviewer")
     trafficAccounts   TrafficAccount[]
+    reviewedBattleScreenshots BattleScreenshot[] @relation("BattleScreenshotReviewer")
   
     @@index([studioId])
   @@index([role])
@@ -54,6 +55,7 @@ model Studio {
   companions          Companion[]
   orders              Order[]
   customers           Customer[]
+  battleScreenshots   BattleScreenshot[]
   expenses            Expense[]
   expenseReports      ExpenseReport[]
     processBlacklists   ProcessBlacklist[]
@@ -79,6 +81,7 @@ model Companion {
   billingCode    String    @unique
   revenueShare   Float     @default(0.6)
   monthlyRevenue Float     @default(0)
+  bonusScore     Int       @default(0)
   deposit        Float     @default(0)
   balance        Float     @default(0)
   frozen         Float     @default(0)
@@ -101,6 +104,7 @@ model Companion {
   orders              Order[]
   coOrders            Order[]                      @relation("CoCompanion")
   customers           Customer[]
+  battleScreenshots   BattleScreenshot[]
   transactions        Transaction[]
   expenseReports      ExpenseReport[]
   walletTransactions  WalletTransaction[]
@@ -303,6 +307,30 @@ model Customer {
   contacts      CustomerContact[]
   tracks        CustomerTrack[]
   deleteRequests CustomerDeleteRequest[]
+  battleScreenshots BattleScreenshot[]
+
+  @@index([studioId])
+  @@index([companionId])
+  @@index([status])
+}
+
+model BattleScreenshot {
+  id           String   @id @default(uuid())
+  studioId     String
+  companionId  String
+  customerId   String?
+  images       String[]
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById String?
+  reviewedAt   DateTime?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studio     Studio     @relation(fields: [studioId], references: [id])
+  companion  Companion  @relation(fields: [companionId], references: [id])
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  reviewedBy User?      @relation("BattleScreenshotReviewer", fields: [reviewedById], references: [id])
 
   @@index([studioId])
   @@index([companionId])

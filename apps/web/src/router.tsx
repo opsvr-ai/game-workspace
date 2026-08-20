@@ -89,6 +89,8 @@ const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage
 const MoneyReconciliationPage = lazy(() => import('./pages/finance/MoneyReconciliationPage'));
 const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
 const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
+const BattleScreenshotsPage = lazy(() => import('./pages/BattleScreenshotsPage'));
+const BattleScreenshotReviewPage = lazy(() => import('./pages/BattleScreenshotReviewPage'));
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -201,6 +203,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <StatsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'battle-screenshots',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BattleScreenshotsPage />
           </Suspense>
         ),
       },
@@ -320,6 +330,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <EmployeesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/battle-screenshots',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <BattleScreenshotReviewPage />
           </Suspense>
         ),
       },

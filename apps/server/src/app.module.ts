@@ -24,6 +24,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { ProfitSplitModule } from './profit-split/profit-split.module';
 import { TrafficAccountModule } from './traffic-account/traffic-account.module';
+import { BattleScreenshotsModule } from './battle-screenshots/battle-screenshots.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 
@@ -72,6 +73,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     PayrollModule,
     ProfitSplitModule,
     TrafficAccountModule,
+    BattleScreenshotsModule,
   ],
   providers: [
     {
