@@ -68,6 +68,12 @@ interface PoolOrder {
   csUser?: { id?: string; username: string };
 }
 
+function isPersonnelOnline(c: Personnel): boolean {
+  if (c.status) return c.status !== CompanionStatus.OFFLINE;
+  if (!c.lastHeartbeat) return false;
+  return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
+}
+
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
@@ -512,9 +518,14 @@ const CSDispatchView: React.FC = () => {
                               {companionStatusConfig[c.status]?.label || c.status}
                             </Tag>
                           ) : (
-                            <Tag color={{ COMPANION: 'blue', CS: 'green', ADMIN: 'orange', OWNER: 'purple' }[c.role] || 'default'}>
-                              {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[c.role] || c.role}
-                            </Tag>
+                            <Space size={4}>
+                              <Tag color={{ COMPANION: 'blue', CS: 'cyan', ADMIN: 'orange', OWNER: 'purple' }[c.role] || 'default'}>
+                                {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[c.role] || c.role}
+                              </Tag>
+                              <Tag color={isPersonnelOnline(c) ? 'green' : 'default'}>
+                                {isPersonnelOnline(c) ? '在线' : '离线'}
+                              </Tag>
+                            </Space>
                           )}
                           <Button
                             size="small"
@@ -910,9 +921,14 @@ const CSDispatchView: React.FC = () => {
                 {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
               </Tag>
             ) : (
-              <Tag color={{ COMPANION: 'blue', CS: 'green', ADMIN: 'orange', OWNER: 'purple' }[selectedCompanion.role] || 'default'}>
-                {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[selectedCompanion.role] || selectedCompanion.role}
-              </Tag>
+              <Space size={4}>
+                <Tag color={{ COMPANION: 'blue', CS: 'cyan', ADMIN: 'orange', OWNER: 'purple' }[selectedCompanion.role] || 'default'}>
+                  {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[selectedCompanion.role] || selectedCompanion.role}
+                </Tag>
+                <Tag color={isPersonnelOnline(selectedCompanion) ? 'green' : 'default'}>
+                  {isPersonnelOnline(selectedCompanion) ? '在线' : '离线'}
+                </Tag>
+              </Space>
             )}
             <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
               {selectedCompanion.games &&
