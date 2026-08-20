@@ -68,6 +68,7 @@ const RevenueSettings: React.FC = () => {
                     'revenue.unlock_threshold': config?.['revenue.unlock_threshold'],
                     'revenue.free_threshold': config?.['revenue.free_threshold'],
                     'revenue.low_warning': config?.['revenue.low_warning'],
+                    'billing.report_diff_warning_yuan': config?.['billing.report_diff_warning_yuan'],
                     'entertainment.hourly_rate': config?.['entertainment.hourly_rate'],
                   },
                   '流水与价格',
@@ -109,6 +110,16 @@ const RevenueSettings: React.FC = () => {
               style={{ width: 200 }}
             />
             <Text type="secondary" style={{ marginLeft: 8 }}>低于此金额触发低流水警告</Text>
+          </div>
+          <div>
+            <Label>报账差额预警阈值（元）</Label>
+            <InputNumber
+              min={0} step={1}
+              value={config?.['billing.report_diff_warning_yuan'] ?? 10}
+              onChange={(v) => update('billing.report_diff_warning_yuan', v ?? 10)}
+              style={{ width: 200 }}
+            />
+            <Text type="secondary" style={{ marginLeft: 8 }}>系统应报与实际报账差额超过此金额即标红并推送管理端</Text>
           </div>
           <div>
             <Label>娱乐模式时薪（元/小时）</Label>

@@ -350,8 +350,12 @@ export class BillingService {
     const { start, end } = currentBusinessDayRange();
     const { actualHours, systemRevenue } = await this.computeActualServiceStats(companionId, start, end);
     const diff = systemRevenue - reportedAmount;
+    const thresholdCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'billing.report_diff_warning_yuan' },
+    });
+    const threshold = Number(thresholdCfg?.value ?? 10);
 
-    if (Math.abs(diff) > 0.01) {
+    if (Math.abs(diff) > threshold) {
       const companion = await this.prisma.companion.findUnique({
         where: { id: companionId },
         select: { user: { select: { username: true, displayName: true } } },
@@ -365,7 +369,8 @@ export class BillingService {
         systemTotal: roundToJiao(systemRevenue),
         reportedAmount: roundToJiao(reportedAmount),
         diff: roundToJiao(diff),
-        message: `${name} 今日实际服务 ${actualHours.toFixed(1)} 小时，系统预估流水 ¥${roundToJiao(systemRevenue)}，转公户 ¥${roundToJiao(reportedAmount)}，差额 ¥${roundToJiao(diff)}`,
+        anomaly: true,
+        message: `⚠️ ${name} 报账异常：系统预估 ¥${roundToJiao(systemRevenue)}，实际 ¥${roundToJiao(reportedAmount)}，差额 ¥${roundToJiao(diff)}（超过阈值 ¥${threshold}）`,
         timestamp: new Date().toISOString(),
       });
     }

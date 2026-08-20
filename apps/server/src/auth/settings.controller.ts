@@ -86,6 +86,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'anomaly.hours_drop_percent': 50,
   'anomaly.spend_drop_percent': 50,
   'anomaly.price_tier_downgrade_enabled': true,
+  'billing.report_diff_warning_yuan': 10,
   'dispatch.bridge_immediate_window_sec': 60,
   'dispatch.top_tier_daily_new_limit': 999,
   'dispatch.middle_tier_daily_new_limit': 2,
