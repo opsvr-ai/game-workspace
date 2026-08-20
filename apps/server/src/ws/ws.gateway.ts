@@ -53,7 +53,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
 
   /** companionId -> socketId */
-  private companionSockets = new Map<string, string>();
+  private companionSockets = new Map<string, Set<string>>();
   /** userId -> socketId */
   private userSockets = new Map<string, string>();
 
@@ -126,7 +126,10 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (user.companionId) {
         void client.join(`companion:${user.companionId}`);
         void client.join(`pc:${user.companionId}`);
-        this.companionSockets.set(user.companionId, client.id);
+        if (!this.companionSockets.has(user.companionId)) {
+          this.companionSockets.set(user.companionId, new Set());
+        }
+        this.companionSockets.get(user.companionId)!.add(client.id);
         logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
         void this.pushCurrentBlacklist(user.companionId, user.studioId);
         void this.syncManagedPc(client.handshake.address, user.username);
@@ -160,7 +163,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user) return;
     this.userSockets.delete(user.id);
     if (!user.companionId) return;
-    this.companionSockets.delete(user.companionId);
+    const sockets = this.companionSockets.get(user.companionId);
+    if (sockets) {
+      sockets.delete(client.id);
+      if (sockets.size === 0) {
+        this.companionSockets.delete(user.companionId);
+      } else {
+        // 还有其他连接（主进程/页面），先不下线
+        logger.info('Companion partial disconnect', { companionId: user.companionId, remaining: sockets.size });
+        return;
+      }
+    }
     logger.info('Companion disconnected', { companionId: user.companionId });
 
     await this.prisma.companion
@@ -342,8 +355,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ── outbound ───────────────────────────────────────────────────────
 
   sendCommand(companionId: string, command: string, params?: unknown): boolean {
-    const socketId = this.companionSockets.get(companionId);
-    if (!socketId) {
+    const sockets = this.companionSockets.get(companionId);
+    if (!sockets || sockets.size === 0) {
       logger.warn('SEND pc:command FAILED (offline)', { companionId, command });
       return false;
     }
