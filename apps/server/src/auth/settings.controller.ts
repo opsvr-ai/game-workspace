@@ -101,7 +101,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.low_tier_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   'dispatch.studio_share_percent': 30,
-  // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）
+  // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，上等马线50）
   'excellence.revenue_weight': 50,
   'excellence.revenue_cap_yuan': 10000,
   'excellence.renew_weight': 20,
@@ -176,7 +176,7 @@ export class SettingsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async updateConfig(@Body() body: Record<string, any>): Promise<ApiResponse<unknown>> {
-    // 校验综合评分权重：四项满分之和不能超过 100，优秀线不能超过总分。
+    // 校验综合评分权重：四项满分之和不能超过 100，上等马线不能超过总分。
     const weightKeys = [
       'excellence.revenue_weight',
       'excellence.renew_weight',
@@ -200,7 +200,7 @@ export class SettingsController {
       if (body['excellence.excellent_threshold'] !== undefined) {
         const t = Number(body['excellence.excellent_threshold']);
         if (!Number.isFinite(t) || t < 0 || t > total) {
-          throw new BadRequestException(`优秀线需在 0~${total} 分之间`);
+          throw new BadRequestException(`上等马线需在 0~${total} 分之间`);
         }
       }
     }

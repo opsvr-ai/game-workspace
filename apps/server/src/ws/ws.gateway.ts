@@ -450,7 +450,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  /** 只推送给「空闲且优秀」的线下陪玩，返回实际推送人数。 */
+  /** 只推送给「空闲且上等马」的线下陪玩，返回实际推送人数。 */
   async broadcastToQualifiedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
       const idle = await this.prisma.companion.findMany({

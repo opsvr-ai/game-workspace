@@ -48,7 +48,7 @@ const DispatchCommissionSettings: React.FC = () => {
     try {
       await configApi.update({
         'dispatch.studio_share_percent': config?.['dispatch.studio_share_percent'] ?? 30,
-        'dispatch.nonqualified_daily_new_limit': config?.['dispatch.nonqualified_daily_new_limit'] ?? 1,
+        'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'] ?? 1,
         'dispatch.bridge_immediate_window_sec': config?.['dispatch.bridge_immediate_window_sec'] ?? 60,
         'dispatch.bridge_return_jimi_cents': Math.round((config?.['dispatch.bridge_return_jimi_cents'] ?? 100)),
         'dispatch.bridge_return_jueju_cents': Math.round((config?.['dispatch.bridge_return_jueju_cents'] ?? 1500)),
@@ -92,7 +92,7 @@ const DispatchCommissionSettings: React.FC = () => {
         <Row gutter={24}>
           <Col span={12}>
             <Field label="工作室分成比例（%）" value={config?.['dispatch.studio_share_percent'] ?? 30} step={1} max={100} onChange={(v) => update('dispatch.studio_share_percent', v)} suffix="用于算盈亏平衡" />
-            <Field label="不优秀每日新客名额" value={config?.['dispatch.nonqualified_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.nonqualified_daily_new_limit', v)} suffix="兜底名额" />
+            <Field label="下等马每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="兜底名额" />
             <Field label="线上响应窗口（秒）" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
             <Field label="线下续购比例（%）" value={config?.['commission.cs_offline_rate_percent'] ?? 0.5} step={0.1} max={100} onChange={(v) => update('commission.cs_offline_rate_percent', v)} />
           </Col>

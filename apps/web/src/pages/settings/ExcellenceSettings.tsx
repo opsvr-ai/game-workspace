@@ -60,7 +60,7 @@ const ExcellenceSettings: React.FC = () => {
       return;
     }
     if (thresholdInvalid) {
-      message.error(`优秀线不能超过满分（当前满分 ${totalWeight} 分）`);
+      message.error(`上等马线不能超过满分（当前满分 ${totalWeight} 分）`);
       return;
     }
     setSaving(true);
@@ -104,13 +104,13 @@ const ExcellenceSettings: React.FC = () => {
         }
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          综合分 = 月流水分 + 续单率分 + 复购率分 + 首单成功率分 + 战绩图加分；达到「优秀线」进入优秀行列。
+          综合分 = 月流水分 + 续单率分 + 复购率分 + 首单成功率分 + 战绩图加分；达到「上等马线」进入上等马。
         </Text>
         {weightInvalid && (
           <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`四项权重满分之和不能超过 100 分（当前 ${totalWeight} 分）`} />
         )}
         {thresholdInvalid && (
-          <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`优秀线不能超过满分（当前满分 ${totalWeight} 分）`} />
+          <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`上等马线不能超过满分（当前满分 ${totalWeight} 分）`} />
         )}
         <Row gutter={24}>
           <Col span={12}>
@@ -118,14 +118,14 @@ const ExcellenceSettings: React.FC = () => {
               <Field key={w.key} label={w.label} value={config?.[w.key] ?? w.def} step={1} max={100} onChange={(v) => update(w.key, v)} />
             ))}
             <Field label="月流水满分金额（元）" value={config?.['excellence.revenue_cap_yuan'] ?? 10000} step={100} onChange={(v) => update('excellence.revenue_cap_yuan', v)} suffix="达到此金额即满分" />
-            <Field label="优秀线（分）" value={threshold} step={1} max={100} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入优秀" />
+            <Field label="上等马线（分）" value={threshold} step={1} max={100} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
             <Field label="中等马线（分）" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} max={100} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
           </Col>
           <Col span={12}>
             <Field label="战绩图每组加分（分）" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
-            <Field label="优秀（上等马）每日新客名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} />
-            <Field label="普通（中等马）每日新客名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} />
-            <Field label="不优秀（下等马）每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} />
+            <Field label="上等马每日新客名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} />
+            <Field label="中等马每日新客名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} />
+            <Field label="下等马每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} />
             <Field label="每日有效客户名额" value={config?.['pool.daily_customer_quota'] ?? 3} step={1} onChange={(v) => update('pool.daily_customer_quota', v)} />
             <Field label="每日抢单上限" value={config?.['pool.daily_grab_limit'] ?? 20} step={1} onChange={(v) => update('pool.daily_grab_limit', v)} />
             <div style={{ marginTop: 16 }}>

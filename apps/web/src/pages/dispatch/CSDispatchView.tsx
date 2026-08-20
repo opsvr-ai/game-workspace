@@ -48,9 +48,18 @@ interface Personnel {
   status?: CompanionStatus | null;
   lastHeartbeat?: string | null;
   isExcellent?: boolean;
+  tier?: 'TOP' | 'MIDDLE' | 'LOW';
   rankScore?: number;
   games?: any[];
 }
+
+const TIER_LABEL: Record<string, { label: string; color: string; emoji: string }> = {
+  TOP: { label: '上等马', color: '#D4A017', emoji: '🏇' },
+  MIDDLE: { label: '中等马', color: '#3B82F6', emoji: '🐎' },
+  LOW: { label: '下等马', color: '#94A3B8', emoji: '🐴' },
+};
+
+const TIER_ORDER: Record<string, number> = { TOP: 0, MIDDLE: 1, LOW: 2 };
 
 interface PoolOrder {
   id: string;
@@ -334,9 +343,9 @@ const CSDispatchView: React.FC = () => {
         const aMsg = conversations[a.id]?.unreadCount > 0 ? 1 : 0;
         const bMsg = conversations[b.id]?.unreadCount > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
-        const aExc = a.isExcellent ? 1 : 0;
-        const bExc = b.isExcellent ? 1 : 0;
-        if (aExc !== bExc) return bExc - aExc;
+        const aTier = TIER_ORDER[a.tier ?? 'LOW'] ?? 2;
+        const bTier = TIER_ORDER[b.tier ?? 'LOW'] ?? 2;
+        if (aTier !== bTier) return aTier - bTier;
         const aScore = a.rankScore ?? 0;
         const bScore = b.rankScore ?? 0;
         if (aScore !== bScore) return bScore - aScore;
@@ -534,8 +543,19 @@ const CSDispatchView: React.FC = () => {
                             >
                               {c.displayName || c.username || c.id}
                             </span>
-                            {c.isExcellent && (
-                              <span title="优秀" style={{ color: '#FAAD14', fontSize: 13, lineHeight: 1, flexShrink: 0 }}>⭐</span>
+                            {c.tier && (
+                              <span
+                                title={TIER_LABEL[c.tier]?.label}
+                                style={{
+                                  color: TIER_LABEL[c.tier]?.color,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  lineHeight: 1,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {TIER_LABEL[c.tier]?.emoji} {TIER_LABEL[c.tier]?.label}
+                              </span>
                             )}
                             {hasUnread && (
                               <span

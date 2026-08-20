@@ -189,7 +189,7 @@ export class OrdersService {
             select: { id: true },
           });
           if (!stillPending) return;
-          // 3. 线下普通空闲
+          // 3. 线下中等马/下等马空闲
           const localSent = await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
           if (localSent === 0) {
             // 4. 线上俱乐部（RENTAL）空闲
@@ -204,7 +204,7 @@ export class OrdersService {
         if (bridgeDirectSent === 0) {
           await fallbackToLocalAndOnline();
         } else {
-          // 桥接线下限时内未接，则回落到线下普通 → 线上俱乐部
+          // 桥接线下限时内未接，则回落到线下中等马/下等马 → 线上俱乐部
           setTimeout(() => {
             void fallbackToLocalAndOnline();
           }, bridgeWindowSec * 1000);

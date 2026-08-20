@@ -117,7 +117,7 @@ const OrderPoolPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // 周期轮询：普通陪玩要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新
+  // 周期轮询：中等马/下等马要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新
   useEffect(() => {
     const timer = setInterval(() => fetchData(true), 10000);
     return () => clearInterval(timer);

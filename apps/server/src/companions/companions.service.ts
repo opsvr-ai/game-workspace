@@ -85,6 +85,7 @@ export class CompanionsService {
       lastHeartbeat: u.companion?.pc?.lastHeartbeat ?? csSeen.get(u.id) ?? null,
       currentMode: u.companion?.pc?.currentMode ?? null,
       isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,
+      tier: u.companion ? excellence.get(u.companion.id)?.tier ?? 'LOW' : 'LOW',
       rankScore: u.companion ? excellence.get(u.companion.id)?.rankScore ?? 0 : 0,
       renewRate: u.companion ? excellence.get(u.companion.id)?.renewRate ?? 0 : 0,
       repurchaseRate: u.companion ? excellence.get(u.companion.id)?.repurchaseRate ?? 0 : 0,

@@ -16,9 +16,9 @@ export interface ExcellenceResult {
 }
 
 /**
- * 陪玩优秀综合分统一计算：
+ * 陪玩段位综合分统一计算：
  * 综合分 = 月流水(50%) + 续单率(20%) + 复购率(20%) + 首单成功率(10%)。
- * 该口径同时用于管理端「⭐优秀」标记与订单池「优秀陪玩立刻看到」的延迟判断。
+ * 该口径同时用于管理端「上等马/中等马/下等马」标记与订单池「上等马立刻看到」的延迟判断。
  */
 @Injectable()
 export class ExcellenceService {
@@ -28,7 +28,7 @@ export class ExcellenceService {
     const result = new Map<string, ExcellenceResult>();
     if (companionIds.length === 0) return result;
 
-    // 评分权重可后台配置（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）
+    // 评分权重可后台配置（默认：月流水50 + 续单20 + 复购20 + 首单10，上等马线50）
     const [rwCfg, rcCfg, renewCfg, repurchaseCfg, firstCfg, thresholdCfg, middleCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_weight' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_cap_yuan' } }),

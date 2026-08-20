@@ -94,7 +94,7 @@ export class OrderWorkflowService {
       throw new ForbiddenException('不能抢自己发布的订单');
     }
 
-    // 新客首单：线下不优秀陪玩不能抢，避免新客被浪费
+    // 新客首单：线下非上等马陪玩不能抢，避免新客被浪费
     if (order.type === 'NEW' && companion.studioId === order.studioId) {
       const ex = await this.excellence.computeOne(companionId);
       const tier = ex.tier || 'LOW';

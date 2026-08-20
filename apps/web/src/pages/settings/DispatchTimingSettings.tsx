@@ -26,10 +26,10 @@ const DispatchTimingSettings: React.FC = () => {
   return (
     <Card size="small">
       <Typography.Title level={5} style={{ marginTop: 0 }}>按照陪玩等级看到订单等待时间</Typography.Title>
-      <Typography.Text type="secondary">优秀陪玩立即看到，其他线下陪玩等待后可看到，桥接工作室最后看到。</Typography.Text>
+      <Typography.Text type="secondary">上等马立即看到，其他段位陪玩等待后可看到，桥接工作室最后看到。</Typography.Text>
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-        <Form.Item name="pool.priority_delay_seconds" label="优秀陪玩等待（秒）"><InputNumber min={0} /></Form.Item>
-        <Form.Item name="pool.offline_delay_seconds" label="其他线下陪玩等待（秒）"><InputNumber min={0} /></Form.Item>
+        <Form.Item name="pool.priority_delay_seconds" label="上等马等待（秒）"><InputNumber min={0} /></Form.Item>
+        <Form.Item name="pool.offline_delay_seconds" label="其他段位陪玩等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.bridge_delay_seconds" label="桥接工作室等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.online_delay_seconds" label="线上俱乐部等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.immediate_disappear_minutes" label="立即打订单消失时间（分钟）"><InputNumber min={0} /></Form.Item>
