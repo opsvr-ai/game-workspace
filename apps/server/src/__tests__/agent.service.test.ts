@@ -121,7 +121,7 @@ describe('AgentService', () => {
     it('should reject malformed server URLs when generating scripts', () => {
       const script = service.generateDeployScript('http://192.168.1.2:3001 bad path');
 
-      expect(script).toContain(`$url = 'http://127.0.0.1:3001/api/agent/download/latest'`);
+      expect(script).toContain(`$url = 'http://127.0.0.1:3001/api/agent/download/exe'`);
     });
   });
 });
