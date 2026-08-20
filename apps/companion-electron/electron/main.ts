@@ -327,6 +327,12 @@ function setupIPC(): void {
     await collectAndReportProcesses(token);
     return { success: true };
   });
+  // 系统通知：陪玩端最小化/在打游戏时也能弹出 Windows 通知（搭档邀请、订单提醒等）。
+  ipcMain.on('notify', (_e, title: string, body: string) => {
+    try {
+      new Notification({ title: String(title || '蠢驴电竞'), body: String(body || '') }).show();
+    } catch {}
+  });
 }
 
 // ── Lifecycle ──

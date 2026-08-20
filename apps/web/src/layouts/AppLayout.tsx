@@ -16,7 +16,7 @@ import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
-import { showSystemNotification } from '../utils/notify';
+import { showSystemNotification, playNotificationSound } from '../utils/notify';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
@@ -675,6 +675,7 @@ const AppLayout: React.FC = () => {
       });
       setTimeout(() => notification.destroy(nk), ttl * 1000);
       showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
+      playNotificationSound();
     },
     onPartnerAccepted: (data: any) => {
       notification.success({
@@ -734,6 +735,7 @@ const AppLayout: React.FC = () => {
       });
       setTimeout(() => notification.destroy(nk), ttl * 1000);
       showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
+      playNotificationSound();
     },
     onDualInviteExpired: (data: any) => {
       const sid = data?.sessionId;
