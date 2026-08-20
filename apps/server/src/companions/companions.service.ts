@@ -320,7 +320,7 @@ export class CompanionsService {
       where: { companionId, createdAt: { gte: start } },
       include: {
         coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
-        parentOrder: { select: { id: true, gameName: true, orderCode: true, customerId: true, type: true, customFields: true, customer: { select: { wechatId: true } } } },
+        parentOrder: { select: { id: true, gameName: true, orderCode: true, customerId: true, type: true, serviceType: true, customFields: true, customer: { select: { wechatId: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -330,6 +330,7 @@ export class CompanionsService {
       parentOrderId: s.parentOrder?.id,
       gameName: s.parentOrder?.gameName,
       orderCode: s.parentOrder?.orderCode,
+      serviceType: s.parentOrder?.serviceType || (s.parentOrder?.customFields as any)?.serviceType || 'PLAY_WITH',
       customerWechat: s.parentOrder?.customer?.wechatId || (s.parentOrder?.customFields as any)?.customerWechat || '',
       amount: s.amount,
       coAmount: s.coAmount,

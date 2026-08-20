@@ -40,6 +40,7 @@ import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
 import CardSkeleton from '../components/CardSkeleton';
 import TransactionReviewSection from '../components/TransactionReviewSection';
+import { serviceTypeConfig } from '../constants/orders';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -561,6 +562,7 @@ const BillingOverview: React.FC = () => {
                   gameName: s.gameName,
                   customerWechat: s.customerWechat,
                   duration: s.duration,
+                  serviceType: s.serviceType,
                   claimedMode: s.claimedMode,
                   claimedPrice: s.claimedPrice,
                   transferScreenshotUrl: s.transferScreenshotUrl,
@@ -680,6 +682,9 @@ const BillingOverview: React.FC = () => {
                           {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
                         <Text>{o.gameName}</Text>
+                        {o.serviceType && serviceTypeConfig[o.serviceType] && (
+                          <Tag color={serviceTypeConfig[o.serviceType].color} style={{ fontSize: 10, margin: 0 }}>{serviceTypeConfig[o.serviceType].label}</Tag>
+                        )}
                         {o.claimedMode && <Tag color="geekblue" style={{ fontSize: 10, margin: 0 }}>{o.claimedMode}</Tag>}
                         {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>搭档：{o.coName}</Tag>}
                       </Space>
