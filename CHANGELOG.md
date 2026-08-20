@@ -109,6 +109,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **语音通话接听失败主叫方卡在“拨打中”:** 之前被叫方点击接听但麦克风授权失败/接听出错时，只在本机提示、没有通知主叫方挂断，导致主叫方一直显示“正在呼叫”且无任何提示。现已改为：接听失败时主动通知主叫方挂断；主叫方收到挂断会提示“对方已挂断”；同时加入 45 秒振铃/呼叫超时，无人接听时主叫方提示“对方无应答”并自动结束，双方不会再无限挂着。
+
 - **全网电脑频繁卡顿/客户端闪退（自动更新死循环）:** 自动更新的下载地址被指向 NSIS 安装器（或过期 zip），而 SystemHelper 服务按 zip 解压覆盖安装目录，导致客户端反复「检测到新版本→写更新信号→退出→看门狗重启→再检测」；每台电脑每几秒重复下载约 90MB 安装包，拖垮网络和本机，连带把游戏带闪退。现已改为：`/api/agent/download/latest` 固定返回 win-unpacked 的 zip（供自动更新解压），安装器改到独立 `/api/agent/download/exe`（供全新安装/远程部署）；构建时自动生成并发布 `chunlv-latest.zip`；SystemHelper 更新失败时清掉更新信号并拉起客户端，不再无限重试。
 
 - **WebSocket 兼容 refreshToken:** 客户端主进程改用 refreshToken 后，WebSocket 网关增加对 refreshToken 的校验（原只认 accessToken），避免客户端更新后主进程连不上。

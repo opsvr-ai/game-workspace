@@ -13,6 +13,9 @@ interface CallState {
   volume?: number;
 }
 
+// 跟微信电脑版一致：振铃/呼叫超时自动结束，避免“对方无应答”时一直挂在那。
+const CALL_TIMEOUT_MS = 45_000;
+
 // Simple ringtone using oscillator (no external file needed)
 function playRingtone() {
   try {
@@ -65,6 +68,19 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ringtoneRef = useRef<{ stop: () => void } | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusRef = useRef<CallState['status']>('idle');
+
+  useEffect(() => {
+    statusRef.current = callState.status;
+  }, [callState.status]);
+
+  const clearCallTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
 
   const cleanup = useCallback(() => {
     ringtoneRef.current?.stop();
@@ -76,13 +92,29 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     remoteAudioRef.current?.pause();
     remoteAudioRef.current = null;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-  }, []);
+    clearCallTimeout();
+  }, [clearCallTimeout]);
 
   const getSocket = useCallback((): Socket => {
     const s = socketRef.current;
     if (!s) throw new Error('WebSocket未连接，请刷新页面重试');
     return s;
   }, [socketRef]);
+
+  // 主动结束通话（通知对方），并根据当前状态给出提示。
+  const endCall = useCallback((socket: Socket, peerId: string | undefined, silent = false) => {
+    try {
+      if (peerId) socket.emit('call:hangup', { targetUserId: peerId });
+    } catch {}
+    const prev = statusRef.current;
+    ringtoneRef.current?.stop();
+    cleanup();
+    setCallState({ status: 'idle' });
+    if (silent) return;
+    if (prev === 'calling') message.info('对方已挂断');
+    else if (prev === 'ringing') message.info('对方已取消通话');
+    else if (prev === 'connected') message.info('通话已结束');
+  }, [cleanup]);
 
   // Listen for incoming calls
   useEffect(() => {
@@ -91,8 +123,19 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     const onOffer = (data: any) => {
       ringtoneRef.current = playRingtone();
       setCallState({ status: 'ringing', peerId: data.fromUserId, peerName: data.callerName, volume: 80 });
+      // 长时间不接听自动结束，并通知主叫方，避免双方一直挂着。
+      clearCallTimeout();
+      timeoutRef.current = setTimeout(() => {
+        try {
+          if (data.fromUserId) socket.emit('call:hangup', { targetUserId: data.fromUserId });
+        } catch {}
+        ringtoneRef.current?.stop();
+        cleanup();
+        setCallState({ status: 'idle' });
+      }, CALL_TIMEOUT_MS);
     };
     const onAnswer = async (data: any) => {
+      clearCallTimeout();
       ringtoneRef.current?.stop();
       if (pcRef.current) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
@@ -105,9 +148,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       }
     };
     const onHangup = () => {
-      ringtoneRef.current?.stop();
-      cleanup();
-      setCallState({ status: 'idle' });
+      endCall(socket, undefined, false);
     };
     // 断线/重连时自动挂断并清理，避免“挂断不了”或残留通话
     const onDisconnect = () => {
@@ -127,11 +168,12 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       socket.off('call:hangup', onHangup);
       socket.off('disconnect', onDisconnect);
     };
-  }, [socketRef, cleanup]);
+  }, [socketRef, cleanup, endCall, clearCallTimeout]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
     try {
       const socket = getSocket();
+      clearCallTimeout();
       setCallState({ status: 'calling', peerId: targetUserId, peerName: targetUserName });
       const media = navigator.mediaDevices;
       if (!media?.getUserMedia) {
@@ -168,6 +210,17 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       timerRef.current = setInterval(() => {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
+
+      // 45 秒无应答自动结束并提示主叫方。
+      timeoutRef.current = setTimeout(() => {
+        if (statusRef.current !== 'calling') return;
+        try {
+          socket.emit('call:hangup', { targetUserId });
+        } catch {}
+        cleanup();
+        setCallState({ status: 'idle' });
+        message.info('对方无应答，请稍后再试');
+      }, CALL_TIMEOUT_MS);
     } catch (err: any) {
       cleanup();
       setCallState({ status: 'idle' });
@@ -180,12 +233,13 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error(`通话失败: ${errMsg}`);
       }
     }
-  }, [getSocket, cleanup, callState.volume]);
+  }, [getSocket, cleanup, clearCallTimeout, callState.volume]);
 
   const acceptCall = useCallback(async () => {
     if (callState.status !== 'ringing' || !callState.peerId) return;
     try {
       const socket = getSocket();
+      clearCallTimeout();
       const media = navigator.mediaDevices;
       if (!media?.getUserMedia) {
         cleanup();
@@ -223,29 +277,36 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
     } catch (err: any) {
+      // 接听失败（例如没有麦克风权限）必须通知主叫方挂断，否则主叫方会一直显示“正在呼叫”。
+      try {
+        const socket = getSocket();
+        if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
+      } catch {}
       cleanup();
       setCallState({ status: 'idle' });
       message.error(`接听失败: ${err?.message || String(err)}`);
     }
-  }, [callState, getSocket, cleanup]);
+  }, [callState, getSocket, cleanup, clearCallTimeout]);
 
   const rejectCall = useCallback(() => {
+    clearCallTimeout();
     ringtoneRef.current?.stop();
     try {
       const socket = getSocket();
       if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
     } catch {}
     setCallState({ status: 'idle' });
-  }, [callState.peerId, getSocket]);
+  }, [callState.peerId, getSocket, clearCallTimeout]);
 
   const hangup = useCallback(() => {
+    clearCallTimeout();
     try {
       const socket = getSocket();
       if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
     } catch {}
     cleanup();
     setCallState({ status: 'idle' });
-  }, [callState.peerId, getSocket, cleanup]);
+  }, [callState.peerId, getSocket, cleanup, clearCallTimeout]);
 
   const setVolume = useCallback((v: number) => {
     localStorage.setItem('voice-volume', String(v));
