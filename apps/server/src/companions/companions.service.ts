@@ -229,6 +229,26 @@ export class CompanionsService {
     return { ...updated, entertainmentFee };
   }
 
+  /** 是否有“已开始的进行中服务会话”（作为主陪或副陪）。 */
+  async hasActiveServiceSession(companionId: string): Promise<boolean> {
+    const session = await this.prisma.orderSession.findFirst({
+      where: {
+        OR: [{ companionId }, { coCompanionId: companionId }],
+        status: 'ACTIVE',
+        startedAt: { not: null },
+      },
+      select: { id: true },
+    });
+    return !!session;
+  }
+
+  /** 上线/心跳时解析正确的在线状态：有进行中服务 → BUSY；原本离线 → AVAILABLE；否则保持原状态。 */
+  async resolvePresenceStatus(companionId: string, currentStatus?: string | null): Promise<string> {
+    if (await this.hasActiveServiceSession(companionId)) return 'BUSY';
+    if (!currentStatus || currentStatus === 'OFFLINE') return 'AVAILABLE';
+    return currentStatus;
+  }
+
   async getRanking(studioId: string, type: string) {
     return this.revenueService.getRanking(studioId, type);
   }

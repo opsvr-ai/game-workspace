@@ -143,9 +143,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const current = await this.prisma.companion
           .findUnique({ where: { id: user.companionId }, select: { status: true } })
           .catch(() => null);
+        const nextStatus = await this.companionsService.resolvePresenceStatus(
+          user.companionId,
+          current?.status,
+        );
         await this.prisma.companion.update({
           where: { id: user.companionId },
-          data: { status: current?.status === 'OFFLINE' ? 'AVAILABLE' : current?.status ?? 'AVAILABLE' },
+          data: { status: nextStatus },
         });
 
         // Record attendance on connection
@@ -154,7 +158,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (user.studioId) {
           this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
             companionId: user.companionId,
-            status: current?.status === 'OFFLINE' ? 'AVAILABLE' : current?.status ?? 'AVAILABLE',
+            status: nextStatus,
           });
         }
       }
@@ -182,10 +186,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     logger.info('Companion disconnected', { companionId: user.companionId });
 
+    // 进行中服务断线：保持 BUSY，不刷成离线，避免重连/心跳时又被重置为空闲。
+    const inService = await this.companionsService.hasActiveServiceSession(user.companionId).catch(() => false);
+    const disconnectStatus = inService ? 'BUSY' : 'OFFLINE';
     await this.prisma.companion
       .update({
         where: { id: user.companionId },
-        data: { status: 'OFFLINE' },
+        data: { status: disconnectStatus },
       })
       .catch((err) => {
         logger.error('Failed to update companion status on disconnect', {
@@ -200,7 +207,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (user.studioId) {
       this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
         companionId: user.companionId,
-        status: 'OFFLINE',
+        status: disconnectStatus,
       });
     }
   }

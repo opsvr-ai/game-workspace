@@ -419,12 +419,13 @@ export class CompanionsController {
     // 1. 更新在线状态（仅当离线时设为在线，避免覆盖用户主动设置的状态）
     const companion = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { status: true } });
     const currentStatus = companion?.status || 'UNKNOWN';
-    if (!companion || companion.status === 'OFFLINE') {
+    const nextStatus = await this.companionsService.resolvePresenceStatus(companionId, companion?.status);
+    if (!companion || nextStatus !== currentStatus) {
       await this.prisma.companion.update({
         where: { id: companionId },
-        data: { status: 'AVAILABLE' },
+        data: { status: nextStatus },
       });
-      logger.info('Heartbeat set AVAILABLE (was offline)', { companionId, previousStatus: currentStatus });
+      logger.info('Heartbeat presence resolved', { companionId, previousStatus: currentStatus, nextStatus });
     } else {
       logger.debug('Heartbeat status preserved', { companionId, status: currentStatus });
     }
@@ -467,12 +468,12 @@ export class CompanionsController {
     if (req.user.studioId) {
       this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
         companionId,
-        status: 'AVAILABLE',
+        status: nextStatus,
         mode: body.currentMode,
       });
     }
 
-    return { code: 200, message: 'ok', data: { companionId, status: 'AVAILABLE' } };
+    return { code: 200, message: 'ok', data: { companionId, status: nextStatus } };
   }
 
   // 踢出陪玩：强制下线
