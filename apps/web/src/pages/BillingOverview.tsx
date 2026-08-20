@@ -624,7 +624,7 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报今日流水" open={reportVisible} width={750}
+      <Modal title="📋 上报今日流水" open={reportVisible} width={1150}
         onOk={async () => {
           setReportSubmitting(true);
           try {
@@ -657,17 +657,17 @@ const BillingOverview: React.FC = () => {
             今天还没有已完成的订单
           </div>
         ) : (
-          <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 620, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>时间</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>游戏</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B' }}>客户</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 70 }}>时间</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 300 }}>游戏</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 140 }}>客户</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#64748B', width: 60 }}>时长</th>
                   <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B', width: 120 }}>金额 (¥)</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#64748B', width: 140 }}>截图</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 180 }}>备注（为什么流水低/计时长）</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 240 }}>备注（为什么流水低/计时长）</th>
                 </tr>
               </thead>
               <tbody>
