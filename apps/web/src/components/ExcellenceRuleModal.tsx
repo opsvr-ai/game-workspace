@@ -23,9 +23,9 @@ interface Excellence {
 }
 
 const TIER: Record<string, { label: string; color: string; emoji: string }> = {
-  TOP: { label: '上等马', color: 'gold', emoji: '🏇' },
-  MIDDLE: { label: '中等马', color: 'blue', emoji: '🐎' },
-  LOW: { label: '下等马', color: 'default', emoji: '🐴' },
+  TOP: { label: '上等马（优秀）', color: 'gold', emoji: '🏇' },
+  MIDDLE: { label: '中等马（一般）', color: 'blue', emoji: '🐎' },
+  LOW: { label: '下等马（不优秀）', color: 'default', emoji: '🐴' },
 };
 
 const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
@@ -92,8 +92,8 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
           <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马（优秀）权益</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
             <li>🏇 上等马（≥ 50 分，优秀）：享受下面全部权益。</li>
-            <li>🐎 中等马（25~49 分）：普通权益。</li>
-            <li>🐴 下等马（&lt; 25 分）：需加油提升。</li>
+            <li>🐎 中等马（25~49 分，一般）：普通权益。</li>
+            <li>🐴 下等马（&lt; 25 分，不优秀）：需加油提升。</li>
           </ul>
           <Title level={5} style={{ marginTop: 16 }}>上等马（优秀）好处</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
