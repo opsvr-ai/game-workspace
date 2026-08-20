@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Spin, Tag, Descriptions, Alert, Space, Typography } from 'antd';
 import { CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
+import TierHorseIcon from './TierHorseIcon';
 
 const { Text, Title } = Typography;
 
@@ -61,7 +62,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               message={
                 <Space>
                   <span>我的综合分：<b>{data.rankScore ?? 0}</b> 分</span>
-                  <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}>{tier.emoji} {tier.label}</Tag>
+                  <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={data?.tier || 'LOW'} /> {tier.label}</Tag>
                 </Space>
               }
               description={data.tier === 'TOP'
@@ -91,7 +92,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
 
           <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马权益</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
-            <li>👑🏇 上等马（≥ 50 分）：享受下面全部权益。</li>
+            <li><TierHorseIcon tier="TOP" /> 上等马（≥ 50 分）：享受下面全部权益。</li>
             <li>🐎 中等马（25~49 分）：一般权益。</li>
             <li>🐴 下等马（&lt; 25 分）：需加油提升。</li>
           </ul>

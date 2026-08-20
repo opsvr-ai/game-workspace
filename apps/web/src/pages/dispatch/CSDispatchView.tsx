@@ -31,6 +31,7 @@ import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
+import TierHorseIcon from '../../components/TierHorseIcon';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields } from '../../utils/orderPool';
@@ -554,7 +555,7 @@ const CSDispatchView: React.FC = () => {
                                   flexShrink: 0,
                                 }}
                               >
-                                {TIER_LABEL[c.tier]?.emoji} {TIER_LABEL[c.tier]?.label}
+                                <TierHorseIcon tier={c.tier} /> {TIER_LABEL[c.tier]?.label}
                               </span>
                             )}
                             {hasUnread && (
