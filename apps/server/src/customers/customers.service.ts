@@ -7,6 +7,7 @@ export interface CreateCustomerDto {
   wechatId: string;
   studioId: string;
   companionId?: string;
+  isLegacy?: boolean;
   customerCode?: string;
   platform?: string;
   platformAccount?: string;
@@ -151,6 +152,7 @@ export class CustomersService {
         customerCode,
         wechatId: data.wechatId,
         companionId: data.companionId ?? null,
+        isLegacy: data.isLegacy ?? false,
         platform: data.platform ?? null,
         platformAccount: data.platformAccount ?? null,
         consultDate: data.consultDate ? new Date(data.consultDate) : null,

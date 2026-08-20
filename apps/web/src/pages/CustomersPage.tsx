@@ -67,6 +67,7 @@ interface Customer {
   notes: string;
   totalSpent: number;
   status: string;
+  isLegacy?: boolean;
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
@@ -77,6 +78,11 @@ interface CompanionOption {
   id: string;
   username: string;
   status?: string;
+}
+
+// 是否已经“打过首单”：自己录入的老客户视为已打过；系统抢来的要有已完成的首单(NEW/DONE)。
+function hasFirstOrder(c: Customer): boolean {
+  return !!c.isLegacy || !!(c.orders?.some((o) => o.type === 'NEW' && o.status === 'DONE'));
 }
 
 const CustomersPage: React.FC = () => {
@@ -626,7 +632,11 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               } else {
-                message.warning('当前没有进行中的服务，无法续单');
+                if (!hasFirstOrder(record)) {
+                  message.warning('该客户第一次消费，请选择首单');
+                } else {
+                  message.warning('当前没有进行中的服务，无法续单');
+                }
               }
             }}
           >
@@ -635,6 +645,10 @@ const CustomersPage: React.FC = () => {
           <Button
             size="small"
             onClick={() => {
+              if (!hasFirstOrder(record)) {
+                message.warning('该客户第一次消费，请选择首单');
+                return;
+              }
               setStartServiceOrder({
                 customerId: record.id,
                 gameName: record.orders?.[0]?.gameName,

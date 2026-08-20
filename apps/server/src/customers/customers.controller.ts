@@ -60,6 +60,7 @@ export class CustomersController {
       ...dto,
       studioId: dto.studioId || user?.studioId || '',
       companionId: dto.companionId ?? (user?.role === 'COMPANION' ? user?.companionId ?? null : null),
+      isLegacy: dto.isLegacy ?? (user?.role === 'COMPANION'),
     });
     return { code: 200, message: 'ok', data };
   }

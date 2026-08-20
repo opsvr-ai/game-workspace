@@ -287,6 +287,7 @@ model Customer {
   wechatAddDate       DateTime?
   isAccountBanned     Boolean   @default(false)
   isDeletedByCustomer Boolean   @default(false)
+  isLegacy            Boolean   @default(false)
   notes               String?
   totalSpent          Float     @default(0)
   scheduledAt         DateTime?
