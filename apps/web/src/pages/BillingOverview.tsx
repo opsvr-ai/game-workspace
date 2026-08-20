@@ -106,10 +106,6 @@ const BillingOverview: React.FC = () => {
   const reportSystemTotal = todayOrders.reduce((s: number, o: any) => s + (Number(o.systemAmount) || 0), 0);
   const reportActualTotal = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
   const reportDiff = reportActualTotal - reportSystemTotal;
-  const [transferVisible, setTransferVisible] = useState(false);
-  const [transferAmount, setTransferAmount] = useState<number | null>(null);
-  const [transferScreenshot, setTransferScreenshot] = useState('');
-  const [transferSubmitting, setTransferSubmitting] = useState(false);
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
@@ -597,11 +593,6 @@ const BillingOverview: React.FC = () => {
                 setReportVisible(true);
               }).catch(()=>{});
             }}>上报今日流水</Button>
-              <Button type="primary" icon={IconBank} onClick={() => {
-                setTransferAmount(null);
-                setTransferScreenshot('');
-                setTransferVisible(true);
-              }}>转公户</Button>
               <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>申请支取</Button>
             </Space>
           )}
@@ -637,7 +628,7 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报今日流水" open={reportVisible} width={1400}
+      <Modal title="📋 上报今日流水" open={reportVisible} width={1600}
         onOk={async () => {
           const total = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
           if (total <= 0) {
@@ -683,15 +674,15 @@ const BillingOverview: React.FC = () => {
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 44 }}>序号</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 240 }}>订单</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 460 }}>订单</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>开始时间</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>结束时间</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 70 }}>时长</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 80 }}>服务</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 60 }}>模式</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 90 }}>单价</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>系统应上报</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>实际</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>应报（系统）</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>实际到账</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 180 }}>备注</th>
                 </tr>
               </thead>
@@ -699,18 +690,16 @@ const BillingOverview: React.FC = () => {
                 {todayOrders.map((o: any, idx: number) => (
                   <tr key={o.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
                     <td style={{ padding: '8px 10px', fontSize: 12, color: '#94A3B8' }}>{idx + 1}</td>
-                    <td style={{ padding: '8px 10px', fontSize: 12 }}>
-                      <Space size={4} wrap>
+                    <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Space size={4} style={{ flexWrap: 'nowrap' }}>
                         <Text>{o.gameName}</Text>
                         <Tag color={o.type === 'NEW' ? 'green' : o.type === 'RENEW' ? 'blue' : o.type === 'REPURCHASE' ? 'purple' : 'orange'} style={{ fontSize: 10, margin: 0 }}>
                           {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
                         <Tag color={o.dual ? 'magenta' : 'cyan'} style={{ fontSize: 10, margin: 0 }}>{o.dual ? '双陪' : '单陪'}</Tag>
-                        {o.isPartner && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>副陪</Tag>}
                         <Tag color="green" style={{ fontSize: 10, margin: 0 }}>主陪：{o.mainName || '-'}</Tag>
                         {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>副陪：{o.coName}</Tag>}
                       </Space>
-                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{o.customerWechat || '-'}</div>
                     </td>
                     <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>{o.startedAt ? dayjs(o.startedAt).format('YYYY-MM-DD HH:mm') : '-'}</td>
                     <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>{o.endedAt ? dayjs(o.endedAt).format('YYYY-MM-DD HH:mm') : '-'}</td>
@@ -747,8 +736,8 @@ const BillingOverview: React.FC = () => {
           <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, marginTop: 12 }}>
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
               <Text>共 {todayOrders.length} 单</Text>
-              <Text>系统应报总额：<b style={{ color: '#2563EB' }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
-              <Text>实际报账总额：<b style={{ color: '#16A34A' }}>¥{reportActualTotal.toFixed(1)}</b></Text>
+              <Text>应报总额（系统）：<b style={{ color: '#2563EB' }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
+              <Text>实际总额（陪玩填）：<b style={{ color: '#16A34A' }}>¥{reportActualTotal.toFixed(1)}</b></Text>
               <Text>
                 差额：
                 <b style={{ color: Math.abs(reportDiff) < 0.01 ? '#16A34A' : '#F59E0B' }}>
@@ -777,91 +766,6 @@ const BillingOverview: React.FC = () => {
       </Modal>
 
       {/* Company Transfer Modal */}
-      <Modal
-        title="🏦 转公户（当日实际流水最终口径）"
-        open={transferVisible}
-        onOk={async () => {
-          if (!transferAmount || transferAmount <= 0) {
-            message.warning('请填写业绩金额');
-            return;
-          }
-          if (!transferScreenshot) {
-            message.warning('请上传转给公户的转账截图');
-            return;
-          }
-          setTransferSubmitting(true);
-          try {
-            await http.post('/billing/company-transfer', {
-              amount: transferAmount,
-              screenshotUrl: transferScreenshot,
-            });
-            message.success('转公户已提交，以该金额作为今日实际流水');
-            setTransferVisible(false);
-            fetchOverview();
-            fetchDailyReports();
-          } catch (err: any) {
-            message.error(err?.response?.data?.message || '提交失败');
-          } finally {
-            setTransferSubmitting(false);
-          }
-        }}
-        onCancel={() => setTransferVisible(false)}
-        okText="提交"
-        cancelText="取消"
-        confirmLoading={transferSubmitting}
-        destroyOnClose
-      >
-        <div style={{ marginBottom: 12 }}>
-          <Text>业绩金额（今日实际转入公户的金额）</Text>
-          <InputNumber
-            min={0}
-            style={{ width: '100%', marginTop: 4 }}
-            value={transferAmount}
-            onChange={(v) => setTransferAmount(v || null)}
-            prefix="¥"
-            placeholder="例如 290"
-          />
-        </div>
-        <div>
-          <Text>转给公户的转账截图（必传，作为最终流水依据）</Text>
-          <div style={{ marginTop: 4 }}>
-            <Upload
-              showUploadList={false}
-              accept="image/*"
-              beforeUpload={async (file) => {
-                const fd = new FormData();
-                fd.append('file', file);
-                try {
-                  const res: any = await http.post('/upload/screenshot', fd);
-                  const url = res?.data?.data?.url || res?.data?.url;
-                  if (url) {
-                    setTransferScreenshot(url);
-                    message.success('截图已上传');
-                  } else {
-                    message.error('上传失败');
-                  }
-                } catch {
-                  message.error('上传失败');
-                }
-                return false;
-              }}
-            >
-              <Button icon={<UploadOutlined />}>
-                {transferScreenshot ? '重新上传截图' : '上传转账截图'}
-              </Button>
-            </Upload>
-            {transferScreenshot && (
-              <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>
-            )}
-          </div>
-        </div>
-        <div style={{ marginTop: 12, background: '#FFF7E6', borderRadius: 8, padding: 10 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            说明：每次开始服务/续单/复购上传的客户转账截图是参考；下班前转给公户的这笔金额才是当日实际流水，最终以这笔为准。
-          </Text>
-        </div>
-      </Modal>
-
       {/* Withdraw Modal */}
       <Modal
         title="申请支取"
