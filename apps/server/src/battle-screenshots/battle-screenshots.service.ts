@@ -11,14 +11,6 @@ export class BattleScreenshotsService {
     customerId?: string | null;
     images: string[];
   }) {
-    // 仅在陪玩「空闲」时允许上传，避免接单/服务中分心。
-    const companion = await this.prisma.companion.findUnique({
-      where: { id: params.companionId },
-      select: { status: true },
-    });
-    if (companion && companion.status !== 'AVAILABLE') {
-      throw new BadRequestException('仅空闲时可上传战绩图，请先结束当前服务/切换到空闲');
-    }
     if (!params.images || params.images.length < 3) {
       throw new BadRequestException('最少上传 3 张战绩图为一组');
     }
