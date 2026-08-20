@@ -432,17 +432,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<void> {
+  async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
       const idleCompanions = await this.prisma.companion.findMany({
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
       });
+      let sent = 0;
       for (const c of idleCompanions) {
         this.server.to(`companion:${c.id}`).emit(event, data);
+        sent += 1;
       }
+      return sent;
     } catch (err) {
       logger.error('broadcastToIdleCompanions failed', { error: (err as Error).message, studioId, event });
+      return 0;
     }
   }
 
@@ -485,6 +489,43 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return sent;
     } catch (err) {
       logger.error('broadcastToBridgedIdleCompanions failed', { error: (err as Error).message, studioId, event });
+      return 0;
+    }
+  }
+
+  /** 推送给桥接工作室中指定类型（DIRECT=线下 / RENTAL=线上俱乐部）的空闲陪玩，返回实际推送人数。 */
+  async broadcastToBridgedIdleCompanionsByType(
+    studioId: string,
+    studioType: 'DIRECT' | 'RENTAL',
+    event: string,
+    data: unknown,
+  ): Promise<number> {
+    try {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      if (bridgedIds.length === 0) return 0;
+      const studios = await this.prisma.studio.findMany({
+        where: { id: { in: bridgedIds }, type: studioType },
+        select: { id: true },
+      });
+      let sent = 0;
+      for (const st of studios) {
+        const idle = await this.prisma.companion.findMany({
+          where: { studioId: st.id, status: 'AVAILABLE' },
+          select: { id: true },
+        });
+        for (const c of idle) {
+          this.server.to(`companion:${c.id}`).emit(event, data);
+          sent += 1;
+        }
+      }
+      return sent;
+    } catch (err) {
+      logger.error('broadcastToBridgedIdleCompanionsByType failed', {
+        error: (err as Error).message,
+        studioId,
+        studioType,
+        event,
+      });
       return 0;
     }
   }

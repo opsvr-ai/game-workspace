@@ -176,19 +176,37 @@ export class OrdersService {
       };
       const sent = await this.wsGateway.broadcastToQualifiedIdleCompanions(studioId, 'order:urgent', payload);
       if (sent === 0) {
-        const bridgeSent = await this.wsGateway.broadcastToBridgedIdleCompanions(studioId, 'order:urgent', payload);
-        if (bridgeSent === 0) {
-          await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+        // 2. 桥接线下（DIRECT）空闲
+        const bridgeDirectSent = await this.wsGateway.broadcastToBridgedIdleCompanionsByType(
+          studioId,
+          'DIRECT',
+          'order:urgent',
+          payload,
+        );
+        const fallbackToLocalAndOnline = async () => {
+          const stillPending = await this.prisma.order.findFirst({
+            where: { id: newOrder.id, status: 'PENDING' },
+            select: { id: true },
+          });
+          if (!stillPending) return;
+          // 3. 线下普通空闲
+          const localSent = await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
+          if (localSent === 0) {
+            // 4. 线上俱乐部（RENTAL）空闲
+            await this.wsGateway.broadcastToBridgedIdleCompanionsByType(
+              studioId,
+              'RENTAL',
+              'order:urgent',
+              payload,
+            );
+          }
+        };
+        if (bridgeDirectSent === 0) {
+          await fallbackToLocalAndOnline();
         } else {
-          // 线上有推送但限时内未接，则回落到线下普通空闲
-          setTimeout(async () => {
-            const stillPending = await this.prisma.order.findFirst({
-              where: { id: newOrder.id, status: 'PENDING' },
-              select: { id: true },
-            });
-            if (stillPending) {
-              await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
-            }
+          // 桥接线下限时内未接，则回落到线下普通 → 线上俱乐部
+          setTimeout(() => {
+            void fallbackToLocalAndOnline();
           }, bridgeWindowSec * 1000);
         }
       }
