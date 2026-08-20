@@ -1146,6 +1146,28 @@ export class OrdersService {
     if (session.companionId) {
       await this.prisma.companion.update({ where: { id: session.companionId }, data: { status: 'BUSY' } }).catch(() => {});
     }
+    // 搭档若在娱乐中接单：先结束娱乐计费并返回本次消费金额。
+    let entertainmentFee: number | null = null;
+    const partner = await this.prisma.companion.findUnique({
+      where: { id: partnerId },
+      select: { status: true },
+    }).catch(() => null);
+    if (partner?.status === 'ENTERTAINMENT') {
+      const openLog = await this.prisma.companionTimeLog.findFirst({
+        where: { companionId: partnerId, mode: 'ENTERTAINMENT', endedAt: null },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (openLog) {
+        const elapsed = Math.max(0, Math.round((Date.now() - new Date(openLog.startedAt).getTime()) / 1000));
+        const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
+        const hourlyRate = Number(rateCfg?.value ?? 60);
+        entertainmentFee = roundToJiao(Math.floor(elapsed / 60) * (hourlyRate / 60));
+        await this.prisma.companionTimeLog.update({
+          where: { id: openLog.id },
+          data: { endedAt: new Date(), durationSeconds: elapsed },
+        });
+      }
+    }
     await this.prisma.companion.update({ where: { id: partnerId }, data: { status: 'BUSY' } }).catch(() => {});
 
     if (session.companionId) {
@@ -1157,7 +1179,7 @@ export class OrdersService {
       });
     }
     this.wsGateway.broadcastToStudio(session.parentOrder?.studioId || '', 'order:pool_updated', { id: sessionId });
-    return { ok: true };
+    return { ok: true, entertainmentFee };
   }
 
   /** 搭档拒绝双陪邀请：结束该待接受会话，并通知主陪「搭档已拒绝」。 */

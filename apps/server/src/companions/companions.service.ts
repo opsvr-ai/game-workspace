@@ -173,6 +173,10 @@ export class CompanionsService {
 
   async updateStatus(id: string, status: string, user: any) {
     if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    const current = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true },
+    });
     // 服务进行中（有已开始的会话）不允许切换到空闲/娱乐/休息等状态，必须先结束服务。
     if (status !== 'BUSY') {
       const active = await this.prisma.orderSession.findFirst({
@@ -187,7 +191,37 @@ export class CompanionsService {
         throw new BadRequestException('服务进行中，请先结束服务再切换状态');
       }
     }
-    return this.prisma.companion.update({ where: { id }, data: { status } });
+    // 娱乐中 / 接单中不能直接点「休息」。
+    if (status === 'RESTING' && current && current.status !== 'AVAILABLE' && current.status !== 'OFFLINE') {
+      throw new BadRequestException('当前状态不能直接休息，请先切回空闲');
+    }
+
+    // 关闭上一个计时日志，并开启新状态的计时日志（用于统计各状态时长/娱乐计费）。
+    const now = new Date();
+    let entertainmentFee: number | null = null;
+    const openLog = await this.prisma.companionTimeLog.findFirst({
+      where: { companionId: id, endedAt: null },
+      orderBy: { startedAt: 'desc' },
+    });
+    if (openLog) {
+      const elapsed = Math.max(0, Math.round((now.getTime() - new Date(openLog.startedAt).getTime()) / 1000));
+      // 从「娱乐」切到「空闲」时，计算本次娱乐消费金额。
+      if (current?.status === 'ENTERTAINMENT' && status === 'AVAILABLE') {
+        const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
+        const hourlyRate = Number(rateCfg?.value ?? 60);
+        entertainmentFee = roundToJiao(Math.floor(elapsed / 60) * (hourlyRate / 60));
+      }
+      await this.prisma.companionTimeLog.update({
+        where: { id: openLog.id },
+        data: { endedAt: now, durationSeconds: elapsed },
+      });
+    }
+    await this.prisma.companionTimeLog.create({
+      data: { companionId: id, mode: status, startedAt: now, endedAt: null, durationSeconds: 0 },
+    });
+
+    const updated = await this.prisma.companion.update({ where: { id }, data: { status } });
+    return { ...updated, entertainmentFee };
   }
 
   async getRanking(studioId: string, type: string) {

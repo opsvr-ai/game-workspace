@@ -666,7 +666,16 @@ const AppLayout: React.FC = () => {
               onClick={async () => {
                 notification.destroy(nk);
                 try {
-                  await ordersApi.acceptPartnerInvite(data.id);
+                  const res = await ordersApi.acceptPartnerInvite(data.id);
+                  const fee = (res as any)?.data?.data?.entertainmentFee;
+                  if (fee != null) {
+                    notification.info({
+                      message: '🎮 本次娱乐消费',
+                      description: `本次娱乐消费 ¥${Number(fee).toFixed(1)}，已进入接单`,
+                      placement: 'bottomRight',
+                      duration: 5,
+                    });
+                  }
                   message.success('已接受搭档邀请，开始计时');
                   (window as any).electronAPI?.sessionWatch?.(data.id);
                   window.dispatchEvent(new Event('chunlv:service-started'));

@@ -249,11 +249,19 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
+      // 从娱乐切回空闲：弹出本次娱乐消费金额
+      if (res.data?.entertainmentFee != null) {
+        Modal.info({
+          title: '🎮 本次娱乐消费',
+          content: `本次娱乐消费 ¥${res.data.entertainmentFee.toFixed(1)}（已按小时费率计费）`,
+          okText: '知道了',
+        });
+      }
       (window as any).__showStatusBar?.(status);
       (window as any).electronAPI?.onStatusChanged?.(status);
       fetchData();
-    } catch {
-      message.error('切换失败');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '切换失败');
     }
   };
 
