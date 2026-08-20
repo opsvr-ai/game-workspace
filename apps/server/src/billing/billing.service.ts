@@ -301,23 +301,55 @@ export class BillingService {
 
   // ── Revenue Diff Check ──
 
-  async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
-    const { start, end } = currentBusinessDayRange();
-
+  /** 计算某陪玩当前营业日的真实服务时长与系统预估流水（主陪 + 副陪都算，按实际计时）。 */
+  private async computeActualServiceStats(companionId: string, start: Date, end: Date) {
     const sessions = await this.prisma.orderSession.findMany({
       where: {
-        companionId,
+        OR: [{ companionId }, { coCompanionId: companionId }],
         status: 'DONE',
         startedAt: { gte: start, lt: end },
       },
-      select: { amount: true, claimedPrice: true, duration: true },
+      select: {
+        companionId: true,
+        coCompanionId: true,
+        amount: true,
+        coAmount: true,
+        claimedPrice: true,
+        duration: true,
+        startedAt: true,
+        endedAt: true,
+        totalPausedSec: true,
+      },
     });
 
-    const systemTotal = sessions.reduce((s, o) => {
-      const price = Number(o.claimedPrice || 0) > 0 ? Number(o.claimedPrice) : Number(o.amount || 0);
-      return s + price * (o.duration || 1);
-    }, 0);
-    const diff = systemTotal - reportedAmount;
+    let actualHours = 0;
+    let systemRevenue = 0;
+    for (const s of sessions) {
+      if (!s.startedAt) continue;
+      const filledHours = Number(s.duration) || 1;
+      const started = new Date(s.startedAt).getTime();
+      const ended = s.endedAt ? new Date(s.endedAt).getTime() : started + filledHours * 3600 * 1000;
+      const activeSec = Math.max(0, (ended - started) / 1000 - (s.totalPausedSec || 0));
+      const hours = activeSec / 3600;
+      actualHours += hours;
+
+      if (s.companionId === companionId) {
+        // 主陪：单价 × 实际时长
+        const hourlyRate = Number(s.claimedPrice) > 0 ? Number(s.claimedPrice) : (Number(s.amount) || 0) / filledHours;
+        systemRevenue += hourlyRate * hours;
+      } else {
+        // 副陪：搭档单价 × 实际时长
+        const coHourlyRate = (Number(s.coAmount) || 0) / filledHours;
+        systemRevenue += coHourlyRate * hours;
+      }
+    }
+    return { actualHours, systemRevenue, sessionCount: sessions.length };
+  }
+
+  async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
+    const { start, end } = currentBusinessDayRange();
+    const { actualHours, systemRevenue } = await this.computeActualServiceStats(companionId, start, end);
+    const diff = systemRevenue - reportedAmount;
 
     if (Math.abs(diff) > 0.01) {
       const companion = await this.prisma.companion.findUnique({
@@ -329,10 +361,11 @@ export class BillingService {
       this.wsGateway.broadcastToBridgedStudios(studioId, 'billing:revenue_diff', {
         companionId,
         companionName: name,
-        systemTotal: roundToJiao(systemTotal),
+        actualHours: Number(actualHours.toFixed(1)),
+        systemTotal: roundToJiao(systemRevenue),
         reportedAmount: roundToJiao(reportedAmount),
         diff: roundToJiao(diff),
-        message: `${name} 上报流水 ¥${roundToJiao(reportedAmount)}，系统订单 ¥${roundToJiao(systemTotal)}，差额 ¥${roundToJiao(diff)}`,
+        message: `${name} 今日实际服务 ${actualHours.toFixed(1)} 小时，系统预估流水 ¥${roundToJiao(systemRevenue)}，转公户 ¥${roundToJiao(reportedAmount)}，差额 ¥${roundToJiao(diff)}`,
         timestamp: new Date().toISOString(),
       });
     }
@@ -366,19 +399,8 @@ export class BillingService {
   /** 获取某陪玩当前营业日的系统累计流水与转公户金额 */
   async getCompanionDailyReconciliation(companionId: string) {
     const { start, end } = currentBusinessDayRange();
-    // 系统累计：以开始服务时填的客单价×时长为准（会话口径），匹配“点开始服务自动累计”的语义
-    const sessions = await this.prisma.orderSession.findMany({
-      where: {
-        companionId,
-        status: 'DONE',
-        startedAt: { gte: start, lt: end },
-      },
-      select: { amount: true, claimedPrice: true, duration: true },
-    });
-    const systemTotal = sessions.reduce((s, o) => {
-      const price = Number(o.claimedPrice || 0) > 0 ? Number(o.claimedPrice) : Number(o.amount || 0);
-      return s + price * (o.duration || 1);
-    }, 0);
+    // 系统累计：按真实计时（结束时间 - 开始时间 - 暂停时间），主陪 + 副陪都算
+    const { actualHours, systemRevenue } = await this.computeActualServiceStats(companionId, start, end);
     const transferAgg = await this.prisma.expenseReport.aggregate({
       where: {
         companionId,
@@ -388,9 +410,10 @@ export class BillingService {
       _sum: { amount: true },
     });
     const transferTotal = transferAgg._sum.amount ?? 0;
-    const finalAmount = transferTotal > 0 ? transferTotal : systemTotal;
+    const finalAmount = transferTotal > 0 ? transferTotal : systemRevenue;
     return {
-      systemTotal: roundToJiao(systemTotal),
+      actualHours: Number(actualHours.toFixed(1)),
+      systemTotal: roundToJiao(systemRevenue),
       transferTotal: roundToJiao(transferTotal),
       finalAmount: roundToJiao(finalAmount),
       isAuthoritative: transferTotal > 0,
