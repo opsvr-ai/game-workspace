@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Tabs, Typography, Space, Tag, Image, message, Empty, Spin, Input, Modal } from 'antd';
+import { Card, Button, Tabs, Typography, Space, Tag, message, Empty, Spin, Input, Modal } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import PageHeader from '../components/PageHeader';
 
@@ -44,6 +45,32 @@ const BattleScreenshotReviewPage: React.FC = () => {
       fetchItems();
     } catch (e: any) {
       message.error(e?.response?.data?.message || '操作失败');
+    }
+  };
+
+  const downloadImages = async (it: BattleScreenshot) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const res = await fetch(`/api/battle-screenshots/${it.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        message.error('下载失败');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const cd = res.headers.get('Content-Disposition') || '';
+      const m = cd.match(/filename="?([^"]+)"?/);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = m?.[1] || `战绩图_${it.companion?.user?.username || it.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      message.error('下载失败');
     }
   };
 
@@ -104,18 +131,14 @@ const BattleScreenshotReviewPage: React.FC = () => {
                     );
                   })()}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  <Image.PreviewGroup>
-                    {it.images.map((url, i) => (
-                      <Image
-                        key={i}
-                        src={url}
-                        width={140}
-                        height={140}
-                        style={{ objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
-                      />
-                    ))}
-                  </Image.PreviewGroup>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                  <Button
+                    size="small"
+                    icon={<DownloadOutlined />}
+                    onClick={() => downloadImages(it)}
+                  >
+                    下载图片包（{it.images.length} 张，存到文件夹查看）
+                  </Button>
                 </div>
                 {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
                 {it.status === 'PENDING' && (

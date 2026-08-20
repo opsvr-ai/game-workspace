@@ -25,4 +25,5 @@ export const battleScreenshotsApi = {
   list: (status?: string) => http.get('/battle-screenshots', { params: { status } }),
   review: (id: string, action: 'approve' | 'reject', note?: string) =>
     http.post(`/battle-screenshots/${id}/review`, { action, note }),
+  downloadUrl: (id: string) => `/api/battle-screenshots/${id}/download`,
 };

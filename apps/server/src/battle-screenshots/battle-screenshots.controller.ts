@@ -10,6 +10,8 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -19,17 +21,26 @@ import { BattleScreenshotsService } from './battle-screenshots.service';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { mkdirSync, rmSync } from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import * as os from 'os';
 import type { Request } from 'express';
+import type { Response } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
 
 const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'battle-screenshots');
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic', '.heif', '.tif', '.tiff'];
 const MAX_FILES = 10;
 const MAX_SIZE = 20 * 1024 * 1024;
+const execFileAsync = promisify(execFile);
 
 @Controller('battle-screenshots')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class BattleScreenshotsController {
-  constructor(private readonly service: BattleScreenshotsService) {}
+  constructor(
+    private readonly service: BattleScreenshotsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post()
   @Roles(UserRole.COMPANION)
@@ -116,5 +127,42 @@ export class BattleScreenshotsController {
     }
     const data = await this.service.review(id, req.user.id, body.action, body.note);
     return { code: 200, message: body.action === 'approve' ? '已采纳并加分' : '已驳回', data };
+  }
+
+  @Get(':id/download')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async download(@Param('id') id: string, @Res() res: Response): Promise<void> {
+    const item = await this.prisma.battleScreenshot.findUnique({
+      where: { id },
+      include: { companion: { include: { user: { select: { username: true, displayName: true } } } } },
+    });
+    if (!item) throw new NotFoundException('记录不存在');
+
+    const tmpDir = join(os.tmpdir(), `battle-${id}`);
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+      mkdirSync(tmpDir, { recursive: true });
+      // 复制图片到临时目录，按 1.jpg/2.jpg/3.jpg 顺序命名，方便文件夹里查看。
+      const absFiles: string[] = [];
+      item.images.forEach((url, i) => {
+        const src = join(UPLOAD_DIR, url.split('/').pop() || '');
+        if (!src) return;
+        const dst = join(tmpDir, `${i + 1}.jpg`);
+        require('fs').copyFileSync(src, dst);
+        absFiles.push(dst);
+      });
+      const zipPath = join(os.tmpdir(), `battle-${id}.zip`);
+      rmSync(zipPath, { force: true });
+      await execFileAsync('zip', ['-j', zipPath, ...absFiles]);
+      const name = item.companion?.user?.displayName || item.companion?.user?.username || '陪玩';
+      const safeName = String(name).replace(/[\\/:*?"<>|]/g, '_');
+      res.download(zipPath, `战绩图_${safeName}_${new Date(item.createdAt).toISOString().slice(0, 10)}.zip`, () => {
+        try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+        try { rmSync(zipPath, { force: true }); } catch {}
+      });
+    } catch (err: any) {
+      try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+      throw new BadRequestException(`打包失败: ${err?.message || String(err)}`);
+    }
   }
 }
