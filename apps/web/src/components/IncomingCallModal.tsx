@@ -1,9 +1,7 @@
 // craftsman-ignore: TS001
 import React from 'react';
-import { Modal, Button, Space, Typography } from 'antd';
+import { Button } from 'antd';
 import { PhoneOutlined, CloseOutlined } from '@ant-design/icons';
-
-const { Text, Title } = Typography;
 
 interface Props {
   open: boolean;
@@ -14,24 +12,68 @@ interface Props {
 }
 
 const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccept, onReject }) => {
+  if (!open) return null;
   return (
-    <Modal open={open} closable={false} footer={null} width="100vw" centered style={{ top: 0, maxWidth: '100%' }} bodyStyle={{ padding: 0, height: '100vh' }}>
-      <div style={{ textAlign: 'center', height: '100vh', paddingTop: '20vh', background: 'linear-gradient(180deg,#1E293B,#0F172A)', color: '#fff' }}>
-        <div style={{ fontSize: 72, animation: 'pulse 1s infinite', marginBottom: 24 }}>📞</div>
-        <Title level={3} style={{ marginBottom: 8, color: '#fff' }}>{callerName || '未知'}</Title>
-        <Text style={{ color: 'rgba(255,255,255,0.7)' }}>{calling ? '正在呼叫...' : '邀请你进行语音通话'}</Text>
-        <div style={{ marginTop: 48 }}>
-          {calling ? (
-            <Button danger size="large" shape="circle" icon={<CloseOutlined />} onClick={onReject} />
-          ) : (
-            <Space size={40}>
-              <Button type="primary" size="large" shape="circle" icon={<PhoneOutlined />} onClick={onAccept} style={{ background: '#52c41a', borderColor: '#52c41a' }} />
-              <Button danger size="large" shape="circle" icon={<CloseOutlined />} onClick={onReject} />
-            </Space>
-          )}
+    <div
+      className="scale-in"
+      style={{
+        position: 'fixed',
+        right: 20,
+        bottom: 20,
+        zIndex: 2000,
+        width: 280,
+        background: 'linear-gradient(135deg,#1E293B,#0F172A)',
+        color: '#fff',
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: '#334155',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20,
+            flexShrink: 0,
+            animation: 'pulse-glow 1.5s ease-in-out infinite',
+          }}
+        >
+          📞
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {callerName || '未知'}
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, marginTop: 2 }}>
+            {calling ? '正在呼叫...' : '邀请你进行语音通话'}
+          </div>
         </div>
       </div>
-    </Modal>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 16 }}>
+        {calling ? (
+          <Button danger shape="circle" size="large" icon={<CloseOutlined />} onClick={onReject} />
+        ) : (
+          <>
+            <Button
+              type="primary"
+              shape="circle"
+              size="large"
+              icon={<PhoneOutlined />}
+              onClick={onAccept}
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            />
+            <Button danger shape="circle" size="large" icon={<CloseOutlined />} onClick={onReject} />
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 

@@ -1,9 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Button, Typography, Slider } from 'antd';
+import { Button, Slider } from 'antd';
 import { PhoneOutlined, SoundOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
 
 interface Props {
   peerName?: string;
@@ -22,30 +20,62 @@ function formatDuration(seconds?: number) {
 
 export default function VoiceCallBar({ peerName, duration, volume, onVolumeChange, onHangup }: Props) {
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
-      background: '#1a1a2e', color: '#fff', padding: '12px 24px',
-      display: 'flex', alignItems: 'center', gap: 16,
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%', background: '#16213e',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'pulse 1.5s infinite',
-        }}>
-          <PhoneOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+    <div
+      className="scale-in"
+      style={{
+        position: 'fixed',
+        right: 20,
+        bottom: 20,
+        zIndex: 2000,
+        width: 280,
+        background: '#1E293B',
+        color: '#fff',
+        borderRadius: 12,
+        padding: '12px 14px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: '#16213E',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            animation: 'pulse-glow 1.5s ease-in-out infinite',
+          }}
+        >
+          <PhoneOutlined style={{ color: '#52C41A', fontSize: 16 }} />
         </div>
-        <div>
-          <Text style={{ color: '#fff', fontSize: 14, display: 'block' }}>{peerName || '语音通话中'}</Text>
-          <Text style={{ color: '#aaa', fontSize: 12 }}>{formatDuration(duration)}</Text>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {peerName || '语音通话中'}
+          </div>
+          <div style={{ color: '#94A3B8', fontSize: 12, marginTop: 1 }}>{formatDuration(duration)}</div>
         </div>
+        <Button
+          danger
+          shape="circle"
+          size="middle"
+          icon={<PhoneOutlined style={{ transform: 'rotate(135deg)' }} />}
+          onClick={onHangup}
+        />
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: 120 }}>
-        <SoundOutlined style={{ color: '#aaa', fontSize: 14 }} />
-        <Slider min={0} max={100} value={volume || 80} onChange={(v) => onVolumeChange?.(v)} style={{ margin: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <SoundOutlined style={{ color: '#94A3B8', fontSize: 13, flexShrink: 0 }} />
+        <Slider
+          min={0}
+          max={100}
+          value={volume || 80}
+          onChange={(v) => onVolumeChange?.(v)}
+          style={{ margin: 0, flex: 1 }}
+        />
       </div>
-      <Button danger shape="circle" icon={<PhoneOutlined style={{ transform: 'rotate(135deg)' }} />} onClick={onHangup} size="large" />
     </div>
   );
 }
