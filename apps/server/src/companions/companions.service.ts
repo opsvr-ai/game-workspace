@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
@@ -173,6 +173,20 @@ export class CompanionsService {
 
   async updateStatus(id: string, status: string, user: any) {
     if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    // 服务进行中（有已开始的会话）不允许切换到空闲/娱乐/休息等状态，必须先结束服务。
+    if (status !== 'BUSY') {
+      const active = await this.prisma.orderSession.findFirst({
+        where: {
+          OR: [{ companionId: id }, { coCompanionId: id }],
+          status: 'ACTIVE',
+          startedAt: { not: null },
+        },
+        select: { id: true },
+      });
+      if (active) {
+        throw new BadRequestException('服务进行中，请先结束服务再切换状态');
+      }
+    }
     return this.prisma.companion.update({ where: { id }, data: { status } });
   }
 

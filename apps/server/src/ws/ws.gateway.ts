@@ -226,6 +226,26 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const STATUS_COMPAT: Record<string, string> = { ONLINE: 'AVAILABLE', IDLE: 'ENTERTAINMENT' };
     const mappedStatus = STATUS_COMPAT[data.status] || data.status;
 
+    // 服务进行中（有已开始的会话）不允许被客户端切成空闲/娱乐/休息等状态，防止状态被误刷成空闲。
+    if (mappedStatus !== 'BUSY') {
+      const activeSession = await this.prisma.orderSession.findFirst({
+        where: {
+          OR: [{ companionId: user.companionId }, { coCompanionId: user.companionId }],
+          status: 'ACTIVE',
+          startedAt: { not: null },
+        },
+        select: { id: true },
+      }).catch(() => null);
+      if (activeSession) {
+        logger.warn('Ignored companion:status while in service', {
+          companionId: user.companionId,
+          username: user.username,
+          requestedStatus: mappedStatus,
+        });
+        return;
+      }
+    }
+
     // Get previous status for time tracking
     const prev = await this.prisma.companion
       .findUnique({
