@@ -388,6 +388,7 @@ const AppLayout: React.FC = () => {
   // 客服端/陪玩端版本上报，让管理端能直接看到各客户端版本
   useEffect(() => {
     if (!user?.id) return;
+    if (user.role === 'COMPANION') return; // 陪玩端走 /agent/heartbeat + WebSocket，不报 cs-heartbeat
     const api = (window as any).electronAPI;
     if (!api?.getAppVersion) return;
     const report = () => {
@@ -398,7 +399,7 @@ const AppLayout: React.FC = () => {
     report();
     const timer = setInterval(report, 60_000);
     return () => clearInterval(timer);
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
   const totalUnread = useChatStore((s) => s.totalUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);

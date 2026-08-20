@@ -567,7 +567,11 @@ const AgentVersionPage: React.FC = () => {
               title: '版本状态',
               key: 'isLatest',
               render: (_: unknown, r: any) =>
-                r.isLatest ? <Tag color="green">最新</Tag> : <Tag color="orange">未更新</Tag>,
+                r.version === '未登录'
+                  ? <Tag color="default">未登录</Tag>
+                  : r.isLatest
+                    ? <Tag color="green">最新</Tag>
+                    : <Tag color="orange">未更新</Tag>,
             },
             { title: '最后上报', dataIndex: 'lastSeen', render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
           ]}

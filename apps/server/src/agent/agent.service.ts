@@ -142,18 +142,20 @@ export class AgentService {
       where: { role: { in: ['CS', 'ADMIN', 'OWNER'] } },
       select: { id: true, username: true, role: true },
     });
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    const latestVersion = (await this.getCsLatestVersion()).version;
-    return records.map((r) => {
+    const recordMap = new Map<string, { version?: string; lastSeen?: string }>();
+    for (const r of records) {
       const userId = r.key.replace('cs.client.version.', '');
-      const value = (r.value as any) || {};
-      const user = userMap.get(userId);
-      const version = value.version || '0.0.0';
+      recordMap.set(userId, (r.value as any) || {});
+    }
+    const latestVersion = (await this.getCsLatestVersion()).version;
+    return users.map((u) => {
+      const value = recordMap.get(u.id) || {};
+      const version = value.version || null;
       return {
-        userId,
-        username: user?.username || userId,
-        role: user?.role || '-',
-        version,
+        userId: u.id,
+        username: u.username,
+        role: u.role,
+        version: version || '未登录',
         lastSeen: value.lastSeen || null,
         isLatest: version === latestVersion,
       };
