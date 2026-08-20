@@ -43,7 +43,7 @@ export class HeartbeatService {
         companionId: user.companionId,
         agentVersion: data.agentVersion ?? '0.0.0',
         lastHeartbeat: new Date(),
-        currentMode: data.currentMode ?? 'ENTERTAINMENT',
+        currentMode: data.currentMode ?? 'AVAILABLE',
         isThrottled: data.isThrottled ?? false,
         throttleLimitKB: data.throttleLimitKB ?? null,
       },

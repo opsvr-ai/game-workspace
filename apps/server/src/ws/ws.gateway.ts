@@ -241,6 +241,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         logger.error('DB status update failed', { companionId: user.companionId, error: (err as any).message });
       });
 
+    // 同步「当前模式」与状态，避免出现状态是空闲、模式还显示娱乐
+    await this.prisma.companionPC.update({
+      where: { companionId: user.companionId },
+      data: { currentMode: mappedStatus },
+    }).catch(() => {});
+
     // ── Time tracking: start/stop CompanionTimeLog on status change ──
     if (mappedStatus !== prevStatus) {
       const now = new Date();
