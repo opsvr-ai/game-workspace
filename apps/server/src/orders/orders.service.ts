@@ -290,33 +290,36 @@ export class OrdersService {
     return newOrder;
   }
 
-  async findPool(companionId?: string, studioId?: string, studioType?: string) {
+  async findPool(companionId?: string, studioId?: string) {
+    if (!studioId) return [];
     const where: any = {
       status: 'PENDING',
       dispatchType: 'POOL',
       OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
-    if (!studioId) return [];
     const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
     where.studioId = { in: [studioId, ...bridgedIds] };
 
-    const [priorityCfg, offlineCfg, bridgeCfg, onlineCfg] = await Promise.all([
+    const [priorityCfg, bridgeCfg, middleCfg, lowCfg, onlineCfg, studio] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.priority_delay_seconds' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.offline_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_delay_seconds' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.middle_delay_seconds' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.low_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.online_delay_seconds' } }),
+      this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } }),
     ]);
     const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
-    const offlineDelay = Number(offlineCfg?.value ?? 60) * 1000;
-    const bridgeDelay = Number(bridgeCfg?.value ?? 120) * 1000;
+    const bridgeDelay = Number(bridgeCfg?.value ?? 30) * 1000;
+    const middleDelay = Number(middleCfg?.value ?? 60) * 1000;
+    const lowDelay = Number(lowCfg?.value ?? 120) * 1000;
     const onlineDelay = Number(onlineCfg?.value ?? 180) * 1000;
-    if (studioType === 'RENTAL') {
-      where.createdAt = { lte: new Date(Date.now() - onlineDelay) };
-    } else if (studioType && studioType !== 'DIRECT') {
-      where.createdAt = { lte: new Date(Date.now() - bridgeDelay) };
-    } else if (companionId) {
-      const excellent = await this.excellence.isExcellent(companionId);
-      where.createdAt = { lte: new Date(Date.now() - (excellent ? priorityDelay : offlineDelay)) };
+    const studioType = studio?.type ?? 'DIRECT';
+
+    // 当前陪玩的段位（只对自家工作室订单生效）
+    let tier = 'LOW';
+    if (companionId) {
+      const ex = await this.excellence.computeOne(companionId);
+      tier = ex?.tier || 'LOW';
     }
 
     const orders = await this.prisma.order.findMany({
@@ -328,8 +331,22 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'asc' },
     });
-    // 已过消失时间、标记为待客服处理的订单不再出现在抢单池
-    return orders.filter((o) => !(o.customFields as any)?.poolExpired);
+
+    // 已过消失时间、标记为待客服处理的订单不再出现在抢单池；
+    // 按「上等马 → 桥接 → 中等马 → 下等马 → 线上」分别延迟可见。
+    const now = Date.now();
+    return orders.filter((o) => {
+      if ((o.customFields as any)?.poolExpired) return false;
+      let delay: number;
+      if (studioType === 'RENTAL') {
+        delay = onlineDelay;
+      } else if (o.studioId !== studioId) {
+        delay = bridgeDelay; // 桥接工作室订单
+      } else {
+        delay = tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
+      }
+      return now - new Date(o.createdAt).getTime() >= delay;
+    });
   }
 
   async findAll(user: any, status?: string, showAll?: boolean) {
