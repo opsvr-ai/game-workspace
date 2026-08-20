@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Typography, message } from 'antd';
 
 const { Text, Title } = Typography;
@@ -17,6 +18,8 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
   setUrgentOrder,
   setUrgentGrabbed,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Urgent order — idle companion notification */}
@@ -107,18 +110,16 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
                 type="primary"
                 size="large"
                 style={{ flex: 1, background: '#52c41a' }}
-                onClick={async () => {
-                  try {
-                    const { ordersApi } = await import('../api/orders');
-                    await ordersApi.confirm(urgentGrabbed.id);
-                    message.success('已开始服务');
-                    setUrgentGrabbed(null);
-                  } catch (e: any) {
-                    message.error(e?.response?.data?.message);
-                  }
+                onClick={() => {
+                  // 急单抢到后不能在这里直接 confirm：confirm 只会把订单改成“服务中”，
+                  // 但不会创建计时会话，反而让后面的「首单」误判成“正在服务中”。
+                  // 改为跳转到客户管理，让陪玩在客户管理中正常点「首单」开始服务。
+                  setUrgentGrabbed(null);
+                  message.info('请在「客户管理」中找到该客户，点「首单」开始服务');
+                  navigate('/companion/customers');
                 }}
               >
-                开始服务
+                去客户管理接单
               </Button>
             </div>
           </div>
