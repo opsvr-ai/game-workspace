@@ -90,7 +90,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
               marginTop: 2,
             }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16A34A', display: 'inline-block', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
             正在语音通话 {formatCallDuration(call.duration)}
           </span>
         )}
