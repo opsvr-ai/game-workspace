@@ -560,16 +560,22 @@ const BillingOverview: React.FC = () => {
                   id: s.parentOrderId || s.id,
                   sessionId: s.id,
                   gameName: s.gameName,
+                  type: s.type,
                   customerWechat: s.customerWechat,
                   duration: s.duration,
+                  actualHours: s.actualHours,
                   serviceType: s.serviceType,
                   claimedMode: s.claimedMode,
                   claimedPrice: s.claimedPrice,
+                  unitPrice: s.unitPrice,
+                  systemAmount: s.systemAmount,
                   transferScreenshotUrl: s.transferScreenshotUrl,
                   coName: s.coName,
                   isPartner: s.isPartner,
                   dual: s.dual,
                   amount: s.myAmount,
+                  startedAt: s.startedAt,
+                  endedAt: s.endedAt,
                   createdAt: s.createdAt,
                 }));
                 setTodayOrders(mapped);
@@ -577,7 +583,7 @@ const BillingOverview: React.FC = () => {
                 const amounts: Record<string,number> = {};
                 const shots: Record<string,string> = {};
                 mapped.forEach((o:any) => {
-                  amounts[o.id] = o.amount || 0;
+                  amounts[o.id] = o.systemAmount || o.amount || 0;
                   if (o.transferScreenshotUrl) shots[o.id] = o.transferScreenshotUrl;
                 });
                 setReportAmounts(amounts);
@@ -625,7 +631,7 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报今日流水" open={reportVisible} width={1150}
+      <Modal title="📋 上报今日流水" open={reportVisible} width={1400}
         onOk={async () => {
           setReportSubmitting(true);
           try {
@@ -662,63 +668,58 @@ const BillingOverview: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 70 }}>时间</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 300 }}>游戏</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 140 }}>客户</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#64748B', width: 60 }}>时长</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B', width: 120 }}>金额 (¥)</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#64748B', width: 140 }}>截图</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, color: '#64748B', width: 240 }}>备注（为什么流水低/计时长）</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 44 }}>序号</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 240 }}>订单</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>开始时间</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>结束时间</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 70 }}>时长</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 80 }}>服务</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 60 }}>模式</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 90 }}>单价</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>系统应上报</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>实际</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 80 }}>截图</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 180 }}>备注</th>
                 </tr>
               </thead>
               <tbody>
-                {todayOrders.map((o: any) => (
+                {todayOrders.map((o: any, idx: number) => (
                   <tr key={o.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                    <td style={{ padding: '8px 12px', fontSize: 12, color: '#94A3B8' }}>
-                      {dayjs(o.createdAt).format('HH:mm')}
-                    </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <Space>
-                        <Tag color={o.type === 'NEW' ? 'green' : o.type === 'RENEW' ? 'blue' : o.type === 'REPURCHASE' ? 'purple' : 'orange'}
-                          style={{ fontSize: 10, margin: 0 }}>
+                    <td style={{ padding: '8px 10px', fontSize: 12, color: '#94A3B8' }}>{idx + 1}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                      <Space size={4} wrap>
+                        <Text>{o.gameName}</Text>
+                        <Tag color={o.type === 'NEW' ? 'green' : o.type === 'RENEW' ? 'blue' : o.type === 'REPURCHASE' ? 'purple' : 'orange'} style={{ fontSize: 10, margin: 0 }}>
                           {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
-                        <Text>{o.gameName}</Text>
                         <Tag color={o.dual ? 'magenta' : 'cyan'} style={{ fontSize: 10, margin: 0 }}>{o.dual ? '双陪' : '单陪'}</Tag>
-                        {o.serviceType && serviceTypeConfig[o.serviceType] && (
-                          <Tag color={serviceTypeConfig[o.serviceType].color} style={{ fontSize: 10, margin: 0 }}>{serviceTypeConfig[o.serviceType].label}</Tag>
-                        )}
                         {o.isPartner && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>副陪</Tag>}
-                        {o.claimedMode && <Tag color="geekblue" style={{ fontSize: 10, margin: 0 }}>{o.claimedMode}</Tag>}
                         {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>{o.isPartner ? '主陪' : '搭档'}：{o.coName}</Tag>}
                       </Space>
+                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{o.customerWechat || '-'}</div>
                     </td>
-                    <td style={{ padding: '8px 12px', fontSize: 12 }}>
-                      {o.customer?.wechatId || o.customFields?.customerWechat || '-'}
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>
-                      {o.duration || 1}h
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                    <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>{o.startedAt ? dayjs(o.startedAt).format('YYYY-MM-DD HH:mm') : '-'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>{o.endedAt ? dayjs(o.endedAt).format('YYYY-MM-DD HH:mm') : '-'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'center' }}>{Number(o.actualHours || o.duration || 0).toFixed(1)}h</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12 }}>{serviceTypeConfig[o.serviceType]?.label || '陪玩'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12 }}>{o.claimedMode || '-'}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', whiteSpace: 'nowrap' }}>{Number(o.unitPrice || o.claimedPrice || 0).toFixed(1)}/时</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: '#2563EB', fontWeight: 600, whiteSpace: 'nowrap' }}>¥{Number(o.systemAmount || o.amount || 0).toFixed(1)}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right' }}>
                       <InputNumber
                         size="small"
                         min={0}
                         value={reportAmounts[o.id] ?? 0}
                         onChange={(v) => setReportAmounts(prev => ({ ...prev, [o.id]: v ?? 0 }))}
-                        style={{ width: 100 }}
+                        style={{ width: 90 }}
                         prefix="¥"
                       />
-                      {o.claimedPrice != null && (
-                        <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
-                          单价 {o.claimedPrice} × {o.duration || 1}h
-                        </div>
-                      )}
                     </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                       {reportScreenshots[o.id] ? (
                         <img src={reportScreenshots[o.id]} alt="预览"
                           onClick={() => setViewScreenshots([reportScreenshots[o.id]])}
-                          style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #E5E7EB' }}
+                          style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, cursor: 'pointer', border: '1px solid #E5E7EB' }}
                         />
                       ) : (
                         <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
@@ -732,10 +733,10 @@ const BillingOverview: React.FC = () => {
                         </Upload>
                       )}
                     </td>
-                    <td style={{ padding: '8px 12px' }}>
+                    <td style={{ padding: '8px 10px' }}>
                       <Input
                         size="small"
-                        placeholder="如：客户临时有事，等了很久"
+                        placeholder="备注"
                         value={reportRemarks[o.id] || ''}
                         onChange={(e) => setReportRemarks(prev => ({ ...prev, [o.id]: e.target.value }))}
                       />

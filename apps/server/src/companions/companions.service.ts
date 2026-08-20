@@ -335,12 +335,21 @@ export class CompanionsService {
         ? (s.companion?.user?.displayName || s.companion?.user?.username || null)
         : (s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null);
       const dual = !!s.coCompanionId || (s.parentOrder?.customFields as any)?.deltaCount === '双';
+      const unitPrice = isPartner
+        ? (s.coAmount ?? 0) / (s.duration || 1)
+        : (s.claimedPrice ?? (s.duration ? s.amount / s.duration : s.amount));
+      const started = s.startedAt ? new Date(s.startedAt).getTime() : null;
+      const ended = s.endedAt ? new Date(s.endedAt).getTime() : (started ?? Date.now());
+      const actualSec = started != null ? Math.max(0, (ended - started) / 1000 - (s.totalPausedSec || 0)) : 0;
+      const actualHours = actualSec / 3600;
+      const systemAmount = unitPrice * actualHours;
       return {
         id: s.id,
         seq: s.seq,
         parentOrderId: s.parentOrder?.id,
         gameName: s.parentOrder?.gameName,
         orderCode: s.parentOrder?.orderCode,
+        type: s.parentOrder?.type,
         serviceType: s.parentOrder?.serviceType || (s.parentOrder?.customFields as any)?.serviceType || 'PLAY_WITH',
         customerWechat: s.parentOrder?.customer?.wechatId || (s.parentOrder?.customFields as any)?.customerWechat || '',
         amount: s.amount,
@@ -349,8 +358,11 @@ export class CompanionsService {
         isPartner,
         dual,
         duration: s.duration,
+        actualHours,
+        unitPrice,
+        systemAmount,
         claimedMode: s.claimedMode,
-        claimedPrice: isPartner ? (s.coAmount ?? 0) / (s.duration || 1) : s.claimedPrice,
+        claimedPrice: unitPrice,
         transferScreenshotUrl: s.transferScreenshotUrl,
         status: s.status,
         coName: peerName,
