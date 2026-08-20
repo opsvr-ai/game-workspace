@@ -24,6 +24,7 @@ import {
   CoffeeOutlined,
   LockOutlined,
   ReloadOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { companionsApi } from '../api/companions';
@@ -32,6 +33,7 @@ import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
 import { companionStatusConfig } from '../constants';
 import EmptyState from '../components/EmptyState';
+import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 
 const { Text, Title } = Typography;
 
@@ -46,6 +48,7 @@ const CompanionPage: React.FC = () => {
   const [ranking, setRanking] = useState<any[]>([]);
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
   const [rankingLoading, setRankingLoading] = useState(true);
+  const [showRule, setShowRule] = useState(false);
 
   const fetchRanking = useCallback(async () => {
     try {
@@ -283,6 +286,15 @@ const CompanionPage: React.FC = () => {
                 今日¥{data.todayRevenue} · 娱乐{data.entertainmentMinutes}min ·{' '}
                 {data.statusDurations?.entertainment || '00:00'}
               </Text>
+              <Button
+                size="small"
+                type="link"
+                icon={React.createElement(QuestionCircleOutlined)}
+                onClick={() => setShowRule(true)}
+                style={{ padding: 0, fontSize: 12 }}
+              >
+                评分规则
+              </Button>
             </Space>
             {dormantCount > 0 && (
               <Tag color="red" style={{ marginLeft: 8 }}>
@@ -983,6 +995,8 @@ const CompanionPage: React.FC = () => {
           </Button>
         </div>
       )}
+
+      <ExcellenceRuleModal open={showRule} onClose={() => setShowRule(false)} />
     </div>
   );
 };

@@ -6,6 +6,8 @@ import { settlementMonthRange } from '../common/business-day';
 export interface ExcellenceResult {
   isExcellent: boolean;
   rankScore: number;
+  revenueScore: number;
+  bonusScore: number;
   renewRate: number;
   repurchaseRate: number;
   newRate: number;
@@ -99,6 +101,8 @@ export class ExcellenceService {
       result.set(cid, {
         isExcellent: rankScore >= 50,
         rankScore,
+        revenueScore: Math.round(revenueScore),
+        bonusScore: bonus,
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
         newRate: Math.round(firstSuccessRate),
@@ -111,5 +115,19 @@ export class ExcellenceService {
   async isExcellent(companionId: string): Promise<boolean> {
     const map = await this.computeForCompanions([companionId]);
     return map.get(companionId)?.isExcellent ?? false;
+  }
+
+  async computeOne(companionId: string): Promise<ExcellenceResult> {
+    const map = await this.computeForCompanions([companionId]);
+    return map.get(companionId) ?? {
+      isExcellent: false,
+      rankScore: 0,
+      revenueScore: 0,
+      bonusScore: 0,
+      renewRate: 0,
+      repurchaseRate: 0,
+      newRate: 0,
+      orderCount: 0,
+    };
   }
 }

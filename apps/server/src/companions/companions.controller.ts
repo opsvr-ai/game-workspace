@@ -25,6 +25,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
 import { currentBusinessDayRange } from '../common/business-day';
 import { ChatService } from '../chat/chat.service';
+import { ExcellenceService } from './excellence.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { diskStorage } from 'multer';
@@ -40,6 +41,7 @@ export class CompanionsController {
     private readonly prisma: PrismaService,
     private readonly restingMonitor: RestingMonitorService,
     private readonly chatService: ChatService,
+    private readonly excellence: ExcellenceService,
   ) {}
 
   @Get('companions')
@@ -157,6 +159,13 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async getWorkbench(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.getWorkbench(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('companions/me/excellence')
+  @Roles(UserRole.COMPANION)
+  async getMyExcellence(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.excellence.computeOne(req.user.companionId);
     return { code: 200, message: 'ok', data };
   }
 
