@@ -397,7 +397,7 @@ const OrderPoolPage: React.FC = () => {
                         <Button
                           size="small"
                           type="text"
-                          style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
+                          style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             openCompanionChat(c);
