@@ -36,6 +36,18 @@ function displayStatus(c: any): { label: string; color: string } {
   return { label: '在线', color: 'green' };
 }
 
+const STATUS_DOT: Record<string, string> = {
+  green: '#22C55E',
+  red: '#EF4444',
+  gold: '#F59E0B',
+  orange: '#F97316',
+  default: '#94A3B8',
+};
+
+function statusDotColor(c: any): string {
+  return STATUS_DOT[displayStatus(c).color] || '#94A3B8';
+}
+
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
@@ -315,51 +327,102 @@ const OrderPoolPage: React.FC = () => {
               const initial = (c.displayName || c.username || '?')[0].toUpperCase();
               return (
                 <List.Item
-                  style={{ padding: '8px 6px', display: 'block', borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
+                  style={{
+                    padding: '8px 10px',
+                    display: 'block',
+                    cursor: 'pointer',
+                    margin: '2px 3px',
+                    borderRadius: 8,
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#F8FAFC';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                   onClick={() => openCompanionChat(c)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <Space size="small">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
                       <div
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 36,
+                          height: 36,
                           borderRadius: '50%',
                           background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow:
-                            isPersonnelOnline(c) ? '0 0 6px #00E676' : 'none',
                           flexShrink: 0,
                         }}
                       >
-                        {!avatarUrl && <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>}
+                        {!avatarUrl && <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>}
                       </div>
-                      <Text strong>{c.displayName || c.username || c.id}</Text>
-                    </Space>
-                    <Space size={4}>
-                      <Tag color={displayStatus(c).color}>{displayStatus(c).label}</Tag>
-                      <Button
-                        size="small"
-                        type="text"
-                        style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openCompanionChat(c);
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: -1,
+                          bottom: -1,
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          background: statusDotColor(c),
+                          border: '2px solid #fff',
+                          boxShadow: isPersonnelOnline(c) ? `0 0 0 3px ${statusDotColor(c)}22` : 'none',
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: '#1F2937',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        💬
-                      </Button>
-                    </Space>
+                        {c.displayName || c.username || c.id}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                        <span style={{ fontSize: 11, color: statusDotColor(c) }}>●</span>
+                        <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
+                      </div>
+                    </div>
+                    <Button
+                      size="small"
+                      type="text"
+                      style={{ padding: 0, fontSize: 14, color: '#2563EB', height: 28, width: 24, flexShrink: 0, marginTop: 2 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCompanionChat(c);
+                      }}
+                    >
+                      💬
+                    </Button>
                   </div>
                   {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
-                    <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {c.games.slice(0, 3).map((g: any, i: number) => (
-                        <Tag key={i} style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}>
-                          {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
-                        </Tag>
+                    <div style={{ marginTop: 7, marginLeft: 44, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {c.games.slice(0, 2).map((g: any, i: number) => (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: 10,
+                            color: '#64748B',
+                            background: '#F1F5F9',
+                            borderRadius: 4,
+                            padding: '1px 6px',
+                            lineHeight: '17px',
+                          }}
+                        >
+                          {g.game}
+                        </span>
                       ))}
+                      {c.games.length > 2 && (
+                        <span style={{ fontSize: 10, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
+                      )}
                     </div>
                   )}
                 </List.Item>

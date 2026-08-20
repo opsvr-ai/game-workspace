@@ -93,6 +93,26 @@ const ROLE_TAG: Record<string, { color: string; label: string }> = {
   OWNER: { color: 'purple', label: '老板' },
 };
 
+// 状态圆点颜色（配合头像右下角的状态点，比一排彩色 Tag 更清爽、易读）
+const STATUS_DOT: Record<string, string> = {
+  green: '#22C55E',
+  red: '#EF4444',
+  gold: '#F59E0B',
+  orange: '#F97316',
+  default: '#94A3B8',
+};
+
+const ROLE_TEXT_COLOR: Record<string, string> = {
+  COMPANION: '#2563EB',
+  CS: '#0891B2',
+  ADMIN: '#EA580C',
+  OWNER: '#7C3AED',
+};
+
+function statusDotColor(c: Personnel): string {
+  return STATUS_DOT[displayStatus(c).color] || '#94A3B8';
+}
+
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
@@ -416,21 +436,19 @@ const CSDispatchView: React.FC = () => {
                   return (
                     <List.Item
                       style={{
-                        padding: '8px 6px',
+                        padding: '8px 10px',
                         display: 'block',
                         cursor: 'pointer',
-                        borderLeft: isSelected ? '3px solid #2563EB' : '3px solid transparent',
-                        paddingLeft: isSelected ? 10 : 10,
-                        borderRadius: '0 6px 6px 0',
-                        transition: 'transform 0.15s ease, background 0.15s ease',
-                        background: isSelected ? '#EFF6FF' : 'transparent',
+                        margin: '2px 3px',
+                        borderRadius: 8,
+                        background: isSelected ? '#EEF2FF' : 'transparent',
+                        border: isSelected ? '1px solid #C7D2FE' : '1px solid transparent',
+                        transition: 'background 0.15s ease, border-color 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateX(2px)';
-                        e.currentTarget.style.background = 'rgba(0,212,255,0.04)';
+                        if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateX(0)';
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
                       }}
                       onClick={() => {
@@ -461,123 +479,161 @@ const CSDispatchView: React.FC = () => {
                         );
                       }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          width: '100%',
-                        }}
-                      >
-                        <Space size="small">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
                           {(() => {
                             const avatarUrl = c.avatar ? `/uploads/avatars/${c.avatar}?v=${c.avatar}` : null;
-                            const initial = (c.displayName || c.username || '?')[0].toUpperCase();
+                            const initial = (c.displayName || c.username || '?').slice(0, 1).toUpperCase();
                             return (
                               <div
                                 style={{
-                                  width: 32,
-                                  height: 32,
+                                  width: 36,
+                                  height: 36,
                                   borderRadius: '50%',
                                   background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  boxShadow:
-                                    isPersonnelOnline(c) ? '0 0 6px #00E676' : 'none',
                                   flexShrink: 0,
                                 }}
                               >
                                 {!avatarUrl && (
-                                  <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>
+                                  <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>
                                 )}
                               </div>
                             );
                           })()}
-                          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            {/* Unread dot */}
+                          <span
+                            style={{
+                              position: 'absolute',
+                              right: -1,
+                              bottom: -1,
+                              width: 11,
+                              height: 11,
+                              borderRadius: '50%',
+                              background: statusDotColor(c),
+                              border: '2px solid #fff',
+                              boxShadow: isPersonnelOnline(c) ? `0 0 0 3px ${statusDotColor(c)}22` : 'none',
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                fontSize: 13,
+                                color: '#1F2937',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {c.displayName || c.username || c.id}
+                            </span>
+                            {c.isExcellent && (
+                              <span title="优秀" style={{ color: '#FAAD14', fontSize: 13, lineHeight: 1, flexShrink: 0 }}>⭐</span>
+                            )}
                             {hasUnread && (
                               <span
                                 style={{
-                                  width: 8,
-                                  height: 8,
+                                  width: 7,
+                                  height: 7,
                                   borderRadius: '50%',
                                   background: '#FF4757',
                                   flexShrink: 0,
-                                  boxShadow: '0 0 4px #FF4757',
                                 }}
                               />
                             )}
-                            {c.studioName && (
-                              <Text type="secondary" style={{ fontSize: 10, fontWeight: 400, flexShrink: 0 }}>
-                                {c.studioName}
-                              </Text>
-                            )}
-                            {c.isExcellent && (
-                              <span title="优秀" style={{ color: '#FAAD14', fontSize: 12, lineHeight: 1, flexShrink: 0 }}>⭐</span>
-                            )}
-                            <Text strong>{c.displayName || c.username || c.id}</Text>
-                            <Text type="secondary" style={{ fontSize: 10, flexShrink: 0 }}>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || '#64748B' }}>
                               {ROLE_TAG[c.role]?.label || c.role}
-                            </Text>
+                            </span>
+                            {c.studioName && (
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: '#94A3B8',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  maxWidth: 96,
+                                }}
+                              >
+                                {c.studioName}
+                              </span>
+                            )}
                             {(c as any).processStatus === 'BLOCKED' && (
-                              <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
-                                已限制
-                              </Tag>
+                              <span style={{ fontSize: 10, color: '#EF4444', fontWeight: 600 }}>已限制</span>
                             )}
                             {(c as any).processStatus === 'WARNING' && (
-                              <Tag color="orange" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
-                                ⚠️ 进程异常
-                              </Tag>
+                              <span style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>⚠️进程异常</span>
                             )}
-                          </span>
-                        </Space>
-                        <Space size={4}>
-                          <Tag color={displayStatus(c).color}>{displayStatus(c).label}</Tag>
-                          <Button
-                            size="small"
-                            type="text"
-                            style={{ padding: '0 4px', fontSize: 11, color: '#2563EB', height: 22 }}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              await useChatStore.getState().openConversation(c.id, {
-                                userId: c.id,
-                                username: c.username || '未知',
-                                displayName: c.displayName || c.username || '未知',
-                                avatar: c.avatar,
-                                role: c.role,
-                              });
-                              window.dispatchEvent(
-                                new CustomEvent('open-chat-modal', {
-                                  detail: {
-                                    conversationId: c.id,
-                                    participant: {
-                                      userId: c.id,
-                                      username: c.username || '未知',
-                                      displayName: c.displayName || c.username || '未知',
-                                      avatar: c.avatar,
-                                      role: c.role,
-                                    },
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                            <span style={{ fontSize: 11, color: statusDotColor(c) }}>●</span>
+                            <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
+                          </div>
+                        </div>
+
+                        <Button
+                          size="small"
+                          type="text"
+                          style={{ padding: 0, fontSize: 14, color: '#2563EB', height: 28, width: 24, flexShrink: 0, marginTop: 2 }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await useChatStore.getState().openConversation(c.id, {
+                              userId: c.id,
+                              username: c.username || '未知',
+                              displayName: c.displayName || c.username || '未知',
+                              avatar: c.avatar,
+                              role: c.role,
+                            });
+                            window.dispatchEvent(
+                              new CustomEvent('open-chat-modal', {
+                                detail: {
+                                  conversationId: c.id,
+                                  participant: {
+                                    userId: c.id,
+                                    username: c.username || '未知',
+                                    displayName: c.displayName || c.username || '未知',
+                                    avatar: c.avatar,
+                                    role: c.role,
                                   },
-                                }),
-                              );
-                            }}
-                          >
-                            💬
-                          </Button>
-                        </Space>
+                                },
+                              }),
+                            );
+                          }}
+                        >
+                          💬
+                        </Button>
                       </div>
+
                       {/* Game profile */}
                       {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
-                        <div style={{ marginTop: 4, marginLeft: 22, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {c.games.slice(0, 3).map((g: any, i: number) => (
-                            <Tag
+                        <div style={{ marginTop: 7, marginLeft: 44, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {c.games.slice(0, 2).map((g: any, i: number) => (
+                            <span
                               key={i}
-                              style={{ fontSize: 11, padding: '1px 6px', lineHeight: '18px', opacity: 0.85 }}
+                              style={{
+                                fontSize: 10,
+                                color: '#64748B',
+                                background: '#F1F5F9',
+                                borderRadius: 4,
+                                padding: '1px 6px',
+                                lineHeight: '17px',
+                              }}
                             >
-                              {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
-                            </Tag>
+                              {g.game}
+                            </span>
                           ))}
+                          {c.games.length > 2 && (
+                            <span style={{ fontSize: 10, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
+                          )}
                         </div>
                       )}
                     </List.Item>
