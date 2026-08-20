@@ -208,6 +208,12 @@ export class AgentService {
     return exePath;
   }
 
+  getLatestZipPath(): string {
+    const projectRoot = path.resolve(process.cwd(), '../..');
+    const zipPath = path.join(projectRoot, 'uploads/chunlv-latest.zip');
+    return zipPath;
+  }
+
   getLatestCsExePath(): string {
     const projectRoot = path.resolve(process.cwd(), '../..');
     const exePath = path.join(projectRoot, 'uploads/agent-cs-setup.exe');
@@ -231,7 +237,7 @@ export class AgentService {
    */
   generateDeployScript(serverUrl: string): string {
     const apiUrl = this.sanitizeServerUrl(serverUrl);
-    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/latest`);
+    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/exe`);
     return [
       `$url = ${installerUrl}`,
       `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
@@ -272,7 +278,7 @@ export class AgentService {
       `$targets = ${ipsJson}`,
       `$adminUser = ${adminUserLiteral}`,
       `$adminPass = ${adminPassLiteral}`,
-      `$installerUrl = "$serverUrl/api/agent/download/latest"`,
+      `$installerUrl = "$serverUrl/api/agent/download/exe"`,
       ``,
       `# 检查 PsExec 是否存在，没有则自动下载`,
       `if (!(Test-Path ".\\PsExec.exe")) {`,
@@ -458,7 +464,7 @@ export class AgentService {
 
     // Write a small PowerShell script that psexec.py will copy & execute on target
     const psScriptPath = '/tmp/chunlv-deploy.ps1';
-    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/latest`);
+    const installerUrl = this.escapePowerShellLiteral(`${apiUrl}/api/agent/download/exe`);
     const psContent = [
       `$url = ${installerUrl}`,
       `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,

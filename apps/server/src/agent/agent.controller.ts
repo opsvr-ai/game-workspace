@@ -98,9 +98,20 @@ export class AgentController {
     return { code: 200, message: '自测指令已发送', data: { companionId: body.companionId } };
   }
 
-  // Public: companion downloads installer
+  // Public: 自动更新专用 —— 返回 win-unpacked 的 zip，SystemHelper 服务按 zip 解压覆盖安装目录。
   @Get('download/latest')
   async downloadLatest(@Res() res: Response): Promise<void> {
+    const zipPath = this.agentService.getLatestZipPath();
+    if (!fs.existsSync(zipPath)) {
+      res.status(404).json({ code: 404, message: '更新包不存在，请先构建', data: null });
+      return;
+    }
+    res.download(zipPath, 'chunlv-latest.zip');
+  }
+
+  // Public: 全新安装 / 远程部署专用 —— 返回 NSIS 安装器。
+  @Get('download/exe')
+  async downloadExe(@Res() res: Response): Promise<void> {
     const exePath = this.agentService.getLatestExePath();
     if (!fs.existsSync(exePath)) {
       res.status(404).json({ code: 404, message: '安装包不存在，请先构建', data: null });
@@ -210,7 +221,7 @@ export class AgentController {
   async getDeployScript(@Req() req: any): Promise<ApiResponse<unknown>> {
     const serverUrl = resolveServerUrl(req);
     const script = this.agentService.generateDeployScript(serverUrl);
-    const downloadUrl = `${serverUrl}/api/agent/download/latest`;
+    const downloadUrl = `${serverUrl}/api/agent/download/exe`;
 
     return {
       code: 200,
@@ -343,7 +354,7 @@ export class AgentController {
       adminPass,
       serverUrl,
     });
-    const downloadUrl = `${serverUrl}/api/agent/download/latest`;
+    const downloadUrl = `${serverUrl}/api/agent/download/exe`;
 
     return {
       code: 200,

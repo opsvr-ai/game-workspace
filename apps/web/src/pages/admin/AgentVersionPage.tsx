@@ -707,7 +707,7 @@ const AgentVersionPage: React.FC = () => {
                               const serverHost =
                                 deployData?.serverUrl?.replace(/https?:\/\//, '') || window.location.hostname + ':3001';
                               const dlUrl =
-                                deployData?.downloadUrl || deployData?.serverUrl + '/api/agent/download/latest';
+                                deployData?.downloadUrl || deployData?.serverUrl + '/api/agent/download/exe';
                               const cmd =
                                 'psexec \\\\' +
                                 h.ip +
