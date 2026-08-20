@@ -47,7 +47,6 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            animation: 'pulse-glow 1.5s ease-in-out infinite',
           }}
         >
           <PhoneOutlined style={{ color: '#52C41A', fontSize: 16 }} />
