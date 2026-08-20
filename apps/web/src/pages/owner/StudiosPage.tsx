@@ -58,6 +58,9 @@ const StudiosPage: React.FC = () => {
   // Pending review
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
+  const [onlineClubs, setOnlineClubs] = useState<any[]>([]);
+  const [clubName, setClubName] = useState('');
+  const [addingClub, setAddingClub] = useState(false);
 
   const fetchPendingUsers = useCallback(async () => {
     setLoadingPending(true);
@@ -129,6 +132,37 @@ const StudiosPage: React.FC = () => {
     useAuthStore.getState().fetchUser();
   }, [fetchStudios]);
 
+  const fetchOnlineClubs = useCallback(async () => {
+    try {
+      const { data } = await studiosApi.listOnlineClubs();
+      setOnlineClubs(data?.data ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOnlineClubs();
+  }, [fetchOnlineClubs]);
+
+  const addOnlineClub = async () => {
+    if (!clubName.trim()) {
+      message.warning('请输入线上俱乐部名称');
+      return;
+    }
+    setAddingClub(true);
+    try {
+      await studiosApi.createOnlineClub(clubName.trim());
+      message.success('线上俱乐部已添加并自动桥接');
+      setClubName('');
+      fetchOnlineClubs();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '添加失败');
+    } finally {
+      setAddingClub(false);
+    }
+  };
+
   const openEditModal = (record: Studio) => {
     setEditingStudio(record);
     form.setFieldsValue({ name: record.name, type: record.type, splitMode: record.splitMode ?? 'TIERED', address: record.address || '', displayName: record.displayName || '', logoUrl: record.logoUrl || '' });
@@ -155,6 +189,29 @@ const StudiosPage: React.FC = () => {
 
   return (
     <div>
+      <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0' }}>
+        <Text strong style={{ fontSize: 14 }}>🌐 线上俱乐部桥接</Text>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <Input
+            placeholder="线上俱乐部名称（自动创建并桥接为最后一级兜底）"
+            value={clubName}
+            onChange={(e) => setClubName(e.target.value)}
+            onPressEnter={addOnlineClub}
+            style={{ maxWidth: 360 }}
+          />
+          <Button type="primary" loading={addingClub} onClick={addOnlineClub}>添加线上俱乐部</Button>
+        </div>
+        {onlineClubs.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>已桥接：</Text>
+            <Space size={6} wrap style={{ marginTop: 4 }}>
+              {onlineClubs.map((c) => (
+                <Tag key={c.id} color="green">{c.displayName || c.name}</Tag>
+              ))}
+            </Space>
+          </div>
+        )}
+      </div>
       <div
         style={{
           display: 'flex',

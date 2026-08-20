@@ -16,6 +16,47 @@ export class StudiosService {
     });
   }
 
+  // 直接新增一个线上俱乐部（RENTAL 工作室）并自动桥接到当前工作室。
+  async createOnlineClub(ownerStudioId: string, name: string, displayName?: string) {
+    if (!name || !name.trim()) throw new ForbiddenException('请填写线上俱乐部名称');
+    const onlineClub = await this.prisma.studio.create({
+      data: { name: name.trim(), type: 'RENTAL', displayName: displayName?.trim() || null, splitMode: 'FIXED' },
+    });
+    const [a, b] = [ownerStudioId, onlineClub.id].sort();
+    const allFunctions = ['ORDERS', 'POOL', 'CUSTOMERS', 'BILLING', 'KPI'];
+    await this.prisma.studioBridge.create({
+      data: {
+        studioAId: a,
+        studioBId: b,
+        proposedBy: ownerStudioId,
+        status: 'ACTIVE',
+        acceptedAt: new Date(),
+        permissions: {
+          create: allFunctions.map((f) => ({ function: f, acceptedA: true, acceptedB: true })),
+        },
+      },
+    });
+    return onlineClub;
+  }
+
+  async listOnlineClubs(studioId: string) {
+    const bridges = await this.prisma.studioBridge.findMany({
+      where: { status: 'ACTIVE', OR: [{ studioAId: studioId }, { studioBId: studioId }] },
+      include: {
+        studioA: { select: { id: true, name: true, displayName: true, type: true } },
+        studioB: { select: { id: true, name: true, displayName: true, type: true } },
+      },
+    });
+    const clubs: Array<{ id: string; name: string; displayName?: string | null; type: string }> = [];
+    for (const b of bridges) {
+      const other = b.studioAId === studioId ? b.studioB : b.studioA;
+      if (other && other.type === 'RENTAL') {
+        clubs.push({ id: other.id, name: other.name, displayName: other.displayName, type: other.type });
+      }
+    }
+    return clubs;
+  }
+
   async findAll() {
     return this.prisma.studio.findMany({
       include: {

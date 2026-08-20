@@ -76,6 +76,22 @@ export class StudiosController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('studios/online-clubs')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async listOnlineClubs(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.listOnlineClubs(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('studios/online-clubs')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER)
+  async createOnlineClub(@Body() body: { name: string; displayName?: string }, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.studiosService.createOnlineClub(req.user.studioId, body?.name, body?.displayName);
+    return { code: 200, message: '线上俱乐部已添加并自动桥接', data };
+  }
+
   @Get('employees')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
