@@ -667,7 +667,14 @@ const AppLayout: React.FC = () => {
             >
               接受
             </Button>
-            <Button size="small" onClick={() => notification.destroy(nk)}>
+            <Button size="small" onClick={async () => {
+              notification.destroy(nk);
+              try {
+                await ordersApi.rejectPartnerInvite(data.id);
+              } catch {
+                /* 可能已超时/已被抢，忽略 */
+              }
+            }}>
               拒绝
             </Button>
           </Space>
@@ -686,6 +693,24 @@ const AppLayout: React.FC = () => {
       });
       (window as any).electronAPI?.sessionWatch?.(data.sessionId);
       window.dispatchEvent(new Event('chunlv:service-started'));
+    },
+    onPartnerRejected: (data: any) => {
+      notification.warning({
+        message: '🙅 搭档已拒绝',
+        description: `${data?.partnerName || '搭档'} 拒绝了你的搭档邀请`,
+        placement: 'bottomRight',
+        duration: 4,
+      });
+      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
+    },
+    onPartnerTimeout: (data: any) => {
+      notification.info({
+        message: '⏰ 搭档未回应',
+        description: '搭档在倒计时内未回应，邀请已自动取消',
+        placement: 'bottomRight',
+        duration: 4,
+      });
+      window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
     },
     onDualInvite: (data: any) => {
       // 广播找搭档：主陪未指定搭档，工作室任意陪玩可接受，第一个接受者成为搭档

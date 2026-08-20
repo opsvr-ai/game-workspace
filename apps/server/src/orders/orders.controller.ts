@@ -236,6 +236,13 @@ export class OrdersController {
     return { code: 200, message: '已接受搭档邀请，开始计时', data };
   }
 
+  @Post('sessions/:sessionId/partner-reject')
+  @Roles(UserRole.COMPANION)
+  async rejectPartnerInvite(@Param('sessionId') sessionId: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.rejectPartnerInvite(sessionId, req.user.companionId);
+    return { code: 200, message: '已拒绝搭档邀请', data };
+  }
+
   @Post('sessions/:sessionId/partner-broadcast')
   @Roles(UserRole.COMPANION)
   async broadcastPartnerInvite(@Param('sessionId') sessionId: string): Promise<ApiResponse<unknown>> {

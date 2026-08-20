@@ -1142,6 +1142,36 @@ export class OrdersService {
     return { ok: true };
   }
 
+  /** 搭档拒绝双陪邀请：结束该待接受会话，并通知主陪「搭档已拒绝」。 */
+  async rejectPartnerInvite(sessionId: string, partnerId: string) {
+    const session = await this.prisma.orderSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, companionId: true, coCompanionId: true, status: true, startedAt: true, parentOrderId: true },
+    });
+    if (!session) throw new NotFoundException('会话不存在');
+    if (session.startedAt) throw new ForbiddenException('该服务已开始');
+    if (session.coCompanionId && session.coCompanionId !== partnerId) throw new ForbiddenException('无权拒绝此搭档邀请');
+
+    await this.prisma.orderSession.update({
+      where: { id: sessionId },
+      data: { status: 'DONE', endedAt: new Date() },
+    }).catch(() => {});
+
+    if (session.companionId) {
+      const partner = await this.prisma.companion.findUnique({
+        where: { id: partnerId },
+        select: { user: { select: { username: true, displayName: true } } },
+      }).catch(() => null);
+      const partnerName = partner?.user?.displayName || partner?.user?.username || '搭档';
+      this.wsGateway.pushToCompanion(session.companionId, 'order:partner_rejected', {
+        sessionId,
+        orderId: session.parentOrderId,
+        partnerName,
+      });
+    }
+    return { ok: true };
+  }
+
   /** 广播找搭档：把双陪会话邀请广播给工作室，任意陪玩可接受 */
   async broadcastPartnerInvite(sessionId: string) {
     const session = await this.prisma.orderSession.findUnique({
@@ -1176,7 +1206,7 @@ export class OrdersService {
       try {
         const s = await this.prisma.orderSession.findUnique({
           where: { id: sessionId },
-          select: { id: true, status: true, startedAt: true, parentOrderId: true },
+          select: { id: true, status: true, startedAt: true, parentOrderId: true, companionId: true },
         });
         if (!s || s.status !== 'ACTIVE' || s.startedAt) return;
         await this.prisma.orderSession.update({
@@ -1197,6 +1227,13 @@ export class OrdersService {
           sessionId,
           orderId: s.parentOrderId,
         });
+        // 通知主陪：搭档未回应（超时）。
+        if (s.companionId) {
+          this.wsGateway.pushToCompanion(s.companionId, 'order:partner_timeout', {
+            sessionId,
+            orderId: s.parentOrderId,
+          });
+        }
         this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', { id: sessionId, expired: true });
       } catch (e) {
         logger.error('partner invite expiry failed', { error: (e as Error).message, sessionId });

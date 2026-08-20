@@ -23,6 +23,8 @@ interface UseSocketOptions {
   onRoomUpdated?: (data: any) => void;
   onSyncRequired?: (data: any) => void;
   onPartnerAccepted?: (data: any) => void;
+  onPartnerRejected?: (data: any) => void;
+  onPartnerTimeout?: (data: any) => void;
   onDualInvite?: (data: any) => void;
   onDualInviteExpired?: (data: any) => void;
   onServiceHandoff?: (data: any) => void;
@@ -161,6 +163,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:partner_accepted', (data: any) => {
       optsRef.current.onPartnerAccepted?.(data);
+    });
+
+    socket.on('order:partner_rejected', (data: any) => {
+      optsRef.current.onPartnerRejected?.(data);
+    });
+
+    socket.on('order:partner_timeout', (data: any) => {
+      optsRef.current.onPartnerTimeout?.(data);
     });
 
     socket.on('order:dual_invite', (data: any) => {
