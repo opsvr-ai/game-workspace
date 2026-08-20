@@ -18,10 +18,26 @@ export class ManagedPcService {
 
   async list() {
     const items = await this.prisma.managedPC.findMany({ orderBy: { ip: 'asc' } });
-    return Promise.all(items.map(async (item) => ({
-      ...item,
-      online: await this.isOnline(item.ip),
-    })));
+    // 不再用会变化的 IP 做 ping 判定；改用客户端心跳判断在线（按登录账号关联）
+    const pcs = await this.prisma.companionPC.findMany({
+      select: {
+        lastHeartbeat: true,
+        companion: { select: { user: { select: { username: true } } } },
+      },
+    });
+    const heartbeatByUsername = new Map<string, Date>();
+    for (const pc of pcs) {
+      const username = pc.companion?.user?.username;
+      if (username && pc.lastHeartbeat) {
+        heartbeatByUsername.set(username, pc.lastHeartbeat);
+      }
+    }
+    const ONLINE_WINDOW_MS = 120_000; // 2 分钟内有心跳视为在线
+    return items.map((item) => {
+      const hb = heartbeatByUsername.get(item.loginAccount);
+      const online = hb ? Date.now() - new Date(hb).getTime() < ONLINE_WINDOW_MS : false;
+      return { ...item, online };
+    });
   }
 
   async create(dto: { ip: string; loginAccount: string; macAddress?: string; label?: string }) {
