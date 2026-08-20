@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { Controller, Get, Put, Body, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Query, Req, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthorizationService } from './authorization.service';
@@ -98,6 +98,14 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.nonqualified_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
   'dispatch.studio_share_percent': 30,
+  // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）
+  'excellence.revenue_weight': 50,
+  'excellence.revenue_cap_yuan': 10000,
+  'excellence.renew_weight': 20,
+  'excellence.repurchase_weight': 20,
+  'excellence.first_success_weight': 10,
+  'excellence.excellent_threshold': 50,
+  'excellence.battle_screenshot_bonus': 1,
   // 桥接工作室首单返还（仅适用于桥接线下工作室）：首单 = 第一个小时。机密首单不结（0）；绝密按 15 元/小时/陪玩返还（双陪×2）。
   'dispatch.bridge_return_jimi_cents': 0,
   'dispatch.bridge_return_jueju_cents': 1500,
@@ -164,6 +172,35 @@ export class SettingsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async updateConfig(@Body() body: Record<string, any>): Promise<ApiResponse<unknown>> {
+    // 校验综合评分权重：四项满分之和不能超过 100，优秀线不能超过总分。
+    const weightKeys = [
+      'excellence.revenue_weight',
+      'excellence.renew_weight',
+      'excellence.repurchase_weight',
+      'excellence.first_success_weight',
+    ];
+    if (weightKeys.some((k) => body[k] !== undefined)) {
+      const existing = await this.prisma.systemConfig.findMany({ where: { key: { in: weightKeys } } });
+      const map = new Map<string, number>(existing.map((r) => [r.key, Number(r.value) || 0]));
+      for (const k of weightKeys) {
+        if (body[k] !== undefined) {
+          const v = Number(body[k]);
+          if (!Number.isFinite(v) || v < 0) throw new BadRequestException('评分权重必须是非负数字');
+          map.set(k, v);
+        }
+      }
+      const total = weightKeys.reduce((s, k) => s + (map.get(k) || 0), 0);
+      if (total > 100) {
+        throw new BadRequestException(`评分权重满分之和不能超过 100 分（当前 ${total} 分）`);
+      }
+      if (body['excellence.excellent_threshold'] !== undefined) {
+        const t = Number(body['excellence.excellent_threshold']);
+        if (!Number.isFinite(t) || t < 0 || t > total) {
+          throw new BadRequestException(`优秀线需在 0~${total} 分之间`);
+        }
+      }
+    }
+
     const ops = Object.entries(body).map(([key, value]) =>
       this.prisma.systemConfig.upsert({
         where: { key },

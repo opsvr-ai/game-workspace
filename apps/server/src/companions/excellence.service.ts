@@ -27,6 +27,23 @@ export class ExcellenceService {
     const result = new Map<string, ExcellenceResult>();
     if (companionIds.length === 0) return result;
 
+    // 评分权重可后台配置（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）
+    const [rwCfg, rcCfg, renewCfg, repurchaseCfg, firstCfg, thresholdCfg] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_weight' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_cap_yuan' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.renew_weight' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.repurchase_weight' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.first_success_weight' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.excellent_threshold' } }),
+    ]);
+    const num = (v: any, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
+    const revenueWeight = num(rwCfg?.value, 50);
+    const revenueCapYuan = Math.max(1, num(rcCfg?.value, 10000));
+    const renewWeight = num(renewCfg?.value, 20);
+    const repurchaseWeight = num(repurchaseCfg?.value, 20);
+    const firstSuccessWeight = num(firstCfg?.value, 10);
+    const excellentThreshold = num(thresholdCfg?.value, 50);
+
     const orderStats = await this.prisma.order.groupBy({
       by: ['companionId', 'type'],
       where: { companionId: { in: companionIds }, status: 'DONE' },
@@ -93,13 +110,15 @@ export class ExcellenceService {
       const grabCount = grabMap.get(cid) || 0;
       const customerCount = customerMap.get(cid) || 0;
       const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
-      // 月流水 10000 元封顶 50 分；续单/复购率各占 20%，首单成功率占 10%
       const revenue = monthlyRevenueMap.get(cid) || 0;
-      const revenueScore = Math.min(50, revenue / 200);
+      const revenueScore = Math.min(revenueWeight, (revenue * revenueWeight) / revenueCapYuan);
+      const renewScore = (renewRate * renewWeight) / 100;
+      const repurchaseScore = (repurchaseRate * repurchaseWeight) / 100;
+      const firstSuccessScore = (firstSuccessRate * firstSuccessWeight) / 100;
       const bonus = bonusMap.get(cid) || 0;
-      const rankScore = Math.round(revenueScore + renewRate * 0.2 + repurchaseRate * 0.2 + firstSuccessRate * 0.1 + bonus);
+      const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
       result.set(cid, {
-        isExcellent: rankScore >= 50,
+        isExcellent: rankScore >= excellentThreshold,
         rankScore,
         revenueScore: Math.round(revenueScore),
         bonusScore: bonus,
