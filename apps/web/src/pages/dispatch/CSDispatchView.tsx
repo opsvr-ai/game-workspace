@@ -544,7 +544,7 @@ const CSDispatchView: React.FC = () => {
                             >
                               {c.displayName || c.username || c.id}
                             </span>
-                            {c.tier && (
+                            {c.role === 'COMPANION' && c.tier && (
                               <span
                                 title={TIER_LABEL[c.tier]?.label}
                                 style={{
