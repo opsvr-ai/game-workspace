@@ -153,7 +153,7 @@ const OrderPoolPage: React.FC = () => {
 
   const filteredCompanions = companionSearch
     ? sortedCompanions.filter((c) => {
-        const name = c.displayName || c.username || '';
+        const name = c.user?.displayName || c.user?.username || '';
         return name.toLowerCase().includes(companionSearch.toLowerCase());
       })
     : sortedCompanions;
@@ -200,9 +200,9 @@ const OrderPoolPage: React.FC = () => {
       companion.id,
       {
         userId: companion.id,
-        username: companion.username || companion.id,
-        displayName: companion.displayName || companion.username || companion.id,
-        avatar: companion.avatar,
+        username: companion.user?.username || companion.id,
+        displayName: companion.user?.displayName || companion.user?.username || companion.id,
+        avatar: companion.user?.avatar,
         role: 'COMPANION',
       },
     );
@@ -210,9 +210,9 @@ const OrderPoolPage: React.FC = () => {
       conversationId: companion.id,
       participant: {
         userId: companion.id,
-        username: companion.username || companion.id,
-        displayName: companion.displayName || companion.username || companion.id,
-        avatar: companion.avatar,
+        username: companion.user?.username || companion.id,
+        displayName: companion.user?.displayName || companion.user?.username || companion.id,
+        avatar: companion.user?.avatar,
         role: 'COMPANION',
       },
     });
@@ -323,8 +323,8 @@ const OrderPoolPage: React.FC = () => {
             size="small"
             dataSource={filteredCompanions}
             renderItem={(c) => {
-              const avatarUrl = c.avatar ? `/uploads/avatars/${c.avatar}?v=${c.avatar}` : null;
-              const initial = (c.displayName || c.username || '?')[0].toUpperCase();
+              const avatarUrl = c.user?.avatar ? `/uploads/avatars/${c.user.avatar}?v=${c.user.avatar}` : null;
+              const initial = (c.user?.displayName || c.user?.username || '?').slice(0, 1).toUpperCase();
               return (
                 <List.Item
                   style={{
@@ -387,7 +387,7 @@ const OrderPoolPage: React.FC = () => {
                             minWidth: 0,
                           }}
                         >
-                          {c.displayName || c.username || c.id}
+                          {c.user?.displayName || c.user?.username || c.id}
                         </span>
                         <Button
                           size="small"
