@@ -20,7 +20,7 @@ import { UserRole, type ApiResponse } from '@chunlv/shared';
 import { BattleScreenshotsService } from './battle-screenshots.service';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { mkdirSync, rmSync } from 'fs';
+import { mkdirSync, rmSync, renameSync } from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as os from 'os';
@@ -33,6 +33,9 @@ const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic',
 const MAX_FILES = 10;
 const MAX_SIZE = 20 * 1024 * 1024;
 const execFileAsync = promisify(execFile);
+
+const safeName = (s: string) => String(s || '未知').replace(/[\\/:*?"<>|]/g, '_').trim();
+const chinaDate = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
 @Controller('battle-screenshots')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -48,17 +51,20 @@ export class BattleScreenshotsController {
     FilesInterceptor('files', MAX_FILES, {
       storage: diskStorage({
         destination: (
-          _req: Request,
+          req: Request,
           _file: Express.Multer.File,
           cb: (error: Error | null, destination: string) => void,
         ) => {
+          const companionFolder = safeName((req as any).user?.username);
+          const dateFolder = chinaDate();
+          const dir = join(UPLOAD_DIR, companionFolder, dateFolder);
           try {
-            mkdirSync(UPLOAD_DIR, { recursive: true });
+            mkdirSync(dir, { recursive: true });
           } catch {
-            rmSync(UPLOAD_DIR, { force: true });
-            mkdirSync(UPLOAD_DIR, { recursive: true });
+            rmSync(dir, { force: true });
+            mkdirSync(dir, { recursive: true });
           }
-          cb(null, UPLOAD_DIR);
+          cb(null, dir);
         },
         filename: (
           _req: Request,
@@ -91,7 +97,16 @@ export class BattleScreenshotsController {
     if (!files || files.length < 3) {
       throw new BadRequestException('最少上传 3 张战绩图为一组');
     }
-    const images = files.map((f) => `/uploads/battle-screenshots/${f.filename}`);
+    const companionFolder = safeName(req.user.username);
+    const dateFolder = chinaDate();
+    const images = files.map((f, i) => {
+      const ext = extname(f.filename).toLowerCase() || '.jpg';
+      const newName = `${i + 1}${ext}`;
+      const oldPath = join(UPLOAD_DIR, companionFolder, dateFolder, f.filename);
+      const newPath = join(UPLOAD_DIR, companionFolder, dateFolder, newName);
+      try { renameSync(oldPath, newPath); } catch {}
+      return `/uploads/battle-screenshots/${companionFolder}/${dateFolder}/${newName}`;
+    });
     const data = await this.service.create({
       studioId: req.user.studioId,
       companionId: req.user.companionId,
@@ -145,8 +160,9 @@ export class BattleScreenshotsController {
       // 复制图片到临时目录，按 1.jpg/2.jpg/3.jpg 顺序命名，方便文件夹里查看。
       const absFiles: string[] = [];
       item.images.forEach((url, i) => {
-        const src = join(UPLOAD_DIR, url.split('/').pop() || '');
-        if (!src) return;
+        const rel = String(url).replace(/^\/uploads\/battle-screenshots\//, '');
+        const src = join(UPLOAD_DIR, rel);
+        if (!rel) return;
         const dst = join(tmpDir, `${i + 1}.jpg`);
         require('fs').copyFileSync(src, dst);
         absFiles.push(dst);
