@@ -54,7 +54,7 @@ interface Personnel {
 }
 
 const TIER_LABEL: Record<string, { label: string; color: string; emoji: string }> = {
-  TOP: { label: '上等马', color: '#D4A017', emoji: '👑' },
+  TOP: { label: '上等马', color: '#D4A017', emoji: '👑🏇' },
   MIDDLE: { label: '中等马', color: '#A9A9A9', emoji: '🐎' },
   LOW: { label: '下等马', color: '#CD7F32', emoji: '🐴' },
 };
