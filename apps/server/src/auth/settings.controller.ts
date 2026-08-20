@@ -105,6 +105,7 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   'excellence.repurchase_weight': 20,
   'excellence.first_success_weight': 10,
   'excellence.excellent_threshold': 50,
+  'excellence.middle_tier_threshold': 25,
   'excellence.battle_screenshot_bonus': 1,
   // 桥接工作室首单返还（仅适用于桥接线下工作室）：首单 = 第一个小时。机密首单不结（0）；绝密按 15 元/小时/陪玩返还（双陪×2）。
   'dispatch.bridge_return_jimi_cents': 0,

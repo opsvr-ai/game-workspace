@@ -5,6 +5,7 @@ import { settlementMonthRange } from '../common/business-day';
 
 export interface ExcellenceResult {
   isExcellent: boolean;
+  tier: string;
   rankScore: number;
   revenueScore: number;
   bonusScore: number;
@@ -28,13 +29,14 @@ export class ExcellenceService {
     if (companionIds.length === 0) return result;
 
     // 评分权重可后台配置（默认：月流水50 + 续单20 + 复购20 + 首单10，优秀线50）
-    const [rwCfg, rcCfg, renewCfg, repurchaseCfg, firstCfg, thresholdCfg] = await Promise.all([
+    const [rwCfg, rcCfg, renewCfg, repurchaseCfg, firstCfg, thresholdCfg, middleCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_weight' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_cap_yuan' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.renew_weight' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.repurchase_weight' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.first_success_weight' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'excellence.excellent_threshold' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.middle_tier_threshold' } }),
     ]);
     const num = (v: any, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
     const revenueWeight = num(rwCfg?.value, 50);
@@ -43,6 +45,7 @@ export class ExcellenceService {
     const repurchaseWeight = num(repurchaseCfg?.value, 20);
     const firstSuccessWeight = num(firstCfg?.value, 10);
     const excellentThreshold = num(thresholdCfg?.value, 50);
+    const middleTierThreshold = num(middleCfg?.value, 25);
 
     const orderStats = await this.prisma.order.groupBy({
       by: ['companionId', 'type'],
@@ -117,8 +120,14 @@ export class ExcellenceService {
       const firstSuccessScore = (firstSuccessRate * firstSuccessWeight) / 100;
       const bonus = bonusMap.get(cid) || 0;
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
+      const tier = rankScore >= excellentThreshold
+        ? 'TOP'
+        : rankScore >= middleTierThreshold
+          ? 'MIDDLE'
+          : 'LOW';
       result.set(cid, {
         isExcellent: rankScore >= excellentThreshold,
+        tier,
         rankScore,
         revenueScore: Math.round(revenueScore),
         bonusScore: bonus,
@@ -140,6 +149,7 @@ export class ExcellenceService {
     const map = await this.computeForCompanions([companionId]);
     return map.get(companionId) ?? {
       isExcellent: false,
+      tier: 'LOW',
       rankScore: 0,
       revenueScore: 0,
       bonusScore: 0,

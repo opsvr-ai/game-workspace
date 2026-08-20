@@ -19,7 +19,14 @@ interface Excellence {
   repurchaseRate?: number;
   newRate?: number;
   isExcellent?: boolean;
+  tier?: 'TOP' | 'MIDDLE' | 'LOW';
 }
+
+const TIER: Record<string, { label: string; color: string; emoji: string }> = {
+  TOP: { label: '上等马', color: 'gold', emoji: '🏇' },
+  MIDDLE: { label: '中等马', color: 'blue', emoji: '🐎' },
+  LOW: { label: '下等马', color: 'default', emoji: '🐴' },
+};
 
 const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
   const [data, setData] = useState<Excellence | null>(null);
@@ -38,6 +45,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
   const renewScore = Math.round((data?.renewRate ?? 0) * 0.2);
   const repurchaseScore = Math.round((data?.repurchaseRate ?? 0) * 0.2);
   const newScore = Math.round((data?.newRate ?? 0) * 0.1);
+  const tier = TIER[data?.tier || 'LOW'];
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={640} title="🏆 综合评分说明">
@@ -52,12 +60,13 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               showIcon
               message={
                 <Space>
-                  {data.isExcellent && <CrownOutlined style={{ color: '#FAAD14' }} />}
                   <span>我的综合分：<b>{data.rankScore ?? 0}</b> 分</span>
-                  <Tag color={data.isExcellent ? 'gold' : 'default'}>{data.isExcellent ? '⭐ 优秀' : '普通'}</Tag>
+                  <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}>{tier.emoji} {tier.label}</Tag>
                 </Space>
               }
-              description={data.isExcellent ? '已达优秀线（50 分），享受优秀陪玩权益' : `还差 ${Math.max(0, 50 - (data.rankScore ?? 0))} 分达到优秀线（50 分）`}
+              description={data.tier === 'TOP'
+                ? '已达上等马（优秀），享受全部抢单权益'
+                : `还差 ${Math.max(0, 50 - (data.rankScore ?? 0))} 分达到上等马（优秀线 50 分）`}
             />
           )}
 
@@ -80,7 +89,13 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
             </Descriptions.Item>
           </Descriptions>
 
-          <Title level={5} style={{ marginTop: 20 }}>优秀线 = 50 分，达到后有哪些好处？</Title>
+          <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马（优秀）权益</Title>
+          <ul style={{ paddingLeft: 20, margin: 0 }}>
+            <li>🏇 上等马（≥ 50 分，优秀）：享受下面全部权益。</li>
+            <li>🐎 中等马（25~49 分）：普通权益。</li>
+            <li>🐴 下等马（&lt; 25 分）：需加油提升。</li>
+          </ul>
+          <Title level={5} style={{ marginTop: 16 }}>上等马（优秀）好处</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
             <li>新订单 <b>0 秒</b>就能看到（普通陪玩要等 60 秒）。</li>
             <li>新客首单 <b>不限名额</b>（普通陪玩每天只能抢 1 个新客）。</li>

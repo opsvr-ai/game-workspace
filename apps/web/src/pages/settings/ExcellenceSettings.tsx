@@ -72,6 +72,7 @@ const ExcellenceSettings: React.FC = () => {
         'excellence.repurchase_weight': config?.['excellence.repurchase_weight'] ?? 20,
         'excellence.first_success_weight': config?.['excellence.first_success_weight'] ?? 10,
         'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 50,
+        'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 25,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,
         'dispatch.nonqualified_daily_new_limit': config?.['dispatch.nonqualified_daily_new_limit'] ?? 1,
         'pool.daily_customer_quota': config?.['pool.daily_customer_quota'] ?? 3,
@@ -116,6 +117,7 @@ const ExcellenceSettings: React.FC = () => {
             ))}
             <Field label="月流水满分金额（元）" value={config?.['excellence.revenue_cap_yuan'] ?? 10000} step={100} onChange={(v) => update('excellence.revenue_cap_yuan', v)} suffix="达到此金额即满分" />
             <Field label="优秀线（分）" value={threshold} step={1} max={100} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入优秀" />
+            <Field label="中等马线（分）" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} max={100} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
           </Col>
           <Col span={12}>
             <Field label="战绩图每组加分（分）" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
