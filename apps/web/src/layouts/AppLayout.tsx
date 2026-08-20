@@ -40,6 +40,15 @@ if (!document.getElementById('bell-pulse-css')) {
   document.head.appendChild(s2);
 }
 
+// 侧边栏子菜单展开后保持透明，避免出现白色背景
+if (!document.getElementById('menu-sub-bg-css')) {
+  const s3 = document.createElement('style');
+  s3.id = 'menu-sub-bg-css';
+  s3.textContent =
+    '.ant-menu.ant-menu-dark .ant-menu-sub, .ant-menu.ant-menu-dark .ant-menu-sub .ant-menu-item, .ant-menu.ant-menu-dark .ant-menu-item, .ant-menu.ant-menu-dark .ant-menu-submenu-title { background: transparent !important; }';
+  document.head.appendChild(s3);
+}
+
 import {
   ControlOutlined,
   StopOutlined,
