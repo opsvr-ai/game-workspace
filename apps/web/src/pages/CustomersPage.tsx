@@ -70,7 +70,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; pausedAt?: string | null; totalPausedSec?: number | null; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
 }
 
 interface CompanionOption {
@@ -647,8 +647,46 @@ const CustomersPage: React.FC = () => {
             if (activeSession.startedAt) {
               return (
                 <Space size={4}>
-                  <Tag color="blue">服务中</Tag>
-                  <ServiceTimer startedAt={activeSession.startedAt} />
+                  {activeSession.pausedAt ? (
+                    <Tag color="orange">暂停中</Tag>
+                  ) : (
+                    <>
+                      <Tag color="blue">服务中</Tag>
+                      <ServiceTimer startedAt={activeSession.startedAt} />
+                    </>
+                  )}
+                  {activeSession.pausedAt ? (
+                    <Button
+                      size="small"
+                      type="primary"
+                      onClick={async () => {
+                        try {
+                          await ordersApi.resumeSession(activeSession.id);
+                          message.success('已继续服务');
+                          fetchCustomers();
+                        } catch (e: any) {
+                          message.error(extractErrorMessage(e, '继续失败'));
+                        }
+                      }}
+                    >
+                      继续
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          await ordersApi.pauseSession(activeSession.id);
+                          message.success('已暂停，暂停期间不计算服务时长');
+                          fetchCustomers();
+                        } catch (e: any) {
+                          message.error(extractErrorMessage(e, '暂停失败'));
+                        }
+                      }}
+                    >
+                      暂停
+                    </Button>
+                  )}
                   <Button
                     size="small"
                     danger
