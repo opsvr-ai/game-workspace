@@ -38,8 +38,14 @@ function getAppPassword(): string {
   return (store.get('appPassword') as string) || '123456';
 }
 
+// WebSocket 优先用 7 天有效期的 refreshToken，避免 accessToken 过期后主进程连不上
+function getWsToken(): string {
+  return (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+}
+
 const STORE_KEYS = new Set([
   'token',
+  'refreshToken',
   'companionId',
   'appPassword',
   'notificationPrefs',
@@ -242,8 +248,8 @@ function setupIPC(): void {
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => {
     if (!STORE_KEYS.has(key)) return { success: false };
     store.set(key, value);
-    if (key === 'token' && value) {
-      connectWebSocket(getServerUrl(), String(value), (store.get('companionId') || '') as string);
+    if ((key === 'token' || key === 'refreshToken') && value) {
+      connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string);
     }
     return { success: true };
   });
@@ -456,7 +462,7 @@ app.whenReady().then(() => {
     if (currentRole !== 'COMPANION') return;
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });
-  const token = store.get('token') as string;
+  const token = getWsToken();
   if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string);
 
   trace('6-done');

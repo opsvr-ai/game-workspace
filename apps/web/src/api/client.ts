@@ -94,6 +94,9 @@ http.interceptors.response.use(
         try {
           (window as any).electronAPI?.storeSet?.('token', newAccessToken);
         } catch {}
+        try {
+          (window as any).electronAPI?.storeSet?.('refreshToken', newRefreshToken);
+        } catch {}
 
         processQueue(null, newAccessToken);
 
