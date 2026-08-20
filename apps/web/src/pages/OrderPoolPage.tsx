@@ -22,6 +22,20 @@ import { buildOrderInfoFields } from '../utils/orderPool';
 
 const { Text } = Typography;
 
+function isPersonnelOnline(c: any): boolean {
+  if (c.lastHeartbeat) return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
+  if (c.status) return c.status !== 'OFFLINE';
+  return false;
+}
+
+function displayStatus(c: any): { label: string; color: string } {
+  if (!isPersonnelOnline(c)) return { label: '离线', color: 'default' };
+  if (c.status && c.status !== 'OFFLINE') {
+    return companionStatusConfig[c.status] || { label: c.status, color: 'default' };
+  }
+  return { label: '在线', color: 'green' };
+}
+
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
@@ -127,7 +141,7 @@ const OrderPoolPage: React.FC = () => {
 
   const filteredCompanions = companionSearch
     ? sortedCompanions.filter((c) => {
-        const name = c.user?.displayName || c.user?.username || '';
+        const name = c.displayName || c.username || '';
         return name.toLowerCase().includes(companionSearch.toLowerCase());
       })
     : sortedCompanions;
@@ -170,24 +184,23 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const openCompanionChat = async (companion: any) => {
-    const u = companion.user as any;
     await useChatStore.getState().openConversation(
       companion.id,
       {
-        userId: u?.id || companion.id,
-        username: u?.username || companion.id,
-        displayName: u?.displayName || u?.username || companion.id,
-        avatar: u?.avatar,
+        userId: companion.id,
+        username: companion.username || companion.id,
+        displayName: companion.displayName || companion.username || companion.id,
+        avatar: companion.avatar,
         role: 'COMPANION',
       },
     );
     setChatPartner({
       conversationId: companion.id,
       participant: {
-        userId: u?.id || companion.id,
-        username: u?.username || companion.id,
-        displayName: u?.displayName || u?.username || companion.id,
-        avatar: u?.avatar,
+        userId: companion.id,
+        username: companion.username || companion.id,
+        displayName: companion.displayName || companion.username || companion.id,
+        avatar: companion.avatar,
         role: 'COMPANION',
       },
     });
@@ -298,9 +311,8 @@ const OrderPoolPage: React.FC = () => {
             size="small"
             dataSource={filteredCompanions}
             renderItem={(c) => {
-              const u = c.user as any;
-              const avatarUrl = u?.avatar ? `/uploads/avatars/${u.avatar}?v=${u.avatar}` : null;
-              const initial = (u?.displayName || u?.username || '?')[0].toUpperCase();
+              const avatarUrl = c.avatar ? `/uploads/avatars/${c.avatar}?v=${c.avatar}` : null;
+              const initial = (c.displayName || c.username || '?')[0].toUpperCase();
               return (
                 <List.Item
                   style={{ padding: '8px 6px', display: 'block', borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
@@ -318,20 +330,16 @@ const OrderPoolPage: React.FC = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           boxShadow:
-                            c.status !== 'OFFLINE'
-                              ? `0 0 6px ${c.status === 'BUSY' ? '#FF4757' : c.status === 'ENTERTAINMENT' ? '#00E676' : '#FFD600'}`
-                              : 'none',
+                            isPersonnelOnline(c) ? '0 0 6px #00E676' : 'none',
                           flexShrink: 0,
                         }}
                       >
                         {!avatarUrl && <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{initial}</span>}
                       </div>
-                      <Text strong>{u?.displayName || u?.username || c.id}</Text>
+                      <Text strong>{c.displayName || c.username || c.id}</Text>
                     </Space>
                     <Space size={4}>
-                      <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
-                        {companionStatusConfig[c.status]?.label || c.status}
-                      </Tag>
+                      <Tag color={displayStatus(c).color}>{displayStatus(c).label}</Tag>
                       <Button
                         size="small"
                         type="text"

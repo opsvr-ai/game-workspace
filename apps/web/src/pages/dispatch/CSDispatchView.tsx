@@ -78,6 +78,14 @@ function isPersonnelOnline(c: Personnel): boolean {
   return false;
 }
 
+function displayStatus(c: Personnel): { label: string; color: string } {
+  if (!isPersonnelOnline(c)) return { label: '离线', color: 'default' };
+  if (c.status && c.status !== CompanionStatus.OFFLINE) {
+    return companionStatusConfig[c.status] || { label: c.status, color: 'default' };
+  }
+  return { label: '在线', color: 'green' };
+}
+
 const ROLE_TAG: Record<string, { color: string; label: string }> = {
   COMPANION: { color: 'blue', label: '陪玩' },
   CS: { color: 'cyan', label: '客服' },
@@ -509,6 +517,9 @@ const CSDispatchView: React.FC = () => {
                               <span title="优秀" style={{ color: '#FAAD14', fontSize: 12, lineHeight: 1, flexShrink: 0 }}>⭐</span>
                             )}
                             <Text strong>{c.displayName || c.username || c.id}</Text>
+                            <Text type="secondary" style={{ fontSize: 10, flexShrink: 0 }}>
+                              {ROLE_TAG[c.role]?.label || c.role}
+                            </Text>
                             {(c as any).processStatus === 'BLOCKED' && (
                               <Tag color="red" style={{ fontSize: 11, padding: '1px 6px', lineHeight: '20px' }}>
                                 已限制
@@ -522,17 +533,7 @@ const CSDispatchView: React.FC = () => {
                           </span>
                         </Space>
                         <Space size={4}>
-                          <Tag color={ROLE_TAG[c.role]?.color || 'default'}>
-                            {ROLE_TAG[c.role]?.label || c.role}
-                          </Tag>
-                          <Tag color={isPersonnelOnline(c) ? 'green' : 'default'}>
-                            {isPersonnelOnline(c) ? '在线' : '离线'}
-                          </Tag>
-                          {c.status && (
-                            <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
-                              {companionStatusConfig[c.status]?.label || c.status}
-                            </Tag>
-                          )}
+                          <Tag color={displayStatus(c).color}>{displayStatus(c).label}</Tag>
                           <Button
                             size="small"
                             type="text"
@@ -924,14 +925,7 @@ const CSDispatchView: React.FC = () => {
               <Tag color={ROLE_TAG[selectedCompanion.role]?.color || 'default'}>
                 {ROLE_TAG[selectedCompanion.role]?.label || selectedCompanion.role}
               </Tag>
-              <Tag color={isPersonnelOnline(selectedCompanion) ? 'green' : 'default'}>
-                {isPersonnelOnline(selectedCompanion) ? '在线' : '离线'}
-              </Tag>
-              {selectedCompanion.status && (
-                <Tag color={companionStatusConfig[selectedCompanion.status]?.color || 'default'}>
-                  {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
-                </Tag>
-              )}
+              <Tag color={displayStatus(selectedCompanion).color}>{displayStatus(selectedCompanion).label}</Tag>
             </Space>
             <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
               {selectedCompanion.games &&
