@@ -3,6 +3,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
 import { message } from 'antd';
 import http from '../api/client';
+import { useVoiceCallStore } from '../stores/voiceCallStore';
 
 interface CallState {
   status: 'idle' | 'ringing' | 'calling' | 'connected';
@@ -13,30 +14,54 @@ interface CallState {
   volume?: number;
 }
 
-// 跟微信电脑版一致：振铃/呼叫超时自动结束，避免“对方无应答”时一直挂在那。
+// 振铃/呼叫超时自动结束，避免“对方无应答”时一直挂在那。
 const CALL_TIMEOUT_MS = 45_000;
 
-// Simple ringtone using oscillator (no external file needed)
+// 更柔和的来电铃声：低音量、渐入渐出的双音，不再用刺耳的高频正弦波。
 function playRingtone() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, ctx.currentTime);
-    osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    const stop = () => { try { osc.stop(); ctx.close(); } catch {} };
-    setTimeout(() => { osc.frequency.setValueAtTime(800, ctx.currentTime); }, 600);
-    setTimeout(() => { osc.frequency.setValueAtTime(1000, ctx.currentTime); }, 900);
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const master = ctx.createGain();
+    master.gain.value = 0.12;
+    master.connect(ctx.destination);
+
+    let stopped = false;
+    const tone = (freq: number, dur: number) => {
+      if (stopped) return;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.connect(g);
+      g.connect(master);
+      osc.start();
+      osc.stop(ctx.currentTime + dur + 0.05);
+    };
+
+    let phase = 0;
+    const interval = setInterval(() => {
+      if (stopped) return;
+      tone(phase === 0 ? 440 : 523, 0.4);
+      phase = 1 - phase;
+    }, 500);
+
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(interval);
+      try { ctx.close(); } catch {}
+    };
     return { stop, ctx };
-  } catch { return { stop: () => {}, ctx: null }; }
+  } catch {
+    return { stop: () => {}, ctx: null };
+  }
 }
 
-// TURN 服务器配置从后台读取（老板在设置页填写），不再写死在构建环境变量里
+// TURN 服务器配置从后台读取，老板在设置页填写。
 async function loadIceServers(): Promise<RTCIceServer[]> {
   const servers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
   try {
@@ -57,8 +82,6 @@ async function loadIceServers(): Promise<RTCIceServer[]> {
 }
 
 export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
-  const userIdRef = useRef<string | undefined>();
-  const userNameRef = useRef<string | undefined>();
   const [callState, setCallState] = useState<CallState>(() => {
     const saved = localStorage.getItem('voice-volume');
     return { status: 'idle', volume: saved ? parseInt(saved) : 80 };
@@ -70,10 +93,18 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusRef = useRef<CallState['status']>('idle');
+  const offerSdpRef = useRef<any>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
   useEffect(() => {
     statusRef.current = callState.status;
-  }, [callState.status]);
+    useVoiceCallStore.getState().setCall({
+      status: callState.status,
+      peerId: callState.peerId,
+      peerName: callState.peerName,
+      duration: callState.duration,
+    });
+  }, [callState]);
 
   const clearCallTimeout = useCallback(() => {
     if (timeoutRef.current) {
@@ -89,8 +120,14 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     pcRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
-    remoteAudioRef.current?.pause();
-    remoteAudioRef.current = null;
+    if (remoteAudioRef.current) {
+      try {
+        remoteAudioRef.current.pause();
+        remoteAudioRef.current.srcObject = null;
+        remoteAudioRef.current.remove();
+      } catch {}
+      remoteAudioRef.current = null;
+    }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     clearCallTimeout();
   }, [clearCallTimeout]);
@@ -101,7 +138,28 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     return s;
   }, [socketRef]);
 
-  // 主动结束通话（通知对方），并根据当前状态给出提示。
+  const attachRemoteAudio = useCallback((stream: MediaStream) => {
+    const audio = new Audio();
+    audio.autoplay = true;
+    audio.srcObject = stream;
+    const saved = parseInt(localStorage.getItem('voice-volume') || '80', 10);
+    audio.volume = Number.isFinite(saved) ? Math.min(100, Math.max(0, saved)) / 100 : 0.8;
+    audio.style.display = 'none';
+    try { document.body.appendChild(audio); } catch {}
+    remoteAudioRef.current = audio;
+    audio.play().catch(() => {});
+  }, []);
+
+  const flushPendingCandidates = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    const pending = pendingCandidatesRef.current;
+    pendingCandidatesRef.current = [];
+    for (const c of pending) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+    }
+  }, []);
+
   const endCall = useCallback((socket: Socket, peerId: string | undefined, silent = false) => {
     try {
       if (peerId) socket.emit('call:hangup', { targetUserId: peerId });
@@ -116,46 +174,56 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     else if (prev === 'connected') message.info('通话已结束');
   }, [cleanup]);
 
-  // Listen for incoming calls
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
+
     const onOffer = (data: any) => {
+      offerSdpRef.current = data?.sdp;
+      pendingCandidatesRef.current = [];
       ringtoneRef.current = playRingtone();
-      setCallState({ status: 'ringing', peerId: data.fromUserId, peerName: data.callerName, volume: 80 });
-      // 长时间不接听自动结束，并通知主叫方，避免双方一直挂着。
+      setCallState({ status: 'ringing', peerId: data?.fromUserId, peerName: data?.callerName, volume: 80 });
       clearCallTimeout();
       timeoutRef.current = setTimeout(() => {
         try {
-          if (data.fromUserId) socket.emit('call:hangup', { targetUserId: data.fromUserId });
+          if (data?.fromUserId) socket.emit('call:hangup', { targetUserId: data.fromUserId });
         } catch {}
         ringtoneRef.current?.stop();
         cleanup();
         setCallState({ status: 'idle' });
       }, CALL_TIMEOUT_MS);
     };
+
     const onAnswer = async (data: any) => {
       clearCallTimeout();
       ringtoneRef.current?.stop();
-      if (pcRef.current) {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      try {
+        if (pcRef.current && data?.sdp) {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          await flushPendingCandidates();
+        }
+      } catch (e: any) {
+        console.warn('setRemoteDescription(answer) failed', e?.message);
       }
       setCallState((s) => ({ ...s, status: 'connected', startTime: Date.now() }));
     };
+
     const onIce = async (data: any) => {
-      if (pcRef.current && data.candidate) {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      if (!data?.candidate) return;
+      if (pcRef.current && pcRef.current.remoteDescription) {
+        try { await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+      } else {
+        pendingCandidatesRef.current.push(data.candidate);
       }
     };
-    const onHangup = () => {
-      endCall(socket, undefined, false);
-    };
-    // 断线/重连时自动挂断并清理，避免“挂断不了”或残留通话
+
+    const onHangup = () => endCall(socket, undefined, false);
     const onDisconnect = () => {
       ringtoneRef.current?.stop();
       cleanup();
       setCallState({ status: 'idle' });
     };
+
     socket.on('call:offer', onOffer);
     socket.on('call:answer', onAnswer);
     socket.on('call:ice-candidate', onIce);
@@ -168,12 +236,13 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       socket.off('call:hangup', onHangup);
       socket.off('disconnect', onDisconnect);
     };
-  }, [socketRef, cleanup, endCall, clearCallTimeout]);
+  }, [socketRef, cleanup, endCall, clearCallTimeout, flushPendingCandidates]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
     try {
       const socket = getSocket();
       clearCallTimeout();
+      pendingCandidatesRef.current = [];
       setCallState({ status: 'calling', peerId: targetUserId, peerName: targetUserName });
       const media = navigator.mediaDevices;
       if (!media?.getUserMedia) {
@@ -193,13 +262,9 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       pc.onicecandidate = (e) => {
         if (e.candidate) socket.emit('call:ice-candidate', { targetUserId, candidate: e.candidate });
       };
-
       pc.ontrack = (e) => {
-        const audio = new Audio();
-        audio.srcObject = e.streams[0];
-        audio.volume = (callState.volume || 80) / 100;
-        remoteAudioRef.current = audio;
-        audio.play().catch(() => {});
+        const s = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+        attachRemoteAudio(s);
       };
 
       const offer = await pc.createOffer();
@@ -211,12 +276,9 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
 
-      // 45 秒无应答自动结束并提示主叫方。
       timeoutRef.current = setTimeout(() => {
         if (statusRef.current !== 'calling') return;
-        try {
-          socket.emit('call:hangup', { targetUserId });
-        } catch {}
+        try { socket.emit('call:hangup', { targetUserId }); } catch {}
         cleanup();
         setCallState({ status: 'idle' });
         message.info('对方无应答，请稍后再试');
@@ -233,13 +295,15 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.error(`通话失败: ${errMsg}`);
       }
     }
-  }, [getSocket, cleanup, clearCallTimeout, callState.volume]);
+  }, [getSocket, cleanup, clearCallTimeout, attachRemoteAudio]);
 
   const acceptCall = useCallback(async () => {
     if (callState.status !== 'ringing' || !callState.peerId) return;
     try {
       const socket = getSocket();
       clearCallTimeout();
+      ringtoneRef.current?.stop();
+      pendingCandidatesRef.current = [];
       const media = navigator.mediaDevices;
       if (!media?.getUserMedia) {
         cleanup();
@@ -258,14 +322,17 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       pc.onicecandidate = (e) => {
         if (e.candidate) socket.emit('call:ice-candidate', { targetUserId: callState.peerId, candidate: e.candidate });
       };
-
       pc.ontrack = (e) => {
-        const audio = new Audio();
-        audio.srcObject = e.streams[0];
-        audio.volume = (callState.volume || 80) / 100;
-        remoteAudioRef.current = audio;
-        audio.play().catch(() => {});
+        const s = (e.streams && e.streams[0]) || new MediaStream([e.track]);
+        attachRemoteAudio(s);
       };
+
+      // 关键：必须先设置对端 offer 为 remoteDescription，再 createAnswer，
+      // 否则协商出来的 answer 不含对端媒体，双方听不到声音。
+      if (offerSdpRef.current) {
+        await pc.setRemoteDescription(new RTCSessionDescription(offerSdpRef.current));
+        await flushPendingCandidates();
+      }
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -277,7 +344,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
       }, 1000);
     } catch (err: any) {
-      // 接听失败（例如没有麦克风权限）必须通知主叫方挂断，否则主叫方会一直显示“正在呼叫”。
+      // 接听失败必须通知主叫方挂断，否则主叫方一直显示“正在呼叫”。
       try {
         const socket = getSocket();
         if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
@@ -286,7 +353,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       setCallState({ status: 'idle' });
       message.error(`接听失败: ${err?.message || String(err)}`);
     }
-  }, [callState, getSocket, cleanup, clearCallTimeout]);
+  }, [callState, getSocket, cleanup, clearCallTimeout, attachRemoteAudio, flushPendingCandidates]);
 
   const rejectCall = useCallback(() => {
     clearCallTimeout();
@@ -295,8 +362,9 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       const socket = getSocket();
       if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
     } catch {}
+    cleanup();
     setCallState({ status: 'idle' });
-  }, [callState.peerId, getSocket, clearCallTimeout]);
+  }, [callState.peerId, getSocket, cleanup, clearCallTimeout]);
 
   const hangup = useCallback(() => {
     clearCallTimeout();

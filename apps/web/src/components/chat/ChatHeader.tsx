@@ -2,12 +2,14 @@
 import React from 'react';
 import { Space, Tag, Typography } from 'antd';
 import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined } from '@ant-design/icons';
+import { useVoiceCallStore } from '../../stores/voiceCallStore';
 
 const { Text } = Typography;
 
 interface ChatHeaderProps {
   name: string;
   role: string;
+  userId?: string;
   avatarUrl?: string;
   orderInfo?: string;
   pinned?: boolean;
@@ -23,7 +25,17 @@ const ROLE_LABELS: Record<string, string> = {
   OWNER: '老板',
 };
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick }) => {
+function formatCallDuration(seconds?: number) {
+  if (!seconds) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick }) => {
+  const call = useVoiceCallStore((s) => s.call);
+  const inCall = call.status === 'connected' && !!userId && call.peerId === userId;
+
   return (
     <div
       style={{
@@ -65,6 +77,22 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, avatarUrl, orderInf
           <Text type="secondary" style={{ fontSize: 12, marginTop: 1 }}>
             {orderInfo}
           </Text>
+        )}
+        {inCall && (
+          <span
+            style={{
+              fontSize: 12,
+              color: '#16A34A',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16A34A', display: 'inline-block', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
+            正在语音通话 {formatCallDuration(call.duration)}
+          </span>
         )}
       </div>
       </div>

@@ -182,6 +182,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
       <ChatHeader
         name={participantName}
         role={participant?.role || ''}
+        userId={participant?.userId}
         avatarUrl={participantAvatar}
         orderInfo={orderInfo || conv?.orderInfo}
         pinned={conv?.pinned}
