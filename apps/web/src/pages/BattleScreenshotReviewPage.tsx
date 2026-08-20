@@ -69,16 +69,53 @@ const BattleScreenshotReviewPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {items.map((it) => (
               <div key={it.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
-                <Space wrap>
-                  <Text strong>{it.companion?.user?.displayName || it.companion?.user?.username || it.companionId}</Text>
-                  {it.customer && <Text type="secondary">客户：{it.customer.customerCode || it.customer.wechatId}</Text>}
-                  <Tag color={STATUS[it.status]?.color}>{STATUS[it.status]?.label}</Tag>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{new Date(it.createdAt).toLocaleString('zh-CN')}</Text>
-                </Space>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  {(() => {
+                    const av = it.companion?.user?.avatar;
+                    const name = it.companion?.user?.displayName || it.companion?.user?.username || it.companionId;
+                    const initial = (name || '?').slice(0, 1).toUpperCase();
+                    return (
+                      <>
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            background: av ? `url(/uploads/avatars/${av}) center/cover` : '#2563EB',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {!av && <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937' }}>
+                            上传人：{name}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                            {it.customer ? `关联客户：${it.customer.customerCode || it.customer.wechatId} · ` : ''}
+                            {new Date(it.createdAt).toLocaleString('zh-CN')}
+                          </div>
+                        </div>
+                        <Tag color={STATUS[it.status]?.color} style={{ margin: 0 }}>{STATUS[it.status]?.label}</Tag>
+                      </>
+                    );
+                  })()}
+                </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
-                  {it.images.map((url, i) => (
-                    <Image key={i} src={url} width={96} height={96} style={{ objectFit: 'cover', borderRadius: 6 }} />
-                  ))}
+                  <Image.PreviewGroup>
+                    {it.images.map((url, i) => (
+                      <Image
+                        key={i}
+                        src={url}
+                        width={140}
+                        height={140}
+                        style={{ objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
+                      />
+                    ))}
+                  </Image.PreviewGroup>
                 </div>
                 {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
                 {it.status === 'PENDING' && (

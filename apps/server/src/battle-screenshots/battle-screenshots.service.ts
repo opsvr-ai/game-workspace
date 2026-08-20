@@ -58,7 +58,7 @@ export class BattleScreenshotsService {
       where: { studioId, ...(status ? { status } : {}) },
       orderBy: { createdAt: 'desc' },
       include: {
-        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        companion: { include: { user: { select: { username: true, displayName: true, avatar: true } } } },
         customer: { select: { customerCode: true, wechatId: true } },
         reviewedBy: { select: { username: true, displayName: true } },
       },
