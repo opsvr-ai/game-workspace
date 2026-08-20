@@ -196,10 +196,13 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const openCompanionChat = async (companion: any) => {
+    // 语音通话/聊天都需要真实 userId（JWT 里的 sub），而不是 companionId。
+    // /companions 接口里 user.id 才是 User id，companion.id 是 Companion 模型 id。
+    const targetUserId = companion.user?.id || companion.id;
     await useChatStore.getState().openConversation(
       companion.id,
       {
-        userId: companion.id,
+        userId: targetUserId,
         username: companion.user?.username || companion.id,
         displayName: companion.user?.displayName || companion.user?.username || companion.id,
         avatar: companion.user?.avatar,
@@ -209,7 +212,7 @@ const OrderPoolPage: React.FC = () => {
     setChatPartner({
       conversationId: companion.id,
       participant: {
-        userId: companion.id,
+        userId: targetUserId,
         username: companion.user?.username || companion.id,
         displayName: companion.user?.displayName || companion.user?.username || companion.id,
         avatar: companion.user?.avatar,

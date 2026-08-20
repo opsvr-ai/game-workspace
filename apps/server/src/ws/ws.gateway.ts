@@ -473,22 +473,38 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`user:${userId}`).emit(event, data);
   }
 
+  // 前端有些入口会把 companionId 当成 userId 传过来（例如陪玩端订单池）。
+  // 这里统一归一化为 User id，保证语音信令能投递到正确的 user:{id} 房间。
+  private async resolveUserId(id: string | undefined | null): Promise<string> {
+    if (!id) return '';
+    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (user) return id;
+    const companion = await this.prisma.companion.findUnique({ where: { id }, select: { userId: true } });
+    return companion?.userId || id;
+  }
+
   // Voice call relay
   @SubscribeMessage('call:offer')
-  handleCallOffer(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
-    this.notifyUser(data.targetUserId, 'call:offer', { fromUserId: (client.data as any)?.user?.id, sdp: data.sdp, callerName: (client.data as any)?.user?.username });
+  async handleCallOffer(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
+    const targetUserId = await this.resolveUserId(data?.targetUserId);
+    if (targetUserId) {
+      this.notifyUser(targetUserId, 'call:offer', { fromUserId: (client.data as any)?.user?.id, sdp: data?.sdp, callerName: (client.data as any)?.user?.username });
+    }
   }
   @SubscribeMessage('call:answer')
-  handleCallAnswer(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
-    this.notifyUser(data.targetUserId, 'call:answer', { sdp: data.sdp });
+  async handleCallAnswer(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
+    const targetUserId = await this.resolveUserId(data?.targetUserId);
+    if (targetUserId) this.notifyUser(targetUserId, 'call:answer', { sdp: data?.sdp });
   }
   @SubscribeMessage('call:ice-candidate')
-  handleCallIce(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
-    this.notifyUser(data.targetUserId, 'call:ice-candidate', { candidate: data.candidate });
+  async handleCallIce(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
+    const targetUserId = await this.resolveUserId(data?.targetUserId);
+    if (targetUserId) this.notifyUser(targetUserId, 'call:ice-candidate', { candidate: data?.candidate });
   }
   @SubscribeMessage('call:hangup')
-  handleCallHangup(@ConnectedSocket() _client: Socket, @MessageBody() data: any): void {
-    this.notifyUser(data.targetUserId, 'call:hangup', {});
+  async handleCallHangup(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
+    const targetUserId = await this.resolveUserId(data?.targetUserId);
+    if (targetUserId) this.notifyUser(targetUserId, 'call:hangup', {});
   }
 
   notifyChat(studioId: string, companionName: string, _chatKey: string, companionId?: string, orderId?: string): void {
