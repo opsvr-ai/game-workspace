@@ -61,6 +61,14 @@ body {
   background: #ff9100;
 }
 
+/* ── 侧边栏深色菜单：子菜单展开后保持透明，避免变白 ── */
+.ant-menu-inline .ant-menu-sub,
+.ant-menu-inline .ant-menu-sub .ant-menu-item,
+.ant-menu-inline .ant-menu-item,
+.ant-menu-inline .ant-menu-submenu-title {
+  background: transparent !important;
+}
+
 /* ── 页面标题 ── */
 .page-title {
   font-size: 28px;
