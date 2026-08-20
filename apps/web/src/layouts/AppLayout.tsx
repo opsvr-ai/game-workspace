@@ -340,6 +340,7 @@ const AppLayout: React.FC = () => {
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
   const [appVersion, setAppVersion] = React.useState('');
+  const [webBuild, setWebBuild] = React.useState('');
   const [myCommission, setMyCommission] = React.useState<number | null>(null);
   const isCsClient = typeof window !== 'undefined'
     && !!(window as any).electronAPI
@@ -354,20 +355,21 @@ const AppLayout: React.FC = () => {
       http
         .post('/agent/heartbeat', { agentVersion: appVersion || undefined })
         .then((res: any) => {
-          const id = res?.data?.data?.webBuildId;
-          if (!id) return;
-          const prev = localStorage.getItem('webBuildId');
-          if (prev && prev !== id) {
-            localStorage.setItem('webBuildId', id);
-            window.location.reload();
-          } else if (!prev) {
-            localStorage.setItem('webBuildId', id);
-          }
-        })
-        .catch(() => {});
-    };
-    send();
-    const timer = setInterval(send, 30_000);
+        const id = res?.data?.data?.webBuildId;
+        if (!id) return;
+        setWebBuild(id);
+        const prev = localStorage.getItem('webBuildId');
+        if (prev && prev !== id) {
+          localStorage.setItem('webBuildId', id);
+          window.location.reload();
+        } else if (!prev) {
+          localStorage.setItem('webBuildId', id);
+        }
+      })
+      .catch(() => {});
+  };
+  send();
+  const timer = setInterval(send, 10_000);
     return () => clearInterval(timer);
   }, [appVersion]);
   useEffect(() => {
@@ -1165,6 +1167,11 @@ const AppLayout: React.FC = () => {
             {appVersion && (
               <div style={{ fontSize: 12, color: commander.textMuted, textAlign: 'center' }}>
                 客户端 v{appVersion}
+              </div>
+            )}
+            {webBuild && (
+              <div style={{ fontSize: 11, color: commander.textMuted, textAlign: 'center', opacity: 0.7 }}>
+                前端构建 {webBuild}
               </div>
             )}
           </div>
