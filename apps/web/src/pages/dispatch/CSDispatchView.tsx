@@ -69,10 +69,21 @@ interface PoolOrder {
 }
 
 function isPersonnelOnline(c: Personnel): boolean {
+  // 统一按最后心跳判断在线/离线（陪玩 + 客服/店长/老板），避免用 status 误判
+  if (c.lastHeartbeat) {
+    return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
+  }
+  // 没有心跳记录时，陪玩退回到状态字段
   if (c.status) return c.status !== CompanionStatus.OFFLINE;
-  if (!c.lastHeartbeat) return false;
-  return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
+  return false;
 }
+
+const ROLE_TAG: Record<string, { color: string; label: string }> = {
+  COMPANION: { color: 'blue', label: '陪玩' },
+  CS: { color: 'cyan', label: '客服' },
+  ADMIN: { color: 'orange', label: '店长' },
+  OWNER: { color: 'purple', label: '老板' },
+};
 
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -465,9 +476,7 @@ const CSDispatchView: React.FC = () => {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   boxShadow:
-                                    c.status && c.status !== CompanionStatus.OFFLINE
-                                      ? `0 0 6px ${c.status === CompanionStatus.BUSY ? '#FF4757' : c.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
-                                      : 'none',
+                                    isPersonnelOnline(c) ? '0 0 6px #00E676' : 'none',
                                   flexShrink: 0,
                                 }}
                               >
@@ -513,19 +522,16 @@ const CSDispatchView: React.FC = () => {
                           </span>
                         </Space>
                         <Space size={4}>
-                          {c.status ? (
+                          <Tag color={ROLE_TAG[c.role]?.color || 'default'}>
+                            {ROLE_TAG[c.role]?.label || c.role}
+                          </Tag>
+                          <Tag color={isPersonnelOnline(c) ? 'green' : 'default'}>
+                            {isPersonnelOnline(c) ? '在线' : '离线'}
+                          </Tag>
+                          {c.status && (
                             <Tag color={companionStatusConfig[c.status]?.color || 'default'}>
                               {companionStatusConfig[c.status]?.label || c.status}
                             </Tag>
-                          ) : (
-                            <Space size={4}>
-                              <Tag color={{ COMPANION: 'blue', CS: 'cyan', ADMIN: 'orange', OWNER: 'purple' }[c.role] || 'default'}>
-                                {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[c.role] || c.role}
-                              </Tag>
-                              <Tag color={isPersonnelOnline(c) ? 'green' : 'default'}>
-                                {isPersonnelOnline(c) ? '在线' : '离线'}
-                              </Tag>
-                            </Space>
                           )}
                           <Button
                             size="small"
@@ -906,30 +912,27 @@ const CSDispatchView: React.FC = () => {
                         ? '#FFD600'
                         : '#94A3B8',
                 boxShadow:
-                  selectedCompanion.status && selectedCompanion.status !== CompanionStatus.OFFLINE
-                    ? `0 0 16px ${selectedCompanion.status === CompanionStatus.BUSY ? '#FF4757' : selectedCompanion.status === CompanionStatus.ENTERTAINMENT ? '#00E676' : '#FFD600'}`
-                    : 'none',
+                  isPersonnelOnline(selectedCompanion) ? '0 0 16px #00E676' : 'none',
                 animation:
-                  selectedCompanion.status && selectedCompanion.status !== CompanionStatus.OFFLINE ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+                  isPersonnelOnline(selectedCompanion) ? 'pulse-glow 2s ease-in-out infinite' : 'none',
               }}
             />
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
               {selectedCompanion.displayName || selectedCompanion.username || selectedCompanion.id}
             </div>
-            {selectedCompanion.status ? (
-              <Tag color={companionStatusConfig[selectedCompanion.status]?.color || 'default'}>
-                {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
+            <Space size={4}>
+              <Tag color={ROLE_TAG[selectedCompanion.role]?.color || 'default'}>
+                {ROLE_TAG[selectedCompanion.role]?.label || selectedCompanion.role}
               </Tag>
-            ) : (
-              <Space size={4}>
-                <Tag color={{ COMPANION: 'blue', CS: 'cyan', ADMIN: 'orange', OWNER: 'purple' }[selectedCompanion.role] || 'default'}>
-                  {{ COMPANION: '陪玩', CS: '客服', ADMIN: '店长', OWNER: '老板' }[selectedCompanion.role] || selectedCompanion.role}
+              <Tag color={isPersonnelOnline(selectedCompanion) ? 'green' : 'default'}>
+                {isPersonnelOnline(selectedCompanion) ? '在线' : '离线'}
+              </Tag>
+              {selectedCompanion.status && (
+                <Tag color={companionStatusConfig[selectedCompanion.status]?.color || 'default'}>
+                  {companionStatusConfig[selectedCompanion.status]?.label || selectedCompanion.status}
                 </Tag>
-                <Tag color={isPersonnelOnline(selectedCompanion) ? 'green' : 'default'}>
-                  {isPersonnelOnline(selectedCompanion) ? '在线' : '离线'}
-                </Tag>
-              </Space>
-            )}
+              )}
+            </Space>
             <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
               {selectedCompanion.games &&
               selectedCompanion.games.length > 0 &&
