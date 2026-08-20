@@ -1,9 +1,11 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image, Empty, Spin } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import { customersApi } from '../api/customers';
+import { companionsApi } from '../api/companions';
+import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
 
 const { Text } = Typography;
@@ -22,6 +24,10 @@ const BattleScreenshotsPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [items, setItems] = useState<BattleScreenshot[]>([]);
   const [loading, setLoading] = useState(false);
+  const user = useAuthStore((s) => s.user);
+  const [currentStatus, setCurrentStatus] = useState('AVAILABLE');
+  const [pendingCount, setPendingCount] = useState(0);
+  const pendingRef = useRef<Array<{ files: File[]; customerId?: string }>>([]);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -43,22 +49,54 @@ const BattleScreenshotsPage: React.FC = () => {
       .catch(() => {});
   }, [fetchItems]);
 
+  const doUpload = useCallback(async (list: File[], cid?: string) => {
+    try {
+      await battleScreenshotsApi.upload(list, cid);
+      message.success('已提交，等待管理端审核');
+      fetchItems();
+      return true;
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '上传失败');
+      return false;
+    }
+  }, [fetchItems]);
+
+  // 每隔一段时间检查陪玩状态：空闲时才真正上传到服务器；服务中先暂存。
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const { data } = await companionsApi.getById(user?.companionId ?? '');
+        const st = data?.data?.status ?? 'AVAILABLE';
+        setCurrentStatus(st);
+        if (st === 'AVAILABLE' && pendingRef.current.length > 0) {
+          const item = pendingRef.current.shift();
+          setPendingCount(pendingRef.current.length);
+          if (item) await doUpload(item.files, item.customerId);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    check();
+    const t = setInterval(check, 30000);
+    return () => clearInterval(t);
+  }, [user?.companionId, doUpload]);
+
   const submit = async () => {
     if (files.length < 3) {
       message.warning('最少上传 3 张战绩图为一组');
       return;
     }
-    setSubmitting(true);
-    try {
-      await battleScreenshotsApi.upload(files, customerId);
-      message.success('已提交，等待管理端审核');
-      setFiles([]);
-      setCustomerId(undefined);
-      fetchItems();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '上传失败');
-    } finally {
+    setFiles([]);
+    setCustomerId(undefined);
+    if (currentStatus === 'AVAILABLE') {
+      setSubmitting(true);
+      await doUpload(files, customerId);
       setSubmitting(false);
+    } else {
+      pendingRef.current.push({ files, customerId });
+      setPendingCount(pendingRef.current.length);
+      message.info('服务中暂缓上传，已暂存，空闲后会自动上传');
     }
   };
 
@@ -95,6 +133,10 @@ const BattleScreenshotsPage: React.FC = () => {
           <Button type="primary" loading={submitting} onClick={submit} disabled={files.length < 3}>
             提交审核（{files.length} 张）
           </Button>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            当前状态：{currentStatus === 'AVAILABLE' ? '空闲' : '服务中'}
+            {pendingCount > 0 ? `，已暂存 ${pendingCount} 组，空闲后自动上传` : '，提交后立即上传'}
+          </Text>
         </Space>
       </Card>
 
