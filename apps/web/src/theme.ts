@@ -50,6 +50,7 @@ export const chunlvTheme: ThemeConfig = {
     },
     Menu: {
       itemBg: 'transparent',
+      subMenuItemBg: 'transparent',
       itemSelectedBg: '#F3EEFF',
       itemSelectedColor: '#7C4DFF',
       itemHoverBg: '#F8FAFC',
