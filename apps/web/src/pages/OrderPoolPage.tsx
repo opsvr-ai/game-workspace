@@ -297,7 +297,7 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const renderCompanionSidebar = () => (
-    <Col span={3}>
+    <Col span={2}>
       <Card
         title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
         size="small"
@@ -374,34 +374,38 @@ const OrderPoolPage: React.FC = () => {
                       />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 13,
-                          color: '#1F2937',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {c.displayName || c.username || c.id}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 13,
+                            color: '#1F2937',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: '0 1 auto',
+                            minWidth: 0,
+                          }}
+                        >
+                          {c.displayName || c.username || c.id}
+                        </span>
+                        <Button
+                          size="small"
+                          type="text"
+                          style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCompanionChat(c);
+                          }}
+                        >
+                          💬
+                        </Button>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
                         <span style={{ fontSize: 11, color: statusDotColor(c) }}>●</span>
                         <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
                       </div>
                     </div>
-                    <Button
-                      size="small"
-                      type="text"
-                      style={{ padding: 0, fontSize: 14, color: '#2563EB', height: 28, width: 24, flexShrink: 0, marginTop: 2 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCompanionChat(c);
-                      }}
-                    >
-                      💬
-                    </Button>
                   </div>
                   {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
                     <div style={{ marginTop: 7, marginLeft: 44, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -455,7 +459,7 @@ const OrderPoolPage: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
       >
         {isCompanion && renderCompanionSidebar()}
-        <Col span={isCompanion ? 21 : 24}>
+        <Col span={isCompanion ? 22 : 24}>
           {/* Companion: unlock threshold card */}
           {isCompanion && poolStatus && (
             <Card

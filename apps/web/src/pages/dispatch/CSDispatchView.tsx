@@ -401,7 +401,7 @@ const CSDispatchView: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
-        <Col span={3}>
+        <Col span={2}>
           <Card
             title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
             size="small"
@@ -519,7 +519,7 @@ const CSDispatchView: React.FC = () => {
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             <span
                               style={{
                                 fontWeight: 600,
@@ -528,6 +528,8 @@ const CSDispatchView: React.FC = () => {
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
+                                flex: '0 1 auto',
+                                minWidth: 0,
                               }}
                             >
                               {c.displayName || c.username || c.id}
@@ -546,6 +548,37 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               />
                             )}
+                            <Button
+                              size="small"
+                              type="text"
+                              style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await useChatStore.getState().openConversation(c.id, {
+                                  userId: c.id,
+                                  username: c.username || '未知',
+                                  displayName: c.displayName || c.username || '未知',
+                                  avatar: c.avatar,
+                                  role: c.role,
+                                });
+                                window.dispatchEvent(
+                                  new CustomEvent('open-chat-modal', {
+                                    detail: {
+                                      conversationId: c.id,
+                                      participant: {
+                                        userId: c.id,
+                                        username: c.username || '未知',
+                                        displayName: c.displayName || c.username || '未知',
+                                        avatar: c.avatar,
+                                        role: c.role,
+                                      },
+                                    },
+                                  }),
+                                );
+                              }}
+                            >
+                              💬
+                            </Button>
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
@@ -580,37 +613,6 @@ const CSDispatchView: React.FC = () => {
                           </div>
                         </div>
 
-                        <Button
-                          size="small"
-                          type="text"
-                          style={{ padding: 0, fontSize: 14, color: '#2563EB', height: 28, width: 24, flexShrink: 0, marginTop: 2 }}
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            await useChatStore.getState().openConversation(c.id, {
-                              userId: c.id,
-                              username: c.username || '未知',
-                              displayName: c.displayName || c.username || '未知',
-                              avatar: c.avatar,
-                              role: c.role,
-                            });
-                            window.dispatchEvent(
-                              new CustomEvent('open-chat-modal', {
-                                detail: {
-                                  conversationId: c.id,
-                                  participant: {
-                                    userId: c.id,
-                                    username: c.username || '未知',
-                                    displayName: c.displayName || c.username || '未知',
-                                    avatar: c.avatar,
-                                    role: c.role,
-                                  },
-                                },
-                              }),
-                            );
-                          }}
-                        >
-                          💬
-                        </Button>
                       </div>
 
                       {/* Game profile */}
@@ -645,7 +647,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col span={19} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <Col span={20} style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
