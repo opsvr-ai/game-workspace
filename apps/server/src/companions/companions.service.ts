@@ -188,7 +188,7 @@ export class CompanionsService {
         select: { id: true },
       });
       if (active) {
-        throw new BadRequestException('服务进行中，请先结束服务再切换状态');
+        throw new BadRequestException('你正在接单，要想切换请先结束服务');
       }
     }
     // 娱乐中 / 接单中不能直接点「休息」。
