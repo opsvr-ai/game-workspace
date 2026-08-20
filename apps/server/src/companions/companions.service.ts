@@ -334,6 +334,7 @@ export class CompanionsService {
       const peerName = isPartner
         ? (s.companion?.user?.displayName || s.companion?.user?.username || null)
         : (s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null);
+      const dual = !!s.coCompanionId || (s.parentOrder?.customFields as any)?.deltaCount === '双';
       return {
         id: s.id,
         seq: s.seq,
@@ -346,6 +347,7 @@ export class CompanionsService {
         coAmount: s.coAmount,
         myAmount,
         isPartner,
+        dual,
         duration: s.duration,
         claimedMode: s.claimedMode,
         claimedPrice: isPartner ? (s.coAmount ?? 0) / (s.duration || 1) : s.claimedPrice,

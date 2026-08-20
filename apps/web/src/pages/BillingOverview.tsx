@@ -568,6 +568,7 @@ const BillingOverview: React.FC = () => {
                   transferScreenshotUrl: s.transferScreenshotUrl,
                   coName: s.coName,
                   isPartner: s.isPartner,
+                  dual: s.dual,
                   amount: s.myAmount,
                   createdAt: s.createdAt,
                 }));
@@ -683,6 +684,7 @@ const BillingOverview: React.FC = () => {
                           {({NEW:'首',RENEW:'续',REPURCHASE:'复',TIP:'赏'} as Record<string, string>)[o.type] || o.type}
                         </Tag>
                         <Text>{o.gameName}</Text>
+                        <Tag color={o.dual ? 'magenta' : 'cyan'} style={{ fontSize: 10, margin: 0 }}>{o.dual ? '双陪' : '单陪'}</Tag>
                         {o.serviceType && serviceTypeConfig[o.serviceType] && (
                           <Tag color={serviceTypeConfig[o.serviceType].color} style={{ fontSize: 10, margin: 0 }}>{serviceTypeConfig[o.serviceType].label}</Tag>
                         )}
