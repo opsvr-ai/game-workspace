@@ -10,6 +10,10 @@ let sessionId: string | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let capturing = false;
 let flushing = false;
+let paused = false;
+
+// 暂停期间加密截图间隔（分钟）：验证陪玩是否真的在等，而不是偷偷打单
+const PAUSE_INTERVAL_MINUTES = 2;
 
 const DEFAULT_CAPTURE_CONFIG = {
   intervalMinMinutes: 12,
@@ -97,8 +101,14 @@ async function fetchCaptureConfig(): Promise<void> {
 }
 
 function scheduleNext(): void {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
   if (!sessionId) return;
-  const delay = (captureConfig.intervalMinMinutes + Math.random() * (captureConfig.intervalMaxMinutes - captureConfig.intervalMinMinutes)) * 60 * 1000;
+  const min = paused ? PAUSE_INTERVAL_MINUTES : captureConfig.intervalMinMinutes;
+  const max = paused ? PAUSE_INTERVAL_MINUTES + 1 : captureConfig.intervalMaxMinutes;
+  const delay = (min + Math.random() * (max - min)) * 60 * 1000;
   timer = setTimeout(takeShot, delay);
 }
 
@@ -109,12 +119,25 @@ export async function startCapture(sid: string): Promise<void> {
     timer = null;
   }
   sessionId = sid;
+  paused = false;
   log(`START session=${sid}`);
   // 拉取后台截图配置（失败则用本地默认值）
   await fetchCaptureConfig();
   // 首张延迟（默认 1-3 分钟，刚开局截图无意义）
   const firstDelay = (captureConfig.firstDelayMinMinutes + Math.random() * (captureConfig.firstDelayMaxMinutes - captureConfig.firstDelayMinMinutes)) * 60 * 1000;
   timer = setTimeout(takeShot, firstDelay);
+}
+
+/** 点暂停：立即截一张 + 之后按加密间隔继续截，用于核对是否真在等待 */
+export function pauseCapture(): void {
+  paused = true;
+  void takeShot();
+}
+
+/** 点继续：恢复正常服务截图间隔 */
+export function resumeCapture(): void {
+  paused = false;
+  scheduleNext();
 }
 
 /** 启动时清理 7 天前的残留截图目录（未上传成功的历史文件） */

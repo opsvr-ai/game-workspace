@@ -15,7 +15,7 @@ import { logger } from './logger';
 import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray } from './tray';
-import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending } from './capture';
+import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged } from './screen-lock';
 
 let mainWindow: BrowserWindow | null = null;
@@ -317,6 +317,12 @@ function setupIPC(): void {
   // 工作记录截图
   ipcMain.on('session:watch', (_e, sessionId: string) => {
     void startCapture(sessionId);
+  });
+  ipcMain.on('session:pause', () => {
+    pauseCapture();
+  });
+  ipcMain.on('session:resume', () => {
+    resumeCapture();
   });
   // 停止并等待全部截图上传完成
   ipcMain.handle('session:watch-stop', async () => {

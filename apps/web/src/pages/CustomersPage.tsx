@@ -662,6 +662,7 @@ const CustomersPage: React.FC = () => {
                       onClick={async () => {
                         try {
                           await ordersApi.resumeSession(activeSession.id);
+                          (window as any).electronAPI?.sessionResume?.();
                           message.success('已继续服务');
                           fetchCustomers();
                         } catch (e: any) {
@@ -677,6 +678,7 @@ const CustomersPage: React.FC = () => {
                       onClick={async () => {
                         try {
                           await ordersApi.pauseSession(activeSession.id);
+                          (window as any).electronAPI?.sessionPause?.();
                           message.success('已暂停，暂停期间不计算服务时长');
                           fetchCustomers();
                         } catch (e: any) {

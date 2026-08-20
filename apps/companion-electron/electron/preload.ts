@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logout: () => ipcRenderer.invoke('auth:logout'),
   sessionWatch: (sessionId: string) => ipcRenderer.send('session:watch', sessionId),
   sessionWatchStop: () => ipcRenderer.invoke('session:watch-stop'),
+  sessionPause: () => ipcRenderer.send('session:pause'),
+  sessionResume: () => ipcRenderer.send('session:resume'),
   unlockScreen: (pass: string) => ipcRenderer.invoke('screen:unlock', pass),
   getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
