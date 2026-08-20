@@ -115,6 +115,8 @@ export class CompanionsService {
     const ids = companions.map((c) => c.id);
     if (ids.length === 0) return [];
 
+    const excellence = await this.excellence.computeForCompanions(ids);
+
     const recentKills = await this.prisma.processKillLog.groupBy({
       by: ['companionId'],
       where: { companionId: { in: ids }, createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
@@ -158,6 +160,8 @@ export class CompanionsService {
       ...c,
       processStatus: blockedSet.has(c.id) ? 'BLOCKED' : (killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL',
       todayOrderCount: (orderCounts.get(c.id) || 0) + (budanCounts.get(c.id) || 0),
+      tier: excellence.get(c.id)?.tier ?? 'LOW',
+      rankScore: excellence.get(c.id)?.rankScore ?? 0,
     }));
   }
 

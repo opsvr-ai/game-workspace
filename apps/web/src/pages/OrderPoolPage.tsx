@@ -15,6 +15,7 @@ import CreateOrderModal from '../components/CreateOrderModal';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import CardSkeleton from '../components/CardSkeleton';
+import TierBadge from '../components/TierBadge';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, STATUS_SORT } from '../constants/companions';
@@ -378,6 +379,7 @@ const OrderPoolPage: React.FC = () => {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                        <TierBadge tier={c.tier} />
                         <span
                           style={{
                             fontWeight: 600,

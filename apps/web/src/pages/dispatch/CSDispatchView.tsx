@@ -31,7 +31,7 @@ import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
-import TierHorseIcon from '../../components/TierHorseIcon';
+import TierBadge from '../../components/TierBadge';
 import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields } from '../../utils/orderPool';
@@ -53,12 +53,6 @@ interface Personnel {
   rankScore?: number;
   games?: any[];
 }
-
-const TIER_LABEL: Record<string, { label: string; color: string; emoji: string }> = {
-  TOP: { label: '上等马', color: '#D4A017', emoji: '👑🏇' },
-  MIDDLE: { label: '中等马', color: '#A9A9A9', emoji: '🐎' },
-  LOW: { label: '下等马', color: '#CD7F32', emoji: '🐴' },
-};
 
 const TIER_ORDER: Record<string, number> = { TOP: 0, MIDDLE: 1, LOW: 2 };
 
@@ -530,6 +524,9 @@ const CSDispatchView: React.FC = () => {
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            {c.role === 'COMPANION' && c.tier && (
+                              <TierBadge tier={c.tier} showLabel />
+                            )}
                             <span
                               style={{
                                 fontWeight: 600,
@@ -544,20 +541,6 @@ const CSDispatchView: React.FC = () => {
                             >
                               {c.displayName || c.username || c.id}
                             </span>
-                            {c.role === 'COMPANION' && c.tier && (
-                              <span
-                                title={TIER_LABEL[c.tier]?.label}
-                                style={{
-                                  color: TIER_LABEL[c.tier]?.color,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  lineHeight: 1,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <TierHorseIcon tier={c.tier} /> {TIER_LABEL[c.tier]?.label}
-                              </span>
-                            )}
                             {hasUnread && (
                               <span
                                 style={{
