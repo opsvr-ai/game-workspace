@@ -249,6 +249,11 @@ const CompanionPage: React.FC = () => {
         setBlockedModal(res.data);
         return;
       }
+      if (res.data?.alreadyInStatus) {
+        const labels: Record<string, string> = { AVAILABLE: '空闲', BUSY: '接单', ENTERTAINMENT: '娱乐', RESTING: '休息' };
+        message.info(`你已经是「${labels[status] || status}」状态，无需重复点击`);
+        return;
+      }
       // 从娱乐切回空闲：弹出本次娱乐消费金额
       if (res.data?.entertainmentFee != null) {
         Modal.info({

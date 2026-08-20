@@ -177,6 +177,10 @@ export class CompanionsService {
       where: { id },
       select: { status: true },
     });
+    // 已是当前状态：无需重复操作，直接返回，避免重置计时/计费。
+    if (current && current.status === status) {
+      return { id, status: current.status, alreadyInStatus: true };
+    }
     // 服务进行中（有已开始的会话）不允许切换到空闲/娱乐/休息等状态，必须先结束服务。
     if (status !== 'BUSY') {
       const active = await this.prisma.orderSession.findFirst({
