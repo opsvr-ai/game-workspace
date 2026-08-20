@@ -51,6 +51,24 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('customers/:id/deposits')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
+  async listDeposits(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.listDeposits(id, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('customers/:id/deposits')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
+  async createDeposit(
+    @Param('id') id: string,
+    @Body() body: { amount: number; screenshotUrl?: string; note?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.createDeposit(id, body, req.user);
+    return { code: 200, message: '存单已记录', data };
+  }
+
   @Post('customers')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
   async create(@Body() dto: CreateCustomerDto, @Req() req: any): Promise<ApiResponse<unknown>> {

@@ -13,7 +13,6 @@ export class CreateOrderDto {
   @IsString() gameName: string;
   @IsOptional() @IsNumber() duration?: number;
   @IsOptional() customFields?: Record<string, unknown>;
-  @IsOptional() @IsBoolean() isOnline?: boolean;
   @IsOptional() @IsString() companionId?: string;
   @IsOptional() @IsString() coCompanionId?: string;
   @IsOptional() @IsNumber() @Min(0) coAmount?: number;

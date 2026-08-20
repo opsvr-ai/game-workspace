@@ -51,7 +51,6 @@ export class OrdersService {
     gameName: string;
     duration?: number;
     customFields?: any;
-    isOnline?: boolean;
     companionId?: string;
   }) {
     // Resolve studioId: from dto or from CS user's studio
@@ -139,7 +138,6 @@ export class OrdersService {
           firstDispatchedAt: new Date().toISOString(),
           dispatchHistory: [{ at: new Date().toISOString(), action: 'DISPATCH' }],
         },
-        isOnline: dto.isOnline ?? true,
         paymentAccountId: (dto as any).paymentAccountId || null,
       },
       include: { customer: true },
@@ -1078,6 +1076,7 @@ export class OrdersService {
       claimedMode?: string;
       claimedPrice?: number;
       transferScreenshotUrl?: string;
+      useDeposit?: boolean;
     },
   ) {
     const sessions = await this.prisma.orderSession.findMany({
@@ -1120,6 +1119,7 @@ export class OrdersService {
         claimedMode: dto.claimedMode ?? null,
         claimedPrice: dto.claimedPrice ?? null,
         transferScreenshotUrl: dto.transferScreenshotUrl ?? null,
+        paidByDeposit: dto.useDeposit === true,
         status: 'ACTIVE',
       },
     });
@@ -1364,7 +1364,7 @@ export class OrdersService {
   async startSession(
     id: string,
     companionId?: string,
-    claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string; duration?: number },
+    claims?: { claimedMode?: string; claimedPrice?: number; transferScreenshotUrl?: string; duration?: number; useDeposit?: boolean },
   ) {
     const own = await this.prisma.orderSession.findUnique({
       where: { id },
@@ -1387,11 +1387,12 @@ export class OrdersService {
       if (!claims.claimedMode) throw new BadRequestException('请填写游戏模式');
       if (claims.claimedPrice == null || !Number.isFinite(claims.claimedPrice) || claims.claimedPrice <= 0) throw new BadRequestException('请填写有效单价');
       if (claims.duration == null || !Number.isFinite(claims.duration) || claims.duration <= 0) throw new BadRequestException('请填写有效时长');
-      if (!claims.transferScreenshotUrl) throw new BadRequestException('请上传客户转账截图');
+      if (!claims.useDeposit && !claims.transferScreenshotUrl) throw new BadRequestException('请上传客户转账截图');
       data.claimedMode = claims.claimedMode;
       data.claimedPrice = claims.claimedPrice;
       data.transferScreenshotUrl = claims.transferScreenshotUrl;
       data.duration = claims.duration;
+      data.paidByDeposit = claims.useDeposit === true;
     }
     const updated = await this.prisma.orderSession.update({ where: { id }, data });
 

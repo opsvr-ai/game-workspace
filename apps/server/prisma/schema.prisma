@@ -121,6 +121,7 @@ model Companion {
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
   customerDeleteRequests  CustomerDeleteRequest[]
+  deposits                CustomerDeposit[]
 
   @@index([studioId])
   @@index([status])
@@ -184,7 +185,6 @@ model Order {
   serviceType   String    @default("PLAY_WITH")
   duration      Float?
   customFields  Json?
-  isOnline      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   grabbedAt     DateTime?
@@ -260,6 +260,7 @@ model OrderSession {
   totalPausedSec Int       @default(0)
   endedAt        DateTime?
   durationRemindedAt DateTime?
+  paidByDeposit  Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
   // ── 工作记录监控（口供+证据）──
@@ -295,6 +296,7 @@ model Customer {
   isLegacy            Boolean   @default(false)
   notes               String?
   totalSpent          Float     @default(0)
+  depositBalance      Float     @default(0)
   scheduledAt         DateTime?
   status              String    @default("PENDING_DEVELOPMENT") // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
   createdAt           DateTime  @default(now())
@@ -309,10 +311,26 @@ model Customer {
   tracks        CustomerTrack[]
   deleteRequests CustomerDeleteRequest[]
   battleScreenshots BattleScreenshot[]
+  deposits      CustomerDeposit[]
 
   @@index([studioId])
   @@index([companionId])
   @@index([status])
+}
+
+model CustomerDeposit {
+  id            String   @id @default(uuid())
+  customerId    String
+  companionId   String?
+  amount        Float
+  screenshotUrl String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  companion Companion? @relation(fields: [companionId], references: [id])
+
+  @@index([customerId])
 }
 
 model BattleScreenshot {
@@ -361,23 +379,6 @@ model Transaction {
   @@index([status, createdAt])
 }
 
-model RevenueDaily {
-  id               String   @id @default(uuid())
-  date             DateTime
-  studioId         String
-  companionId      String?
-  newOrderCount    Int      @default(0)
-  newOrderAmount   Float    @default(0)
-  renewCount       Int      @default(0)
-  renewAmount      Float    @default(0)
-  repurchaseCount  Int      @default(0)
-  repurchaseAmount Float    @default(0)
-  tipCount         Int      @default(0)
-  tipAmount        Float    @default(0)
-
-  @@unique([date, studioId, companionId])
-}
-
 model Expense {
   id          String   @id @default(uuid())
   studioId    String
@@ -406,21 +407,6 @@ model SystemConfig {
   id    String @id @default(uuid())
   key   String @unique
   value Json
-}
-
-model StudioDailyStats {
-  id               String   @id @default(uuid())
-  date             DateTime
-  studioId         String
-  totalRevenue     Float    @default(0)
-  orderCount       Int      @default(0)
-  onlineCompanions Int      @default(0)
-  totalCompanions  Int      @default(0)
-  acceptRate       Float    @default(0)
-  entertainmentFee Float    @default(0)
-  createdAt        DateTime @default(now())
-
-  @@unique([date, studioId])
 }
 
 model ExpenseReport {

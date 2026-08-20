@@ -113,7 +113,18 @@ export class SessionShotsController {
   ): Promise<ApiResponse<unknown>> {
     const session = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { companionId: true, status: true, parentOrderId: true, claimedPrice: true, duration: true, amount: true },
+      select: {
+        companionId: true,
+        status: true,
+        parentOrderId: true,
+        claimedPrice: true,
+        duration: true,
+        amount: true,
+        startedAt: true,
+        totalPausedSec: true,
+        paidByDeposit: true,
+        parentOrder: { select: { customerId: true } },
+      },
     });
     if (!session) throw new NotFoundException('会话不存在');
     if (session.companionId !== req.user.companionId) throw new ForbiddenException('只能操作自己的会话');
@@ -183,16 +194,31 @@ export class SessionShotsController {
       console.error('finance audit write failed', err);
     }
 
+    const endedAt = new Date();
     const compositeUrl = await this.composite.buildComposite(id, flaggedReason, flagged);
     await this.prisma.orderSession.update({
       where: { id },
       data: {
         status: 'DONE',
-        endedAt: new Date(),
+        endedAt,
         compositeUrl: compositeUrl || undefined,
         flagged: flagged || undefined,
       },
     });
+
+    // 存单扣款：用存单支付的服务，按实际计时扣减客户存单余额
+    if (session.paidByDeposit) {
+      const started = session.startedAt ? new Date(session.startedAt).getTime() : endedAt.getTime();
+      const activeSec = Math.max(0, (endedAt.getTime() - started) / 1000 - (session.totalPausedSec || 0));
+      const actualHours = activeSec / 3600;
+      const filledHours = session.duration || 1;
+      const price = session.claimedPrice ?? (filledHours > 0 ? session.amount / filledHours : session.amount);
+      const deduct = Math.round(actualHours * price * 100) / 100;
+      await this.prisma.customer.update({
+        where: { id: session.parentOrder.customerId },
+        data: { depositBalance: { decrement: deduct } },
+      }).catch(() => {});
+    }
 
     return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason } };
   }

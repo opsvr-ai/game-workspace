@@ -78,7 +78,6 @@ const ExcellenceSettings: React.FC = () => {
         'dispatch.middle_tier_daily_new_limit': config?.['dispatch.middle_tier_daily_new_limit'] ?? 2,
         'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'] ?? 1,
         'pool.daily_customer_quota': config?.['pool.daily_customer_quota'] ?? 3,
-        'pool.daily_grab_limit': config?.['pool.daily_grab_limit'] ?? 20,
       });
       message.success('评分与名额配置已保存');
     } catch (e: any) {
@@ -127,7 +126,6 @@ const ExcellenceSettings: React.FC = () => {
             <Field label="中等马每日新客名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} />
             <Field label="下等马每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} />
             <Field label="每日有效客户名额" value={config?.['pool.daily_customer_quota'] ?? 3} step={1} onChange={(v) => update('pool.daily_customer_quota', v)} />
-            <Field label="每日抢单上限" value={config?.['pool.daily_grab_limit'] ?? 20} step={1} onChange={(v) => update('pool.daily_grab_limit', v)} />
             <div style={{ marginTop: 16 }}>
               <Text type="secondary">当前权重满分之和：<b style={{ color: weightInvalid ? '#f5222d' : '#16A34A' }}>{totalWeight}</b> 分</Text>
             </div>

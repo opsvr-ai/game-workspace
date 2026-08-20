@@ -11,6 +11,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **客户存单（预存）:** 客户管理新增「存单」入口，可记录客户预存金额+截图，客户列表显示存单余额；开始服务时陪玩可勾选「用存单支付」跳过转账截图，结束服务时系统按实际计时从客户存单余额自动扣款。
+
 - **线上俱乐部一键桥接:** 工作室管理页新增「线上俱乐部桥接」，老板输入名称即可自动创建线上俱乐部（RENTAL 工作室）并与当前工作室桥接，作为急单最后一级兜底。
 
 - **综合评分三个段位（上等马/中等马/下等马）:** 陪玩综合分按分数划分三段：上等马（≥上等马线）、中等马（≥中等马线）、下等马（低于中等马线）。陪玩「评分规则」弹窗会显示当前段位（🏇上等马 / 🐎中等马 / 🐴下等马）；中等马线可在后台「评分与名额」里设置（默认 25 分）。
@@ -343,6 +345,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - AppLayout 头部展示用户头像和显示名字，点击进入个人设置页
 
 ### Removed
+
+- **清理死代码/死数据/死配置:** 删除无用的聚合表 RevenueDaily、StudioDailyStats 及其 DailyStatsService，删除 Order.isOnline 字段，移除一批“只有默认值、后端没执行”的配置（超时关机、每日抢单上限、旧名额字段等）。
 
 - **数据看板精简：** 从 UnifiedDashboard 移除绩效看板和收入流水两个标签页
 - 删除 `PerformancePage.tsx`、`admin/RevenuePage.tsx`、`owner/RevenuePage.tsx` 孤儿页面

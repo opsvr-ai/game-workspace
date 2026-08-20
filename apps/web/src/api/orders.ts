@@ -42,7 +42,7 @@ export const ordersApi = {
   acceptPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-accept`),
   rejectPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-reject`),
   broadcastPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-broadcast`),
-  startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; duration?: number; transferScreenshotUrl?: string }) =>
+  startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; duration?: number; transferScreenshotUrl?: string; useDeposit?: boolean }) =>
     http.put(`/sessions/${sessionId}/start`, claims || {}),
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),
   resumeSession: (sessionId: string) => http.put(`/sessions/${sessionId}/resume`),

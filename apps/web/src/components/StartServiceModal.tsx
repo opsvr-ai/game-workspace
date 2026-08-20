@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState } from 'react';
-import { Modal, Select, InputNumber, Button, Row, Col, Radio, message, notification, Upload, Typography } from 'antd';
+import { Modal, Select, InputNumber, Button, Row, Col, Radio, Switch, message, notification, Upload, Typography } from 'antd';
 import { CameraOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
@@ -39,6 +39,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const [claimPrice, setClaimPrice] = useState<number | null>(35);
   const [claimDuration, setClaimDuration] = useState<number>(1);
   const [transferUrl, setTransferUrl] = useState('');
+  const [useDeposit, setUseDeposit] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -62,6 +63,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       setClaimDuration(initialValues?.claimDuration ?? 1);
       setPartnerMode('assign');
       setTransferUrl('');
+      setUseDeposit(false);
       loadCompanions();
     }
   }, [open]);
@@ -86,7 +88,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
 
   const handleStart = async () => {
     if (!orderId && !customerId) return;
-    if (!transferUrl) return message.warning('请先上传客户转账截图');
+    if (!useDeposit && !transferUrl) return message.warning('请先上传客户转账截图，或选择用存单支付');
     if (!claimDuration || claimDuration <= 0) return message.warning('请填写有效时长');
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
     if (dual && partnerMode === 'assign' && !coId) return message.warning('双陪请选择搭档');
@@ -129,6 +131,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           claimedMode: claimMode,
           claimedPrice: price,
           transferScreenshotUrl: transferUrl,
+          useDeposit,
         });
         sessionId = res?.data?.data?.id || res?.data?.id;
       }
@@ -164,6 +167,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           claimedPrice: price,
           duration: claimDuration,
           transferScreenshotUrl: transferUrl,
+          useDeposit,
         });
         if (!isHandoff) {
           (window as any).electronAPI?.sessionWatch?.(sessionId);
@@ -257,16 +261,22 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         </>
       )}
       <div style={{ marginTop: 12 }}>
-        <Text>客户转账截图（必传）</Text>
-        <div style={{ marginTop: 4 }}>
-          <Upload beforeUpload={uploadTransfer} showUploadList={false} accept="image/*">
-            <Button icon={<CameraOutlined />} loading={uploading}>
-              {transferUrl ? '重新上传转账截图' : '上传转账截图'}
-            </Button>
-          </Upload>
-          {transferUrl && <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已上传截图</a>}
-        </div>
+        <Switch checked={useDeposit} onChange={setUseDeposit} />
+        <Text style={{ marginLeft: 8 }}>用存单支付（不传转账截图，结束后按实际计时从客户存单余额扣款）</Text>
       </div>
+      {!useDeposit && (
+        <div style={{ marginTop: 12 }}>
+          <Text>客户转账截图（必传）</Text>
+          <div style={{ marginTop: 4 }}>
+            <Upload beforeUpload={uploadTransfer} showUploadList={false} accept="image/*">
+              <Button icon={<CameraOutlined />} loading={uploading}>
+                {transferUrl ? '重新上传转账截图' : '上传转账截图'}
+              </Button>
+            </Upload>
+            {transferUrl && <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已上传截图</a>}
+          </div>
+        </div>
+      )}
       <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
         服务期间将自动开启工作记录（随机截图），请保持客户端运行。
       </Text>

@@ -81,11 +81,6 @@ export function createMockPrisma() {
       create: vi.fn(),
       findMany: vi.fn(),
     },
-    revenueDaily: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-    },
     processBlacklist: {
       findMany: vi.fn(),
       findUnique: vi.fn(),

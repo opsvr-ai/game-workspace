@@ -217,6 +217,60 @@ export class CustomersService {
     return this.prisma.customer.delete({ where: { id } });
   }
 
+  async listDeposits(customerId: string, user?: AuthenticatedUser) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { studioId: true, companionId: true },
+    });
+    if (!customer) throw new NotFoundException('客户不存在');
+    if (user?.role === 'COMPANION' && customer.companionId !== user.companionId) {
+      throw new ForbiddenException('只能查看自己名下客户的存单');
+    }
+    if ((user?.role === 'CS' || user?.role === 'ADMIN') && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('无权查看其他工作室的客户存单');
+    }
+    return this.prisma.customerDeposit.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      include: { companion: { include: { user: { select: { username: true, displayName: true } } } } },
+    });
+  }
+
+  async createDeposit(
+    customerId: string,
+    body: { amount: number; screenshotUrl?: string; note?: string },
+    user?: AuthenticatedUser,
+  ) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { studioId: true, companionId: true },
+    });
+    if (!customer) throw new NotFoundException('客户不存在');
+    if (user?.role === 'COMPANION' && customer.companionId !== user.companionId) {
+      throw new ForbiddenException('只能给自己名下客户存单');
+    }
+    if ((user?.role === 'CS' || user?.role === 'ADMIN') && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('无权操作其他工作室的客户');
+    }
+    const amount = Number(body.amount);
+    if (!Number.isFinite(amount) || amount <= 0) throw new ForbiddenException('请填写正确的存单金额');
+
+    const deposit = await this.prisma.customerDeposit.create({
+      data: {
+        customerId,
+        companionId: user?.companionId ?? null,
+        amount,
+        screenshotUrl: body.screenshotUrl || null,
+        note: body.note || null,
+      },
+    });
+    await this.prisma.customer.update({
+      where: { id: customerId },
+      data: { depositBalance: { increment: amount } },
+    });
+    return deposit;
+  }
+
   async reassign(id: string, companionId: string | null, user?: AuthenticatedUser) {
     await this.findOne(id, user); // Validate access
 

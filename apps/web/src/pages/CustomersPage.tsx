@@ -64,6 +64,7 @@ interface Customer {
   platformAccount: string;
   notes: string;
   totalSpent: number;
+  depositBalance?: number;
   status: string;
   isLegacy?: boolean;
   companion?: { id: string; user?: { username: string } };
@@ -133,6 +134,11 @@ const CustomersPage: React.FC = () => {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteScreenshot, setDeleteScreenshot] = useState('');
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [depositCustomer, setDepositCustomer] = useState<Customer | null>(null);
+  const [depositAmount, setDepositAmount] = useState<number | null>(null);
+  const [depositScreenshot, setDepositScreenshot] = useState('');
+  const [depositNote, setDepositNote] = useState('');
+  const [depositSubmitting, setDepositSubmitting] = useState(false);
 
   const openScheduleModal = (record: Customer) => {
     setScheduleCustomer(record);
@@ -359,7 +365,9 @@ const CustomersPage: React.FC = () => {
       render: (code: string, record: Customer) => (
         <>
           <Text>{code}</Text>
-          {record.notes?.includes('[存单') && <Tag color="blue" style={{ marginLeft: 6 }}>存单</Tag>}
+          {Number(record.depositBalance) > 0 && (
+            <Tag color="blue" style={{ marginLeft: 6 }}>存单 ¥{Number(record.depositBalance).toFixed(1)}</Tag>
+          )}
           {record.scheduledAt &&
             (() => {
               const d = new Date(record.scheduledAt);
@@ -671,6 +679,14 @@ const CustomersPage: React.FC = () => {
           <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>
             预约
           </Button>
+          <Button size="small" onClick={() => {
+            setDepositCustomer(record);
+            setDepositAmount(null);
+            setDepositScreenshot('');
+            setDepositNote('');
+          }}>
+            存单
+          </Button>
           <Button type="link" size="small" onClick={() => navigate(`/companion/customers/${record.id}`)}>
             查看
           </Button>
@@ -938,6 +954,85 @@ const CustomersPage: React.FC = () => {
           onClose={() => setEndServiceTarget(null)}
           onDone={() => fetchCustomers()}
         />
+        <Modal
+          title="💰 客户存单"
+          open={!!depositCustomer}
+          onOk={async () => {
+            if (!depositCustomer) return;
+            if (!depositAmount || depositAmount <= 0) {
+              message.warning('请填写存单金额');
+              return;
+            }
+            setDepositSubmitting(true);
+            try {
+              await customersApi.createDeposit(depositCustomer.id, {
+                amount: depositAmount,
+                screenshotUrl: depositScreenshot || undefined,
+                note: depositNote || undefined,
+              });
+              message.success('存单已记录');
+              setDepositCustomer(null);
+              fetchCustomers();
+            } catch (e: any) {
+              message.error(extractErrorMessage(e, '存单失败'));
+            } finally {
+              setDepositSubmitting(false);
+            }
+          }}
+          onCancel={() => setDepositCustomer(null)}
+          okText="确认存单"
+          cancelText="取消"
+          confirmLoading={depositSubmitting}
+          destroyOnClose
+        >
+          <div>
+            <Text strong>客户：{depositCustomer?.wechatId || depositCustomer?.customerCode}</Text>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Text>存单金额（元）</Text>
+            <InputNumber
+              min={0}
+              step={10}
+              style={{ width: '100%', marginTop: 6 }}
+              value={depositAmount ?? undefined}
+              onChange={(v) => setDepositAmount(v ?? null)}
+            />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Text>预存截图</Text>
+            <div style={{ marginTop: 6 }}>
+              <Upload
+                showUploadList={false}
+                accept="image/*"
+                beforeUpload={async (file) => {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  try {
+                    const { data } = await http.post('/upload/screenshot', fd);
+                    setDepositScreenshot(data.data?.url || data.url || '');
+                    message.success('截图已上传');
+                  } catch {
+                    message.error('上传失败');
+                  }
+                  return false;
+                }}
+              >
+                <Button icon={<UploadOutlined />}>{depositScreenshot ? '重新上传截图' : '上传截图'}</Button>
+              </Upload>
+              {depositScreenshot && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Text>备注（可选）</Text>
+            <Input.TextArea
+              rows={2}
+              style={{ marginTop: 6 }}
+              value={depositNote}
+              onChange={(e) => setDepositNote(e.target.value)}
+              placeholder="例如：客户预存 ¥xxx"
+            />
+          </div>
+        </Modal>
         <CustomerDetailDrawer
           customerId={detailCustomer?.id ?? null}
           customerCode={detailCustomer?.customerCode}

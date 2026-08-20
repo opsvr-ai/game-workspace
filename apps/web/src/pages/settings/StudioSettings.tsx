@@ -122,11 +122,6 @@ const StudioSettings: React.FC = () => {
               onClick={async () => {
                 setSavingTimeout(true);
                 await saveKeys({
-                  'timeout.grace_minutes': config?.['timeout.grace_minutes'],
-                  'timeout.rest_shutdown': config?.['timeout.rest_shutdown'],
-                  'timeout.idle_shutdown': config?.['timeout.idle_shutdown'],
-                  'entertainment.idle_shutdown': config?.['entertainment.idle_shutdown'],
-                  'entertainment.shutdown_countdown': config?.['entertainment.shutdown_countdown'],
                   'billing.cs_access': config?.['billing.cs_access'],
                 }, '超时与权限');
                 setSavingTimeout(false);
@@ -139,36 +134,6 @@ const StudioSettings: React.FC = () => {
         style={{ marginBottom: 16 }}
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Label>超时宽限（分钟）</Label>
-            <InputNumber min={1} step={1} value={config?.['timeout.grace_minutes'] ?? 10}
-              onChange={(v) => update('timeout.grace_minutes', v ?? 10)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>订单超时后额外等待时间</Text>
-          </div>
-          <div>
-            <Label>休息关机（分钟）</Label>
-            <InputNumber min={0} step={5} value={config?.['timeout.rest_shutdown'] ?? 60}
-              onChange={(v) => update('timeout.rest_shutdown', v ?? 60)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>休息状态持续多久后自动关机</Text>
-          </div>
-          <div>
-            <Label>空闲关机 - 订单（分钟）</Label>
-            <InputNumber min={0} step={5} value={config?.['timeout.idle_shutdown'] ?? 60}
-              onChange={(v) => update('timeout.idle_shutdown', v ?? 60)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>无订单空闲多久后自动关机</Text>
-          </div>
-          <div>
-            <Label>空闲关机 - 娱乐（分钟）</Label>
-            <InputNumber min={0} step={5} value={config?.['entertainment.idle_shutdown'] ?? 60}
-              onChange={(v) => update('entertainment.idle_shutdown', v ?? 60)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>娱乐模式下空闲多久后关机</Text>
-          </div>
-          <div>
-            <Label>关机倒计时（秒）</Label>
-            <InputNumber min={5} step={5} value={config?.['entertainment.shutdown_countdown'] ?? 30}
-              onChange={(v) => update('entertainment.shutdown_countdown', v ?? 30)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>关机前倒计时提示秒数</Text>
-          </div>
           <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12, marginTop: 8 }}>
             <Label>CS 报账系统权限</Label>
             <Switch checked={config?.['billing.cs_access'] === true} onChange={(v) => update('billing.cs_access', v)} />

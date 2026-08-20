@@ -216,8 +216,6 @@ export class StudiosService {
       await tx.processBlacklist.deleteMany({ where: { studioId: id } });
       await tx.processWhitelist.deleteMany({ where: { studioId: id } });
       await tx.chatMessageLegacy.deleteMany({ where: { studioId: id } });
-      await tx.studioDailyStats.deleteMany({ where: { studioId: id } });
-      await tx.revenueDaily.deleteMany({ where: { studioId: id } });
       await tx.companion.deleteMany({ where: { studioId: id } });
       await tx.user.deleteMany({ where: { studioId: id } });
       return tx.studio.delete({ where: { id } });
