@@ -243,7 +243,7 @@ const CustomersPage: React.FC = () => {
       }
     };
     check();
-    const t = setInterval(check, 3000);
+    const t = setInterval(check, 10 * 60 * 1000);
     return () => clearInterval(t);
   }, [customers]);
   useEffect(() => {
