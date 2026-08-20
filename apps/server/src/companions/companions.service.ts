@@ -317,33 +317,46 @@ export class CompanionsService {
   async getTodaySessions(companionId: string) {
     const { start } = await this.getTodayRange();
     const sessions = await this.prisma.orderSession.findMany({
-      where: { companionId, createdAt: { gte: start } },
+      where: {
+        OR: [{ companionId }, { coCompanionId: companionId }],
+        createdAt: { gte: start },
+      },
       include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
         parentOrder: { select: { id: true, gameName: true, orderCode: true, customerId: true, type: true, serviceType: true, customFields: true, customer: { select: { wechatId: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return sessions.map((s) => ({
-      id: s.id,
-      seq: s.seq,
-      parentOrderId: s.parentOrder?.id,
-      gameName: s.parentOrder?.gameName,
-      orderCode: s.parentOrder?.orderCode,
-      serviceType: s.parentOrder?.serviceType || (s.parentOrder?.customFields as any)?.serviceType || 'PLAY_WITH',
-      customerWechat: s.parentOrder?.customer?.wechatId || (s.parentOrder?.customFields as any)?.customerWechat || '',
-      amount: s.amount,
-      coAmount: s.coAmount,
-      duration: s.duration,
-      claimedMode: s.claimedMode,
-      claimedPrice: s.claimedPrice,
-      transferScreenshotUrl: s.transferScreenshotUrl,
-      status: s.status,
-      coName: s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null,
-      startedAt: s.startedAt,
-      endedAt: s.endedAt,
-      createdAt: s.createdAt,
-    }));
+    return sessions.map((s) => {
+      const isPartner = s.coCompanionId === companionId;
+      const myAmount = isPartner ? (s.coAmount ?? 0) : s.amount;
+      const peerName = isPartner
+        ? (s.companion?.user?.displayName || s.companion?.user?.username || null)
+        : (s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null);
+      return {
+        id: s.id,
+        seq: s.seq,
+        parentOrderId: s.parentOrder?.id,
+        gameName: s.parentOrder?.gameName,
+        orderCode: s.parentOrder?.orderCode,
+        serviceType: s.parentOrder?.serviceType || (s.parentOrder?.customFields as any)?.serviceType || 'PLAY_WITH',
+        customerWechat: s.parentOrder?.customer?.wechatId || (s.parentOrder?.customFields as any)?.customerWechat || '',
+        amount: s.amount,
+        coAmount: s.coAmount,
+        myAmount,
+        isPartner,
+        duration: s.duration,
+        claimedMode: s.claimedMode,
+        claimedPrice: isPartner ? (s.coAmount ?? 0) / (s.duration || 1) : s.claimedPrice,
+        transferScreenshotUrl: s.transferScreenshotUrl,
+        status: s.status,
+        coName: peerName,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        createdAt: s.createdAt,
+      };
+    });
   }
 
   private async computeMonthRevenue(companionId: string): Promise<number> {

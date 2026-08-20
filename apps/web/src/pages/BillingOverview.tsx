@@ -567,7 +567,8 @@ const BillingOverview: React.FC = () => {
                   claimedPrice: s.claimedPrice,
                   transferScreenshotUrl: s.transferScreenshotUrl,
                   coName: s.coName,
-                  amount: s.amount,
+                  isPartner: s.isPartner,
+                  amount: s.myAmount,
                   createdAt: s.createdAt,
                 }));
                 setTodayOrders(mapped);
@@ -685,8 +686,9 @@ const BillingOverview: React.FC = () => {
                         {o.serviceType && serviceTypeConfig[o.serviceType] && (
                           <Tag color={serviceTypeConfig[o.serviceType].color} style={{ fontSize: 10, margin: 0 }}>{serviceTypeConfig[o.serviceType].label}</Tag>
                         )}
+                        {o.isPartner && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>副陪</Tag>}
                         {o.claimedMode && <Tag color="geekblue" style={{ fontSize: 10, margin: 0 }}>{o.claimedMode}</Tag>}
-                        {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>搭档：{o.coName}</Tag>}
+                        {o.coName && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>{o.isPartner ? '主陪' : '搭档'}：{o.coName}</Tag>}
                       </Space>
                     </td>
                     <td style={{ padding: '8px 12px', fontSize: 12 }}>
