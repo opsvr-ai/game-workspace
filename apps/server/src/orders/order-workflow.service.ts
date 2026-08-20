@@ -244,10 +244,6 @@ export class OrderWorkflowService {
               .catch(() => {});
           }
         }
-        await this.prisma.customer.update({
-          where: { id: order.customerId },
-          data: { totalSpent: { increment: order.amount } },
-        });
       } catch (err) {
         logger.error('Revenue update failed during complete', { error: (err as Error).message });
       }

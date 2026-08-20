@@ -371,6 +371,34 @@ export class BillingService {
     }
   }
 
+  /** 把每单实际报账金额回写到客户身上，累计客户实际消费（可重复上报，按差值修正，不重复累计）。 */
+  async applyCustomerActualSpent(items: Array<{ orderId: string; amount: number }>) {
+    const byOrder = new Map<string, number>();
+    for (const item of items) {
+      if (!item.orderId) continue;
+      byOrder.set(item.orderId, (byOrder.get(item.orderId) || 0) + (Number(item.amount) || 0));
+    }
+    for (const [orderId, actual] of byOrder) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { customerId: true, customFields: true },
+      });
+      if (!order?.customerId) continue;
+      const cf = (order.customFields as any) || {};
+      const prevReported = Number(cf.reportedAmount || 0);
+      const delta = actual - prevReported;
+      if (Math.abs(delta) < 0.005) continue;
+      await this.prisma.customer.update({
+        where: { id: order.customerId },
+        data: { totalSpent: { increment: delta } },
+      }).catch(() => {});
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { customFields: { ...cf, reportedAmount: actual } },
+      }).catch(() => {});
+    }
+  }
+
   /** 下班前转公户：业绩金额 + 公户转账截图，作为当日实际流水的最终口径 */
   async submitCompanyTransfer(
     companionId: string,

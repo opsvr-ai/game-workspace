@@ -299,6 +299,9 @@ export class BillingController {
       description: JSON.stringify({ screenshots, totalScreenshotUrl: dto.totalScreenshotUrl, items: dto.items }),
     });
 
+    // 把每单实际报账金额回写到客户身上，累计客户实际消费金额
+    await this.billingService.applyCustomerActualSpent(dto.items);
+
     // Compare with system-calculated order amounts for today
     if (req.user.studioId && req.user.companionId) {
       this.billingService.checkRevenueDiff(req.user.companionId, req.user.studioId, totalAmount);
