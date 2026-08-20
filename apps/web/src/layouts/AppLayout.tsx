@@ -1084,34 +1084,34 @@ const AppLayout: React.FC = () => {
           style={{
             background: commander.background,
             borderRight: '1px solid rgba(255,255,255,0.08)',
-            overflow: 'auto',
             height: '100vh',
             position: 'sticky',
             top: 0,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {/* 导航菜单 */}
-          <Menu
-            mode="inline"
-            theme="dark"
-            selectedKeys={selectedKeys}
-            defaultOpenKeys={menuItems.filter((m: any) => m.children).map((m: any) => m.key)}
-            items={menuItems as MenuProps['items']}
-            onClick={onMenuClick}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              marginTop: 8,
-            }}
-          />
+          <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+            <Menu
+              mode="inline"
+              theme="dark"
+              selectedKeys={selectedKeys}
+              defaultOpenKeys={menuItems.filter((m: any) => m.children).map((m: any) => m.key)}
+              items={menuItems as MenuProps['items']}
+              onClick={onMenuClick}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                marginTop: 8,
+              }}
+            />
+          </div>
 
           {/* 底部系统状态栏 */}
           <div
             style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
+              flexShrink: 0,
               padding: '12px 16px',
               borderTop: '1px solid rgba(255,255,255,0.06)',
               background: 'rgba(255,255,255,0.02)',
