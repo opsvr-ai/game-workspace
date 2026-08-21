@@ -532,9 +532,9 @@ const CSDispatchView: React.FC = () => {
                                 fontWeight: 600,
                                 fontSize: 13,
                                 color: '#1F2937',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                wordBreak: 'break-word',
+                                whiteSpace: 'normal',
+                                lineHeight: 1.3,
                                 flex: '0 1 auto',
                                 minWidth: 0,
                               }}
