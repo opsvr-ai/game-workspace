@@ -8,13 +8,18 @@ const { Text } = Typography;
 
 const MoneyReconciliationPage: React.FC = () => {
   const [data, setData] = useState<any>(null);
+  const [balances, setBalances] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await ordersApi.moneyReconciliation();
-      setData(data.data || { rows: [], totalIn: 0, totalOut: 0, totalBridgeReturn: 0, totalProfit: 0 });
+      const [recRes, balRes] = await Promise.all([
+        ordersApi.moneyReconciliation(),
+        ordersApi.csWechatBalances(),
+      ]);
+      setData(recRes.data.data || { rows: [], totalIn: 0, totalOut: 0, totalBridgeReturn: 0, totalProfit: 0 });
+      setBalances(balRes.data.data || []);
     } finally {
       setLoading(false);
     }
@@ -58,6 +63,31 @@ const MoneyReconciliationPage: React.FC = () => {
           },
         ]}
       />
+
+      <Card size="small" title="📱 客服工作微信余额" style={{ marginTop: 16 }}>
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={balances}
+          size="small"
+          pagination={false}
+          columns={[
+            { title: '工作微信', dataIndex: 'wechatId' },
+            { title: '客户转入', dataIndex: 'inTotal', render: (v: number) => `¥${(v || 0).toFixed(1)}` },
+            { title: '转出', dataIndex: 'outTotal', render: (v: number) => `¥${(v || 0).toFixed(1)}` },
+            {
+              title: '当前余额',
+              dataIndex: 'balance',
+              render: (v: number) => (
+                <Text strong style={{ color: (v || 0) < 0 ? '#cf1322' : '#3f8600' }}>
+                  ¥{(v || 0).toFixed(1)}
+                </Text>
+              ),
+            },
+          ]}
+          locale={{ emptyText: '暂无客服工作微信' }}
+        />
+      </Card>
     </div>
   );
 };

@@ -13,6 +13,7 @@ export const ordersApi = {
   addMoneyFlow: (id: string, data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string }) =>
     http.post(`/orders/${id}/money-flows`, data),
   moneyReconciliation: () => http.get('/orders/money-reconciliation'),
+  csWechatBalances: () => http.get('/orders/cs-wechat-balances'),
   list: (params?: any) => http.get('/orders', { params }),
   getOrder: (id: string) => http.get(`/orders/${id}`),
   pool: () => http.get('/orders/pool'),

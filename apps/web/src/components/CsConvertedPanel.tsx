@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Table, Tag, message } from 'antd';
+import { Button, Card, Table, Tag, Typography, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { useChatStore } from '../stores/chatStore';
+
+const { Text } = Typography;
 
 const customerWechat = (r: any) => r.customer?.wechatId || r.customFields?.customerWechat || '';
 const customerNickname = (r: any) => r.customFields?.customerNickname || '';
@@ -73,6 +75,22 @@ const CsConvertedPanel: React.FC = () => {
       ),
     },
     { title: '游戏/金额', key: 'order', render: (_: any, r: any) => `${r.gameName} · ¥${Number(r.amount).toFixed(0)}` },
+    {
+      title: '资金',
+      key: 'money',
+      render: (_: any, r: any) => {
+        if (!r.customerPaidAccount && !r.moneyIn && !r.moneyOut) {
+          return <Text type="secondary">-</Text>;
+        }
+        return (
+          <div style={{ fontSize: 12 }}>
+            {r.customerPaidAccount && <div>客户转：{r.customerPaidAccount}</div>}
+            {r.moneyIn > 0 && <div style={{ color: '#389e0d' }}>入 ¥{Number(r.moneyIn).toFixed(1)}</div>}
+            {r.moneyOut > 0 && <div style={{ color: '#d4380d' }}>出 ¥{Number(r.moneyOut).toFixed(1)}</div>}
+          </div>
+        );
+      },
+    },
     {
       title: '去向',
       key: 'destination',

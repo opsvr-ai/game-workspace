@@ -740,6 +740,7 @@ export class OrdersService {
             },
           },
           coCompanion: { include: { user: { select: { id: true, username: true } } } },
+          moneyFlows: true,
         },
         orderBy: { updatedAt: 'desc' },
       });
@@ -760,9 +761,18 @@ export class OrdersService {
         let addStatus = '待添加';
         if (o.contactStatus === 'added') addStatus = '已加微信';
         else if (o.contactStatus === 'not_accepted') addStatus = '添加失败';
+        const moneyIn = o.moneyFlows
+          .filter((f) => f.direction === 'IN')
+          .reduce((s, f) => s + f.amount, 0);
+        const moneyOut = o.moneyFlows
+          .filter((f) => f.direction === 'OUT')
+          .reduce((s, f) => s + f.amount, 0);
         return {
           ...o,
           companionUserId: o.companion?.user?.id || '',
+          customerPaidAccount: o.customerPaymentAccountName || '',
+          moneyIn,
+          moneyOut,
           addStatus,
           destination,
         };
@@ -786,6 +796,39 @@ export class OrdersService {
         counterpartId: data.counterpartId,
         note: data.note,
       },
+      });
+  }
+
+  // 客服每个工作微信的余额 = 流入(客户转入) - 流出(转给陪玩/桥接等)
+  async listCsWechatBalances(studioId: string) {
+    const wechats = await this.prisma.workWechat.findMany({
+      where: { studioId, type: 'STUDIO' },
+    });
+    const orders = await this.prisma.order.findMany({
+      where: { studioId },
+      select: { customFields: true, moneyFlows: true },
+    });
+
+    return wechats.map((w) => {
+      const related = orders.filter(
+        (o) => ((o.customFields as any) || {}).csWorkWechatName === w.wechatId,
+      );
+      let inTotal = 0;
+      let outTotal = 0;
+      for (const o of related) {
+        for (const f of o.moneyFlows) {
+          if (f.direction === 'IN') inTotal += f.amount;
+          else if (f.direction === 'OUT') outTotal += f.amount;
+        }
+      }
+      return {
+        id: w.id,
+        wechatId: w.wechatId,
+        csUserId: w.csUserId,
+        inTotal,
+        outTotal,
+        balance: inTotal - outTotal,
+      };
     });
   }
 

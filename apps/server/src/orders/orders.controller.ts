@@ -98,6 +98,13 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('orders/cs-wechat-balances')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async csWechatBalances(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listCsWechatBalances(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('orders')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.COMPANION, UserRole.OWNER)
   async findAll(
