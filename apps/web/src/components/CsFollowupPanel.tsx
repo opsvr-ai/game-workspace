@@ -48,6 +48,12 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
     openFlows(flowOrder);
   };
 
+  const markResult = async (item: any, addResult: 'passed' | 'failed') => {
+    await ordersApi.markCsContact(item.id, 'added', undefined, { addResult });
+    message.success(addResult === 'passed' ? '已标记添加成功' : '已标记添加失败');
+    load();
+  };
+
   if (items.length === 0) return null;
 
   return (
@@ -61,6 +67,20 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
             <List.Item
               key={item.id}
               actions={[
+                ...(item.customFields?.csAddResult !== 'passed'
+                  ? [
+                      <Button size="small" type="primary" onClick={() => markResult(item, 'passed')}>
+                        标记成功
+                      </Button>,
+                    ]
+                  : []),
+                ...(item.customFields?.csAddResult !== 'failed'
+                  ? [
+                      <Button size="small" danger onClick={() => markResult(item, 'failed')}>
+                        标记失败
+                      </Button>,
+                    ]
+                  : []),
                 <Button size="small" onClick={() => openFlows(item)}>资金流水</Button>,
                 <Button size="small" type="primary" onClick={() => onRedispatch?.(item)}>重新派单</Button>,
               ]}
@@ -71,6 +91,13 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
                   <div>
                     客户微信：{item.customer?.wechatId || item.customFields?.customerWechat || '-'}
                     {' · '}工作微信：{item.customFields?.csWorkWechatName || '-'}
+                    <br />
+                    添加结果：
+                    {item.customFields?.csAddResult === 'passed'
+                      ? ' ✅ 成功'
+                      : item.customFields?.csAddResult === 'failed'
+                        ? ' ❌ 失败'
+                        : ' ⏳ 待结果'}
                   </div>
                 }
               />

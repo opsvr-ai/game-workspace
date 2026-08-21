@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Tag, Upload, Modal, Select, message } from 'antd';
+import { Button, Card, Tag, Modal, Select, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
-import http from '../api/client';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -13,8 +12,6 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [contactOrder, setContactOrder] = useState<any>(null);
   const [contactWechatId, setContactWechatId] = useState<string | undefined>();
-  const [contactResult, setContactResult] = useState<string>('passed');
-  const [contactEvidence, setContactEvidence] = useState<string>('');
 
   const load = async () => {
     try {
@@ -36,30 +33,22 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
   const openContact = (item: any) => {
     setContactOrder(item);
     setContactWechatId(item.customFields?.csWorkWechatId || undefined);
-    setContactResult(item.customFields?.csAddResult || 'passed');
-    setContactEvidence(item.customFields?.csContactEvidenceUrl || '');
   };
 
   const submitContact = async () => {
     if (!contactOrder) return;
+    if (!contactWechatId) {
+      message.warning('请选择工作微信');
+      return;
+    }
     const wx = workWechats.find((w: any) => w.id === contactWechatId);
-    await ordersApi.markCsContact(contactOrder.id, 'added', contactEvidence || undefined, {
+    await ordersApi.markCsContact(contactOrder.id, 'added', undefined, {
       workWechatId: contactWechatId,
       workWechatName: wx?.wechatId,
-      addResult: contactResult,
     });
-    message.success('已记录添加结果');
+    message.success('已标记添加，稍后在跟进中确认成功/失败');
     setContactOrder(null);
     load();
-  };
-
-  const uploadEvidence = async (file: File) => {
-    const fd = new FormData();
-    fd.append('file', file);
-    const { data } = await http.post('/upload/screenshot', fd);
-    setContactEvidence(data.data?.url || data.url || '');
-    message.success('凭证已上传');
-    return false;
   };
 
   if (items.length === 0) return null;
@@ -87,7 +76,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       {item.csContactStatus === 'added' ? (
         <span style={{ color: '#52c41a' }}>
           已添加
-          {item.customFields?.csAddResult === 'passed' ? '·通过' : item.customFields?.csAddResult === 'failed' ? '·未通过' : '·没回复'}
+          {item.customFields?.csAddResult === 'passed' ? '·成功' : item.customFields?.csAddResult === 'failed' ? '·失败' : '·待结果'}
         </span>
       ) : null}
       <span style={{ flex: 1 }} />
@@ -134,7 +123,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
         open={!!contactOrder}
         onOk={submitContact}
         onCancel={() => setContactOrder(null)}
-        okText="提交"
+        okText="确认已添加"
         cancelText="取消"
         width={460}
       >
@@ -157,20 +146,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
                 ))}
               </Select>
             </div>
-            <div>
-              <strong>添加结果：</strong>
-              <Select value={contactResult} onChange={setContactResult} style={{ width: '100%' }}>
-                <Select.Option value="passed">已通过</Select.Option>
-                <Select.Option value="failed">未通过</Select.Option>
-                <Select.Option value="no_reply">没回复</Select.Option>
-              </Select>
-            </div>
-            <div>
-              <strong>截图凭证：</strong>{' '}
-              <Upload showUploadList={false} beforeUpload={uploadEvidence}>
-                <Button size="small">上传截图</Button>
-              </Upload>
-              {contactEvidence && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
+            <div style={{ color: '#888', fontSize: 12 }}>
+              确认后即标记“已添加”；添加成功或失败，请在「跟进中」里选择，无需上传截图。
             </div>
           </div>
         )}

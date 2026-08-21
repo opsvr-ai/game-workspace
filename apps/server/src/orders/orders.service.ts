@@ -630,7 +630,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     const cf = (order.customFields as any) || {};
-    const handled = status === 'added' && !!evidenceUrl && extra?.addResult === 'passed';
+    const result = extra?.addResult;
+    const poolHandled = status === 'added' && result !== 'failed';
     return this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -641,8 +642,8 @@ export class OrdersService {
           csContactEvidenceUrl: evidenceUrl || '',
           ...(extra?.workWechatId !== undefined ? { csWorkWechatId: extra.workWechatId } : {}),
           ...(extra?.workWechatName !== undefined ? { csWorkWechatName: extra.workWechatName } : {}),
-          ...(extra?.addResult !== undefined ? { csAddResult: extra.addResult } : {}),
-          ...(handled ? { poolHandled: true } : {}),
+          ...(result !== undefined ? { csAddResult: result } : {}),
+          ...(status === 'added' ? { poolHandled } : {}),
         },
       },
     });
@@ -702,7 +703,10 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return orders.filter((o) => (o.customFields as any)?.csAddResult === 'passed');
+    return orders.filter((o) => {
+      const cf = (o.customFields as any) || {};
+      return o.contactStatus === 'added' && cf.csAddResult !== 'failed';
+    });
   }
 
   async listMoneyFlows(orderId: string) {
