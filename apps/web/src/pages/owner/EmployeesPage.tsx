@@ -50,6 +50,8 @@ interface Employee {
   realName?: string;
   idNumber?: string;
   phone?: string;
+  idCardFront?: string;
+  idCardBack?: string;
   address?: string;
   leaseContractUrl?: string;
   studio?: { id: string; name: string; type?: string };
@@ -644,8 +646,8 @@ const EmployeesPage: React.FC = () => {
             <p><Text strong>地址：</Text>{detailEmployee.address || '-'}</p>
             <p><Text strong>工作室：</Text>{detailEmployee.studio?.name || '-'}</p>
             {detailEmployee.leaseContractUrl && <p><Text strong>租赁合同：</Text><a href={detailEmployee.leaseContractUrl} target="_blank">查看</a></p>}
-            {detailEmployee.companion?.idCardFront && <p><Text strong>身份证正面：</Text><Image src={`/uploads/idcards/${detailEmployee.companion.idCardFront}`} width={200} style={{borderRadius:4}} /></p>}
-            {detailEmployee.companion?.idCardBack && <p><Text strong>身份证反面：</Text><Image src={`/uploads/idcards/${detailEmployee.companion.idCardBack}`} width={200} style={{borderRadius:4}} /></p>}
+            {(detailEmployee.idCardFront || detailEmployee.companion?.idCardFront) && <p><Text strong>身份证正面：</Text><Image src={`/uploads/idcards/${detailEmployee.idCardFront || detailEmployee.companion?.idCardFront}`} width={200} style={{borderRadius:4}} /></p>}
+            {(detailEmployee.idCardBack || detailEmployee.companion?.idCardBack) && <p><Text strong>身份证反面：</Text><Image src={`/uploads/idcards/${detailEmployee.idCardBack || detailEmployee.companion?.idCardBack}`} width={200} style={{borderRadius:4}} /></p>}
             <p><Text strong>注册时间：</Text>{detailEmployee.createdAt ? new Date(detailEmployee.createdAt).toLocaleString('zh-CN') : '-'}</p>
           </div>
         )}

@@ -69,8 +69,8 @@ const ReviewPage: React.FC = () => {
       title: '身份证', key: 'idcard', width: 120,
       render: (_: unknown, r: any) => (
         <Space>
-          {r.companion?.idCardFront && <Button size="small" icon={React.createElement(EyeOutlined)} onClick={() => setPreviewImage(`/uploads/idcards/${r.companion.idCardFront}`)}>正面</Button>}
-          {r.companion?.idCardBack && <Button size="small" icon={React.createElement(EyeOutlined)} onClick={() => setPreviewImage(`/uploads/idcards/${r.companion.idCardBack}`)}>反面</Button>}
+          {(r.idCardFront || r.companion?.idCardFront) && <Button size="small" icon={React.createElement(EyeOutlined)} onClick={() => setPreviewImage(`/uploads/idcards/${r.idCardFront || r.companion.idCardFront}`)}>正面</Button>}
+          {(r.idCardBack || r.companion?.idCardBack) && <Button size="small" icon={React.createElement(EyeOutlined)} onClick={() => setPreviewImage(`/uploads/idcards/${r.idCardBack || r.companion.idCardBack}`)}>反面</Button>}
         </Space>
       ),
     },

@@ -124,6 +124,8 @@ export class StudiosService {
         realName: true,
         idNumber: true,
         phone: true,
+        idCardFront: true,
+        idCardBack: true,
         address: true,
         leaseContractUrl: true,
         studio: { select: { id: true, name: true, type: true } },
