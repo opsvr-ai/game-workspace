@@ -9,12 +9,11 @@ import {
   Badge,
   Tag,
   Image,
-  Upload,
   Modal,
   Input,
   Tooltip,
 } from 'antd';
-import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -138,7 +137,7 @@ const OrdersPage: React.FC = () => {
                   }
                 }}
               >
-                联系方式添加成功
+                ✅ 标记成功
               </Button>
             </Tooltip>
             <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
@@ -146,13 +145,20 @@ const OrdersPage: React.FC = () => {
                 danger
                 size="small"
                 disabled={contactDisabled}
-                onClick={() => {
-                  setFailTarget(r);
-                  setFailReason('');
-                  setFailScreenshot('');
+                onClick={async () => {
+                  try {
+                    await http.put(`/orders/${r.id}/contact`, {
+                      contactStatus: 'not_accepted',
+                      notes: '客户一直没同意',
+                    });
+                    message.success('已标记添加失败');
+                    fetch();
+                  } catch (e: any) {
+                    message.error(extractErrorMessage(e, '操作失败'));
+                  }
                 }}
               >
-                📎 添加失败
+                ❌ 标记失败
               </Button>
             </Tooltip>
           </>
@@ -233,9 +239,6 @@ const OrdersPage: React.FC = () => {
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const [paidTo, setPaidTo] = useState<string>('');
   const [paymentAccountName, setPaymentAccountName] = useState('');
-  const [failTarget, setFailTarget] = useState<any>(null);
-  const [failReason, setFailReason] = useState('');
-  const [failScreenshot, setFailScreenshot] = useState('');
 
   const releaseClaim = async (r: any) => {
     try {
@@ -551,80 +554,6 @@ const OrdersPage: React.FC = () => {
               placeholder="例如：工作室微信1号 / 陪玩张三微信"
               style={{ marginTop: 8 }}
             />
-          </div>
-        </Modal>
-        <Modal
-          title="📎 添加失败"
-          open={!!failTarget}
-          onOk={async () => {
-            if (!failReason.trim()) {
-              message.warning('请选择失败原因');
-              return Promise.reject();
-            }
-            if (!failScreenshot) {
-              message.warning('请上传失败截图');
-              return Promise.reject();
-            }
-            try {
-              await http.put(`/orders/${failTarget.id}/contact`, {
-                contactStatus: 'not_accepted',
-                notes: failReason.trim(),
-                screenshotUrl: failScreenshot,
-              });
-              message.success('已记录添加失败，等待管理端补客户');
-              setFailTarget(null);
-              fetch();
-            } catch (e: any) {
-              message.error(extractErrorMessage(e, '提交失败'));
-              return Promise.reject();
-            }
-          }}
-          onCancel={() => setFailTarget(null)}
-          okText="提交"
-          cancelText="取消"
-          destroyOnClose
-        >
-          <div style={{ marginBottom: 12 }}>
-            <Text>失败原因：</Text>
-            <Select
-              value={failReason || undefined}
-              placeholder="选择原因"
-              style={{ width: '100%', marginTop: 8 }}
-              onChange={(v) => setFailReason(v)}
-            >
-              <Option value="客户不同意">客户不同意</Option>
-              <Option value="客户现在不玩">客户现在不玩</Option>
-              <Option value="微信添加被拒">微信添加被拒</Option>
-              <Option value="客户已删除我">客户已删除我</Option>
-              <Option value="联系不上">联系不上</Option>
-              <Option value="其他">其他</Option>
-            </Select>
-          </div>
-          <div>
-            <Text>失败截图（必传）：</Text>
-            <div style={{ marginTop: 8 }}>
-              <Upload
-                showUploadList={false}
-                accept="image/*"
-                beforeUpload={async (file) => {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  try {
-                    const { data } = await http.post('/upload/screenshot', fd);
-                    setFailScreenshot(data.data?.url || data.url || '');
-                    message.success('截图已上传');
-                  } catch {
-                    message.error('上传失败');
-                  }
-                  return false;
-                }}
-              >
-                <Button icon={<UploadOutlined />}>
-                  {failScreenshot ? '重新上传截图' : '上传截图'}
-                </Button>
-              </Upload>
-              {failScreenshot && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
-            </div>
           </div>
         </Modal>
       </div>
