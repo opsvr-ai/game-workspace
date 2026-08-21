@@ -74,13 +74,6 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
-  @Put('orders/:id/cs-mark-added')
-  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async csMarkAdded(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.markCompanionAdded(id, req.user);
-    return { code: 200, message: '已标记客户通过', data };
-  }
-
   @Get('orders/:id/money-flows')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async listMoneyFlows(@Param('id') id: string): Promise<ApiResponse<unknown>> {

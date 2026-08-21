@@ -762,16 +762,6 @@ export class OrdersService {
       });
   }
 
-  // 客服/店长/老板：陪玩当时添加失败、后来客户通过了，标记为已通过
-  async markCompanionAdded(orderId: string, user: any) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (user?.role !== 'OWNER' && order.studioId !== user?.studioId) {
-      throw new ForbiddenException('无权操作该订单');
-    }
-    return this.updateContact(orderId, { contactStatus: 'added' });
-  }
-
   async listMoneyFlows(orderId: string) {
     return this.prisma.orderMoneyFlow.findMany({ where: { orderId }, orderBy: { createdAt: 'asc' } });
   }

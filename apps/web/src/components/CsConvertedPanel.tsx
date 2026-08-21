@@ -20,12 +20,6 @@ const CsConvertedPanel: React.FC = () => {
     }
   };
 
-  const markAdded = async (id: string) => {
-    await ordersApi.csMarkAdded(id);
-    message.success('已标记客户通过');
-    load();
-  };
-
   useEffect(() => {
     load();
   }, []);
@@ -72,16 +66,6 @@ const CsConvertedPanel: React.FC = () => {
           <Tag color={r.addStatus === '已加微信' ? 'green' : 'gold'}>{r.addStatus}</Tag>
         )
       ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, r: any) =>
-        r.addStatus === '添加失败' ? (
-          <Button size="small" type="primary" onClick={() => markAdded(r.id)}>
-            标记客户已通过
-          </Button>
-        ) : null,
     },
   ];
 
