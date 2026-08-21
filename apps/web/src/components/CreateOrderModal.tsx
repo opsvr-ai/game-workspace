@@ -199,28 +199,32 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         <Form.Item name="deltaNote" label="备注">
           <Input.TextArea rows={2} placeholder="补充说明" />
         </Form.Item>
-        <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
-          <Select>
-            <Option value={DispatchType.POOL}>入池</Option>
-            <Option value="BROADCAST">广播</Option>
-            <Option value={DispatchType.DIRECT}>指定</Option>
-          </Select>
-        </Form.Item>
-        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
-          {({ getFieldValue }) =>
-            getFieldValue('dispatchType') === DispatchType.DIRECT ? (
-              <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
-                <Select placeholder="选择主陪" showSearch optionFilterProp="label">
-                  {companions.map((c: any) => (
-                    <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
-                      {c.user?.displayName || c.user?.username}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            ) : null
-          }
-        </Form.Item>
+        {!directAddMode && (
+          <>
+            <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
+              <Select>
+                <Option value={DispatchType.POOL}>入池</Option>
+                <Option value="BROADCAST">广播</Option>
+                <Option value={DispatchType.DIRECT}>指定</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
+              {({ getFieldValue }) =>
+                getFieldValue('dispatchType') === DispatchType.DIRECT ? (
+                  <Form.Item name="companionId" label="主陪" rules={[{ required: true, message: '请选择陪玩' }]}>
+                    <Select placeholder="选择主陪" showSearch optionFilterProp="label">
+                      {companions.map((c: any) => (
+                        <Option key={c.id} value={c.id} label={c.user?.displayName || c.user?.username}>
+                          {c.user?.displayName || c.user?.username}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                ) : null
+              }
+            </Form.Item>
+          </>
+        )}
         <Form.Item noStyle shouldUpdate={(p, c) => p.deltaCount !== c.deltaCount}>
           {({ getFieldValue }) => {
             const isDouble = getFieldValue('deltaCount') === '双';
@@ -236,21 +240,25 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             );
           }}
         </Form.Item>
-        <Form.Item name="urgency" label="打单时间" initialValue="now">
-          <Select>
-            <Option value="now">⚡立即打</Option>
-            <Option value="later">📅预约</Option>
-          </Select>
-        </Form.Item>
-        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.urgency !== cur.urgency}>
-          {({ getFieldValue }) =>
-            getFieldValue('urgency') === 'later' ? (
-              <Form.Item name="scheduledTimeText" label="预约时间" style={{ marginBottom: 0 }}>
-                <Input placeholder="自由填写，请带年月日，如：2026/8/20 20:00 或 8月20日晚上8点" />
-              </Form.Item>
-            ) : null
-          }
-        </Form.Item>
+        {!directAddMode && (
+          <>
+            <Form.Item name="urgency" label="打单时间" initialValue="now">
+              <Select>
+                <Option value="now">⚡立即打</Option>
+                <Option value="later">📅预约</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate={(prev, cur) => prev.urgency !== cur.urgency}>
+              {({ getFieldValue }) =>
+                getFieldValue('urgency') === 'later' ? (
+                  <Form.Item name="scheduledTimeText" label="预约时间" style={{ marginBottom: 0 }}>
+                    <Input placeholder="自由填写，请带年月日，如：2026/8/20 20:00 或 8月20日晚上8点" />
+                  </Form.Item>
+                ) : null
+              }
+            </Form.Item>
+          </>
+        )}
         <Form.Item label="客户来源" required>
           <Input.Group compact>
             <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
