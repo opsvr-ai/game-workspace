@@ -301,7 +301,7 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const renderCompanionSidebar = () => (
-    <Col flex="0 0 180px">
+    <Col flex="0 0 220px">
       <Card
         title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
         size="small"
@@ -385,11 +385,8 @@ const OrderPoolPage: React.FC = () => {
                             fontWeight: 600,
                             fontSize: 13,
                             color: '#1F2937',
-                            wordBreak: 'break-word',
-                            whiteSpace: 'normal',
-                            lineHeight: 1.3,
-                            flex: '0 1 auto',
-                            minWidth: 0,
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
                           }}
                         >
                           {c.user?.displayName || c.user?.username || c.id}
@@ -412,28 +409,6 @@ const OrderPoolPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {c.games && c.games.length > 0 && typeof c.games[0] === 'object' && (
-                    <div style={{ marginTop: 7, marginLeft: 44, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {c.games.slice(0, 2).map((g: any, i: number) => (
-                        <span
-                          key={i}
-                          style={{
-                            fontSize: 10,
-                            color: '#64748B',
-                            background: '#F1F5F9',
-                            borderRadius: 4,
-                            padding: '1px 6px',
-                            lineHeight: '17px',
-                          }}
-                        >
-                          {g.game}
-                        </span>
-                      ))}
-                      {c.games.length > 2 && (
-                        <span style={{ fontSize: 10, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
-                      )}
-                    </div>
-                  )}
                 </List.Item>
               );
             }}

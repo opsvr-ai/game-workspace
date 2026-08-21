@@ -405,7 +405,7 @@ const CSDispatchView: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
-        <Col flex="0 0 200px">
+        <Col flex="0 0 240px">
           <Card
             title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
             size="small"
@@ -532,11 +532,8 @@ const CSDispatchView: React.FC = () => {
                                 fontWeight: 600,
                                 fontSize: 13,
                                 color: '#1F2937',
-                                wordBreak: 'break-word',
-                                whiteSpace: 'normal',
-                                lineHeight: 1.3,
-                                flex: '0 1 auto',
-                                minWidth: 0,
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
                               }}
                             >
                               {c.displayName || c.username || c.id}
