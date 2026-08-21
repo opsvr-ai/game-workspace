@@ -385,7 +385,7 @@ const CustomersPage: React.FC = () => {
       ),
     },
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
-    ...(isAdmin
+    ...(!isCompanion
       ? [
           {
             title: '客户昵称',
@@ -826,7 +826,7 @@ const CustomersPage: React.FC = () => {
                 ]}
               />
               <Input.Search
-                placeholder={isAdmin ? '搜索微信号/编号/昵称/来源' : '搜索客户编号'}
+                placeholder={!isCompanion ? '搜索微信号/编号/昵称/来源' : '搜索客户编号'}
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 style={{ width: 200 }}
@@ -863,7 +863,7 @@ const CustomersPage: React.FC = () => {
                           (c: Customer) => {
                             if (!searchCode) return true;
                             const q = searchCode.toLowerCase();
-                            if (!isAdmin) {
+                            if (isCompanion) {
                               return (c.customerCode || '').toLowerCase().includes(q);
                             }
                             const cf = c.orders?.[0]?.customFields || {};
