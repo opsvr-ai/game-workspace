@@ -72,28 +72,13 @@ export class ProcessBlacklistService {
     });
     if (!companion) throw new NotFoundException('陪玩不存在');
 
-    const [studioEntries, overrideEntries, statusEntries] = await Promise.all([
-      this.prisma.processBlacklist.findMany({
-        where: { studioId: companion.studioId, isActive: true },
-        select: { processName: true, processPath: true },
-      }),
-      this.prisma.companionBlacklistOverride.findMany({
-        where: { companionId, isActive: true },
-        select: { processName: true, processPath: true },
-      }),
-      this.prisma.companionStatusBlacklist.findMany({
-        where: { companionId, status: companion.status },
-        select: { processName: true },
-      }),
-    ]);
+    // 只使用「状态黑名单」：陪玩处于哪个状态，就套用该状态下的黑名单
+    const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
+      where: { companionId, status: companion.status },
+      select: { processName: true },
+    });
 
-    // Merge: studio defaults → companion override → status blacklist (highest priority)
-    const map = new Map<string, { processName: string; processPath: string | null }>();
-    for (const e of studioEntries) map.set(e.processName.toLowerCase(), e);
-    for (const o of overrideEntries) map.set(o.processName.toLowerCase(), o);
-    for (const s of statusEntries) map.set(s.processName.toLowerCase(), { processName: s.processName, processPath: null });
-
-    return Array.from(map.values());
+    return statusEntries.map((s) => ({ processName: s.processName, processPath: null }));
   }
 
   // ── Whitelist ──
