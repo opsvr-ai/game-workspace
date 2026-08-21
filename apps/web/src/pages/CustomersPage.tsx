@@ -385,15 +385,28 @@ const CustomersPage: React.FC = () => {
       ),
     },
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
-    {
-      title: '客户昵称',
-      key: 'nickname',
-      width: 120,
-      render: (_: any, r: Customer) => {
-        const cf = r.orders?.[0]?.customFields || {};
-        return cf.customerNickname || <Text type="secondary">-</Text>;
-      },
-    },
+    ...(isAdmin
+      ? [
+          {
+            title: '客户昵称',
+            key: 'nickname',
+            width: 120,
+            render: (_: any, r: Customer) => {
+              const cf = r.orders?.[0]?.customFields || {};
+              return cf.customerNickname || <Text type="secondary">-</Text>;
+            },
+          },
+          {
+            title: '来源账号',
+            key: 'sourceAccount',
+            width: 150,
+            render: (_: any, r: Customer) => {
+              const cf = r.orders?.[0]?.customFields || {};
+              return cf.customerSourceAccount || <Text type="secondary">-</Text>;
+            },
+          },
+        ]
+      : []),
     {
       title: '最近订单',
       key: 'lastOrder',
@@ -813,7 +826,7 @@ const CustomersPage: React.FC = () => {
                 ]}
               />
               <Input.Search
-                placeholder="搜索编号/微信号/昵称/来源"
+                placeholder={isAdmin ? '搜索微信号/编号/昵称/来源' : '搜索客户编号'}
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 style={{ width: 200 }}
@@ -850,6 +863,9 @@ const CustomersPage: React.FC = () => {
                           (c: Customer) => {
                             if (!searchCode) return true;
                             const q = searchCode.toLowerCase();
+                            if (!isAdmin) {
+                              return (c.customerCode || '').toLowerCase().includes(q);
+                            }
                             const cf = c.orders?.[0]?.customFields || {};
                             const hay = [
                               c.customerCode,
@@ -857,6 +873,7 @@ const CustomersPage: React.FC = () => {
                               c.platformAccount,
                               cf.customerNickname,
                               cf.customerSource,
+                              cf.customerSourceAccount,
                               cf.customerAccountId,
                             ]
                               .filter(Boolean)
