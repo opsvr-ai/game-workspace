@@ -143,7 +143,6 @@ export class OrdersService {
                 poolExpiredAt: new Date().toISOString(),
                 poolHandled: true,
                 poolHandledAt: new Date().toISOString(),
-                csAddResult: 'passed',
               }
             : {}),
           dispatchCount: 1,
