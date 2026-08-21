@@ -13,9 +13,10 @@ interface Props {
   unreadMap?: Record<string, number>;
   renderActions?: (r: any) => React.ReactNode;
   onWorkWechatSaved?: (order: any, workWechatId: string, workWechatName: string) => void;
+  extraColumns?: any[];
 }
 
-const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWorkWechatSaved }) => (
+const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWorkWechatSaved, extraColumns }) => (
   <Table
     size="middle"
     dataSource={dataSource}
@@ -130,6 +131,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWor
           </Space>
         ),
       },
+      ...(extraColumns || []),
       ...(renderActions
         ? [{ title: '操作', key: 'actions', width: 220, render: (_: any, r: any) => <Space size={4} wrap>{renderActions(r)}</Space> }]
         : []),

@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { useChatStore } from '../stores/chatStore';
+import OrderTable from './OrderTable';
 
-const { Text } = Typography;
-
-const customerWechat = (r: any) => r.customer?.wechatId || r.customFields?.customerWechat || '';
-const customerNickname = (r: any) => r.customFields?.customerNickname || '';
-const customerSource = (r: any) => r.customFields?.customerSource || '';
 const companionName = (r: any) =>
   r.companion?.user?.displayName || r.companion?.user?.username || '';
-const companionWechat = (r: any) => r.customFields?.workWechatName || '';
 
 const CsConvertedPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -43,7 +38,7 @@ const CsConvertedPanel: React.FC = () => {
       username: companionName(r),
       role: 'COMPANION',
     };
-    const orderInfo = `${r.gameName} · 客户：${customerNickname(r) || customerWechat(r) || '-'}`;
+    const orderInfo = `${r.gameName} · 客户：${r.customer?.wechatId || r.customFields?.customerWechat || '-'}`;
     const convId = await useChatStore.getState().openConversation(r.companionUserId, participant as any, orderInfo);
     window.dispatchEvent(
       new CustomEvent('open-chat-modal', {
@@ -58,65 +53,26 @@ const CsConvertedPanel: React.FC = () => {
     线上俱乐部: 'purple',
   };
 
-  const columns = [
-    {
-      title: '客户',
-      key: 'customer',
-      render: (_: any, r: any) => (
-        <div>
-          <div>{customerNickname(r) || customerWechat(r) || '-'}</div>
-          {customerWechat(r) && <div style={{ color: '#999', fontSize: 12 }}>微信：{customerWechat(r)}</div>}
-          {customerSource(r) && (
-            <Tag color="cyan" style={{ marginTop: 2, fontSize: 11 }}>
-              📡{customerSource(r)}
-            </Tag>
-          )}
-        </div>
-      ),
-    },
-    { title: '游戏/金额', key: 'order', render: (_: any, r: any) => `${r.gameName} · ¥${Number(r.amount).toFixed(0)}` },
-    {
-      title: '资金',
-      key: 'money',
-      render: (_: any, r: any) => {
-        if (!r.customerPaidAccount && !r.moneyIn && !r.moneyOut) {
-          return <Text type="secondary">-</Text>;
-        }
-        return (
-          <div style={{ fontSize: 12 }}>
-            {r.customerPaidAccount && <div>客户转：{r.customerPaidAccount}</div>}
-            {r.moneyIn > 0 && <div style={{ color: '#389e0d' }}>入 ¥{Number(r.moneyIn).toFixed(1)}</div>}
-            {r.moneyOut > 0 && <div style={{ color: '#d4380d' }}>出 ¥{Number(r.moneyOut).toFixed(1)}</div>}
-          </div>
-        );
-      },
-    },
+  const extraColumns = [
     {
       title: '去向',
       key: 'destination',
+      width: 100,
+      align: 'center' as const,
       render: (_: any, r: any) => (
         <Tag color={destColor[r.destination] || 'default'}>{r.destination}</Tag>
       ),
     },
-    { title: '抢单陪玩', key: 'companionName', render: (_: any, r: any) => companionName(r) },
-    { title: '陪玩工作微信', key: 'companionWechat', render: (_: any, r: any) => companionWechat(r) || '-' },
     {
       title: '加微信',
       key: 'addStatus',
-      render: (_: any, r: any) =>
+      width: 100,
+      align: 'center' as const,
+      render: (_: any, r: any) => (
         <Tag color={r.addStatus === '添加成功' ? 'green' : r.addStatus === '添加失败' ? 'red' : 'gold'}>
           {r.addStatus}
-        </Tag>,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, r: any) =>
-        r.addStatus !== '添加成功' ? (
-          <Button size="small" type="primary" onClick={() => contactCompanion(r)}>
-            询问陪玩
-          </Button>
-        ) : null,
+        </Tag>
+      ),
     },
   ];
 
@@ -128,14 +84,17 @@ const CsConvertedPanel: React.FC = () => {
           刷新
         </Button>
       </div>
-      <Table
-        size="small"
-        rowKey="id"
-        columns={columns}
+      <OrderTable
         dataSource={items}
         loading={loading}
-        pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `共 ${t} 单` }}
-        locale={{ emptyText: '暂无重新派出的客户' }}
+        extraColumns={extraColumns}
+        renderActions={(r: any) =>
+          r.addStatus !== '添加成功' ? (
+            <Button size="small" type="primary" onClick={() => contactCompanion(r)}>
+              询问陪玩
+            </Button>
+          ) : null
+        }
       />
     </Card>
   );
