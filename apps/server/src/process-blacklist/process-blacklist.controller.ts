@@ -149,6 +149,29 @@ export class ProcessBlacklistController {
     return { code: 200, message: '已删除白名单条目' };
   }
 
+  // ── 待禁用进程名单 ──
+
+  @Get('pending-disable')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listPendingDisable(@Req() req: any) {
+    const items = await this.service.listPendingDisable(await this.sid(req));
+    return { code: 200, data: items };
+  }
+
+  @Post('pending-disable')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async addPendingDisable(@Req() req: any, @Body() dto: { processName: string }) {
+    const entry = await this.service.addPendingDisable(await this.sid(req), dto.processName);
+    return { code: 200, data: entry, message: '已加入待禁用名单' };
+  }
+
+  @Delete('pending-disable/:id')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async removePendingDisable(@Req() req: any, @Param('id') id: string) {
+    await this.service.removePendingDisable(id, await this.sid(req));
+    return { code: 200, message: '已从待禁用名单移除' };
+  }
+
   
   @Post('kill')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)

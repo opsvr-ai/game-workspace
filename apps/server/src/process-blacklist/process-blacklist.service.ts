@@ -115,6 +115,29 @@ export class ProcessBlacklistService {
     return this.prisma.processWhitelist.delete({ where: { id } });
   }
 
+  // ── 待禁用进程名单（采集后先挑选到这里） ──
+
+  async listPendingDisable(studioId: string) {
+    return this.prisma.processPendingDisable.findMany({
+      where: { studioId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addPendingDisable(studioId: string, processName: string) {
+    return this.prisma.processPendingDisable.upsert({
+      where: { studioId_processName: { studioId, processName } },
+      create: { studioId, processName },
+      update: {},
+    });
+  }
+
+  async removePendingDisable(id: string, studioId: string) {
+    const entry = await this.prisma.processPendingDisable.findFirst({ where: { id, studioId } });
+    if (!entry) throw new NotFoundException('待禁用条目不存在');
+    return this.prisma.processPendingDisable.delete({ where: { id } });
+  }
+
   // ── Process Reports ──
 
   async saveProcessReport(companionId: string, processes: any[], totalCount: number) {

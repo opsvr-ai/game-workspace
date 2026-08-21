@@ -37,4 +37,11 @@ export const blacklistApi = {
   getUniqueNames: (companionId: string) => http.get('/processes/unique-names', { params: { companionId } }),
   getKillLogs: (params?: { companionId?: string; page?: number; pageSize?: number }) =>
     http.get('/processes/kill-logs', { params }),
+
+  // ── 待禁用进程名单 ──
+  listPendingDisable: () => http.get('/processes/pending-disable'),
+  addPendingDisable: (data: { processName: string }) =>
+    http.post('/processes/pending-disable', data),
+  removePendingDisable: (id: string) =>
+    http.delete(`/processes/pending-disable/${id}`),
 };

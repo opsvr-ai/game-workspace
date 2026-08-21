@@ -62,6 +62,7 @@ model Studio {
   expenses            Expense[]
   expenseReports      ExpenseReport[]
     processBlacklists   ProcessBlacklist[]
+    processPendingDisables ProcessPendingDisable[]
     processWhitelists   ProcessWhitelist[]
     trafficAccounts     TrafficAccount[]
   paymentAccounts     StudioPaymentAccount[]
@@ -518,9 +519,9 @@ model WorkWechat {
 // ── Blacklist Process Management ──
 
 model ProcessBlacklist {
-  id          String   @id @default(uuid())
-  studioId    String
-  processName String
+    id          String   @id @default(uuid())
+    studioId    String
+    processName String
   processPath String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -528,10 +529,22 @@ model ProcessBlacklist {
 
   studio Studio @relation(fields: [studioId], references: [id])
 
-  @@unique([studioId, processName])
-}
+    @@unique([studioId, processName])
+  }
 
-model CompanionBlacklistOverride {
+  model ProcessPendingDisable {
+    id          String   @id @default(uuid())
+    studioId    String
+    processName String
+    createdAt   DateTime @default(now())
+
+    studio Studio @relation(fields: [studioId], references: [id])
+
+    @@unique([studioId, processName])
+    @@index([studioId])
+  }
+  
+  model CompanionBlacklistOverride {
   id          String   @id @default(uuid())
   companionId String
   processName String
