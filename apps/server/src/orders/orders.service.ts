@@ -668,19 +668,22 @@ export class OrdersService {
     if (studioId && order.studioId !== studioId) {
       throw new ForbiddenException('无权操作其他工作室的订单');
     }
-    const cf = (order.customFields as any) || {};
-    delete cf.poolExpired;
-    delete cf.poolExpiredAt;
-    const dispatchHistory = (cf.dispatchHistory || []).concat({
-      at: new Date().toISOString(),
-      action: 'REDISPATCH',
-    });
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        customFields: {
-          ...cf,
-          dispatchCount: (cf.dispatchCount || 1) + 1,
+      const cf = (order.customFields as any) || {};
+      delete cf.poolExpired;
+      delete cf.poolExpiredAt;
+      delete cf.poolHandled;
+      delete cf.poolHandledAt;
+      const dispatchHistory = (cf.dispatchHistory || []).concat({
+        at: new Date().toISOString(),
+        action: 'REDISPATCH',
+      });
+      const updated = await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          contactStatus: null,
+          customFields: {
+            ...cf,
+            dispatchCount: (cf.dispatchCount || 1) + 1,
           firstDispatchedAt: cf.firstDispatchedAt || new Date().toISOString(),
           dispatchHistory,
         },
