@@ -23,6 +23,8 @@ const CsConvertedPanel: React.FC = () => {
 
   useEffect(() => {
     load();
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
   }, []);
 
   const contactCompanion = async (r: any) => {
