@@ -712,8 +712,17 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       where,
       include: {
-        customer: { select: { wechatId: true, customerCode: true } },
-        csUser: { select: { username: true, displayName: true } },
+        customer: true,
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
+        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true } } } },
+        sessions: {
+          where: { status: 'ACTIVE', startedAt: { not: null } },
+          orderBy: { seq: 'desc' },
+          take: 1,
+          select: { id: true, startedAt: true, duration: true, seq: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
