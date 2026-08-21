@@ -391,6 +391,10 @@ const OrderPoolPage: React.FC = () => {
                         >
                           {c.user?.displayName || c.user?.username || c.id}
                         </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                          <span style={{ fontSize: 10, color: statusDotColor(c) }}>●</span>
+                          <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
+                        </span>
                         <Button
                           size="small"
                           type="text"
@@ -402,10 +406,6 @@ const OrderPoolPage: React.FC = () => {
                         >
                           💬
                         </Button>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: statusDotColor(c) }}>●</span>
-                        <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
                       </div>
                     </div>
                   </div>
