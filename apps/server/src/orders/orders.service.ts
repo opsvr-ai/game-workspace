@@ -353,7 +353,7 @@ export class OrdersService {
     });
   }
 
-  async findAll(user: any, status?: string, showAll?: boolean) {
+  async findAll(user: any, status?: string) {
     const where: any = {};
     if (status) where.status = status;
     // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
@@ -367,10 +367,8 @@ export class OrdersService {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
       where.studioId = { in: [user.studioId, ...bridgedIds] };
     } else if (user.role === 'ADMIN') {
-      if (!showAll) {
-        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
-        where.studioId = { in: [user.studioId, ...bridgedIds] };
-      }
+      // 店长只显示本店，不跨桥接工作室
+      where.studioId = user.studioId;
     }
     // OWNER: 不添加过滤条件，可以看到所有订单
     const orders = await this.prisma.order.findMany({
