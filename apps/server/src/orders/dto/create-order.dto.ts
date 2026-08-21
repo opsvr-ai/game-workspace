@@ -47,4 +47,5 @@ export class CreateOrderDto {
   @IsOptional() @IsString() paymentAccountId?: string;
   @IsOptional() @IsBoolean() isCompensation?: boolean;
   @IsOptional() @IsString() transferScreenshotUrl?: string;
+  @IsOptional() @IsBoolean() directAdd?: boolean;
 }

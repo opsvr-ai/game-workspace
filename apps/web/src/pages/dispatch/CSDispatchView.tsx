@@ -138,6 +138,7 @@ const CSDispatchView: React.FC = () => {
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [dispatchPrefill, setDispatchPrefill] = useState<any>(null);
+  const [directAddMode, setDirectAddMode] = useState(false);
   const [dispatchSourceOrderId, setDispatchSourceOrderId] = useState<string | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Personnel | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
@@ -398,10 +399,14 @@ const CSDispatchView: React.FC = () => {
                     marginBottom: 12,
                   }}
                 >
-                  <div />
-                  <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setModalOpen(true)}>
-                    发布订单
-                  </Button>
+                  <Space>
+                    <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(false); setModalOpen(true); }}>
+                      发布订单
+                    </Button>
+                    <Button icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setModalOpen(true); }}>
+                      直接添加客户
+                    </Button>
+                  </Space>
                 </div>
 
       <Row
@@ -938,10 +943,12 @@ const CSDispatchView: React.FC = () => {
 
       <CreateOrderModal
         open={modalOpen}
+        directAddMode={directAddMode}
         onClose={() => {
           setModalOpen(false);
           setDispatchPrefill(null);
           setDispatchSourceOrderId(null);
+          setDirectAddMode(false);
         }}
         onCreated={() => {
           fetchPool();

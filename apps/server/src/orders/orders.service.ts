@@ -130,11 +130,14 @@ export class OrdersService {
           deltaNote: (dto as any).deltaNote,
           billingMode: (dto as any).billingMode,
           transferScreenshotUrl: (dto as any).transferScreenshotUrl || undefined,
-          urgency: (dto as any).urgency,
+          urgency: (dto as any).directAdd === true ? 'later' : (dto as any).urgency,
           scheduledTimeText: (dto as any).scheduledTimeText || undefined,
           serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
           gameMode: (dto as any).gameMode,
           isCompensation: (dto as any).isCompensation === true ? true : undefined,
+          ...((dto as any).directAdd === true
+            ? { directAdd: true, poolExpired: true, poolExpiredAt: new Date().toISOString() }
+            : {}),
           dispatchCount: 1,
           firstDispatchedAt: new Date().toISOString(),
           dispatchHistory: [{ at: new Date().toISOString(), action: 'DISPATCH' }],

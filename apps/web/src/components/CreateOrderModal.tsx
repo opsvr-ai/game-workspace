@@ -16,6 +16,7 @@ interface Props {
   onClose: () => void;
   onCreated: () => void;
   userId?: string;
+  directAddMode?: boolean;
   initialValues?: any;
   customerPreFill?: {
     customerId?: string;
@@ -30,7 +31,7 @@ interface Props {
   };
 }
 
-const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, initialValues, customerPreFill }) => {
+const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, directAddMode, initialValues, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
@@ -87,8 +88,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
         csUserId: userId,
         isCompensation: (v as any).isCompensation,
         transferScreenshotUrl: transferUrl || undefined,
+        ...(directAddMode ? { directAdd: true, dispatchType: 'POOL', urgency: 'later' } : {}),
       });
-      message.success(customerPreFill ? '已开始服务' : '订单已发布');
+      message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入待追踪' : '订单已发布');
       form.resetFields();
       onClose();
       onCreated();
@@ -101,7 +103,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
 
   return (
     <Modal
-      title="创建订单"
+      title={directAddMode ? '直接添加客户' : '创建订单'}
       open={open}
       onOk={handleOk}
       onCancel={() => {
@@ -109,7 +111,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
         onClose();
       }}
       confirmLoading={loading}
-      okText={customerPreFill ? '开始服务' : '发布'}
+      okText={customerPreFill ? '开始服务' : directAddMode ? '加入待追踪' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}
