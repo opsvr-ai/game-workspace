@@ -21,6 +21,7 @@ export class CreateOrderDto {
   // Customer info fields
   @IsOptional() @IsString() customerSource?: string;
   @IsOptional() @IsString() customerSourceAccount?: string;
+  @IsOptional() @IsString() customerNickname?: string;
   @IsOptional() @IsString() customerAccountId?: string;
   @IsOptional() @IsString() customerPlatformAccount?: string;
   @IsOptional() @IsString() customerWechat?: string;
