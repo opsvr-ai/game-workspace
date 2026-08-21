@@ -111,6 +111,7 @@ export class OrdersService {
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,
         status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'CONFIRMED' : 'PENDING',
+        contactStatus: (dto as any).directAdd === true ? 'added' : undefined,
         amount: dto.amount,
         gameName: dto.gameName,
         serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
@@ -136,7 +137,14 @@ export class OrdersService {
           gameMode: (dto as any).gameMode,
           isCompensation: (dto as any).isCompensation === true ? true : undefined,
           ...((dto as any).directAdd === true
-            ? { directAdd: true, poolExpired: true, poolExpiredAt: new Date().toISOString() }
+            ? {
+                directAdd: true,
+                poolExpired: true,
+                poolExpiredAt: new Date().toISOString(),
+                poolHandled: true,
+                poolHandledAt: new Date().toISOString(),
+                csAddResult: 'passed',
+              }
             : {}),
           dispatchCount: 1,
           firstDispatchedAt: new Date().toISOString(),
