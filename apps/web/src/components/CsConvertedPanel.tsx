@@ -10,12 +10,20 @@ const CsConvertedPanel: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await ordersApi.csConverted();
-      setItems(data.data || []);
+      const raw = data.data || [];
+      const rank: Record<string, number> = { 添加失败: 0, 待添加: 1, 已加微信: 2 };
+      setItems([...raw].sort((a, b) => (rank[a.addStatus] ?? 9) - (rank[b.addStatus] ?? 9)));
     } catch {
       message.error('加载失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  const markAdded = async (id: string) => {
+    await ordersApi.csMarkAdded(id);
+    message.success('已标记客户通过');
+    load();
   };
 
   useEffect(() => {
@@ -58,10 +66,22 @@ const CsConvertedPanel: React.FC = () => {
       title: '加微信',
       key: 'addStatus',
       render: (_: any, r: any) => (
-        <Tag color={r.addStatus === '已加微信' ? 'green' : r.addStatus === '添加失败' ? 'red' : 'gold'}>
-          {r.addStatus}
-        </Tag>
+        r.addStatus === '添加失败' ? (
+          <Tag color="red">❌ 添加失败 · 继续追踪</Tag>
+        ) : (
+          <Tag color={r.addStatus === '已加微信' ? 'green' : 'gold'}>{r.addStatus}</Tag>
+        )
       ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, r: any) =>
+        r.addStatus === '添加失败' ? (
+          <Button size="small" type="primary" onClick={() => markAdded(r.id)}>
+            标记客户已通过
+          </Button>
+        ) : null,
     },
   ];
 
