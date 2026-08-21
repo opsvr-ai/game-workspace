@@ -727,6 +727,13 @@ export class CompanionsService {
     return this.prisma.companionStatusBlacklist.delete({ where: { id } });
   }
 
+  async listStatusBlacklists(studioId: string) {
+    return this.prisma.companionStatusBlacklist.findMany({
+      where: { studioId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ── Manual financial adjustment (ADMIN/OWNER) ──
   async updateFinance(
     companionId: string,

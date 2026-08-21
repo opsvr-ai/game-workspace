@@ -22,6 +22,7 @@ export const companionsApi = {
   // Status blacklist
   getStatusBlacklist: (status: string) =>
     http.get('/companions/status-blacklist', { params: { status } }),
+  listStatusBlacklists: () => http.get('/companions/status-blacklists'),
   addStatusBlacklist: (data: { status: string; processName: string }) =>
     http.post('/companions/status-blacklist', data),
   removeStatusBlacklist: (entryId: string) =>

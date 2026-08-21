@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Select, Table, Input, Button, Tag, Typography, message, Popconfirm, Space } from 'antd';
+import { Table, Input, Button, Tag, Typography, message, Popconfirm, Tabs, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../../api/companions';
 import { companionStatusConfig } from '../../constants';
@@ -17,51 +17,39 @@ interface StatusBlacklistEntry {
 }
 
 const BlacklistPage: React.FC = () => {
-  const [selectedStatus, setSelectedStatus] = useState<string | undefined>();
   const [entries, setEntries] = useState<StatusBlacklistEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [newProcessName, setNewProcessName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchEntries = useCallback(async () => {
-    if (!selectedStatus) {
-      setEntries([]);
-      return;
-    }
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await companionsApi.getStatusBlacklist(selectedStatus);
+      const { data } = await companionsApi.listStatusBlacklists();
       setEntries(data.data ?? []);
     } catch (err: any) {
       message.error(err?.response?.data?.message || '加载失败');
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus]);
+  }, []);
 
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
+    fetchAll();
+  }, [fetchAll]);
 
-  const handleAdd = async () => {
+  const handleAdd = async (status: string) => {
     const name = newProcessName.trim();
     if (!name) {
       message.warning('请输入进程名称');
       return;
     }
-    if (!selectedStatus) {
-      message.warning('请先选择状态');
-      return;
-    }
     setSubmitting(true);
     try {
-      await companionsApi.addStatusBlacklist({
-        status: selectedStatus,
-        processName: name,
-      });
+      await companionsApi.addStatusBlacklist({ status, processName: name });
       message.success('已添加');
       setNewProcessName('');
-      fetchEntries();
+      fetchAll();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '添加失败');
     } finally {
@@ -73,7 +61,7 @@ const BlacklistPage: React.FC = () => {
     try {
       await companionsApi.removeStatusBlacklist(entryId);
       message.success('已删除');
-      fetchEntries();
+      fetchAll();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '删除失败');
     }
@@ -89,13 +77,6 @@ const BlacklistPage: React.FC = () => {
           {v}
         </Text>
       ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 90,
-      render: (s: string) => <Tag color={companionStatusConfig[s]?.color}>{companionStatusConfig[s]?.label || s}</Tag>,
     },
     {
       title: '创建时间',
@@ -118,63 +99,66 @@ const BlacklistPage: React.FC = () => {
     },
   ];
 
+  const renderTab = (status: string) => {
+    const list = entries.filter((e) => e.status === status);
+    return (
+      <div>
+        <Table
+          size="small"
+          columns={columns}
+          dataSource={list}
+          rowKey="id"
+          loading={loading}
+          locale={{ emptyText: '该状态下暂无黑名单' }}
+          pagination={false}
+          style={{ marginBottom: 12 }}
+        />
+        <Space.Compact style={{ width: '100%', maxWidth: 520 }}>
+          <Input
+            placeholder="输入进程名称，如 cheatengine.exe"
+            value={newProcessName}
+            onChange={(e) => setNewProcessName(e.target.value)}
+            onPressEnter={() => handleAdd(status)}
+          />
+          <Button
+            type="primary"
+            icon={createElement(PlusOutlined)}
+            onClick={() => handleAdd(status)}
+            loading={submitting}
+            disabled={!newProcessName.trim()}
+          >
+            添加
+          </Button>
+        </Space.Compact>
+      </div>
+    );
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <Text strong style={{ fontSize: 16 }}>
-          状态黑名单管理
-        </Text>
-        <br />
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          针对本店所有陪玩，按状态配置禁止运行的进程；陪玩切到该状态时，系统会自动关闭匹配进程。
-        </Text>
-      </div>
-
-      <Space style={{ marginBottom: 12 }} size={12}>
-        <Select
-          placeholder="选择状态"
-          style={{ width: 180 }}
-          value={selectedStatus}
-          onChange={setSelectedStatus}
-          options={STATUS_OPTIONS.map((s) => ({
-            label: companionStatusConfig[s]?.label || s,
-            value: s,
-          }))}
-        />
-        <Button icon={createElement(ReloadOutlined)} onClick={fetchEntries} loading={loading} disabled={!selectedStatus}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <Text strong style={{ fontSize: 16 }}>
+            状态黑名单管理
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            针对本店所有陪玩，按状态配置禁止运行的进程；陪玩切到该状态时，系统会自动关闭匹配进程。
+          </Text>
+        </div>
+        <Button icon={createElement(ReloadOutlined)} onClick={fetchAll} loading={loading}>
           刷新
         </Button>
-      </Space>
+      </div>
 
-      <Table
-        size="small"
-        columns={columns}
-        dataSource={entries}
-        rowKey="id"
-        loading={loading}
-        locale={{ emptyText: selectedStatus ? '该状态下暂无黑名单' : '请先选择状态' }}
-        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
-        style={{ marginBottom: 12 }}
+      <Tabs
+        items={STATUS_OPTIONS.map((s) => ({
+          key: s,
+          label: companionStatusConfig[s]?.label || s,
+          children: renderTab(s),
+        }))}
+        onChange={() => setNewProcessName('')}
       />
-
-      <Space.Compact style={{ width: '100%', maxWidth: 520 }}>
-        <Input
-          placeholder="输入进程名称，如 cheatengine.exe"
-          value={newProcessName}
-          onChange={(e) => setNewProcessName(e.target.value)}
-          onPressEnter={handleAdd}
-          disabled={!selectedStatus}
-        />
-        <Button
-          type="primary"
-          icon={createElement(PlusOutlined)}
-          onClick={handleAdd}
-          loading={submitting}
-          disabled={!selectedStatus || !newProcessName.trim()}
-        >
-          添加
-        </Button>
-      </Space.Compact>
     </div>
   );
 };

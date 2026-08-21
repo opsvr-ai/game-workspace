@@ -615,4 +615,11 @@ export class CompanionsController {
     await this.companionsService.removeStatusBlacklist(entryId);
     return { code: 200, message: 'ok', data: null };
   }
+
+  @Get('companions/status-blacklists')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listStatusBlacklists(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listStatusBlacklists(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
 }
