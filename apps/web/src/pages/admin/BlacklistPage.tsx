@@ -120,6 +120,20 @@ const BlacklistPage: React.FC = () => {
     }
   };
 
+  const removeFromStatus = async (status: string, processName: string) => {
+    const existing = entries.find(
+      (e) => e.status === status && e.processName.toLowerCase() === processName.toLowerCase(),
+    );
+    if (!existing) return;
+    try {
+      await companionsApi.removeStatusBlacklist(existing.id);
+      message.success('已删除');
+      fetchAll();
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '删除失败');
+    }
+  };
+
   const renderStatusTab = (status: string) => {
     const blacklisted = new Set(
       entries.filter((e) => e.status === status).map((e) => e.processName.toLowerCase()),
@@ -150,6 +164,18 @@ const BlacklistPage: React.FC = () => {
                   onChange={(e) => toggleStatus(status, r.processName, e.target.checked)}
                 />
               ),
+            },
+            {
+              title: '操作',
+              width: 90,
+              render: (_: unknown, r: PendingEntry) =>
+                blacklisted.has(r.processName.toLowerCase()) ? (
+                  <Popconfirm title="确定从该状态删除？" onConfirm={() => removeFromStatus(status, r.processName)}>
+                    <Button type="link" danger size="small" icon={createElement(DeleteOutlined)}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                ) : null,
             },
           ]}
         />
