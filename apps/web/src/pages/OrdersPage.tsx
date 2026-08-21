@@ -183,28 +183,6 @@ const OrdersPage: React.FC = () => {
             >
               客户已同意
             </Button>
-            {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS') && (
-              <Button
-                size="small"
-                type="primary"
-                style={{ background: '#F59E0B', borderColor: '#F59E0B' }}
-                onClick={() => {
-                  setPreFill({
-                    customerId: r.customer?.id,
-                    customerWechat: r.customFields?.customerWechat || r.customer?.wechatId,
-                    gameName: r.gameName,
-                    amount: r.amount,
-                    companionId: r.companionId,
-                    dispatchType: 'DIRECT',
-                    notes: '补单客户',
-                    isCompensation: true,
-                  });
-                  setCreateOpen(true);
-                }}
-              >
-                补客户
-              </Button>
-            )}
           </>
         )}
         {r.status === 'DONE' && (
@@ -303,27 +281,6 @@ const OrdersPage: React.FC = () => {
           style={{ borderRadius: 4, cursor: 'pointer', marginLeft: 4 }}
           preview={{ mask: '查看' }}
         />
-      )}
-      {r.contactStatus === 'not_accepted' && (
-        <Button
-          size="small"
-          type="primary"
-          style={{ background: '#fa8c16', borderColor: '#fa8c16', marginLeft: 4 }}
-          onClick={() => {
-            setPreFill({
-              customerId: r.customer?.id,
-              customerWechat: r.customFields?.customerWechat || r.customer?.wechatId,
-              gameName: r.gameName,
-              amount: r.amount,
-              companionId: r.companionId,
-              dispatchType: 'DIRECT',
-              notes: '补单客户',
-            });
-            setCreateOpen(true);
-          }}
-        >
-          补客户
-        </Button>
       )}
     </>
   );
@@ -564,7 +521,7 @@ const OrdersPage: React.FC = () => {
           setPreFill(null);
         }}
         onCreated={() => {
-          message.success('补客户订单已创建');
+          message.success('订单已创建');
           fetch();
           setCreateOpen(false);
           setPreFill(null);

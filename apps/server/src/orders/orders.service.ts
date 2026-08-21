@@ -1078,10 +1078,41 @@ export class OrdersService {
     });
     const threshold = (config?.value as number) ?? 100;
 
+    // 今日剩余新客抢单名额（按段位，失败单不占名额）
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { studioId: true },
+    });
+    const ex = await this.excellence.computeOne(companionId);
+    const tier = ex?.tier || 'LOW';
+    const limitKey = tier === 'TOP'
+      ? 'dispatch.top_tier_daily_new_limit'
+      : tier === 'MIDDLE'
+        ? 'dispatch.middle_tier_daily_new_limit'
+        : 'dispatch.low_tier_daily_new_limit';
+    const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: limitKey } });
+    const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
+    const used = await this.prisma.order.count({
+      where: {
+        companionId,
+        type: 'NEW',
+        status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] },
+        contactStatus: { not: 'not_accepted' },
+        grabbedAt: { gte: today },
+        ...(companion?.studioId ? { studioId: companion.studioId } : {}),
+      },
+    });
+
     return {
       todayRevenue: roundToJiao(todayRevenue),
       threshold,
       isUnlocked: todayRevenue >= threshold,
+      newQuota: {
+        tier,
+        limit,
+        used,
+        remaining: Math.max(0, limit - used),
+      },
     };
   }
 

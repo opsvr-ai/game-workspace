@@ -63,6 +63,8 @@ const PoolPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const t = setInterval(fetchData, 30000);
+    return () => clearInterval(t);
   }, [fetchData]);
 
   // Real-time pool updates via WebSocket
@@ -113,6 +115,7 @@ const PoolPage: React.FC = () => {
   const isUnlocked = poolStatus?.isUnlocked ?? false;
   const todayRevenue = poolStatus?.todayRevenue ?? 0;
   const threshold = poolStatus?.threshold ?? 100;
+  const newQuota = poolStatus?.newQuota;
   const pct = Math.min(Math.round((todayRevenue / threshold) * 100), 100);
 
   return (
@@ -133,6 +136,13 @@ const PoolPage: React.FC = () => {
               当日流水：¥{todayRevenue} ｜ 解锁门槛：¥{threshold}
               {isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}
             </Text>
+            {newQuota && (
+              <div style={{ marginTop: 4 }}>
+                <Text strong style={{ color: '#1677ff' }}>
+                  🎯 今日剩余抢单次数：{newQuota.remaining} / {newQuota.limit}
+                </Text>
+              </div>
+            )}
           </Col>
           <Col>
             <Tag color={isUnlocked ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>

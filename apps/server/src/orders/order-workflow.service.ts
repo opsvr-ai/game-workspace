@@ -107,7 +107,13 @@ export class OrderWorkflowService {
       const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
       const { start: today } = currentBusinessDayRange();
       const todayNew = await this.prisma.order.count({
-        where: { companionId, type: 'NEW', status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] }, grabbedAt: { gte: today } },
+        where: {
+          companionId,
+          type: 'NEW',
+          status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] },
+          contactStatus: { not: 'not_accepted' },
+          grabbedAt: { gte: today },
+        },
       });
       if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
     }

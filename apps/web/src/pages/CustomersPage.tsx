@@ -123,9 +123,6 @@ const CustomersPage: React.FC = () => {
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any } | null>(null);
   const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
-  const [compensateTarget, setCompensateTarget] = useState<any>(null);
-  const [compensateReason, setCompensateReason] = useState('');
-  const [compensateSubmitting, setCompensateSubmitting] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
@@ -281,32 +278,6 @@ const CustomersPage: React.FC = () => {
       fetchCustomers();
     } catch (err: any) {
       message.error(extractErrorMessage(err, '删除失败'));
-    }
-  };
-
-  const submitCompensate = async () => {
-    if (!compensateTarget) return;
-    if (!compensateReason.trim()) {
-      message.warning('请填写补单原因');
-      return;
-    }
-    setCompensateSubmitting(true);
-    try {
-      const order = compensateTarget.orders?.[0];
-      if (order?.id) {
-        await ordersApi.updateContact(order.id, {
-          contactStatus: 'not_accepted',
-          notes: compensateReason,
-        });
-      }
-      message.success('补单申请已提交');
-      setCompensateTarget(null);
-      setCompensateReason('');
-      fetchCustomers();
-    } catch (e: any) {
-      message.error(extractErrorMessage(e, '提交失败'));
-    } finally {
-      setCompensateSubmitting(false);
     }
   };
 
@@ -555,17 +526,24 @@ const CustomersPage: React.FC = () => {
       render: (_: unknown, record: Customer) => {
         const contactStatus = record.orders?.[0]?.contactStatus;
         if (contactStatus === 'not_accepted') {
+          const orderId = record.orders?.[0]?.id;
           return (
             <Button
               type="primary"
-              danger
               size="small"
-              onClick={() => {
-                setCompensateTarget(record);
-                setCompensateReason('');
+              style={{ background: '#16A34A', borderColor: '#16A34A' }}
+              onClick={async () => {
+                if (!orderId) return;
+                try {
+                  await ordersApi.updateContact(orderId, { contactStatus: 'added' });
+                  message.success('已设置成功，客户可正常服务');
+                  fetchCustomers();
+                } catch (e: any) {
+                  message.error(extractErrorMessage(e, '操作失败'));
+                }
               }}
             >
-              📎 申请补单
+              ✅ 设置成功
             </Button>
           );
         }
@@ -814,7 +792,7 @@ const CustomersPage: React.FC = () => {
                 ]}
               />
               <Input.Search
-                placeholder={!isCompanion ? '搜索微信号/编号/昵称/来源' : '搜索客户编号'}
+                placeholder={!isCompanion ? '搜索微信号/编号/昵称/来源' : '搜索客户编号/微信号'}
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 style={{ width: 200 }}
@@ -852,7 +830,10 @@ const CustomersPage: React.FC = () => {
                             if (!searchCode) return true;
                             const q = searchCode.toLowerCase();
                             if (isCompanion) {
-                              return (c.customerCode || '').toLowerCase().includes(q);
+                              return (
+                                (c.customerCode || '').toLowerCase().includes(q) ||
+                                (c.wechatId || '').toLowerCase().includes(q)
+                              );
                             }
                             const cf = c.orders?.[0]?.customFields || {};
                             const hay = [
@@ -922,31 +903,6 @@ const CustomersPage: React.FC = () => {
           </Form>
         </Modal>
 
-        <Modal
-          title="申请补单"
-          open={!!compensateTarget}
-          onOk={submitCompensate}
-          onCancel={() => {
-            setCompensateTarget(null);
-            setCompensateReason('');
-          }}
-          confirmLoading={compensateSubmitting}
-          okText="提交补单申请"
-          cancelText="取消"
-        >
-          <div style={{ marginTop: 12 }}>
-            <Text strong>客户：{compensateTarget?.wechatId || compensateTarget?.customerCode || '-'}</Text>
-            <div style={{ marginTop: 12 }}>
-              <Text>失败原因</Text>
-              <Input.TextArea
-                rows={3}
-                value={compensateReason}
-                onChange={(e) => setCompensateReason(e.target.value)}
-                placeholder="例如：客户现在不玩 / 微信未通过 / 客户已删除"
-              />
-            </div>
-          </div>
-        </Modal>
         <Modal
           title="归属调整"
           open={reassignModalOpen}
