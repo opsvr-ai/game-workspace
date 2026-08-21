@@ -559,14 +559,17 @@ export class OrdersService {
     return this.dispatchService.quickGrab(orderId, companionId);
   }
 
-  async findUrgent(studioId: string) {
+  async findUrgent(studioId: string, user?: { id: string; role: string }) {
     const now = Date.now();
     const disappearCfg = await this.prisma.systemConfig.findUnique({
       where: { key: 'pool.immediate_disappear_minutes' },
     });
     const disappearSeconds = Number(disappearCfg?.value ?? 10) * 60;
+    const where: any = { studioId, status: 'PENDING', dispatchType: 'POOL' };
+    // 客服只看自己发布的待处理单，店长/老板看全工作室
+    if (user && user.role === 'CS') where.csUserId = user.id;
     const orders = await this.prisma.order.findMany({
-      where: { studioId, status: 'PENDING', dispatchType: 'POOL' },
+      where,
       include: {
         customer: { select: { wechatId: true, customerCode: true } },
         csUser: { select: { username: true } },
@@ -689,9 +692,12 @@ export class OrdersService {
     });
   }
 
-  async listCsFollowup(studioId: string) {
+  async listCsFollowup(studioId: string, user?: { id: string; role: string }) {
+    const where: any = { studioId, status: 'PENDING' };
+    // 客服只看自己跟进的单，店长/老板看全工作室
+    if (user && user.role === 'CS') where.csUserId = user.id;
     const orders = await this.prisma.order.findMany({
-      where: { studioId, status: 'PENDING' },
+      where,
       include: {
         customer: { select: { wechatId: true, customerCode: true } },
         csUser: { select: { username: true, displayName: true } },

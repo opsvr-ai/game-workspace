@@ -28,7 +28,7 @@ export class OrdersController {
   @Get('orders/urgent')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async urgent(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.findUrgent(req.user?.studioId);
+    const data = await this.ordersService.findUrgent(req.user?.studioId, req.user);
     return { code: 200, message: 'ok', data };
   }
 
@@ -63,7 +63,7 @@ export class OrdersController {
   @Get('orders/cs-followup')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async csFollowup(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.listCsFollowup(req.user.studioId);
+    const data = await this.ordersService.listCsFollowup(req.user.studioId, req.user);
     return { code: 200, message: 'ok', data };
   }
 
