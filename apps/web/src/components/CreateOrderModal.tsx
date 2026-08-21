@@ -69,6 +69,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
   useEffect(() => {
     if (open && initialValues) {
       form.setFieldsValue(initialValues);
+      if (initialValues.customerWechatQr) setCustomerWechatQr(initialValues.customerWechatQr);
     }
   }, [open, initialValues, form]);
 

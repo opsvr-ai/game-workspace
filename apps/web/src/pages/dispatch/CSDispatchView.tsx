@@ -286,10 +286,13 @@ const CSDispatchView: React.FC = () => {
       billingMode: cf.billingMode,
       customerSource: cf.customerSource,
       customerSourceAccount: cf.customerSourceAccount,
+      customerNickname: cf.customerNickname,
+      customerAccountId: cf.customerAccountId,
       customerWechat: item.customerWechat || cf.customerWechat,
       customerYy: cf.customerYy,
       customerPlatformAccount: cf.customerPlatformAccount,
       customerRoomCode: cf.customerRoomCode,
+      customerWechatQr: cf.customerWechatQr,
       urgency: item.isScheduled ? 'later' : 'now',
       scheduledTimeText: cf.scheduledTimeText,
     });
