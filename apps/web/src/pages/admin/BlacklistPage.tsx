@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Input, Button, Tag, Typography, message, Popconfirm, Tabs, Space } from 'antd';
+import { Table, Input, Button, Tag, Typography, message, Popconfirm, Tabs, Modal, Select, Radio, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../../api/companions';
+import { blacklistApi } from '../../api/blacklist';
 import { companionStatusConfig } from '../../constants';
 
 const { Text } = Typography;
@@ -19,7 +20,16 @@ interface StatusBlacklistEntry {
 const BlacklistPage: React.FC = () => {
   const [entries, setEntries] = useState<StatusBlacklistEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newProcessName, setNewProcessName] = useState('');
+
+  const [companions, setCompanions] = useState<any[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addStatus, setAddStatus] = useState<string>('');
+  const [addMode, setAddMode] = useState<'select' | 'manual'>('select');
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | undefined>();
+  const [reportedApps, setReportedApps] = useState<any[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [manualName, setManualName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -36,19 +46,50 @@ const BlacklistPage: React.FC = () => {
 
   useEffect(() => {
     fetchAll();
+    companionsApi
+      .list()
+      .then(({ data }: any) => setCompanions(data.data ?? []))
+      .catch(() => {});
   }, [fetchAll]);
 
-  const handleAdd = async (status: string) => {
-    const name = newProcessName.trim();
-    if (!name) {
-      message.warning('请输入进程名称');
+  const loadReportedApps = async (companionId: string) => {
+    setLoadingApps(true);
+    try {
+      const { data } = await blacklistApi.getUniqueNames(companionId);
+      setReportedApps(data.data ?? []);
+    } catch {
+      setReportedApps([]);
+    } finally {
+      setLoadingApps(false);
+    }
+  };
+
+  const openAdd = (status: string) => {
+    setAddStatus(status);
+    setAddMode('select');
+    setSelectedCompanionId(undefined);
+    setReportedApps([]);
+    setSelectedApps([]);
+    setManualName('');
+    setAddOpen(true);
+  };
+
+  const handleAdd = async () => {
+    const names =
+      addMode === 'manual'
+        ? [manualName.trim()].filter(Boolean)
+        : selectedApps;
+    if (names.length === 0) {
+      message.warning(addMode === 'manual' ? '请输入进程名称' : '请选择要添加的软件');
       return;
     }
     setSubmitting(true);
     try {
-      await companionsApi.addStatusBlacklist({ status, processName: name });
-      message.success('已添加');
-      setNewProcessName('');
+      await Promise.all(
+        names.map((n) => companionsApi.addStatusBlacklist({ status: addStatus, processName: n })),
+      );
+      message.success(`已添加 ${names.length} 个进程`);
+      setAddOpen(false);
       fetchAll();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '添加失败');
@@ -110,26 +151,12 @@ const BlacklistPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           locale={{ emptyText: '该状态下暂无黑名单' }}
-          pagination={false}
+          pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
           style={{ marginBottom: 12 }}
         />
-        <Space.Compact style={{ width: '100%', maxWidth: 520 }}>
-          <Input
-            placeholder="输入进程名称，如 cheatengine.exe"
-            value={newProcessName}
-            onChange={(e) => setNewProcessName(e.target.value)}
-            onPressEnter={() => handleAdd(status)}
-          />
-          <Button
-            type="primary"
-            icon={createElement(PlusOutlined)}
-            onClick={() => handleAdd(status)}
-            loading={submitting}
-            disabled={!newProcessName.trim()}
-          >
-            添加
-          </Button>
-        </Space.Compact>
+        <Button type="primary" icon={createElement(PlusOutlined)} onClick={() => openAdd(status)}>
+          添加进程
+        </Button>
       </div>
     );
   };
@@ -157,8 +184,86 @@ const BlacklistPage: React.FC = () => {
           label: companionStatusConfig[s]?.label || s,
           children: renderTab(s),
         }))}
-        onChange={() => setNewProcessName('')}
       />
+
+      <Modal
+        title={`添加到「${companionStatusConfig[addStatus]?.label || addStatus}」黑名单`}
+        open={addOpen}
+        onOk={handleAdd}
+        onCancel={() => setAddOpen(false)}
+        confirmLoading={submitting}
+        okText="添加"
+        cancelText="取消"
+        destroyOnClose
+        width={500}
+      >
+        <div style={{ marginTop: 16 }}>
+          <Radio.Group value={addMode} onChange={(e) => setAddMode(e.target.value)} style={{ marginBottom: 12 }}>
+            <Radio.Button value="select">从陪玩已上报软件选择</Radio.Button>
+            <Radio.Button value="manual">手动输入</Radio.Button>
+          </Radio.Group>
+
+          {addMode === 'select' ? (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
+                选择陪玩
+              </Text>
+              <Select
+                placeholder="选择陪玩"
+                style={{ width: '100%', marginBottom: 12 }}
+                showSearch
+                value={selectedCompanionId}
+                onChange={(cid) => {
+                  setSelectedCompanionId(cid);
+                  setSelectedApps([]);
+                  loadReportedApps(cid);
+                }}
+                filterOption={(input, option) =>
+                  ((option?.label as string) || '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={companions.map((c: any) => ({ label: c.user?.username || c.id, value: c.id }))}
+              />
+              <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
+                选择要禁止的软件
+              </Text>
+              <Select
+                placeholder={selectedCompanionId ? '选择软件' : '请先选择陪玩'}
+                style={{ width: '100%' }}
+                mode="multiple"
+                value={selectedApps}
+                onChange={setSelectedApps}
+                loading={loadingApps}
+                disabled={!selectedCompanionId}
+                showSearch
+                filterOption={(input, option) =>
+                  ((option?.label as string) || '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={reportedApps.map((a: any) => {
+                  const exe = a.exe || a.name || '';
+                  return { label: `${a.name || exe}${exe ? `（${exe}）` : ''}`, value: exe };
+                })}
+              />
+              {selectedCompanionId && reportedApps.length === 0 && !loadingApps && (
+                <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+                  该陪玩暂无已上报的软件数据
+                </Text>
+              )}
+            </div>
+          ) : (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
+                进程名称（如 WeChat.exe、YY.exe）
+              </Text>
+              <Input
+                placeholder="输入进程名称"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                onPressEnter={handleAdd}
+              />
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
