@@ -31,6 +31,7 @@ const BlacklistPage: React.FC = () => {
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [manualName, setManualName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [collecting, setCollecting] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -62,6 +63,22 @@ const BlacklistPage: React.FC = () => {
     } finally {
       setLoadingApps(false);
     }
+  };
+
+  const collectApps = async (companionId: string) => {
+    if (!companionId || collecting) return;
+    setCollecting(true);
+    try {
+      await companionsApi.sendCommand(companionId, 'collect_processes', {});
+      message.info('已发送采集指令，请稍候…');
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '发送采集指令失败');
+    }
+    // 给客户端几秒钟收集并上报，再刷新软件列表
+    setTimeout(async () => {
+      await loadReportedApps(companionId);
+      setCollecting(false);
+    }, 6000);
   };
 
   const openAdd = (status: string) => {
@@ -223,6 +240,15 @@ const BlacklistPage: React.FC = () => {
                 }
                 options={companions.map((c: any) => ({ label: c.user?.username || c.id, value: c.id }))}
               />
+              <Button
+                size="small"
+                loading={collecting}
+                disabled={!selectedCompanionId}
+                onClick={() => selectedCompanionId && collectApps(selectedCompanionId)}
+                style={{ marginBottom: 12 }}
+              >
+                {collecting ? '采集中…' : '采集该陪玩已安装软件'}
+              </Button>
               <Text type="secondary" style={{ fontSize: 12, marginBottom: 4, display: 'block' }}>
                 选择要禁止的软件
               </Text>
