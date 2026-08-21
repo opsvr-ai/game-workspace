@@ -127,10 +127,11 @@ const BlacklistPage: React.FC = () => {
     if (pending.length === 0) {
       return <div style={{ color: '#999', padding: '20px 0' }}>待禁用名单为空，请先在上方采集并挑选进程。</div>;
     }
+    const statusLabel = companionStatusConfig[status]?.label || status;
     return (
       <div>
         <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-          勾选 = 禁用该进程；取消勾选 = 解除禁用（删除）。
+          下面是共用的「待禁用名单」，勾选 = 在「{statusLabel}」状态下禁用；取消勾选 = 解除禁用。
         </Text>
         <Table
           size="small"
@@ -141,7 +142,7 @@ const BlacklistPage: React.FC = () => {
           columns={[
             { title: '进程名称', dataIndex: 'processName', render: (v: string) => <Text code>{v}</Text> },
             {
-              title: '在该状态下禁用',
+              title: `「${statusLabel}」状态禁用`,
               width: 150,
               render: (_: unknown, r: PendingEntry) => (
                 <Checkbox
