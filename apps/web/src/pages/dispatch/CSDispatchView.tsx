@@ -29,6 +29,7 @@ import { useSocket } from '../../hooks/useSocket';
 import { EmbeddedChatPanel } from '../../components/chat';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
+import CsConvertedPanel from '../../components/CsConvertedPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
@@ -926,6 +927,11 @@ const CSDispatchView: React.FC = () => {
             key: 'followup',
             label: '客服跟进',
             children: <CsFollowupPanel onRedispatch={handleDispatch} />,
+          },
+          {
+            key: 'converted',
+            label: '派单去向',
+            children: <CsConvertedPanel />,
           },
         ]}
       />

@@ -709,6 +709,59 @@ export class OrdersService {
     });
   }
 
+  // 客服养好的客户重新派单后，被谁抢走、陪玩用什么微信、最终去了线下/桥接/线上
+  async listCsConverted(studioId: string, user?: { id: string; role: string }) {
+    const where: any = { studioId, companionId: { not: null } };
+    if (user && user.role === 'CS') where.csUserId = user.id;
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        customer: { select: { wechatId: true, customerCode: true } },
+        companion: {
+          include: {
+            user: { select: { username: true, displayName: true } },
+            studio: { select: { id: true, name: true, type: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return orders
+      .filter((o) => {
+        const cf = (o.customFields as any) || {};
+        return cf.csAddResult === 'passed';
+      })
+      .map((o) => {
+        const cf = (o.customFields as any) || {};
+        const compStudio = o.companion?.studio;
+        let destination = '线下工作室';
+        if (compStudio) {
+          if (compStudio.type === 'RENTAL') destination = '线上俱乐部';
+          else if (compStudio.id !== studioId) destination = '桥接工作室';
+          else destination = '线下工作室';
+        }
+        let addStatus = '待添加';
+        if (o.contactStatus === 'added') addStatus = '已加微信';
+        else if (o.contactStatus === 'not_accepted') addStatus = '添加失败';
+        return {
+          id: o.id,
+          orderCode: o.orderCode,
+          gameName: o.gameName,
+          amount: o.amount,
+          customerWechat: o.customer?.wechatId || cf.customerWechat || '',
+          customerNickname: cf.customerNickname || '',
+          customerSource: cf.customerSource || '',
+          companionName: o.companion?.user?.displayName || o.companion?.user?.username || '',
+          companionWechat: cf.workWechatName || '',
+          addStatus,
+          destination,
+          updatedAt: o.updatedAt,
+        };
+      });
+  }
+
   async listMoneyFlows(orderId: string) {
     return this.prisma.orderMoneyFlow.findMany({ where: { orderId }, orderBy: { createdAt: 'asc' } });
   }

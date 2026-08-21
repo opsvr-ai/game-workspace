@@ -67,6 +67,13 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('orders/cs-converted')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async csConverted(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listCsConverted(req.user.studioId, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('orders/:id/money-flows')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async listMoneyFlows(@Param('id') id: string): Promise<ApiResponse<unknown>> {

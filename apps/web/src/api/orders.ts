@@ -8,6 +8,7 @@ export const ordersApi = {
   redispatch: (id: string) => http.post(`/orders/${id}/redispatch`),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
   csFollowup: () => http.get('/orders/cs-followup'),
+  csConverted: () => http.get('/orders/cs-converted'),
   listMoneyFlows: (id: string) => http.get(`/orders/${id}/money-flows`),
   addMoneyFlow: (id: string, data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string }) =>
     http.post(`/orders/${id}/money-flows`, data),
