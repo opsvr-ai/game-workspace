@@ -128,26 +128,31 @@ const BlacklistPage: React.FC = () => {
       return <div style={{ color: '#999', padding: '20px 0' }}>待禁用名单为空，请先在上方采集并挑选进程。</div>;
     }
     return (
-      <Table
-        size="small"
-        rowKey="id"
-        dataSource={pending}
-        loading={loading}
-        pagination={false}
-        columns={[
-          { title: '进程名称', dataIndex: 'processName', render: (v: string) => <Text code>{v}</Text> },
-          {
-            title: '在该状态下禁用',
-            width: 150,
-            render: (_: unknown, r: PendingEntry) => (
-              <Checkbox
-                checked={blacklisted.has(r.processName.toLowerCase())}
-                onChange={(e) => toggleStatus(status, r.processName, e.target.checked)}
-              />
-            ),
-          },
-        ]}
-      />
+      <div>
+        <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+          勾选 = 禁用该进程；取消勾选 = 解除禁用（删除）。
+        </Text>
+        <Table
+          size="small"
+          rowKey="id"
+          dataSource={pending}
+          loading={loading}
+          pagination={false}
+          columns={[
+            { title: '进程名称', dataIndex: 'processName', render: (v: string) => <Text code>{v}</Text> },
+            {
+              title: '在该状态下禁用',
+              width: 150,
+              render: (_: unknown, r: PendingEntry) => (
+                <Checkbox
+                  checked={blacklisted.has(r.processName.toLowerCase())}
+                  onChange={(e) => toggleStatus(status, r.processName, e.target.checked)}
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
     );
   };
 
