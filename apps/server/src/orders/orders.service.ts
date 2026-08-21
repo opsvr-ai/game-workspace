@@ -111,7 +111,7 @@ export class OrdersService {
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,
         status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'CONFIRMED' : 'PENDING',
-        contactStatus: (dto as any).directAdd === true ? 'added' : undefined,
+        contactStatus: (dto as any).directAdd === true ? 'pending' : undefined,
         amount: dto.amount,
         gameName: dto.gameName,
         serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
@@ -641,18 +641,19 @@ export class OrdersService {
     if (!order) throw new NotFoundException('订单不存在');
     const cf = (order.customFields as any) || {};
     const result = extra?.addResult;
+    const contactStatus = result === 'passed' ? 'added' : result === 'failed' ? 'not_accepted' : 'pending';
     const poolHandled = status === 'added' && result !== 'failed';
     return this.prisma.order.update({
       where: { id: orderId },
       data: {
-        contactStatus: status,
+        contactStatus,
         customFields: {
           ...cf,
           csContactAt: new Date().toISOString(),
           csContactEvidenceUrl: evidenceUrl || '',
           ...(extra?.workWechatId !== undefined ? { csWorkWechatId: extra.workWechatId } : {}),
           ...(extra?.workWechatName !== undefined ? { csWorkWechatName: extra.workWechatName } : {}),
-          ...(result !== undefined ? { csAddResult: result } : {}),
+          ...(result === 'passed' ? { csCultivated: true } : {}),
           ...(status === 'added' ? { poolHandled } : {}),
         },
       },
@@ -717,8 +718,7 @@ export class OrdersService {
       orderBy: { createdAt: 'desc' },
     });
     return orders.filter((o) => {
-      const cf = (o.customFields as any) || {};
-      return o.contactStatus === 'added' && cf.csAddResult !== 'failed';
+      return o.contactStatus === 'pending' || o.contactStatus === 'added';
     });
   }
 
@@ -744,7 +744,7 @@ export class OrdersService {
     return orders
       .filter((o) => {
         const cf = (o.customFields as any) || {};
-        return cf.csAddResult === 'passed';
+        return cf.csCultivated === true;
       })
       .map((o) => {
         const cf = (o.customFields as any) || {};

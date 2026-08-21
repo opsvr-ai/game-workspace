@@ -31,7 +31,7 @@ const OrderTable: React.FC<Props> = ({ dataSource, loading, renderActions, onWor
         title: '微信', key: 'wechatId', width: 90, align: 'center' as const,
         render: (_: any, r: any) => {
           const wx = r.customFields?.customerWechat || r.customer?.wechatId;
-          const csAdded = r.customFields?.csAddResult === 'passed';
+          const csAdded = r.customFields?.csCultivated === true;
           return (
             <Space size={2} direction="vertical" style={{ gap: 0 }}>
               {wx ? <Text ellipsis style={{ maxWidth: 90 }}>{wx}</Text> : r.customFields?.customerWechatQr ? <Text style={{ color: '#1677ff' }}>📷 二维码</Text> : <Text>-</Text>}

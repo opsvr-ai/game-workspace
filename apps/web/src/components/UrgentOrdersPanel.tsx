@@ -73,11 +73,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       <span style={{ fontWeight: 600 }}>{item.poolExpired ? '⏳ ' : '🔥 '}{item.gameName}</span>
       <span style={{ color: '#d4380d' }}>¥{item.amount}</span>
       <span style={{ color: '#888' }}>{item.customerWechat || '-'}</span>
-      {item.csContactStatus === 'added' ? (
-        <span style={{ color: '#52c41a' }}>
-          已添加
-          {item.customFields?.csAddResult === 'passed' ? '·成功' : item.customFields?.csAddResult === 'failed' ? '·失败' : '·待结果'}
-        </span>
+      {item.csContactStatus === 'not_accepted' ? (
+        <span style={{ color: '#fa8c16' }}>已添加·失败</span>
       ) : null}
       <span style={{ flex: 1 }} />
       {item.dispatchCount > 1 && (

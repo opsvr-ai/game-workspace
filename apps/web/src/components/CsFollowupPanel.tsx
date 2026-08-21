@@ -67,14 +67,14 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
             <List.Item
               key={item.id}
               actions={[
-                ...(item.customFields?.csAddResult !== 'passed'
+                ...(item.contactStatus !== 'added'
                   ? [
                       <Button size="small" type="primary" onClick={() => markResult(item, 'passed')}>
                         标记成功
                       </Button>,
                     ]
                   : []),
-                ...(item.customFields?.csAddResult !== 'failed'
+                ...(item.contactStatus !== 'not_accepted'
                   ? [
                       <Button size="small" danger onClick={() => markResult(item, 'failed')}>
                         标记失败
@@ -93,9 +93,9 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
                     {' · '}工作微信：{item.customFields?.csWorkWechatName || '-'}
                     <br />
                     添加结果：
-                    {item.customFields?.csAddResult === 'passed'
+                    {item.contactStatus === 'added'
                       ? ' ✅ 成功'
-                      : item.customFields?.csAddResult === 'failed'
+                      : item.contactStatus === 'not_accepted'
                         ? ' ❌ 失败'
                         : ' ⏳ 待结果'}
                   </div>

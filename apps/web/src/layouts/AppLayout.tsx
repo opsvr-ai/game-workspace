@@ -1389,7 +1389,7 @@ const AppLayout: React.FC = () => {
                 </div>
                 {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
                 {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
-                {g.customFields?.csAddResult === 'passed' && (
+                {g.customFields?.csCultivated === true && (
                   <div style={{ color: '#1677ff', fontWeight: 500 }}>
                     ✅ 该客户已添加到客服工作微信（{g.customFields?.csWorkWechatName || '客服微信'}），请注意措辞
                   </div>
