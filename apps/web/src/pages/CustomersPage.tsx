@@ -125,7 +125,6 @@ const CustomersPage: React.FC = () => {
   const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
   const [compensateTarget, setCompensateTarget] = useState<any>(null);
   const [compensateReason, setCompensateReason] = useState('');
-  const [compensateFile, setCompensateFile] = useState<File | null>(null);
   const [compensateSubmitting, setCompensateSubmitting] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
@@ -291,28 +290,18 @@ const CustomersPage: React.FC = () => {
       message.warning('请填写补单原因');
       return;
     }
-    if (!compensateFile) {
-      message.warning('请上传添加微信失败的截图');
-      return;
-    }
     setCompensateSubmitting(true);
     try {
-      const fd = new FormData();
-      fd.append('file', compensateFile);
-      const upload = await http.post('/upload/screenshot', fd);
-      const screenshotUrl = upload.data?.data?.url || upload.data?.url || '';
       const order = compensateTarget.orders?.[0];
       if (order?.id) {
         await ordersApi.updateContact(order.id, {
           contactStatus: 'not_accepted',
-          screenshotUrl,
           notes: compensateReason,
         });
       }
       message.success('补单申请已提交');
       setCompensateTarget(null);
       setCompensateReason('');
-      setCompensateFile(null);
       fetchCustomers();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '提交失败'));
@@ -574,7 +563,6 @@ const CustomersPage: React.FC = () => {
               onClick={() => {
                 setCompensateTarget(record);
                 setCompensateReason('');
-                setCompensateFile(null);
               }}
             >
               📎 申请补单
@@ -941,7 +929,6 @@ const CustomersPage: React.FC = () => {
           onCancel={() => {
             setCompensateTarget(null);
             setCompensateReason('');
-            setCompensateFile(null);
           }}
           confirmLoading={compensateSubmitting}
           okText="提交补单申请"
@@ -957,19 +944,6 @@ const CustomersPage: React.FC = () => {
                 onChange={(e) => setCompensateReason(e.target.value)}
                 placeholder="例如：客户现在不玩 / 微信未通过 / 客户已删除"
               />
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <Text>失败截图（必传）</Text>
-              <Upload
-                beforeUpload={(f) => {
-                  setCompensateFile(f);
-                  return false;
-                }}
-                maxCount={1}
-                accept="image/*"
-              >
-                <Button>{compensateFile ? '✓ 截图已选' : '上传截图'}</Button>
-              </Upload>
             </div>
           </div>
         </Modal>
