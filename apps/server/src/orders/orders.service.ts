@@ -334,6 +334,7 @@ export class OrdersService {
     // 已过消失时间、标记为待客服处理的订单不再出现在抢单池；
     // 按「上等马 → 桥接 → 中等马 → 下等马 → 线上」分别延迟可见。
     const now = Date.now();
+    const isCompanion = !!companionId;
     return orders.filter((o) => {
       if ((o.customFields as any)?.poolExpired) return false;
       let delay: number;
@@ -342,7 +343,10 @@ export class OrdersService {
       } else if (o.studioId !== studioId) {
         delay = bridgeDelay; // 桥接工作室订单
       } else {
-        delay = tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
+        // 管理端/客服没有陪玩身份，不应受段位可见延迟影响，自己发的单立即可见
+        delay = !isCompanion
+          ? 0
+          : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
       }
       return now - new Date(o.createdAt).getTime() >= delay;
     });
