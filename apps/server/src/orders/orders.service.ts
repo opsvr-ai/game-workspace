@@ -727,19 +727,22 @@ export class OrdersService {
     const where: any = { studioId, companionId: { not: null } };
     if (user && user.role === 'CS') where.csUserId = user.id;
 
-    const orders = await this.prisma.order.findMany({
-      where,
-      include: {
-        customer: { select: { wechatId: true, customerCode: true } },
+      const orders = await this.prisma.order.findMany({
+        where,
+        include: {
+          customer: true,
+          csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+          claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
           companion: {
             include: {
-              user: { select: { id: true, username: true, displayName: true } },
+              user: { select: { id: true, username: true, avatar: true, displayName: true } },
               studio: { select: { id: true, name: true, type: true } },
             },
           },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+          coCompanion: { include: { user: { select: { id: true, username: true } } } },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
 
     return orders
       .filter((o) => {
@@ -747,7 +750,6 @@ export class OrdersService {
         return cf.csCultivated === true;
       })
       .map((o) => {
-        const cf = (o.customFields as any) || {};
         const compStudio = o.companion?.studio;
         let destination = '线下工作室';
         if (compStudio) {
@@ -759,19 +761,10 @@ export class OrdersService {
         if (o.contactStatus === 'added') addStatus = '已加微信';
         else if (o.contactStatus === 'not_accepted') addStatus = '添加失败';
         return {
-          id: o.id,
-          orderCode: o.orderCode,
-          gameName: o.gameName,
-          amount: o.amount,
-          customerWechat: o.customer?.wechatId || cf.customerWechat || '',
-            customerNickname: cf.customerNickname || '',
-            customerSource: cf.customerSource || '',
-            companionUserId: o.companion?.user?.id || '',
-            companionName: o.companion?.user?.displayName || o.companion?.user?.username || '',
-          companionWechat: cf.workWechatName || '',
+          ...o,
+          companionUserId: o.companion?.user?.id || '',
           addStatus,
           destination,
-          updatedAt: o.updatedAt,
         };
       });
   }

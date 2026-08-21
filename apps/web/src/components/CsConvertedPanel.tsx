@@ -3,6 +3,13 @@ import { Button, Card, Table, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { useChatStore } from '../stores/chatStore';
 
+const customerWechat = (r: any) => r.customer?.wechatId || r.customFields?.customerWechat || '';
+const customerNickname = (r: any) => r.customFields?.customerNickname || '';
+const customerSource = (r: any) => r.customFields?.customerSource || '';
+const companionName = (r: any) =>
+  r.companion?.user?.displayName || r.companion?.user?.username || '';
+const companionWechat = (r: any) => r.customFields?.workWechatName || '';
+
 const CsConvertedPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,10 +38,10 @@ const CsConvertedPanel: React.FC = () => {
     if (!r.companionUserId) return;
     const participant = {
       userId: r.companionUserId,
-      username: r.companionName || '陪玩',
+      username: companionName(r),
       role: 'COMPANION',
     };
-    const orderInfo = `${r.gameName} · 客户：${r.customerNickname || r.customerWechat || '-'}`;
+    const orderInfo = `${r.gameName} · 客户：${customerNickname(r) || customerWechat(r) || '-'}`;
     const convId = await useChatStore.getState().openConversation(r.companionUserId, participant as any, orderInfo);
     window.dispatchEvent(
       new CustomEvent('open-chat-modal', {
@@ -55,11 +62,11 @@ const CsConvertedPanel: React.FC = () => {
       key: 'customer',
       render: (_: any, r: any) => (
         <div>
-          <div>{r.customerNickname || r.customerWechat || '-'}</div>
-          {r.customerWechat && <div style={{ color: '#999', fontSize: 12 }}>微信：{r.customerWechat}</div>}
-          {r.customerSource && (
+          <div>{customerNickname(r) || customerWechat(r) || '-'}</div>
+          {customerWechat(r) && <div style={{ color: '#999', fontSize: 12 }}>微信：{customerWechat(r)}</div>}
+          {customerSource(r) && (
             <Tag color="cyan" style={{ marginTop: 2, fontSize: 11 }}>
-              📡{r.customerSource}
+              📡{customerSource(r)}
             </Tag>
           )}
         </div>
@@ -73,18 +80,17 @@ const CsConvertedPanel: React.FC = () => {
         <Tag color={destColor[r.destination] || 'default'}>{r.destination}</Tag>
       ),
     },
-    { title: '抢单陪玩', dataIndex: 'companionName', key: 'companionName' },
-    { title: '陪玩工作微信', dataIndex: 'companionWechat', key: 'companionWechat', render: (v: string) => v || '-' },
+    { title: '抢单陪玩', key: 'companionName', render: (_: any, r: any) => companionName(r) },
+    { title: '陪玩工作微信', key: 'companionWechat', render: (_: any, r: any) => companionWechat(r) || '-' },
     {
       title: '加微信',
       key: 'addStatus',
-      render: (_: any, r: any) => (
+      render: (_: any, r: any) =>
         r.addStatus === '添加失败' ? (
           <Tag color="red">❌ 添加失败 · 继续追踪</Tag>
         ) : (
           <Tag color={r.addStatus === '已加微信' ? 'green' : 'gold'}>{r.addStatus}</Tag>
-        )
-      ),
+        ),
     },
     {
       title: '操作',
