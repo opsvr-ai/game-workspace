@@ -255,7 +255,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, i
                 <Option value="小红书">小红书</Option>
                 <Option value="抖音">抖音</Option>
                 <Option value="快手">快手</Option>
+                <Option value="咸鱼">咸鱼</Option>
+                <Option value="B站">B站</Option>
+                <Option value="视频号">视频号</Option>
                 <Option value="转介绍">转介绍</Option>
+                <Option value="其他">其他</Option>
               </Select>
             </Form.Item>
             <Form.Item name="customerSourceAccount" noStyle>

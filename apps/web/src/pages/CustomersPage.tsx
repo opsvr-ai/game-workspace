@@ -386,6 +386,15 @@ const CustomersPage: React.FC = () => {
     },
     { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
     {
+      title: '客户昵称',
+      key: 'nickname',
+      width: 120,
+      render: (_: any, r: Customer) => {
+        const cf = r.orders?.[0]?.customFields || {};
+        return cf.customerNickname || <Text type="secondary">-</Text>;
+      },
+    },
+    {
       title: '最近订单',
       key: 'lastOrder',
       width: 220,
@@ -804,7 +813,7 @@ const CustomersPage: React.FC = () => {
                 ]}
               />
               <Input.Search
-                placeholder="搜索客户编号"
+                placeholder="搜索编号/微信号/昵称/来源"
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
                 style={{ width: 200 }}
@@ -838,7 +847,23 @@ const CustomersPage: React.FC = () => {
                         size="small"
                         columns={columns}
                         dataSource={customers.filter(
-                          (c: Customer) => !searchCode || c.customerCode?.toLowerCase().includes(searchCode.toLowerCase()),
+                          (c: Customer) => {
+                            if (!searchCode) return true;
+                            const q = searchCode.toLowerCase();
+                            const cf = c.orders?.[0]?.customFields || {};
+                            const hay = [
+                              c.customerCode,
+                              c.wechatId,
+                              c.platformAccount,
+                              cf.customerNickname,
+                              cf.customerSource,
+                              cf.customerAccountId,
+                            ]
+                              .filter(Boolean)
+                              .join(' ')
+                              .toLowerCase();
+                            return hay.includes(q);
+                          },
                         )}
                         rowKey="id"
                         loading={loading}
