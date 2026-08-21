@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Table, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
+import { useChatStore } from '../stores/chatStore';
 
 const CsConvertedPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -23,6 +24,22 @@ const CsConvertedPanel: React.FC = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const contactCompanion = async (r: any) => {
+    if (!r.companionUserId) return;
+    const participant = {
+      userId: r.companionUserId,
+      username: r.companionName || '陪玩',
+      role: 'COMPANION',
+    };
+    const orderInfo = `${r.gameName} · 客户：${r.customerNickname || r.customerWechat || '-'}`;
+    const convId = await useChatStore.getState().openConversation(r.companionUserId, participant as any, orderInfo);
+    window.dispatchEvent(
+      new CustomEvent('open-chat-modal', {
+        detail: { conversationId: convId, participant, orderInfo },
+      }),
+    );
+  };
 
   const destColor: Record<string, string> = {
     线下工作室: 'blue',
@@ -66,6 +83,16 @@ const CsConvertedPanel: React.FC = () => {
           <Tag color={r.addStatus === '已加微信' ? 'green' : 'gold'}>{r.addStatus}</Tag>
         )
       ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, r: any) =>
+        r.addStatus !== '已加微信' ? (
+          <Button size="small" type="primary" onClick={() => contactCompanion(r)}>
+            询问陪玩
+          </Button>
+        ) : null,
     },
   ];
 

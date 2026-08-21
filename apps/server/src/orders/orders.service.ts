@@ -718,12 +718,12 @@ export class OrdersService {
       where,
       include: {
         customer: { select: { wechatId: true, customerCode: true } },
-        companion: {
-          include: {
-            user: { select: { username: true, displayName: true } },
-            studio: { select: { id: true, name: true, type: true } },
+          companion: {
+            include: {
+              user: { select: { id: true, username: true, displayName: true } },
+              studio: { select: { id: true, name: true, type: true } },
+            },
           },
-        },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -751,9 +751,10 @@ export class OrdersService {
           gameName: o.gameName,
           amount: o.amount,
           customerWechat: o.customer?.wechatId || cf.customerWechat || '',
-          customerNickname: cf.customerNickname || '',
-          customerSource: cf.customerSource || '',
-          companionName: o.companion?.user?.displayName || o.companion?.user?.username || '',
+            customerNickname: cf.customerNickname || '',
+            customerSource: cf.customerSource || '',
+            companionUserId: o.companion?.user?.id || '',
+            companionName: o.companion?.user?.displayName || o.companion?.user?.username || '',
           companionWechat: cf.workWechatName || '',
           addStatus,
           destination,
