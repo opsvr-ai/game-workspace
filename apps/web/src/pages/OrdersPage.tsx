@@ -137,7 +137,7 @@ const OrdersPage: React.FC = () => {
                   }
                 }}
               >
-                ✅ 标记成功
+                ✅ 添加成功
               </Button>
             </Tooltip>
             <Tooltip title={contactDisabled ? '请先在"工作微信"列选择微信' : undefined}>
@@ -158,7 +158,7 @@ const OrdersPage: React.FC = () => {
                   }
                 }}
               >
-                ❌ 标记失败
+                ❌ 添加失败
               </Button>
             </Tooltip>
           </>

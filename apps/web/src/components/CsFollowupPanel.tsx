@@ -44,12 +44,12 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
           style={{ background: '#16A34A', borderColor: '#16A34A' }}
           onClick={() => markResult(r, 'passed')}
         >
-          标记成功
+          添加成功
         </Button>
       )}
       {r.contactStatus !== 'not_accepted' && (
         <Button size="small" danger onClick={() => markResult(r, 'failed')}>
-          标记失败
+          添加失败
         </Button>
       )}
       <Button size="small" type="primary" onClick={() => onRedispatch?.(r)}>
