@@ -758,8 +758,8 @@ export class OrdersService {
           else if (compStudio.id !== studioId) destination = '桥接工作室';
           else destination = '线下工作室';
         }
-        let addStatus = '待添加';
-        if (o.contactStatus === 'added') addStatus = '已加微信';
+        let addStatus = '待结果';
+        if (o.contactStatus === 'added') addStatus = '添加成功';
         else if (o.contactStatus === 'not_accepted') addStatus = '添加失败';
         const moneyIn = o.moneyFlows
           .filter((f) => f.direction === 'IN')

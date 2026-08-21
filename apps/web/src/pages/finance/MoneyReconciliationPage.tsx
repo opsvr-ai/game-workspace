@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography, Row, Col, Statistic } from 'antd';
+import { Card, Table, Tag, Typography, Row, Col, Statistic, Button, Modal, InputNumber, Input, Select, message } from 'antd';
 import { ordersApi } from '../../api/orders';
 import PageHeader from '../../components/PageHeader';
 
@@ -10,6 +10,9 @@ const MoneyReconciliationPage: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [balances, setBalances] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [flowOrder, setFlowOrder] = useState<any>(null);
+  const [flowForm, setFlowForm] = useState({ direction: 'IN', amount: 0, counterpart: '', note: '' });
+  const [flowSaving, setFlowSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -28,6 +31,26 @@ const MoneyReconciliationPage: React.FC = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const addFlow = async () => {
+    if (!flowOrder) return;
+    if (!flowForm.amount || !flowForm.counterpart) {
+      message.warning('请填写金额和对方');
+      return;
+    }
+    setFlowSaving(true);
+    try {
+      await ordersApi.addMoneyFlow(flowOrder.orderId, { ...flowForm });
+      message.success('已记录');
+      setFlowOrder(null);
+      setFlowForm({ direction: 'IN', amount: 0, counterpart: '', note: '' });
+      load();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '记录失败');
+    } finally {
+      setFlowSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -61,6 +84,15 @@ const MoneyReconciliationPage: React.FC = () => {
             render: (_: any, r: any) =>
               r.flagged ? <Tag color="red">钱对不上</Tag> : <Tag color="green">正常</Tag>,
           },
+          {
+            title: '操作',
+            key: 'action',
+            render: (_: any, r: any) => (
+              <Button size="small" onClick={() => setFlowOrder(r)}>
+                记流水
+              </Button>
+            ),
+          },
         ]}
       />
 
@@ -88,6 +120,53 @@ const MoneyReconciliationPage: React.FC = () => {
           locale={{ emptyText: '暂无客服工作微信' }}
         />
       </Card>
+
+      <Modal
+        title="记一笔资金流水"
+        open={!!flowOrder}
+        onOk={addFlow}
+        onCancel={() => setFlowOrder(null)}
+        confirmLoading={flowSaving}
+        okText="记录"
+        cancelText="取消"
+        width={520}
+      >
+        <div style={{ marginTop: 16 }}>
+          <div style={{ marginBottom: 12 }}>
+            <Select
+              value={flowForm.direction}
+              onChange={(v) => setFlowForm((p) => ({ ...p, direction: v }))}
+              style={{ width: 120 }}
+            >
+              <Select.Option value="IN">转入</Select.Option>
+              <Select.Option value="OUT">转出</Select.Option>
+            </Select>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <InputNumber
+              value={flowForm.amount}
+              onChange={(v) => setFlowForm((p) => ({ ...p, amount: v || 0 }))}
+              prefix="¥"
+              style={{ width: '100%' }}
+              placeholder="金额"
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <Input
+              value={flowForm.counterpart}
+              onChange={(e) => setFlowForm((p) => ({ ...p, counterpart: e.target.value }))}
+              placeholder="对方（客户/陪玩/桥接工作室）"
+            />
+          </div>
+          <div>
+            <Input
+              value={flowForm.note}
+              onChange={(e) => setFlowForm((p) => ({ ...p, note: e.target.value }))}
+              placeholder="备注（可选）"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

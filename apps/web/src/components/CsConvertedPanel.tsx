@@ -21,7 +21,7 @@ const CsConvertedPanel: React.FC = () => {
     try {
       const { data } = await ordersApi.csConverted();
       const raw = data.data || [];
-      const rank: Record<string, number> = { 添加失败: 0, 待添加: 1, 已加微信: 2 };
+      const rank: Record<string, number> = { 添加失败: 0, 待结果: 1, 添加成功: 2 };
       setItems([...raw].sort((a, b) => (rank[a.addStatus] ?? 9) - (rank[b.addStatus] ?? 9)));
     } catch {
       message.error('加载失败');
@@ -104,17 +104,15 @@ const CsConvertedPanel: React.FC = () => {
       title: '加微信',
       key: 'addStatus',
       render: (_: any, r: any) =>
-        r.addStatus === '添加失败' ? (
-          <Tag color="red">❌ 添加失败 · 继续追踪</Tag>
-        ) : (
-          <Tag color={r.addStatus === '已加微信' ? 'green' : 'gold'}>{r.addStatus}</Tag>
-        ),
+        <Tag color={r.addStatus === '添加成功' ? 'green' : r.addStatus === '添加失败' ? 'red' : 'gold'}>
+          {r.addStatus}
+        </Tag>,
     },
     {
       title: '操作',
       key: 'action',
       render: (_: any, r: any) =>
-        r.addStatus !== '已加微信' ? (
+        r.addStatus !== '添加成功' ? (
           <Button size="small" type="primary" onClick={() => contactCompanion(r)}>
             询问陪玩
           </Button>
