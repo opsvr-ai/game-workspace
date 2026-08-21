@@ -710,16 +710,16 @@ export class CompanionsService {
   }
 
   // ── Status Blacklist CRUD ──
-  async getStatusBlacklist(companionId: string, status: string) {
+  async getStatusBlacklist(studioId: string, status: string) {
     return this.prisma.companionStatusBlacklist.findMany({
-      where: { companionId, status },
+      where: { studioId, status },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async addStatusBlacklist(companionId: string, status: string, processName: string) {
+  async addStatusBlacklist(studioId: string, status: string, processName: string) {
     return this.prisma.companionStatusBlacklist.create({
-      data: { companionId, status, processName },
+      data: { studioId, status, processName },
     });
   }
 

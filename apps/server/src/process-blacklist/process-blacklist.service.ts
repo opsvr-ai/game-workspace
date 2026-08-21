@@ -74,7 +74,7 @@ export class ProcessBlacklistService {
 
     // 只使用「状态黑名单」：陪玩处于哪个状态，就套用该状态下的黑名单
     const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
-      where: { companionId, status: companion.status },
+      where: { studioId: companion.studioId, status: companion.status },
       select: { processName: true },
     });
 

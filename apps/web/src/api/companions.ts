@@ -20,10 +20,10 @@ export const companionsApi = {
   updateFinance: (id: string, data: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; deposit?: number; note?: string }) => http.put(`/companions/${id}/finance`, data),
   requestProofNoCustomer: (note: string) => http.post('/companions/me/proof-no-customer', { note }),
   // Status blacklist
-  getStatusBlacklist: (companionId: string, status: string) =>
-    http.get(`/companions/${companionId}/status-blacklist`, { params: { status } }),
-  addStatusBlacklist: (companionId: string, data: { status: string; processName: string }) =>
-    http.post(`/companions/${companionId}/status-blacklist`, data),
-  removeStatusBlacklist: (companionId: string, entryId: string) =>
-    http.delete(`/companions/${companionId}/status-blacklist/${entryId}`),
+  getStatusBlacklist: (status: string) =>
+    http.get('/companions/status-blacklist', { params: { status } }),
+  addStatusBlacklist: (data: { status: string; processName: string }) =>
+    http.post('/companions/status-blacklist', data),
+  removeStatusBlacklist: (entryId: string) =>
+    http.delete(`/companions/status-blacklist/${entryId}`),
 };

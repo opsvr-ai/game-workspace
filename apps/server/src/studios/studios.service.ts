@@ -195,7 +195,7 @@ export class StudiosService {
       const companionIds = (await tx.companion.findMany({ where: { studioId: id }, select: { id: true } })).map((c: { id: string }) => c.id);
       await tx.processKillLog.deleteMany({ where: { companionId: { in: companionIds } } });
       await tx.companionProcessReport.deleteMany({ where: { companionId: { in: companionIds } } });
-      await tx.companionStatusBlacklist.deleteMany({ where: { companionId: { in: companionIds } } });
+      await tx.companionStatusBlacklist.deleteMany({ where: { studioId: id } });
       await tx.companionBlacklistOverride.deleteMany({ where: { companionId: { in: companionIds } } });
       await tx.companionTimeLog.deleteMany({ where: { companionId: { in: companionIds } } });
       await tx.companionAttendance.deleteMany({ where: { companionId: { in: companionIds } } });

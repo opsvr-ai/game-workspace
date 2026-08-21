@@ -58,6 +58,7 @@ model Studio {
   orders              Order[]
   customers           Customer[]
   battleScreenshots   BattleScreenshot[]
+  statusBlacklists    CompanionStatusBlacklist[]
   expenses            Expense[]
   expenseReports      ExpenseReport[]
     processBlacklists   ProcessBlacklist[]
@@ -119,7 +120,6 @@ model Companion {
   blacklistOverrides  CompanionBlacklistOverride[]
   processReports      CompanionProcessReport[]
   processKillLogs     ProcessKillLog[]
-  statusBlacklists    CompanionStatusBlacklist[]
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
   customerDeleteRequests  CustomerDeleteRequest[]
@@ -756,17 +756,17 @@ model StudioBridgePermission {
 }
 
 model CompanionStatusBlacklist {
-  id          String   @id @default(uuid())
-  companionId String
-  status      String // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
-  processName String
-  createdAt   DateTime @default(now())
-
-  companion Companion @relation(fields: [companionId], references: [id])
-
-  @@unique([companionId, status, processName])
-  @@index([companionId, status])
-}
+    id          String   @id @default(uuid())
+    studioId    String
+    status      String // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
+    processName String
+    createdAt   DateTime @default(now())
+  
+    studio Studio @relation(fields: [studioId], references: [id])
+  
+    @@unique([studioId, status, processName])
+    @@index([studioId, status])
+  }
 
 // ── Payment Accounts ──
 
