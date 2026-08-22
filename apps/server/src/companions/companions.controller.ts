@@ -264,6 +264,38 @@ export class CompanionsController {
     return { code: 200, message: '陪玩已离职，工位和微信已释放', data: null };
   }
 
+  // ── Status Blacklist CRUD (MUST be before :id routes) ──
+  @Get('companions/status-blacklist')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getStatusBlacklist(@Req() req: any, @Query('status') status: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getStatusBlacklist(req.user.studioId, status);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('companions/status-blacklist')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async addStatusBlacklist(
+    @Req() req: any,
+    @Body() dto: { status: string; processName: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.addStatusBlacklist(req.user.studioId, dto.status, dto.processName);
+    return { code: 201, message: 'ok', data };
+  }
+
+  @Delete('companions/status-blacklist/:entryId')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async removeStatusBlacklist(@Param('entryId') entryId: string): Promise<ApiResponse<unknown>> {
+    await this.companionsService.removeStatusBlacklist(entryId);
+    return { code: 200, message: 'ok', data: null };
+  }
+
+  @Get('companions/status-blacklists')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listStatusBlacklists(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listStatusBlacklists(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('companions/:id')
   async findOne(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.findOne(id);
@@ -590,36 +622,5 @@ export class CompanionsController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.updateFinance(id, dto, req.user.id);
     return { code: 200, message: '财务数据已更新', data };
-  }
-  // ── Status Blacklist CRUD ──
-  @Get('companions/status-blacklist')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async getStatusBlacklist(@Req() req: any, @Query('status') status: string): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.getStatusBlacklist(req.user.studioId, status);
-    return { code: 200, message: 'ok', data };
-  }
-
-  @Post('companions/status-blacklist')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async addStatusBlacklist(
-    @Req() req: any,
-    @Body() dto: { status: string; processName: string },
-  ): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.addStatusBlacklist(req.user.studioId, dto.status, dto.processName);
-    return { code: 201, message: 'ok', data };
-  }
-
-  @Delete('companions/status-blacklist/:entryId')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async removeStatusBlacklist(@Param('entryId') entryId: string): Promise<ApiResponse<unknown>> {
-    await this.companionsService.removeStatusBlacklist(entryId);
-    return { code: 200, message: 'ok', data: null };
-  }
-
-  @Get('companions/status-blacklists')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async listStatusBlacklists(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listStatusBlacklists(req.user.studioId);
-    return { code: 200, message: 'ok', data };
   }
 }
