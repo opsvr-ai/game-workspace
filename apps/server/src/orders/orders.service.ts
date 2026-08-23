@@ -11,7 +11,7 @@ import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
 import { maskCustomerWechat } from '../common/order-privacy';
 
-const PARTNER_INVITE_TTL_SEC = 20;
+const PARTNER_INVITE_TTL_SEC = 15;
 
 @Injectable()
 export class OrdersService {

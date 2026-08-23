@@ -644,7 +644,7 @@ const AppLayout: React.FC = () => {
       const nk = `dual-invite-${data.id}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
-      const ttl = data.expiresInSec ?? 20;
+      const ttl = data.expiresInSec ?? 15;
       notification.open({
         key: nk,
         message: '🤝 搭档邀请',
@@ -738,7 +738,7 @@ const AppLayout: React.FC = () => {
       const nk = `dual-broadcast-${data.sessionId}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
-      const ttl = data.expiresInSec ?? 20;
+      const ttl = data.expiresInSec ?? 15;
       notification.open({
         key: nk,
         message: '🤝 找搭档邀请',
