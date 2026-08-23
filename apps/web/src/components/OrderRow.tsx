@@ -131,7 +131,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => (
         </Text>
       </Col>
       {renderActions && (
-        <Col flex="auto" style={{ textAlign: 'right' }}>
+        <Col flex="auto" style={{ textAlign: 'right', position: 'sticky', right: 0, background: '#fff', paddingLeft: 8 }}>
           {renderActions(order)}
         </Col>
       )}
