@@ -33,12 +33,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     const ea = (window as any).electronAPI;
     const role = get().user?.role;
-    if (role === 'COMPANION' && ea?.promptLogoutPassword) {
+    // 只有陪玩端需要管理员密码退出；客服/店长/老板直接退出
+    if (role === 'COMPANION' && typeof ea?.promptLogoutPassword === 'function') {
       await ea.promptLogoutPassword();
     }
     sessionStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    try { await ea?.logout(); } catch {}
+    // 清除已保存的账号密码，避免退出后又被自动登录
+    try { await ea?.logout?.(); } catch {}
+    try { await ea?.clearSavedCredentials?.(); } catch {}
     set({ user: null, isAuthenticated: false });
   },
 
