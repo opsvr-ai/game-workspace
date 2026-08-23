@@ -79,7 +79,7 @@ const CsConvertedPanel: React.FC = () => {
   return (
     <Card size="small" style={{ marginBottom: 12, borderColor: '#13c2c2' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontWeight: 600 }}>🎯 派单去向（客服养好后重新派出的客户）</div>
+        <div style={{ fontWeight: 600 }}>🎯 管理端直添客户流转明细</div>
         <Button size="small" onClick={load} loading={loading}>
           刷新
         </Button>

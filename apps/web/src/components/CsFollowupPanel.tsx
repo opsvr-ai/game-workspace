@@ -62,7 +62,7 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
 
   return (
     <Card size="small" style={{ marginBottom: 12, borderColor: '#722ed1' }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>📥 客服跟进中（已添加客户）</div>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>📥 管理端直添客户跟进列表</div>
       <OrderTable dataSource={items} loading={loading} renderActions={renderActions} />
     </Card>
   );

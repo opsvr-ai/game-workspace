@@ -46,7 +46,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       workWechatId: contactWechatId,
       workWechatName: wx?.wechatId,
     });
-    message.success('已标记添加，稍后在跟进中确认成功/失败');
+    message.success('已标记添加，稍后在跟进列表确认成功/失败');
     setContactOrder(null);
     load();
   };
@@ -84,7 +84,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
         <Tag color="cyan" style={{ margin: 0 }}>直接添加</Tag>
       )}
       {item.poolExpired ? (
-        <Tag color="red" style={{ margin: 0 }}>待处理</Tag>
+        <Tag color="red" style={{ margin: 0 }}>流转失败</Tag>
       ) : item.requireCsContact ? (
         <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
       ) : null}
@@ -100,7 +100,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
         <div style={{ display: 'flex', gap: 16 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>⚡ 立即打待处理</div>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>⚡ 立即打流转失败</div>
             {immediateItems.length === 0 ? (
               <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
             ) : (
@@ -108,7 +108,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
             )}
           </div>
           <div style={{ flex: 1, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, color: '#722ed1' }}>📅 预约待处理</div>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: '#722ed1' }}>📅 预约流转失败</div>
             {scheduledItems.length === 0 ? (
               <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
             ) : (
@@ -147,7 +147,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
               </Select>
             </div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              确认后即标记“已添加”；添加成功或失败，请在「跟进中」里选择，无需上传截图。
+              确认后即标记“已添加”；添加成功或失败，请在「跟进列表」里选择，无需上传截图。
             </div>
           </div>
         )}

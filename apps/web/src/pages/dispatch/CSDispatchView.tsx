@@ -925,17 +925,17 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'pending',
-            label: '客服待处理',
+            label: '订单池流转失败明细',
             children: <UrgentOrdersPanel onDispatch={handleDispatch} />,
           },
           {
             key: 'followup',
-            label: '客服跟进',
+            label: '管理端直添客户跟进列表',
             children: <CsFollowupPanel onRedispatch={handleDispatch} />,
           },
           {
             key: 'converted',
-            label: '派单去向',
+            label: '管理端直添客户流转明细',
             children: <CsConvertedPanel />,
           },
         ]}
