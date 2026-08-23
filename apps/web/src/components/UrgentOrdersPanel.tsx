@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Tag, Modal, Select, message } from 'antd';
+import { Button, Card, Modal, Select, Space, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import OrderRow from './OrderRow';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -53,68 +54,34 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
 
   if (items.length === 0) return null;
 
-  const immediateItems = items.filter((i) => !i.isScheduled);
-  const scheduledItems = items.filter((i) => i.isScheduled);
-
-  const renderItem = (item: any) => (
-    <div
-      key={item.id}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '7px 4px',
-        borderBottom: '1px solid #f0f0f0',
-        fontSize: 12,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-      }}
-    >
-      <span style={{ fontWeight: 600 }}>{item.poolExpired ? '⏳ ' : '🔥 '}{item.gameName}</span>
-      <span style={{ color: '#d4380d' }}>¥{item.amount}</span>
-      <span style={{ color: '#888' }}>{item.customerWechat || '-'}</span>
-      {item.csContactStatus === 'not_accepted' ? (
-        <span style={{ color: '#fa8c16' }}>已添加·失败</span>
-      ) : null}
-      <span style={{ flex: 1 }} />
-      {item.dispatchCount > 1 && (
-        <Tag color="orange" style={{ margin: 0 }}>第{item.dispatchCount}次派</Tag>
-      )}
-      {item.customFields?.directAdd && (
-        <Tag color="cyan" style={{ margin: 0 }}>直接添加</Tag>
-      )}
-      {item.poolExpired ? (
+  const renderActions = (r: any) => (
+    <Space size={4} wrap>
+      {r.dispatchCount > 1 && <Tag color="orange" style={{ margin: 0 }}>第{r.dispatchCount}次派</Tag>}
+      {r.customFields?.directAdd && <Tag color="cyan" style={{ margin: 0 }}>直接添加</Tag>}
+      {r.csContactStatus === 'added' ? (
+        <Tag color="green">已添加</Tag>
+      ) : r.csContactStatus === 'not_accepted' ? (
+        <Tag color="orange">添加失败</Tag>
+      ) : r.poolExpired ? (
         <Tag color="red" style={{ margin: 0 }}>流转失败</Tag>
-      ) : item.requireCsContact ? (
+      ) : r.requireCsContact ? (
         <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
       ) : null}
-      {item.csContactStatus !== 'added' && (
-        <Button size="small" onClick={() => openContact(item)}>添加客户</Button>
+      {r.csContactStatus !== 'added' && (
+        <Button size="small" onClick={() => openContact(r)}>添加客户</Button>
       )}
-      <Button size="small" type="primary" onClick={() => onDispatch?.(item)}>发布订单</Button>
-    </div>
+      <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>发布订单</Button>
+    </Space>
   );
 
   return (
     <>
       <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>⚡ 立即打流转失败</div>
-            {immediateItems.length === 0 ? (
-              <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
-            ) : (
-              <div>{immediateItems.map(renderItem)}</div>
-            )}
-          </div>
-          <div style={{ flex: 1, borderLeft: '1px solid #f0f0f0', paddingLeft: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, color: '#722ed1' }}>📅 预约流转失败</div>
-            {scheduledItems.length === 0 ? (
-              <div style={{ color: '#999', fontSize: 12 }}>暂无</div>
-            ) : (
-              <div>{scheduledItems.map(renderItem)}</div>
-            )}
-          </div>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>📥 订单池流转失败明细</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {items.map((r) => (
+            <OrderRow key={r.id} order={r} renderActions={renderActions} />
+          ))}
         </div>
       </Card>
 

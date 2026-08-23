@@ -579,8 +579,8 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       where,
       include: {
-        customer: { select: { wechatId: true, customerCode: true } },
-        csUser: { select: { username: true } },
+        customer: { select: { wechatId: true, customerCode: true, platform: true } },
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -603,13 +603,7 @@ export class OrdersService {
               ? await this.getSoonEndingCompanions(studioId)
               : [];
           return {
-            id: o.id,
-            orderCode: o.orderCode,
-            customerWechat: o.customer?.wechatId || cf.customerWechat || '',
-            gameName: o.gameName,
-            gameMode: cf.gameMode || '',
-            amount: o.amount,
-            duration: o.duration,
+            ...o,
             waitingSeconds,
             urgent: !isScheduled,
             poolExpired,
