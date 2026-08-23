@@ -69,14 +69,14 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
             </Text>
           </Col>
         )}
-        {order.dispatchType && (
+        {isAdmin && order.dispatchType && (
           <Col>
             <Tag color={dispatchTypeConfig[order.dispatchType]?.color || 'default'} style={{ margin: 0 }}>
               {dispatchTypeConfig[order.dispatchType]?.label || order.dispatchType}
             </Tag>
           </Col>
         )}
-        {order.companion?.user?.username && (
+        {isAdmin && order.companion?.user?.username && (
           <Col>
             <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               主陪:{order.companion.user.username}
@@ -135,7 +135,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
             </Text>
           </Col>
         )}
-        {cf.customerWechatQr && (
+        {isAdmin && cf.customerWechatQr && (
           <Col>
             <Image
               src={cf.customerWechatQr}
