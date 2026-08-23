@@ -44,6 +44,13 @@ export class CompanionsController {
     private readonly excellence: ExcellenceService,
   ) {}
 
+  // 老板(OWNER)可能没有 studioId，回退到第一个工作室，保证微信等数据能正确归属
+  private async sid(req: any): Promise<string> {
+    if (req.user.studioId) return req.user.studioId;
+    const studio = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
+    return studio?.id || '';
+  }
+
   @Get('companions')
   async findAll(@Req() req: any, @Query('includeBridged') includeBridged?: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.findAll(req.user, includeBridged === 'true');
@@ -209,14 +216,14 @@ export class CompanionsController {
   @Get('companions/work-wechats')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
   async listWorkWechats(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listWorkWechats(req.user.studioId, req.user);
+    const data = await this.companionsService.listWorkWechats(await this.sid(req), req.user);
     return { code: 200, message: 'ok', data };
   }
 
   @Post('companions/work-wechats')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async addWorkWechat(@Req() req: any, @Body() dto: { wechatId: string; type?: string }): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.addWorkWechat(req.user.studioId, dto.wechatId, dto.type);
+    const data = await this.companionsService.addWorkWechat(await this.sid(req), dto.wechatId, dto.type);
     return { code: 201, message: 'ok', data };
   }
 
