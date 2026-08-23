@@ -286,63 +286,110 @@ const OrdersPage: React.FC = () => {
     </>
   );
 
-  // 所有角色统一的右侧操作：添加成功 / 添加失败
+  // 所有角色统一的右侧操作：沟通 + 添加成功/添加失败
   const renderAddActions = (r: any) => {
-    if (r.contactStatus === 'added') return <Tag color="green">已添加</Tag>;
-    if (r.contactStatus === 'not_accepted') {
-      return (
-        <Button
-          size="small"
-          type="primary"
-          style={{ background: '#16A34A', borderColor: '#16A34A' }}
-          onClick={async () => {
-            try {
-              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-              message.success('已标记为客户同意');
-              fetch();
-            } catch (e: any) {
-              message.error(extractErrorMessage(e, '操作失败'));
-            }
-          }}
-        >
-          客户已同意
-        </Button>
-      );
-    }
-    if (r.status !== 'GRABBED' && r.status !== 'CONFIRMED') return null;
     return (
       <Space size={4}>
-        <Button
-          size="small"
-          type="primary"
-          style={{ background: '#16A34A', borderColor: '#16A34A' }}
-          onClick={async () => {
-            try {
-              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-              message.success('已添加成功');
-              fetch();
-            } catch (e: any) {
-              message.error(extractErrorMessage(e, '操作失败'));
-            }
-          }}
-        >
-          ✅ 添加成功
-        </Button>
-        <Button
-          size="small"
-          danger
-          onClick={async () => {
-            try {
-              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
-              message.success('已标记添加失败');
-              fetch();
-            } catch (e: any) {
-              message.error(extractErrorMessage(e, '操作失败'));
-            }
-          }}
-        >
-          ❌ 添加失败
-        </Button>
+        {r.csUser?.id && (
+          <Badge count={unreadMap[r.id] || 0} size="small">
+            <Button
+              size="small"
+              onClick={() => {
+                localStorage.removeItem(`unread-${r.id}`);
+                setUnreadMap((prev) => {
+                  const { [r.id]: _, ...rest } = prev;
+                  return rest;
+                });
+                const csUser = r.csUser;
+                const orderInfo = [
+                  `📋 ${r.gameName}`,
+                  `¥${Number(r.amount).toFixed(0)}`,
+                  r.duration ? `${r.duration}h` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                useChatStore.getState().openConversation(
+                  csUser.id,
+                  {
+                    userId: csUser.id,
+                    username: csUser.username || '未知',
+                    displayName: csUser.displayName,
+                    avatar: csUser.avatar,
+                    role: csUser.role || 'CS',
+                  },
+                  orderInfo,
+                );
+                setChatPartner({
+                  conversationId: csUser.id,
+                  participant: {
+                    userId: csUser.id,
+                    username: csUser.username || '未知',
+                    displayName: csUser.displayName,
+                    avatar: csUser.avatar,
+                    role: csUser.role || 'CS',
+                  },
+                  orderInfo,
+                });
+              }}
+            >
+              沟通
+            </Button>
+          </Badge>
+        )}
+        {r.contactStatus === 'added' ? (
+          <Tag color="green">已添加</Tag>
+        ) : r.contactStatus === 'not_accepted' ? (
+          <Button
+            size="small"
+            type="primary"
+            style={{ background: '#16A34A', borderColor: '#16A34A' }}
+            onClick={async () => {
+              try {
+                await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                message.success('已标记为客户同意');
+                fetch();
+              } catch (e: any) {
+                message.error(extractErrorMessage(e, '操作失败'));
+              }
+            }}
+          >
+            客户已同意
+          </Button>
+        ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
+          <>
+            <Button
+              size="small"
+              type="primary"
+              style={{ background: '#16A34A', borderColor: '#16A34A' }}
+              onClick={async () => {
+                try {
+                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                  message.success('已添加成功');
+                  fetch();
+                } catch (e: any) {
+                  message.error(extractErrorMessage(e, '操作失败'));
+                }
+              }}
+            >
+              ✅ 添加成功
+            </Button>
+            <Button
+              size="small"
+              danger
+              onClick={async () => {
+                try {
+                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
+                  message.success('已标记添加失败');
+                  fetch();
+                } catch (e: any) {
+                  message.error(extractErrorMessage(e, '操作失败'));
+                }
+              }}
+            >
+              ❌ 添加失败
+            </Button>
+          </>
+        ) : null}
       </Space>
     );
   };
