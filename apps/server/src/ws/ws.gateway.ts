@@ -541,6 +541,10 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`user:${userId}`).emit(event, data);
   }
 
+  notifyCompanion(companionId: string, event: string, data: unknown): void {
+    this.server.to(`companion:${companionId}`).emit(event, data);
+  }
+
   // 前端有些入口会把 companionId 当成 userId 传过来（例如陪玩端订单池）。
   // 这里统一归一化为 User id，保证语音信令能投递到正确的 user:{id} 房间。
   private async resolveUserId(id: string | undefined | null): Promise<string> {

@@ -39,7 +39,9 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
           }}
         >
           <Text strong style={{ fontSize: 15 }}>
-            ⚡ 新订单！{urgentOrder._createdBy || '系统'} 发布
+            {urgentOrder._direct
+              ? '🎯 客服指定给你接单'
+              : `⚡ 新订单！${urgentOrder._createdBy || '系统'} 发布`}
           </Text>
           <div style={{ marginTop: 10, lineHeight: 1.8 }}>
             <div>
@@ -50,24 +52,38 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <Button
-              type="primary"
-              size="large"
-              block
-              onClick={async () => {
-                try {
-                  const { ordersApi } = await import('../api/orders');
-                  const r = await ordersApi.quickGrab(urgentOrder.id);
-                  setUrgentGrabbed(r.data.data || urgentOrder);
+            {urgentOrder._direct ? (
+              <Button
+                type="primary"
+                size="large"
+                block
+                onClick={() => {
                   setUrgentOrder(null);
-                } catch (e: any) {
-                  message.error(e?.response?.data?.message || '已被其他陪玩抢先');
-                  setUrgentOrder(null);
-                }
-              }}
-            >
-              同意
-            </Button>
+                  navigate('/companion/orders');
+                }}
+              >
+                查看订单
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                size="large"
+                block
+                onClick={async () => {
+                  try {
+                    const { ordersApi } = await import('../api/orders');
+                    const r = await ordersApi.quickGrab(urgentOrder.id);
+                    setUrgentGrabbed(r.data.data || urgentOrder);
+                    setUrgentOrder(null);
+                  } catch (e: any) {
+                    message.error(e?.response?.data?.message || '已被其他陪玩抢先');
+                    setUrgentOrder(null);
+                  }
+                }}
+              >
+                同意
+              </Button>
+            )}
           </div>
         </div>
       )}

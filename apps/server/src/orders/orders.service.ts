@@ -222,6 +222,20 @@ export class OrdersService {
       }
     }
 
+    // DIRECT: 指定给某个陪玩，右下角弹窗提醒他
+    if (dto.dispatchType === 'DIRECT' && dto.companionId) {
+      const csUser = await this.prisma.user.findUnique({
+        where: { id: dto.csUserId },
+        select: { username: true, role: true },
+      });
+      this.wsGateway.notifyCompanion(dto.companionId, 'order:urgent', {
+        ...newOrder,
+        _createdBy: csUser?.username || '未知',
+        _creatorRole: csUser?.role || 'CS',
+        _direct: true,
+      });
+    }
+
     // Auto-create first session when order is created
     if (newOrder.companionId) {
       if (newOrder.dispatchType === 'DIRECT' && !newOrder.coCompanionId) {
