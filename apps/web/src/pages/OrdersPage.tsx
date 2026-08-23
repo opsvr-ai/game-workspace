@@ -12,6 +12,7 @@ import {
   Modal,
   Input,
   Tooltip,
+  Space,
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
@@ -285,6 +286,67 @@ const OrdersPage: React.FC = () => {
     </>
   );
 
+  // 所有角色统一的右侧操作：添加成功 / 添加失败
+  const renderAddActions = (r: any) => {
+    if (r.contactStatus === 'added') return <Tag color="green">已添加</Tag>;
+    if (r.contactStatus === 'not_accepted') {
+      return (
+        <Button
+          size="small"
+          type="primary"
+          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          onClick={async () => {
+            try {
+              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+              message.success('已标记为客户同意');
+              fetch();
+            } catch (e: any) {
+              message.error(extractErrorMessage(e, '操作失败'));
+            }
+          }}
+        >
+          客户已同意
+        </Button>
+      );
+    }
+    if (r.status !== 'GRABBED' && r.status !== 'CONFIRMED') return null;
+    return (
+      <Space size={4}>
+        <Button
+          size="small"
+          type="primary"
+          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          onClick={async () => {
+            try {
+              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+              message.success('已添加成功');
+              fetch();
+            } catch (e: any) {
+              message.error(extractErrorMessage(e, '操作失败'));
+            }
+          }}
+        >
+          ✅ 添加成功
+        </Button>
+        <Button
+          size="small"
+          danger
+          onClick={async () => {
+            try {
+              await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
+              message.success('已标记添加失败');
+              fetch();
+            } catch (e: any) {
+              message.error(extractErrorMessage(e, '操作失败'));
+            }
+          }}
+        >
+          ❌ 添加失败
+        </Button>
+      </Space>
+    );
+  };
+
   const sorted = [...orders]
     .sort((a: any, b: any) => {
       const aUnread = unreadMap[a.id] || 0;
@@ -415,7 +477,7 @@ const OrdersPage: React.FC = () => {
               <OrderRow
                 key={r.id}
                 order={r}
-                renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
+                renderActions={renderAddActions}
               />
             ))}
           </div>
