@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Typography, message } from 'antd';
 
@@ -19,6 +19,13 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
   setUrgentGrabbed,
 }) => {
   const navigate = useNavigate();
+
+  // 弹窗停留 15 秒后自动消失
+  useEffect(() => {
+    if (!urgentOrder) return;
+    const t = setTimeout(() => setUrgentOrder(null), 15000);
+    return () => clearTimeout(t);
+  }, [urgentOrder, setUrgentOrder]);
 
   return (
     <>

@@ -121,10 +121,10 @@ export function showOrderNotification(
     if (autoCloseTimer) clearTimeout(autoCloseTimer);
   });
 
-  // Auto close after 20 seconds timeout
+  // Auto close after 15 seconds timeout
   autoCloseTimer = setTimeout(() => {
     closeNotification();
-  }, 20_000);
+  }, 15_000);
 
   // When user clicks "查看", call onAccept to show main window + navigate to order pool
   notificationWindow.on('close', async () => {
