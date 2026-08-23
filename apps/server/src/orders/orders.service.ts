@@ -735,8 +735,12 @@ export class OrdersService {
   async listCsConverted(studioId: string, user?: { id: string; role: string }) {
     const where: any = { studioId, companionId: { not: null } };
     if (user && user.role === 'CS') where.csUserId = user.id;
+    const bridgeCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'pool.bridge_return_jueju_cents' },
+    });
+    const juejuCents = Number(bridgeCfg?.value ?? 1500);
 
-      const orders = await this.prisma.order.findMany({
+        const orders = await this.prisma.order.findMany({
         where,
         include: {
           customer: true,
@@ -759,9 +763,10 @@ export class OrdersService {
         const cf = (o.customFields as any) || {};
         return cf.csCultivated === true;
       })
-      .map((o) => {
-        const compStudio = o.companion?.studio;
-        let destination = '线下工作室';
+        .map((o) => {
+          const cf = (o.customFields as any) || {};
+          const compStudio = o.companion?.studio;
+          let destination = '线下工作室';
         if (compStudio) {
           if (compStudio.type === 'RENTAL') destination = '线上俱乐部';
           else if (compStudio.id !== studioId) destination = '桥接工作室';
@@ -773,17 +778,22 @@ export class OrdersService {
         const moneyIn = o.moneyFlows
           .filter((f) => f.direction === 'IN')
           .reduce((s, f) => s + f.amount, 0);
-        const moneyOut = o.moneyFlows
-          .filter((f) => f.direction === 'OUT')
-          .reduce((s, f) => s + f.amount, 0);
-        return {
-          ...o,
-          companionUserId: o.companion?.user?.id || '',
-          customerPaidAccount: o.customerPaymentAccountName || '',
-          moneyIn,
-          moneyOut,
-          addStatus,
-          destination,
+          const moneyOut = o.moneyFlows
+            .filter((f) => f.direction === 'OUT')
+            .reduce((s, f) => s + f.amount, 0);
+          const isDouble = o.coCompanionId || cf.deltaCount === '双';
+          const companions = isDouble ? 2 : 1;
+          const bridgeReturn =
+            cf.deltaMission === '绝密' ? (juejuCents / 100) * (o.duration || 1) * companions : 0;
+          return {
+            ...o,
+            companionUserId: o.companion?.user?.id || '',
+            customerPaidAccount: o.customerPaymentAccountName || '',
+            moneyIn,
+            moneyOut,
+            bridgeReturn,
+            addStatus,
+            destination,
         };
       });
   }
