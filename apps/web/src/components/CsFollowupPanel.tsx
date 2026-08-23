@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Space, message } from 'antd';
+import { Button, Card, Space, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
-import OrderTable from './OrderTable';
+import { useChatStore } from '../stores/chatStore';
+import OrderRow from './OrderRow';
 
-interface Props {
-  onRedispatch?: (item: any) => void;
-}
-
-const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
+const CsFollowupPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -35,26 +32,48 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
     load();
   };
 
+  const chatWithCs = async (r: any) => {
+    const csUser = r.csUser;
+    if (!csUser?.id) return;
+    const participant = {
+      userId: csUser.id,
+      username: csUser.displayName || csUser.username || '客服',
+      displayName: csUser.displayName,
+      avatar: csUser.avatar,
+      role: csUser.role || 'CS',
+    };
+    const orderInfo = `${r.gameName} · ¥${Number(r.amount).toFixed(0)}`;
+    const convId = await useChatStore.getState().openConversation(csUser.id, participant as any, orderInfo);
+    window.dispatchEvent(
+      new CustomEvent('open-chat-modal', {
+        detail: { conversationId: convId, participant, orderInfo },
+      }),
+    );
+  };
+
   const renderActions = (r: any) => (
     <Space size={4} wrap>
-      {r.contactStatus !== 'added' && (
-        <Button
-          size="small"
-          type="primary"
-          style={{ background: '#16A34A', borderColor: '#16A34A' }}
-          onClick={() => markResult(r, 'passed')}
-        >
-          添加成功
+      {r.csUser?.id && (
+        <Button size="small" onClick={() => chatWithCs(r)}>
+          沟通
         </Button>
       )}
-      {r.contactStatus !== 'not_accepted' && (
-        <Button size="small" danger onClick={() => markResult(r, 'failed')}>
-          添加失败
+      {r.contactStatus === 'added' ? (
+        <Tag color="green">已添加</Tag>
+      ) : r.contactStatus === 'not_accepted' ? (
+        <Button size="small" type="primary" style={{ background: '#16A34A', borderColor: '#16A34A' }} onClick={() => markResult(r, 'passed')}>
+          客户已同意
         </Button>
+      ) : (
+        <>
+          <Button size="small" type="primary" style={{ background: '#16A34A', borderColor: '#16A34A' }} onClick={() => markResult(r, 'passed')}>
+            ✅ 添加成功
+          </Button>
+          <Button size="small" danger onClick={() => markResult(r, 'failed')}>
+            ❌ 添加失败
+          </Button>
+        </>
       )}
-      <Button size="small" type="primary" onClick={() => onRedispatch?.(r)}>
-        重新派单
-      </Button>
     </Space>
   );
 
@@ -63,7 +82,11 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
   return (
     <Card size="small" style={{ marginBottom: 12, borderColor: '#722ed1' }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>📥 管理端直添客户跟进列表</div>
-      <OrderTable dataSource={items} loading={loading} renderActions={renderActions} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map((r) => (
+          <OrderRow key={r.id} order={r} renderActions={renderActions} />
+        ))}
+      </div>
     </Card>
   );
 };

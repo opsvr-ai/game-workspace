@@ -931,7 +931,7 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'followup',
             label: '管理端直添客户跟进列表',
-            children: <CsFollowupPanel onRedispatch={handleDispatch} />,
+            children: <CsFollowupPanel />,
           },
           {
             key: 'converted',
