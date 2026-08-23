@@ -520,10 +520,11 @@ const OrdersPage: React.FC = () => {
           <TableSkeleton columns={5} rows={5} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {sorted.map((r) => (
+            {sorted.map((r, idx) => (
               <OrderRow
                 key={r.id}
                 order={r}
+                index={idx}
                 renderActions={renderAddActions}
               />
             ))}

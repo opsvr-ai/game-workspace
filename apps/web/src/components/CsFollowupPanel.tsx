@@ -83,8 +83,8 @@ const CsFollowupPanel: React.FC = () => {
     <Card size="small" style={{ marginBottom: 12, borderColor: '#722ed1' }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>📥 管理端直添客户跟进列表</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((r) => (
-          <OrderRow key={r.id} order={r} renderActions={renderActions} />
+        {items.map((r, idx) => (
+          <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
         ))}
       </div>
     </Card>

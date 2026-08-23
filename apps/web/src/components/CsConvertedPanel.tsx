@@ -104,8 +104,8 @@ const CsConvertedPanel: React.FC = () => {
         </Button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((r) => (
-          <OrderRow key={r.id} order={r} renderActions={renderActions} />
+        {items.map((r, idx) => (
+          <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
         ))}
       </div>
     </Card>

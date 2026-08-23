@@ -79,8 +79,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
       <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
         <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>📥 订单池流转失败明细</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {items.map((r) => (
-            <OrderRow key={r.id} order={r} renderActions={renderActions} />
+          {items.map((r, idx) => (
+            <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
           ))}
         </div>
       </Card>
