@@ -165,6 +165,27 @@ const PoolPage: React.FC = () => {
           >
             <Row align="middle" gutter={8} wrap={false}>
               <Col>
+                <Tag
+                  style={{
+                    background: '#f0f0f0',
+                    color: '#666',
+                    fontWeight: 700,
+                    minWidth: 24,
+                    textAlign: 'center',
+                    margin: 0,
+                  }}
+                >
+                  {idx + 1}
+                </Tag>
+              </Col>
+              {order.customer?.customerCode && (
+                <Col>
+                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    👤{order.customer.customerCode}
+                  </Text>
+                </Col>
+              )}
+              <Col>
                 <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
                   {orderTypeConfig[order.type]?.label || order.type}
                 </Tag>
@@ -256,6 +277,11 @@ const PoolPage: React.FC = () => {
                     : order.duration
                       ? ` ${order.duration}h`
                       : ''}
+                </Text>
+              </Col>
+              <Col>
+                <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                  📋{order.csUser?.username || order.customFields?.createdBy || '-'}
                 </Text>
               </Col>
               <Col flex="auto" />
