@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, message } from 'antd';
 import { ordersApi } from '../api/orders';
-import OrderRow from './OrderRow';
+import OrderTable from './OrderTable';
 
 const CsConvertedPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -31,11 +31,7 @@ const CsConvertedPanel: React.FC = () => {
         <div style={{ fontWeight: 600 }}>🎯 管理端直添客户流转明细</div>
         <Button size="small" onClick={load} loading={loading}>刷新</Button>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((r) => (
-          <OrderRow key={r.id} order={r} />
-        ))}
-      </div>
+      <OrderTable dataSource={items} loading={loading} />
     </Card>
   );
 };

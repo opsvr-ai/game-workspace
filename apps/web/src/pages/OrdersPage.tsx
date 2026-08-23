@@ -18,7 +18,7 @@ import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
-import OrderTable from '../components/OrderTable';
+import OrderRow from '../components/OrderRow';
 import CreateOrderModal from '../components/CreateOrderModal';
 import ChatModal from '../components/ChatModal';
 import { orderStatusConfig } from '../constants';
@@ -410,21 +410,15 @@ const OrdersPage: React.FC = () => {
         {loading && orders.length === 0 ? (
           <TableSkeleton columns={5} rows={5} />
         ) : (
-          <OrderTable
-            dataSource={sorted}
-            loading={loading}
-            unreadMap={unreadMap}
-            renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
-            onWorkWechatSaved={(order, wid, name) => {
-              setOrders((prev) =>
-                prev.map((o) =>
-                  o.id === order.id
-                    ? { ...o, customFields: { ...(o.customFields || {}), workWechatId: wid, workWechatName: name } }
-                    : o,
-                ),
-              );
-            }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {sorted.map((r) => (
+              <OrderRow
+                key={r.id}
+                order={r}
+                renderActions={isCompanion ? renderCompanionActions : renderAdminActions}
+              />
+            ))}
+          </div>
         )}
         <Modal
           title="归属调整"

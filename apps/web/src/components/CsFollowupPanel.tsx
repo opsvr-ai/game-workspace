@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Space, message } from 'antd';
 import { ordersApi } from '../api/orders';
-import OrderRow from './OrderRow';
+import OrderTable from './OrderTable';
 
 interface Props {
   onRedispatch?: (item: any) => void;
@@ -63,11 +63,7 @@ const CsFollowupPanel: React.FC<Props> = ({ onRedispatch }) => {
   return (
     <Card size="small" style={{ marginBottom: 12, borderColor: '#722ed1' }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>📥 管理端直添客户跟进列表</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map((r) => (
-          <OrderRow key={r.id} order={r} renderActions={renderActions} />
-        ))}
-      </div>
+      <OrderTable dataSource={items} loading={loading} renderActions={renderActions} />
     </Card>
   );
 };
