@@ -1,17 +1,23 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useState } from 'react';
 import { Tag, Select, Typography } from 'antd';
+import { useAuthStore } from '../stores/authStore';
+import { ordersApi } from '../api/orders';
 
 const { Text } = Typography;
 
 const EditableWorkWechat: React.FC<{ order: any; onSaved?: (workWechatId: string, workWechatName: string) => void }> = ({ order, onSaved }) => {
+  const user = useAuthStore((s) => s.user);
+  // 陪玩端选“陪玩微信”，客服/店长/老板端选“客服微信”
+  const type = user?.role === 'COMPANION' ? 'COMPANION' : 'STUDIO';
+
   const [editing, setEditing] = useState(false);
   const [wxs, setWxs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   // Local display state — survives prop staleness after save
   const [savedName, setSavedName] = useState<string | null>(null);
   const wo = order.customFields || {};
-  const displayName = savedName ?? wo.workWechatName ?? (wo.workWechatId ? String(wo.workWechatId).slice(0, 8) : null);
+  const displayName = savedName ?? (type === 'COMPANION' ? wo.workWechatName : wo.csWorkWechatName) ?? (wo.workWechatId ? String(wo.workWechatId).slice(0, 8) : null);
 
   const startEdit = async () => {
     try {
@@ -38,8 +44,12 @@ const EditableWorkWechat: React.FC<{ order: any; onSaved?: (workWechatId: string
           const wx = wxs.find((w: any) => w.id === wid);
           const name = wx?.wechatId || '';
           try {
-            const http = (await import('../api/client')).default;
-            await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: name });
+            if (type === 'COMPANION') {
+              const http = (await import('../api/client')).default;
+              await http.put(`/orders/${order.id}/contact`, { workWechatId: wid, workWechatName: name });
+            } else {
+              await ordersApi.markCsContact(order.id, 'added', undefined, { workWechatId: wid, workWechatName: name });
+            }
             setSavedName(name);
             onSaved?.(wid, name);
           } catch {}
@@ -47,7 +57,7 @@ const EditableWorkWechat: React.FC<{ order: any; onSaved?: (workWechatId: string
           setEditing(false);
         }}
       >
-        {wxs.filter((w: any) => w.type === 'COMPANION').map((w: any) => (
+        {wxs.filter((w: any) => w.type === type).map((w: any) => (
           <Select.Option key={w.id} value={w.id}>
             {w.wechatId}
           </Select.Option>
