@@ -47,7 +47,7 @@ const EditableWorkWechat: React.FC<{ order: any; onSaved?: (workWechatId: string
           setEditing(false);
         }}
       >
-        {wxs.map((w: any) => (
+        {wxs.filter((w: any) => w.type === 'COMPANION').map((w: any) => (
           <Select.Option key={w.id} value={w.id}>
             {w.wechatId}
           </Select.Option>

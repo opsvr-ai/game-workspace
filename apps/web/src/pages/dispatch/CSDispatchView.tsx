@@ -1058,7 +1058,7 @@ const CSDispatchView: React.FC = () => {
               style={{ width: '100%', marginTop: 8 }}
               allowClear
             >
-              {workWechats.map((w: any) => (
+              {workWechats.filter((w: any) => w.type === 'STUDIO').map((w: any) => (
                 <Select.Option key={w.id} value={w.id}>
                   {w.wechatId}
                   {w.companion ? ` (${w.companion?.user?.username || w.companionId})` : ''}
