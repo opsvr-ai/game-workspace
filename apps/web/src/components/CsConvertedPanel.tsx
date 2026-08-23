@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Tag, Typography, message, Drawer, Descriptions, List, Space, Statistic, Row, Col } from 'antd';
+import { Button, Card, Tag, Typography, message, Space, Row, Col } from 'antd';
 import { ordersApi } from '../api/orders';
 import { useChatStore } from '../stores/chatStore';
-import { customerPaidToConfig } from '../constants';
 import OrderTable from './OrderTable';
 
 const { Text } = Typography;
@@ -14,7 +13,6 @@ const CsConvertedPanel: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [balances, setBalances] = useState<any[]>([]);
-  const [detailOrder, setDetailOrder] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
@@ -83,9 +81,37 @@ const CsConvertedPanel: React.FC = () => {
         </Tag>
       ),
     },
+    {
+      title: '资金流转',
+      key: 'money',
+      width: 240,
+      render: (_: any, r: any) => {
+        const feeStatus = r.companionFeeStatus === 'PAID' ? '已转' : '未转';
+        return (
+          <div style={{ fontSize: 12, lineHeight: 1.7 }}>
+            <div>
+              客户转：
+              <Text style={{ color: '#389e0d' }}>¥{(r.moneyIn || 0).toFixed(1)}</Text>
+              {r.customerPaymentAccountName ? <Text type="secondary">（{r.customerPaymentAccountName}）</Text> : null}
+            </div>
+            <div>
+              转陪玩：{companionName(r) || '-'}
+              {r.companionFeeAmount ? ` ¥${Number(r.companionFeeAmount).toFixed(1)}` : ''}
+              {r.companionFeeAmount ? <Text type={r.companionFeeStatus === 'PAID' ? 'success' : 'warning'} style={{ fontSize: 11 }}>（{feeStatus}）</Text> : null}
+            </div>
+            {r.bridgeReturn > 0 && (
+              <div>
+                桥接应返还：<Text style={{ color: '#d4380d' }}>¥{Number(r.bridgeReturn).toFixed(1)}</Text>
+              </div>
+            )}
+            <div>
+              转出合计：<Text style={{ color: '#d4380d' }}>¥{(r.moneyOut || 0).toFixed(1)}</Text>
+            </div>
+          </div>
+        );
+      },
+    },
   ];
-
-  const paidToLabel = (r: any) => customerPaidToConfig[r.customerPaidTo]?.label || r.customerPaidTo || '-';
 
   return (
     <div>
@@ -120,63 +146,15 @@ const CsConvertedPanel: React.FC = () => {
           dataSource={items}
           loading={loading}
           extraColumns={extraColumns}
-          renderActions={(r: any) => (
-            <Space size={4} wrap>
-              <Button size="small" onClick={() => setDetailOrder(r)}>资金明细</Button>
-              {r.addStatus !== '添加成功' && (
-                <Button size="small" type="primary" onClick={() => contactCompanion(r)}>询问陪玩</Button>
-              )}
-            </Space>
-          )}
+          renderActions={(r: any) =>
+            r.addStatus !== '添加成功' ? (
+              <Button size="small" type="primary" onClick={() => contactCompanion(r)}>
+                询问陪玩
+              </Button>
+            ) : null
+          }
         />
       </Card>
-
-      <Drawer
-        title="资金流转明细"
-        width={560}
-        open={!!detailOrder}
-        onClose={() => setDetailOrder(null)}
-      >
-        {detailOrder && (
-          <div>
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="订单">{detailOrder.gameName} · ¥{Number(detailOrder.amount).toFixed(0)} · {detailOrder.duration || '?'}h</Descriptions.Item>
-              <Descriptions.Item label="客服工作微信">{detailOrder.customFields?.csWorkWechatName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="客户付款方式">
-                {paidToLabel(detailOrder)}
-                {detailOrder.customerPaymentAccountName ? `（${detailOrder.customerPaymentAccountName}）` : ''}
-              </Descriptions.Item>
-              <Descriptions.Item label="客户转入">
-                <Text style={{ color: '#389e0d' }}>¥{(detailOrder.moneyIn || 0).toFixed(1)}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="转给陪玩">
-                {companionName(detailOrder) || '-'}
-                {detailOrder.companionFeeAmount ? ` ¥${Number(detailOrder.companionFeeAmount).toFixed(1)}（${detailOrder.companionFeeStatus === 'PAID' ? '已转' : '未转'}）` : '（未填写）'}
-              </Descriptions.Item>
-              <Descriptions.Item label="桥接应返还">
-                <Text style={{ color: '#d4380d' }}>¥{(detailOrder.bridgeReturn || 0).toFixed(1)}</Text>
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Text strong style={{ display: 'block', margin: '12px 0 8px' }}>资金流水</Text>
-            <List
-              size="small"
-              dataSource={detailOrder.moneyFlows || []}
-              locale={{ emptyText: '暂无资金流水' }}
-              renderItem={(f: any) => (
-                <List.Item>
-                  <Space>
-                    <Tag color={f.direction === 'IN' ? 'green' : 'red'}>{f.direction === 'IN' ? '转入' : '转出'}</Tag>
-                    <span>¥{Number(f.amount).toFixed(1)}</span>
-                    <span>{f.counterpart || '-'}</span>
-                    {f.note && <Text type="secondary" style={{ fontSize: 12 }}>{f.note}</Text>}
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </div>
-        )}
-      </Drawer>
     </div>
   );
 };
