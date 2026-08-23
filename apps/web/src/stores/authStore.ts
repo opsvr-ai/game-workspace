@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     sessionStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    try { ea?.logout(); } catch {}
+    try { await ea?.logout(); } catch {}
     set({ user: null, isAuthenticated: false });
   },
 
