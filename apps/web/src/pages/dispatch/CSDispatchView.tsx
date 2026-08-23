@@ -147,6 +147,7 @@ const CSDispatchView: React.FC = () => {
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
+  const [activeTab, setActiveTab] = useState('dispatch');
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(t);
@@ -384,7 +385,8 @@ const CSDispatchView: React.FC = () => {
   return (
     <div>
       <Tabs
-        defaultActiveKey="dispatch"
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: 'dispatch',
@@ -926,7 +928,7 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'pending',
             label: '订单池流转失败明细',
-            children: <UrgentOrdersPanel onDispatch={handleDispatch} />,
+            children: <UrgentOrdersPanel onDispatch={handleDispatch} onGotoFollowup={() => setActiveTab('followup')} />,
           },
           {
             key: 'followup',

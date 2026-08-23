@@ -6,9 +6,10 @@ import OrderRow from './OrderRow';
 
 interface Props {
   onDispatch?: (item: any) => void;
+  onGotoFollowup?: () => void;
 }
 
-const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
+const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
   const [items, setItems] = useState<any[]>([]);
   const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [contactOrder, setContactOrder] = useState<any>(null);
@@ -50,6 +51,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
     message.success('已标记添加，稍后在跟进列表确认成功/失败');
     setContactOrder(null);
     load();
+    onGotoFollowup?.();
   };
 
   if (items.length === 0) return null;
@@ -68,9 +70,9 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch }) => {
         <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
       ) : null}
       {r.csContactStatus !== 'added' && (
-        <Button size="small" onClick={() => openContact(r)}>添加客户</Button>
+        <Button size="small" onClick={() => openContact(r)}>跳转到直添客户跟进列表</Button>
       )}
-      <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>发布订单</Button>
+      <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>再次发布订单</Button>
     </Space>
   );
 
