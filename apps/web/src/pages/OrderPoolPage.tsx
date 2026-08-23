@@ -16,6 +16,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import CardSkeleton from '../components/CardSkeleton';
 import TierBadge from '../components/TierBadge';
+import OrderRow from '../components/OrderRow';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, STATUS_SORT } from '../constants/companions';
@@ -239,38 +240,22 @@ const OrderPoolPage: React.FC = () => {
   // Render a single pool card row
   const renderPoolCard = (order: any, idx: number) => {
     const fields = buildOrderInfoFields(order, now, disappearMinutes, scheduledDisappearMinutes);
+    const waitText = fields[10] || '';
+    const disappearText = fields[11] || '';
 
-    return (
-      <div
-        key={order.id}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '9px 12px',
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
-          fontSize: 13,
-          color: '#1f2329',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {fields.map((t, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
-            <span>{t}</span>
-          </React.Fragment>
-        ))}
-        <span style={{ flex: 1 }} />
+    const renderActions = (o: any) => (
+      <Space size={8}>
+        <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{waitText}</Text>
+        <Text type="warning" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{disappearText}</Text>
         {isCompanion ? (
-          <Space size={8}>
-            {order.companionId && <Text type="danger" style={{ fontSize: 12 }}>客服指定给你接</Text>}
-            <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
+          <>
+            {o.companionId && <Text type="danger" style={{ fontSize: 12 }}>客服指定给你接</Text>}
+            <Badge count={unreadMap[o.id] || 0} size="small" offset={[-4, 0]}>
               <Button
                 size="small"
                 icon={React.createElement(MessageOutlined)}
-                onClick={() => openChat(order)}
-                className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
+                onClick={() => openChat(o)}
+                className={(unreadMap[o.id] || 0) > 0 ? 'pulse-badge' : ''}
               >
                 沟通
               </Button>
@@ -279,25 +264,22 @@ const OrderPoolPage: React.FC = () => {
               type="primary"
               size="small"
               danger
-              disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
-              loading={grabbing === order.id}
-              onClick={() => handleGrab(order.id)}
+              disabled={!isUnlocked && o.csUser?.role !== 'COMPANION'}
+              loading={grabbing === o.id}
+              onClick={() => handleGrab(o.id)}
             >
-              {!isUnlocked && order.csUser?.role !== 'COMPANION'
+              {!isUnlocked && o.csUser?.role !== 'COMPANION'
                 ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
                 : '抢单'}
             </Button>
-          </Space>
+          </>
         ) : (
-          <Space size={8}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
-          </Space>
+          <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
         )}
-      </div>
+      </Space>
     );
+
+    return <OrderRow key={order.id} order={order} index={idx} renderActions={renderActions} />;
   };
 
   const renderCompanionSidebar = () => (
@@ -475,7 +457,7 @@ const OrderPoolPage: React.FC = () => {
 
           {isCompanion && (
             <Card size="small" style={{ marginTop: 16 }}>
-              <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
+              <Text type="secondary">💡 来源账号、客户昵称、客户账号ID仅管理端可见</Text>
             </Card>
           )}
         </Col>
