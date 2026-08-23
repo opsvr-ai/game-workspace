@@ -24,6 +24,7 @@ import { companionsApi } from '../../api/companions';
 import { useSocket } from '../../hooks/useSocket';
 import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
+import OrderRow from '../../components/OrderRow';
 import { useAuthStore } from '../../stores/authStore';
 
 import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig } from '../../constants/orders';
@@ -158,171 +159,44 @@ const PoolPage: React.FC = () => {
       {/* Horizontal order rows — all info in one row */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {orders.map((order: any, idx: number) => (
-          <Card
+          <OrderRow
             key={user?.companionId || order.id}
-            size="small"
-            style={{ borderLeft: `3px solid ${orderTypeConfig[order.type]?.color || '#1677ff'}` }}
-          >
-            <Row align="middle" gutter={8} wrap={false}>
-              <Col>
-                <Tag
-                  style={{
-                    background: '#f0f0f0',
-                    color: '#666',
-                    fontWeight: 700,
-                    minWidth: 24,
-                    textAlign: 'center',
-                    margin: 0,
-                  }}
-                >
-                  {idx + 1}
-                </Tag>
-              </Col>
-              {order.customer?.customerCode && (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    👤{order.customer.customerCode}
-                  </Text>
-                </Col>
-              )}
-              <Col>
-                <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
-                  {orderTypeConfig[order.type]?.label || order.type}
-                </Tag>
-              </Col>
-              <Col>
-                <Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>
-                  {order.gameName}
-                </Text>
-              </Col>
-              <Col>
-                <Tag color={serviceTypeConfig[order.serviceType]?.color || 'default'} style={{ margin: 0 }}>
-                  {serviceTypeConfig[order.serviceType]?.label || '陪玩'}
-                </Tag>
-              </Col>
-              {order.customFields?.deltaMission && (
-                <Col>
-                  <Tag style={{ margin: 0 }}>{order.customFields.deltaMission}</Tag>
-                </Col>
-              )}
-              {order.customFields?.deltaCount && (
-                <Col>
-                  <Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag>
-                </Col>
-              )}
-              {order.customFields?.deltaNote && (
-                <Col>
-                  <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                    📝{order.customFields.deltaNote}
-                  </Text>
-                </Col>
-              )}
-              <Col>
-                <Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>
-                  ¥{Number(order.amount).toFixed(0)}
-                </Text>
-              </Col>
-              <Col>
-                <Tag color={urgencyConfig[order.customFields?.urgency]?.color || 'green'} style={{ margin: 0 }}>
-                  {urgencyConfig[order.customFields?.urgency]?.label || '⚡立即打'}
-                </Tag>
-              </Col>
-              {order.customFields?.scheduledTimeText && (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {order.customFields.scheduledTimeText}
-                  </Text>
-                </Col>
-              )}
-              {(order.customFields?.customerSource || order.customer?.platform) && (
-                <Col>
-                  <Tag color="orange" style={{ margin: 0 }}>
-                    📡{order.customFields?.customerSource || order.customer?.platform}
-                  </Tag>
-                </Col>
-              )}
-              {order.customFields?.customerWechat && (
-                <Col>
-                  <Text style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                    💬{order.customFields.customerWechat}
-                  </Text>
-                </Col>
-              )}
-              {order.customFields?.customerYy && (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    YY:{order.customFields.customerYy}
-                  </Text>
-                </Col>
-              )}
-              {order.customFields?.customerPlatformAccount && (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    KOOK:{order.customFields.customerPlatformAccount}
-                  </Text>
-                </Col>
-              )}
-              {order.customFields?.customerRoomCode && (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    🚪{order.customFields.customerRoomCode}
-                  </Text>
-                </Col>
-              )}
-              <Col>
-                <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                  {billingModeConfig[order.customFields?.billingMode]?.label || '按时'}
-                  {order.customFields?.billingMode === 'round'
-                    ? ` ${order.duration || '?'}局`
-                    : order.duration
-                      ? ` ${order.duration}h`
-                      : ''}
-                </Text>
-              </Col>
-              <Col>
-                <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                  📋{order.csUser?.username || order.customFields?.createdBy || '-'}
-                </Text>
-              </Col>
-              <Col flex="auto" />
-              <Col>
-                <Space size={6}>
-                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    📋{order.csUser?.username || '-'}
-                  </Text>
-                  <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
-                    <Button
-                      size="small"
-                      icon={React.createElement(MessageOutlined)}
-                      onClick={() => openChat(order)}
-                      className={(unreadMap[order.id] || 0) > 0 ? 'pulse-badge' : ''}
-                    >
-                      沟通
-                    </Button>
-                  </Badge>
-                  <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                    {React.createElement(ClockCircleOutlined)}{' '}
-                    {(() => {
-                      const d = new Date(order.createdAt);
-                      return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                    })()}
-                  </Text>
+            order={order}
+            index={idx}
+            renderActions={(o) => (
+              <Space size={6}>
+                <Badge count={unreadMap[o.id] || 0} size="small" offset={[-4, 0]}>
                   <Button
-                    type="primary"
                     size="small"
-                    danger
-                    disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
-                    loading={grabbing === order.id}
-                    onClick={() => handleGrab(order.id)}
+                    icon={React.createElement(MessageOutlined)}
+                    onClick={() => openChat(o)}
+                    className={(unreadMap[o.id] || 0) > 0 ? 'pulse-badge' : ''}
                   >
-                    {!isUnlocked && order.csUser?.role !== 'COMPANION'
-                      ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
-                      : '抢单'}
+                    沟通
                   </Button>
-                </Space>
-              </Col>
-            </Row>
-          </Card>
+                </Badge>
+                <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                  {React.createElement(ClockCircleOutlined)}{' '}
+                  {(() => {
+                    const d = new Date(o.createdAt);
+                    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                  })()}
+                </Text>
+                <Button
+                  type="primary"
+                  size="small"
+                  danger
+                  disabled={!isUnlocked && o.csUser?.role !== 'COMPANION'}
+                  loading={grabbing === o.id}
+                  onClick={() => handleGrab(o.id)}
+                >
+                  {!isUnlocked && o.csUser?.role !== 'COMPANION'
+                    ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
+                    : '抢单'}
+                </Button>
+              </Space>
+            )}
+          />
         ))}
       </div>
 
