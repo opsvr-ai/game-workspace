@@ -667,8 +667,8 @@ export class CompanionsService {
 
   // ── Work WeChat Management ──
 
-  async listWorkWechats(studioId: string) {
-    return this.wechatService.listWorkWechats(studioId);
+  async listWorkWechats(studioId: string, user?: any) {
+    return this.wechatService.listWorkWechats(studioId, user);
   }
 
   async addWorkWechat(studioId: string, wechatId: string, type?: string) {

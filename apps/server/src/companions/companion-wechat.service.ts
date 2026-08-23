@@ -5,9 +5,22 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CompanionWechatService {
   constructor(private prisma: PrismaService) {}
 
-  async listWorkWechats(studioId: string) {
+  async listWorkWechats(studioId: string, user?: any) {
+    const where: any = { studioId };
+    // 陪玩选择微信：俱乐部里的陪玩只看自己的微信，工作室里的陪玩只看本工作室的陪玩微信
+    if (user?.role === 'COMPANION' && user.companionId) {
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: user.companionId },
+        select: { studio: { select: { type: true } } },
+      });
+      if (companion?.studio?.type === 'RENTAL') {
+        where.companionId = user.companionId;
+      } else {
+        where.type = 'COMPANION';
+      }
+    }
     return this.prisma.workWechat.findMany({
-      where: { studioId },
+      where,
       include: { companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } } },
     });
   }

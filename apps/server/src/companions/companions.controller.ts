@@ -209,7 +209,7 @@ export class CompanionsController {
   @Get('companions/work-wechats')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS, UserRole.COMPANION)
   async listWorkWechats(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listWorkWechats(req.user.studioId);
+    const data = await this.companionsService.listWorkWechats(req.user.studioId, req.user);
     return { code: 200, message: 'ok', data };
   }
 
