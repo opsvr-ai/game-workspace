@@ -26,7 +26,7 @@ import ChatModal from '../../components/ChatModal';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import { useAuthStore } from '../../stores/authStore';
 
-import { orderTypeConfig } from '../../constants/orders';
+import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig } from '../../constants/orders';
 
 const { Text, Title } = Typography;
 
@@ -165,20 +165,6 @@ const PoolPage: React.FC = () => {
           >
             <Row align="middle" gutter={8} wrap={false}>
               <Col>
-                <Tag
-                  style={{
-                    background: '#f0f0f0',
-                    color: '#666',
-                    fontWeight: 700,
-                    minWidth: 24,
-                    textAlign: 'center',
-                    margin: 0,
-                  }}
-                >
-                  {idx + 1}
-                </Tag>
-              </Col>
-              <Col>
                 <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
                   {orderTypeConfig[order.type]?.label || order.type}
                 </Tag>
@@ -189,9 +175,9 @@ const PoolPage: React.FC = () => {
                 </Text>
               </Col>
               <Col>
-                <Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>
-                  ¥{Number(order.amount).toFixed(0)}
-                </Text>
+                <Tag color={serviceTypeConfig[order.serviceType]?.color || 'default'} style={{ margin: 0 }}>
+                  {serviceTypeConfig[order.serviceType]?.label || '陪玩'}
+                </Tag>
               </Col>
               {order.customFields?.deltaMission && (
                 <Col>
@@ -203,10 +189,27 @@ const PoolPage: React.FC = () => {
                   <Tag style={{ margin: 0 }}>{order.customFields.deltaCount}</Tag>
                 </Col>
               )}
-              {order.customer?.customerCode && (
+              {order.customFields?.deltaNote && (
+                <Col>
+                  <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                    📝{order.customFields.deltaNote}
+                  </Text>
+                </Col>
+              )}
+              <Col>
+                <Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>
+                  ¥{Number(order.amount).toFixed(0)}
+                </Text>
+              </Col>
+              <Col>
+                <Tag color={urgencyConfig[order.customFields?.urgency]?.color || 'green'} style={{ margin: 0 }}>
+                  {urgencyConfig[order.customFields?.urgency]?.label || '⚡立即打'}
+                </Tag>
+              </Col>
+              {order.customFields?.scheduledTimeText && (
                 <Col>
                   <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    👤{order.customer.customerCode}
+                    {order.customFields.scheduledTimeText}
                   </Text>
                 </Col>
               )}
@@ -217,54 +220,44 @@ const PoolPage: React.FC = () => {
                   </Tag>
                 </Col>
               )}
-              {order.customFields?.deltaNote && (
+              {order.customFields?.customerWechat && (
                 <Col>
-                  <Text type="warning" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                    📝{order.customFields.deltaNote}
+                  <Text style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+                    💬{order.customFields.customerWechat}
                   </Text>
                 </Col>
               )}
-              {order.customFields?.urgency === 'later' && (
+              {order.customFields?.customerYy && (
                 <Col>
-                  <Tag color="purple" style={{ margin: 0 }}>
-                    📅预约
-                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    YY:{order.customFields.customerYy}
+                  </Text>
                 </Col>
               )}
-              {order.customFields?.urgency !== 'later' && (
+              {order.customFields?.customerPlatformAccount && (
                 <Col>
-                  <Tag color="green" style={{ margin: 0 }}>
-                    ⚡立即打
-                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    KOOK:{order.customFields.customerPlatformAccount}
+                  </Text>
+                </Col>
+              )}
+              {order.customFields?.customerRoomCode && (
+                <Col>
+                  <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                    🚪{order.customFields.customerRoomCode}
+                  </Text>
                 </Col>
               )}
               <Col>
-                <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                  发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
+                <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+                  {billingModeConfig[order.customFields?.billingMode]?.label || '按时'}
+                  {order.customFields?.billingMode === 'round'
+                    ? ` ${order.duration || '?'}局`
+                    : order.duration
+                      ? ` ${order.duration}h`
+                      : ''}
                 </Text>
               </Col>
-              {order.companionId && (
-                <Col>
-                  <Tag color="red" style={{ margin: 0, fontWeight: 600 }}>
-                    该订单客服指定给你接
-                  </Tag>
-                </Col>
-              )}
-              {order.customFields?.billingMode === 'round' ? (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                    🎯{order.duration || order.customFields?.deltaCount || '?'}局
-                  </Text>
-                </Col>
-              ) : (
-                order.duration && (
-                  <Col>
-                    <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                      ⏱{order.duration}h
-                    </Text>
-                  </Col>
-                )
-              )}
               <Col flex="auto" />
               <Col>
                 <Space size={6}>
