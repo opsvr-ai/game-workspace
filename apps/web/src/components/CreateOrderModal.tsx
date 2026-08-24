@@ -109,7 +109,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             }
           : {}),
       });
-      message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入待追踪' : '订单已发布');
+      message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入管理端直添客户跟进列表' : '订单已发布');
       form.resetFields();
       onClose();
       onCreated();
@@ -130,7 +130,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         onClose();
       }}
       confirmLoading={loading}
-      okText={customerPreFill ? '开始服务' : directAddMode ? '加入待追踪' : '发布'}
+      okText={customerPreFill ? '开始服务' : directAddMode ? '加入管理端直添客户跟进列表' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}
