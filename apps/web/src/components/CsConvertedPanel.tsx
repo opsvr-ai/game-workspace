@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Space, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
-import { useChatStore } from '../stores/chatStore';
 import { extractErrorMessage } from '../utils/error-handler';
 import OrderRow from './OrderRow';
 
@@ -27,25 +26,6 @@ const CsConvertedPanel: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
-  const chatWithCs = async (r: any) => {
-    const csUser = r.csUser;
-    if (!csUser?.id) return;
-    const participant = {
-      userId: csUser.id,
-      username: csUser.displayName || csUser.username || '客服',
-      displayName: csUser.displayName,
-      avatar: csUser.avatar,
-      role: csUser.role || 'CS',
-    };
-    const orderInfo = `${r.gameName} · ¥${Number(r.amount).toFixed(0)}`;
-    const convId = await useChatStore.getState().openConversation(csUser.id, participant as any, orderInfo);
-    window.dispatchEvent(
-      new CustomEvent('open-chat-modal', {
-        detail: { conversationId: convId, participant, orderInfo },
-      }),
-    );
-  };
-
   const markContact = async (r: any, status: 'added' | 'not_accepted') => {
     try {
       await ordersApi.updateContact(r.id, {
@@ -61,11 +41,6 @@ const CsConvertedPanel: React.FC = () => {
 
   const renderActions = (r: any) => (
     <Space size={4} wrap>
-      {r.csUser?.id && (
-        <Button size="small" onClick={() => chatWithCs(r)}>
-          沟通
-        </Button>
-      )}
       {r.contactStatus === 'added' ? (
         <Tag color="green">已添加</Tag>
       ) : r.contactStatus === 'not_accepted' ? (
