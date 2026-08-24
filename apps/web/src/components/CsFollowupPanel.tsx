@@ -39,10 +39,25 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal }) => {
     load();
   };
 
+  const redispatch = async (item: any) => {
+    try {
+      await ordersApi.redispatch(item.id);
+      message.success('已重新派单，进入抢单池');
+      load();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '重新派单失败');
+    }
+  };
+
   const renderActions = (r: any) => (
     <Space size={4} wrap>
       {r.contactStatus === 'added' ? (
-        <Tag color="green">已添加</Tag>
+        <>
+          <Tag color="green">已添加</Tag>
+          <Button size="small" type="primary" onClick={() => redispatch(r)}>
+            重新派单
+          </Button>
+        </>
       ) : r.contactStatus === 'not_accepted' ? (
         <Button size="small" type="primary" style={{ background: '#16A34A', borderColor: '#16A34A' }} onClick={() => markResult(r, 'passed')}>
           客户已同意
