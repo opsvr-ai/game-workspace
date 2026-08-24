@@ -318,14 +318,15 @@ export class OrdersService {
   }
 
   async findPool(companionId?: string, studioId?: string) {
-    if (!studioId) return [];
     const where: any = {
       status: 'PENDING',
       dispatchType: 'POOL',
       OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
     };
-    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-    where.studioId = { in: [studioId, ...bridgedIds] };
+    if (studioId) {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      where.studioId = { in: [studioId, ...bridgedIds] };
+    }
 
     const [priorityCfg, bridgeCfg, middleCfg, lowCfg, onlineCfg, studio] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.priority_delay_seconds' } }),
@@ -333,7 +334,9 @@ export class OrdersService {
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.middle_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.low_delay_seconds' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'pool.online_delay_seconds' } }),
-      this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } }),
+      studioId
+        ? this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } })
+        : null,
     ]);
     const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
     const bridgeDelay = Number(bridgeCfg?.value ?? 30) * 1000;
@@ -366,7 +369,9 @@ export class OrdersService {
     return orders.filter((o) => {
       if ((o.customFields as any)?.poolExpired) return false;
       let delay: number;
-      if (studioType === 'RENTAL') {
+      if (!studioId) {
+        delay = 0; // 老板（无工作室）看全部订单，立即可见
+      } else if (studioType === 'RENTAL') {
         delay = onlineDelay;
       } else if (o.studioId !== studioId) {
         delay = bridgeDelay; // 桥接工作室订单
@@ -720,7 +725,8 @@ export class OrdersService {
   }
 
   async listCsFollowup(studioId: string, user?: { id: string; role: string }) {
-    const where: any = { studioId, status: 'PENDING' };
+    const where: any = { status: 'PENDING' };
+    if (studioId) where.studioId = studioId;
     // 客服只看自己跟进的单，店长/老板看全工作室
     if (user && user.role === 'CS') where.csUserId = user.id;
     const orders = await this.prisma.order.findMany({
@@ -747,7 +753,8 @@ export class OrdersService {
 
   // 客服养好的客户重新派单后，被谁抢走、陪玩用什么微信、最终去了线下/桥接/线上
   async listCsConverted(studioId: string, user?: { id: string; role: string }) {
-    const where: any = { studioId, companionId: { not: null } };
+    const where: any = { companionId: { not: null } };
+    if (studioId) where.studioId = studioId;
     if (user && user.role === 'CS') where.csUserId = user.id;
     const bridgeCfg = await this.prisma.systemConfig.findUnique({
       where: { key: 'pool.bridge_return_jueju_cents' },
