@@ -437,13 +437,15 @@ app.whenReady().then(() => {
       mainWindow?.focus();
     },
     onQuit: async () => {
-      // Password-protected graceful exit
-      try {
-        const ok = await promptPassword('退出确认');
-        if (!ok) return;
-        await signalAuthorizedExit();
-      } catch {
-        return;
+      // 只有陪玩端需要密码退出，客服/店长/老板直接退出
+      if (currentRole === 'COMPANION') {
+        try {
+          const ok = await promptPassword('退出确认');
+          if (!ok) return;
+          await signalAuthorizedExit();
+        } catch {
+          return;
+        }
       }
       isQuitting = true;
       app.quit();
