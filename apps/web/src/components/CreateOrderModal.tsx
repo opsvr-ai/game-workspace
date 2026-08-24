@@ -35,6 +35,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
+  const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [transferUrl, setTransferUrl] = useState('');
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -46,6 +47,15 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         .then(({ data }: any) => setCompanions(data.data || []))
         .catch(() => {});
   }, [open]);
+
+  useEffect(() => {
+    if (open && directAddMode) {
+      companionsApi
+        .listWorkWechats()
+        .then(({ data }: any) => setWorkWechats(data?.data || []))
+        .catch(() => setWorkWechats([]));
+    }
+  }, [open, directAddMode]);
 
   useEffect(() => {
     if (open && customerPreFill) {
@@ -83,12 +93,21 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         setLoading(false);
         return;
       }
+      const workWechat = workWechats.find((w: any) => w.id === (v as any).workWechatId);
       await ordersApi.create({
         ...v,
         csUserId: userId,
         isCompensation: (v as any).isCompensation,
         transferScreenshotUrl: transferUrl || undefined,
-        ...(directAddMode ? { directAdd: true, dispatchType: 'POOL', urgency: 'later' } : {}),
+        ...(directAddMode
+          ? {
+              directAdd: true,
+              dispatchType: 'POOL',
+              urgency: 'later',
+              workWechatId: (v as any).workWechatId,
+              workWechatName: workWechat?.wechatId,
+            }
+          : {}),
       });
       message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入待追踪' : '订单已发布');
       form.resetFields();
@@ -308,6 +327,23 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             </Form.Item>
           </Input.Group>
         </Form.Item>
+        {directAddMode && (
+          <Form.Item
+            name="workWechatId"
+            label="工作微信（用哪个微信添加客户）"
+            rules={[{ required: true, message: '请选择添加客户用的工作微信' }]}
+          >
+            <Select placeholder="选择工作微信" allowClear>
+              {workWechats
+                .filter((w: any) => w.type === 'STUDIO')
+                .map((w: any) => (
+                  <Option key={w.id} value={w.id}>
+                    {w.wechatId}
+                  </Option>
+                ))}
+            </Select>
+          </Form.Item>
+        )}
         <Form.Item label="客户微信二维码（没有微信文字时上传）">
           <Upload
             beforeUpload={async (file) => {

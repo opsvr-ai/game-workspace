@@ -126,6 +126,8 @@ export class OrdersService {
           customerWechatQr: (dto as any).customerWechatQr || undefined,
           customerRoomCode: dto.customerRoomCode,
           customerYy: (dto as any).customerYy,
+          csWorkWechatId: (dto as any).workWechatId || undefined,
+          csWorkWechatName: (dto as any).workWechatName || undefined,
           deltaMission: (dto as any).deltaMission,
           deltaCount: (dto as any).deltaCount,
           deltaNote: (dto as any).deltaNote,

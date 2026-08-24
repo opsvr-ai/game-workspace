@@ -48,4 +48,6 @@ export class CreateOrderDto {
   @IsOptional() @IsBoolean() isCompensation?: boolean;
   @IsOptional() @IsString() transferScreenshotUrl?: string;
   @IsOptional() @IsBoolean() directAdd?: boolean;
+  @IsOptional() @IsString() workWechatId?: string;
+  @IsOptional() @IsString() workWechatName?: string;
 }
