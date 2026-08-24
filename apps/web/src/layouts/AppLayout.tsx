@@ -932,7 +932,7 @@ const AppLayout: React.FC = () => {
           return {
             ...item,
             children: item.children.map((child: any) => {
-              if (REVIEW_LABELS.includes(child.label) && pCount > 0) {
+              if (!child.children && REVIEW_LABELS.includes(child.label) && pCount > 0) {
                 return {
                   ...child,
                   label: (
@@ -949,7 +949,7 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
-              if (child.label === '工作室桥接' && bpCount > 0) {
+              if (!child.children && child.label === '工作室桥接' && bpCount > 0) {
                 return {
                   ...child,
                   label: (
@@ -971,7 +971,7 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
-              if (child.label === '报账系统' && bCount > 0) {
+              if (!child.children && child.label === '报账系统' && bCount > 0) {
                 return {
                   ...child,
                   label: (
@@ -988,7 +988,7 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
-              if (REVIEW_WORK_LABELS.includes(child.label) && rvCount > 0) {
+              if (!child.children && REVIEW_WORK_LABELS.includes(child.label) && rvCount > 0) {
                 return {
                   ...child,
                   label: (
@@ -1010,7 +1010,7 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
-              if (CHAT_LABELS.includes(child.label) && totalUnread > 0) {
+              if (!child.children && CHAT_LABELS.includes(child.label) && totalUnread > 0) {
                 return {
                   ...child,
                   label: (
