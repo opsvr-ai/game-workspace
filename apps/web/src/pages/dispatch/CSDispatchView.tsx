@@ -148,6 +148,7 @@ const CSDispatchView: React.FC = () => {
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
   const [activeTab, setActiveTab] = useState('dispatch');
+  const [customerRefresh, setCustomerRefresh] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(t);
@@ -386,7 +387,12 @@ const CSDispatchView: React.FC = () => {
     <div>
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => {
+          setActiveTab(key);
+          if (key === 'followup' || key === 'converted') {
+            setCustomerRefresh((v) => v + 1);
+          }
+        }}
         items={[
           {
             key: 'dispatch',
@@ -933,12 +939,12 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'followup',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户跟进列表</span>,
-            children: <CsFollowupPanel />,
+            children: <CsFollowupPanel refreshSignal={customerRefresh} />,
           },
           {
             key: 'converted',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户流转明细</span>,
-            children: <CsConvertedPanel />,
+            children: <CsConvertedPanel refreshSignal={customerRefresh} />,
           },
         ]}
       />

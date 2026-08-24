@@ -4,7 +4,11 @@ import { ordersApi } from '../api/orders';
 import { extractErrorMessage } from '../utils/error-handler';
 import OrderRow from './OrderRow';
 
-const CsConvertedPanel: React.FC = () => {
+interface Props {
+  refreshSignal?: number;
+}
+
+const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +29,10 @@ const CsConvertedPanel: React.FC = () => {
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (refreshSignal) load();
+  }, [refreshSignal]);
 
   const markContact = async (r: any, status: 'added' | 'not_accepted') => {
     try {

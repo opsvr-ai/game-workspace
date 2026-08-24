@@ -3,7 +3,11 @@ import { Button, Card, Space, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import OrderRow from './OrderRow';
 
-const CsFollowupPanel: React.FC = () => {
+interface Props {
+  refreshSignal?: number;
+}
+
+const CsFollowupPanel: React.FC<Props> = ({ refreshSignal }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +28,10 @@ const CsFollowupPanel: React.FC = () => {
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (refreshSignal) load();
+  }, [refreshSignal]);
 
   const markResult = async (item: any, addResult: 'passed' | 'failed') => {
     await ordersApi.markCsContact(item.id, 'added', undefined, { addResult });
