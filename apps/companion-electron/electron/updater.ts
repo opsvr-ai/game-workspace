@@ -229,7 +229,11 @@ async function downloadAndInstallWithRedirects(
 export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
   try {
     const serverUrl = getServerUrl();
-    const url = downloadUrl || `${serverUrl}/api/agent/download/latest`;
+    const url = downloadUrl
+      ? downloadUrl.startsWith('http')
+        ? downloadUrl
+        : `${serverUrl}${downloadUrl}`
+      : `${serverUrl}/api/agent/download/latest`;
     // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
     const staggerMs = Math.floor(Math.random() * 60_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
