@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Row,
   Col,
@@ -147,8 +147,13 @@ const CSDispatchView: React.FC = () => {
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
-  const [activeTab, setActiveTab] = useState('dispatch');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'followup' ? 'followup' : 'dispatch';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [customerRefresh, setCustomerRefresh] = useState(0);
+  useEffect(() => {
+    if (searchParams.get('tab') === 'followup') setActiveTab('followup');
+  }, [searchParams]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(t);

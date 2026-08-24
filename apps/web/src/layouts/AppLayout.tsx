@@ -918,7 +918,7 @@ const AppLayout: React.FC = () => {
     const rvCount = reviewBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
-    const CONTACT_LABELS = ['订单管理'];
+    const CONTACT_LABELS = ['派单工作台'];
     const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
     return items.map((item) => {
       // Check children (group items) for badge targets
@@ -928,7 +928,8 @@ const AppLayout: React.FC = () => {
         const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
         const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && totalUnread > 0);
         const hasReview = item.children.some((c: any) => REVIEW_WORK_LABELS.includes(c.label) && rvCount > 0);
-        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview) {
+        const hasContact = item.children.some((c: any) => CONTACT_LABELS.includes(c.label) && cCount > 0);
+        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview || hasContact) {
           return {
             ...item,
             children: item.children.map((child: any) => {
@@ -1032,6 +1033,29 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
+              if (!child.children && CONTACT_LABELS.includes(child.label) && cCount > 0) {
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        markContactSeen();
+                        navigate(`${child.key}?tab=followup`);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge
+                        count={cCount}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: '0 0 10px #F59E0B' }}
+                      />
+                    </span>
+                  ),
+                };
+              }
               return child;
             }),
           };
@@ -1067,17 +1091,6 @@ const AppLayout: React.FC = () => {
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
               <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
-            </span>
-          ),
-        };
-      }
-      if (CONTACT_LABELS.includes(item.label as string) && cCount > 0) {
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {item.label}
-              <Badge count={cCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #F59E0B' }} />
             </span>
           ),
         };
@@ -1122,7 +1135,6 @@ const AppLayout: React.FC = () => {
     markSeen();
     markBridgeSeen();
     markBillingSeen();
-    markContactSeen();
     navigate(key);
   };
 
