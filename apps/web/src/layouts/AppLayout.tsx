@@ -491,19 +491,31 @@ const AppLayout: React.FC = () => {
 
   // 工作抽查 badge（ADMIN/OWNER）
   const [reviewBadge, setReviewBadge] = React.useState(0);
+  const reviewSeenRef = React.useRef(0);
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
     const doFetch = async () => {
       try {
         const { data } = await http.get('/admin/review-queue-count');
         const count = data.data?.count || 0;
-        setReviewBadge((prev) => Math.max(prev, count));
+        if (reviewSeenRef.current > count) {
+          reviewSeenRef.current = count;
+        }
+        setReviewBadge(Math.max(0, count - reviewSeenRef.current));
       } catch {}
     };
     doFetch();
     const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
   }, [user?.role]);
+
+  const markReviewSeen = () => {
+    setReviewBadge((prev) => {
+      const total = prev + reviewSeenRef.current;
+      reviewSeenRef.current = total;
+      return 0;
+    });
+  };
 
   const markBillingSeen = () => {
     setBillingBadge((prev) => {
@@ -940,6 +952,7 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        markSeen();
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -957,6 +970,7 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        markBridgeSeen();
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -979,6 +993,7 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        markBillingSeen();
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -996,6 +1011,7 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        markReviewSeen();
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1132,9 +1148,10 @@ const AppLayout: React.FC = () => {
   }, [location.pathname, menuItems]);
 
   const onMenuClick: MenuProps['onClick'] = ({ key }) => {
-    markSeen();
-    markBridgeSeen();
-    markBillingSeen();
+    // 只清掉对应页面的角标，避免点其他菜单误清
+    if (key.includes('/review')) markSeen();
+    if (key.includes('bridges')) markBridgeSeen();
+    if (key.includes('/billing')) markBillingSeen();
     navigate(key);
   };
 
