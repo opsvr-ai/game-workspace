@@ -390,7 +390,7 @@ const CSDispatchView: React.FC = () => {
         items={[
           {
             key: 'dispatch',
-            label: '派单工作台',
+            label: <span style={{ color: '#1677ff', fontWeight: 600 }}>派单工作台</span>,
             children: (
               <>
                 <div
@@ -927,17 +927,17 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'pending',
-            label: '订单池流转失败明细',
+            label: <span style={{ color: '#1677ff', fontWeight: 600 }}>订单池流转失败明细</span>,
             children: <UrgentOrdersPanel onDispatch={handleDispatch} onGotoFollowup={() => setActiveTab('followup')} />,
           },
           {
             key: 'followup',
-            label: '管理端直添客户跟进列表',
+            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户跟进列表</span>,
             children: <CsFollowupPanel />,
           },
           {
             key: 'converted',
-            label: '管理端直添客户流转明细',
+            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户流转明细</span>,
             children: <CsConvertedPanel />,
           },
         ]}
