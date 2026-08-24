@@ -50,4 +50,5 @@ export class CreateOrderDto {
   @IsOptional() @IsBoolean() directAdd?: boolean;
   @IsOptional() @IsString() workWechatId?: string;
   @IsOptional() @IsString() workWechatName?: string;
+  @IsOptional() @IsBoolean() csCultivated?: boolean;
 }

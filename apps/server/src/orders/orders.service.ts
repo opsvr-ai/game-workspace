@@ -128,6 +128,7 @@ export class OrdersService {
           customerYy: (dto as any).customerYy,
           csWorkWechatId: (dto as any).workWechatId || undefined,
           csWorkWechatName: (dto as any).workWechatName || undefined,
+          csCultivated: (dto as any).csCultivated === true ? true : undefined,
           deltaMission: (dto as any).deltaMission,
           deltaCount: (dto as any).deltaCount,
           deltaNote: (dto as any).deltaNote,
@@ -711,7 +712,10 @@ export class OrdersService {
     const cf = (order.customFields as any) || {};
     return this.prisma.order.update({
       where: { id: orderId },
-      data: { customFields: { ...cf, poolHandled: true, poolHandledAt: new Date().toISOString() } },
+      data: {
+        contactStatus: null,
+        customFields: { ...cf, poolHandled: true, poolHandledAt: new Date().toISOString() },
+      },
     });
   }
 

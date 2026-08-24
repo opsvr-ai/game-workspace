@@ -297,6 +297,9 @@ const CSDispatchView: React.FC = () => {
       customerPlatformAccount: cf.customerPlatformAccount,
       customerRoomCode: cf.customerRoomCode,
       customerWechatQr: cf.customerWechatQr,
+      csCultivated: cf.csCultivated === true,
+      workWechatId: cf.csWorkWechatId,
+      workWechatName: cf.csWorkWechatName,
       urgency: item.isScheduled ? 'later' : 'now',
       scheduledTimeText: cf.scheduledTimeText,
     });
@@ -939,7 +942,7 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'followup',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户跟进列表</span>,
-            children: <CsFollowupPanel refreshSignal={customerRefresh} />,
+            children: <CsFollowupPanel refreshSignal={customerRefresh} onDispatch={handleDispatch} />,
           },
           {
             key: 'converted',

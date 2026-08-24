@@ -5,9 +5,10 @@ import OrderRow from './OrderRow';
 
 interface Props {
   refreshSignal?: number;
+  onDispatch?: (item: any) => void;
 }
 
-const CsFollowupPanel: React.FC<Props> = ({ refreshSignal }) => {
+const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -39,22 +40,12 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal }) => {
     load();
   };
 
-  const redispatch = async (item: any) => {
-    try {
-      await ordersApi.redispatch(item.id);
-      message.success('已重新派单，进入抢单池');
-      load();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '重新派单失败');
-    }
-  };
-
   const renderActions = (r: any) => (
     <Space size={4} wrap>
       {r.contactStatus === 'added' ? (
         <>
           <Tag color="green">已添加</Tag>
-          <Button size="small" type="primary" onClick={() => redispatch(r)}>
+          <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>
             重新派单
           </Button>
         </>

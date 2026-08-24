@@ -93,19 +93,23 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         setLoading(false);
         return;
       }
+      const prefill: any = initialValues || {};
       const workWechat = workWechats.find((w: any) => w.id === (v as any).workWechatId);
+      const workWechatId = (v as any).workWechatId || prefill.workWechatId || undefined;
+      const workWechatName = (v as any).workWechatId ? workWechat?.wechatId : prefill.workWechatName;
       await ordersApi.create({
         ...v,
         csUserId: userId,
         isCompensation: (v as any).isCompensation,
         transferScreenshotUrl: transferUrl || undefined,
+        csCultivated: prefill.csCultivated === true ? true : undefined,
+        workWechatId,
+        workWechatName,
         ...(directAddMode
           ? {
               directAdd: true,
               dispatchType: 'POOL',
               urgency: 'later',
-              workWechatId: (v as any).workWechatId,
-              workWechatName: workWechat?.wechatId,
             }
           : {}),
       });
