@@ -186,31 +186,37 @@ func ensureUpdateDir() {
 }
 
 type updateRequest struct {
-	URL string `json:"url"`
+	URL       string `json:"url"`
+	LocalPath string `json:"localPath"`
 }
 
-// downloadAndExtract 下载 zip 并解压覆盖到目标目录（去掉 win-unpacked 顶层前缀）。
-func downloadAndExtract(url, destDir string) error {
-	safeInfo(fmt.Sprintf("Downloading update: %s", url))
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("download status %d", resp.StatusCode)
-	}
-	tmp := filepath.Join(os.TempDir(), "chunlv-update.zip")
-	f, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	if _, err = io.Copy(f, resp.Body); err != nil {
+// downloadAndExtract 下载（或使用本地已下载文件）zip 并解压覆盖到目标目录（去掉 win-unpacked 顶层前缀）。
+func downloadAndExtract(url, localPath, destDir string) error {
+	tmp := ""
+	if localPath != "" {
+		tmp = localPath
+	} else {
+		safeInfo(fmt.Sprintf("Downloading update: %s", url))
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("download status %d", resp.StatusCode)
+		}
+		tmp = filepath.Join(os.TempDir(), "chunlv-update.zip")
+		f, err := os.Create(tmp)
+		if err != nil {
+			return err
+		}
+		if _, err = io.Copy(f, resp.Body); err != nil {
+			f.Close()
+			return err
+		}
 		f.Close()
-		return err
+		defer os.Remove(tmp)
 	}
-	f.Close()
-	defer os.Remove(tmp)
 
 	zr, err := zip.OpenReader(tmp)
 	if err != nil {
@@ -260,7 +266,7 @@ func checkForUpdate(installDir string) {
 	safeInfo("Update signal received")
 	killAllClientProcesses()
 	time.Sleep(2 * time.Second)
-	if err := downloadAndExtract(req.URL, installDir); err != nil {
+	if err := downloadAndExtract(req.URL, req.LocalPath, installDir); err != nil {
 		safeWarn(fmt.Sprintf("update failed: %v", err))
 		// 下载/解压失败时也要清掉信号文件，否则每 5 秒都会重新下载一遍，
 		// 造成全机反复下载大安装包、卡顿、并不断杀死/重启客户端。

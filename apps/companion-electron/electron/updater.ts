@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { getServerUrl } from './config';
 import { store } from './store';
 import { logger } from './logger';
@@ -8,16 +8,121 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 
 // 更新信号：陪玩端（普通权限）写入，SystemHelper 服务（系统权限）轮询并执行下载解压。
-function signalUpdate(downloadUrl: string): void {
+function signalUpdate(downloadUrl: string, localPath?: string): void {
   const dir = 'C:\\ProgramData\\chunlv';
   const file = path.join(dir, 'update.json');
   try {
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ url: downloadUrl }), 'utf-8');
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ url: downloadUrl, ...(localPath ? { localPath } : {}) }),
+      'utf-8',
+    );
     logger.info('Update signal written', { file });
   } catch (err: any) {
     logger.warn('Failed to write update signal', { error: err?.message || err });
   }
+}
+
+let updateWindow: BrowserWindow | null = null;
+
+function showUpdateWindow(): void {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.show();
+    updateWindow.focus();
+    return;
+  }
+  updateWindow = new BrowserWindow({
+    width: 420,
+    height: 190,
+    frame: false,
+    resizable: false,
+    movable: false,
+    alwaysOnTop: true,
+    center: true,
+    skipTaskbar: false,
+    backgroundColor: '#0F172A',
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0F172A;color:#E2E8F0;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
+    h2{font-size:18px;margin-bottom:12px}
+    .bar{width:320px;height:10px;background:#1E293B;border-radius:5px;overflow:hidden;margin-bottom:10px}
+    .fill{width:0%;height:100%;background:linear-gradient(90deg,#00D4FF,#0099CC);transition:width .2s}
+    #text{font-size:13px;color:#94A3B8}
+  </style></head><body>
+    <h2>🔧 正在更新，请稍候…</h2>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div id="text">准备下载…</div>
+  </body></html>`;
+  updateWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  updateWindow.on('closed', () => { updateWindow = null; });
+}
+
+function setUpdateProgress(percent: number): void {
+  if (!updateWindow || updateWindow.isDestroyed()) return;
+  updateWindow.webContents
+    .executeJavaScript(
+      `document.getElementById('fill').style.width='${percent}%';document.getElementById('text').textContent='已下载 ${percent}%';`,
+    )
+    .catch(() => {});
+}
+
+function downloadZipWithProgress(
+  url: string,
+  dest: string,
+  onProgress: (p: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https')
+      ? (require('https') as typeof import('https'))
+      : (require('http') as typeof import('http'));
+    const req = protocol.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error(`下载失败: HTTP ${res.statusCode}`));
+        return;
+      }
+      const total = parseInt(res.headers['content-length'] || '0', 10);
+      let received = 0;
+      const file = fs.createWriteStream(dest);
+      res.on('data', (chunk) => {
+        received += chunk.length;
+        if (total > 0) onProgress(Math.min(100, Math.round((received / total) * 100)));
+      });
+      res.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve();
+      });
+      file.on('error', reject);
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(300_000, () => {
+      req.destroy();
+      reject(new Error('下载超时'));
+    });
+  });
+}
+
+async function performUpdate(downloadUrl: string): Promise<void> {
+  const localDir = 'C:\\ProgramData\\chunlv';
+  const localZip = path.join(localDir, 'update.zip');
+  try {
+    showUpdateWindow();
+    fs.mkdirSync(localDir, { recursive: true });
+    await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
+    setUpdateProgress(100);
+    signalUpdate(downloadUrl, localZip);
+    logger.info('Update downloaded, handing off to SystemHelper', { localZip });
+  } catch (err: any) {
+    logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
+    signalUpdate(downloadUrl);
+  }
+  // 给用户一点时间看到 100%，再退出交给 SystemHelper 解压重启
+  setTimeout(() => { app.exit(0); }, 1200);
 }
 
 /**
@@ -80,8 +185,7 @@ export async function checkForUpdates(): Promise<void> {
       ? downloadUrl
       : `${serverUrl}${downloadUrl}`;
 
-    signalUpdate(fullDownloadUrl);
-    app.exit(0);
+    await performUpdate(fullDownloadUrl);
   } catch (err: any) {
     logger.warn('Update check failed (non-fatal)', { error: err.message });
   } finally {
@@ -238,8 +342,7 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
     const staggerMs = Math.floor(Math.random() * 60_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url });
-    signalUpdate(url);
-    app.exit(0);
+    await performUpdate(url);
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }
