@@ -44,11 +44,13 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
       return;
     }
     const wx = workWechats.find((w: any) => w.id === contactWechatId);
+    const alreadyCultivated = contactOrder.customFields?.csCultivated === true;
     await ordersApi.markCsContact(contactOrder.id, 'added', undefined, {
       workWechatId: contactWechatId,
       workWechatName: wx?.wechatId,
+      ...(alreadyCultivated ? { addResult: 'passed' } : {}),
     });
-    message.success('已标记添加，稍后在跟进列表确认成功/失败');
+    message.success(alreadyCultivated ? '已回到跟进列表（保持已添加）' : '已标记添加，稍后在跟进列表确认成功/失败');
     setContactOrder(null);
     load();
     onGotoFollowup?.();
