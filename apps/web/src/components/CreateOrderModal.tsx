@@ -3,6 +3,7 @@ import React, { memo, useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, InputNumber, message, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import { trafficAccountApi } from '../api/trafficAccount';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 
@@ -36,6 +37,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
   const [workWechats, setWorkWechats] = useState<any[]>([]);
+  const [trafficAccounts, setTrafficAccounts] = useState<any[]>([]);
   const [transferUrl, setTransferUrl] = useState('');
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -46,6 +48,14 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         .list()
         .then(({ data }: any) => setCompanions(data.data || []))
         .catch(() => {});
+  }, [open]);
+
+  useEffect(() => {
+    if (open)
+      trafficAccountApi
+        .list('studio')
+        .then(({ data }: any) => setTrafficAccounts(data.data || []))
+        .catch(() => setTrafficAccounts([]));
   }, [open]);
 
   useEffect(() => {
@@ -285,7 +295,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         <Form.Item label="客户来源" required>
           <Input.Group compact>
             <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
-              <Select placeholder="来源" style={{ width: '35%' }}>
+              <Select placeholder="来源" style={{ width: '30%' }}>
                 <Option value="小红书">小红书</Option>
                 <Option value="抖音">抖音</Option>
                 <Option value="快手">快手</Option>
@@ -294,10 +304,35 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 <Option value="视频号">视频号</Option>
                 <Option value="转介绍">转介绍</Option>
                 <Option value="其他">其他</Option>
+                {trafficAccounts
+                  .map((a) => a.type)
+                  .filter((t, i, arr) => t && arr.indexOf(t) === i)
+                  .filter((t) => !['小红书', '抖音', '快手', '咸鱼', 'B站', '视频号', '转介绍', '其他'].includes(t))
+                  .map((t) => (
+                    <Option key={t} value={t}>
+                      {t}
+                    </Option>
+                  ))}
               </Select>
             </Form.Item>
             <Form.Item name="customerSourceAccount" noStyle>
-              <Input style={{ width: '65%' }} placeholder="来源账号（如小红书ID/抖音号）" />
+              <Select
+                style={{ width: '70%' }}
+                placeholder="选择引流账号"
+                showSearch
+                optionFilterProp="label"
+                allowClear
+                onChange={(nickname: string) => {
+                  const acc = trafficAccounts.find((a) => a.nickname === nickname);
+                  if (acc?.type) form.setFieldsValue({ customerSource: acc.type });
+                }}
+              >
+                {trafficAccounts.map((a) => (
+                  <Option key={a.id} value={a.nickname} label={`${a.type} - ${a.nickname}`}>
+                    {a.type} - {a.nickname}（{a.user?.displayName || a.user?.username || '未知'}）
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
           </Input.Group>
         </Form.Item>

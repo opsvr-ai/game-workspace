@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
@@ -12,8 +12,8 @@ export class TrafficAccountController {
   constructor(private readonly service: TrafficAccountService) {}
 
   @Get()
-  async list(@Req() req: any): Promise<ApiResponse<unknown>> {
-    return { code: 200, message: 'ok', data: await this.service.list(req.user) };
+  async list(@Req() req: any, @Query('scope') scope?: string): Promise<ApiResponse<unknown>> {
+    return { code: 200, message: 'ok', data: await this.service.list(req.user, scope) };
   }
 
   @Post()

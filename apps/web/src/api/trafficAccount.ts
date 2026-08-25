@@ -33,7 +33,7 @@ export interface TrafficAccountItem {
 }
 
 export const trafficAccountApi = {
-  list: () => http.get('/traffic-accounts'),
+  list: (scope?: string) => http.get('/traffic-accounts', { params: scope ? { scope } : undefined }),
   create: (data: any) =>
     http.post('/traffic-accounts', data),
   update: (id: string, data: any) =>

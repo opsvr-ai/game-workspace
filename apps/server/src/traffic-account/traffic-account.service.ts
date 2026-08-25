@@ -5,9 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TrafficAccountService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(user: any) {
+  async list(user: any, scope?: string) {
     const where: any = {};
-    if (user.role === 'COMPANION' || user.role === 'CS') {
+    if (scope === 'studio') {
+      // 发布订单等场景：显示本工作室全部引流账号（客服可替请假的同事看账号）
+      if (user.studioId) where.studioId = user.studioId;
+    } else if (user.role === 'COMPANION' || user.role === 'CS') {
       where.userId = user.id;
     } else if (user.studioId) {
       where.studioId = user.studioId;
