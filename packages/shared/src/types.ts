@@ -29,6 +29,7 @@ export interface UserInfo {
   username: string;
   role: UserRole;
   studioId: string | null;
+  studioName?: string | null;
   companionId?: string;
   displayName?: string | null;
   avatar?: string | null;

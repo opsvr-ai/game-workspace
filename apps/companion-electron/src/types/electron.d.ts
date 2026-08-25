@@ -21,6 +21,8 @@ export interface ElectronAPI {
   showWindow: () => Promise<void>;
   hideWindow: () => Promise<void>;
   onStatusChanged: (status: string) => void;
+  setRole?: (role: string) => void;
+  setStudioName?: (name: string) => void;
   onWsEvent: (channel: string, callback: (...args: any[]) => void) => () => void;
   executeRemoteDeploy: (script: string) => Promise<{ success: boolean; output: string }>;
 }

@@ -19,7 +19,10 @@ export class AuthService {
   async login(dto: LoginDto): Promise<LoginResponse> {
     const user = await this.prisma.user.findUnique({
       where: { username: dto.username },
-      include: { companion: { select: { id: true } } },
+      include: {
+        companion: { select: { id: true } },
+        studio: { select: { name: true, displayName: true } },
+      },
     });
 
     if (!user) {
@@ -70,6 +73,7 @@ export class AuthService {
       username: user.username,
       role: user.role as UserRole,
       studioId: user.studioId,
+      studioName: user.studio?.displayName || user.studio?.name || null,
       companionId: user.companion?.id,
       displayName: user.displayName,
       avatar: user.avatar,
@@ -132,7 +136,10 @@ export class AuthService {
   async getMe(userId: string): Promise<UserInfo> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { companion: { select: { id: true } } },
+      include: {
+        companion: { select: { id: true } },
+        studio: { select: { name: true, displayName: true } },
+      },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
     // Include pending review count for OWNER/ADMIN
@@ -149,6 +156,7 @@ export class AuthService {
       username: user.username,
       role: user.role as UserRole,
       studioId: user.studioId,
+      studioName: user.studio?.displayName || user.studio?.name || null,
       companionId: user.companion?.id,
       displayName: user.displayName,
       avatar: user.avatar,

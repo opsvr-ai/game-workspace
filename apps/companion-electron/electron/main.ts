@@ -14,7 +14,7 @@ import { getServerUrl } from './config';
 import { logger } from './logger';
 import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
-import { createTray } from './tray';
+import { createTray, updateTrayTooltip } from './tray';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged } from './screen-lock';
 
@@ -288,6 +288,13 @@ function setupIPC(): void {
   ipcMain.on('auth:setRole', (_e, role: string) => {
     if (typeof role === 'string' && role) {
       currentRole = role;
+    }
+  });
+  ipcMain.on('auth:setStudioName', (_e, name: string) => {
+    if (typeof name === 'string' && name.trim()) {
+      const clean = name.trim();
+      mainWindow?.setTitle(`${clean} v${app.getVersion()}`);
+      updateTrayTooltip(clean);
     }
   });
   ipcMain.handle('folder:open', (_e, path: string) => {

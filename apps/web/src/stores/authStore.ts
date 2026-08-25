@@ -24,6 +24,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try { (window as any).electronAPI?.storeSet('token', accessToken); } catch {}
     try { (window as any).electronAPI?.storeSet('refreshToken', refreshToken); } catch {}
     try { (window as any).electronAPI?.setRole?.(user.role); } catch {}
+    try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
     try { (window as any).electronAPI?.onLoggedIn?.(); } catch {}
 
     set({ user, isAuthenticated: true });
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await authApi.me();
       const user = data.data;
       set({ user, isAuthenticated: true });
+      try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
       return user;
     } catch {
       sessionStorage.removeItem('accessToken');

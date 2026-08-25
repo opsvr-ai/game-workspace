@@ -23,5 +23,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   collectProcesses: (token: string) => ipcRenderer.invoke('processes:collect', token),
   onStatusChanged: (status: string) => ipcRenderer.send('companion:status', status),
   setRole: (role: string) => ipcRenderer.send('auth:setRole', role),
+  setStudioName: (name: string) => ipcRenderer.send('auth:setStudioName', name),
   notify: (title: string, body: string) => ipcRenderer.send('notify', title, body),
 });
