@@ -81,6 +81,7 @@ async function bootstrap() {
     if (existsSync(indexHtml)) {
       expressApp.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.sendFile(indexHtml);
       });
     }
