@@ -117,7 +117,7 @@ export class AgentController {
       res.status(404).json({ code: 404, message: '安装包不存在，请先构建', data: null });
       return;
     }
-    res.download(exePath, 'ChunlvAgent-Setup.exe');
+    res.download(exePath, '陪玩管理-Setup.exe');
   }
 
   // Public: CS client downloads its own installer
@@ -128,7 +128,7 @@ export class AgentController {
       res.status(404).json({ code: 404, message: '客服端安装包不存在，请先构建', data: null });
       return;
     }
-    res.download(exePath, 'Chunlv-CS-Setup.exe');
+    res.download(exePath, '客服管理-Setup.exe');
   }
 
   // Admin only: view version distribution

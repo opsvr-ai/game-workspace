@@ -20,7 +20,7 @@ export function createTray(opts: TrayOptions): Tray {
   const icon = createTrayIcon();
   tray = new Tray(icon);
 
-  tray.setToolTip('蠢驴电竞陪玩');
+  tray.setToolTip('陪玩管理');
   tray.setContextMenu(buildMenu());
 
   tray.on('double-click', () => {

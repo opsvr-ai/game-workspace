@@ -66,7 +66,7 @@ const LoginPage: React.FC<Props> = ({ onLogin }) => {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🎮</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#00D4FF' }}>
-            蠢驴电竞陪玩
+            陪玩管理
           </div>
           <div style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
             陪玩师客户端

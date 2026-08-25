@@ -1,5 +1,5 @@
 appId: com.chunlv.cs
-productName: 蠢驴电竞客服端
+productName: 客服管理
 directories:
   output: release
 files:
@@ -20,6 +20,6 @@ nsis:
   perMachine: true
   runAfterFinish: true
   createDesktopShortcut: true
-  shortcutName: 蠢驴电竞客服端
+  shortcutName: 客服管理
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico

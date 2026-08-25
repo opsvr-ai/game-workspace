@@ -72,7 +72,7 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
     if (store.get('lastStatus') !== 'AVAILABLE') return;
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
-      new Notification({ title: '蠢驴电竞', body: `正在结束黑名单进程：${name}` }).show();
+      new Notification({ title: '陪玩管理', body: `正在结束黑名单进程：${name}` }).show();
       execFile('taskkill', ['/F', '/IM', name, '/T'], () => {});
     }
   }, 10000);
@@ -336,7 +336,7 @@ function setupIPC(): void {
   // 系统通知：陪玩端最小化/在打游戏时也能弹出 Windows 通知（搭档邀请、订单提醒等）。
   ipcMain.on('notify', (_e, title: string, body: string) => {
     try {
-      new Notification({ title: String(title || '蠢驴电竞'), body: String(body || '') }).show();
+      new Notification({ title: String(title || '陪玩管理'), body: String(body || '') }).show();
     } catch {}
   });
 }
@@ -373,7 +373,7 @@ app.whenReady().then(() => {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: `蠢驴电竞 v${app.getVersion()}`,
+    title: `陪玩管理 v${app.getVersion()}`,
     show: true,
     webPreferences: {
       contextIsolation: true,

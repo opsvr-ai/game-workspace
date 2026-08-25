@@ -1,4 +1,4 @@
-; Force install directory to use product name (蠢驴电竞), not package name (@chunlvcompanion-electron)
+; Force install directory to use product name (陪玩管理), not package name (@chunlvcompanion-electron)
 !macro preInit
   ; 关键：先删掉旧注册表的 InstallLocation，否则 initMultiUser 会复用旧的
   ; @chunlvcompanion-electron 目录，把下面的 $INSTDIR 覆盖掉。
@@ -6,7 +6,7 @@
   DeleteRegKey HKCU "${INSTALL_REGISTRY_KEY}"
   DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
   DeleteRegKey HKCU "${UNINSTALL_REGISTRY_KEY}"
-  StrCpy $INSTDIR "$PROGRAMFILES64\蠢驴电竞"
+  StrCpy $INSTDIR "$PROGRAMFILES64\陪玩管理"
 !macroend
 
 ; Override ALL app-running check macros
@@ -20,8 +20,8 @@
 !macro customInit
   ; 关键：initMultiUser 在 preInit 之后会把 $INSTDIR 覆盖成包名目录
   ; （中文 productName 过不了 electron-builder 的 ASCII 校验，回退成 @chunlvcompanion-electron），
-  ; 所以必须在这里、在 initMultiUser 之后，再把安装目录写死回 蠢驴电竞。
-  StrCpy $INSTDIR "$PROGRAMFILES64\蠢驴电竞"
+  ; 所以必须在这里、在 initMultiUser 之后，再把安装目录写死回 陪玩管理。
+  StrCpy $INSTDIR "$PROGRAMFILES64\陪玩管理"
 
   ; ── Step -1: Stop watchdog service first, otherwise it keeps relaunching the app ──
   nsExec::ExecToLog 'sc stop SystemHelper'
@@ -38,27 +38,27 @@
   nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$$k=@(''HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'',''HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'');foreach($$p in $$k){gci $$p -ea 0|%%{$$n=(gp $$_.PSPath -Name DisplayName -ea 0).DisplayName;if($$n -and ($$n -match ''蠢驴|chunlv'')){remove-item $$_.PSPath -Recurse -Force -ea 0;write-host ''deleted: $$n''}}}"'
 
   ; ── Step 1: Kill all related processes ──
-  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 蠢驴电竞.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq electron.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq node.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq cmd.exe\" /fi \"WINDOWTITLE eq 蠢驴*\" /t 2>nul"'
+  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 陪玩管理.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq electron.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq node.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq cmd.exe\" /fi \"WINDOWTITLE eq 蠢驴*\" /t 2>nul"'
   Sleep 3000
 
   ; ── Step 2: Delete old install files ──
-  Delete "$INSTDIR\Uninstall 蠢驴电竞.exe"
-  Delete "$PROGRAMFILES64\蠢驴电竞\Uninstall 蠢驴电竞.exe"
-  Delete "$PROGRAMFILES\蠢驴电竞\Uninstall 蠢驴电竞.exe"
-  Delete "$LOCALAPPDATA\Programs\蠢驴电竞\Uninstall 蠢驴电竞.exe"
+  Delete "$INSTDIR\Uninstall 陪玩管理.exe"
+  Delete "$PROGRAMFILES64\陪玩管理\Uninstall 陪玩管理.exe"
+  Delete "$PROGRAMFILES\陪玩管理\Uninstall 陪玩管理.exe"
+  Delete "$LOCALAPPDATA\Programs\陪玩管理\Uninstall 陪玩管理.exe"
   RMDir /r "$INSTDIR"
-  RMDir /r "$PROGRAMFILES64\蠢驴电竞"
-  RMDir /r "$PROGRAMFILES\蠢驴电竞"
+  RMDir /r "$PROGRAMFILES64\陪玩管理"
+  RMDir /r "$PROGRAMFILES\陪玩管理"
   RMDir /r "$PROGRAMFILES64\@chunlvcompanion-electron"
   RMDir /r "$PROGRAMFILES\@chunlvcompanion-electron"
   RMDir /r "$LOCALAPPDATA\Programs\@chunlvcompanion-electron"
-  Delete "$APPDATA\蠢驴电竞\*.*"
-  RMDir "$APPDATA\蠢驴电竞"
-  Delete "$LOCALAPPDATA\蠢驴电竞\*.*"
-  RMDir "$LOCALAPPDATA\蠢驴电竞"
+  Delete "$APPDATA\陪玩管理\*.*"
+  RMDir "$APPDATA\陪玩管理"
+  Delete "$LOCALAPPDATA\陪玩管理\*.*"
+  RMDir "$LOCALAPPDATA\陪玩管理"
 
   ; ── Step 3: Kill again after cleanup ──
-  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 蠢驴电竞.exe\" /t 2>nul"'
+  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 陪玩管理.exe\" /t 2>nul"'
   Sleep 1000
 !macroend
 

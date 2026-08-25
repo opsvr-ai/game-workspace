@@ -1,5 +1,5 @@
 appId: com.chunlv.companion
-productName: 蠢驴电竞
+productName: 陪玩管理
 directories:
   output: release
 files:
@@ -25,7 +25,7 @@ nsis:
   perMachine: true
   runAfterFinish: true
   createDesktopShortcut: true
-  shortcutName: 蠢驴电竞
+  shortcutName: 陪玩管理
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico
   installerHeaderIcon: public/donkey.ico

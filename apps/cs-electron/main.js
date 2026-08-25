@@ -145,7 +145,7 @@ function createWindow() {
     height: 860,
     minWidth: 1080,
     minHeight: 720,
-    title: '蠢驴电竞·客服端',
+    title: '客服管理',
     backgroundColor: '#0B1024',
     autoHideMenuBar: true,
     webPreferences: {
@@ -196,7 +196,7 @@ function createTray() {
     icon = nativeImage.createEmpty();
   }
   tray = new Tray(icon);
-  tray.setToolTip('蠢驴电竞·客服端');
+  tray.setToolTip('客服管理');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => showWindow() },

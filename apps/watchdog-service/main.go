@@ -25,6 +25,10 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 var searchPaths = []string{
+	`C:\Program Files\陪玩管理\陪玩管理.exe`,
+	`C:\Program Files (x86)\陪玩管理\陪玩管理.exe`,
+	filepath.Join(os.Getenv("LOCALAPPDATA"), `Programs\陪玩管理\陪玩管理.exe`),
+	filepath.Join(os.Getenv("ProgramFiles"), `陪玩管理\陪玩管理.exe`),
 	`C:\Program Files\蠢驴电竞\蠢驴电竞.exe`,
 	`C:\Program Files\@chunlvcompanion-electron\蠢驴电竞.exe`,
 	`C:\Program Files (x86)\@chunlvcompanion-electron\蠢驴电竞.exe`,
@@ -32,6 +36,17 @@ var searchPaths = []string{
 	filepath.Join(os.Getenv("LOCALAPPDATA"), `Programs\蠢驴电竞\蠢驴电竞.exe`),
 	filepath.Join(os.Getenv("ProgramFiles"), `蠢驴电竞\蠢驴电竞.exe`),
 	filepath.Join(os.Getenv("ProgramFiles"), `@chunlvcompanion-electron\蠢驴电竞.exe`),
+}
+
+var clientExeNames = []string{"陪玩管理.exe", "蠢驴电竞.exe"}
+
+func isClientExe(name string) bool {
+	for _, n := range clientExeNames {
+		if strings.EqualFold(name, n) {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -116,13 +131,15 @@ func findClient() string {
 			continue
 		}
 		for _, e := range entries {
-			if !e.IsDir() || (!strings.Contains(e.Name(), "蠢驴") && !strings.Contains(e.Name(), "chunlv")) {
+			if !e.IsDir() || (!strings.Contains(e.Name(), "蠢驴") && !strings.Contains(e.Name(), "chunlv") && !strings.Contains(e.Name(), "陪玩")) {
 				continue
 			}
-			c := filepath.Join(base, e.Name(), "蠢驴电竞.exe")
-			if _, err := os.Stat(c); err == nil {
-				clientPath = c
-				return c
+			for _, exe := range []string{"陪玩管理.exe", "蠢驴电竞.exe"} {
+				c := filepath.Join(base, e.Name(), exe)
+				if _, err := os.Stat(c); err == nil {
+					clientPath = c
+					return c
+				}
 			}
 		}
 	}
@@ -151,7 +168,7 @@ func killAllClientProcesses() {
 		err = windows.Process32First(snapshot, &pe)
 		for err == nil {
 			name := windows.UTF16PtrToString(&pe.ExeFile[0])
-			if strings.EqualFold(name, "蠢驴电竞.exe") {
+			if isClientExe(name) {
 				pid := pe.ProcessID
 				if pid != 0 && pid != 4 { // skip idle & system
 					h, e := windows.OpenProcess(windows.PROCESS_TERMINATE, false, pid)
@@ -326,7 +343,7 @@ func findAnyClientPID() uint32 {
 	err = windows.Process32First(snapshot, &pe)
 	for err == nil {
 		name := windows.UTF16PtrToString(&pe.ExeFile[0])
-		if strings.EqualFold(name, "蠢驴电竞.exe") {
+		if isClientExe(name) {
 			pid := pe.ProcessID
 			if pid != 0 && pid != 4 && (found == 0 || pid < found) {
 				found = uint32(pid)

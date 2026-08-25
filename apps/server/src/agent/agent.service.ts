@@ -241,12 +241,12 @@ export class AgentService {
     return [
       `$url = ${installerUrl}`,
       `$out = "$env:TEMP\\ChunlvAgent-Setup.exe"`,
-      `Write-Host "正在下载蠢驴电竞客户端..." -ForegroundColor Cyan`,
+      `Write-Host "正在下载陪玩管理客户端..." -ForegroundColor Cyan`,
       `Invoke-WebRequest -Uri $url -OutFile $out`,
       `Write-Host "正在安装..." -ForegroundColor Yellow`,
       `Start-Process -FilePath $out -ArgumentList "/S" -Wait`,
       `Remove-Item $out -Force`,
-      `Write-Host "安装完成！请从桌面启动 蠢驴电竞" -ForegroundColor Green`,
+      `Write-Host "安装完成！请从桌面启动 陪玩管理" -ForegroundColor Green`,
     ].join('\n');
   }
 
@@ -269,7 +269,7 @@ export class AgentService {
 
     return [
       `# ============================================`,
-      `# 蠢驴电竞 - 远程批量部署脚本 (PsExec)`,
+      `# 陪玩管理 - 远程批量部署脚本 (PsExec)`,
       `# 生成时间: ${new Date().toISOString()}`,
       `# 目标数量: ${targetIPs.length} 台电脑`,
       `# ============================================`,
@@ -345,7 +345,7 @@ export class AgentService {
       ``,
       `        # Step 3: Show the app window on target PC`,
       `        Write-Host "[$ip] 正在启动客户端..." -ForegroundColor Yellow`,
-      `        $showCmd = "Start-Process 'C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe'"`,
+      `        $showCmd = "Start-Process 'C:\\Program Files\\陪玩管理\\陪玩管理.exe'"`,
       `        .\\PsExec.exe \\\\$ip -u $adminUser -p $adminPass -d -i -accepteula -nobanner powershell -Command $showCmd 2>&1 | Out-Null`,
       ``,
       `        Write-Host "[$ip] ✓ 安装成功，客户端已启动" -ForegroundColor Green`,
@@ -473,7 +473,7 @@ export class AgentService {
       `Write-Host "Installing..."`,
       `Start-Process $out -ArgumentList '/S' -Wait`,
       `Write-Host "Starting..."`,
-      `Start-Process "C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe"`,
+      `Start-Process "C:\\Program Files\\陪玩管理\\陪玩管理.exe"`,
     ].join('\n');
     fs.writeFileSync(psScriptPath, psContent, 'utf-8');
 

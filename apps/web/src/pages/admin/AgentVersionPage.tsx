@@ -609,7 +609,7 @@ const AgentVersionPage: React.FC = () => {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <div>
-            <Text strong>🎮 陪玩端（蠢驴电竞）</Text>
+            <Text strong>🎮 陪玩端（陪玩管理）</Text>
             <div style={{ marginTop: 6 }}>
               <Input value={companionDownloadUrl} readOnly />
             </div>
@@ -778,7 +778,7 @@ const AgentVersionPage: React.FC = () => {
                                 h.ip +
                                 ' -i -accepteula powershell -Command "Invoke-WebRequest ' +
                                 dlUrl +
-                                " -OutFile $env:TEMP\\\\ChunlvAgent-Setup.exe; Start-Process $env:TEMP\\\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait; Start-Process 'C:\\\\Program Files\\\\蠢驴电竞\\\\蠢驴电竞.exe'\"";
+                                " -OutFile $env:TEMP\\\\ChunlvAgent-Setup.exe; Start-Process $env:TEMP\\\\ChunlvAgent-Setup.exe -ArgumentList '/S' -Wait; Start-Process 'C:\\\\Program Files\\\\陪玩管理\\\\陪玩管理.exe'\""; 
                               navigator.clipboard.writeText(cmd).then(() => message.success('已复制安装命令'));
                             }}
                           >
