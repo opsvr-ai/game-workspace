@@ -68,16 +68,14 @@ async function bootstrap() {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       next();
     });
-    // Serve static assets first. Vite 产物带内容哈希，可以安全缓存；
-    // index.html 单独设置 no-cache，确保前端版本更新后客户端能立即看到。
+    // 前端资源全部强制不缓存：Electron 客户端历史上多次因磁盘/会话缓存拿到旧 bundle，
+    // 导致订单池等页面「数据有但界面不显示」。这里统一 no-store，彻底杜绝旧前端。
     expressApp.use(
       express.static(webDistPath, {
-        etag: true,
-        maxAge: '1h',
-        setHeaders: (res, filePath) => {
-          if (filePath.endsWith('index.html')) {
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-          }
+        etag: false,
+        maxAge: 0,
+        setHeaders: (res) => {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         },
       }),
     );

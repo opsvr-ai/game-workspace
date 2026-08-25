@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { execFile } from 'child_process';
@@ -41,6 +41,21 @@ function getAppPassword(): string {
 // WebSocket 优先用 7 天有效期的 refreshToken，避免 accessToken 过期后主进程连不上
 function getWsToken(): string {
   return (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+}
+
+// 登录页地址带版本号做 cache-busting，避免 Electron 会话缓存返回旧前端。
+function getLoginUrl(): string {
+  const base = getServerUrl().replace(/\/$/, '') + '/login';
+  return `${base}?v=${app.getVersion()}`;
+}
+
+// 每次启动先清一次 HTTP 缓存，确保加载到服务端最新前端。
+async function clearSessionCache(): Promise<void> {
+  try {
+    await session.defaultSession.clearCache();
+  } catch {
+    // 忽略清理失败，不阻塞启动
+  }
 }
 
 const STORE_KEYS = new Set([
@@ -409,7 +424,11 @@ app.whenReady().then(() => {
     // 允许语音通话所需的麦克风权限，以及系统通知和剪贴板权限
     callback(['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
   });
-  mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/login');
+  void clearSessionCache().then(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(getLoginUrl());
+    }
+  });
   mainWindow.on('close', (e) => {
     trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0, 200));
     if (!isQuitting) {
@@ -424,7 +443,7 @@ app.whenReady().then(() => {
     if (code !== -3 && !isQuitting) {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
-          mainWindow.loadURL(getServerUrl().replace(/\/$/, '') + '/login');
+          mainWindow.loadURL(getLoginUrl());
         }
       }, 3000);
     }

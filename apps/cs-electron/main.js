@@ -23,6 +23,19 @@ function getServerUrl() {
   return 'http://192.168.0.106:3001';
 }
 
+function getLoginUrl() {
+  const base = getServerUrl().replace(/\/$/, '') + '/login';
+  return `${base}?v=${app.getVersion()}`;
+}
+
+async function clearSessionCache() {
+  try {
+    await session.defaultSession.clearCache();
+  } catch {
+    // 忽略清理失败
+  }
+}
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
@@ -155,12 +168,16 @@ function createWindow() {
     },
   });
   const serverUrl = getServerUrl().replace(/\/$/, '');
-  mainWindow.loadURL(`${serverUrl}/login`);
+  clearSessionCache().then(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(getLoginUrl());
+    }
+  });
   mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
     if (code !== -3) {
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(`${serverUrl}/login`);
+          mainWindow.loadURL(getLoginUrl());
         }
       }, 2000);
     }
