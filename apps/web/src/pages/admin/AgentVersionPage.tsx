@@ -30,6 +30,7 @@ import {
   ThunderboltOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { agentApi } from '../../api/agent';
 
@@ -94,6 +95,7 @@ const AgentVersionPage: React.FC = () => {
   const [pushing, setPushing] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [deployData, setDeployData] = useState<DeployScriptData | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -117,6 +119,16 @@ const AgentVersionPage: React.FC = () => {
 
   // Detect Electron environment
   const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+  const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const companionDownloadUrl = `${downloadOrigin}/api/agent/download/exe`;
+  const csDownloadUrl = `${downloadOrigin}/api/agent/download/cs`;
+
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => message.success(`${label}已复制`))
+      .catch(() => message.error('复制失败，请手动复制'));
+  };
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -436,6 +448,11 @@ const AgentVersionPage: React.FC = () => {
           <Text type="secondary">管理陪玩客户端版本，一键构建并推送更新</Text>
         </div>
         <Space>
+          <Tooltip title="下载安装包（发给新工作室/新电脑安装）">
+            <Button icon={<DownloadOutlined />} onClick={() => setDownloadModalOpen(true)}>
+              下载安装包
+            </Button>
+          </Tooltip>
           <Tooltip title="查看新电脑部署脚本">
             <Button icon={<LaptopOutlined />} onClick={handleOpenDeploy}>
               部署助手
@@ -577,6 +594,54 @@ const AgentVersionPage: React.FC = () => {
           ]}
         />
       </Card>
+
+      {/* Download installer modal */}
+      <Modal
+        title={
+          <>
+            <DownloadOutlined /> 下载安装包
+          </>
+        }
+        open={downloadModalOpen}
+        onCancel={() => setDownloadModalOpen(false)}
+        footer={null}
+        width={560}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <div>
+            <Text strong>🎮 陪玩端（蠢驴电竞）</Text>
+            <div style={{ marginTop: 6 }}>
+              <Input value={companionDownloadUrl} readOnly />
+            </div>
+            <Space style={{ marginTop: 8 }}>
+              <Button type="primary" icon={<DownloadOutlined />} href={companionDownloadUrl}>
+                下载
+              </Button>
+              <Button icon={<CopyOutlined />} onClick={() => copyText(companionDownloadUrl, '陪玩端链接')}>
+                复制链接
+              </Button>
+            </Space>
+          </div>
+          <Divider style={{ margin: 0 }} />
+          <div>
+            <Text strong>💬 客服端</Text>
+            <div style={{ marginTop: 6 }}>
+              <Input value={csDownloadUrl} readOnly />
+            </div>
+            <Space style={{ marginTop: 8 }}>
+              <Button type="primary" icon={<DownloadOutlined />} href={csDownloadUrl}>
+                下载
+              </Button>
+              <Button icon={<CopyOutlined />} onClick={() => copyText(csDownloadUrl, '客服端链接')}>
+                复制链接
+              </Button>
+            </Space>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            把「复制链接」得到的地址发给对方，对方浏览器打开即可下载安装。当前地址指向本服务器（局域网），外地工作室需等公网服务器上线后再用公网地址。
+          </Text>
+        </Space>
+      </Modal>
 
       <Modal
         title="更新推送结果"
