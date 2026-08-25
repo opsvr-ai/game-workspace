@@ -65,11 +65,8 @@ export class CompanionWechatService {
     if (wechat.studioId !== csUser.studioId) {
       throw new ForbiddenException('微信与客服不属于同一工作室，禁止跨工作室绑定');
     }
-    // 同一个客服只能绑一个工作室微信，绑定新微信时先解绑旧微信
-    await this.prisma.workWechat.updateMany({
-      where: { csUserId },
-      data: { csUserId: null, status: 'AVAILABLE' },
-    });
+    // 一个工作微信只能绑定给一个客服，但一个客服可以绑定多个工作微信。
+    // 这里不再解绑该客服名下其他微信，避免绑定新微信时把旧的自动挤掉。
     return this.prisma.workWechat.update({
       where: { id },
       data: { csUserId, companionId: null, status: 'BOUND' },
