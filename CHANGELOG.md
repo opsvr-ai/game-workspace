@@ -169,7 +169,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **Electron 客户端订单池/页面加载旧前端:** 服务端前端资源（index.html、JS/CSS）此前只对 index.html 单独 no-cache，JS/CSS 仍走 1 小时缓存；API 响应也会因 ETag 返回 304，导致 Electron 客户端出现「数据已在后台、界面却不显示」的假象。现已把前端全部静态资源与 /api 响应统一改为 no-store，并在陪玩端/客服端启动时清一次 HTTP 缓存、登录页地址加版本号做 cache-busting，彻底杜绝旧前端/旧数据缓存。
+- **Electron 客户端订单池「后端有数据、界面却不显示」:** 根因是服务端 Express 默认给所有 API 响应生成 ETag，Electron 客户端带 If-None-Match 时拿到 304（body 为空），axios 把空 body 当成空数组，导致订单池等页面显示为空。现已全局关闭 ETag/304，并把前端静态资源与 /api 响应统一设为 no-store，确保每次请求都返回完整 200 数据；同时陪玩端/客服端启动时清一次 HTTP 缓存、登录页加版本号做 cache-busting，彻底杜绝旧前端/旧数据缓存。
 
 - **未读角标每次登录重复出现:** 未读角标（派单工作台/实名审核/报账/桥接待处理等）的「已读」状态之前没有持久化，导致每次重新登录都会重新弹出全部未读。现已按账号把已读数量存到本地，点开一次后不再重复提示，只有真正新增的待处理才会再弹。
 

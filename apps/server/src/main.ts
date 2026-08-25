@@ -19,6 +19,11 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // 关闭 ETag/304：Express 默认会对响应生成 ETag，客户端带 If-None-Match 时会返回 304。
+  // Electron 的 axios 拿到 304 时 body 为空，会导致「后端有数据、前端却显示空」。
+  // 这里统一禁用 ETag，配合 no-store，确保每次请求都返回完整 200 数据。
+  app.getHttpAdapter().getInstance().set('etag', false);
+
   // Body size limits — needed for large payloads (installer uploads, process reports)
   app.use(express.json({ limit: '200mb' }));
   app.use(express.urlencoded({ limit: '200mb', extended: true }));
