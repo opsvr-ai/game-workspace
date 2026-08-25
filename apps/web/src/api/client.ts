@@ -9,7 +9,12 @@ import type {
 const http = axios.create({
   baseURL: '/api',
   timeout: 15000,
-  headers: {},
+  headers: {
+    // 强制每次请求都向服务端重新校验，绕过 Electron/Chromium 的磁盘缓存，
+    // 避免「接口返回 200 但前端拿到的是旧缓存空数据」。
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+  },
 });
 
 // Request interceptor: attach Bearer token from sessionStorage
