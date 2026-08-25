@@ -37,26 +37,27 @@ export class OrdersController {
   async markCsContact(
     @Param('id') id: string,
     @Body() body: { status: string; evidenceUrl?: string; workWechatId?: string; workWechatName?: string; addResult?: string },
+    @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.markCsContact(id, body?.status || 'added', body?.evidenceUrl, {
       workWechatId: body?.workWechatId,
       workWechatName: body?.workWechatName,
       addResult: body?.addResult,
-    });
+    }, req.user);
     return { code: 200, message: '已记录客服联系状态', data };
   }
 
   @Post('orders/:id/redispatch')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async redispatch(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.redispatch(id, req.user?.studioId || undefined);
+    const data = await this.ordersService.redispatch(id, req.user?.studioId || undefined, req.user);
     return { code: 200, message: '已重新派到抢单池', data };
   }
 
   @Post('orders/:id/pool-handled')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async markPoolHandled(@Param('id') id: string): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.markPoolHandled(id);
+  async markPoolHandled(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.markPoolHandled(id, req.user);
     return { code: 200, message: '已标记处理完成', data };
   }
 

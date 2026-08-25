@@ -171,9 +171,6 @@ const CSDispatchView: React.FC = () => {
   }, []);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
-  const [claimingOrder, setClaimingOrder] = useState<any>(null);
-  const [claimWechatId, setClaimWechatId] = useState<string | null>(null);
-  const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(
     null,
   );
@@ -251,34 +248,6 @@ const CSDispatchView: React.FC = () => {
       message.error(e?.response?.data?.message || '抢单失败');
     } finally {
       setGrabbing(null);
-    }
-  };
-
-  const openClaim = async (order: any) => {
-    setClaimingOrder(order);
-    setClaimWechatId(null);
-    try {
-      const { data } = await companionsApi.listWorkWechats();
-      setWorkWechats(data?.data || []);
-    } catch {
-      setWorkWechats([]);
-    }
-  };
-
-  const submitClaim = async () => {
-    if (!claimingOrder) return;
-    const wechat = workWechats.find((w: any) => w.id === claimWechatId);
-    try {
-      await ordersApi.claim(claimingOrder.id, {
-        workWechatId: claimWechatId || undefined,
-        workWechatName: wechat?.wechatId || undefined,
-      });
-      message.success('已认领，订单暂存为待跟进');
-      setClaimingOrder(null);
-      setClaimWechatId(null);
-      fetchPool();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '认领失败');
     }
   };
 
@@ -779,17 +748,6 @@ const CSDispatchView: React.FC = () => {
                             </React.Fragment>
                           ))}
                           <span style={{ flex: 1 }} />
-                          {(user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') && (
-                            <Button
-                              size="small"
-                              type="primary"
-                              style={{ background: '#7C3AED', borderColor: '#7C3AED' }}
-                              loading={claimingOrder?.id === order.id}
-                              onClick={() => openClaim(order)}
-                            >
-                              自己抢单
-                            </Button>
-                          )}
                           {user?.role === 'COMPANION' && (
                             <Space size={8}>
                               <Button
@@ -1037,50 +995,6 @@ const CSDispatchView: React.FC = () => {
                 <Text type="secondary">未设置游戏资料</Text>
               )}
             </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* CS Claim Modal */}
-      <Modal
-        title="🙋 客服自己抢单"
-        open={!!claimingOrder}
-        onCancel={() => {
-          setClaimingOrder(null);
-          setClaimWechatId(null);
-        }}
-        onOk={submitClaim}
-        okText="确认认领"
-        cancelText="取消"
-        width={460}
-      >
-        {claimingOrder && (
-          <div style={{ fontSize: 14, lineHeight: 2 }}>
-            <div>
-              📋 {claimingOrder.gameName}
-              <Tag color="green" style={{ marginLeft: 8 }}>
-                ¥{Number(claimingOrder.amount).toFixed(0)}
-              </Tag>
-            </div>
-            <Text type="secondary">认领后该订单会暂离抢单池，等客户要打时再放回。</Text>
-            <Divider style={{ margin: '10px 0' }} />
-            <div>
-              <strong>📱 选择加客户使用的工作微信：</strong>
-            </div>
-            <Select
-              placeholder="选择工作微信"
-              value={claimWechatId || undefined}
-              onChange={(v) => setClaimWechatId(v)}
-              style={{ width: '100%', marginTop: 8 }}
-              allowClear
-            >
-              {workWechats.filter((w: any) => w.type === 'STUDIO').map((w: any) => (
-                <Select.Option key={w.id} value={w.id}>
-                  {w.wechatId}
-                  {w.companion ? ` (${w.companion?.user?.username || w.companionId})` : ''}
-                </Select.Option>
-              ))}
-            </Select>
           </div>
         )}
       </Modal>

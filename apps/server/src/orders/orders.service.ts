@@ -596,8 +596,6 @@ export class OrdersService {
     });
     const disappearSeconds = Number(disappearCfg?.value ?? 10) * 60;
     const where: any = { studioId, status: 'PENDING', dispatchType: 'POOL' };
-    // 客服只看自己发布的待处理单，店长/老板看全工作室
-    if (user && user.role === 'CS') where.csUserId = user.id;
     const orders = await this.prisma.order.findMany({
       where,
       include: {
@@ -618,6 +616,21 @@ export class OrdersService {
         })
         .map(async (o) => {
           const cf = (o.customFields as any) || {};
+          // 老板/店长可处理所有单；客服只能处理自己发布的单。
+          const canProcess = user?.role !== 'CS' || user?.id === o.csUserId;
+          const maskedCf = canProcess
+            ? cf
+            : {
+                ...cf,
+                customerSourceAccount: undefined,
+                customerNickname: undefined,
+                customerAccountId: undefined,
+                customerWechat: undefined,
+                customerWechatQr: undefined,
+                customerYy: undefined,
+                customerPlatformAccount: undefined,
+                customerRoomCode: undefined,
+              };
           const isScheduled = cf.urgency === 'later';
           const waitingSeconds = Math.max(0, Math.floor((now - o.createdAt.getTime()) / 1000));
           const poolExpired = !!cf.poolExpired;
@@ -627,6 +640,7 @@ export class OrdersService {
               : [];
           return {
             ...o,
+            customer: canProcess ? o.customer : null,
             waitingSeconds,
             urgent: !isScheduled,
             poolExpired,
@@ -638,8 +652,9 @@ export class OrdersService {
             requireCsContact: poolExpired || (!isScheduled && waitingSeconds >= disappearSeconds),
             csContactStatus: o.contactStatus || '',
             csContactEvidenceUrl: cf.csContactEvidenceUrl || '',
-            customFields: cf,
+            customFields: maskedCf,
             availableCompanions,
+            canProcess,
           };
         }),
     );
@@ -653,9 +668,13 @@ export class OrdersService {
     status: string,
     evidenceUrl?: string,
     extra?: { workWechatId?: string; workWechatName?: string; addResult?: string },
+    user?: { id: string; role: string },
   ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    if (user?.role === 'CS' && order.csUserId !== user.id) {
+      throw new ForbiddenException('只能处理自己发布的订单');
+    }
     const cf = (order.customFields as any) || {};
     const result = extra?.addResult;
     const contactStatus = result === 'passed' ? 'added' : result === 'failed' ? 'not_accepted' : 'pending';
@@ -677,7 +696,7 @@ export class OrdersService {
     });
   }
 
-  async redispatch(orderId: string, studioId?: string) {
+  async redispatch(orderId: string, studioId?: string, user?: { id: string; role: string }) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.status !== 'PENDING' || order.dispatchType !== 'POOL') {
@@ -685,6 +704,9 @@ export class OrdersService {
     }
     if (studioId && order.studioId !== studioId) {
       throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (user?.role === 'CS' && order.csUserId !== user.id) {
+      throw new ForbiddenException('只能处理自己发布的订单');
     }
       const cf = (order.customFields as any) || {};
       delete cf.poolExpired;
@@ -712,9 +734,12 @@ export class OrdersService {
     return updated;
   }
 
-  async markPoolHandled(orderId: string) {
+  async markPoolHandled(orderId: string, user?: { id: string; role: string }) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    if (user?.role === 'CS' && order.csUserId !== user.id) {
+      throw new ForbiddenException('只能处理自己发布的订单');
+    }
     const cf = (order.customFields as any) || {};
     return this.prisma.order.update({
       where: { id: orderId },

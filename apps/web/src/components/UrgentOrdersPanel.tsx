@@ -71,10 +71,16 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
       ) : r.requireCsContact ? (
         <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
       ) : null}
-      {r.csContactStatus !== 'added' && (
-        <Button size="small" onClick={() => openContact(r)}>跳转到直添客户跟进列表</Button>
+      {r.canProcess === false ? (
+        <Tag color="default" style={{ margin: 0 }}>仅发单客服可处理</Tag>
+      ) : (
+        <>
+          {r.csContactStatus !== 'added' && (
+            <Button size="small" onClick={() => openContact(r)}>跳转到直添客户跟进列表</Button>
+          )}
+          <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>再次发布订单</Button>
+        </>
       )}
-      <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>再次发布订单</Button>
     </Space>
   );
 
