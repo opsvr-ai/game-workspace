@@ -67,12 +67,15 @@ const LoginPage: React.FC = () => {
   const [idCardBack, setIdCardBack] = useState<File | null>(null);
   const [studios, setStudios] = useState<{ id: string; name: string; type: string }[]>([]);
   const [registerStudioId, setRegisterStudioId] = useState('');
-  const [registerStudioName, setRegisterStudioName] = useState('');
   const [registerAddress, setRegisterAddress] = useState('');
   const [leaseContract, setLeaseContract] = useState<File | null>(null);
   const isCompanionRole = registerRole.includes('COMPANION');
   const isAdminRole = registerRole.includes('ADMIN');
   const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
+  const isOnlineRole = registerRole.startsWith('ONLINE');
+  const filteredStudios = studios.filter((s) =>
+    isOnlineRole ? s.type === 'RENTAL' : s.type !== 'RENTAL',
+  );
 
   // ID number validation
   const validateIdNumber = (id: string): boolean => {
@@ -156,11 +159,7 @@ const LoginPage: React.FC = () => {
       message.warning('请填写所有必填字段');
       return;
     }
-    if (isAdminRole && !registerStudioName) {
-      message.warning('请输入工作室名称');
-      return;
-    }
-    if (!isAdminRole && !registerStudioId) {
+    if (!registerStudioId) {
       message.warning('请选择工作室');
       return;
     }
@@ -181,15 +180,14 @@ const LoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      console.log('注册提交', { username, realName, phone, apiRole, registerRole, registerStudioName, registerAddress });
+      console.log('注册提交', { username, realName, phone, apiRole, registerRole, registerStudioId, registerAddress });
       const formData = new FormData();
       formData.append('username', realName);
       formData.append('password', password);
       formData.append('realName', realName);
       formData.append('idNumber', idNumber || '');
       formData.append('phone', phone);
-      formData.append('studioId', isAdminRole ? '' : registerStudioId);
-      if (isAdminRole) formData.append('studioName', registerStudioName);
+      formData.append('studioId', registerStudioId);
       formData.append('role', apiRole);
       formData.append('registerRole', registerRole); // keep original for studio type detection
       if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
@@ -308,27 +306,18 @@ const LoginPage: React.FC = () => {
                 <Option value="ONLINE_CS">🌐 线上俱乐部 · 客服</Option>
                 <Option value="ONLINE_COMPANION">🌐 线上俱乐部 · 陪玩</Option>
               </Select>
-              {isAdminRole ? (
-                <Input
-                  size="large"
-                  placeholder="工作室名称 *"
-                  value={registerStudioName}
-                  onChange={(e) => setRegisterStudioName(e.target.value)}
-                />
-              ) : (
-                <Select
-                  size="large"
-                  placeholder="选择工作室 *"
-                  value={registerStudioId || undefined}
-                  onChange={(v) => setRegisterStudioId(v)}
-                >
-                  {studios.map((s) => (
-                    <Option key={s.id} value={s.id}>
-                      {s.name} ({s.type === 'RENTAL' ? '线上俱乐部' : '线下工作室'})
-                    </Option>
-                  ))}
-                </Select>
-              )}
+              <Select
+                size="large"
+                placeholder="选择工作室 *"
+                value={registerStudioId || undefined}
+                onChange={(v) => setRegisterStudioId(v)}
+              >
+                {filteredStudios.map((s) => (
+                  <Option key={s.id} value={s.id}>
+                    {s.name} ({s.type === 'RENTAL' ? '线上俱乐部' : '线下工作室'})
+                  </Option>
+                ))}
+              </Select>
               {isOfflineAdmin && (
                 <>
                   <Input
