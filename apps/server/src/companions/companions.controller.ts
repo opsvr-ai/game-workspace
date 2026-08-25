@@ -242,14 +242,14 @@ export class CompanionsController {
   }
 
   @Put('companions/work-wechats/:id/bind-cs')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async bindCsUser(@Param('id') id: string, @Body() dto: { csUserId: string }): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.bindCsUser(id, dto.csUserId);
     return { code: 200, message: 'ok', data };
   }
 
   @Put('companions/work-wechats/:id/unbind-cs')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async unbindCsUser(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.unbindCsUser(id);
     return { code: 200, message: 'ok', data };

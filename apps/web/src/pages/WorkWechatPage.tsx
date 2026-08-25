@@ -32,7 +32,7 @@ const WorkWechatPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [typeFilter]);
 
   const fetchCompanions = useCallback(async () => {
     try {
