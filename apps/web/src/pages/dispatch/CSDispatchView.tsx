@@ -131,6 +131,7 @@ const CSDispatchView: React.FC = () => {
           : '/owner/orders';
   const [companions, setCompanions] = useState<Personnel[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
+  const [poolError, setPoolError] = useState('');
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [todayNew, setTodayNew] = useState(0);
   const [todayGrabbed, setTodayGrabbed] = useState(0);
@@ -208,6 +209,7 @@ const CSDispatchView: React.FC = () => {
   const fetchPool = useCallback(async () => {
     setLoadingPool(true);
     try {
+      setPoolError('');
       const [poolRes, allRes] = await Promise.all([ordersApi.pool(), ordersApi.list()]);
       setPoolOrders(poolRes.data.data ?? []);
       const all = allRes.data.data ?? [];
@@ -221,8 +223,9 @@ const CSDispatchView: React.FC = () => {
             new Date(o.grabbedAt || o.createdAt).getTime() >= bizStart,
         ).length,
       );
-    } catch {
-      // silent fail on auto-refresh
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || '请求失败';
+      setPoolError(`订单池加载失败：${msg}（${new Date().toLocaleTimeString()}）`);
     } finally {
       setLoadingPool(false);
     }
@@ -674,6 +677,11 @@ const CSDispatchView: React.FC = () => {
                   </span>
                 </Space>
               </div>
+              {poolError && (
+                <div style={{ marginTop: 8, padding: '4px 8px', color: '#EF4444', fontSize: 12, background: '#FEF2F2', borderRadius: 6 }}>
+                  {poolError}
+                </div>
+              )}
             </div>
             {/* Pool body */}
             <div
