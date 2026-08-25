@@ -63,6 +63,11 @@ async function bootstrap() {
   const webDistPath = join(__dirname, '../web-dist');
   if (existsSync(webDistPath)) {
     const expressApp = app.getHttpAdapter().getInstance();
+    // 防止 API 响应被缓存（ETag/304 会导致 Electron 订单池拿到旧数据不刷新）
+    expressApp.use('/api', (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      next();
+    });
     // Serve static assets first. Vite 产物带内容哈希，可以安全缓存；
     // index.html 单独设置 no-cache，确保前端版本更新后客户端能立即看到。
     expressApp.use(
