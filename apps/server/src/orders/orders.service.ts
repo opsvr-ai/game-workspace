@@ -595,7 +595,8 @@ export class OrdersService {
       where: { key: 'pool.immediate_disappear_minutes' },
     });
     const disappearSeconds = Number(disappearCfg?.value ?? 10) * 60;
-    const where: any = { studioId, status: 'PENDING', dispatchType: 'POOL' };
+    const where: any = { status: 'PENDING', dispatchType: 'POOL' };
+    if (studioId) where.studioId = studioId;
     const orders = await this.prisma.order.findMany({
       where,
       include: {
@@ -952,6 +953,7 @@ export class OrdersService {
   }
 
   private async getSoonEndingCompanions(studioId: string) {
+    if (!studioId) return [];
     const companions = await this.prisma.companion.findMany({
       where: { studioId, status: 'BUSY' },
       include: {
