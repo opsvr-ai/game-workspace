@@ -171,6 +171,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - **Electron 客户端订单池「后端有数据、界面却不显示」:** 根因是服务端 Express 默认给所有 API 响应生成 ETag，Electron 客户端带 If-None-Match 时拿到 304（body 为空），axios 把空 body 当成空数组，导致订单池等页面显示为空。现已全局关闭 ETag/304，并把前端静态资源与 /api 响应统一设为 no-store，确保每次请求都返回完整 200 数据；同时陪玩端/客服端启动时清一次 HTTP 缓存、登录页加版本号做 cache-busting，彻底杜绝旧前端/旧数据缓存。
 
+- **SPA 入口页（/login、/admin/dispatch 等）仍被 sendFile 自带 ETag 卡成 304:** 上一版关闭全局 ETag 后，SPA 回退路由用的是 `res.sendFile`，它会独立生成 ETag，客户端带 If-None-Match 时仍回 304，导致 Electron 客户端一直加载旧 index.html、旧前端。现已对 `sendFile` 显式关闭 etag/lastModified/cacheControl，入口页现在每次都是完整 200。
+
 - **未读角标每次登录重复出现:** 未读角标（派单工作台/实名审核/报账/桥接待处理等）的「已读」状态之前没有持久化，导致每次重新登录都会重新弹出全部未读。现已按账号把已读数量存到本地，点开一次后不再重复提示，只有真正新增的待处理才会再弹。
 
 - **店长注册改为选择现有工作室:** 店长/客服/陪玩注册时统一从现有工作室列表里选择（按线下/线上自动过滤），不再让店长自填工作室名建工作室；桥接工作室的店长可像陪玩一样选好自己的租赁工作室后注册。

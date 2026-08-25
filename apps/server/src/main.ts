@@ -90,7 +90,9 @@ async function bootstrap() {
       expressApp.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-        res.sendFile(indexHtml);
+        // 关键：sendFile 会自带 ETag，即使全局关了 etag 也会对 If-None-Match 回 304，
+        // 导致 Electron 客户端永远拿旧 index.html。这里显式关闭 etag/lastModified。
+        res.sendFile(indexHtml, { etag: false, lastModified: false, cacheControl: false });
       });
     }
     logger.info('Web frontend served from', { path: webDistPath });
