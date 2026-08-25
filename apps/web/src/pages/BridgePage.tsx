@@ -1,6 +1,6 @@
 // craftsman-ignore: TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Tag, Tabs, message, Modal, Select, Space, Typography } from 'antd';
+import { Card, Table, Button, Tag, Tabs, message, Modal, Select, Space, Typography, Checkbox } from 'antd';
 import { LinkOutlined, CheckOutlined, CloseOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { bridgeApi, BridgeInfo } from '../api/bridge';
 import { studiosApi } from '../api/studios';
@@ -8,12 +8,22 @@ import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
+const FUNCTION_OPTIONS = [
+  { value: 'ORDERS', label: '订单' },
+  { value: 'POOL', label: '抢单池' },
+  { value: 'CUSTOMERS', label: '客户' },
+  { value: 'BILLING', label: '结算' },
+  { value: 'KPI', label: '数据/KPI' },
+];
+
 export default function BridgePage() {
   const [bridges, setBridges] = useState<{ active: BridgeInfo[]; pending: BridgeInfo[] }>({ active: [], pending: [] });
   const [loading, setLoading] = useState(false);
   const [proposeVisible, setProposeVisible] = useState(false);
   const [targetStudioId, setTargetStudioId] = useState<string | null>(null);
   const [studios, setStudios] = useState<Array<{ id: string; name: string }>>([]);
+  const [respondTarget, setRespondTarget] = useState<BridgeInfo | null>(null);
+  const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const user = useAuthStore((s) => s.user);
 
   const fetchData = useCallback(async () => {
@@ -50,6 +60,27 @@ export default function BridgePage() {
     try {
       await bridgeApi.respond(bridgeId, accept);
       message.success(accept ? '已同意桥接' : '已拒绝');
+      fetchData();
+    } catch {
+      message.error('操作失败');
+    }
+  };
+
+  const openRespond = (r: BridgeInfo) => {
+    setRespondTarget(r);
+    setSelectedFunctions([]);
+  };
+
+  const confirmRespond = async () => {
+    if (!respondTarget) return;
+    if (selectedFunctions.length === 0) {
+      message.warning('请至少选择一项要共享的内容');
+      return;
+    }
+    try {
+      await bridgeApi.respond(respondTarget.id, true, selectedFunctions);
+      message.success('已同意桥接');
+      setRespondTarget(null);
       fetchData();
     } catch {
       message.error('操作失败');
@@ -101,7 +132,7 @@ export default function BridgePage() {
               size="small"
               type="primary"
               icon={React.createElement(CheckOutlined as any)}
-              onClick={() => handleRespond(r.id, true)}
+              onClick={() => openRespond(r)}
             >
               同意
             </Button>
@@ -194,6 +225,23 @@ export default function BridgePage() {
           onChange={setTargetStudioId}
           options={availableStudios.map((s: any) => ({ label: `${s.name}${s.type ? ' (' + (s.type==='RENTAL'?'线上':'线下') + ')' : ''}`, value: s.id }))}
         />
+      </Modal>
+      <Modal
+        title="选择要共享的内容"
+        open={!!respondTarget}
+        onOk={confirmRespond}
+        onCancel={() => setRespondTarget(null)}
+        okText="同意并共享所选"
+        cancelText="取消"
+      >
+        <Text type="secondary">勾选你愿意与对方工作室共享的内容：</Text>
+        <div style={{ marginTop: 12 }}>
+          <Checkbox.Group
+            options={FUNCTION_OPTIONS}
+            value={selectedFunctions}
+            onChange={(v) => setSelectedFunctions(v as string[])}
+          />
+        </div>
       </Modal>
     </Card>
   );

@@ -99,36 +99,31 @@ export class BridgeService {
     const isB = bridge.studioBId === studioId;
     if (!isA && !isB) throw new ForbiddenException('无权操作');
 
-    const functions = functionFilter || ALL_FUNCTIONS;
-    for (const perm of bridge.permissions) {
-      if (functions.includes(perm.function)) {
-        await this.prisma.studioBridgePermission.update({
-          where: { id: perm.id },
-          data: isA ? { acceptedA: accept } : { acceptedB: accept },
-        });
-      }
-    }
-
     if (!accept) {
       await this.prisma.studioBridge.update({ where: { id: bridgeId }, data: { status: 'REJECTED' } });
       this.invalidateCache(bridge.studioAId, bridge.studioBId);
       return { status: 'REJECTED' };
     }
 
-    // Check if both sides accepted all
-    const updated = await this.prisma.studioBridge.findUnique({
-      where: { id: bridgeId },
-      include: { permissions: true },
-    });
-    if (updated?.permissions.every((p) => p.acceptedA && p.acceptedB)) {
-      await this.prisma.studioBridge.update({
-        where: { id: bridgeId },
-        data: { status: 'ACTIVE', acceptedAt: new Date() },
-      });
-      this.invalidateCache(bridge.studioAId, bridge.studioBId);
-      return { status: 'ACTIVE' };
+    // 被桥接方自己选择愿意共享哪些功能；未勾选的功能直接删除（不共享）。
+    const functions = functionFilter && functionFilter.length > 0 ? functionFilter : ALL_FUNCTIONS;
+    for (const perm of bridge.permissions) {
+      if (functions.includes(perm.function)) {
+        await this.prisma.studioBridgePermission.update({
+          where: { id: perm.id },
+          data: isA ? { acceptedA: true } : { acceptedB: true },
+        });
+      } else {
+        await this.prisma.studioBridgePermission.delete({ where: { id: perm.id } });
+      }
     }
-    return { status: 'PENDING' };
+
+    await this.prisma.studioBridge.update({
+      where: { id: bridgeId },
+      data: { status: 'ACTIVE', acceptedAt: new Date() },
+    });
+    this.invalidateCache(bridge.studioAId, bridge.studioBId);
+    return { status: 'ACTIVE' };
   }
 
   /** Get all active bridge connections for a studio */

@@ -23,9 +23,9 @@ export class BridgeController {
 
   @Post(':id/respond')
   @Roles(UserRole.ADMIN)
-  async respond(@Param('id') id: string, @Req() req: any, @Body() body: { accept: boolean }) {
+  async respond(@Param('id') id: string, @Req() req: any, @Body() body: { accept: boolean; functionFilter?: string[] }) {
     const bridge = await this.bridgeService.find(id);
-    const data = await this.bridgeService.respond(id, req.user.studioId, body.accept);
+    const data = await this.bridgeService.respond(id, req.user.studioId, body.accept, body.functionFilter);
     // Notify the proposing admin about the response via WebSocket
     if (bridge?.proposedBy) {
       this.wsGateway?.notifyUser(bridge.proposedBy, 'bridge:responded', {

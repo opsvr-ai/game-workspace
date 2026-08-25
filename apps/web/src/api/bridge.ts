@@ -17,8 +17,8 @@ export const bridgeApi = {
   propose: (targetStudioId: string) =>
     http.post<{ data: BridgeInfo }>('/bridges/propose', { targetStudioId }),
 
-  respond: (bridgeId: string, accept: boolean) =>
-    http.post<{ data: { status: string } }>(`/bridges/${bridgeId}/respond`, { accept }),
+  respond: (bridgeId: string, accept: boolean, functionFilter?: string[]) =>
+    http.post<{ data: { status: string } }>(`/bridges/${bridgeId}/respond`, { accept, functionFilter }),
 
   list: () =>
     http.get<{ data: { active: BridgeInfo[]; pending: BridgeInfo[] } }>('/bridges'),
