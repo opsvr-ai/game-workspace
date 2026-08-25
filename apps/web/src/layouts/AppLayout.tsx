@@ -335,6 +335,15 @@ const InviteCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
   );
 };
 
+function loadSeenCount(key: string): number {
+  try {
+    const v = parseInt(localStorage.getItem(key) || '0', 10);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
@@ -424,17 +433,19 @@ const AppLayout: React.FC = () => {
   } | null>(null);
   // Badge: raw count from API, with seen-tracking via ref (not state)
   const [pendingBadge, setPendingBadge] = React.useState(0);
-  const seenRef = React.useRef(0); // start fresh — old localStorage values cause bugs
+  const seenRef = React.useRef(0);
 
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
+    const seenKey = `pending-seen-${user?.id || 'anon'}`;
+    seenRef.current = loadSeenCount(seenKey);
     const doFetch = async () => {
       try {
         const { data } = await http.get('/users/pending-review');
         const total = (data.data || []).length;
         if (seenRef.current > total) {
           seenRef.current = total;
-          localStorage.setItem('pending-seen', String(total));
+          localStorage.setItem(seenKey, String(total));
         }
         setPendingBadge(Math.max(0, total - seenRef.current));
       } catch {}
@@ -442,7 +453,7 @@ const AppLayout: React.FC = () => {
     doFetch();
     const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, user?.id]);
 
   // Bridge pending badge for ADMIN (same pattern as pendingBadge above)
   const [bridgePendingBadge, setBridgePendingBadge] = React.useState(0);
@@ -450,6 +461,8 @@ const AppLayout: React.FC = () => {
 
   useEffect(() => {
     if (user?.role !== 'ADMIN') return;
+    const seenKey = `bridge-pending-seen-${user?.id || 'anon'}`;
+    bridgeSeenRef.current = loadSeenCount(seenKey);
     const doFetch = async () => {
       try {
         const { data } = await http.get('/bridges');
@@ -457,7 +470,7 @@ const AppLayout: React.FC = () => {
         const total = pending.length;
         if (bridgeSeenRef.current > total) {
           bridgeSeenRef.current = total;
-          localStorage.setItem('bridge-pending-seen', String(total));
+          localStorage.setItem(seenKey, String(total));
         }
         setBridgePendingBadge(Math.max(0, total - bridgeSeenRef.current));
       } catch {}
@@ -465,7 +478,7 @@ const AppLayout: React.FC = () => {
     doFetch();
     const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, user?.id]);
 
   // Billing pending badge (报账审核 + 支出审批 + 支取审批)
   const [billingBadge, setBillingBadge] = React.useState(0);
@@ -473,13 +486,15 @@ const AppLayout: React.FC = () => {
 
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    const seenKey = `billing-pending-seen-${user?.id || 'anon'}`;
+    billingSeenRef.current = loadSeenCount(seenKey);
     const doFetch = async () => {
       try {
         const { data } = await http.get('/billing/pending-count');
         const total = data.data?.total || 0;
         if (billingSeenRef.current > total) {
           billingSeenRef.current = total;
-          localStorage.setItem('billing-pending-seen', String(total));
+          localStorage.setItem(seenKey, String(total));
         }
         setBillingBadge(Math.max(0, total - billingSeenRef.current));
       } catch {}
@@ -487,7 +502,7 @@ const AppLayout: React.FC = () => {
     doFetch();
     const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, user?.id]);
 
   // 工作抽查 badge（ADMIN/OWNER）
   const [reviewBadge, setReviewBadge] = React.useState(0);
@@ -518,29 +533,32 @@ const AppLayout: React.FC = () => {
   };
 
   const markBillingSeen = () => {
+    const seenKey = `billing-pending-seen-${user?.id || 'anon'}`;
     setBillingBadge((prev) => {
       const total = prev + billingSeenRef.current;
       billingSeenRef.current = total;
-      localStorage.setItem('billing-pending-seen', String(total));
+      localStorage.setItem(seenKey, String(total));
       return 0;
     });
   };
 
   const markBridgeSeen = () => {
+    const seenKey = `bridge-pending-seen-${user?.id || 'anon'}`;
     setBridgePendingBadge((prev) => {
       const total = prev + bridgeSeenRef.current;
       bridgeSeenRef.current = total;
-      localStorage.setItem('bridge-pending-seen', String(total));
+      localStorage.setItem(seenKey, String(total));
       return 0;
     });
   };
 
   const markSeen = () => {
     // Read current total from state to set seen
+    const seenKey = `pending-seen-${user?.id || 'anon'}`;
     setPendingBadge((prev) => {
       const total = prev + seenRef.current; // reconstruct: badge + seen = total
       seenRef.current = total;
-      localStorage.setItem('pending-seen', String(total));
+      localStorage.setItem(seenKey, String(total));
       return 0;
     });
   };
@@ -551,13 +569,15 @@ const AppLayout: React.FC = () => {
 
   useEffect(() => {
     if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    const seenKey = `contact-pending-seen-${user?.id || 'anon'}`;
+    contactSeenRef.current = loadSeenCount(seenKey);
     const doFetch = async () => {
       try {
         const { data } = await http.get('/orders/pending-contact-count');
         const total = data?.data || 0;
         if (contactSeenRef.current > total) {
           contactSeenRef.current = total;
-          localStorage.setItem('contact-pending-seen', String(total));
+          localStorage.setItem(seenKey, String(total));
         }
         setContactBadge(Math.max(0, total - contactSeenRef.current));
       } catch {}
@@ -565,13 +585,14 @@ const AppLayout: React.FC = () => {
     doFetch();
     const t = setInterval(doFetch, 30000);
     return () => clearInterval(t);
-  }, [user?.role]);
+  }, [user?.role, user?.id]);
 
   const markContactSeen = () => {
+    const seenKey = `contact-pending-seen-${user?.id || 'anon'}`;
     setContactBadge((prev) => {
       const total = prev + contactSeenRef.current;
       contactSeenRef.current = total;
-      localStorage.setItem('contact-pending-seen', String(total));
+      localStorage.setItem(seenKey, String(total));
       return 0;
     });
   };
