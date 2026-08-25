@@ -71,7 +71,7 @@ async function bootstrap() {
         maxAge: '1h',
         setHeaders: (res, filePath) => {
           if (filePath.endsWith('index.html')) {
-            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
           }
         },
       }),
