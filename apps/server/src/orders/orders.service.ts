@@ -612,6 +612,7 @@ export class OrdersService {
         .filter((o) => {
           const cf = (o.customFields as any) || {};
           if (cf.poolHandled) return false;
+          if (o.contactStatus === 'not_accepted') return false;
           // 立即打：全部显示（加急+待处理）；预约：只显示已过期的待处理
           return cf.urgency === 'now' || (cf.urgency === 'later' && cf.poolExpired);
         })
@@ -658,7 +659,7 @@ export class OrdersService {
     const cf = (order.customFields as any) || {};
     const result = extra?.addResult;
     const contactStatus = result === 'passed' ? 'added' : result === 'failed' ? 'not_accepted' : 'pending';
-    const poolHandled = status === 'added' && result !== 'failed';
+    const poolHandled = status === 'added';
     return this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -747,7 +748,7 @@ export class OrdersService {
       orderBy: { createdAt: 'desc' },
     });
     return orders.filter((o) => {
-      return o.contactStatus === 'pending' || o.contactStatus === 'added';
+      return o.contactStatus === 'pending' || o.contactStatus === 'added' || o.contactStatus === 'not_accepted';
     });
   }
 
