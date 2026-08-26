@@ -75,6 +75,7 @@ export class StudiosService {
     splitMode?: string,
     address?: string,
     leaseContractUrl?: string,
+    bridge?: boolean,
   ) {
     const passwordHash = await bcrypt.hash(managerPassword, 10);
     return this.prisma.$transaction(async (tx) => {
@@ -89,8 +90,8 @@ export class StudiosService {
           displayName: managerDisplayName ?? null,
         },
       });
-      // 租赁工作室：自动与老板的主线下工作室（最早创建的 DIRECT 工作室）全量桥接
-      if (type === 'RENTAL') {
+      // 勾选「桥接」时：自动与老板的主线下工作室（最早创建的 DIRECT 工作室）全量桥接
+      if (bridge) {
         const mainStudio = await tx.studio.findFirst({
           where: { type: 'DIRECT' },
           orderBy: { createdAt: 'asc' },

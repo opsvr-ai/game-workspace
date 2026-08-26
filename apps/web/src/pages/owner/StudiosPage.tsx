@@ -12,6 +12,7 @@ import {
   Radio,
   message,
   Popconfirm,
+  Switch,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -203,8 +204,9 @@ const StudiosPage: React.FC = () => {
       if (values.managerDisplayName) fd.append('managerDisplayName', values.managerDisplayName);
       if (values.splitMode) fd.append('splitMode', values.splitMode);
       if (values.address) fd.append('address', values.address);
+      if (values.bridge) fd.append('bridge', 'true');
       await studiosApi.create(fd);
-      message.success(values.type === 'RENTAL' ? '租赁工作室、店长账号已创建并自动桥接' : '线下工作室及店长账号已创建');
+      message.success(values.bridge ? '工作室、店长账号已创建并自动桥接' : '工作室及店长账号已创建');
       setCreateOpen(false);
       createForm.resetFields();
       fetchStudios();
@@ -436,8 +438,11 @@ const StudiosPage: React.FC = () => {
           <Form.Item name="address" label="工作室地址（选填）">
             <Input placeholder="请输入详细地址" />
           </Form.Item>
+          <Form.Item name="bridge" label="桥接到主工作室" valuePropName="checked" initialValue={true}>
+            <Switch checkedChildren="自动桥接" unCheckedChildren="不桥接" />
+          </Form.Item>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {`选「租赁工作室」会自动与你的主工作室桥接（订单/抢单池/客户/结算/KPI 全互通）。`}
+            {`开启后会自动与你的主工作室（蠢驴电竞）桥接，订单/抢单池/客户/结算/KPI 全互通。`}
           </Text>
         </Form>
       </Modal>

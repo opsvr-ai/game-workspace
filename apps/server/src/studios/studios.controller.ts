@@ -47,7 +47,7 @@ export class StudiosController {
   async create(@Body() dto: CreateStudioDto, @UploadedFile() file?: Express.Multer.File): Promise<ApiResponse<unknown>> {
     const leaseContractUrl = file ? `/uploads/studios/${file.filename}` : undefined;
     const data = await this.studiosService.create(
-      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName, dto.splitMode, dto.address, leaseContractUrl,
+      dto.name, dto.type, dto.managerUsername, dto.managerPassword, dto.managerDisplayName, dto.splitMode, dto.address, leaseContractUrl, dto.bridge,
     );
     return { code: 200, message: '工作室及店长账号已创建', data };
   }
