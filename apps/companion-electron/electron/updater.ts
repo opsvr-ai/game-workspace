@@ -61,7 +61,7 @@ function downloadZipWithProgress(
       res.on('error', reject);
     });
     req.on('error', reject);
-    req.setTimeout(300_000, () => {
+    req.setTimeout(1_800_000, () => {
       req.destroy();
       reject(new Error('下载超时'));
     });
@@ -69,21 +69,23 @@ function downloadZipWithProgress(
 }
 
 async function performUpdate(downloadUrl: string): Promise<void> {
-  const installerPath = path.join(app.getPath('temp'), 'Chunlv-Setup.exe');
+  const localDir = 'C:\\ProgramData\\chunlv';
+  const localZip = path.join(localDir, 'update.zip');
   startUpdateSpin();
   try {
-    await downloadZipWithProgress(downloadUrl, installerPath, setUpdateProgress);
+    fs.mkdirSync(localDir, { recursive: true });
+    await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
     setUpdateProgress(100);
-    logger.info('Installer downloaded, running silent install', { installerPath });
-    await runInstaller(installerPath);
-    logger.info('Install complete, relaunching...');
-    app.relaunch();
-    app.exit(0);
+    signalUpdate(downloadUrl, localZip);
+    logger.info('Update downloaded, handing off to SystemHelper', { localZip });
   } catch (err: any) {
-    logger.error('Update failed', { error: err?.message });
-    stopUpdateSpin();
-    updateTrayTooltip('陪玩管理');
+    logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
+    signalUpdate(downloadUrl);
   }
+  stopUpdateSpin();
+  updateTrayTooltip('陪玩管理');
+  // 交给看门狗(SystemHelper，系统权限)解压重启，全程不弹 UAC
+  setTimeout(() => { app.exit(0); }, 800);
 }
 
 /**

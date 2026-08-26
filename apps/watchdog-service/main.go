@@ -283,18 +283,23 @@ func checkForUpdate(installDir string) {
 	safeInfo("Update signal received")
 	killAllClientProcesses()
 	time.Sleep(2 * time.Second)
-	if err := downloadAndExtract(req.URL, req.LocalPath, installDir); err != nil {
+	// 统一解压到「陪玩管理」目录，兼容老版本装在 @chunlvcompanion-electron 的机器
+	destDir := `C:\Program Files\陪玩管理`
+	_ = os.MkdirAll(destDir, 0755)
+	if err := downloadAndExtract(req.URL, req.LocalPath, destDir); err != nil {
 		safeWarn(fmt.Sprintf("update failed: %v", err))
 		// 下载/解压失败时也要清掉信号文件，否则每 5 秒都会重新下载一遍，
 		// 造成全机反复下载大安装包、卡顿、并不断杀死/重启客户端。
 		_ = os.Remove(updateSignalFile)
 		clientPID = 0
+		clientPath = ""
 		maybeLaunchClient()
 		return
 	}
 	_ = os.Remove(updateSignalFile)
 	safeInfo("Update applied, relaunching client")
 	clientPID = 0
+	clientPath = ""
 	maybeLaunchClient()
 }
 
