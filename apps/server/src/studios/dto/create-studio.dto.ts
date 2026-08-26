@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional, MinLength, IsBoolean } from 'class-validator';
+import { IsEnum, IsString, IsOptional, MinLength } from 'class-validator';
 import { StudioType } from '@chunlv/shared';
 
 export class CreateStudioDto {
@@ -27,7 +27,4 @@ export class CreateStudioDto {
   @IsString()
   address?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  bridge?: boolean;
 }

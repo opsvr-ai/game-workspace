@@ -12,7 +12,6 @@ import {
   Radio,
   message,
   Popconfirm,
-  Switch,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -208,9 +207,8 @@ const StudiosPage: React.FC = () => {
       if (values.managerDisplayName) fd.append('managerDisplayName', values.managerDisplayName);
       if (values.splitMode) fd.append('splitMode', values.splitMode);
       if (values.address) fd.append('address', values.address);
-      if (values.bridge) fd.append('bridge', 'true');
       await studiosApi.create(fd);
-      message.success(values.bridge ? '工作室、店长账号已创建并自动桥接' : '工作室及店长账号已创建');
+      message.success('工作室及店长账号已创建');
       setCreateOpen(false);
       createForm.resetFields();
       fetchStudios();
@@ -428,7 +426,7 @@ const StudiosPage: React.FC = () => {
         width={520}
       >
         <div style={{ marginTop: 8 }}>
-          <Text type="secondary">把下面这个链接发给对方，他点开自己填「工作室名称、登录账号、密码」即可自助开通，并自动和你的主工作室桥接。</Text>
+          <Text type="secondary">把下面这个链接发给对方，他点开自己填「工作室名称、登录账号、密码」即可自助开通。开通后你再到「桥接管理」发起桥接，由对方选择要共享的功能。</Text>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <Input value={inviteUrl} readOnly />
             <Button
@@ -486,11 +484,8 @@ const StudiosPage: React.FC = () => {
           <Form.Item name="address" label="工作室地址（选填）">
             <Input placeholder="请输入详细地址" />
           </Form.Item>
-          <Form.Item name="bridge" label="桥接到主工作室" valuePropName="checked" initialValue={true}>
-            <Switch checkedChildren="自动桥接" unCheckedChildren="不桥接" />
-          </Form.Item>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {`开启后会自动与你的主工作室（蠢驴电竞）桥接，订单/抢单池/客户/结算/KPI 全互通。`}
+            {`创建后可到「桥接管理」发起桥接，由对方选择要共享的功能。`}
           </Text>
         </Form>
       </Modal>
