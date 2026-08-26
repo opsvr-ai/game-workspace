@@ -11,6 +11,7 @@ import { CreateStudioDto } from './dto/create-studio.dto';
 import { UpdateStudioDto } from './dto/update-studio.dto';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
+import { randomBytes } from 'crypto';
 
 @Controller()
 export class StudiosController {
@@ -28,6 +29,40 @@ export class StudiosController {
   async listPublic(): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.listPublic();
     return { code: 200, message: 'ok', data };
+  }
+
+  // 邀请注册（公开）：合作伙伴/租客通过邀请链接填写工作室信息自助开通
+  @Post('studios/register-invite')
+  async registerInvite(
+    @Body()
+    body: {
+      token: string;
+      studioName: string;
+      username: string;
+      password: string;
+      displayName?: string;
+      address?: string;
+    },
+  ): Promise<ApiResponse<unknown>> {
+    if (!body?.token || !body?.studioName?.trim() || !body?.username?.trim() || !body?.password || body.password.length < 6) {
+      return { code: 400, message: '请填写完整信息（密码至少6位）', data: null };
+    }
+    try {
+      const data = await this.studiosService.registerViaInvite(
+        body.token,
+        body.studioName,
+        body.username,
+        body.password,
+        body.displayName,
+        body.address,
+      );
+      return { code: 200, message: '开通成功，请登录', data };
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return { code: 409, message: '该登录账号已存在，请换一个', data: null };
+      }
+      return { code: 400, message: err?.message || '开通失败', data: null };
+    }
   }
 
   @Post('studios')
@@ -82,6 +117,19 @@ export class StudiosController {
   async listOnlineClubs(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.studiosService.listOnlineClubs(req.user.studioId);
     return { code: 200, message: 'ok', data };
+  }
+
+  // 老板生成「邀请注册」链接：转发给合作伙伴/租客，让其自行填写工作室名+账号密码
+  @Post('studios/invite')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER)
+  async createInvite(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const token = randomBytes(16).toString('hex');
+    await this.studiosService.createInviteToken(token, req.user.id);
+    const host = req.get('host') || '1.117.229.36:3001';
+    const proto = req.protocol || 'http';
+    const url = `${proto}://${host}/login?invite=${token}`;
+    return { code: 200, message: '邀请链接已生成', data: { token, url } };
   }
 
   @Post('studios/online-clubs')

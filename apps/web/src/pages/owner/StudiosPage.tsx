@@ -19,6 +19,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import { studiosApi } from '../../api/studios';
 import http from '../../api/client';
@@ -66,6 +67,9 @@ const StudiosPage: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm] = Form.useForm();
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [inviteVisible, setInviteVisible] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   const fetchPendingUsers = useCallback(async () => {
     setLoadingPending(true);
@@ -218,6 +222,19 @@ const StudiosPage: React.FC = () => {
     }
   };
 
+  const handleGenerateInvite = async () => {
+    setInviting(true);
+    try {
+      const { data } = await http.post('/studios/invite');
+      setInviteUrl(data?.data?.url || '');
+      setInviteVisible(true);
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '生成失败');
+    } finally {
+      setInviting(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0' }}>
@@ -255,6 +272,13 @@ const StudiosPage: React.FC = () => {
           工作室管理
         </Text>
         <Space>
+          <Button
+            icon={React.createElement(LinkOutlined)}
+            loading={inviting}
+            onClick={handleGenerateInvite}
+          >
+            生成邀请链接
+          </Button>
           <Button
             type="primary"
             icon={React.createElement(PlusOutlined)}
@@ -394,6 +418,30 @@ const StudiosPage: React.FC = () => {
           },
         ]}
       />
+
+      {/* Invite Link Modal */}
+      <Modal
+        title="邀请注册链接"
+        open={inviteVisible}
+        onCancel={() => { setInviteVisible(false); setInviteUrl(''); }}
+        footer={null}
+        width={520}
+      >
+        <div style={{ marginTop: 8 }}>
+          <Text type="secondary">把下面这个链接发给对方，他点开自己填「工作室名称、登录账号、密码」即可自助开通，并自动和你的主工作室桥接。</Text>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <Input value={inviteUrl} readOnly />
+            <Button
+              type="primary"
+              onClick={() => {
+                navigator.clipboard?.writeText(inviteUrl).then(() => message.success('已复制'));
+              }}
+            >
+              复制
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create Studio Modal */}
       <Modal

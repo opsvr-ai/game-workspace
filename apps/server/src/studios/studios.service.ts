@@ -39,6 +39,76 @@ export class StudiosService {
     return onlineClub;
   }
 
+  async createInviteToken(token: string, ownerUserId: string) {
+    await this.prisma.systemConfig.create({
+      data: {
+        key: `invite.${token}`,
+        value: JSON.stringify({ ownerUserId, createdAt: new Date().toISOString(), used: false }),
+      },
+    });
+  }
+
+  // 邀请注册：合作伙伴/租客自行填写工作室名+店长账号密码，自动创建并桥接到主工作室
+  async registerViaInvite(
+    token: string,
+    studioName: string,
+    managerUsername: string,
+    managerPassword: string,
+    managerDisplayName?: string,
+    address?: string,
+  ) {
+    const inviteCfg = await this.prisma.systemConfig.findUnique({ where: { key: `invite.${token}` } });
+    if (!inviteCfg) throw new ForbiddenException('邀请链接无效');
+    const invite = (inviteCfg.value as any) || {};
+    if (invite.used) throw new ForbiddenException('邀请链接已被使用');
+
+    const passwordHash = await bcrypt.hash(managerPassword, 10);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const studio = await tx.studio.create({
+        data: { name: studioName.trim(), type: 'DIRECT', splitMode: 'TIERED', address: address?.trim() || null },
+      });
+      const manager = await tx.user.create({
+        data: {
+          username: managerUsername.trim(),
+          passwordHash,
+          role: 'ADMIN',
+          studioId: studio.id,
+          isAuthorized: true,
+          displayName: managerDisplayName?.trim() || null,
+        },
+      });
+      // 自动桥接到主线下工作室
+      const mainStudio = await tx.studio.findFirst({
+        where: { type: 'DIRECT', id: { not: studio.id } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (mainStudio) {
+        const [a, b] = [mainStudio.id, studio.id].sort();
+        const allFunctions = ['ORDERS', 'POOL', 'CUSTOMERS', 'BILLING', 'KPI'];
+        await tx.studioBridge.create({
+          data: {
+            studioAId: a,
+            studioBId: b,
+            proposedBy: manager.id,
+            status: 'ACTIVE',
+            acceptedAt: new Date(),
+            permissions: {
+              create: allFunctions.map((f) => ({ function: f, acceptedA: true, acceptedB: true })),
+            },
+          },
+        });
+      }
+      return { studio, manager };
+    });
+
+    await this.prisma.systemConfig.update({
+      where: { key: `invite.${token}` },
+      data: { value: JSON.stringify({ ...invite, used: true, usedAt: new Date().toISOString() }) },
+    });
+
+    return { studioId: result.studio.id, username: result.manager.username };
+  }
+
   async listOnlineClubs(studioId: string) {
     const bridges = await this.prisma.studioBridge.findMany({
       where: { status: 'ACTIVE', OR: [{ studioAId: studioId }, { studioBId: studioId }] },
