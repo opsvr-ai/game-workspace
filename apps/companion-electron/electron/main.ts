@@ -390,15 +390,13 @@ app.whenReady().then(() => {
     10 * 60 * 1000,
   );
 
-  // 更新后自动重启时，若有已保存的账号密码，就托盘静默启动，不弹登录窗口打扰陪玩。
-  const hasSavedCredentials = !!decryptSavedCredentials();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     title: `陪玩管理 v${app.getVersion()}`,
-    show: !hasSavedCredentials,
+    show: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
