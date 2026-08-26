@@ -236,10 +236,19 @@ const LoginPage: React.FC = () => {
       if (res.data?.code === 200) {
         Modal.success({
           title: '开通成功',
-          content: `你的登录账号是：${res.data.data.username}，现在可以用这个账号密码登录了。`,
+          content: `你的登录账号是：${res.data.data.username}。客户端正在自动下载，下载完成后安装并登录即可。`,
         });
         setMode('login');
         setUsername(res.data.data.username);
+        // 开通成功后自动下载客户端安装包
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = '/api/agent/download/exe';
+          a.download = '陪玩管理-Setup.exe';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }, 800);
       } else {
         message.error(res.data?.message || '开通失败');
       }
