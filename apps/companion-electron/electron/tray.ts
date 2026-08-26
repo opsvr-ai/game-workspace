@@ -5,6 +5,8 @@ let tray: Tray | null = null;
 let onShowCallback: (() => void) | null = null;
 let onStatusChange: ((status: string) => void) | null = null;
 let onQuitCallback: (() => void) | null = null;
+let spinTimer: ReturnType<typeof setInterval> | null = null;
+let spinIndex = 0;
 
 interface TrayOptions {
   onShow: () => void;
@@ -79,6 +81,63 @@ export function updateTrayTooltip(text: string): void {
 
 export function updateTrayMenu(items: Electron.MenuItemConstructorOptions[]): void {
   tray?.setContextMenu(Menu.buildFromTemplate(items));
+}
+
+// 创建一帧「加载中」图标：灰色圆环 + 一个旋转的亮点，模拟转圈圈
+function createSpinFrame(step: number, total = 8): Electron.NativeImage {
+  const size = 16;
+  const buf = Buffer.alloc(size * size * 4, 0);
+  const cx = 8;
+  const cy = 8;
+  const r = 6;
+  const setPx = (x: number, y: number, rr: number, gg: number, bb: number, aa: number) => {
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    const p = (y * size + x) * 4;
+    buf[p] = rr;
+    buf[p + 1] = gg;
+    buf[p + 2] = bb;
+    buf[p + 3] = aa;
+  };
+  // 灰色圆环
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+      if (d >= r - 1.4 && d <= r + 1.2) setPx(x, y, 0x88, 0x88, 0x88, 0xff);
+    }
+  }
+  // 旋转亮点
+  const angle = (step / total) * Math.PI * 2;
+  const px = Math.round(cx + r * Math.cos(angle));
+  const py = Math.round(cy + r * Math.sin(angle));
+  setPx(px, py, 0x00, 0xd4, 0xff, 0xff);
+  setPx(px - 1, py, 0x00, 0xd4, 0xff, 0xff);
+  setPx(px + 1, py, 0x00, 0xd4, 0xff, 0xff);
+  setPx(px, py - 1, 0x00, 0xd4, 0xff, 0xff);
+  setPx(px, py + 1, 0x00, 0xd4, 0xff, 0xff);
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+}
+
+// 开始托盘图标转圈（更新中）
+export function startUpdateSpin(): void {
+  if (spinTimer) return;
+  spinIndex = 0;
+  const total = 8;
+  const frames: Electron.NativeImage[] = [];
+  for (let i = 0; i < total; i++) frames.push(createSpinFrame(i, total));
+  tray?.setImage(frames[0]);
+  spinTimer = setInterval(() => {
+    spinIndex = (spinIndex + 1) % total;
+    tray?.setImage(frames[spinIndex]);
+  }, 150);
+}
+
+// 停止转圈，恢复原始图标
+export function stopUpdateSpin(): void {
+  if (spinTimer) {
+    clearInterval(spinTimer);
+    spinTimer = null;
+  }
+  tray?.setImage(createTrayIcon());
 }
 
 function createTrayIcon() {

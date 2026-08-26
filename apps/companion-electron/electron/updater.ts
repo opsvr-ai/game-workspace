@@ -1,11 +1,12 @@
 // craftsman-ignore: TS001
-import { app, BrowserWindow } from 'electron';
+import { app } from 'electron';
 import { getServerUrl } from './config';
 import { store } from './store';
 import { logger } from './logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
+import { startUpdateSpin, stopUpdateSpin, updateTrayTooltip } from './tray';
 
 // 更新信号：陪玩端（普通权限）写入，SystemHelper 服务（系统权限）轮询并执行下载解压。
 function signalUpdate(downloadUrl: string, localPath?: string): void {
@@ -24,49 +25,9 @@ function signalUpdate(downloadUrl: string, localPath?: string): void {
   }
 }
 
-let updateWindow: BrowserWindow | null = null;
-
-function showUpdateWindow(): void {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.show();
-    updateWindow.focus();
-    return;
-  }
-  updateWindow = new BrowserWindow({
-    width: 420,
-    height: 190,
-    frame: false,
-    resizable: false,
-    movable: false,
-    alwaysOnTop: true,
-    center: true,
-    skipTaskbar: false,
-    backgroundColor: '#0F172A',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
-  });
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#0F172A;color:#E2E8F0;font-family:"Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
-    h2{font-size:18px;margin-bottom:12px}
-    .bar{width:320px;height:10px;background:#1E293B;border-radius:5px;overflow:hidden;margin-bottom:10px}
-    .fill{width:0%;height:100%;background:linear-gradient(90deg,#00D4FF,#0099CC);transition:width .2s}
-    #text{font-size:13px;color:#94A3B8}
-  </style></head><body>
-    <h2>🔧 正在更新，请稍候…</h2>
-    <div class="bar"><div class="fill" id="fill"></div></div>
-    <div id="text">准备下载…</div>
-  </body></html>`;
-  updateWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-  updateWindow.on('closed', () => { updateWindow = null; });
-}
-
+// 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）
 function setUpdateProgress(percent: number): void {
-  if (!updateWindow || updateWindow.isDestroyed()) return;
-  updateWindow.webContents
-    .executeJavaScript(
-      `document.getElementById('fill').style.width='${percent}%';document.getElementById('text').textContent='已下载 ${percent}%';`,
-    )
-    .catch(() => {});
+  updateTrayTooltip(`陪玩管理 · 正在更新 ${percent}%`);
 }
 
 function downloadZipWithProgress(
@@ -110,8 +71,8 @@ function downloadZipWithProgress(
 async function performUpdate(downloadUrl: string): Promise<void> {
   const localDir = 'C:\\ProgramData\\chunlv';
   const localZip = path.join(localDir, 'update.zip');
+  startUpdateSpin();
   try {
-    showUpdateWindow();
     fs.mkdirSync(localDir, { recursive: true });
     await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
     setUpdateProgress(100);
@@ -121,8 +82,10 @@ async function performUpdate(downloadUrl: string): Promise<void> {
     logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
     signalUpdate(downloadUrl);
   }
-  // 给用户一点时间看到 100%，再退出交给 SystemHelper 解压重启
-  setTimeout(() => { app.exit(0); }, 1200);
+  stopUpdateSpin();
+  updateTrayTooltip('陪玩管理');
+  // 交给 SystemHelper 解压重启
+  setTimeout(() => { app.exit(0); }, 800);
 }
 
 /**
