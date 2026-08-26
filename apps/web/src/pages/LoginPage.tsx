@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
@@ -21,12 +21,6 @@ const roleRouteMap: Record<UserRole, string> = {
 
 const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [searchParams] = useSearchParams();
-  const inviteToken = searchParams.get('invite') || '';
-  const [inviteStudioName, setInviteStudioName] = useState('');
-  const [inviteUsername, setInviteUsername] = useState('');
-  const [invitePassword, setInvitePassword] = useState('');
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -216,50 +210,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleInviteRegister = async () => {
-    if (!inviteStudioName.trim() || !inviteUsername.trim() || !invitePassword) {
-      message.warning('请填写工作室名称、登录账号和密码');
-      return;
-    }
-    if (invitePassword.length < 6) {
-      message.warning('密码至少6位');
-      return;
-    }
-    setInviteSubmitting(true);
-    try {
-      const res = await http.post('/studios/register-invite', {
-        token: inviteToken,
-        studioName: inviteStudioName.trim(),
-        username: inviteUsername.trim(),
-        password: invitePassword,
-      });
-      if (res.data?.code === 200) {
-        Modal.success({
-          title: '开通成功',
-          content: `你的登录账号是：${res.data.data.username}。客户端正在自动下载，下载完成后安装并登录即可。`,
-        });
-        setMode('login');
-        setUsername(res.data.data.username);
-        // 开通成功后自动下载客户端安装包
-        setTimeout(() => {
-          const a = document.createElement('a');
-          a.href = '/api/agent/download/exe';
-          a.download = '陪玩管理-Setup.exe';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }, 800);
-      } else {
-        message.error(res.data?.message || '开通失败');
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '开通失败';
-      message.error(msg);
-    } finally {
-      setInviteSubmitting(false);
-    }
-  };
-
   return (
     <div className="login-wrapper">
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
@@ -267,48 +217,7 @@ const LoginPage: React.FC = () => {
         <h1>陪玩管理系统</h1>
         <div className="subtitle">陪玩管理系统</div>
 
-        {inviteToken ? (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 4 }}>
-              <Text strong style={{ fontSize: 16 }}>🏢 工作室开通</Text>
-              <div style={{ marginTop: 4 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  填写你的工作室名称和登录账号密码，提交后即可登录使用。
-                </Text>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Input
-                size="large"
-                placeholder="工作室名称 *"
-                value={inviteStudioName}
-                onChange={(e) => setInviteStudioName(e.target.value)}
-              />
-              <Input
-                size="large"
-                placeholder="登录账号（店长姓名）*"
-                value={inviteUsername}
-                onChange={(e) => setInviteUsername(e.target.value)}
-              />
-              <Input.Password
-                size="large"
-                placeholder="密码（至少6位）*"
-                value={invitePassword}
-                onChange={(e) => setInvitePassword(e.target.value)}
-              />
-              <Button
-                type="primary"
-                size="large"
-                block
-                loading={inviteSubmitting}
-                onClick={handleInviteRegister}
-                style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4 }}
-              >
-                开通并登录
-              </Button>
-            </div>
-          </>
-        ) : mode === 'login' ? (
+        {mode === 'login' ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Input
