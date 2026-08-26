@@ -89,6 +89,7 @@ export class StudiosService {
   }
 
   async listOnlineClubs(studioId: string) {
+    if (!studioId) return [];
     const bridges = await this.prisma.studioBridge.findMany({
       where: { status: 'ACTIVE', OR: [{ studioAId: studioId }, { studioBId: studioId }] },
       include: {

@@ -1234,6 +1234,15 @@ export class OrdersService {
   }
 
   async countPendingContact(studioId: string) {
+    if (!studioId) {
+      // 老板（无工作室）看全部待联系订单
+      return this.prisma.order.count({
+        where: {
+          contactStatus: 'not_accepted',
+          status: { not: 'CANCELLED' },
+        },
+      });
+    }
     const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
     const studioIds = [studioId, ...bridgedIds];
     return this.prisma.order.count({
