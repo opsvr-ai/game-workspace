@@ -3,12 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
-import * as dgram from 'dgram';
 
 const execFileAsync = promisify(execFile);
 
 const REMOTE_USER = 'chunlvops';
 const REMOTE_PASSWORD = 'Chunlv@Ops2026';
+const LAN_RELAY_IP = '192.168.0.106';
+const LAN_RELAY_USER = 'hanlei';
 
 @Injectable()
 export class ManagedPcService {
@@ -133,22 +134,19 @@ export class ManagedPcService {
     let mac = storedMac || this.resolveMacFromHostArp(ip);
     if (!mac) throw new Error('未找到该电脑的 MAC 地址，请在电脑管理里手动填写或让电脑开机一次');
     mac = mac.toLowerCase();
-    const magic = Buffer.concat([
-      Buffer.alloc(6, 0xff),
-      ...Array(16).fill(Buffer.from(mac.replace(/:/g, ''), 'hex')),
-    ]);
-    for (const target of ['192.168.0.255', '255.255.255.255']) {
-      await new Promise<void>((resolve) => {
-        const socket = dgram.createSocket('udp4');
-        socket.bind(() => {
-          socket.setBroadcast(true);
-          socket.send(magic, 9, target, () => {
-            socket.close();
-            resolve();
-          });
-        });
-      });
-    }
+    // 云服务器不在内网，通过局域网中继服务器发送 WOL 广播魔术包
+    await execFileAsync(
+      'ssh',
+      [
+        '-o',
+        'StrictHostKeyChecking=no',
+        '-o',
+        'ConnectTimeout=8',
+        `${LAN_RELAY_USER}@${LAN_RELAY_IP}`,
+        `python3 /usr/local/bin/chunlv-wol.py ${mac}`,
+      ],
+      { timeout: 15000 },
+    );
   }
 
   /** 从 ARP 缓存解析 MAC，并回写到电脑管理表（仅在线时可解析） */
