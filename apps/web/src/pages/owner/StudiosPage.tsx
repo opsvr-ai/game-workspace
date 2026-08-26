@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { studiosApi } from '../../api/studios';
 import http from '../../api/client';
@@ -61,6 +62,9 @@ const StudiosPage: React.FC = () => {
   const [onlineClubs, setOnlineClubs] = useState<any[]>([]);
   const [clubName, setClubName] = useState('');
   const [addingClub, setAddingClub] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm] = Form.useForm();
+  const [createSubmitting, setCreateSubmitting] = useState(false);
 
   const fetchPendingUsers = useCallback(async () => {
     setLoadingPending(true);
@@ -187,6 +191,31 @@ const StudiosPage: React.FC = () => {
     }
   };
 
+  const handleCreateSubmit = async () => {
+    try {
+      const values = await createForm.validateFields();
+      setCreateSubmitting(true);
+      const fd = new FormData();
+      fd.append('name', values.name);
+      fd.append('type', 'DIRECT');
+      fd.append('managerUsername', values.managerUsername);
+      fd.append('managerPassword', values.managerPassword);
+      if (values.managerDisplayName) fd.append('managerDisplayName', values.managerDisplayName);
+      if (values.splitMode) fd.append('splitMode', values.splitMode);
+      if (values.address) fd.append('address', values.address);
+      await studiosApi.create(fd);
+      message.success('线下工作室及店长账号已创建');
+      setCreateOpen(false);
+      createForm.resetFields();
+      fetchStudios();
+    } catch (err: any) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.message || err?.message || '创建失败');
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0' }}>
@@ -223,13 +252,22 @@ const StudiosPage: React.FC = () => {
         <Text strong style={{ fontSize: 16 }}>
           工作室管理
         </Text>
-        <Button
-          icon={React.createElement(ReloadOutlined)}
-          onClick={fetchStudios}
-          loading={loading}
-        >
-          刷新
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={React.createElement(PlusOutlined)}
+            onClick={() => setCreateOpen(true)}
+          >
+            添加线下工作室
+          </Button>
+          <Button
+            icon={React.createElement(ReloadOutlined)}
+            onClick={fetchStudios}
+            loading={loading}
+          >
+            刷新
+          </Button>
+        </Space>
       </div>
 
       {error && (
@@ -354,6 +392,43 @@ const StudiosPage: React.FC = () => {
           },
         ]}
       />
+
+      {/* Create Offline Studio Modal */}
+      <Modal
+        title="添加线下工作室"
+        open={createOpen}
+        onOk={handleCreateSubmit}
+        onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
+        confirmLoading={createSubmitting}
+        okText="创建"
+        cancelText="取消"
+        destroyOnClose
+        width={480}
+      >
+        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="name" label="工作室名称" rules={[{ required: true, message: '请输入工作室名称' }]}>
+            <Input placeholder="如：蠢驴电竞二店" />
+          </Form.Item>
+          <Form.Item name="managerUsername" label="店长登录账号" rules={[{ required: true, message: '请输入店长账号' }]}>
+            <Input placeholder="如：dianzhang02" />
+          </Form.Item>
+          <Form.Item name="managerPassword" label="店长密码" rules={[{ required: true, min: 6, message: '密码至少6位' }]}>
+            <Input.Password placeholder="至少6位" />
+          </Form.Item>
+          <Form.Item name="managerDisplayName" label="店长姓名（选填）">
+            <Input placeholder="如：张店长" />
+          </Form.Item>
+          <Form.Item name="splitMode" label="分账模式" initialValue="TIERED">
+            <Radio.Group>
+              <Radio.Button value="TIERED">阶梯分成</Radio.Button>
+              <Radio.Button value="FIXED">固定比例</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+          <Form.Item name="address" label="工作室地址（选填）">
+            <Input placeholder="请输入详细地址" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Edit Modal */}
       <Modal
