@@ -463,16 +463,17 @@ app.whenReady().then(() => {
       mainWindow?.focus();
     },
     onQuit: async () => {
-      // 只有陪玩端需要密码退出，客服/店长/老板直接退出
+      // 只有陪玩需要密码退出；客服/店长/老板直接退出。
+      // 但所有角色退出时都要通知看门狗，否则看门狗会把程序自动拉起来（管理端不该被保活）。
       if (currentRole === 'COMPANION') {
         try {
           const ok = await promptPassword('退出确认');
           if (!ok) return;
-          await signalAuthorizedExit();
         } catch {
           return;
         }
       }
+      await signalAuthorizedExit();
       isQuitting = true;
       app.quit();
     },
