@@ -197,14 +197,14 @@ const StudiosPage: React.FC = () => {
       setCreateSubmitting(true);
       const fd = new FormData();
       fd.append('name', values.name);
-      fd.append('type', 'DIRECT');
+      fd.append('type', values.type || 'DIRECT');
       fd.append('managerUsername', values.managerUsername);
       fd.append('managerPassword', values.managerPassword);
       if (values.managerDisplayName) fd.append('managerDisplayName', values.managerDisplayName);
       if (values.splitMode) fd.append('splitMode', values.splitMode);
       if (values.address) fd.append('address', values.address);
       await studiosApi.create(fd);
-      message.success('线下工作室及店长账号已创建');
+      message.success(values.type === 'RENTAL' ? '租赁工作室、店长账号已创建并自动桥接' : '线下工作室及店长账号已创建');
       setCreateOpen(false);
       createForm.resetFields();
       fetchStudios();
@@ -258,7 +258,7 @@ const StudiosPage: React.FC = () => {
             icon={React.createElement(PlusOutlined)}
             onClick={() => setCreateOpen(true)}
           >
-            添加线下工作室
+            添加工作室
           </Button>
           <Button
             icon={React.createElement(ReloadOutlined)}
@@ -393,9 +393,9 @@ const StudiosPage: React.FC = () => {
         ]}
       />
 
-      {/* Create Offline Studio Modal */}
+      {/* Create Studio Modal */}
       <Modal
-        title="添加线下工作室"
+        title="添加工作室"
         open={createOpen}
         onOk={handleCreateSubmit}
         onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
@@ -406,6 +406,15 @@ const StudiosPage: React.FC = () => {
         width={480}
       >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="type" label="工作室类型" initialValue="DIRECT">
+            <Segmented
+              block
+              options={[
+                { label: '🏢 线下工作室', value: 'DIRECT' },
+                { label: '🌐 租赁工作室', value: 'RENTAL' },
+              ]}
+            />
+          </Form.Item>
           <Form.Item name="name" label="工作室名称" rules={[{ required: true, message: '请输入工作室名称' }]}>
             <Input placeholder="如：蠢驴电竞二店" />
           </Form.Item>
@@ -427,6 +436,9 @@ const StudiosPage: React.FC = () => {
           <Form.Item name="address" label="工作室地址（选填）">
             <Input placeholder="请输入详细地址" />
           </Form.Item>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {`选「租赁工作室」会自动与你的主工作室桥接（订单/抢单池/客户/结算/KPI 全互通）。`}
+          </Text>
         </Form>
       </Modal>
 

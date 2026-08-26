@@ -79,7 +79,7 @@ export class StudiosService {
     const passwordHash = await bcrypt.hash(managerPassword, 10);
     return this.prisma.$transaction(async (tx) => {
       const studio = await tx.studio.create({ data: { name, type, splitMode: splitMode ?? 'TIERED', address, leaseContractUrl } });
-      await tx.user.create({
+      const manager = await tx.user.create({
         data: {
           username: managerUsername,
           passwordHash,
@@ -89,6 +89,29 @@ export class StudiosService {
           displayName: managerDisplayName ?? null,
         },
       });
+      // 租赁工作室：自动与老板的主线下工作室（最早创建的 DIRECT 工作室）全量桥接
+      if (type === 'RENTAL') {
+        const mainStudio = await tx.studio.findFirst({
+          where: { type: 'DIRECT' },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (mainStudio && mainStudio.id !== studio.id) {
+          const [a, b] = [mainStudio.id, studio.id].sort();
+          const allFunctions = ['ORDERS', 'POOL', 'CUSTOMERS', 'BILLING', 'KPI'];
+          await tx.studioBridge.create({
+            data: {
+              studioAId: a,
+              studioBId: b,
+              proposedBy: manager.id,
+              status: 'ACTIVE',
+              acceptedAt: new Date(),
+              permissions: {
+                create: allFunctions.map((f) => ({ function: f, acceptedA: true, acceptedB: true })),
+              },
+            },
+          });
+        }
+      }
       return studio;
     });
   }
