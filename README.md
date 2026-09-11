@@ -6,6 +6,8 @@
 
 ## Recent Updates (v3.1.0)
 
+- **账号笔记计划表:** 工作室账号管理的小红书账号「笔记」抽屉新增「计划表」，可按账号关键词批量生成 7 天标题、正文、话题、封面构图和配图建议，并支持导入浏览器扩展采集的对标笔记先拆解爆款规律。
+- **内容查重 + 违禁词检测:** 新增「内容查重风控」页面，发布小红书/抖音等笔记前可检测站外导流、诱导私信、低价营销、极限词等违禁词，并与当前文案、同批草稿、历史文案及系统已录笔记做重复度检查，支持启用大模型语义查重。
 - **派单优先级与客服提成:** 订单区分线下/线上来源，立即打优先线下空闲且达标陪玩，客服提成支持比例+保底/固定金额，按营业月归属，并按收款微信每日对账
 - **客服桌面客户端:** 新增轻量 Electron 客服端，支持语音与系统通知，无陪玩端管控限制
 - **客户追踪与抢单门槛:** 每日有效客户名额、联系结果登记、三档可配置门槛、客户追踪/提醒/删除审核、管理端追踪中心与陪玩端追踪面板、客户 KPI 与异常检测
@@ -122,6 +124,7 @@ chunlv-esports/
 │   │       ├── stores/              # Zustand state stores
 │   │       ├── pages/
 │   │       │   ├── LoginPage.tsx
+│   │       │   ├── ContentCheckPage.tsx # 内容查重 + 违禁词检测
 │   │       │   ├── owner/           # Owner pages (5 pages)
 │   │       │   │   ├── AuthorizationsPage.tsx
 │   │       │   │   ├── CustomersPage.tsx
@@ -171,6 +174,10 @@ chunlv-esports/
 │   │       ├── customers/
 │   │       │   ├── customers.controller.ts   # CRUD + reassign + order history
 │   │       │   └── customers.service.ts      # Data isolation by role
+│   │       ├── content-check/
+│   │       │   ├── content-check.controller.ts  # 违禁词词库 + 内容检查
+│   │       │   ├── content-check.service.ts     # 词库匹配 + 滑动分片查重
+│   │       │   └── content-check.lexicon.ts     # 2026 小红书风险词库
 │   │       ├── billing/
 │   │       │   ├── billing.controller.ts     # Transactions CRUD, approve, reject, batch, revenue, expenses
 │   │       │   ├── billing.service.ts        # Revenue aggregation + profit/loss
@@ -320,6 +327,13 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/auth/me` | JWT | -- | Get current user info from token. |
 | `PUT` | `/api/auth/me` | JWT | -- | Update current user displayName. Body: `{ displayName }`. |
 | `PUT` | `/api/auth/users/:id/authorize` | JWT | OWNER | Authorize a user account (required for CS/COMPANION roles). |
+
+### Content Check
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/content-check/lexicon` | JWT | OWNER, ADMIN, CS, COMPANION | Get the current content risk lexicon and version. |
+| `POST` | `/api/content-check/check` | JWT | OWNER, ADMIN, CS, COMPANION | Check title/body/tags for banned words and duplicate similarity. |
 
 ### Orders
 
