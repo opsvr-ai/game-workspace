@@ -27,6 +27,7 @@ import { TrafficAccountModule } from './traffic-account/traffic-account.module';
 import { BattleScreenshotsModule } from './battle-screenshots/battle-screenshots.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
+import { ContentCheckModule } from './content-check/content-check.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { LoggerMiddleware } from './common/logger.middleware';
     ProfitSplitModule,
     TrafficAccountModule,
     BattleScreenshotsModule,
+    ContentCheckModule,
   ],
   providers: [
     {
