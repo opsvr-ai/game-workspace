@@ -35,7 +35,17 @@ import OrderRow from '../../components/OrderRow';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
-import { orderTypeConfig, companionStatusConfig, personnelGroupRank, isPersonnelOnline, serviceTypeConfig } from '../../constants';
+import {
+  orderTypeConfig,
+  companionStatusConfig,
+  personnelGroupRank,
+  isPersonnelOnline,
+  serviceTypeConfig,
+  PERSONNEL_COLUMN_WIDTH,
+  QUICK_STATS_COLUMN_WIDTH,
+  fixedColumnFlex,
+  fixedColumnStyle,
+} from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields } from '../../utils/orderPool';
 
@@ -474,10 +484,11 @@ const CSDispatchView: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
-        <Col flex="0 0 240px">
+        <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
           <Card
             title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
             size="small"
+            className="personnel-list-card"
             style={{ borderRadius: 8 }}
             bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
           >
@@ -641,7 +652,9 @@ const CSDispatchView: React.FC = () => {
                                 fontSize: 13,
                                 color: '#1F2937',
                                 whiteSpace: 'nowrap',
-                                flexShrink: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                minWidth: 0,
                               }}
                             >
                               {c.displayName || c.username || c.id}
@@ -960,7 +973,7 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Right: Stats + Chat panel */}
-        <Col flex="0 0 150px">
+        <Col flex={fixedColumnFlex(QUICK_STATS_COLUMN_WIDTH)} style={fixedColumnStyle(QUICK_STATS_COLUMN_WIDTH)}>
           <Card size="small" style={{ borderRadius: 8 }} bodyStyle={{ padding: '6px 8px' }}>
             <div style={{ textAlign: 'right', lineHeight: 2, fontSize: 13 }}>
               <div>

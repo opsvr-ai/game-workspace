@@ -19,6 +19,7 @@ import TierBadge from '../components/TierBadge';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
+import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields } from '../utils/orderPool';
 
 const { Text } = Typography;
@@ -409,10 +410,11 @@ const OrderPoolPage: React.FC = () => {
   };
 
   const renderCompanionSidebar = () => (
-    <Col flex="0 0 220px">
+    <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
       <Card
         title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
         size="small"
+        className="personnel-list-card"
         style={{ borderRadius: 8 }}
         bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
       >

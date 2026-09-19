@@ -250,6 +250,15 @@ body {
   }
 }
 
+/* ── 「人员」列表卡片：小窗模式下也不许压缩左右内边距 ──
+   上面几段小窗紧凑规则用 `.ant-card-body { padding: ... !important }` 把这一列的
+   左右内边距从 4px 顶到 12px，白白吃掉 16px；窗口 ≤1100px（客服客户端最小宽度
+   就是 1080）时，陪玩名字会被省略号截断成 "王…"。
+   这里用更高权重把这张卡片的紧凑内边距钉死，保证任何窗口宽度下名字都完整。 */
+.ant-card.personnel-list-card > .ant-card-body {
+  padding: 8px 4px !important;
+}
+
 /* ── 登录页 ── */
 .login-wrapper {
   min-height: 100vh;
