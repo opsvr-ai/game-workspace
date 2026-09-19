@@ -6,6 +6,7 @@
 
 ## Recent Updates (v3.1.0)
 
+- **群聊广播（催陪玩接单）:** 客服在工作室群聊里点「📢 广播」，本店所有在线陪玩的电脑右下角会弹出红色提醒窗口（置顶、不抢鼠标键盘、5 秒后自动消失），打游戏时也不会漏看；广播内容同时留在群聊里，并用红底「📢 群聊广播」样式单独标记。陪玩端客户端已更新到 1.0.20260919。
 - **人员列表固定顺序:** 现在自上而下依次是 群聊 → 客服 → 店长 → 在线空闲陪玩 → 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员，客服和店长不再被埋在陪玩中间。
 - **派单方式语义分开:** 「广播」= 本店所有在线空闲陪玩右下角弹窗抢单（订单同时进池）；「入池」= 只进抢单池、不弹窗；「指定」= 只弹给被指定的陪玩。修掉了「入池 + 立即」被当成急单弹给所有人、以及「指定 + 立即」把指定单泄漏给全店的问题。
 - **发布订单「广播」修复:** 派单方式选「广播」原先会被服务端校验拦下并报错，现在可以正常发布；订单照常进池，同时立刻推送给工作室所有空闲陪玩。
@@ -572,6 +573,14 @@ Every endpoint returns a standard JSON envelope:
 | `pc:command` | `{ command: string, params?: object }` | Remote command sent to companion PC (`shutdown`, `restart`, `throttle`, `unthrottle`). |
 | `order:new` | `{ id, type, amount, gameName, ... }` | New order pushed to a specific companion. |
 | `status:broadcast` | `{ companionId, status, mode? }` | Broadcast companion status change to all users in the studio room. |
+| `chat:broadcast` | `{ roomId, messageId, senderId, senderName, senderRole, content, createdAt }` | 群聊广播：客服/店长在工作室群聊发广播时推给本工作室全体在线陪玩，陪玩端右下角弹 Windows 提醒（5 秒后消失）。 |
+
+### Chat
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/chat/studio-group` | JWT | -- | 取（或创建）当前工作室群聊房间，并把当前用户加进群。 |
+| `POST` | `/api/chat/studio-broadcast` | JWT | CS, ADMIN, OWNER | 群聊广播：内容落进工作室群聊（`type=BROADCAST`），同时向本工作室推送 `chat:broadcast`，陪玩端右下角弹提醒。Body: `{ content }`（200 字以内）。 |
 
 ### Command Types
 
