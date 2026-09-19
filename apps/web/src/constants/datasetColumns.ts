@@ -51,8 +51,8 @@ export const FIELD_WIDTH = {
   csUser: 88,
 
   // ── 客户字段（客户管理表）──
+  /** 客户编号列：上面编号、下面小字微信号，钉在左侧（见 CUSTOMER_CODE_COLUMN） */
   customerCode: 150,
-  wechatId: 130,
   nickname: 120,
   sourceAccount: 150,
   lastOrder: 220,
@@ -91,14 +91,14 @@ export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
 export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'customerCode', 'wechatId', 'nickname', 'sourceAccount', 'lastOrder',
+  'customerCode', 'nickname', 'sourceAccount', 'lastOrder',
   'sourceTime', 'status', 'workWechat', 'companion', 'followUp',
   'totalSpent', 'notes', 'actions',
 ];
 
 /** 客户管理表的列（陪玩视角：没有客户昵称 / 来源账号）。 */
 export const CUSTOMER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
-  'customerCode', 'wechatId', 'lastOrder', 'sourceTime', 'status',
+  'customerCode', 'lastOrder', 'sourceTime', 'status',
   'workWechat', 'companion', 'followUp', 'totalSpent', 'notes', 'actions',
 ];
 
@@ -120,10 +120,12 @@ export function applyDataFontCssVars(): void {
 }
 
 /**
- * 客户编号列：定宽 + 钉在左侧。
+ * 客户编号列：定宽 + 钉在左侧，它同时是整张表的「这一行是谁」。
  *
- * 客户表横向拖到右边时（宽度 1080 的客服窗口下必点），
- * 左边这列编号会一直贴着屏幕左边，不用拖回去就知道在看谁。
+ * 客服把客户表横向拖到右边看备注/累计消费时（宽度 1080 的窗口下必点），
+ * 左边这列一直贴着屏幕左边，所以编号下面同时显示微信号
+ * （编号只有 1~3 位，光看编号认不出是谁）——微信号列因此并入本列，
+ * 不再单独占一列，少一列就少横向拖一次。
  */
 export const CUSTOMER_CODE_COLUMN = {
   width: FIELD_WIDTH.customerCode,

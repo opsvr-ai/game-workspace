@@ -60,6 +60,7 @@ import {
   CUSTOMER_TABLE_KEYS,
   CUSTOMER_TABLE_KEYS_COMPANION,
   DATA_FONT_SIZE,
+  DATA_SUB_FONT_SIZE,
   FIELD_WIDTH,
   TABLE_STYLE,
   sumWidths,
@@ -372,7 +373,7 @@ const CustomersPage: React.FC = () => {
 
   const columns: any[] = [
     {
-      title: '客户编号',
+      title: '客户编号 / 微信号',
       dataIndex: 'customerCode',
       key: 'customerCode',
       ...CUSTOMER_CODE_COLUMN,
@@ -382,6 +383,10 @@ const CustomersPage: React.FC = () => {
           {Number(record.depositBalance) > 0 && (
             <Tag color="blue" style={{ marginLeft: 6 }}>存单 ¥{Number(record.depositBalance).toFixed(1)}</Tag>
           )}
+          <br />
+          <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+            {record.wechatId || '-'}
+          </Text>
           {record.scheduledAt &&
             (() => {
               const d = new Date(record.scheduledAt);
@@ -398,7 +403,6 @@ const CustomersPage: React.FC = () => {
         </>
       ),
     },
-    { title: '微信号', dataIndex: 'wechatId', key: 'wechatId', width: FIELD_WIDTH.wechatId },
     ...(!isCompanion
       ? [
           {
