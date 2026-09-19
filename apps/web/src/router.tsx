@@ -1,7 +1,8 @@
 import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import { Spin, Button, Result } from 'antd';
 import AppLayout from './layouts/AppLayout';
+import LoginPage from './pages/LoginPage';
 
 function RouteErrorBoundary() {
   const error = useRouteError();
@@ -51,46 +52,50 @@ function RouteErrorBoundary() {
   );
 }
 
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const UnifiedDashboard = lazy(() => import('./pages/admin/UnifiedDashboard'));
-const CustomersPage = lazy(() => import('./pages/CustomersPage'));
-const DispatchPage = lazy(() => import('./pages/DispatchPage'));
-const OrdersPage = lazy(() => import('./pages/OrdersPage'));
-const BillingOverview = lazy(() => import('./pages/BillingOverview'));
-const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
-const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
-const AdminPcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
-const ManagedPcPage = lazy(() => import('./pages/admin/ManagedPcPage'));
-const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
-const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
-const ProfitSplitPage = lazy(() => import('./pages/admin/ProfitSplitPage'));
-const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
-const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
-const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
-const BridgePage = lazy(() => import('./pages/BridgePage'));
-const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage'));
-const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
-const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
-const AgentVersionPage = lazy(() => import('./pages/admin/AgentVersionPage'));
-const StatsPage = lazy(() => import('./pages/StatsPage'));
-const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
-const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
-const WhitelistPage = lazy(() => import('./pages/admin/WhitelistPage'));
-const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
-const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
-const CompanionPage = lazy(() => import('./pages/CompanionPage'));
-const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const WorkWechatPage = lazy(() => import('./pages/WorkWechatPage'));
-const PriceRulesPage = lazy(() => import('./pages/finance/PriceRulesPage'));
-const CommissionPage = lazy(() => import('./pages/finance/CommissionPage'));
-const SettlementPage = lazy(() => import('./pages/finance/SettlementPage'));
-const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage'));
-const MoneyReconciliationPage = lazy(() => import('./pages/finance/MoneyReconciliationPage'));
-const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
-const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
-const BattleScreenshotsPage = lazy(() => import('./pages/BattleScreenshotsPage'));
-const BattleScreenshotReviewPage = lazy(() => import('./pages/BattleScreenshotReviewPage'));
+import UnifiedDashboard from './pages/admin/UnifiedDashboard';
+import CustomersPage from './pages/CustomersPage';
+import DispatchPage from './pages/DispatchPage';
+import OrdersPage from './pages/OrdersPage';
+import BillingOverview from './pages/BillingOverview';
+import CompanionsPage from './pages/CompanionsPage';
+import CompanionPoolPage from './pages/OrderPoolPage';
+import ManagedPcPage from './pages/admin/ManagedPcPage';
+import PcControlPage from './pages/admin/PcControlPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
+import PayrollPage from './pages/admin/PayrollPage';
+import ProfitSplitPage from './pages/admin/ProfitSplitPage';
+import TrafficAccountPage from './pages/admin/TrafficAccountPage';
+import EmployeesPage from './pages/owner/EmployeesPage';
+import StudiosPage from './pages/owner/StudiosPage';
+import BridgePage from './pages/BridgePage';
+import AuthorizationsPage from './pages/owner/AuthorizationsPage';
+import ReviewPage from './pages/admin/ReviewPage';
+import SettingsPage from './pages/admin/SettingsPage';
+import AgentVersionPage from './pages/admin/AgentVersionPage';
+import StatsPage from './pages/StatsPage';
+import BlacklistPage from './pages/admin/BlacklistPage';
+import ProcessKillLogPage from './pages/admin/ProcessKillLogPage';
+import WhitelistPage from './pages/admin/WhitelistPage';
+import AttendancePage from './pages/admin/AttendancePage';
+import ProfileSetupPage from './pages/ProfileSetupPage';
+import CompanionPage from './pages/CompanionPage';
+import CustomerDetailPage from './pages/CustomerDetailPage';
+import ProfilePage from './pages/ProfilePage';
+import WorkWechatPage from './pages/WorkWechatPage';
+import PriceRulesPage from './pages/finance/PriceRulesPage';
+import CommissionPage from './pages/finance/CommissionPage';
+import CsCommissionTodayPage from './pages/finance/CsCommissionTodayPage';
+import CsSettingsPage from './pages/admin/CsSettingsPage';
+import StoreManagerSettingsPage from './pages/admin/StoreManagerSettingsPage';
+import ReconciliationPage from './pages/finance/ReconciliationPage';
+import CsWechatFlowPage from './pages/finance/CsWechatFlowPage';
+import ProfitCalendarPage from './pages/finance/ProfitCalendarPage';
+import CompanionWalletCalendarPage from './pages/finance/CompanionWalletCalendarPage';
+import RiskWorkbenchPage from './pages/finance/RiskWorkbenchPage';
+import ExpenseReviewPage from './pages/finance/ExpenseReviewPage';
+import BattleScreenshotsPage from './pages/BattleScreenshotsPage';
+import BattleScreenshotReviewPage from './pages/BattleScreenshotReviewPage';
+import ContentCheckPage from './pages/ContentCheckPage';
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -155,6 +160,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <BillingOverview />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'wallet-calendar',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionWalletCalendarPage />
           </Suspense>
         ),
       },
@@ -294,6 +307,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'owner/cs-wechat-flow',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CsWechatFlowPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'owner/stats',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -330,6 +351,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <EmployeesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/companions',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionsPage />
           </Suspense>
         ),
       },
@@ -382,10 +411,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/finance/money-reconciliation',
+        path: 'admin/cs-wechat-flow',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
-            <MoneyReconciliationPage />
+            <CsWechatFlowPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/profit-calendar',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ProfitCalendarPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/companion-wallet-calendar',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CompanionWalletCalendarPage />
           </Suspense>
         ),
       },
@@ -398,18 +443,34 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/finance/settlement',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <SettlementPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'admin/finance/commission',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CommissionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/finance/commission-today',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CsCommissionTodayPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/cs-settings',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CsSettingsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/store-manager-settings',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <StoreManagerSettingsPage />
           </Suspense>
         ),
       },
@@ -425,7 +486,7 @@ export const router = createBrowserRouter([
         path: 'admin/pc-control',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
-            <AdminPcControlPage />
+            <PcControlPage />
           </Suspense>
         ),
       },
@@ -526,6 +587,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'content-check',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ContentCheckPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'admin/settings',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -574,22 +643,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'cs/finance/reconciliation',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ReconciliationPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'cs/finance/money-reconciliation',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <MoneyReconciliationPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'cs/dispatch',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -602,6 +655,22 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/customers/:id',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerDetailPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/customers',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomersPage />
           </Suspense>
         ),
       },
