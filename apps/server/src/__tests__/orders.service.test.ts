@@ -8,6 +8,11 @@ import { OrderStatus } from '@chunlv/shared';
 function createMockWsGateway() {
   return {
     broadcastToStudio: vi.fn(),
+    broadcastToBridgedStudios: vi.fn(),
+    broadcastToIdleCompanions: vi.fn().mockResolvedValue(0),
+    broadcastToQualifiedIdleCompanions: vi.fn().mockResolvedValue(0),
+    broadcastToBridgedIdleCompanionsByType: vi.fn().mockResolvedValue(0),
+    notifyCompanion: vi.fn(),
     pushOrder: vi.fn(),
   } as unknown as WsGateway;
 }
@@ -30,20 +35,48 @@ function createMockDispatchService() {
   };
 }
 
+function createMockBridgeService() {
+  return {
+    getBridgedStudioIds: vi.fn().mockResolvedValue([]),
+  };
+}
+
+function createMockExcellenceService() {
+  return {
+    isExcellent: vi.fn().mockResolvedValue(false),
+    computeOne: vi.fn().mockResolvedValue({ tier: 'MIDDLE', score: 0 }),
+  };
+}
+
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: MockPrisma;
   let wsGateway: ReturnType<typeof createMockWsGateway>;
   let workflowService: ReturnType<typeof createMockWorkflowService>;
   let dispatchService: ReturnType<typeof createMockDispatchService>;
+  let excellence: ReturnType<typeof createMockExcellenceService>;
 
   beforeEach(() => {
     prisma = createMockPrisma();
     wsGateway = createMockWsGateway();
     workflowService = createMockWorkflowService();
     dispatchService = createMockDispatchService();
-    service = new OrdersService(prisma as any, wsGateway as any, workflowService as any, dispatchService as any);
+    const bridgeService = createMockBridgeService();
+    excellence = createMockExcellenceService();
+    service = new OrdersService(
+      prisma as any,
+      wsGateway as any,
+      bridgeService as any,
+      workflowService as any,
+      dispatchService as any,
+      excellence as any,
+    );
     vi.clearAllMocks();
+    prisma.systemConfig.upsert.mockResolvedValue({ key: 'counter.global_code', value: '0' });
+    prisma.orderSession.create.mockResolvedValue(null);
+    bridgeService.getBridgedStudioIds.mockResolvedValue([]);
+    excellence.isExcellent.mockResolvedValue(false);
+    excellence.computeOne.mockResolvedValue({ tier: 'MIDDLE', score: 0 });
   });
 
   // ─── create() ───────────────────────────────────────────────
@@ -97,6 +130,38 @@ describe('OrdersService', () => {
       expect(result.companionId).toBe('companion-1');
       // POOL broadcast should NOT be called for DIRECT orders
       expect(wsGateway.broadcastToStudio).not.toHaveBeenCalled();
+    });
+
+    it('入池订单（含打单时间为“立即”）只进抢单池，不弹窗', async () => {
+      const dto = { ...baseDto, dispatchType: 'POOL', urgency: 'now' };
+      const created = { id: 'order-3', ...dto, status: 'PENDING', companionId: null };
+      prisma.order.create.mockResolvedValue(created);
+
+      await service.create(dto);
+
+      expect(wsGateway.broadcastToIdleCompanions).not.toHaveBeenCalled();
+      expect(wsGateway.broadcastToQualifiedIdleCompanions).not.toHaveBeenCalled();
+      expect(wsGateway.broadcastToBridgedIdleCompanionsByType).not.toHaveBeenCalled();
+      expect(wsGateway.notifyCompanion).not.toHaveBeenCalled();
+      expect(wsGateway.broadcastToBridgedStudios).toHaveBeenCalledWith(
+        'studio-1',
+        'order:pool_updated',
+        created,
+      );
+    });
+
+    it('广播订单弹窗给本店所有空闲陪玩', async () => {
+      const dto = { ...baseDto, dispatchType: 'BROADCAST', urgency: 'now' };
+      const created = { id: 'order-4', ...dto, dispatchType: 'POOL', status: 'PENDING', companionId: null };
+      prisma.order.create.mockResolvedValue(created);
+
+      await service.create(dto);
+
+      expect(wsGateway.broadcastToIdleCompanions).toHaveBeenCalledWith(
+        'studio-1',
+        'order:urgent',
+        expect.objectContaining({ _broadcast: true }),
+      );
     });
   });
 

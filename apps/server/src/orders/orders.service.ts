@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
@@ -11,10 +11,10 @@ import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
 import { maskCustomerWechat } from '../common/order-privacy';
 
-const PARTNER_INVITE_TTL_SEC = 15;
+const PARTNER_INVITE_TTL_SEC = 60;
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private wsGateway: WsGateway,
@@ -23,6 +23,56 @@ export class OrdersService {
     private readonly dispatchService: OrderDispatchService,
     private readonly excellence: ExcellenceService,
   ) {}
+
+  onModuleInit(): void {
+    // 服务重启后，setTimeout 会丢失；这里定时兜底清理过期未接受的搭档邀请，
+    // 避免客户管理里一直显示“等待搭档接受/取消邀请”。
+    setInterval(() => {
+      void this.cleanupExpiredPartnerInvites();
+    }, 30 * 1000);
+  }
+
+  private async cleanupExpiredPartnerInvites(): Promise<void> {
+    const cutoff = new Date(Date.now() - PARTNER_INVITE_TTL_SEC * 1000);
+    const sessions = await this.prisma.orderSession.findMany({
+      where: { status: 'ACTIVE', startedAt: null, createdAt: { lt: cutoff } },
+      select: {
+        id: true,
+        companionId: true,
+        parentOrderId: true,
+        parentOrder: { select: { studioId: true, dispatchType: true, status: true } },
+      },
+    });
+    for (const s of sessions) {
+      await this.prisma.orderSession.update({
+        where: { id: s.id },
+        data: { status: 'DONE', endedAt: new Date() },
+      }).catch(() => {});
+      await this.prisma.order.updateMany({
+        where: {
+          id: s.parentOrderId,
+          status: 'CONFIRMED',
+          dispatchType: 'DIRECT',
+          sessions: { none: { status: 'ACTIVE' } },
+        },
+        data: { status: 'DONE' },
+      }).catch(() => {});
+      const studioId = s.parentOrder?.studioId || '';
+      if (studioId) {
+        this.wsGateway.broadcastToStudio(studioId, 'order:dual_invite_expired', {
+          sessionId: s.id,
+          orderId: s.parentOrderId,
+        });
+        this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', { id: s.id, expired: true });
+      }
+      if (s.companionId) {
+        this.wsGateway.pushToCompanion(s.companionId, 'order:partner_timeout', {
+          sessionId: s.id,
+          orderId: s.parentOrderId,
+        });
+      }
+    }
+  }
 
   private async nextGlobalCode(): Promise<string> {
     const cfg = await this.prisma.systemConfig.upsert({
@@ -110,7 +160,7 @@ export class OrdersService {
         companionId: dto.dispatchType === 'DIRECT' ? dto.companionId : null,
         coCompanionId: dto.dispatchType === 'DIRECT' ? ((dto as any).coCompanionId ?? null) : null,
         coAmount: (dto as any).coAmount ?? null,
-        status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'CONFIRMED' : 'PENDING',
+        status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'GRABBED' : 'PENDING',
         contactStatus: (dto as any).directAdd === true ? 'pending' : undefined,
         amount: dto.amount,
         gameName: dto.gameName,
@@ -157,95 +207,37 @@ export class OrdersService {
       include: { customer: true },
     });
 
-    // BROADCAST: send to ALL idle companions
+    // 弹窗只服务「广播」和「指定」两种方式：入池订单只进抢单池，不弹窗。
+    const isUrgent = (dto as any).urgency === 'now';
+    const popupCreator = await this.prisma.user.findUnique({
+      where: { id: dto.csUserId },
+      select: { username: true, role: true },
+    });
+    const popupPayload = {
+      ...newOrder,
+      _createdBy: popupCreator?.username || '未知',
+      _creatorRole: popupCreator?.role || 'CS',
+    };
+
+    // BROADCAST: 右下角弹窗给本店所有在线空闲陪玩（订单同时进入抢单池）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
-      const csUser = await this.prisma.user.findUnique({
-        where: { id: dto.csUserId },
-        select: { username: true, role: true },
-      });
-      this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
-        ...newOrder,
-        _createdBy: csUser?.username || '未知',
-        _creatorRole: csUser?.role || 'CS',
+      await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
+        ...popupPayload,
         _broadcast: true,
       });
     }
 
-    // Urgent orders: broadcast to all IDLE companions (first-come-first-served)
-    const isUrgent = (dto as any).urgency === 'now';
-    if (studioId && isUrgent) {
-      const csUser = await this.prisma.user.findUnique({
-        where: { id: dto.csUserId },
-        select: { username: true, role: true },
-      });
-      const bridgeWindowCfg = await this.prisma.systemConfig.findUnique({
-        where: { key: 'dispatch.bridge_immediate_window_sec' },
-      });
-      const bridgeWindowSec = Number(bridgeWindowCfg?.value ?? 60);
-      const payload = {
-        ...newOrder,
-        _createdBy: csUser?.username || '未知',
-        _creatorRole: csUser?.role || 'CS',
-      };
-      const sent = await this.wsGateway.broadcastToQualifiedIdleCompanions(studioId, 'order:urgent', payload);
-      if (sent === 0) {
-        // 2. 桥接线下（DIRECT）空闲
-        const bridgeDirectSent = await this.wsGateway.broadcastToBridgedIdleCompanionsByType(
-          studioId,
-          'DIRECT',
-          'order:urgent',
-          payload,
-        );
-        const fallbackToLocalAndOnline = async () => {
-          const stillPending = await this.prisma.order.findFirst({
-            where: { id: newOrder.id, status: 'PENDING' },
-            select: { id: true },
-          });
-          if (!stillPending) return;
-          // 3. 线下中等马/下等马空闲
-          const localSent = await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', payload);
-          if (localSent === 0) {
-            // 4. 线上俱乐部（RENTAL）空闲
-            await this.wsGateway.broadcastToBridgedIdleCompanionsByType(
-              studioId,
-              'RENTAL',
-              'order:urgent',
-              payload,
-            );
-          }
-        };
-        if (bridgeDirectSent === 0) {
-          await fallbackToLocalAndOnline();
-        } else {
-          // 桥接线下限时内未接，则回落到线下中等马/下等马 → 线上俱乐部
-          setTimeout(() => {
-            void fallbackToLocalAndOnline();
-          }, bridgeWindowSec * 1000);
-        }
-      }
-    }
-
     // DIRECT: 指定给某个陪玩，右下角弹窗提醒他
     if (dto.dispatchType === 'DIRECT' && dto.companionId) {
-      const csUser = await this.prisma.user.findUnique({
-        where: { id: dto.csUserId },
-        select: { username: true, role: true },
-      });
       this.wsGateway.notifyCompanion(dto.companionId, 'order:urgent', {
-        ...newOrder,
-        _createdBy: csUser?.username || '未知',
-        _creatorRole: csUser?.role || 'CS',
+        ...popupPayload,
         _direct: true,
       });
     }
 
     // Auto-create first session when order is created
     if (newOrder.companionId) {
-      if (newOrder.dispatchType === 'DIRECT' && !newOrder.coCompanionId) {
-        await this.prisma.companion
-          .update({ where: { id: newOrder.companionId }, data: { status: 'BUSY' } })
-          .catch(() => {});
-      }
+      // 指定订单不在这里进入「接单中」：等陪玩点「首单」才开始计时、才置接单中、才杀黑名单。
       const session = await this.prisma.orderSession
         .create({
           data: {
@@ -346,10 +338,10 @@ export class OrdersService {
     const studioType = studio?.type ?? 'DIRECT';
 
     // 当前陪玩的段位（只对自家工作室订单生效）
-    let tier = 'LOW';
+    let tier = 'MIDDLE';
     if (companionId) {
       const ex = await this.excellence.computeOne(companionId);
-      tier = ex?.tier || 'LOW';
+      tier = ex?.tier || 'MIDDLE';
     }
 
     const orders = await this.prisma.order.findMany({
@@ -367,7 +359,11 @@ export class OrdersService {
     const now = Date.now();
     const isCompanion = !!companionId;
     return orders.filter((o) => {
-      if ((o.customFields as any)?.poolExpired) return false;
+      const cf = (o.customFields as any) || {};
+      // 客服已经处理过的单子不再回到抢单池。
+      if (cf.poolHandled) return false;
+      // 超时未处理的订单只进入客服/管理端的“流转失败明细”，不再出现在陪玩订单池。
+      if (cf.poolExpired) return false;
       let delay: number;
       if (!studioId) {
         delay = 0; // 老板（无工作室）看全部订单，立即可见
@@ -409,13 +405,12 @@ export class OrdersService {
         customer: true,
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
-        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        companion: { include: { user: { select: { id: true, username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
         sessions: {
-          where: { status: 'ACTIVE', startedAt: { not: null } },
           orderBy: { seq: 'desc' },
           take: 1,
-          select: { id: true, startedAt: true, duration: true, seq: true },
+          select: { id: true, startedAt: true, endedAt: true, duration: true, totalPausedSec: true, seq: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -433,6 +428,23 @@ export class OrdersService {
 
   async grab(orderId: string, companionId: string) {
     return this.workflowService.grab(orderId, companionId);
+  }
+
+  /** 陪玩待开始的订单：已抢单/已确认，但还没有真正开始计时的会话。 */
+  async findPendingStart(companionId: string) {
+    if (!companionId) return [];
+    return this.prisma.order.findMany({
+      where: {
+        companionId,
+        status: { in: ['GRABBED', 'CONFIRMED'] },
+        sessions: { none: { status: 'ACTIVE', startedAt: { not: null } } },
+      },
+      include: {
+        customer: { select: { wechatId: true, customerCode: true, platform: true } },
+        sessions: { orderBy: { seq: 'asc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   async updateContact(orderId: string, body: any) {
@@ -478,6 +490,101 @@ export class OrdersService {
       });
     }
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  async updateOrderInfo(orderId: string, user: any, dto: any) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.status === 'CANCELLED') throw new ForbiddenException('已取消的订单不能修改');
+    if (order.status === 'DONE' && (dto?.amount !== undefined || dto?.duration !== undefined)) {
+      throw new ForbiddenException('已完成订单不能修改金额或时长，请走退款/补单');
+    }
+
+    if (user?.role === 'CS' || user?.role === 'COMPANION') {
+      if (order.csUserId !== user.id) throw new ForbiddenException('只能修改自己发布的订单');
+    } else if (user?.role === 'ADMIN') {
+      if (order.studioId !== user.studioId) throw new ForbiddenException('无权修改其他工作室的订单');
+    } else if (user?.role !== 'OWNER') {
+      throw new ForbiddenException('无权修改订单');
+    }
+
+    const has = (key: string) => Object.prototype.hasOwnProperty.call(dto || {}, key);
+    const orderData: any = {};
+    if (has('gameName')) orderData.gameName = dto.gameName;
+    if (has('serviceType')) orderData.serviceType = dto.serviceType;
+    if (has('duration')) orderData.duration = dto.duration;
+    if (has('amount')) orderData.amount = dto.amount;
+    if (has('notes')) orderData.notes = dto.notes;
+    if (has('type')) orderData.type = dto.type;
+    if (has('scheduledAt')) orderData.scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
+
+    const customFieldKeys = [
+      'customerSource',
+      'customerSourceAccount',
+      'customerNickname',
+      'customerAccountId',
+      'customerPlatformAccount',
+      'customerWechat',
+      'customerWechatQr',
+      'customerRoomCode',
+      'customerYy',
+      'deltaMission',
+      'deltaCount',
+      'deltaNote',
+      'billingMode',
+      'urgency',
+      'scheduledTimeText',
+      'gameMode',
+      'serviceType',
+    ];
+
+    const cfPatch: any = {};
+    for (const key of customFieldKeys) {
+      if (!has(key)) continue;
+      const value = dto[key];
+      cfPatch[key] = key === 'customerWechatQr' && !value ? undefined : value;
+    }
+
+    const currentCf = (order.customFields as any) || {};
+    const nextCf = { ...currentCf, ...cfPatch };
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        ...orderData,
+        customFields: nextCf,
+      },
+      include: {
+        customer: true,
+        csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
+        companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true } } } },
+      },
+    });
+
+    const customerData: any = {};
+    if (has('customerWechat')) customerData.wechatId = dto.customerWechat ?? '';
+    if (has('customerSource')) customerData.platform = dto.customerSource || null;
+    if (has('customerPlatformAccount')) customerData.platformAccount = dto.customerPlatformAccount || null;
+    if (Object.keys(customerData).length > 0) {
+      await this.prisma.customer
+        .update({ where: { id: order.customerId }, data: customerData })
+        .catch((err) => {
+          logger.error('updateOrderInfo: sync customer failed', { orderId, error: (err as Error).message });
+        });
+    }
+
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    if (updated.companionId) this.wsGateway.pushOrder(updated.companionId, updated);
+    if (updated.coCompanionId) {
+      const coSafe = maskCustomerWechat(updated, {
+        id: '',
+        role: 'COMPANION',
+        companionId: updated.coCompanionId,
+      });
+      this.wsGateway.pushOrder(updated.coCompanionId, coSafe);
+    }
     return updated;
   }
 
@@ -780,7 +887,7 @@ export class OrdersService {
 
   // 客服养好的客户重新派单后，被谁抢走、陪玩用什么微信、最终去了线下/桥接/线上
   async listCsConverted(studioId: string, user?: { id: string; role: string }) {
-    const where: any = { companionId: { not: null } };
+    const where: any = { companionId: { not: null }, status: { not: 'CANCELLED' } };
     if (studioId) where.studioId = studioId;
     if (user && user.role === 'CS') where.csUserId = user.id;
     const bridgeCfg = await this.prisma.systemConfig.findUnique({
@@ -866,15 +973,21 @@ export class OrdersService {
       });
   }
 
-  // 客服每个工作微信的余额 = 流入(客户转入) - 流出(转给陪玩/桥接等)
-  async listCsWechatBalances(studioId: string) {
-    const wechats = await this.prisma.workWechat.findMany({
-      where: { studioId, type: 'STUDIO' },
-    });
-    const orders = await this.prisma.order.findMany({
-      where: { studioId },
-      select: { customFields: true, moneyFlows: true },
-    });
+  // 客服每个工作微信的余额 = 流入(客户转入) - 流出(转给陪玩/桥接等) - 店长转走的余额
+  // 客服角色只看自己绑定的工作微信，店长/老板看本工作室全部。
+  async listCsWechatBalances(studioId: string, csUserId?: string) {
+    const [wechats, orders, logs] = await Promise.all([
+      this.prisma.workWechat.findMany({
+        where: { studioId, type: 'STUDIO', ...(csUserId ? { csUserId } : {}) },
+      }),
+      this.prisma.order.findMany({ where: { studioId }, select: { customFields: true, moneyFlows: true } }),
+      this.prisma.workWechatBalanceLog.findMany({ where: { studioId } }),
+    ]);
+
+    const withdrawnMap = new Map<string, number>();
+    for (const l of logs) {
+      withdrawnMap.set(l.workWechatId, (withdrawnMap.get(l.workWechatId) || 0) + l.amount);
+    }
 
     return wechats.map((w) => {
       const related = orders.filter(
@@ -888,21 +1001,230 @@ export class OrdersService {
           else if (f.direction === 'OUT') outTotal += f.amount;
         }
       }
+      const withdrawn = withdrawnMap.get(w.id) || 0;
       return {
         id: w.id,
         wechatId: w.wechatId,
         csUserId: w.csUserId,
         inTotal,
         outTotal,
-        balance: inTotal - outTotal,
+        withdrawn,
+        balance: inTotal - outTotal - withdrawn,
       };
+    });
+  }
+
+  // 店长把客服微信里的余额转走，记录一笔清零流水，让系统余额归零
+  async clearCsWechatBalance(studioId: string, workWechatId: string, note?: string) {
+    const balances = await this.listCsWechatBalances(studioId);
+    const target = balances.find((b) => b.id === workWechatId);
+    if (!target) throw new NotFoundException('该客服微信不存在');
+    if (target.balance <= 0) throw new BadRequestException('当前余额为 0，无需清零');
+
+    await this.prisma.workWechatBalanceLog.create({
+      data: {
+        studioId,
+        workWechatId,
+        amount: target.balance,
+        note: note || '店长转走余额清零',
+      },
+    });
+
+    return this.listCsWechatBalances(studioId);
+  }
+
+  // 店长转走余额统计：本月 / 今年 / 累计，跨所有客服工作微信
+  async getCsWechatBalanceSummary(studioId: string) {
+    const logs = await this.prisma.workWechatBalanceLog.findMany({ where: { studioId } });
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let monthTotal = 0;
+    let yearTotal = 0;
+    let allTotal = 0;
+    for (const l of logs) {
+      allTotal += l.amount;
+      if (l.createdAt >= yearStart) yearTotal += l.amount;
+      if (l.createdAt >= monthStart) monthTotal += l.amount;
+    }
+    return {
+      monthTotal,
+      yearTotal,
+      allTotal,
+      count: logs.length,
+    };
+  }
+
+  // 客服工作微信收款明细：按微信聚合相关订单的每一笔资金流水，并标出问题单。
+  async listCsWechatFlow(studioId: string) {
+    const [wechats, orders, logs, bridgeCfg] = await Promise.all([
+      this.prisma.workWechat.findMany({ where: { studioId, type: 'STUDIO' } }),
+      this.prisma.order.findMany({
+        where: { studioId, status: { not: 'CANCELLED' } },
+        include: {
+          moneyFlows: true,
+          customer: { select: { wechatId: true } },
+          csUser: { select: { username: true, displayName: true } },
+          companion: {
+            include: {
+              user: { select: { username: true, displayName: true } },
+              studio: { select: { id: true, type: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.workWechatBalanceLog.findMany({ where: { studioId } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+    ]);
+    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+
+    const withdrawnMap = new Map<string, number>();
+    for (const l of logs) {
+      withdrawnMap.set(l.workWechatId, (withdrawnMap.get(l.workWechatId) || 0) + l.amount);
+    }
+
+    return wechats.map((w) => {
+      const related = orders.filter(
+        (o) => ((o.customFields as any) || {}).csWorkWechatName === w.wechatId,
+      );
+
+      const orderRows = related.map((o) => {
+        const cf = (o.customFields as any) || {};
+        const inTotal = o.moneyFlows
+          .filter((f) => f.direction === 'IN')
+          .reduce((s, f) => s + f.amount, 0);
+        const outTotal = o.moneyFlows
+          .filter((f) => f.direction === 'OUT')
+          .reduce((s, f) => s + f.amount, 0);
+        const expected = Number(o.amount || 0) * (Number(o.duration) || 1);
+
+        let destination = '线下工作室';
+        if (o.companion?.studio) {
+          if (o.companion.studio.type === 'RENTAL') destination = '线上俱乐部';
+          else if (o.companion.studio.id !== studioId) destination = '桥接工作室';
+        }
+
+        const problems = this.evaluateOrderProblems(o, studioId, juejuCents);
+
+        return {
+          id: o.id,
+          orderCode: o.orderCode,
+          gameName: o.gameName,
+          status: o.status,
+          customerWechat: o.customer?.wechatId || cf.customerWechat || '',
+          csName: o.csUser?.displayName || o.csUser?.username || '',
+          companionName: o.companion?.user?.displayName || o.companion?.user?.username || '',
+          destination,
+          expected: Number(expected.toFixed(1)),
+          inTotal: Number(inTotal.toFixed(1)),
+          outTotal: Number(outTotal.toFixed(1)),
+          problems,
+        };
+      });
+
+      const inTotal = orderRows.reduce((s, r) => s + r.inTotal, 0);
+      const outTotal = orderRows.reduce((s, r) => s + r.outTotal, 0);
+      const withdrawn = withdrawnMap.get(w.id) || 0;
+
+      return {
+        id: w.id,
+        wechatId: w.wechatId,
+        nickname: w.nickname || '',
+        csUserId: w.csUserId,
+        inTotal: Number(inTotal.toFixed(1)),
+        outTotal: Number(outTotal.toFixed(1)),
+        withdrawn: Number(withdrawn.toFixed(1)),
+        balance: Number((inTotal - outTotal - withdrawn).toFixed(1)),
+        problemCount: orderRows.filter((r) => r.problems.length > 0).length,
+        orders: orderRows,
+      };
+    });
+  }
+
+  private evaluateOrderProblems(o: any, studioId?: string, juejuCents = 1500): string[] {
+    const moneyFlows = o.moneyFlows || [];
+    const inTotal = moneyFlows
+      .filter((f: any) => f.direction === 'IN')
+      .reduce((s: number, f: any) => s + f.amount, 0);
+    const outTotal = moneyFlows
+      .filter((f: any) => f.direction === 'OUT')
+      .reduce((s: number, f: any) => s + f.amount, 0);
+    const expected = Number(o.amount || 0) * (Number(o.duration) || 1);
+    const cf = (o.customFields as any) || {};
+    const isDouble = o.coCompanionId || cf.deltaCount === '双';
+    const companions = isDouble ? 2 : 1;
+    const isDone = o.status === 'CONFIRMED' || o.status === 'DONE';
+
+    // 判断去向：本工作室陪玩 / 桥接工作室 / 线上俱乐部
+    let isBridgeOrOnline = false;
+    if (o.companion?.studio) {
+      if (o.companion.studio.type === 'RENTAL') isBridgeOrOnline = true;
+      else if (studioId && o.companion.studio.id !== studioId) isBridgeOrOnline = true;
+    }
+
+    const problems: string[] = [];
+    if (moneyFlows.length === 0) {
+      problems.push('未记流水');
+    } else {
+      if (inTotal <= 0) problems.push('无客户转入');
+
+      if (isBridgeOrOnline) {
+        // 桥接/线上：机密本来就不给钱；绝密按 15 元/人/小时返还。
+        if (cf.deltaMission === '绝密') {
+          const bridgeReturn = (juejuCents / 100) * (Number(o.duration) || 1) * companions;
+          if (isDone && outTotal < bridgeReturn) problems.push('桥接/线上返还不足');
+        }
+      } else {
+        // 本工作室陪玩：客户转入后应转给陪玩。
+        if (isDone && inTotal > 0 && outTotal <= 0) problems.push('未转陪玩');
+      }
+
+      if (outTotal > inTotal) problems.push('转出超过转入');
+      if (inTotal > 0 && Math.abs(inTotal - expected) >= 0.01) problems.push('转入金额与订单不符');
+    }
+    return problems;
+  }
+
+  // 客服记完流水后，检查这单账是否还有异常；有异常就提醒负责的客服去修改。
+  async checkAndNotifyCsAnomaly(orderId: string) {
+    const [order, bridgeCfg] = await Promise.all([
+      this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          moneyFlows: true,
+          companion: { include: { studio: { select: { id: true, type: true } } } },
+        },
+      }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+    ]);
+    if (!order) return;
+
+    const cf = (order.customFields as any) || {};
+    const wechatId = cf.csWorkWechatName;
+    if (!wechatId) return;
+
+    const workWechat = await this.prisma.workWechat.findUnique({ where: { wechatId } });
+    if (!workWechat?.csUserId) return;
+
+    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+    const problems = this.evaluateOrderProblems(order, order.studioId, juejuCents);
+    if (problems.length === 0) return;
+
+    this.wsGateway.notifyUser(workWechat.csUserId, 'cs:account_anomaly', {
+      orderId: order.id,
+      orderCode: order.orderCode,
+      gameName: order.gameName,
+      wechatId,
+      problems,
+      message: `你的工作微信 ${wechatId} 订单「${order.gameName}」账目有异常：${problems.join('、')}，请到客服工作台「管理端直添客户流转明细」里修改`,
     });
   }
 
   async listMoneyReconciliation(studioId: string) {
     const [orders, bridgeCfg] = await Promise.all([
       this.prisma.order.findMany({
-        where: { studioId },
+        where: { studioId, status: { not: 'CANCELLED' } },
         include: {
           moneyFlows: true,
           customer: { select: { wechatId: true } },
@@ -998,7 +1320,7 @@ export class OrdersService {
       throw new ForbiddenException('该订单当前不可认领');
     }
     if (userStudioId) {
-      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      const visibleIds = await this.bridgeService.getInboundSharedStudioIds(userStudioId, 'ORDERS');
       if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权认领其他工作室的订单');
     }
 
@@ -1044,7 +1366,7 @@ export class OrdersService {
       throw new ForbiddenException('只能放回自己认领的订单');
     }
     if (userStudioId) {
-      const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
+      const visibleIds = await this.bridgeService.getInboundSharedStudioIds(userStudioId, 'ORDERS');
       if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
     }
 
@@ -1107,6 +1429,7 @@ export class OrdersService {
       await this.prisma.companion
         .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
         .catch(() => {});
+      await this.wsGateway.refreshCompanionBlacklist(order.companionId).catch(() => {});
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
     return updated;
@@ -1140,6 +1463,7 @@ export class OrdersService {
       await this.prisma.companion
         .update({ where: { id: order.companionId }, data: { status: 'AVAILABLE' } })
         .catch(() => {});
+      await this.wsGateway.refreshCompanionBlacklist(order.companionId).catch(() => {});
     }
     this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', updated);
     return updated;
@@ -1195,13 +1519,9 @@ export class OrdersService {
     });
     const threshold = (config?.value as number) ?? 100;
 
-    // 今日剩余新客抢单名额（按段位，失败单不占名额）
-    const companion = await this.prisma.companion.findUnique({
-      where: { id: companionId },
-      select: { studioId: true },
-    });
+    // 今日剩余有效客户名额（按段位，成交才算名额）
     const ex = await this.excellence.computeOne(companionId);
-    const tier = ex?.tier || 'LOW';
+    const tier = ex?.tier || 'MIDDLE';
     const limitKey = tier === 'TOP'
       ? 'dispatch.top_tier_daily_new_limit'
       : tier === 'MIDDLE'
@@ -1209,14 +1529,11 @@ export class OrdersService {
         : 'dispatch.low_tier_daily_new_limit';
     const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: limitKey } });
     const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
-    const used = await this.prisma.order.count({
+    const used = await this.prisma.customerContact.count({
       where: {
         companionId,
-        type: 'NEW',
-        status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] },
-        contactStatus: { not: 'not_accepted' },
-        grabbedAt: { gte: today },
-        ...(companion?.studioId ? { studioId: companion.studioId } : {}),
+        result: 'NOW',
+        createdAt: { gte: today, lt: tomorrow },
       },
     });
 
@@ -1311,26 +1628,35 @@ export class OrdersService {
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    // 换主陪：主陪必须属于同一工作室
+    // 换主陪：主陪必须属于同一工作室或已桥接工作室
     if (dto.companionId) {
       const target = await this.prisma.companion.findUnique({
         where: { id: dto.companionId },
         select: { studioId: true },
       }).catch(() => null);
-      if (!target || target.studioId !== order?.studioId) {
+      if (!target || !order) {
+        throw new ForbiddenException('订单或主陪不存在');
+      }
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(order.studioId || '');
+      if (target.studioId !== order.studioId && !bridgedIds.includes(target.studioId)) {
         throw new ForbiddenException('主陪必须属于同一工作室');
       }
     }
     // 记录续单前仍在计时的会话，用于通知被换掉的旧陪玩并释放其状态
     const previousActive = await this.prisma.orderSession.findMany({
       where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
-      select: { id: true, companionId: true, coCompanionId: true, amount: true, coAmount: true },
+      select: { id: true, companionId: true, coCompanionId: true, amount: true, coAmount: true, startedAt: true, totalPausedSec: true },
     });
     // 续单场景：自动结束上一个仍在计时的会话（首单/上一段续单）
-    await this.prisma.orderSession.updateMany({
-      where: { parentOrderId: orderId, status: 'ACTIVE', startedAt: { not: null } },
-      data: { status: 'DONE', endedAt: new Date() },
-    });
+    for (const prev of previousActive) {
+      const started = prev.startedAt ? new Date(prev.startedAt).getTime() : Date.now();
+      const activeSec = Math.max(0, (Date.now() - started) / 1000 - (prev.totalPausedSec || 0));
+      const actualHours = Number((activeSec / 3600).toFixed(1));
+      await this.prisma.orderSession.update({
+        where: { id: prev.id },
+        data: { status: 'DONE', endedAt: new Date(), duration: actualHours || 0.1 },
+      });
+    }
     const session = await this.prisma.orderSession.create({
       data: {
         parentOrderId: orderId,
@@ -1390,6 +1716,7 @@ export class OrdersService {
         });
         // 被换掉的旧陪玩：无条件放回空闲
         await this.prisma.companion.update({ where: { id: r.id as string }, data: { status: 'AVAILABLE' } }).catch(() => {});
+        await this.wsGateway.refreshCompanionBlacklist(r.id as string).catch(() => {});
         this.wsGateway.broadcastToBridgedStudios(order?.studioId || '', 'status:broadcast', {
           companionId: r.id,
           status: 'AVAILABLE',
@@ -1431,6 +1758,18 @@ export class OrdersService {
       where: { id: session.parentOrderId, status: 'GRABBED' },
       data: { status: 'CONFIRMED' },
     }).catch(() => {});
+
+    // 客户归属在「开始服务（打了首单）」时才绑定到主陪。
+    if (session.companionId) {
+      const parentOrder = await this.prisma.order
+        .findUnique({ where: { id: session.parentOrderId }, select: { customerId: true } })
+        .catch(() => null);
+      if (parentOrder?.customerId) {
+        await this.prisma.customer
+          .updateMany({ where: { id: parentOrder.customerId }, data: { companionId: session.companionId } })
+          .catch(() => {});
+      }
+    }
 
     await this.prisma.orderSession.update({
       where: { id: sessionId },
@@ -1578,7 +1917,7 @@ export class OrdersService {
   private async getOwnedSession(id: string, companionId?: string) {
     const s = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { id: true, companionId: true, pausedAt: true, totalPausedSec: true },
+      select: { id: true, companionId: true, status: true, pausedAt: true, totalPausedSec: true, startedAt: true },
     });
     if (!s) throw new NotFoundException('会话不存在');
     if (companionId && s.companionId !== companionId) throw new ForbiddenException('只能操作自己的会话');
@@ -1611,7 +1950,6 @@ export class OrdersService {
       if (!claims.claimedMode) throw new BadRequestException('请填写游戏模式');
       if (claims.claimedPrice == null || !Number.isFinite(claims.claimedPrice) || claims.claimedPrice <= 0) throw new BadRequestException('请填写有效单价');
       if (claims.duration == null || !Number.isFinite(claims.duration) || claims.duration <= 0) throw new BadRequestException('请填写有效时长');
-      if (!claims.useDeposit && !claims.transferScreenshotUrl) throw new BadRequestException('请上传客户转账截图');
       data.claimedMode = claims.claimedMode;
       data.claimedPrice = claims.claimedPrice;
       data.transferScreenshotUrl = claims.transferScreenshotUrl;
@@ -1629,6 +1967,17 @@ export class OrdersService {
         where: { id: s.parentOrderId, status: 'GRABBED' },
         data: { status: 'CONFIRMED' },
       }).catch(() => {});
+      // 客户归属在「开始服务（打了首单）」时才绑定，抢单/指定阶段不绑。
+      if (s.companionId) {
+        const parentOrder = await this.prisma.order
+          .findUnique({ where: { id: s.parentOrderId }, select: { customerId: true } })
+          .catch(() => null);
+        if (parentOrder?.customerId) {
+          await this.prisma.customer
+            .updateMany({ where: { id: parentOrder.customerId }, data: { companionId: s.companionId } })
+            .catch(() => {});
+        }
+      }
       if (s.companionId) {
         await this.prisma.companion.update({ where: { id: s.companionId }, data: { status: 'BUSY' } }).catch(() => {});
       }
@@ -1645,11 +1994,14 @@ export class OrdersService {
     return updated;
   }
   async pauseSession(id: string, companionId?: string) {
-    await this.getOwnedSession(id, companionId);
+    const s = await this.getOwnedSession(id, companionId);
+    if (s.status !== 'ACTIVE' || !s.startedAt) throw new ForbiddenException('只有进行中的服务才能暂停');
+    if (s.pausedAt) throw new ForbiddenException('服务已处于暂停状态');
     return this.prisma.orderSession.update({ where: { id }, data: { pausedAt: new Date() } });
   }
   async resumeSession(id: string, companionId?: string) {
     const s = await this.getOwnedSession(id, companionId);
+    if (s.status !== 'ACTIVE') throw new ForbiddenException('只有进行中的服务才能继续');
     if (s.pausedAt) {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
       return this.prisma.orderSession.update({
@@ -1666,6 +2018,10 @@ export class OrdersService {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
       data.pausedAt = null;
       data.totalPausedSec = (s.totalPausedSec || 0) + sec;
+    }
+    if (s.startedAt) {
+      const activeSec = Math.max(0, (Date.now() - new Date(s.startedAt).getTime()) / 1000 - (data.totalPausedSec ?? s.totalPausedSec ?? 0));
+      data.duration = Number((activeSec / 3600).toFixed(1)) || 0.1;
     }
     const updated = await this.prisma.orderSession.update({ where: { id }, data });
     return updated;

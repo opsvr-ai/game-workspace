@@ -13,6 +13,7 @@ export function createMockPrisma() {
     },
     order: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -26,6 +27,14 @@ export function createMockPrisma() {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+    },
+    orderSession: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
     companion: {
       findUnique: vi.fn(),
@@ -51,6 +60,8 @@ export function createMockPrisma() {
     systemConfig: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       upsert: vi.fn(),
     },
     companionStatusBlacklist: {
