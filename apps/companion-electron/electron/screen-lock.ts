@@ -1,7 +1,8 @@
-import { BrowserWindow, app, screen } from 'electron';
+import { BrowserWindow, app, screen, Notification } from 'electron';
 import { store } from './store';
 import { logger } from './logger';
 import { emitStatus } from './websocket';
+import { execFile } from 'child_process';
 
 let lockWindow: BrowserWindow | null = null;
 let idleTimer: NodeJS.Timeout | null = null;
@@ -132,10 +133,57 @@ export function hideScreenLock(): void {
   }
 }
 
+/**
+ * 「休息」改为休眠：点休息后直接让整机进入休眠（看起来像关机、断电，只有电源键能唤醒）。
+ * 鼠标/键盘不会唤醒休眠中的电脑，所以也满足“碰鼠标键盘不激活”。
+ * 如果当前机器没开启休眠，命令会失败，这里回退到锁屏，避免陪玩点休息后完全没反应。
+ */
+export function hibernatePc(): void {
+  // 先尝试执行休眠；shutdown /h 需要系统已启用休眠。
+  execFile(
+    'shutdown.exe',
+    ['/h'],
+    { windowsHide: true },
+    (err) => {
+      if (err) {
+        logger.warn('Hibernate failed, falling back to screen lock', { error: err?.message || String(err) });
+        try {
+          new Notification({
+            title: '陪玩管理',
+            body: '休眠失败，已改为锁屏。请联系管理员确认这台电脑已开启休眠。',
+          }).show();
+        } catch {}
+        showScreenLock();
+      }
+    },
+  );
+}
+
+/**
+ * 开机时尽量把系统休眠打开。普通权限的客户端执行会失败，这里只记录不打扰；
+ * 如果客户端以管理员权限运行，则能直接成功，保证「休息=休眠」可用。
+ */
+export function ensureHibernateEnabled(): void {
+  execFile(
+    'powercfg.exe',
+    ['/hibernate', 'on'],
+    { windowsHide: true },
+    (err) => {
+      if (err) {
+        logger.debug('Ensure hibernate enabled failed (non-admin is expected)', { error: err?.message || String(err) });
+      } else {
+        logger.info('Hibernate enabled');
+      }
+    },
+  );
+}
+
 export function handleStatusChanged(status: string): void {
   store.set('lastStatus', status);
   if (status === 'RESTING') {
-    startIdleTimer();
+    // 点休息直接休眠整机。
+    stopIdleTimer();
+    hibernatePc();
   } else {
     stopIdleTimer();
     hideScreenLock();

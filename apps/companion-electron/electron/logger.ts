@@ -2,6 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 
+// 陪玩端/看门狗静默启动时 stdout/stderr 可能是已关闭的管道，
+// 直接 write 会抛 EPIPE，触发 Electron 主进程原生“Error”弹窗并卡住。
+// 这里把管道错误吞掉，避免一个日志写入就拖死整个客户端。
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
 export enum LogLevel {
   DEBUG = 0,
   INFO  = 1,
@@ -64,7 +70,11 @@ function write(level: LogLevel, message: string, extra?: Record<string, unknown>
     fs.appendFileSync(getLogFile(exeDir), line);
   } catch (e: any) { /* ignore */ }
 
-  (level >= LogLevel.WARN ? process.stderr : process.stdout).write(line);
+  try {
+    (level >= LogLevel.WARN ? process.stderr : process.stdout).write(line);
+  } catch (e: any) {
+    // 忽略 EPIPE 等流错误，日志文件已经写成功。
+  }
 }
 
 export const logger = {

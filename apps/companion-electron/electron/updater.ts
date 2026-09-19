@@ -68,7 +68,40 @@ function downloadZipWithProgress(
   });
 }
 
+async function acquireUpdateSlot(serverUrl: string, token: string): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const res = await fetch(`${serverUrl}/api/agent/update/acquire`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = (await res.json()) as any;
+    return json?.data?.granted === true;
+  } catch {
+    return false;
+  }
+}
+
+async function releaseUpdateSlot(serverUrl: string, token: string): Promise<void> {
+  if (!token) return;
+  try {
+    await fetch(`${serverUrl}/api/agent/update/release`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 async function performUpdate(downloadUrl: string): Promise<void> {
+  // 串行更新：先申请下载名额，没名额就等下一次检查，避免多台同时下载把带宽打满、谁也下不动。
+  const serverUrl = getServerUrl();
+  const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+  if (!(await acquireUpdateSlot(serverUrl, token))) {
+    logger.info('Update slot busy, skip this round and retry later');
+    return;
+  }
   const localDir = 'C:\\ProgramData\\chunlv';
   const localZip = path.join(localDir, 'update.zip');
   startUpdateSpin();
@@ -78,9 +111,11 @@ async function performUpdate(downloadUrl: string): Promise<void> {
     setUpdateProgress(100);
     signalUpdate(downloadUrl, localZip);
     logger.info('Update downloaded, handing off to SystemHelper', { localZip });
+    await releaseUpdateSlot(serverUrl, token);
   } catch (err: any) {
     logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
     signalUpdate(downloadUrl);
+    await releaseUpdateSlot(serverUrl, token);
   }
   stopUpdateSpin();
   updateTrayTooltip('陪玩管理');

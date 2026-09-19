@@ -20,7 +20,7 @@ function writeStore(data: Record<string, any>): void {
 }
 
 const defaults: Record<string, any> = {
-  serverUrl: 'http://localhost:3001',
+  serverUrl: 'http://1.117.229.36:3001',
   username: '',
   token: '',
   companionId: '',
