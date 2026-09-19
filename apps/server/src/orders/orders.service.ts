@@ -10,6 +10,7 @@ import { ExcellenceService } from '../companions/excellence.service';
 import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
 import { maskCustomerWechat } from '../common/order-privacy';
+import { releaseCompanionIfIdle } from '../common/companion-presence';
 
 const PARTNER_INVITE_TTL_SEC = 60;
 
@@ -1948,7 +1949,16 @@ export class OrdersService implements OnModuleInit {
   private async getOwnedSession(id: string, companionId?: string) {
     const s = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { id: true, companionId: true, status: true, pausedAt: true, totalPausedSec: true, startedAt: true },
+      select: {
+        id: true,
+        companionId: true,
+        coCompanionId: true,
+        status: true,
+        pausedAt: true,
+        totalPausedSec: true,
+        startedAt: true,
+        parentOrderId: true,
+      },
     });
     if (!s) throw new NotFoundException('会话不存在');
     if (companionId && s.companionId !== companionId) throw new ForbiddenException('只能操作自己的会话');
@@ -2043,7 +2053,7 @@ export class OrdersService implements OnModuleInit {
     return s;
   }
   async endSession(id: string, companionId?: string) {
-      const s = await this.getOwnedSession(id, companionId);
+    const s = await this.getOwnedSession(id, companionId);
     const data: any = { endedAt: new Date(), status: 'DONE' };
     if (s.pausedAt) {
       const sec = Math.floor((Date.now() - new Date(s.pausedAt).getTime()) / 1000);
@@ -2055,7 +2065,41 @@ export class OrdersService implements OnModuleInit {
       data.duration = Number((activeSec / 3600).toFixed(1)) || 0.1;
     }
     const updated = await this.prisma.orderSession.update({ where: { id }, data });
+    await this.releaseCompanionsAfterSession(s);
     return updated;
+  }
+
+  /**
+   * 会话结束后把主陪 / 副陪放回空闲，并广播给同工作室（客服端人员列表不用等轮询）。
+   */
+  private async releaseCompanionsAfterSession(s: {
+    id: string;
+    companionId?: string | null;
+    coCompanionId?: string | null;
+    parentOrderId?: string | null;
+  }): Promise<void> {
+    const ids = [s.companionId, s.coCompanionId].filter(Boolean) as string[];
+    if (!ids.length) return;
+    const studioId = s.parentOrderId
+      ? (
+          await this.prisma.order
+            .findUnique({ where: { id: s.parentOrderId }, select: { studioId: true } })
+            .catch(() => null)
+        )?.studioId
+      : null;
+    for (const companionId of ids) {
+      const released = await releaseCompanionIfIdle(this.prisma, companionId, s.id);
+      if (released && studioId) {
+        try {
+          this.wsGateway.broadcastToStudio(studioId, 'status:broadcast', {
+            companionId,
+            status: 'AVAILABLE',
+          });
+        } catch {
+          /* 广播失败不影响结束服务本身 */
+        }
+      }
+    }
   }
 
   async updatePayment(

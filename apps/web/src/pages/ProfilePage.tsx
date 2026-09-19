@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, Typography, Upload, message } from 'antd';
+import { Card, Form, Input, Button, Typography, Upload, Row, Col, message } from 'antd';
 import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 
@@ -9,8 +9,26 @@ const ProfilePage: React.FC = () => {
   const [pwdLoading, setPwdLoading] = useState(false);
   const [nameLoading, setNameLoading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [appPwdLoading, setAppPwdLoading] = useState(false);
   const [pwdForm] = Form.useForm();
   const [nameForm] = Form.useForm();
+  const [appPwdForm] = Form.useForm();
+  // 版本信息：客户端版本 / 前端构建 / 服务器地址。
+  // 以前这些数字常驻在左侧菜单底部和头像上，属于噪音，统一收进这里，排障时再来查。
+  const [appVersion, setAppVersion] = useState('');
+  const [webBuild, setWebBuild] = useState('');
+  const [serverUrl, setServerUrl] = useState('');
+
+  React.useEffect(() => {
+    const api = (window as any).electronAPI;
+    api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
+    api?.getServerUrl?.().then((v: string) => setServerUrl(v || '')).catch(() => {});
+    try {
+      setWebBuild(localStorage.getItem('webBuildId') || '');
+    } catch {
+      /* 隐私模式下读不到就算了 */
+    }
+  }, []);
 
   const userStr = sessionStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -36,6 +54,30 @@ const ProfilePage: React.FC = () => {
       message.error(err?.response?.data?.message || '修改失败');
     } finally {
       setPwdLoading(false);
+    }
+  };
+
+  const handleChangeAppPassword = async () => {
+    try {
+      const values = await appPwdForm.validateFields();
+      const api = (window as any).electronAPI;
+      if (!api?.setAppPassword) {
+        message.error('请使用客户端打开个人设置');
+        return;
+      }
+      setAppPwdLoading(true);
+      const res = await api.setAppPassword(values.oldPassword, values.newPassword);
+      if (res?.success) {
+        message.success('客户端管理员密码已修改');
+        appPwdForm.resetFields();
+      } else {
+        message.error(res?.message || '修改失败');
+      }
+    } catch (err: any) {
+      if (err?.errorFields) return;
+      message.error('修改失败');
+    } finally {
+      setAppPwdLoading(false);
     }
   };
 
@@ -129,6 +171,59 @@ const ProfilePage: React.FC = () => {
           </Form.Item>
           <Button type="primary" loading={pwdLoading} onClick={handleChangePassword}>修改密码</Button>
         </Form>
+      </Card>
+
+      <Card size="small" title="修改客户端管理员密码" style={{ marginTop: 12 }}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          用于客户端退出登录、锁屏解锁。默认密码 123456。
+        </Text>
+        <Form form={appPwdForm} layout="vertical">
+          <Form.Item name="oldPassword" label="旧管理员密码" rules={[{ required: true, message: '请输入旧密码' }]}>
+            <Input.Password placeholder="输入旧密码" />
+          </Form.Item>
+          <Form.Item name="newPassword" label="新管理员密码" rules={[{ required: true, message: '请输入新密码' }, { min: 4, message: '至少4位' }]}>
+            <Input.Password placeholder="输入新密码（至少4位）" />
+          </Form.Item>
+          <Form.Item name="confirmPassword" label="确认新密码" dependencies={['newPassword']}
+            rules={[{ required: true, message: '请确认新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                  return Promise.reject(new Error('两次密码不一致'));
+                },
+              }),
+            ]}>
+            <Input.Password placeholder="再次输入新密码" />
+          </Form.Item>
+          <Button type="primary" loading={appPwdLoading} onClick={handleChangeAppPassword}>修改管理员密码</Button>
+        </Form>
+      </Card>
+
+      {/* 版本信息 */}
+      <Card size="small" title="版本信息" style={{ marginTop: 12 }}>
+        <Row gutter={[8, 6]}>
+          <Col span={7}>
+            <Text type="secondary" style={{ fontSize: 12 }}>客户端版本</Text>
+          </Col>
+          <Col span={17}>
+            <Text style={{ fontSize: 12 }}>{appVersion || '（非客户端打开）'}</Text>
+          </Col>
+          <Col span={7}>
+            <Text type="secondary" style={{ fontSize: 12 }}>前端构建</Text>
+          </Col>
+          <Col span={17}>
+            <Text style={{ fontSize: 12 }}>{webBuild || '-'}</Text>
+          </Col>
+          <Col span={7}>
+            <Text type="secondary" style={{ fontSize: 12 }}>服务器</Text>
+          </Col>
+          <Col span={17}>
+            <Text style={{ fontSize: 12 }}>{serverUrl || window.location.origin}</Text>
+          </Col>
+        </Row>
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+          反馈问题时，把这三行一起发给技术，能直接定位到是哪一版。
+        </Text>
       </Card>
     </div>
   );

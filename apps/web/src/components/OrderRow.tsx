@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useEffect, useState } from 'react';
-import { Card, Tag, Typography, Row, Col, Image } from 'antd';
+import { Card, Tag, Typography, Row, Col, Image, Tooltip } from 'antd';
 import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig, dispatchTypeConfig, orderStatusConfig } from '../constants/orders';
 import { fmtClock, fmtAgo } from '../utils/orderPool';
 import { useAuthStore } from '../stores/authStore';
@@ -204,9 +204,13 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
         )}
         {isAdmin && cf.customerAccountId && (
           <Col>
-            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              客户ID:{cf.customerAccountId}
-            </Text>
+            {/* 平台账号数字 ID 平时用不上，写出来又长又占地方（用户反馈「对客服没用」）。
+                改成一个小问号，鼠标停上去才显示，需要核对时照样查得到。 */}
+            <Tooltip title={`客户ID：${cf.customerAccountId}`}>
+              <Text type="secondary" style={{ fontSize: 12, cursor: 'help' }}>
+                🆔
+              </Text>
+            </Tooltip>
           </Col>
         )}
         {cf.customerWechat && (

@@ -1446,26 +1446,8 @@ const AppLayout: React.FC = () => {
             />
           </div>
 
-          {/* 底部系统状态栏 */}
-          <div
-            style={{
-              flexShrink: 0,
-              padding: '12px 16px',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              background: 'transparent',
-            }}
-          >
-            {appVersion && (
-              <div style={{ fontSize: 12, color: commander.textMuted, textAlign: 'center' }}>
-                客户端 v{appVersion}
-              </div>
-            )}
-            {webBuild && (
-              <div style={{ fontSize: 11, color: commander.textMuted, textAlign: 'center', opacity: 0.7 }}>
-                前端构建 {webBuild}
-              </div>
-            )}
-          </div>
+          {/* 底部版本号（客户端 v* / 前端构建 *）已经挪到「设置 → 版本信息」，
+              这两行以前常驻在菜单底部，属于纯噪音。 */}
         </Sider>
 
         {/* 左侧常驻群聊消息面板 — 群聊消息不再进铃铛 */}
@@ -1679,23 +1661,6 @@ const AppLayout: React.FC = () => {
                             {(user.displayName || user.username || '?')[0].toUpperCase()}
                           </span>
                         )}
-                      </div>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: -2,
-                          right: -2,
-                          width: 14,
-                          height: 14,
-                          borderRadius: '50%',
-                          background: '#1677ff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '2px solid #fff',
-                        }}
-                      >
-                        <span style={{ color: '#fff', fontSize: 8 }}>📷</span>
                       </div>
                     </div>
                     <Text style={{ color: commander.textPrimary, fontWeight: 500 }}>{user.displayName || user.username}</Text>

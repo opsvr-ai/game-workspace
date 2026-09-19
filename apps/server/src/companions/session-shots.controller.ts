@@ -28,6 +28,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
 import { yuanToCents } from '../common/money';
+import { releaseCompanionIfIdle } from '../common/companion-presence';
 
 const SHOTS_DIR = join(process.cwd(), '..', '..', 'uploads', 'session-shots');
 
@@ -115,12 +116,14 @@ export class SessionShotsController {
       where: { id },
       select: {
         companionId: true,
+        coCompanionId: true,
         status: true,
         parentOrderId: true,
         claimedPrice: true,
         duration: true,
         amount: true,
         startedAt: true,
+        pausedAt: true,
         totalPausedSec: true,
         paidByDeposit: true,
         parentOrder: { select: { customerId: true } },
@@ -169,13 +172,23 @@ export class SessionShotsController {
         }
       }
     }
+    // 先计算真实计时（结束时间 − 开始时间 − 暂停时间），作为财务审核的唯一口径。
+    const endedAt = new Date();
+    let totalPausedSec = session.totalPausedSec || 0;
+    if (session.pausedAt) {
+      // 结束时若还处于暂停态，先结清这段暂停时长，避免真实计时被多算。
+      totalPausedSec += Math.floor((endedAt.getTime() - new Date(session.pausedAt).getTime()) / 1000);
+    }
+    const started = session.startedAt ? new Date(session.startedAt).getTime() : endedAt.getTime();
+    const activeSec = Math.max(0, (endedAt.getTime() - started) / 1000 - totalPausedSec);
+    const actualHours = activeSec / 3600;
+    const declaredPrice =
+      session.claimedPrice ?? (session.duration > 0 ? session.amount / session.duration : session.amount);
+
     // 财务审核：先落库再合成证据长图，确保长图包含财务核对卡
     let auditStatus: string | null = null;
     try {
-      const filledHours = session.duration || 1;
-      const declaredPrice =
-        session.claimedPrice ?? (filledHours > 0 ? session.amount / filledHours : session.amount);
-      const auditCents = yuanToCents(filledHours * declaredPrice);
+      const auditCents = yuanToCents(actualHours * declaredPrice);
       const transferCents = body?.transferTotalYuan != null ? yuanToCents(body.transferTotalYuan) : null;
       auditStatus = transferCents == null ? 'PENDING' : transferCents < auditCents ? 'FLAGGED' : 'OK';
       await this.prisma.order.update({
@@ -194,7 +207,6 @@ export class SessionShotsController {
       console.error('finance audit write failed', err);
     }
 
-    const endedAt = new Date();
     const compositeUrl = await this.composite.buildComposite(id, flaggedReason, flagged);
     await this.prisma.orderSession.update({
       where: { id },
@@ -203,17 +215,19 @@ export class SessionShotsController {
         endedAt,
         compositeUrl: compositeUrl || undefined,
         flagged: flagged || undefined,
+        ...(session.pausedAt ? { pausedAt: null, totalPausedSec } : {}),
       },
     });
 
+    // 结束服务后恢复陪玩状态为空闲，避免依赖前端「完成订单」这一步。
+    // 用「没有别的进行中会话才放回空闲」的判断，主陪和副陪都要复位：
+    // 以前只改主陪，副陪会一直挂在「接单中」，收不到后面的急单。
+    await releaseCompanionIfIdle(this.prisma, session.companionId, id);
+    await releaseCompanionIfIdle(this.prisma, session.coCompanionId, id);
+
     // 存单扣款：用存单支付的服务，按实际计时扣减客户存单余额
     if (session.paidByDeposit) {
-      const started = session.startedAt ? new Date(session.startedAt).getTime() : endedAt.getTime();
-      const activeSec = Math.max(0, (endedAt.getTime() - started) / 1000 - (session.totalPausedSec || 0));
-      const actualHours = activeSec / 3600;
-      const filledHours = session.duration || 1;
-      const price = session.claimedPrice ?? (filledHours > 0 ? session.amount / filledHours : session.amount);
-      const deduct = Math.round(actualHours * price * 100) / 100;
+      const deduct = Math.round(actualHours * declaredPrice * 100) / 100;
       await this.prisma.customer.update({
         where: { id: session.parentOrder.customerId },
         data: { depositBalance: { decrement: deduct } },
