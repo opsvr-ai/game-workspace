@@ -17,6 +17,16 @@ export const fmtSpan = (ms: number) => {
   return `${s}秒`;
 };
 
+/** 相对时间（订单列表用）：刚刚 / N分钟前 / N小时前 / N天前 */
+export const fmtAgo = (ms: number) => {
+  const m = Math.floor(Math.max(0, ms) / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return `${m}分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}小时前`;
+  return `${Math.floor(h / 24)}天前`;
+};
+
 export const fmtSeconds = (s: number) => {
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -32,6 +42,7 @@ export function buildOrderInfoFields(
   const type = orderTypeConfig[order.type]?.label || order.type || '首单';
   const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
   const mission = order.customFields?.deltaMission || '\u00A0';
+  const note = order.customFields?.deltaNote?.trim?.() || '';
   const isRound = order.customFields?.billingMode === 'round';
   const dur = isRound
     ? `${order.duration || order.customFields?.deltaCount || '?'}局`
@@ -52,6 +63,7 @@ export function buildOrderInfoFields(
     type,
     svc,
     mission,
+    ...(note ? [`备注:${note.length > 14 ? `${note.slice(0, 14)}…` : note}`] : []),
     dur,
     sd,
     `${Number(order.amount || 0).toFixed(0)}元`,

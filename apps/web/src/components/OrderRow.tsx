@@ -1,10 +1,39 @@
 // craftsman-ignore: TS001,TS002
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Card, Tag, Typography, Row, Col, Image } from 'antd';
-import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig, dispatchTypeConfig } from '../constants/orders';
+import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig, dispatchTypeConfig, orderStatusConfig } from '../constants/orders';
+import { fmtClock, fmtAgo } from '../utils/orderPool';
 import { useAuthStore } from '../stores/authStore';
+import { trafficAccountApi } from '../api/trafficAccount';
 
 const { Text } = Typography;
+
+let cachedInactiveAccounts: Set<string> | null = null;
+let cachedAt = 0;
+let pendingPromise: Promise<Set<string>> | null = null;
+
+// 全局共享一次请求：多个订单行同时挂载时也只发一次引流账号请求，避免重复请求拖慢列表。
+function loadInactiveAccounts(): Promise<Set<string>> {
+  if (cachedInactiveAccounts && Date.now() - cachedAt < 5 * 60 * 1000) {
+    return Promise.resolve(cachedInactiveAccounts);
+  }
+  if (pendingPromise) return pendingPromise;
+  pendingPromise = trafficAccountApi
+    .list('studio')
+    .then(({ data }: any) => {
+      const inactive = new Set<string>();
+      (data.data || []).forEach((a: any) => {
+        if (a.status === 'INACTIVE') inactive.add(a.nickname);
+      });
+      cachedInactiveAccounts = inactive;
+      cachedAt = Date.now();
+      return inactive;
+    })
+    .finally(() => {
+      pendingPromise = null;
+    });
+  return pendingPromise;
+}
 
 interface OrderRowProps {
   order: any;
@@ -16,13 +45,41 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
   const role = useAuthStore((s) => s.user?.role);
   const isAdmin = role === 'CS' || role === 'ADMIN' || role === 'OWNER';
   const cf = order.customFields || {};
+  const session = order.sessions?.[0];
+  const createdAtMs = order.createdAt ? new Date(order.createdAt).getTime() : null;
+  const actualHours = session?.startedAt
+    ? Math.max(
+        0,
+        ((session.endedAt ? new Date(session.endedAt).getTime() : Date.now()) -
+          new Date(session.startedAt).getTime() -
+          (session.totalPausedSec || 0) * 1000) /
+          3600000,
+      )
+    : null;
+  const statusCfg = orderStatusConfig[order.status];
+  const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let alive = true;
+    loadInactiveAccounts()
+      .then((inactive) => {
+        if (alive) setInactiveAccounts(inactive);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <Card
+      className="order-row-card"
       size="small"
       style={{ borderLeft: `3px solid ${orderTypeConfig[order.type]?.color || '#1677ff'}` }}
     >
-      <Row align="middle" gutter={8} wrap={false}>
+      {/* 允许换行：这一行字段很多，写死单行时 antd 会把右侧按钮列压窄，
+          按钮被挤成竖排（订单池流转失败明细里就能看到「跳/再」竖着排）。 */}
+      <Row align="middle" gutter={8} wrap>
         {index !== undefined && (
           <Col>
             <Tag style={{ background: '#f0f0f0', color: '#666', fontWeight: 700, minWidth: 24, textAlign: 'center', margin: 0 }}>
@@ -42,6 +99,13 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
             {orderTypeConfig[order.type]?.label || order.type}
           </Tag>
         </Col>
+        {statusCfg && (
+          <Col>
+            <Tag color={statusCfg.color} style={{ margin: 0 }}>
+              {statusCfg.label}
+            </Tag>
+          </Col>
+        )}
         <Col>
           <Text strong style={{ fontSize: 14, whiteSpace: 'nowrap' }}>
             {order.gameName}
@@ -76,10 +140,24 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
             </Tag>
           </Col>
         )}
+        {cf.csCultivated === true && (
+          <Col>
+            <Tag color="cyan" style={{ margin: 0 }}>
+              ✅ 客服已加过微信，请知悉
+            </Tag>
+          </Col>
+        )}
         {order.companion?.user?.username && (
           <Col>
             <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               主陪:{order.companion.user.username}
+            </Text>
+          </Col>
+        )}
+        {order.coCompanion?.user?.username && (
+          <Col>
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap', color: '#722ed1' }}>
+              副陪:{order.coCompanion.user.username}
             </Text>
           </Col>
         )}
@@ -111,6 +189,9 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
           <Col>
             <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               来源账号:{cf.customerSourceAccount}
+              {inactiveAccounts.has(cf.customerSourceAccount) && (
+                <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>已弃用</Tag>
+              )}
             </Text>
           </Col>
         )}
@@ -177,13 +258,48 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
                 : ''}
           </Text>
         </Col>
+        {isAdmin && actualHours != null && (
+          <Col>
+            <Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
+              实际服务 {actualHours.toFixed(1)}h
+            </Text>
+          </Col>
+        )}
         <Col>
           <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
             📋{order.csUser?.username || cf.createdBy || '-'}
           </Text>
         </Col>
+        {/* 流转失败明细/跟进列表只有「谁发的」，没有「什么时候发的」，
+            客服判断要不要把单再次入池时缺少依据，所以补上发布时间和已过去多久。 */}
+        {createdAtMs != null && (
+          <Col>
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              🕒{fmtClock(order.createdAt)} · {fmtAgo(Date.now() - createdAtMs)}
+            </Text>
+          </Col>
+        )}
+        {order.poolExpiredAt && (
+          <Col>
+            <Text style={{ fontSize: 12, whiteSpace: 'nowrap', color: '#fa8c16' }}>
+              ↩退回 {fmtClock(order.poolExpiredAt)}
+            </Text>
+          </Col>
+        )}
         {renderActions && (
-          <Col flex="auto" style={{ textAlign: 'right', position: 'sticky', right: 0, background: '#fff', paddingLeft: 8 }}>
+          <Col
+            flex="auto"
+            style={{
+              textAlign: 'right',
+              position: 'sticky',
+              right: 0,
+              background: '#fff',
+              paddingLeft: 8,
+              // 按钮列不参与压缩：挤压会把它压成竖排文字，宁可让这一列换到下一行。
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
             {renderActions(order)}
           </Col>
         )}
