@@ -56,6 +56,7 @@ import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import {
   ACTIONS_COLUMN,
+  CUSTOMER_CODE_COLUMN,
   CUSTOMER_TABLE_KEYS,
   CUSTOMER_TABLE_KEYS_COMPANION,
   DATA_FONT_SIZE,
@@ -374,7 +375,7 @@ const CustomersPage: React.FC = () => {
       title: '客户编号',
       dataIndex: 'customerCode',
       key: 'customerCode',
-      width: FIELD_WIDTH.customerCode,
+      ...CUSTOMER_CODE_COLUMN,
       render: (code: string, record: Customer) => (
         <>
           <Text>{code}</Text>

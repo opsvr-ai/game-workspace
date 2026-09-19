@@ -119,6 +119,17 @@ export function applyDataFontCssVars(): void {
   root.setProperty('--data-control-font-size', `${DATA_CONTROL_FONT_SIZE}px`);
 }
 
+/**
+ * 客户编号列：定宽 + 钉在左侧。
+ *
+ * 客户表横向拖到右边时（宽度 1080 的客服窗口下必点），
+ * 左边这列编号会一直贴着屏幕左边，不用拖回去就知道在看谁。
+ */
+export const CUSTOMER_CODE_COLUMN = {
+  width: FIELD_WIDTH.customerCode,
+  fixed: 'left' as const,
+};
+
 /** 操作列统一配置：定宽 + 钉在右侧。 */
 export const ACTIONS_COLUMN = {
   width: FIELD_WIDTH.actions,
