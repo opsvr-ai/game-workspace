@@ -96,7 +96,7 @@ export class ProcessBlacklistController {
     const whitelist = await this.service.getWhitelist(await this.sid(req));
     for (const cid of companionIds) {
       const blacklist = await this.service.getEffectiveBlacklist(cid);
-      this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version);
+      await this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version);
       pushed++;
     }
     logger.info("Blacklist push", { pushed, version, studioId: req.user.studioId });
@@ -160,8 +160,8 @@ export class ProcessBlacklistController {
 
   @Post('pending-disable')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async addPendingDisable(@Req() req: any, @Body() dto: { processName: string }) {
-    const entry = await this.service.addPendingDisable(await this.sid(req), dto.processName);
+  async addPendingDisable(@Req() req: any, @Body() dto: { processName: string; displayName?: string }) {
+    const entry = await this.service.addPendingDisable(await this.sid(req), dto.processName, dto.displayName);
     return { code: 200, data: entry, message: '已加入待禁用名单' };
   }
 

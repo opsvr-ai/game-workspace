@@ -249,22 +249,53 @@ let blacklistGuardTimer: ReturnType<typeof setInterval> | null = null;
 let activeBlacklist: string[] = [];
 let activeWhitelist: string[] = [];
 
+/**
+ * 上报一次自动杀进程，服务端「进程黑名单管理」里能看到是谁、什么时候、杀了什么进程。
+ * 以前杀完不留痕迹，出现“游戏怎么突然掉了”时根本查不到原因。
+ */
+function reportAutoKill(processName: string, success: boolean, resultText?: string): void {
+  void (async () => {
+    try {
+      const token = await refreshAccessToken();
+      if (!token) return;
+      await fetch(`${getServerUrl()}/api/process-blacklist/kill-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ processName, pid: 0, success, resultText, triggeredBy: 'AUTO_IDLE' }),
+      });
+    } catch {
+      /* 上报失败不影响杀进程 */
+    }
+  })();
+}
+
 function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
   activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
   activeWhitelist = (whitelist || []).map((w) => w.processName).filter(Boolean);
   if (blacklistGuardTimer) clearInterval(blacklistGuardTimer);
+  // 以前这里不留任何痕迹，游戏被杀了也查不出是谁干的，这里补上。
+  logger.info('Blacklist guard updated', {
+    blacklist: activeBlacklist,
+    whitelistCount: activeWhitelist.length,
+    lastStatus: store.get('lastStatus') || '',
+    armed: activeBlacklist.length > 0 && store.get('lastStatus') === 'AVAILABLE',
+  });
   if (activeBlacklist.length === 0) return;
   blacklistGuardTimer = setInterval(() => {
-    // 只有登录成功且当前状态为“空闲”时才执行黑名单杀进程。
+    // 只有登录成功且明确处于「空闲」时才执行黑名单杀进程。
     if (!store.get('token')) return;
-    // 本地没有记录状态时（例如服务端连接时自动解析为空闲，但用户没手动点过状态）也按空闲处理。
+    // 状态未知（比如刚装好还没选过状态）时一律不动手，
+    // 避免把正在玩游戏的人当成空闲直接踢下线。
     const lastStatus = store.get('lastStatus');
-    if (lastStatus && lastStatus !== 'AVAILABLE') return;
+    if (lastStatus !== 'AVAILABLE') return;
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
       const image = name.toLowerCase().endsWith('.exe') ? name : `${name}.exe`;
+      logger.warn('Killing blacklisted process', { processName: name, reason: 'status AVAILABLE' });
       new Notification({ title: '陪玩管理', body: `正在结束黑名单进程：${name}` }).show();
-      execFile('taskkill', ['/F', '/IM', image, '/T'], () => {});
+      execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
+        reportAutoKill(name, !err, err?.message);
+      });
     }
   }, 10000);
 }
@@ -976,8 +1007,21 @@ app.whenReady().then(() => {
   });
   onWsEvent('blacklist:update', (data: any) => {
     if (currentRole !== 'COMPANION') return;
-    // 服务端按当前状态推黑名单，同时把权威状态同步到本地，避免本地 lastStatus 与服务端不一致导致该杀不杀。
-    if (data?.status) store.set('lastStatus', data.status);
+    if (data?.status) {
+      const local = store.get('lastStatus');
+      const localOffDuty = local === 'ENTERTAINMENT' || local === 'RESTING';
+      // 服务端在连接/心跳时只是按「在线 = 空闲」补推一次，那只是猜测（authoritative=false）。
+      // 不能让猜出来的空闲覆盖陪玩自己选的娱乐中/休息，
+      // 否则一覆盖客户端就会立刻开始杀游戏进程。
+      if (data.authoritative === true || !(localOffDuty && data.status === 'AVAILABLE')) {
+        store.set('lastStatus', data.status);
+      } else {
+        logger.warn('Ignored non-authoritative AVAILABLE status (kept local off-duty status)', {
+          local,
+          pushed: data.status,
+        });
+      }
+    }
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });
   const token = getWsToken();

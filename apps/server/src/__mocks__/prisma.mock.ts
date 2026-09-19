@@ -41,6 +41,7 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       delete: vi.fn(),
       upsert: vi.fn(),
     },
@@ -48,7 +49,7 @@ export function createMockPrisma() {
       findUnique: vi.fn(),
       upsert: vi.fn(),
       create: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue({ id: "pc-1" }),
     },
     companionTimeLog: {
       create: vi.fn(),

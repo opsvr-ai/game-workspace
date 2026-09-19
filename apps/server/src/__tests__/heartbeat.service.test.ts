@@ -25,6 +25,8 @@ function mockWsGateway() {
       to: vi.fn().mockReturnValue({ emit }),
     },
     sendCommand: vi.fn(),
+    // 余额不足被强制切空闲时会重推状态黑名单（见 heartbeat.service.ts）
+    pushCurrentBlacklist: vi.fn(),
   } as any;
 }
 

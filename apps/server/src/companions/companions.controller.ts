@@ -23,7 +23,6 @@ import { RestingMonitorService } from './resting-monitor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
-import { currentBusinessDayRange } from '../common/business-day';
 import { ChatService } from '../chat/chat.service';
 import { ExcellenceService } from './excellence.service';
 import { UserRole } from '@chunlv/shared';
@@ -58,8 +57,8 @@ export class CompanionsController {
   }
 
   @Get('personnel')
-  async listPersonnel(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listPersonnel(req.user);
+  async listPersonnel(@Req() req: any, @Query('includeBridged') includeBridged?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listPersonnel(req.user, includeBridged === 'true');
     return { code: 200, message: 'ok', data };
   }
 
@@ -185,8 +184,8 @@ export class CompanionsController {
 
   @Post('companions/me/withdraw')
   @Roles(UserRole.COMPANION)
-  async requestWithdraw(@Req() req: any, @Body() dto: { amount: number }): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.requestWithdraw(req.user.companionId, dto.amount);
+  async requestWithdraw(@Req() req: any, @Body() dto: { amount: number; note?: string }): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.requestWithdraw(req.user.companionId, dto.amount, dto.note);
     return { code: 201, message: '支取申请已提交', data };
   }
 
@@ -227,6 +226,17 @@ export class CompanionsController {
     return { code: 201, message: 'ok', data };
   }
 
+  @Put('companions/work-wechats/:id/nickname')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async updateWorkWechatNickname(
+    @Param('id') id: string,
+    @Body() dto: { nickname?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.updateWorkWechatNickname(id, dto?.nickname || '', req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Put('companions/work-wechats/:id/bind')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async bindWechat(@Param('id') id: string, @Body() dto: { companionId: string }): Promise<ApiResponse<unknown>> {
@@ -257,8 +267,8 @@ export class CompanionsController {
 
   @Delete('companions/work-wechats/:id')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async deleteWorkWechat(@Param('id') id: string): Promise<ApiResponse<unknown>> {
-    await this.companionsService.deleteWorkWechat(id);
+  async deleteWorkWechat(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    await this.companionsService.deleteWorkWechat(id, req.user);
     return { code: 200, message: '已删除', data: null };
   }
 
@@ -268,6 +278,8 @@ export class CompanionsController {
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async resignCompanion(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     await this.companionsService.resignCompanion(id);
+    // 立即踢下线并清掉客户端本地登录，防止离职后还能自动登录。
+    this.wsGateway.sendCommand(id, 'kick', { reason: '离职处理' });
     return { code: 200, message: '陪玩已离职，工位和微信已释放', data: null };
   }
 
@@ -283,9 +295,9 @@ export class CompanionsController {
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async addStatusBlacklist(
     @Req() req: any,
-    @Body() dto: { status: string; processName: string },
+    @Body() dto: { status: string; processName: string; displayName?: string },
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.addStatusBlacklist(req.user.studioId, dto.status, dto.processName);
+    const data = await this.companionsService.addStatusBlacklist(req.user.studioId, dto.status, dto.processName, dto.displayName);
     return { code: 201, message: 'ok', data };
   }
 
@@ -317,15 +329,11 @@ export class CompanionsController {
     const id = req.user.companionId;
     if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
 
-    // Entertainment threshold: check if companion has undrawn balance
-    if (status === 'ENTERTAINMENT') {
-      const blocked = await this.companionsService.checkEntertainmentBlocked(id);
-      if (blocked) {
-        return { code: 200, message: '不满足娱乐模式条件', data: { blocked: true, ...blocked } };
-      }
-    }
     logger.info('REST status update (me)', { companionId: id, username: req.user.username, status });
     const data = await this.companionsService.updateStatus(id, status, req.user);
+    // 状态变化后，把新状态对应的黑名单推给客户端，确保空闲时能立刻杀掉该状态下的进程。
+    // 这是陪玩本人开的状态，属于权威状态。
+    await this.wsGateway.pushCurrentBlacklist(id, req.user?.studioId || null, true);
     if (status === 'RESTING') this.restingMonitor.startResting(id);
     else this.restingMonitor.clearTimer(id);
     // Broadcast to studio for real-time sync
@@ -345,44 +353,8 @@ export class CompanionsController {
     @Body('status') status: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    // Threshold check when switching to entertainment mode
-    if (status === 'ENTERTAINMENT') {
-      const companion = await this.prisma.companion.findUnique({ where: { id }, select: { deposit: true } });
-      if (companion) {
-        const depositCfg = await this.prisma.systemConfig.findUnique({
-          where: { key: 'entertainment.deposit_threshold' },
-        });
-        const revenueCfg = await this.prisma.systemConfig.findUnique({
-          where: { key: 'entertainment.revenue_threshold' },
-        });
-        const minDeposit = (depositCfg?.value as number) ?? 500;
-        const minRevenue = (revenueCfg?.value as number) ?? 200;
-        const d = companion.deposit || 0;
-
-        // Calculate today's revenue from DONE orders（营业日 12:00 至次日 12:00）
-        const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
-        const todayOrders = await this.prisma.order.findMany({
-          where: { companionId: id, status: 'DONE', createdAt: { gte: todayStart, lt: todayEnd } },
-          select: { amount: true },
-        });
-        const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-
-        if (d < minDeposit || todayRevenue < minRevenue) {
-          return {
-            code: 200,
-            message: '不满足娱乐模式条件',
-            data: {
-              blocked: true,
-              deposit: d,
-              revenue: todayRevenue,
-              depositThreshold: minDeposit,
-              revenueThreshold: minRevenue,
-            },
-          };
-        }
-      }
-    }
     const data = await this.companionsService.updateStatus(id, status, req.user);
+    await this.wsGateway.pushCurrentBlacklist(id, req.user?.studioId || null, true);
     if (status === 'RESTING') this.restingMonitor.startResting(id);
     else this.restingMonitor.clearTimer(id);
     // Broadcast to studio for real-time sync
@@ -629,5 +601,15 @@ export class CompanionsController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.updateFinance(id, dto, req.user.id);
     return { code: 200, message: '财务数据已更新', data };
+  }
+
+  @Put('companions/:id/senior-staff')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async setSeniorStaff(
+    @Param('id') id: string,
+    @Body() dto: { isSeniorStaff: boolean },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.setSeniorStaff(id, !!dto.isSeniorStaff);
+    return { code: 200, message: dto.isSeniorStaff ? '已标记为老员工' : '已取消老员工标记', data };
   }
 }

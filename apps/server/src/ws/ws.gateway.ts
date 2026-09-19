@@ -179,9 +179,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           data: { status: nextStatus },
         });
 
-        // 上线时状态可能从 OFFLINE 恢复成 AVAILABLE，这里按最终状态再推一次黑名单，
-        // 避免客户端停留在空黑名单（OFFLINE）而空闲时杀不到进程。
-        await this.pushCurrentBlacklist(user.companionId, user.studioId);
+        // 这里不再补推黑名单：连接时的状态只是按「在线 = 空闲」猜出来的，
+        // 而上面一步已经推过一次。猜出来的状态不能发给客户端，
+        // 否则会把正在「娱乐中」打游戏的陪玩当成空闲处理（随即误杀游戏进程）。
 
         // Record attendance on connection
         await this.companionsService.ensureAttendance(user.companionId);
@@ -321,7 +321,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }).catch(() => {});
 
     // 状态变化后推送新状态对应的黑名单，避免客户端停留在旧状态的黑名单列表。
-    await this.pushCurrentBlacklist(user.companionId, user.studioId);
+    // 这是陪玩本人开的状态，属于权威状态，可以下发。
+    await this.pushCurrentBlacklist(user.companionId, user.studioId, true);
 
     // ── Time tracking: start/stop CompanionTimeLog on status change ──
     if (mappedStatus !== prevStatus) {
@@ -671,21 +672,53 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ── blacklist outbound ─────────────────────────────────────────────
 
-  sendBlacklistUpdate(
+  /**
+   * 自动杀进程总开关（SystemConfig: blacklist.auto_kill）。
+   * 默认关闭：只有明确把它设成 true 时，客户端才会按状态去杀名单里的进程。
+   * 之前没有这个开关时，服务端会主动把「空闲名单」推给客户端，
+   * 出现过正在玩游戏的陪玩被当成空闲而被杀进程的事故。
+   */
+  async isAutoKillEnabled(): Promise<boolean> {
+    // 一次工作室级推送会给每个在线陪玩各查一次配置，加 5 秒缓存避免把库打满。
+    const now = Date.now();
+    if (this.autoKillCache && now - this.autoKillCache.at < 5000) {
+      return this.autoKillCache.value;
+    }
+    const cfg = await this.prisma.systemConfig
+      .findUnique({ where: { key: 'blacklist.auto_kill' } })
+      .catch(() => null);
+    const v = cfg?.value;
+    const value = v === true || v === 'true';
+    this.autoKillCache = { at: now, value };
+    return value;
+  }
+
+  /** 自动杀进程总开关的短缓存，见 isAutoKillEnabled()。 */
+  private autoKillCache: { at: number; value: boolean } | null = null;
+
+  async sendBlacklistUpdate(
     companionId: string,
     blacklist: { processName: string; processPath: string | null }[],
     whitelist: { processName: string; isSystem: boolean }[],
     version: number,
     status?: string,
-  ): void {
+    authoritative = false,
+  ): Promise<void> {
+    const autoKill = await this.isAutoKillEnabled();
+    // 总开关关掉时下发空名单：客户端收到空名单会立刻清掉自己手上的杀进程名单，不再误杀。
+    const effective = autoKill ? blacklist : [];
     logger.info('SEND blacklist:update', {
       companionId,
-      blacklistCount: blacklist.length,
+      blacklistCount: effective.length,
+      suppressed: !autoKill && blacklist.length > 0,
       whitelistCount: whitelist.length,
       version,
       status,
+      authoritative,
     });
-    this.server.to(`companion:${companionId}`).emit('blacklist:update', { blacklist, whitelist, version, status });
+    this.server
+      .to(`companion:${companionId}`)
+      .emit('blacklist:update', { blacklist: effective, whitelist, version, status, authoritative });
   }
 
   async broadcastBlacklistToStudio(
@@ -697,14 +730,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const version = Date.now();
     let pushed = 0;
     for (const c of companions) {
-      this.server.to(`companion:${c.id}`).emit('blacklist:update', { blacklist, whitelist, version });
+      await this.sendBlacklistUpdate(c.id, blacklist, whitelist.map((w) => ({ ...w, isSystem: false })), version);
       pushed++;
     }
     logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, version });
   }
 
-  /** 客户端连接成功后自动推送一次当前黑名单，覆盖离线/未登录后补连接的情况。 */
-  async pushCurrentBlacklist(companionId: string, studioId: string | null): Promise<void> {
+  /**
+   * 推送当前状态对应的黑名单，覆盖离线/未登录后补连接的情况。
+   *
+   * authoritative 只在「陪玩本人或管理端明确切换了状态」时为 true；
+   * 连接/心跳这类只是按「在线 = 空闲」补推的场景必须传 false，
+   * 此时不下发 status，让客户端保留自己选的状态（娱乐中/休息），
+   * 避免把正在玩游戏的人当成空闲而误杀游戏进程。
+   */
+  async pushCurrentBlacklist(companionId: string, studioId: string | null, authoritative = false): Promise<void> {
     if (!studioId) return;
     try {
       // 使用「状态黑名单」而不是旧的全局 ProcessBlacklist：陪玩处于哪个状态，就套用该状态下的黑名单。
@@ -722,12 +762,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         where: { studioId },
         select: { processName: true },
       });
-      this.sendBlacklistUpdate(
+      await this.sendBlacklistUpdate(
         companionId,
         blacklist,
         whitelist.map((w) => ({ processName: w.processName, isSystem: false })),
         Date.now(),
-        status,
+        authoritative ? status : undefined,
+        authoritative,
       );
     } catch (err) {
       logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });

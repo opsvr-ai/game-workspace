@@ -56,6 +56,12 @@ export class HeartbeatService {
       },
     });
 
+    // 有有效心跳说明客户端在线：如果被「离线扫描」误判成 OFFLINE，这里恢复为空闲，避免人员列表凭空消失。
+    await this.prisma.companion.updateMany({
+      where: { id: user.companionId, status: 'OFFLINE' },
+      data: { status: 'AVAILABLE' },
+    }).catch(() => {});
+
     // Update duration on open time logs (status-based tracking)
     const now = new Date();
     const openLog = await this.prisma.companionTimeLog.findFirst({
@@ -103,6 +109,11 @@ export class HeartbeatService {
               where: { id: user.companionId },
               data: { status: 'AVAILABLE' },
             });
+            // 同步「当前模式」，避免出现状态是空闲、模式还显示娱乐
+            await this.prisma.companionPC.update({
+              where: { companionId: user.companionId },
+              data: { currentMode: 'AVAILABLE' },
+            }).catch(() => {});
             // Close current entertainment log
             await this.prisma.companionTimeLog.updateMany({
               where: { companionId: user.companionId, mode: 'ENTERTAINMENT', endedAt: null },
@@ -126,6 +137,10 @@ export class HeartbeatService {
                 companionId: user.companionId,
                 status: 'AVAILABLE',
               });
+            }
+            // 重推空闲状态黑名单，让客户端恢复杀进程（否则客户端停留在娱乐的 lastStatus，该杀不杀）
+            if (user.studioId) {
+              await this.wsGateway.pushCurrentBlacklist(user.companionId, user.studioId, true);
             }
             logger.warn('Force idle due to insufficient balance', {
               companionId: user.companionId,
