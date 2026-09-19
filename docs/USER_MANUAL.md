@@ -552,7 +552,7 @@
 
 1. 从管理员处获取 Electron 客户端 可执行文件
 2. 配置环境变量：
-   - `AGENT_SERVER_URL`：后端服务器地址（默认 `http://localhost:3001`）
+   - `AGENT_SERVER_URL`：后端服务器地址（默认云服务器 `http://1.117.229.36:3001`；客户端会把历史遗留的 `localhost` / 旧内网地址自动归位到云服务器，避免白屏）
    - `AGENT_TOKEN`：你的登录 Token
 3. 运行 Agent 程序
 4. 启动后 Agent 自动连接服务器，保持 WebSocket 长连接
