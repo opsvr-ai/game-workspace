@@ -2,6 +2,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
 import { extractErrorMessage } from '../utils/error-handler';
+import { isRowClickIgnored } from '../utils/rowClick';
 import {
   Table,
   Button,
@@ -37,7 +38,9 @@ import {
 import { customersApi } from '../api/customers';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
+import { trafficAccountApi } from '../api/trafficAccount';
 import http from '../api/client';
+import PasteImageBox from '../components/PasteImageBox';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
@@ -135,6 +138,33 @@ const CustomersPage: React.FC = () => {
   const [depositScreenshot, setDepositScreenshot] = useState('');
   const [depositNote, setDepositNote] = useState('');
   const [depositSubmitting, setDepositSubmitting] = useState(false);
+  const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
+
+  const uploadDepositScreenshot = async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const { data } = await http.post('/upload/screenshot', fd);
+      setDepositScreenshot(data.data?.url || data.url || '');
+      message.success('截图已上传');
+    } catch {
+      message.error('上传失败');
+    }
+    return false;
+  };
+
+  const uploadDeleteScreenshot = async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const { data } = await http.post('/upload/screenshot', fd);
+      setDeleteScreenshot(data.data?.url || data.url || '');
+      message.success('截图已上传');
+    } catch {
+      message.error('上传失败');
+    }
+    return false;
+  };
 
   const openScheduleModal = (record: Customer) => {
     setScheduleCustomer(record);
@@ -193,11 +223,11 @@ const CustomersPage: React.FC = () => {
   const [companionsLoading, setCompanionsLoading] = useState(false);
   const [reassignForm] = Form.useForm();
 
-  const fetchCustomers = useCallback(async (silent = false) => {
+  const fetchCustomers = useCallback(async (silent = false, force = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const { data } = await customersApi.list({ sortBy });
+      const { data } = await customersApi.list(force ? { sortBy, _: Date.now() } : { sortBy });
       setCustomers(data.data?.items ?? data.data ?? []);
     } catch (err: any) {
       if (!silent) {
@@ -214,12 +244,12 @@ const CustomersPage: React.FC = () => {
     fetchCustomers();
   }, [fetchCustomers]);
   useEffect(() => {
-    const onServiceStarted = () => fetchCustomers();
+    const onServiceStarted = () => fetchCustomers(false, true);
     window.addEventListener('chunlv:service-started', onServiceStarted);
     return () => window.removeEventListener('chunlv:service-started', onServiceStarted);
   }, [fetchCustomers]);
   useEffect(() => {
-    const t = setInterval(() => fetchCustomers(true), 30000);
+    const t = setInterval(() => fetchCustomers(true), 120000);
     return () => clearInterval(t);
   }, [fetchCustomers]);
   useEffect(() => {
@@ -232,6 +262,20 @@ const CustomersPage: React.FC = () => {
         .catch(() => {});
     }
   }, [canReassign]);
+
+  // 加载已弃用的引流账号昵称，用于客户来源追溯时标注「已弃用」
+  useEffect(() => {
+    trafficAccountApi
+      .list('studio')
+      .then(({ data }: any) => {
+        const inactive = new Set<string>();
+        (data.data || []).forEach((a: any) => {
+          if (a.status === 'INACTIVE') inactive.add(a.nickname);
+        });
+        setInactiveAccounts(inactive);
+      })
+      .catch(() => {});
+  }, []);
 
   const openCreateModal = () => {
     setEditingCustomer(null);
@@ -362,7 +406,16 @@ const CustomersPage: React.FC = () => {
             width: 150,
             render: (_: any, r: Customer) => {
               const cf = r.orders?.[0]?.customFields || {};
-              return cf.customerSourceAccount || <Text type="secondary">-</Text>;
+              const acc = cf.customerSourceAccount;
+              if (!acc) return <Text type="secondary">-</Text>;
+              return (
+                <>
+                  {acc}
+                  {inactiveAccounts.has(acc) && (
+                    <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>已弃用</Tag>
+                  )}
+                </>
+              );
             },
           },
         ]
@@ -554,43 +607,34 @@ const CustomersPage: React.FC = () => {
               沟通
             </Button>
           )}
-          <Button
-            type="primary"
-            size="small"
-            icon={React.createElement(PlayCircleOutlined)}
-            onClick={() => {
-              const active = record.orders?.find((o: any) => o.status === 'GRABBED');
-              if (active?.id) {
+          {(() => {
+            const grabbed = record.orders?.find((o: any) => o.status === 'GRABBED');
+            const confirmed = record.orders?.find((o: any) => o.status === 'CONFIRMED');
+            const firstDone = hasFirstOrder(record);
+            let label = '开始首单';
+            let action = () => {
+              if (grabbed?.id) {
                 setStartServiceOrder({
-                  id: active.id,
-                  gameName: active.gameName,
+                  id: grabbed.id,
+                  gameName: grabbed.gameName,
                   mode: 'first',
                   initialValues: {
-                    claimPrice: active.amount || null,
-                    claimDuration: active.duration || 1,
-                    claimMode: active.customFields?.deltaMission || '机密',
+                    claimPrice: grabbed.amount || null,
+                    claimDuration: grabbed.duration || 1,
+                    claimMode: grabbed.customFields?.deltaMission || '机密',
                   },
                 });
-              } else if (record.orders?.some((o: any) => o.status === 'CONFIRMED')) {
-                message.warning('正在服务中，当场继续请用「续单」，打完请点「结束服务」');
-              } else if (record.orders?.some((o: any) => o.status === 'DONE')) {
-                message.warning('首单已完成，下次玩请使用「复购」');
               } else {
                 message.warning('当前没有可打首单的订单，请先在抢单池抢单');
               }
-            }}
-          >
-            首单
-          </Button>
-          <Button
-            size="small"
-            onClick={() => {
-              const active = record.orders?.find((o: any) => o.status === 'CONFIRMED');
-              if (active?.id) {
-                const lastSession = active.sessions?.[0];
+            };
+            if (confirmed?.id) {
+              label = '续单';
+              action = () => {
+                const lastSession = confirmed.sessions?.[0];
                 setStartServiceOrder({
-                  id: active.id,
-                  gameName: active.gameName,
+                  id: confirmed.id,
+                  gameName: confirmed.gameName,
                   mode: 'renew',
                   initialValues: {
                     dual: !!lastSession?.coCompanionId,
@@ -601,35 +645,31 @@ const CustomersPage: React.FC = () => {
                     claimDuration: lastSession?.duration || 1,
                   },
                 });
-              } else {
-                if (!hasFirstOrder(record)) {
-                  message.warning('该客户第一次消费，请选择首单');
-                } else {
-                  message.warning('当前没有进行中的服务，无法续单');
-                }
-              }
-            }}
-          >
-            续单
-          </Button>
-          <Button
-            size="small"
-            onClick={() => {
-              if (!hasFirstOrder(record)) {
-                message.warning('该客户第一次消费，请选择首单');
-                return;
-              }
-              setStartServiceOrder({
-                customerId: record.id,
-                gameName: record.orders?.[0]?.gameName,
-                mode: 'repurchase',
-              });
-            }}
-          >
-            复购
-          </Button>
+              };
+            } else if (firstDone) {
+              label = '复购';
+              action = () => {
+                setStartServiceOrder({
+                  customerId: record.id,
+                  gameName: record.orders?.[0]?.gameName,
+                  mode: 'repurchase',
+                });
+              };
+            }
+            return (
+              <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={action}>
+                {label}
+              </Button>
+            );
+          })()}
           {(() => {
-            const activeOrder = record.orders?.find((o: any) => o.status === 'CONFIRMED');
+            const activeOrder =
+              record.orders?.find((o: any) => o.status === 'CONFIRMED') ||
+              record.orders?.find(
+                (o: any) =>
+                  o.status === 'GRABBED' &&
+                  o.sessions?.some((s: any) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
+              );
             const activeSession = activeOrder?.sessions?.find((s: any) => s.status === 'ACTIVE');
             if (!activeOrder || !activeSession) return null;
             if (activeSession.startedAt) {
@@ -853,7 +893,13 @@ const CustomersPage: React.FC = () => {
                         )}
                         rowKey="id"
                         loading={loading}
-                        onRow={(record) => ({ style: { cursor: 'pointer' }, onClick: () => setDetailCustomer(record) })}
+                        onRow={(record) => ({
+                          style: { cursor: 'pointer' },
+                          onClick: (e: React.MouseEvent) => {
+                            if (isRowClickIgnored(e)) return;
+                            setDetailCustomer(record);
+                          },
+                        })}
                         scroll={{ x: 1000 }}
                         locale={{ emptyText: '暂无客户数据' }}
                         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
@@ -1012,27 +1058,16 @@ const CustomersPage: React.FC = () => {
           </div>
           <div style={{ marginTop: 12 }}>
             <Text>预存截图</Text>
-            <div style={{ marginTop: 6 }}>
+            <PasteImageBox onFile={uploadDepositScreenshot} style={{ marginTop: 6 }}>
               <Upload
                 showUploadList={false}
                 accept="image/*"
-                beforeUpload={async (file) => {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  try {
-                    const { data } = await http.post('/upload/screenshot', fd);
-                    setDepositScreenshot(data.data?.url || data.url || '');
-                    message.success('截图已上传');
-                  } catch {
-                    message.error('上传失败');
-                  }
-                  return false;
-                }}
+                beforeUpload={uploadDepositScreenshot}
               >
                 <Button icon={<UploadOutlined />}>{depositScreenshot ? '重新上传截图' : '上传截图'}</Button>
               </Upload>
               {depositScreenshot && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
-            </div>
+            </PasteImageBox>
           </div>
           <div style={{ marginTop: 12 }}>
             <Text>备注（可选）</Text>
@@ -1125,29 +1160,18 @@ const CustomersPage: React.FC = () => {
           </div>
           <div style={{ marginTop: 12 }}>
             <Text>删除截图（必传）：</Text>
-            <div style={{ marginTop: 8 }}>
+            <PasteImageBox onFile={uploadDeleteScreenshot} style={{ marginTop: 8 }}>
               <Upload
                 showUploadList={false}
                 accept="image/*"
-                beforeUpload={async (file) => {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  try {
-                    const { data } = await http.post('/upload/screenshot', fd);
-                    setDeleteScreenshot(data.data?.url || data.url || '');
-                    message.success('截图已上传');
-                  } catch {
-                    message.error('上传失败');
-                  }
-                  return false;
-                }}
+                beforeUpload={uploadDeleteScreenshot}
               >
                 <Button icon={<UploadOutlined />}>
                   {deleteScreenshot ? '重新上传截图' : '上传截图'}
                 </Button>
               </Upload>
               {deleteScreenshot && <Tag color="green" style={{ marginLeft: 8 }}>已上传</Tag>}
-            </div>
+            </PasteImageBox>
           </div>
         </Modal>
       </div>

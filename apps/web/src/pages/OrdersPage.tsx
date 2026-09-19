@@ -23,6 +23,8 @@ import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
+import OrderDetailModal from '../components/OrderDetailModal';
+import { isRowClickIgnored } from '../utils/rowClick';
 import ChatModal from '../components/ChatModal';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
@@ -47,6 +49,8 @@ const OrdersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
+  // 只读详情：没权限修改的订单（广播/指定等）也能整行点开看一眼
+  const [detailOrder, setDetailOrder] = useState<any>(null);
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -754,6 +758,15 @@ const OrdersPage: React.FC = () => {
               pagination={false}
               scroll={{ x: 1280 }}
               locale={{ emptyText: '暂无订单' }}
+              // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
+              onRow={(record: any) => ({
+                style: { cursor: 'pointer' },
+                onClick: (e: React.MouseEvent) => {
+                  if (isRowClickIgnored(e)) return;
+                  if (canEditOrder(record)) setEditingOrder(record);
+                  else setDetailOrder(record);
+                },
+              })}
             />
           </Card>
         )}
@@ -864,6 +877,7 @@ const OrdersPage: React.FC = () => {
         customerPreFill={preFill || undefined}
       />
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
+      <OrderDetailModal order={detailOrder} open={!!detailOrder} onClose={() => setDetailOrder(null)} />
       <Modal
         title="退款"
         open={!!refundOrder}
