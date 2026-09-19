@@ -48,7 +48,9 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
           <Text strong style={{ fontSize: 15 }}>
             {urgentOrder._direct
               ? '🎯 客服指定给你接单'
-              : `⚡ 新订单！${urgentOrder._createdBy || '系统'} 发布`}
+              : urgentOrder._bridged
+                ? `🌉 桥接工作室发单！${urgentOrder._createdBy || '系统'} 发布`
+                : `⚡ 新订单！${urgentOrder._createdBy || '系统'} 发布`}
           </Text>
           <div style={{ marginTop: 10, lineHeight: 1.8 }}>
             <div>

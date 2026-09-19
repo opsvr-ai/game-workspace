@@ -10,6 +10,7 @@ function createMockWsGateway() {
     broadcastToStudio: vi.fn(),
     broadcastToBridgedStudios: vi.fn(),
     broadcastToIdleCompanions: vi.fn().mockResolvedValue(0),
+    broadcastUrgentToBridgedStudios: vi.fn().mockResolvedValue(0),
     broadcastToQualifiedIdleCompanions: vi.fn().mockResolvedValue(0),
     broadcastToBridgedIdleCompanionsByType: vi.fn().mockResolvedValue(0),
     notifyCompanion: vi.fn(),
@@ -140,6 +141,7 @@ describe('OrdersService', () => {
       await service.create(dto);
 
       expect(wsGateway.broadcastToIdleCompanions).not.toHaveBeenCalled();
+      expect(wsGateway.broadcastUrgentToBridgedStudios).not.toHaveBeenCalled();
       expect(wsGateway.broadcastToQualifiedIdleCompanions).not.toHaveBeenCalled();
       expect(wsGateway.broadcastToBridgedIdleCompanionsByType).not.toHaveBeenCalled();
       expect(wsGateway.notifyCompanion).not.toHaveBeenCalled();
@@ -161,6 +163,13 @@ describe('OrdersService', () => {
         'studio-1',
         'order:urgent',
         expect.objectContaining({ _broadcast: true }),
+      );
+      // 桥接工作室也要弹，但要带上桥接等待时间（未配置时默认 30 秒）
+      expect(wsGateway.broadcastUrgentToBridgedStudios).toHaveBeenCalledWith(
+        'studio-1',
+        'order-4',
+        expect.objectContaining({ _broadcast: true, _bridged: true }),
+        30000,
       );
     });
   });

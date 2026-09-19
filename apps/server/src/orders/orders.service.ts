@@ -13,6 +13,9 @@ import { maskCustomerWechat } from '../common/order-privacy';
 
 const PARTNER_INVITE_TTL_SEC = 60;
 
+/** 「桥接工作室等待」默认值（秒）：库里没配置时用它。 */
+const DEFAULT_BRIDGE_DELAY_SECONDS = 30;
+
 @Injectable()
 export class OrdersService implements OnModuleInit {
   constructor(
@@ -225,6 +228,14 @@ export class OrdersService implements OnModuleInit {
         ...popupPayload,
         _broadcast: true,
       });
+      // 桥接工作室那边也弹一次，但要等「桥接工作室等待」到了才弹，
+      // 保证本店陪玩仍然先有这段先手；不等它跑完，先把响应返回去。
+      void this.wsGateway.broadcastUrgentToBridgedStudios(
+        studioId,
+        newOrder.id,
+        { ...popupPayload, _broadcast: true, _bridged: true },
+        await this.getBridgeDelayMs(),
+      );
     }
 
     // DIRECT: 指定给某个陪玩，右下角弹窗提醒他
@@ -309,6 +320,14 @@ export class OrdersService implements OnModuleInit {
     return newOrder;
   }
 
+  /** 桥接工作室等待时长（毫秒）：桥接工作室的陪玩要等这么久才能看到本店的单。 */
+  private async getBridgeDelayMs(): Promise<number> {
+    const cfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'pool.bridge_delay_seconds' },
+    });
+    return Number(cfg?.value ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
+  }
+
   async findPool(companionId?: string, studioId?: string) {
     const where: any = {
       status: 'PENDING',
@@ -331,7 +350,7 @@ export class OrdersService implements OnModuleInit {
         : null,
     ]);
     const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
-    const bridgeDelay = Number(bridgeCfg?.value ?? 30) * 1000;
+    const bridgeDelay = Number(bridgeCfg?.value ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
     const middleDelay = Number(middleCfg?.value ?? 60) * 1000;
     const lowDelay = Number(lowCfg?.value ?? 120) * 1000;
     const onlineDelay = Number(onlineCfg?.value ?? 180) * 1000;

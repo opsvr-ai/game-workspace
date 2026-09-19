@@ -140,6 +140,33 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         void this.pushCurrentBlacklist(user.companionId, user.studioId);
         void this.syncManagedPc(client.handshake.address, user.username);
 
+        // 重连补发未处理的搭档邀请，避免发送时客户端恰好断线导致收不到。
+        const pendingInvite = await this.prisma.orderSession.findFirst({
+          where: {
+            coCompanionId: user.companionId,
+            status: 'ACTIVE',
+            startedAt: null,
+            createdAt: { gte: new Date(Date.now() - 60 * 1000) },
+          },
+          include: {
+            parentOrder: { select: { id: true, gameName: true, customerId: true, companionId: true } },
+            companion: { select: { user: { select: { displayName: true, username: true } } } },
+          },
+          orderBy: { createdAt: 'desc' },
+        }).catch(() => null);
+        if (pendingInvite) {
+          this.pushOrder(user.companionId, {
+            ...pendingInvite,
+            orderId: pendingInvite.parentOrder?.id,
+            gameName: pendingInvite.parentOrder?.gameName,
+            customerId: pendingInvite.parentOrder?.customerId,
+            companionId: pendingInvite.companionId,
+            inviterName: pendingInvite.companion?.user?.displayName || pendingInvite.companion?.user?.username || '',
+            type: 'DUAL_INVITE',
+            expiresInSec: 60,
+          });
+        }
+
         const current = await this.prisma.companion
           .findUnique({ where: { id: user.companionId }, select: { status: true } })
           .catch(() => null);
@@ -151,6 +178,10 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           where: { id: user.companionId },
           data: { status: nextStatus },
         });
+
+        // 上线时状态可能从 OFFLINE 恢复成 AVAILABLE，这里按最终状态再推一次黑名单，
+        // 避免客户端停留在空黑名单（OFFLINE）而空闲时杀不到进程。
+        await this.pushCurrentBlacklist(user.companionId, user.studioId);
 
         // Record attendance on connection
         await this.companionsService.ensureAttendance(user.companionId);
@@ -233,6 +264,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const STATUS_COMPAT: Record<string, string> = { ONLINE: 'AVAILABLE', IDLE: 'ENTERTAINMENT' };
     const mappedStatus = STATUS_COMPAT[data.status] || data.status;
 
+    // 接单状态只能由开始服务自动进入，不能手动点，防止借“接单”状态玩黑名单游戏。
+    if (mappedStatus === 'BUSY') {
+      logger.warn('Ignored manual BUSY status', {
+        companionId: user.companionId,
+        username: user.username,
+      });
+      return;
+    }
+
     // 服务进行中（有已开始的会话）不允许被客户端切成空闲/娱乐/休息等状态，防止状态被误刷成空闲。
     if (mappedStatus !== 'BUSY') {
       const activeSession = await this.prisma.orderSession.findFirst({
@@ -279,6 +319,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       where: { companionId: user.companionId },
       data: { currentMode: mappedStatus },
     }).catch(() => {});
+
+    // 状态变化后推送新状态对应的黑名单，避免客户端停留在旧状态的黑名单列表。
+    await this.pushCurrentBlacklist(user.companionId, user.studioId);
 
     // ── Time tracking: start/stop CompanionTimeLog on status change ──
     if (mappedStatus !== prevStatus) {
@@ -537,6 +580,44 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * 「广播」发单时，桥接工作室那边也弹一次抢单窗。
+   * 为了不打乱订单池的里程碑（上等马 → 桥接 → 中等马 ……），
+   * 这里和订单池保持一致：等「桥接工作室等待」到了才弹，本店陪玩仍然先有这段先手。
+   * 弹之前会重新确认订单还没被人抢走，避免弹一个已经被接掉的单。
+   */
+  async broadcastUrgentToBridgedStudios(
+    studioId: string,
+    orderId: string,
+    data: unknown,
+    delayMs: number,
+  ): Promise<number> {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    try {
+      const fresh = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { status: true, companionId: true, claimedCsUserId: true },
+      });
+      if (!fresh || fresh.status !== 'PENDING' || fresh.companionId || fresh.claimedCsUserId) {
+        return 0;
+      }
+      const sent = await this.broadcastToBridgedIdleCompanions(studioId, 'order:urgent', data);
+      if (sent > 0) {
+        logger.info('SEND order:urgent to bridged studios', { studioId, orderId, sent });
+      }
+      return sent;
+    } catch (err) {
+      logger.error('broadcastUrgentToBridgedStudios failed', {
+        error: (err as Error).message,
+        studioId,
+        orderId,
+      });
+      return 0;
+    }
+  }
+
   notifyUser(userId: string, event: string, data: unknown): void {
     this.server.to(`user:${userId}`).emit(event, data);
   }
@@ -595,14 +676,16 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     blacklist: { processName: string; processPath: string | null }[],
     whitelist: { processName: string; isSystem: boolean }[],
     version: number,
+    status?: string,
   ): void {
     logger.info('SEND blacklist:update', {
       companionId,
       blacklistCount: blacklist.length,
       whitelistCount: whitelist.length,
       version,
+      status,
     });
-    this.server.to(`companion:${companionId}`).emit('blacklist:update', { blacklist, whitelist, version });
+    this.server.to(`companion:${companionId}`).emit('blacklist:update', { blacklist, whitelist, version, status });
   }
 
   async broadcastBlacklistToStudio(
@@ -624,10 +707,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async pushCurrentBlacklist(companionId: string, studioId: string | null): Promise<void> {
     if (!studioId) return;
     try {
-      const blacklist = await this.prisma.processBlacklist.findMany({
-        where: { studioId, isActive: true },
-        select: { processName: true, processPath: true },
+      // 使用「状态黑名单」而不是旧的全局 ProcessBlacklist：陪玩处于哪个状态，就套用该状态下的黑名单。
+      const companion = await this.prisma.companion.findUnique({
+        where: { id: companionId },
+        select: { status: true },
       });
+      const status = companion?.status ?? 'AVAILABLE';
+      const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
+        where: { studioId, status },
+        select: { processName: true },
+      });
+      const blacklist = statusEntries.map((s) => ({ processName: s.processName, processPath: null }));
       const whitelist = await this.prisma.processWhitelist.findMany({
         where: { studioId },
         select: { processName: true },
@@ -637,10 +727,23 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         blacklist,
         whitelist.map((w) => ({ processName: w.processName, isSystem: false })),
         Date.now(),
+        status,
       );
     } catch (err) {
       logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });
     }
+  }
+
+  /** 服务端把陪玩状态切回空闲等状态后，重推一次黑名单，让客户端恢复杀进程。 */
+  async refreshCompanionBlacklist(companionId: string): Promise<void> {
+    const companion = await this.prisma.companion
+      .findUnique({ where: { id: companionId }, select: { studioId: true, status: true } })
+      .catch(() => null);
+    if (!companion?.studioId) return;
+    await this.prisma.companionPC
+      .update({ where: { companionId }, data: { currentMode: companion.status } })
+      .catch(() => {});
+    await this.pushCurrentBlacklist(companionId, companion.studioId);
   }
 
   /** 陪玩端连接时，优先按 MAC / 登录账号识别电脑，不靠 IP（IP 会变）。 */
@@ -659,6 +762,16 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // 3. 最后兜底按 IP 识别
       if (!pc) {
         pc = await this.prisma.managedPC.findFirst({ where: { ip } });
+      }
+      if (!pc) {
+        // 新注册陪玩首次连接时自动登记电脑，后续远程开机就能直接看到。
+        pc = await this.prisma.managedPC.create({
+          data: {
+            ip,
+            loginAccount: username,
+            macAddress: mac || null,
+          },
+        }).catch(() => null);
       }
       if (!pc) return;
       await this.prisma.managedPC.update({
