@@ -1,11 +1,23 @@
 // craftsman-ignore: TS001
-import { Controller, Get, Put, Body, Query, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthorizationService } from './authorization.service';
 import { RolesGuard, Roles } from './roles.guard';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
+import { WsGateway } from '../ws/ws.gateway';
 
 const DEFAULT_CONFIGS: Record<string, any> = {
   'revenue.unlock_threshold': 200,
@@ -219,6 +231,7 @@ export class SettingsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authzService: AuthorizationService,
+    @Inject(forwardRef(() => WsGateway)) private readonly wsGateway: WsGateway,
   ) {}
 
   @Get('settings')
@@ -295,7 +308,33 @@ export class SettingsController {
       }),
     );
     await Promise.all(ops);
+    if (body['blacklist.auto_kill'] !== undefined) {
+      await this.pushBlacklistAfterToggle();
+    }
     return { code: 200, message: 'ok', data: null };
+  }
+
+  /**
+   * 「自动结束黑名单进程」开关一改，立刻把新名单推给所有陪玩端。
+   *
+   * 客户端只在收到推送时才会更新本地的杀进程名单：不推的话，
+   * 「关掉开关」要等下一次状态变化才生效，紧急止血会慢半拍，
+   * 正在玩游戏的人会多挨几分钟。
+   */
+  private async pushBlacklistAfterToggle(): Promise<void> {
+    try {
+      // 先让缓存失效，保证推出去的名单已经按新开关算过。
+      this.wsGateway.invalidateAutoKillCache();
+      const companions = await this.prisma.companion.findMany({
+        select: { id: true, studioId: true },
+      });
+      for (const c of companions) {
+        if (!c.studioId) continue;
+        await this.wsGateway.pushCurrentBlacklist(c.id, c.studioId, false);
+      }
+    } catch {
+      /* 推送失败不影响配置保存：下次状态切换会重新推。 */
+    }
   }
 
   // ── Tenant Authorization ──

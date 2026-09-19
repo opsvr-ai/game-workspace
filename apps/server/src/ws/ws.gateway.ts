@@ -696,6 +696,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 自动杀进程总开关的短缓存，见 isAutoKillEnabled()。 */
   private autoKillCache: { at: number; value: boolean } | null = null;
 
+  /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒。 */
+  invalidateAutoKillCache(): void {
+    this.autoKillCache = null;
+  }
+
   async sendBlacklistUpdate(
     companionId: string,
     blacklist: { processName: string; processPath: string | null }[],
