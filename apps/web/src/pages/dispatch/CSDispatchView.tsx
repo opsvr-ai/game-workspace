@@ -859,7 +859,7 @@ const CSDispatchView: React.FC = () => {
                   <Spin size="large" />
                 </div>
               ) : poolOrders.length === 0 ? (
-                <EmptyState description="暂无待派订单" />
+                <EmptyState compact description="暂无待派订单 · 有新单会自动出现在这里（最新发布的排最上面）" />
               ) : (
                 <List
                   grid={{ gutter: [0, 8], column: 1 }}
@@ -983,7 +983,7 @@ const CSDispatchView: React.FC = () => {
           {user && user.role !== 'COMPANION' && (
             <Card size="small" style={{ marginTop: 12 }} title={`我发布的订单（${myOrders.length}）`}>
               {myOrders.length === 0 ? (
-                <EmptyState description="暂无你发布的订单" />
+                <EmptyState compact description="暂无你发布的订单" />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {myOrders.map((o, idx) => (

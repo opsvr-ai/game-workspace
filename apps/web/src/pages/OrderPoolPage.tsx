@@ -75,6 +75,27 @@ const OrderPoolPage: React.FC = () => {
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
 
+  // 人员列表收起 / 展开：陪玩的头等大事是抢单，宽度该留给订单池。
+  // 记住选择，下次打开保持上次的样子，不用每次都点。
+  const [personnelCollapsed, setPersonnelCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('chunlv.pool.personnelCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const togglePersonnel = () => {
+    setPersonnelCollapsed((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem('chunlv.pool.personnelCollapsed', next ? '1' : '0');
+      } catch {
+        /* 隐私模式下写不了就当没记 */
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     // 订单池倒计时和“已等待”展示需要刷新，但不用太频繁；15 秒足够顺滑。
     const t = setInterval(() => setNow(Date.now()), 15000);
@@ -318,7 +339,8 @@ const OrderPoolPage: React.FC = () => {
   const isUnlocked = poolStatus?.isUnlocked ?? false;
   const todayRevenue = poolStatus?.todayRevenue ?? 0;
   const threshold = poolStatus?.threshold ?? 100;
-  const pct = Math.min(Math.round((todayRevenue / threshold) * 100), 100);
+  // 门槛可能被后台关掉（=0），这时不能拿 0 当分母算进度。
+  const pct = threshold > 0 ? Math.min(Math.round((todayRevenue / threshold) * 100), 100) : 100;
 
   const canEditOrder = (order: any) => {
     if (!role || role === 'COMPANION' || order.dispatchType !== 'POOL') return false;
@@ -583,6 +605,9 @@ const OrderPoolPage: React.FC = () => {
         title="📦 订单池"
         extra={
           <Space>
+            {isCompanion && (
+              <Button onClick={togglePersonnel}>{personnelCollapsed ? '显示人员' : '隐藏人员'}</Button>
+            )}
             <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setEditingOrder(null); setCreateOpen(true); }}>
               发布订单
             </Button>
@@ -597,10 +622,15 @@ const OrderPoolPage: React.FC = () => {
         gutter={12}
         style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
       >
-        {isCompanion && renderCompanionSidebar()}
+        {isCompanion && !personnelCollapsed && renderCompanionSidebar()}
         {/* 同上：basis 0 + minWidth 0，避免订单内容太宽把整列挤到人员列表下面 */}
         <Col flex="1 1 0%" style={{ minWidth: 0 }}>
-          {orders.length === 0 && <EmptyState description="暂无待派订单" />}
+          {orders.length === 0 && (
+            <EmptyState
+              compact
+              description="暂无待派订单 · 有新单会自动出现在这里（最新发布的排最上面）"
+            />
+          )}
 
           {/* Horizontal order rows — all info in one row */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -625,8 +655,9 @@ const OrderPoolPage: React.FC = () => {
               <Row align="middle" justify="space-between">
                 <Col>
                   <Text strong>
-                    当日流水：¥{todayRevenue} ｜ 解锁门槛：¥{threshold}
-                    {isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}
+                    {threshold > 0
+                      ? `当日流水：¥${todayRevenue} ｜ 解锁门槛：¥${threshold}${isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}`
+                      : `当日流水：¥${todayRevenue}`}
                   </Text>
                 </Col>
                 <Col>
@@ -635,7 +666,9 @@ const OrderPoolPage: React.FC = () => {
                   </Tag>
                 </Col>
               </Row>
-              {!isUnlocked && <Progress percent={pct} size="small" style={{ marginTop: 8 }} />}
+              {!isUnlocked && threshold > 0 && (
+                <Progress percent={pct} size="small" style={{ marginTop: 8 }} />
+              )}
             </Card>
           )}
         </Col>
