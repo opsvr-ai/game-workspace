@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin } from 'antd';
-import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined, EditOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { configApi } from '../api/config';
-import { useSocket } from '../hooks/useSocket';
+import { chatApi } from '../api/chat';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useChatStore } from '../stores/chatStore';
@@ -18,16 +18,10 @@ import CardSkeleton from '../components/CardSkeleton';
 import TierBadge from '../components/TierBadge';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
-import { companionStatusConfig, STATUS_SORT } from '../constants/companions';
+import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
 import { buildOrderInfoFields } from '../utils/orderPool';
 
 const { Text } = Typography;
-
-function isPersonnelOnline(c: any): boolean {
-  if (c.lastHeartbeat) return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
-  if (c.status) return c.status !== 'OFFLINE';
-  return false;
-}
 
 function displayStatus(c: any): { label: string; color: string } {
   if (!isPersonnelOnline(c)) return { label: '离线', color: 'default' };
@@ -64,20 +58,24 @@ const OrderPoolPage: React.FC = () => {
   // Order-level unread tracking (populated via WebSocket order events, not localStorage)
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<any>(null);
+  const conversations = useChatStore((s) => s.conversations);
 
   // Companion sidebar state (visible to companion users)
   const [companions, setCompanions] = useState<any[]>([]);
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [companionSearch, setCompanionSearch] = useState('');
+  const [studioGroup, setStudioGroup] = useState<{ id: string; groupName: string } | null>(null);
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 5000);
+    // 订单池倒计时和“已等待”展示需要刷新，但不用太频繁；15 秒足够顺滑。
+    const t = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(t);
   }, []);
 
@@ -93,13 +91,29 @@ const OrderPoolPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    chatApi
+      .getStudioGroup()
+      .then(({ data }) => {
+        if (data?.data?.id) {
+          setStudioGroup({ id: data.data.id, groupName: data.data.groupName || '工作室群聊' });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       if (isCompanion) {
-        const [poolRes, statusRes] = await Promise.all([ordersApi.pool(), ordersApi.poolStatus()]);
-        setOrders(poolRes.data.data ?? []);
-        setPoolStatus(statusRes.data.data);
+        // 状态接口失败不应把订单列表一起丢掉；订单列表成功就正常显示。
+        const [poolRes, statusRes] = await Promise.allSettled([ordersApi.pool(), ordersApi.poolStatus()]);
+        if (poolRes.status === 'fulfilled') {
+          setOrders(poolRes.value.data.data ?? []);
+        }
+        if (statusRes.status === 'fulfilled') {
+          setPoolStatus(statusRes.value.data.data);
+        }
       } else {
         const { data } = await ordersApi.pool();
         setOrders(data.data ?? []);
@@ -118,9 +132,12 @@ const OrderPoolPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // 周期轮询：中等马/下等马要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新
+  // 周期轮询：中等马/下等马要等延迟后订单才可见，轮询让订单自动出现，无需手动刷新。
+  // 之前改成 60 秒导致「闪现后消失、迟迟不出现」；这里恢复为 15 秒，兼顾实时性与带宽。
   useEffect(() => {
-    const timer = setInterval(() => fetchData(true), 10000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchData(true);
+    }, 15000);
     return () => clearInterval(timer);
   }, [fetchData]);
 
@@ -128,8 +145,18 @@ const OrderPoolPage: React.FC = () => {
     if (!isCompanion) return;
     setLoadingCompanions(true);
     try {
-      const { data } = await companionsApi.list();
-      setCompanions(data.data ?? []);
+      const { data } = await companionsApi.listPersonnel({ includeBridged: true });
+      // 订单池左侧人员列表统一显示所有角色（陪玩/客服/店长/老板），不因心跳过期而隐藏。
+      const personnel = (data.data ?? []).map((c: any) => ({
+        ...c,
+        user: {
+          id: c.id,
+          username: c.username,
+          displayName: c.displayName,
+          avatar: c.avatar,
+        },
+      }));
+      setCompanions(personnel);
     } catch {
       // 自动刷新失败不打断主流程
     } finally {
@@ -140,27 +167,40 @@ const OrderPoolPage: React.FC = () => {
   useEffect(() => {
     if (!isCompanion) return;
     fetchCompanions();
-    const timer = setInterval(fetchCompanions, 30000);
+    const timer = setInterval(fetchCompanions, 120000);
     return () => clearInterval(timer);
   }, [isCompanion, fetchCompanions]);
 
   const sortedCompanions = useMemo(
     () =>
-      [...companions].sort(
-        (a, b) => (STATUS_SORT[a.status] ?? 9) - (STATUS_SORT[b.status] ?? 9),
-      ),
+      [...companions].sort((a, b) => {
+        // 群聊固定在最上方单独渲染，这里只排人员：客服 → 店长 → 在线空闲陪玩 →
+        // 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员；同组内按昵称排。
+        const aGroup = personnelGroupRank(a);
+        const bGroup = personnelGroupRank(b);
+        if (aGroup !== bGroup) return aGroup - bGroup;
+        const aName = a.user?.displayName || a.user?.username || '';
+        const bName = b.user?.displayName || b.user?.username || '';
+        return aName.localeCompare(bName, 'zh-CN');
+      }),
     [companions],
   );
 
   const filteredCompanions = companionSearch
-    ? sortedCompanions.filter((c) => {
-        const name = c.user?.displayName || c.user?.username || '';
-        return name.toLowerCase().includes(companionSearch.toLowerCase());
-      })
+    ? sortedCompanions
+        .filter((c) => {
+          const name = c.user?.displayName || c.user?.username || '';
+          return name.toLowerCase().includes(companionSearch.toLowerCase());
+        })
     : sortedCompanions;
 
-  // Real-time pool updates via WebSocket
-  useSocket({ onOrderPoolUpdated: () => fetchData(true) });
+  // 订单池实时刷新统一由 AppLayout 的全局 Socket 触发。
+  // urgent 弹窗出现的同时会派发该事件，避免页面级 Socket 和全局 Socket 状态不一致。
+  useEffect(() => {
+    const refreshPool = () => fetchData(true);
+    window.addEventListener('chunlv:order-pool-updated', refreshPool);
+    return () => window.removeEventListener('chunlv:order-pool-updated', refreshPool);
+  }, [fetchData]);
 
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
@@ -175,6 +215,15 @@ const OrderPoolPage: React.FC = () => {
       setGrabbing(null);
     }
   };
+
+  // 陪玩端小窗口里，新发布的订单应该出现在最上面，而不是滚到底部才看到。
+  const sortedOrders = useMemo(
+    () =>
+      [...orders].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    [orders],
+  );
 
   // Chat handlers
   const openChat = (order: any) => {
@@ -222,6 +271,39 @@ const OrderPoolPage: React.FC = () => {
     });
   };
 
+  const openStudioGroupChat = async () => {
+    // 首屏拉取失败（超时/被限流）时兜底重拉一次，避免群聊入口点了没反应。
+    let group = studioGroup;
+    if (!group?.id) {
+      try {
+        const { data } = await chatApi.getStudioGroup();
+        if (data?.data?.id) {
+          group = { id: data.data.id, groupName: data.data.groupName || '工作室群聊' };
+          setStudioGroup(group);
+        }
+      } catch {}
+    }
+    if (!group?.id) {
+      message.warning('工作室群聊暂时打不开，请稍后重试');
+      return;
+    }
+    setChatPartner({
+      conversationId: group.id,
+      participant: {
+        userId: '',
+        username: group.groupName,
+        displayName: group.groupName,
+        role: 'GROUP',
+      },
+    });
+  };
+
+  const groupConversation = studioGroup ? conversations[studioGroup.id] : undefined;
+  const groupUnread = groupConversation?.unreadCount || 0;
+  const groupLastMessage = groupConversation?.lastMessage || '';
+  const groupLastMessageAt = groupConversation?.lastMessageAt || 0;
+  const groupLastMentions = groupConversation?.lastMentions || [];
+
   if (loading) {
     return (
       <div>
@@ -235,6 +317,13 @@ const OrderPoolPage: React.FC = () => {
   const todayRevenue = poolStatus?.todayRevenue ?? 0;
   const threshold = poolStatus?.threshold ?? 100;
   const pct = Math.min(Math.round((todayRevenue / threshold) * 100), 100);
+
+  const canEditOrder = (order: any) => {
+    if (!role || role === 'COMPANION' || order.dispatchType !== 'POOL') return false;
+    if (role === 'CS') return order.csUserId === user?.id;
+    if (role === 'ADMIN') return order.studioId === user?.studioId;
+    return role === 'OWNER';
+  };
 
   // Render a single pool card row
   const renderPoolCard = (order: any, idx: number) => {
@@ -261,6 +350,16 @@ const OrderPoolPage: React.FC = () => {
             <span>{t}</span>
           </React.Fragment>
         ))}
+        {order.customFields?.poolExpired && (
+          <Tag color="orange" style={{ margin: 0 }}>
+            超时仍可抢
+          </Tag>
+        )}
+        {order.customFields?.csCultivated === true && (
+          <Tag color="cyan" style={{ margin: 0 }}>
+            ✅ 客服已加过微信，请知悉
+          </Tag>
+        )}
         <span style={{ flex: 1 }} />
         {isCompanion ? (
           <Space size={8}>
@@ -293,6 +392,15 @@ const OrderPoolPage: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>
               发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
             </Text>
+            {canEditOrder(order) && (
+              <Button
+                size="small"
+                icon={React.createElement(EditOutlined)}
+                onClick={() => setEditingOrder(order)}
+              >
+                修改
+              </Button>
+            )}
             <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
           </Space>
         )}
@@ -303,19 +411,61 @@ const OrderPoolPage: React.FC = () => {
   const renderCompanionSidebar = () => (
     <Col flex="0 0 220px">
       <Card
-        title={<span style={{ fontSize: 13, fontWeight: 600 }}>陪玩</span>}
+        title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
         size="small"
         style={{ borderRadius: 8 }}
         bodyStyle={{ padding: '8px 4px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}
       >
         <Input
           size="small"
-          placeholder="搜索陪玩..."
+          placeholder="搜索人员..."
           value={companionSearch}
           onChange={(e) => setCompanionSearch(e.target.value)}
           allowClear
           style={{ marginBottom: 8 }}
         />
+        <div
+          onClick={openStudioGroupChat}
+          style={{
+            padding: '8px 10px',
+            margin: '2px 3px 8px',
+            borderRadius: 8,
+            cursor: 'pointer',
+            background: groupUnread > 0 ? '#EEF2FF' : '#F8FAFC',
+            border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🏠</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Text strong style={{ fontSize: 13, color: '#1F2937' }}>
+                {studioGroup?.groupName || '工作室群聊'}
+              </Text>
+              {groupLastMentions.includes(user?.id || '') && (
+                <Tag color="red" style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>@</Tag>
+              )}
+              {groupUnread > 0 && (
+                <Badge count={groupUnread} size="small" overflowCount={99} style={{ marginLeft: 'auto' }} />
+              )}
+            </div>
+            <Text
+              style={{
+                display: 'block',
+                marginTop: 2,
+                fontSize: 11,
+                color: groupUnread > 0 ? '#475569' : '#94A3B8',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {groupLastMessage || '暂无消息'}
+            </Text>
+          </div>
+        </div>
         {loadingCompanions && companions.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24 }}>
             <Spin />
@@ -379,7 +529,7 @@ const OrderPoolPage: React.FC = () => {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                        <TierBadge tier={c.tier} />
+                        <TierBadge tier={c.tier} showLabel />
                         <span
                           style={{
                             fontWeight: 600,
@@ -407,6 +557,11 @@ const OrderPoolPage: React.FC = () => {
                           💬
                         </Button>
                       </div>
+                      {c.currentOrder && (
+                        <div style={{ fontSize: 11, color: '#1677ff', marginTop: 2, whiteSpace: 'nowrap' }}>
+                          {orderTypeConfig[c.currentOrder.type]?.label || c.currentOrder.type} · {c.currentOrder.gameName}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </List.Item>
@@ -424,7 +579,7 @@ const OrderPoolPage: React.FC = () => {
         title="📦 订单池"
         extra={
           <Space>
-            <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setCreateOpen(true)}>
+            <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setEditingOrder(null); setCreateOpen(true); }}>
               发布订单
             </Button>
             <Button icon={React.createElement(ReloadOutlined)} onClick={() => fetchData()} loading={loading}>
@@ -440,12 +595,25 @@ const OrderPoolPage: React.FC = () => {
       >
         {isCompanion && renderCompanionSidebar()}
         <Col flex="1 1 auto">
-          {/* Companion: unlock threshold card */}
+          {orders.length === 0 && <EmptyState description="暂无待派订单" />}
+
+          {/* Horizontal order rows — all info in one row */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {sortedOrders.map((order: any, idx: number) => renderPoolCard(order, idx))}
+          </div>
+
+          {isCompanion && (
+            <Card size="small" style={{ marginTop: 16 }}>
+              <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
+            </Card>
+          )}
+
+          {/* Companion: unlock threshold card — 放在订单列表下方，避免小窗口把订单挤到下面 */}
           {isCompanion && poolStatus && (
             <Card
               size="small"
               style={{
-                marginBottom: 12,
+                marginTop: 12,
                 background: isUnlocked ? '#f6ffed' : '#fff7e6',
               }}
             >
@@ -465,28 +633,19 @@ const OrderPoolPage: React.FC = () => {
               {!isUnlocked && <Progress percent={pct} size="small" style={{ marginTop: 8 }} />}
             </Card>
           )}
-
-          {orders.length === 0 && <EmptyState description="暂无待派订单" />}
-
-          {/* Horizontal order rows — all info in one row */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {orders.map((order: any, idx: number) => renderPoolCard(order, idx))}
-          </div>
-
-          {isCompanion && (
-            <Card size="small" style={{ marginTop: 16 }}>
-              <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
-            </Card>
-          )}
         </Col>
       </Row>
 
       {/* Create Order Modal */}
       <CreateOrderModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        open={createOpen || !!editingOrder}
+        onClose={() => {
+          setCreateOpen(false);
+          setEditingOrder(null);
+        }}
         onCreated={fetchData}
         userId={(user as any)?.id}
+        editingOrder={editingOrder || undefined}
       />
 
       {/* Chat Modal */}

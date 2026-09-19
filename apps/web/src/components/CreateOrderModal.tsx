@@ -1,11 +1,12 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, InputNumber, message, Upload, Button } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, message, Upload, Button, Checkbox } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { trafficAccountApi } from '../api/trafficAccount';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
+import PasteImageBox from './PasteImageBox';
 
 const { Option } = Select;
 
@@ -18,6 +19,7 @@ interface Props {
   onCreated: () => void;
   userId?: string;
   directAddMode?: boolean;
+  editingOrder?: any;
   initialValues?: any;
   customerPreFill?: {
     customerId?: string;
@@ -32,13 +34,13 @@ interface Props {
   };
 }
 
-const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, directAddMode, initialValues, customerPreFill }) => {
+const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, directAddMode, editingOrder, initialValues, customerPreFill }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [companions, setCompanions] = useState<any[]>([]);
   const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [trafficAccounts, setTrafficAccounts] = useState<any[]>([]);
-  const [transferUrl, setTransferUrl] = useState('');
+  const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -94,24 +96,64 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
     }
   }, [open, initialValues, form]);
 
+  useEffect(() => {
+    if (!open || !editingOrder) return;
+    const cf = editingOrder.customFields || {};
+    form.setFieldsValue({
+      type: editingOrder.type || 'NEW',
+      gameName: editingOrder.gameName || '三角洲行动',
+      serviceType: editingOrder.serviceType || cf.serviceType || 'PLAY_WITH',
+      deltaMission: cf.deltaMission,
+      deltaCount: cf.deltaCount || '单',
+      deltaNote: cf.deltaNote,
+      amount: editingOrder.amount,
+      urgency: cf.urgency || 'now',
+      scheduledTimeText: cf.scheduledTimeText,
+      customerSource: cf.customerSource,
+      customerSourceAccount: cf.customerSourceAccount,
+      customerNickname: cf.customerNickname,
+      customerAccountId: cf.customerAccountId,
+      customerWechat: cf.customerWechat,
+      customerYy: cf.customerYy,
+      customerPlatformAccount: cf.customerPlatformAccount,
+      customerRoomCode: cf.customerRoomCode,
+      customerWechatQr: cf.customerWechatQr || '',
+      billingMode: cf.billingMode || 'hour',
+      duration: editingOrder.duration,
+    });
+    setCustomerWechatQr(cf.customerWechatQr || '');
+  }, [open, editingOrder, form]);
+
+  const uploadCustomerWechatQr = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await http.post('/upload/screenshot', fd);
+      const url = res.data?.data?.url || res.data?.url || '';
+      setCustomerWechatQr(url);
+      form.setFieldsValue({ customerWechatQr: url });
+      message.success('二维码已上传');
+    } catch {
+      message.error('上传失败');
+    } finally {
+      setUploading(false);
+    }
+    return false;
+  };
+
   const handleOk = async () => {
     try {
       const v = await form.validateFields();
       setLoading(true);
-      if (customerPreFill && !transferUrl) {
-        message.warning('请上传客户转账截图');
-        setLoading(false);
-        return;
-      }
       const prefill: any = initialValues || {};
       const workWechat = workWechats.find((w: any) => w.id === (v as any).workWechatId);
       const workWechatId = (v as any).workWechatId || prefill.workWechatId || undefined;
       const workWechatName = (v as any).workWechatId ? workWechat?.wechatId : prefill.workWechatName;
-      await ordersApi.create({
+      const payload: any = {
         ...v,
         csUserId: userId,
         isCompensation: (v as any).isCompensation,
-        transferScreenshotUrl: transferUrl || undefined,
         csCultivated: prefill.csCultivated === true ? true : undefined,
         workWechatId,
         workWechatName,
@@ -122,13 +164,23 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
               urgency: 'later',
             }
           : {}),
-      });
-      message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入管理端直添客户跟进列表' : '订单已发布');
+      };
+      if (editingOrder?.status === 'DONE') {
+        delete payload.amount;
+        delete payload.duration;
+      }
+      if (editingOrder) {
+        await ordersApi.updateOrder(editingOrder.id, payload);
+        message.success('订单信息已更新');
+      } else {
+        await ordersApi.create(payload);
+        message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入管理端直添客户跟进列表' : '订单已发布');
+      }
       form.resetFields();
       onClose();
       onCreated();
     } catch (e: any) {
-      if (!e?.errorFields) message.error(e?.response?.data?.message || '创建失败');
+      if (!e?.errorFields) message.error(e?.response?.data?.message || (editingOrder ? '保存失败' : '创建失败'));
     } finally {
       setLoading(false);
     }
@@ -136,7 +188,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
 
   return (
     <Modal
-      title={directAddMode ? '直接添加客户' : '创建订单'}
+      title={editingOrder ? '修改订单信息' : directAddMode ? '直接添加客户' : '创建订单'}
       open={open}
       onOk={handleOk}
       onCancel={() => {
@@ -144,7 +196,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         onClose();
       }}
       confirmLoading={loading}
-      okText={customerPreFill ? '开始服务' : directAddMode ? '加入管理端直添客户跟进列表' : '发布'}
+      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入管理端直添客户跟进列表' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}
@@ -174,33 +226,6 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             ))}
           </Select>
         </Form.Item>
-        {customerPreFill && (
-          <Form.Item label="客户转账截图" required>
-            <Upload
-              beforeUpload={async (file) => {
-                setUploading(true);
-                try {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  const res = await http.post('/upload/screenshot', fd);
-                  const url = res.data?.data?.url || res.data?.url || '';
-                  setTransferUrl(url);
-                  message.success('转账截图已上传');
-                } catch {
-                  message.error('上传失败');
-                } finally {
-                  setUploading(false);
-                }
-                return false;
-              }}
-              maxCount={1}
-              accept="image/*"
-            >
-              <Button loading={uploading}>{transferUrl ? '重新上传转账截图' : '上传转账截图'}</Button>
-            </Upload>
-            {transferUrl && <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看截图</a>}
-          </Form.Item>
-        )}
         <Form.Item name="gameName" label="游戏名称" rules={[{ required: true }]}>
           <Select showSearch>
             {gameList.map((g) => (
@@ -232,12 +257,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         <Form.Item name="deltaNote" label="备注">
           <Input.TextArea rows={2} placeholder="补充说明" />
         </Form.Item>
-        {!directAddMode && (
+        {!directAddMode && !editingOrder && (
           <>
             <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
               <Select>
                 <Option value={DispatchType.POOL}>入池</Option>
-                <Option value="BROADCAST">广播</Option>
+                <Option value={DispatchType.BROADCAST}>广播</Option>
                 <Option value={DispatchType.DIRECT}>指定</Option>
               </Select>
             </Form.Item>
@@ -268,6 +293,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                   style={{ width: '100%' }}
                   placeholder="？/人/h"
                   prefix="¥"
+                  disabled={!!editingOrder && editingOrder.status === 'DONE'}
                 />
               </Form.Item>
             );
@@ -326,12 +352,24 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                   const acc = trafficAccounts.find((a) => a.nickname === nickname);
                   if (acc?.type) form.setFieldsValue({ customerSource: acc.type });
                 }}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <div style={{ padding: '6px 8px', borderTop: '1px solid #f0f0f0' }}>
+                      <Checkbox checked={showInactiveAccounts} onChange={(e) => setShowInactiveAccounts(e.target.checked)}>
+                        显示已弃用账号
+                      </Checkbox>
+                    </div>
+                  </>
+                )}
               >
-                {trafficAccounts.map((a) => (
-                  <Option key={a.id} value={a.nickname} label={`${a.type} - ${a.nickname}`}>
-                    {a.type} - {a.nickname}（{a.user?.displayName || a.user?.username || '未知'}）
-                  </Option>
-                ))}
+                {trafficAccounts
+                  .filter((a) => showInactiveAccounts || a.status !== 'INACTIVE')
+                  .map((a) => (
+                    <Option key={a.id} value={a.nickname} label={`${a.type} - ${a.nickname}`}>
+                      {a.type} - {a.nickname}（{a.user?.displayName || a.user?.username || '未知'}）{a.status === 'INACTIVE' ? ' · 已弃用' : ''}
+                    </Option>
+                  ))}
               </Select>
             </Form.Item>
           </Input.Group>
@@ -377,36 +415,18 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 .filter((w: any) => w.type === 'STUDIO')
                 .map((w: any) => (
                   <Option key={w.id} value={w.id}>
-                    {w.wechatId}
+                    {w.wechatId}{w.nickname ? `（${w.nickname}）` : ''}
                   </Option>
                 ))}
             </Select>
           </Form.Item>
         )}
         <Form.Item label="客户微信二维码（没有微信文字时上传）">
-          <Upload
-            beforeUpload={async (file) => {
-              setUploading(true);
-              try {
-                const fd = new FormData();
-                fd.append('file', file);
-                const res = await http.post('/upload/screenshot', fd);
-                const url = res.data?.data?.url || res.data?.url || '';
-                setCustomerWechatQr(url);
-                form.setFieldsValue({ customerWechatQr: url });
-                message.success('二维码已上传');
-              } catch {
-                message.error('上传失败');
-              } finally {
-                setUploading(false);
-              }
-              return false;
-            }}
-            maxCount={1}
-            accept="image/*"
-          >
-            <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>
-          </Upload>
+          <PasteImageBox onFile={uploadCustomerWechatQr}>
+            <Upload beforeUpload={uploadCustomerWechatQr} maxCount={1} accept="image/*">
+              <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>
+            </Upload>
+          </PasteImageBox>
           <Form.Item name="customerWechatQr" hidden><Input /></Form.Item>
         </Form.Item>
         <Form.Item name="billingMode" label="计费方式" initialValue="hour">
@@ -419,11 +439,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
           {({ getFieldValue }) =>
             getFieldValue('billingMode') === 'round' ? (
               <Form.Item name="duration" label="局数">
-                <InputNumber min={1} step={1} style={{ width: '100%' }} />
+                <InputNumber min={1} step={1} style={{ width: '100%' }} disabled={!!editingOrder && editingOrder.status === 'DONE'} />
               </Form.Item>
             ) : (
               <Form.Item name="duration" label="时长（小时）" initialValue={1}>
-                <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} />
+                <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} disabled={!!editingOrder && editingOrder.status === 'DONE'} />
               </Form.Item>
             )
           }

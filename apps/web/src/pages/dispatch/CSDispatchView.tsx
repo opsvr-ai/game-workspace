@@ -15,25 +15,27 @@ import {
   List,
   Spin,
   Input,
+  Badge,
   Tabs,
   Divider,
 } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
 import { ordersApi } from '../../api/orders';
 import { configApi } from '../../api/config';
+import { chatApi } from '../../api/chat';
 import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
-import { EmbeddedChatPanel } from '../../components/chat';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CsConvertedPanel from '../../components/CsConvertedPanel';
+import OrderRow from '../../components/OrderRow';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
-import { orderTypeConfig, companionStatusConfig, STATUS_SORT, serviceTypeConfig } from '../../constants';
+import { orderTypeConfig, companionStatusConfig, personnelGroupRank, isPersonnelOnline, serviceTypeConfig } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields } from '../../utils/orderPool';
 
@@ -71,16 +73,6 @@ interface PoolOrder {
   customFields?: any;
   customer?: { wechatId: string; customerCode?: string };
   csUser?: { id?: string; username: string };
-}
-
-function isPersonnelOnline(c: Personnel): boolean {
-  // 统一按最后心跳判断在线/离线（陪玩 + 客服/店长/老板），避免用 status 误判
-  if (c.lastHeartbeat) {
-    return Date.now() - new Date(c.lastHeartbeat).getTime() < 120000;
-  }
-  // 没有心跳记录时，陪玩退回到状态字段
-  if (c.status) return c.status !== CompanionStatus.OFFLINE;
-  return false;
 }
 
 function displayStatus(c: Personnel): { label: string; color: string } {
@@ -138,6 +130,7 @@ const CSDispatchView: React.FC = () => {
   const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [loadingPool, setLoadingPool] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
   const [dispatchPrefill, setDispatchPrefill] = useState<any>(null);
   const [directAddMode, setDirectAddMode] = useState(false);
   const [dispatchSourceOrderId, setDispatchSourceOrderId] = useState<string | null>(null);
@@ -156,7 +149,7 @@ const CSDispatchView: React.FC = () => {
     if (searchParams.get('tab') === 'followup') setActiveTab('followup');
   }, [searchParams]);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 5000);
+    const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
@@ -170,34 +163,28 @@ const CSDispatchView: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+  useEffect(() => {
+    chatApi
+      .getStudioGroup()
+      .then(({ data }) => {
+        if (data?.data?.id) {
+          setStudioGroup({ id: data.data.id, groupName: data.data.groupName || '工作室群聊' });
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
   const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(
     null,
   );
-  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
-  const [chatPanelWidth, setChatPanelWidth] = useState(() => {
-    try {
-      const saved = localStorage.getItem('chat-panel-width');
-      return saved ? parseInt(saved, 10) : 320;
-    } catch {
-      return 380;
-    }
-  });
-  // Persist panel width on change (debounced)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      localStorage.setItem('chat-panel-width', String(chatPanelWidth));
-    }, 500);
-    return () => clearTimeout(t);
-  }, [chatPanelWidth]);
+  const [studioGroup, setStudioGroup] = useState<{ id: string; groupName: string } | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
 
   const fetchCompanions = useCallback(async () => {
     setLoadingCompanions(true);
     try {
-      const { data } = await companionsApi.listPersonnel();
+      const { data } = await companionsApi.listPersonnel({ includeBridged: true });
       setCompanions(data.data ?? []);
     } catch {
       // silent fail on auto-refresh
@@ -210,22 +197,31 @@ const CSDispatchView: React.FC = () => {
     setLoadingPool(true);
     try {
       setPoolError('');
-      const [poolRes, allRes] = await Promise.all([ordersApi.pool(), ordersApi.list()]);
-      setPoolOrders(poolRes.data.data ?? []);
-      const all = allRes.data.data ?? [];
-      setAllOrders(all);
-      const bizStart = currentBusinessDayStart().getTime();
-      setTodayNew(all.filter((o: any) => new Date(o.createdAt).getTime() >= bizStart).length);
-      setTodayGrabbed(
-        all.filter(
-          (o: any) =>
-            (o.status === 'GRABBED' || o.status === 'CONFIRMED') &&
-            new Date(o.grabbedAt || o.createdAt).getTime() >= bizStart,
-        ).length,
-      );
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || '请求失败';
-      setPoolError(`订单池加载失败：${msg}（${new Date().toLocaleTimeString()}）`);
+      // 用 allSettled，避免「订单列表」偶发超时把整个订单池一起拉崩；
+      // 订单池请求成功就保留数据，失败也只提示一次，不丢上一次已加载的内容。
+      const [poolRes, allRes] = await Promise.allSettled([ordersApi.pool(), ordersApi.list()]);
+
+      if (poolRes.status === 'fulfilled') {
+        setPoolOrders(poolRes.value.data.data ?? []);
+      } else {
+        const reason: any = poolRes.reason;
+        const msg = reason?.response?.data?.message || reason?.message || '网络波动';
+        setPoolError(`订单池暂时加载失败：${msg}（${new Date().toLocaleTimeString()}），正在自动重试`);
+      }
+
+      if (allRes.status === 'fulfilled') {
+        const all = allRes.value.data.data ?? [];
+        setAllOrders(all);
+        const bizStart = currentBusinessDayStart().getTime();
+        setTodayNew(all.filter((o: any) => new Date(o.createdAt).getTime() >= bizStart).length);
+        setTodayGrabbed(
+          all.filter(
+            (o: any) =>
+              (o.status === 'GRABBED' || o.status === 'CONFIRMED') &&
+              new Date(o.grabbedAt || o.createdAt).getTime() >= bizStart,
+          ).length,
+        );
+      }
     } finally {
       setLoadingPool(false);
     }
@@ -252,6 +248,39 @@ const CSDispatchView: React.FC = () => {
     } finally {
       setGrabbing(null);
     }
+  };
+
+  const openStudioGroupChat = async () => {
+    // 群聊和点人一样，统一走同一个聊天窗口：入口永远可点，点了就把窗口切到群聊。
+    let group = studioGroup;
+    if (!group?.id) {
+      // 首屏拉取失败（超时/被限流）时兜底重拉一次，避免入口点了没反应。
+      try {
+        const { data } = await chatApi.getStudioGroup();
+        if (data?.data?.id) {
+          group = { id: data.data.id, groupName: data.data.groupName || '工作室群聊' };
+          setStudioGroup(group);
+        }
+      } catch {}
+    }
+    if (!group?.id) {
+      message.warning('工作室群聊暂时打不开，请稍后重试');
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent('open-chat-modal', {
+        detail: {
+          conversationId: group.id,
+          participant: {
+            userId: '',
+            username: group.groupName,
+            displayName: group.groupName,
+            role: 'GROUP',
+          },
+          orderInfo: null,
+        },
+      }),
+    );
   };
 
   const handleDispatch = (item: any) => {
@@ -281,7 +310,15 @@ const CSDispatchView: React.FC = () => {
       scheduledTimeText: cf.scheduledTimeText,
     });
     setDispatchSourceOrderId(item.id);
+    setEditingOrder(null);
     setModalOpen(true);
+  };
+
+  const canEditOrder = (order: any) => {
+    if (!user || user.role === 'COMPANION' || order.dispatchType !== 'POOL') return false;
+    if (user.role === 'CS') return order.csUserId === user.id;
+    if (user.role === 'ADMIN') return order.studioId === user.studioId;
+    return user.role === 'OWNER';
   };
 
   // Initial load
@@ -309,7 +346,7 @@ const CSDispatchView: React.FC = () => {
     intervalRef.current = setInterval(() => {
       fetchPool();
       fetchCompanions();
-    }, 10000);
+    }, 60000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -317,42 +354,67 @@ const CSDispatchView: React.FC = () => {
 
   // Chat notification tracking
   const conversations = useChatStore((s) => s.conversations);
+  // 当前聊天窗口开着谁的会话：用于人员列表里的选中高亮。
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const activeChatUserId = activeConversationId
+    ? conversations[activeConversationId]?.participant?.userId
+    : undefined;
+  const unreadByParticipant = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const conv of Object.values(conversations)) {
+      const participantId = conv.participant?.userId;
+      if (!participantId || conv.unreadCount <= 0) continue;
+      map[participantId] = (map[participantId] || 0) + conv.unreadCount;
+    }
+    return map;
+  }, [conversations]);
 
-  // Stats — sort: messages first, then by status
+  const groupConversation = studioGroup ? conversations[studioGroup.id] : undefined;
+  const groupUnread = groupConversation?.unreadCount || 0;
+  const groupLastMessage = groupConversation?.lastMessage || '';
+  const groupLastMentions = groupConversation?.lastMentions || [];
+
+  // 人员列表顺序：群聊（列表最上方单独渲染）→ 客服 → 店长 → 在线空闲陪玩 →
+  // 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员；同一组内先看未读，再看等级/评分/昵称。
   const sortedCompanions = useMemo(
     () =>
       [...companions].sort((a, b) => {
-        const aMsg = conversations[a.id]?.unreadCount > 0 ? 1 : 0;
-        const bMsg = conversations[b.id]?.unreadCount > 0 ? 1 : 0;
+        const aGroup = personnelGroupRank(a);
+        const bGroup = personnelGroupRank(b);
+        if (aGroup !== bGroup) return aGroup - bGroup;
+        const aMsg = unreadByParticipant[a.id] > 0 ? 1 : 0;
+        const bMsg = unreadByParticipant[b.id] > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
-        const aTier = TIER_ORDER[a.tier ?? 'LOW'] ?? 2;
-        const bTier = TIER_ORDER[b.tier ?? 'LOW'] ?? 2;
+        const aTier = TIER_ORDER[a.tier ?? 'MIDDLE'] ?? 1;
+        const bTier = TIER_ORDER[b.tier ?? 'MIDDLE'] ?? 1;
         if (aTier !== bTier) return aTier - bTier;
         const aScore = a.rankScore ?? 0;
         const bScore = b.rankScore ?? 0;
         if (aScore !== bScore) return bScore - aScore;
-        return (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9);
+        return (a.displayName || a.username || '').localeCompare(b.displayName || b.username || '', 'zh-CN');
       }),
-    [companions, conversations],
+    [companions, unreadByParticipant],
   );
 
   // Filter companions by name search
   const filteredCompanions = useMemo(
-    () =>
-      companionSearch
+    () => {
+      return companionSearch
         ? sortedCompanions.filter((c) => {
             const name = c.displayName || c.username || '';
             return name.toLowerCase().includes(companionSearch.toLowerCase());
           })
-        : sortedCompanions,
+        : sortedCompanions;
+    },
     [sortedCompanions, companionSearch],
   );
 
-  const idleCount = companions.filter((c) => c.status === CompanionStatus.AVAILABLE).length;
-  const busyCount = companions.filter((c) => c.status === CompanionStatus.BUSY).length;
-  const entertainCount = companions.filter((c) => c.status === CompanionStatus.ENTERTAINMENT).length;
-  const restingCount = companions.filter((c) => c.status === CompanionStatus.RESTING).length;
-  const offlineCount = companions.filter((c) => c.status === CompanionStatus.OFFLINE).length;
+  const onlineCompanions = companions.filter((c) => isPersonnelOnline(c));
+  const idleCount = onlineCompanions.filter((c) => c.status === CompanionStatus.AVAILABLE).length;
+  const busyCount = onlineCompanions.filter((c) => c.status === CompanionStatus.BUSY).length;
+  const entertainCount = onlineCompanions.filter((c) => c.status === CompanionStatus.ENTERTAINMENT).length;
+  const restingCount = onlineCompanions.filter((c) => c.status === CompanionStatus.RESTING).length;
+  const offlineCount = companions.length - onlineCompanions.length;
   const poolCount = poolOrders.length;
 
   // Apply filters
@@ -363,10 +425,20 @@ const CSDispatchView: React.FC = () => {
     return result;
   }, [poolOrders, gameSearch, urgencyFilter]);
 
+  // 店长/客服在派单工作台也要能直接看到“自己发布的订单”，
+  // 否则订单一被抢或超时后，主订单池里就没有了，容易被误以为丢单。
+  const myOrders = useMemo(() => {
+    if (!user || user.role === 'COMPANION') return [];
+    return allOrders
+      .filter((o) => o.csUserId === user.id)
+      .sort((a, b) => new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime());
+  }, [allOrders, user]);
+
   return (
     <div>
       <Tabs
         activeKey={activeTab}
+        animated={false}
         onChange={(key) => {
           setActiveTab(key);
           if (key === 'followup' || key === 'converted') {
@@ -388,10 +460,10 @@ const CSDispatchView: React.FC = () => {
                   }}
                 >
                   <Space>
-                    <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(false); setModalOpen(true); }}>
+                    <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(false); setEditingOrder(null); setModalOpen(true); }}>
                       发布订单
                     </Button>
-                    <Button icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setModalOpen(true); }}>
+                    <Button icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setEditingOrder(null); setModalOpen(true); }}>
                       直接添加客户
                     </Button>
                   </Space>
@@ -418,6 +490,48 @@ const CSDispatchView: React.FC = () => {
               allowClear
               style={{ marginBottom: 8 }}
             />
+            <div
+              onClick={openStudioGroupChat}
+              style={{
+                padding: '8px 10px',
+                margin: '2px 3px 8px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: groupUnread > 0 ? '#EEF2FF' : '#F8FAFC',
+                border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🏠</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Text strong style={{ fontSize: 13, color: '#1F2937' }}>
+                    {studioGroup?.groupName || '工作室群聊'}
+                  </Text>
+                  {groupLastMentions.includes(user?.id || '') && (
+                    <Tag color="red" style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>@</Tag>
+                  )}
+                  {groupUnread > 0 && (
+                    <Badge count={groupUnread} size="small" overflowCount={99} style={{ marginLeft: 'auto' }} />
+                  )}
+                </div>
+                <Text
+                  style={{
+                    display: 'block',
+                    marginTop: 2,
+                    fontSize: 11,
+                    color: groupUnread > 0 ? '#475569' : '#94A3B8',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {groupLastMessage || '暂无消息'}
+                </Text>
+              </div>
+            </div>
             {loadingCompanions && companions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
                 <Spin />
@@ -431,8 +545,8 @@ const CSDispatchView: React.FC = () => {
                 size="small"
                 dataSource={filteredCompanions}
                 renderItem={(c) => {
-                  const isSelected = selectedCompanionId === c.id;
-                  const companionConvUnread = useChatStore.getState().conversations[c.id]?.unreadCount || 0;
+                  const isSelected = !!c.id && activeChatUserId === c.id;
+                  const companionConvUnread = unreadByParticipant[c.id] || 0;
                   const hasUnread = companionConvUnread > 0;
                   return (
                     <List.Item
@@ -455,14 +569,11 @@ const CSDispatchView: React.FC = () => {
                       onClick={() => {
                         // Mark read via chatStore instead of localStorage
                         const store = useChatStore.getState();
-                        if (store.conversations[c.id]) {
-                          store.markRead(c.id);
-                        }
-                        // Find matching order for this companion (check both pool and assigned)
-                        const order = [...poolOrders, ...allOrders].find((o: any) => o.companionId === c.companionId);
-                        const orderInfo = order
-                          ? `${order.gameName} · ¥${Number(order.amount || 0).toFixed(0)}${order.duration ? ' · ' + order.duration + 'h' : ''}${order.customer?.customerCode ? ' · 客户' + order.customer.customerCode : ''}`
-                          : undefined;
+                        Object.values(store.conversations).forEach((conv) => {
+                          if (conv.participant?.userId === c.id) {
+                            store.markRead(conv.id);
+                          }
+                        });
                         window.dispatchEvent(
                           new CustomEvent('open-chat-modal', {
                             detail: {
@@ -474,7 +585,7 @@ const CSDispatchView: React.FC = () => {
                                 avatar: c.avatar,
                                 role: c.role,
                               },
-                              orderInfo,
+                              orderInfo: null,
                             },
                           }),
                         );
@@ -652,7 +763,7 @@ const CSDispatchView: React.FC = () => {
               style={{
                 background: '#FFFFFF',
                 borderRadius: '8px 8px 0 0',
-                padding: '16px 24px',
+                padding: '10px 14px',
                 borderBottom: '1px solid #E2E8F0',
               }}
             >
@@ -688,8 +799,8 @@ const CSDispatchView: React.FC = () => {
               style={{
                 background: '#FFF',
                 borderRadius: '0 0 16px 16px',
-                padding: '16px 20px',
-                minHeight: 400,
+                padding: '10px 12px',
+                minHeight: 0,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
               }}
             >
@@ -756,7 +867,7 @@ const CSDispatchView: React.FC = () => {
                             </React.Fragment>
                           ))}
                           <span style={{ flex: 1 }} />
-                          {user?.role === 'COMPANION' && (
+                          {user?.role === 'COMPANION' ? (
                             <Space size={8}>
                               <Button
                                 size="small"
@@ -806,6 +917,23 @@ const CSDispatchView: React.FC = () => {
                                 </Button>
                               )}
                             </Space>
+                          ) : (
+                            canEditOrder(order) && (
+                              <Space size={8}>
+                                <Button
+                                  size="small"
+                                  icon={React.createElement(EditOutlined)}
+                                  onClick={() => {
+                                    setEditingOrder(order);
+                                    setDispatchPrefill(null);
+                                    setDirectAddMode(false);
+                                    setModalOpen(false);
+                                  }}
+                                >
+                                  修改
+                                </Button>
+                              </Space>
+                            )
                           )}
                         </div>
                       </List.Item>
@@ -815,6 +943,20 @@ const CSDispatchView: React.FC = () => {
               )}
             </div>
           </div>
+
+          {user && user.role !== 'COMPANION' && (
+            <Card size="small" style={{ marginTop: 12 }} title={`我发布的订单（${myOrders.length}）`}>
+              {myOrders.length === 0 ? (
+                <EmptyState description="暂无你发布的订单" />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {myOrders.map((o, idx) => (
+                    <OrderRow key={o.id} order={o} index={idx} renderActions={() => null} />
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
         </Col>
 
         {/* Right: Stats + Chat panel */}
@@ -841,65 +983,6 @@ const CSDispatchView: React.FC = () => {
               </div>
             </div>
           </Card>
-          {/* Chat panel below stats */}
-          {selectedCompanionId && (
-            <div style={{ marginTop: 8 }}>
-              <div
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  resizeRef.current = { startX: e.clientX, startW: chatPanelWidth };
-                  const onMove = (ev: MouseEvent) => {
-                    if (!resizeRef.current) return;
-                    const delta = resizeRef.current.startX - ev.clientX;
-                    setChatPanelWidth(Math.min(600, Math.max(300, resizeRef.current.startW + delta)));
-                  };
-                  const onUp = () => {
-                    resizeRef.current = null;
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                  };
-                  document.addEventListener('mousemove', onMove);
-                  document.addEventListener('mouseup', onUp);
-                }}
-                style={{
-                  width: 4,
-                  cursor: 'col-resize',
-                  flexShrink: 0,
-                  background: 'transparent',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  (e.target as HTMLElement).style.background = '#E0E2E5';
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.background = 'transparent';
-                }}
-              />
-              <div
-                style={{
-                  background: '#FFF',
-                  borderRadius: 10,
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  width: chatPanelWidth,
-                  minWidth: 300,
-                  maxWidth: 600,
-                  height: 500,
-                  minHeight: 360,
-                  maxHeight: 'calc(100vh - 140px)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                }}
-              >
-                <EmbeddedChatPanel
-                  onClose={() => {
-                    useChatStore.getState().closeConversation();
-                    setSelectedCompanionId(null);
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </Col>
       </Row>
               </>
@@ -924,22 +1007,25 @@ const CSDispatchView: React.FC = () => {
       />
 
       <CreateOrderModal
-        open={modalOpen}
+        open={modalOpen || !!editingOrder}
         directAddMode={directAddMode}
         onClose={() => {
           setModalOpen(false);
           setDispatchPrefill(null);
           setDispatchSourceOrderId(null);
           setDirectAddMode(false);
+          setEditingOrder(null);
         }}
         onCreated={() => {
           fetchPool();
+          setEditingOrder(null);
           if (dispatchSourceOrderId) {
             ordersApi.markPoolHandled(dispatchSourceOrderId).catch(() => {});
             setDispatchSourceOrderId(null);
           }
         }}
         userId={useAuthStore.getState().user?.id}
+        editingOrder={editingOrder || undefined}
         initialValues={dispatchPrefill || undefined}
       />
 

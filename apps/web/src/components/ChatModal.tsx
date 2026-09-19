@@ -2,12 +2,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Modal } from 'antd';
 import { useChatStore } from '../stores/chatStore';
+import { useAuthStore } from '../stores/authStore';
 import ChatPanel from './chat/ChatPanel';
 
 interface ChatPartner {
   conversationId: string;
   participant: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
-  orderInfo?: string;
+  orderInfo?: string | null;
 }
 
 interface Props {
@@ -17,13 +18,15 @@ interface Props {
 }
 
 const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
+  const userId = useAuthStore((s) => s.user?.id || 'anonymous');
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const conv = useChatStore((s) => (activeConversationId ? s.conversations[activeConversationId] : undefined));
+  const sizeStorageKey = `chat-modal-size:${userId}`;
 
   // JS-based resize state — restore saved size
   const [size, setSize] = useState(() => {
     try {
-      const saved = localStorage.getItem('chat-modal-size');
+      const saved = localStorage.getItem(sizeStorageKey);
       if (saved) {
         const s = JSON.parse(saved);
         return { w: s.w || 420, h: Math.min(s.h || 500, window.innerHeight - 100) };
@@ -54,12 +57,12 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       // Persist size
-      setSize((current: { w: number; h: number }) => { localStorage.setItem('chat-modal-size', JSON.stringify(current)); return current; });
+      setSize((current: { w: number; h: number }) => { localStorage.setItem(sizeStorageKey, JSON.stringify(current)); return current; });
       setTimeout(() => { wasResizing.current = false; }, 100);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [size]);
+  }, [size, sizeStorageKey]);
 
   // Block modal close if we just finished resizing
   const handleCancel = useCallback(() => {
@@ -79,7 +82,9 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       footer={null}
       width={size.w}
       closable={false}
-      maskClosable
+      mask={false}
+      maskClosable={false}
+      wrapClassName="chat-modal-floating"
       onCancel={handleCancel}
       bodyStyle={{ padding: 0 }}
       style={{ top: 20 }}
@@ -89,7 +94,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
         <ChatPanel
           roomId={activeConversationId || undefined}
           participant={partner?.participant || conv?.participant}
-          orderInfo={partner?.orderInfo || conv?.orderInfo}
+          orderInfo={partner?.orderInfo}
           onClose={onClose}
         />
         {/* Resize handle — bottom-right corner */}

@@ -23,6 +23,7 @@ export enum OrderStatus {
 
 export enum DispatchType {
   POOL = 'POOL',
+  BROADCAST = 'BROADCAST',
   DIRECT = 'DIRECT',
 }
 

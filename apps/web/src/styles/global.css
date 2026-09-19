@@ -61,12 +61,33 @@ body {
   background: #ff9100;
 }
 
-/* ── 侧边栏深色菜单：子菜单展开后保持透明，避免变白 ── */
-.ant-menu-inline .ant-menu-sub,
-.ant-menu-inline .ant-menu-sub .ant-menu-item,
-.ant-menu-inline .ant-menu-item,
-.ant-menu-inline .ant-menu-submenu-title {
+/* ── 侧边栏深色菜单：任何状态（默认/hover/选中/展开）都保持透明，避免变白 ── */
+.ant-layout-sider .ant-menu,
+.ant-layout-sider .ant-menu-sub,
+.ant-menu .ant-menu-sub,
+.ant-menu .ant-menu-submenu > .ant-menu,
+.ant-menu-dark .ant-menu-submenu > .ant-menu,
+.ant-layout-sider .ant-menu-item,
+.ant-menu-sub .ant-menu-item,
+.ant-layout-sider .ant-menu-submenu-title,
+.ant-layout-sider .ant-menu-item:hover,
+.ant-layout-sider .ant-menu-item-active,
+.ant-layout-sider .ant-menu-item-selected,
+.ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title,
+.ant-layout-sider .ant-menu-submenu-title:hover {
   background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* 展开后的子菜单容器给回深色底，避免下面菜单项区域变成白色 */
+.ant-layout-sider .ant-menu-sub,
+.ant-layout-sider .ant-menu-submenu > .ant-menu,
+.ant-layout-sider .ant-menu-inline .ant-menu-sub,
+.ant-menu-dark .ant-menu-sub,
+.ant-menu-dark .ant-menu-submenu-popup,
+.ant-menu-dark .ant-menu-submenu > .ant-menu {
+  background: #0b1024 !important;
+  background-color: #0b1024 !important;
 }
 
 /* ── 页面标题 ── */
@@ -169,6 +190,63 @@ body {
   }
   .ant-statistic-content {
     font-size: 20px !important;
+  }
+}
+
+/* ── 小窗口宽度自适应字体 ── */
+@media (max-width: 1100px) {
+  body,
+  .ant-typography,
+  .ant-card,
+  .ant-card-body,
+  .ant-card-head-title,
+  .ant-table,
+  .ant-table-cell,
+  .ant-tag,
+  .ant-btn,
+  .ant-input,
+  .ant-select,
+  .ant-form,
+  .ant-modal,
+  .ant-statistic {
+    font-size: 12px !important;
+  }
+  .ant-statistic-content {
+    font-size: 20px !important;
+  }
+  .ant-card-head {
+    min-height: 36px !important;
+  }
+  .ant-card-body {
+    padding: 10px 12px !important;
+  }
+}
+
+@media (max-width: 960px) {
+  body,
+  .ant-typography,
+  .ant-card,
+  .ant-card-body,
+  .ant-card-head-title,
+  .ant-table,
+  .ant-table-cell,
+  .ant-tag,
+  .ant-btn,
+  .ant-input,
+  .ant-select,
+  .ant-form,
+  .ant-modal,
+  .ant-statistic {
+    font-size: 11px !important;
+  }
+  .ant-statistic-content {
+    font-size: 18px !important;
+  }
+  .ant-card-head {
+    min-height: 32px !important;
+  }
+  .ant-card-body {
+    padding: 8px 10px !important;
   }
 }
 
@@ -387,6 +465,24 @@ body {
   transform: translateY(-1px);
 }
 
+/* 订单管理/流转明细等卡片行：统一行高、垂直居中，避免不同字段高度把列表撑得参差不齐 */
+.order-row-card {
+  margin-bottom: 0 !important;
+}
+.order-row-card .ant-card-body {
+  min-height: 52px;
+  padding: 8px 12px !important;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+}
+.order-row-card .ant-row {
+  width: 100%;
+}
+.order-row-card .ant-col {
+  line-height: 1.4;
+}
+
 /* ── 接单轨迹动画 ── */
 .grab-btn {
   transition: all 0.2s;
@@ -491,4 +587,63 @@ body {
 .ant-tabs-content-holder,
 .ant-tabs-content {
   padding: 0 !important;
+}
+
+/* ── 全局内容区对齐：让订单/客户/财务等页面看起来是同一套间距和卡片节奏 ── */
+.app-content > * {
+  max-width: 100%;
+}
+.app-content .ant-card {
+  margin-bottom: 12px;
+  border-radius: 10px;
+}
+.app-content .ant-card-head {
+  min-height: 40px;
+  padding: 0 14px;
+}
+.app-content .ant-card-body {
+  padding: 14px;
+}
+.app-content .ant-table-wrapper {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.app-content .ant-form-item {
+  margin-bottom: 14px;
+}
+.app-content .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+.app-content .ant-list-item {
+  padding: 8px 0;
+}
+.app-content .ant-row {
+  align-items: flex-start;
+}
+
+/* 订单管理表：在有限标签区域内紧凑展示，必要时缩小字体，不撑出内容区 */
+.orders-table .ant-table {
+  font-size: 11px;
+}
+.orders-table .ant-table-thead > tr > th {
+  font-size: 11px;
+  padding: 5px 6px;
+  white-space: nowrap;
+}
+.orders-table .ant-table-tbody > tr > td {
+  padding: 5px 6px;
+  white-space: nowrap;
+}
+.orders-table .ant-table-cell-fix-right,
+.orders-table .ant-table-cell-fix-left {
+  background: #fff;
+}
+
+/* 聊天窗口改成不遮挡页面的浮窗：聊天开着时仍能点左侧人员列表 / 群聊入口。
+   antd Modal 的 wrap 默认铺满全屏并吃掉点击，这里让点击穿透到下层页面。 */
+.chat-modal-floating {
+  pointer-events: none;
+}
+.chat-modal-floating .ant-modal {
+  pointer-events: auto;
 }
