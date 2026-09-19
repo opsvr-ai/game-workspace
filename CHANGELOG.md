@@ -11,6 +11,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **设置中心重排：13 个平铺 Tab → 4 组左导航 + 搜索:** 以前「系统设置」是一长排 Tab（💰流水与价格、
+  📊分账规则、⚙️运营设置、📸截图阈值、🧭派单与提成……），钱、派单、客户端、通知混在一起，找一个设置要横着数一遍。
+  现在按 **钱·分账 / 派单·等级 / 陪玩端·客户端 / 门店·通知** 四组归位，左侧一列选分类，每项下面写清它管什么；
+  顶部搜索框支持按名字和关键词找（搜「分账」「截图」「提成」「TURN」「黑屏」都能命中），搜到就直接切过去；
+  右侧只渲染当前打开的那一项，不用的一律不加载。
+
+- **左侧「设置中心」菜单也分了组:** 老板端和店长端的「设置中心」原来 11~12 项平铺，
+  现在分成「系统与规则」（系统配置 / 客服设置 / 店长设置 / 工资规则 / 利润分成 / 价格规则）
+  和「客户端与设备」（电脑管理 / 远程控制 / 客户端版本 / 进程黑名单 / 进程白名单 / 杀进程日志），
+  顺手补上了原来缺失的「远程控制」入口。91 个菜单项逐条核对过，现在没有指向空页面的死链。
+
+- **前端拆成 4 个分块（发布时客户端少下 3/4 流量）:** 原来整个前端是一个 2.8MB 的大文件，
+  每次发布哪怕只改一行字，所有客户端都要重新下载这 2.8MB。现在拆成
+  react(206KB) / antd(1315KB) / 图表(398KB) / 应用(900KB) 四块，
+  第三方库的哈希不随业务代码变化，**日常发布客户端只需重下约 192KB(gzip) 的应用块，而不是 824KB**。
+  第一次打开的总量不变，都走一年期的强缓存。
+
+- **陪玩端客户端 1.0.20260922（省 CPU / 省流量 / 省磁盘）:**
+  - **WebSocket 优先连接**：原来先用 HTTP 轮询再升级，客户端每 20~30 秒就要发一次完整 HTTP 请求，
+    一天上千次；现在直接用 WebSocket 长连接（实测连上只要 99ms），并且开了 `tryAllTransports`——
+    万一某个网络禁 WebSocket，会自动退回轮询，不会像以前那样卡死。
+  - **断开后指数退避**：服务端重启时以前会每 5 秒猛敲一次（前天一天刷了 3758 条 xhr poll error），
+    现在退避到最长 60 秒，并且同类错误只在第 1 次和第 20 次记日志。
+  - **日志只写一份 + 自动清理**：原来每条日志同时往 userData 和安装目录写两次（同步磁盘写），
+    现在只写 userData 一份，并自动删除 14 天前的旧日志（以前从不清理，装几个月就堆几十份）。
+  - **轮询降频**：前端版本检查 60 秒 → 5 分钟（20 个客户端一天少打近 3 万次请求，仍然满足
+    「发布后 5 分钟内自动更新」这条承诺）；客户端更新检查 5 分钟 → 30 分钟（紧急更新仍可用后台推送立即下发）。
+
+- **服务端：日志默认级别 debug → info，Socket.IO 全量事件日志改成按需开启:** 原来每收到一条
+  Socket.IO 事件都要拦一次、JSON.stringify 一遍再丢掉，聊天一多就是白烧 CPU；现在 debug 没开时
+  连钩子都不挂。要排查时用 `LOG_LEVEL=debug` 启动即可。
+
+- **群聊兜底轮询降频:** 聊天长连接正常时，兜底对账从每 30 秒一次改成每 2 分钟一次（断线时仍是 30 秒），
+  一天少两千多次 HTTP 往返。
+
 - **订单卡片上的「客户 ID」从明文编号改成悬停查看（卡片不再被内部编号占位）:** 订单卡片/列表右上角原本
   直接印着 `客户ID:3527158719` 这种 10 位内部编号，对客服没有任何判断价值，却硬占一块宽度。现在改成
   一个 🆔 小图标，鼠标悬停才浮出「客户ID：3527158719」；客服日常看的是客户微信号和昵称，卡片因此更干净。
@@ -66,6 +101,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   「空闲 → 三角洲行动」一条，其余状态均为空。（2026-09-20 复查时发现该开关又被改成了 `false`，已重新置为 `true` 并用接口回读确认；当时 23 名陪玩全部离线，无人正在玩游戏）。
 
 ### Fixed
+
+- **「远程控制」页一直是个死链:** 快捷跳转（Ctrl+K）里写着 `/admin/pc-control`「远程控制」，
+  但路由表里根本没有这个路径，点进去只会看到 404；页面文件 `PcControlPage.tsx` 也一直是孤儿代码。
+  现在把它接上路由，「设置中心 → 客户端与设备 → 远程控制」可以正常打开（陪玩电脑列表 +
+  远程开机 / 关机 / 重启 / 限速 / 解除限速）。
+
+- **前端拆包的坑：循环依赖导致白屏（已修）:** 第一版拆包把剩余依赖兜底成一个 `vendor` 块，
+  结果 `react` 块和 `vendor` 块互相引用，浏览器报 `reading 'useLayoutEffect' of undefined`、整站白屏。
+  现在只拆 react / antd / 图表三块、其余留在大包里，产物的依赖关系是单向的（react → antd → charts → 应用），
+  线上 14 个页面全部实测无报错。
 
 - **结束服务后陪玩立刻回到「空闲」，副陪也一起回:** 以前陪玩点「结束」（结束服务 / 完成订单）之后，
   人员列表里的状态还挂在「接单中」，要等下一次状态变化才恢复——这段时间别人看着他在忙，
@@ -377,8 +422,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **共享常量提取：** 统一 orderType/status/companion/customer 等状态配置至 `constants/`，替换 10+ 页面中的内联重复定义
 - **12 项不一致修复：** 状态标签冲突(已抢/已接单)、颜色交换(ONLINE/BUSY)、客户状态列缺失、布局不统一、API 客户端不一致、分页文本等
 
-### Fixed
-
 - **Electron 客户端订单池「后端有数据、界面却不显示」:** 根因是服务端 Express 默认给所有 API 响应生成 ETag，Electron 客户端带 If-None-Match 时拿到 304（body 为空），axios 把空 body 当成空数组，导致订单池等页面显示为空。现已全局关闭 ETag/304，并把前端静态资源与 /api 响应统一设为 no-store，确保每次请求都返回完整 200 数据；同时陪玩端/客服端启动时清一次 HTTP 缓存、登录页加版本号做 cache-busting，彻底杜绝旧前端/旧数据缓存。
 
 - **SPA 入口页（/login、/admin/dispatch 等）仍被 sendFile 自带 ETag 卡成 304:** 上一版关闭全局 ETag 后，SPA 回退路由用的是 `res.sendFile`，它会独立生成 ETag，客户端带 If-None-Match 时仍回 304，导致 Electron 客户端一直加载旧 index.html、旧前端。现已对 `sendFile` 显式关闭 etag/lastModified/cacheControl，入口页现在每次都是完整 200。
@@ -589,6 +632,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - AppLayout 头部展示用户头像和显示名字，点击进入个人设置页
 
 ### Removed
+
+- **删掉 9 个没有任何地方引用的前端文件:** `ChatInput.tsx`、`NotificationSettingsModal.tsx`、
+  `ScreenLock.tsx`（网页版，客户端有自己的一份）、`useApiError.ts`、`useDebounce.ts`、
+  `DashboardPage.tsx`（已被 UnifiedDashboard 取代）、`dateFormat.ts` 等，共约 50KB 死代码。
+  另外 `PcControlPage.tsx` / `EditableWorkWechat.tsx` 里有未提交的在制品，暂不删，只把它们接回可用状态。
+
+- **去掉没用的依赖 `@ant-design/charts`:** 全项目没有任何地方 import 它，却带着一整套
+  `@antv/*`（g2、g6、graphin……）一起装进来。删掉后 lockfile 少了 738 行。
+
+- **清理 4.1GB 散落的打包产物:** `apps/companion-electron/release5/8/9/10…15`、
+  `apps/release`、`apps/win-unpacked`、`apps/locales`、`apps/resources`、`apps/log(s)`、
+  `apps/companion-electron/src/win-unpacked` —— 都是历史上 electron-builder 跑错目录留下的副本，
+  全部可以重新生成，删掉后项目目录从 12GB 降到约 8GB。
 
 - **清理死代码/死数据/死配置:** 删除无用的聚合表 RevenueDaily、StudioDailyStats 及其 DailyStatsService，删除 Order.isOnline 字段，移除一批“只有默认值、后端没执行”的配置（超时关机、每日抢单上限、旧名额字段等）。
 
