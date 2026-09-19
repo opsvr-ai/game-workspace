@@ -35,6 +35,7 @@ import OrderRow from '../../components/OrderRow';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
+import { DATA_FONT_SIZE, DATA_ROW_PADDING } from '../../constants/datasetColumns';
 import {
   orderTypeConfig,
   companionStatusConfig,
@@ -869,14 +870,15 @@ const CSDispatchView: React.FC = () => {
                     return (
                       <List.Item style={{ marginBottom: 0 }}>
                         <div
+                          className="order-pool-row"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: 10,
-                            padding: '9px 12px',
+                            padding: DATA_ROW_PADDING,
                             background: '#fff',
                             borderBottom: '1px solid #f0f0f0',
-                            fontSize: 13,
+                            fontSize: DATA_FONT_SIZE,
                             color: '#1f2329',
                           }}
                         >

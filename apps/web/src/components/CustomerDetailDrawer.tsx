@@ -19,6 +19,7 @@ import {
 } from 'antd';
 import { EditOutlined, SaveOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
+import { DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -171,7 +172,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ customerId,
       title={
         <Space>
           {customerCode && (
-            <Text strong style={{ fontSize: 15 }}>
+            <Text strong style={{ fontSize: DATA_FONT_SIZE + 2 }}>
               {customerCode}
             </Text>
           )}
@@ -277,7 +278,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ customerId,
                     <Select allowClear options={voiceOptions.slice(0, 4)} />
                   </Form.Item>
                   <Form.Item name="myVoice" label="自己声音" style={{ marginBottom: 0 }}>
-                    <Select allowClear options={voiceOptions.slice(4)} />
+                    <Select allowClear options={voiceOptions} />
                   </Form.Item>
                   <Form.Item name="relationshipStatus" label="情感状态" style={{ marginBottom: 0 }}>
                     <Select
@@ -317,7 +318,13 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ customerId,
               </Space>
             </Form>
           ) : profile ? (
-            <Descriptions size="small" column={2} colon={false}>
+            <Descriptions
+              size="small"
+              column={2}
+              colon={false}
+              style={{ fontSize: DATA_FONT_SIZE }}
+              labelStyle={{ width: DETAIL_LABEL_WIDTH }}
+            >
               {[
                 'age',
                 'occupation',
@@ -421,7 +428,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ customerId,
                 ))}
               </div>
             ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
                 暂无跟进记录
               </Text>
             )}

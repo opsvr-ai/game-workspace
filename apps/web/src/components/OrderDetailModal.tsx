@@ -8,6 +8,7 @@ import {
   urgencyConfig,
   billingModeConfig,
 } from '../constants';
+import { DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
 
 const { Text } = Typography;
 
@@ -43,7 +44,13 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
       width={720}
       destroyOnClose
     >
-      <Descriptions column={2} size="small" bordered labelStyle={{ width: 112 }}>
+      <Descriptions
+        column={2}
+        size="small"
+        bordered
+        style={{ fontSize: DATA_FONT_SIZE }}
+        labelStyle={{ width: DETAIL_LABEL_WIDTH }}
+      >
         <Descriptions.Item label="状态">
           <Tag color={orderStatusConfig[order.status]?.color || 'default'} style={{ margin: 0 }}>
             {orderStatusConfig[order.status]?.label || order.status}
@@ -72,7 +79,7 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
             {urgencyConfig[cf.urgency]?.label || '立即'}
           </Tag>
           {cf.urgency === 'later' && cf.scheduledTimeText ? (
-            <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
+            <Text type="secondary" style={{ marginLeft: 6, fontSize: DATA_SUB_FONT_SIZE }}>
               {cf.scheduledTimeText}
             </Text>
           ) : null}
@@ -99,7 +106,7 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
           {cf.deltaNote || order.notes || '-'}
         </Descriptions.Item>
       </Descriptions>
-      <Text type="secondary" style={{ fontSize: 12 }}>
+      <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
         该订单没有修改入口（按权限规则，只有你发布的入池订单可以修改）；需要改动请找发布人处理。
       </Text>
     </Modal>

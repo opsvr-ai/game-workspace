@@ -54,6 +54,15 @@ import CustomerTrackingCenter from '../components/CustomerTrackingCenter';
 import CompanionTrackingPanel from '../components/CompanionTrackingPanel';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
+import {
+  ACTIONS_COLUMN,
+  CUSTOMER_TABLE_KEYS,
+  CUSTOMER_TABLE_KEYS_COMPANION,
+  DATA_FONT_SIZE,
+  FIELD_WIDTH,
+  TABLE_STYLE,
+  sumWidths,
+} from '../constants/datasetColumns';
 import TableSkeleton from '../components/TableSkeleton';
 
 const { Text } = Typography;
@@ -365,7 +374,7 @@ const CustomersPage: React.FC = () => {
       title: '客户编号',
       dataIndex: 'customerCode',
       key: 'customerCode',
-      width: 150,
+      width: FIELD_WIDTH.customerCode,
       render: (code: string, record: Customer) => (
         <>
           <Text>{code}</Text>
@@ -388,13 +397,13 @@ const CustomersPage: React.FC = () => {
         </>
       ),
     },
-    { title: '微信号', dataIndex: 'wechatId', key: 'wechatId' },
+    { title: '微信号', dataIndex: 'wechatId', key: 'wechatId', width: FIELD_WIDTH.wechatId },
     ...(!isCompanion
       ? [
           {
             title: '客户昵称',
             key: 'nickname',
-            width: 120,
+            width: FIELD_WIDTH.nickname,
             render: (_: any, r: Customer) => {
               const cf = r.orders?.[0]?.customFields || {};
               return cf.customerNickname || <Text type="secondary">-</Text>;
@@ -403,7 +412,7 @@ const CustomersPage: React.FC = () => {
           {
             title: '来源账号',
             key: 'sourceAccount',
-            width: 150,
+            width: FIELD_WIDTH.sourceAccount,
             render: (_: any, r: Customer) => {
               const cf = r.orders?.[0]?.customFields || {};
               const acc = cf.customerSourceAccount;
@@ -423,7 +432,7 @@ const CustomersPage: React.FC = () => {
     {
       title: '最近订单',
       key: 'lastOrder',
-      width: 220,
+      width: FIELD_WIDTH.lastOrder,
       render: (_: any, r: any) => {
         const o = r.orders?.[0];
         if (!o) return <Text type="secondary">-</Text>;
@@ -455,7 +464,7 @@ const CustomersPage: React.FC = () => {
     {
       title: '来源/时间',
       key: 'source',
-      width: 110,
+      width: FIELD_WIDTH.sourceTime,
       render: (_: any, r: any) => {
         const cf = r.orders?.[0]?.customFields || {};
         return (
@@ -481,7 +490,7 @@ const CustomersPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: FIELD_WIDTH.status,
       render: (s: string) => {
         const cfg = customerStatusConfig[s];
         return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>;
@@ -490,7 +499,7 @@ const CustomersPage: React.FC = () => {
     {
       title: '所用微信',
       key: 'workWechat',
-      width: 100,
+      width: FIELD_WIDTH.workWechat,
       render: (_: any, r: any) => {
         const wo = r.orders?.[0]?.customFields;
         if (wo?.workWechatName)
@@ -515,13 +524,13 @@ const CustomersPage: React.FC = () => {
     {
       title: '陪玩',
       key: 'companion',
-      width: 80,
+      width: FIELD_WIDTH.companion,
       render: (_: any, r: Customer) => r.companion?.user?.username ?? <Text type="secondary">未分配</Text>,
     },
     {
       title: '最近跟进',
       key: 'followUp',
-      width: 120,
+      width: FIELD_WIDTH.followUp,
       render: (_: any, r: Customer) => {
         const latest = r.followUps?.[0];
         return latest ? (
@@ -543,13 +552,13 @@ const CustomersPage: React.FC = () => {
       title: '累计消费',
       dataIndex: 'totalSpent',
       key: 'totalSpent',
-      width: 120,
+      width: FIELD_WIDTH.totalSpent,
       render: (val: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{(val ?? 0).toFixed(1)}</span>,
     },
     {
       title: '备注',
       key: 'notes',
-      width: 200,
+      width: FIELD_WIDTH.notes,
       render: (_: any, r: Customer) =>
         isCompanion ? (
           <Input
@@ -566,7 +575,7 @@ const CustomersPage: React.FC = () => {
             }}
           />
         ) : (
-          <Text style={{ fontSize: 12 }}>{r.notes || '-'}</Text>
+          <Text style={{ fontSize: DATA_FONT_SIZE }}>{r.notes || '-'}</Text>
         ),
     },
   ];
@@ -575,7 +584,7 @@ const CustomersPage: React.FC = () => {
     columns.push({
       title: '操作',
       key: 'actions',
-      width: 280,
+      ...ACTIONS_COLUMN,
       render: (_: unknown, record: Customer) => {
         const contactStatus = record.orders?.[0]?.contactStatus;
         if (contactStatus === 'not_accepted') {
@@ -778,7 +787,7 @@ const CustomersPage: React.FC = () => {
     columns.push({
       title: '操作',
       key: 'actions',
-      width: canReassign ? 260 : 160,
+      ...ACTIONS_COLUMN,
       render: (_: unknown, record: Customer) => (
         <Space size="small">
           {canReassign && (
@@ -900,7 +909,12 @@ const CustomersPage: React.FC = () => {
                             setDetailCustomer(record);
                           },
                         })}
-                        scroll={{ x: 1000 }}
+                        style={TABLE_STYLE}
+                        scroll={{
+                          x: isCompanion
+                            ? sumWidths(CUSTOMER_TABLE_KEYS_COMPANION)
+                            : sumWidths(CUSTOMER_TABLE_KEYS),
+                        }}
                         locale={{ emptyText: '暂无客户数据' }}
                         pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
                       />

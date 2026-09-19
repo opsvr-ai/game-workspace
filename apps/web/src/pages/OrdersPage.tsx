@@ -29,6 +29,13 @@ import ChatModal from '../components/ChatModal';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
+import {
+  FIELD_WIDTH,
+  ORDER_ACTIONS_COLUMN,
+  ORDER_TABLE_KEYS,
+  TABLE_STYLE,
+  sumWidths,
+} from '../constants/datasetColumns';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -510,14 +517,14 @@ const OrdersPage: React.FC = () => {
       title: '订单',
       dataIndex: 'orderCode',
       key: 'orderCode',
-      width: 88,
+      width: FIELD_WIDTH.orderCode,
       render: (_: unknown, o: any) => o.orderCode || o.id.slice(0, 8),
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 76,
+      width: FIELD_WIDTH.type,
       render: (_: unknown, o: any) => (
         <Tag color={orderTypeConfig[o.type]?.color || 'blue'} style={{ margin: 0 }}>
           {orderTypeConfig[o.type]?.label || o.type}
@@ -528,7 +535,7 @@ const OrdersPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 86,
+      width: FIELD_WIDTH.status,
       render: (_: unknown, o: any) => (
         <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
           {orderStatusConfig[o.status]?.label || o.status}
@@ -539,39 +546,39 @@ const OrdersPage: React.FC = () => {
       title: '游戏',
       dataIndex: 'gameName',
       key: 'gameName',
-      width: 110,
+      width: FIELD_WIDTH.game,
     },
     {
       title: '服务',
       dataIndex: 'serviceType',
       key: 'serviceType',
-      width: 80,
+      width: FIELD_WIDTH.service,
       render: (_: unknown, o: any) => serviceTypeConfig[o.serviceType]?.label || '陪玩',
     },
     {
       title: '单/双',
       key: 'deltaCount',
-      width: 60,
+      width: FIELD_WIDTH.count,
       render: (_: unknown, o: any) => o.customFields?.deltaCount || '单',
     },
     {
       title: '任务',
       key: 'deltaMission',
-      width: 76,
+      width: FIELD_WIDTH.mission,
       render: (_: unknown, o: any) => o.customFields?.deltaMission || '-',
     },
     {
       title: '金额',
       dataIndex: 'amount',
       key: 'amount',
-      width: 84,
+      width: FIELD_WIDTH.amount,
       align: 'right' as const,
       render: (_: unknown, o: any) => `¥${Number(o.amount).toFixed(0)}`,
     },
     {
       title: '打单时间',
       key: 'urgency',
-      width: 82,
+      width: FIELD_WIDTH.urgency,
       render: (_: unknown, o: any) => (
         <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0 }}>
           {urgencyConfig[o.customFields?.urgency]?.label || '立即'}
@@ -581,7 +588,7 @@ const OrdersPage: React.FC = () => {
     {
       title: '主陪 / 接单工作室',
       key: 'companion',
-      width: 124,
+      width: FIELD_WIDTH.studio,
       render: (_: unknown, o: any) => {
         const name = o.companion?.user?.username || '-';
         const studio = o.companion?.studio;
@@ -612,38 +619,37 @@ const OrdersPage: React.FC = () => {
     {
       title: '副陪',
       key: 'coCompanion',
-      width: 92,
+      width: FIELD_WIDTH.coCompanion,
       render: (_: unknown, o: any) => o.coCompanion?.user?.username || '-',
     },
     {
       title: '客户微信',
       key: 'customerWechat',
-      width: 140,
+      width: FIELD_WIDTH.customerWechat,
       render: (_: unknown, o: any) => o.customFields?.customerWechat || o.customer?.wechatId || '-',
     },
     {
       title: '来源',
       key: 'customerSource',
-      width: 92,
+      width: FIELD_WIDTH.source,
       render: (_: unknown, o: any) => o.customFields?.customerSource || o.customer?.platform || '-',
     },
     {
       title: '发布时间',
       key: 'createdAt',
-      width: 150,
+      width: FIELD_WIDTH.createdAt,
       render: (_: unknown, o: any) => new Date(o.grabbedAt || o.createdAt).toLocaleString('zh-CN', { hour12: false }),
     },
     {
       title: '发布人',
       key: 'csUser',
-      width: 88,
+      width: FIELD_WIDTH.csUser,
       render: (_: unknown, o: any) => o.csUser?.username || '-',
     },
     {
       title: '操作',
       key: 'actions',
-      fixed: 'right' as const,
-      width: 280,
+      ...ORDER_ACTIONS_COLUMN,
       render: (_: unknown, o: any) => renderAddActions(o),
     },
   ];
@@ -756,7 +762,8 @@ const OrdersPage: React.FC = () => {
               dataSource={sorted}
               size="small"
               pagination={false}
-              scroll={{ x: 1280 }}
+              style={TABLE_STYLE}
+              scroll={{ x: sumWidths(ORDER_TABLE_KEYS) }}
               locale={{ emptyText: '暂无订单' }}
               // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
               onRow={(record: any) => ({

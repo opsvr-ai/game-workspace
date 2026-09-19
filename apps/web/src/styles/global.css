@@ -1,5 +1,13 @@
 /* 蠢驴电竞 — 浅色简约风全局样式 */
 
+:root {
+  /* 订单 / 客户数据的统一字号。运行时由 apps/web/src/constants/datasetColumns.ts
+     注入覆盖，这里只是兜底默认值 —— 要改字号请改那个 TS 常量。 */
+  --data-font-size: 13px;
+  --data-head-font-size: 11px;
+  --data-control-font-size: 12px;
+}
+
 /* ── 页面底色 ── */
 body {
   background: linear-gradient(160deg, #f5f7ff 0%, #faf8ff 45%, #f5f7fb 100%);
@@ -175,7 +183,6 @@ body {
   }
   .ant-table-cell {
     padding: 6px 8px !important;
-    font-size: 12px !important;
   }
   .ant-modal-body {
     max-height: 60vh;
@@ -185,9 +192,6 @@ body {
   .ant-form-item {
     margin-bottom: 12px !important;
   }
-  .ant-tag {
-    font-size: 11px !important;
-  }
   .ant-statistic-content {
     font-size: 20px !important;
   }
@@ -196,14 +200,9 @@ body {
 /* ── 小窗口宽度自适应字体 ── */
 @media (max-width: 1100px) {
   body,
-  .ant-typography,
   .ant-card,
   .ant-card-body,
   .ant-card-head-title,
-  .ant-table,
-  .ant-table-cell,
-  .ant-tag,
-  .ant-btn,
   .ant-input,
   .ant-select,
   .ant-form,
@@ -211,6 +210,9 @@ body {
   .ant-statistic {
     font-size: 12px !important;
   }
+  /* 这里故意不再带上 .ant-typography / .ant-tag / .ant-table*：
+     它们带 !important，会把列表单元格里「行内显式写小」的字（11/10px 的时间、已弃用标签）
+     一起顶成 12px，同一个数据换个窗口宽度就变字号。数据字号统一见文件末尾。 */
   .ant-statistic-content {
     font-size: 20px !important;
   }
@@ -224,14 +226,9 @@ body {
 
 @media (max-width: 960px) {
   body,
-  .ant-typography,
   .ant-card,
   .ant-card-body,
   .ant-card-head-title,
-  .ant-table,
-  .ant-table-cell,
-  .ant-tag,
-  .ant-btn,
   .ant-input,
   .ant-select,
   .ant-form,
@@ -550,7 +547,7 @@ body {
     font-size: 22px;
   }
   .ant-table {
-    font-size: 12px;
+    font-size: var(--data-font-size);
   }
 }
 
@@ -630,12 +627,13 @@ body {
   align-items: flex-start;
 }
 
-/* 订单管理表：在有限标签区域内紧凑展示，必要时缩小字体，不撑出内容区 */
+/* 订单管理表：列宽已经定死 + 横向滚动 + 操作列钉右，字体统一走 --data-*，
+   不再单独缩成 11px（否则同一个数据在订单管理和客户管理里就是两个字号） */
 .orders-table .ant-table {
-  font-size: 11px;
+  font-size: var(--data-font-size);
 }
 .orders-table .ant-table-thead > tr > th {
-  font-size: 11px;
+  font-size: var(--data-head-font-size);
   padding: 5px 6px;
   white-space: nowrap;
 }
@@ -655,4 +653,49 @@ body {
 }
 .chat-modal-floating .ant-modal {
   pointer-events: auto;
+}
+
+/* ── 订单 / 客户数据的统一字号 ──
+   订单发布 → 订单池 → 订单管理 → 客户管理 自始至终是同一份数据，字号也必须一致：
+   以前订单管理表被上面那段钉成 11px、客户管理表跟着窗口宽度在 14/12 之间变、订单池行是 13px，
+   同一个数据换个页面就变大小。现在唯一来源是 apps/web/src/constants/datasetColumns.ts，
+   启动时注入成下面的 CSS 变量；列宽也已定死 + 横向滚动 + 操作列钉右，
+   所以不再需要用「窗口一窄就缩字号」去挤空间。 */
+.app-content .ant-table {
+  font-size: var(--data-font-size) !important;
+}
+.app-content .ant-table-thead > tr > th.ant-table-cell {
+  font-size: var(--data-head-font-size) !important;
+}
+.app-content .ant-table-tbody > tr > td.ant-table-cell {
+  font-size: var(--data-font-size) !important;
+}
+/* antd 的 <Text>（.ant-typography）自己写死了 14px，比单元格的 13px 大一号，
+   于是同一张表里「有的格子 13、有的格子 14」。
+   这里只把行内 Typography 拉回所在容器字号 —— 注意不能加 !important，
+   否则会把列表里「行内显式写小」的 10/11px（时间、已弃用标签）一起顶大。 */
+.app-content .ant-table .ant-typography,
+.order-pool-row .ant-typography,
+.ant-modal .ant-descriptions .ant-typography,
+.ant-drawer .ant-descriptions .ant-typography {
+  font-size: inherit;
+}
+/* 表格里的控件（备注输入框、操作列按钮、分页）统一到控件档字号，
+   否则同一张表在 1080 宽是 12px、1440 宽是 14px */
+.app-content .ant-table .ant-input,
+.app-content .ant-table .ant-btn,
+.app-content .ant-pagination {
+  font-size: var(--data-control-font-size) !important;
+}
+/* 发布 / 修改订单弹窗的表单：还是这份数据，字号跟着统一 */
+.ant-modal .ant-form-item-label > label,
+.ant-modal .ant-input,
+.ant-modal .ant-input-number-input,
+.ant-modal .ant-select-selector,
+.ant-modal .ant-picker,
+.ant-modal .ant-checkbox-wrapper,
+.ant-modal .ant-radio-wrapper,
+.ant-modal .ant-form-item-explain,
+.ant-modal .ant-upload {
+  font-size: var(--data-font-size) !important;
 }

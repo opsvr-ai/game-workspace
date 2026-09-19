@@ -21,6 +21,7 @@ import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields } from '../utils/orderPool';
+import { DATA_FONT_SIZE, DATA_ROW_PADDING } from '../constants/datasetColumns';
 
 const { Text } = Typography;
 
@@ -333,14 +334,15 @@ const OrderPoolPage: React.FC = () => {
     return (
       <div
         key={order.id}
+        className="order-pool-row"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          padding: '9px 12px',
+          padding: DATA_ROW_PADDING,
           background: '#fff',
           borderBottom: '1px solid #f0f0f0',
-          fontSize: 13,
+          fontSize: DATA_FONT_SIZE,
           color: '#1f2329',
           whiteSpace: 'nowrap',
         }}
