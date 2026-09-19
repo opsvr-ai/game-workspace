@@ -118,6 +118,8 @@ sequenceDiagram
     API->>API: create order status=PENDING
     API->>WS: broadcastToStudio('order:pool_updated')
     WS-->>CP: order:new 推送
+    CS->>API: PUT /api/orders/:id
+    API->>API: 发布者改单，同步 customFields/Customer，并广播更新
 
     Note over CS,API: 暂时不玩的线索由客服养客
     CS->>API: POST /api/orders/:id/claim
@@ -328,6 +330,12 @@ sequenceDiagram
     GW-->>BROWSER: status:broadcast OFFLINE
 ```
 
+**订单推送补充（订单池里程碑 / 广播）:**
+
+- 订单池的可见范围按里程碑逐级放开：本店上等马 → 桥接工作室 → 本店中等马 → …，「桥接工作室等待」由 `pool.bridge_delay_seconds` 控制（当前线上 300 秒）。
+- 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线空闲陪玩推 `order:urgent`（右下角弹窗）；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室的在线空闲陪玩推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。
+- 网关连接时会自动 join 桥接工作室的房间（`studio:${bridgedStudioId}`），用于订单池、状态等跨工作室实时广播。
+
 ## 7. 认证流程
 
 ```
@@ -449,6 +457,19 @@ graph TB
 - process-killer.ts: taskkill /F /PID 杀进程 + 速率限制
 - blacklist-notification.ts: 5秒倒计时气泡弹窗
 - 60秒 REST 轮询拉取黑名单 (WebSocket 断开时兜底)
+
+### 内容查重与违禁词检测模块 (Content Check)
+
+**功能:**
+- 发布小红书/抖音等笔记前检查标题、正文、标签中的高危词与提醒词。
+- 按 2 字滑动分片 Jaccard 相似度检查当前文案、同批草稿、历史文案和系统已录 `TrafficNote`。
+- 可选用已配置的 DeepSeek / 豆包模型做语义级查重，识别换词但卖点和结构相同的文案。
+- 命中高风险导流词、极限词、低价词、异常互动词时给出具体修改建议。
+
+**API 端点:**
+- `GET /api/content-check/lexicon` — 当前违禁词库与版本
+- `POST /api/content-check/check` — 提交 `{ title, body, tags, historyTexts, includeStoredNotes, useSemantic }` 并返回检测结果
+
 ### 财务对账与防私单模块 (Finance)
 
 **数据模型:**
