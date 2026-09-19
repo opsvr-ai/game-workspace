@@ -13,6 +13,13 @@
    只把用户真正必须手动点的那一步交给他，并给清晰清单，不要反复让他“再试一次”。
 4. **改完必复查整条链路。** 每次交付前，用可验证的证据确认结果（部署成功、版本正确、
    目录正确、自动更新可完成），而不是口头说“应该好了”。
+5. **提交、打包、发布、部署不必先问，直接做。**（用户明确要求，2026-09-19）
+   只要**不影响陪玩正在接单**（接单中不打断、不强制更新），
+   代码改完就自己提交、打包、发布、部署，并自己验证到底，不要反复问“要不要发”。
+   具体：前端 `python scripts\_deploy_web_cloud.py` + `python scripts\_set_web_version.py vXXX`；
+   服务端 `python scripts\_deploy_server_cloud.py`；客户端 `python scripts\_publish_client.py <版本号>`（安装包在
+   `apps/companion-electron/release/win-unpacked`）。发布客户端后不要去强制推送（会打断接单），
+   客户端自己每 5 分钟查一次版本，接单中会自动跳过。
 
 ## Commands
 
