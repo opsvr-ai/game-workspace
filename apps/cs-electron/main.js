@@ -20,7 +20,7 @@ function getServerUrl() {
       // ignore and try next
     }
   }
-  return 'http://192.168.0.106:3001';
+  return 'http://1.117.229.36:3001';
 }
 
 function getLoginUrl() {
@@ -173,14 +173,19 @@ function createWindow() {
       mainWindow.loadURL(getLoginUrl());
     }
   });
-  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
-    if (code !== -3) {
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(getLoginUrl());
-        }
-      }, 2000);
-    }
+  // 只在「登录页自己加载失败」时重试。
+  // 以前是只要窗口里任何一次加载失败（子框架、偶发断网、资源加载超时……）
+  // 就把整个窗口强行 loadURL 到登录页，客服正用着会突然掉到登录界面。
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
+    if (!isMainFrame) return; // 子框架/资源失败不理会
+    if (code === -3) return; // ERR_ABORTED：正常的中断，不算失败
+    const loginPath = getLoginUrl().split('?')[0];
+    if (!String(failedUrl || '').startsWith(loginPath)) return; // 不是登录页就别动
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
+        mainWindow.loadURL(getLoginUrl());
+      }
+    }, 2000);
   });
   // 点 ❌ 最小化到托盘，不退出
   mainWindow.on('close', (e) => {

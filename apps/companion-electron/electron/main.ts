@@ -889,15 +889,19 @@ app.whenReady().then(() => {
     }
   });
   mainWindow.webContents.on('did-finish-load', () => trace('4-loaded'));
-  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
-    trace('FAIL-' + code + '-' + desc);
-    if (code !== -3 && !isQuitting) {
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
-          mainWindow.loadURL(getLoginUrl());
-        }
-      }, 3000);
-    }
+  // 只在「登录页自己加载失败」时重试。以前是窗口里任何一次加载失败都会把整个
+  // 窗口强行 loadURL 回登录页，陪玩/客服正用着会突然掉到登录界面。
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
+    trace('FAIL-' + code + '-' + desc + '-' + (isMainFrame ? 'main' : 'sub'));
+    if (!isMainFrame) return;
+    if (code === -3 || isQuitting) return;
+    const loginPath = getLoginUrl().split('?')[0];
+    if (!String(failedUrl || '').startsWith(loginPath)) return;
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !isQuitting && !mainWindow.webContents.isLoading()) {
+        mainWindow.loadURL(getLoginUrl());
+      }
+    }, 3000);
   });
 
   // 系统唤醒后重新加载页面，避免唤醒后白屏

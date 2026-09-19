@@ -596,7 +596,8 @@ const OrderPoolPage: React.FC = () => {
         style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
       >
         {isCompanion && renderCompanionSidebar()}
-        <Col flex="1 1 auto">
+        {/* 同上：basis 0 + minWidth 0，避免订单内容太宽把整列挤到人员列表下面 */}
+        <Col flex="1 1 0%" style={{ minWidth: 0 }}>
           {orders.length === 0 && <EmptyState description="暂无待派订单" />}
 
           {/* Horizontal order rows — all info in one row */}

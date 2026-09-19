@@ -8,7 +8,8 @@ import type {
 
 const http = axios.create({
   baseURL: '/api',
-  timeout: 15000,
+  // 云服务器带宽有限，偶发会有一个短暂停顿；15 秒太紧容易误报 network error。
+  timeout: 25000,
   headers: {
     // 强制每次请求都向服务端重新校验，绕过 Electron/Chromium 的磁盘缓存，
     // 避免「接口返回 200 但前端拿到的是旧缓存空数据」。
@@ -17,12 +18,40 @@ const http = axios.create({
   },
 });
 
+// 内存短时缓存：只对「只读列表」接口做缓存，切标签秒开；实时接口（订单池/抢单/客服）不缓存。
+const memCache = new Map<string, { data: unknown; ts: number }>();
+const MEM_TTL_MS = 20_000;
+const isCacheableGet = (config: any): boolean => {
+  if (config.method?.toLowerCase() !== 'get') return false;
+  const url = config.url || '';
+  return url === '/orders' || url === '/customers' || url === '/companions' || url.startsWith('/finance/');
+};
+const memCacheKey = (config: any): string =>
+  `${config.method}:${config.url}:${JSON.stringify(config.params || {})}`;
+
 // Request interceptor: attach Bearer token from sessionStorage
 http.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // 有写操作（增删改）时清空缓存，确保下一次列表查询拿到最新数据。
+    if (config.method?.toLowerCase() !== 'get') {
+      memCache.clear();
+    }
+    if (isCacheableGet(config)) {
+      const key = memCacheKey(config);
+      const hit = memCache.get(key);
+      if (hit && Date.now() - hit.ts < MEM_TTL_MS) {
+        config.adapter = async () => ({
+          data: hit.data,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        });
+      }
     }
     return config;
   },
@@ -47,8 +76,21 @@ const processQueue = (error: unknown, token: string | null) => {
   failedQueue = [];
 };
 
+// 登录态彻底失效时回到登录页；Electron 客户端会重新挂载 LoginPage，
+// 如果保存过账号密码就会自动重新登录，避免机器开着却一直显示离线。
+const redirectToLogin = () => {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname.startsWith('/login')) return;
+  window.location.href = '/login';
+};
+
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (isCacheableGet(response.config)) {
+      memCache.set(memCacheKey(response.config), { data: response.data, ts: Date.now() });
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosError['config'] & {
       _retry?: boolean;
@@ -56,8 +98,14 @@ http.interceptors.response.use(
 
     // Skip retry for /auth/refresh itself — prevents infinite loop when JWT secrets mismatch
     if (originalRequest.url?.includes('/auth/refresh')) {
-      sessionStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      // 只有服务端明确拒绝了这个 refreshToken（4xx）才算登录态失效；
+      // 断网/超时/服务端 5xx 是临时故障，清掉令牌等于把人踢回登录页。
+      const status = error.response?.status;
+      if (status && status >= 400 && status < 500) {
+        sessionStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        redirectToLogin();
+      }
       return Promise.reject(error);
     }
 
@@ -66,6 +114,7 @@ http.interceptors.response.use(
       if (!refreshToken) {
         sessionStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        redirectToLogin();
         return Promise.reject(error);
       }
 
@@ -111,8 +160,13 @@ http.interceptors.response.use(
         return http(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        sessionStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        // 同上：临时故障（断网、超时、5xx）保留登录态，只有 4xx 才判定为失效。
+        const status = (refreshError as AxiosError)?.response?.status;
+        if (status && status >= 400 && status < 500) {
+          sessionStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          redirectToLogin();
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -432,7 +432,12 @@ const CSDispatchView: React.FC = () => {
     let result = poolOrders;
     if (gameSearch) result = result.filter((o) => o.gameName?.toLowerCase().includes(gameSearch.toLowerCase()));
     if (urgencyFilter) result = result.filter((o) => (o as any).customFields?.urgency === urgencyFilter);
-    return result;
+    // 抢单池永远是「新单在最上面」。服务端已经按发布时间倒序返回，
+    // 这里再排一次是为了不依赖接口顺序：以前这页直接用服务端顺序（最老的在前），
+    // 结果客服在派单工作台看到自己刚发的单掉到列表最底部。
+    return [...result].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }, [poolOrders, gameSearch, urgencyFilter]);
 
   // 店长/客服在派单工作台也要能直接看到“自己发布的订单”，
@@ -769,7 +774,10 @@ const CSDispatchView: React.FC = () => {
         </Col>
 
         {/* Center: Order Pool */}
-        <Col flex="1 1 auto" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        {/* basis 必须是 0：行内容（订单信息那一长串）比列宽还宽时，flex-basis:auto
+            会把这一列顶到 Row 的下一行，「订单池」整块就掉到人员列表下面去了。
+            锁成 0 + minWidth:0，让它老老实实占右边剩余宽度，内容自己在内部换行。 */}
+        <Col flex="1 1 0%" style={{ minWidth: 0, maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           <div style={{ position: 'relative', marginBottom: 12 }}>
             {/* Order pool header */}
             <div
@@ -870,16 +878,28 @@ const CSDispatchView: React.FC = () => {
                             borderBottom: '1px solid #f0f0f0',
                             fontSize: 13,
                             color: '#1f2329',
-                            whiteSpace: 'nowrap',
                           }}
                         >
-                          {fields.map((t, i) => (
-                            <React.Fragment key={i}>
-                              {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
-                              <span>{t}</span>
-                            </React.Fragment>
-                          ))}
-                          <span style={{ flex: 1 }} />
+                          {/* 字段区自己换行，不要靠 nowrap 把行撑宽（撑宽会把整列挤到下一行） */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              gap: '4px 10px',
+                              flex: '1 1 auto',
+                              minWidth: 0,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {fields.map((t, i) => (
+                              <React.Fragment key={i}>
+                                {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
+                                <span>{t}</span>
+                              </React.Fragment>
+                            ))}
+                          </div>
+                          <div style={{ flexShrink: 0 }}>
                           {user?.role === 'COMPANION' ? (
                             <Space size={8}>
                               <Button
@@ -948,6 +968,7 @@ const CSDispatchView: React.FC = () => {
                               </Space>
                             )
                           )}
+                          </div>
                         </div>
                       </List.Item>
                     );

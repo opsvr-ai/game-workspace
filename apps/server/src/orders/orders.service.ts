@@ -351,7 +351,10 @@ export class OrdersService implements OnModuleInit {
         csUser: { select: { username: true, avatar: true, displayName: true, role: true } },
         studio: { select: { name: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      // 抢单池统一按发布时间倒序：新单排在最上面。
+      // 之前这里是 asc，接口返回最老的单在前，凡是没在前端再排一次的页面
+      // （派单工作台的订单池）就会出现「新发布的单跑到最底部」。
+      orderBy: { createdAt: 'desc' },
     });
 
     // 已过消失时间、标记为待客服处理的订单不再出现在抢单池；
