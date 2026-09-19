@@ -575,10 +575,35 @@ const OrdersPage: React.FC = () => {
       ),
     },
     {
-      title: '主陪',
+      title: '主陪 / 接单工作室',
       key: 'companion',
-      width: 92,
-      render: (_: unknown, o: any) => o.companion?.user?.username || '-',
+      width: 124,
+      render: (_: unknown, o: any) => {
+        const name = o.companion?.user?.username || '-';
+        const studio = o.companion?.studio;
+        if (!studio?.name) return name;
+        // 订单上的 studioId 是发布方；两者不一致就是桥接工作室接的单
+        const isBridged = !!o.studioId && o.studioId !== studio.id;
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <div>{name}</div>
+            <Tooltip
+              title={
+                isBridged
+                  ? `桥接工作室接单：本单由${o.studio?.name || '发布方'}发布，${studio.name}的陪玩接单`
+                  : `${studio.name} 的陪玩接单`
+              }
+            >
+              <Tag
+                color={isBridged ? 'purple' : 'default'}
+                style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}
+              >
+                {isBridged ? `桥接·${studio.name}` : studio.name}
+              </Tag>
+            </Tooltip>
+          </div>
+        );
+      },
     },
     {
       title: '副陪',

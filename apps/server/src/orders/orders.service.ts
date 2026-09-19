@@ -427,7 +427,16 @@ export class OrdersService implements OnModuleInit {
         customer: true,
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
-        companion: { include: { user: { select: { id: true, username: true, avatar: true, displayName: true } } } },
+        // 发布方工作室：和接单陪玩的工作室对照，能看出是不是桥接工作室接的单
+        studio: { select: { id: true, name: true } },
+        // 接单陪玩所属工作室：桥接工作室接单时，订单上的 studioId 仍是发布方，
+        // 客服要靠这一层才能看出「这单是谁家接的」。
+        companion: {
+          include: {
+            user: { select: { id: true, username: true, avatar: true, displayName: true } },
+            studio: { select: { id: true, name: true } },
+          },
+        },
         coCompanion: { include: { user: { select: { username: true } } } },
         sessions: {
           orderBy: { seq: 'desc' },
