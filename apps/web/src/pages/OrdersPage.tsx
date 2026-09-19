@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Typography,
   Button,
@@ -13,16 +14,17 @@ import {
   Input,
   Tooltip,
   Space,
+  Table,
+  Card,
 } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
-import OrderRow from '../components/OrderRow';
 import CreateOrderModal from '../components/CreateOrderModal';
 import ChatModal from '../components/ChatModal';
-import { orderStatusConfig } from '../constants';
+import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
 
@@ -32,11 +34,19 @@ const { Option } = Select;
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
+  const navigate = useNavigate();
+
+  // 陪玩点「添加成功 / 客户已同意」后，直接进入客户管理接着打首单；
+  // 客服/店长一次要处理一批单，保持原地刷新，不跳走。
+  const gotoCustomersAfterAdd = () => {
+    if (isCompanion) navigate('/companion/customers');
+  };
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -45,6 +55,16 @@ const OrdersPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [chatPartner, setChatPartner] = useState<any>(null);
+  const [refundOrder, setRefundOrder] = useState<any>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+
+  const canEditOrder = (r: any) => {
+    if (!user || user.role === 'COMPANION' || r.dispatchType !== 'POOL' || r.status === 'CANCELLED') return false;
+    if (user.role === 'CS') return r.csUserId === user.id;
+    if (user.role === 'ADMIN') return r.studioId === user.studioId;
+    return user.role === 'OWNER';
+  };
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -62,6 +82,12 @@ const OrdersPage: React.FC = () => {
 
   useEffect(() => {
     fetch();
+  }, [fetch]);
+
+  useEffect(() => {
+    const refreshOrders = () => fetch();
+    window.addEventListener('chunlv:order-pool-updated', refreshOrders);
+    return () => window.removeEventListener('chunlv:order-pool-updated', refreshOrders);
   }, [fetch]);
 
   // Companion-only action buttons
@@ -288,9 +314,30 @@ const OrdersPage: React.FC = () => {
 
   // 所有角色统一的右侧操作：沟通 + 添加成功/添加失败
   const renderAddActions = (r: any) => {
+    const chatTarget = isCompanion
+      ? r.csUser
+        ? {
+            id: r.csUser.id,
+            username: r.csUser.username || '未知',
+            displayName: r.csUser.displayName,
+            avatar: r.csUser.avatar,
+            role: r.csUser.role || 'CS',
+          }
+        : null
+      : r.companion
+        ? {
+            id: r.companion.user?.id || r.companion.id,
+            username: r.companion.user?.username || r.companion.id,
+            displayName: r.companion.user?.displayName || r.companion.user?.username || '陪玩',
+            avatar: r.companion.user?.avatar,
+            role: 'COMPANION',
+          }
+        : null;
+    const isCoCompanion = !!r.coCompanionId && r.companionId !== user?.companionId;
+
     return (
       <Space size={4}>
-        {r.csUser?.id && (
+        {chatTarget && (
           <Badge count={unreadMap[r.id] || 0} size="small">
             <Button
               size="small"
@@ -300,7 +347,6 @@ const OrdersPage: React.FC = () => {
                   const { [r.id]: _, ...rest } = prev;
                   return rest;
                 });
-                const csUser = r.csUser;
                 const orderInfo = [
                   `📋 ${r.gameName}`,
                   `¥${Number(r.amount).toFixed(0)}`,
@@ -309,24 +355,24 @@ const OrdersPage: React.FC = () => {
                   .filter(Boolean)
                   .join(' · ');
                 useChatStore.getState().openConversation(
-                  csUser.id,
+                  chatTarget.id,
                   {
-                    userId: csUser.id,
-                    username: csUser.username || '未知',
-                    displayName: csUser.displayName,
-                    avatar: csUser.avatar,
-                    role: csUser.role || 'CS',
+                    userId: chatTarget.id,
+                    username: chatTarget.username,
+                    displayName: chatTarget.displayName,
+                    avatar: chatTarget.avatar,
+                    role: chatTarget.role,
                   },
                   orderInfo,
                 );
                 setChatPartner({
-                  conversationId: csUser.id,
+                  conversationId: chatTarget.id,
                   participant: {
-                    userId: csUser.id,
-                    username: csUser.username || '未知',
-                    displayName: csUser.displayName,
-                    avatar: csUser.avatar,
-                    role: csUser.role || 'CS',
+                    userId: chatTarget.id,
+                    username: chatTarget.username,
+                    displayName: chatTarget.displayName,
+                    avatar: chatTarget.avatar,
+                    role: chatTarget.role,
                   },
                   orderInfo,
                 });
@@ -336,27 +382,10 @@ const OrdersPage: React.FC = () => {
             </Button>
           </Badge>
         )}
-        {r.contactStatus === 'added' ? (
-          <Tag color="green">已添加</Tag>
-        ) : r.contactStatus === 'not_accepted' ? (
-          <Button
-            size="small"
-            type="primary"
-            style={{ background: '#16A34A', borderColor: '#16A34A' }}
-            onClick={async () => {
-              try {
-                await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                message.success('已标记为客户同意');
-                fetch();
-              } catch (e: any) {
-                message.error(extractErrorMessage(e, '操作失败'));
-              }
-            }}
-          >
-            客户已同意
-          </Button>
-        ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
-          <>
+        {!isCoCompanion && (
+          r.contactStatus === 'added' ? (
+            <Tag color="green">已添加</Tag>
+          ) : r.contactStatus === 'not_accepted' ? (
             <Button
               size="small"
               type="primary"
@@ -364,34 +393,87 @@ const OrdersPage: React.FC = () => {
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                  message.success('已添加成功');
+                  message.success('已标记为客户同意');
                   fetch();
+                  gotoCustomersAfterAdd();
                 } catch (e: any) {
                   message.error(extractErrorMessage(e, '操作失败'));
                 }
               }}
             >
-              ✅ 添加成功
+              客户已同意
             </Button>
-            <Button
-              size="small"
-              danger
-              onClick={async () => {
-                try {
-                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
-                  message.success('已标记添加失败');
-                  fetch();
-                } catch (e: any) {
-                  message.error(extractErrorMessage(e, '操作失败'));
-                }
-              }}
-            >
-              ❌ 添加失败
+          ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                style={{ background: '#16A34A', borderColor: '#16A34A' }}
+                onClick={async () => {
+                  try {
+                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                    message.success('已添加成功');
+                    fetch();
+                    gotoCustomersAfterAdd();
+                  } catch (e: any) {
+                    message.error(extractErrorMessage(e, '操作失败'));
+                  }
+                }}
+              >
+                ✅ 添加成功
+              </Button>
+              <Button
+                size="small"
+                danger
+                onClick={async () => {
+                  try {
+                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
+                    message.success('已标记添加失败');
+                    fetch();
+                  } catch (e: any) {
+                    message.error(extractErrorMessage(e, '操作失败'));
+                  }
+                }}
+              >
+                ❌ 添加失败
+              </Button>
+            </>
+          ) : null
+        )}
+        {!isCompanion && r.status !== 'CANCELLED' && (
+          <>
+            {canEditOrder(r) && (
+              <Button size="small" icon={React.createElement(EditOutlined)} onClick={() => setEditingOrder(r)}>
+                修改
+              </Button>
+            )}
+            <Button size="small" danger onClick={() => { setRefundOrder(r); setRefundReason(''); }}>
+              退款
             </Button>
           </>
-        ) : null}
+        )}
       </Space>
     );
+  };
+
+  const submitRefund = async () => {
+    if (!refundOrder) return;
+    if (!refundReason.trim()) {
+      message.warning('请填写退款原因');
+      return;
+    }
+    setRefundSubmitting(true);
+    try {
+      await http.post(`/orders/${refundOrder.id}/refund`, { reason: refundReason.trim() });
+      message.success('已退款，该订单不再计入利润与提成');
+      setRefundOrder(null);
+      setRefundReason('');
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '退款失败'));
+    } finally {
+      setRefundSubmitting(false);
+    }
   };
 
   const sorted = [...orders]
@@ -418,6 +500,124 @@ const OrdersPage: React.FC = () => {
       if (!companionFilter) return true;
       return o.companionId === companionFilter;
     });
+
+  const columns = [
+    {
+      title: '订单',
+      dataIndex: 'orderCode',
+      key: 'orderCode',
+      width: 88,
+      render: (_: unknown, o: any) => o.orderCode || o.id.slice(0, 8),
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 76,
+      render: (_: unknown, o: any) => (
+        <Tag color={orderTypeConfig[o.type]?.color || 'blue'} style={{ margin: 0 }}>
+          {orderTypeConfig[o.type]?.label || o.type}
+        </Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 86,
+      render: (_: unknown, o: any) => (
+        <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
+          {orderStatusConfig[o.status]?.label || o.status}
+        </Tag>
+      ),
+    },
+    {
+      title: '游戏',
+      dataIndex: 'gameName',
+      key: 'gameName',
+      width: 110,
+    },
+    {
+      title: '服务',
+      dataIndex: 'serviceType',
+      key: 'serviceType',
+      width: 80,
+      render: (_: unknown, o: any) => serviceTypeConfig[o.serviceType]?.label || '陪玩',
+    },
+    {
+      title: '单/双',
+      key: 'deltaCount',
+      width: 60,
+      render: (_: unknown, o: any) => o.customFields?.deltaCount || '单',
+    },
+    {
+      title: '任务',
+      key: 'deltaMission',
+      width: 76,
+      render: (_: unknown, o: any) => o.customFields?.deltaMission || '-',
+    },
+    {
+      title: '金额',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 84,
+      align: 'right' as const,
+      render: (_: unknown, o: any) => `¥${Number(o.amount).toFixed(0)}`,
+    },
+    {
+      title: '打单时间',
+      key: 'urgency',
+      width: 82,
+      render: (_: unknown, o: any) => (
+        <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0 }}>
+          {urgencyConfig[o.customFields?.urgency]?.label || '立即'}
+        </Tag>
+      ),
+    },
+    {
+      title: '主陪',
+      key: 'companion',
+      width: 92,
+      render: (_: unknown, o: any) => o.companion?.user?.username || '-',
+    },
+    {
+      title: '副陪',
+      key: 'coCompanion',
+      width: 92,
+      render: (_: unknown, o: any) => o.coCompanion?.user?.username || '-',
+    },
+    {
+      title: '客户微信',
+      key: 'customerWechat',
+      width: 140,
+      render: (_: unknown, o: any) => o.customFields?.customerWechat || o.customer?.wechatId || '-',
+    },
+    {
+      title: '来源',
+      key: 'customerSource',
+      width: 92,
+      render: (_: unknown, o: any) => o.customFields?.customerSource || o.customer?.platform || '-',
+    },
+    {
+      title: '发布时间',
+      key: 'createdAt',
+      width: 150,
+      render: (_: unknown, o: any) => new Date(o.grabbedAt || o.createdAt).toLocaleString('zh-CN', { hour12: false }),
+    },
+    {
+      title: '发布人',
+      key: 'csUser',
+      width: 88,
+      render: (_: unknown, o: any) => o.csUser?.username || '-',
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      fixed: 'right' as const,
+      width: 280,
+      render: (_: unknown, o: any) => renderAddActions(o),
+    },
+  ];
 
   return (
     <>
@@ -519,16 +719,18 @@ const OrdersPage: React.FC = () => {
         {loading && orders.length === 0 ? (
           <TableSkeleton columns={5} rows={5} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {sorted.map((r, idx) => (
-              <OrderRow
-                key={r.id}
-                order={r}
-                index={idx}
-                renderActions={renderAddActions}
-              />
-            ))}
-          </div>
+          <Card size="small" style={{ overflow: 'auto' }}>
+            <Table
+              className="orders-table"
+              rowKey="id"
+              columns={columns as any}
+              dataSource={sorted}
+              size="small"
+              pagination={false}
+              scroll={{ x: 1280 }}
+              locale={{ emptyText: '暂无订单' }}
+            />
+          </Card>
         )}
         <Modal
           title="归属调整"
@@ -619,21 +821,47 @@ const OrdersPage: React.FC = () => {
         </Modal>
       </div>
       <CreateOrderModal
-        open={createOpen}
+        open={createOpen || !!editingOrder}
         onClose={() => {
           setCreateOpen(false);
           setPreFill(null);
+          setEditingOrder(null);
         }}
         onCreated={() => {
-          message.success('订单已创建');
+          message.success(editingOrder ? '订单信息已更新' : '订单已创建');
           fetch();
           setCreateOpen(false);
           setPreFill(null);
+          setEditingOrder(null);
         }}
         userId={user?.id}
+        editingOrder={editingOrder || undefined}
         customerPreFill={preFill || undefined}
       />
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
+      <Modal
+        title="退款"
+        open={!!refundOrder}
+        onOk={submitRefund}
+        onCancel={() => setRefundOrder(null)}
+        okText="确认退款"
+        cancelText="取消"
+        confirmLoading={refundSubmitting}
+      >
+        <div style={{ marginTop: 8 }}>
+          <Text>
+            确认对订单 <Text strong>{refundOrder?.gameName}</Text> 退款？退款后该订单不计入利润与客服提成。
+          </Text>
+          <Text strong style={{ display: 'block', marginTop: 12 }}>退款原因（必填）</Text>
+          <Input.TextArea
+            rows={3}
+            value={refundReason}
+            onChange={(e) => setRefundReason(e.target.value)}
+            placeholder="例如：客户不满意要求退款 / 未按时开始"
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
     </>
   );
 };

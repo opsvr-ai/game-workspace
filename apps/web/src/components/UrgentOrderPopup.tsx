@@ -82,6 +82,10 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
                     const r = await ordersApi.quickGrab(urgentOrder.id);
                     setUrgentGrabbed(r.data.data || urgentOrder);
                     setUrgentOrder(null);
+                    // 抢到后直接进入订单管理，方便接着加客户微信、打首单。
+                    // 成功卡片仍在上层浮着（里面有客户微信和房间码），
+                    // 关掉它时人已经站在订单管理页了。
+                    navigate('/companion/orders');
                   } catch (e: any) {
                     message.error(e?.response?.data?.message || '已被其他陪玩抢先');
                     setUrgentOrder(null);
