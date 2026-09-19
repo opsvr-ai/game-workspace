@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useCallback } from 'react';
-import { message } from 'antd';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Input, message, Modal } from 'antd';
 import { useChatStore, type Message } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
@@ -13,7 +13,7 @@ import MessageContextMenu from './MessageContextMenu';
 interface ChatPanelProps {
   roomId?: string;
   participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
-  orderInfo?: string;
+  orderInfo?: string | null;
   embedded?: boolean;
   onClose?: () => void;
 }
@@ -26,12 +26,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
   const participantName = participant?.displayName || participant?.username || '...';
   const participantAvatar = participant?.avatar ? `/uploads/avatars/${participant.avatar}?v=${participant.avatar}` : undefined;
   const myAvatar = user?.avatar ? `/uploads/avatars/${user.avatar}?v=${user.avatar}` : undefined;
+  const isGroupRoom = !!(conv?.isGroup || participant?.role === 'GROUP');
+  // 群聊广播：只有客服/店长/老板能发（陪玩只能收）
+  const canBroadcast = isGroupRoom && ['CS', 'ADMIN', 'OWNER'].includes(user?.role || '');
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: Message } | null>(null);
   const [, setReplyTarget] = useState<Message | null>(null);
+  const [groupMembers, setGroupMembers] = useState<Array<{ userId: string; username: string; displayName?: string; avatar?: string; role: string }>>([]);
+  const [mentionRequest, setMentionRequest] = useState<{ nonce: number; name: string } | null>(null);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastText, setBroadcastText] = useState('');
+  const [broadcasting, setBroadcasting] = useState(false);
+
+  useEffect(() => {
+    if (!roomId || !(conv?.isGroup || participant?.role === 'GROUP')) return;
+    chatApi
+      .getGroupMembers(roomId)
+      .then(({ data }) => {
+        setGroupMembers(data?.data?.members || []);
+      })
+      .catch(() => {});
+  }, [roomId, conv?.isGroup, participant?.role]);
+
+  const groupMemberMap = useMemo(() => {
+    const map: Record<string, { username: string; displayName?: string; avatar?: string; role: string }> = {};
+    for (const m of groupMembers) {
+      map[m.userId] = m;
+    }
+    return map;
+  }, [groupMembers]);
 
   const handleSend = useCallback(
-    async (text: string, replyToId?: string) => {
+    async (text: string, replyToId?: string, mentionUserIds?: string[]) => {
       if (!roomId) return;
       const s = useChatStore.getState();
       const tempId = `temp-${Date.now()}`;
@@ -42,7 +68,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
 
       try {
         const { data } = await chatApi.sendRoomMessage(roomId, {
-          type: 'TEXT', content: text, replyToId,
+          type: 'TEXT', content: text, replyToId, mentionUserIds,
         });
         const realMsg = data?.data?.message;
         if (realMsg) {
@@ -89,9 +115,32 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
     return undefined;
   }, []);
 
+  const handleBroadcast = useCallback(async () => {
+    const content = broadcastText.trim();
+    if (!content) {
+      message.warning('先输入要广播的内容');
+      return;
+    }
+    setBroadcasting(true);
+    try {
+      await chatApi.studioBroadcast(content);
+      message.success('广播已发出，在线陪玩电脑上会弹提醒');
+      setBroadcastOpen(false);
+      setBroadcastText('');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '广播发送失败');
+    } finally {
+      setBroadcasting(false);
+    }
+  }, [broadcastText]);
+
   const handleContextMenu = useCallback((e: React.MouseEvent, msg: Message) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
+  }, []);
+
+  const handleMentionSender = useCallback((name: string) => {
+    setMentionRequest({ nonce: Date.now(), name });
   }, []);
 
   const handleReply = useCallback((msg: Message) => {
@@ -184,7 +233,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         role={participant?.role || ''}
         userId={participant?.userId}
         avatarUrl={participantAvatar}
-        orderInfo={orderInfo || conv?.orderInfo}
+        orderInfo={orderInfo}
         pinned={conv?.pinned}
         onClose={onClose}
         onCallClick={participant?.userId ? () => {
@@ -193,12 +242,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         onTogglePin={() => {
           if (roomId) chatApi.updateRoom?.(roomId, { pinned: !conv?.pinned }).catch(() => {});
         }}
+        onBroadcast={canBroadcast ? () => setBroadcastOpen(true) : undefined}
       />
       <MessageList
         messages={messages}
         myUserId={user?.id || null}
         participantName={participantName}
         participantAvatarUrl={participantAvatar}
+        groupMemberMap={conv?.isGroup || participant?.role === 'GROUP' ? groupMemberMap : undefined}
         myAvatarUrl={myAvatar}
         typing={false}
         hasMore={conv?.hasMore ?? false}
@@ -208,8 +259,37 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         onReaction={handleReaction}
         onRemoveReaction={handleRemoveReaction}
         onContextMenu={handleContextMenu}
+        onMentionSender={handleMentionSender}
       />
-      <ChatComposer onSend={handleSend} onUpload={handleUpload} />
+      <ChatComposer
+        onSend={handleSend}
+        onUpload={handleUpload}
+        groupMembers={groupMembers}
+        mentionRequest={mentionRequest}
+      />
+      <Modal
+        title="📢 群聊广播"
+        open={broadcastOpen}
+        onCancel={() => setBroadcastOpen(false)}
+        onOk={handleBroadcast}
+        okText="发送广播"
+        cancelText="取消"
+        confirmLoading={broadcasting}
+        width={460}
+      >
+        <div style={{ fontSize: 12, color: '#949BA4', marginBottom: 8, lineHeight: 1.8 }}>
+          广播会发进本工作室群聊，并立刻弹到每个<b>在线陪玩</b>电脑的右下角（5 秒后自动消失）。
+          「某单接不接」「催上号」这类必须让人看到的消息，用广播最稳。
+        </div>
+        <Input.TextArea
+          value={broadcastText}
+          onChange={(e) => setBroadcastText(e.target.value)}
+          rows={3}
+          maxLength={200}
+          showCount
+          placeholder="例如：还有一单三角洲机密单，谁接？接的话在群里回 1"
+        />
+      </Modal>
       {contextMenu && (
         <MessageContextMenu
           x={contextMenu.x} y={contextMenu.y}

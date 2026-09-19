@@ -17,6 +17,9 @@ export interface ConversationSummary {
   unreadCount: number;
   orderInfo?: string;
   pinned?: boolean;
+  isGroup?: boolean;
+  groupName?: string;
+  groupAvatar?: string;
 }
 
 export interface ServerMessage {
@@ -26,6 +29,7 @@ export interface ServerMessage {
   content?: string;
   type?: string;
   seq?: number;
+  mentions?: string[];
   replyTo?: { id: string; type: string; content: string; senderId: string; seq: number };
   deletedAt?: string;
   attachments?: any[];
@@ -41,6 +45,11 @@ export const chatApi = {
     return http.get<{ data: { rooms: ConversationSummary[] } }>('/chat/rooms', {
       params: { pinned: pinned ? '1' : undefined, search: search || undefined },
     });
+  },
+
+  /** Get or create the current studio's group chat. */
+  getStudioGroup() {
+    return http.get<{ data: { id: string; groupName: string; isGroup: boolean } }>('/chat/studio-group');
   },
 
   /** Update room metadata (Chat 3.0) */
@@ -68,9 +77,23 @@ export const chatApi = {
       content?: string;
       attachments?: any[];
       replyToId?: string;
+      mentionUserIds?: string[];
     },
   ) {
     return http.post<{ data: { message: ServerMessage } }>(`/chat/rooms/${roomId}/messages`, data);
+  },
+
+  /**
+   * 群聊广播：客服/店长在群聊里发一条广播。
+   * 内容进群聊，同时本工作室所有在线陪玩的电脑右下角会弹 Windows 提醒（5 秒后自动消失）。
+   */
+  studioBroadcast(content: string) {
+    return http.post<{ data: { roomId: string; messageId: string } }>('/chat/studio-broadcast', { content });
+  },
+
+  /** List members of a group room (for @ mentions). */
+  getGroupMembers(roomId: string) {
+    return http.get<{ data: { members: ParticipantInfo[] } }>(`/chat/rooms/${roomId}/members`);
   },
 
   /** Mark room read (Chat 3.0) */
@@ -143,7 +166,7 @@ export const chatApi = {
     return http.get<{ data: { conversations: ConversationSummary[] } }>('/chat/conversations');
   },
 
-  createConversation(participantId: string, orderInfo?: string) {
+  createConversation(participantId: string, orderInfo?: string | null) {
     return http.post<{ data: { id: string } }>('/chat/conversations', { participantId, orderInfo });
   },
 

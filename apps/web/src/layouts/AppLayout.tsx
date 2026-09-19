@@ -4,6 +4,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, notification, Form, Input } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
+import { usePolling } from '../hooks/usePolling';
 import http from '../api/client';
 import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
@@ -20,6 +21,7 @@ import { showSystemNotification, playNotificationSound } from '../utils/notify';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { ConversationList } from '../components/ConversationList';
+import LeftMessagePanel from '../components/LeftMessagePanel';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
@@ -45,7 +47,8 @@ if (!document.getElementById('menu-sub-bg-css')) {
   const s3 = document.createElement('style');
   s3.id = 'menu-sub-bg-css';
   s3.textContent =
-    '.ant-menu.ant-menu-dark .ant-menu-sub, .ant-menu.ant-menu-dark .ant-menu-sub .ant-menu-item, .ant-menu.ant-menu-dark .ant-menu-item, .ant-menu.ant-menu-dark .ant-menu-submenu-title { background: transparent !important; }';
+    '.ant-layout-sider .ant-menu, .ant-layout-sider .ant-menu-item, .ant-menu-sub .ant-menu-item, .ant-layout-sider .ant-menu-submenu-title, .ant-layout-sider .ant-menu-item:hover, .ant-layout-sider .ant-menu-item-active, .ant-layout-sider .ant-menu-item-selected, .ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title, .ant-layout-sider .ant-menu-submenu-title:hover { background: transparent !important; background-color: transparent !important; } ' +
+    '.ant-layout-sider .ant-menu-sub, .ant-layout-sider .ant-menu-submenu > .ant-menu, .ant-layout-sider .ant-menu-inline .ant-menu-sub, .ant-menu-dark .ant-menu-sub, .ant-menu-dark .ant-menu-submenu-popup, .ant-menu-dark .ant-menu-submenu > .ant-menu { background: #0b1024 !important; background-color: #0b1024 !important; }';
   document.head.appendChild(s3);
 }
 
@@ -70,6 +73,7 @@ import {
   MenuUnfoldOutlined,
   ClockCircleOutlined,
   BellOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
@@ -117,28 +121,39 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-home', icon: IconDashboard, label: '首页',
       children: [
         { key: '/admin', label: '数据看板' },
-        { key: '/admin/analytics', label: '动态分析' },
-        { key: '/owner/stats', label: '每日统计' },
+      ],
+    },
+    {
+      key: 'owner-dispatch', icon: IconDispatch, label: '派单管理',
+      children: [
+        { key: '/admin/dispatch', label: '派单工作台' },
       ],
     },
     {
       key: 'owner-orders', icon: IconOrders, label: '订单管理',
       children: [
-        { key: '/admin/dispatch', label: '派单工作台' },
         { key: '/owner/orders', label: '全部订单' },
       ],
     },
     {
       key: 'owner-customers', icon: IconCustomers, label: '客户管理',
-      children: [{ key: '/owner/customers', label: '客户列表' }],
+      children: [
+        { key: '/owner/customers', label: '客户列表' },
+      ],
     },
     {
       key: 'owner-employees', icon: IconEmployees, label: '员工管理',
       children: [
-        { key: '/owner/employees?role=ADMIN', label: '店长管理' },
+        {
+          key: 'owner-admin-mgmt', label: '店长管理',
+          children: [
+            { key: '/owner/employees?role=ADMIN', label: '店长列表' },
+          ],
+        },
         {
           key: 'owner-companion-mgmt', label: '陪玩管理',
           children: [
+            { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
             { key: '/owner/work-wechats?type=COMPANION', label: '陪玩工作微信' },
             { key: '/admin/battle-screenshots', label: '战绩图审核' },
           ],
@@ -146,8 +161,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: 'owner-cs-mgmt', label: '客服管理',
           children: [
+            { key: '/owner/employees?role=CS', label: '客服列表' },
             { key: '/owner/work-wechats?type=STUDIO', label: '客服工作微信' },
-            { key: '/admin/traffic-accounts', label: '引流账号管理' },
+            { key: '/admin/traffic-accounts', label: '工作室账号管理' },
+            { key: '/content-check', label: '内容查重风控' },
           ],
         },
         { key: '/owner/review', label: '实名审核' },
@@ -157,26 +174,53 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'owner-finance', icon: IconRevenue, label: '财务管理',
       children: [
-        { key: '/admin/billing', label: '报账系统' },
-        { key: '/admin/finance/money-reconciliation', label: '资金对账' },
-        { key: '/admin/finance/reconciliation', label: '到账对账' },
-        { key: '/admin/finance/expenses', label: '支出/支取审核' },
-        { key: '/admin/finance/settlement', label: '月度分成' },
-        { key: '/admin/finance/commission', label: '提成结算' },
-        { key: '/admin/finance/price-rules', label: '价格规则' },
-        { key: '/admin/payroll', label: '工资管理' },
-        { key: '/admin/profit-split', label: '利润分成' },
-        { key: '/admin/finance/risk', label: '风险工作台' },
+        { key: '/admin/profit-calendar', label: '财务中心' },
+        {
+          key: 'owner-companion-salary', label: '陪玩工资管理',
+          children: [
+            { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
+            {
+              key: 'owner-companion-reconciliation', label: '陪玩报账对账',
+              children: [
+                { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
+                { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
+              ],
+            },
+            { key: '/admin/finance/risk', label: '打私单风险' },
+          ],
+        },
+        {
+          key: 'owner-cs-finance', label: '客服财务管理',
+          children: [
+            {
+              key: 'owner-cs-commission', label: '客服提成',
+              children: [
+                { key: '/admin/finance/commission-today', label: '今日看板' },
+                { key: '/admin/finance/commission', label: '月度结算' },
+              ],
+            },
+            { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+          ],
+        },
       ],
     },
     {
-      key: 'owner-settings', icon: IconAuth, label: '设置',
+      key: 'owner-shop', icon: IconStudios, label: '店铺管理',
+      children: [
+        { key: '/owner/studios', label: '工作室管理' },
+        { key: '/owner/bridges', label: '工作室桥接' },
+        { key: '/owner/authorizations', label: '客户端授权' },
+      ],
+    },
+    {
+      key: 'owner-settings', icon: IconAuth, label: '设置中心',
       children: [
         { key: '/owner/settings', label: '系统配置' },
-        { key: '/owner/studios', label: '工作室管理' },
-        { key: '/owner/authorizations', label: '客户端授权' },
-        { key: '/owner/work-wechats', label: '工作微信' },
-        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/cs-settings', label: '客服设置' },
+        { key: '/admin/store-manager-settings', label: '店长设置' },
+        { key: '/admin/payroll', label: '工资规则' },
+        { key: '/admin/profit-split', label: '利润分成' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
@@ -190,28 +234,33 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-home', icon: IconDashboard, label: '首页',
       children: [
         { key: '/admin', label: '数据看板' },
-        { key: '/admin/analytics', label: '动态分析' },
-        { key: '/admin/stats', label: '每日统计' },
+      ],
+    },
+    {
+      key: 'admin-dispatch', icon: IconDispatch, label: '派单管理',
+      children: [
+        { key: '/admin/dispatch', label: '派单工作台' },
       ],
     },
     {
       key: 'admin-orders', icon: IconOrders, label: '订单管理',
       children: [
-        { key: '/admin/dispatch', label: '派单工作台' },
         { key: '/admin/orders', label: '全部订单' },
       ],
     },
     {
       key: 'admin-customers', icon: IconCustomers, label: '客户管理',
-      children: [{ key: '/admin/customers', label: '客户列表' }],
+      children: [
+        { key: '/admin/customers', label: '客户列表' },
+      ],
     },
     {
       key: 'admin-employees', icon: IconEmployees, label: '员工管理',
       children: [
-        { key: '/admin/employees?role=CS', label: '店长/客服' },
         {
           key: 'admin-companion-mgmt', label: '陪玩管理',
           children: [
+            { key: '/admin/companions?role=COMPANION', label: '陪玩列表' },
             { key: '/admin/work-wechats?type=COMPANION', label: '陪玩工作微信' },
             { key: '/admin/battle-screenshots', label: '战绩图审核' },
           ],
@@ -219,8 +268,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: 'admin-cs-mgmt', label: '客服管理',
           children: [
+            { key: '/admin/employees?role=CS', label: '客服列表' },
             { key: '/admin/work-wechats?type=STUDIO', label: '客服工作微信' },
-            { key: '/admin/traffic-accounts', label: '引流账号管理' },
+            { key: '/admin/traffic-accounts', label: '工作室账号管理' },
+            { key: '/content-check', label: '内容查重风控' },
           ],
         },
         { key: '/admin/review', label: '实名审核' },
@@ -230,25 +281,46 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'admin-finance', icon: IconRevenue, label: '财务管理',
       children: [
-        { key: '/admin/billing', label: '报账系统' },
-        { key: '/admin/finance/money-reconciliation', label: '资金对账' },
-        { key: '/admin/finance/reconciliation', label: '到账对账' },
-        { key: '/admin/finance/expenses', label: '支出/支取审核' },
-        { key: '/admin/finance/settlement', label: '月度分成' },
-        { key: '/admin/finance/commission', label: '提成结算' },
-        { key: '/admin/finance/price-rules', label: '价格规则' },
-        { key: '/admin/payroll', label: '工资管理' },
-        { key: '/admin/profit-split', label: '利润分成' },
-        { key: '/admin/finance/risk', label: '风险工作台' },
+        { key: '/admin/profit-calendar', label: '财务中心' },
+        {
+          key: 'admin-companion-salary', label: '陪玩工资管理',
+          children: [
+            { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
+            {
+              key: 'admin-companion-reconciliation', label: '陪玩报账对账',
+              children: [
+                { key: '/admin/finance/reconciliation', label: '应报 vs 实报' },
+                { key: '/admin/companion-wallet-calendar', label: '报账与支取日历' },
+              ],
+            },
+            { key: '/admin/finance/risk', label: '打私单风险' },
+          ],
+        },
+        {
+          key: 'admin-cs-finance', label: '客服财务管理',
+          children: [
+            {
+              key: 'admin-cs-commission', label: '客服提成',
+              children: [
+                { key: '/admin/finance/commission-today', label: '今日看板' },
+                { key: '/admin/finance/commission', label: '月度结算' },
+              ],
+            },
+            { key: '/admin/cs-wechat-flow', label: '客服微信收款明细' },
+          ],
+        },
       ],
     },
     {
-      key: 'admin-settings', icon: IconAuth, label: '设置',
+      key: 'admin-settings', icon: IconAuth, label: '设置中心',
       children: [
         { key: '/admin/settings', label: '系统配置' },
         { key: '/owner/bridges', label: '工作室桥接' },
-        { key: '/admin/work-wechats', label: '工作微信' },
-        { key: '/admin/pc-control', label: '远程控制' },
+        { key: '/admin/cs-settings', label: '客服设置' },
+        { key: '/admin/store-manager-settings', label: '店长设置' },
+        { key: '/admin/payroll', label: '工资规则' },
+        { key: '/admin/profit-split', label: '利润分成' },
+        { key: '/admin/finance/price-rules', label: '价格规则' },
         { key: '/admin/managed-pcs', label: '电脑管理' },
         { key: '/admin/blacklist', label: '进程黑名单' },
         { key: '/admin/whitelist', label: '进程白名单' },
@@ -259,38 +331,61 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   ],
   [UserRole.CS]: [
     {
-      key: 'cs-dispatch', icon: IconDispatch, label: '客服工作台',
-      children: [{ key: '/cs/dispatch', label: '派单 / 待处理 / 跟进' }],
+      key: 'cs-home', icon: IconDashboard, label: '首页',
+      children: [{ key: '/cs/stats', label: '每日统计' }],
+    },
+    {
+      key: 'cs-dispatch', icon: IconDispatch, label: '派单管理',
+      children: [{ key: '/cs/dispatch', label: '派单工作台' }],
     },
     {
       key: 'cs-orders', icon: IconOrders, label: '订单管理',
       children: [{ key: '/cs/orders', label: '全部订单' }],
     },
     {
-      key: 'cs-customers', icon: IconCustomers, label: '客户 / 陪玩',
+      key: 'cs-customers', icon: IconCustomers, label: '客户管理',
       children: [
-        { key: '/cs/employees', label: '人员管理' },
-        { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+        { key: '/cs/customers', label: '客户列表' },
+      ],
+    },
+    {
+      key: 'cs-employees', icon: IconEmployees, label: '员工管理',
+      children: [
+        {
+          key: 'cs-companion-mgmt', label: '陪玩管理',
+          children: [
+            { key: '/cs/employees', label: '人员管理' },
+            { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+          ],
+        },
+        {
+          key: 'cs-cs-mgmt', label: '客服管理',
+          children: [
+            { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
+            { key: '/cs/traffic-accounts', label: '工作室账号管理' },
+            { key: '/content-check', label: '内容查重风控' },
+          ],
+        },
       ],
     },
     {
       key: 'cs-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/cs/billing', label: '报账系统' },
-        { key: '/cs/finance/money-reconciliation', label: '资金对账' },
-        { key: '/cs/finance/reconciliation', label: '到账对账' },
       ],
     },
     {
-      key: 'cs-work', icon: IconEmployees, label: '客服工作',
+      key: 'cs-settings', icon: IconAuth, label: '设置',
       children: [
-        { key: '/cs/work-wechats?type=STUDIO', label: '客服工作微信' },
-        { key: '/cs/traffic-accounts', label: '引流账号管理' },
+        { key: '/profile', label: '个人设置' },
       ],
     },
   ],
   [UserRole.COMPANION]: [
-    { key: '/companion', icon: IconDashboard, label: '首页' },
+    {
+      key: 'companion-home', icon: IconDashboard, label: '首页',
+      children: [{ key: '/companion', label: '我的首页' }],
+    },
     {
       key: 'companion-dispatch', icon: IconDispatch, label: '派单管理',
       children: [{ key: '/companion/pool', label: '订单池' }],
@@ -311,8 +406,13 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'companion-finance', icon: IconRevenue, label: '财务管理',
       children: [
         { key: '/companion/billing', label: '报账系统' },
+        { key: '/companion/wallet-calendar', label: '报账与支取日历' },
         { key: '/companion/stats', label: '每日统计' },
       ],
+    },
+    {
+      key: 'companion-settings', icon: IconAuth, label: '设置',
+      children: [{ key: '/profile', label: '个人设置' }],
     },
   ],
 };
@@ -346,11 +446,15 @@ function loadSeenCount(key: string): number {
 
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [isCompact, setIsCompact] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= 1080);
+  const [messagePanelCollapsed, setMessagePanelCollapsed] = React.useState(true);
   const { user, isAuthenticated, fetchUser, logout } = useAuthStore();
   const [studioBrand, setStudioBrand] = React.useState<{ name: string; logo?: string } | null>(null);
   const [appVersion, setAppVersion] = React.useState('');
   const [webBuild, setWebBuild] = React.useState('');
   const [myCommission, setMyCommission] = React.useState<number | null>(null);
+  const [mySalary, setMySalary] = React.useState<any>(null);
+  const [salaryOpen, setSalaryOpen] = React.useState(false);
   const isCsClient = typeof window !== 'undefined'
     && !!(window as any).electronAPI
     && !(window as any).electronAPI?.getSavedCredentials
@@ -378,8 +482,11 @@ const AppLayout: React.FC = () => {
       .catch(() => {});
   };
   send();
-  const timer = setInterval(send, 10_000);
-    return () => clearInterval(timer);
+  // 前端版本检查：从 10 秒放宽到 60 秒，切后台/最小化时不检查。
+  const timer = setInterval(() => {
+    if (document.visibilityState === 'visible') send();
+  }, 60_000);
+  return () => clearInterval(timer);
   }, [appVersion]);
   useEffect(() => {
     if (user?.role === 'CS') {
@@ -389,6 +496,10 @@ const AppLayout: React.FC = () => {
           const rows = data?.data?.rows;
           setMyCommission(rows?.[0]?.totalYuan ?? 0);
         })
+        .catch(() => {});
+      http
+        .get('/finance/commission/my-salary')
+        .then(({ data }: any) => setMySalary(data?.data || null))
         .catch(() => {});
     }
   }, [user?.role]);
@@ -416,10 +527,27 @@ const AppLayout: React.FC = () => {
       }).catch(() => {});
     };
     report();
-    const timer = setInterval(report, 60_000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') report();
+    }, 60_000);
     return () => clearInterval(timer);
   }, [user?.id, user?.role]);
   const totalUnread = useChatStore((s) => s.totalUnread);
+  const conversations = useChatStore((s) => s.conversations);
+  const conversationOrder = useChatStore((s) => s.conversationOrder);
+  const groupUnread = useMemo(
+    () =>
+      conversationOrder.reduce((sum, id) => {
+        const conv = conversations[id];
+        if (conv && (conv.isGroup || conv.participant?.role === 'GROUP')) {
+          return sum + (conv.unreadCount || 0);
+        }
+        return sum;
+      }, 0),
+    [conversations, conversationOrder],
+  );
+  // 群聊未读只展示在左侧消息面板，不再计入铃铛和导航聊天角标。
+  const directUnread = Math.max(0, totalUnread - groupUnread);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
 
@@ -429,7 +557,7 @@ const AppLayout: React.FC = () => {
   const [globalChatPartner, setGlobalChatPartner] = React.useState<{
     conversationId: string;
     participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
-    orderInfo?: string;
+    orderInfo?: string | null;
   } | null>(null);
   // Badge: raw count from API, with seen-tracking via ref (not state)
   const [pendingBadge, setPendingBadge] = React.useState(0);
@@ -451,7 +579,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
   }, [user?.role, user?.id]);
 
@@ -476,7 +604,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
   }, [user?.role, user?.id]);
 
@@ -500,7 +628,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
   }, [user?.role, user?.id]);
 
@@ -520,7 +648,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
   }, [user?.role]);
 
@@ -583,7 +711,7 @@ const AppLayout: React.FC = () => {
       } catch {}
     };
     doFetch();
-    const t = setInterval(doFetch, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
   }, [user?.role, user?.id]);
 
@@ -592,6 +720,40 @@ const AppLayout: React.FC = () => {
     setContactBadge((prev) => {
       const total = prev + contactSeenRef.current;
       contactSeenRef.current = total;
+      localStorage.setItem(seenKey, String(total));
+      return 0;
+    });
+  };
+
+  // 陪玩待开始订单角标：已抢单/已确认但还没点首单的订单数（订单管理菜单红点）
+  const [pendingStartBadge, setPendingStartBadge] = React.useState(0);
+  const pendingStartSeenRef = React.useRef(0);
+
+  useEffect(() => {
+    if (user?.role !== 'COMPANION') return;
+    const seenKey = `pending-start-seen-${user?.id || 'anon'}`;
+    pendingStartSeenRef.current = loadSeenCount(seenKey);
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/orders/pending-start');
+        const total = (data?.data || []).length;
+        if (pendingStartSeenRef.current > total) {
+          pendingStartSeenRef.current = total;
+          localStorage.setItem(seenKey, String(total));
+        }
+        setPendingStartBadge(Math.max(0, total - pendingStartSeenRef.current));
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 60000);
+    return () => clearInterval(t);
+  }, [user?.role, user?.id]);
+
+  const markPendingStartSeen = () => {
+    const seenKey = `pending-start-seen-${user?.id || 'anon'}`;
+    setPendingStartBadge((prev) => {
+      const total = prev + pendingStartSeenRef.current;
+      pendingStartSeenRef.current = total;
       localStorage.setItem(seenKey, String(total));
       return 0;
     });
@@ -618,7 +780,23 @@ const AppLayout: React.FC = () => {
         username: participantName,
         role: '',
       },
+      // 从铃铛进入时不要主动清掉已有订单上下文；若是从订单沟通发起的会话，双方仍应看到该订单信息。
       orderInfo: conv?.orderInfo,
+    });
+    useChatStore.getState().markRead(conversationId);
+  }, []);
+
+  // Open the studio group chat from the persistent left-side message panel.
+  const openGroupChat = useCallback((conversationId: string, groupName: string) => {
+    const conv = useChatStore.getState().conversations[conversationId];
+    setGlobalChatPartner({
+      conversationId,
+      participant: conv?.participant || {
+        userId: '',
+        username: groupName,
+        displayName: groupName,
+        role: 'GROUP',
+      },
     });
     useChatStore.getState().markRead(conversationId);
   }, []);
@@ -647,6 +825,9 @@ const AppLayout: React.FC = () => {
   // Auto-collapse sidebar on mobile
   useEffect(() => {
     const onResize = () => {
+      const compact = window.innerWidth <= 1080;
+      setIsCompact(compact);
+      if (compact) setMessagePanelCollapsed(true);
       if (window.innerWidth <= 768) {
         setCollapsed(true);
       }
@@ -662,6 +843,34 @@ const AppLayout: React.FC = () => {
   // ── Urgent order + dual-companion popup ──
   const [urgentOrder, setUrgentOrder] = React.useState<any>(null);
   const [urgentGrabbed, setUrgentGrabbed] = React.useState<any>(null);
+  // 待处理搭档邀请（弹窗消失后仍能在右上角铃铛里找到）
+  const [partnerInvites, setPartnerInvites] = React.useState<any[]>([]);
+  const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
+  const [partnerInviteModalOpen, setPartnerInviteModalOpen] = React.useState(false);
+
+  const addPartnerInvite = React.useCallback((invite: any) => {
+    setPartnerInvites((prev) => {
+      const exists = prev.some((p) => p.sessionId === invite.sessionId);
+      if (exists) return prev;
+      return [...prev, invite];
+    });
+  }, []);
+
+  const removePartnerInvite = React.useCallback((sessionId: string) => {
+    setPartnerInvites((prev) => prev.filter((p) => p.sessionId !== sessionId));
+  }, []);
+
+  // 自动清理已过期的搭档邀请，避免铃铛里残留。
+  useEffect(() => {
+    const t = setInterval(() => {
+      setPartnerInvites((prev) => {
+        const now = Date.now();
+        const next = prev.filter((p) => p.expiresAt > now);
+        return next.length === prev.length ? prev : next;
+      });
+    }, 3000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (!user && isAuthenticated) {
@@ -672,67 +881,27 @@ const AppLayout: React.FC = () => {
   // WebSocket connection for real-time updates
   const voiceSocketRef = useSocket({
     onOrderNew: (data: any) => {
-      if (data?.type !== 'DUAL_INVITE') return;
+      if (data?.type !== 'DUAL_INVITE') {
+        // 非搭档邀请的 order:new 通常就是“新订单进池/广播”，
+        // 让已挂载的订单池页面立即刷新，和弹窗保持同步。
+        if (data?.dispatchType === 'POOL' || data?.dispatchType === 'BROADCAST' || data?._notify) {
+          window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+        }
+        return;
+      }
       if (!user?.companionId || data?.coCompanionId !== user.companionId) return;
-      const nk = `dual-invite-${data.id}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}邀请你搭档服务：${data.gameName || ''} · 搭档金额 ¥${Number((data.coAmount ?? data.amount) || 0).toFixed(1)} · ${data.duration || 1}h`;
       const ttl = data.expiresInSec ?? 15;
-      notification.open({
-        key: nk,
-        message: '🤝 搭档邀请',
-        description: (
-          <div>
-            {desc}
-            <div style={{ marginTop: 4 }}>
-              <InviteCountdown seconds={ttl} />
-            </div>
-          </div>
-        ),
-        placement: 'bottomRight',
-        duration: 0,
-        btn: (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              onClick={async () => {
-                notification.destroy(nk);
-                try {
-                  const res = await ordersApi.acceptPartnerInvite(data.id);
-                  const fee = (res as any)?.data?.data?.entertainmentFee;
-                  if (fee != null) {
-                    notification.info({
-                      message: '🎮 本次娱乐消费',
-                      description: `本次娱乐消费 ¥${Number(fee).toFixed(1)}，已进入接单`,
-                      placement: 'bottomRight',
-                      duration: 5,
-                    });
-                  }
-                  message.success('已接受搭档邀请，开始计时');
-                  (window as any).electronAPI?.sessionWatch?.(data.id);
-                  window.dispatchEvent(new Event('chunlv:service-started'));
-                } catch (e: any) {
-                  message.error(e?.response?.data?.message || '接受失败');
-                }
-              }}
-            >
-              接受
-            </Button>
-            <Button size="small" onClick={async () => {
-              notification.destroy(nk);
-              try {
-                await ordersApi.rejectPartnerInvite(data.id);
-              } catch {
-                /* 可能已超时/已被抢，忽略 */
-              }
-            }}>
-              拒绝
-            </Button>
-          </Space>
-        ),
+      addPartnerInvite({
+        sessionId: data.id,
+        inviterName: inviter,
+        gameName: data.gameName || '',
+        amount: Number((data.coAmount ?? data.amount) || 0),
+        duration: data.duration || 1,
+        expiresAt: Date.now() + ttl * 1000,
       });
-      setTimeout(() => notification.destroy(nk), ttl * 1000);
+      setPartnerInviteModalOpen(true);
       showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
       playNotificationSound();
     },
@@ -768,49 +937,18 @@ const AppLayout: React.FC = () => {
       // 广播找搭档：主陪未指定搭档，工作室任意陪玩可接受，第一个接受者成为搭档
       if (!user?.companionId || !data?.sessionId) return;
       if (data?.companionId === user.companionId) return; // 主陪自己不看自己的广播
-      const nk = `dual-broadcast-${data.sessionId}`;
       const inviter = data.inviterName || '有陪玩';
       const desc = `${inviter}广播找搭档：${data.gameName || ''} · 搭档金额 ¥${Number(data.amount || 0).toFixed(1)} · ${data.duration || 1}h`;
       const ttl = data.expiresInSec ?? 15;
-      notification.open({
-        key: nk,
-        message: '🤝 找搭档邀请',
-        description: (
-          <div>
-            {desc}
-            <div style={{ marginTop: 4 }}>
-              <InviteCountdown seconds={ttl} />
-            </div>
-          </div>
-        ),
-        placement: 'bottomRight',
-        duration: 0,
-        btn: (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              onClick={async () => {
-                notification.destroy(nk);
-                try {
-                  await ordersApi.acceptPartnerInvite(data.sessionId);
-                  message.success('已接受搭档邀请，开始计时');
-                  (window as any).electronAPI?.sessionWatch?.(data.sessionId);
-                  window.dispatchEvent(new Event('chunlv:service-started'));
-                } catch (e: any) {
-                  message.error(e?.response?.data?.message || '接受失败');
-                }
-              }}
-            >
-              接受
-            </Button>
-            <Button size="small" onClick={() => notification.destroy(nk)}>
-              拒绝
-            </Button>
-          </Space>
-        ),
+      addPartnerInvite({
+        sessionId: data.sessionId,
+        inviterName: inviter,
+        gameName: data.gameName || '',
+        amount: Number(data.amount || 0),
+        duration: data.duration || 1,
+        expiresAt: Date.now() + ttl * 1000,
       });
-      setTimeout(() => notification.destroy(nk), ttl * 1000);
+      setPartnerInviteModalOpen(true);
       showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
       playNotificationSound();
     },
@@ -819,6 +957,7 @@ const AppLayout: React.FC = () => {
       if (sid) {
         notification.destroy(`dual-invite-${sid}`);
         notification.destroy(`dual-broadcast-${sid}`);
+        removePartnerInvite(sid);
       }
       window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
     },
@@ -854,8 +993,40 @@ const AppLayout: React.FC = () => {
       });
       showSystemNotification('蠢驴电竞 · 时间提醒', desc);
     },
+    onOrderPoolUpdated: () => {
+      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+    },
+    // 群聊广播：客服/店长发广播后，陪玩电脑右下角弹 Windows 提醒，5 秒后自动消失
+    onChatBroadcast: (data: any) => {
+      if (user?.role !== 'COMPANION') return;
+      const senderName = data?.senderName || '客服';
+      const content = String(data?.content || '').trim();
+      if (!content) return;
+      const title = `📢 ${senderName} 广播`;
+      const electronApi = (window as any).electronAPI;
+      if (electronApi?.broadcastPopup) {
+        // 陪玩端：交给 Electron 主进程画一个置顶窗口，最小化/全屏时也能看到
+        try {
+          electronApi.broadcastPopup({ title, body: content });
+        } catch {
+          /* ignore */
+        }
+      } else {
+        // 浏览器里打开时的兜底
+        notification.warning({
+          message: title,
+          description: content,
+          placement: 'bottomRight',
+          duration: 5,
+        });
+      }
+      playNotificationSound();
+    },
     onOrderUrgent: (data: any) => {
-      if (user?.role === 'COMPANION') setUrgentOrder(data);
+      if (user?.role === 'COMPANION') {
+        setUrgentOrder(data);
+        window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+      }
     },
     onScheduledReminder: (data: any) => {
       if (user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') {
@@ -888,6 +1059,12 @@ const AppLayout: React.FC = () => {
           content: `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`,
           duration: 10,
         });
+      }
+    },
+    onCsAccountAnomaly: (data: any) => {
+      if (user?.role === 'CS' && data.message) {
+        message.warning({ content: data.message, duration: 12 });
+        showSystemNotification('蠢驴电竞 · 账目异常', data.message);
       }
     },
   });
@@ -934,7 +1111,7 @@ const AppLayout: React.FC = () => {
       const defaults: Record<string, string> = {
         OWNER: '/admin',
         ADMIN: '/admin',
-        CS: '/cs/dispatch',
+        CS: '/cs/stats',
         COMPANION: '/companion',
       };
       navigate(defaults[user.role] || '/admin', { replace: true });
@@ -948,10 +1125,12 @@ const AppLayout: React.FC = () => {
     const bpCount = bridgePendingBadge;
     const bCount = billingBadge;
     const cCount = contactBadge;
+    const psCount = pendingStartBadge;
     const rvCount = reviewBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
     const CONTACT_LABELS = ['派单工作台'];
+    const PENDING_START_LABELS = ['订单管理'];
     const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
     return items.map((item) => {
       // Check children (group items) for badge targets
@@ -959,10 +1138,11 @@ const AppLayout: React.FC = () => {
         const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
         const hasBridgePending = item.children.some((c: any) => c.label === '工作室桥接' && bpCount > 0);
         const hasBilling = item.children.some((c: any) => c.label === '报账系统' && bCount > 0);
-        const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && totalUnread > 0);
+        const hasUnread = item.children.some((c: any) => CHAT_LABELS.includes(c.label) && directUnread > 0);
         const hasReview = item.children.some((c: any) => REVIEW_WORK_LABELS.includes(c.label) && rvCount > 0);
         const hasContact = item.children.some((c: any) => CONTACT_LABELS.includes(c.label) && cCount > 0);
-        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview || hasContact) {
+        const hasPendingStart = item.children.some((c: any) => PENDING_START_LABELS.includes(c.label) && psCount > 0);
+        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview || hasContact || hasPendingStart) {
           return {
             ...item,
             children: item.children.map((child: any) => {
@@ -1048,7 +1228,7 @@ const AppLayout: React.FC = () => {
                   ),
                 };
               }
-              if (!child.children && CHAT_LABELS.includes(child.label) && totalUnread > 0) {
+              if (!child.children && CHAT_LABELS.includes(child.label) && directUnread > 0) {
                 return {
                   ...child,
                   label: (
@@ -1061,10 +1241,10 @@ const AppLayout: React.FC = () => {
                     >
                       {child.label}
                       <Badge
-                        count={totalUnread}
+                        count={directUnread}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+                        style={{ boxShadow: directUnread > 0 ? '0 0 10px #FF4757' : undefined }}
                       />
                     </span>
                   ),
@@ -1085,6 +1265,29 @@ const AppLayout: React.FC = () => {
                       {child.label}
                       <Badge
                         count={cCount}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: '0 0 10px #F59E0B' }}
+                      />
+                    </span>
+                  ),
+                };
+              }
+              if (!child.children && PENDING_START_LABELS.includes(child.label) && psCount > 0) {
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        markPendingStartSeen();
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                    >
+                      {child.label}
+                      <Badge
+                        count={psCount}
                         size="small"
                         overflowCount={99}
                         style={{ boxShadow: '0 0 10px #F59E0B' }}
@@ -1132,17 +1335,17 @@ const AppLayout: React.FC = () => {
           ),
         };
       }
-      if (CHAT_LABELS.includes(item.label as string) && totalUnread > 0) {
+      if (CHAT_LABELS.includes(item.label as string) && directUnread > 0) {
         return {
           ...item,
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
               <Badge
-                count={totalUnread}
+                count={directUnread}
                 size="small"
                 overflowCount={99}
-                style={{ boxShadow: totalUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+                style={{ boxShadow: directUnread > 0 ? '0 0 10px #FF4757' : undefined }}
               />
             </span>
           ),
@@ -1157,7 +1360,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-  }, [user, totalUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -1168,11 +1371,17 @@ const AppLayout: React.FC = () => {
     return matched.length > 0 ? [matched[0]] : [];
   }, [location.pathname, menuItems]);
 
-  const onMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const onMenuClick: MenuProps['onClick'] = ({ key, domEvent }) => {
+    // 只允许点击菜单文字触发跳转，避免点到左侧栏空白区域也误触。
+    const target = domEvent.target as HTMLElement | null;
+    const titleContent = target?.closest?.('.ant-menu-title-content');
+    if (!titleContent) return;
+
     // 只清掉对应页面的角标，避免点其他菜单误清
     if (key.includes('/review')) markSeen();
     if (key.includes('bridges')) markBridgeSeen();
     if (key.includes('/billing')) markBillingSeen();
+    if (key.includes('/orders')) markPendingStartSeen();
     navigate(key);
   };
 
@@ -1199,7 +1408,7 @@ const AppLayout: React.FC = () => {
 
   return (
     <ChatProvider>
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
         {/* ── 浅色侧边栏 ── */}
         <Sider
           collapsible
@@ -1216,6 +1425,8 @@ const AppLayout: React.FC = () => {
             top: 0,
             display: 'flex',
             flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'hidden',
           }}
         >
           {/* 导航菜单 */}
@@ -1241,7 +1452,7 @@ const AppLayout: React.FC = () => {
               flexShrink: 0,
               padding: '12px 16px',
               borderTop: '1px solid rgba(255,255,255,0.06)',
-              background: 'rgba(255,255,255,0.02)',
+              background: 'transparent',
             }}
           >
             {appVersion && (
@@ -1257,7 +1468,30 @@ const AppLayout: React.FC = () => {
           </div>
         </Sider>
 
-        <Layout>
+        {/* 左侧常驻群聊消息面板 — 群聊消息不再进铃铛 */}
+        <Sider
+          theme="light"
+          width={240}
+          collapsedWidth={0}
+          collapsible
+          collapsed={messagePanelCollapsed}
+          trigger={null}
+          style={{
+            background: '#FFFFFF',
+            borderRight: '1px solid #E8E9EB',
+            height: '100vh',
+            position: 'sticky',
+            top: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 2,
+            overflow: 'hidden',
+          }}
+        >
+          {!messagePanelCollapsed && <LeftMessagePanel onOpenChat={openGroupChat} />}
+        </Sider>
+
+        <Layout style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
           {/* 顶栏 — 白色底 */}
           <Header
             style={{
@@ -1277,6 +1511,13 @@ const AppLayout: React.FC = () => {
               onClick={() => setCollapsed(!collapsed)}
               style={{ color: commander.textSecondary }}
             />
+            <Button
+              type="text"
+              icon={React.createElement(MessageOutlined)}
+              onClick={() => setMessagePanelCollapsed((v) => !v)}
+              title={messagePanelCollapsed ? '显示消息栏' : '隐藏消息栏'}
+              style={{ color: messagePanelCollapsed ? commander.textSecondary : '#2563EB' }}
+            />
             <Space size="middle">
               {/* Notification bell */}
               {user && (
@@ -1287,20 +1528,24 @@ const AppLayout: React.FC = () => {
                   placement="bottomRight"
                   title="消息通知"
                   content={
-                    <ConversationList onOpenChat={openChatFromNotification} onClose={() => setNotifOpen(false)} />
+                    <ConversationList
+                      onOpenChat={openChatFromNotification}
+                      onClose={() => setNotifOpen(false)}
+                      hideGroups
+                    />
                   }
                 >
                   <Badge
-                    count={totalUnread}
+                    count={directUnread}
                     overflowCount={99}
                     size="default"
                     offset={[-2, 8]}
-                    className={totalUnread > 0 ? 'badge-pop-active' : undefined}
+                    className={directUnread > 0 ? 'badge-pop-active' : undefined}
                   >
                     <div
                       style={{
                         borderRadius: 8,
-                        ...(totalUnread > 0
+                        ...(directUnread > 0
                           ? {
                               animation: 'bell-glow 2s ease-in-out infinite',
                               boxShadow: '0 0 12px rgba(37, 99, 235, 0.5)',
@@ -1312,12 +1557,89 @@ const AppLayout: React.FC = () => {
                         type="text"
                         icon={React.createElement(BellOutlined)}
                         style={{
-                          color: totalUnread > 0 ? '#2563EB' : commander.textSecondary,
+                          color: directUnread > 0 ? '#2563EB' : commander.textSecondary,
                           fontSize: 20,
                         }}
-                        className={totalUnread > 0 ? 'bell-glow-active' : ''}
+                        className={directUnread > 0 ? 'bell-glow-active' : ''}
                       />
                     </div>
+                  </Badge>
+                </Popover>
+              )}
+              {user?.role === 'COMPANION' && (
+                <Popover
+                  open={partnerInviteOpen}
+                  onOpenChange={setPartnerInviteOpen}
+                  trigger="click"
+                  placement="bottomRight"
+                  title="待处理搭档邀请"
+                  content={
+                    <div style={{ width: 320 }}>
+                      {partnerInvites.length === 0 ? (
+                        <Text type="secondary">暂无待处理邀请</Text>
+                      ) : (
+                        partnerInvites.map((p) => {
+                          const remaining = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 1000));
+                          return (
+                            <div key={p.sessionId} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                              <div>
+                                <Text strong>🤝 {p.inviterName} 邀请你搭档</Text>
+                              </div>
+                              <div style={{ fontSize: 12, color: '#666' }}>
+                                {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
+                              </div>
+                              <div style={{ margin: '6px 0' }}>
+                                <InviteCountdown seconds={remaining} />
+                              </div>
+                              <Space size={8}>
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  onClick={async () => {
+                                    try {
+                                      await ordersApi.acceptPartnerInvite(p.sessionId);
+                                      message.success('已接受搭档邀请，开始计时');
+                                      removePartnerInvite(p.sessionId);
+                                      (window as any).electronAPI?.sessionWatch?.(p.sessionId);
+                                      window.dispatchEvent(new Event('chunlv:service-started'));
+                                      setPartnerInviteOpen(false);
+                                    } catch (e: any) {
+                                      message.error(e?.response?.data?.message || '接受失败');
+                                    }
+                                  }}
+                                >
+                                  接受
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={async () => {
+                                    try {
+                                      await ordersApi.rejectPartnerInvite(p.sessionId);
+                                    } catch {}
+                                    removePartnerInvite(p.sessionId);
+                                  }}
+                                >
+                                  拒绝
+                                </Button>
+                              </Space>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  }
+                >
+                  <Badge
+                    count={partnerInvites.length}
+                    overflowCount={99}
+                    size="default"
+                    offset={[-2, 8]}
+                  >
+                    <Button
+                      type="text"
+                      icon={<span style={{ fontSize: 18 }}>🤝</span>}
+                      style={{ color: partnerInvites.length > 0 ? '#F59E0B' : commander.textSecondary }}
+                    />
                   </Badge>
                 </Popover>
               )}
@@ -1389,6 +1711,16 @@ const AppLayout: React.FC = () => {
                       本月预计提成 ¥{Number(myCommission).toFixed(1)}
                     </Text>
                   )}
+                  {user?.role === 'CS' && (
+                    <Button
+                      size="small"
+                      type="link"
+                      onClick={() => setSalaryOpen(true)}
+                      style={{ color: '#2563EB', padding: 0, fontWeight: 600 }}
+                    >
+                      底薪 + 提奖
+                    </Button>
+                  )}
                 </>
               )}
               {user?.role !== 'COMPANION' && (
@@ -1401,9 +1733,10 @@ const AppLayout: React.FC = () => {
 
           {/* 内容区 — 白色圆角容器 */}
           <Content
+            className="app-content"
             style={{
-              margin: 20,
-              padding: 20,
+              margin: isCompact ? 10 : 20,
+              padding: isCompact ? 12 : 20,
               background: '#FFFFFF',
               borderRadius: 12,
               minHeight: 280,
@@ -1417,6 +1750,137 @@ const AppLayout: React.FC = () => {
           </Content>
         </Layout>
       </Layout>
+
+      <Modal
+        title="💰 底薪 + 提奖"
+        open={salaryOpen}
+        onCancel={() => setSalaryOpen(false)}
+        footer={null}
+        width={720}
+      >
+        {mySalary?.row ? (
+          <div style={{ fontSize: 13, lineHeight: 1.9 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
+              <div>月份：<b>{mySalary.month}</b></div>
+              <div>底薪：<b>¥{Number(mySalary.config.baseSalary).toFixed(2)}</b></div>
+              <div>月休：<b>{mySalary.config.restDays} 天</b></div>
+              <div>满勤：<b>{mySalary.fullAttendance} 天</b></div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
+              <div>桥接单数：<b>{mySalary.row.bridgeUnits}</b> 单</div>
+              <div>桥接单价：<b>¥{Number(mySalary.row.bridgePerUnitYuan).toFixed(2)}</b></div>
+              <div>桥接提成：<b>¥{Number(mySalary.row.bridgeCommissionYuan).toFixed(2)}</b></div>
+              <div>线下提成：<b>¥{Number(mySalary.row.offlineCommissionYuan).toFixed(2)}</b></div>
+              <div>线上提成：<b>¥{Number(mySalary.row.onlineCommissionYuan).toFixed(2)}</b></div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
+              <div>底薪实发：<b>¥{Number(mySalary.row.baseEffective).toFixed(2)}</b></div>
+              <div>全勤奖：<b>¥{Number(mySalary.row.attendanceBonus).toFixed(2)}</b></div>
+              <div>考勤扣款：<b>¥{Number(mySalary.row.attendanceDeduction).toFixed(2)}</b></div>
+              <div>预计合计：<b style={{ color: '#1677ff' }}>¥{Number(mySalary.row.totalYuan).toFixed(2)}</b></div>
+            </div>
+            <div style={{ marginTop: 12, marginBottom: 4, fontWeight: 600 }}>订单明细</div>
+            <div style={{ maxHeight: 260, overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f5f7fa' }}>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>订单</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>类型</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>状态</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>微信</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>金额</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>单/双</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>去向</th>
+                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>提成</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(mySalary.orders || []).map((t: any) => (
+                    <tr key={t.orderId}>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.orderCode || t.orderId?.slice(0, 8)}</td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.type}</td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
+                        {t.status === 'DONE' ? '✅ 已打首单' : t.status === 'CONFIRMED' ? '进行中' : t.status === 'GRABBED' ? '已抢单' : t.status || '-'}
+                      </td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
+                        {t.contactStatus === 'added' ? '✅ 添加成功' : t.contactStatus === 'not_accepted' ? '❌ 添加失败' : t.contactStatus === 'pending' ? '待添加' : '-'}
+                      </td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>¥{Number(t.amount).toFixed(2)}</td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.units === 2 ? '双陪' : '单陪'}</td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.kind === 'offline' ? '线下' : t.kind === 'bridge' ? '桥接' : '线上'}</td>
+                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
+                        {t.counted ? `+¥${Number(t.commissionYuan).toFixed(2)}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <Text type="secondary">暂无工资数据</Text>
+        )}
+      </Modal>
+
+      {/* Automatic in-app partner invite popup — do not rely on Windows notification only */}
+      <Modal
+        open={partnerInviteModalOpen && partnerInvites.length > 0}
+        title="🤝 搭档邀请"
+        footer={null}
+        closable={false}
+        maskClosable={false}
+        width={360}
+        onCancel={() => setPartnerInviteModalOpen(false)}
+      >
+        {partnerInvites[0] &&
+          (() => {
+            const p = partnerInvites[0];
+            const remaining = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 1000));
+            return (
+              <div>
+                <div>
+                  <Text strong>{p.inviterName} 邀请你搭档</Text>
+                </div>
+                <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
+                  {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
+                </div>
+                <div style={{ margin: '10px 0' }}>
+                  <InviteCountdown seconds={remaining} />
+                </div>
+                <Space>
+                  <Button
+                    type="primary"
+                    onClick={async () => {
+                      try {
+                        await ordersApi.acceptPartnerInvite(p.sessionId);
+                        message.success('已接受搭档邀请，开始计时');
+                        removePartnerInvite(p.sessionId);
+                        (window as any).electronAPI?.sessionWatch?.(p.sessionId);
+                        window.dispatchEvent(new Event('chunlv:service-started'));
+                        setPartnerInviteModalOpen(false);
+                      } catch (e: any) {
+                        message.error(e?.response?.data?.message || '接受失败');
+                      }
+                    }}
+                  >
+                    接受
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        await ordersApi.rejectPartnerInvite(p.sessionId);
+                      } catch {}
+                      removePartnerInvite(p.sessionId);
+                      setPartnerInviteModalOpen(false);
+                    }}
+                  >
+                    拒绝
+                  </Button>
+                </Space>
+              </div>
+            );
+          })()}
+      </Modal>
 
       {/* Urgent order popup + solo grab success */}
       <UrgentOrderPopup

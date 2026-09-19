@@ -14,11 +14,16 @@ import {
   UseInterceptors,
   UnauthorizedException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { WsGateway } from '../ws/ws.gateway';
+import { RolesGuard, Roles } from '../auth/roles.guard';
+import { UserRole } from '@chunlv/shared';
 import { ParticipantGuard } from './guards/participant.guard';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -37,6 +42,7 @@ export class ChatController {
   constructor(
     private readonly chatService: ChatService,
     private readonly chatGateway: ChatGateway,
+    @Inject(forwardRef(() => WsGateway)) private readonly wsGateway: WsGateway,
   ) {}
 
   private getUserId(req: any): string {
@@ -51,6 +57,26 @@ export class ChatController {
 
   // ── Rooms ──
 
+  @Get('studio-group')
+  async getStudioGroup(@Req() req: any) {
+    let studioId = this.getStudioId(req);
+    if (!studioId) {
+      studioId = await this.chatService.getFirstStudioId();
+    }
+    const room = await this.chatService.getOrCreateStudioGroup(studioId);
+    if (!room) throw new BadRequestException('当前账号没有工作室');
+    await this.chatService.ensureUserInStudioGroup(this.getUserId(req), studioId);
+    return {
+      code: 200,
+      message: 'ok',
+      data: {
+        id: room.id,
+        groupName: room.groupName || '工作室群聊',
+        isGroup: true,
+      },
+    };
+  }
+
   @Get('rooms')
   async listRooms(@Req() req: any, @Query('pinned') pinned?: string, @Query('search') search?: string) {
     const rooms = await this.chatService.listRooms(this.getUserId(req), this.getStudioId(req), {
@@ -58,6 +84,63 @@ export class ChatController {
       search,
     });
     return { code: 200, message: 'ok', data: { rooms } };
+  }
+
+  /**
+   * 群聊广播：客服/店长在群聊里发一条广播，内容进群聊，
+   * 同时让本工作室所有在线陪玩的电脑右下角弹出 Windows 提醒（5 秒后自动消失），
+   * 解决"陪玩不看群消息、问某单接不接没人回"的问题。
+   */
+  @Post('studio-broadcast')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async studioBroadcast(@Req() req: any, @Body() body: { content?: string }) {
+    const senderId = this.getUserId(req);
+    let result: Awaited<ReturnType<ChatService['sendStudioBroadcast']>>;
+    try {
+      result = await this.chatService.sendStudioBroadcast(
+        senderId,
+        this.getStudioId(req),
+        body?.content || '',
+      );
+    } catch (err: any) {
+      throw new BadRequestException(err?.message || '广播发送失败');
+    }
+    const { studioId, room, message, sender } = result;
+
+    // 1) 群里实时出现这条广播（开着聊天窗的人立刻看到）
+    const memberIds = await this.chatService.getGroupMemberUserIds(room.id, senderId);
+    const payload = {
+      roomId: room.id,
+      message: this.serializeMessage(message),
+      isGroup: true,
+      groupName: room.groupName || undefined,
+      sender: sender
+        ? {
+            userId: sender.id,
+            username: sender.username,
+            displayName: sender.displayName || undefined,
+            avatar: sender.avatar || undefined,
+            role: sender.role,
+          }
+        : undefined,
+    };
+    for (const memberId of memberIds) {
+      this.chatGateway.notifyNewMessage(memberId, payload);
+    }
+
+    // 2) 全工作室在线陪玩：本机右下角 Windows 弹窗（5 秒）
+    this.wsGateway.broadcastToStudio(studioId, 'chat:broadcast', {
+      roomId: room.id,
+      messageId: message.id,
+      senderId,
+      senderName: sender?.displayName || sender?.username || '客服',
+      senderRole: sender?.role || 'CS',
+      content: (message.content as string) || '',
+      createdAt: new Date().toISOString(),
+    });
+
+    return { code: 200, message: '广播已发送', data: { roomId: room.id, messageId: message.id } };
   }
 
   @Post('rooms')
@@ -116,15 +199,15 @@ export class ChatController {
       content: body.content,
       attachments: body.attachments,
       replyToId: body.replyToId,
+      mentionUserIds: body.mentionUserIds,
     });
 
     // Load room to find other participant
     const room = await this.chatService.getRoom(id);
 
     if (room) {
-      const otherUserId = room.participantA === senderId ? room.participantB : room.participantA;
       const senderProfile = await this.chatService.getUserProfile(senderId);
-      this.chatGateway.notifyNewMessage(otherUserId, {
+      const payload = {
         roomId: id,
         message: this.serializeMessage(message),
         sender: senderProfile
@@ -136,10 +219,28 @@ export class ChatController {
               role: senderProfile.role,
             }
           : undefined,
-      });
+        isGroup: room.isGroup,
+        groupName: room.isGroup ? room.groupName || undefined : undefined,
+      };
+      if (room.isGroup) {
+        const memberIds = await this.chatService.getGroupMemberUserIds(id, senderId);
+        for (const memberId of memberIds) {
+          this.chatGateway.notifyNewMessage(memberId, payload);
+        }
+      } else {
+        const otherUserId = room.participantA === senderId ? room.participantB : room.participantA;
+        this.chatGateway.notifyNewMessage(otherUserId, payload);
+      }
     }
 
     return { code: 200, message: 'ok', data: { message: this.serializeMessage(message) } };
+  }
+
+  @Get('rooms/:id/members')
+  @UseGuards(ParticipantGuard)
+  async getRoomMembers(@Param('id') id: string) {
+    const members = await this.chatService.getGroupMembers(id);
+    return { code: 200, message: 'ok', data: { members } };
   }
 
   @Delete('rooms/:id/messages/:msgId')
@@ -353,6 +454,7 @@ export class ChatController {
       type: m.type,
       content: m.content,
       seq: m.seq,
+      mentions: m.mentions || [],
       replyTo: m.replyTo || undefined,
       deletedAt: m.deletedAt?.toISOString?.() || m.deletedAt || undefined,
       attachments: (m.attachments || []).map((a: any) => ({

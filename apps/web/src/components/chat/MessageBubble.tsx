@@ -12,9 +12,12 @@ interface MessageBubbleProps {
   showTime: boolean;
   participantName?: string;
   avatarUrl?: string;  // full URL to avatar image (e.g. /uploads/avatars/xxx)
+  showSenderName?: boolean;
+  senderName?: string;
   onReaction?: (emoji: string) => void;
   onRemoveReaction?: (emoji: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onMentionSender?: () => void;
   myUserId?: string | null;
 }
 
@@ -34,27 +37,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   showTime,
   participantName,
   avatarUrl,
+  showSenderName,
+  senderName,
   onReaction,
   onRemoveReaction,
   onContextMenu,
+  onMentionSender,
   myUserId,
 }) => {
   const isRecalled = !!message.deletedAt;
   const isPending = message.status === 'pending';
   const isFailed = message.status === 'failed';
+  const isMentioned = !!myUserId && (message.mentions || []).includes(myUserId);
+  // 群聊广播：客服/店长发的重要通知，气泡要跟普通聊天明显区分开
+  const isBroadcast = message.type === 'BROADCAST';
   const fallbackColor = stringToColor(message.senderId || participantName || '?');
 
   const bubbleStyle: React.CSSProperties = {
     maxWidth: '70%',
     padding: '10px 14px',
     borderRadius: isMe ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
-    background: isMe ? '#2B579A' : '#F2F3F5',
-    color: isMe ? '#FFF' : '#313338',
+    background: isBroadcast ? '#FFF1F0' : isMe ? '#2B579A' : isMentioned ? '#FFF3C4' : '#F2F3F5',
+    color: isBroadcast ? '#8C1F1F' : isMe ? '#FFF' : '#313338',
     fontSize: 14,
     lineHeight: '22px',
     wordBreak: 'break-word',
+    overflow: 'hidden',
     opacity: isPending ? 0.6 : 1,
-    boxShadow: isFailed ? '0 0 0 1px #F23F42' : undefined,
+    boxShadow: isBroadcast ? '0 0 0 1px #FFA39E' : isFailed ? '0 0 0 1px #F23F42' : undefined,
     transition: 'opacity 0.2s',
   };
 
@@ -71,6 +81,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         marginTop: showAvatar ? 8 : 0,
       }}
     >
+      {/* 群聊发送者名字：右键名字直接 @ 对方 */}
+      {showSenderName && senderName && (
+        <div
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onMentionSender?.();
+          }}
+          title={`右键 @${senderName}`}
+          style={{
+            marginLeft: 44,
+            marginBottom: 2,
+            fontSize: 11,
+            color: '#949BA4',
+            cursor: 'context-menu',
+            userSelect: 'none',
+          }}
+        >
+          {senderName}
+        </div>
+      )}
+
       {/* Reply preview */}
       {message.replyTo && <ReplyPreview replyTo={message.replyTo} />}
 
@@ -117,6 +149,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <FileContent attachment={message.attachments[0]} isMe={isMe} />
           ) : message.type === 'ORDER_CARD' ? (
             <OrderCardContent content={message.content || message.text} isMe={isMe} />
+          ) : isBroadcast ? (
+            <BroadcastContent text={message.text || ''} />
           ) : (
             <RenderText text={message.text || ''} />
           )}
@@ -207,7 +241,7 @@ const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ conten
   }
   const statusLabel: Record<string, string> = {
     PENDING: '待接单',
-    GRABBED: '已接单',
+    GRABBED: '已抢到订单',
     CONFIRMED: '已确认',
     DONE: '已完成',
     CANCELLED: '已取消',
@@ -229,6 +263,27 @@ const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ conten
   );
 };
 
+// 群聊广播：醒目的红底通知，和普通聊天明显区分
+const BroadcastContent: React.FC<{ text: string }> = ({ text }) => (
+  <div>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        fontWeight: 700,
+        color: '#D4380D',
+        marginBottom: 4,
+      }}
+    >
+      <span>📢</span>
+      <span>群聊广播</span>
+    </div>
+    <RenderText text={text} />
+  </div>
+);
+
 // Parse [img]url[/img] markup in text messages
 const RenderText: React.FC<{ text: string }> = ({ text }) => {
   const parts = text.split(/(\[img\].*?\[\/img\])/g);
@@ -236,7 +291,7 @@ const RenderText: React.FC<{ text: string }> = ({ text }) => {
     <span>
       {parts.map((part, i) => {
         const m = part.match(/^\[img\](.*?)\[\/img\]$/);
-        if (m) return <Image key={i} src={m[1]} style={{ maxWidth: 200, borderRadius: 8, display: 'block', margin: '4px 0' }} />;
+        if (m) return <Image key={i} src={m[1]} style={{ maxWidth: 200, maxHeight: 240, objectFit: 'contain', borderRadius: 8, display: 'block', margin: '4px 0' }} />;
         return <span key={i}>{part}</span>;
       })}
     </span>

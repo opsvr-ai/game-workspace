@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Space, Tag, Typography } from 'antd';
+import { Button, Space, Tag, Typography } from 'antd';
 import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined } from '@ant-design/icons';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 
@@ -11,11 +11,13 @@ interface ChatHeaderProps {
   role: string;
   userId?: string;
   avatarUrl?: string;
-  orderInfo?: string;
+  orderInfo?: string | null;
   pinned?: boolean;
   onTogglePin?: () => void;
   onClose?: () => void;
   onCallClick?: () => void;
+  /** 群聊里可见：客服/店长发广播（弹到每个陪玩电脑右下角） */
+  onBroadcast?: () => void;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -23,6 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
   CS: '客服',
   ADMIN: '管理员',
   OWNER: '老板',
+  GROUP: '群聊',
 };
 
 function formatCallDuration(seconds?: number) {
@@ -32,7 +35,7 @@ function formatCallDuration(seconds?: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick, onBroadcast }) => {
   const call = useVoiceCallStore((s) => s.call);
   const inCall = call.status === 'connected' && !!userId && call.peerId === userId;
 
@@ -97,6 +100,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
       </div>
       </div>
       <Space size={4}>
+        {onBroadcast && (
+          <Button size="small" type="text" onClick={onBroadcast} style={{ padding: '0 6px', color: '#FF4757', fontWeight: 600 }} title="发广播（每个陪玩电脑右下角弹出提醒）">
+            📢 广播
+          </Button>
+        )}
         {onCallClick && (
           <PhoneOutlined onClick={onCallClick} style={{ cursor: 'pointer', color: '#52c41a', padding: 4, fontSize: 16 }} title="语音通话" />
         )}

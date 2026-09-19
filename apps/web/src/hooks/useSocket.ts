@@ -11,6 +11,8 @@ interface UseSocketOptions {
   onOrderUrgent?: (data: any) => void;
   onScheduledReminder?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
+  /** 群聊广播：客服/店长在群聊里发的广播，陪玩端要弹 Windows 提醒 */
+  onChatBroadcast?: (data: any) => void;
   // Legacy chat events (deprecated, remove after migration)
   onChatNotify?: (data: any) => void;
   onChatNew?: (data: any) => void;
@@ -36,6 +38,7 @@ interface UseSocketOptions {
   onBridgeResponded?: (data: any) => void;
   onRevenueDiff?: (data: any) => void;
   onReviewAlert?: (data: any) => void;
+  onCsAccountAnomaly?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -46,6 +49,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
   useEffect(() => {
     const token = sessionStorage.getItem('accessToken');
     if (!token) return;
+    let disposed = false;
 
     // Connect to API server — dev: direct to :3001, prod: same origin
     const baseWsUrl = import.meta.env.DEV
@@ -55,6 +59,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
     const socket = io(wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
+      autoConnect: false,
     });
     socketRef.current = socket;
 
@@ -118,6 +123,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('chat:notify', (data: any) => {
       optsRef.current.onChatNotify?.(data);
+    });
+
+    socket.on('chat:broadcast', (data: any) => {
+      optsRef.current.onChatBroadcast?.(data);
     });
 
     socket.on('chat:new', (data: any) => {
@@ -219,7 +228,29 @@ export function useSocket(opts: UseSocketOptions = {}) {
       optsRef.current.onReviewAlert?.(data);
     });
 
+    socket.on('cs:account_anomaly', (data: any) => {
+      optsRef.current.onCsAccountAnomaly?.(data);
+    });
+
+    // 页面级 useSocket 可能在 accessToken 已过期后才挂载（例如陪玩先登录，
+    // 过一会儿再切到订单池）。AppLayout 的旧连接仍能收到 order:urgent 弹窗，
+    // 但新页面连接若直接拿过期 token 握手，会被服务端连接后立刻断开，
+    // 导致 order:pool_updated 收不到。这里先经 /auth/me 让 axios 拦截器续期，
+    // 再开始 Socket.IO 连接，避免“弹窗先到、订单池必须手动刷新”。
+    void (async () => {
+      try {
+        await http.get('/auth/me');
+      } catch {
+        // 续期失败时仍尝试用旧 token 连接；最坏情况保持现有行为。
+      }
+      if (disposed) return;
+      const nextToken = sessionStorage.getItem('accessToken') || token;
+      (socket as any).auth = { token: nextToken };
+      socket.connect();
+    })();
+
     return () => {
+      disposed = true;
       socket.disconnect();
       socketRef.current = null;
     };
