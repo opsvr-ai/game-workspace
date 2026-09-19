@@ -13,7 +13,7 @@ import { Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
-import { logger } from '../common/logger';
+import { logger, isDebugEnabled } from '../common/logger';
 import * as fs from 'fs';
 import { CompanionsService } from '../companions/companions.service';
 import { ExcellenceService } from '../companions/excellence.service';
@@ -70,7 +70,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ── lifecycle ──────────────────────────────────────────────────────
 
   afterInit(): void {
-    // Log ALL incoming Socket.IO events for debugging
+    // 全量事件日志只在 debug 打开时才挂：以前生产上每条消息都要拦一次、
+    // 还要 JSON.stringify 一遍再丢掉，聊天一多就是白烧 CPU。
+    if (!isDebugEnabled) return;
     this.server.use((socket, next) => {
       const originalOnEvent = (socket as any).onevent;
       (socket as any).onevent = (packet: any) => {

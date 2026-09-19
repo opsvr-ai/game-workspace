@@ -34,10 +34,13 @@ export function useChatSync(wsConnected: boolean) {
   }, []);
 
   useEffect(() => {
-    // Always sync on mount
+    // 挂载时先对一次账
     sync();
-    // Always run polling as safety net (30s), WS is still primary for real-time
-    intervalRef.current = setInterval(sync, 30000);
+    // 长连接正常时用不着每 30 秒问一次：一发一收就是一次 HTTP 往返，
+    // 一天白跑两千多次。连着的时候只留一个 2 分钟的兜底对账；
+    // 真断了才降回 30 秒一次快速补齐。
+    const period = wsConnected ? 120000 : 30000;
+    intervalRef.current = setInterval(sync, period);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

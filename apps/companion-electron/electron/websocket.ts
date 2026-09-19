@@ -12,6 +12,10 @@ import { logger } from './logger';
 let socket: Socket | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
+// 连接失败的日志节流：以前服务端一挂，一天能刷 3700 多条 "WS connect error"，
+// 光日志就把磁盘和时间浪费掉了。现在只记第 1 次、第 20 次，恢复时再汇总一次。
+let connectErrorCount = 0;
+
 const eventHandlers: Map<string, Array<(data: any) => void>> = new Map();
 
 export function onWsEvent(event: string, handler: (data: any) => void): void {
@@ -31,16 +35,29 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
 
   socket = io(wsUrl, {
     auth: { token },
-    // 轮询优先（HTTP 长轮询最稳），连接成功后再升级到 WebSocket；
-    // 若直接 websocket 优先，网络对 WebSocket 升级不友好时会卡在 connect_timeout，导致一直掉线。
-    transports: ['polling', 'websocket'],
+    // WebSocket 优先：轮询模式下客户端每 20~30 秒就要发一次完整 HTTP 请求，
+    // 一天下来是上千次无谓的连接，CPU 和流量都白花。
+    // tryAllTransports=true 是关键：万一这个网络不让用 WebSocket（中转、拦截），
+    // 会自动退回 HTTP 轮询，不会像以前那样卡在 connect_timeout 一直连不上。
+    transports: ['websocket', 'polling'],
+    tryAllTransports: true,
     reconnection: true,
-    reconnectionDelay: 10000,
-    reconnectionAttempts: Infinity,
+    reconnectionDelay: 5000,
+    // 服务端整体挂掉时不要每 5 秒捶一次，退避到最多 60 秒一次，避免空转刷日志。
+    reconnectionDelayMax: 60000,
+    randomizationFactor: 0.5,
+    timeout: 20000,
   });
 
   socket.on('connect', () => {
-    logger.info('WS connected');
+    if (connectErrorCount > 0) {
+      logger.info('WS connected (after retries)', { failedAttempts: connectErrorCount });
+      connectErrorCount = 0;
+    } else {
+      logger.info('WS connected');
+    }
+    // 先清旧的定时器：重连时 connect 会再次触发，不清就会出现多个心跳并发。
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
     heartbeatTimer = setInterval(() => {
       socket?.emit('companion:heartbeat', {
         companionId,
@@ -50,7 +67,13 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   });
 
   socket.on('connect_error', (err: any) => {
-    logger.warn('WS connect error', { message: err?.message || String(err) });
+    connectErrorCount += 1;
+    if (connectErrorCount === 1 || connectErrorCount % 20 === 0) {
+      logger.warn('WS connect error', {
+        message: err?.message || String(err),
+        attempts: connectErrorCount,
+      });
+    }
   });
 
   socket.on('disconnect', (reason: any) => {

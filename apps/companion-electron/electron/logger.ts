@@ -29,13 +29,8 @@ const CURRENT_LEVEL: LogLevel =
   raw === 'ERROR' ? LogLevel.ERROR :
   LogLevel.DEBUG;
 
-function getExeDir(): string {
-  try { return path.dirname(app.getPath('exe')); } catch {}
-  return process.cwd();
-}
-
 function getLogDir(): string {
-  // Primary: userData/logs (persists across updates)
+  // userData/logs：升级不会丢，且不写在安装目录里（安装目录是只读/需要管理员权限的场景会一直失败）
   try { return path.join(app.getPath('userData'), 'logs'); } catch {}
   try { return path.join(app.getPath('appData'), 'logs'); } catch {}
   try { return path.join(process.cwd(), 'logs'); } catch {}
@@ -51,6 +46,26 @@ function getLogFile(ext: string): string {
   return path.join(ext, `companion-${date}.log`);
 }
 
+// 日志保留天数：以前每个客户端每天都留一份，从来不清理，
+// 装几个月就是几十份文件堆在磁盘上。现在启动时清一次旧文件。
+const KEEP_LOG_DAYS = 14;
+let cleanedUp = false;
+
+function cleanupOldLogs(dir: string): void {
+  if (cleanedUp) return;
+  cleanedUp = true;
+  try {
+    const cutoff = Date.now() - KEEP_LOG_DAYS * 24 * 60 * 60 * 1000;
+    for (const name of fs.readdirSync(dir)) {
+      if (!/^companion-\d{4}-\d{2}-\d{2}\.log$/.test(name)) continue;
+      const full = path.join(dir, name);
+      try {
+        if (fs.statSync(full).mtimeMs < cutoff) fs.unlinkSync(full);
+      } catch { /* 单个文件删不掉不影响其它 */ }
+    }
+  } catch { /* ignore */ }
+}
+
 function write(level: LogLevel, message: string, extra?: Record<string, unknown>): void {
   if (level < CURRENT_LEVEL) return;
   const ts = new Date().toISOString();
@@ -58,16 +73,13 @@ function write(level: LogLevel, message: string, extra?: Record<string, unknown>
   const extraStr = extra ? ' ' + JSON.stringify(extra) : '';
   const line = `[${ts}] [${label}] ${message}${extraStr}\n`;
 
-  // Write to userData (primary)
+  // 只写一处：以前同时写 userData 和安装目录两份，每条日志就是两次同步磁盘写入。
+  // 安装目录那份在只读安装路径下还会反复抛异常，收益不值这个代价。
   const dir = getLogDir();
   ensureLogDir(dir);
-  try { fs.appendFileSync(getLogFile(dir), line); } catch (e: any) { /* ignore */ }
-
-  // Also write to EXE directory for easy access
+  cleanupOldLogs(dir);
   try {
-    const exeDir = path.join(getExeDir(), 'logs');
-    ensureLogDir(exeDir);
-    fs.appendFileSync(getLogFile(exeDir), line);
+    fs.appendFileSync(getLogFile(dir), line);
   } catch (e: any) { /* ignore */ }
 
   try {

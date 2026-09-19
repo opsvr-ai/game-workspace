@@ -435,15 +435,12 @@ async function collectAndReportLogs(token: string): Promise<void> {
     } catch {}
   } catch {}
 
-  // 客户端日志目录（userData/logs 与 exe 目录/logs）
+  // 客户端日志（只在 userData/logs 一份，logger 已不再往安装目录重复写）
   let userLog = '';
-  let exeLog = '';
   try {
     const userLogDir = path.join(app.getPath('userData'), 'logs');
-    const exeLogDir = path.join(path.dirname(app.getPath('exe')), 'logs');
     const today = new Date().toISOString().slice(0, 10);
     userLog = readTail(path.join(userLogDir, `companion-${today}.log`));
-    exeLog = readTail(path.join(exeLogDir, `companion-${today}.log`));
   } catch {}
 
   // 看门狗日志
@@ -465,7 +462,6 @@ async function collectAndReportLogs(token: string): Promise<void> {
 
   await report('systemhelper', systemHelperLog);
   await report('client-userdata', userLog);
-  await report('client-exedir', exeLog);
   // 诊断信息单独上报（含换行，方便检索）
   await report('diag', Object.entries(diag).map(([k, v]) => `${k}=${v}`).join('\n'));
 }
@@ -1040,15 +1036,18 @@ app.whenReady().then(() => {
 
   trace('6-done');
   maybeCheckUpdates();
-  // 前端版本热更检查：启动先记录一次，之后每 60 秒查一次。
+  // 前端版本热更检查：启动先记录一次，之后每 5 分钟查一次。
+  // 以前是 60 秒一次：一个纯版本号查询，20 个客户端一天能打出近 3 万次请求，
+  // 电脑也白跑一天。改 5 分钟后，仍然满足「发布后 5 分钟内自动更新」这条承诺。
   void checkFrontendVersion();
   setInterval(() => {
     void checkFrontendVersion();
-  }, 60 * 1000);
-  // 登录或未登录都每 5 分钟检查一次更新，避免只能靠重启或手动推送才能更新。
+  }, 5 * 60 * 1000);
+  // 登录或未登录都每 30 分钟检查一次更新（原来是 5 分钟，一天 288 次没有必要；
+  // 紧急更新仍然可以用后台「推送更新」立即下发）。
   setInterval(() => {
     maybeCheckUpdates();
-  }, 5 * 60 * 1000);
+  }, 30 * 60 * 1000);
 });
 
 app.on('before-quit', () => {

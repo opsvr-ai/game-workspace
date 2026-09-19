@@ -12,8 +12,29 @@ const proxy = {
   '/uploads': { target: API_URL, changeOrigin: true },
 };
 
+// 把第三方库拆成几个「长期不变」的分块。
+// 现在整个前端是一个 2.8MB 的大文件，每次发布（哪怕只改一行字）所有客户端都要
+// 重新下载这 2.8MB。拆开之后 react / antd / 图表 各自一个文件，
+// 发布界面改动时只有应用那一个分块变，客户端只重下那部分。
+function manualChunks(id: string): string | undefined {
+  if (!id.includes('node_modules')) return undefined;
+  if (id.includes('recharts') || id.includes('d3-') || id.includes('victory')) return 'charts';
+  if (id.includes('antd') || id.includes('@ant-design') || id.includes('rc-') || id.includes('@rc-component')) return 'antd';
+  if (id.includes('react-dom') || id.includes('react-router') || id.includes('scheduler') || id.includes('/react/')) return 'react';
+  // 其余一律留在大包里。注意：不要再加一个「万能 vendor」兜底块——
+  // 那会让 react 块和 vendor 块互相引用（循环依赖），
+  // 表现就是启动时报 reading 'useLayoutEffect' of undefined、整页白屏。
+  return undefined;
+}
+
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: { manualChunks },
+    },
+    chunkSizeWarningLimit: 900,
+  },
   server: {
     host: '0.0.0.0',
     port: 8000,
