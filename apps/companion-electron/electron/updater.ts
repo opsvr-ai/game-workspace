@@ -191,13 +191,6 @@ export async function checkForUpdates(): Promise<void> {
   }
 }
 
-/**
- * Download installer exe and run silent install, then quit + relaunch.
- */
-export async function downloadAndInstall(downloadUrl: string): Promise<void> {
-  return downloadAndInstallWithRedirects(downloadUrl, 0);
-}
-
 const MAX_REDIRECTS = 5;
 const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
 let updateCheckRunning = false;

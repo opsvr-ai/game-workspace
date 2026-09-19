@@ -4,11 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { execFile, execFileSync } from 'child_process';
 
-// Write startup trace IMMEDIATELY at module load time
-try {
-  const t0 = path.join(app.getPath('desktop'), 'chunlv-trace.txt');
-  fs.appendFileSync(t0, `${new Date().toISOString()} MODULE_LOADED\n`);
-} catch {}
 import { store } from './store';
 import { getServerUrl } from './config';
 import { logger } from './logger';
@@ -25,20 +20,12 @@ let currentRole = 'COMPANION';
 // 允许局域网 http 地址使用麦克风/媒体接口
 app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
 
-// ── Trace log on Desktop ──
-const TRACE = path.join(app.getPath('desktop'), 'chunlv-trace.txt');
-function trace(msg: string) {
-  try {
-    fs.appendFileSync(TRACE, `${new Date().toISOString().slice(11, 23)} ${msg}\n`);
-  } catch {}
-}
-
 // 主进程未捕获异常兜底：不要让原生 Electron “Error” 弹窗卡住客户端。
 // EPIPE 等日志管道错误已经在上层吞掉，这里只记录，不弹窗、不闪退。
 process.on('uncaughtException', (err) => {
-  try {
-    trace(`UNCAUGHT ${err?.stack || err?.message || String(err)}`);
-  } catch {}
+  logger.error('Uncaught exception in main process', {
+    error: String(err?.stack || err?.message || err),
+  });
 });
 
 // ── Utils ──
@@ -187,8 +174,7 @@ function ensureDesktopShortcut(): void {
     ['-NoProfile', '-NonInteractive', '-Command', script],
     { windowsHide: true },
     (err) => {
-      if (err) trace('SHORTCUT-ERR ' + (err?.message || String(err)));
-      else trace('SHORTCUT-OK ' + target);
+      if (err) logger.warn('Desktop shortcut failed', { target, error: err?.message || String(err) });
     },
   );
 }
@@ -730,7 +716,6 @@ function setupIPC(): void {
     return shell.openPath(path.trim()).then(() => ({ success: true })).catch((err) => ({ success: false, error: String(err) }));
   });
   ipcMain.handle('watchdog:test', () => {
-    trace('TEST-WATCHDOG');
     app.exit(0);
   });
   ipcMain.handle('screen:unlock', (_e, pass: string) => {
@@ -832,7 +817,6 @@ function setupApplicationMenu(): void {
 
 // ── Lifecycle ──
 app.whenReady().then(() => {
-  trace('1-ready');
   // Windows 通知需要 AppUserModelID，否则右下角系统通知弹不出来（搭档邀请、订单提醒等）。
   app.setAppUserModelId('com.chunlv.companion');
   ensureDesktopShortcut();
@@ -841,7 +825,6 @@ app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true });
   cleanupStaleCaptures();
   setupIPC();
-  trace('2-ipc');
 
   // 开机/联网后补传未上传的截图（token 存在时）
   if (store.get('token')) {
@@ -879,7 +862,6 @@ app.whenReady().then(() => {
       preload: path.join(__dirname, '../preload-dist/preload.js'),
     },
   });
-  trace('3-win');
   const allowedOrigin = new URL(getServerUrl()).origin;
   mainWindow.webContents.on('will-navigate', (event, url) => {
     try {
@@ -908,19 +890,16 @@ app.whenReady().then(() => {
   mainWindow.on('resize', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('move', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('close', (e) => {
-    trace('CLOSE isQuitting=' + isQuitting + ' stack=' + (new Error().stack || '').slice(0, 200));
     if (!isQuitting) {
       e.preventDefault();
       mainWindow?.hide();
-      trace('CLOSE-hidden');
     }
   });
-  mainWindow.webContents.on('did-finish-load', () => trace('4-loaded'));
   // 只在「登录页自己加载失败」时重试。以前是窗口里任何一次加载失败都会把整个
   // 窗口强行 loadURL 回登录页，陪玩/客服正用着会突然掉到登录界面。
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
-    trace('FAIL-' + code + '-' + desc + '-' + (isMainFrame ? 'main' : 'sub'));
     if (!isMainFrame) return;
+    logger.warn('Page failed to load', { code, desc, failedUrl });
     if (code === -3 || isQuitting) return;
     const loginPath = getLoginUrl().split('?')[0];
     if (!String(failedUrl || '').startsWith(loginPath)) return;
@@ -933,7 +912,7 @@ app.whenReady().then(() => {
 
   // 系统唤醒后重新加载页面，避免唤醒后白屏
   powerMonitor.on('resume', () => {
-    trace('POWER-RESUME');
+    logger.info('System resumed, reloading renderer');
     if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
       mainWindow.reload();
     }
@@ -963,16 +942,15 @@ app.whenReady().then(() => {
       app.quit();
     },
   });
-  trace('5-tray');
 
   // Auto-relaunch when any child process (renderer/GPU) is killed
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
-    trace('RENDER-GONE ' + details.reason);
+    logger.warn('Renderer process gone, relaunching', { reason: details.reason });
     app.relaunch();
     app.exit(0);
   });
   app.on('child-process-gone', (_e, details) => {
-    trace('CHILD-GONE ' + details.type + ' ' + details.reason);
+    logger.warn('Child process gone, relaunching', { type: details.type, reason: details.reason });
     app.relaunch();
     app.exit(0);
   });
@@ -1034,7 +1012,6 @@ app.whenReady().then(() => {
     } catch {}
   }, 90 * 1000);
 
-  trace('6-done');
   maybeCheckUpdates();
   // 前端版本热更检查：启动先记录一次，之后每 5 分钟查一次。
   // 以前是 60 秒一次：一个纯版本号查询，20 个客户端一天能打出近 3 万次请求，
@@ -1050,9 +1027,6 @@ app.whenReady().then(() => {
   }, 30 * 60 * 1000);
 });
 
-app.on('before-quit', () => {
-  trace('quit');
-});
 app.on('window-all-closed', () => {});
 
 const gotLock = app.requestSingleInstanceLock();

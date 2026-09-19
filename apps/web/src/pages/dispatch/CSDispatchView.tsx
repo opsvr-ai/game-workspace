@@ -49,6 +49,7 @@ import {
 } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields } from '../../utils/orderPool';
+import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -352,9 +353,9 @@ const CSDispatchView: React.FC = () => {
     onChatNotify: () => {},
   });
 
-  // Fallback polling every 10s
+  // 兜底轮询：WS 不通时靠它兜住订单池和人员列表（最小化时不发请求）
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
+    intervalRef.current = visibleInterval(() => {
       fetchPool();
       fetchCompanions();
     }, 60000);

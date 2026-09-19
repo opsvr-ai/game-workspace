@@ -25,8 +25,10 @@ import {
 } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';
+import { managedPcApi, ManagedPcItem } from '../../api/managedPc';
 import { useSocket } from '../../hooks/useSocket';
 import { companionStatusConfig, modeLabels } from '../../constants';
+import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -82,6 +84,7 @@ const PcControlPage: React.FC = () => {
   const [modeFilter, setModeFilter] = useState<string | undefined>();
   const [versionSearch, setVersionSearch] = useState('');
   const [onlineFilter, setOnlineFilter] = useState<string | undefined>();
+  const [pcs, setPcs] = useState<ManagedPcItem[]>([]);
 
   const fetchCompanions = useCallback(async () => {
     setLoading(true);
@@ -97,12 +100,23 @@ const PcControlPage: React.FC = () => {
     }
   }, []);
 
+  const fetchPcs = useCallback(async () => {
+    try {
+      const { data } = await managedPcApi.list();
+      setPcs(data.data ?? []);
+    } catch {
+      // 电脑管理表可能未配置，忽略即可
+    }
+  }, []);
+
   useEffect(() => {
     fetchCompanions();
+    fetchPcs();
     // Auto-refresh every 30s as fallback
     const t = setInterval(fetchCompanions, 30000);
-    return () => clearInterval(t);
-  }, [fetchCompanions]);
+    const t2 = visibleInterval(fetchPcs, 30000);
+    return () => { clearInterval(t); clearInterval(t2); };
+  }, [fetchCompanions, fetchPcs]);
 
   // Real-time status updates via WebSocket
   useSocket({
@@ -145,6 +159,25 @@ const PcControlPage: React.FC = () => {
     else if (onlineFilter === 'offline') matchOnline = !isOnline(c);
     return matchName && matchStatus && matchMode && matchVersion && matchOnline;
   });
+
+  const pcByLogin = new Map((pcs || []).map((p) => [p.loginAccount, p]));
+  const wakePc = async (record: Companion) => {
+    const pc = pcByLogin.get(record.user?.username || '');
+    if (!pc) {
+      message.warning('该陪玩未登记电脑，请先到「电脑管理」添加');
+      return;
+    }
+    if (!pc.macAddress) {
+      message.warning('该电脑缺少 MAC 地址，无法远程开机');
+      return;
+    }
+    try {
+      await managedPcApi.power(pc.id, 'wake');
+      message.success('远程开机指令已发送');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '开机指令发送失败');
+    }
+  };
 
   const columns = [
     {
@@ -235,9 +268,22 @@ const PcControlPage: React.FC = () => {
       width: 320,
       render: (_: unknown, record: Companion) => {
         const pcOnline = isOnline(record);
+        const pc = pcByLogin.get(record.user?.username || '');
+        const canWake = !!pc?.macAddress;
         const busy = sendingCommands[record.id];
         return (
           <Space size="small" wrap>
+            <Tooltip title={canWake ? '发送远程开机指令' : '未登记电脑或缺少 MAC，无法开机'}>
+              <Button
+                size="small"
+                icon={React.createElement(ThunderboltOutlined)}
+                disabled={!canWake || busy}
+                loading={busy}
+                onClick={() => wakePc(record)}
+              >
+                开机
+              </Button>
+            </Tooltip>
             <Popconfirm
               title="确定对该 PC 执行关机？"
               onConfirm={() => handleCommand(record.id, 'shutdown')}

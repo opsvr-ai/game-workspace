@@ -16,10 +16,6 @@ export function setAppPassword(password: string): void {
   store.set('appPassword', password);
 }
 
-export function getAppPasswordForUI(): string {
-  return getAppPassword();
-}
-
 function buildLockHTML(): string {
   // Use base64 to avoid encoding issues with Chinese characters
   return Buffer.from(`<!DOCTYPE html>

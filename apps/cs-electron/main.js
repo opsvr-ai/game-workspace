@@ -267,7 +267,9 @@ app.whenReady().then(() => {
   createTray();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。
   setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
-  setInterval(checkForUpdates, 5 * 60 * 1000);
+  // 版本号查询从 5 分钟放宽到 30 分钟（一天 288 次没有意义）；
+  // 后台「推送更新」仍然可以立刻下发，不影响装机时间。
+  setInterval(checkForUpdates, 30 * 60 * 1000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

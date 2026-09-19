@@ -1,26 +1,44 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, InputNumber, Button, Typography, Space, message, Row, Col, Alert } from 'antd';
-import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, InputNumber, Button, Typography, Space, message, Row, Col, Divider } from 'antd';
+import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { SettingsField as Field } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
 
-const Field = ({ label, value, onChange, min = 0, step = 1, suffix, max }: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  step?: number;
-  suffix?: string;
-  max?: number;
-}) => (
-  <div style={{ marginBottom: 12 }}>
-    <Text style={{ display: 'inline-block', minWidth: 200 }}>{label}</Text>
-    <InputNumber min={min} max={max} step={step} value={value} onChange={(v) => onChange(v ?? 0)} style={{ width: 140 }} />
-    {suffix && <Text type="secondary" style={{ marginLeft: 8 }}>{suffix}</Text>}
-  </div>
-);
+type Tier = { min: number; score: number };
+
+const TIER_DEFS: Array<{ key: string; label: string; def: Tier[] }> = [
+  { key: 'excellence.revenue_tiers', label: '月流水档位（元，满分 50）', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.renew_tiers', label: '续单率档位（%，满分 20）', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.repurchase_tiers', label: '复购率档位（%，满分 20）', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.first_success_tiers', label: '首单成功率档位（%，满分 10）', def: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
+];
+
+const TierEditor = ({ label, tiers, onChange }: { label: string; tiers: Tier[]; onChange: (tiers: Tier[]) => void }) => {
+  const update = (i: number, patch: Partial<Tier>) => onChange(tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+  const add = () => onChange([...tiers, { min: 0, score: 0 }]);
+  const remove = (i: number) => onChange(tiers.filter((_, idx) => idx !== i));
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <Text strong>{label}</Text>
+      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tiers.map((t, i) => (
+          <Space key={i} size={6}>
+            <Text type="secondary">达到</Text>
+            <InputNumber min={0} value={t.min} onChange={(v) => update(i, { min: v ?? 0 })} style={{ width: 100 }} />
+            <Text type="secondary">给</Text>
+            <InputNumber min={0} value={t.score} onChange={(v) => update(i, { score: v ?? 0 })} style={{ width: 90 }} />
+            <Text type="secondary">分</Text>
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => remove(i)} />
+          </Space>
+        ))}
+        <Button size="small" icon={<PlusOutlined />} onClick={add}>添加档位</Button>
+      </div>
+    </div>
+  );
+};
 
 const ExcellenceSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);
@@ -42,42 +60,24 @@ const ExcellenceSettings: React.FC = () => {
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
   const update = (key: string, value: number) => setConfig((c: any) => ({ ...c, [key]: value }));
-
-  const weights = [
-    { key: 'excellence.revenue_weight', label: '月流水满分（分）', def: 50 },
-    { key: 'excellence.renew_weight', label: '续单率满分（分）', def: 20 },
-    { key: 'excellence.repurchase_weight', label: '复购率满分（分）', def: 20 },
-    { key: 'excellence.first_success_weight', label: '首单成功率满分（分）', def: 10 },
-  ];
-  const totalWeight = weights.reduce((s, w) => s + (config?.[w.key] ?? w.def), 0);
-  const threshold = config?.['excellence.excellent_threshold'] ?? 50;
-  const weightInvalid = totalWeight > 100;
-  const thresholdInvalid = threshold > totalWeight;
+  const getTiers = (key: string, def: Tier[]) => config?.[key] ?? def;
+  const setTiers = (key: string, tiers: Tier[]) => setConfig((c: any) => ({ ...c, [key]: tiers }));
 
   const save = async () => {
-    if (weightInvalid) {
-      message.error(`评分权重满分之和不能超过 100 分（当前 ${totalWeight} 分）`);
-      return;
-    }
-    if (thresholdInvalid) {
-      message.error(`上等马线不能超过满分（当前满分 ${totalWeight} 分）`);
-      return;
-    }
     setSaving(true);
     try {
       await configApi.update({
-        'excellence.revenue_weight': config?.['excellence.revenue_weight'] ?? 50,
-        'excellence.revenue_cap_yuan': config?.['excellence.revenue_cap_yuan'] ?? 10000,
-        'excellence.renew_weight': config?.['excellence.renew_weight'] ?? 20,
-        'excellence.repurchase_weight': config?.['excellence.repurchase_weight'] ?? 20,
-        'excellence.first_success_weight': config?.['excellence.first_success_weight'] ?? 10,
+        'excellence.revenue_tiers': config?.['excellence.revenue_tiers'],
+        'excellence.renew_tiers': config?.['excellence.renew_tiers'],
+        'excellence.repurchase_tiers': config?.['excellence.repurchase_tiers'],
+        'excellence.first_success_tiers': config?.['excellence.first_success_tiers'],
         'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 50,
         'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 25,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,
+        'excellence.low_tier_auto_resign_days': config?.['excellence.low_tier_auto_resign_days'] ?? 0,
         'dispatch.top_tier_daily_new_limit': config?.['dispatch.top_tier_daily_new_limit'] ?? 999,
         'dispatch.middle_tier_daily_new_limit': config?.['dispatch.middle_tier_daily_new_limit'] ?? 2,
         'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'] ?? 1,
-        'pool.daily_customer_quota': config?.['pool.daily_customer_quota'] ?? 3,
       });
       message.success('评分与名额配置已保存');
     } catch (e: any) {
@@ -94,41 +94,41 @@ const ExcellenceSettings: React.FC = () => {
   return (
     <div>
       <Card
-        title="🏆 综合评分权重与抢单名额"
+        title="🏆 综合评分（阶梯档位）与抢单名额"
         extra={
           <Space>
-            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
-            <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving} onClick={save}>保存</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchConfig} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>保存</Button>
           </Space>
         }
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          综合分 = 月流水分 + 续单率分 + 复购率分 + 首单成功率分 + 战绩图加分；达到「上等马线」进入上等马。
+          综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项按「达到档位给对应分」；达到上等马线进入上等马。
         </Text>
-        {weightInvalid && (
-          <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`四项权重满分之和不能超过 100 分（当前 ${totalWeight} 分）`} />
-        )}
-        {thresholdInvalid && (
-          <Alert type="error" showIcon style={{ marginBottom: 12 }} message={`上等马线不能超过满分（当前满分 ${totalWeight} 分）`} />
-        )}
         <Row gutter={24}>
           <Col span={12}>
-            {weights.map((w) => (
-              <Field key={w.key} label={w.label} value={config?.[w.key] ?? w.def} step={1} max={100} onChange={(v) => update(w.key, v)} />
+            {TIER_DEFS.slice(0, 2).map((td) => (
+              <TierEditor key={td.key} label={td.label} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
             ))}
-            <Field label="月流水满分金额（元）" value={config?.['excellence.revenue_cap_yuan'] ?? 10000} step={100} onChange={(v) => update('excellence.revenue_cap_yuan', v)} suffix="达到此金额即满分" />
-            <Field label="上等马线（分）" value={threshold} step={1} max={100} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
+          </Col>
+          <Col span={12}>
+            {TIER_DEFS.slice(2).map((td) => (
+              <TierEditor key={td.key} label={td.label} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
+            ))}
+          </Col>
+        </Row>
+        <Divider />
+        <Row gutter={24}>
+          <Col span={12}>
+            <Field label="上等马线（分）" value={config?.['excellence.excellent_threshold'] ?? 50} step={1} max={100} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
             <Field label="中等马线（分）" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} max={100} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
+            <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>
             <Field label="战绩图每组加分（分）" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
-            <Field label="上等马每日新客名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} />
-            <Field label="中等马每日新客名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} />
-            <Field label="下等马每日新客名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} />
-            <Field label="每日有效客户名额" value={config?.['pool.daily_customer_quota'] ?? 3} step={1} onChange={(v) => update('pool.daily_customer_quota', v)} />
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary">当前权重满分之和：<b style={{ color: weightInvalid ? '#f5222d' : '#16A34A' }}>{totalWeight}</b> 分</Text>
-            </div>
+            <Field label="上等马每日有效客户名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} suffix="成交才占名额" />
+            <Field label="中等马每日有效客户名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} suffix="成交才占名额" />
+            <Field label="下等马每日有效客户名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="成交才占名额" />
           </Col>
         </Row>
       </Card>

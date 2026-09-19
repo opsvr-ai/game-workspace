@@ -18,7 +18,6 @@ import {
   Tooltip,
 } from 'antd';
 import {
-  ThunderboltOutlined,
   PlayCircleOutlined,
   SearchOutlined,
   CoffeeOutlined,
@@ -34,10 +33,10 @@ import http from '../api/client';
 import { companionStatusConfig } from '../constants';
 import EmptyState from '../components/EmptyState';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text, Title } = Typography;
 
-const IconThunder = React.createElement(ThunderboltOutlined);
 const IconPlay = React.createElement(PlayCircleOutlined);
 const IconSearch = React.createElement(SearchOutlined);
 const IconCoffee = React.createElement(CoffeeOutlined);
@@ -118,7 +117,7 @@ const CompanionPage: React.FC = () => {
       .then((r: any) => setDormantCount(r.data?.data?.dormant || 0))
       .catch(() => {});
     fetchRanking();
-    const t = setInterval(() => {
+    const t = visibleInterval(() => {
       fetchData();
       fetchWallet();
     }, 30_000);
@@ -170,7 +169,6 @@ const CompanionPage: React.FC = () => {
     }
   };
 
-  const [blockedModal, setBlockedModal] = useState<any>(null);
   // Boot guide modal (TASK-06)
   const [bootGuideVisible, setBootGuideVisible] = useState(false);
   // No-customer proof modal (TASK-08)
@@ -202,9 +200,6 @@ const CompanionPage: React.FC = () => {
       await (window as any).electronAPI?.storeSet('notificationPrefs', prefs);
     } catch {}
   };
-  const entertainmentThreshold = data?.entertainmentThreshold ?? 200;
-  const belowEntertainment = data ? data.todayRevenue < entertainmentThreshold : true;
-
   // Listen for boot guide from Electron (TASK-06)
   useEffect(() => {
     const handler = () => {
@@ -245,22 +240,10 @@ const CompanionPage: React.FC = () => {
   const switchStatus = async (status: string) => {
     try {
       const { data: res } = await companionsApi.updateStatus(user?.companionId ?? '', status);
-      if (res.data?.blocked) {
-        setBlockedModal(res.data);
-        return;
-      }
       if (res.data?.alreadyInStatus) {
         const labels: Record<string, string> = { AVAILABLE: '空闲', BUSY: '接单', ENTERTAINMENT: '娱乐', RESTING: '休息' };
         message.info(`你已经是「${labels[status] || status}」状态，无需重复点击`);
         return;
-      }
-      // 从娱乐切回空闲：弹出本次娱乐消费金额
-      if (res.data?.entertainmentFee != null) {
-        Modal.info({
-          title: '🎮 本次娱乐消费',
-          content: `本次娱乐消费 ¥${res.data.entertainmentFee.toFixed(1)}（已按小时费率计费）`,
-          okText: '知道了',
-        });
       }
       (window as any).__showStatusBar?.(status);
       (window as any).electronAPI?.onStatusChanged?.(status);
@@ -317,18 +300,11 @@ const CompanionPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Tooltip
-                title={
-                  belowEntertainment
-                    ? `今日流水 ¥${data.todayRevenue}，达标 ¥${entertainmentThreshold} 后可切换`
-                    : undefined
-                }
-              >
+              <Tooltip title="娱乐随时可进，当日流水达标 ¥300 则免费，否则按小时计费">
                 <Button
                   type={data.currentStatus === 'ENTERTAINMENT' ? 'primary' : 'default'}
                   icon={IconPlay}
                   onClick={() => switchStatus('ENTERTAINMENT')}
-                  disabled={belowEntertainment}
                 >
                   娱乐
                 </Button>
@@ -339,13 +315,6 @@ const CompanionPage: React.FC = () => {
                 onClick={() => switchStatus('AVAILABLE')}
               >
                 空闲
-              </Button>
-              <Button
-                type={data.currentStatus === 'BUSY' ? 'primary' : 'default'}
-                icon={IconThunder}
-                onClick={() => switchStatus('BUSY')}
-              >
-                接单
               </Button>
               <Button
                 type={data.currentStatus === 'RESTING' ? 'primary' : 'default'}
@@ -370,6 +339,41 @@ const CompanionPage: React.FC = () => {
           </Col>
         </Row>
       </Card>
+
+      {data.tierInfo?.mode === 'TIERED' && (
+        <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
+          <Space size={12} wrap style={{ marginBottom: 8 }}>
+            <Text strong>阶梯分成</Text>
+            <Tag color="blue">本月流水 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}</Tag>
+            <Tag color="gold" style={{ fontSize: 14, fontWeight: 600 }}>
+              当前分成 {data.tierInfo.companionPct}%
+            </Tag>
+            {data.tierInfo.tenureMonths != null && (
+              <Tag>工龄 {data.tierInfo.tenureMonths} 个月</Tag>
+            )}
+            {data.tierInfo.topTierBlocked && (
+              <Tag color="orange">未满6个月，最高档暂按 60%</Tag>
+            )}
+          </Space>
+          <Space size={8} wrap>
+            {(data.tierInfo.tiers || []).map((t: any, i: number) => {
+              const active = Number(t.companion) === Number(data.tierInfo.companionPct);
+              const label = t.max == null
+                ? `≥${t.min} 元 → 你拿 ${t.companion}%`
+                : `${t.min}~${t.max} 元 → 你拿 ${t.companion}%`;
+              return (
+                <Tag
+                  key={i}
+                  color={active ? 'gold' : 'default'}
+                  style={{ marginInlineEnd: 0, fontWeight: active ? 600 : 400 }}
+                >
+                  {active ? '⭐ ' : ''}{label}
+                </Tag>
+              );
+            })}
+          </Space>
+        </Card>
+      )}
 
       {/* ② Analytics Dashboard */}
       <Title level={5} style={{ marginBottom: 8 }}>
@@ -906,41 +910,6 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Modal>
 
-      {/* Keep existing modals */}
-      <Modal title="⚠️ 无法切换娱乐模式" open={!!blockedModal} onCancel={() => setBlockedModal(null)} footer={null}>
-        <div style={{ lineHeight: 2.2 }}>
-          <p>您当前没有未支取的余额，无法开启娱乐模式：</p>
-          <div style={{ background: '#fff7e6', borderRadius: 8, padding: 12, marginTop: 8 }}>
-            <div>
-              📊 总流水：<Text strong>¥{blockedModal?.totalRevenue?.toFixed(1) ?? '0.00'}</Text>
-            </div>
-            <div>
-              🔢 可分账金额（
-              {blockedModal?.totalRevenue > 0
-                ? Math.round((blockedModal?.withdrawable / blockedModal.totalRevenue) * 100)
-                : 50}
-              %）：<Text strong>¥{blockedModal?.withdrawable?.toFixed(1) ?? '0.00'}</Text>
-            </div>
-            <div>
-              💸 已支取：<Text strong>¥{blockedModal?.totalWithdrawn?.toFixed(1) ?? '0.00'}</Text>
-            </div>
-            <div>
-              🏦 剩余未支取：
-              <Text strong style={{ color: '#ff4d4f' }}>
-                ¥{blockedModal?.remaining?.toFixed(1) ?? '0.00'}
-              </Text>
-            </div>
-            <div style={{ marginTop: 4 }}>💰 账户余额：¥{blockedModal?.totalBalance?.toFixed(1) ?? '0.00'}</div>
-          </div>
-          <p style={{ marginTop: 12 }}>请支取部分流水后，有剩余未支取余额即可开启娱乐模式。</p>
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <Button type="primary" onClick={() => setBlockedModal(null)}>
-              知道了
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       {/* TASK-06: Boot Guide Modal */}
       <Modal title="📋 开工提醒" open={bootGuideVisible} onCancel={() => setBootGuideVisible(false)} footer={null}>
         <div style={{ lineHeight: 2.2 }}>
@@ -1001,7 +970,7 @@ const CompanionPage: React.FC = () => {
       </Modal>
 
       {/* TASK-08: Apply unlock button - shown when below threshold */}
-      {belowEntertainment && (
+      {data && !data.isUnlocked && (
         <div style={{ textAlign: 'center', marginTop: 12 }}>
           <Button type="link" icon={IconLock} onClick={() => setProofVisible(true)}>
             没有客户？申请解锁订单池

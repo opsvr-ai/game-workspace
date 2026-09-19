@@ -66,6 +66,7 @@ import {
   sumWidths,
 } from '../constants/datasetColumns';
 import TableSkeleton from '../components/TableSkeleton';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -260,7 +261,7 @@ const CustomersPage: React.FC = () => {
     return () => window.removeEventListener('chunlv:service-started', onServiceStarted);
   }, [fetchCustomers]);
   useEffect(() => {
-    const t = setInterval(() => fetchCustomers(true), 120000);
+    const t = visibleInterval(() => fetchCustomers(true), 120000);
     return () => clearInterval(t);
   }, [fetchCustomers]);
   useEffect(() => {

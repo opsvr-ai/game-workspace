@@ -3,6 +3,7 @@ import { Button, Card, Input, Space, Tag, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import OrderRow from './OrderRow';
+import { visibleInterval } from '../hooks/usePolling';
 
 interface Props {
   refreshSignal?: number;
@@ -28,7 +29,7 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60000);
+    const t = visibleInterval(load, 60000);
     return () => clearInterval(t);
   }, []);
 

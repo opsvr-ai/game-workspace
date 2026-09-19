@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, Table, Tag, Tabs, Typography, message } from 'antd';
 import { analyticsApi } from '../../api/analytics';
 import { useAuthStore } from '../../stores/authStore';
+import { visibleInterval } from '../../hooks/usePolling';
 
 const { Title, Text } = Typography;
 
@@ -34,7 +35,7 @@ const AnalyticsPage: React.FC = () => {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60000);
+    const timer = visibleInterval(load, 60000);
     return () => clearInterval(timer);
   }, [role]);
 

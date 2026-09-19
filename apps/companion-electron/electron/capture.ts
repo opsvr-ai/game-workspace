@@ -28,12 +28,21 @@ function localDir(sid: string): string {
   return path.join(app.getPath('userData'), 'captures', sid);
 }
 
+// capture.log 以前只增不减，装几个月能堆到几十兆。超过 512KB 就只留最后一段。
+const CAPTURE_LOG_MAX_BYTES = 512 * 1024;
+
+function captureLogPath(): string {
+  return path.join(app.getPath('userData'), 'captures', 'capture.log');
+}
+
 function log(msg: string) {
   try {
-    fs.appendFileSync(
-      path.join(app.getPath('userData'), 'captures', 'capture.log'),
-      `${new Date().toISOString().slice(11, 23)} ${msg}\n`,
-    );
+    const file = captureLogPath();
+    if (fs.existsSync(file) && fs.statSync(file).size > CAPTURE_LOG_MAX_BYTES) {
+      const raw = fs.readFileSync(file, 'utf-8');
+      fs.writeFileSync(file, raw.slice(-CAPTURE_LOG_MAX_BYTES / 2));
+    }
+    fs.appendFileSync(file, `${new Date().toISOString().slice(11, 23)} ${msg}\n`);
   } catch {}
 }
 
@@ -197,13 +206,6 @@ export async function stopCaptureAndFlush(): Promise<void> {
   log(`STOP session=${sid} — flushing...`);
   await flushUploadFor(sid);
   log('flush done');
-}
-
-/** 兼容旧调用（不等待） */
-export function stopCapture(): void {
-  (async () => {
-    await stopCaptureAndFlush();
-  })();
 }
 
 /** 对指定 session 批量上传本地截图，成功后删除 */

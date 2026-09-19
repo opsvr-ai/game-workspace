@@ -7,6 +7,7 @@ import { customersApi } from '../api/customers';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -78,7 +79,7 @@ const BattleScreenshotsPage: React.FC = () => {
       }
     };
     check();
-    const t = setInterval(check, 30000);
+    const t = visibleInterval(check, 30000);
     return () => clearInterval(t);
   }, [user?.companionId, doUpload]);
 

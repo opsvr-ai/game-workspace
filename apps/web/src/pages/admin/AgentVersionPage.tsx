@@ -33,6 +33,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import { agentApi } from '../../api/agent';
+import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -161,7 +162,7 @@ const AgentVersionPage: React.FC = () => {
         .catch(() => {});
     };
     load();
-    const timer = setInterval(load, 60000);
+    const timer = visibleInterval(load, 60000);
     return () => clearInterval(timer);
   }, []);
 

@@ -3,3 +3,7 @@ release/
 dist/
 dist-electron/
 resources/
+memory/
+SCRATCHPAD.md
+TASK-QUEUE.md
+WORKING.md

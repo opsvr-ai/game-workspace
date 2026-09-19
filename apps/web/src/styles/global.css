@@ -51,6 +51,7 @@ body {
 }
 
 .status-dot {
+  position: relative;
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -60,7 +61,34 @@ body {
 }
 .status-dot.online {
   background: #00e676;
-  animation: pulse-glow 2s ease-in-out infinite;
+}
+/* 呼吸光晕：以前直接动画 box-shadow，每帧都要重绘；
+   人员列表里几十个在线状态点同时闪，全天在跑。改用 transform/opacity
+   的伪元素（GPU 合成，不重绘），视觉一样但基本不吃 CPU。 */
+.status-dot.online::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #00e676;
+  opacity: 0.5;
+  animation: pulse-ring 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 .status-dot.offline {
   background: #94a3b8;

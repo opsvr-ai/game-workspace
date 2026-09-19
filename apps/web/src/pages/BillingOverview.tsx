@@ -30,6 +30,7 @@ import {
   ThunderboltOutlined,
   HourglassOutlined,
 } from '@ant-design/icons';
+import { visibleInterval } from '../hooks/usePolling';
 const IconCheck = React.createElement(CheckCircleOutlined);
 const IconClose = React.createElement(CloseCircleOutlined);
 const IconReload = React.createElement(ReloadOutlined);
@@ -41,6 +42,7 @@ import PageHeader from '../components/PageHeader';
 import CardSkeleton from '../components/CardSkeleton';
 import TransactionReviewSection from '../components/TransactionReviewSection';
 import { serviceTypeConfig } from '../constants/orders';
+import PasteImageBox from '../components/PasteImageBox';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -96,6 +98,8 @@ const BillingOverview: React.FC = () => {
   const [withdrawVisible, setWithdrawVisible] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [withdrawNote, setWithdrawNote] = useState('');
+  const [walletInfo, setWalletInfo] = useState<any>(null);
   const [reportVisible, setReportVisible] = useState(false);
   const [todayOrders, setTodayOrders] = useState<any[]>([]);
   const [reportScreenshots, setReportScreenshots] = useState<Record<string,string>>({});
@@ -159,7 +163,7 @@ const BillingOverview: React.FC = () => {
 
   // Auto-refresh: 30s polling
   useEffect(() => {
-    const t = setInterval(() => { fetchOverview(); fetchDailyReports(); }, 30_000);
+    const t = visibleInterval(() => { fetchOverview(); fetchDailyReports(); }, 120_000);
     return () => clearInterval(t);
   }, [fetchOverview, fetchDailyReports]);
 
@@ -183,6 +187,12 @@ const BillingOverview: React.FC = () => {
     }
   }, [isCompanion, user?.companionId]);
 
+  useEffect(() => {
+    if (isCompanion && user?.companionId) {
+      http.get('/companions/me/wallet').then(({ data }: any) => setWalletInfo(data.data || null)).catch(() => {});
+    }
+  }, [isCompanion, user?.companionId]);
+
   const handleWithdraw = async () => {
     if (withdrawAmount <= 0) {
       message.warning('请输入有效金额');
@@ -190,10 +200,11 @@ const BillingOverview: React.FC = () => {
     }
     setWithdrawSubmitting(true);
     try {
-      await http.post('/companions/me/withdraw', { amount: withdrawAmount });
+      await http.post('/companions/me/withdraw', { amount: withdrawAmount, note: withdrawNote.trim() || undefined });
       message.success('支取申请已提交');
       setWithdrawVisible(false);
       setWithdrawAmount(0);
+      setWithdrawNote('');
       fetchOverview();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '申请失败');
@@ -332,6 +343,19 @@ const BillingOverview: React.FC = () => {
         }),
       }
     : undefined;
+
+  const uploadReportTotalScreenshot = async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const { data } = await http.post('/upload/screenshot', fd);
+      setReportTotalScreenshot(data.data?.url || data.url || '');
+      message.success('截图已上传');
+    } catch {
+      message.error('上传失败');
+    }
+    return false;
+  };
 
   return (
     <div>
@@ -746,20 +770,14 @@ const BillingOverview: React.FC = () => {
                 {Math.abs(reportDiff) >= 0.01 && <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>请核对每单实际到账金额</Text>}
               </Text>
             </div>
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ marginTop: 10 }}>
               <Text strong>转账截图（必传）：</Text>
-              <Upload showUploadList={false} accept="image/*" beforeUpload={async (file) => {
-                const fd = new FormData(); fd.append('file', file);
-                try {
-                  const { data } = await http.post('/upload/screenshot', fd);
-                  setReportTotalScreenshot(data.data?.url || '');
-                  message.success('截图已上传');
-                } catch { message.error('上传失败'); }
-                return false;
-              }}>
-                <Button icon={<UploadOutlined />}>{reportTotalScreenshot ? '重新上传截图' : '上传截图'}</Button>
-              </Upload>
-              {reportTotalScreenshot && <a href={reportTotalScreenshot} target="_blank" rel="noreferrer">查看已传截图</a>}
+              <PasteImageBox onFile={uploadReportTotalScreenshot} style={{ marginTop: 4 }}>
+                <Upload showUploadList={false} accept="image/*" beforeUpload={uploadReportTotalScreenshot}>
+                  <Button icon={<UploadOutlined />}>{reportTotalScreenshot ? '重新上传截图' : '上传截图'}</Button>
+                </Upload>
+                {reportTotalScreenshot && <a href={reportTotalScreenshot} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已传截图</a>}
+              </PasteImageBox>
             </div>
           </div>
         )}
@@ -774,6 +792,7 @@ const BillingOverview: React.FC = () => {
         onCancel={() => {
           setWithdrawVisible(false);
           setWithdrawAmount(0);
+          setWithdrawNote('');
         }}
         confirmLoading={withdrawSubmitting}
         okText="提交申请"
@@ -806,6 +825,15 @@ const BillingOverview: React.FC = () => {
             </Text>
           </div>
           <Text type="secondary">提示：提交后需管理员审核通过。</Text>
+          {walletInfo?.monthlyWithdrawLimit != null && (
+            <>
+              <br />
+              <Text type="secondary">
+                本月支取：{walletInfo.monthlyWithdrawUsed ?? 0}/{walletInfo.monthlyWithdrawLimit} 次
+                {walletInfo.monthlyWithdrawRemaining != null ? `，剩余 ${walletInfo.monthlyWithdrawRemaining} 次` : ''}
+              </Text>
+            </>
+          )}
         </div>
         <div>
           <Text>支取金额：</Text>
@@ -817,6 +845,13 @@ const BillingOverview: React.FC = () => {
             onChange={(v) => setWithdrawAmount(v ?? 0)}
             placeholder="请输入支取金额"
             addonAfter="元"
+          />
+          <Text style={{ display: 'block', marginTop: 10 }}>收款账号（微信/支付宝/银行卡，便于财务转账）：</Text>
+          <Input
+            style={{ marginTop: 4 }}
+            value={withdrawNote}
+            onChange={(e) => setWithdrawNote(e.target.value)}
+            placeholder="例如：微信 138xxxx"
           />
         </div>
       </Modal>

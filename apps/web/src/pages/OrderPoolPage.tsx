@@ -22,6 +22,7 @@ import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '..
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields } from '../utils/orderPool';
 import { DATA_FONT_SIZE, DATA_ROW_PADDING } from '../constants/datasetColumns';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -190,7 +191,7 @@ const OrderPoolPage: React.FC = () => {
   useEffect(() => {
     if (!isCompanion) return;
     fetchCompanions();
-    const timer = setInterval(fetchCompanions, 120000);
+    const timer = visibleInterval(fetchCompanions, 120000);
     return () => clearInterval(timer);
   }, [isCompanion, fetchCompanions]);
 

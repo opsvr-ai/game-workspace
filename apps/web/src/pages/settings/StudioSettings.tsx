@@ -5,14 +5,9 @@ import {
 } from 'antd';
 import { ReloadOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { SettingsLabel as Label } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
-
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <Text style={{ display: 'inline-block', minWidth: 140, marginBottom: 4 }}>
-    {children}
-  </Text>
-);
 
 interface TagListEditorProps {
   label: string;

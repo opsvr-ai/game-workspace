@@ -23,6 +23,7 @@ import {
 import { billingApi } from '../api/billing';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -68,7 +69,7 @@ const TransactionReviewSection: React.FC = () => {
 
   useEffect(() => {
     fetchList();
-    const timer = setInterval(fetchList, 30_000);
+    const timer = visibleInterval(fetchList, 30_000);
     return () => clearInterval(timer);
   }, [fetchList]);
 

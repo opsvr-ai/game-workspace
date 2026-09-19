@@ -79,10 +79,6 @@ export function updateTrayTooltip(text: string): void {
   tray?.setToolTip(text);
 }
 
-export function updateTrayMenu(items: Electron.MenuItemConstructorOptions[]): void {
-  tray?.setContextMenu(Menu.buildFromTemplate(items));
-}
-
 // 创建一帧「加载中」图标：灰色圆环 + 一个旋转的亮点，模拟转圈圈
 function createSpinFrame(step: number, total = 8): Electron.NativeImage {
   const size = 16;

@@ -3,6 +3,7 @@ import { Table, Tag, Typography, Button, Space, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import { companionStatusConfig } from '../constants';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -20,7 +21,7 @@ const CompanionListPage: React.FC = () => {
   }, []);
 
   useEffect(() => { fetch(); }, [fetch]);
-  useEffect(() => { const t = setInterval(fetch, 60000); return () => clearInterval(t); }, [fetch]);
+  useEffect(() => { const t = visibleInterval(fetch, 60000); return () => clearInterval(t); }, [fetch]);
 
   return (
     <div>

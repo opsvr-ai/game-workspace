@@ -3,6 +3,7 @@ import { Button, Card, Modal, Select, Space, Tag, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import OrderRow from './OrderRow';
+import { visibleInterval } from '../hooks/usePolling';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -28,7 +29,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
       .listWorkWechats()
       .then(({ data }: any) => setWorkWechats(data?.data || []))
       .catch(() => {});
-    const t = setInterval(load, 10000);
+    const t = visibleInterval(load, 60000);
     return () => clearInterval(t);
   }, []);
 
@@ -118,7 +119,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
               >
                 {workWechats.filter((w: any) => w.type === 'STUDIO').map((w: any) => (
                   <Select.Option key={w.id} value={w.id}>
-                    {w.wechatId}
+                    {w.wechatId}{w.nickname ? `（${w.nickname}）` : ''}
                   </Select.Option>
                 ))}
               </Select>

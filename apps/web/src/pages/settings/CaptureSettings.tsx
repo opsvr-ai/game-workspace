@@ -1,26 +1,11 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, InputNumber, Button, Typography, Space, message, Row, Col } from 'antd';
+import { Card, Button, Typography, Space, message, Row, Col } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { SettingsField as Field } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
-
-const Field = ({ label, value, onChange, min = 0, step = 1, suffix, max }: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  step?: number;
-  suffix?: string;
-  max?: number;
-}) => (
-  <div style={{ marginBottom: 12 }}>
-    <Text style={{ display: 'inline-block', minWidth: 190 }}>{label}</Text>
-    <InputNumber min={min} max={max} step={step} value={value} onChange={(v) => onChange(v ?? 0)} style={{ width: 160 }} />
-    {suffix && <Text type="secondary" style={{ marginLeft: 8 }}>{suffix}</Text>}
-  </div>
-);
 
 const CaptureSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);

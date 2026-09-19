@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Card, InputNumber, Button, Space, Typography, message, Table, Popconfirm } from 'antd';
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { SettingsLabel } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
 
@@ -160,7 +161,7 @@ const PaymentSettings: React.FC = () => {
       <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>🏢 线上俱乐部（固定比例）</Text>
         <div>
-          <Text style={{ display: 'inline-block', minWidth: 140, marginBottom: 4 }}>陪玩分成比例（%）</Text>
+          <SettingsLabel>陪玩分成比例（%）</SettingsLabel>
           <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? 80}
             onChange={(v) => update('revenue.club_companion_share', v ?? 80)} style={{ width: 200 }} />
           <Text type="secondary" style={{ marginLeft: 8 }}>线上俱乐部固定分给陪玩的比例，工作室获剩余份额，默认 80%</Text>

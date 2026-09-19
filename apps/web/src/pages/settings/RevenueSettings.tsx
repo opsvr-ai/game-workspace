@@ -3,14 +3,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Card, InputNumber, Button, Space, Typography, message } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { SettingsLabel as Label } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
-
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <Text style={{ display: 'inline-block', minWidth: 140, marginBottom: 4 }}>
-    {children}
-  </Text>
-);
 
 const RevenueSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);
@@ -148,6 +143,7 @@ const RevenueSettings: React.FC = () => {
                   {
                     'withdraw.advance_ratio': config?.['withdraw.advance_ratio'],
                     'withdraw.default_deposit': config?.['withdraw.default_deposit'],
+                    'withdraw.monthly_limit': config?.['withdraw.monthly_limit'],
                   },
                   '支取与押金',
                 )
@@ -179,8 +175,19 @@ const RevenueSettings: React.FC = () => {
             />
             <Text type="secondary" style={{ marginLeft: 8 }}>新陪玩注册时的默认押金金额</Text>
           </div>
+          <div>
+            <Label>每月支取次数上限</Label>
+            <InputNumber
+              min={0} step={1}
+              value={config?.['withdraw.monthly_limit'] ?? 2}
+              onChange={(v) => update('withdraw.monthly_limit', v ?? 2)}
+              style={{ width: 200 }}
+            />
+            <Text type="secondary" style={{ marginLeft: 8 }}>0 表示不限制；默认每月 2 次</Text>
+          </div>
         </Space>
       </Card>
+
     </div>
   );
 };

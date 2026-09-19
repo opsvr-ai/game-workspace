@@ -4,6 +4,7 @@ import { Card, TimePicker, Button, Typography, Space, message, Row, Col } from '
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { configApi } from '../../api/config';
+import { SettingsLabel } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
 
@@ -69,7 +70,7 @@ const AttendanceSettings: React.FC = () => {
         <Row gutter={24}>
           <Col span={12}>
             <div style={{ marginBottom: 12 }}>
-              <Text style={{ display: 'inline-block', minWidth: 190 }}>上班时间</Text>
+              <SettingsLabel>上班时间</SettingsLabel>
               <TimePicker
                 format="HH:mm"
                 value={toTime(config?.['attendance.workStart'])}
@@ -79,7 +80,7 @@ const AttendanceSettings: React.FC = () => {
           </Col>
           <Col span={12}>
             <div style={{ marginBottom: 12 }}>
-              <Text style={{ display: 'inline-block', minWidth: 190 }}>下班时间</Text>
+              <SettingsLabel>下班时间</SettingsLabel>
               <TimePicker
                 format="HH:mm"
                 value={toTime(config?.['attendance.workEnd'])}

@@ -1,10 +1,12 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card, Input, Select } from 'antd';
+import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
+import { employeesApi } from '../api/employees';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, STATUS_SORT, modeLabels, HEARTBEAT_THRESHOLD } from '../constants';
 import ErrorBanner from '../components/ErrorBanner';
@@ -12,6 +14,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import TableSkeleton from '../components/TableSkeleton';
 import WorkRecordsDrawer from '../components/WorkRecordsDrawer';
+import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 
@@ -37,6 +40,11 @@ interface Personnel {
   monthlyRevenue?: number | null;
   phone?: string | null;
   realName?: string | null;
+  idNumber?: string | null;
+  idCardFront?: string | null;
+  idCardBack?: string | null;
+  isResigned?: boolean;
+  isSeniorStaff?: boolean;
   lastHeartbeat?: string | null;
   currentMode?: string | null;
 }
@@ -84,6 +92,8 @@ function formatHeartbeat(heartbeat: string | null | undefined): {
 
 const CompanionsPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
+  const [searchParams] = useSearchParams();
+  const roleFilter = searchParams.get('role');
   const role = user?.role;
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
 
@@ -94,6 +104,8 @@ const CompanionsPage: React.FC = () => {
   // Filters
   const [searchText, setSearchText] = useState('');
   const [wrCompanion, setWrCompanion] = useState<Personnel | null>(null);
+  const [detailEmployee, setDetailEmployee] = useState<Personnel | null>(null);
+  const [idCardMap, setIdCardMap] = useState<Record<string, Personnel>>({});
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
 
@@ -126,13 +138,64 @@ const CompanionsPage: React.FC = () => {
     }
   }, []);
 
+  const loadEmployeeIdCards = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const { data } = await employeesApi.list({ role: 'COMPANION' });
+      const list = (data.data ?? []) as Array<{
+        id: string;
+        idNumber?: string | null;
+        idCardFront?: string | null;
+        idCardBack?: string | null;
+        companion?: { idNumber?: string | null; idCardFront?: string | null; idCardBack?: string | null } | null;
+      }>;
+      const map: Record<string, Personnel> = {};
+      for (const item of list) {
+        map[item.id] = {
+          id: item.id,
+          username: '',
+          role: 'COMPANION',
+          idNumber: item.idNumber ?? item.companion?.idNumber ?? null,
+          idCardFront: item.idCardFront ?? item.companion?.idCardFront ?? null,
+          idCardBack: item.idCardBack ?? item.companion?.idCardBack ?? null,
+        };
+      }
+      setIdCardMap(map);
+    } catch {
+      // 详情数据加载失败不影响陪玩列表主流程
+    }
+  }, [isAdmin]);
+
+  const openDetail = async (record: Personnel) => {
+    setDetailEmployee({ ...record, ...(idCardMap[record.id] || {}) });
+    if (!isAdmin) return;
+    try {
+      const { data } = await employeesApi.list({ role: 'COMPANION' });
+      const item = ((data.data ?? []) as any[]).find((e: any) => e.id === record.id);
+      setDetailEmployee((prev) => prev && prev.id === record.id
+        ? {
+            ...prev,
+            idNumber: item?.idNumber ?? item?.companion?.idNumber ?? null,
+            idCardFront: item?.idCardFront ?? item?.companion?.idCardFront ?? null,
+            idCardBack: item?.idCardBack ?? item?.companion?.idCardBack ?? null,
+          }
+        : prev);
+    } catch {
+      // 单次详情获取失败时，保留已经显示的基础信息
+    }
+  };
+
   useEffect(() => {
     fetchCompanions();
   }, [fetchCompanions]);
 
+  useEffect(() => {
+    loadEmployeeIdCards();
+  }, [loadEmployeeIdCards]);
+
   // 60s auto-refresh
   useEffect(() => {
-    const t = setInterval(fetchCompanions, 60000);
+    const t = visibleInterval(fetchCompanions, 60000);
     return () => clearInterval(t);
   }, [fetchCompanions]);
 
@@ -161,8 +224,12 @@ const CompanionsPage: React.FC = () => {
       });
     }
 
+    if (roleFilter) {
+      list = list.filter((c) => c.role === roleFilter);
+    }
+
     return list.sort((a, b) => (STATUS_SORT[a.status ?? 'OFFLINE'] ?? 9) - (STATUS_SORT[b.status ?? 'OFFLINE'] ?? 9));
-  }, [companions, searchText, statusFilter, gameFilter]);
+  }, [companions, searchText, statusFilter, gameFilter, roleFilter]);
 
   const loadTimeLogs = useCallback(async (companionId: string) => {
     let shouldFetch = false;
@@ -235,7 +302,8 @@ const CompanionsPage: React.FC = () => {
           const username = r.username || r.id;
           const avatarUrl = r.avatar ? `/uploads/avatars/${r.avatar}?v=${r.avatar}` : null;
           return (
-            <Space size={8}>
+            <div style={{ cursor: 'pointer' }} onClick={() => openDetail(r)}>
+              <Space size={8}>
               <div
                 style={{
                   width: 32,
@@ -265,7 +333,8 @@ const CompanionsPage: React.FC = () => {
                   </>
                 )}
               </div>
-            </Space>
+              </Space>
+            </div>
           );
         },
       },
@@ -396,26 +465,48 @@ const CompanionsPage: React.FC = () => {
       cols.push({
         title: '操作',
         key: 'actions',
-        width: 170,
+        width: 220,
         render: (_: unknown, record: Personnel) => (
           <Space size={0}>
             {record.role === 'COMPANION' && (
               <>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await companionsApi.setSeniorStaff(record.companionId!, !record.isSeniorStaff);
+                      message.success(record.isSeniorStaff ? '已取消老员工标记' : '已标记为老员工');
+                      fetchCompanions();
+                    } catch (e: any) {
+                      message.error(e?.response?.data?.message || '操作失败');
+                    }
+                  }}
+                >
+                  {record.isSeniorStaff ? '取消老员工' : '标记老员工'}
+                </Button>
                 <Button type="link" size="small" onClick={() => { setWrCompanion(record); }}>
                   工作记录
                 </Button>
-                <Popconfirm
-                  title="确认离职处理？"
-                  description="离职后陪玩状态将设为离线，余额、押金等将清零"
-                  onConfirm={() => handleResign(record.companionId || '')}
-                  okText="确认"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button type="link" danger size="small">
-                    离职处理
-                  </Button>
-                </Popconfirm>
+                <Button type="link" size="small" onClick={() => openDetail(record)}>
+                  身份证
+                </Button>
+                {record.isResigned ? (
+                  <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
+                ) : (
+                  <Popconfirm
+                    title="确认离职处理？"
+                    description="离职后陪玩状态将设为离线，余额、押金等将清零"
+                    onConfirm={() => handleResign(record.companionId || '')}
+                    okText="确认"
+                    cancelText="取消"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button type="link" danger size="small">
+                      离职处理
+                    </Button>
+                  </Popconfirm>
+                )}
               </>
             )}
             {record.role !== 'COMPANION' && (
@@ -613,6 +704,35 @@ const CompanionsPage: React.FC = () => {
           />
         </Card>
       )}
+
+      <Modal
+        title="员工详情"
+        open={!!detailEmployee}
+        onCancel={() => setDetailEmployee(null)}
+        footer={<Button onClick={() => setDetailEmployee(null)}>关闭</Button>}
+        width={520}
+      >
+        {detailEmployee && (
+          <div style={{ lineHeight: 2.2 }}>
+            <p><Text strong>用户名：</Text>{detailEmployee.username}</p>
+            <p><Text strong>姓名：</Text>{detailEmployee.realName || '-'}</p>
+            <p><Text strong>手机号：</Text>{detailEmployee.phone || '-'}</p>
+            <p><Text strong>身份证号：</Text>{detailEmployee.idNumber || '-'}</p>
+            {detailEmployee.idCardFront && (
+              <p>
+                <Text strong>身份证正面：</Text>
+                <Image src={`/uploads/idcards/${detailEmployee.idCardFront}`} width={200} style={{ borderRadius: 4 }} />
+              </p>
+            )}
+            {detailEmployee.idCardBack && (
+              <p>
+                <Text strong>身份证反面：</Text>
+                <Image src={`/uploads/idcards/${detailEmployee.idCardBack}`} width={200} style={{ borderRadius: 4 }} />
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <WorkRecordsDrawer
         open={!!wrCompanion}

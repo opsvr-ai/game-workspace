@@ -6,6 +6,7 @@ import {
   PlusOutlined, ReloadOutlined, PoweroffOutlined, RedoOutlined, MoonOutlined, CloudOutlined, DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
 import { managedPcApi, ManagedPcItem } from '../../api/managedPc';
+import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text, Title } = Typography;
 
@@ -35,7 +36,7 @@ const ManagedPcPage: React.FC = () => {
 
   useEffect(() => {
     fetchItems();
-    const timer = setInterval(fetchItems, 30000);
+    const timer = visibleInterval(fetchItems, 120000);
     return () => clearInterval(timer);
   }, [fetchItems]);
 
@@ -147,8 +148,12 @@ const ManagedPcPage: React.FC = () => {
         if (r.online) {
           label = '在线';
           color = 'green';
-        } else if (r.lastActionAt && Date.now() - new Date(r.lastActionAt).getTime() < 5 * 60 * 1000) {
-          // 只在最近 5 分钟内确实执行过电源操作时，才显示“已关机/睡眠/休眠”，避免旧记录一直误显示
+        } else if ((r as any).reachable) {
+          label = '电脑在线未登录';
+          color = 'blue';
+        } else if (r.lastAction) {
+          // 只要最后执行过关机/睡眠/休眠，并且到现在都没有重新上线，就保持对应状态，
+          // 不再因为超过 5 分钟就自动变回“离线”。
           if (r.lastAction === 'shutdown') {
             label = '已关机';
             color = 'red';
