@@ -15,6 +15,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩端主进程 WebSocket 一天连不上，管理员远程推送/踢下线/收日志全都发不出去:** 陪玩端主进程引的是 socket.io 的**浏览器构建**（`socket.io-client/dist/socket.io.js`），它依赖浏览器才有的 `XMLHttpRequest`；Electron 主进程是 Node 环境没有这个 API，每次请求都直接抛 `Cannot read properties of undefined (reading 'open')`，被 socket.io 归成 `xhr poll error`——所以本机日志里一天 2800 多次报错、一次都没连上，只是页面端那条连接还在，从现象上完全看不出来。现在改用 socket.io 的 Node 版入口（走 xmlhttprequest-ssl / ws），并在打包时由 esbuild 把整套依赖内联进 `dist-electron/main.js`（安装包里的 `node_modules` 是 pnpm 链接结构，socket.io 的子依赖不会进 asar，必须内联）。实测装机包启动即 `WS connected`，管理员后台点「远程自测」能当场送达并执行。客户端版本 1.0.20260920。
+
 - **订单池的新单全跑到最底下:** 抢单池接口一直按发布时间升序返回（最老的在最上面），陪玩端前一阵在前端补了一次倒序，但**派单工作台的订单池**没补，所以客服刚发布的单会掉到列表最底部。现在接口统一按发布时间倒序返回，前端两处再各自排一次，不再依赖接口顺序。
 
 - **「订单池」整块被挤到人员列表下面:** 派单工作台中间那一列用的是 `flex:1 1 auto`，它会拿订单行的内容宽度当基准；订单信息是「游戏 | 类型 | 时长 | 金额 | 时间…」一整条不换行的长串，比列宽还宽时，antd 的 Row 会把这一列直接折到下一行——于是「订单池」连着里面所有订单整块掉到人员列表下方，看起来就是订单全在底部。现在这一列改成 `flex:1 1 0%` 并允许订单信息在行内换行，右侧「修改/抢单/沟通」按钮固定不换行。1320 和 1080 两种窗口下实测：人员列与订单池列并排、无横向溢出。
