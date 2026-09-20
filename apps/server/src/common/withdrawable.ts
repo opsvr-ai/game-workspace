@@ -9,7 +9,9 @@ import type { RevenueSplitTier } from './revenue-calculator';
  *
  * 老板 2026-09-20 拍板前，代码里三处算法各不相同（历史全量流水 / 忙碌人数快照 …），
  * 从今往后所有地方都调这里，别再各写一份。
- * 「未打存单预留」= 客户存单里还没打完的余额对应的提成（防「冲完成绩跑路」）。
+ * 「未打存单预留」= 客户存单里还没打完的余额，**原样全额**押着（不乘分润比例）。
+ * 老板 2026-09-21 拍板：存单多少就写多少；只有**已经打完**的部分才乘分润比例进可支取（即上面的「当月累计业绩 × 分润比例」）。
+ * 例：客户存单余额 300 元没打完 → 预留就是 300（不打折）；这月打完 1000 元 → 1000 × 分润比例进可支取。
  */
 export interface WithdrawableBreakdown {
   month: string;
@@ -100,7 +102,8 @@ export async function computeWithdrawable(
   });
 
   const depositUnused = depositRows.reduce((s, c) => s + (c.depositBalance || 0), 0);
-  const depositReserve = round2(depositUnused * share);
+  // 存单里还没打完的余额：原样全额押着，不乘分润比例。
+  const depositReserve = round2(depositUnused);
 
   const withdrawable = Math.max(
     0,

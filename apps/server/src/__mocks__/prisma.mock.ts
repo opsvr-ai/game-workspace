@@ -72,6 +72,16 @@ export function createMockPrisma() {
     customerProfile: {
       findUnique: vi.fn(),
     },
+    walletTransaction: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      aggregate: vi.fn(),
+      count: vi.fn(),
+    },
     transaction: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
