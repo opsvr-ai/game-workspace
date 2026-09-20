@@ -384,7 +384,7 @@ export class OrdersService implements OnModuleInit {
     // 按「上等马 → 桥接 → 中等马 → 下等马 → 线上」分别延迟可见。
     const now = Date.now();
     const isCompanion = !!companionId;
-    return orders.filter((o) => {
+    const available = orders.filter((o) => {
       const cf = (o.customFields as any) || {};
       // 客服已经处理过的单子不再回到抢单池。
       if (cf.poolHandled) return false;
@@ -409,6 +409,80 @@ export class OrdersService implements OnModuleInit {
       }
       return now - new Date(o.createdAt).getTime() >= delay;
     });
+
+    // 老板 2026-09-21：订单池里只看得到「还没被抢走」的单，陪玩一忙、一看视频就以为
+    // 工作室没单，其实是被人抢走了。现在把今天（营业日 12:00 起）已经被抢的单也一起
+    // 返回，前端灰掉显示，让大家看得到「今天发过这些单」。
+    // 只对陪玩端（有 companionId）返回；管理端/客服在「全部订单」里本来就看得见。
+    if (!companionId) return available;
+
+    const taken = await this.findTakenPoolOrders(companionId, studioId);
+    return [...available, ...taken];
+  }
+
+  /**
+   * 今天（营业日 12:00 起）已经被抢走 / 已在服务的订单池订单 —— 陪玩端的灰色记录。
+   * 刻意不带客户微信号、来源账号、二维码：只是让陪玩看到「今天有这些单、被谁抢了」，
+   * 别人的客户信息一条都不给。
+   */
+  private async findTakenPoolOrders(companionId: string, studioId?: string) {
+    const { start } = currentBusinessDayRange();
+    const where: any = {
+      dispatchType: 'POOL',
+      status: { in: ['GRABBED', 'CONFIRMED', 'DONE', 'CANCELLED', 'CLAIMED'] },
+      OR: [{ createdAt: { gte: start } }, { grabbedAt: { gte: start } }],
+    };
+    if (studioId) {
+      const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      where.studioId = { in: [studioId, ...bridgedIds] };
+    }
+
+    const rows = await this.prisma.order.findMany({
+      where,
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        amount: true,
+        gameName: true,
+        serviceType: true,
+        duration: true,
+        customFields: true,
+        createdAt: true,
+        grabbedAt: true,
+        updatedAt: true,
+        companionId: true,
+        coCompanionId: true,
+        studioId: true,
+        csUserId: true,
+        companion: { select: { user: { select: { displayName: true, username: true } } } },
+        coCompanion: { select: { user: { select: { displayName: true, username: true } } } },
+        csUser: { select: { username: true, avatar: true, displayName: true, role: true } },
+        studio: { select: { name: true } },
+      },
+      orderBy: [{ grabbedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 100,
+    });
+
+    return rows
+      .filter((o) => {
+        const cf = (o.customFields as any) || {};
+        // 客服已经处理过、或判定流转失败的单不再展示（和上面的可抢列表口径一致）。
+        return !cf.poolHandled && !cf.poolExpired;
+      })
+      .map((o) => ({
+        ...o,
+        customer: null,
+        _taken: true,
+        _takenByMe: o.companionId === companionId || o.coCompanionId === companionId,
+        _takenByName:
+          o.companion?.user?.displayName ||
+          o.companion?.user?.username ||
+          o.coCompanion?.user?.displayName ||
+          o.coCompanion?.user?.username ||
+          '其他陪玩',
+        _takenAt: o.grabbedAt ?? o.updatedAt,
+      }));
   }
 
   async findAll(user: any, status?: string) {

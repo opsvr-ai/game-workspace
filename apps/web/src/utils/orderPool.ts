@@ -38,6 +38,7 @@ export function buildOrderInfoFields(
   now: number,
   disappearMinutes: number,
   scheduledDisappearMinutes: number,
+  opts: { taken?: boolean } = {},
 ): string[] {
   const type = orderTypeConfig[order.type]?.label || order.type || '首单';
   const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
@@ -70,7 +71,9 @@ export function buildOrderInfoFields(
     order.customFields?.urgency === 'later' ? '预约' : '立即打',
     scheduledTime,
     fmtClock(order.createdAt),
-    `已等待 ${fmtSpan(wait)}`,
-    `距离消失 ${disappearText}`,
+    // 已经被抢走的单（灰色记录）：不再有「等多久 / 还差多久消失」，改成什么时候被抢的。
+    ...(opts.taken
+      ? [`抢单 ${fmtClock(order._takenAt || order.grabbedAt || order.updatedAt || order.createdAt)}`]
+      : [`已等待 ${fmtSpan(wait)}`, `距离消失 ${disappearText}`]),
   ];
 }

@@ -20,7 +20,7 @@ import TierBadge from '../components/TierBadge';
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
-import { buildOrderInfoFields } from '../utils/orderPool';
+import { buildOrderInfoFields, fmtClock } from '../utils/orderPool';
 import {
   DATA_FONT_SIZE,
   DATA_ROW_PADDING,
@@ -38,6 +38,15 @@ function displayStatus(c: any): { label: string; color: string } {
   }
   return { label: '在线', color: 'green' };
 }
+
+/** 已被抢走的单在灰色记录里显示的进度文案（老板 2026-09-21） */
+const TAKEN_STATUS_LABEL: Record<string, string> = {
+  GRABBED: '已被抢',
+  CLAIMED: '客服处理中',
+  CONFIRMED: '服务中',
+  DONE: '已完成',
+  CANCELLED: '已取消',
+};
 
 const STATUS_DOT: Record<string, string> = {
   green: '#22C55E',
@@ -254,6 +263,12 @@ const OrderPoolPage: React.FC = () => {
     [orders],
   );
 
+  // 老板 2026-09-21：订单池以前只显示「还没被抢走」的单，陪玩一忙 / 一看视频就以为
+  // 工作室没单，其实是被别人抢走了。现在把今天已经发出去、已经被抢的单也显示出来
+  // （灰色、不可抢），大家一眼能看到「今天发过这些单」。
+  const availableOrders = useMemo(() => sortedOrders.filter((o: any) => !o._taken), [sortedOrders]);
+  const takenOrders = useMemo(() => sortedOrders.filter((o: any) => o._taken), [sortedOrders]);
+
   // Chat handlers
   const openChat = (order: any) => {
     setUnreadMap((prev) => {
@@ -356,7 +371,11 @@ const OrderPoolPage: React.FC = () => {
 
   // Render a single pool card row
   const renderPoolCard = (order: any, idx: number) => {
-    const fields = buildOrderInfoFields(order, now, disappearMinutes, scheduledDisappearMinutes);
+    // 已被抢走的单：整行灰掉、不能点、右侧只说明「被谁抢走了 / 什么时候」。
+    const taken = !!order._taken;
+    const fields = buildOrderInfoFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
+      taken,
+    });
 
     return (
       <div
@@ -367,10 +386,11 @@ const OrderPoolPage: React.FC = () => {
           alignItems: 'center',
           gap: 10,
           padding: DATA_ROW_PADDING,
-          background: '#fff',
+          background: taken ? '#FAFAFA' : '#fff',
           borderBottom: '1px solid #f0f0f0',
+          borderLeft: taken ? '3px solid #E2E8F0' : '3px solid transparent',
           fontSize: DATA_FONT_SIZE,
-          color: '#1f2329',
+          color: taken ? '#9AA3AF' : '#1f2329',
         }}
       >
         {/* 订单信息太长时只让这一块横向滚动，抢单按钮永远钉在最右侧，不被挤出屏幕 */}
@@ -399,7 +419,24 @@ const OrderPoolPage: React.FC = () => {
           )}
         </div>
         <div style={{ flexShrink: 0 }}>
-        {isCompanion ? (
+        {taken ? (
+          <Space size={8}>
+            <Tag
+              style={{
+                margin: 0,
+                fontSize: DATA_TAG_FONT_SIZE,
+                color: order._takenByMe ? '#16A34A' : '#64748B',
+                background: order._takenByMe ? '#F0FDF4' : '#EEF2F6',
+                borderColor: order._takenByMe ? '#BBF7D0' : '#E2E8F0',
+              }}
+            >
+              {order._takenByMe ? '✅ 你已抢到这单' : `已被 ${order._takenByName || '其他陪玩'} 抢走`}
+            </Tag>
+            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+              {TAKEN_STATUS_LABEL[order.status] || order.status}
+            </Text>
+          </Space>
+        ) : isCompanion ? (
           <Space size={8}>
             {order.companionId && <Text type="danger" style={{ fontSize: DATA_SUB_FONT_SIZE }}>客服指定给你接</Text>}
             <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
@@ -642,11 +679,41 @@ const OrderPoolPage: React.FC = () => {
               description="暂无待派订单 · 有新单会自动出现在这里（最新发布的排最上面）"
             />
           )}
+          {availableOrders.length === 0 && takenOrders.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <EmptyState
+                compact
+                description="暂时没有可抢的新单 · 下面是今天已经发出去、已经被抢走的单（灰色）"
+              />
+            </div>
+          )}
 
           {/* Horizontal order rows — all info in one row */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {sortedOrders.map((order: any, idx: number) => renderPoolCard(order, idx))}
+            {availableOrders.map((order: any, idx: number) => renderPoolCard(order, idx))}
           </div>
+
+          {takenOrders.length > 0 && (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 16,
+                  marginBottom: 6,
+                }}
+              >
+                <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#64748B' }}>
+                  今天已发过的单（灰色 = 已被抢走）
+                </Text>
+                <Tag style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE }}>{takenOrders.length} 单</Tag>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {takenOrders.map((order: any, idx: number) => renderPoolCard(order, idx))}
+              </div>
+            </>
+          )}
 
           {isCompanion && (
             <Card size="small" style={{ marginTop: 16 }}>
