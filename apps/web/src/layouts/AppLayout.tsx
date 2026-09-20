@@ -486,29 +486,38 @@ const AppLayout: React.FC = () => {
     api?.getAppVersion?.().then((v: string) => setAppVersion(v || '')).catch(() => {});
   }, []);
   useEffect(() => {
+    const pageStartedAt = Date.now();
     const send = () => {
       http
         .post('/agent/heartbeat', { agentVersion: appVersion || undefined })
         .then((res: any) => {
-        const id = res?.data?.data?.webBuildId;
-        if (!id) return;
-        setWebBuild(id);
-        const prev = localStorage.getItem('webBuildId');
-        if (prev && prev !== id) {
+          const id = res?.data?.data?.webBuildId;
+          if (!id) return;
+          setWebBuild(id);
+          const prev = localStorage.getItem('webBuildId');
+          if (!prev) {
+            localStorage.setItem('webBuildId', id);
+            return;
+          }
+          if (prev === id) return;
+          // 有新版本前端页面。以前这里无条件刷新，服务端每重启一次大家就整页刷一次，
+          // 看起来就是「动不动掉线」。现在：服务中不刷、刚打开页面先等一会儿、5 分钟内只刷一次。
+          if (res?.data?.data?.inService) return;
+          if (Date.now() - pageStartedAt < 120_000) return;
+          const lastReloadAt = Number(localStorage.getItem('webBuildReloadAt') || 0);
+          if (Date.now() - lastReloadAt < 5 * 60_000) return;
           localStorage.setItem('webBuildId', id);
+          localStorage.setItem('webBuildReloadAt', String(Date.now()));
           window.location.reload();
-        } else if (!prev) {
-          localStorage.setItem('webBuildId', id);
-        }
-      })
-      .catch(() => {});
-  };
-  send();
-  // 前端版本检查：从 10 秒放宽到 60 秒，切后台/最小化时不检查。
-  const timer = setInterval(() => {
-    if (document.visibilityState === 'visible') send();
-  }, 60_000);
-  return () => clearInterval(timer);
+        })
+        .catch(() => {});
+    };
+    send();
+    // 前端版本检查：每 60 秒一次；页面不可见（最小化 / 切到后台）时跳过。
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') send();
+    }, 60_000);
+    return () => clearInterval(timer);
   }, [appVersion]);
   useEffect(() => {
     if (user?.role === 'CS') {

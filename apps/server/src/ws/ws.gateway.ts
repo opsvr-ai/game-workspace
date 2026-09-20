@@ -54,6 +54,10 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** companionId -> socketId */
   private companionSockets = new Map<string, Set<string>>();
+  /** 断开后「延迟置离线」的定时器：companionId -> timer */
+  private pendingOfflineTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** 置离线宽限期缓存（避免每次断开都查一次配置） */
+  private offlineGraceCache: { seconds: number; at: number } | null = null;
   /** userId -> socketId */
   private userSockets = new Map<string, string>();
 
@@ -160,6 +164,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // 客户端主进程可能用 accessToken 或 refreshToken 连接（两者签名密钥不同）
       let payload: JwtPayload;
       let staleToken: { expiredAt: Date; kind: 'access' | 'refresh' } | null = null;
+      // 记录这条连接用的是哪种令牌（access=网页 / refresh=陪玩端主进程），
+      // 排查「谁在反复掉线」时能一眼看出是哪条连接在抖。
+      let tokenKind: 'access' | 'refresh' = 'access';
       try {
         payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
       } catch (accessErr) {
@@ -168,6 +175,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const stale = await this.acceptExpiredOwnToken(token);
         if (stale) {
           payload = stale.payload;
+          tokenKind = stale.kind;
           if (stale.expired) {
             staleToken = { expiredAt: stale.expiredAt, kind: stale.kind };
           }
@@ -175,6 +183,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         try {
           const refreshed = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
           payload = refreshed;
+          tokenKind = 'refresh';
         } catch (refreshErr) {
           // 两个密钥都验不过 = 这个令牌不是这台服务器签发的。
           // 老板 2026-09-20 报「日志里每天几十次 invalid signature」：
@@ -194,7 +203,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             userId: info?.sub,
             issuedAt: info?.iat ? new Date(info.iat * 1000).toISOString() : null,
             expiresAt: info?.exp ? new Date(info.exp * 1000).toISOString() : null,
-            address: client.handshake.address,
+            address: client.handshake?.address,
           });
           client.emit('auth:failed', { reason: (accessErr as Error).message });
           // 先把「你去换令牌」这句话发出去再断开，否则客户端只看到自己被踢，
@@ -211,7 +220,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           userId: (payload as any)?.sub,
           tokenKind: staleToken.kind,
           expiredAt: staleToken.expiredAt.toISOString(),
-          address: client.handshake.address,
+          address: client.handshake?.address,
         });
         // 告诉客户端去换新令牌，下一次重连就恢复正常
         client.emit('auth:stale_token', {
@@ -228,6 +237,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         companionId: payload.companionId,
       };
       client.data.user = user;
+      client.data.tokenKind = tokenKind;
+      client.data.transport = client.conn?.transport?.name ?? 'unknown';
 
       void client.join(`user:${user.id}`);
       this.userSockets.set(user.id, client.id);
@@ -255,9 +266,16 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           this.companionSockets.set(user.companionId, new Set());
         }
         this.companionSockets.get(user.companionId)!.add(client.id);
+        // 刚刚那次断开只是刷新页面 / 网络抖一下 / 服务端发版重启？连回来就把
+        // 「置离线」的定时器撤掉，状态保持原样，控制台里不会闪一下「掉线」。
+        if (this.cancelPendingOfflineTransition(user.companionId)) {
+          logger.info('Companion reconnected within grace, offline transition cancelled', {
+            companionId: user.companionId,
+          });
+        }
         logger.debug('Companion connected', { companionId: user.companionId, username: user.username });
         void this.pushCurrentBlacklist(user.companionId, user.studioId);
-        void this.syncManagedPc(client.handshake.address, user.username);
+        void this.syncManagedPc(client.handshake?.address, user.username);
 
         // 重连补发未处理的搭档邀请，避免发送时客户端恰好断线导致收不到。
         const pendingInvite = await this.prisma.orderSession.findFirst({
@@ -319,6 +337,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(client: Socket): Promise<void> {
+
     const user = client.data.user as ConnectedUser | undefined;
     if (!user) return;
     this.userSockets.delete(user.id);
@@ -329,37 +348,103 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (sockets.size === 0) {
         this.companionSockets.delete(user.companionId);
       } else {
-        // 还有其他连接（主进程/页面），先不下线
-        logger.info('Companion partial disconnect', { companionId: user.companionId, remaining: sockets.size });
+        // 还有别的连接（主进程 / 页面），状态先不动
+        logger.info('Companion partial disconnect', {
+          companionId: user.companionId,
+          remaining: sockets.size,
+          tokenKind: (client.data as any).tokenKind,
+          transport: (client.data as any).transport,
+          address: client.handshake?.address,
+        });
         return;
       }
     }
-    logger.info('Companion disconnected', { companionId: user.companionId });
+    logger.info('Companion disconnected', {
+      companionId: user.companionId,
+      tokenKind: (client.data as any).tokenKind,
+      transport: (client.data as any).transport,
+      address: client.handshake?.address,
+    });
 
-    // 进行中服务断线：保持 BUSY，不刷成离线，避免重连/心跳时又被重置为空闲。
-    const inService = await this.companionsService.hasActiveServiceSession(user.companionId).catch(() => false);
+    // 老板 2026-09-21 报「软件动不动就掉线」：客户端刷新页面、网络抖一下、或者服务端
+    // 发版重启，都会把连接断掉几秒——以前这里立刻把人置成 OFFLINE，控制台里就闪一下
+    // 「掉线」。现在改成「宽限期内连回来 = 没掉过线」，超过宽限期（默认 60 秒，
+    // 系统设置里可改 ws.offline_grace_seconds）才真的置离线。
+    await this.scheduleOfflineTransition(user.companionId, user.studioId || undefined);
+  }
+
+  /**
+   * 宽限期内连回来了 → 撤掉「置离线」定时器，返回 true。
+   * 这样刷新页面 / 网络抖动 / 服务端发版重启都不会在控制台里闪出「掉线」。
+   */
+  private cancelPendingOfflineTransition(companionId: string): boolean {
+    const pending = this.pendingOfflineTimers.get(companionId);
+    if (!pending) return false;
+    clearTimeout(pending);
+    this.pendingOfflineTimers.delete(companionId);
+    return true;
+  }
+
+  /** 安排「延迟置离线」；重复断开只保留最后一个定时器 */
+  private async scheduleOfflineTransition(companionId: string, studioId?: string): Promise<void> {
+    const existing = this.pendingOfflineTimers.get(companionId);
+    if (existing) clearTimeout(existing);
+    const graceMs = await this.offlineGraceMs();
+    if (graceMs <= 0) {
+      await this.applyOfflineTransition(companionId, studioId);
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.pendingOfflineTimers.delete(companionId);
+      void this.applyOfflineTransition(companionId, studioId);
+    }, graceMs);
+    if (typeof (timer as any).unref === 'function') (timer as any).unref();
+    this.pendingOfflineTimers.set(companionId, timer);
+  }
+
+  /** 宽限期到点、且确实还没连回来 → 置离线（有服务在身则保持忙碌） */
+  private async applyOfflineTransition(companionId: string, studioId?: string): Promise<void> {
+    if (this.companionSockets.get(companionId)?.size) return;
+    const inService = await this.companionsService.hasActiveServiceSession(companionId).catch(() => false);
     const disconnectStatus = inService ? 'BUSY' : 'OFFLINE';
     await this.prisma.companion
-      .update({
-        where: { id: user.companionId },
-        data: { status: disconnectStatus },
-      })
+      .update({ where: { id: companionId }, data: { status: disconnectStatus } })
       .catch((err) => {
         logger.error('Failed to update companion status on disconnect', {
-          companionId: user.companionId,
+          companionId,
           error: (err as Error).message,
         });
       });
 
     // Finalize attendance on disconnect
-    await this.companionsService.finalizeAttendance(user.companionId);
+    await this.companionsService.finalizeAttendance(companionId);
+    logger.info('Companion marked offline after grace', {
+      companionId,
+      status: disconnectStatus,
+    });
 
-    if (user.studioId) {
-      this.broadcastToBridgedStudios(user.studioId, 'status:broadcast', {
-        companionId: user.companionId,
+    if (studioId) {
+      this.broadcastToBridgedStudios(studioId, 'status:broadcast', {
+        companionId,
         status: disconnectStatus,
       });
     }
+  }
+
+  /** 置离线宽限期（秒）：配置 ws.offline_grace_seconds，默认 60，结果缓存 60 秒 */
+  private async offlineGraceMs(): Promise<number> {
+    const now = Date.now();
+    if (this.offlineGraceCache && now - this.offlineGraceCache.at < 60_000) {
+      return this.offlineGraceCache.seconds * 1000;
+    }
+    const cfg = await this.prisma.systemConfig
+      .findUnique({ where: { key: 'ws.offline_grace_seconds' } })
+      .catch(() => null);
+    const raw = cfg?.value as unknown;
+    const value = typeof raw === 'number' ? raw : Number(raw);
+    const seconds = Number.isFinite(value) ? Math.max(0, value) : 60;
+    this.offlineGraceCache = { seconds, at: now };
+    return seconds * 1000;
   }
 
   // ── inbound ────────────────────────────────────────────────────────

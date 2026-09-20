@@ -10,9 +10,79 @@ const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 const logger = new Logger('AgentService');
 
+// 串行更新锁：同一时间只允许一个客户端下载更新包，避免多台机器同时抢带宽导致谁都下不动。
+let updateSlot: { companionId: string; startedAt: number } = { companionId: '', startedAt: 0 };
+const UPDATE_SLOT_TIMEOUT = 10 * 60 * 1000; // 10 分钟超时，避免某台卡死长期占住名额
+
 @Injectable()
 export class AgentService {
-  readonly deployId = Date.now().toString(36);
+  /** 进程启动标识：只给服务端自己看（诊断用），不再当作「前端构建号」下发。 */
+  readonly processStartedId = Date.now().toString(36);
+
+  private webBuildCache: { key: string; id: string } | null = null;
+
+  private webIndexPath: string | null | undefined;
+
+  /** 找到 web-dist/index.html。编译产物在 dist/agent/ 下，所以要逐层往上找。 */
+  private findWebIndexFile(): string | null {
+    if (this.webIndexPath !== undefined) return this.webIndexPath;
+    let dir = __dirname;
+    for (let depth = 0; depth < 5; depth += 1) {
+      const candidate = path.join(dir, 'web-dist', 'index.html');
+      if (fs.existsSync(candidate)) {
+        this.webIndexPath = candidate;
+        return candidate;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    this.webIndexPath = null;
+    return null;
+  }
+
+  /**
+   * 前端构建标识：下发给客户端，用来判断「有没有新版前端页面」。
+   * 取自 web-dist 里真实的构建产物文件名（assets/index-<hash>.js）：
+   * 只有真的发布了新的前端产物才会变；服务端重启、只重打后端都不会变。
+   * 以前这里是 Date.now()，每次重启服务端都会变 → 所有客户端下一轮心跳就整页刷新，
+   * 表现出来就是「动不动掉线」。
+   */
+  get deployId(): string {
+    try {
+      const indexPath = this.findWebIndexFile();
+      if (!indexPath) return 'web-unknown';
+      const stat = fs.statSync(indexPath);
+      const key = `${stat.size}:${Math.round(stat.mtimeMs)}`;
+      if (this.webBuildCache?.key === key) return this.webBuildCache.id;
+      const html = fs.readFileSync(indexPath, 'utf8');
+      const matched = html.match(/assets\/index-([A-Za-z0-9_-]+)\.js/);
+      const id = matched ? `web-${matched[1]}` : `web-${stat.size}-${Math.round(stat.mtimeMs)}`;
+      this.webBuildCache = { key, id };
+      return id;
+    } catch {
+      return 'web-unknown';
+    }
+  }
+
+  /** 陪玩是否正在服务中（接单中/服务中）。正在服务时不刷客户端页面，避免打断。 */
+  async isCompanionInService(companionId: string): Promise<boolean> {
+    try {
+      const [companion, running] = await Promise.all([
+        this.prisma.companion.findUnique({ where: { id: companionId }, select: { status: true } }),
+        this.prisma.orderSession.count({
+          where: {
+            status: 'ACTIVE',
+            startedAt: { not: null },
+            OR: [{ companionId }, { coCompanionId: companionId }],
+          },
+        }),
+      ]);
+      return companion?.status === 'BUSY' || running > 0;
+    } catch {
+      return false;
+    }
+  }
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -22,6 +92,24 @@ export class AgentService {
       select: { id: true },
     });
     return companions.map((c) => c.id);
+  }
+
+  /** 申请更新下载名额：同一时间只放行一台；超时未释放则自动让给下一台。 */
+  acquireUpdateSlot(companionId: string): { granted: boolean; waitingFor?: string } {
+    const now = Date.now();
+    if (updateSlot.companionId && now - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) {
+      if (updateSlot.companionId === companionId) return { granted: true };
+      return { granted: false, waitingFor: updateSlot.companionId };
+    }
+    updateSlot = { companionId, startedAt: now };
+    return { granted: true };
+  }
+
+  /** 下载完成（或放弃）后释放名额。 */
+  releaseUpdateSlot(companionId: string): void {
+    if (updateSlot.companionId === companionId) {
+      updateSlot = { companionId: '', startedAt: 0 };
+    }
   }
 
   async getOnlineCompanionTargets(studioId?: string): Promise<
@@ -119,6 +207,11 @@ export class AgentService {
       version: (versionCfg?.value as string) ?? '1.0.0',
       downloadUrl: (urlCfg?.value as string) ?? '/api/agent/download/cs',
     };
+  }
+
+  async getFrontendVersion() {
+    const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'web.frontend_version' } });
+    return { version: (cfg?.value as string) ?? '0' };
   }
 
   async reportCsVersion(userId: string, version: string) {

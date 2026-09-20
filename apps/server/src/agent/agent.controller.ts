@@ -2,10 +2,12 @@
 import { Controller, Get, Post, Res, Req, UseGuards, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
 import { AgentService } from './agent.service';
 import { WsGateway } from '../ws/ws.gateway';
+import { logger } from '../common/logger';
 import type { ApiResponse } from '@chunlv/shared';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -42,12 +44,39 @@ export class AgentController {
   constructor(
     private readonly agentService: AgentService,
     private readonly wsGateway: WsGateway,
+    private readonly jwt: JwtService,
   ) {}
+
+  /** 客户端更新时带的是 refreshToken（7 天），而标准 JWT 守卫只认 accessToken（15 分钟）。
+   *  这里手动用双密钥验证，避免 update/acquire 因 401 卡住导致永远无法更新。 */
+  private resolveCompanionId(req: any): string {
+    const auth = (req.headers?.authorization || req.headers?.Authorization || '') as string;
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (!token) return '';
+    let payload: any;
+    try {
+      payload = this.jwt.verify(token, { secret: process.env.JWT_SECRET });
+    } catch {
+      try {
+        payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET });
+      } catch {
+        return '';
+      }
+    }
+    return payload?.companionId || payload?.sub || '';
+  }
 
   // Public: companion calls this on startup (no auth needed)
   @Get('version')
   async getVersion(): Promise<ApiResponse<unknown>> {
     const data = await this.agentService.getLatestVersion();
+    return { code: 200, message: 'ok', data };
+  }
+
+  // Public: companion polls this to reload the web page when a new frontend is deployed.
+  @Get('frontend-version')
+  async getFrontendVersion(): Promise<ApiResponse<unknown>> {
+    const data = await this.agentService.getFrontendVersion();
     return { code: 200, message: 'ok', data };
   }
 
@@ -82,8 +111,15 @@ export class AgentController {
     if (!user?.companionId) {
       return { code: 200, message: 'ok', data: { webBuildId: this.agentService.deployId } };
     }
-    const data = await this.agentService.recordHeartbeat(user.companionId, body?.agentVersion);
-    return { code: 200, message: 'ok', data: { ...data, webBuildId: this.agentService.deployId } };
+    const [data, inService] = await Promise.all([
+      this.agentService.recordHeartbeat(user.companionId, body?.agentVersion),
+      this.agentService.isCompanionInService(user.companionId),
+    ]);
+    return {
+      code: 200,
+      message: 'ok',
+      data: { ...data, webBuildId: this.agentService.deployId, inService },
+    };
   }
 
   // 远程自测：让陪玩端自杀进程，验证看门狗是否会自动拉起
@@ -96,6 +132,43 @@ export class AgentController {
     }
     this.wsGateway.sendCommand(body.companionId, 'test_watchdog', {});
     return { code: 200, message: '自测指令已发送', data: { companionId: body.companionId } };
+  }
+
+  // 陪玩端上报本地日志（排查掉线/看门狗用），服务端只落日志便于运维检索。
+  @Post('logs/report')
+  @UseGuards(AuthGuard('jwt'))
+  async reportLogs(
+    @Req() req: any,
+    @Body() body: { source?: string; lines?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const companionId = req.user?.companionId || req.user?.id || '';
+    const lines = body?.lines || '';
+    logger.info('RECV client logs', {
+      companionId,
+      source: body?.source || '',
+      len: lines.length,
+    });
+    // 每条一行写进 combined.log，方便用 companionId 检索
+    for (const line of lines.split(/\r?\n/)) {
+      if (line.trim()) logger.info('CLIENT_LOG', { companionId, source: body?.source || '', line });
+    }
+    return { code: 200, message: 'ok', data: null };
+  }
+
+  // 陪玩端下载更新前先申请名额，服务端串行放行，避免多台同时下载抢带宽。
+  @Post('update/acquire')
+  async acquireUpdateSlot(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const companionId = this.resolveCompanionId(req);
+    if (!companionId) return { code: 400, message: '缺少陪玩ID', data: null };
+    const result = this.agentService.acquireUpdateSlot(companionId);
+    return { code: 200, message: 'ok', data: result };
+  }
+
+  @Post('update/release')
+  async releaseUpdateSlot(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const companionId = this.resolveCompanionId(req);
+    this.agentService.releaseUpdateSlot(companionId);
+    return { code: 200, message: 'ok', data: null };
   }
 
   // Public: 自动更新专用 —— 返回 win-unpacked 的 zip，SystemHelper 服务按 zip 解压覆盖安装目录。
