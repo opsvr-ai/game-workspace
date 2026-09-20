@@ -19,6 +19,8 @@ interface MessageBubbleProps {
   onContextMenu?: (e: React.MouseEvent) => void;
   onMentionSender?: () => void;
   myUserId?: string | null;
+  /** 我发的消息被对方读到没有：'read' = 已阅读，'unread' = 未读，null = 不显示 */
+  readReceipt?: 'read' | 'unread' | null;
 }
 
 const stringToColor = (str: string) => {
@@ -44,6 +46,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onContextMenu,
   onMentionSender,
   myUserId,
+  readReceipt,
 }) => {
   const isRecalled = !!message.deletedAt;
   const isPending = message.status === 'pending';
@@ -178,6 +181,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 已读回执：客服发出去的消息，双方都能看到对方看没看（老板 2026-09-21 要求） */}
+      {readReceipt && (
+        <div
+          style={{
+            marginRight: isMe ? 44 : 0,
+            marginTop: 2,
+            fontSize: 11,
+            lineHeight: '16px',
+            userSelect: 'none',
+            color: readReceipt === 'read' ? '#52C41A' : '#949BA4',
+          }}
+        >
+          {readReceipt === 'read' ? '已阅读' : '未读'}
+        </div>
+      )}
 
       {/* Reactions */}
       {!isRecalled && message.reactions && message.reactions.length > 0 && (

@@ -447,7 +447,7 @@ export class ChatService {
   }
 
   /** Get messages for a room (cursor-based pagination by seq) */
-  async getRoomMessages(roomId: string, before?: number, after?: number, limit = 50) {
+  async getRoomMessages(roomId: string, before?: number, after?: number, limit = 50, viewerId?: string) {
     const where: any = { roomId };
 
     // seq 是 INT4：老前端会把毫秒时间戳当游标传进来，直接查会抛
@@ -486,9 +486,23 @@ export class ChatService {
     const hasMore = messages.length > limit;
     const result = messages.slice(0, limit).reverse();
 
+    // 对方读到哪一条了：前端据此在「我发的消息」下面标「已阅读 / 未读」。
+    // 群聊没有单条已读的概念，这里只处理 1v1。
+    let peerReadSeq: number | undefined;
+    if (viewerId) {
+      const room = await this.prisma.chatRoom.findUnique({
+        where: { id: roomId },
+        select: { participantA: true, participantB: true, isGroup: true, aReadSeq: true, bReadSeq: true },
+      });
+      if (room && !room.isGroup) {
+        peerReadSeq = room.participantA === viewerId ? room.bReadSeq : room.aReadSeq;
+      }
+    }
+
     return {
       messages: result.map((m) => this.serializeMessage(m)),
       hasMore,
+      peerReadSeq,
     };
   }
 
@@ -544,27 +558,33 @@ export class ChatService {
     return { missedMessages, updatedRooms };
   }
 
-  /** Mark room as read up to a given seq */
+  /**
+   * Mark room as read up to a given seq.
+   * 返回 { readSeq, peerUserId, isGroup }：调用方拿 peerUserId 去推「对方已读」。
+   */
   async markRead(roomId: string, userId: string) {
     const room = await this.prisma.chatRoom.findUnique({
       where: { id: roomId },
       select: { participantA: true, participantB: true, isGroup: true, lastMessageSeq: true },
     });
-    if (!room) return;
+    if (!room) return { readSeq: 0, peerUserId: null as string | null, isGroup: false };
 
     const latestSeq = room.lastMessageSeq;
     if (room.isGroup) {
-      await this.prisma.chatRoomMember.update({
-        where: { roomId_userId: { roomId, userId } },
-        data: { readSeq: latestSeq },
-      });
-      return latestSeq;
+      await this.prisma.chatRoomMember
+        .update({
+          where: { roomId_userId: { roomId, userId } },
+          data: { readSeq: latestSeq },
+        })
+        .catch(() => null);
+      return { readSeq: latestSeq, peerUserId: null as string | null, isGroup: true };
     }
 
     const data = room.participantA === userId ? { aReadSeq: latestSeq } : { bReadSeq: latestSeq };
+    const peerUserId = room.participantA === userId ? room.participantB : room.participantA;
 
     await this.prisma.chatRoom.update({ where: { id: roomId }, data });
-    return latestSeq;
+    return { readSeq: latestSeq, peerUserId, isGroup: false };
   }
 
   /** Get unread count for a user in a room */

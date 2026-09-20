@@ -3,12 +3,15 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button, Input, message } from 'antd';
 import { SendOutlined, SmileOutlined, PaperClipOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import http from '../../api/client';
+import { useAuthStore } from '../../stores/authStore';
 import ReplyBar from './ReplyBar';
 
 interface ChatComposerProps {
-  onSend: (text: string, replyToId?: string) => void;
+  onSend: (text: string, replyToId?: string, mentionUserIds?: string[]) => void;
   onUpload?: (file: File) => Promise<string | undefined>;
   uploading?: boolean;
+  groupMembers?: Array<{ userId: string; username: string; displayName?: string; role: string }>;
+  mentionRequest?: { nonce: number; name: string } | null;
 }
 
 const EMOJI_CATEGORIES: Record<string, string[]> = {
@@ -31,16 +34,21 @@ function saveCustomEmojis(emojis: string[]) {
   http.put('/auth/me/emojis', { emojis }).catch(() => {});
 }
 
-const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading }) => {
+const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading, groupMembers = [], mentionRequest }) => {
+  const userId = useAuthStore((s) => s.user?.id || 'anonymous');
+  const inputHeightStorageKey = `chat-input-height:${userId}`;
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStart, setMentionStart] = useState(0);
   const [activeTab, setActiveTab] = useState('😊 表情');
   const [customEmojis, setCustomEmojis] = useState<string[]>(loadCustomEmojis);
   const [addEmojiInput, setAddEmojiInput] = useState('');
   const [inputHeight, setInputHeight] = useState<number>(() => {
     try {
-      const saved = parseInt(localStorage.getItem('chat-input-height') || '', 10);
+      const saved = parseInt(localStorage.getItem(inputHeightStorageKey) || '', 10);
       return Number.isFinite(saved) && saved >= 36 ? saved : 36;
     } catch {
       return 36;
@@ -50,14 +58,35 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLSpanElement>(null);
   const emojiPanelRef = useRef<HTMLDivElement>(null);
+  const mentionPanelRef = useRef<HTMLDivElement>(null);
+
+  // 群聊里右键发送者名字时，把 @名字 插入到输入框当前光标处。
+  useEffect(() => {
+    if (!mentionRequest) return;
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? 0;
+    const end = el?.selectionEnd ?? 0;
+    const insertText = `@${mentionRequest.name} `;
+    setText((prev) => {
+      const next = prev.slice(0, start) + insertText + prev.slice(end);
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus();
+          const pos = start + insertText.length;
+          el.setSelectionRange(pos, pos);
+        }
+      });
+      return next;
+    });
+  }, [mentionRequest?.nonce, mentionRequest?.name]);
 
   const persistInputHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     const height = Math.max(36, el.offsetHeight);
     setInputHeight(height);
-    localStorage.setItem('chat-input-height', String(height));
-  }, []);
+    localStorage.setItem(inputHeightStorageKey, String(height));
+  }, [inputHeightStorageKey]);
 
   // 用 ResizeObserver 可靠地捕捉用户拖拽调整的高度（原生 resize 不触发 React onMouseUp）
   useEffect(() => {
@@ -70,12 +99,12 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         last = h;
         const height = Math.max(36, h);
         setInputHeight(height);
-        localStorage.setItem('chat-input-height', String(height));
+        localStorage.setItem(inputHeightStorageKey, String(height));
       }
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [inputHeightStorageKey]);
 
   // 微信式交互：点击面板外或按 Esc 关闭表情面板
   useEffect(() => {
@@ -95,6 +124,24 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [showEmoji]);
+
+  useEffect(() => {
+    if (!mentionOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (mentionPanelRef.current?.contains(target)) return;
+      setMentionOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMentionOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mentionOpen]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const el = textareaRef.current;
@@ -120,11 +167,56 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    onSend(trimmed, replyTo?.id);
+    const names = Array.from(trimmed.matchAll(/@([^\s@]+)/g)).map((m) => m[1]);
+    const mentionUserIds = Array.from(
+      new Set(
+        groupMembers
+          .filter(
+            (m) =>
+              names.includes(m.displayName || m.username) ||
+              names.includes(m.username),
+          )
+          .map((m) => m.userId),
+      ),
+    );
+    onSend(trimmed, replyTo?.id, mentionUserIds);
     setText('');
     setReplyTo(null);
     setShowEmoji(false);
-  }, [text, replyTo, onSend]);
+    setMentionOpen(false);
+  }, [text, replyTo, onSend, groupMembers]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const caret = e.target.selectionStart || 0;
+    setText(value);
+    const before = value.slice(0, caret);
+    const match = before.match(/@([^\s@]*)$/);
+    if (match && groupMembers.length > 0) {
+      setMentionQuery(match[1].toLowerCase());
+      setMentionStart(caret - match[0].length);
+      setMentionOpen(true);
+    } else {
+      setMentionOpen(false);
+    }
+  }, [groupMembers]);
+
+  const selectMention = (member: { userId: string; username: string; displayName?: string }) => {
+    const name = member.displayName || member.username;
+    const el = textareaRef.current;
+    const caret = el?.selectionStart ?? text.length;
+    const before = text.slice(0, mentionStart) + `@${name} `;
+    const after = text.slice(caret);
+    setText(before + after);
+    setMentionOpen(false);
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        const pos = mentionStart + name.length + 2;
+        el.setSelectionRange(pos, pos);
+      }
+    });
+  };
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -184,7 +276,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
           )}
         </div>
 
-        <textarea ref={textareaRef} value={text} onChange={(e) => setText(e.target.value)}
+        <textarea ref={textareaRef} value={text} onChange={handleChange}
           onKeyDown={handleKeyDown} onMouseUp={persistInputHeight} onBlur={persistInputHeight}
           onPaste={async (e) => {
             const items = e.clipboardData?.items;
@@ -214,6 +306,45 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
           style={{ borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
         />
       </div>
+
+      {mentionOpen && groupMembers.length > 0 && (
+        <div
+          ref={mentionPanelRef}
+          style={{
+            maxHeight: 180,
+            overflowY: 'auto',
+            borderTop: '1px solid #F0F0F0',
+            background: '#FFF',
+            padding: 4,
+          }}
+        >
+          {groupMembers
+            .filter((m) => {
+              const name = `${m.displayName || ''}${m.username}`.toLowerCase();
+              return !mentionQuery || name.includes(mentionQuery);
+            })
+            .slice(0, 20)
+            .map((m) => (
+              <div
+                key={m.userId}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  selectMention(m);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+              >
+                {m.displayName || m.username}
+              </div>
+            ))}
+        </div>
+      )}
 
       {/* Emoji picker panel */}
       {showEmoji && (

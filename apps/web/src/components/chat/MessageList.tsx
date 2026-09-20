@@ -13,6 +13,7 @@ interface MessageListProps {
   myUserId: string | null;
   participantName?: string;
   participantAvatarUrl?: string;
+  groupMemberMap?: Record<string, { username: string; displayName?: string; avatar?: string; role: string }>;
   myAvatarUrl?: string;
   typing?: boolean;
   onReply?: (msg: Message) => void;
@@ -20,8 +21,13 @@ interface MessageListProps {
   onReaction?: (msgId: string, emoji: string) => void;
   onRemoveReaction?: (msgId: string, emoji: string) => void;
   onContextMenu?: (e: React.MouseEvent, msg: Message) => void;
+  onMentionSender?: (name: string) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  /** 对方在本会话读到哪一条（undefined = 还不知道，不显示回执） */
+  peerReadSeq?: number;
+  /** 群聊不做单条已读回执 */
+  isGroup?: boolean;
 }
 
 const MessageList: React.FC<MessageListProps> = ({
@@ -29,6 +35,7 @@ const MessageList: React.FC<MessageListProps> = ({
   myUserId,
   participantName,
   participantAvatarUrl,
+  groupMemberMap,
   myAvatarUrl,
   typing,
   onReply: _onReply,
@@ -36,8 +43,11 @@ const MessageList: React.FC<MessageListProps> = ({
   onReaction,
   onRemoveReaction,
   onContextMenu,
+  onMentionSender,
   onLoadMore,
   hasMore,
+  peerReadSeq,
+  isGroup,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
@@ -125,6 +135,14 @@ const MessageList: React.FC<MessageListProps> = ({
                 ? messages[vi.index + 1].createdAt - msg.createdAt >= SHOULD_SHOW_TIME_THRESHOLD
                 : true);
             const showDivider = prev && msg.createdAt - prev.createdAt >= SHOULD_SHOW_TIME_THRESHOLD;
+            const sender = !isMe && groupMemberMap ? groupMemberMap[msg.senderId] : undefined;
+            const senderName = sender
+              ? (sender.displayName || sender.username)
+              : participantName;
+            const showSenderName = !!groupMemberMap && !isMe && showAvatar;
+            const senderAvatarUrl = sender?.avatar
+              ? `/uploads/avatars/${sender.avatar}?v=${sender.avatar}`
+              : participantAvatarUrl;
 
             return (
               <div
@@ -139,12 +157,22 @@ const MessageList: React.FC<MessageListProps> = ({
                   isMe={isMe}
                   showAvatar={showAvatar}
                   showTime={showTime}
-                  participantName={isMe ? undefined : participantName}
-                  avatarUrl={isMe ? myAvatarUrl : participantAvatarUrl}
+                  participantName={isMe ? undefined : senderName}
+                  avatarUrl={isMe ? myAvatarUrl : senderAvatarUrl}
+                  showSenderName={showSenderName}
+                  senderName={senderName}
                   onReaction={(emoji) => onReaction?.(msg.id, emoji)}
                   onRemoveReaction={(emoji) => onRemoveReaction?.(msg.id, emoji)}
                   onContextMenu={(e) => onContextMenu?.(e, msg)}
+                  onMentionSender={() => onMentionSender?.(senderName || '')}
                   myUserId={myUserId}
+                  readReceipt={
+                    isMe && !isGroup && typeof msg.seq === 'number' && typeof peerReadSeq === 'number'
+                      ? msg.seq <= peerReadSeq
+                        ? 'read'
+                        : 'unread'
+                      : null
+                  }
                 />
               </div>
             );

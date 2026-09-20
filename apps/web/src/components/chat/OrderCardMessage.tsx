@@ -10,7 +10,7 @@ interface OrderCardMessageProps {
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: '待接单',
-  GRABBED: '已接单',
+  GRABBED: '已抢到订单',
   CONFIRMED: '已确认',
   DONE: '已完成',
   CANCELLED: '已取消',

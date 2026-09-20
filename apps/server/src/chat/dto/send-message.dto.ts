@@ -61,4 +61,9 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   replyToId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mentionUserIds?: string[];
 }

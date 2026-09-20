@@ -10,6 +10,7 @@ export interface Message {
   content?: string; // Chat 3.0 content field
   type?: string; // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
   seq?: number; // Chat 3.0 sequence number
+  mentions?: string[];
   replyTo?: { id: string; type: string; content: string; senderId: string; seq: number };
   deletedAt?: string;
   attachments?: Array<{
@@ -39,7 +40,17 @@ export interface ConversationState {
   lastMessageAt: number;
   orderInfo?: string;
   pinned?: boolean;
+  isGroup?: boolean;
+  groupName?: string;
+  groupAvatar?: string;
+  lastMentions?: string[];
   lastKnownSeq?: number; // Chat 3.0: for sync gap detection
+  /**
+   * 对方在这个会话里读到哪一条（Chat 3.0 的 peer read seq）。
+   * undefined = 还不知道（别显示「未读」，否则一进会话会闪一片未读）。
+   * 用来在「我发的消息」下面标「已阅读 / 未读」。
+   */
+  peerReadSeq?: number;
 }
 
 interface ChatState {
@@ -51,15 +62,23 @@ interface ChatState {
   syncing: boolean;
 
   /** THE single write path for incoming messages (WS + send response) */
-  receiveMessage: (convId: string, msg: any, orderInfo?: string, senderInfo?: any) => void;
+  receiveMessage: (
+    convId: string,
+    msg: any,
+    orderInfo?: string,
+    senderInfo?: any,
+    roomMeta?: { isGroup?: boolean; groupName?: string },
+  ) => void;
 
   setConversations: (list: ConversationSummary[]) => void;
   loadMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
   prependMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
 
-  openConversation: (participantId: string, participant: ParticipantInfo, orderInfo?: string) => Promise<void>;
+  openConversation: (participantId: string, participant: ParticipantInfo, orderInfo?: string | null) => Promise<void>;
   closeConversation: () => void;
   markRead: (convId: string) => void;
+  /** 记录对方读到哪一条（服务端返回或 WebSocket 推来） */
+  setPeerReadSeq: (convId: string, seq: number) => void;
   setMyUserId: (id: string) => void;
   setSyncing: (v: boolean) => void;
   reset: () => void;
@@ -98,6 +117,7 @@ function normalizeMessage(msg: any): Message {
     content: msg.content,
     type: msg.type || 'TEXT',
     seq: msg.seq,
+    mentions: msg.mentions || [],
     replyTo: msg.replyTo,
     deletedAt: msg.deletedAt,
     attachments: msg.attachments || [],
@@ -115,22 +135,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
   myUserId: null,
   syncing: false,
 
-  receiveMessage: (convId: string, msg: any, orderInfo?: string, senderInfo?: any) =>
+  receiveMessage: (
+    convId: string,
+    msg: any,
+    orderInfo?: string,
+    senderInfo?: any,
+    roomMeta?: { isGroup?: boolean; groupName?: string },
+  ) =>
     set((s) => {
-      const participant = senderInfo
-        ? {
-            userId: senderInfo.userId,
-            username: senderInfo.username || '...',
-            displayName: senderInfo.displayName,
-            avatar: senderInfo.avatar,
-            role: senderInfo.role || '',
-          }
-        : undefined;
+      const isGroupRoom = !!roomMeta?.isGroup;
+      const groupName = roomMeta?.groupName || '工作室群聊';
+      const participant = isGroupRoom
+        ? { userId: '', username: groupName, displayName: groupName, role: 'GROUP' }
+        : senderInfo
+          ? {
+              userId: senderInfo.userId,
+              username: senderInfo.username || '...',
+              displayName: senderInfo.displayName,
+              avatar: senderInfo.avatar,
+              role: senderInfo.role || '',
+            }
+          : undefined;
       let s2 = ensureConv(s, convId, participant);
       let conv = s2.conversations[convId];
 
-      // 首次收到实时消息时，本地还没有会话、participant 是空占位；用发送者信息补全。
-      if (participant && conv && !conv.participant.userId) {
+      // 群聊实时消息要始终按“群”建模，不能把发送者当成会话对象。
+      if (isGroupRoom && (!conv.isGroup || conv.participant?.role !== 'GROUP')) {
+        conv = {
+          ...conv,
+          isGroup: true,
+          groupName,
+          participant: { userId: '', username: groupName, displayName: groupName, role: 'GROUP' },
+        };
+        s2 = {
+          ...s2,
+          conversations: { ...s2.conversations, [convId]: conv },
+        };
+      } else if (participant && conv && !conv.participant.userId) {
+        // 首次收到实时消息时，本地还没有会话、participant 是空占位；用发送者信息补全。
         conv = {
           ...conv,
           participant,
@@ -156,6 +198,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
         lastMessage: newMsg.text.slice(0, 100),
         lastMessageAt: newMsg.createdAt,
+        lastMentions: newMsg.mentions?.length ? newMsg.mentions : conv.lastMentions,
         orderInfo: orderInfo || conv.orderInfo,
         lastKnownSeq: msg.seq || conv.lastKnownSeq,
       };
@@ -191,8 +234,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           unreadCount: unread,
           lastMessage: item.lastMessage || existing?.lastMessage || '',
           lastMessageAt: item.lastMessageAt ? new Date(item.lastMessageAt).getTime() : existing?.lastMessageAt || 0,
-          orderInfo: item.orderInfo || existing?.orderInfo,
+          orderInfo: item.orderInfo || undefined,
           pinned: (item as any).pinned,
+          isGroup: (item as any).isGroup,
+          groupName: (item as any).groupName,
+          groupAvatar: (item as any).groupAvatar,
           lastKnownSeq: existing?.lastKnownSeq,
         };
 
@@ -249,13 +295,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
 
-  openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string) => {
+  openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string | null) => {
     let convId = participantId;
     // 只有拿到真实 userId 才去服务端建/查会话；否则（例如从通知进入且 participant 缺失）
     // 直接用传入的 roomId，避免把 roomId 当 userId 再建出幽灵会话。
     if (participant?.userId) {
       try {
-        const { data } = await chatApi.createConversation(participant.userId, orderInfo);
+        const { data } = await chatApi.createConversation(participant.userId, orderInfo ?? undefined);
         convId = data?.data?.id || participantId;
       } catch {}
     }
@@ -270,7 +316,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [convId]: {
             ...s2.conversations[convId],
             participant,
-            orderInfo: orderInfo || s2.conversations[convId]?.orderInfo,
+            orderInfo: orderInfo ?? undefined,
           },
         },
       };
@@ -293,6 +339,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         get().loadMessages(convId, msgs, hasMore);
         cacheMessages(convId, msgs).catch(() => {});
       }
+      // 对方读到哪一条：用来渲染「已阅读 / 未读」
+      const peerReadSeq = data?.data?.peerReadSeq;
+      if (typeof peerReadSeq === 'number') get().setPeerReadSeq(convId, peerReadSeq);
     } catch {}
 
     // Mark read
@@ -313,6 +362,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [s.activeConversationId]: { ...conv, unreadCount: 0 },
         },
         totalUnread: Math.max(0, s.totalUnread - unread),
+      };
+    }),
+
+  setPeerReadSeq: (convId: string, seq: number) =>
+    set((s) => {
+      const conv = s.conversations[convId];
+      if (!conv || !Number.isFinite(seq)) return s;
+      if ((conv.peerReadSeq ?? -1) >= seq) return s;
+      return {
+        conversations: { ...s.conversations, [convId]: { ...conv, peerReadSeq: seq } },
       };
     }),
 

@@ -5,18 +5,21 @@ import { useChatStore } from '../stores/chatStore';
 interface Props {
   onOpenChat: (conversationId: string, participantName: string) => void;
   onClose: () => void;
+  hideGroups?: boolean;
 }
 
-const ConversationList: React.FC<Props> = ({ onOpenChat, onClose }) => {
-  const { conversations, conversationOrder, totalUnread, markRead } = useChatStore();
+const ConversationList: React.FC<Props> = ({ onOpenChat, onClose, hideGroups = false }) => {
+  const { conversations, conversationOrder, markRead } = useChatStore();
 
   const items = conversationOrder
     .map((id) => conversations[id])
     .filter(Boolean)
+    .filter((c) => (hideGroups ? !(c.isGroup || c.participant.role === 'GROUP') : true))
     .filter((c) => c.lastMessageAt > 0 || c.messages.length > 0);
 
   const unreadItems = items.filter((c) => c.unreadCount > 0);
   const readItems = items.filter((c) => c.unreadCount === 0);
+  const visibleUnread = items.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   if (items.length === 0) {
     return (
@@ -114,7 +117,7 @@ const ConversationList: React.FC<Props> = ({ onOpenChat, onClose }) => {
           }}
         >
           <Typography.Text strong style={{ fontSize: 13, color: '#1E293B' }}>
-            📌 未读 ({totalUnread})
+            📌 未读 ({visibleUnread})
           </Typography.Text>
         </div>
       )}

@@ -10,14 +10,12 @@ interface Props {
   onOpenChat: (conversationId: string, participantName: string) => void;
 }
 
-const STORAGE_KEY = 'chat-widget-pos';
-
-function loadPosition(): { x: number; y: number } {
+function loadPosition(storageKey: string): { x: number; y: number } {
   const w = window.innerWidth || 1024;
   const h = window.innerHeight || 768;
   const defaultPos = { x: w - 76, y: h - 140 };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) {
       const saved = JSON.parse(raw);
       // Only accept saved position if it's near the right/bottom edge (within 200px)
@@ -27,17 +25,18 @@ function loadPosition(): { x: number; y: number } {
   return defaultPos;
 }
 
-function savePosition(pos: { x: number; y: number }): void {
+function savePosition(storageKey: string, pos: { x: number; y: number }): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+    localStorage.setItem(storageKey, JSON.stringify(pos));
   } catch {}
 }
 
 const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
   const user = useAuthStore((s) => s.user);
   const { conversations, conversationOrder, totalUnread, markRead } = useChatStore();
+  const storageKey = `chat-widget-pos:${user?.id || 'anonymous'}`;
 
-  const [position, setPosition] = useState(loadPosition);
+  const [position, setPosition] = useState(() => loadPosition(storageKey));
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [bounce, setBounce] = useState(false);
 
@@ -90,7 +89,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
     };
     const onUp = () => {
       setIsDragging(false);
-      savePosition(position);
+      savePosition(storageKey, position);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -100,7 +99,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [isDragging, position]);
+  }, [isDragging, position, storageKey]);
 
   // Popover trigger="click" handles open/close — don't duplicate toggle
   const notificationItems = conversationOrder

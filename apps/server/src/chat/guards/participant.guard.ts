@@ -20,15 +20,23 @@ export class ParticipantGuard implements CanActivate {
 
     const room = await this.prisma.chatRoom.findUnique({
       where: { id: roomId },
-      select: { participantA: true, participantB: true },
+      select: { participantA: true, participantB: true, isGroup: true },
     });
 
     if (!room) {
       throw new ForbiddenException('会话不存在');
     }
 
-    if (room.participantA !== userId && room.participantB !== userId) {
-      throw new ForbiddenException('无权访问该会话');
+    if (room.isGroup) {
+      const member = await this.prisma.chatRoomMember.findUnique({
+        where: { roomId_userId: { roomId, userId } },
+        select: { userId: true },
+      });
+      if (!member) throw new ForbiddenException('无权访问该会话');
+    } else {
+      if (room.participantA !== userId && room.participantB !== userId) {
+        throw new ForbiddenException('无权访问该会话');
+      }
     }
 
     return true;

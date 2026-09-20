@@ -12,6 +12,7 @@ import { Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 import { JwtService } from '@nestjs/jwt';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { ChatService } from './chat.service';
 
 interface ConnectedUser {
   userId: string;
@@ -59,6 +60,7 @@ export class ChatGateway {
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly jwt: JwtService,
+    private readonly chatService: ChatService,
   ) {}
 
   afterInit(server: Server): void {
@@ -73,6 +75,7 @@ export class ChatGateway {
       this.userSockets.set(user.userId, socket.id);
       this.socketUsers.set(socket.id, user);
       void socket.join(`user:${user.userId}`);
+      void this.chatService.ensureUserInStudioGroup(user.userId, user.studioId || '');
       this.logger.log(`Chat WS connected: ${user.username} (${user.userId})`);
       next();
     });
@@ -142,6 +145,8 @@ export class ChatGateway {
     payload: {
       roomId: string;
       message: Record<string, unknown>;
+      isGroup?: boolean;
+      groupName?: string;
       sender?: {
         userId: string;
         username: string;
@@ -207,6 +212,16 @@ export class ChatGateway {
     if (socketId) {
       this.server.to(socketId).emit('message:updated', { roomId, message });
     }
+  }
+
+  /**
+   * 通知「对方已经读到这里了」（老板 2026-09-21 要求：客服给陪玩发消息后，双方都要清楚看到没看到）。
+   * 只推给发消息那一方，前端在「我发的消息」下面标「已阅读 / 未读」。
+   */
+  notifyRead(userId: string, payload: { roomId: string; readerId: string; readSeq: number }): void {
+    const socketId = this.userSockets.get(userId);
+    if (!socketId) return;
+    this.server.to(socketId).emit('chat:read', payload);
   }
 
   /** Trigger sync on client (gap detected) */

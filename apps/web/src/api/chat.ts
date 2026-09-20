@@ -64,7 +64,7 @@ export const chatApi = {
 
   /** Get room messages (Chat 3.0) */
   getRoomMessages(roomId: string, before?: number, after?: number, limit = 50) {
-    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean } }>(`/chat/rooms/${roomId}/messages`, {
+    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean; peerReadSeq?: number } }>(`/chat/rooms/${roomId}/messages`, {
       params: { before, after, limit },
     });
   },
@@ -171,7 +171,8 @@ export const chatApi = {
   },
 
   getMessages(conversationId: string, before?: string, limit = 50) {
-    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean } }>(
+    // peerReadSeq = 对方读到哪一条（用于「已阅读 / 未读」回执）
+    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean; peerReadSeq?: number } }>(
       `/chat/conversations/${conversationId}/messages`,
       { params: { before, limit } },
     );

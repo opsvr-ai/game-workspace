@@ -6,6 +6,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
 import { playMessageSound } from '../../utils/notificationSound';
+import { showSystemNotification, playNotificationSound } from '../../utils/notify';
 
 interface ChatContextValue {
   wsConnected: boolean;
@@ -64,12 +65,39 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const isMine = data.message.senderId === state.myUserId;
         const isActive = state.activeConversationId === data.roomId;
         if (!isMine && !isActive) playMessageSound();
-        useChatStore.getState().receiveMessage(data.roomId, data.message, undefined, data.sender);
+        if (!isMine && data.message.mentions?.includes(state.myUserId)) {
+          showSystemNotification(
+            '蠢驴电竞 · 有人@你',
+            (data.sender?.displayName || data.sender?.username || '有人') +
+              '：' +
+              (data.message.content || data.message.text || '[消息]'),
+          );
+          playNotificationSound();
+        }
+        useChatStore.getState().receiveMessage(
+          data.roomId,
+          data.message,
+          undefined,
+          data.sender,
+          data.isGroup
+            ? { isGroup: true, groupName: data.groupName || '工作室群聊' }
+            : undefined,
+        );
+        // 正开着这个会话 = 人就在看，直接标已读，让对方立刻看到「已阅读」。
+        if (!isMine && isActive) {
+          chatApi.markRoomRead(data.roomId).catch(() => {});
+        }
       }
     },
     onMessageUpdated: (data: any) => {
       if (data?.roomId && data?.message) {
         useChatStore.getState().receiveMessage(data.roomId, data.message);
+      }
+    },
+    onChatRead: (data: any) => {
+      // 对方看到我发的消息了：把「对方读到哪一条」记下来，界面上的「未读」立刻变「已阅读」。
+      if (data?.roomId && typeof data?.readSeq === 'number') {
+        useChatStore.getState().setPeerReadSeq(data.roomId, data.readSeq);
       }
     },
   });

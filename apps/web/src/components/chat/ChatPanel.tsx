@@ -264,6 +264,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         onRemoveReaction={handleRemoveReaction}
         onContextMenu={handleContextMenu}
         onMentionSender={handleMentionSender}
+        peerReadSeq={conv?.peerReadSeq}
+        isGroup={conv?.isGroup || participant?.role === 'GROUP'}
       />
       <ChatComposer
         onSend={handleSend}

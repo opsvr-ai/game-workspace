@@ -20,6 +20,8 @@ interface UseSocketOptions {
   // Chat 3.0 events
   onMessageNew?: (data: any) => void;
   onMessageUpdated?: (data: any) => void;
+  /** 「对方已读」推送（Chat 3.0）：用来在消息下面标「已阅读」 */
+  onChatRead?: (data: any) => void;
   onMessageAcked?: (data: any) => void;
   onTypingNotify?: (data: any) => void;
   onRoomUpdated?: (data: any) => void;
@@ -199,6 +201,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('message:updated', (data: any) => {
       optsRef.current.onMessageUpdated?.(data);
+    });
+
+    socket.on('chat:read', (data: any) => {
+      optsRef.current.onChatRead?.(data);
     });
 
     socket.on('message:acked', (data: any) => {

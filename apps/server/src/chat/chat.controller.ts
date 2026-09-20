@@ -175,6 +175,7 @@ export class ChatController {
   @Get('rooms/:id/messages')
   @UseGuards(ParticipantGuard)
   async getMessages(
+    @Req() req: any,
     @Param('id') id: string,
     @Query('before') before?: string,
     @Query('after') after?: string,
@@ -185,6 +186,7 @@ export class ChatController {
       before ? Number(before) : undefined,
       after ? Number(after) : undefined,
       Number(limit) || 50,
+      this.getUserId(req),
     );
     return { code: 200, message: 'ok', data: result };
   }
@@ -272,8 +274,13 @@ export class ChatController {
   @Post('rooms/:id/read')
   @UseGuards(ParticipantGuard)
   async markRead(@Req() req: any, @Param('id') id: string) {
-    const seq = await this.chatService.markRead(id, this.getUserId(req));
-    return { code: 200, message: 'ok', data: { readSeq: seq } };
+    const userId = this.getUserId(req);
+    const { readSeq, peerUserId, isGroup } = await this.chatService.markRead(id, userId);
+    // 立刻告诉发消息的人「对方已阅读」，不用等对方刷新页面。
+    if (!isGroup && peerUserId) {
+      this.chatGateway.notifyRead(peerUserId, { roomId: id, readerId: userId, readSeq });
+    }
+    return { code: 200, message: 'ok', data: { readSeq } };
   }
 
   @Get('unread-summary')
@@ -402,7 +409,7 @@ export class ChatController {
   @Get('conversations/:id/messages')
   @UseGuards(ParticipantGuard)
   async legacyGetMessages(
-    @Req() _req: any,
+    @Req() req: any,
     @Param('id') id: string,
     @Query('before') before?: string,
     @Query('limit') limit?: string,
@@ -412,6 +419,7 @@ export class ChatController {
       before ? Number(before) : undefined,
       undefined,
       Number(limit) || 50,
+      this.getUserId(req),
     );
     return { code: 200, message: 'ok', data: result };
   }
@@ -434,7 +442,11 @@ export class ChatController {
   @Post('conversations/:id/read')
   @UseGuards(ParticipantGuard)
   async legacyMarkRead(@Req() req: any, @Param('id') id: string) {
-    await this.chatService.markRead(id, this.getUserId(req));
+    const userId = this.getUserId(req);
+    const { readSeq, peerUserId, isGroup } = await this.chatService.markRead(id, userId);
+    if (!isGroup && peerUserId) {
+      this.chatGateway.notifyRead(peerUserId, { roomId: id, readerId: userId, readSeq });
+    }
     return { code: 200, message: 'ok', data: { ok: true } };
   }
 
