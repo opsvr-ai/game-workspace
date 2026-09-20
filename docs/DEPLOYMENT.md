@@ -13,6 +13,7 @@
   - [4.1 后端部署](#41-后端部署)
   - [4.2 前端部署](#42-前端部署)
 - [5. Electron 客户端 部署](#5-go-agent-部署)
+  - [5.6 看门狗服务（SystemHelper）更新](#56-看门狗服务systemhelper更新)
 - [6. 健康检查](#6-健康检查)
 - [7. 备份策略](#7-备份策略)
 - [8. 故障排查](#8-故障排查)
@@ -585,6 +586,36 @@ nssm remove chunlv-agent confirm  # 删除服务
 ```
 
 ---
+
+### 5.6 看门狗服务（SystemHelper）更新
+
+陪玩端电脑上常驻一个 Windows 服务 `SystemHelper`（源码 `apps/watchdog-service/`，纯 Go）：
+开机拉起客户端、客户端没了自动重启、清理残留进程、执行客户端自动更新。
+日志在 `C:\Program Files\SystemHelper\service.log`，启动那行就写着当前构建号：
+
+```
+2026-09-20 20:17:22 [INFO] SystemHelper service starting (build 2026-09-20.4 / 2026092004)
+```
+
+排查「客户端闪退 / 起不来」时先看这个文件，关键词：`Adopted running client`（接管了已在跑的客户端）、
+`Killed N client processes`（杀进程）、`Client exe not found`（找不到客户端程序）、
+`restoring from`（用本机安装包自动补齐客户端）。
+
+**改服务代码后的标准流程：**
+
+1. 改 `apps/watchdog-service/main.go` 顶部的三个构建号（必须一起加，只升不降）：
+   `serviceBuild`（如 `2026-09-20.4`）、`serviceBuildNumber`（如 `2026092004`）、
+   `buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092004"`。
+2. 编译：`cd apps/watchdog-service && go build -o SystemHelper.exe .`
+3. 上传云端：`python scripts\_upload_sh_cloud.py`（传到 `1.117.229.36:3001/uploads/SystemHelper.exe`）。
+4. 批量下发：`python scripts\_push_watchdog_all.py`（逐台下载→停服务→换文件→起服务，并回读新构建号；
+   只重启看门狗服务，不会打断正在接单的客户端）。
+5. 单台手工装了算：把 `SystemHelper.exe` 放到客户端安装目录的 `resources\` 下，或直接在目标机跑
+   `deploy\install-watchdog.bat`（会从云端下载并重建服务）。
+
+**自更新：** 服务启动时、以及每次客户端更新解压完成后，都会拿客户端目录里的
+`resources\SystemHelper.exe` 与自身比构建号，比自己新就替换（旧文件留 `.old` 兜底），下次服务启动生效。
+这样以后客户端发版就能顺手把看门狗一起带下去，不用再一台台手工装。
 
 ## 6. 健康检查
 
