@@ -11,6 +11,7 @@ import { companionOrderRevenue } from '../common/order-revenue';
 import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
+import { resolveConfigs } from '../common/studio-config';
 
 @Injectable()
 export class SettlementService {
@@ -37,16 +38,13 @@ export class SettlementService {
     const studio = await this.prisma.studio.findUnique({ where: { id: studioId }, select: { splitMode: true } });
     const isFixedMode = studio?.splitMode === 'FIXED';
 
-    // Get share tiers config (only used in TIERED mode)
-    const config = !isFixedMode
-      ? await this.prisma.systemConfig.findUnique({
-          where: { key: 'revenue.share_tiers' },
-        })
-      : null;
+    // 分成口径按**这家店**解析：店长填过就用店长的，没填才用老板的默认（见 common/studio-config.ts）。
+    const cfg = await resolveConfigs(this.prisma, studioId, [
+      'revenue.share_tiers',
+      'revenue.club_companion_share',
+    ]);
     const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
-      // 兜底值与设置里的默认阶梯保持一致（0~5999.99 五五 / 6000~9999.99 六四 / >=10000 七三），
-      // 免得配置读不到时悄悄换成另一套门槛算工资。
-      (config?.value as any) ?? [
+      (cfg['revenue.share_tiers'] as any) ?? [
         { min: 0, max: 5999.99, studio: 50, companion: 50 },
         { min: 6000, max: 9999.99, studio: 40, companion: 60 },
         { min: 10000, max: null, studio: 30, companion: 70 },
@@ -81,8 +79,7 @@ export class SettlementService {
 
       if (isFixedMode) {
         // FIXED mode: use companion's personal revenueShare, fallback to global config
-        const clubCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.club_companion_share' } });
-        const defaultClubShare = (clubCfg?.value as number) ?? 80;
+        const defaultClubShare = (cfg['revenue.club_companion_share'] as number) ?? 80;
         const share = (c.revenueShare as number) || defaultClubShare / 100;
         companionPct = Math.round(share * 100);
         companionShare = roundToJiao(monthlyRevenue * share);

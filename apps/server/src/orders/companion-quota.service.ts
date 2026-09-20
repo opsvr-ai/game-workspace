@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { businessDayKey, currentBusinessDayRange } from '../common/business-day';
 import { logger } from '../common/logger';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 /**
  * 每日「立即打」抢单名额。
@@ -47,13 +48,17 @@ export class CompanionQuotaService {
 
   /** 当前段位对应的每日名额 */
   async limitFor(companionId: string): Promise<{ tier: string; limit: number }> {
-    const ex = await this.excellence.computeOne(companionId).catch(() => null);
+    const [ex, companion] = await Promise.all([
+      this.excellence.computeOne(companionId).catch(() => null),
+      this.prisma.companion
+        .findUnique({ where: { id: companionId }, select: { studioId: true } })
+        .catch(() => null),
+    ]);
     const tier = ex?.tier || 'MIDDLE';
     const key = LIMIT_KEYS[tier] || LIMIT_KEYS.MIDDLE;
-    const cfg = await this.prisma.systemConfig
-      .findUnique({ where: { key } })
-      .catch(() => null);
-    const raw = Number(cfg?.value);
+    // 每日名额按店解析：本店店长填的优先，没填才用老板全局默认
+    const cfg = await resolveConfigsRaw(this.prisma, companion?.studioId, [key]);
+    const raw = Number(cfg[key]);
     const limit = Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : DEFAULT_LIMITS[tier] ?? 2;
     return { tier, limit };
   }

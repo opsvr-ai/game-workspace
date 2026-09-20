@@ -2,6 +2,7 @@ import type { PrismaService } from '../prisma/prisma.service';
 import { currentSettlementMonthRange, settlementMonthRange } from './business-day';
 import { computeRevenueShare, effectiveTenureMonths } from './revenue-calculator';
 import type { RevenueSplitTier } from './revenue-calculator';
+import { resolveConfigs } from './studio-config';
 
 /**
  * 可支取余额（唯一口径，需求文档 §7.1）：
@@ -46,7 +47,7 @@ export async function computeWithdrawable(
       revenueShare: true,
       createdAt: true,
       isSeniorStaff: true,
-      studio: { select: { splitMode: true } },
+      studio: { select: { id: true, splitMode: true } },
     },
   });
   if (!companion) {
@@ -62,7 +63,10 @@ export async function computeWithdrawable(
     };
   }
 
-  const [monthAgg, totalAgg, withdrawnAgg, pendingAgg, clubCfg, tiersCfg, depositRows] = await Promise.all([
+  // 分店自己的配置优先（店长填的），没有才用老板的全局值 —— 见 common/studio-config.ts
+  const studioId = (companion as any).studio?.id as string | undefined;
+
+  const [monthAgg, totalAgg, withdrawnAgg, pendingAgg, depositRows, cfg] = await Promise.all([
     prisma.order.aggregate({
       where: { companionId, status: 'DONE', createdAt: { gte: start, lt: end } },
       _sum: { amount: true },
@@ -82,9 +86,8 @@ export async function computeWithdrawable(
       },
       select: { amount: true },
     }),
-    prisma.systemConfig.findUnique({ where: { key: 'revenue.club_companion_share' } }),
-    prisma.systemConfig.findUnique({ where: { key: 'revenue.share_tiers' } }),
     prisma.customer.findMany({ where: { companionId }, select: { depositBalance: true } }),
+    resolveConfigs(prisma as any, studioId, ['revenue.club_companion_share', 'revenue.share_tiers']),
   ]);
 
   const monthRevenue = monthAgg._sum.amount || 0;
@@ -96,8 +99,8 @@ export async function computeWithdrawable(
     splitMode: (companion as any).studio?.splitMode ?? 'TIERED',
     totalRevenue: monthRevenue,
     revenueShare: (companion as any).revenueShare,
-    defaultClubSharePct: (clubCfg?.value as number) ?? 80,
-    tiers: (tiersCfg?.value as unknown as RevenueSplitTier[]) ?? undefined,
+    defaultClubSharePct: (cfg['revenue.club_companion_share'] as number) ?? 80,
+    tiers: (cfg['revenue.share_tiers'] as unknown as RevenueSplitTier[]) ?? undefined,
     tenureMonths: effectiveTenureMonths((companion as any).createdAt, (companion as any).isSeniorStaff),
   });
 

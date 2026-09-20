@@ -9,6 +9,7 @@
  * 看板、工作台、搭档接单结算、娱乐余额预警一律走这里，避免四处算法不一致。
  */
 import { roundToJiao } from './money';
+import { resolveConfigsRaw } from './studio-config';
 
 /** 没配置时的兜底费率（元/小时） */
 export const DEFAULT_ENTERTAINMENT_HOURLY_RATE = 60;
@@ -22,14 +23,22 @@ export interface EntertainmentRule {
   freeThreshold: number;
 }
 
-/** 从系统配置读取娱乐计费规则（找不到配置就用兜底值） */
-export async function loadEntertainmentRule(prisma: any): Promise<EntertainmentRule> {
-  const [rateCfg, thresholdCfg] = await Promise.all([
-    prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } }),
-    prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } }),
+/**
+ * 从配置读取娱乐计费规则（找不到配置就用兜底值）。
+ *
+ * `studioId` 传入时按「本店店长填的 → 老板全局默认 → 代码兜底」解析，
+ * 不传就是老板全局值（原来的行为）。
+ */
+export async function loadEntertainmentRule(
+  prisma: any,
+  studioId?: string | null,
+): Promise<EntertainmentRule> {
+  const cfg = await resolveConfigsRaw(prisma, studioId, [
+    'entertainment.hourly_rate',
+    'entertainment.revenue_threshold',
   ]);
-  const rateRaw = rateCfg?.value;
-  const thresholdRaw = thresholdCfg?.value;
+  const rateRaw = cfg['entertainment.hourly_rate'];
+  const thresholdRaw = cfg['entertainment.revenue_threshold'];
   return {
     hourlyRate: typeof rateRaw === 'number' ? rateRaw : DEFAULT_ENTERTAINMENT_HOURLY_RATE,
     freeThreshold:

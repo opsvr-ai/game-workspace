@@ -81,13 +81,13 @@ export class HeartbeatService {
       if (openLog.mode === 'ENTERTAINMENT') {
         const companion = await this.prisma.companion.findUnique({
           where: { id: user.companionId },
-          select: { balance: true, deposit: true, status: true },
+          select: { balance: true, deposit: true, status: true, studioId: true },
         });
         if (companion) {
           const availableFunds = (companion.balance || 0) + (companion.deposit || 0);
           // 娱乐费/免单线统一走 common/entertainment-fee.ts：
           // 当日流水达标就免单，此时不该再预警、更不该强行切回空闲。
-          const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+          const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, companion.studioId);
           const { start: dayStart, end: dayEnd } = currentBusinessDayRange(now);
           const dayAgg = await this.prisma.order
             .aggregate({

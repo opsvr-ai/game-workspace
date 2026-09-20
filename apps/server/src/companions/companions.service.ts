@@ -12,6 +12,7 @@ import {
 import { companionOrderRevenue } from '../common/order-revenue';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
+import { resolveConfigsRaw } from '../common/studio-config';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
@@ -622,17 +623,23 @@ export class CompanionsService {
       where: { companionId, status: 'DONE', createdAt: { gte: todayStart, lte: todayEnd } },
       select: { customFields: true, notes: true },
     });
-    // Config thresholds
-    const [unlockCfg, freeCfg, entRevenueCfg, entDepositCfg] = await Promise.all([
+    // 阈值配置：按「本店店长填的 → 老板全局默认 → 代码兜底」解析
+    const studioRow = await this.prisma.companion
+      .findUnique({ where: { id: companionId }, select: { studioId: true } })
+      .catch(() => null);
+    const workbenchStudioId = studioRow?.studioId;
+    const [unlockCfg, scopedCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'revenue.free_threshold' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.revenue_threshold' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.deposit_threshold' } }),
+      resolveConfigsRaw(this.prisma, workbenchStudioId, [
+        'revenue.free_threshold',
+        'entertainment.revenue_threshold',
+        'entertainment.deposit_threshold',
+      ]),
     ]);
     const unlockThreshold = (unlockCfg?.value as number) ?? 200;
-    const freeThreshold = (freeCfg?.value as number) ?? 300;
-    const entertainmentThreshold = (entRevenueCfg?.value as number) ?? 200;
-    const entertainmentDepositThreshold = (entDepositCfg?.value as number) ?? 500;
+    const freeThreshold = (scopedCfg['revenue.free_threshold'] as number) ?? 300;
+    const entertainmentThreshold = (scopedCfg['entertainment.revenue_threshold'] as number) ?? 200;
+    const entertainmentDepositThreshold = (scopedCfg['entertainment.deposit_threshold'] as number) ?? 500;
 
     // Time logs for today
     const timeLogs = await this.prisma.companionTimeLog.findMany({
@@ -658,7 +665,7 @@ export class CompanionsService {
     };
 
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
-    const { hourlyRate } = await loadEntertainmentRule(this.prisma);
+    const { hourlyRate } = await loadEntertainmentRule(this.prisma, workbenchStudioId);
     // 娱乐随时可进：当日流水 ≥ 门槛则免费，否则按小时计费（报账时体现）。
     // 算法统一在 common/entertainment-fee.ts，跟看板、搭档结算、余额预警同一套。
     const entertainmentFee = computeEntertainmentFee({
@@ -709,10 +716,11 @@ export class CompanionsService {
     } else {
       // TIERED：严格按营业月流水计算当前所在阶梯
       const monthRevenue = await this.computeMonthRevenue(companionId);
-      const config = await this.prisma.systemConfig.findUnique({
-        where: { key: 'revenue.share_tiers' },
-      });
-      const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
+      // 分成阶梯也按店解析（线上上活的就是这一处）
+      const tiersCfg = await resolveConfigsRaw(this.prisma, companion?.studioId, [
+        'revenue.share_tiers',
+      ]);
+      const tiers: RevenueSplitTier[] = (tiersCfg['revenue.share_tiers'] as any) ?? [];
       if (monthRevenue > 0) {
         const tenureMonths = effectiveTenureMonths(companion!.createdAt, companion!.isSeniorStaff);
         const topTier = tiers.find((t) => t.max === null) || tiers[tiers.length - 1];

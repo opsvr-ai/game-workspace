@@ -15,6 +15,7 @@ import VoiceSettings from '../settings/VoiceSettings';
 import ExcellenceSettings from '../settings/ExcellenceSettings';
 import AiSettings from '../settings/AiSettings';
 import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
+import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
 
 const { Text } = Typography;
 
@@ -180,6 +181,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
+      <StudioConfigScopeBar />
       <div style={{ marginBottom: 12 }}>
         <Text strong style={{ fontSize: 16 }}>
           系统设置

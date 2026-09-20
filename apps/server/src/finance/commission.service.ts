@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class CommissionService {
@@ -176,8 +177,8 @@ export class CommissionService {
     return first?.id || '';
   }
 
-  /** 读取客服提成配置（系统设置） */
-  private async csConfig() {
+  /** 读取客服提成配置（本店店长填的优先，没填才用老板全局默认） */
+  private async csConfig(studioId?: string) {
     const keys = [
       'commission.cs_offline_rate_percent',
       'commission.cs_offline_floor_cents',
@@ -185,9 +186,9 @@ export class CommissionService {
       'commission.cs_online_per_order_yuan',
       'commission.cs_offline_per_order_cap_cents',
     ];
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
-    for (const r of records) map[r.key] = Number(r.value);
+    for (const k of keys) if (resolved[k] !== undefined) map[k] = Number(resolved[k]);
     return {
       ratePercent: map['commission.cs_offline_rate_percent'] ?? 1,
       floorCents: map['commission.cs_offline_floor_cents'] ?? 200,
@@ -202,8 +203,8 @@ export class CommissionService {
    * 底薪、月休、迟到/缺勤扣款从 PayrollConfig(role=CS) 取；
    * 桥接阶梯、全勤奖、早退扣款等新规则存 SystemConfig，默认值按老板口径。
    */
-  private async csSalaryConfig() {
-    const cfg = await this.csConfig();
+  private async csSalaryConfig(studioId?: string) {
+    const cfg = await this.csConfig(studioId);
     const payroll = await this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } });
     const keys = [
       'commission.cs_bridge_min_threshold',
@@ -215,9 +216,9 @@ export class CommissionService {
       'commission.cs_early_leave_deduction_yuan',
       'commission.cs_base_salary_yuan',
     ];
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
-    for (const r of records) map[r.key] = Number(r.value);
+    for (const k of keys) if (resolved[k] !== undefined) map[k] = Number(resolved[k]);
     return {
       ...cfg,
       baseSalary: Number(payroll?.baseSalary ?? map['commission.cs_base_salary_yuan'] ?? 2100),
@@ -235,11 +236,11 @@ export class CommissionService {
   }
 
   /** 店长分成比例（% 流水）：线下 / 线上分开配，默认 0 = 暂不参与分成。 */
-  private async adminRateConfig() {
+  private async adminRateConfig(studioId?: string) {
     const keys = ['commission.admin_offline_rate_percent', 'commission.admin_online_rate_percent'];
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+    const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
-    for (const r of records) map[r.key] = Number(r.value);
+    for (const k of keys) if (resolved[k] !== undefined) map[k] = Number(resolved[k]);
     const pick = (k: string) => (Number.isFinite(map[k]) ? map[k] : 0);
     return { offline: pick('commission.admin_offline_rate_percent'), online: pick('commission.admin_online_rate_percent') };
   }
@@ -250,7 +251,7 @@ export class CommissionService {
    * 不会因为多挂了几个店长账号就重复发钱。
    */
   private async buildAdminRows(studioId: string, start: Date, end: Date) {
-    const rates = await this.adminRateConfig();
+    const rates = await this.adminRateConfig(studioId);
     if (rates.offline <= 0 && rates.online <= 0) return { rows: [], rates };
 
     const admins = await this.prisma.user.findMany({
@@ -367,7 +368,7 @@ export class CommissionService {
 
   /** 计算每个客服的工资+提成明细（不落库），userId 可选用于只看某一人。 */
   private async buildCsSalaryRows(studioId: string, start: Date, end: Date, userId?: string) {
-    const cfg = await this.csSalaryConfig();
+    const cfg = await this.csSalaryConfig(studioId);
     const users = await this.prisma.user.findMany({
       where: { studioId, role: 'CS', ...(userId ? { id: userId } : {}) },
       select: { id: true, username: true, displayName: true },
@@ -567,7 +568,7 @@ export class CommissionService {
   async computeCsCommission(studioId: string, month: string, userId?: string) {
     studioId = await this.resolveStudioId(studioId);
     const { start, end } = settlementMonthRange(month);
-    const cfg = await this.csConfig();
+    const cfg = await this.csConfig(studioId);
     const users = await this.prisma.user.findMany({
       where: { studioId, role: 'CS', ...(userId ? { id: userId } : {}) },
       select: { id: true, username: true, displayName: true },
@@ -624,30 +625,19 @@ export class CommissionService {
       studioId = first?.id || '';
     }
     const { start, end } = currentBusinessDayRange();
-    const [
-      bridgePerOrderCfg,
-      onlinePerOrderCfg,
-      offlineRateCfg,
-      offlineFloorCfg,
-      offlineCapCfg,
-      baseSalaryCfg,
-      csPayrollCfg,
-      bridgeTargetCfg,
-      missCommissionRateCfg,
-      missSalaryRateCfg,
-      orders,
-      csUsers,
-    ] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_per_order_yuan' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_online_per_order_yuan' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_offline_rate_percent' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_offline_floor_cents' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_offline_per_order_cap_cents' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_base_salary_yuan' } }),
+    const cfg = await resolveConfigsRaw(this.prisma, studioId, [
+      'commission.cs_bridge_per_order_yuan',
+      'commission.cs_online_per_order_yuan',
+      'commission.cs_offline_rate_percent',
+      'commission.cs_offline_floor_cents',
+      'commission.cs_offline_per_order_cap_cents',
+      'commission.cs_base_salary_yuan',
+      'commission.cs_daily_bridge_target',
+      'commission.cs_bridge_miss_commission_rate',
+      'commission.cs_bridge_miss_salary_rate',
+    ]);
+    const [csPayrollCfg, orders, csUsers] = await Promise.all([
       this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_daily_bridge_target' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_miss_commission_rate' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'commission.cs_bridge_miss_salary_rate' } }),
       this.prisma.order.findMany({
         where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end }, companionId: { not: null } },
         include: { companion: { include: { studio: { select: { id: true, type: true } } } } },
@@ -658,15 +648,15 @@ export class CommissionService {
       }),
     ]);
 
-    const bridgePerOrder = Number(bridgePerOrderCfg?.value ?? 1);
-    const onlinePerOrder = Number(onlinePerOrderCfg?.value ?? 1);
-    const offlineRatePct = Number(offlineRateCfg?.value ?? 1);
-    const offlineFloorYuan = Number(offlineFloorCfg?.value ?? 200) / 100;
-    const offlineCapYuan = Number(offlineCapCfg?.value ?? 0) / 100;
-    const baseSalaryYuan = Number(csPayrollCfg?.baseSalary ?? baseSalaryCfg?.value ?? 0);
-    const bridgeTarget = Number(bridgeTargetCfg?.value ?? 10);
-    const missCommissionRate = Number(missCommissionRateCfg?.value ?? 50);
-    const missSalaryRate = Number(missSalaryRateCfg?.value ?? 80);
+    const bridgePerOrder = Number(cfg['commission.cs_bridge_per_order_yuan'] ?? 1);
+    const onlinePerOrder = Number(cfg['commission.cs_online_per_order_yuan'] ?? 1);
+    const offlineRatePct = Number(cfg['commission.cs_offline_rate_percent'] ?? 1);
+    const offlineFloorYuan = Number(cfg['commission.cs_offline_floor_cents'] ?? 200) / 100;
+    const offlineCapYuan = Number(cfg['commission.cs_offline_per_order_cap_cents'] ?? 0) / 100;
+    const baseSalaryYuan = Number(csPayrollCfg?.baseSalary ?? cfg['commission.cs_base_salary_yuan'] ?? 0);
+    const bridgeTarget = Number(cfg['commission.cs_daily_bridge_target'] ?? 10);
+    const missCommissionRate = Number(cfg['commission.cs_bridge_miss_commission_rate'] ?? 50);
+    const missSalaryRate = Number(cfg['commission.cs_bridge_miss_salary_rate'] ?? 80);
 
     const round2 = (n: number) => Number(n.toFixed(2));
     const offlineCommissionOf = (amount: number) => {

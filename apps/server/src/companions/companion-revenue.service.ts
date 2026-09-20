@@ -5,6 +5,7 @@ import { computeWithdrawable } from '../common/withdrawable';
 import { BridgeService } from '../studios/bridge.service';
 import { computeRevenueShare, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class CompanionRevenueService {
@@ -158,7 +159,7 @@ export class CompanionRevenueService {
   async checkEntertainmentBlocked(companionId: string) {
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { balance: true, deposit: true, revenueShare: true, createdAt: true, isSeniorStaff: true, studio: { select: { splitMode: true } } },
+      select: { balance: true, deposit: true, revenueShare: true, createdAt: true, isSeniorStaff: true, studio: { select: { id: true, splitMode: true } } },
     });
     if (!companion) return { reason: '陪玩不存在' };
 
@@ -171,19 +172,17 @@ export class CompanionRevenueService {
     });
     const totalRev = totalRevenue._sum.amount || 0;
 
-    // Split ratio (delegated to revenue-calculator)
-    const clubCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.club_companion_share' },
-    });
-    const tiersCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.share_tiers' },
-    });
+    // 分成比例（委托给 revenue-calculator）：按「本店店长填的 → 老板全局默认」解析
+    const cfg = await resolveConfigsRaw(this.prisma, companion.studio?.id, [
+      'revenue.club_companion_share',
+      'revenue.share_tiers',
+    ]);
     const share = computeRevenueShare({
       splitMode: companion.studio?.splitMode ?? 'TIERED',
       totalRevenue: totalRev,
       revenueShare: companion.revenueShare,
-      defaultClubSharePct: (clubCfg?.value as number) ?? 80,
-      tiers: (tiersCfg?.value as unknown as RevenueSplitTier[]) ?? undefined,
+      defaultClubSharePct: (cfg['revenue.club_companion_share'] as number) ?? 80,
+      tiers: (cfg['revenue.share_tiers'] as unknown as RevenueSplitTier[]) ?? undefined,
       tenureMonths: effectiveTenureMonths(companion.createdAt, companion.isSeniorStaff),
     });
 

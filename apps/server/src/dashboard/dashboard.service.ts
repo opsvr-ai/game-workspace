@@ -8,6 +8,7 @@ import {
 } from '../common/business-day';
 import { roundToJiao } from '../common/money';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 /** 计「在线时长」时认可的模式，与 onlineCount 保持一致 */
 const ONLINE_MODES = new Set(['AVAILABLE', 'BUSY', 'ENTERTAINMENT']);
@@ -94,10 +95,9 @@ export class DashboardService {
     });
 
     // Alerts: companions with low revenue
-    const config = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.low_warning' },
-    });
-    const lowThreshold = (config?.value as number) ?? 300;
+    // 低流水预警线：本店店长填的优先
+    const scopedCfg = await resolveConfigsRaw(this.prisma, studioId, ['revenue.low_warning']);
+    const lowThreshold = (scopedCfg['revenue.low_warning'] as number) ?? 300;
 
     // H3 fix: use Order table for alerts (same source as KPI)
     const todayDoneOrders = await this.prisma.order.findMany({
@@ -113,7 +113,7 @@ export class DashboardService {
       if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
     }
     // 娱乐费：走全系统唯一口径（当日流水达标免单，否则按配置时薪折算）
-    const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+    const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, studioId);
     let entertainmentFee = 0;
     for (const [companionId, seconds] of entertainmentSecondsByCompanion) {
       entertainmentFee += computeEntertainmentFee({

@@ -61,10 +61,20 @@ export function createMockPrisma() {
     },
     systemConfig: {
       findUnique: vi.fn(),
-      findMany: vi.fn(),
+      // findMany 默认给空数组：真实 Prisma 查到 0 条也返回 []，
+      // 返回 undefined 会让「按店解析配置」（common/studio-config.ts）直接炸掉。
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
+    },
+    studioConfig: {
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     companionStatusBlacklist: {
       findMany: vi.fn(),

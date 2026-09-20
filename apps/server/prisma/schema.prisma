@@ -72,6 +72,7 @@ model Studio {
   commissionRules     CommissionRule[]
   commissionLedgers   CommissionLedger[]
   settlementSnapshots SettlementSnapshot[]
+  configs                 StudioConfig[]
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
   customerDeleteRequests  CustomerDeleteRequest[]
@@ -782,6 +783,21 @@ model ChatAuditLog {
 
   @@index([roomId, createdAt])
   @@index([userId])
+}
+
+/// 分店自己的配置（老板 2026-09-21：以后进来的租赁线下工作室 / 线上俱乐部，数据由他们自己的店长填写）。
+/// 生效顺序：StudioConfig（本店填的）→ SystemConfig（老板给的默认）→ 代码内置默认。
+model StudioConfig {
+  id        String   @id @default(uuid())
+  studioId  String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@unique([studioId, key])
+  @@index([studioId])
 }
 
 model StudioBridge {

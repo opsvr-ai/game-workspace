@@ -1862,7 +1862,7 @@ export class OrdersService implements OnModuleInit {
     let entertainmentFee: number | null = null;
     const partner = await this.prisma.companion.findUnique({
       where: { id: partnerId },
-      select: { status: true },
+      select: { status: true, studioId: true },
     }).catch(() => null);
     if (partner?.status === 'ENTERTAINMENT') {
       const openLog = await this.prisma.companionTimeLog.findFirst({
@@ -1872,7 +1872,7 @@ export class OrdersService implements OnModuleInit {
       if (openLog) {
         const elapsed = Math.max(0, Math.round((Date.now() - new Date(openLog.startedAt).getTime()) / 1000));
         // 娱乐费统一口径（当日流水达标免单），避免和看板/工作台算法不一致
-        const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+        const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, partner?.studioId);
         const { start: entDayStart, end: entDayEnd } = currentBusinessDayRange();
         const entDayRevenue = await this.prisma.order
           .aggregate({
