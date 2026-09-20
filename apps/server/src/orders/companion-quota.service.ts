@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExcellenceService } from '../companions/excellence.service';
-import { businessDayOf, currentBusinessDayRange } from '../common/business-day';
+import { businessDayKey, currentBusinessDayRange } from '../common/business-day';
 import { logger } from '../common/logger';
 
 /**
@@ -22,6 +22,21 @@ const LIMIT_KEYS: Record<string, string> = {
 };
 
 const DAY_MS = 24 * 3600 * 1000;
+
+/**
+ * 读出「上次发放到哪个营业日」。
+ * 老数据存的是「营业日 0 点」这种纯日期值（本身已经是日期键，不能再往前挪一天），
+ * 新数据存的是发放那一刻的时间戳（要按 12 点规则归到所属营业日）。
+ */
+function grantedDayKey(value: Date): string {
+  const d = new Date(value.getTime());
+  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) {
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+  return businessDayKey(d);
+}
 
 @Injectable()
 export class CompanionQuotaService {
@@ -46,6 +61,10 @@ export class CompanionQuotaService {
   /**
    * 惰性发放：把「上次发放日 → 今天」这段时间每个营业日的名额补进余额。
    * 首次遇到某个人只发今天的（不追溯历史，否则老账号会一次拿到几百个）。
+   *
+   * 注意（2026-09-20 踩过的坑）：比较必须用**营业日日期键**，不能把存进去的时间戳
+   * 再喂给 businessDayOf 一次——存的是「营业日 0 点」，0 点 < 12 点又会被算成前一天，
+   * 结果是每次调用都重新发一天的名额，名额永远用不完。
    */
   async ensure(companionId: string): Promise<{ balance: number; granted: number } | null> {
     const companion = await this.prisma.companion.findUnique({
@@ -54,19 +73,21 @@ export class CompanionQuotaService {
     });
     if (!companion) return null;
 
-    const today = businessDayOf(new Date());
-    const through = companion.quotaGrantedThrough ? businessDayOf(companion.quotaGrantedThrough) : null;
+    const todayKey = businessDayKey(new Date());
+    const throughKey = companion.quotaGrantedThrough ? grantedDayKey(companion.quotaGrantedThrough) : null;
     const { limit } = await this.limitFor(companionId);
 
-    if (through && through.getTime() === today.getTime()) {
+    if (throughKey && throughKey === todayKey) {
       return { balance: companion.quotaBalance, granted: 0 };
     }
 
-    const days = through ? Math.max(0, Math.round((today.getTime() - through.getTime()) / DAY_MS)) : 1;
+    const days = throughKey
+      ? Math.max(0, Math.round((Date.parse(todayKey) - Date.parse(throughKey)) / DAY_MS))
+      : 1;
     const grant = days * limit;
     const updated = await this.prisma.companion.update({
       where: { id: companionId },
-      data: { quotaBalance: { increment: grant }, quotaGrantedThrough: today },
+      data: { quotaBalance: { increment: grant }, quotaGrantedThrough: new Date() },
       select: { quotaBalance: true },
     });
     if (grant > 0) {
