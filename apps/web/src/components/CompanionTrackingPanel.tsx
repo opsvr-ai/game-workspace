@@ -117,9 +117,15 @@ const CompanionTrackingPanel: React.FC = () => {
   }
 
   const cfg = status?.config ?? {};
+  const quota = status?.quota ?? {};
   const stat = [
-    { label: '今日有效客户', value: `${status?.todayValidCustomers ?? 0} / ${cfg.quota ?? 3}`, icon: ThunderboltOutlined, color: '#00E5FF' },
-    { label: '今日流水', value: `¥${Math.round(status?.todayRevenue ?? 0)}`, icon: AimOutlined, color: '#7C4DFF' },
+    { label: '今日有效客户', value: `${status?.todayValidCustomers ?? 0}`, icon: ThunderboltOutlined, color: '#00E5FF' },
+    {
+      label: '今日名额（已用/每天）',
+      value: `${quota.usedToday ?? 0}/${quota.dailyLimit ?? 0}`,
+      icon: AimOutlined,
+      color: '#7C4DFF',
+    },
     { label: '综合成功率', value: `${status?.success?.sum ?? 0}%`, icon: CheckCircleOutlined, color: '#FFB300' },
   ];
 
@@ -147,7 +153,7 @@ const CompanionTrackingPanel: React.FC = () => {
           }}
         >
           <Space direction="vertical" size={4}>
-            <Text strong style={{ color: '#FF7AC1' }}>当前抢单受限</Text>
+            <Text strong style={{ color: '#FF7AC1' }}>抢单提醒</Text>
             {status?.reasons?.map((r: string) => <Text key={r} style={{ color: '#E9C7FF' }}>· {r}</Text>)}
           </Space>
         </div>

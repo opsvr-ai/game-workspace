@@ -77,6 +77,36 @@ export function useSocket(opts: UseSocketOptions = {}) {
         socket.emit('companion:heartbeat', { agentVersion: fallback });
       }
     };
+    // 令牌过期 / 被换过密钥时，用 refreshToken 换一张新令牌再连，
+    // 不然客户端会拿着废令牌一直重连失败，那段时间收不到任何弹窗。
+    const relogin = async () => {
+      if (disposed) return;
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) return;
+      try {
+        const { data } = await http.post('/auth/refresh', { refreshToken });
+        const next = (data as any)?.data?.accessToken;
+        if (!next) return;
+        sessionStorage.setItem('accessToken', next);
+        if ((data as any)?.data?.refreshToken) {
+          localStorage.setItem('refreshToken', (data as any).data.refreshToken);
+        }
+        (socket as any).auth = { token: next };
+        socket.connect();
+      } catch {
+        /* 换不到就等下一次重连 */
+      }
+    };
+    socket.on('connect_error', (err: any) => {
+      const msg = String(err?.message || '');
+      if (/invalid signature|jwt expired|Unauthorized|invalid token/i.test(msg)) {
+        void relogin();
+      }
+    });
+    socket.on('auth:failed' as any, () => {
+      void relogin();
+    });
+
     socket.on('connect', () => {
       emitHeartbeat();
       const timer = setInterval(emitHeartbeat, 30_000);

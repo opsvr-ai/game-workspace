@@ -65,6 +65,7 @@ model Studio {
     processPendingDisables ProcessPendingDisable[]
     processWhitelists   ProcessWhitelist[]
     trafficAccounts     TrafficAccount[]
+    trafficNotes        TrafficNote[]
   paymentAccounts     StudioPaymentAccount[]
   priceRules          PriceRule[]
   merchantRecords     MerchantPaymentRecord[]
@@ -74,6 +75,10 @@ model Studio {
   customerContacts        CustomerContact[]
   customerTracks          CustomerTrack[]
   customerDeleteRequests  CustomerDeleteRequest[]
+  xhsAutomationAccounts   XhsAutomationAccount[]
+  xhsAutomationTasks      XhsAutomationTask[]
+  xhsTargetUsers          XhsTargetUser[]
+  xhsSystemEvents         XhsSystemEvent[]
 }
 
 model Companion {
@@ -98,6 +103,13 @@ model Companion {
   reviewedById   String?
   reviewedAt     DateTime?
   reviewNote     String?
+  isResigned     Boolean   @default(false)
+  isSeniorStaff  Boolean   @default(false) // 手动标记为老员工：跳过 6 个月工龄门槛，业绩过万可直接 70%
+  // 每日「立即打」抢单名额（按下等马/中等马/上等马发放，未用完自动累计）
+  quotaBalance        Int       @default(0)
+  quotaGrantedThrough DateTime?
+  // 接单中 / 娱乐中是否也接收新单弹窗（默认不打扰，想抢单的自己开）
+  notifyWhileBusy     Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
   user                User                         @relation(fields: [userId], references: [id])
@@ -504,17 +516,30 @@ model TenantAuthorization {
 }
 
 model WorkWechat {
-    id          String   @id @default(uuid())
-    studioId    String
-    wechatId    String   @unique
-    companionId String?  @unique
-    csUserId    String?  // STUDIO 类型时绑定给客服
-    type        String   @default("COMPANION") // COMPANION | STUDIO
-    status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
-    createdAt   DateTime @default(now())
-  
-    companion Companion? @relation(fields: [companionId], references: [id])
-  }
+  id          String   @id @default(uuid())
+  studioId    String
+  wechatId    String   @unique
+  nickname    String? // 管理端自定义昵称，选择时显示“微信号 + 昵称”
+  companionId String?  @unique
+  csUserId    String?  // STUDIO 类型时绑定给客服
+  type        String   @default("COMPANION") // COMPANION | STUDIO
+  status      String   @default("AVAILABLE") // AVAILABLE | BOUND | BANNED
+  createdAt   DateTime @default(now())
+
+  companion Companion? @relation(fields: [companionId], references: [id])
+}
+
+model WorkWechatBalanceLog {
+  id            String   @id @default(uuid())
+  studioId      String
+  workWechatId  String // WorkWechat.id
+  amount        Float // 转走金额（正数）
+  note          String?
+  createdAt     DateTime @default(now())
+
+  @@index([studioId, workWechatId])
+  @@index([workWechatId])
+}
 
 // ── Blacklist Process Management ──
 
@@ -536,6 +561,7 @@ model ProcessBlacklist {
     id          String   @id @default(uuid())
     studioId    String
     processName String
+    displayName String?
     createdAt   DateTime @default(now())
 
     studio Studio @relation(fields: [studioId], references: [id])
@@ -666,15 +692,32 @@ model ChatRoom {
   pinned         Boolean   @default(false)
   pinnedAt       DateTime?
   archived       Boolean   @default(false)
+  isGroup        Boolean   @default(false)
+  groupName      String?
+  groupAvatar    String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   messages ChatMessageV3[]
+  members  ChatRoomMember[]
 
   @@index([studioId, participantA])
   @@index([studioId, participantB])
   @@index([studioId, pinned, lastMessageAt])
   @@index([participantA, participantB])
+}
+
+model ChatRoomMember {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  readSeq  Int      @default(0)
+  joinedAt DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
 }
 
 model ChatMessageV3 {
@@ -685,6 +728,7 @@ model ChatMessageV3 {
   type      String         @default("TEXT") // TEXT | IMAGE | FILE | AUDIO | ORDER_CARD | SYSTEM
   content   String?
   seq       Int // per-room incrementing sequence number
+  mentions  String[] @default([]) // userIds mentioned in this message (group chat @)
   replyToId String? // quoted reply message ID
   replyTo   ChatMessageV3? @relation("Reply", fields: [replyToId], references: [id])
   deletedAt DateTime? // soft-delete = recall
@@ -773,6 +817,7 @@ model CompanionStatusBlacklist {
     studioId    String
     status      String // AVAILABLE | WAITING | BUSY | ENTERTAINMENT | RESTING
     processName String
+    displayName String?
     createdAt   DateTime @default(now())
   
     studio Studio @relation(fields: [studioId], references: [id])
@@ -984,6 +1029,7 @@ model ManagedPC {
     type             String
     code             String?
     trafficLevel     String? // 优 / 中 / 差
+    accountRole      String? // 情绪娱乐号 / 技术上分号 / 避坑干货号
     accountStyle     String?
     nickname         String
     accountId        String?
@@ -996,6 +1042,9 @@ model ManagedPC {
     phone            String?
     promotionContact String?
     realName         String?
+    realNameAge      Int?
+    realNameGender   String?
+    followers        Int?
     registerDate     String?
     banDate          String?
     imageSourceNote  String?
@@ -1009,9 +1058,46 @@ model ManagedPC {
 
     user   User   @relation(fields: [userId], references: [id])
     studio Studio @relation(fields: [studioId], references: [id])
+    trafficNotes TrafficNote[]
 
     @@index([studioId])
     @@index([userId])
+  }
+
+  model TrafficNote {
+    id                 String    @id @default(uuid())
+    accountId          String
+    studioId           String
+    publishDate        DateTime?
+    title              String?
+    // ── 数据概览 ──
+    exposure           Int?
+    views              Int?
+    clickRate          Float?
+    interactionRate    Float?
+    followRatio        Float?
+    dmRate             Float?
+    readCompletionRate Float?
+    likes              Int?
+    comments           Int?
+    favorites          Int?
+    // ── 流量分析 ──
+    homeRecommendRatio Float?
+    searchRatio        Float?
+    profileRatio       Float?
+    searchKeywords     Json?
+    // ── 观众分析 ──
+    cityDist           Json?
+    interests          Json?
+    note               String?
+    createdAt          DateTime  @default(now())
+    updatedAt          DateTime  @updatedAt
+
+    account TrafficAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    studio  Studio         @relation(fields: [studioId], references: [id])
+
+    @@index([accountId])
+    @@index([studioId])
   }
   
   model PayrollConfig {
@@ -1021,7 +1107,7 @@ model ManagedPC {
   performancePercent Float
   offlinePercent    Float
   bridgeFixed       Float
-  fullAttendanceDays Int
+  fullAttendanceDays Int // 月休天数（默认4，满勤 = 当月天数 − 月休天数）
   lateDeduction     Float
   absentDeduction   Float
   isActive          Boolean  @default(true)
@@ -1067,4 +1153,174 @@ model OrderMoneyFlow {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+// ── 小红书多账号私信运营自动化 ──
+
+model XhsAutomationAccount {
+  id          String   @id @default(uuid())
+  studioId    String
+  nickname    String
+  xhsAccountId String? // 小红书账号标识 / 主页号
+  status      String   @default("READY") // READY | RUNNING | PAUSED | COMPLETED | ERROR | NEEDS_REVIEW | DISABLED
+  lockToken   String?
+  taskCount   Int      @default(0)
+  successCount Int     @default(0)
+  failedCount  Int     @default(0)
+  skippedCount Int     @default(0)
+  lastActiveAt DateTime?
+  lastError    String?
+  lastErrorAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio           Studio                   @relation(fields: [studioId], references: [id])
+  browserProfile   XhsBrowserProfile?
+  messageRecords   XhsMessageRecord[]
+  executionLogs    XhsExecutionLog[]
+  systemEvents     XhsSystemEvent[]
+
+  @@index([studioId, status])
+  @@index([status, lastActiveAt])
+}
+
+model XhsBrowserProfile {
+  id                    String   @id @default(uuid())
+  accountId             String   @unique
+  bitbrowserProfileId   String   @unique
+  name                  String?
+  status                String   @default("UNKNOWN") // UNKNOWN | READY | MISSING | ERROR
+  lastCheckedAt         DateTime?
+  lastError             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  account XhsAutomationAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([bitbrowserProfileId])
+}
+
+model XhsAutomationTask {
+  id                     String   @id @default(uuid())
+  studioId               String
+  name                   String
+  messageTemplate        String
+  targetSource           String   @default("KEYWORD_SEARCH") // KEYWORD_SEARCH | COMMENT_USER | USER_LIST | CSV_IMPORT
+  maxMessagesPerAccount  Int      @default(10)
+  delayMin               Int      @default(20)
+  delayMax               Int      @default(40)
+  status                 String   @default("DRAFT") // DRAFT | QUEUED | RUNNING | PAUSED | COMPLETED | CANCELLED
+  queueOrder             Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  studio         Studio                 @relation(fields: [studioId], references: [id])
+  keywords       XhsTaskKeyword[]
+  targetUsers    XhsTargetUser[]
+  messageRecords XhsMessageRecord[]
+  executionLogs  XhsExecutionLog[]
+  systemEvents   XhsSystemEvent[]
+
+  @@index([studioId, status])
+  @@index([status, queueOrder])
+}
+
+model XhsTaskKeyword {
+  id        String   @id @default(uuid())
+  taskId    String
+  keyword   String
+  queueOrder Int     @default(0)
+  createdAt DateTime @default(now())
+
+  task XhsAutomationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, keyword])
+  @@index([taskId, queueOrder])
+}
+
+model XhsTargetUser {
+  id            String   @id @default(uuid())
+  studioId      String
+  taskId        String?
+  source        String   @default("KEYWORD_SEARCH")
+  sourceUserId  String
+  nickname      String?
+  profileUrl    String?
+  status        String   @default("NEW") // NEW | CONTACTED | SKIPPED | FAILED | NEEDS_REVIEW
+  lastMessageId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  studio         Studio                 @relation(fields: [studioId], references: [id])
+  task           XhsAutomationTask?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  messageRecords XhsMessageRecord[]
+
+  @@unique([taskId, sourceUserId])
+  @@index([studioId, status])
+  @@index([sourceUserId])
+}
+
+model XhsMessageRecord {
+  id            String    @id @default(uuid())
+  accountId     String
+  taskId        String
+  keywordId     String?
+  targetUserId  String
+  targetUserName String?
+  keyword       String?
+  message       String
+  status        String    @default("PENDING") // PENDING | SENT | SKIPPED | FAILED | NEEDS_REVIEW
+  errorMessage  String?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  account    XhsAutomationAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  task       XhsAutomationTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  targetUser XhsTargetUser        @relation(fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([targetUserId])
+  @@unique([taskId, targetUserId])
+}
+
+model XhsExecutionLog {
+  id        String   @id @default(uuid())
+  accountId String?
+  taskId    String?
+  level     String   @default("INFO") // INFO | WARNING | ERROR | CRITICAL
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  account XhsAutomationAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  task    XhsAutomationTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([level])
+}
+
+model XhsSystemEvent {
+  id           String    @id @default(uuid())
+  studioId     String
+  accountId    String?
+  taskId       String?
+  type         String // ACCOUNT_READY | PROFILE_MISSING | TASK_STARTED | TASK_PAUSED | TASK_RESUMED | TASK_STOPPED | TASK_COMPLETED | EXCEPTION | CIRCUIT_BREAKER | STOP_ALL | MANUAL_CONTROL
+  severity     String    @default("INFO") // INFO | WARNING | ERROR | CRITICAL
+  title        String
+  detail       Json?
+  snapshotUrl  String?
+  status       String    @default("OPEN") // OPEN | ACKNOWLEDGED | RESOLVED
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  studio  Studio                  @relation(fields: [studioId], references: [id])
+  account XhsAutomationAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  task    XhsAutomationTask?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([studioId, status, createdAt])
+  @@index([accountId, createdAt])
+  @@index([type])
 }

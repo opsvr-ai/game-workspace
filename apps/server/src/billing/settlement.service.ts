@@ -9,6 +9,7 @@ import {
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
 import { roundToJiao } from '../common/money';
+import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
 
 @Injectable()
 export class SettlementService {
@@ -28,7 +29,7 @@ export class SettlementService {
     // Get all companions in studio
     const companions = await this.prisma.companion.findMany({
       where: { studioId },
-      select: { id: true, balance: true, revenueShare: true, user: { select: { username: true } } },
+      select: { id: true, balance: true, revenueShare: true, createdAt: true, isSeniorStaff: true, user: { select: { username: true } } },
     });
 
     // Check studio split mode (TASK-12)
@@ -85,12 +86,9 @@ export class SettlementService {
         studioShare = roundToJiao(monthlyRevenue - companionShare);
       } else {
         // TIERED mode: find applicable tier
-        const tier =
-          tiers.find((t) => monthlyRevenue >= t.min && (t.max === null || monthlyRevenue <= t.max)) ||
-          tiers[tiers.length - 1];
-        companionPct = tier.companion;
-        companionShare = roundToJiao(monthlyRevenue * (tier.companion / 100));
-        studioShare = roundToJiao(monthlyRevenue * (tier.studio / 100));
+        companionPct = resolveCompanionPctTiered(monthlyRevenue, effectiveTenureMonths(c.createdAt, c.isSeniorStaff), tiers);
+        companionShare = roundToJiao(monthlyRevenue * (companionPct / 100));
+        studioShare = roundToJiao(monthlyRevenue - companionShare);
       }
 
       // Create settlement transaction
@@ -172,7 +170,23 @@ export class SettlementService {
       _sum: { amount: true },
     });
 
-    // All-time DONE revenue
+    // 当月业绩：口径见需求文档 §7.1，结算月 = 当月 1 日 12:00 至次月 1 日 12:00
+    const nowMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const targetMonth = month || nowMonth;
+    const { start: monthStart, end: monthEnd } = settlementMonthRange(targetMonth);
+
+    const monthAgg = await this.prisma.order.aggregate({
+      where: {
+        studioId,
+        status: 'DONE',
+        companionId: companionFilter,
+        createdAt: { gte: monthStart, lt: monthEnd },
+      },
+      _sum: { amount: true },
+    });
+    const monthRevenue = monthAgg._sum.amount ?? 0;
+
+    // 历史累计（只用于展示）
     const totalAgg = await this.prisma.order.aggregate({
       where: { studioId, status: 'DONE', companionId: companionFilter },
       _sum: { amount: true },
@@ -180,15 +194,24 @@ export class SettlementService {
 
     const totalRevenue = totalAgg._sum.amount ?? 0;
 
-    // Approved WITHDRAW sum (all-time, not month-filtered)
+    // 已支取 / 待审支取：跟业绩同一个结算月（跨月重置）
     const withdrawnAgg = await this.prisma.walletTransaction.aggregate({
-      where: { companionId: companionFilter, type: 'WITHDRAW', status: 'APPROVED' },
+      where: {
+        companionId: companionFilter,
+        type: 'WITHDRAW',
+        status: 'APPROVED',
+        createdAt: { gte: monthStart, lt: monthEnd },
+      },
       _sum: { amount: true },
     });
 
-    // Pending WITHDRAW sum (all-time, not month-filtered)
     const pendingAgg = await this.prisma.walletTransaction.aggregate({
-      where: { companionId: companionFilter, type: 'WITHDRAW', status: 'PENDING' },
+      where: {
+        companionId: companionFilter,
+        type: 'WITHDRAW',
+        status: 'PENDING',
+        createdAt: { gte: monthStart, lt: monthEnd },
+      },
       _sum: { amount: true },
     });
 
@@ -215,7 +238,7 @@ export class SettlementService {
     });
     let splitRatio = 0;
 
-    if (companionId && totalRevenue > 0) {
+    if (companionId && monthRevenue > 0) {
       if (studio?.splitMode === 'FIXED') {
         const comp = await this.prisma.companion.findUnique({
           where: { id: companionId },
@@ -238,7 +261,7 @@ export class SettlementService {
             { min: 10000, max: null, studio: 30, companion: 70 },
           ];
         const tier =
-          tiers.find((t) => totalRevenue >= t.min && (t.max === null || totalRevenue <= t.max)) ||
+          tiers.find((t) => monthRevenue >= t.min && (t.max === null || monthRevenue <= t.max)) ||
           tiers[tiers.length - 1];
         splitRatio = tier.companion;
       }
@@ -246,7 +269,19 @@ export class SettlementService {
 
     const totalWithdrawn = withdrawnAgg._sum.amount ?? 0;
     const pendingWithdraw = pendingAgg._sum.amount ?? 0;
-    const withdrawable = Math.max(0, totalRevenue * (splitRatio / 100) - totalWithdrawn - pendingWithdraw);
+
+    // 未打存单预留：客户存单还没打完的部分，对应提成先扣住（防「冲完成绩跑路」）
+    const depositRows = await this.prisma.customer.findMany({
+      where: companionId ? { companionId } : { companionId: { in: targetIds.length > 0 ? targetIds : ['__none__'] } },
+      select: { depositBalance: true },
+    });
+    const depositUnused = depositRows.reduce((sum, c) => sum + (c.depositBalance || 0), 0);
+    const depositReserve = roundToJiao(depositUnused * (splitRatio / 100));
+
+    const withdrawable = Math.max(
+      0,
+      roundToJiao(monthRevenue * (splitRatio / 100)) - totalWithdrawn - pendingWithdraw - depositReserve,
+    );
 
     // Records — all wallet transaction types, filtered by month if provided
     const recordsWhere: any = { companionId: companionFilter };
@@ -264,9 +299,12 @@ export class SettlementService {
     return {
       summary: {
         todayRevenue: todayAgg._sum.amount ?? 0,
+        monthRevenue,
+        month: targetMonth,
         totalRevenue,
         totalWithdrawn,
         pendingWithdraw,
+        depositReserve,
         withdrawable,
         deposit,
         splitRatio,

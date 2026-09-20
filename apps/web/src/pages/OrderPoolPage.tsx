@@ -21,7 +21,7 @@ import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields } from '../utils/orderPool';
-import { DATA_FONT_SIZE, DATA_ROW_PADDING } from '../constants/datasetColumns';
+import { DATA_FONT_SIZE, DATA_ROW_PADDING, DATA_TAG_FONT_SIZE } from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
@@ -337,11 +337,10 @@ const OrderPoolPage: React.FC = () => {
     );
   }
 
-  const isUnlocked = poolStatus?.isUnlocked ?? false;
-  const todayRevenue = poolStatus?.todayRevenue ?? 0;
-  const threshold = poolStatus?.threshold ?? 100;
-  // 门槛可能被后台关掉（=0），这时不能拿 0 当分母算进度。
-  const pct = threshold > 0 ? Math.min(Math.round((todayRevenue / threshold) * 100), 100) : 100;
+  // 每日「立即打」名额（老板 2026-09-20：取代原来的流水门槛）
+  const quotaRemaining = Number(poolStatus?.remaining ?? 0);
+  const quotaLimit = Number(poolStatus?.dailyLimit ?? 0);
+  const quotaUsedToday = Number(poolStatus?.usedToday ?? 0);
 
   const canEditOrder = (order: any) => {
     if (!role || role === 'COMPANION' || order.dispatchType !== 'POOL') return false;
@@ -367,26 +366,34 @@ const OrderPoolPage: React.FC = () => {
           borderBottom: '1px solid #f0f0f0',
           fontSize: DATA_FONT_SIZE,
           color: '#1f2329',
-          whiteSpace: 'nowrap',
         }}
       >
-        {fields.map((t, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
-            <span>{t}</span>
-          </React.Fragment>
-        ))}
-        {order.customFields?.poolExpired && (
-          <Tag color="orange" style={{ margin: 0 }}>
-            超时仍可抢
-          </Tag>
-        )}
-        {order.customFields?.csCultivated === true && (
-          <Tag color="cyan" style={{ margin: 0 }}>
-            ✅ 客服已加过微信，请知悉
-          </Tag>
-        )}
-        <span style={{ flex: 1 }} />
+        {/* 订单信息太长时只让这一块横向滚动，抢单按钮永远钉在最右侧，不被挤出屏幕 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flex: '1 1 auto',
+            minWidth: 0,
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            scrollbarWidth: 'thin',
+          }}
+        >
+          {fields.map((t, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
+              <span>{t}</span>
+            </React.Fragment>
+          ))}
+          {order.customFields?.csCultivated === true && (
+            <Tag color="cyan" style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE }}>
+              ✅ 客服已加过微信，请知悉
+            </Tag>
+          )}
+        </div>
+        <div style={{ flexShrink: 0 }}>
         {isCompanion ? (
           <Space size={8}>
             {order.companionId && <Text type="danger" style={{ fontSize: 12 }}>客服指定给你接</Text>}
@@ -404,13 +411,10 @@ const OrderPoolPage: React.FC = () => {
               type="primary"
               size="small"
               danger
-              disabled={!isUnlocked && order.csUser?.role !== 'COMPANION'}
               loading={grabbing === order.id}
               onClick={() => handleGrab(order.id)}
             >
-              {!isUnlocked && order.csUser?.role !== 'COMPANION'
-                ? `还差¥${Math.round((threshold - todayRevenue) * 100) / 100}`
-                : '抢单'}
+              抢单
             </Button>
           </Space>
         ) : (
@@ -430,6 +434,7 @@ const OrderPoolPage: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
           </Space>
         )}
+        </div>
       </div>
     );
   };
@@ -644,32 +649,30 @@ const OrderPoolPage: React.FC = () => {
             </Card>
           )}
 
-          {/* Companion: unlock threshold card — 放在订单列表下方，避免小窗口把订单挤到下面 */}
+          {/* 陪玩：今日「立即打」名额（含没抢完累计下来的） */}
           {isCompanion && poolStatus && (
             <Card
               size="small"
               style={{
                 marginTop: 12,
-                background: isUnlocked ? '#f6ffed' : '#fff7e6',
+                background: quotaRemaining > 0 ? '#f6ffed' : '#fff7e6',
               }}
             >
               <Row align="middle" justify="space-between">
                 <Col>
-                  <Text strong>
-                    {threshold > 0
-                      ? `当日流水：¥${todayRevenue} ｜ 解锁门槛：¥${threshold}${isUnlocked ? ' ｜ 🟢 已解锁' : ' ｜ 🔒 未解锁'}`
-                      : `当日流水：¥${todayRevenue}`}
+                  <Text strong style={{ fontSize: DATA_FONT_SIZE }}>
+                    今日名额 {quotaUsedToday}/{quotaLimit} 已用 ｜ 可用（含累计结余）{quotaRemaining} 个
                   </Text>
                 </Col>
                 <Col>
-                  <Tag color={isUnlocked ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>
-                    {isUnlocked ? '✅ 可抢单' : `还差 ¥${Math.round((threshold - todayRevenue) * 100) / 100}`}
+                  <Tag
+                    color={quotaRemaining > 0 ? 'success' : 'warning'}
+                    style={{ fontSize: DATA_TAG_FONT_SIZE, padding: '2px 10px' }}
+                  >
+                    {quotaRemaining > 0 ? `✅ 还能抢 ${quotaRemaining} 个立即打` : '名额用完了，明天自动补'}
                   </Tag>
                 </Col>
               </Row>
-              {!isUnlocked && threshold > 0 && (
-                <Progress percent={pct} size="small" style={{ marginTop: 8 }} />
-              )}
             </Card>
           )}
         </Col>

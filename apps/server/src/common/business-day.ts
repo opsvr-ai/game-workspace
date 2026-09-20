@@ -16,6 +16,15 @@ export function businessDayOf(date: Date): Date {
   return d;
 }
 
+/** 营业日的日期键（YYYY-MM-DD），用于前端选择「补报哪一天」 */
+export function businessDayKey(date: Date): string {
+  const d = businessDayOf(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** 结算月范围：当月 1 日 12:00（含）至次月 1 日 12:00（不含） */
 export function settlementMonthRange(month: string): { start: Date; end: Date } {
   const [year, mon] = month.split('-').map(Number);

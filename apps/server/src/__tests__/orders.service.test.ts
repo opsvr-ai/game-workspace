@@ -9,7 +9,7 @@ function createMockWsGateway() {
   return {
     broadcastToStudio: vi.fn(),
     broadcastToBridgedStudios: vi.fn(),
-    broadcastToIdleCompanions: vi.fn().mockResolvedValue(0),
+    broadcastNewOrder: vi.fn().mockResolvedValue(0),
     broadcastUrgentToBridgedStudios: vi.fn().mockResolvedValue(0),
     broadcastToQualifiedIdleCompanions: vi.fn().mockResolvedValue(0),
     broadcastToBridgedIdleCompanionsByType: vi.fn().mockResolvedValue(0),
@@ -64,6 +64,18 @@ describe('OrdersService', () => {
     dispatchService = createMockDispatchService();
     const bridgeService = createMockBridgeService();
     excellence = createMockExcellenceService();
+    const quota = {
+      status: vi.fn().mockResolvedValue({
+        tier: 'MIDDLE',
+        dailyLimit: 2,
+        balance: 2,
+        usedToday: 0,
+        remaining: 2,
+      }),
+      ensure: vi.fn().mockResolvedValue({ balance: 2, granted: 2 }),
+      consume: vi.fn().mockResolvedValue(true),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
     service = new OrdersService(
       prisma as any,
       wsGateway as any,
@@ -71,6 +83,7 @@ describe('OrdersService', () => {
       workflowService as any,
       dispatchService as any,
       excellence as any,
+      quota as any,
     );
     vi.clearAllMocks();
     prisma.systemConfig.upsert.mockResolvedValue({ key: 'counter.global_code', value: '0' });
@@ -140,7 +153,7 @@ describe('OrdersService', () => {
 
       await service.create(dto);
 
-      expect(wsGateway.broadcastToIdleCompanions).not.toHaveBeenCalled();
+      expect(wsGateway.broadcastNewOrder).not.toHaveBeenCalled();
       expect(wsGateway.broadcastUrgentToBridgedStudios).not.toHaveBeenCalled();
       expect(wsGateway.broadcastToQualifiedIdleCompanions).not.toHaveBeenCalled();
       expect(wsGateway.broadcastToBridgedIdleCompanionsByType).not.toHaveBeenCalled();
@@ -159,9 +172,8 @@ describe('OrdersService', () => {
 
       await service.create(dto);
 
-      expect(wsGateway.broadcastToIdleCompanions).toHaveBeenCalledWith(
+      expect(wsGateway.broadcastNewOrder).toHaveBeenCalledWith(
         'studio-1',
-        'order:urgent',
         expect.objectContaining({ _broadcast: true }),
       );
       // 桥接工作室也要弹，但要带上桥接等待时间（未配置时默认 30 秒）

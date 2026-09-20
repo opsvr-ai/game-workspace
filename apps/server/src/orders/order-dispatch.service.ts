@@ -5,8 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
-import { currentBusinessDayRange } from '../common/business-day';
-import { ExcellenceService } from '../companions/excellence.service';
+import { CompanionQuotaService } from './companion-quota.service';
 
 @Injectable()
 export class OrderDispatchService {
@@ -14,18 +13,42 @@ export class OrderDispatchService {
     private prisma: PrismaService,
     private wsGateway: WsGateway,
     private bridgeService: BridgeService,
-    private readonly excellence: ExcellenceService,
+    private readonly quota: CompanionQuotaService,
   ) {}
 
   private async refreshCompanionAvailable(companionId: string) {
     await this.prisma.companion
       .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
       .catch(() => {});
+    await this.wsGateway.refreshCompanionBlacklist(companionId);
+  }
+
+  /** 客户只跟工作微信有关：当前工作微信已「添加成功」该客户则拦截（添加失败不算），换新微信后可再接。 */
+  private async assertCustomerNotAddedByCurrentWechat(companionId: string, customerId: string) {
+    const currentWorkWechat = await this.prisma.workWechat.findUnique({
+      where: { companionId },
+      select: { wechatId: true },
+    });
+    if (!currentWorkWechat?.wechatId) return;
+    const addedOrders = await this.prisma.order.findMany({
+      where: { customerId, contactStatus: 'added' },
+      select: { customFields: true },
+    });
+    const currentWx = currentWorkWechat.wechatId.trim();
+    const alreadyAdded = addedOrders.some((o) => {
+      const wx = ((o.customFields as any)?.workWechatName || '').trim();
+      return currentWx && wx === currentWx;
+    });
+    if (alreadyAdded) {
+      throw new ForbiddenException(`你的工作微信「${currentWx}」已添加过这个客户，更换新微信后可再接`);
+    }
   }
 
   async assign(orderId: string, companionId: string, userStudioId?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
+    const orderCf = (order.customFields as any) || {};
+    if (orderCf.poolExpired) throw new ForbiddenException('该订单已超时，仅客服可处理');
     // CS3: CS/ADMIN can assign orders in their own studio or bridged studios
     if (userStudioId) {
       const visibleIds = await this.bridgeService.getVisibleStudioIds(userStudioId);
@@ -38,6 +61,7 @@ export class OrderDispatchService {
     if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
       throw new ForbiddenException('已完成或已取消的订单不可重新分配');
     }
+    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
     // Atomic update: guards against order deletion between fetch and update
     const result = await this.prisma.order.updateMany({
       where: { id: orderId, status: { notIn: [OrderStatus.DONE, OrderStatus.CANCELLED] }, companionId: null },
@@ -46,16 +70,6 @@ export class OrderDispatchService {
     if (result.count === 0) throw new ForbiddenException('订单状态已变更或已被删除');
     const updatedOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!updatedOrder) throw new NotFoundException('订单不存在');
-    // Auto-assign customer (C6 fix)
-    try {
-      await this.prisma.customer.updateMany({
-        where: { id: order.customerId, companionId: null },
-        data: { companionId },
-      });
-    } catch (err) {
-      logger.warn('Dispatch operation failed', { error: (err as Error).message });
-      /* non-blocking */
-    }
 
     // Auto-bind companion's work wechat to the order
     try {
@@ -82,6 +96,7 @@ export class OrderDispatchService {
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
     if (order.status !== OrderStatus.PENDING) throw new ForbiddenException('订单状态不正确');
+    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
 
     // Atomic update with status guard (C1 fix)
     const result = await this.prisma.order.updateMany({
@@ -89,16 +104,6 @@ export class OrderDispatchService {
       data: { status: OrderStatus.GRABBED, grabbedAt: new Date() },
     });
     if (result.count === 0) throw new ForbiddenException('订单状态已变更');
-    // Auto-assign customer (C6 fix)
-    try {
-      await this.prisma.customer.updateMany({
-        where: { id: order.customerId, companionId: null },
-        data: { companionId },
-      });
-    } catch (err) {
-      logger.warn('Dispatch operation failed', { error: (err as Error).message });
-      /* non-blocking */
-    }
 
     // Auto-bind companion's work wechat to the order
     try {
@@ -146,49 +151,25 @@ export class OrderDispatchService {
     });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.dispatchType !== 'POOL') throw new ForbiddenException('该订单不在抢单池中');
+    const orderCf = (order.customFields as any) || {};
+    if (orderCf.poolExpired) throw new ForbiddenException('该订单已超时，仅客服可处理');
 
     // Prevent self-grabbing
     const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
+    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
 
-    if (order.type === 'NEW' && comp && comp.studioId === order.studioId) {
-      const ex = await this.excellence.computeOne(companionId);
-      const tier = ex.tier || 'LOW';
-      const limitKey = tier === 'TOP'
-        ? 'dispatch.top_tier_daily_new_limit'
-        : tier === 'MIDDLE'
-          ? 'dispatch.middle_tier_daily_new_limit'
-          : 'dispatch.low_tier_daily_new_limit';
-      const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: limitKey } });
-      const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
-      const { start: today } = currentBusinessDayRange();
-      const todayNew = await this.prisma.order.count({
-        where: {
-          companionId,
-          type: 'NEW',
-          status: { in: ['GRABBED', 'CONFIRMED', 'DONE'] },
-          contactStatus: { not: 'not_accepted' },
-          grabbedAt: { gte: today },
-        },
-      });
-      if (todayNew >= limit) throw new ForbiddenException('新客首单今日名额已用完');
-    }
-
-    // Revenue threshold check (same as grab)
+    // 每日「立即打」名额（取代原来的流水门槛，见 companion-quota.service.ts）
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });
-    if (creator?.role !== 'COMPANION') {
-      const { start: today, end: tomorrow } = currentBusinessDayRange();
-      const todayOrders = await this.prisma.order.findMany({
-        where: { companionId, status: 'DONE', createdAt: { gte: today, lt: tomorrow } },
-      });
-      const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-      const config = await this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } });
-      const threshold = (config?.value as number) ?? 100;
-      if (todayRevenue < threshold) {
-        throw new ForbiddenException(
-          `今日流水 ¥${todayRevenue}，未达到解锁门槛 ¥${threshold}，还差 ¥${threshold - todayRevenue}`,
-        );
-      }
+    const isPeerOrder = creator?.role === 'COMPANION';
+    const isImmediate = (order.customFields as any)?.urgency !== 'later';
+    const countsQuota = isImmediate && !isPeerOrder;
+    // 先扣名额，抢单失败再退回去（并发安全）
+    const reserved = countsQuota ? await this.quota.reserve(companionId) : null;
+    if (reserved && !reserved.ok) {
+      throw new ForbiddenException(
+        `今天的「立即打」名额用完了（${reserved.tier} 每天 ${reserved.dailyLimit} 个），可以抢预约单或等明天`,
+      );
     }
 
     // Atomic grab with status guard (C1 fix)
@@ -196,17 +177,9 @@ export class OrderDispatchService {
       where: { id: orderId, companionId: null, status: OrderStatus.PENDING },
       data: { status: OrderStatus.GRABBED, companionId, grabbedAt: new Date() },
     });
-    if (result.count === 0) throw new ForbiddenException('已被其他陪玩抢先或订单状态已变更');
-
-    // Auto-assign customer (C6 fix) — use order.customerId, not orderId
-    try {
-      await this.prisma.customer.updateMany({
-        where: { id: order.customerId, companionId: null },
-        data: { companionId },
-      });
-    } catch (err) {
-      logger.warn('Dispatch operation failed', { error: (err as Error).message });
-      /* non-blocking */
+    if (result.count === 0) {
+      if (reserved) await this.quota.refund(companionId);
+      throw new ForbiddenException('已被其他陪玩抢先或订单状态已变更');
     }
 
     // Auto-bind companion's work wechat to the order

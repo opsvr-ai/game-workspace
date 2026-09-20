@@ -4,6 +4,17 @@
 
 ---
 
+## Recent Updates (v3.2.0)
+
+- **抢单改成「每日名额制」（老板 2026-09-20 拍板）:** 废掉「今日流水 ≥ 门槛才能抢单」的死循环规则（流水只能靠完成订单产生，门槛一恢复每天早上谁都抢不了第一单），改成按段位每天发 **上等马 3 / 中等马 2 / 下等马 1** 个「立即打」名额，**没用完自动累计**；预约单、客服指定单、陪玩自己发的单不占名额。名额「先扣、抢失败再退回」，并发下不会出现抢到单没扣名额。详见 `apps/server/src/orders/companion-quota.service.ts`。
+- **抢单超时回收:** 线上 56 单卡在「已抢单」（其中一人囤 20 单、最早 5 天前），好单烂在手里别人没单可抢。现在抢单后 180 分钟没点「开始服务」且无任何服务记录 → 自动退回订单池，名额不退；发布已超过 24 小时的直接作废并通知客服。上线首轮清掉 52 张僵尸单、退回 2 张。
+- **报账能补报了，时间口径只剩一种:** 全部统一为「每天中午 12:00 换日」（12 点前打的单/报的账算前一天）。新增 `GET /api/companions/me/reportable-sessions?day=YYYY-MM-DD`（补报指定营业日）与 `?unreported=1`（补最近 14 天漏报），已报过的场次不会重复出现；报账弹窗加了营业日选择器与「补报漏单」。
+- **报账偏差落成待办:** 系统按真实计时算出应报金额，与上报金额差超过阈值时，除了弹窗，还会**写进报账单备注**（管理端一眼看到）并把相关场次**标红**。
+- **管理端审核支取修好了:** 以前拿没人维护的 `Companion.balance` 卡审核，导致「余额不足，无法通过支取」，线上支取记录一直为 0。现在用统一口径现算可用额；**可支取余额 =（当月累计业绩 × 分润比例）− 当月已支取 − 当月待审 − 未打存单预留**，实现在 `apps/server/src/common/withdrawable.ts`。
+- **聊天「加载更多」修好了:** 前端把消息时间戳当序号传后端、后端拿去查 32 位整型字段直接炸（线上 5 次 Unhandled exception），前端又吞掉错误 → 表现为「点了没反应」。现在前端传 `seq`，后端裁掉非法游标。同时重建线上 Prisma Client，修掉群聊创建一直报 `Unknown argument isGroup` 的问题。
+- **新单弹窗更合理:** 弹窗秒数可配（`pool.popup_seconds`，线上 20 秒，原来写死 15）；「接单中 / 娱乐中」默认**不打扰**，想接新单的人可自己开开关（`/api/companions/me/notify-prefs`）；广播急单对自家工作室立即可见，不再排段位等 60/120 秒。
+- **WebSocket 认证失败可定位:** 记录失败令牌里的用户名 / 角色 / 签发时间 / 来源 IP，并回 `auth:failed`；前端收到后用 refreshToken 换新令牌自动重连，不再拿着废令牌一直重连失败（那段时间收不到弹窗）。
+
 ## Recent Updates (v3.1.0)
 
 - **订单池新单固定在最上面:** 抢单池接口以前按发布时间升序返回，客服端派单工作台又没在前端排序，导致刚发布的单掉到列表最底部；现在接口统一倒序返回，派单工作台和订单池页再各自排一次。
@@ -385,7 +396,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/complete-billing` | JWT | COMPANION | Complete order with billing detail. |
 | `POST` | `/api/orders/:id/call-partner` | JWT | COMPANION | Call partner for dual companion order. |
 | `POST` | `/api/orders/:id/accept-partner` | JWT | COMPANION | Accept partner invitation. |
-| `GET` | `/api/orders/pool/status` | JWT | COMPANION | Get pool unlock status (revenue threshold). |
+| `GET` | `/api/orders/pool/status` | JWT | COMPANION | 抢单名额状态：`{ tier, dailyLimit, usedToday, remaining }`（旧的「流水门槛」已废弃）。 |
 
 ### Dashboard
 
@@ -405,6 +416,15 @@ Every endpoint returns a standard JSON envelope:
 |--------|------|------|-------|-------------|
 | `GET` | `/api/config` | JWT | -- | Get config values. Query: `?keys=a,b`. |
 | `PUT` | `/api/config` | JWT | ADMIN, OWNER | Batch update config. |
+
+### Companions (报账 / 通知偏好)
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/companions/me/today-sessions` | JWT | COMPANION | 当前营业日（12:00 换日）已完成场次。可选 `?day=YYYY-MM-DD`。 |
+| `GET` | `/api/companions/me/reportable-sessions` | JWT | COMPANION | 报账取数：默认当前营业日，`?day=` 补报某天，`?unreported=1` 取最近 14 天漏报（含 `reported` 标记）。 |
+| `GET` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 读取「打单/娱乐中也接新单弹窗」偏好。 |
+| `PUT` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 设置该偏好。Body: `{ notifyWhileBusy: boolean }`。 |
 
 ### Expense Reports
 

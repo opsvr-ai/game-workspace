@@ -5,7 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
-import { currentBusinessDayRange } from '../common/business-day';
+import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
@@ -26,6 +26,7 @@ export class OrdersService implements OnModuleInit {
     private readonly workflowService: OrderWorkflowService,
     private readonly dispatchService: OrderDispatchService,
     private readonly excellence: ExcellenceService,
+    private readonly quota: CompanionQuotaService,
   ) {}
 
   onModuleInit(): void {
@@ -202,6 +203,7 @@ export class OrdersService implements OnModuleInit {
                 poolHandledAt: new Date().toISOString(),
               }
             : {}),
+          broadcast: dto.dispatchType === 'BROADCAST' ? true : undefined,
           dispatchCount: 1,
           firstDispatchedAt: new Date().toISOString(),
           dispatchHistory: [{ at: new Date().toISOString(), action: 'DISPATCH' }],
@@ -223,9 +225,9 @@ export class OrdersService implements OnModuleInit {
       _creatorRole: popupCreator?.role || 'CS',
     };
 
-    // BROADCAST: 右下角弹窗给本店所有在线空闲陪玩（订单同时进入抢单池）
+    // BROADCAST: 右下角弹窗给本店在线陪玩（接单中/娱乐中默认不打扰，可自行打开）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
-      await this.wsGateway.broadcastToIdleCompanions(studioId, 'order:urgent', {
+      await this.wsGateway.broadcastNewOrder(studioId, {
         ...popupPayload,
         _broadcast: true,
       });
@@ -394,6 +396,10 @@ export class OrdersService implements OnModuleInit {
         delay = onlineDelay;
       } else if (o.studioId !== studioId) {
         delay = bridgeDelay; // 桥接工作室订单
+      } else if (cf.broadcast === true) {
+        // 客服按「广播」发的急单：自家工作室所有人立即可见，不再排段位，
+        // 避免错过 15 秒弹窗的人还要再等 60/120 秒。
+        delay = 0;
       } else {
         // 管理端/客服没有陪玩身份，不应受段位可见延迟影响，自己发的单立即可见
         delay = !isCompanion
@@ -1534,51 +1540,17 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
+  /**
+   * 抢单池状态（老板 2026-09-20 起：只返回「每日立即打名额」，不再有流水门槛）。
+   */
   async getPoolStatus(companionId: string) {
-    const { start: today, end: tomorrow } = currentBusinessDayRange();
-
-    const todayOrders = await this.prisma.order.findMany({
-      where: {
-        companionId,
-        status: 'DONE',
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-    const todayRevenue = todayOrders.reduce((s, o) => s + o.amount, 0);
-
-    const config = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.unlock_threshold' },
-    });
-    const threshold = (config?.value as number) ?? 100;
-
-    // 今日剩余有效客户名额（按段位，成交才算名额）
-    const ex = await this.excellence.computeOne(companionId);
-    const tier = ex?.tier || 'MIDDLE';
-    const limitKey = tier === 'TOP'
-      ? 'dispatch.top_tier_daily_new_limit'
-      : tier === 'MIDDLE'
-        ? 'dispatch.middle_tier_daily_new_limit'
-        : 'dispatch.low_tier_daily_new_limit';
-    const limitCfg = await this.prisma.systemConfig.findUnique({ where: { key: limitKey } });
-    const limit = Number(limitCfg?.value ?? (tier === 'TOP' ? 999 : tier === 'MIDDLE' ? 2 : 1));
-    const used = await this.prisma.customerContact.count({
-      where: {
-        companionId,
-        result: 'NOW',
-        createdAt: { gte: today, lt: tomorrow },
-      },
-    });
-
+    const quota = await this.quota.status(companionId);
     return {
-      todayRevenue: roundToJiao(todayRevenue),
-      threshold,
-      isUnlocked: todayRevenue >= threshold,
-      newQuota: {
-        tier,
-        limit,
-        used,
-        remaining: Math.max(0, limit - used),
-      },
+      tier: quota.tier,
+      dailyLimit: quota.dailyLimit,
+      balance: quota.balance,
+      usedToday: quota.usedToday,
+      remaining: quota.remaining,
     };
   }
 

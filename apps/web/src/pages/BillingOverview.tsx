@@ -29,6 +29,7 @@ import {
   CloseCircleOutlined, UploadOutlined,
   ThunderboltOutlined,
   HourglassOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { visibleInterval } from '../hooks/usePolling';
 const IconCheck = React.createElement(CheckCircleOutlined);
@@ -109,6 +110,68 @@ const BillingOverview: React.FC = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const reportSystemTotal = todayOrders.reduce((s: number, o: any) => s + (Number(o.systemAmount) || 0), 0);
   const reportActualTotal = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
+  const [reportDay, setReportDay] = useState<string>(() => {
+    const d = new Date();
+    if (d.getHours() < 12) d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [reportLoading, setReportLoading] = useState(false);
+
+  // 报账取数：营业日（每天中午 12 点换日），已报过账的场次不再重复出现；
+  // mode='unreported' 时把最近 14 天漏报的一起拉出来补报。
+  const loadReport = async (mode: 'day' | 'unreported', day?: string) => {
+    setReportLoading(true);
+    try {
+      const { data }: any = await companionsApi.reportableSessions(
+        mode === 'unreported' ? { unreported: '1' } : { day: day || reportDay },
+      );
+      const sessions: any[] = (data?.data || []).filter((s: any) => !s.reported);
+      const mapped = sessions.map((s: any) => ({
+        id: s.parentOrderId || s.id,
+        sessionId: s.id,
+        gameName: s.gameName,
+        type: s.type,
+        customerWechat: s.customerWechat,
+        duration: s.duration,
+        actualHours: s.actualHours,
+        serviceType: s.serviceType,
+        claimedMode: s.claimedMode,
+        claimedPrice: s.claimedPrice,
+        unitPrice: s.unitPrice,
+        systemAmount: s.systemAmount,
+        transferScreenshotUrl: s.transferScreenshotUrl,
+        mainName: s.mainName,
+        coName: s.coName,
+        isPartner: s.isPartner,
+        dual: s.dual,
+        amount: s.myAmount,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        createdAt: s.createdAt,
+      }));
+      setTodayOrders(mapped);
+      setReportRemarks({});
+      const amounts: Record<string, number> = {};
+      const shots: Record<string, string> = {};
+      mapped.forEach((o: any) => {
+        amounts[o.id] = o.systemAmount || o.amount || 0;
+        if (o.transferScreenshotUrl) shots[o.id] = o.transferScreenshotUrl;
+      });
+      setReportAmounts(amounts);
+      setReportScreenshots(shots);
+      setReportTotalScreenshot('');
+      setReportVisible(true);
+      if (mapped.length === 0) {
+        message.info(
+          mode === 'unreported' ? '最近 14 天没有漏报的单' : '这个营业日没有待报账的单',
+        );
+      }
+    } catch {
+      message.error('加载报账数据失败');
+    } finally {
+      setReportLoading(false);
+    }
+  };
   const reportDiff = reportActualTotal - reportSystemTotal;
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -577,46 +640,12 @@ const BillingOverview: React.FC = () => {
       <div style={{ marginTop: 16, textAlign: 'right' }}>
         {isCompanion && (
           <Space>
-            <Button icon={<UploadOutlined />} onClick={() => {
-              companionsApi.todaySessions().then(({data}:any) => {
-                const sessions = data.data || [];
-                const mapped = sessions.map((s:any) => ({
-                  id: s.parentOrderId || s.id,
-                  sessionId: s.id,
-                  gameName: s.gameName,
-                  type: s.type,
-                  customerWechat: s.customerWechat,
-                  duration: s.duration,
-                  actualHours: s.actualHours,
-                  serviceType: s.serviceType,
-                  claimedMode: s.claimedMode,
-                  claimedPrice: s.claimedPrice,
-                  unitPrice: s.unitPrice,
-                  systemAmount: s.systemAmount,
-                  transferScreenshotUrl: s.transferScreenshotUrl,
-                  mainName: s.mainName,
-                  coName: s.coName,
-                  isPartner: s.isPartner,
-                  dual: s.dual,
-                  amount: s.myAmount,
-                  startedAt: s.startedAt,
-                  endedAt: s.endedAt,
-                  createdAt: s.createdAt,
-                }));
-                setTodayOrders(mapped);
-                setReportRemarks({});
-                const amounts: Record<string,number> = {};
-                const shots: Record<string,string> = {};
-                mapped.forEach((o:any) => {
-                  amounts[o.id] = o.systemAmount || o.amount || 0;
-                  if (o.transferScreenshotUrl) shots[o.id] = o.transferScreenshotUrl;
-                });
-                setReportAmounts(amounts);
-                setReportScreenshots(shots);
-                setReportTotalScreenshot('');
-                setReportVisible(true);
-              }).catch(()=>{});
-            }}>上报今日流水</Button>
+            <Button icon={<UploadOutlined />} loading={reportLoading} onClick={() => loadReport('day')}>
+              上报流水
+            </Button>
+            <Button icon={<HistoryOutlined />} loading={reportLoading} onClick={() => loadReport('unreported')}>
+              补报漏单
+            </Button>
               <Button type="primary" icon={IconSwap} onClick={() => setWithdrawVisible(true)}>申请支取</Button>
             </Space>
           )}
@@ -652,7 +681,7 @@ const BillingOverview: React.FC = () => {
       </div>
 
       {/* Report Today Modal */}
-      <Modal title="📋 上报今日流水" open={reportVisible} width={1600}
+      <Modal title="📋 上报流水" open={reportVisible} width={1600}
         onOk={async () => {
           const total = Object.values(reportAmounts).reduce((s: number, v: number) => s + (v || 0), 0);
           if (total <= 0) {
@@ -688,9 +717,28 @@ const BillingOverview: React.FC = () => {
         }}
         onCancel={() => setReportVisible(false)}
         okText="提交审核" cancelText="取消" confirmLoading={reportSubmitting} destroyOnClose>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+          <Text strong>营业日：</Text>
+          <DatePicker
+            value={dayjs(reportDay)}
+            allowClear={false}
+            onChange={(d) => {
+              if (!d) return;
+              const key = d.format('YYYY-MM-DD');
+              setReportDay(key);
+              loadReport('day', key);
+            }}
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            每天中午 12 点换日：12 点前打的单算前一天
+          </Text>
+          <Button size="small" onClick={() => loadReport('unreported')} loading={reportLoading}>
+            补报最近 14 天漏报
+          </Button>
+        </div>
         {todayOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8' }}>
-            今天还没有已完成的订单
+            这个营业日没有待报账的单（已报过的单不会重复出现）
           </div>
         ) : (
           <div style={{ maxHeight: 620, overflowY: 'auto' }}>

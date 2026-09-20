@@ -172,9 +172,7 @@ const CompanionPage: React.FC = () => {
   // Boot guide modal (TASK-06)
   const [bootGuideVisible, setBootGuideVisible] = useState(false);
   // No-customer proof modal (TASK-08)
-  const [proofVisible, setProofVisible] = useState(false);
-  const [proofNote, setProofNote] = useState('');
-  const [proofSubmitting, setProofSubmitting] = useState(false);
+  const [notifyWhileBusy, setNotifyWhileBusy] = useState(false);
   // Customer follow-up tracking
   const [myCustomers, setMyCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
@@ -194,6 +192,13 @@ const CompanionPage: React.FC = () => {
     deltaMission: { 机密: true, 绝密: true },
     customerSource: { 小红书: true, 抖音: true, 快手: true, 转介绍: true },
   });
+  useEffect(() => {
+    companionsApi
+      .notifyPrefs()
+      .then(({ data }: any) => setNotifyWhileBusy(!!data?.data?.notifyWhileBusy))
+      .catch(() => {});
+  }, []);
+
   const saveNotifPrefs = async (prefs: any) => {
     setNotifPrefs(prefs);
     try {
@@ -219,23 +224,6 @@ const CompanionPage: React.FC = () => {
     return () => window.removeEventListener('message', ipcHandler);
   }, []);
 
-  const handleProofSubmit = async () => {
-    if (!proofNote.trim()) {
-      message.warning('请填写申请说明');
-      return;
-    }
-    setProofSubmitting(true);
-    try {
-      await companionsApi.requestProofNoCustomer(proofNote);
-      message.success('解锁申请已提交，请等待管理员审核');
-      setProofVisible(false);
-      setProofNote('');
-    } catch (err: any) {
-      message.error(err?.response?.data?.message || '提交失败');
-    } finally {
-      setProofSubmitting(false);
-    }
-  };
 
   const switchStatus = async (status: string) => {
     try {
@@ -777,6 +765,25 @@ const CompanionPage: React.FC = () => {
             onChange={(v) => saveNotifPrefs({ ...notifPrefs, enabled: v })}
           />
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 12 }}>
+          <Typography.Text strong>打单中 / 娱乐中也接收新单弹窗</Typography.Text>
+          <Switch
+            checked={notifyWhileBusy}
+            onChange={async (v) => {
+              setNotifyWhileBusy(v);
+              try {
+                await companionsApi.setNotifyPrefs({ notifyWhileBusy: v });
+                message.success(v ? '已打开：打单/娱乐时也会弹新单' : '已关闭：打单/娱乐时不打扰');
+              } catch {
+                setNotifyWhileBusy(!v);
+                message.error('保存失败，请重试');
+              }
+            }}
+          />
+        </div>
+        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+          默认关闭：正在打单或娱乐时不会弹出新单，避免打扰。想多抢单可以打开。
+        </Typography.Text>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
           <Typography.Text strong>提示音</Typography.Text>
           <Switch
@@ -920,7 +927,7 @@ const CompanionPage: React.FC = () => {
             </p>
             <p>① 打开客户管理 → 查看待跟进客户</p>
             <p>② 主动联系客户 → 了解游戏需求</p>
-            <p>③ 促成下单 → 获取流水解锁订单池</p>
+            <p>③ 促成下单 → 抢到单记得点「开始首单」开始计时</p>
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center' }}>
             <Button
@@ -936,47 +943,6 @@ const CompanionPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-
-      {/* TASK-08: No-Customer Proof Upload Modal */}
-      <Modal
-        title="📝 申请解锁订单池"
-        open={proofVisible}
-        onCancel={() => {
-          setProofVisible(false);
-          setProofNote('');
-        }}
-        onOk={handleProofSubmit}
-        confirmLoading={proofSubmitting}
-        okText="提交申请"
-        cancelText="取消"
-      >
-        <div style={{ lineHeight: 2 }}>
-          <p>
-            <Text type="secondary">
-              如果您确实没有客户资源，可以申请临时解锁订单池权限。请说明情况并上传沟通证明截图（如有）。
-            </Text>
-          </p>
-          <div style={{ marginTop: 8 }}>
-            <Text>申请说明：</Text>
-            <Input.TextArea
-              rows={4}
-              value={proofNote}
-              onChange={(e) => setProofNote(e.target.value)}
-              placeholder="请说明您的情况，例如：已尝试联系XX位客户但均未回复..."
-              style={{ marginTop: 4 }}
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {/* TASK-08: Apply unlock button - shown when below threshold */}
-      {data && !data.isUnlocked && (
-        <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <Button type="link" icon={IconLock} onClick={() => setProofVisible(true)}>
-            没有客户？申请解锁订单池
-          </Button>
-        </div>
-      )}
 
       <ExcellenceRuleModal open={showRule} onClose={() => setShowRule(false)} />
     </div>

@@ -147,10 +147,46 @@ export class CompanionsController {
     return { data: { companionId, messages } };
   }
 
+  /** 陪玩端偏好：打单中 / 娱乐中是否也接收新单弹窗（默认关闭，不打扰） */
+  @Get('companions/me/notify-prefs')
+  @Roles(UserRole.COMPANION)
+  async getNotifyPrefs(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getNotifyPrefs(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('companions/me/notify-prefs')
+  @Roles(UserRole.COMPANION)
+  async setNotifyPrefs(
+    @Req() req: any,
+    @Body() body: { notifyWhileBusy?: boolean },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.setNotifyPrefs(req.user.companionId, body || {});
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('companions/me/today-sessions')
   @Roles(UserRole.COMPANION)
-  async getTodaySessions(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.getTodaySessions(req.user.companionId);
+  async getTodaySessions(@Req() req: any, @Query('day') day?: string): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getTodaySessions(req.user.companionId, day);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /**
+   * 报账取数：默认当前营业日；传 day=YYYY-MM-DD 取那一天（补报）；
+   * 传 unreported=1 取最近 14 天所有还没报过账的场次。
+   */
+  @Get('companions/me/reportable-sessions')
+  @Roles(UserRole.COMPANION)
+  async getReportableSessions(
+    @Req() req: any,
+    @Query('day') day?: string,
+    @Query('unreported') unreported?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data =
+      unreported === '1'
+        ? await this.companionsService.getUnreportedSessions(req.user.companionId)
+        : await this.companionsService.getTodaySessions(req.user.companionId, day);
     return { code: 200, message: 'ok', data };
   }
 

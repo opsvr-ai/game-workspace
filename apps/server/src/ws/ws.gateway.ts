@@ -99,8 +99,34 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       let payload: JwtPayload;
       try {
         payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
-      } catch {
-        payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
+      } catch (accessErr) {
+        try {
+          payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
+        } catch (refreshErr) {
+          // 两个密钥都验不过 = 这个令牌不是这台服务器签发的。
+          // 老板 2026-09-20 报「日志里每天几十次 invalid signature」：
+          // 之前只记了一句 message，看不出是谁、什么时候签的，没法定位是哪台机器。
+          // 现在把令牌里的身份和时间一起记下来（不记令牌本体），并明确告诉客户端去换令牌。
+          let info: any = {};
+          try {
+            info = this.jwt.decode(token) || {};
+          } catch {
+            /* 令牌格式都解析不了 */
+          }
+          logger.error('WebSocket auth failed', {
+            accessError: (accessErr as Error).message,
+            refreshError: (refreshErr as Error).message,
+            username: info?.username,
+            role: info?.role,
+            userId: info?.sub,
+            issuedAt: info?.iat ? new Date(info.iat * 1000).toISOString() : null,
+            expiresAt: info?.exp ? new Date(info.exp * 1000).toISOString() : null,
+            address: client.handshake.address,
+          });
+          client.emit('auth:failed', { reason: (accessErr as Error).message });
+          client.disconnect(true);
+          return;
+        }
       }
 
       const user: ConnectedUser = {
@@ -485,20 +511,33 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  async broadcastToIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
+  /**
+   * 广播新单（右下角弹窗抢单）。
+   *
+   * 老板 2026-09-20：空闲的必推；接单中 / 娱乐中默认不打扰，
+   * 只有本人打开「打单/娱乐时也接收新单弹窗」才推给他（见 Companion.notifyWhileBusy）。
+   * 返回实际推送人数，方便排查「为什么没人收到」。
+   */
+  async broadcastNewOrder(studioId: string, data: unknown): Promise<number> {
     try {
-      const idleCompanions = await this.prisma.companion.findMany({
-        where: { studioId, status: 'AVAILABLE' },
+      const companions = await this.prisma.companion.findMany({
+        where: {
+          studioId,
+          OR: [
+            { status: 'AVAILABLE' },
+            { status: { in: ['BUSY', 'ENTERTAINMENT'] }, notifyWhileBusy: true },
+          ],
+        },
         select: { id: true },
       });
       let sent = 0;
-      for (const c of idleCompanions) {
-        this.server.to(`companion:${c.id}`).emit(event, data);
+      for (const c of companions) {
+        this.server.to(`companion:${c.id}`).emit('order:urgent', data);
         sent += 1;
       }
       return sent;
     } catch (err) {
-      logger.error('broadcastToIdleCompanions failed', { error: (err as Error).message, studioId, event });
+      logger.error('broadcastNewOrder failed', { error: (err as Error).message, studioId });
       return 0;
     }
   }

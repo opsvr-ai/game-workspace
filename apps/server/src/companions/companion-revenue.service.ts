@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeWithdrawable } from '../common/withdrawable';
 import { BridgeService } from '../studios/bridge.service';
-import { computeRevenueShare } from '../common/revenue-calculator';
+import { computeRevenueShare, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
 
 @Injectable()
@@ -98,6 +99,8 @@ export class CompanionRevenueService {
         frozen: true,
         monthlyRevenue: true,
         revenueShare: true,
+        createdAt: true,
+        isSeniorStaff: true,
         studio: { select: { splitMode: true } },
       },
     });
@@ -106,34 +109,31 @@ export class CompanionRevenueService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const [limitCfg, monthlyWithdrawUsed] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'withdraw.monthly_limit' } }),
+      this.prisma.walletTransaction.count({
+        where: {
+          companionId,
+          type: 'WITHDRAW',
+          createdAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+          },
+        },
+      }),
+    ]);
+    const monthlyWithdrawLimit = Number(limitCfg?.value ?? 2);
 
-    // Calculate withdrawable: totalDONE x splitRatio - alreadyWithdrawn
-    const totalRevenue = await this.prisma.order.aggregate({
-      where: { companionId, status: 'DONE' },
-      _sum: { amount: true },
-    });
-    const totalRev = totalRevenue._sum.amount || 0;
-    const withdrawn = transactions
-      .filter((t) => t.type === 'WITHDRAW' && t.status === 'APPROVED')
-      .reduce((s, t) => s + t.amount, 0);
-
-    // Determine split ratio (delegated to revenue-calculator)
-    const clubCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.club_companion_share' },
-    });
-    const tiersCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'revenue.share_tiers' },
-    });
-    const share = computeRevenueShare({
-      splitMode: companion!.studio?.splitMode ?? 'TIERED',
-      totalRevenue: totalRev,
-      revenueShare: companion!.revenueShare,
-      defaultClubSharePct: (clubCfg?.value as number) ?? 80,
-      tiers: (tiersCfg?.value as unknown as RevenueSplitTier[]) ?? undefined,
-    });
-
-    const maxWithdrawable = Math.round(totalRev * share * 100) / 100;
-    const withdrawable = Math.max(0, maxWithdrawable - withdrawn);
+    // 可支取口径（需求文档 §7.1）统一在 common/withdrawable.ts 里实现，别处不要再抄一份
+    const breakdown = await computeWithdrawable(this.prisma, companionId);
+    const totalRev = breakdown.totalRevenue;
+    const monthRev = breakdown.monthRevenue;
+    const share = breakdown.splitRatio / 100;
+    const withdrawn = breakdown.approvedWithdrawn;
+    const pendingWithdrawn = breakdown.pendingWithdraw;
+    const maxWithdrawable = Math.round(monthRev * share * 100) / 100;
+    const depositReserve = breakdown.depositReserve;
+    const withdrawable = breakdown.withdrawable;
 
     return {
       deposit: companion!.deposit,
@@ -141,9 +141,15 @@ export class CompanionRevenueService {
       frozen: companion!.frozen,
       monthlyRevenue: companion!.monthlyRevenue,
       totalRevenue: Math.round(totalRev * 100) / 100,
+      monthRevenue: Math.round(monthRev * 100) / 100,
+      depositReserve,
       maxWithdrawable,
       totalWithdrawn: withdrawn,
+      pendingWithdraw: pendingWithdrawn,
       withdrawable,
+      monthlyWithdrawLimit,
+      monthlyWithdrawUsed,
+      monthlyWithdrawRemaining: monthlyWithdrawLimit > 0 ? Math.max(0, monthlyWithdrawLimit - monthlyWithdrawUsed) : null,
       transactions,
     };
   }
@@ -152,7 +158,7 @@ export class CompanionRevenueService {
   async checkEntertainmentBlocked(companionId: string) {
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { balance: true, deposit: true, revenueShare: true, studio: { select: { splitMode: true } } },
+      select: { balance: true, deposit: true, revenueShare: true, createdAt: true, isSeniorStaff: true, studio: { select: { splitMode: true } } },
     });
     if (!companion) return { reason: '陪玩不存在' };
 
@@ -178,6 +184,7 @@ export class CompanionRevenueService {
       revenueShare: companion.revenueShare,
       defaultClubSharePct: (clubCfg?.value as number) ?? 80,
       tiers: (tiersCfg?.value as unknown as RevenueSplitTier[]) ?? undefined,
+      tenureMonths: effectiveTenureMonths(companion.createdAt, companion.isSeniorStaff),
     });
 
     // Already withdrawn

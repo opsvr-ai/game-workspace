@@ -1,9 +1,14 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { computeRevenueSplit } from '../common/revenue-calculator';
+import { computeRevenueSplit, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
-import { currentBusinessDayRange, currentSettlementMonthRange } from '../common/business-day';
+import {
+  businessDayKey,
+  businessDayRange,
+  currentBusinessDayRange,
+  currentSettlementMonthRange,
+} from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
 import { roundToJiao } from '../common/money';
 import { CompanionRevenueService } from './companion-revenue.service';
@@ -24,9 +29,17 @@ export class CompanionsService {
   ) {}
 
   /** 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。 */
-  async listPersonnel(user: any) {
+  async listPersonnel(user: any, includeBridged = false) {
     const where: any = { role: { in: ['COMPANION', 'CS', 'ADMIN', 'OWNER'] } };
-    if (user.role !== 'OWNER') where.studioId = user.studioId;
+    if (user.role !== 'OWNER') {
+      if (includeBridged && user.studioId) {
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
+        where.studioId = { in: [user.studioId, ...bridgedIds] };
+      } else {
+        // 员工管理等页面只看本工作室；老板才看全部。
+        where.studioId = user.studioId;
+      }
+    }
 
     const users = await this.prisma.user.findMany({
       where,
@@ -46,6 +59,8 @@ export class CompanionsService {
             realName: true,
             phone: true,
             monthlyRevenue: true,
+            isResigned: true,
+            isSeniorStaff: true,
             pc: { select: { lastHeartbeat: true, currentMode: true } },
           },
         },
@@ -66,6 +81,22 @@ export class CompanionsService {
     const companionIds = users.filter((u) => u.companion).map((u) => u.companion!.id);
     const excellence = await this.excellence.computeForCompanions(companionIds);
 
+    // 进行中的订单：让人员列表能显示陪玩当前在打什么（首单/续费/复购 + 游戏）
+    const activeOrders = companionIds.length
+      ? await this.prisma.order.findMany({
+          where: {
+            status: 'CONFIRMED',
+            OR: [{ companionId: { in: companionIds } }, { coCompanionId: { in: companionIds } }],
+          },
+          select: { companionId: true, coCompanionId: true, type: true, gameName: true },
+        })
+      : [];
+    const activeOrderByCompanion = new Map<string, { type: string; gameName: string }>();
+    for (const o of activeOrders) {
+      const targetId = o.companionId || o.coCompanionId;
+      if (targetId) activeOrderByCompanion.set(targetId, { type: o.type, gameName: o.gameName });
+    }
+
     return users.map((u) => ({
       id: u.id,
       username: u.username,
@@ -82,10 +113,13 @@ export class CompanionsService {
       realName: u.companion?.realName ?? null,
       phone: u.companion?.phone ?? null,
       monthlyRevenue: u.companion?.monthlyRevenue ?? null,
+      isResigned: u.companion?.isResigned ?? false,
+      isSeniorStaff: u.companion?.isSeniorStaff ?? false,
       lastHeartbeat: u.companion?.pc?.lastHeartbeat ?? csSeen.get(u.id) ?? null,
       currentMode: u.companion?.pc?.currentMode ?? null,
+      currentOrder: u.companion ? activeOrderByCompanion.get(u.companion.id) ?? null : null,
       isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,
-      tier: u.companion ? excellence.get(u.companion.id)?.tier ?? 'LOW' : 'LOW',
+      tier: u.companion ? excellence.get(u.companion.id)?.tier ?? 'MIDDLE' : 'MIDDLE',
       rankScore: u.companion ? excellence.get(u.companion.id)?.rankScore ?? 0 : 0,
       renewRate: u.companion ? excellence.get(u.companion.id)?.renewRate ?? 0 : 0,
       repurchaseRate: u.companion ? excellence.get(u.companion.id)?.repurchaseRate ?? 0 : 0,
@@ -160,7 +194,7 @@ export class CompanionsService {
       ...c,
       processStatus: blockedSet.has(c.id) ? 'BLOCKED' : (killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL',
       todayOrderCount: (orderCounts.get(c.id) || 0) + (budanCounts.get(c.id) || 0),
-      tier: excellence.get(c.id)?.tier ?? 'LOW',
+      tier: excellence.get(c.id)?.tier ?? 'MIDDLE',
       rankScore: excellence.get(c.id)?.rankScore ?? 0,
     }));
   }
@@ -178,6 +212,14 @@ export class CompanionsService {
 
   async updateStatus(id: string, status: string, user: any) {
     if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    const now = new Date();
+    // 客户端即使状态没变化，也会周期性上报状态；这里把状态上报视为有效在线心跳，
+    // 避免 WebSocket 掉线但客户端仍活跃时被误判为离线。
+    await this.prisma.companionPC.upsert({
+      where: { companionId: id },
+      create: { companionId: id, lastHeartbeat: now },
+      update: { lastHeartbeat: now },
+    }).catch(() => {});
     const current = await this.prisma.companion.findUnique({
       where: { id },
       select: { status: true },
@@ -185,6 +227,10 @@ export class CompanionsService {
     // 已是当前状态：无需重复操作，直接返回，避免重置计时/计费。
     if (current && current.status === status) {
       return { id, status: current.status, alreadyInStatus: true };
+    }
+    // 接单状态只能由「开始服务（首单/续单/复购）」自动进入，不能手动点，防止陪玩借“接单”状态玩黑名单游戏。
+    if (status === 'BUSY') {
+      throw new BadRequestException('接单状态由开始服务自动进入，无法手动切换');
     }
     // 服务进行中（有已开始的会话）不允许切换到空闲/娱乐/休息等状态，必须先结束服务。
     if (status !== 'BUSY') {
@@ -206,20 +252,12 @@ export class CompanionsService {
     }
 
     // 关闭上一个计时日志，并开启新状态的计时日志（用于统计各状态时长/娱乐计费）。
-    const now = new Date();
-    let entertainmentFee: number | null = null;
     const openLog = await this.prisma.companionTimeLog.findFirst({
       where: { companionId: id, endedAt: null },
       orderBy: { startedAt: 'desc' },
     });
     if (openLog) {
       const elapsed = Math.max(0, Math.round((now.getTime() - new Date(openLog.startedAt).getTime()) / 1000));
-      // 从「娱乐」切到「空闲」时，计算本次娱乐消费金额。
-      if (current?.status === 'ENTERTAINMENT' && status === 'AVAILABLE') {
-        const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
-        const hourlyRate = Number(rateCfg?.value ?? 60);
-        entertainmentFee = roundToJiao(Math.floor(elapsed / 60) * (hourlyRate / 60));
-      }
       await this.prisma.companionTimeLog.update({
         where: { id: openLog.id },
         data: { endedAt: now, durationSeconds: elapsed },
@@ -230,7 +268,7 @@ export class CompanionsService {
     });
 
     const updated = await this.prisma.companion.update({ where: { id }, data: { status } });
-    return { ...updated, entertainmentFee };
+    return updated;
   }
 
   /** 是否有“已开始的进行中服务会话”（作为主陪或副陪）。 */
@@ -270,20 +308,40 @@ export class CompanionsService {
     };
   }
 
-  private async getDayStartHour(): Promise<number> {
-    const cfg = await this.prisma.systemConfig.findUnique({ where: { key: 'studio.day_start_hour' } });
-    return parseInt((cfg?.value as string) || '0', 10) || 0;
+  /**
+   * 报账口径：统一用营业日（每天 12:00 为界）。
+   * 老板 2026-09-20：「每天中午 12 点前打的单、报的账都算前一天的」。
+   * day 传 'YYYY-MM-DD' 表示补报那一天；不传就是当前营业日。
+   */
+  private getBusinessRange(day?: string): { start: Date; end: Date; day: string } {
+    if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      const { start, end } = businessDayRange(day);
+      return { start, end, day };
+    }
+    const { start, end } = currentBusinessDayRange();
+    return { start, end, day: businessDayKey(new Date()) };
   }
 
-  private async getTodayRange(): Promise<{ start: Date; end: Date }> {
-    const h = await this.getDayStartHour();
-    const now = new Date();
-    const start = new Date(now);
-    start.setHours(h, 0, 0, 0);
-    if (now.getHours() < h) start.setDate(start.getDate() - 1);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { start, end };
+  /** 已经报过账的场次 id（报账单 description 里存了 items[].sessionId） */
+  private async getReportedSessionIds(companionId: string, since: Date): Promise<Set<string>> {
+    const reports = await this.prisma.expenseReport
+      .findMany({
+        where: { companionId, type: 'TODAY_REVENUE', createdAt: { gte: since } },
+        select: { description: true },
+      })
+      .catch(() => [] as Array<{ description: string | null }>);
+    const ids = new Set<string>();
+    for (const r of reports) {
+      try {
+        const parsed = JSON.parse(r.description || '{}');
+        for (const item of parsed?.items || []) {
+          if (item?.sessionId) ids.add(item.sessionId);
+        }
+      } catch {
+        /* 描述不是 JSON 就跳过 */
+      }
+    }
+    return ids;
   }
 
   async getDormantCustomers(companionId: string) {
@@ -314,12 +372,30 @@ export class CompanionsService {
     };
   }
 
-  async getTodaySessions(companionId: string) {
-    const { start } = await this.getTodayRange();
+  /** 陪玩端通知偏好：打单 / 娱乐中是否也弹新单（默认不打扰） */
+  async getNotifyPrefs(companionId: string) {
+    const c = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { notifyWhileBusy: true },
+    });
+    return { notifyWhileBusy: c?.notifyWhileBusy ?? false };
+  }
+
+  async setNotifyPrefs(companionId: string, prefs: { notifyWhileBusy?: boolean }) {
+    const data: any = {};
+    if (typeof prefs.notifyWhileBusy === 'boolean') data.notifyWhileBusy = prefs.notifyWhileBusy;
+    if (Object.keys(data).length === 0) return this.getNotifyPrefs(companionId);
+    await this.prisma.companion.update({ where: { id: companionId }, data });
+    return this.getNotifyPrefs(companionId);
+  }
+
+  async getTodaySessions(companionId: string, day?: string) {
+    const { start, end } = this.getBusinessRange(day);
+    const reportedIds = await this.getReportedSessionIds(companionId, start);
     const sessions = await this.prisma.orderSession.findMany({
       where: {
         OR: [{ companionId }, { coCompanionId: companionId }],
-        createdAt: { gte: start },
+        createdAt: { gte: start, lt: end },
       },
       include: {
         companion: { include: { user: { select: { username: true, displayName: true } } } },
@@ -344,6 +420,7 @@ export class CompanionsService {
       const systemAmount = unitPrice * actualHours;
       return {
         id: s.id,
+        reported: reportedIds.has(s.id),
         seq: s.seq,
         parentOrderId: s.parentOrder?.id,
         gameName: s.parentOrder?.gameName,
@@ -366,6 +443,90 @@ export class CompanionsService {
         status: s.status,
         mainName,
         coName,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        createdAt: s.createdAt,
+      };
+    });
+  }
+
+  /**
+   * 历史没报过账的场次（最近 14 个营业日内）——用于「补报」，
+   * 防止晚上 23 点接的单过零点就再也报不了。
+   */
+  async getUnreportedSessions(companionId: string, days = 14) {
+    const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+    const reportedIds = await this.getReportedSessionIds(companionId, since);
+    const sessions = await this.prisma.orderSession.findMany({
+      where: {
+        OR: [{ companionId }, { coCompanionId: companionId }],
+        createdAt: { gte: since },
+      },
+      select: { id: true },
+    });
+    const pendingIds = sessions.map((s) => s.id).filter((id) => !reportedIds.has(id));
+    if (pendingIds.length === 0) return [];
+    const all = await this.getSessionsByIds(companionId, pendingIds);
+    return all;
+  }
+
+  private async getSessionsByIds(companionId: string, ids: string[]) {
+    const sessions = await this.prisma.orderSession.findMany({
+      where: { id: { in: ids } },
+      include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        coCompanion: { include: { user: { select: { username: true, displayName: true } } } },
+        parentOrder: {
+          select: {
+            id: true,
+            gameName: true,
+            orderCode: true,
+            customerId: true,
+            type: true,
+            serviceType: true,
+            customFields: true,
+            customer: { select: { wechatId: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sessions.map((s) => {
+      const isPartner = s.coCompanionId === companionId;
+      const myAmount = isPartner ? (s.coAmount ?? 0) : s.amount;
+      const unitPrice = isPartner
+        ? (s.coAmount ?? 0) / (s.duration || 1)
+        : (s.claimedPrice ?? (s.duration ? s.amount / s.duration : s.amount));
+      const started = s.startedAt ? new Date(s.startedAt).getTime() : null;
+      const ended = s.endedAt ? new Date(s.endedAt).getTime() : (started ?? Date.now());
+      const actualSec = started != null ? Math.max(0, (ended - started) / 1000 - (s.totalPausedSec || 0)) : 0;
+      const mainName = s.companion?.user?.displayName || s.companion?.user?.username || null;
+      const coName = s.coCompanion?.user?.displayName || s.coCompanion?.user?.username || null;
+      return {
+        id: s.id,
+        seq: s.seq,
+        reported: false,
+        mainName,
+        coName,
+        parentOrderId: s.parentOrder?.id,
+        gameName: s.parentOrder?.gameName,
+        orderCode: s.parentOrder?.orderCode,
+        type: s.parentOrder?.type,
+        serviceType: s.parentOrder?.serviceType || (s.parentOrder?.customFields as any)?.serviceType || 'PLAY_WITH',
+        customerWechat: s.parentOrder?.customer?.wechatId || (s.parentOrder?.customFields as any)?.customerWechat || '',
+        amount: s.amount,
+        coAmount: s.coAmount,
+        myAmount,
+        isPartner,
+        dual: !!s.coCompanionId || (s.parentOrder?.customFields as any)?.deltaCount === '双',
+        duration: s.duration,
+        actualHours: actualSec / 3600,
+        unitPrice,
+        systemAmount: unitPrice * (actualSec / 3600),
+        claimedMode: s.claimedMode,
+        claimedPrice: unitPrice,
+        transferScreenshotUrl: s.transferScreenshotUrl,
+        status: s.status,
         startedAt: s.startedAt,
         endedAt: s.endedAt,
         createdAt: s.createdAt,
@@ -481,7 +642,10 @@ export class CompanionsService {
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
     const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
     const hourlyRate = (rateCfg?.value as number) ?? 60; // default ¥60/hour
-    const entertainmentFee = roundToJiao(entertainmentMinutes * (hourlyRate / 60));
+    // 娱乐随时可进：当日流水 ≥ 门槛则免费，否则按小时计费（报账时体现）。
+    const entertainmentFee = todayRevenue >= entertainmentThreshold
+      ? 0
+      : roundToJiao(entertainmentMinutes * (hourlyRate / 60));
 
     // Online companions (same studio) — also fetch split mode info
     const companion = await this.prisma.companion.findUnique({
@@ -491,6 +655,8 @@ export class CompanionsService {
         status: true,
         monthlyRevenue: true,
         revenueShare: true,
+        createdAt: true,
+        isSeniorStaff: true,
         studio: { select: { splitMode: true } },
       },
     });
@@ -505,7 +671,14 @@ export class CompanionsService {
 
     // Compute split mode display info
     const splitMode = companion?.studio?.splitMode ?? 'TIERED';
-    let tierInfo: { mode: string; companionPct?: number; monthlyRevenue?: number } = { mode: splitMode };
+    let tierInfo: {
+      mode: string;
+      companionPct?: number;
+      monthlyRevenue?: number;
+      tiers?: RevenueSplitTier[];
+      tenureMonths?: number;
+      topTierBlocked?: boolean;
+    } = { mode: splitMode };
 
     if (splitMode === 'FIXED') {
       tierInfo = {
@@ -515,22 +688,40 @@ export class CompanionsService {
     } else {
       // TIERED：严格按营业月流水计算当前所在阶梯
       const monthRevenue = await this.computeMonthRevenue(companionId);
+      const config = await this.prisma.systemConfig.findUnique({
+        where: { key: 'revenue.share_tiers' },
+      });
+      const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
       if (monthRevenue > 0) {
-        const config = await this.prisma.systemConfig.findUnique({
-          where: { key: 'revenue.share_tiers' },
-        });
-        const tiers: RevenueSplitTier[] = (config?.value as any) ?? [];
+        const tenureMonths = effectiveTenureMonths(companion!.createdAt, companion!.isSeniorStaff);
+        const topTier = tiers.find((t) => t.max === null) || tiers[tiers.length - 1];
+        const topTierBlocked =
+          topTier != null && monthRevenue >= topTier.min && tenureMonths < 6;
         const splitResult = computeRevenueSplit({
           splitMode,
           totalRevenue: monthRevenue,
           revenueShare: companion?.revenueShare,
           tiers: tiers.length > 0 ? tiers : undefined,
           monthlyRevenue: monthRevenue,
+          tenureMonths,
         });
         tierInfo = {
           mode: splitResult.mode,
           companionPct: splitResult.companionPct,
           monthlyRevenue: splitResult.monthlyRevenue,
+          tiers,
+          tenureMonths,
+          topTierBlocked,
+        };
+      } else {
+        const tenureMonths = effectiveTenureMonths(companion!.createdAt, companion!.isSeniorStaff);
+        tierInfo = {
+          mode: 'TIERED',
+          companionPct: tiers[0]?.companion ?? 50,
+          monthlyRevenue: 0,
+          tiers,
+          tenureMonths,
+          topTierBlocked: false,
         };
       }
     }
@@ -587,7 +778,7 @@ export class CompanionsService {
       feeBalanceAlert,
       entertainmentThreshold,
       entertainmentDepositThreshold,
-      isEntertainmentUnlocked: todayRevenue >= entertainmentThreshold,
+      isEntertainmentUnlocked: true,
       // New analytics metrics
       todayOrderCount: todayBudanOrders.length,
       monthlyOrderCount: monthlyAll,
@@ -620,10 +811,27 @@ export class CompanionsService {
     return this.revenueService.checkEntertainmentBlocked(companionId);
   }
 
-  async requestWithdraw(companionId: string, amount: number) {
+  async requestWithdraw(companionId: string, amount: number, note?: string) {
     const wallet = await this.getWallet(companionId);
     if (amount > wallet.withdrawable) {
       throw new ForbiddenException(`可支取金额不足，当前可支取: ¥${wallet.withdrawable}`);
+    }
+    const [limitCfg, usedCount] = await Promise.all([
+      this.prisma.systemConfig.findUnique({ where: { key: 'withdraw.monthly_limit' } }),
+      this.prisma.walletTransaction.count({
+        where: {
+          companionId,
+          type: 'WITHDRAW',
+          createdAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+          },
+        },
+      }),
+    ]);
+    const limit = Number(limitCfg?.value ?? 2);
+    if (limit > 0 && usedCount >= limit) {
+      throw new ForbiddenException(`本月支取次数已达上限（${limit} 次）`);
     }
     return this.prisma.walletTransaction.create({
       data: {
@@ -633,6 +841,7 @@ export class CompanionsService {
         balanceBefore: wallet.balance,
         balanceAfter: wallet.balance,
         status: 'PENDING',
+        note: note?.trim() || undefined,
       },
     });
   }
@@ -659,10 +868,21 @@ export class CompanionsService {
   // ── Resignation ──
 
   async resignCompanion(companionId: string) {
-    return this.prisma.companion.update({
+    const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      data: { status: 'OFFLINE', balance: 0, deposit: 0, frozen: 0, monthlyRevenue: 0 },
+      select: { userId: true },
     });
+    await this.prisma.companion.update({
+      where: { id: companionId },
+      data: { status: 'OFFLINE', balance: 0, deposit: 0, frozen: 0, monthlyRevenue: 0, isResigned: true },
+    });
+    if (companion?.userId) {
+      await this.prisma.user.update({
+        where: { id: companion.userId },
+        data: { isAuthorized: false },
+      });
+    }
+    return { success: true };
   }
 
   // ── Work WeChat Management ──
@@ -673,6 +893,10 @@ export class CompanionsService {
 
   async addWorkWechat(studioId: string, wechatId: string, type?: string) {
     return this.wechatService.addWorkWechat(studioId, wechatId, type);
+  }
+
+  async updateWorkWechatNickname(id: string, nickname: string, user?: any) {
+    return this.wechatService.updateWorkWechatNickname(id, nickname, user);
   }
 
   async bindWechat(id: string, companionId: string) {
@@ -691,8 +915,8 @@ export class CompanionsService {
     return this.wechatService.unbindCsUser(id);
   }
 
-  async deleteWorkWechat(id: string) {
-    return this.wechatService.deleteWorkWechat(id);
+  async deleteWorkWechat(id: string, user?: any) {
+    return this.wechatService.deleteWorkWechat(id, user);
   }
 
   // ── Attendance ──
@@ -717,9 +941,9 @@ export class CompanionsService {
     });
   }
 
-  async addStatusBlacklist(studioId: string, status: string, processName: string) {
+  async addStatusBlacklist(studioId: string, status: string, processName: string, displayName?: string) {
     return this.prisma.companionStatusBlacklist.create({
-      data: { studioId, status, processName },
+      data: { studioId, status, processName, displayName: displayName || null },
     });
   }
 
@@ -728,10 +952,18 @@ export class CompanionsService {
   }
 
   async listStatusBlacklists(studioId: string) {
+    studioId = await this.resolveStudioId(studioId);
     return this.prisma.companionStatusBlacklist.findMany({
       where: { studioId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /** 老板（OWNER）没有 studioId 时，默认落到第一个工作室。 */
+  private async resolveStudioId(studioId: string): Promise<string> {
+    if (studioId) return studioId;
+    const first = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
+    return first?.id || '';
   }
 
   // ── Manual financial adjustment (ADMIN/OWNER) ──
@@ -864,5 +1096,13 @@ export class CompanionsService {
 
     await Promise.all(logs);
     return { success: true };
+  }
+
+  /** 手动标记/取消老员工（跳过 6 个月工龄门槛）。 */
+  async setSeniorStaff(companionId: string, isSeniorStaff: boolean) {
+    return this.prisma.companion.update({
+      where: { id: companionId },
+      data: { isSeniorStaff },
+    });
   }
 }

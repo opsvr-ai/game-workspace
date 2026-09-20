@@ -2,6 +2,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { businessDayOf } from '../common/business-day';
+import { CompanionQuotaService } from '../orders/companion-quota.service';
 import { UserRole } from '@chunlv/shared';
 
 interface AuthUser {
@@ -17,7 +18,10 @@ const TRACK_TYPES = ['TEXT', 'IMAGE', 'TEXT_IMAGE'];
 
 @Injectable()
 export class CustomerTrackingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly quota: CompanionQuotaService,
+  ) {}
 
   async registerContact(user: AuthUser, dto: any) {
     const companionId = user.companionId ?? dto.companionId;
@@ -44,14 +48,9 @@ export class CustomerTrackingService {
     const companionId = user.companionId;
     if (!companionId) throw new ForbiddenException('仅陪玩可查看抢单状态');
 
-    const keys = [
-      'pool.unlock_revenue_enabled',
-      'pool.unlock_revenue_threshold',
-      'pool.daily_customer_quota_enabled',
-      'pool.daily_customer_quota',
-      'pool.success_rate_gate_enabled',
-      'pool.success_rate_gate_threshold',
-    ];
+    // 抢单资格：老板 2026-09-20 起只看「每日立即打名额」，
+    // 原来的「流水门槛」已删除；成功率门槛保留但默认关闭（线上没配置时不再误报受限）。
+    const keys = ['pool.success_rate_gate_enabled', 'pool.success_rate_gate_threshold'];
     const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
     const cfg: Record<string, any> = {};
     for (const r of records) cfg[r.key] = r.value;
@@ -70,42 +69,23 @@ export class CustomerTrackingService {
       where: { companionId, result: 'NOW', createdAt: { gte: day, lt: next } },
     });
 
-    const revenueAgg = await this.prisma.transaction.aggregate({
-      where: { companionId, status: 'APPROVED', createdAt: { gte: day, lt: next } },
-      _sum: { amount: true },
-    });
-    const todayRevenue = revenueAgg._sum.amount || 0;
-
     const success = await this.computeSuccess(companionId);
-
-    const revenueEnabled = bool('pool.unlock_revenue_enabled', true);
-    const quotaEnabled = bool('pool.daily_customer_quota_enabled', true);
-    const successEnabled = bool('pool.success_rate_gate_enabled', true);
-    const revenueThreshold = num('pool.unlock_revenue_threshold', 200);
-    const quota = num('pool.daily_customer_quota', 3);
+    const successEnabled = bool('pool.success_rate_gate_enabled', false);
     const successThreshold = num('pool.success_rate_gate_threshold', 90);
 
+    const quota = await this.quota.status(companionId);
+
     const reasons: string[] = [];
-    if (revenueEnabled && todayRevenue < revenueThreshold) {
-      reasons.push(`今日流水未达到 ¥${revenueThreshold}`);
-    }
-    if (quotaEnabled && todayValid >= quota) {
-      reasons.push(`今日有效客户名额已用完（${todayValid}/${quota}）`);
-    }
     if (successEnabled && success.sum < successThreshold) {
       reasons.push(`综合成功率 ${success.sum}% 低于 ${successThreshold}%`);
     }
+    if (quota.remaining <= 0) {
+      reasons.push(`今天的「立即打」名额用完了（${quota.tier} 每天 ${quota.dailyLimit} 个），明天自动补`);
+    }
 
     return {
-      config: {
-        revenueEnabled,
-        revenueThreshold,
-        quotaEnabled,
-        quota,
-        successEnabled,
-        successThreshold,
-      },
-      todayRevenue,
+      config: { successEnabled, successThreshold },
+      quota,
       todayValidCustomers: todayValid,
       success,
       allowed: reasons.length === 0,

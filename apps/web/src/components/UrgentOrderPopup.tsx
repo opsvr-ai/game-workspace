@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Typography, message } from 'antd';
+import { configApi } from '../api/config';
 
 const { Text, Title } = Typography;
 
@@ -20,12 +21,24 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  // 弹窗停留 15 秒后自动消失
+  // 弹窗停留时长可在后台配置（pool.popup_seconds，默认 20 秒）。
+  // 错过弹窗也不吃亏：广播单在订单池里对全店立即可见，不会等段位延迟。
+  const [popupSeconds, setPopupSeconds] = useState(20);
+  useEffect(() => {
+    configApi
+      .get(['pool.popup_seconds'])
+      .then(({ data }: any) => {
+        const v = Number(data?.data?.['pool.popup_seconds']);
+        if (Number.isFinite(v) && v > 0) setPopupSeconds(v);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!urgentOrder) return;
-    const t = setTimeout(() => setUrgentOrder(null), 15000);
+    const t = setTimeout(() => setUrgentOrder(null), popupSeconds * 1000);
     return () => clearTimeout(t);
-  }, [urgentOrder, setUrgentOrder]);
+  }, [urgentOrder, setUrgentOrder, popupSeconds]);
 
   return (
     <>
@@ -58,6 +71,12 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               <Text strong style={{ color: '#FF4757' }}>
                 ¥{Number(urgentOrder.amount).toFixed(0)}
               </Text>
+              {urgentOrder.duration ? ` · ${urgentOrder.duration}h` : ''}
+            </div>
+            <div style={{ fontSize: 13, color: '#64748B' }}>
+              {urgentOrder.type === 'NEW' ? '首单' : urgentOrder.type === 'RENEW' ? '续单' : urgentOrder.type === 'REPURCHASE' ? '复购' : '订单'}
+              {urgentOrder.customFields?.deltaMission ? ` · ${urgentOrder.customFields.deltaMission}` : ''}
+              {urgentOrder.customFields?.urgency === 'later' ? ' · 预约（不占名额）' : ' · 立即打（占 1 个名额）'}
             </div>
           </div>
           <div style={{ marginTop: 14 }}>

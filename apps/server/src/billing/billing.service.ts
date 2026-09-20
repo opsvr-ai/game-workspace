@@ -5,6 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { TransactionService } from './transaction.service';
 import { SettlementService } from './settlement.service';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
+import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 
 @Injectable()
@@ -237,6 +238,126 @@ export class BillingService {
     });
   }
 
+  // 陪玩报账与支取统计：管理端按陪玩汇总，陪玩端看自己的每日明细。只统计已通过流水。
+  async getWalletDaily(studioId: string, month: string, companionId?: string) {
+    const [year, mon] = month.split('-').map((n) => Number(n));
+    const start = new Date(Date.UTC(year, mon - 1, 1));
+    const end = new Date(Date.UTC(year, mon, 1));
+
+    const baseWhere = {
+      status: 'APPROVED',
+      createdAt: { gte: start, lt: end },
+    };
+
+    if (companionId) {
+      // 陪玩本人：按天明细
+      const txs = await this.prisma.walletTransaction.findMany({
+        where: { ...baseWhere, companionId },
+        select: { type: true, amount: true, createdAt: true },
+      });
+
+      const dailyMap = new Map<string, any>();
+      for (const t of txs) {
+        const day = t.createdAt.toISOString().slice(0, 10);
+        const d = dailyMap.get(day) || { income: 0, withdraw: 0, incomeCount: 0, withdrawCount: 0 };
+        if (t.type === 'WITHDRAW') {
+          d.withdraw += t.amount;
+          d.withdrawCount += 1;
+        } else if (t.type === 'SETTLEMENT' || t.type === 'DEPOSIT') {
+          d.income += t.amount;
+          d.incomeCount += 1;
+        }
+        dailyMap.set(day, d);
+      }
+
+      const daily = Array.from(dailyMap.entries())
+        .map(([date, v]) => ({
+          date,
+          income: Number(v.income.toFixed(1)),
+          withdraw: Number(v.withdraw.toFixed(1)),
+          net: Number((v.income - v.withdraw).toFixed(1)),
+          incomeCount: v.incomeCount,
+          withdrawCount: v.withdrawCount,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const totals = daily.reduce(
+        (acc, d) => ({
+          income: Number((acc.income + d.income).toFixed(1)),
+          withdraw: Number((acc.withdraw + d.withdraw).toFixed(1)),
+          net: Number((acc.net + d.net).toFixed(1)),
+        }),
+        { income: 0, withdraw: 0, net: 0 },
+      );
+
+      return { month, daily, totals };
+    }
+
+    // 管理端：按陪玩汇总，20 人以内直接一张表展示
+    const txs = await this.prisma.walletTransaction.findMany({
+      where: { ...baseWhere, companion: { studioId } },
+      select: {
+        type: true,
+        amount: true,
+        createdAt: true,
+        companionId: true,
+        companion: {
+          select: {
+            id: true,
+            realName: true,
+            user: { select: { username: true, displayName: true } },
+          },
+        },
+      },
+    });
+
+    const map = new Map<string, any>();
+    for (const t of txs) {
+      const c = t.companion;
+      const d = map.get(t.companionId) || {
+        companionId: t.companionId,
+        name: c?.user?.displayName || c?.user?.username || c?.realName || '未知陪玩',
+        username: c?.user?.username || '',
+        realName: c?.realName || '',
+        income: 0,
+        withdraw: 0,
+        incomeCount: 0,
+        withdrawCount: 0,
+        lastDate: '',
+      };
+      const day = t.createdAt.toISOString().slice(0, 10);
+      if (day > d.lastDate) d.lastDate = day;
+      if (t.type === 'WITHDRAW') {
+        d.withdraw += t.amount;
+        d.withdrawCount += 1;
+      } else if (t.type === 'SETTLEMENT' || t.type === 'DEPOSIT') {
+        d.income += t.amount;
+        d.incomeCount += 1;
+      }
+      map.set(t.companionId, d);
+    }
+
+    const companions = Array.from(map.values())
+      .map((c) => ({
+        ...c,
+        income: Number(c.income.toFixed(1)),
+        withdraw: Number(c.withdraw.toFixed(1)),
+        net: Number((c.income - c.withdraw).toFixed(1)),
+      }))
+      .sort((a, b) => b.income - a.income);
+
+    const totals = companions.reduce(
+      (acc, c) => ({
+        income: Number((acc.income + c.income).toFixed(1)),
+        withdraw: Number((acc.withdraw + c.withdraw).toFixed(1)),
+        net: Number((acc.net + c.net).toFixed(1)),
+      }),
+      { income: 0, withdraw: 0, net: 0 },
+    );
+
+    return { month, companions, totals };
+  }
+
   async reviewWalletTransaction(id: string, status: string, reviewerId: string) {
     const tx = await this.prisma.walletTransaction.findUnique({ where: { id } });
     if (!tx) throw new NotFoundException('交易不存在');
@@ -244,14 +365,17 @@ export class BillingService {
 
     const update: any = { status, reviewedById: reviewerId };
     if (status === 'APPROVED' && tx.type === 'WITHDRAW') {
-      const companion = await this.prisma.companion.findUnique({ where: { id: tx.companionId } });
-      if (!companion) throw new NotFoundException('陪玩不存在');
-      if (companion.balance < tx.amount) throw new ForbiddenException('余额不足，无法通过支取');
-      update.balanceAfter = companion.balance - tx.amount;
-      await this.prisma.companion.update({
-        where: { id: tx.companionId },
-        data: { balance: { decrement: tx.amount } },
-      });
+      // 用统一口径现算可用额（Companion.balance 是老字段，没人维护，不能拿来卡审核）
+      const breakdown = await computeWithdrawable(this.prisma, tx.companionId, { excludeTxId: tx.id });
+      if (breakdown.withdrawable < tx.amount) {
+        throw new ForbiddenException(
+          `可支取余额不足，无法通过支取（可用 ¥${breakdown.withdrawable}，申请 ¥${tx.amount}）`,
+        );
+      }
+      update.balanceAfter = Math.round((breakdown.withdrawable - tx.amount) * 100) / 100;
+      await this.prisma.companion
+        .update({ where: { id: tx.companionId }, data: { balance: update.balanceAfter } })
+        .catch(() => {});
     }
 
     // Notify the companion about the review result
@@ -346,7 +470,12 @@ export class BillingService {
     return { actualHours, systemRevenue, sessionCount: sessions.length };
   }
 
-  async checkRevenueDiff(companionId: string, studioId: string, reportedAmount: number) {
+  async checkRevenueDiff(
+    companionId: string,
+    studioId: string,
+    reportedAmount: number,
+    opts?: { reportId?: string; sessionIds?: string[] },
+  ) {
     const { start, end } = currentBusinessDayRange();
     const { actualHours, systemRevenue } = await this.computeActualServiceStats(companionId, start, end);
     const diff = systemRevenue - reportedAmount;
@@ -361,6 +490,19 @@ export class BillingService {
         select: { user: { select: { username: true, displayName: true } } },
       });
       const name = companion?.user?.displayName || companion?.user?.username || companionId;
+
+      // 落成「待办」：报账单上直接写明偏差，相关场次标红，人不在电脑前也跑不掉
+      const warning = `\u26a0\ufe0f 报账偏差：系统预估 \u00a5${roundToJiao(systemRevenue)}，上报 \u00a5${roundToJiao(reportedAmount)}，差额 \u00a5${roundToJiao(diff)}`;
+      if (opts?.reportId) {
+        await this.prisma.expenseReport
+          .update({ where: { id: opts.reportId }, data: { reviewNote: warning } })
+          .catch(() => {});
+      }
+      if (opts?.sessionIds?.length) {
+        await this.prisma.orderSession
+          .updateMany({ where: { id: { in: opts.sessionIds } }, data: { flagged: 'red' } })
+          .catch(() => {});
+      }
 
       this.wsGateway.broadcastToBridgedStudios(studioId, 'billing:revenue_diff', {
         companionId,

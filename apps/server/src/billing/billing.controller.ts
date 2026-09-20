@@ -255,6 +255,17 @@ export class BillingController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('wallet-daily')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  async getWalletDaily(
+    @Req() req: any,
+    @Query('month') month: string,
+  ): Promise<ApiResponse<unknown>> {
+    const companionId = req.user.role === UserRole.COMPANION ? req.user.companionId : undefined;
+    const data = await this.billingService.getWalletDaily(req.user.studioId, month, companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Put('wallet-transactions/:id/review')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async reviewWalletTransaction(
@@ -290,7 +301,7 @@ export class BillingController {
     const totalAmount = dto.items.reduce((s, i) => s + (i.amount || 0), 0);
     const screenshots: Record<string, string> = {};
     dto.items.forEach(i => { if (i.screenshotUrl) screenshots[i.orderId] = i.screenshotUrl; });
-    await this.billingService.createExpenseReport({
+    const report = await this.billingService.createExpenseReport({
       companionId: req.user.companionId,
       studioId: req.user.studioId,
       type: 'TODAY_REVENUE',
@@ -304,7 +315,10 @@ export class BillingController {
 
     // Compare with system-calculated order amounts for today
     if (req.user.studioId && req.user.companionId) {
-      this.billingService.checkRevenueDiff(req.user.companionId, req.user.studioId, totalAmount);
+      await this.billingService.checkRevenueDiff(req.user.companionId, req.user.studioId, totalAmount, {
+        reportId: report?.id,
+        sessionIds: dto.items.map((i) => i.sessionId).filter((x): x is string => !!x),
+      });
     }
 
     return { code: 201, message: `已提交，共 ¥${totalAmount}`, data: null };

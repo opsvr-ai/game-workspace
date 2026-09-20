@@ -20,12 +20,14 @@ import type { ApiResponse } from '@chunlv/shared';
 import { WsGateway } from '../ws/ws.gateway';
 
 const DEFAULT_CONFIGS: Record<string, any> = {
-  'revenue.unlock_threshold': 200,
+  // 新单弹窗停留秒数（老板 2026-09-20 起可配，比原来写死的 15 秒更灵活）
+  'pool.popup_seconds': 20,
   'revenue.free_threshold': 300,
   'revenue.low_warning': 300,
+  // 分润阶梯一律以「系统设置里老板填的」为准，这里只做首次初始化的默认值。
   'revenue.share_tiers': [
-    { min: 0, max: 5199.99, studio: 50, companion: 50 },
-    { min: 5200, max: 9999.99, studio: 40, companion: 60 },
+    { min: 0, max: 5999.9, studio: 50, companion: 50 },
+    { min: 6000, max: 9999, studio: 40, companion: 60 },
     { min: 10000, max: null, studio: 30, companion: 70 },
   ],
   'withdraw.advance_ratio': 50,

@@ -450,11 +450,24 @@ export class ChatService {
   async getRoomMessages(roomId: string, before?: number, after?: number, limit = 50) {
     const where: any = { roomId };
 
-    if (before) {
-      where.seq = { lt: before };
+    // seq 是 INT4：老前端会把毫秒时间戳当游标传进来，直接查会抛
+    // "Unable to fit integer value ... into an INT4" 把请求打成 500。
+    // 这里统一做安全裁剪：非整数 / 超出 INT4 的游标一律忽略。
+    const safeSeq = (v?: number): number | undefined => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return undefined;
+      const i = Math.floor(n);
+      if (i <= 0 || i > 2147483647) return undefined;
+      return i;
+    };
+    const beforeSeq = safeSeq(before);
+    const afterSeq = safeSeq(after);
+
+    if (beforeSeq !== undefined) {
+      where.seq = { lt: beforeSeq };
     }
-    if (after) {
-      where.seq = { gt: after };
+    if (afterSeq !== undefined) {
+      where.seq = { gt: afterSeq };
     }
 
     const messages = await this.prisma.chatMessageV3.findMany({
@@ -481,8 +494,11 @@ export class ChatService {
 
   /** Get messages since a given seq (for sync/poll) */
   async getMessagesSince(roomId: string, sinceSeq: number) {
+    const since = Number.isFinite(Number(sinceSeq)) && Number(sinceSeq) > 0 && Number(sinceSeq) <= 2147483647
+      ? Math.floor(Number(sinceSeq))
+      : 0;
     const messages = await this.prisma.chatMessageV3.findMany({
-      where: { roomId, seq: { gt: sinceSeq } },
+      where: { roomId, seq: { gt: since } },
       orderBy: { seq: 'asc' },
       include: {
         attachments: true,

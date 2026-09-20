@@ -209,7 +209,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
     if (!roomId || !conv?.hasMore) return;
     const oldest = conv.messages[0];
     if (!oldest) return;
-    chatApi.getMessages(roomId, oldest.createdAt.toString())
+    // 后端分页游标是消息序号 seq（INT4），以前传的是 createdAt 毫秒时间戳，
+    // 后端拿它去查 seq 直接崩（Unhandled exception），表现就是「点了没反应」。
+    const cursor = oldest.seq ?? oldest.createdAt;
+    if (!cursor) return;
+    chatApi.getMessages(roomId, String(cursor))
       .then(({ data }) => {
         const msgs = data?.data?.messages || [];
         if (msgs.length > 0) {

@@ -187,7 +187,7 @@ const CSDispatchView: React.FC = () => {
   }, []);
   const [grabbing, setGrabbing] = useState<string | null>(null);
   const [grabbedOrder, setGrabbedOrder] = useState<any>(null);
-  const [poolStatus, setPoolStatus] = useState<{ todayRevenue: number; threshold: number; isUnlocked: boolean } | null>(
+  const [poolStatus, setPoolStatus] = useState<any>(
     null,
   );
   const [studioGroup, setStudioGroup] = useState<{ id: string; groupName: string } | null>(null);
@@ -909,12 +909,9 @@ const CSDispatchView: React.FC = () => {
                                 size="small"
                                 type="primary"
                                 loading={grabbing === order.id}
-                                disabled={!poolStatus?.isUnlocked}
                                 onClick={() => handleGrab(order.id)}
                               >
-                                {!poolStatus?.isUnlocked
-                                  ? `还差¥${Math.round((poolStatus?.threshold || 0) - (poolStatus?.todayRevenue || 0))}`
-                                  : '抢单'}
+                                抢单
                               </Button>
                               {order.csUser?.id && (
                                 <Button
