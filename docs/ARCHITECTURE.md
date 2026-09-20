@@ -483,6 +483,9 @@ graph TB
 - 分成阶梯：**只用于线下工作室**（Studio.type=DIRECT、splitMode=TIERED；线上俱乐部 RENTAL 是按人固定比例，
   不走阶梯）。阶梯明细以「设置 → 分成阶梯」里老板填的为准（线上现在是 0–5999.9 五五 / 6000–9999.99 六四 /
   ≥10000 七三，老板口语里也写成 55/64/73，指的是同一套）；**最高一档需入职满 6 个月**，没满回落下一档（勾「老员工」可豁免）
+- 线上俱乐部固定比例：`revenue.club_companion_share`（陪玩分成百分比，工作室拿剩余份额）。只用于
+  **RENTAL / FIXED** 的店；代码里读不到该配置时的兜底值与「设置 → 分账规则」页面的显示值一致（默认 80%），
+  **页面显示的就是实际生效值，保存后落库**（前端加载时会把兜底值落进表单，避免「看着有、其实没存过」）
 - 审核金额 = 填写时长 × 声明单价；转账截图合计 >= 审核金额即通过，超出算加价，低于标红
 - 服务结束时由 `PUT /api/companions/sessions/:id/finish` 接收 `transferTotalYuan`，将审核金额、转账合计与审核状态写入订单 `auditAmountCents / transferTotalCents / auditStatus`
 - 开始服务 `POST /api/orders/:id/start-session` 必填 `claimedMode / claimedPrice / duration / transferScreenshotUrl`，并将会话 `duration` 落库
