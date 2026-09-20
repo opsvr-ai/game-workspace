@@ -1487,6 +1487,8 @@ const AppLayout: React.FC = () => {
                 background: 'transparent',
                 border: 'none',
                 marginTop: 8,
+                // 菜单比窗口高时可以往下滚（外层是 flex:1 + overflow:auto），底部留点空隙
+                paddingBottom: 12,
               }}
             />
           </div>
