@@ -6,6 +6,7 @@ import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import { usePolling } from '../hooks/usePolling';
 import http from '../api/client';
+import { configApi } from '../api/config';
 import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -112,6 +113,8 @@ interface MenuItemDef {
   icon?: React.ReactNode;
   label: string;
   type?: string;
+  /** 左侧栏标题后面挂的「流水比例」小字（如 70%），数据来自「设置 → 分账规则」。 */
+  ratioKey?: 'companion' | 'admin' | 'cs';
   children?: MenuItemDef[];
 }
 
@@ -176,7 +179,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
         {
-          key: 'owner-companion-salary', label: '陪玩工资管理',
+          key: 'owner-companion-salary', label: '陪玩工资管理', ratioKey: 'companion',
           children: [
             { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
             {
@@ -190,7 +193,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          key: 'owner-cs-finance', label: '客服财务管理',
+          key: 'owner-cs-finance', label: '客服财务管理', ratioKey: 'cs',
           children: [
             {
               key: 'owner-cs-commission', label: '客服提成',
@@ -219,8 +222,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           key: '系统与规则', label: '系统与规则',
           children: [
             { key: '/owner/settings', label: '系统配置' },
-            { key: '/admin/cs-settings', label: '客服设置' },
-            { key: '/admin/store-manager-settings', label: '店长设置' },
+            { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
+            { key: '/admin/store-manager-settings', label: '店长设置', ratioKey: 'admin' },
             { key: '/admin/payroll', label: '工资规则' },
             { key: '/admin/profit-split', label: '利润分成' },
             { key: '/admin/finance/price-rules', label: '价格规则' },
@@ -294,7 +297,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       children: [
         { key: '/admin/profit-calendar', label: '财务中心' },
         {
-          key: 'admin-companion-salary', label: '陪玩工资管理',
+          key: 'admin-companion-salary', label: '陪玩工资管理', ratioKey: 'companion',
           children: [
             { key: '/admin/finance/expenses', label: '陪玩审核 + 支取' },
             {
@@ -308,7 +311,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          key: 'admin-cs-finance', label: '客服财务管理',
+          key: 'admin-cs-finance', label: '客服财务管理', ratioKey: 'cs',
           children: [
             {
               key: 'admin-cs-commission', label: '客服提成',
@@ -329,8 +332,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           key: '系统与规则', label: '系统与规则',
           children: [
             { key: '/admin/settings', label: '系统配置' },
-            { key: '/admin/cs-settings', label: '客服设置' },
-            { key: '/admin/store-manager-settings', label: '店长设置' },
+            { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
+            { key: '/admin/store-manager-settings', label: '店长设置', ratioKey: 'admin' },
             { key: '/admin/payroll', label: '工资规则' },
             { key: '/admin/profit-split', label: '利润分成' },
             { key: '/admin/finance/price-rules', label: '价格规则' },
@@ -466,6 +469,46 @@ function loadSeenCount(key: string): number {
   }
 }
 
+/**
+ * 把「流水比例」小字挂到左侧栏标题后面。
+ *
+ * 老板 2026-09-21：店长 / 客服 / 陪玩的工资页要一眼看到他们各拿流水的百分之几，
+ * 数字和「设置 → 分账规则」是同一份配置，改完设置刷新页面就同步。
+ *
+ * 必须放在徽标逻辑**之后**执行：那一段是拿 label 字符串比对的，先换成节点就比不中了。
+ */
+const applyRatioSuffix = (items: any[], ratios: Record<string, number | null>): any[] =>
+  items.map((item) => {
+    const next: any = { ...item };
+    const pct = item.ratioKey ? ratios[item.ratioKey] : null;
+    if (item.ratioKey && pct != null && typeof item.label === 'string') {
+      next.label = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+            {item.label}
+          </span>
+          <span
+            style={{
+              flex: '0 0 auto',
+              fontSize: 11,
+              lineHeight: '16px',
+              color: '#1677ff',
+              background: '#eef4ff',
+              borderRadius: 6,
+              padding: '0 4px',
+            }}
+          >
+            {pct}%
+          </span>
+        </span>
+      );
+    }
+    if (Array.isArray(item.children)) {
+      next.children = applyRatioSuffix(item.children, ratios);
+    }
+    return next;
+  });
+
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const [isCompact, setIsCompact] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= 1080);
@@ -477,6 +520,35 @@ const AppLayout: React.FC = () => {
   const [myCommission, setMyCommission] = React.useState<number | null>(null);
   const [mySalary, setMySalary] = React.useState<any>(null);
   const [salaryOpen, setSalaryOpen] = React.useState(false);
+  // 左侧栏「工资 / 提成」后面那点比例：陪玩 / 店长 / 客服各拿流水的百分之几。
+  // 和「设置 → 分账规则」是同一份配置（页面加载一次，改完设置刷新页面即同步）。
+  const [shareRatios, setShareRatios] = React.useState<Record<string, number | null>>({});
+  React.useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN') return;
+    configApi
+      .get([
+        'revenue.share_tiers',
+        'revenue.club_companion_share',
+        'commission.cs_offline_rate_percent',
+        'commission.admin_offline_rate_percent',
+      ])
+      .then(({ data }: any) => {
+        const cfg = data?.data ?? {};
+        const tiers = Array.isArray(cfg['revenue.share_tiers']) ? cfg['revenue.share_tiers'] : [];
+        const companions = tiers
+          .map((t: any) => Number(t?.companion))
+          .filter((n: number) => Number.isFinite(n));
+        setShareRatios({
+          // 陪玩那一栏按流水有多个档，左侧栏显示**最高那一档**，一眼看到最好能拿到多少。
+          companion: companions.length
+            ? Math.max(...companions)
+            : Number(cfg['revenue.club_companion_share']) || null,
+          admin: Number(cfg['commission.admin_offline_rate_percent']) || 0,
+          cs: Number(cfg['commission.cs_offline_rate_percent']) || 0,
+        });
+      })
+      .catch(() => {});
+  }, [user?.role]);
   const isCsClient = typeof window !== 'undefined'
     && !!(window as any).electronAPI
     && !(window as any).electronAPI?.getSavedCredentials
@@ -1177,7 +1249,7 @@ const AppLayout: React.FC = () => {
     const CONTACT_LABELS = ['派单工作台'];
     const PENDING_START_LABELS = ['订单管理'];
     const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
-    return items.map((item) => {
+    const built = items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
         const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
@@ -1401,11 +1473,13 @@ const AppLayout: React.FC = () => {
       // 单子菜单直接平铺：点击父级直接跳转，省掉再点一次二级菜单
       if (item.children && item.children.length === 1) {
         const child = item.children[0];
-        return { key: child.key, icon: item.icon, label: item.label };
+        return { key: child.key, icon: item.icon, label: item.label, ratioKey: (item as any).ratioKey };
       }
       return item;
     });
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge]);
+    // 最后再把「流水比例」小字挂上去（徽标那一段已经跑完，字符串比较不受影响）。
+    return applyRatioSuffix(built, shareRatios);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -1460,7 +1534,7 @@ const AppLayout: React.FC = () => {
           collapsed={collapsed}
           onCollapse={setCollapsed}
           trigger={null}
-          width={170}
+          width={216}
           collapsedWidth={48}
           style={{
             background: commander.background,
@@ -1479,6 +1553,7 @@ const AppLayout: React.FC = () => {
             <Menu
               mode="inline"
               theme="dark"
+              inlineIndent={16}
               selectedKeys={selectedKeys}
               defaultOpenKeys={menuItems.filter((m: any) => m.children).map((m: any) => m.key)}
               items={menuItems as MenuProps['items']}

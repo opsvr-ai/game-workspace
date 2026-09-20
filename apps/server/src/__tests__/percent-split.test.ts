@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeShareTiers, parseCompanionPercent } from '../common/percent-split';
 
-describe('percent-split 成对百分比归一化（老板 2026-09-21：避免超过百分百）', () => {
-  it('工作室按「100 - 陪玩」算，两栏合计恒为 100%', () => {
+describe('percent-split 归一化（老板 2026-09-21：避免超过百分百）', () => {
+  it('不传店长 / 客服时，工作室按「100 - 陪玩」算，两栏合计恒为 100%', () => {
     const [t] = normalizeShareTiers([{ min: 0, max: 5999.9, companion: 40, studio: 60 }]);
     expect(t.companion).toBe(40);
     expect(t.studio).toBe(60);
@@ -50,5 +50,35 @@ describe('percent-split 成对百分比归一化（老板 2026-09-21：避免超
     const [t] = normalizeShareTiers([{ companion: 80 }]);
     expect(t.companion).toBe(80);
     expect(t.studio).toBe(20);
+  });
+});
+
+describe('percent-split 四人口径（老板 2026-09-21：流水由 工作室 / 店长 / 客服 / 陪玩 四个人分）', () => {
+  it('工作室 = 100 − 陪玩 − 店长 − 客服（店长 / 客服拿的也是工作室那份）', () => {
+    const [t] = normalizeShareTiers([{ min: 0, companion: 50 }], 10 + 1);
+    expect(t.companion).toBe(50);
+    expect(t.studio).toBe(39);
+    expect(t.companion + 10 + 1 + t.studio).toBe(100);
+  });
+
+  it('线上俱乐部（陪玩 80、店长 5）→ 工作室 15', () => {
+    const [t] = normalizeShareTiers([{ companion: 80 }], 5);
+    expect(t.companion).toBe(80);
+    expect(t.studio).toBe(15);
+  });
+
+  it('老板自己填的 studio 会被真实份额覆盖掉（库里存的就是工作室拿到手）', () => {
+    const [t] = normalizeShareTiers([{ min: 0, companion: 60, studio: 40 }], 11);
+    expect(t.studio).toBe(29);
+  });
+
+  it('配错成超过 100% 时算出负数，交给上层四人口径校验报错', () => {
+    const [t] = normalizeShareTiers([{ companion: 95 }], 10);
+    expect(t.studio).toBe(-5);
+  });
+
+  it('deductPercent 传了非数字时按 0 处理，不会算出 NaN', () => {
+    const [t] = normalizeShareTiers([{ companion: 60 }], Number('abc'));
+    expect(t.studio).toBe(40);
   });
 });

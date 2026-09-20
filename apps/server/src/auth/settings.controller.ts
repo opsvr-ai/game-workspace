@@ -159,7 +159,17 @@ export class SettingsController {
       if (!Array.isArray(body['revenue.share_tiers'])) {
         throw new BadRequestException('分成阶梯格式不正确');
       }
-      body['revenue.share_tiers'] = normalizeShareTiers(body['revenue.share_tiers']);
+      // 工作室那一栏 = 100 − 陪玩 − 客服 − 店长（店长 / 客服拿的也是工作室那份）。
+      // 把店长 / 客服的现取值（本次提交里带了就用提交的）一并减掉，
+      // 这样存进库的 studio 就是「工作室真正到手」，页面显示与对账口径不会打架。
+      const getRolePct = await this.effectiveValueGetter(req, [
+        'commission.cs_offline_rate_percent',
+        'commission.admin_offline_rate_percent',
+      ]);
+      const rolePct = (key: string) =>
+        Number(body[key] !== undefined ? body[key] : getRolePct(key) ?? 0);
+      const deduct = rolePct('commission.cs_offline_rate_percent') + rolePct('commission.admin_offline_rate_percent');
+      body['revenue.share_tiers'] = normalizeShareTiers(body['revenue.share_tiers'], deduct);
     }
 
     // 四个人的分成加起来不能超过 100%（老板 2026-09-21）：工作室拿剩下的，剩不下就是配错了。

@@ -1,42 +1,100 @@
 // craftsman-ignore: TS001,TS002
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, InputNumber, Button, Space, Typography, message, Table, Popconfirm } from 'antd';
-import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, InputNumber, Popconfirm, Space, Typography, message } from 'antd';
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
-import { SettingsLabel } from '../../components/settings/SettingsField';
-import { clampPercent, complementPercent, FULL_PERCENT, isFullPercentTotal } from '../../utils/percent';
+import { clampPercent, FULL_PERCENT } from '../../utils/percent';
 
 const { Text } = Typography;
 
-// 线上俱乐部（固定比例）陪玩分成的兜底值。
-// 后端四处（月底结算 / 可支取余额 / 财务对账 / 陪玩业绩）在配置缺失时都按 80% 生效，
-// 所以前端必须显示同一个数字，否则会出现「页面显示 80、其实库里从没存过」的错觉。
+/**
+ * 分账规则（老板 2026-09-21）
+ *
+ * 一单流水由 **陪玩 / 店长 / 客服 / 工作室** 四个人分，四个数字加起来永远 100%。
+ * 所以这一页从上到下就按这个顺序排四行：
+ *
+ * - 陪玩：线下按当月流水分档（一档一列），线上俱乐部用固定比例；
+ * - 店长：全店统一，不随流水变化，按流水比例提成；
+ * - 客服：线下按流水比例、线上按每单固定金额；
+ * - 工作室：**自动** = 100 − 陪玩 − 店长 − 客服，只读、不用手填 —— 从源头杜绝「加起来 120%」，
+ *   库里存的也正好是工作室真正拿到手的份额（对账直接用这个数）。
+ *
+ * 保存时这几个键一起提交，页面之间（利润分成页、客服设置、店长设置、左侧栏比例）永远是一个数。
+ */
+
+/** 线上俱乐部（固定比例）陪玩分成的兜底值，和后端缺配置时的默认一致。 */
 const DEFAULT_CLUB_COMPANION_SHARE = 80;
 
-// 把「后端实际生效的默认值」落到表单里：看到多少，算的就是多少；点保存就真的写进库。
-const withEffectiveDefaults = (raw: any) => {
-  const next: any = { ...(raw ?? {}) };
-  if (typeof next['revenue.club_companion_share'] !== 'number') {
-    next['revenue.club_companion_share'] = DEFAULT_CLUB_COMPANION_SHARE;
-  }
-  // 阶梯的「工作室 / 陪玩」是一对，必须刚好 100%。历史配置里两栏可能对不上
-  // （改过一栏、没改另一栏），这里统一按「陪玩 = 算钱的那一栏、工作室 = 剩余份额」归一化，
-  // 免得页面上出现「50 / 60」这种加起来 110% 的档位。
-  if (Array.isArray(next['revenue.share_tiers'])) {
-    next['revenue.share_tiers'] = next['revenue.share_tiers'].map((t: any) => {
-      const companion = clampPercent(t?.companion);
-      return { ...t, companion, studio: complementPercent(companion) };
-    });
-  }
-  return next;
-};
+const CONFIG_KEYS = [
+  'revenue.share_tiers',
+  'revenue.club_companion_share',
+  'commission.cs_offline_rate_percent',
+  'commission.admin_offline_rate_percent',
+  'commission.cs_online_per_order_yuan',
+  'commission.admin_online_rate_percent',
+];
 
 interface ShareTier {
   min: number;
   max: number | null;
-  studio: number;
   companion: number;
+  studio?: number;
+  [key: string]: unknown;
 }
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** 缺配置时按后端实际生效的默认值补上：看到多少，算的就是多少。 */
+const withEffectiveDefaults = (raw: any) => {
+  const next: any = { ...(raw ?? {}) };
+  const fill = (key: string, value: number) => {
+    if (typeof next[key] !== 'number') next[key] = value;
+  };
+  fill('revenue.club_companion_share', DEFAULT_CLUB_COMPANION_SHARE);
+  fill('commission.cs_offline_rate_percent', 1);
+  fill('commission.admin_offline_rate_percent', 0);
+  fill('commission.cs_online_per_order_yuan', 1);
+  fill('commission.admin_online_rate_percent', 0);
+  if (Array.isArray(next['revenue.share_tiers'])) {
+    next['revenue.share_tiers'] = next['revenue.share_tiers'].map((t: any) => ({
+      ...t,
+      companion: clampPercent(t?.companion),
+    }));
+  }
+  return next;
+};
+
+// ── 表格样式：一个网格从头用到尾，保证字号、行高、间距全页统一 ──
+const GRID_BASE: React.CSSProperties = {
+  display: 'grid',
+  alignItems: 'stretch',
+  background: '#fff',
+};
+const CELL: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 14px',
+  fontSize: 13,
+  lineHeight: '22px',
+  borderTop: '1px solid #eef2f7',
+  minWidth: 0,
+};
+const HEAD_CELL: React.CSSProperties = {
+  ...CELL,
+  borderTop: 'none',
+  background: '#f1f5f9',
+  color: '#334155',
+  fontSize: 12,
+};
+const LABEL_CELL: React.CSSProperties = {
+  ...CELL,
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: 0,
+  background: '#f8fafc',
+  borderRight: '1px solid #eef2f7',
+};
 
 const PaymentSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);
@@ -46,8 +104,8 @@ const PaymentSettings: React.FC = () => {
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await configApi.getAll();
-      setConfig(withEffectiveDefaults(data.data));
+      const { data } = await configApi.get(CONFIG_KEYS);
+      setConfig(withEffectiveDefaults((data as any)?.data));
     } catch {
       message.error('加载配置失败');
     } finally {
@@ -59,31 +117,8 @@ const PaymentSettings: React.FC = () => {
     fetchConfig();
   }, [fetchConfig]);
 
-  const save = async () => {
-    const tiersToSave: ShareTier[] = config?.['revenue.share_tiers'] ?? [];
-    const badRow = tiersToSave.findIndex((t) => !isFullPercentTotal([t?.studio, t?.companion]));
-    if (badRow >= 0) {
-      const t = tiersToSave[badRow];
-      message.error(`第 ${badRow + 1} 档分成加起来是 ${(Number(t?.studio) || 0) + (Number(t?.companion) || 0)}%，必须刚好 100%`);
-      return;
-    }
-    setSaving(true);
-    try {
-      await configApi.update({
-        'revenue.share_tiers': tiersToSave,
-        'revenue.club_companion_share': config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE,
-      });
-      message.success('分账规则 已保存');
-    } catch {
-      message.error('保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const update = (key: string, value: any) => {
-    if (!config) return;
-    setConfig({ ...config, [key]: value });
+    setConfig((c: any) => (c ? { ...c, [key]: value } : c));
   };
 
   if (loading && !config) {
@@ -91,132 +126,258 @@ const PaymentSettings: React.FC = () => {
   }
 
   const tiers: ShareTier[] = config?.['revenue.share_tiers'] ?? [];
-  const clubCompanionShare = clampPercent(
-    config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
+  const csOffline = clampPercent(config?.['commission.cs_offline_rate_percent'] ?? 1);
+  const adminOffline = clampPercent(config?.['commission.admin_offline_rate_percent'] ?? 0);
+  const clubCompanion = clampPercent(config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
+  const adminOnline = clampPercent(config?.['commission.admin_online_rate_percent'] ?? 0);
+  const csOnlinePerOrder = Number(config?.['commission.cs_online_per_order_yuan'] ?? 1);
+
+  const offlineDeduct = round2(csOffline + adminOffline);
+  const studioOf = (companion: unknown) => round2(FULL_PERCENT - clampPercent(companion) - offlineDeduct);
+  const onlineStudio = round2(FULL_PERCENT - clubCompanion - adminOnline);
+
+  const badTierIdx = tiers.findIndex((t) => studioOf(t?.companion) < 0);
+  const offlineBroken = badTierIdx >= 0;
+  const onlineBroken = onlineStudio < 0;
+
+  const rangeText = (t: ShareTier, i: number) =>
+    i === 0 ? '起步档' : t?.max == null ? `${t?.min ?? 0} 元起` : `${t?.min ?? 0} 元起（到 ${t?.max} 元）`;
+
+  const setTiers = (next: ShareTier[]) => update('revenue.share_tiers', next);
+
+  const updateTier = (idx: number, field: 'min' | 'max' | 'companion', val: any) => {
+    setTiers(
+      tiers.map((t, i) => {
+        if (i !== idx) return t;
+        if (field === 'companion') return { ...t, companion: clampPercent(val) };
+        return { ...t, [field]: val };
+      }),
+    );
+  };
 
   const addTier = () => {
     const prev = tiers[tiers.length - 1];
-    const newMin = prev ? (prev.max ?? 0) + 0.1 : 0;
-    update('revenue.share_tiers', [...tiers, { min: newMin, max: null, studio: 50, companion: 50 }]);
+    const newMin = prev ? round2(Number(prev.max ?? 0) + 0.1) : 0;
+    setTiers([...tiers, { min: newMin, max: null, companion: 50 }]);
   };
 
-  const removeTier = (idx: number) => {
-    update('revenue.share_tiers', tiers.filter((_, i) => i !== idx));
+  const removeTier = (idx: number) => setTiers(tiers.filter((_, i) => i !== idx));
+
+  const save = async () => {
+    if (offlineBroken) {
+      message.error(`第 ${badTierIdx + 1} 档：陪玩 + 店长 + 客服 加起来超过 100%，工作室会变成负数，请先调整`);
+      return;
+    }
+    if (onlineBroken) {
+      message.error('线上俱乐部：陪玩 + 店长 加起来超过 100% 了，请先调整');
+      return;
+    }
+    setSaving(true);
+    try {
+      await configApi.update({
+        'revenue.share_tiers': tiers.map((t) => ({
+          ...t,
+          companion: clampPercent(t?.companion),
+          studio: studioOf(t?.companion),
+        })),
+        'revenue.club_companion_share': clubCompanion,
+        'commission.admin_offline_rate_percent': adminOffline,
+        'commission.cs_offline_rate_percent': csOffline,
+        'commission.admin_online_rate_percent': adminOnline,
+        'commission.cs_online_per_order_yuan': csOnlinePerOrder,
+      });
+      message.success('分账规则 已保存');
+      await fetchConfig();
+    } catch {
+      message.error('保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // 改「工作室」或「陪玩」任意一栏，另一栏自动补足到 100%（老板 2026-09-21 要求）。
-  const updateTier = (idx: number, field: keyof ShareTier, val: any) => {
-    const next = tiers.map((t, i) => {
-      if (i !== idx) return t;
-      if (field === 'studio') {
-        const studio = clampPercent(val);
-        return { ...t, studio, companion: complementPercent(studio) };
-      }
-      if (field === 'companion') {
-        const companion = clampPercent(val);
-        return { ...t, companion, studio: complementPercent(companion) };
-      }
-      return { ...t, [field]: val };
-    });
-    update('revenue.share_tiers', next);
-  };
+  const gridCols = (count: number): React.CSSProperties => ({
+    ...GRID_BASE,
+    gridTemplateColumns: `150px repeat(${count}, minmax(196px, 1fr))`,
+    minWidth: 150 + count * 196,
+  });
+
+  const labelCell = (name: string, note: string) => (
+    <div style={LABEL_CELL}>
+      <Text strong style={{ fontSize: 13 }}>{name}</Text>
+      <Text type="secondary" style={{ fontSize: 11, lineHeight: '16px' }}>{note}</Text>
+    </div>
+  );
+
+  const percentInput = (value: number, onChange: (v: number) => void, width = 110) => (
+    <Space size={4}>
+      <InputNumber min={0} max={100} step={1} value={value} onChange={(v) => onChange(clampPercent(v))} style={{ width }} />
+      <Text type="secondary">%</Text>
+    </Space>
+  );
 
   return (
     <Card
       title="📊 分账规则"
       extra={
         <Space>
-          <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
-          <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving} onClick={save}>保存</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchConfig} loading={loading}>刷新</Button>
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>保存</Button>
         </Space>
       }
     >
-      <Table
-        dataSource={tiers.map((t, i) => ({ ...t, _idx: i }))}
-        rowKey="_idx"
-        pagination={false}
-        size="small"
-        footer={() => (
-          <Button type="dashed" onClick={addTier} icon={React.createElement(PlusOutlined)} block>
-            添加分账档位
-          </Button>
-        )}
-      >
-        <Table.Column
-          title="最低流水（元）"
-          dataIndex="min"
-          render={(v: number, _: any, i: number) => (
-            <InputNumber
-              min={0} step={100}
-              value={v}
-              disabled={i === 0}
-              onChange={(n) => updateTier(i, 'min', n ?? 0)}
-              style={{ width: 120 }}
-            />
-          )}
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+        一单流水由 <Text strong>陪玩 / 店长 / 客服 / 工作室</Text> 四个人分，四项加起来永远 100%。
+        填好前三个，<Text strong>工作室自动算</Text>（不用手填，也填不出 120%）。
+      </Text>
+
+      {/* ── 线下工作室 ── */}
+      <div style={{ marginBottom: 8 }}>
+        <Text strong style={{ fontSize: 14 }}>🏠 线下工作室（按流水阶梯分）</Text>
+        <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+          陪玩那一行按当月流水分档，其余三人全店统一
+        </Text>
+      </div>
+      {offlineBroken && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message={`第 ${badTierIdx + 1} 档加起来超过 100% 了（陪玩 ${clampPercent(tiers[badTierIdx]?.companion)}% + 店长 ${adminOffline}% + 客服 ${csOffline}%），工作室会变成负数，请先调整`}
         />
-        <Table.Column
-          title="最高流水（元）"
-          dataIndex="max"
-          render={(v: number | null, _: any, i: number) => (
-            <InputNumber
-              min={0} step={100}
-              value={v ?? undefined}
-              placeholder="无上限"
-              onChange={(n) => updateTier(i, 'max', n ?? null)}
-              style={{ width: 120 }}
-            />
-          )}
-        />
-        <Table.Column
-          title="工作室分成（%）"
-          dataIndex="studio"
-          render={(v: number, _: any, i: number) => (
-            <InputNumber
-              min={0} max={100}
-              value={v}
-              onChange={(n) => updateTier(i, 'studio', n ?? 50)}
-              style={{ width: 100 }}
-            />
-          )}
-        />
-        <Table.Column
-          title="陪玩分成（%）"
-          dataIndex="companion"
-          render={(v: number, _: any, i: number) => (
-            <InputNumber
-              min={0} max={100}
-              value={v}
-              onChange={(n) => updateTier(i, 'companion', n ?? 50)}
-              style={{ width: 100 }}
-            />
-          )}
-        />
-        <Table.Column
-          title="操作"
-          render={(_: any, __: any, i: number) =>
-            tiers.length > 1 ? (
-              <Popconfirm title="确定删除？" onConfirm={() => removeTier(i)}>
-                <Button size="small" danger icon={React.createElement(DeleteOutlined)} />
-              </Popconfirm>
-            ) : null
-          }
-        />
-      </Table>
-      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 16, paddingTop: 16 }}>
-        <Text strong style={{ display: 'block', marginBottom: 12 }}>🏢 线上俱乐部（固定比例）</Text>
-        <div>
-          <SettingsLabel>陪玩分成比例（%）</SettingsLabel>
-          <InputNumber min={1} max={99} step={5} value={clubCompanionShare}
-            onChange={(v) => update('revenue.club_companion_share', clampPercent(v ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99))} style={{ width: 200 }} />
-          <Text type="secondary" style={{ marginLeft: 8 }}>
-            线上俱乐部固定分给陪玩的比例；<Text strong>工作室自动拿 {FULL_PERCENT - clubCompanionShare}%</Text>
-            （两边加起来恒为 100%）。这里显示的就是实际生效的数字，改完点「保存」。
-          </Text>
+      )}
+      <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+        <div style={gridCols(tiers.length)}>
+          {/* 表头 */}
+          <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>分成对象</div>
+          {tiers.map((t, i) => (
+            <div key={`h${i}`} style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: 12 }}>档位 {i + 1} · {rangeText(t, i)}</Text>
+                {tiers.length > 1 && (
+                  <Popconfirm title="确定删除这一档？" onConfirm={() => removeTier(i)}>
+                    <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最低流水</Text>
+                <InputNumber
+                  size="small" min={0} step={100} value={t?.min} disabled={i === 0}
+                  onChange={(v) => updateTier(i, 'min', Number(v ?? 0))}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Text type="secondary" style={{ fontSize: 11, flex: '0 0 52px' }}>最高流水</Text>
+                <InputNumber
+                  size="small" min={0} step={100} value={t?.max ?? undefined} placeholder="留空 = 无上限"
+                  onChange={(v) => updateTier(i, 'max', v == null ? null : Number(v))}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              </div>
+            </div>
+          ))}
+
+          {/* 陪玩 */}
+          {labelCell('陪玩', '按流水档位')}
+          {tiers.map((t, i) => (
+            <div key={`c${i}`} style={CELL}>
+              {percentInput(clampPercent(t?.companion), (v) => updateTier(i, 'companion', v))}
+            </div>
+          ))}
+
+          {/* 店长（全店统一，横向合并） */}
+          {labelCell('店长', '全店统一')}
+          <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
+            {percentInput(adminOffline, (v) => update('commission.admin_offline_rate_percent', v))}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              全店统一，不随流水档位变化；店里多位店长时按人数均分
+            </Text>
+          </div>
+
+          {/* 客服（全店统一，横向合并） */}
+          {labelCell('客服', '全店统一')}
+          <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
+            {percentInput(csOffline, (v) => update('commission.cs_offline_rate_percent', v))}
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              按流水比例提成；线上俱乐部是「每单固定金额」，在下面单独设置
+            </Text>
+          </div>
+
+          {/* 工作室（自动） */}
+          {labelCell('工作室', '自动算出')}
+          {tiers.map((t, i) => {
+            const v = studioOf(t?.companion);
+            return (
+              <div key={`s${i}`} style={{ ...CELL, background: '#f8fafc' }}>
+                <Text strong style={{ fontSize: 14, color: v < 0 ? '#ff4d4f' : '#0f172a' }}>{v}%</Text>
+              </div>
+            );
+          })}
+
+          {/* 添加档位 */}
+          <div style={{ ...CELL, gridColumn: `span ${tiers.length + 1}`, padding: '8px 10px' }}>
+            <Button type="dashed" block icon={<PlusOutlined />} onClick={addTier}>添加流水档位</Button>
+          </div>
         </div>
       </div>
-      <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-        📌 线下工作室使用阶梯档位，线上俱乐部使用固定比例。创建工作室时可选择分账模式。
+
+      {/* ── 线上俱乐部 ── */}
+      <div style={{ marginTop: 24, marginBottom: 8 }}>
+        <Text strong style={{ fontSize: 14 }}>🏢 线上俱乐部（固定比例）</Text>
+        <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+          不按流水分档，全店只有一个比例
+        </Text>
+      </div>
+      {onlineBroken && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message={`陪玩 ${clubCompanion}% + 店长 ${adminOnline}% 超过 100% 了，工作室会变成负数，请先调整`}
+        />
+      )}
+      <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+        <div style={gridCols(1)}>
+          <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>分成对象</div>
+          <div style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+            <Text strong style={{ fontSize: 12 }}>线上俱乐部 · 固定比例</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>不分流水档位，所有线上单一个标准</Text>
+          </div>
+
+          {labelCell('陪玩', '固定比例')}
+          <div style={CELL}>
+            {percentInput(clubCompanion, (v) => update('revenue.club_companion_share', clampPercent(v, 1, 99)))}
+            <Text type="secondary" style={{ fontSize: 12 }}>线上俱乐部固定分给陪玩的比例</Text>
+          </div>
+
+          {labelCell('店长', '全店统一')}
+          <div style={CELL}>
+            {percentInput(adminOnline, (v) => update('commission.admin_online_rate_percent', v))}
+            <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例；店里多位店长时按人数均分</Text>
+          </div>
+
+          {labelCell('客服', '每单固定金额')}
+          <div style={CELL}>
+            <Space size={4}>
+              <InputNumber min={0} step={0.5} value={csOnlinePerOrder}
+                onChange={(v) => update('commission.cs_online_per_order_yuan', Number(v ?? 0))} style={{ width: 110 }} />
+              <Text type="secondary">元/单</Text>
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>单陪算 1 单、双陪算 2 单；从工作室那份里出</Text>
+          </div>
+
+          {labelCell('工作室', '自动算出')}
+          <div style={{ ...CELL, background: '#f8fafc' }}>
+            <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? '#ff4d4f' : '#0f172a' }}>{onlineStudio}%</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>100 − 陪玩 − 店长（客服每单金额再从这份里出）</Text>
+          </div>
+        </div>
+      </div>
+
+      <Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 12 }}>
+        📌 线下工作室用阶梯档位，线上俱乐部用固定比例，创建工作室时选择分账模式。
+        这一页和「设置 → 利润分成」「客服设置 → 客服提成比例」「店长设置」是同一个数，改哪边都一样。
       </Text>
     </Card>
   );
