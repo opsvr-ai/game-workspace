@@ -44,6 +44,19 @@ interface ShareTier {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * 四个人的语义色：陪玩（紫）/ 店长（蓝）/ 客服（橙）/ 工作室（绿）。
+ * 全页只用这一份，行的底色、左侧光条、工作室的数字都取它 —— 一眼能分清「这行是谁的」。
+ */
+const ROLE_TINT = {
+  companion: '#7C4DFF',
+  admin: '#3B82F6',
+  cs: '#F59E0B',
+  studio: '#10B981',
+} as const;
+
+const GROUP_TINT = { offline: '#10B981', online: '#00B8D9' } as const;
+
 /** 缺配置时按后端实际生效的默认值补上：看到多少，算的就是多少。 */
 const withEffectiveDefaults = (raw: any) => {
   const next: any = { ...(raw ?? {}) };
@@ -201,9 +214,18 @@ const PaymentSettings: React.FC = () => {
     minWidth: 150 + count * 196,
   });
 
-  const labelCell = (name: string, note: string) => (
-    <div style={LABEL_CELL}>
-      <Text strong style={{ fontSize: 13 }}>{name}</Text>
+  const labelCell = (role: keyof typeof ROLE_TINT, name: string, note: string) => (
+    <div
+      style={{
+        ...LABEL_CELL,
+        borderLeft: `3px solid ${ROLE_TINT[role]}`,
+        background: `${ROLE_TINT[role]}0A`,
+      }}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span className="ui-dot" style={{ background: ROLE_TINT[role] }} />
+        <Text strong style={{ fontSize: 13 }}>{name}</Text>
+      </span>
       <Text type="secondary" style={{ fontSize: 11, lineHeight: '16px' }}>{note}</Text>
     </div>
   );
@@ -225,15 +247,33 @@ const PaymentSettings: React.FC = () => {
         </Space>
       }
     >
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
-        一单流水由 <Text strong>陪玩 / 店长 / 客服 / 工作室</Text> 四个人分，四项加起来永远 100%。
-        填好前三个，<Text strong>工作室自动算</Text>（不用手填，也填不出 120%）。
-      </Text>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '10px 14px',
+          marginBottom: 18,
+          borderRadius: 12,
+          fontSize: 13,
+          color: '#334155',
+          background:
+            'linear-gradient(90deg, rgba(124,77,255,0.09), rgba(0,229,255,0.06) 60%, rgba(255,255,255,0))',
+          borderLeft: '3px solid #7C4DFF',
+        }}
+      >
+        <span>
+          一单流水由 <Text strong>陪玩 / 店长 / 客服 / 工作室</Text> 四个人分，四项加起来永远 100%。
+          填好前三个，<Text strong style={{ color: ROLE_TINT.studio }}>工作室自动算</Text>
+          （不用手填，也填不出 120%）。
+        </span>
+      </div>
 
       {/* ── 线下工作室 ── */}
-      <div style={{ marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 14 }}>🏠 线下工作室（按流水阶梯分）</Text>
-        <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span className="ui-dot" style={{ background: GROUP_TINT.offline }} />
+        <Text strong style={{ fontSize: 14 }}>线下工作室（按流水阶梯分）</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
           陪玩那一行按当月流水分档，其余三人全店统一
         </Text>
       </div>
@@ -245,7 +285,7 @@ const PaymentSettings: React.FC = () => {
           message={`第 ${badTierIdx + 1} 档加起来超过 100% 了（陪玩 ${clampPercent(tiers[badTierIdx]?.companion)}% + 店长 ${adminOffline}% + 客服 ${csOffline}%），工作室会变成负数，请先调整`}
         />
       )}
-      <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+      <div className="ui-panel" style={{ overflowX: 'auto' }}>
         <div style={gridCols(tiers.length)}>
           {/* 表头 */}
           <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>分成对象</div>
@@ -279,7 +319,7 @@ const PaymentSettings: React.FC = () => {
           ))}
 
           {/* 陪玩 */}
-          {labelCell('陪玩', '按流水档位')}
+          {labelCell('companion', '陪玩', '按流水档位')}
           {tiers.map((t, i) => (
             <div key={`c${i}`} style={CELL}>
               {percentInput(clampPercent(t?.companion), (v) => updateTier(i, 'companion', v))}
@@ -287,7 +327,7 @@ const PaymentSettings: React.FC = () => {
           ))}
 
           {/* 店长（全店统一，横向合并） */}
-          {labelCell('店长', '全店统一')}
+          {labelCell('admin', '店长', '全店统一')}
           <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
             {percentInput(adminOffline, (v) => update('commission.admin_offline_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -296,7 +336,7 @@ const PaymentSettings: React.FC = () => {
           </div>
 
           {/* 客服（全店统一，横向合并） */}
-          {labelCell('客服', '全店统一')}
+          {labelCell('cs', '客服', '全店统一')}
           <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
             {percentInput(csOffline, (v) => update('commission.cs_offline_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -305,12 +345,12 @@ const PaymentSettings: React.FC = () => {
           </div>
 
           {/* 工作室（自动） */}
-          {labelCell('工作室', '自动算出')}
+          {labelCell('studio', '工作室', '自动算出')}
           {tiers.map((t, i) => {
             const v = studioOf(t?.companion);
             return (
-              <div key={`s${i}`} style={{ ...CELL, background: '#f8fafc' }}>
-                <Text strong style={{ fontSize: 14, color: v < 0 ? '#ff4d4f' : '#0f172a' }}>{v}%</Text>
+              <div key={`s${i}`} style={{ ...CELL, background: `${ROLE_TINT.studio}0A` }}>
+                <Text strong style={{ fontSize: 14, color: v < 0 ? '#EF4444' : ROLE_TINT.studio }}>{v}%</Text>
               </div>
             );
           })}
@@ -323,9 +363,10 @@ const PaymentSettings: React.FC = () => {
       </div>
 
       {/* ── 线上俱乐部 ── */}
-      <div style={{ marginTop: 24, marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 14 }}>🏢 线上俱乐部（固定比例）</Text>
-        <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 26, marginBottom: 10 }}>
+        <span className="ui-dot" style={{ background: GROUP_TINT.online }} />
+        <Text strong style={{ fontSize: 14 }}>线上俱乐部（固定比例）</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
           不按流水分档，全店只有一个比例
         </Text>
       </div>
@@ -337,7 +378,7 @@ const PaymentSettings: React.FC = () => {
           message={`陪玩 ${clubCompanion}% + 店长 ${adminOnline}% 超过 100% 了，工作室会变成负数，请先调整`}
         />
       )}
-      <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+      <div className="ui-panel" style={{ overflowX: 'auto' }}>
         <div style={gridCols(1)}>
           <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>分成对象</div>
           <div style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
@@ -345,19 +386,19 @@ const PaymentSettings: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 11 }}>不分流水档位，所有线上单一个标准</Text>
           </div>
 
-          {labelCell('陪玩', '固定比例')}
+          {labelCell('companion', '陪玩', '固定比例')}
           <div style={CELL}>
             {percentInput(clubCompanion, (v) => update('revenue.club_companion_share', clampPercent(v, 1, 99)))}
             <Text type="secondary" style={{ fontSize: 12 }}>线上俱乐部固定分给陪玩的比例</Text>
           </div>
 
-          {labelCell('店长', '全店统一')}
+          {labelCell('admin', '店长', '全店统一')}
           <div style={CELL}>
             {percentInput(adminOnline, (v) => update('commission.admin_online_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例；店里多位店长时按人数均分</Text>
           </div>
 
-          {labelCell('客服', '每单固定金额')}
+          {labelCell('cs', '客服', '每单固定金额')}
           <div style={CELL}>
             <Space size={4}>
               <InputNumber min={0} step={0.5} value={csOnlinePerOrder}
@@ -367,9 +408,9 @@ const PaymentSettings: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>单陪算 1 单、双陪算 2 单；从工作室那份里出</Text>
           </div>
 
-          {labelCell('工作室', '自动算出')}
-          <div style={{ ...CELL, background: '#f8fafc' }}>
-            <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? '#ff4d4f' : '#0f172a' }}>{onlineStudio}%</Text>
+          {labelCell('studio', '工作室', '自动算出')}
+          <div style={{ ...CELL, background: `${ROLE_TINT.studio}0A` }}>
+            <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? '#EF4444' : ROLE_TINT.studio }}>{onlineStudio}%</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>100 − 陪玩 − 店长（客服每单金额再从这份里出）</Text>
           </div>
         </div>

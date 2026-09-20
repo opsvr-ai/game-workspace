@@ -69,7 +69,7 @@ const ConversationList: React.FC<Props> = ({ onOpenChat, onClose, hideGroups = f
                 width: 40,
                 height: 40,
                 borderRadius: '50%',
-                background: c.unreadCount > 0 ? 'linear-gradient(135deg, #2563EB, #3B82F6)' : '#CBD5E1',
+                background: c.unreadCount > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : '#CBD5E1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

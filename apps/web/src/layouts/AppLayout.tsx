@@ -470,6 +470,26 @@ function loadSeenCount(key: string): number {
 }
 
 /**
+ * 左侧栏一级菜单的「模块配色」。
+ * 按菜单 key 的后半段取色（owner-home / admin-finance / cs-orders … 都命中同一张表），
+ * 所以加新菜单不用再维护第二份颜色；页面里不要再各写一套。
+ */
+const MODULE_TINTS: Record<string, string> = {
+  home: '#7C4DFF',
+  dispatch: '#00B8D9',
+  orders: '#3B82F6',
+  customers: '#8B5CF6',
+  employees: '#F59E0B',
+  finance: '#10B981',
+  shop: '#EC4899',
+  settings: '#7C8DA6',
+  'battle-screenshots': '#F97316',
+};
+
+const tintOfMenuKey = (key: string): string =>
+  MODULE_TINTS[String(key).split('-').slice(1).join('-')] || '#7C4DFF';
+
+/**
  * 把「流水比例」小字挂到左侧栏标题后面。
  *
  * 老板 2026-09-21：店长 / 客服 / 陪玩的工资页要一眼看到他们各拿流水的百分之几，
@@ -477,9 +497,19 @@ function loadSeenCount(key: string): number {
  *
  * 必须放在徽标逻辑**之后**执行：那一段是拿 label 字符串比对的，先换成节点就比不中了。
  */
-const applyRatioSuffix = (items: any[], ratios: Record<string, number | null>): any[] =>
+const decorateMenu = (
+  items: any[],
+  ratios: Record<string, number | null>,
+  depth = 0,
+): any[] =>
   items.map((item) => {
     const next: any = { ...item };
+    // 一级菜单的图标按模块上色，横向一眼能认出「钱 / 单 / 人 / 店」
+    if (depth === 0 && item.icon) {
+      next.icon = (
+        <span style={{ color: tintOfMenuKey(item.key), display: 'inline-flex' }}>{item.icon}</span>
+      );
+    }
     const pct = item.ratioKey ? ratios[item.ratioKey] : null;
     if (item.ratioKey && pct != null && typeof item.label === 'string') {
       next.label = (
@@ -504,7 +534,7 @@ const applyRatioSuffix = (items: any[], ratios: Record<string, number | null>): 
       );
     }
     if (Array.isArray(item.children)) {
-      next.children = applyRatioSuffix(item.children, ratios);
+      next.children = decorateMenu(item.children, ratios, depth + 1);
     }
     return next;
   });
@@ -1249,7 +1279,7 @@ const AppLayout: React.FC = () => {
     const CONTACT_LABELS = ['派单工作台'];
     const PENDING_START_LABELS = ['订单管理'];
     const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
-    const built = items.map((item) => {
+    const badged = items.map((item) => {
       // Check children (group items) for badge targets
       if (item.children) {
         const hasPending = item.children.some((c: any) => REVIEW_LABELS.includes(c.label) && pCount > 0);
@@ -1469,7 +1499,11 @@ const AppLayout: React.FC = () => {
         };
       }
       return item;
-    }).map((item) => {
+    });
+    // 先把「模块图标色 + 流水比例小字」挂好，再平铺单子菜单 ——
+    // 平铺时父级的图标/文字会被搬到子项上，顺序反了颜色就丢了。
+    const decorated = decorateMenu(badged, shareRatios);
+    return decorated.map((item) => {
       // 单子菜单直接平铺：点击父级直接跳转，省掉再点一次二级菜单
       if (item.children && item.children.length === 1) {
         const child = item.children[0];
@@ -1477,8 +1511,7 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-    // 最后再把「流水比例」小字挂上去（徽标那一段已经跑完，字符串比较不受影响）。
-    return applyRatioSuffix(built, shareRatios);
+    // 徽标那一段是拿 label 字符串比对的，所以装饰必须放在它之后。
   }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios]);
 
   const selectedKeys = useMemo(() => {
@@ -1527,7 +1560,8 @@ const AppLayout: React.FC = () => {
 
   return (
     <ChatProvider>
-      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      {/* .app-shell = 整页淡紫/淡青晕染底色，.app-content = 白色内容卡（见 styles/global.css） */}
+      <Layout className="app-shell" style={{ height: '100vh', overflow: 'hidden' }}>
         {/* ── 浅色侧边栏 ── */}
         <Sider
           collapsible
@@ -1598,6 +1632,7 @@ const AppLayout: React.FC = () => {
         <Layout style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
           {/* 顶栏 — 白色底 */}
           <Header
+            className="app-header"
             style={{
               padding: '0 16px',
               display: 'flex',
@@ -1615,6 +1650,8 @@ const AppLayout: React.FC = () => {
               onClick={() => setCollapsed(!collapsed)}
               style={{ color: commander.textSecondary }}
             />
+            {/* 当前门店 / 俱乐部：混店操作时一眼知道自己在哪家（老板自己没绑店，就不显示） */}
+            {studioBrand?.name && <span className="app-brand-chip">{studioBrand.name}</span>}
             <Button
               type="text"
               icon={React.createElement(MessageOutlined)}

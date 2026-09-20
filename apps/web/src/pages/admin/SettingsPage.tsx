@@ -37,12 +37,14 @@ interface SettingItem {
 }
 interface SettingGroup {
   title: string;
+  /** 分组配色：左边导航的色点、选中项的光条都取这个色（老板 2026-09-21 要求「有层次感」）。 */
+  tint: string;
   items: SettingItem[];
 }
 
 const GROUPS: SettingGroup[] = [
   {
-    title: '钱 · 分账',
+    title: '钱 · 分账', tint: '#10B981',
     items: [
       {
         key: 'revenue',
@@ -68,7 +70,7 @@ const GROUPS: SettingGroup[] = [
     ],
   },
   {
-    title: '派单 · 等级',
+    title: '派单 · 等级', tint: '#00B8D9',
     items: [
       {
         key: 'dispatch',
@@ -101,7 +103,7 @@ const GROUPS: SettingGroup[] = [
     ],
   },
   {
-    title: '陪玩端 · 客户端',
+    title: '陪玩端 · 客户端', tint: '#7C4DFF',
     items: [
       {
         key: 'capture',
@@ -134,7 +136,7 @@ const GROUPS: SettingGroup[] = [
     ],
   },
   {
-    title: '门店 · 通知',
+    title: '门店 · 通知', tint: '#F59E0B',
     items: [
       {
         key: 'studio',
@@ -183,9 +185,10 @@ const SettingsPage: React.FC = () => {
     <div>
       <StudioConfigScopeBar />
       <div style={{ marginBottom: 12 }}>
-        <Text strong style={{ fontSize: 16 }}>
+        <span className="ui-section-title" style={{ fontSize: 16 }}>
+          <span className="ui-dot" style={{ background: 'linear-gradient(135deg,#00e5ff,#7c4dff)' }} />
           系统设置
-        </Text>
+        </span>
         <Text type="secondary" style={{ marginLeft: 10, fontSize: 12 }}>
           修改后即时生效 · 共 {ALL_ITEMS.length} 项，左边选分类，或者直接搜
         </Text>
@@ -193,14 +196,12 @@ const SettingsPage: React.FC = () => {
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <div
+          className="ui-panel"
           style={{
             width: 196,
             flex: '0 0 196px',
             position: 'sticky',
             top: 12,
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 10,
             padding: 8,
           }}
         >
@@ -226,12 +227,16 @@ const SettingsPage: React.FC = () => {
             <div key={g.title} style={{ marginBottom: 6 }}>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                   fontSize: 11,
                   color: '#94a3b8',
                   padding: '6px 8px 4px',
                   letterSpacing: 0.5,
                 }}
               >
+                <span className="ui-dot" style={{ background: g.tint, width: 7, height: 7 }} />
                 {g.title}
               </div>
               {g.items.map((it) => {
@@ -245,11 +250,15 @@ const SettingsPage: React.FC = () => {
                       borderRadius: 8,
                       padding: '6px 8px',
                       marginBottom: 2,
-                      background: on ? '#eef4ff' : 'transparent',
-                      borderLeft: `3px solid ${on ? '#1677ff' : 'transparent'}`,
+                      // 选中项用本组的主题色做一层淡渐变 + 左侧光条，看起来有「层级」
+                      background: on
+                        ? `linear-gradient(90deg, ${g.tint}1F, ${g.tint}0A 70%, transparent)`
+                        : 'transparent',
+                      borderLeft: `3px solid ${on ? g.tint : 'transparent'}`,
+                      transition: 'background 0.18s ease',
                     }}
                     onMouseEnter={(e) => {
-                      if (!on) e.currentTarget.style.background = '#f8fafc';
+                      if (!on) e.currentTarget.style.background = '#f6f8fc';
                     }}
                     onMouseLeave={(e) => {
                       if (!on) e.currentTarget.style.background = 'transparent';
@@ -258,7 +267,7 @@ const SettingsPage: React.FC = () => {
                     <div
                       style={{
                         fontSize: 13,
-                        color: on ? '#1677ff' : '#334155',
+                        color: on ? g.tint : '#334155',
                         fontWeight: on ? 600 : 400,
                       }}
                     >

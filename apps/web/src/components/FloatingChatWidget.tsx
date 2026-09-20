@@ -225,7 +225,7 @@ const FloatingChatWidget: React.FC<Props> = ({ onOpenChat }) => {
                 width: 56,
                 height: 56,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #2563EB, #3B82F6)',
+                background: 'linear-gradient(135deg, #7C4DFF, #5B7CFA)',
                 boxShadow: '0 4px 16px rgba(37, 99, 235, 0.4)',
                 display: 'flex',
                 alignItems: 'center',

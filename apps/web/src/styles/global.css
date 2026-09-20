@@ -741,3 +741,274 @@ body {
 .ant-modal .ant-upload {
   font-size: var(--data-font-size) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   视觉系统 v2 — 「别全是黑白的，整齐、有层次感」（老板 2026-09-21）
+   ──────────────────────────────────────────────────────────────────────────
+   原则（避免和既有约定打架）：
+   1) **不动字号**。订单 / 客户那份数据的字号仍然是 datasetColumns.ts 一个来源，
+      这里只加颜色、圆角、描边、阴影、间距和分组感。
+   2) **不改信息结构**。只做「渲染」：底色晕染、卡片层次、模块配色、表头/按钮/标签统一。
+   3) 所有颜色走品牌紫 #7C4DFF + 青 #00E5FF 那套（commander.ts），
+      模块色统一在 AppLayout 的 MODULE_TINTS 里定义，页面不要各写一套。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 整页底色：一层很淡的品牌色晕染，把白色内容卡衬出来 ── */
+.app-shell {
+  background:
+    radial-gradient(1100px 520px at 0% 0%, rgba(124, 77, 255, 0.13), transparent 58%),
+    radial-gradient(900px 460px at 100% 0%, rgba(0, 229, 255, 0.12), transparent 55%),
+    linear-gradient(180deg, #f4f6fd 0%, #eef1f9 100%) !important;
+}
+
+/* ── 2. 顶栏：品牌渐变 + 一条发光分割线 ── */
+.app-header {
+  background: linear-gradient(90deg, #0b1024 0%, #1b1246 55%, #0b1024 100%) !important;
+  border-bottom: 1px solid rgba(124, 77, 255, 0.35) !important;
+  box-shadow: 0 6px 24px -14px rgba(124, 77, 255, 0.9);
+}
+
+/* 顶栏左边的门店名胶囊：一眼知道自己在哪家店 */
+.app-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #eaf2ff;
+  background: linear-gradient(135deg, rgba(124, 77, 255, 0.4), rgba(0, 229, 255, 0.22));
+  border: 1px solid rgba(124, 77, 255, 0.45);
+}
+.app-brand-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #00e5ff, #7c4dff);
+}
+
+/* ── 3. 内容区：更立体的白卡 ── */
+.app-content {
+  border: 1px solid #eaeff8;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 18px 40px -28px rgba(15, 23, 42, 0.45) !important;
+}
+
+/* ── 4. 卡片：统一圆角 / 描边 / 悬浮阴影，标题带一条品牌渐变小竖条 ── */
+.app-content .ant-card {
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+  transition: box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.app-content .ant-card:hover {
+  border-color: #e3e8f5;
+  box-shadow: 0 10px 26px -18px rgba(124, 77, 255, 0.55), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+/* 卡片套卡片（type="inner"、Tab 内容）不要再叠阴影，否则显脏 */
+.app-content .ant-card .ant-card {
+  box-shadow: none;
+  border-radius: 12px;
+  background: #fcfdff;
+}
+.app-content .ant-card > .ant-card-head {
+  border-bottom: 1px solid #f1f5f9;
+  padding-inline: 18px;
+}
+.app-content .ant-card > .ant-card-head .ant-card-head-title {
+  position: relative;
+  font-weight: 600;
+  padding-left: 12px;
+}
+.app-content .ant-card > .ant-card-head .ant-card-head-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+}
+
+/* ── 5. 表格：渐变表头 + 分隔线 + 悬浮行高亮，行列都更好读 ── */
+.app-content .ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9) !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+.app-content .ant-table-thead > tr > th:not(:last-child)::before {
+  background-color: #e2e8f0 !important;
+}
+.app-content .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f4f7fb !important;
+}
+.app-content .ant-table-tbody > tr:hover > td {
+  background: #f8f6ff !important;
+}
+.app-content .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #f3eeff !important;
+}
+.app-content .ant-table-summary > tr > td {
+  background: #f8fafc !important;
+  font-weight: 600;
+}
+.app-content .ant-pagination-item-active {
+  background: #f3eeff;
+  border-color: #7c4dff;
+}
+
+/* ── 6. 按钮：主按钮走品牌渐变，次按钮悬浮变紫 ── */
+.ant-btn-primary:not(:disabled) {
+  background: linear-gradient(135deg, #7c4dff 0%, #5b7cfa 100%);
+  border-color: transparent;
+  box-shadow: 0 6px 16px -8px rgba(124, 77, 255, 0.95);
+}
+.ant-btn-primary:not(:disabled):hover {
+  background: linear-gradient(135deg, #8b62ff 0%, #6d8bff 100%) !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px -8px rgba(124, 77, 255, 1);
+}
+.ant-btn-primary:not(:disabled):active {
+  background: linear-gradient(135deg, #6a3df0 0%, #4a6bf0 100%);
+}
+
+/* ── 7. 标签 / 徽标：一律做成胶囊，颜色更柔和 ── */
+.ant-tag {
+  border-radius: 999px;
+  padding-inline: 10px;
+  border-color: transparent;
+  background: #f1f5f9;
+}
+.ant-tag-checkable-checked {
+  background: #7c4dff;
+  color: #fff;
+}
+
+/* ── 8. 滚动条：细、圆、浅，不抢视线 ── */
+.app-content ::-webkit-scrollbar,
+.ant-layout-sider ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.app-content ::-webkit-scrollbar-track,
+.ant-layout-sider ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-content ::-webkit-scrollbar-thumb,
+.ant-layout-sider ::-webkit-scrollbar-thumb {
+  background: #d7dfec;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.app-content ::-webkit-scrollbar-thumb:hover,
+.ant-layout-sider ::-webkit-scrollbar-thumb:hover {
+  background: #b9c6da;
+  background-clip: content-box;
+}
+
+/* ── 9. 左侧导航：模块配色 + 选中「发光胶囊 + 左侧光条」 ── */
+.ant-layout-sider .ant-menu-item,
+.ant-layout-sider .ant-menu-submenu-title {
+  position: relative;
+}
+/* 图标按模块上色（颜色来自 AppLayout 的 MODULE_TINTS，内联写进 icon） */
+.ant-layout-sider .ant-menu-item .ant-menu-item-icon,
+.ant-layout-sider .ant-menu-submenu-title .ant-menu-item-icon {
+  opacity: 0.95;
+  transition: transform 0.2s ease;
+}
+.ant-layout-sider .ant-menu-item:hover .ant-menu-item-icon,
+.ant-layout-sider .ant-menu-submenu-title:hover .ant-menu-item-icon {
+  transform: scale(1.08);
+}
+.ant-layout-sider .ant-menu-item:hover,
+.ant-layout-sider .ant-menu-submenu-title:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 10px;
+}
+.ant-layout-sider .ant-menu-item-selected,
+.ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title {
+  background: linear-gradient(90deg, rgba(124, 77, 255, 0.42), rgba(0, 229, 255, 0.14)) !important;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(124, 77, 255, 0.38);
+}
+.ant-layout-sider .ant-menu-item-selected::before,
+.ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+}
+.ant-layout-sider .ant-menu-item-selected .ant-menu-title-content,
+.ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title .ant-menu-title-content {
+  color: #eaf2ff !important;
+  font-weight: 600;
+}
+.ant-layout-sider .ant-menu-submenu-title {
+  color: #c3cee8;
+}
+
+/* ── 10. 通用小组件：分区小标题 / 色点 / 胶囊 / 面板 ── */
+.ui-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.ui-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.ui-panel {
+  background: #fff;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+/* ── 11. 统计卡片：加色块图标位，数字更有层次 ── */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-left-width: 0;
+  border-radius: 14px;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+  opacity: 0.9;
+}
+.stat-card .stat-value {
+  background-clip: text;
+}

@@ -110,30 +110,20 @@ const RevenueDashboard: React.FC = () => {
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 100%)', border: 'none' }}>
-            <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>昨日总流水</span>}
-              value={data?.yesterdayRevenue} prefix="¥" precision={1}
-              valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 28 }} />
-          </Card>
+          <KpiCard label="昨日总流水" value={yuan(data?.yesterdayRevenue)} tint="#10B981" />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small" style={{ background: 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)', border: 'none' }}>
-            <Statistic title={<span style={{ color: 'rgba(255,255,255,0.8)' }}>全月总流水</span>}
-              value={data?.monthlyRevenue} prefix="¥" precision={1}
-              valueStyle={{ color: '#fff', fontWeight: 700, fontSize: 28 }} />
-          </Card>
+          <KpiCard label="全月总流水" value={yuan(data?.monthlyRevenue)} tint="#7C4DFF" />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic title="在线陪玩" value={onlineCount} suffix="人"
-              valueStyle={{ color: '#52c41a', fontWeight: 600 }} />
-          </Card>
+          <KpiCard label="在线陪玩" value={`${onlineCount} 人`} tint="#3B82F6" />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic title="待审核" value={pendingReview} suffix="项"
-              valueStyle={{ color: pendingReview > 0 ? '#faad14' : '#999', fontWeight: 600 }} />
-          </Card>
+          <KpiCard
+            label="待审核"
+            value={`${pendingReview} 项`}
+            tint={pendingReview > 0 ? '#F59E0B' : '#94A3B8'}
+          />
         </Col>
       </Row>
 
@@ -236,6 +226,51 @@ const RevenueDashboard: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * 首页 KPI 卡（老板 2026-09-21：「别全是黑白的，整齐、有层次感」）。
+ * 之前是「深绿块 + 深红块 + 两个白块」，四张卡三种风格，红色还容易看成人看不懂的告警。
+ * 现在统一成：白卡 + 左侧色条 + 小色点标题 + 同色数字 —— 四张卡一个模子，靠颜色区分指标。
+ */
+const KpiCard: React.FC<{ label: string; value: React.ReactNode; tint: string }> = ({
+  label,
+  value,
+  tint,
+}) => (
+  <div
+    className="ui-panel"
+    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', height: '100%' }}
+  >
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+        background: `linear-gradient(180deg, ${tint}, ${tint}66)`,
+      }}
+    />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#64748B' }}>
+      <span style={{ width: 6, height: 6, borderRadius: 2, background: tint }} />
+      {label}
+    </div>
+    <div
+      style={{
+        marginTop: 6,
+        fontSize: 26,
+        fontWeight: 700,
+        letterSpacing: '-0.5px',
+        lineHeight: 1.25,
+        color: tint,
+      }}
+    >
+      {value}
+    </div>
+  </div>
+);
+
+const yuan = (v: unknown) => `¥${Number(v || 0).toFixed(1)}`;
 
 const UnifiedDashboard: React.FC = () => {
   return <RevenueDashboard />;
