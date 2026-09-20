@@ -17,6 +17,7 @@ import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { ExcellenceService } from './excellence.service';
 import { BridgeService } from '../studios/bridge.service';
+import { presence } from '../common/presence';
 
 @Injectable()
 export class CompanionsService {
@@ -79,6 +80,21 @@ export class CompanionsService {
       csSeen.set(uid, v.lastSeen || null);
     }
 
+    // 客服 / 店长 / 老板 的在线状态还看「客户端连接在不在」：
+    // cs-heartbeat 是「窗口可见才发」的，最小化 / 收进托盘就停发，
+    // 只有它当依据的话，客户端开着也会被判成离线（老板 2026-09-21 报的「hanlei1 又掉线了」）。
+    const staffPresence = (uid: string): string | null => {
+      const at = presence.onlineAs(uid);
+      return at ? at.toISOString() : null;
+    };
+    const newestSeen = (a?: string | null, b?: string | null): string | null => {
+      const ta = a ? new Date(a).getTime() : 0;
+      const tb = b ? new Date(b).getTime() : 0;
+      if (!Number.isFinite(ta)) return b || null;
+      if (!Number.isFinite(tb)) return a || null;
+      return ta >= tb ? a || null : b || null;
+    };
+
     const companionIds = users.filter((u) => u.companion).map((u) => u.companion!.id);
     const excellence = await this.excellence.computeForCompanions(companionIds);
 
@@ -116,7 +132,8 @@ export class CompanionsService {
       monthlyRevenue: u.companion?.monthlyRevenue ?? null,
       isResigned: u.companion?.isResigned ?? false,
       isSeniorStaff: u.companion?.isSeniorStaff ?? false,
-      lastHeartbeat: u.companion?.pc?.lastHeartbeat ?? csSeen.get(u.id) ?? null,
+      lastHeartbeat:
+        u.companion?.pc?.lastHeartbeat ?? newestSeen(csSeen.get(u.id), staffPresence(u.id)),
       currentMode: u.companion?.pc?.currentMode ?? null,
       currentOrder: u.companion ? activeOrderByCompanion.get(u.companion.id) ?? null : null,
       isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,

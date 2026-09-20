@@ -561,7 +561,16 @@ const AppLayout: React.FC = () => {
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') report();
     }, 60_000);
-    return () => clearInterval(timer);
+    // 老板 2026-09-21 报「hanlei1 又掉线了」：窗口最小化 / 收进托盘时浏览器不发心跳，
+    // 人员列表就把他算成离线。窗口一恢复可见立刻补报一次，秒回在线。
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') report();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [user?.id, user?.role]);
   const totalUnread = useChatStore((s) => s.totalUnread);
   const conversations = useChatStore((s) => s.conversations);

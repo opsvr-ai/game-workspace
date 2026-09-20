@@ -14,6 +14,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { JwtPayload } from '../auth/auth.service';
 import { logger, isDebugEnabled } from '../common/logger';
+import { presence } from '../common/presence';
 import * as fs from 'fs';
 import { CompanionsService } from '../companions/companions.service';
 import { ExcellenceService } from '../companions/excellence.service';
@@ -239,6 +240,20 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.data.user = user;
       client.data.tokenKind = tokenKind;
       client.data.transport = client.conn?.transport?.name ?? 'unknown';
+      // 客户端连接活着 = 这个人现在在线（不管窗口有没有最小化）。
+      presence.addSocket(user.id);
+      // 以前只记陪玩的连接/断开，客服、店长、老板的连接完全没日志，
+      // 老板一报「谁又掉线了」就只能拿时间猜。现在所有角色都记一条。
+      if (!user.companionId) {
+        logger.info('Socket connected', {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+          tokenKind,
+          transport: client.data.transport,
+          address: client.handshake?.address,
+        });
+      }
 
       void client.join(`user:${user.id}`);
       this.userSockets.set(user.id, client.id);
@@ -340,8 +355,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const user = client.data.user as ConnectedUser | undefined;
     if (!user) return;
+    presence.removeSocket(user.id);
     this.userSockets.delete(user.id);
-    if (!user.companionId) return;
+    if (!user.companionId) {
+      // 客服 / 店长 / 老板 的断开以前一条日志都没有，只能靠人员列表「离线」反推。
+      logger.info('Socket disconnected', {
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+        tokenKind: (client.data as any).tokenKind,
+        transport: (client.data as any).transport,
+        address: client.handshake?.address,
+        stillConnected: presence.hasSocket(user.id),
+      });
+      return;
+    }
     const sockets = this.companionSockets.get(user.companionId);
     if (sockets) {
       sockets.delete(client.id);

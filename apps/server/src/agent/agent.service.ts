@@ -5,6 +5,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import { presence } from '../common/presence';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -215,6 +216,8 @@ export class AgentService {
   }
 
   async reportCsVersion(userId: string, version: string) {
+    // 客服端心跳也算一次「见到他」，人员列表据此判断在线。
+    presence.markSeen(userId);
     return this.prisma.systemConfig.upsert({
       where: { key: `cs.client.version.${userId}` },
       create: {

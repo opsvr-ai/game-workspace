@@ -32,6 +32,16 @@ export const modeLabels: Record<string, string> = {
 /** 心跳超时阈值（毫秒），超过此时间视为离线 */
 export const HEARTBEAT_THRESHOLD = 120_000;
 
+/**
+ * 客服 / 店长 / 老板 的离线阈值放宽到 5 分钟。
+ *
+ * 老板 2026-09-21 报「hanlei1 又掉线了」：陪玩端主进程每 30 秒发一次心跳（不看窗口
+ * 可见性），而客服端只有「窗口可见时」每 60 秒上报一次 cs-heartbeat。窗口最小化、
+ * 收进托盘、或者某一次请求卡住，2 分钟就被判成离线，看起来就是「又掉线了」。
+ * 陪玩仍然是 2 分钟（心跳密，超 2 分钟确实不正常）。
+ */
+export const STAFF_HEARTBEAT_THRESHOLD = 300_000;
+
 export interface PersonnelLike {
   id?: string | null;
   role?: string | null;
@@ -42,7 +52,9 @@ export interface PersonnelLike {
 /** 该人员当前是否在线：统一按最后心跳判断（陪玩 + 客服/店长/老板），无心跳时回退到陪玩状态。 */
 export function isPersonnelOnline(p: PersonnelLike): boolean {
   if (p.lastHeartbeat) {
-    return Date.now() - new Date(p.lastHeartbeat).getTime() < HEARTBEAT_THRESHOLD;
+    const isStaff = !!p.role && p.role !== 'COMPANION';
+    const limit = isStaff ? STAFF_HEARTBEAT_THRESHOLD : HEARTBEAT_THRESHOLD;
+    return Date.now() - new Date(p.lastHeartbeat).getTime() < limit;
   }
   if (p.status) return p.status !== CompanionStatus.OFFLINE;
   return false;
