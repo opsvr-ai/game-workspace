@@ -215,6 +215,17 @@ async function toInt16(pcm: any): Promise<Int16Array | null> {
   return new Int16Array(buf);
 }
 
+/**
+ * 对方客户端还是旧版本（信令里带 sdp，走的是点对点直连）。
+ * 新旧混着打必然没声音，与其让人干等，不如直接说清楚：让对方重启一下客户端。
+ */
+function legacyPeerHint(socket: Socket, peerId: string | undefined): void {
+  try {
+    if (peerId) socket.emit('call:hangup', { targetUserId: peerId });
+  } catch {}
+  message.error('对方客户端版本较旧，通话接不通。请让对方重启一下客户端（或退出重新登录）再打。');
+}
+
 export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
   const [callState, setCallState] = useState<CallState>(() => {
     const saved = localStorage.getItem('voice-volume');
@@ -233,6 +244,8 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
   // 只有「已接通」才真的往外发音频，呼叫中/挂断后都不发。
   const sendingRef = useRef(false);
   const seqRef = useRef(0);
+  // 对端是不是「还在用点对点直连」的老版本客户端（老版本的信令里带 sdp）。
+  const peerLegacyRef = useRef(false);
   // 自检计数：发出去多少帧、收到并送进播放器多少帧。
   // 排查「没声音」时一眼就能分出是「对方没发」「通道丢了」还是「播放端没解出来」。
   const statsRef = useRef({ sentFrames: 0, receivedFrames: 0, playedFrames: 0 });
@@ -393,6 +406,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         message.warning('正在通话中，已自动忽略新的来电');
         return;
       }
+      peerLegacyRef.current = !!data?.sdp;
       ringtoneRef.current = playRingtone();
       setCallState((s) => ({ status: 'ringing', peerId: fromUserId, peerName: data?.callerName, volume: s.volume }));
       clearCallTimeout();
@@ -404,10 +418,15 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       }, CALL_TIMEOUT_MS);
     };
 
-    const onAnswer = () => {
+    const onAnswer = (data: any) => {
       if (statusRef.current !== 'calling') return;
       clearCallTimeout();
       ringtoneRef.current?.stop();
+      if (data?.sdp) {
+        // 对方还在用旧版（点对点直连）打不通这套网络，直接给一句人话，别让人干等。
+        legacyPeerHint(socket, targetRef.current);
+        return;
+      }
       sendingRef.current = true;
       const start = Date.now();
       setCallState((s) => ({ ...s, status: 'connected', startTime: start }));
@@ -522,6 +541,15 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
         return;
       }
       if (!socket) throw new Error('WebSocket未连接，请刷新页面重试');
+      if (peerLegacyRef.current) {
+        // 提示完把来电弹窗和铃声收掉，别让它一直挂在那儿。
+        legacyPeerHint(socket, peerId);
+        clearCallTimeout();
+        ringtoneRef.current?.stop();
+        cleanup();
+        setCallState((s) => ({ status: 'idle', volume: s.volume }));
+        return;
+      }
       seqRef.current = 0;
       targetRef.current = peerId;
       const stream = await navigator.mediaDevices.getUserMedia({
