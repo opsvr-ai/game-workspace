@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +25,16 @@ import (
 
 const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
+
+// 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
+const serviceBuild = "2026-09-20.4"
+
+// 自更新用的构建号：这两个字符串会被原样编进二进制里，
+// 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
+// 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
+const serviceBuildNumber = "2026092004"
+
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092004" // 必须与 serviceBuildNumber 一致
 
 var searchPaths = []string{
 	`C:\Program Files\陪玩管理\陪玩管理.exe`,
@@ -49,6 +61,18 @@ func isClientExe(name string) bool {
 	return false
 }
 
+// isClientDirName 判断某个安装目录是不是「我们的」客户端目录。
+// 只认名字里带 蠢驴 / 陪玩 / chunlv 的目录，避免把客户端解压到别的软件目录里。
+func isClientDirName(name string) bool {
+	lower := strings.ToLower(name)
+	for _, kw := range []string{"蠢驴", "陪玩", "chunlv"} {
+		if strings.Contains(lower, strings.ToLower(kw)) {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	elog               *eventlog.Log
 	clientPath         string
@@ -60,6 +84,7 @@ var (
 	stopping           int32
 	exitEvent          windows.Handle
 	suppressLaunch     int32
+	repairLastTry      int64
 )
 
 var (
@@ -131,7 +156,7 @@ func findClient() string {
 			continue
 		}
 		for _, e := range entries {
-			if !e.IsDir() || (!strings.Contains(e.Name(), "蠢驴") && !strings.Contains(e.Name(), "chunlv") && !strings.Contains(e.Name(), "陪玩")) {
+			if !e.IsDir() || !isClientDirName(e.Name()) {
 				continue
 			}
 			for _, exe := range []string{"陪玩管理.exe", "蠢驴电竞.exe"} {
@@ -193,6 +218,131 @@ func killAllClientProcesses() {
 	}
 }
 
+// fileSHA256 计算文件摘要，用来判断「旁边那份 SystemHelper.exe 是不是新的」。
+func fileSHA256(p string) ([]byte, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
+}
+
+// selfUpdateIfNeeded 用「客户端安装目录里带的那份 SystemHelper.exe」替换服务本体。
+//
+// 为什么需要：陪玩端的自动更新只解压客户端目录，不会重装服务，
+// 所以看门狗的修复如果不自我更新，永远到不了陪玩机器上（今天这种「误杀客户端」的 bug 就会一直复现）。
+// 做法：把新版放到旁边，再把正在运行的旧版改名让位（运行中的 exe 不能覆盖但可以改名），
+// 下次服务启动（重启电脑）就跑新版；换不动就原样退出，绝不动坏的顶上。
+func selfUpdateIfNeeded(clientDir string) {
+	if clientDir == "" {
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return
+	}
+	self = filepath.Clean(self)
+	cand := filepath.Join(clientDir, "resources", "SystemHelper.exe")
+	if strings.EqualFold(filepath.Clean(cand), self) {
+		return
+	}
+	if _, err := os.Stat(cand); err != nil {
+		return
+	}
+	candSum, err := fileSHA256(cand)
+	if err != nil {
+		safeWarn(fmt.Sprintf("self-update: candidate unreadable: %v", err))
+		return
+	}
+	selfSum, err := fileSHA256(self)
+	if err != nil {
+		return
+	}
+	if bytes.Equal(candSum, selfSum) {
+		return // 已是最新
+	}
+	// 只有「构建号更大」才换：客户端包里可能还带着老版本 SystemHelper.exe（老版本没有构建号标记），
+	// 光看「文件不一样」会把自己降级回有 bug 的旧版。
+	candBuild := readBuildNumber(cand)
+	if candBuild == "" || candBuild <= serviceBuildNumber {
+		return
+	}
+	// 只认 PE 头，避免把半个下载/解压文件装成服务。
+	f, err := os.Open(cand)
+	if err != nil {
+		return
+	}
+	hdr := make([]byte, 2)
+	_, err = io.ReadFull(f, hdr)
+	f.Close()
+	if err != nil || string(hdr) != "MZ" {
+		safeWarn("self-update: candidate is not a PE file, skipped")
+		return
+	}
+	newPath := self + ".new"
+	if err := copyFile(cand, newPath); err != nil {
+		safeWarn(fmt.Sprintf("self-update: stage new binary failed: %v", err))
+		return
+	}
+	oldPath := self + ".old"
+	_ = os.Remove(oldPath)
+	if err := os.Rename(self, oldPath); err != nil {
+		safeWarn(fmt.Sprintf("self-update: rename running exe failed: %v", err))
+		_ = os.Remove(newPath)
+		return
+	}
+	if err := os.Rename(newPath, self); err != nil {
+		_ = os.Rename(oldPath, self) // 换不成就把旧的放回去
+		safeWarn(fmt.Sprintf("self-update: swap failed, kept old binary: %v", err))
+		return
+	}
+	safeInfo("self-update: staged new SystemHelper (takes effect on next service start)")
+}
+
+// readBuildNumber 在二进制里找 CHUNLV_WATCHDOG_BUILD=<数字> 标记，找不到返回空串。
+func readBuildNumber(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return parseBuildNumber(data)
+}
+
+func parseBuildNumber(data []byte) string {
+	idx := bytes.Index(data, []byte("CHUNLV_WATCHDOG_BUILD="))
+	if idx < 0 {
+		return ""
+	}
+	rest := data[idx+len("CHUNLV_WATCHDOG_BUILD="):]
+	end := 0
+	for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
+		end++
+	}
+	return string(rest[:end])
+}
+
 // ensureUpdateDir 创建更新信号目录并授予 Everyone 写权限，让普通权限的陪玩端也能写入。
 func ensureUpdateDir() {
 	if err := os.MkdirAll(updateSignalDir, 0755); err != nil {
@@ -208,7 +358,9 @@ type updateRequest struct {
 }
 
 // downloadAndExtract 下载（或使用本地已下载文件）zip 并解压覆盖到目标目录（去掉 win-unpacked 顶层前缀）。
-func downloadAndExtract(url, localPath, destDir string) error {
+// 返回包内顶层 exe 的文件名：调用方要靠它确认「新客户端真的落到磁盘上了」，
+// 再决定要不要删旧的那个 exe —— 删错一次，这台机器就再也没有客户端可拉起。
+func downloadAndExtract(url, localPath, destDir string) ([]string, error) {
 	tmp := ""
 	if localPath != "" {
 		tmp = localPath
@@ -216,20 +368,20 @@ func downloadAndExtract(url, localPath, destDir string) error {
 		safeInfo(fmt.Sprintf("Downloading update: %s", url))
 		resp, err := http.Get(url)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			return fmt.Errorf("download status %d", resp.StatusCode)
+			return nil, fmt.Errorf("download status %d", resp.StatusCode)
 		}
 		tmp = filepath.Join(os.TempDir(), "chunlv-update.zip")
 		f, err := os.Create(tmp)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, err = io.Copy(f, resp.Body); err != nil {
 			f.Close()
-			return err
+			return nil, err
 		}
 		f.Close()
 		defer os.Remove(tmp)
@@ -237,9 +389,11 @@ func downloadAndExtract(url, localPath, destDir string) error {
 
 	zr, err := zip.OpenReader(tmp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer zr.Close()
+	var exeNames []string
+	failed := 0
 	for _, zf := range zr.File {
 		rel := zf.Name
 		if strings.HasPrefix(rel, "win-unpacked/") {
@@ -247,6 +401,9 @@ func downloadAndExtract(url, localPath, destDir string) error {
 		}
 		if rel == "" {
 			continue
+		}
+		if !zf.FileInfo().IsDir() && !strings.ContainsAny(rel, `\/`) && strings.EqualFold(filepath.Ext(rel), ".exe") {
+			exeNames = append(exeNames, filepath.Base(rel))
 		}
 		dst := filepath.Join(destDir, rel)
 		if zf.FileInfo().IsDir() {
@@ -256,18 +413,27 @@ func downloadAndExtract(url, localPath, destDir string) error {
 		_ = os.MkdirAll(filepath.Dir(dst), 0755)
 		out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
+			failed++
+			safeWarn(fmt.Sprintf("update: cannot write %s: %v", dst, err))
 			continue
 		}
 		rc, err := zf.Open()
 		if err != nil {
 			out.Close()
+			failed++
 			continue
 		}
-		_, _ = io.Copy(out, rc)
+		if _, err := io.Copy(out, rc); err != nil {
+			failed++
+			safeWarn(fmt.Sprintf("update: write failed %s: %v", dst, err))
+		}
 		out.Close()
 		rc.Close()
 	}
-	return nil
+	if failed > 0 {
+		safeWarn(fmt.Sprintf("update: %d file(s) could not be written", failed))
+	}
+	return exeNames, nil
 }
 
 // checkForUpdate 轮询更新信号文件，若存在则下载解压并重启客户端。
@@ -283,10 +449,16 @@ func checkForUpdate(installDir string) {
 	safeInfo("Update signal received")
 	killAllClientProcesses()
 	time.Sleep(2 * time.Second)
-	// 统一解压到「陪玩管理」目录，兼容老版本装在 @chunlvcompanion-electron 的机器
-	destDir := `C:\Program Files\陪玩管理`
+	// 解压到客户端「当前实际安装目录」（installDir 来自 findClient 返回的 clientPath），
+	// 不要写死「陪玩管理」目录：老版本可能还叫「蠢驴电竞」装在别的目录，写死会导致更新解压到
+	// 错误目录，重启后还是旧版、看门狗看起来像「没拉起」。
+	destDir := installDir
+	if destDir == "" {
+		destDir = `C:\Program Files\陪玩管理`
+	}
 	_ = os.MkdirAll(destDir, 0755)
-	if err := downloadAndExtract(req.URL, req.LocalPath, destDir); err != nil {
+	exeNames, err := downloadAndExtract(req.URL, req.LocalPath, destDir)
+	if err != nil {
 		safeWarn(fmt.Sprintf("update failed: %v", err))
 		// 下载/解压失败时也要清掉信号文件，否则每 5 秒都会重新下载一遍，
 		// 造成全机反复下载大安装包、卡顿、并不断杀死/重启客户端。
@@ -296,8 +468,36 @@ func checkForUpdate(installDir string) {
 		maybeLaunchClient()
 		return
 	}
+	// 删旧 exe 必须满足两个条件：① 新包里的客户端 exe 真的已经躺在盘上；
+	// ② 它和旧路径不是同一个文件（也就是「改名」这种情况，例如老机器上还留着「蠢驴电竞.exe」）。
+	// 之前是无条件 os.Remove(clientPath)：同名升级时旧路径 == 新 exe，等于把刚更新出来的客户端删掉，
+	// 机器上再也没有客户端可拉起，日志里只剩 "Client exe not found"，
+	// 陪玩那边看到的就是「客户端闪退之后再打开都打不开」。
+	newExe := ""
+	for _, n := range exeNames {
+		if !isClientExe(n) {
+			continue
+		}
+		p := filepath.Join(destDir, n)
+		if fi, err := os.Stat(p); err == nil && fi.Size() > 0 {
+			newExe = p
+			break
+		}
+	}
+	switch oldExe := clientPath; {
+	case newExe == "":
+		safeWarn("update: no client exe after extract — keeping the existing install untouched")
+	case oldExe == "" || strings.EqualFold(filepath.Clean(oldExe), filepath.Clean(newExe)):
+		// 同一个文件（同名升级）：它就是新客户端本体，绝不能删。
+	default:
+		if _, err := os.Stat(oldExe); err == nil {
+			_ = os.Remove(oldExe)
+			safeInfo(fmt.Sprintf("Removed old-named client exe %s (now using %s)", oldExe, newExe))
+		}
+	}
 	_ = os.Remove(updateSignalFile)
 	safeInfo("Update applied, relaunching client")
+	selfUpdateIfNeeded(destDir)
 	clientPID = 0
 	clientPath = ""
 	maybeLaunchClient()
@@ -310,6 +510,13 @@ func isClientRunning() bool {
 	if clientPID != 0 {
 		h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, clientPID)
 		if err != nil {
+			// 句柄打不开 ≠ 进程没了：权限/瞬时错误（"The parameter is incorrect."）都会走到这里。
+			// 拿进程快照再确认一次，只有真的查不到才算退出——否则会把活着的客户端当尸体，
+			// 触发「杀掉正在跑的客户端再拉一个」（陪玩看到的就是闪退）。
+			if processExists(clientPID) {
+				safeWarn(fmt.Sprintf("PID %d still alive but OpenProcess failed: %v", clientPID, err))
+				return true
+			}
 			safeWarn(fmt.Sprintf("PID %d gone: %v", clientPID, err))
 			clientPID = 0
 			return false
@@ -329,6 +536,29 @@ func isClientRunning() bool {
 		clientPID = pid
 		safeInfo(fmt.Sprintf("Adopted running client pid=%d", pid))
 		return true
+	}
+	return false
+}
+
+// processExists 用进程快照确认 PID 是否真的还在（OpenProcess 失败时的兜底判断）。
+func processExists(pid uint32) bool {
+	if pid == 0 {
+		return false
+	}
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return true // 拿不到快照时宁可当它还活着，别误杀
+	}
+	defer windows.CloseHandle(snapshot)
+
+	var pe windows.ProcessEntry32
+	pe.Size = uint32(unsafe.Sizeof(pe))
+	err = windows.Process32First(snapshot, &pe)
+	for err == nil {
+		if pe.ProcessID == pid {
+			return true
+		}
+		err = windows.Process32Next(snapshot, &pe)
 	}
 	return false
 }
@@ -461,6 +691,9 @@ func launchClient() {
 
 	path := findClient()
 	if path == "" {
+		path = repairMissingExe()
+	}
+	if path == "" {
 		safeWarn("Client exe not found")
 		return
 	}
@@ -502,6 +735,54 @@ func launchClient() {
 	}
 }
 
+// repairMissingExe 兜底修复：客户端目录还在（resources\app.asar 在），但启动用的 exe 不见了。
+// 这是历史 bug 留下的残局——更新流程把「刚解压出来的客户端 exe」当成旧 exe 删掉了，
+// 之后每一轮 findClient 都返回空，看门狗只会一直写 "Client exe not found"，
+// 陪玩那边就是「客户端闪退之后再打开都打不开」。这里用本机已下载好的安装包把它补回去。
+func repairMissingExe() string {
+	now := time.Now().UnixNano()
+	if now-atomic.LoadInt64(&repairLastTry) < 10*60*1e9 {
+		return ""
+	}
+	zipPath := filepath.Join(updateSignalDir, "update.zip")
+	if _, err := os.Stat(zipPath); err != nil {
+		return ""
+	}
+	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			// 目录名必须是「我们的」客户端目录（蠢驴 / 陪玩 / chunlv）。
+			// 别的 Electron 程序（实测是 Logitech G HUB 的 LGHUB 目录）同样有
+			// resources\app.asar，只按 app.asar 判断会把整包客户端解压进别人的安装目录，
+			// 覆盖掉别人的 dll / app.asar，把那款软件搞坏。
+			if !isClientDirName(e.Name()) {
+				continue
+			}
+			dir := filepath.Join(base, e.Name())
+			if _, err := os.Stat(filepath.Join(dir, "resources", "app.asar")); err != nil {
+				continue
+			}
+			atomic.StoreInt64(&repairLastTry, now)
+			safeWarn(fmt.Sprintf("client exe gone but install dir intact (%s) — restoring from %s", dir, zipPath))
+			if _, err := downloadAndExtract("", zipPath, dir); err != nil {
+				safeErr(fmt.Sprintf("restore failed: %v", err))
+				return ""
+			}
+			if p := findClient(); p != "" {
+				safeInfo(fmt.Sprintf("Restored client exe: %s", p))
+				return p
+			}
+		}
+	}
+	return ""
+}
+
 // maybeLaunchClient starts a launch in the background so the service control
 // loop is never blocked by kill/launch operations or crash-loop backoff.
 func maybeLaunchClient() {
@@ -528,16 +809,21 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	atomic.StoreInt32(&stopping, 0)
 
 	status <- svc.Status{State: svc.StartPending}
+	safeInfo(fmt.Sprintf("SystemHelper service starting (build %s / %s)", serviceBuild, serviceBuildNumber))
+	if parseBuildNumber([]byte(buildTagLiteral)) != serviceBuildNumber {
+		safeWarn("build marker mismatch — self-update disabled until fixed")
+	}
 
 	if p := findClient(); p != "" {
 		safeInfo(fmt.Sprintf("Client found at %s", p))
+		selfUpdateIfNeeded(filepath.Dir(p))
 	} else {
 		safeWarn("Client not found")
 	}
 
-  status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-  setupExitEvent()
-  ensureUpdateDir()
+	status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+	setupExitEvent()
+	ensureUpdateDir()
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
@@ -557,21 +843,31 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 				safeInfo("Authorized exit requested — suppressing auto-relaunch until reboot")
 				continue
 			}
-  			if atomic.LoadInt32(&suppressLaunch) != 0 {
+			if atomic.LoadInt32(&suppressLaunch) != 0 {
 				// A different client PID means the user manually started the app again.
 				if pid := findAnyClientPID(); pid != 0 && pid != clientPID {
 					clientPID = pid
 					atomic.StoreInt32(&suppressLaunch, 0)
 					safeInfo(fmt.Sprintf("Manual client start detected pid=%d — resuming watchdog", pid))
 				}
-  				continue
-  			}
-  			if p := findClient(); p != "" {
-  				checkForUpdate(filepath.Dir(p))
-  			}
- 			if !isClientRunning() {
-				safeWarn("Client PID gone — relaunching")
-				maybeLaunchClient()
+				continue
+			}
+			if p := findClient(); p != "" {
+				checkForUpdate(filepath.Dir(p))
+			}
+			if !isClientRunning() {
+				// 「我这个 PID 没了」不等于「机器上没有客户端」。
+				// 开机时服务的启动和客户端自己的登录项会同时拉起客户端，抢不到单实例锁的那个进程
+				// 会立刻退出（exit code 0 / PID 查不到）；老逻辑这时直接 kill + 重启，
+				// 把「正常运行的那个客户端」一起杀掉，陪玩看到的就是「客户端突然闪退」。
+				// 现在先看机器上还有没有活着的客户端：有就接管它，没有才拉起。
+				if pid := findAnyClientPID(); pid != 0 {
+					clientPID = pid
+					safeInfo(fmt.Sprintf("Tracked PID gone but a live client exists pid=%d — adopting it instead of relaunching", pid))
+				} else {
+					safeWarn("Client PID gone — relaunching")
+					maybeLaunchClient()
+				}
 			}
 
 		case c := <-r:
