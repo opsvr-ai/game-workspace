@@ -44,9 +44,11 @@ export class SettlementService {
         })
       : null;
     const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
+      // 兜底值与设置里的默认阶梯保持一致（0~5999.99 五五 / 6000~9999.99 六四 / >=10000 七三），
+      // 免得配置读不到时悄悄换成另一套门槛算工资。
       (config?.value as any) ?? [
-        { min: 0, max: 5199.99, studio: 50, companion: 50 },
-        { min: 5200, max: 9999.99, studio: 40, companion: 60 },
+        { min: 0, max: 5999.99, studio: 50, companion: 50 },
+        { min: 6000, max: 9999.99, studio: 40, companion: 60 },
         { min: 10000, max: null, studio: 30, companion: 70 },
       ];
 

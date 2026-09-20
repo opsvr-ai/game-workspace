@@ -20,7 +20,15 @@ export interface RevenueSplitResult {
   monthlyRevenue?: number;
 }
 
-/** 线下阶梯（老板确认口径）：<5200 五五、5200–10000 六四、≥10000 七三（需满 6 个月） */
+/**
+ * 兜底阶梯：**与设置里「分成阶梯」保持一致的默认值**（老板 2026-09-20 拍板：一切以他填写的为准，
+ * 线上配置才是唯一权威，这里只作为配置缺失时的兜底）。
+ *
+ * 注意别把「线下工作室」和「线上俱乐部」两回事搞混：
+ * - 阶梯（五五 / 六四 / 七三）只用于**线下工作室**（Studio.type=DIRECT、splitMode=TIERED），
+ *   也就是蠢驴电竞 / 光耀电竞这类店；
+ * - **线上俱乐部**（Studio.type=RENTAL）建店时就是 splitMode=FIXED，按每个人自己的固定比例分，不走阶梯。
+ */
 export const DEFAULT_TIERS: RevenueSplitTier[] = [
   { min: 0, max: 5999.99, companion: 50 },
   { min: 6000, max: 9999.99, companion: 60 },
@@ -58,8 +66,9 @@ export function resolveTier(totalRevenue: number, tiers: RevenueSplitTier[] = DE
 }
 
 /**
- * Resolve companion percentage for TIERED mode with tenure gate:
- * the top 70% tier only applies when tenureMonths >= 6, otherwise falls back to 60%.
+ * Resolve companion percentage for TIERED mode with the tenure gate:
+ * the **top tier** only applies once tenureMonths >= 6（老员工勾选可豁免），
+ * 没满就回落到它下面那一档（以前这里写死回落 60，老板要是把最高档改成别的数就不对了）。
  */
 export function resolveCompanionPctTiered(
   totalRevenue: number,
@@ -67,10 +76,14 @@ export function resolveCompanionPctTiered(
   tiers: RevenueSplitTier[] = DEFAULT_TIERS,
 ): number {
   const tier = resolveTier(totalRevenue, tiers);
-  if (tier.companion === 70 && tenureMonths < TENURE_MONTHS_FOR_TOP_TIER) {
-    return 60;
-  }
-  return tier.companion;
+  if (!tier) return 0;
+  if (tenureMonths >= TENURE_MONTHS_FOR_TOP_TIER) return tier.companion;
+
+  const top = tiers.reduce((a, b) => (b.min >= a.min ? b : a), tiers[0]);
+  if (tier.min !== top.min) return tier.companion;
+
+  const below = tiers.filter((t) => t.min < top.min).sort((a, b) => b.min - a.min)[0];
+  return below ? below.companion : tier.companion;
 }
 
 /**
