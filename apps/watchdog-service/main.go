@@ -27,14 +27,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-09-20.4"
+const serviceBuild = "2026-09-20.5"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026092004"
+const serviceBuildNumber = "2026092005"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092004" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092005" // 必须与 serviceBuildNumber 一致
 
 var searchPaths = []string{
 	`C:\Program Files\陪玩管理\陪玩管理.exe`,
@@ -100,6 +100,11 @@ var (
 var logDir = `C:\Program Files\SystemHelper`
 var updateSignalDir = `C:\ProgramData\chunlv`
 var updateSignalFile = `C:\ProgramData\chunlv\update.json`
+
+// 客户端 exe 被弄丢、而本机又没留下更新包时（新装的机器、从没更新过的机器），
+// 直接从云服务器取一份完整客户端包来补齐。以前这种情况直接放弃，
+// 结果就是那台电脑再也拉不起客户端 —— 用户看到的是「客户端打不开、进不去系统」。
+var cloudClientZipURL = "http://1.117.229.36:3001/api/agent/download/latest"
 
 func writeLog(level, msg string) {
 	os.MkdirAll(logDir, 0755)
@@ -745,8 +750,10 @@ func repairMissingExe() string {
 		return ""
 	}
 	zipPath := filepath.Join(updateSignalDir, "update.zip")
+	// 本机没留下更新包（新装机器 / 从没更新过）时留空：
+	// 下面的 downloadAndExtract 会改用 cloudClientZipURL 从云端现拉一份。
 	if _, err := os.Stat(zipPath); err != nil {
-		return ""
+		zipPath = ""
 	}
 	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
 		entries, err := os.ReadDir(base)
@@ -769,8 +776,12 @@ func repairMissingExe() string {
 				continue
 			}
 			atomic.StoreInt64(&repairLastTry, now)
-			safeWarn(fmt.Sprintf("client exe gone but install dir intact (%s) — restoring from %s", dir, zipPath))
-			if _, err := downloadAndExtract("", zipPath, dir); err != nil {
+			src := zipPath
+			if src == "" {
+				src = cloudClientZipURL
+			}
+			safeWarn(fmt.Sprintf("client exe gone but install dir intact (%s) — restoring from %s", dir, src))
+			if _, err := downloadAndExtract(cloudClientZipURL, zipPath, dir); err != nil {
 				safeErr(fmt.Sprintf("restore failed: %v", err))
 				return ""
 			}

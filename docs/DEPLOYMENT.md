@@ -597,6 +597,9 @@ nssm remove chunlv-agent confirm  # 删除服务
 2026-09-20 20:17:22 [INFO] SystemHelper service starting (build 2026-09-20.4 / 2026092004)
 ```
 
+**当前线上构建号：`2026-09-20.5` / `2026092005`**（8 台机队 + 老板本机均已下发）。看门狗二进制
+md5 `814a1b514352df5a6bd1a64591ef318f`，9,662,976 字节。
+
 排查「客户端闪退 / 起不来」时先看这个文件，关键词：`Adopted running client`（接管了已在跑的客户端）、
 `Killed N client processes`（杀进程）、`Client exe not found`（找不到客户端程序）、
 `restoring from`（用本机安装包自动补齐客户端）。
@@ -612,6 +615,34 @@ nssm remove chunlv-agent confirm  # 删除服务
    只重启看门狗服务，不会打断正在接单的客户端）。
 5. 单台手工装了算：把 `SystemHelper.exe` 放到客户端安装目录的 `resources\` 下，或直接在目标机跑
    `deploy\install-watchdog.bat`（会从云端下载并重建服务）。
+
+**⚠ 改完看门狗必须同时更新「客户端更新包」里的那一份。** 更新包（`chunlv-latest.zip`）里的
+`win-unpacked/resources/SystemHelper.exe` 是「重装客户端 / 从 zip 恢复」时唯一会落地的那份二进制，
+只更新 `/uploads/SystemHelper.exe` 是不够的——2026-09-20 就吃过这个亏：更新包里仍是老看门狗，
+凡是从 zip 恢复过的电脑装完继续闪退。收尾动作：
+
+```bash
+# 1) 把新编译的二进制放进打包目录
+copy apps\watchdog-service\SystemHelper.exe apps\companion-electron\release\win-unpacked\resources\SystemHelper.exe
+# 2) 重新打包并上传更新包（脚本会重建 chunlv-latest.zip 并推到云端 /uploads/，不动版本号）
+python scripts\_repack_client_zip.py
+# 3) 校验：包内那份必须带新构建号
+python -c "import zipfile,re;d=zipfile.ZipFile(r'apps/companion-electron/release/chunlv-latest.zip').read('win-unpacked/resources/SystemHelper.exe');print(len(d),re.findall(rb'CHUNLV_WATCHDOG_BUILD=[0-9.]+',d))"
+```
+
+### 5.7 单台电脑「客户端打不开 / 进不去系统」一键修复
+
+陪玩或客服报「客户端打不开、进不去系统」，且服务器日志里完全看不到这台机器的登录请求时，
+基本是这台电脑的看门狗/客户端文件出了问题（历史 bug 会把客户端 exe 删掉）。
+在**这台电脑**上右键「以管理员身份运行」：
+
+```
+deploy\repair-client.bat        # 云端副本：http://1.117.229.36:3001/uploads/repair-client.bat
+```
+
+脚本做四件事：① 从云端装最新看门狗服务；② 在常见安装目录里找客户端；
+③ 找不到就从云端拉完整更新包解压成一份新的；④ 启动客户端。
+跑完后看 `C:\Program Files\SystemHelper\service.log` 最后几行确认构建号与 `Adopted`/`Restored client exe` 记录。
 
 **自更新：** 服务启动时、以及每次客户端更新解压完成后，都会拿客户端目录里的
 `resources\SystemHelper.exe` 与自身比构建号，比自己新就替换（旧文件留 `.old` 兜底），下次服务启动生效。
