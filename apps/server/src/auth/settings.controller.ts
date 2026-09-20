@@ -22,6 +22,9 @@ import { WsGateway } from '../ws/ws.gateway';
 const DEFAULT_CONFIGS: Record<string, any> = {
   // 新单弹窗停留秒数（老板 2026-09-20 起可配，比原来写死的 15 秒更灵活）
   'pool.popup_seconds': 20,
+  // WebSocket 令牌宽限期（小时）：客户端拿着过期令牌重连时，只要令牌确实是本服务器签发的
+  // 就允许先连上（HTTP 接口不受影响），否则陪玩端弹窗会断在「accessToken 15 分钟过期」上。
+  'ws.token_grace_hours': 168,
   'revenue.free_threshold': 300,
   'revenue.low_warning': 300,
   // 分润阶梯一律以「系统设置里老板填的」为准，这里只做首次初始化的默认值。

@@ -35,7 +35,12 @@ import OrderRow from '../../components/OrderRow';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
-import { DATA_FONT_SIZE, DATA_ROW_PADDING } from '../../constants/datasetColumns';
+import {
+  DATA_FONT_SIZE,
+  DATA_ROW_PADDING,
+  DATA_SUB_FONT_SIZE,
+  DATA_TAG_FONT_SIZE,
+} from '../../constants/datasetColumns';
 import {
   orderTypeConfig,
   companionStatusConfig,
@@ -493,7 +498,7 @@ const CSDispatchView: React.FC = () => {
         {/* Left: Companion sidebar */}
         <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
           <Card
-            title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
+            title={<span style={{ fontSize: DATA_FONT_SIZE, fontWeight: 600 }}>人员</span>}
             size="small"
             className="personnel-list-card"
             style={{ borderRadius: 8 }}
@@ -525,11 +530,11 @@ const CSDispatchView: React.FC = () => {
               <span style={{ fontSize: 18 }}>🏠</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text strong style={{ fontSize: 13, color: '#1F2937' }}>
+                  <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#1F2937' }}>
                     {studioGroup?.groupName || '工作室群聊'}
                   </Text>
                   {groupLastMentions.includes(user?.id || '') && (
-                    <Tag color="red" style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>@</Tag>
+                    <Tag color="red" style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE, lineHeight: '16px' }}>@</Tag>
                   )}
                   {groupUnread > 0 && (
                     <Badge count={groupUnread} size="small" overflowCount={99} style={{ marginLeft: 'auto' }} />
@@ -539,7 +544,7 @@ const CSDispatchView: React.FC = () => {
                   style={{
                     display: 'block',
                     marginTop: 2,
-                    fontSize: 11,
+                    fontSize: DATA_SUB_FONT_SIZE,
                     color: groupUnread > 0 ? '#475569' : '#94A3B8',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -656,7 +661,7 @@ const CSDispatchView: React.FC = () => {
                             <span
                               style={{
                                 fontWeight: 600,
-                                fontSize: 13,
+                                fontSize: DATA_FONT_SIZE,
                                 color: '#1F2937',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
@@ -667,8 +672,8 @@ const CSDispatchView: React.FC = () => {
                               {c.displayName || c.username || c.id}
                             </span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: statusDotColor(c) }}>●</span>
-                              <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
+                              <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
                             </span>
                             {hasUnread && (
                               <span
@@ -684,7 +689,7 @@ const CSDispatchView: React.FC = () => {
                             <Button
                               size="small"
                               type="text"
-                              style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
+                              style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 await useChatStore.getState().openConversation(c.id, {
@@ -715,13 +720,13 @@ const CSDispatchView: React.FC = () => {
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || '#64748B' }}>
+                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || '#64748B' }}>
                               {ROLE_TAG[c.role]?.label || c.role}
                             </span>
                             {c.studioName && (
                               <span
                                 style={{
-                                  fontSize: 10,
+                                  fontSize: DATA_SUB_FONT_SIZE,
                                   color: '#94A3B8',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
@@ -733,10 +738,10 @@ const CSDispatchView: React.FC = () => {
                               </span>
                             )}
                             {(c as any).processStatus === 'BLOCKED' && (
-                              <span style={{ fontSize: 10, color: '#EF4444', fontWeight: 600 }}>已限制</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#EF4444', fontWeight: 600 }}>已限制</span>
                             )}
                             {(c as any).processStatus === 'WARNING' && (
-                              <span style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600 }}>⚠️进程异常</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#F59E0B', fontWeight: 600 }}>⚠️进程异常</span>
                             )}
                           </div>
 
@@ -751,7 +756,7 @@ const CSDispatchView: React.FC = () => {
                             <span
                               key={i}
                               style={{
-                                fontSize: 10,
+                                fontSize: DATA_SUB_FONT_SIZE,
                                 color: '#64748B',
                                 background: '#F1F5F9',
                                 borderRadius: 4,
@@ -763,7 +768,7 @@ const CSDispatchView: React.FC = () => {
                             </span>
                           ))}
                           {c.games.length > 2 && (
-                            <span style={{ fontSize: 10, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
+                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
                           )}
                         </div>
                       )}

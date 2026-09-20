@@ -29,7 +29,12 @@ function emitEvent(event: string, data: any): void {
   for (const h of handlers) { try { h(data); } catch { /* ignore */ } }
 }
 
-export function connectWebSocket(serverUrl: string, token: string, companionId: string): void {
+export function connectWebSocket(
+  serverUrl: string,
+  token: string,
+  companionId: string,
+  onAuthFailed?: () => void,
+): void {
   disconnectWebSocket();
   const wsUrl = serverUrl.replace(/^http/, 'ws');
 
@@ -68,6 +73,13 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
 
   socket.on('connect_error', (err: any) => {
     connectErrorCount += 1;
+    // 令牌过期/被换密钥时，光重连是连不上的（服务端握手直接拒），
+    // 这里通知主进程去换一张新令牌，换完再重连。
+    const authMsg = String(err?.message || '');
+    if (/invalid signature|jwt expired|Unauthorized|invalid token/i.test(authMsg)) {
+      logger.warn('WS auth rejected, will refresh token', { message: authMsg });
+      try { onAuthFailed?.(); } catch { /* ignore */ }
+    }
     if (connectErrorCount === 1 || connectErrorCount % 20 === 0) {
       logger.warn('WS connect error', {
         message: err?.message || String(err),
@@ -82,6 +94,9 @@ export function connectWebSocket(serverUrl: string, token: string, companionId: 
   });
 
   // Only listen for events we still care about
+  socket.on('auth:failed' as any, () => {
+    try { onAuthFailed?.(); } catch { /* ignore */ }
+  });
   socket.on('order:new', (data) => emitEvent('order:new', data));
   socket.on('order:urgent', (data) => emitEvent('order:urgent', data));
   socket.on('order:pool_updated', (data) => emitEvent('order:pool_updated', data));

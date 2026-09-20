@@ -22,13 +22,27 @@ export interface RevenueSplitResult {
 
 /** 线下阶梯（老板确认口径）：<5200 五五、5200–10000 六四、≥10000 七三（需满 6 个月） */
 export const DEFAULT_TIERS: RevenueSplitTier[] = [
-  { min: 0, max: 5199.99, companion: 50 },
-  { min: 5200, max: 9999.99, companion: 60 },
+  { min: 0, max: 5999.99, companion: 50 },
+  { min: 6000, max: 9999.99, companion: 60 },
   { min: 10000, max: null, companion: 70 },
 ];
 
 /** 享受最高档（七三）所需的最低工龄（月） */
 export const TENURE_MONTHS_FOR_TOP_TIER = 6;
+
+/** 计算从 start 到 now 已经满的月数（用于 6 个月工龄门槛）。 */
+export function monthsBetween(start: Date, now: Date = new Date()): number {
+  const s = new Date(start);
+  let months = (now.getFullYear() - s.getFullYear()) * 12 + (now.getMonth() - s.getMonth());
+  if (now.getDate() < s.getDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+/** 老员工手动豁免 6 个月工龄门槛。 */
+export function effectiveTenureMonths(createdAt: Date, isSeniorStaff?: boolean): number {
+  if (isSeniorStaff) return TENURE_MONTHS_FOR_TOP_TIER;
+  return monthsBetween(createdAt);
+}
 
 /**
  * Resolve the applicable tier for a given total revenue.
@@ -91,6 +105,7 @@ export function computeRevenueShare(params: {
   revenueShare?: number | null;
   defaultClubSharePct?: number;
   tiers?: RevenueSplitTier[];
+  tenureMonths?: number;
 }): number {
   const isFixed = params.splitMode === 'FIXED';
 
@@ -100,8 +115,8 @@ export function computeRevenueShare(params: {
   }
 
   const tiers = params.tiers ?? DEFAULT_TIERS;
-  const tier = resolveTier(params.totalRevenue, tiers);
-  return tier.companion / 100;
+  const pct = resolveCompanionPctTiered(params.totalRevenue, params.tenureMonths ?? 0, tiers);
+  return pct / 100;
 }
 
 /**
@@ -115,6 +130,7 @@ export function computeRevenueSplit(params: {
   defaultClubSharePct?: number;
   tiers?: RevenueSplitTier[];
   monthlyRevenue?: number;
+  tenureMonths?: number;
 }): RevenueSplitResult {
   const isFixed = params.splitMode === 'FIXED';
 
@@ -130,11 +146,11 @@ export function computeRevenueSplit(params: {
   }
 
   const tiers = params.tiers ?? DEFAULT_TIERS;
-  const tier = resolveTier(params.totalRevenue, tiers);
+  const companionPct = resolveCompanionPctTiered(params.totalRevenue, params.tenureMonths ?? 0, tiers);
   return {
     mode: 'TIERED',
-    companionPct: tier.companion,
-    companionShare: tier.companion / 100,
+    companionPct,
+    companionShare: companionPct / 100,
     monthlyRevenue: params.monthlyRevenue != null ? Math.round(params.monthlyRevenue * 100) / 100 : undefined,
   };
 }

@@ -63,6 +63,8 @@ describe('DashboardService', () => {
         makeOrder({ amount: 100 }),
         makeOrder({ id: 'order-002', amount: 200 }),
       ]);
+      // 今日已完成订单（低流水预警那份）
+      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       // Companions
       mockPrisma.companion.findMany.mockResolvedValueOnce([
         makeCompanion({ status: 'AVAILABLE' }),
@@ -89,13 +91,20 @@ describe('DashboardService', () => {
 
     it('should calculate accept rate correctly', async () => {
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
-      // 2 online (AVAILABLE + BUSY), 1 BUSY → accept rate = 50%
+      mockPrisma.order.findMany.mockResolvedValueOnce([]);
+      // 2 online (AVAILABLE + BUSY), 1 RESTING
       mockPrisma.companion.findMany.mockResolvedValueOnce([
         makeCompanion({ status: 'AVAILABLE' }),
         makeCompanion({ id: 'comp-002', status: 'BUSY' }),
         makeCompanion({ id: 'comp-003', status: 'RESTING' }),
       ]);
-      mockPrisma.companionTimeLog.findMany.mockResolvedValueOnce([]);
+      // 接单率 = 接单时长 ÷ 在线时长：接单 60 秒 / 在线 120 秒 = 50%
+      const logStart = new Date(Date.now() - 60_000);
+      const logEnd = new Date();
+      mockPrisma.companionTimeLog.findMany.mockResolvedValueOnce([
+        { companionId: 'comp-001', mode: 'BUSY', startedAt: logStart, endedAt: logEnd, durationSeconds: 60 },
+        { companionId: 'comp-002', mode: 'AVAILABLE', startedAt: logStart, endedAt: logEnd, durationSeconds: 60 },
+      ]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([makeCompanion({ monthlyRevenue: 300 })]);
       mockPrisma.systemConfig.findUnique.mockResolvedValueOnce({ key: 'revenue.low_warning', value: 300 });
       mockPrisma.transaction.findMany.mockResolvedValueOnce([]);
@@ -104,11 +113,12 @@ describe('DashboardService', () => {
 
       // Online count: AVAILABLE + BUSY = 2
       expect(result.today.onlineCount).toBe(2);
-      // Accept rate: busy (1) / online (2) * 100 = 50
+      // 接单率 = 接单时长 / 在线时长 = 50%
       expect(result.today.acceptRate).toBe(50);
     });
 
     it('should handle empty date range (no data)', async () => {
+      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([]);
       mockPrisma.companionTimeLog.findMany.mockResolvedValueOnce([]);
@@ -128,6 +138,7 @@ describe('DashboardService', () => {
     });
 
     it('should return online companion count (AVAILABLE, BUSY, ENTERTAINMENT)', async () => {
+      mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.order.findMany.mockResolvedValueOnce([]);
       mockPrisma.companion.findMany.mockResolvedValueOnce([
         makeCompanion({ status: 'AVAILABLE' }),

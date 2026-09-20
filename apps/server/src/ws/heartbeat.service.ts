@@ -1,6 +1,8 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeEntertainmentFee, isEntertainmentFree, loadEntertainmentRule } from '../common/entertainment-fee';
+import { currentBusinessDayRange } from '../common/business-day';
 import { logger } from '../common/logger';
 import { WsGateway } from './ws.gateway';
 
@@ -83,14 +85,33 @@ export class HeartbeatService {
         });
         if (companion) {
           const availableFunds = (companion.balance || 0) + (companion.deposit || 0);
-          const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
-          const hourlyRate = (rateCfg?.value as number) ?? 60;
+          // 娱乐费/免单线统一走 common/entertainment-fee.ts：
+          // 当日流水达标就免单，此时不该再预警、更不该强行切回空闲。
+          const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+          const { start: dayStart, end: dayEnd } = currentBusinessDayRange(now);
+          const dayAgg = await this.prisma.order
+            .aggregate({
+              where: {
+                companionId: user.companionId,
+                status: 'DONE',
+                createdAt: { gte: dayStart, lt: dayEnd },
+              },
+              _sum: { amount: true },
+            })
+            .catch(() => null);
+          const todayRevenue = dayAgg?._sum?.amount || 0;
+          const freeToday = isEntertainmentFree(todayRevenue, freeThreshold);
           const feeMinutes = Math.floor(elapsed / 60);
-          const fee = Number((feeMinutes * (hourlyRate / 60)).toFixed(2));
+          const fee = computeEntertainmentFee({
+            minutes: feeMinutes,
+            todayRevenue,
+            hourlyRate,
+            freeThreshold,
+          });
           const remainingMinutes = Math.floor(availableFunds / (hourlyRate / 60));
 
           // 30 minute warning
-          if (remainingMinutes <= 30 && remainingMinutes > 0) {
+          if (!freeToday && remainingMinutes <= 30 && remainingMinutes > 0) {
             this.wsGateway.server.to(`user:${user.id}`).emit('entertainment:warning', {
               message: `娱乐已 ${feeMinutes} 分钟（¥${fee}），费率 ¥${hourlyRate}/小时，余额 ¥${availableFunds} 仅够再玩 ${remainingMinutes} 分钟`,
               elapsedMinutes: feeMinutes,
@@ -104,7 +125,7 @@ export class HeartbeatService {
           }
 
           // Balance exhausted — force switch to AVAILABLE
-          if (remainingMinutes <= 0 && companion.status === 'ENTERTAINMENT') {
+          if (!freeToday && remainingMinutes <= 0 && companion.status === 'ENTERTAINMENT') {
             await this.prisma.companion.update({
               where: { id: user.companionId },
               data: { status: 'AVAILABLE' },

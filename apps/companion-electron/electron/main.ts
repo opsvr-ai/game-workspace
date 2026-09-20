@@ -306,6 +306,20 @@ async function refreshAccessToken(): Promise<string> {
   return (store.get('token') as string) || '';
 }
 
+// WebSocket 被服务端拒绝（accessToken 15 分钟过期最典型）时：换新令牌再连。
+// 之前主进程只会傻重连，拿着过期令牌连一天都连不上，弹窗也就一整天收不到。
+let wsReloginAt = 0;
+async function refreshWsTokenAndReconnect(): Promise<void> {
+  const now = Date.now();
+  // 换令牌要打接口，失败时不要死循环狂刷
+  if (now - wsReloginAt < 30_000) return;
+  wsReloginAt = now;
+  const next = await refreshAccessToken();
+  if (!next) return;
+  logger.warn('WS reconnecting with refreshed token');
+  connectWebSocket(getServerUrl(), next, (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);
+}
+
 let lastCollectAt = 0;
 async function collectAndReportProcesses(tokenOverride?: string) {
   const token = tokenOverride || (store.get('token') as string);
@@ -659,7 +673,7 @@ function setupIPC(): void {
     if (!STORE_KEYS.has(key)) return { success: false };
     store.set(key, value);
     if ((key === 'token' || key === 'refreshToken') && value) {
-      connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string);
+      connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);
     }
     return { success: true };
   });
@@ -999,7 +1013,7 @@ app.whenReady().then(() => {
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });
   const token = getWsToken();
-  if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string);
+  if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);
 
   // 掉线自愈：服务器重启后，socket.io 偶尔会卡在 connect_error（进程没死、看门狗不拉起）。
   // 这里每 90 秒检查一次，若已登录却仍未连上，就强制重建一次 WebSocket，避免一直掉线。
@@ -1007,7 +1021,7 @@ app.whenReady().then(() => {
     try {
       if (store.get('token') && !isConnected()) {
         logger.warn('WS reconnect watchdog: forcing reconnect');
-        connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string);
+        connectWebSocket(getServerUrl(), getWsToken(), (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);
       }
     } catch {}
   }, 90 * 1000);

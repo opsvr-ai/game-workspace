@@ -7,10 +7,11 @@ import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
-import { roundToJiao } from '../common/money';
 import { logger } from '../common/logger';
 import { maskCustomerWechat } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
+import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { currentBusinessDayRange } from '../common/business-day';
 
 const PARTNER_INVITE_TTL_SEC = 60;
 
@@ -1796,9 +1797,25 @@ export class OrdersService implements OnModuleInit {
       });
       if (openLog) {
         const elapsed = Math.max(0, Math.round((Date.now() - new Date(openLog.startedAt).getTime()) / 1000));
-        const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
-        const hourlyRate = Number(rateCfg?.value ?? 60);
-        entertainmentFee = roundToJiao(Math.floor(elapsed / 60) * (hourlyRate / 60));
+        // 娱乐费统一口径（当日流水达标免单），避免和看板/工作台算法不一致
+        const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+        const { start: entDayStart, end: entDayEnd } = currentBusinessDayRange();
+        const entDayRevenue = await this.prisma.order
+          .aggregate({
+            where: {
+              companionId: partnerId,
+              status: 'DONE',
+              createdAt: { gte: entDayStart, lt: entDayEnd },
+            },
+            _sum: { amount: true },
+          })
+          .catch(() => null);
+        entertainmentFee = computeEntertainmentFee({
+          minutes: elapsed / 60,
+          todayRevenue: entDayRevenue?._sum?.amount || 0,
+          hourlyRate,
+          freeThreshold,
+        });
         await this.prisma.companionTimeLog.update({
           where: { id: openLog.id },
           data: { endedAt: new Date(), durationSeconds: elapsed },

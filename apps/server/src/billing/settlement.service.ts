@@ -8,6 +8,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
 
@@ -194,27 +195,6 @@ export class SettlementService {
 
     const totalRevenue = totalAgg._sum.amount ?? 0;
 
-    // 已支取 / 待审支取：跟业绩同一个结算月（跨月重置）
-    const withdrawnAgg = await this.prisma.walletTransaction.aggregate({
-      where: {
-        companionId: companionFilter,
-        type: 'WITHDRAW',
-        status: 'APPROVED',
-        createdAt: { gte: monthStart, lt: monthEnd },
-      },
-      _sum: { amount: true },
-    });
-
-    const pendingAgg = await this.prisma.walletTransaction.aggregate({
-      where: {
-        companionId: companionFilter,
-        type: 'WITHDRAW',
-        status: 'PENDING',
-        createdAt: { gte: monthStart, lt: monthEnd },
-      },
-      _sum: { amount: true },
-    });
-
     // Deposit
     let deposit = 0;
     if (companionId) {
@@ -231,57 +211,41 @@ export class SettlementService {
       deposit = depAgg._sum.deposit ?? 0;
     }
 
-    // Split ratio — read from studio config and system configs
-    const studio = await this.prisma.studio.findUnique({
-      where: { id: studioId },
-      select: { splitMode: true },
-    });
+    // 可支取余额：唯一口径在 common/withdrawable.ts。
+    // 以前这里自己算了一遍（用全店流水套一个档位、还带着写死的 5200 兜底），
+    // 跟「钱包 / 支取审核」算出来的数能差出几百块，所以统一收敛过去。
+    // 全店视图 = 每个陪玩各自的可用额相加（分润档位本来就是按人按月算的）。
     let splitRatio = 0;
-
-    if (companionId && monthRevenue > 0) {
-      if (studio?.splitMode === 'FIXED') {
-        const comp = await this.prisma.companion.findUnique({
-          where: { id: companionId },
-          select: { revenueShare: true },
-        });
-        const clubCfg = await this.prisma.systemConfig.findUnique({
-          where: { key: 'revenue.club_companion_share' },
-        });
-        const defaultShare = (clubCfg?.value as number) ?? 80;
-        const share = (comp?.revenueShare as number) || defaultShare / 100;
-        splitRatio = Math.round(share * 100);
-      } else {
-        const config = await this.prisma.systemConfig.findUnique({
-          where: { key: 'revenue.share_tiers' },
-        });
-        const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
-          (config?.value as any) ?? [
-            { min: 0, max: 5199.99, studio: 50, companion: 50 },
-            { min: 5200, max: 9999.99, studio: 40, companion: 60 },
-            { min: 10000, max: null, studio: 30, companion: 70 },
-          ];
-        const tier =
-          tiers.find((t) => monthRevenue >= t.min && (t.max === null || monthRevenue <= t.max)) ||
-          tiers[tiers.length - 1];
-        splitRatio = tier.companion;
+    let totalWithdrawn = 0;
+    let pendingWithdraw = 0;
+    let depositReserve = 0;
+    let withdrawable = 0;
+    if (companionId) {
+      const w = await computeWithdrawable(this.prisma, companionId, { month: targetMonth });
+      splitRatio = w.splitRatio;
+      totalWithdrawn = w.approvedWithdrawn;
+      pendingWithdraw = w.pendingWithdraw;
+      depositReserve = w.depositReserve;
+      withdrawable = w.withdrawable;
+    } else {
+      // 平均分润比例 = 各人提成之和 ÷ 各人流水之和（全店视图只做展示）
+      let weightedShare = 0;
+      let revenueSum = 0;
+      for (const c of allCompanions) {
+        const w = await computeWithdrawable(this.prisma, c.id, { month: targetMonth });
+        totalWithdrawn += w.approvedWithdrawn;
+        pendingWithdraw += w.pendingWithdraw;
+        depositReserve += w.depositReserve;
+        withdrawable += w.withdrawable;
+        weightedShare += w.monthRevenue * (w.splitRatio / 100);
+        revenueSum += w.monthRevenue;
       }
+      totalWithdrawn = roundToJiao(totalWithdrawn);
+      pendingWithdraw = roundToJiao(pendingWithdraw);
+      depositReserve = roundToJiao(depositReserve);
+      withdrawable = roundToJiao(withdrawable);
+      splitRatio = revenueSum > 0 ? Math.round((weightedShare / revenueSum) * 100) : 0;
     }
-
-    const totalWithdrawn = withdrawnAgg._sum.amount ?? 0;
-    const pendingWithdraw = pendingAgg._sum.amount ?? 0;
-
-    // 未打存单预留：客户存单还没打完的部分，对应提成先扣住（防「冲完成绩跑路」）
-    const depositRows = await this.prisma.customer.findMany({
-      where: companionId ? { companionId } : { companionId: { in: targetIds.length > 0 ? targetIds : ['__none__'] } },
-      select: { depositBalance: true },
-    });
-    const depositUnused = depositRows.reduce((sum, c) => sum + (c.depositBalance || 0), 0);
-    const depositReserve = roundToJiao(depositUnused * (splitRatio / 100));
-
-    const withdrawable = Math.max(
-      0,
-      roundToJiao(monthRevenue * (splitRatio / 100)) - totalWithdrawn - pendingWithdraw - depositReserve,
-    );
 
     // Records — all wallet transaction types, filtered by month if provided
     const recordsWhere: any = { companionId: companionFilter };

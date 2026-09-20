@@ -10,6 +10,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
@@ -640,12 +641,15 @@ export class CompanionsService {
     };
 
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
-    const rateCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'entertainment.hourly_rate' } });
-    const hourlyRate = (rateCfg?.value as number) ?? 60; // default ¥60/hour
+    const { hourlyRate } = await loadEntertainmentRule(this.prisma);
     // 娱乐随时可进：当日流水 ≥ 门槛则免费，否则按小时计费（报账时体现）。
-    const entertainmentFee = todayRevenue >= entertainmentThreshold
-      ? 0
-      : roundToJiao(entertainmentMinutes * (hourlyRate / 60));
+    // 算法统一在 common/entertainment-fee.ts，跟看板、搭档结算、余额预警同一套。
+    const entertainmentFee = computeEntertainmentFee({
+      minutes: durations.entertainment / 60,
+      todayRevenue,
+      hourlyRate,
+      freeThreshold: entertainmentThreshold,
+    });
 
     // Online companions (same studio) — also fetch split mode info
     const companion = await this.prisma.companion.findUnique({

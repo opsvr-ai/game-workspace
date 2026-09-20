@@ -21,7 +21,12 @@ import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields } from '../utils/orderPool';
-import { DATA_FONT_SIZE, DATA_ROW_PADDING, DATA_TAG_FONT_SIZE } from '../constants/datasetColumns';
+import {
+  DATA_FONT_SIZE,
+  DATA_ROW_PADDING,
+  DATA_SUB_FONT_SIZE,
+  DATA_TAG_FONT_SIZE,
+} from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
@@ -396,7 +401,7 @@ const OrderPoolPage: React.FC = () => {
         <div style={{ flexShrink: 0 }}>
         {isCompanion ? (
           <Space size={8}>
-            {order.companionId && <Text type="danger" style={{ fontSize: 12 }}>客服指定给你接</Text>}
+            {order.companionId && <Text type="danger" style={{ fontSize: DATA_SUB_FONT_SIZE }}>客服指定给你接</Text>}
             <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
               <Button
                 size="small"
@@ -419,7 +424,7 @@ const OrderPoolPage: React.FC = () => {
           </Space>
         ) : (
           <Space size={8}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
               发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
             </Text>
             {canEditOrder(order) && (
@@ -431,7 +436,7 @@ const OrderPoolPage: React.FC = () => {
                 修改
               </Button>
             )}
-            <Text type="secondary" style={{ fontSize: 12 }}>待派单</Text>
+            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>待派单</Text>
           </Space>
         )}
         </div>
@@ -442,7 +447,7 @@ const OrderPoolPage: React.FC = () => {
   const renderCompanionSidebar = () => (
     <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
       <Card
-        title={<span style={{ fontSize: 13, fontWeight: 600 }}>人员</span>}
+        title={<span style={{ fontSize: DATA_FONT_SIZE, fontWeight: 600 }}>人员</span>}
         size="small"
         className="personnel-list-card"
         style={{ borderRadius: 8 }}
@@ -473,11 +478,11 @@ const OrderPoolPage: React.FC = () => {
           <span style={{ fontSize: 18 }}>🏠</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Text strong style={{ fontSize: 13, color: '#1F2937' }}>
+              <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#1F2937' }}>
                 {studioGroup?.groupName || '工作室群聊'}
               </Text>
               {groupLastMentions.includes(user?.id || '') && (
-                <Tag color="red" style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>@</Tag>
+                <Tag color="red" style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE, lineHeight: '16px' }}>@</Tag>
               )}
               {groupUnread > 0 && (
                 <Badge count={groupUnread} size="small" overflowCount={99} style={{ marginLeft: 'auto' }} />
@@ -487,7 +492,7 @@ const OrderPoolPage: React.FC = () => {
               style={{
                 display: 'block',
                 marginTop: 2,
-                fontSize: 11,
+                fontSize: DATA_SUB_FONT_SIZE,
                 color: groupUnread > 0 ? '#475569' : '#94A3B8',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -565,7 +570,7 @@ const OrderPoolPage: React.FC = () => {
                         <span
                           style={{
                             fontWeight: 600,
-                            fontSize: 13,
+                            fontSize: DATA_FONT_SIZE,
                             color: '#1F2937',
                             whiteSpace: 'nowrap',
                             flexShrink: 0,
@@ -574,13 +579,13 @@ const OrderPoolPage: React.FC = () => {
                           {c.user?.displayName || c.user?.username || c.id}
                         </span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                          <span style={{ fontSize: 10, color: statusDotColor(c) }}>●</span>
-                          <span style={{ fontSize: 11, color: '#475569' }}>{displayStatus(c).label}</span>
+                          <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
+                          <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
                         </span>
                         <Button
                           size="small"
                           type="text"
-                          style={{ padding: 0, fontSize: 13, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
+                          style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             openCompanionChat(c);
@@ -590,7 +595,7 @@ const OrderPoolPage: React.FC = () => {
                         </Button>
                       </div>
                       {c.currentOrder && (
-                        <div style={{ fontSize: 11, color: '#1677ff', marginTop: 2, whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#1677ff', marginTop: 2, whiteSpace: 'nowrap' }}>
                           {orderTypeConfig[c.currentOrder.type]?.label || c.currentOrder.type} · {c.currentOrder.gameName}
                         </div>
                       )}

@@ -7,6 +7,10 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { roundToJiao } from '../common/money';
+import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+
+/** 计「在线时长」时认可的模式，与 onlineCount 保持一致 */
+const ONLINE_MODES = new Set(['AVAILABLE', 'BUSY', 'ENTERTAINMENT']);
 
 @Injectable()
 export class DashboardService {
@@ -38,24 +42,44 @@ export class DashboardService {
       c => ['AVAILABLE', 'BUSY', 'ENTERTAINMENT'].includes(c.status),
     ).length;
 
-    // Accept rate: companion with status BUSY / total online
-    const busyCount = allCompanions.filter(c => c.status === 'BUSY').length;
-    const acceptRate = onlineCompanions > 0
-      ? Math.round((busyCount / onlineCompanions) * 100)
-      : 0;
-
-    // Entertainment fee from time logs
+    // 接单率 = 接单时长 ÷ 在线时长（老板 2026-09-20 定口径）。
+    // 以前算的是「忙绿人数 ÷ 在线人数」的瞬时快照，那个数不能代表接单率。
+    const now = new Date();
     const timeLogs = await this.prisma.companionTimeLog.findMany({
       where: {
         companion: studioWhere,
-        mode: 'ENTERTAINMENT',
-        startedAt: { gte: today },
+        startedAt: { lt: tomorrow },
+        OR: [{ endedAt: null }, { endedAt: { gte: today } }],
+      },
+      select: {
+        companionId: true,
+        mode: true,
+        startedAt: true,
+        endedAt: true,
+        durationSeconds: true,
       },
     });
-    const entertainmentMinutes = timeLogs.reduce(
-      (s, t) => s + (t.durationSeconds || 0), 0,
-    ) / 60;
-    const entertainmentFee = Math.round(entertainmentMinutes); // 1/min
+    let workSeconds = 0;
+    let onlineSeconds = 0;
+    const entertainmentSecondsByCompanion = new Map<string, number>();
+    for (const log of timeLogs) {
+      // 跨营业日的日志只算落在今天这段，没结束的按「到现在」算
+      const from = Math.max(log.startedAt.getTime(), today.getTime());
+      const to = Math.min((log.endedAt || now).getTime(), tomorrow.getTime());
+      const seconds = Math.round((to - from) / 1000);
+      if (seconds <= 0) continue;
+      // 「在线」跟上面 onlineCount 同一口径：空闲 / 接单中 / 娱乐中算在线，
+      // 休息、离线不算，否则同一份数据里两个「在线」还不是一回事。
+      if (ONLINE_MODES.has(log.mode)) onlineSeconds += seconds;
+      if (log.mode === 'BUSY') workSeconds += seconds;
+      if (log.mode === 'ENTERTAINMENT') {
+        entertainmentSecondsByCompanion.set(
+          log.companionId,
+          (entertainmentSecondsByCompanion.get(log.companionId) || 0) + seconds,
+        );
+      }
+    }
+    const acceptRate = onlineSeconds > 0 ? Math.round((workSeconds / onlineSeconds) * 100) : 0;
 
     // Ranking (monthly revenue)
     const ranking = await this.prisma.companion.findMany({
@@ -88,6 +112,19 @@ export class DashboardService {
     for (const o of todayDoneOrders) {
       if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
     }
+    // 娱乐费：走全系统唯一口径（当日流水达标免单，否则按配置时薪折算）
+    const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma);
+    let entertainmentFee = 0;
+    for (const [companionId, seconds] of entertainmentSecondsByCompanion) {
+      entertainmentFee += computeEntertainmentFee({
+        minutes: seconds / 60,
+        todayRevenue: revMap.get(companionId) || 0,
+        hourlyRate,
+        freeThreshold,
+      });
+    }
+    entertainmentFee = roundToJiao(entertainmentFee);
+
     const alerts = allCompanions
       .filter(c => (revMap.get(c.id) || 0) < lowThreshold)
       .map(c => ({

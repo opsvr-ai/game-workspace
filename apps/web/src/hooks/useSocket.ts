@@ -60,8 +60,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
       auth: { token },
       transports: ['websocket', 'polling'],
       autoConnect: false,
+      // 断线自动重连（含服务器重启）：以前默认就没关，但这里显式写出来，
+      // 并保证每次重连前都会先换新令牌，避免拿过期令牌一直连不上。
+      reconnection: true,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 30000,
     });
     socketRef.current = socket;
+    let reloginInFlight = false;
 
     // 用已连通的网页 Socket 上报陪玩端心跳和客户端版本，
     // 避免依赖 Electron 主进程那条独立的 WebSocket 连接。
@@ -83,20 +89,32 @@ export function useSocket(opts: UseSocketOptions = {}) {
       if (disposed) return;
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) return;
+      if (reloginInFlight) return;
+      reloginInFlight = true;
       try {
         const { data } = await http.post('/auth/refresh', { refreshToken });
         const next = (data as any)?.data?.accessToken;
         if (!next) return;
+        const nextRefresh = (data as any)?.data?.refreshToken;
         sessionStorage.setItem('accessToken', next);
-        if ((data as any)?.data?.refreshToken) {
-          localStorage.setItem('refreshToken', (data as any).data.refreshToken);
-        }
+        if (nextRefresh) localStorage.setItem('refreshToken', nextRefresh);
+        // 同步给陪玩端主进程（主进程那条 WebSocket 就是靠这里存的令牌连的）
+        try {
+          (window as any).electronAPI?.storeSet?.('token', next);
+          if (nextRefresh) (window as any).electronAPI?.storeSet?.('refreshToken', nextRefresh);
+        } catch {}
         (socket as any).auth = { token: next };
-        socket.connect();
+        if (!socket.connected) socket.connect();
       } catch {
         /* 换不到就等下一次重连 */
+      } finally {
+        reloginInFlight = false;
       }
     };
+    // 服务端接受「过期但我们自己签发的」令牌时会推这个事件，让我们后台把令牌换成新的
+    socket.on('auth:stale_token' as any, () => {
+      void relogin();
+    });
     socket.on('connect_error', (err: any) => {
       const msg = String(err?.message || '');
       if (/invalid signature|jwt expired|Unauthorized|invalid token/i.test(msg)) {
@@ -111,6 +129,11 @@ export function useSocket(opts: UseSocketOptions = {}) {
       emitHeartbeat();
       const timer = setInterval(emitHeartbeat, 30_000);
       (socket as any).__hbTimer = timer;
+    });
+    socket.on('disconnect', (reason: any) => {
+      // 被服务端断开（令牌不认/连接被踢）时 socket.io 不会自动重连，
+      // 这里手动换令牌再连，避免「人在线但收不到弹窗」。
+      if (String(reason) === 'io server disconnect') void relogin();
     });
     socket.on('disconnect', () => {
       if ((socket as any).__hbTimer) {
@@ -267,6 +290,13 @@ export function useSocket(opts: UseSocketOptions = {}) {
     // 但新页面连接若直接拿过期 token 握手，会被服务端连接后立刻断开，
     // 导致 order:pool_updated 收不到。这里先经 /auth/me 让 axios 拦截器续期，
     // 再开始 Socket.IO 连接，避免“弹窗先到、订单池必须手动刷新”。
+    const keepAliveTimer = setInterval(() => {
+      // 静默续期：accessToken 只有 15 分钟，提前换掉，
+      // 这样断线重连/主进程重连都不会再拿过期令牌去握手。
+      void http.get('/auth/me').catch(() => {});
+    }, 10 * 60 * 1000);
+    (socket as any).__keepAliveTimer = keepAliveTimer;
+
     void (async () => {
       try {
         await http.get('/auth/me');
@@ -281,6 +311,7 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     return () => {
       disposed = true;
+      clearInterval(keepAliveTimer);
       socket.disconnect();
       socketRef.current = null;
     };

@@ -67,6 +67,58 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly blacklistIngestService: BlacklistIngestService,
   ) {}
 
+  /**
+   * 老板 2026-09-20 报「日志里每天几十次 WebSocket invalid signature，失败期间收不到弹窗」。
+   * 根因：accessToken 只有 15 分钟寿命，陪玩端（特别是主进程那条连接）过了 15 分钟
+   * 还在拿旧令牌重连，握手被拒 → 弹窗链路直接断掉，只能等 15 秒轮询。
+   * 处理：令牌只要确实是本服务器签发的、仅仅是过期，就按宽限期放进来，
+   * HTTP 接口依旧严格按 15 分钟校验（这里只放宽「服务端主动推送」这条通道），
+   * 同时推 auth:stale_token 提醒客户端去换新令牌。
+   * 宽限期可在系统设置里改：ws.token_grace_hours，默认 168 小时（7 天）。
+   */
+  private async acceptExpiredOwnToken(
+    token: string,
+  ): Promise<{ payload: JwtPayload; expiredAt: Date; kind: 'access' | 'refresh' } | null> {
+    // 不看具体的报错类型：accessToken 过期报 TokenExpiredError，
+    // refreshToken（另一把密钥）过期会先报 invalid signature —— 两种情况都是
+    // 「本服务器签发、只是过期」，一并按宽限期处理。
+    let payload: JwtPayload | null = null;
+    let kind: 'access' | 'refresh' = 'access';
+    try {
+      payload = this.jwt.verify<JwtPayload>(token, {
+        secret: process.env.JWT_SECRET,
+        ignoreExpiration: true,
+      });
+    } catch {
+      kind = 'refresh';
+      try {
+        payload = this.jwt.verify<JwtPayload>(token, {
+          secret: process.env.JWT_REFRESH_SECRET,
+          ignoreExpiration: true,
+        });
+      } catch {
+        // 两个密钥都验不过 = 不是本服务器签发的，走原来的失败流程
+        return null;
+      }
+    }
+    const exp = Number((payload as any)?.exp);
+    if (!Number.isFinite(exp)) return null;
+    const graceHours = await this.tokenGraceHours();
+    if (graceHours <= 0) return null;
+    const expiredAt = new Date(exp * 1000);
+    if (Date.now() - expiredAt.getTime() > graceHours * 3600 * 1000) return null;
+    return { payload, expiredAt, kind };
+  }
+
+  private async tokenGraceHours(): Promise<number> {
+    const cfg = await this.prisma.systemConfig
+      .findUnique({ where: { key: 'ws.token_grace_hours' } })
+      .catch(() => null);
+    const raw = cfg?.value as unknown;
+    const value = typeof raw === 'number' ? raw : Number(raw);
+    return Number.isFinite(value) ? value : 168;
+  }
+
   // ── lifecycle ──────────────────────────────────────────────────────
 
   afterInit(): void {
@@ -97,11 +149,20 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // 客户端主进程可能用 accessToken 或 refreshToken 连接（两者签名密钥不同）
       let payload: JwtPayload;
+      let staleToken: { expiredAt: Date; kind: 'access' | 'refresh' } | null = null;
       try {
         payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_SECRET });
       } catch (accessErr) {
+        // 先看是不是「我们自己签发、只是过期了」：是就按宽限期放行，
+        // 否则再试 refreshToken，最后才判定为非法令牌。
+        const stale = await this.acceptExpiredOwnToken(token);
+        if (stale) {
+          payload = stale.payload;
+          staleToken = { expiredAt: stale.expiredAt, kind: stale.kind };
+        } else {
         try {
-          payload = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
+          const refreshed = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
+          payload = refreshed;
         } catch (refreshErr) {
           // 两个密钥都验不过 = 这个令牌不是这台服务器签发的。
           // 老板 2026-09-20 报「日志里每天几十次 invalid signature」：
@@ -124,9 +185,27 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             address: client.handshake.address,
           });
           client.emit('auth:failed', { reason: (accessErr as Error).message });
-          client.disconnect(true);
+          // 先把「你去换令牌」这句话发出去再断开，否则客户端只看到自己被踢，
+          // 不知道为什么，也不知道要做什么。
+          setTimeout(() => client.disconnect(true), 200);
           return;
         }
+        }
+      }
+
+      if (staleToken) {
+        logger.warn('WebSocket accepted with expired token (within grace)', {
+          username: (payload as any)?.username,
+          userId: (payload as any)?.sub,
+          tokenKind: staleToken.kind,
+          expiredAt: staleToken.expiredAt.toISOString(),
+          address: client.handshake.address,
+        });
+        // 告诉客户端去换新令牌，下一次重连就恢复正常
+        client.emit('auth:stale_token', {
+          tokenKind: staleToken.kind,
+          expiredAt: staleToken.expiredAt.toISOString(),
+        });
       }
 
       const user: ConnectedUser = {
