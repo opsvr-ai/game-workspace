@@ -31,6 +31,35 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **分店配置：以后进来的租赁线下工作室 / 线上俱乐部，数据由他们自己的店长填（老板 2026-09-21 拍板）:**
+  以前所有配置只有**一份全局值**（`SystemConfig`），谁打开设置页改的都是别人的账 —— 新店要么用不了、
+  要么一改就把别家一起改。现在配置分两层，生效顺序 **本店店长填的 → 老板给的全站默认 → 代码内置默认**：
+  ① 新增数据表 `StudioConfig`（`studioId + key` 唯一，`prisma/migrations/20260921040000_add_studio_config`）；
+  ② 唯一读取入口 `apps/server/src/common/studio-config.ts`：`resolveConfigs`（带内置默认兜底，给界面用）
+  与 `resolveConfigsRaw`（不兜底，给老的 `systemConfig.findUnique + ?? 兜底` 改造用，
+  保证「本店没填」时结果和改之前一模一样）；
+  ③ **接线到底**：可支取余额、月度分成结算、陪玩业绩、工作台娱乐费与分润展示、看板低流水预警、
+  客服提成 / 底薪 / 桥接阶梯、店长分成、财务对账、每日抢单名额、娱乐费率与免单线 —— 全部改为按店解析；
+  ④ 接口也按身份分流：`PUT /api/config` 老板写全局，**店长只写本店覆盖**；
+  `GET /api/config` 返回本店生效值并附带 `_meta`（哪些是本店自定义、哪些键店长可填）；
+  新增 `DELETE /api/config/studio-overrides`（「恢复用老板的默认」，传 `keys` 只恢复这几项）；
+  ⑤ 店长一次保存里混了全站项（黑名单开关 / AI 密钥 / 客户端版本等）**不报错、也不静默**：
+  存下能存的，把跳过的键列在 `data.skipped` 里，前端统一提示是哪些没改动；
+  ⑥ 设置页新增提示条：店长看到「这里是本店自己的设置」+「本店已自定义 N 项 + 一键全部恢复默认」，
+  老板看到「这里改的是全站默认值」+ 可挑一家店查看/逐项恢复那家店的自定义。
+  **白名单只放「真的有人读」的键**：审计时发现 `commission.attribution_window`、
+  `dispatch.bridge_immediate_window_sec`、`dispatch.bridge_return_jimi_cents`、
+  `dispatch.bridge_return_jueju_cents` 全库无人读取（线上实际走 `pool.bridge_return_*`），
+  不放进来，避免出现「店长填了不生效」；另外把 `revenue.club_companion_share` 等 11 个
+  「只在代码里写死兜底值、配置表里没有」的键**登记进内置默认表** ——
+  修掉「店长设了 70、分账规则页还显示 80」这个显示与生效不一致的老毛病。
+  新增 15 条单元测试（`apps/server/src/__tests__/studio-config.test.ts`）。
+  **上线实测（拿真账号跑的，跑完已清理）**：店长（hanlei1 / 蠢驴电竞）把线上俱乐部比例改成 70 →
+  只写进本店覆盖，老板全局仍是 80、光耀电竞仍是 80；店长页面显示 70；老板把全局改成 85 后
+  光耀跟着变 85、蠢驴仍按本店的 70；店长点「恢复默认」→ 回到 85；混入 `blacklist.auto_kill` /
+  `web.frontend_version` 保存 → 返回 `skipped` 且全站值分毫未动（仍是 `false` / `v751`）。
+  测试行已全部删除，线上 `StudioConfig` 为 0 行。
+
 - **「利润分成」页接上真账：一单流水按 工作室 / 店长 / 客服 / 陪玩 四个人分（老板 2026-09-21 拍板
   「不管线下工作室还是线上俱乐部，流水有工作室、店长、客服、陪玩这四个人分」）:**
   这一页以前是**死配置** —— 三个页签（线下/线上/桥接）填的数字**没有任何地方读**，纯摆设，

@@ -6,6 +6,7 @@
 
 ## Recent Updates (v3.2.0)
 
+- **分店配置（2026-09-21）:** 以后进来的租赁线下工作室 / 线上俱乐部，数据由**他们自己的店长**填。配置改成两层——店长在设置页保存只写 `StudioConfig`（本店覆盖），老板保存写 `SystemConfig`（全站默认），没填的项自动跟着老板的默认走；可支取余额、月度分成、客服/店长提成、每日抢单名额、娱乐费率等**全部按店解析**，店长「恢复默认」一键回到老板的值。店长改不了全站唯一项（黑名单开关、AI 密钥、客户端版本等），保存时会明确告知跳过了哪些。设置页新增提示条，写明「这份设置是谁的」。
 - **登录「too many request」根因修复（2026-09-21）:** 限流原来按公网 IP 记账，工作室几十台机器共用一个出口，一个人反复输错密码就能把整个工作室的登录额度占满（订单池轮询还被挤爆过 1365 次）。现在按「人」记账：登录/注册/找回密码按「账号 + 来访 IP」、带令牌的请求按「用户 id」，配额放宽到 15/秒、80/10 秒、600/分钟，被限流时提示「操作太频繁，请等 X 秒再试」，访问日志补上来访 IP（`apps/server/src/common/app-throttler.guard.ts`）。
 - **聊天「已阅读 / 未读」回执（2026-09-21）:** 自己发出的消息气泡下面显示对方读没读——灰色「未读」，对方一打开会话就**实时**变绿色「已阅读」（新增 `chat:read` WebSocket 推送 + 消息列表 `peerReadSeq`）。群聊不做单条已读。
 - **「动不动掉线」根因已修（2026-09-21）：** 客户端每 60 秒向服务端要一次「前端构建号」，以前下发的是**进程启动时间** —— 服务端每重启一次（每次发版都会重启），所有陪玩端下一轮心跳就整页刷新一次，看起来就是「掉线 / 闪一下重新加载」。现在构建号改成读 `apps/server/web-dist` 真实产物 hash（`assets/index-<hash>.js`），**只重启服务端不再触发任何客户端刷新**，只有真发了新前端才刷一次；客户端同时加了三道闸：服务中不刷、刚打开页面 120 秒内不刷、5 分钟最多刷一次（`apps/web/src/layouts/AppLayout.tsx`）；断开连接 60 秒宽限期内连回来算没掉线；部署脚本内容没变会自动跳过重启（`scripts\_deploy_server_cloud.py`）。
@@ -419,8 +420,9 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
-| `GET` | `/api/config` | JWT | -- | Get config values. Query: `?keys=a,b`. |
-| `PUT` | `/api/config` | JWT | ADMIN, OWNER | Batch update config. |
+| `GET` | `/api/config` | JWT | -- | Get the **effective** config for the caller's studio (store override → owner global → code default). Query: `?keys=a,b`; owners may add `?studioId=...` to inspect another store. Returns `_meta` with `overridden` / `studioScopedKeys`. |
+| `PUT` | `/api/config` | JWT | ADMIN, OWNER | OWNER writes the global default; ADMIN writes **this studio's override only** (non-studio-scoped keys are skipped and reported in `data.skipped`). |
+| `DELETE` | `/api/config/studio-overrides` | JWT | ADMIN, OWNER | Drop this studio's overrides so it falls back to the owner default. Query: `?keys=a,b` (omit to reset all); owners may pass `?studioId=...`. |
 
 ### Companions (报账 / 通知偏好)
 

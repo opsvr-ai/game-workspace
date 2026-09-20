@@ -206,6 +206,31 @@ pnpm db:migrate
 # 内部调用: cd apps/server && npx prisma migrate dev
 ```
 
+### 3.4.1 ⚠️ 云服务器上「改了 schema 一定要重新生成 Prisma Client」
+
+**这是踩过的坑，会直接让线上报 500**（例：新增 `StudioConfig` 表后，
+接口报 `Cannot read properties of undefined (reading 'findMany')`）。
+
+云服务器的部署流程只上传 `apps/server/dist`，**不会**重建 Prisma Client。
+所以只要动了 `apps/server/prisma/schema.prisma`，除了在数据库建表，还必须：
+
+```bash
+# 1) 把新的 schema 传上去
+scp apps/server/prisma/schema.prisma ubuntu@1.117.229.36:/home/ubuntu/chunlv/apps/server/prisma/schema.prisma
+
+# 2) 在服务器上重新生成客户端（否则 prisma.<新模型> 是 undefined）
+ssh ubuntu@1.117.229.36 'cd /home/ubuntu/chunlv/apps/server && ./node_modules/.bin/prisma generate'
+
+# 3) 重启服务端
+ssh ubuntu@1.117.229.36 'pm2 restart chunlv-server --update-env'
+```
+
+建表语句本身按本项目的老路子是**手工在库里执行**（`apps/server/prisma/migrations/<时间戳>_xxx/migration.sql`
+里的 SQL 用 `psql` 跑一遍；线上 `_prisma_migrations` 没有登记，不用 `migrate deploy`）。
+
+> 交付前自检：拿一个新模型跑一次 `GET` 接口。如果报 `undefined (reading 'xxx')`，
+> 十有八九就是这一步忘了做。
+
 ### 3.5 导入测试数据（可选）
 
 ```bash

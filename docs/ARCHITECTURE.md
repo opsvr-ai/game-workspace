@@ -174,6 +174,8 @@ erDiagram
     Studio ||--o{ Order : "has"
     Studio ||--o{ Customer : "has"
     Studio ||--o{ Expense : "has"
+    Studio ||--o{ StudioConfig : "owns (店长自己填的配置)"
+    Studio ||--o{ SystemConfig : "(全局默认，不分店)"
     Companion ||--o{ ExpenseReport : "submits"
     Studio ||--o{ ExpenseReport : "has"
     Companion ||--o{ Order : "serves"
@@ -198,6 +200,16 @@ erDiagram
     Studio {
         uuid id PK
         string name
+        string type "DIRECT(线下) | RENTAL(线上俱乐部)"
+        string splitMode "TIERED | FIXED"
+    }
+
+    StudioConfig {
+        uuid id PK
+        uuid studioId FK
+        string key "只放分店白名单里的键"
+        json value
+        datetime updatedAt
     }
 
     Companion {
@@ -389,6 +401,32 @@ graph TB
     HTTP_SRV --> UI
     UI -.->|"fetch /api/*"| HTTP_SRV
 ```
+
+## 8.1 配置分层（分店配置）
+
+老板 2026-09-21 拍板：**以后进来的租赁线下工作室 / 线上俱乐部，所有数据由他们自己的店长填写。**
+所以读配置一律走 `apps/server/src/common/studio-config.ts`，生效顺序：
+
+```mermaid
+flowchart LR
+    A["店长在设置页保存"] --> B[("StudioConfig<br/>本店覆盖")]
+    C["老板在设置页保存"] --> D[("SystemConfig<br/>全站默认")]
+    E["代码内置"] --> F[("DEFAULT_CONFIGS")]
+    B --> G{"resolveConfigs /<br/>resolveConfigsRaw"}
+    D --> G
+    F --> G
+    G --> H["钱 / 名额 / 计费 一律用这里的结果"]
+```
+
+- `resolveConfigs(prisma, studioId, keys)` —— 带内置默认兜底，给界面和「显示即生效」的场景用。
+- `resolveConfigsRaw(prisma, studioId, keys)` —— **不做内置兜底**，没配过就返回 `undefined`，
+  让调用处原来的 `?? 兜底值` 继续生效。所有从 `systemConfig.findUnique(key)` 改造过来的读点都用它，
+  保证「本店没填」时行为与改造前**一模一样**。
+- `STUDIO_SCOPED_KEYS`（`common/default-config.ts`）是店长可自填的**白名单**，
+  只放「真的有人读、且真的按店生效」的键；名单外的全站唯一项（JWT、AI 密钥、前端版本、
+  杀黑名单开关等）店长改不了。
+- `PUT /api/config` 按身份分流（老板写全局 / 店长写本店），
+  `DELETE /api/config/studio-overrides` 恢复默认，`GET /api/config` 返回生效值 + `_meta.overridden`。
 
 ## 9. 部署架构
 
