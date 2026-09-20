@@ -6,6 +6,7 @@
 
 ## Recent Updates (v3.2.0)
 
+- **聊天「已阅读 / 未读」回执（2026-09-21）:** 自己发出的消息气泡下面显示对方读没读——灰色「未读」，对方一打开会话就**实时**变绿色「已阅读」（新增 `chat:read` WebSocket 推送 + 消息列表 `peerReadSeq`）。群聊不做单条已读。
 - **「动不动掉线」根因已修（2026-09-21）：** 客户端每 60 秒向服务端要一次「前端构建号」，以前下发的是**进程启动时间** —— 服务端每重启一次（每次发版都会重启），所有陪玩端下一轮心跳就整页刷新一次，看起来就是「掉线 / 闪一下重新加载」。现在构建号改成读 `apps/server/web-dist` 真实产物 hash（`assets/index-<hash>.js`），**只重启服务端不再触发任何客户端刷新**，只有真发了新前端才刷一次；客户端同时加了三道闸：服务中不刷、刚打开页面 120 秒内不刷、5 分钟最多刷一次（`apps/web/src/layouts/AppLayout.tsx`）；断开连接 60 秒宽限期内连回来算没掉线；部署脚本内容没变会自动跳过重启（`scripts\_deploy_server_cloud.py`）。
 - **抢单改成「每日名额制」（老板 2026-09-20 拍板）:** 废掉「今日流水 ≥ 门槛才能抢单」的死循环规则（流水只能靠完成订单产生，门槛一恢复每天早上谁都抢不了第一单），改成按段位每天发 **上等马 3 / 中等马 2 / 下等马 1** 个「立即打」名额，**没用完自动累计**；预约单、客服指定单、陪玩自己发的单不占名额。名额「先扣、抢失败再退回」，并发下不会出现抢到单没扣名额。详见 `apps/server/src/orders/companion-quota.service.ts`。
 - **抢单超时回收:** 线上 56 单卡在「已抢单」（其中一人囤 20 单、最早 5 天前），好单烂在手里别人没单可抢。现在抢单后 180 分钟没点「开始服务」且无任何服务记录 → 自动退回订单池，名额不退；发布已超过 24 小时的直接作废并通知客服。上线首轮清掉 52 张僵尸单、退回 2 张。
@@ -602,6 +603,7 @@ Every endpoint returns a standard JSON envelope:
 | `pc:command` | `{ command: string, params?: object }` | Remote command sent to companion PC (`shutdown`, `restart`, `throttle`, `unthrottle`). |
 | `order:new` | `{ id, type, amount, gameName, ... }` | New order pushed to a specific companion. |
 | `status:broadcast` | `{ companionId, status, mode? }` | Broadcast companion status change to all users in the studio room. |
+| `chat:read` | `{ roomId, readerId, readSeq }` | 已读回执：对方打开会话、把消息标成已读时推给**发消息的那一方**，前端把该条消息下的「未读」改成绿色「已阅读」。群聊不推。 |
 | `chat:broadcast` | `{ roomId, messageId, senderId, senderName, senderRole, content, createdAt }` | 群聊广播：客服/店长在工作室群聊发广播时推给本工作室全体在线陪玩，陪玩端右下角弹 Windows 提醒（5 秒后消失）。 |
 
 ### Chat
