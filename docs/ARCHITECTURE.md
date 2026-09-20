@@ -480,7 +480,9 @@ graph TB
 
 **核心规则:**
 - 金额统一整数分存储，营业日以每日 12:00 为界，月结周期 = 当月 1 日 12:00 至次月 1 日 12:00
-- 分成阶梯：<5200 五五；5200–10000 六四；≥10000 且入职满 6 个月七三
+- 分成阶梯：**只用于线下工作室**（Studio.type=DIRECT、splitMode=TIERED；线上俱乐部 RENTAL 是按人固定比例，
+  不走阶梯）。阶梯明细以「设置 → 分成阶梯」里老板填的为准（线上现在是 0–5999.9 五五 / 6000–9999.99 六四 /
+  ≥10000 七三）；**最高一档需入职满 6 个月**，没满回落下一档（勾「老员工」可豁免）
 - 审核金额 = 填写时长 × 声明单价；转账截图合计 >= 审核金额即通过，超出算加价，低于标红
 - 服务结束时由 `PUT /api/companions/sessions/:id/finish` 接收 `transferTotalYuan`，将审核金额、转账合计与审核状态写入订单 `auditAmountCents / transferTotalCents / auditStatus`
 - 开始服务 `POST /api/orders/:id/start-session` 必填 `claimedMode / claimedPrice / duration / transferScreenshotUrl`，并将会话 `duration` 落库
