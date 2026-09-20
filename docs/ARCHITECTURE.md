@@ -436,11 +436,20 @@ flowchart LR
 - `resolveConfigsRaw(prisma, studioId, keys)` —— **不做内置兜底**，没配过就返回 `undefined`，
   让调用处原来的 `?? 兜底值` 继续生效。所有从 `systemConfig.findUnique(key)` 改造过来的读点都用它，
   保证「本店没填」时行为与改造前**一模一样**。
-- `STUDIO_SCOPED_KEYS`（`common/default-config.ts`）是店长可自填的**白名单**，
-  只放「真的有人读、且真的按店生效」的键；名单外的全站唯一项（JWT、AI 密钥、前端版本、
-  杀黑名单开关等）店长改不了。
+- **归属是黑名单**（2026-09-21 从白名单翻过来）：`OWNER_ONLY_KEYS` / `OWNER_ONLY_PREFIXES`
+  （`common/default-config.ts`）**之外的全部**归店长，写进本店 `StudioConfig`。
+  老板专属只有两类：**密钥 / 凭据**（`identity.*` / `ai.*` / `turn.*` / `jwt.*` / `secret*`）和
+  **一份值绑住全站**（`blacklist.auto_kill`、客户端与网页版本号、`ws.*` 宽限期、
+  `service.stale_session_hours`、`counter.global_code`、`invite.*`、`cs.client.version.*`、
+  `excellence.low_tier_streak`）。
+- **写入唯一入口** `saveConfigsByRole(prisma, actor, entries)`：老板 → `SystemConfig`，
+  店长 → `StudioConfig`，混入的老板专属键跳过并列进 `skipped`。
+  **任何服务都不许再自己 upsert `SystemConfig`**，否则店长一保存就改到了别人的账。
+  没有 `studioId` 的非老板账号直接报错，不做「没店就当老板」兜底。
 - `PUT /api/config` 按身份分流（老板写全局 / 店长写本店），
-  `DELETE /api/config/studio-overrides` 恢复默认，`GET /api/config` 返回生效值 + `_meta.overridden`。
+  `DELETE /api/config/studio-overrides` 恢复默认，
+  `GET /api/config` 返回生效值 + `_meta.overridden` / `_meta.ownerOnlyKeys`；
+  密钥 / 凭据类的值不下发给店长。
 
 ## 9. 部署架构
 

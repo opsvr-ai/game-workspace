@@ -7,6 +7,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
 ### Fixed
 
 - **语音通话「互相听不到声音」根因修复（老板 2026-09-21 报「王昊给邵泽慧打语音，互相听不到声音」）:**
@@ -27,7 +29,45 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   新增 9 条单元测试（`apps/server/src/__tests__/ws.gateway.voice-relay.test.ts`）。
   已知限制：**网页版（http:// 地址）拿不到麦克风**（浏览器要求 https），语音请用客户端。
 
-## [Unreleased]
+### Changed
+
+- **配置归属翻过来：默认「本店的事店长说了算」，只有影响数据安全与稳定性的才归老板（老板 2026-09-21 拍板
+  「总之，以后新进来的租赁线下工作室 / 线上俱乐部，店长都可以自己改动他店里的任何数据，店跟店之间是
+  相互独立的，影响数据安全与稳定性的数据只有老板才可以动」）:**
+  上一版是**白名单**（只放 30 个键店长能填），结果店长连自己店里的考勤时间、截图阈值、下等马名额都改不动 ——
+  跟「店里的事店长说了算」正好相反。这一版**翻成黑名单**：`OWNER_ONLY_KEYS` / `OWNER_ONLY_PREFIXES` 之外
+  **全部**归分店，写进 `StudioConfig`，只影响自己这家店。
+  老板专属只有两类，判据好记：
+  ① **密钥 / 凭据**：`identity.*`（实名认证）、`ai.*`（大模型 Key）、`turn.*`（语音中转）、`jwt.*` / `secret*`；
+  ② **一份值绑住全站**：`blacklist.auto_kill`（杀进程总开关，一改会动所有陪玩电脑）、
+  `agent.latest_version` / `cs.latest_version` / `web.frontend_version`（版本号，改了等于让所有人升级）、
+  `ws.token_grace_hours` / `ws.offline_grace_seconds` / `service.stale_session_hours`（服务器级连接参数）、
+  `counter.global_code` / `invite.*` / `cs.client.version.*` / `excellence.low_tier_streak`（全站唯一的内部状态）。
+  **写入侧收口**：新增唯一入口 `saveConfigsByRole(prisma, actor, entries)` —— 老板写 `SystemConfig`、
+  店长写 `StudioConfig`，店长提交里混进老板专属键就跳过并列进 `skipped`（不报错、也不静默）。
+  以前 `traffic`（打法指南）、`commission`（客服桥接达标规则）、`reconciliation`（每月固定支出项）
+  **自己直接 upsert SystemConfig**，店长一保存就改到了别人的账 —— 现在全部改走这一个入口，
+  这才是「店跟店不独立」的真正根。并且**取消「没有 studioId 就当老板」的兜底**：
+  没绑定工作室的账号保存直接报错，宁可报错也绝不悄悄写全站。
+  **读取侧补完**：把还在读全局的地方全部改成按店解析（本店店长填的 → 老板全局默认），共 20 处 ——
+  考勤上下班时间、抢单池各段位等待时间（含桥接工作室等待）、立即打 / 预约单消失时间、抢单超时回收与作废、
+  工作台解锁门槛、支取次数上限（工作台 + 钱包）、报账偏差预警线、客户跟进成功率门槛与异常阈值、
+  图文笔记及格线、战绩图采纳加分、综合评分四组档位与上等马 / 中等马线（含末位淘汰天数）、
+  每月固定支出项、绝密单线上返款。
+  顺手修掉一个**死开关**：设置页「派单与提成 → 绝密线上返款」写的是 `dispatch.bridge_return_jueju_cents`，
+  而代码读的是 `pool.bridge_return_jueju_cents`（全库没有任何地方写它）—— **填了不生效**。
+  现在统一读设置页那个键（并兼容老的隐藏键）；线上两处默认都是 1500 分，**行为一字未变**，
+  但以后店长改了真的会起作用。
+  **界面**：店长在「设置中心」看到 11 项（老板 13 项），条幅改成「这页上的设置你都能改，而且只影响本店……」；
+  「语音通话 / AI 分析」两项标成（老板专属），**店长侧直接不显示**；
+  `GET /api/config` 也不再给店长下发 `identity.* / jwt.* / secret* / ai.* / turn.*` 的值
+  （以前只是不能改，值还是能读到）。
+  新增 / 改写 19 条单元测试（`apps/server/src/__tests__/studio-config.test.ts`，含 `saveConfigsByRole` 三种身份）。
+  **上线实测（真账号跑的，跑完已清理）**：店长 hanlei1 存 `attendance.workStart=10:30` 并混入
+  `ai.deepseek_api_key` → 返回 `{scope: studio, saved: [attendance.workStart], skipped: [ai.deepseek_api_key]}`，
+  查库 `StudioConfig` 有这一行、`SystemConfig` 里那把真 Key **一个字节没动**；店长把本店「上等马线」改成 0 →
+  本店 5 人变上等马（老板全站默认是 999），确认按店生效；改完点「全部恢复默认」→ 删掉 2 行覆盖，
+  线上 `StudioConfig` 回到 0 行。
 
 ### Added
 
