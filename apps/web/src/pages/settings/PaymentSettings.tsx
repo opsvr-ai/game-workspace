@@ -7,6 +7,20 @@ import { SettingsLabel } from '../../components/settings/SettingsField';
 
 const { Text } = Typography;
 
+// 线上俱乐部（固定比例）陪玩分成的兜底值。
+// 后端四处（月底结算 / 可支取余额 / 财务对账 / 陪玩业绩）在配置缺失时都按 80% 生效，
+// 所以前端必须显示同一个数字，否则会出现「页面显示 80、其实库里从没存过」的错觉。
+const DEFAULT_CLUB_COMPANION_SHARE = 80;
+
+// 把「后端实际生效的默认值」落到表单里：看到多少，算的就是多少；点保存就真的写进库。
+const withEffectiveDefaults = (raw: any) => {
+  const next: any = { ...(raw ?? {}) };
+  if (typeof next['revenue.club_companion_share'] !== 'number') {
+    next['revenue.club_companion_share'] = DEFAULT_CLUB_COMPANION_SHARE;
+  }
+  return next;
+};
+
 interface ShareTier {
   min: number;
   max: number | null;
@@ -23,7 +37,7 @@ const PaymentSettings: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await configApi.getAll();
-      setConfig(data.data);
+      setConfig(withEffectiveDefaults(data.data));
     } catch {
       message.error('加载配置失败');
     } finally {
@@ -40,7 +54,7 @@ const PaymentSettings: React.FC = () => {
     try {
       await configApi.update({
         'revenue.share_tiers': config?.['revenue.share_tiers'],
-        'revenue.club_companion_share': config?.['revenue.club_companion_share'],
+        'revenue.club_companion_share': config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE,
       });
       message.success('分账规则 已保存');
     } catch {
@@ -162,9 +176,11 @@ const PaymentSettings: React.FC = () => {
         <Text strong style={{ display: 'block', marginBottom: 12 }}>🏢 线上俱乐部（固定比例）</Text>
         <div>
           <SettingsLabel>陪玩分成比例（%）</SettingsLabel>
-          <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? 80}
-            onChange={(v) => update('revenue.club_companion_share', v ?? 80)} style={{ width: 200 }} />
-          <Text type="secondary" style={{ marginLeft: 8 }}>线上俱乐部固定分给陪玩的比例，工作室获剩余份额，默认 80%</Text>
+          <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE}
+            onChange={(v) => update('revenue.club_companion_share', v ?? DEFAULT_CLUB_COMPANION_SHARE)} style={{ width: 200 }} />
+          <Text type="secondary" style={{ marginLeft: 8 }}>
+            线上俱乐部固定分给陪玩的比例（工作室拿剩下的）。这里显示的就是实际生效的数字，改完点「保存」。
+          </Text>
         </div>
       </div>
       <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
