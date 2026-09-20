@@ -23,7 +23,6 @@ import { CustomerTrackingModule } from './customer-tracking/customer-tracking.mo
 import { ManagedPcModule } from './managed-pc/managed-pc.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { PayrollModule } from './payroll/payroll.module';
-import { ProfitSplitModule } from './profit-split/profit-split.module';
 import { TrafficAccountModule } from './traffic-account/traffic-account.module';
 import { BattleScreenshotsModule } from './battle-screenshots/battle-screenshots.module';
 import { RedisModule } from './redis/redis.module';
@@ -75,7 +74,6 @@ import { ContentCheckModule } from './content-check/content-check.module';
     ManagedPcModule,
     AnalyticsModule,
     PayrollModule,
-    ProfitSplitModule,
     TrafficAccountModule,
     BattleScreenshotsModule,
     ContentCheckModule,

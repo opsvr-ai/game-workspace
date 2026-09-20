@@ -19,6 +19,7 @@ import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { WsGateway } from '../ws/ws.gateway';
 import { normalizeShareTiers } from '../common/percent-split';
+import { splitRoles } from '../common/order-split';
 
 const DEFAULT_CONFIGS: Record<string, any> = {
   // 新单弹窗停留秒数（老板 2026-09-20 起可配，比原来写死的 15 秒更灵活）
@@ -229,6 +230,10 @@ const DEFAULT_CONFIGS: Record<string, any> = {
     { game: '和平精英', hours: 0 },
   ],
   'commission.cs_offline_rate_percent': 1,
+  // 店长分成比例（% 流水，老板 2026-09-21：一单流水由 工作室/店长/客服/陪玩 四个人分）。
+  // 默认 0 = 店长暂不参与分成（老口径不变），在「利润分成」页里填。
+  'commission.admin_offline_rate_percent': 0,
+  'commission.admin_online_rate_percent': 0,
   'commission.cs_offline_floor_cents': 200,
   'commission.cs_online_per_order_yuan': 1,
   'commission.cs_offline_per_order_cap_cents': 0,
@@ -317,6 +322,31 @@ export class SettingsController {
         throw new BadRequestException('分成阶梯格式不正确');
       }
       body['revenue.share_tiers'] = normalizeShareTiers(body['revenue.share_tiers']);
+    }
+
+    // 四个人的分成加起来不能超过 100%（老板 2026-09-21）：工作室拿剩下的，剩不下就是配错了。
+    // 线下按**陪玩最高档**校验（最不利的一档），线上按俱乐部固定比例校验。
+    const rolePercentKeys = [
+      'commission.cs_offline_rate_percent',
+      'commission.admin_offline_rate_percent',
+      'commission.admin_online_rate_percent',
+    ];
+    if (rolePercentKeys.some((k) => body[k] !== undefined)) {
+      const keys = [...rolePercentKeys, 'revenue.share_tiers', 'revenue.club_companion_share'];
+      const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+      const existing = new Map<string, any>(records.map((r) => [r.key, r.value]));
+      const pick = (k: string) => (body[k] !== undefined ? body[k] : existing.get(k));
+      const tiers = (body['revenue.share_tiers'] as any[]) ?? (existing.get('revenue.share_tiers') as any[]) ?? DEFAULT_CONFIGS['revenue.share_tiers'];
+      const maxCompanion = Math.max(0, ...tiers.map((t) => Number(t?.companion) || 0));
+      splitRoles({
+        companion: maxCompanion,
+        cs: pick('commission.cs_offline_rate_percent') ?? DEFAULT_CONFIGS['commission.cs_offline_rate_percent'],
+        admin: pick('commission.admin_offline_rate_percent') ?? 0,
+      });
+      splitRoles({
+        companion: Number(pick('revenue.club_companion_share') ?? 80),
+        admin: pick('commission.admin_online_rate_percent') ?? 0,
+      });
     }
 
     const ops = Object.entries(body).map(([key, value]) =>

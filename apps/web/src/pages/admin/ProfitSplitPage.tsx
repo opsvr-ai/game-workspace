@@ -1,178 +1,264 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, Form, InputNumber, Row, Space, message, Switch, Tabs, Typography } from 'antd';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { profitSplitApi } from '../../api/profitSplit';
-import { clampPercent, complementPercent, FULL_PERCENT, isFullPercentTotal, sumPercentRounded } from '../../utils/percent';
+// craftsman-ignore: TS001,TS002
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, Col, InputNumber, Row, Space, Table, Tabs, Typography, message } from 'antd';
+import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
+import { configApi } from '../../api/config';
+import { SettingsField } from '../../components/settings/SettingsField';
+import { clampPercent, complementPercent, FULL_PERCENT } from '../../utils/percent';
 
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 
-const COLORS = ['#2563EB', '#F59E0B', '#10B981', '#8B5CF6'];
-const KEYS = ['studio', 'admin', 'cs', 'companion'] as const;
-const LABELS: Record<string, string> = { studio: '工作室', admin: '店长', cs: '客服', companion: '陪玩' };
+/**
+ * 分成比例（工作室 / 店长 / 客服 / 陪玩）
+ *
+ * 老板 2026-09-21 拍板：**不管线下工作室还是线上俱乐部，一单流水都由这四个人分**。
+ * 这一页以前是「填了不参与任何计算」的死配置，现在改成**真实口径**：
+ *
+ * - 陪玩：线下按阶梯（设置 → 分账规则里的 50/60/70）、线上按俱乐部固定比例 —— 来源只有一个，这里只读展示；
+ * - 客服：线下按流水比例（和「客服设置 → 线下提成比例」是同一个值，改哪边都一样）、
+ *   线上按每单固定金额（同样来自客服设置）；
+ * - 店长：本页填写（线下 / 线上分开），**月度提成结算时真的按这个比例计提**；
+ * - 工作室：拿剩下的（100 − 陪玩 − 客服 − 店长），所以四个人加起来永远是 100%。
+ */
+
+const CONFIG_KEYS = [
+  'revenue.share_tiers',
+  'revenue.club_companion_share',
+  'commission.cs_offline_rate_percent',
+  'commission.admin_offline_rate_percent',
+  'commission.cs_online_per_order_yuan',
+  'commission.admin_online_rate_percent',
+  'bridge.secret_price_yuan',
+  'bridge.jueju_net_yuan',
+];
+
+const DEFAULT_CLUB_COMPANION_SHARE = 80;
+
 const MODES = [
   { key: 'offline', label: '线下工作室' },
   { key: 'online', label: '线上俱乐部' },
   { key: 'bridge', label: '桥接工作室' },
 ];
 
-// 阶梯的「陪玩% / 工作室%」是一对，必须刚好 100%：陪玩是真正算钱的那一栏，工作室拿剩余份额。
-const normalizeTiers = (tiers: any[]) =>
-  tiers.map((t) => {
-    const companion = clampPercent(t?.companion);
-    return { ...t, companion, studio: complementPercent(companion) };
-  });
+interface ShareTier {
+  min?: number;
+  max?: number | null;
+  companion?: number;
+  studio?: number;
+}
 
 const ProfitSplitPage: React.FC = () => {
-  const [form] = Form.useForm();
-  const [data, setData] = useState<any>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState('offline');
-  const [offlineTiers, setOfflineTiers] = useState<any[]>([]);
-  const [bridge, setBridge] = useState({ confidentialSettle: false, secretRefund: 15 });
-  // 线上俱乐部四栏的当前值（自己存一份：antd 的 useWatch 只支持单个字段路径，
-  // 用表单值反推合计会晚一拍，所以这里以本地状态为准，改一栏立刻重算陪玩那一栏）。
-  const [onlineValues, setOnlineValues] = useState<Record<string, number>>({
-    studio: 0, admin: 0, cs: 0, companion: 0,
+
+  const fetchConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await configApi.get(CONFIG_KEYS);
+      setConfig((data as any)?.data ?? {});
+    } catch {
+      message.error('加载配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  const update = (key: string, value: number) => setConfig((c: any) => ({ ...c, [key]: value }));
+
+  if (loading && !config) {
+    return <div style={{ textAlign: 'center', padding: 40 }}><Text type="secondary">加载中...</Text></div>;
+  }
+
+  const tiers: ShareTier[] = config?.['revenue.share_tiers'] ?? [];
+  const clubCompanion = clampPercent(config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
+  const csOffline = clampPercent(config?.['commission.cs_offline_rate_percent'] ?? 1);
+  const adminOffline = clampPercent(config?.['commission.admin_offline_rate_percent'] ?? 0);
+  const csOnlinePerOrder = Number(config?.['commission.cs_online_per_order_yuan'] ?? 1);
+  const adminOnline = clampPercent(config?.['commission.admin_online_rate_percent'] ?? 0);
+
+  // 线下：每一档的陪玩比例不同，所以工作室的剩余也要按档算。
+  const offlineRows = tiers.map((t, i) => {
+    const companion = clampPercent(t?.companion);
+    const studio = Math.round((FULL_PERCENT - companion - csOffline - adminOffline) * 100) / 100;
+    return {
+      key: i,
+      range: t?.max == null ? `${t?.min ?? 0} 元以上` : `${t?.min ?? 0} – ${t?.max} 元`,
+      companion,
+      cs: csOffline,
+      admin: adminOffline,
+      studio,
+    };
   });
 
-  const load = async () => {
-    const { data: res } = await profitSplitApi.get(mode);
-    setData(res.data);
-    if (mode === 'online') {
-      const filled: Record<string, number> = {};
-      KEYS.forEach((k) => { filled[k] = clampPercent(res.data?.[k] ?? 0); });
-      setOnlineValues(filled);
-      form.setFieldsValue(filled);
-    }
-    if (mode === 'offline') setOfflineTiers(normalizeTiers(res.data.tiers || []));
-    if (mode === 'bridge') setBridge(res.data);
-  };
-
-  useEffect(() => { load(); }, [mode]);
-
-  // ── 线上俱乐部：一单利润固定 100%，四个角色分成 ──
-  const onlineTotal = sumPercentRounded(KEYS.map((k) => onlineValues[k]));
-
-  /**
-   * 改任意一栏，剩下的自动补到「陪玩」那一栏；直接改「陪玩」时最多只能填到剩余额度，
-   * 所以四栏合计**永远不可能超过 100%**（老板 2026-09-21 要求）。
-   */
-  const changeOnlinePercent = (key: string, raw: number | null) => {
-    const othersOf = (k: string) => KEYS.filter((x) => x !== k && x !== 'companion');
-    const next: Record<string, number> = { ...onlineValues };
-    const room = FULL_PERCENT - sumPercentRounded(othersOf(key).map((k) => next[k]));
-    if (key === 'companion') {
-      next.companion = clampPercent(raw ?? 0, 0, room);
-    } else {
-      next[key] = clampPercent(raw ?? 0, 0, room);
-      next.companion = clampPercent(
-        FULL_PERCENT - sumPercentRounded(othersOf('companion').map((k) => next[k])), 0, FULL_PERCENT);
-    }
-    setOnlineValues(next);
-    form.setFieldsValue(next);
-  };
-
-  const chartData = useMemo(() => {
-    if (!data) return [];
-    // 线上俱乐部：饼图跟着正在编辑的数字走，改一栏立刻能看到切成什么样（不用先保存）。
-    const source: Record<string, any> = mode === 'online' ? onlineValues : data;
-    return KEYS.map((k) => ({ name: LABELS[k], value: Number(source[k] || 0) }));
-  }, [data, mode, onlineValues]);
+  const onlineStudio = Math.round((FULL_PERCENT - clubCompanion - adminOnline) * 100) / 100;
+  const offlineTightest = offlineRows.length ? Math.min(...offlineRows.map((r) => r.studio)) : FULL_PERCENT;
 
   const save = async () => {
-    let values: any;
-    if (mode === 'online') {
-      values = { ...onlineValues, ...(await form.validateFields()) };
-      const total = KEYS.reduce((s, k) => s + Number(values[k] || 0), 0);
-      if (Math.abs(total - 100) > 0.001) {
-        message.error(`比例合计必须为100%，当前为${total}%`);
+    if (mode === 'offline' || mode === 'online') {
+      const worst = mode === 'offline' ? offlineTightest : onlineStudio;
+      if (worst < 0) {
+        message.error('陪玩 + 客服 + 店长加起来超过 100% 了，工作室会变成负数，请先调整');
         return;
       }
-    } else if (mode === 'offline') {
-      values = { tiers: offlineTiers };
-    } else {
-      values = bridge;
     }
     setSaving(true);
     try {
-      const { data: res } = await profitSplitApi.save({ ...values, mode });
-      setData(res.data);
+      const payload: Record<string, any> = {};
+      if (mode === 'offline') {
+        payload['commission.cs_offline_rate_percent'] = csOffline;
+        payload['commission.admin_offline_rate_percent'] = adminOffline;
+      } else if (mode === 'online') {
+        payload['commission.cs_online_per_order_yuan'] = csOnlinePerOrder;
+        payload['commission.admin_online_rate_percent'] = adminOnline;
+      } else {
+        message.info('桥接单价在「财务管理 → 盈亏日历」里改，两边是同一份配置');
+        setSaving(false);
+        return;
+      }
+      await configApi.update(payload);
       message.success('分成比例已保存');
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '保存失败');
     } finally {
       setSaving(false);
     }
   };
 
+  const percentInput = (value: number, onChange: (v: number) => void, max = 100) => (
+    <InputNumber min={0} max={max} step={1} value={value} addonAfter="%"
+      onChange={(v) => onChange(clampPercent(v))} style={{ width: 120 }} />
+  );
+
   return (
     <div>
-      <Title level={4} style={{ marginTop: 0 }}>利润分成设置</Title>
-      <Text type="secondary">一单利润固定为100%，请按模式分别设置工作室、店长、客服、陪玩各自分成。</Text>
-      <Tabs activeKey={mode} onChange={setMode} items={MODES.map((m) => ({ key: m.key, label: m.label }))} style={{ marginTop: 12 }} />
-      <Row gutter={16} style={{ marginTop: 16 }}>
-        {mode === 'online' ? (
+      <Title level={4} style={{ marginTop: 0 }}>分成比例（工作室 / 店长 / 客服 / 陪玩）</Title>
+      <Text type="secondary">
+        一单流水由这四个人分：<Text strong>陪玩</Text>按阶梯 / 俱乐部固定比例（在「设置 → 分账规则」里填），
+        <Text strong>客服</Text>按「客服设置」里的口径，<Text strong>店长</Text>在本页填写，
+        <Text strong>工作室</Text>拿剩下的 —— 四个人加起来永远是 100%。
+      </Text>
+      <Tabs activeKey={mode} onChange={setMode} items={MODES} style={{ marginTop: 12 }} />
+
+      <Card
+        title={mode === 'offline' ? '线下工作室' : mode === 'online' ? '线上俱乐部' : '桥接工作室'}
+        extra={
+          <Space>
+            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
+            {mode !== 'bridge' && (
+              <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving} onClick={save}>保存</Button>
+            )}
+          </Space>
+        }
+      >
+        {mode === 'offline' && (
           <>
-            <Col span={12}>
-              <Card title="比例设置" size="small">
-                <Form form={form} layout="vertical">
-                  <div style={{ marginBottom: 12 }}>
-                    <Text type={isFullPercentTotal(KEYS.map((k) => onlineValues[k])) ? 'success' : 'danger'}>
-                      合计 {onlineTotal}%
-                    </Text>
-                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-                      改任意一栏，陪玩那一栏自动补足到 100%
-                    </Text>
-                  </div>
-                  {KEYS.map((k) => (
-                    <Form.Item key={k} name={k} label={LABELS[k]} rules={[{ required: true }]}>
-                      <InputNumber min={0} max={100} addonAfter="%" style={{ width: '100%' }}
-                        onChange={(v) => changeOnlinePercent(k, v as number | null)} />
-                    </Form.Item>
-                  ))}
-                  <Button type="primary" block loading={saving} onClick={save}>保存比例</Button>
-                </Form>
-              </Card>
-            </Col>
-            <Col span={12}>
-              <Card title="分成占比" size="small">
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
-                      {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: any) => `${v}%`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Card>
-            </Col>
+            <Row gutter={24}>
+              <Col span={12}>
+                <SettingsField label="客服分成比例（%）" value={csOffline} step={1} max={100}
+                  onChange={(v) => update('commission.cs_offline_rate_percent', clampPercent(v))}
+                  hint="按流水比例；和「客服设置 → 线下提成比例」是同一个值" />
+              </Col>
+              <Col span={12}>
+                <SettingsField label="店长分成比例（%）" value={adminOffline} step={1} max={100}
+                  onChange={(v) => update('commission.admin_offline_rate_percent', clampPercent(v))}
+                  hint="店里多位店长时按人数均分，这里填的是店长这一项的总支出" />
+              </Col>
+            </Row>
+            {offlineTightest < 0 && (
+              <Alert type="error" showIcon style={{ marginBottom: 12 }}
+                message="陪玩 + 客服 + 店长加起来超过 100%，工作室会变成负数，请先调整" />
+            )}
+            <Table
+              dataSource={offlineRows}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: '陪玩月流水', dataIndex: 'range' },
+                { title: '陪玩分成（%）', dataIndex: 'companion', render: (v: number) => <Text>{v}</Text> },
+                { title: '客服分成（%）', dataIndex: 'cs', render: (v: number) => <Text type="secondary">{v}</Text> },
+                { title: '店长分成（%）', dataIndex: 'admin', render: (v: number) => <Text type="secondary">{v}</Text> },
+                {
+                  title: '工作室分成（%）', dataIndex: 'studio',
+                  render: (v: number) => (v < 0 ? <Text type="danger" strong>{v}</Text> : <Text strong>{v}</Text>),
+                },
+              ]}
+            />
+            <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+              📌 陪玩那一栏来自「设置 → 分账规则」的阶梯，这里只读；要改档次去那里改（两边永远一致）。
+            </Text>
           </>
-        ) : mode === 'offline' ? (
-          <Col span={24}>
-            <Card title="阶梯分成设置" size="small">
-              {offlineTiers.map((tier: any, idx: number) => (
-                <Row key={idx} gutter={12} style={{ marginBottom: 8 }}>
-                  <Col span={4}><Text>陪玩月流水最低</Text><InputNumber style={{ width: '100%' }} value={tier.min} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, min: v } : x))} /></Col>
-                  <Col span={4}><Text>陪玩月流水最高</Text><InputNumber style={{ width: '100%' }} value={tier.max ?? undefined} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, max: v } : x))} /></Col>
-                  <Col span={4}><Text>陪玩%</Text><InputNumber style={{ width: '100%' }} value={tier.companion} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, companion: clampPercent(v), studio: complementPercent(v) } : x))} /></Col>
-                  <Col span={4}><Text>工作室%</Text><InputNumber style={{ width: '100%' }} value={tier.studio} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, studio: clampPercent(v), companion: complementPercent(v) } : x))} /></Col>
-                  <Col span={4}><Text>注册满N月</Text><InputNumber style={{ width: '100%' }} min={0} value={tier.minTenureMonths ?? 0} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, minTenureMonths: Number(v || 0) } : x))} /></Col>
-                </Row>
-              ))}
-              <Button type="primary" loading={saving} onClick={save}>保存阶梯分成</Button>
-            </Card>
-          </Col>
-        ) : (
-          <Col span={24}>
-            <Card title="桥接首单结算规则" size="small">
-              <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <div>机密首单不结账：<Switch checked={bridge.confidentialSettle} onChange={(v) => setBridge({ ...bridge, confidentialSettle: v })} /></div>
-                <div>绝密首单返还：<InputNumber value={bridge.secretRefund} onChange={(v) => setBridge({ ...bridge, secretRefund: Number(v || 0) })} addonBefore="¥" /></div>
-                <Button type="primary" loading={saving} onClick={save}>保存桥接规则</Button>
-              </Space>
-            </Card>
-          </Col>
         )}
-      </Row>
+
+        {mode === 'online' && (
+          <>
+            <Row gutter={24}>
+              <Col span={12}>
+                <SettingsField label="客服每单提成（元/单）" value={csOnlinePerOrder} step={0.5}
+                  onChange={(v) => update('commission.cs_online_per_order_yuan', Number(v ?? 0))}
+                  hint="单陪算 1 单、双陪算 2 单；和「客服设置 → 线上每单提成」是同一个值" />
+              </Col>
+              <Col span={12}>
+                <SettingsField label="店长分成比例（%）" value={adminOnline} step={1} max={100}
+                  onChange={(v) => update('commission.admin_online_rate_percent', clampPercent(v))}
+                  hint="按线上单流水比例；多店长按人数均分" />
+              </Col>
+            </Row>
+            {onlineStudio < 0 && (
+              <Alert type="error" showIcon style={{ marginBottom: 12 }}
+                message={`陪玩 ${clubCompanion}% + 店长 ${adminOnline}% 超过 100% 了，请先调整`} />
+            )}
+            <Table
+              dataSource={[{
+                key: 'online',
+                companion: clubCompanion,
+                cs: `${csOnlinePerOrder} 元/单`,
+                admin: adminOnline,
+                studio: onlineStudio,
+              }]}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: '分成对象', dataIndex: 'companion', render: () => <Text>线上俱乐部（俱乐部固定比例）</Text> },
+                { title: '陪玩（%）', dataIndex: 'companion' },
+                { title: '客服', dataIndex: 'cs' },
+                { title: '店长（%）', dataIndex: 'admin' },
+                {
+                  title: '工作室（%）', dataIndex: 'studio',
+                  render: (v: number) => (v < 0 ? <Text type="danger" strong>{v}</Text> : <Text strong>{v}</Text>),
+                },
+              ]}
+            />
+            <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+              📌 陪玩那一栏 = 「设置 → 分账规则」里的「线上俱乐部固定比例」（现在是 {clubCompanion}%），这里只读。
+              客服是「每单固定金额」，从工作室那份里出，所以工作室实际到手 = {onlineStudio}% − 客服每单金额。
+            </Text>
+          </>
+        )}
+
+        {mode === 'bridge' && (
+          <>
+            <Space size={24} wrap>
+              <div>
+                <Text>机密单价（元/人/时）：</Text>
+                <Text strong>{Number(config?.['bridge.secret_price_yuan'] ?? 35)}</Text>
+              </div>
+              <div>
+                <Text>绝密净价（元/人/时）：</Text>
+                <Text strong>{Number(config?.['bridge.jueju_net_yuan'] ?? 30)}</Text>
+              </div>
+            </Space>
+            <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+              📌 这是付给桥接 / 线上工作室的服务费，按人数 × 时长结算；在
+              「财务管理 → 盈亏日历 → 桥接工作室结算」里改（和这里是同一份配置）。
+              客服做桥接单的提成在「客服设置」里按单量阶梯单独设置。
+            </Text>
+          </>
+        )}
+      </Card>
     </div>
   );
 };
