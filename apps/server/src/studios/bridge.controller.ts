@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { Controller, Post, Get, Delete, Param, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Put, Param, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { WsGateway } from '../ws/ws.gateway';
@@ -37,6 +37,13 @@ export class BridgeController {
     return { code: 200, message: body.accept ? '已同意桥接' : '已拒绝桥接', data };
   }
 
+  @Put(':id/permissions')
+  @Roles(UserRole.ADMIN)
+  async updatePermissions(@Param('id') id: string, @Req() req: any, @Body() body: { functions?: string[] }) {
+    const data = await this.bridgeService.updatePermissions(id, req.user.studioId, body?.functions || []);
+    return { code: 200, message: '共享内容已更新', data };
+  }
+
   @Get()
   @Roles(UserRole.ADMIN)
   async list(@Req() req: any) {
@@ -48,6 +55,30 @@ export class BridgeController {
   @Get('active')
   async active(@Req() req: any) {
     const data = await this.bridgeService.getActiveBridges(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /**
+   * 桥接往来对账（只统计）：这个月「我店发的单被对方店陪玩接了多少、我该给对方店多少钱」
+   * 和「对方店的单被我店陪玩接了多少、对方店该给我多少钱」。
+   * 钱由两个店长自己在微信上结，系统只把账摆清楚。老板可以多传一个 `studioId` 看任意一家店。
+   */
+  @Get('settlement')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async settlement(
+    @Req() req: any,
+    @Query('month') month?: string,
+    @Query('peerStudioId') peerStudioId?: string,
+    @Query('studioId') studioIdQuery?: string,
+  ) {
+    const now = new Date();
+    const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const m = /^\d{4}-\d{2}$/.test(month || '') ? (month as string) : cur;
+    const isOwner = req.user?.role === UserRole.OWNER;
+    const studioId = isOwner
+      ? studioIdQuery || req.user?.studioId || ''
+      : req.user?.studioId || '';
+    const data = await this.bridgeService.settlementStats(studioId, m, peerStudioId);
     return { code: 200, message: 'ok', data };
   }
 

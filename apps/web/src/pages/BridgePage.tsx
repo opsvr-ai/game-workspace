@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Tag, Tabs, message, Modal, Select, Space, Typography, Checkbox } from 'antd';
 import { LinkOutlined, CheckOutlined, CloseOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { bridgeApi, BridgeInfo } from '../api/bridge';
+import BridgeSettlementPanel from '../components/BridgeSettlementPanel';
 import { studiosApi } from '../api/studios';
 import { useAuthStore } from '../stores/authStore';
 
@@ -24,6 +25,9 @@ export default function BridgePage() {
   const [studios, setStudios] = useState<Array<{ id: string; name: string }>>([]);
   const [respondTarget, setRespondTarget] = useState<BridgeInfo | null>(null);
   const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
+  const [editingBridge, setEditingBridge] = useState<BridgeInfo | null>(null);
+  const [editFunctions, setEditFunctions] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState('active');
   const user = useAuthStore((s) => s.user);
 
   const fetchData = useCallback(async () => {
@@ -84,6 +88,39 @@ export default function BridgePage() {
       fetchData();
     } catch {
       message.error('操作失败');
+    }
+  };
+
+  const currentSharedFunctions = (r: BridgeInfo) => {
+    if (!r.permissions) return [];
+    const isA = r.studioAId === user?.studioId;
+    return r.permissions
+      .filter((p) => (isA ? p.acceptedA : p.acceptedB))
+      .map((p) => p.function);
+  };
+
+  const peerSharedFunctions = (r: BridgeInfo) => {
+    if (!r.permissions) return [];
+    const isA = r.studioAId === user?.studioId;
+    return r.permissions
+      .filter((p) => (isA ? p.acceptedB : p.acceptedA))
+      .map((p) => p.function);
+  };
+
+  const openEdit = (r: BridgeInfo) => {
+    setEditingBridge(r);
+    setEditFunctions(currentSharedFunctions(r));
+  };
+
+  const confirmEdit = async () => {
+    if (!editingBridge) return;
+    try {
+      await bridgeApi.updatePermissions(editingBridge.id, editFunctions);
+      message.success('共享内容已更新');
+      setEditingBridge(null);
+      fetchData();
+    } catch {
+      message.error('更新失败');
     }
   };
 
@@ -168,14 +205,19 @@ export default function BridgePage() {
       title: '操作',
       key: 'actions',
       render: (_: unknown, r: BridgeInfo) => (
-        <Button
-          size="small"
-          danger
-          icon={React.createElement(DisconnectOutlined as any)}
-          onClick={() => handleRemove(r.id)}
-        >
-          断开
-        </Button>
+        <Space size={4}>
+          <Button size="small" onClick={() => openEdit(r)}>
+            共享设置
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={React.createElement(DisconnectOutlined as any)}
+            onClick={() => handleRemove(r.id)}
+          >
+            断开
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -190,14 +232,18 @@ export default function BridgePage() {
   return (
     <Card title="工作室桥接管理">
       <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         tabBarExtraContent={
-          <Button
-            type="primary"
-            icon={React.createElement(LinkOutlined as any)}
-            onClick={() => setProposeVisible(true)}
-          >
-            申请桥接
-          </Button>
+          activeTab === 'settlement' ? null : (
+            <Button
+              type="primary"
+              icon={React.createElement(LinkOutlined as any)}
+              onClick={() => setProposeVisible(true)}
+            >
+              申请桥接
+            </Button>
+          )
         }
         items={[
           {
@@ -209,6 +255,11 @@ export default function BridgePage() {
             key: 'pending',
             label: `待处理 (${bridges.pending.length})`,
             children: <Table rowKey="id" columns={pendingColumns} dataSource={bridges.pending} loading={loading} />,
+          },
+          {
+            key: 'settlement',
+            label: '桥接往来（对账）',
+            children: <BridgeSettlementPanel />,
           },
         ]}
       />
@@ -241,6 +292,32 @@ export default function BridgePage() {
             value={selectedFunctions}
             onChange={(v) => setSelectedFunctions(v as string[])}
           />
+        </div>
+      </Modal>
+      <Modal
+        title="修改共享内容"
+        open={!!editingBridge}
+        onOk={confirmEdit}
+        onCancel={() => setEditingBridge(null)}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Text type="secondary">下面的设置是单向的，不会替对方决定共享内容：</Text>
+        <div style={{ marginTop: 12 }}>
+          <Text strong style={{ display: 'block', marginBottom: 4 }}>我共享给对方</Text>
+          <Checkbox.Group
+            options={FUNCTION_OPTIONS}
+            value={editFunctions}
+            onChange={(v) => setEditFunctions(v as string[])}
+          />
+          <div style={{ marginTop: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>对方共享给我（只读）</Text>
+            <Checkbox.Group
+              options={FUNCTION_OPTIONS}
+              value={editingBridge ? peerSharedFunctions(editingBridge) : []}
+              disabled
+            />
+          </div>
         </div>
       </Modal>
     </Card>
