@@ -549,6 +549,17 @@ graph TB
   `commission.admin_online_rate_percent`，在「利润分成」页填）+ **工作室**（拿剩下的）。
   唯一实现在 `common/order-split.ts`；店长分成随月度提成写入 `CommissionLedger`（一店多店长按人数均分，
   桥接单不算本店店长分成）
+- **桥接往来「只统计、不转账」（老板 2026-09-21 定口径）**：桥接 = 双方能互相抢单、人员互通，
+  钱由两个店长在微信上定期互相结。系统只算清两向：我店发的单被对方店陪玩接走 = **我应付**对方店；
+  对方店发的单被我店陪玩接走 = **我应收**。金额 = 该陪玩在这笔单里的业绩（主陪 / 搭档 / splits 各算各的）
+  × 他**自己店**的分成比例（含 6 个月工龄门槛、按当月总流水落档），与
+  `billing/settlement.service.ts` 发工资时是同一套算法 —— 统计口径必须等于发钱口径，否则对不上账。
+  实现在 `studios/bridge.service.ts#settlementStats` + `studios/bridge-settlement.util.ts`（纯函数：
+  方向判定 / 汇总 / 按店分组，15 条单测覆盖）；接口 `GET /api/bridges/settlement`，
+  页面「工作室桥接 → 桥接往来（对账）」。**不写任何钱包余额、不自动转账**（`BRIDGE_RETURN`
+  那种手工返款台账是另一回事，仍然只在财务中心里记）。
+  对账范围是「**曾经桥接过**的店」（`getEverBridgedStudioIds`，不过滤 `status`），
+  这样断开桥接之后旧账照样能查、能结 —— 断桥接不等于旧账一笔勾销。
 - 百分比一律「填几个、剩下的自动算」：**工作室 = 100 − 陪玩 − 店长 − 客服**
   （陪玩那一栏才真正参与算钱，店长 / 客服拿的也是工作室那份）。
   `normalizeShareTiers(tiers, deductPercent)` 里的 `deductPercent` 就是店长 + 客服之和，

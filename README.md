@@ -6,6 +6,7 @@
 
 ## Recent Updates (v3.2.0)
 
+- **桥接往来对账（2026-09-21）:** 桥接口径定死为「双方能互相抢单、人员互通」，系统**只统计、不自动转账**，钱由两个店长在微信上定期互相结。「工作室桥接」页新增**桥接往来（对账）**：算清「我店发的单被对方店陪玩接走 → 我应付对方店多少钱」和「对方店的单被我店陪玩接走 → 我应收多少钱」，金额 = 陪玩在该单的业绩 × 他**自己店**的分成比例（与月末发工资同一套算法，别处再算一份就会对不上账）。页面给应付 / 应收 / 净额三张卡 + 一家店一笔小账 + 完整明细，还能一键「复制明细（发微信）」。接口 `GET /api/bridges/settlement`。
 - **店跟店相互独立（2026-09-21）:** 租赁线下工作室 / 线上俱乐部**店长可以改自己店里的任何数据**，配置默认全部归分店（只有「影响数据安全与稳定性」的才归老板：密钥 / 凭据，以及一份值绑住全站的开关与版本号）。配置分两层——店长保存只写 `StudioConfig`（本店覆盖），老板保存写 `SystemConfig`（全站默认），没填的项自动跟着老板的默认走。写入收口到唯一入口 `saveConfigsByRole`，读取全部走 `resolveConfigs*` 按店解析（钱、派单、截图、考勤、评分、报账预警、客户跟进阈值等 20 处）。店长「恢复默认」一键回到老板的值；老板能在设置页挑任意一家店查看 / 逐项恢复。密钥类的值连读都不给店长。
 - **登录「too many request」根因修复（2026-09-21）:** 限流原来按公网 IP 记账，工作室几十台机器共用一个出口，一个人反复输错密码就能把整个工作室的登录额度占满（订单池轮询还被挤爆过 1365 次）。现在按「人」记账：登录/注册/找回密码按「账号 + 来访 IP」、带令牌的请求按「用户 id」，配额放宽到 15/秒、80/10 秒、600/分钟，被限流时提示「操作太频繁，请等 X 秒再试」，访问日志补上来访 IP（`apps/server/src/common/app-throttler.guard.ts`）。
 - **聊天「已阅读 / 未读」回执（2026-09-21）:** 自己发出的消息气泡下面显示对方读没读——灰色「未读」，对方一打开会话就**实时**变绿色「已阅读」（新增 `chat:read` WebSocket 推送 + 消息列表 `peerReadSeq`）。群聊不做单条已读。
@@ -561,6 +562,18 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/studios` | JWT | OWNER | List all studios. |
 | `POST` | `/api/studios` | JWT | OWNER | Create a new studio. Body: `{ name }`. |
 | `PUT` | `/api/studios/:id` | JWT | OWNER | Update studio name. Body: `{ name }`. |
+
+### Bridge (工作室桥接)
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/bridges` | JWT | ADMIN | 本店的活跃桥接 + 待处理申请。 |
+| `GET` | `/api/bridges/active` | JWT | -- | 本店所有生效中的桥接。 |
+| `POST` | `/api/bridges/propose` | JWT | ADMIN | 发起桥接申请。Body: `{ targetStudioId }`。 |
+| `POST` | `/api/bridges/:id/respond` | JWT | ADMIN | 同意 / 拒绝并选共享内容。Body: `{ accept, functionFilter }`。 |
+| `PUT` | `/api/bridges/:id/permissions` | JWT | ADMIN | 改我方共享给对方的内容。Body: `{ functions }`。 |
+| `DELETE` | `/api/bridges/:id` | JWT | ADMIN | 断开桥接。 |
+| `GET` | `/api/bridges/settlement` | JWT | ADMIN, OWNER | **桥接往来对账（只统计，不转账）**：谁接了我店的单该给对方多少钱、对方陪我店多少单该收多少钱。Query: `?month=YYYY-MM`（营业月，12:00 换日）、`?peerStudioId=`；老板可加 `?studioId=` 看任意一家店。返回 `rows`（逐单明细）/ `peers`（一家店一笔小账）/ `totals`（`payable` / `receivable` / `net`）。 |
 
 ### Employees
 
