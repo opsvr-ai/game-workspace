@@ -78,7 +78,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   private async acceptExpiredOwnToken(
     token: string,
-  ): Promise<{ payload: JwtPayload; expiredAt: Date; kind: 'access' | 'refresh' } | null> {
+  ): Promise<{
+    payload: JwtPayload;
+    expiredAt: Date;
+    kind: 'access' | 'refresh';
+    /** 只是「过期但仍放行」才需要提示客户端换令牌；没过期的是正常连接 */
+    expired: boolean;
+  } | null> {
     // 不看具体的报错类型：accessToken 过期报 TokenExpiredError，
     // refreshToken（另一把密钥）过期会先报 invalid signature —— 两种情况都是
     // 「本服务器签发、只是过期」，一并按宽限期处理。
@@ -103,11 +109,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     const exp = Number((payload as any)?.exp);
     if (!Number.isFinite(exp)) return null;
+    const expiredAt = new Date(exp * 1000);
+    const age = Date.now() - expiredAt.getTime();
+    // 还没过期：这是正常连接（典型场景＝主进程拿 7 天有效的 refreshToken 连），
+    // 原样放行、不用提示换令牌。
+    if (age <= 0) return { payload, expiredAt, kind, expired: false };
     const graceHours = await this.tokenGraceHours();
     if (graceHours <= 0) return null;
-    const expiredAt = new Date(exp * 1000);
-    if (Date.now() - expiredAt.getTime() > graceHours * 3600 * 1000) return null;
-    return { payload, expiredAt, kind };
+    if (age > graceHours * 3600 * 1000) return null;
+    return { payload, expiredAt, kind, expired: true };
   }
 
   private async tokenGraceHours(): Promise<number> {
@@ -158,7 +168,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const stale = await this.acceptExpiredOwnToken(token);
         if (stale) {
           payload = stale.payload;
-          staleToken = { expiredAt: stale.expiredAt, kind: stale.kind };
+          if (stale.expired) {
+            staleToken = { expiredAt: stale.expiredAt, kind: stale.kind };
+          }
         } else {
         try {
           const refreshed = this.jwt.verify<JwtPayload>(token, { secret: process.env.JWT_REFRESH_SECRET });
