@@ -640,8 +640,10 @@ python -c "import zipfile,re;d=zipfile.ZipFile(r'apps/companion-electron/release
 deploy\repair-client.bat        # 云端副本：http://1.117.229.36:3001/uploads/repair-client.bat
 ```
 
-脚本做四件事：① 从云端装最新看门狗服务；② 在常见安装目录里找客户端；
-③ 找不到就从云端拉完整更新包解压成一份新的；④ 启动客户端。
+脚本做五件事：① 从云端装最新看门狗服务；② 检查客户端配置里的 `serverUrl`
+（不对就改成 `http://1.117.229.36:3001`，原文件留 `.bak`）——2026-09-03 邵泽慧那台机器就踩过
+「配置指向已下线老服务器 → 客户端一条请求都发不出来」；③ 在常见安装目录里找客户端；
+④ 找不到就从云端拉完整更新包解压成一份新的；⑤ 启动客户端。
 跑完后看 `C:\Program Files\SystemHelper\service.log` 最后几行确认构建号与 `Adopted`/`Restored client exe` 记录。
 
 **自更新：** 服务启动时、以及每次客户端更新解压完成后，都会拿客户端目录里的
