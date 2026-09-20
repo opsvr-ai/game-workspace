@@ -432,9 +432,12 @@ const OrderPoolPage: React.FC = () => {
             >
               {order._takenByMe ? '✅ 你已抢到这单' : `已被 ${order._takenByName || '其他陪玩'} 抢走`}
             </Tag>
-            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
-              {TAKEN_STATUS_LABEL[order.status] || order.status}
-            </Text>
+            {/* 「已被 XX 抢走」已经写明白了，这里只在后面还有进展（服务中/已完成）时才补一句 */}
+            {order.status !== 'GRABBED' && (
+              <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+                {TAKEN_STATUS_LABEL[order.status] || order.status}
+              </Text>
+            )}
           </Space>
         ) : isCompanion ? (
           <Space size={8}>
