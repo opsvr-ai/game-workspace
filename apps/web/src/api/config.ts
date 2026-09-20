@@ -30,8 +30,11 @@ export const configApi = {
     const skipped = res?.data?.data?.skipped;
     if (Array.isArray(skipped) && skipped.length) {
       message.warning(
-        `本店设置已保存；以下这些是全站只有一份的配置，只有老板能改，本次没有改动：${skipped.join('、')}`,
-        8,
+        '本店设置已保存。以下这些是全站统一设置（杀黑名单开关、AI 密钥、客户端版本等），' +
+          '只有老板账号能改，本次没有改动：' +
+          skipped.join('、') +
+          '。要改这些，请用老板账号登录后再改。',
+        10,
       );
     }
     return res;
