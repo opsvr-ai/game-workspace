@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, InputNumber, Row, Space, message, Switch, Tabs, Typography } from 'antd';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { profitSplitApi } from '../../api/profitSplit';
+import { clampPercent, complementPercent, FULL_PERCENT, isFullPercentTotal, sumPercentRounded } from '../../utils/percent';
 
 const { Title, Text } = Typography;
 
@@ -14,6 +15,13 @@ const MODES = [
   { key: 'bridge', label: '桥接工作室' },
 ];
 
+// 阶梯的「陪玩% / 工作室%」是一对，必须刚好 100%：陪玩是真正算钱的那一栏，工作室拿剩余份额。
+const normalizeTiers = (tiers: any[]) =>
+  tiers.map((t) => {
+    const companion = clampPercent(t?.companion);
+    return { ...t, companion, studio: complementPercent(companion) };
+  });
+
 const ProfitSplitPage: React.FC = () => {
   const [form] = Form.useForm();
   const [data, setData] = useState<any>(null);
@@ -21,26 +29,60 @@ const ProfitSplitPage: React.FC = () => {
   const [mode, setMode] = useState('offline');
   const [offlineTiers, setOfflineTiers] = useState<any[]>([]);
   const [bridge, setBridge] = useState({ confidentialSettle: false, secretRefund: 15 });
+  // 线上俱乐部四栏的当前值（自己存一份：antd 的 useWatch 只支持单个字段路径，
+  // 用表单值反推合计会晚一拍，所以这里以本地状态为准，改一栏立刻重算陪玩那一栏）。
+  const [onlineValues, setOnlineValues] = useState<Record<string, number>>({
+    studio: 0, admin: 0, cs: 0, companion: 0,
+  });
 
   const load = async () => {
     const { data: res } = await profitSplitApi.get(mode);
     setData(res.data);
-    if (mode === 'online') form.setFieldsValue(res.data);
-    if (mode === 'offline') setOfflineTiers(res.data.tiers || []);
+    if (mode === 'online') {
+      const filled: Record<string, number> = {};
+      KEYS.forEach((k) => { filled[k] = clampPercent(res.data?.[k] ?? 0); });
+      setOnlineValues(filled);
+      form.setFieldsValue(filled);
+    }
+    if (mode === 'offline') setOfflineTiers(normalizeTiers(res.data.tiers || []));
     if (mode === 'bridge') setBridge(res.data);
   };
 
   useEffect(() => { load(); }, [mode]);
 
+  // ── 线上俱乐部：一单利润固定 100%，四个角色分成 ──
+  const onlineTotal = sumPercentRounded(KEYS.map((k) => onlineValues[k]));
+
+  /**
+   * 改任意一栏，剩下的自动补到「陪玩」那一栏；直接改「陪玩」时最多只能填到剩余额度，
+   * 所以四栏合计**永远不可能超过 100%**（老板 2026-09-21 要求）。
+   */
+  const changeOnlinePercent = (key: string, raw: number | null) => {
+    const othersOf = (k: string) => KEYS.filter((x) => x !== k && x !== 'companion');
+    const next: Record<string, number> = { ...onlineValues };
+    const room = FULL_PERCENT - sumPercentRounded(othersOf(key).map((k) => next[k]));
+    if (key === 'companion') {
+      next.companion = clampPercent(raw ?? 0, 0, room);
+    } else {
+      next[key] = clampPercent(raw ?? 0, 0, room);
+      next.companion = clampPercent(
+        FULL_PERCENT - sumPercentRounded(othersOf('companion').map((k) => next[k])), 0, FULL_PERCENT);
+    }
+    setOnlineValues(next);
+    form.setFieldsValue(next);
+  };
+
   const chartData = useMemo(() => {
     if (!data) return [];
-    return KEYS.map((k) => ({ name: LABELS[k], value: Number(data[k] || 0) }));
-  }, [data]);
+    // 线上俱乐部：饼图跟着正在编辑的数字走，改一栏立刻能看到切成什么样（不用先保存）。
+    const source: Record<string, any> = mode === 'online' ? onlineValues : data;
+    return KEYS.map((k) => ({ name: LABELS[k], value: Number(source[k] || 0) }));
+  }, [data, mode, onlineValues]);
 
   const save = async () => {
     let values: any;
     if (mode === 'online') {
-      values = await form.validateFields();
+      values = { ...onlineValues, ...(await form.validateFields()) };
       const total = KEYS.reduce((s, k) => s + Number(values[k] || 0), 0);
       if (Math.abs(total - 100) > 0.001) {
         message.error(`比例合计必须为100%，当前为${total}%`);
@@ -72,9 +114,18 @@ const ProfitSplitPage: React.FC = () => {
             <Col span={12}>
               <Card title="比例设置" size="small">
                 <Form form={form} layout="vertical">
+                  <div style={{ marginBottom: 12 }}>
+                    <Text type={isFullPercentTotal(KEYS.map((k) => onlineValues[k])) ? 'success' : 'danger'}>
+                      合计 {onlineTotal}%
+                    </Text>
+                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                      改任意一栏，陪玩那一栏自动补足到 100%
+                    </Text>
+                  </div>
                   {KEYS.map((k) => (
                     <Form.Item key={k} name={k} label={LABELS[k]} rules={[{ required: true }]}>
-                      <InputNumber min={0} max={100} addonAfter="%" style={{ width: '100%' }} />
+                      <InputNumber min={0} max={100} addonAfter="%" style={{ width: '100%' }}
+                        onChange={(v) => changeOnlinePercent(k, v as number | null)} />
                     </Form.Item>
                   ))}
                   <Button type="primary" block loading={saving} onClick={save}>保存比例</Button>
@@ -102,8 +153,8 @@ const ProfitSplitPage: React.FC = () => {
                 <Row key={idx} gutter={12} style={{ marginBottom: 8 }}>
                   <Col span={4}><Text>陪玩月流水最低</Text><InputNumber style={{ width: '100%' }} value={tier.min} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, min: v } : x))} /></Col>
                   <Col span={4}><Text>陪玩月流水最高</Text><InputNumber style={{ width: '100%' }} value={tier.max ?? undefined} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, max: v } : x))} /></Col>
-                  <Col span={4}><Text>陪玩%</Text><InputNumber style={{ width: '100%' }} value={tier.companion} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, companion: v } : x))} /></Col>
-                  <Col span={4}><Text>工作室%</Text><InputNumber style={{ width: '100%' }} value={tier.studio} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, studio: v } : x))} /></Col>
+                  <Col span={4}><Text>陪玩%</Text><InputNumber style={{ width: '100%' }} value={tier.companion} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, companion: clampPercent(v), studio: complementPercent(v) } : x))} /></Col>
+                  <Col span={4}><Text>工作室%</Text><InputNumber style={{ width: '100%' }} value={tier.studio} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, studio: clampPercent(v), companion: complementPercent(v) } : x))} /></Col>
                   <Col span={4}><Text>注册满N月</Text><InputNumber style={{ width: '100%' }} min={0} value={tier.minTenureMonths ?? 0} onChange={(v) => setOfflineTiers((prev) => prev.map((x, i) => i === idx ? { ...x, minTenureMonths: Number(v || 0) } : x))} /></Col>
                 </Row>
               ))}

@@ -18,6 +18,7 @@ import { RolesGuard, Roles } from './roles.guard';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { WsGateway } from '../ws/ws.gateway';
+import { normalizeShareTiers } from '../common/percent-split';
 
 const DEFAULT_CONFIGS: Record<string, any> = {
   // 新单弹窗停留秒数（老板 2026-09-20 起可配，比原来写死的 15 秒更灵活）
@@ -25,6 +26,9 @@ const DEFAULT_CONFIGS: Record<string, any> = {
   // WebSocket 令牌宽限期（小时）：客户端拿着过期令牌重连时，只要令牌确实是本服务器签发的
   // 就允许先连上（HTTP 接口不受影响），否则陪玩端弹窗会断在「accessToken 15 分钟过期」上。
   'ws.token_grace_hours': 168,
+  // 断开后多久才真的置「离线」（秒）：客户端刷新页面 / 网络抖动 / 服务端发版重启时
+  // 不希望在控制台闪出「掉线」，宽限期内连回来就当没掉过。
+  'ws.offline_grace_seconds': 60,
   'revenue.free_threshold': 300,
   'revenue.low_warning': 300,
   // 分润阶梯一律以「系统设置里老板填的」为准，这里只做首次初始化的默认值。
@@ -303,6 +307,16 @@ export class SettingsController {
           throw new BadRequestException(`上等马线需在 0~${total} 分之间`);
         }
       }
+    }
+
+    // 分成阶梯的「工作室 / 陪玩」是一对，必须刚好 100%（老板 2026-09-21 要求「避免超过百分百」）：
+    // 陪玩那一栏才真正参与算钱，工作室 = 剩余份额，这里统一归一化，
+    // 这样任何客户端（网页、陪玩端、脚本）都写不进「60 / 60 = 120%」这种配置。
+    if (body['revenue.share_tiers'] !== undefined) {
+      if (!Array.isArray(body['revenue.share_tiers'])) {
+        throw new BadRequestException('分成阶梯格式不正确');
+      }
+      body['revenue.share_tiers'] = normalizeShareTiers(body['revenue.share_tiers']);
     }
 
     const ops = Object.entries(body).map(([key, value]) =>

@@ -4,6 +4,7 @@ import { Card, InputNumber, Button, Space, Typography, message, Table, Popconfir
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsLabel } from '../../components/settings/SettingsField';
+import { clampPercent, complementPercent, FULL_PERCENT, isFullPercentTotal } from '../../utils/percent';
 
 const { Text } = Typography;
 
@@ -17,6 +18,15 @@ const withEffectiveDefaults = (raw: any) => {
   const next: any = { ...(raw ?? {}) };
   if (typeof next['revenue.club_companion_share'] !== 'number') {
     next['revenue.club_companion_share'] = DEFAULT_CLUB_COMPANION_SHARE;
+  }
+  // 阶梯的「工作室 / 陪玩」是一对，必须刚好 100%。历史配置里两栏可能对不上
+  // （改过一栏、没改另一栏），这里统一按「陪玩 = 算钱的那一栏、工作室 = 剩余份额」归一化，
+  // 免得页面上出现「50 / 60」这种加起来 110% 的档位。
+  if (Array.isArray(next['revenue.share_tiers'])) {
+    next['revenue.share_tiers'] = next['revenue.share_tiers'].map((t: any) => {
+      const companion = clampPercent(t?.companion);
+      return { ...t, companion, studio: complementPercent(companion) };
+    });
   }
   return next;
 };
@@ -50,10 +60,17 @@ const PaymentSettings: React.FC = () => {
   }, [fetchConfig]);
 
   const save = async () => {
+    const tiersToSave: ShareTier[] = config?.['revenue.share_tiers'] ?? [];
+    const badRow = tiersToSave.findIndex((t) => !isFullPercentTotal([t?.studio, t?.companion]));
+    if (badRow >= 0) {
+      const t = tiersToSave[badRow];
+      message.error(`第 ${badRow + 1} 档分成加起来是 ${(Number(t?.studio) || 0) + (Number(t?.companion) || 0)}%，必须刚好 100%`);
+      return;
+    }
     setSaving(true);
     try {
       await configApi.update({
-        'revenue.share_tiers': config?.['revenue.share_tiers'],
+        'revenue.share_tiers': tiersToSave,
         'revenue.club_companion_share': config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE,
       });
       message.success('分账规则 已保存');
@@ -74,6 +91,8 @@ const PaymentSettings: React.FC = () => {
   }
 
   const tiers: ShareTier[] = config?.['revenue.share_tiers'] ?? [];
+  const clubCompanionShare = clampPercent(
+    config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
 
   const addTier = () => {
     const prev = tiers[tiers.length - 1];
@@ -85,8 +104,20 @@ const PaymentSettings: React.FC = () => {
     update('revenue.share_tiers', tiers.filter((_, i) => i !== idx));
   };
 
+  // 改「工作室」或「陪玩」任意一栏，另一栏自动补足到 100%（老板 2026-09-21 要求）。
   const updateTier = (idx: number, field: keyof ShareTier, val: any) => {
-    const next = tiers.map((t, i) => (i === idx ? { ...t, [field]: val } : t));
+    const next = tiers.map((t, i) => {
+      if (i !== idx) return t;
+      if (field === 'studio') {
+        const studio = clampPercent(val);
+        return { ...t, studio, companion: complementPercent(studio) };
+      }
+      if (field === 'companion') {
+        const companion = clampPercent(val);
+        return { ...t, companion, studio: complementPercent(companion) };
+      }
+      return { ...t, [field]: val };
+    });
     update('revenue.share_tiers', next);
   };
 
@@ -176,10 +207,11 @@ const PaymentSettings: React.FC = () => {
         <Text strong style={{ display: 'block', marginBottom: 12 }}>🏢 线上俱乐部（固定比例）</Text>
         <div>
           <SettingsLabel>陪玩分成比例（%）</SettingsLabel>
-          <InputNumber min={1} max={99} step={5} value={config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE}
-            onChange={(v) => update('revenue.club_companion_share', v ?? DEFAULT_CLUB_COMPANION_SHARE)} style={{ width: 200 }} />
+          <InputNumber min={1} max={99} step={5} value={clubCompanionShare}
+            onChange={(v) => update('revenue.club_companion_share', clampPercent(v ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99))} style={{ width: 200 }} />
           <Text type="secondary" style={{ marginLeft: 8 }}>
-            线上俱乐部固定分给陪玩的比例（工作室拿剩下的）。这里显示的就是实际生效的数字，改完点「保存」。
+            线上俱乐部固定分给陪玩的比例；<Text strong>工作室自动拿 {FULL_PERCENT - clubCompanionShare}%</Text>
+            （两边加起来恒为 100%）。这里显示的就是实际生效的数字，改完点「保存」。
           </Text>
         </div>
       </div>

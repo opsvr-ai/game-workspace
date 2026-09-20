@@ -4,6 +4,7 @@ import { Card, Button, Typography, Space, message, Row, Col } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
+import { clampPercent, FULL_PERCENT } from '../../utils/percent';
 
 const { Text } = Typography;
 
@@ -50,6 +51,9 @@ const DispatchCommissionSettings: React.FC = () => {
     return <div style={{ textAlign: 'center', padding: 40 }}><Text type="secondary">加载中...</Text></div>;
   }
 
+  // 工作室 / 陪玩是一对：工作室填多少，陪玩就是剩下的（合计恒为 100%）。
+  const studioSharePercent = clampPercent(config?.['dispatch.studio_share_percent'] ?? 30);
+
   const jimiReturnYuan = (config?.['dispatch.bridge_return_jimi_cents'] ?? 100) / 100;
   const juejuReturnYuan = (config?.['dispatch.bridge_return_jueju_cents'] ?? 1500) / 100;
 
@@ -69,7 +73,9 @@ const DispatchCommissionSettings: React.FC = () => {
         </Text>
         <Row gutter={24}>
           <Col span={12}>
-            <Field label="工作室分成比例（%）" value={config?.['dispatch.studio_share_percent'] ?? 30} step={1} max={100} onChange={(v) => update('dispatch.studio_share_percent', v)} suffix="用于算盈亏平衡" />
+            <Field label="工作室分成比例（%）" value={studioSharePercent} step={1} max={100}
+              onChange={(v) => update('dispatch.studio_share_percent', clampPercent(v))}
+              suffix={`陪玩自动拿剩下的 ${FULL_PERCENT - studioSharePercent}%（合计恒为 100%）；用于算盈亏平衡`} />
             <Field label="下等马每日有效客户名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="成交才占名额" />
             <Field label="线上响应窗口（秒）" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
           </Col>

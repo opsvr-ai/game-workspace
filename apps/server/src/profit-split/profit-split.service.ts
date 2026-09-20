@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeShareTiers } from '../common/percent-split';
 
 const MODES = ['offline', 'online', 'bridge'] as const;
 const KEY = (mode: string) => `revenue.split_percentages.${mode}`;
@@ -45,7 +46,9 @@ export class ProfitSplitService {
         secretRefund: Number(data.secretRefund || 0),
       };
     } else if (mode === 'offline') {
-      values = { tiers: Array.isArray(data.tiers) ? data.tiers : DEFAULTS.offline.tiers };
+      // 阶梯的「陪玩% / 工作室%」也是一对：以陪玩为准，工作室 = 剩余份额（合计恒为 100%）。
+      const tiers = Array.isArray(data.tiers) ? data.tiers : DEFAULTS.offline.tiers;
+      values = { tiers: normalizeShareTiers(tiers) };
     }
     await this.prisma.systemConfig.upsert({
       where: { key: KEY(mode) },
