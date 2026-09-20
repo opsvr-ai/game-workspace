@@ -2,7 +2,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
 import { message } from 'antd';
-import http from '../api/client';
 import { useVoiceCallStore } from '../stores/voiceCallStore';
 
 interface CallState {
@@ -14,8 +13,144 @@ interface CallState {
   volume?: number;
 }
 
+/**
+ * 语音通话 = 走已有的 WebSocket 中转，不再做点对点（WebRTC）打洞。
+ *
+ * 为什么改（老板 2026-09-21 报「王昊和邵泽慧打语音互相听不到声音」）：
+ * 原来双方直连：只有 Google STUN 打洞，服务器上没有 TURN（云安全组只放通了 22 / 3001，
+ * 3478 和中继端口进不来）。而办公室/家宽这边是多线 NAT（实测同一台机器先后映射成
+ * 122.6.117.75 和 122.6.112.252 两个公网 IP），出口一变，打好的洞就废了，
+ * 通话界面还显示「已接通」但两边都没声音。
+ * 现在把同一条 socket 连接当音频通道：NAT 怎么变、出口怎么换都不影响，
+ * 网络抖动断线后 socket 自动重连，声音接着走。
+ *
+ * 音频格式：16kHz 单声道 PCM16，每帧 20ms（640 字节，约 32KB/s）。
+ */
+
 // 振铃/呼叫超时自动结束，避免“对方无应答”时一直挂在那。
 const CALL_TIMEOUT_MS = 45_000;
+// 断线后多久还没连回来就结束通话（多线网络切换时通常 1~2 秒就能重连上）。
+const RECONNECT_GRACE_MS = 30_000;
+// 单帧上限 8KB：异常大包直接丢，别占用通道。
+const MAX_FRAME_BYTES = 8192;
+const activeRingtoneStops = new Set<() => void>();
+
+const CAPTURE_WORKLET = `
+class ChunlvCapture extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.ratio = sampleRate / 16000;
+    this.pos = 0;
+    this.buf = new Float32Array(0);
+    this.out = new Int16Array(320);
+    this.outLen = 0;
+  }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (!ch || !ch.length) return true;
+    const merged = new Float32Array(this.buf.length + ch.length);
+    merged.set(this.buf, 0);
+    merged.set(ch, this.buf.length);
+    this.buf = merged;
+    while (this.buf.length - this.pos >= this.ratio) {
+      const start = Math.floor(this.pos);
+      const end = Math.min(this.buf.length, Math.floor(this.pos + this.ratio));
+      let sum = 0;
+      for (let i = start; i < end; i++) sum += this.buf[i];
+      const v = sum / Math.max(1, end - start);
+      this.out[this.outLen++] = Math.max(-32768, Math.min(32767, Math.round(v * 32767)));
+      this.pos += this.ratio;
+      if (this.outLen === this.out.length) {
+        const copy = this.out.slice(0);
+        this.port.postMessage(copy.buffer, [copy.buffer]);
+        this.outLen = 0;
+      }
+    }
+    const drop = Math.floor(this.pos);
+    if (drop > 0) {
+      this.buf = this.buf.slice(drop);
+      this.pos -= drop;
+    }
+    return true;
+  }
+}
+registerProcessor('chunlv-capture', ChunlvCapture);
+`;
+const PLAYBACK_WORKLET = `
+class ChunlvPlayback extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.ring = new Float32Array(16000 * 4);
+    this.write = 0;
+    this.read = 0;
+    this.count = 0;
+    this.started = false;
+    this.port.onmessage = (e) => {
+      const pcm = new Int16Array(e.data);
+      for (let i = 0; i < pcm.length; i++) {
+        this.ring[this.write] = pcm[i] / 32768;
+        this.write = (this.write + 1) % this.ring.length;
+        if (this.count < this.ring.length) this.count++;
+        else this.read = this.write;
+      }
+    };
+  }
+  process(_inputs, outputs) {
+    const out = outputs[0] && outputs[0][0];
+    if (!out) return true;
+    if (!this.started) {
+      if (this.count < 960) { out.fill(0); return true; }
+      this.started = true;
+    }
+    const n = Math.min(out.length, this.count);
+    for (let i = 0; i < n; i++) {
+      out[i] = this.ring[this.read];
+      this.read = (this.read + 1) % this.ring.length;
+      this.count--;
+    }
+    for (let i = n; i < out.length; i++) out[i] = 0;
+    return true;
+  }
+}
+registerProcessor('chunlv-playback', ChunlvPlayback);
+`;
+
+interface Pipeline {
+  ctx: AudioContext;
+  node: AudioWorkletNode;
+  gain?: GainNode;
+}
+
+const workletUrls = new Map<string, string>();
+function workletUrl(name: string, source: string): string {
+  const cached = workletUrls.get(name);
+  if (cached) return cached;
+  const url = URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
+  workletUrls.set(name, url);
+  return url;
+}
+
+// 把后端/浏览器抛出来的媒体错误转成用户能看懂的提示。
+function mediaErrorMessage(err: any): string {
+  const raw = `${err?.name || ''} ${err?.message || ''}`.toLowerCase();
+  if (raw.includes('notallowederror') || raw.includes('permissiondenied') || raw.includes('permission')) {
+    return '麦克风权限未授权，请在系统设置中允许麦克风访问';
+  }
+  if (raw.includes('notfound') || raw.includes('device not found') || raw.includes('requested device')) {
+    return '未检测到麦克风设备，请检查麦克风是否连接或已被禁用';
+  }
+  if (raw.includes('notreadable') || raw.includes('abort') || raw.includes('track')) {
+    return '麦克风被占用或无法访问，请关闭占用麦克风的程序后重试';
+  }
+  return '通话失败: ' + (err?.message || String(err));
+}
+
+function stopAllRingtones() {
+  for (const stop of activeRingtoneStops) {
+    try { stop(); } catch {}
+  }
+  activeRingtoneStops.clear();
+}
 
 // 更柔和的来电铃声：低音量、渐入渐出的双音，不再用刺耳的高频正弦波。
 function playRingtone() {
@@ -54,31 +189,30 @@ function playRingtone() {
       stopped = true;
       clearInterval(interval);
       try { ctx.close(); } catch {}
+      activeRingtoneStops.delete(stop);
     };
+    activeRingtoneStops.add(stop);
     return { stop, ctx };
   } catch {
-    return { stop: () => {}, ctx: null };
+    return { stop: () => {}, ctx: null as AudioContext | null };
   }
 }
 
-// TURN 服务器配置从后台读取，老板在设置页填写。
-async function loadIceServers(): Promise<RTCIceServer[]> {
-  const servers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-  try {
-    const { data } = await http.get('/config', {
-      params: { keys: 'turn.url,turn.username,turn.credential' },
-    });
-    const cfg = data?.data || {};
-    const url = cfg['turn.url'];
-    if (url) {
-      servers.push({
-        urls: url,
-        username: cfg['turn.username'] || undefined,
-        credential: cfg['turn.credential'] || undefined,
-      });
-    }
-  } catch {}
-  return servers;
+/** 收到的二进制帧统一转成 Int16Array；格式不对就丢。 */
+async function toInt16(pcm: any): Promise<Int16Array | null> {
+  if (!pcm) return null;
+  if (pcm instanceof Int16Array) return pcm;
+  let buf: ArrayBuffer | null = null;
+  if (pcm instanceof ArrayBuffer) {
+    buf = pcm;
+  } else if (ArrayBuffer.isView(pcm)) {
+    buf = pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength) as ArrayBuffer;
+  } else if (typeof Blob !== 'undefined' && pcm instanceof Blob) {
+    buf = await pcm.arrayBuffer();
+  }
+  if (!buf) return null;
+  if (buf.byteLength < 2 || buf.byteLength % 2 !== 0 || buf.byteLength > MAX_FRAME_BYTES) return null;
+  return new Int16Array(buf);
 }
 
 export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
@@ -86,15 +220,22 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     const saved = localStorage.getItem('voice-volume');
     return { status: 'idle', volume: saved ? parseInt(saved) : 80 };
   });
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const captureRef = useRef<Pipeline | null>(null);
+  const playbackRef = useRef<Pipeline | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ringtoneRef = useRef<{ stop: () => void } | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusRef = useRef<CallState['status']>('idle');
-  const offerSdpRef = useRef<any>(null);
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  // 通话对端 id（主叫记被叫人、被叫记主叫人），音频帧按它投递。
+  const targetRef = useRef<string | undefined>(undefined);
+  // 只有「已接通」才真的往外发音频，呼叫中/挂断后都不发。
+  const sendingRef = useRef(false);
+  const seqRef = useRef(0);
+  // 自检计数：发出去多少帧、收到并送进播放器多少帧。
+  // 排查「没声音」时一眼就能分出是「对方没发」「通道丢了」还是「播放端没解出来」。
+  const statsRef = useRef({ sentFrames: 0, receivedFrames: 0, playedFrames: 0 });
 
   useEffect(() => {
     statusRef.current = callState.status;
@@ -113,24 +254,36 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     }
   }, []);
 
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
   const cleanup = useCallback(() => {
+    stopAllRingtones();
     ringtoneRef.current?.stop();
     ringtoneRef.current = null;
-    pcRef.current?.close();
-    pcRef.current = null;
+    sendingRef.current = false;
+    targetRef.current = undefined;
+    clearReconnectTimer();
+    if (captureRef.current) {
+      try { captureRef.current.node.port.onmessage = null; } catch {}
+      try { captureRef.current.node.disconnect(); } catch {}
+      try { void captureRef.current.ctx.close(); } catch {}
+      captureRef.current = null;
+    }
+    if (playbackRef.current) {
+      try { playbackRef.current.node.disconnect(); } catch {}
+      try { void playbackRef.current.ctx.close(); } catch {}
+      playbackRef.current = null;
+    }
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
-    if (remoteAudioRef.current) {
-      try {
-        remoteAudioRef.current.pause();
-        remoteAudioRef.current.srcObject = null;
-        remoteAudioRef.current.remove();
-      } catch {}
-      remoteAudioRef.current = null;
-    }
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     clearCallTimeout();
-  }, [clearCallTimeout]);
+  }, [clearCallTimeout, clearReconnectTimer]);
 
   const getSocket = useCallback((): Socket => {
     const s = socketRef.current;
@@ -138,36 +291,89 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     return s;
   }, [socketRef]);
 
-  const attachRemoteAudio = useCallback((stream: MediaStream) => {
-    const audio = new Audio();
-    audio.autoplay = true;
-    audio.srcObject = stream;
-    const saved = parseInt(localStorage.getItem('voice-volume') || '80', 10);
-    audio.volume = Number.isFinite(saved) ? Math.min(100, Math.max(0, saved)) / 100 : 0.8;
-    audio.style.display = 'none';
-    try { document.body.appendChild(audio); } catch {}
-    remoteAudioRef.current = audio;
-    audio.play().catch(() => {});
+  const startTimer = useCallback((start: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
+    }, 1000);
   }, []);
 
-  const flushPendingCandidates = useCallback(async () => {
-    const pc = pcRef.current;
-    if (!pc) return;
-    const pending = pendingCandidatesRef.current;
-    pendingCandidatesRef.current = [];
-    for (const c of pending) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-    }
+  const applyVolume = useCallback((v: number) => {
+    if (playbackRef.current?.gain) playbackRef.current.gain.gain.value = v / 100;
   }, []);
+
+  /** 播放通道按需创建：16kHz 的 AudioContext + 环形缓冲 worklet。 */
+  const ensurePlayback = useCallback(async () => {
+    if (playbackRef.current) {
+      try { await playbackRef.current.ctx.resume(); } catch {}
+      return playbackRef.current;
+    }
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new Ctx({ sampleRate: 16000 } as AudioContextOptions);
+    if (!ctx.audioWorklet) {
+      try { void ctx.close(); } catch {}
+      throw new Error('当前环境不支持语音（请使用客户端）');
+    }
+    await ctx.audioWorklet.addModule(workletUrl('playback', PLAYBACK_WORKLET));
+    const node = new AudioWorkletNode(ctx, 'chunlv-playback');
+    const gain = ctx.createGain();
+    const saved = parseInt(localStorage.getItem('voice-volume') || '80', 10);
+    gain.gain.value = (Number.isFinite(saved) ? Math.min(100, Math.max(0, saved)) : 80) / 100;
+    node.connect(gain);
+    gain.connect(ctx.destination);
+    try { await ctx.resume(); } catch {}
+    playbackRef.current = { ctx, node, gain };
+    return playbackRef.current;
+  }, []);
+
+  /** 采集通道：麦克风 → 16kHz/PCM16/20ms 帧 → socket 发出去。 */
+  const startCapture = useCallback(async (stream: MediaStream, socket: Socket, targetId: string) => {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new Ctx();
+    if (!ctx.audioWorklet) {
+      try { void ctx.close(); } catch {}
+      throw new Error('当前环境不支持语音（请使用客户端）');
+    }
+    await ctx.audioWorklet.addModule(workletUrl('capture', CAPTURE_WORKLET));
+    const source = ctx.createMediaStreamSource(stream);
+    const node = new AudioWorkletNode(ctx, 'chunlv-capture');
+    const silent = ctx.createGain();
+    silent.gain.value = 0; // 不把自己的声音放出来，但保证 worklet 被驱动
+    source.connect(node);
+    node.connect(silent);
+    silent.connect(ctx.destination);
+    node.port.onmessage = (e: MessageEvent) => {
+      if (!sendingRef.current) return;
+      // 连接不在就直接丢帧，别让 socket.io 把旧音频攒着，重连后一次性喷出来。
+      if (!socket.connected) return;
+      try {
+        socket.emit('call:audio', { to: targetId, seq: seqRef.current++, pcm: e.data });
+        statsRef.current.sentFrames += 1;
+      } catch {}
+    };
+    try { await ctx.resume(); } catch {}
+    captureRef.current = { ctx, node };
+  }, []);
+
+  const pushPcm = useCallback(async (pcm: any) => {
+    if (statusRef.current !== 'connected') return;
+    const samples = await toInt16(pcm);
+    if (!samples || !samples.length) return;
+    statsRef.current.receivedFrames += 1;
+    try {
+      const pb = await ensurePlayback();
+      pb.node.port.postMessage(samples.buffer, [samples.buffer]);
+      statsRef.current.playedFrames += 1;
+    } catch {}
+  }, [ensurePlayback]);
 
   const endCall = useCallback((socket: Socket, peerId: string | undefined, silent = false) => {
     try {
       if (peerId) socket.emit('call:hangup', { targetUserId: peerId });
     } catch {}
     const prev = statusRef.current;
-    ringtoneRef.current?.stop();
     cleanup();
-    setCallState({ status: 'idle' });
+    setCallState((s) => ({ status: 'idle', volume: s.volume }));
     if (silent) return;
     if (prev === 'calling') message.info('对方已挂断');
     else if (prev === 'ringing') message.info('对方已取消通话');
@@ -179,181 +385,164 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
     if (!socket) return;
 
     const onOffer = (data: any) => {
-      offerSdpRef.current = data?.sdp;
-      pendingCandidatesRef.current = [];
+      const fromUserId = data?.fromUserId;
+      if (!fromUserId) return;
+      // 已经在通话里就别再接新的，直接告诉对方忙。
+      if (statusRef.current === 'connected' || statusRef.current === 'calling') {
+        try { socket.emit('call:hangup', { targetUserId: fromUserId }); } catch {}
+        message.warning('正在通话中，已自动忽略新的来电');
+        return;
+      }
       ringtoneRef.current = playRingtone();
-      setCallState({ status: 'ringing', peerId: data?.fromUserId, peerName: data?.callerName, volume: 80 });
+      setCallState((s) => ({ status: 'ringing', peerId: fromUserId, peerName: data?.callerName, volume: s.volume }));
       clearCallTimeout();
       timeoutRef.current = setTimeout(() => {
-        try {
-          if (data?.fromUserId) socket.emit('call:hangup', { targetUserId: data.fromUserId });
-        } catch {}
+        try { socket.emit('call:hangup', { targetUserId: fromUserId }); } catch {}
         ringtoneRef.current?.stop();
         cleanup();
-        setCallState({ status: 'idle' });
+        setCallState((s) => ({ status: 'idle', volume: s.volume }));
       }, CALL_TIMEOUT_MS);
     };
 
-    const onAnswer = async (data: any) => {
+    const onAnswer = () => {
+      if (statusRef.current !== 'calling') return;
       clearCallTimeout();
       ringtoneRef.current?.stop();
-      try {
-        if (pcRef.current && data?.sdp) {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          await flushPendingCandidates();
-        }
-      } catch (e: any) {
-        console.warn('setRemoteDescription(answer) failed', e?.message);
-      }
-      setCallState((s) => ({ ...s, status: 'connected', startTime: Date.now() }));
+      sendingRef.current = true;
+      const start = Date.now();
+      setCallState((s) => ({ ...s, status: 'connected', startTime: start }));
+      startTimer(start);
     };
 
-    const onIce = async (data: any) => {
-      if (!data?.candidate) return;
-      if (pcRef.current && pcRef.current.remoteDescription) {
-        try { await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
-      } else {
-        pendingCandidatesRef.current.push(data.candidate);
-      }
+    const onIceOrAudio = (data: any) => {
+      void pushPcm(data?.pcm);
+    };
+
+    const onPeerUnstable = () => {
+      message.warning({ content: '对方网络抖动，正在重连…', key: 'voice-peer', duration: 0 });
+    };
+
+    const onPeerStable = () => {
+      message.success({ content: '对方已恢复', key: 'voice-peer' });
     };
 
     const onHangup = () => endCall(socket, undefined, false);
+
     const onDisconnect = () => {
-      ringtoneRef.current?.stop();
-      cleanup();
-      setCallState({ status: 'idle' });
+      if (statusRef.current === 'idle') return;
+      sendingRef.current = false;
+      message.warning({ content: '网络抖动，正在自动重连…', key: 'voice-reconnect', duration: 0 });
+      if (!reconnectTimerRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectTimerRef.current = null;
+          cleanup();
+          setCallState((s) => ({ status: 'idle', volume: s.volume }));
+          message.error({ content: '网络断开太久，通话已结束', key: 'voice-reconnect' });
+        }, RECONNECT_GRACE_MS);
+      }
+    };
+
+    const onConnect = () => {
+      clearReconnectTimer();
+      if (statusRef.current === 'connected') {
+        sendingRef.current = true;
+        message.success({ content: '已重新连上，通话继续', key: 'voice-reconnect' });
+      }
     };
 
     socket.on('call:offer', onOffer);
     socket.on('call:answer', onAnswer);
-    socket.on('call:ice-candidate', onIce);
+    socket.on('call:audio', onIceOrAudio);
+    socket.on('call:peer-unstable', onPeerUnstable);
+    socket.on('call:peer-stable', onPeerStable);
     socket.on('call:hangup', onHangup);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect', onConnect);
     return () => {
       socket.off('call:offer', onOffer);
       socket.off('call:answer', onAnswer);
-      socket.off('call:ice-candidate', onIce);
+      socket.off('call:audio', onIceOrAudio);
+      socket.off('call:peer-unstable', onPeerUnstable);
+      socket.off('call:peer-stable', onPeerStable);
       socket.off('call:hangup', onHangup);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect', onConnect);
     };
-  }, [socketRef, cleanup, endCall, clearCallTimeout, flushPendingCandidates]);
+  }, [socketRef, cleanup, endCall, clearCallTimeout, clearReconnectTimer, pushPcm, startTimer]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
     try {
       const socket = getSocket();
       clearCallTimeout();
-      pendingCandidatesRef.current = [];
-      setCallState({ status: 'calling', peerId: targetUserId, peerName: targetUserName });
-      const media = navigator.mediaDevices;
-      if (!media?.getUserMedia) {
-        cleanup();
-        setCallState({ status: 'idle' });
-        message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
+      if (statusRef.current !== 'idle') {
+        message.warning('正在通话中，请先挂断');
         return;
       }
-      const iceServers = await loadIceServers();
-      const pc = new RTCPeerConnection({ iceServers });
-      pcRef.current = pc;
-
-      const stream = await media.getUserMedia({ audio: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        message.error('当前地址（网页版）无法使用麦克风，请用客户端发起通话');
+        return;
+      }
+      seqRef.current = 0;
+      targetRef.current = targetUserId;
+      sendingRef.current = false;
+      setCallState((s) => ({ status: 'calling', peerId: targetUserId, peerName: targetUserName, volume: s.volume }));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       localStreamRef.current = stream;
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) socket.emit('call:ice-candidate', { targetUserId, candidate: e.candidate });
-      };
-      pc.ontrack = (e) => {
-        const s = (e.streams && e.streams[0]) || new MediaStream([e.track]);
-        attachRemoteAudio(s);
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('call:offer', { targetUserId, sdp: offer });
-
-      const start = Date.now();
-      timerRef.current = setInterval(() => {
-        setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
-      }, 1000);
-
+      await startCapture(stream, socket, targetUserId);
+      await ensurePlayback();
+      socket.emit('call:offer', { targetUserId });
       timeoutRef.current = setTimeout(() => {
         if (statusRef.current !== 'calling') return;
         try { socket.emit('call:hangup', { targetUserId }); } catch {}
         cleanup();
-        setCallState({ status: 'idle' });
+        setCallState((s) => ({ status: 'idle', volume: s.volume }));
         message.info('对方无应答，请稍后再试');
       }, CALL_TIMEOUT_MS);
     } catch (err: any) {
       cleanup();
-      setCallState({ status: 'idle' });
-      const errMsg = err?.message || String(err);
-      if (errMsg.includes('NotAllowed') || errMsg.includes('Permission')) {
-        message.error('麦克风权限未授权，请在系统设置中允许麦克风访问');
-      } else if (errMsg.includes('NotFound')) {
-        message.error('未检测到麦克风设备');
-      } else {
-        message.error(`通话失败: ${errMsg}`);
-      }
+      setCallState((s) => ({ status: 'idle', volume: s.volume }));
+      message.error(mediaErrorMessage(err));
     }
-  }, [getSocket, cleanup, clearCallTimeout, attachRemoteAudio]);
+  }, [getSocket, cleanup, clearCallTimeout, startCapture, ensurePlayback]);
 
   const acceptCall = useCallback(async () => {
-    if (callState.status !== 'ringing' || !callState.peerId) return;
+    const peerId = callState.peerId;
+    if (callState.status !== 'ringing' || !peerId) return;
+    const socket = (() => { try { return getSocket(); } catch { return null; } })();
     try {
-      const socket = getSocket();
       clearCallTimeout();
       ringtoneRef.current?.stop();
-      pendingCandidatesRef.current = [];
-      const media = navigator.mediaDevices;
-      if (!media?.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        if (socket) { try { socket.emit('call:hangup', { targetUserId: peerId }); } catch {} }
         cleanup();
-        setCallState({ status: 'idle' });
-        message.error('当前环境不支持麦克风，请使用客服端/陪玩端，或通过 HTTPS 访问');
+        setCallState((s) => ({ status: 'idle', volume: s.volume }));
+        message.error('当前地址（网页版）无法使用麦克风，请用客户端接听通话');
         return;
       }
-      const iceServers = await loadIceServers();
-      const pc = new RTCPeerConnection({ iceServers });
-      pcRef.current = pc;
-
-      const stream = await media.getUserMedia({ audio: true });
+      if (!socket) throw new Error('WebSocket未连接，请刷新页面重试');
+      seqRef.current = 0;
+      targetRef.current = peerId;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       localStreamRef.current = stream;
-      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) socket.emit('call:ice-candidate', { targetUserId: callState.peerId, candidate: e.candidate });
-      };
-      pc.ontrack = (e) => {
-        const s = (e.streams && e.streams[0]) || new MediaStream([e.track]);
-        attachRemoteAudio(s);
-      };
-
-      // 关键：必须先设置对端 offer 为 remoteDescription，再 createAnswer，
-      // 否则协商出来的 answer 不含对端媒体，双方听不到声音。
-      if (offerSdpRef.current) {
-        await pc.setRemoteDescription(new RTCSessionDescription(offerSdpRef.current));
-        await flushPendingCandidates();
-      }
-
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('call:answer', { targetUserId: callState.peerId, sdp: answer });
-
+      await startCapture(stream, socket, peerId);
+      await ensurePlayback();
+      sendingRef.current = true;
+      socket.emit('call:answer', { targetUserId: peerId });
       const start = Date.now();
-      setCallState({ ...callState, status: 'connected', startTime: start });
-      timerRef.current = setInterval(() => {
-        setCallState((s) => (s.status === 'connected' ? { ...s, duration: Math.floor((Date.now() - start) / 1000) } : s));
-      }, 1000);
+      setCallState((s) => ({ ...s, status: 'connected', startTime: start }));
+      startTimer(start);
     } catch (err: any) {
       // 接听失败必须通知主叫方挂断，否则主叫方一直显示“正在呼叫”。
-      try {
-        const socket = getSocket();
-        if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
-      } catch {}
+      if (socket) { try { socket.emit('call:hangup', { targetUserId: peerId }); } catch {} }
       cleanup();
-      setCallState({ status: 'idle' });
-      message.error(`接听失败: ${err?.message || String(err)}`);
+      setCallState((s) => ({ status: 'idle', volume: s.volume }));
+      message.error(mediaErrorMessage(err));
     }
-  }, [callState, getSocket, cleanup, clearCallTimeout, attachRemoteAudio, flushPendingCandidates]);
+  }, [callState.peerId, callState.status, getSocket, cleanup, clearCallTimeout, startCapture, ensurePlayback, startTimer]);
 
   const rejectCall = useCallback(() => {
     clearCallTimeout();
@@ -363,7 +552,7 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
     } catch {}
     cleanup();
-    setCallState({ status: 'idle' });
+    setCallState((s) => ({ status: 'idle', volume: s.volume }));
   }, [callState.peerId, getSocket, cleanup, clearCallTimeout]);
 
   const hangup = useCallback(() => {
@@ -373,14 +562,14 @@ export function useVoiceCall(socketRef: React.RefObject<Socket | null>) {
       if (callState.peerId) socket.emit('call:hangup', { targetUserId: callState.peerId });
     } catch {}
     cleanup();
-    setCallState({ status: 'idle' });
+    setCallState((s) => ({ status: 'idle', volume: s.volume }));
   }, [callState.peerId, getSocket, cleanup, clearCallTimeout]);
 
   const setVolume = useCallback((v: number) => {
     localStorage.setItem('voice-volume', String(v));
     setCallState((s) => ({ ...s, volume: v }));
-    if (remoteAudioRef.current) remoteAudioRef.current.volume = v / 100;
-  }, []);
+    applyVolume(v);
+  }, [applyVolume]);
 
-  return { callState, startCall, acceptCall, rejectCall, hangup, setVolume, localStreamRef };
+  return { callState, startCall, acceptCall, rejectCall, hangup, setVolume, localStreamRef, stats: statsRef };
 }

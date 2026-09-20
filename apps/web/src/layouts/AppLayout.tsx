@@ -1111,6 +1111,11 @@ const AppLayout: React.FC = () => {
 
   // Voice call handler — uses the same WebSocket from useSocket
   const vc = useVoiceCall(voiceSocketRef);
+  // 语音自检入口：排查「打语音没声音」时不用让陪玩反复试，
+  // 在控制台执行 window.__chunlvVoice.startCall('<对方userId>', '对方名字') 就能自己发起一通。
+  useEffect(() => {
+    (window as any).__chunlvVoice = vc;
+  });
   useEffect(() => {
     const handler = (e: CustomEvent) => {
       const { targetUserId, targetUserName } = e.detail || {};

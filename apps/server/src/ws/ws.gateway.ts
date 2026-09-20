@@ -32,6 +32,9 @@ export interface ConnectedUser {
 
 const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8000,http://localhost:3001').split(',');
 
+/** 语音通话中断线宽限期：比客户端自己的 30 秒稍长，让客户端先有机会重连上。 */
+const VOICE_RECONNECT_GRACE_MS = 45_000;
+
 /** Check if origin is a LAN IP (192.168.x.x or 10.x.x.x or 172.16-31.x.x) on allowed ports */
 function isLanOrigin(origin: string): boolean {
   return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)(\d{1,3}\.)?\d{1,3}(:\d+)?$/.test(origin);
@@ -255,6 +258,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
       }
 
+      const pendingCallEnd = this.pendingCallEndTimers.get(user.id);
+      if (pendingCallEnd) {
+        clearTimeout(pendingCallEnd);
+        this.pendingCallEndTimers.delete(user.id);
+        const session = this.callSessions.get(user.id);
+        if (session) {
+          logger.info('Voice call survived reconnect', {
+            userId: user.id,
+            username: user.username,
+            peerUserId: session.peerId,
+          });
+          this.notifyUser(session.peerId, 'call:peer-stable', { peerUserId: user.id });
+        }
+      }
+
       void client.join(`user:${user.id}`);
       this.userSockets.set(user.id, client.id);
       if (user.studioId) {
@@ -356,6 +374,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user as ConnectedUser | undefined;
     if (!user) return;
     presence.removeSocket(user.id);
+    // 同一客户端可能有好几条连接（网页 + 陪玩端主进程），只有一条都不剩才算真的走了，
+    // 不然主进程那条连接一抖就把正在进行的语音通话掐断。
+    if (!presence.hasSocket(user.id)) {
+      this.scheduleCallEndOnDisconnect(user);
+    }
     this.userSockets.delete(user.id);
     if (!user.companionId) {
       // 客服 / 店长 / 老板 的断开以前一条日志都没有，只能靠人员列表「离线」反推。
@@ -882,28 +905,151 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return companion?.userId || id;
   }
 
-  // Voice call relay
+  // ── 语音通话：音频走这条 WebSocket 中转 ──────────────────────────
+  //
+  // 老板 2026-09-21 报「王昊给邵泽慧打语音，互相听不到声音，之前是好的」。
+  // 原来走 WebRTC 点对点打洞：只有 Google STUN，服务器没配 TURN
+  // （云安全组只放通 22 / 3001，3478 和中继端口外面根本进不来，抓包 0 个包）。
+  // 而办公室这边是多线 NAT，同一台机器先后映射成 122.6.117.75 / 122.6.112.252
+  // 两个公网 IP，出口一变打好的洞就废，界面还显示「已接通」。
+  // 现在直接把同一条 socket 当音频通道：NAT / 出口怎么变都不影响，
+  // 网络抖动断线后 socket 自动重连，声音接着走。
+  //
+  // 会话表只用于「记通话日志 + 校验音频只发给通话对端」，纯内存不落库。
+  private callSessions = new Map<
+    string,
+    { peerId: string; peerRawId: string; startedAt: number; frames: number }
+  >();
+  private audioFrameBudget = new Map<string, { windowStart: number; count: number }>();
+  /** 断开后「等一会儿再收尾」的定时器：userId -> timer */
+  private pendingCallEndTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** 音频帧限速：每人每秒最多 100 帧（正常 50 帧/秒），防异常客户端刷爆通道。 */
+  private allowAudioFrame(userId: string): boolean {
+    const now = Date.now();
+    const budget = this.audioFrameBudget.get(userId);
+    if (!budget || now - budget.windowStart >= 1000) {
+      this.audioFrameBudget.set(userId, { windowStart: now, count: 1 });
+      return true;
+    }
+    budget.count += 1;
+    return budget.count <= 100;
+  }
+
+  private rememberCall(userId: string, peerId: string, peerRawId: string): void {
+    this.callSessions.set(userId, { peerId, peerRawId, startedAt: Date.now(), frames: 0 });
+  }
+
+  /** 记一条通话日志（谁跟谁、打了多久、传了多少音频帧），并清掉会话。 */
+  private logCallEnd(userId: string, username: string | undefined, reason: string, message = 'Voice call ended'): void {
+    const session = this.callSessions.get(userId);
+    if (!session) return;
+    this.callSessions.delete(userId);
+    this.audioFrameBudget.delete(userId);
+    logger.info(message, {
+      userId,
+      username,
+      peerUserId: session.peerId,
+      reason,
+      seconds: Math.round((Date.now() - session.startedAt) / 1000),
+      audioFrames: session.frames,
+    });
+  }
+
+  /**
+   * 客户端断开时**不要立刻掐断通话**：办公室/家宽是多线 NAT，出口 IP 一换
+   * WebSocket 就会断一次（实测邵泽慧的连接每 1~2 分钟掉一回），
+   * 但客户端通常 1~2 秒就自动连回来了。
+   * 所以先告诉对端「对方网络抖动」，等超过宽限期还没回来才真的挂断并记日志。
+   */
+  private scheduleCallEndOnDisconnect(user: ConnectedUser): void {
+    const session = this.callSessions.get(user.id);
+    if (!session) return;
+    if (this.pendingCallEndTimers.has(user.id)) return;
+    this.notifyUser(session.peerId, 'call:peer-unstable', { peerUserId: user.id });
+    const timer = setTimeout(() => {
+      this.pendingCallEndTimers.delete(user.id);
+      const current = this.callSessions.get(user.id);
+      if (!current) return;
+      if (presence.hasSocket(user.id)) return; // 已经连回来了，通话继续
+      this.notifyUser(current.peerId, 'call:hangup', {});
+      this.logCallEnd(user.id, user.username, 'socket-closed', 'Voice call dropped (socket closed)');
+    }, VOICE_RECONNECT_GRACE_MS);
+    // 别让这个定时器拖住进程退出
+    if (typeof (timer as { unref?: () => void }).unref === 'function') timer.unref();
+    this.pendingCallEndTimers.set(user.id, timer);
+  }
+
   @SubscribeMessage('call:offer')
   async handleCallOffer(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
-    const targetUserId = await this.resolveUserId(data?.targetUserId);
-    if (targetUserId) {
-      this.notifyUser(targetUserId, 'call:offer', { fromUserId: (client.data as any)?.user?.id, sdp: data?.sdp, callerName: (client.data as any)?.user?.username });
-    }
+    const user = (client.data as any)?.user as ConnectedUser | undefined;
+    const raw = typeof data?.targetUserId === 'string' ? data.targetUserId : '';
+    const targetUserId = await this.resolveUserId(raw);
+    if (!user || !targetUserId) return;
+    this.rememberCall(user.id, targetUserId, raw);
+    // 通话量很小，这里按 info 记：以后老板再问「谁打给谁、接通没有、打了多久」直接查日志。
+    logger.info('Voice call ringing', { userId: user.id, username: user.username, peerUserId: targetUserId });
+    // sdp 只对旧版客户端有意义（它们还在用 WebRTC 直连）；
+    // 新版客户端不带 sdp，音频走下面的 call:audio 中转。
+    this.notifyUser(targetUserId, 'call:offer', {
+      fromUserId: user.id,
+      callerName: user.username,
+      sdp: data?.sdp,
+    });
   }
+
   @SubscribeMessage('call:answer')
-  async handleCallAnswer(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
-    const targetUserId = await this.resolveUserId(data?.targetUserId);
-    if (targetUserId) this.notifyUser(targetUserId, 'call:answer', { sdp: data?.sdp });
+  async handleCallAnswer(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
+    const user = (client.data as any)?.user as ConnectedUser | undefined;
+    const raw = typeof data?.targetUserId === 'string' ? data.targetUserId : '';
+    const targetUserId = await this.resolveUserId(raw);
+    if (!user || !targetUserId) return;
+    this.rememberCall(user.id, targetUserId, raw);
+    logger.info('Voice call answered', { userId: user.id, username: user.username, peerUserId: targetUserId });
+    this.notifyUser(targetUserId, 'call:answer', { fromUserId: user.id, sdp: data?.sdp });
   }
+
+  /** 音频帧转发：只允许发给本通话的对端，单帧 ≤ 8KB，每秒 ≤ 100 帧。 */
+  @SubscribeMessage('call:audio')
+  handleCallAudio(@ConnectedSocket() client: Socket, @MessageBody() data: any): void {
+    const user = (client.data as any)?.user as ConnectedUser | undefined;
+    if (!user) return;
+    const to = typeof data?.to === 'string' ? data.to : '';
+    const pcm = data?.pcm;
+    if (!to || !pcm) return;
+    const bytes = (pcm as any).byteLength ?? (pcm as any).length ?? 0;
+    if (bytes <= 0 || bytes > 8192) return;
+    const session = this.callSessions.get(user.id);
+    if (!session) return;
+    if (to !== session.peerId && to !== session.peerRawId) return;
+    if (!this.allowAudioFrame(user.id)) return;
+    session.frames += 1;
+    this.notifyUser(session.peerId, 'call:audio', { from: user.id, seq: data?.seq, pcm });
+  }
+
+  /**
+   * ICE 候选透传：只有旧版客户端用得到（它们还在走 WebRTC 直连）。
+   * 新版客户端这段通路已经不用了，但留着不占什么成本，
+   * 手上还装着老客户端的陪玩也不会因为服务端升级而变哑。
+   */
   @SubscribeMessage('call:ice-candidate')
   async handleCallIce(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
     const targetUserId = await this.resolveUserId(data?.targetUserId);
     if (targetUserId) this.notifyUser(targetUserId, 'call:ice-candidate', { candidate: data?.candidate });
   }
+
   @SubscribeMessage('call:hangup')
-  async handleCallHangup(@ConnectedSocket() _client: Socket, @MessageBody() data: any): Promise<void> {
+  async handleCallHangup(@ConnectedSocket() client: Socket, @MessageBody() data: any): Promise<void> {
+    const user = (client.data as any)?.user as ConnectedUser | undefined;
     const targetUserId = await this.resolveUserId(data?.targetUserId);
-    if (targetUserId) this.notifyUser(targetUserId, 'call:hangup', {});
+    if (!user || !targetUserId) return;
+    this.logCallEnd(user.id, user.username, 'hangup');
+    // 对端不会自己再发一次挂断，这里顺手把他的会话也收掉，避免会话表越攒越多。
+    const peerSession = this.callSessions.get(targetUserId);
+    if (peerSession && (peerSession.peerId === user.id || peerSession.peerRawId === user.id)) {
+      this.logCallEnd(targetUserId, undefined, 'peer-hangup');
+    }
+    this.notifyUser(targetUserId, 'call:hangup', {});
   }
 
   notifyChat(studioId: string, companionName: string, _chatKey: string, companionId?: string, orderId?: string): void {
