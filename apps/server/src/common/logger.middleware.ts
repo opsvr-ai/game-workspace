@@ -37,6 +37,10 @@ export class LoggerMiddleware implements NestMiddleware {
     const { method, originalUrl } = req;
     const userAgent = req.get('user-agent') || '';
 
+    // 来访 IP：工作室几十台机器共用一个公网出口，查「谁把限流打满」「谁在刷」时必须看它
+    const forwarded = (req.get('x-forwarded-for') || '').split(',')[0].trim();
+    const clientIp = forwarded || req.ip || req.socket?.remoteAddress || '';
+
     const token = bearerToken(req);
     const caller = token ? identityOf(token) : null;
     if (caller?.userId) presence.markSeen(caller.userId);
@@ -71,6 +75,7 @@ export class LoggerMiddleware implements NestMiddleware {
         status: statusCode,
         duration: `${duration}ms`,
         userAgent,
+        ip: clientIp,
         ...extra,
       });
     });

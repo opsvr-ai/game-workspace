@@ -1,6 +1,7 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerGuard } from './common/app-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -34,21 +35,23 @@ import { ContentCheckModule } from './content-check/content-check.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    // 限流配额：2026-09-21 起按「账号 / 用户」记账，不再按公网 IP（见 common/app-throttler.guard.ts）。
+    // 每个身份、每个接口各自一份配额：短时的防脚本猛刷，长时的防失控轮询。
     ThrottlerModule.forRoot([
       {
         name: 'short',
         ttl: 1000,
-        limit: 5,
+        limit: 15,
       },
       {
         name: 'medium',
         ttl: 10000,
-        limit: 20,
+        limit: 80,
       },
       {
         name: 'long',
         ttl: 60000,
-        limit: 100,
+        limit: 600,
       },
     ]),
     PrismaModule,
@@ -80,7 +83,7 @@ import { ContentCheckModule } from './content-check/content-check.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: AppThrottlerGuard,
     },
   ],
 })
