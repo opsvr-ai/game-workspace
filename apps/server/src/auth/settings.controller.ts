@@ -22,11 +22,16 @@ import { WsGateway } from '../ws/ws.gateway';
 import { normalizeShareTiers } from '../common/percent-split';
 import { splitRoles } from '../common/order-split';
 
-import { DEFAULT_CONFIGS, STUDIO_SCOPED_KEYS, isStudioScopedKey } from '../common/default-config';
+import {
+  DEFAULT_CONFIGS,
+  STUDIO_SCOPED_KEYS,
+  OWNER_ONLY_KEYS,
+  OWNER_ONLY_PREFIXES,
+} from '../common/default-config';
 import {
   resolveConfigsDetailed,
-  saveStudioConfigs,
   resetStudioConfigs,
+  saveConfigsByRole,
 } from '../common/studio-config';
 
 @Controller()
@@ -64,7 +69,8 @@ export class SettingsController {
     @Req() req?: any,
     @Query('studioId') studioIdParam?: string,
   ): Promise<ApiResponse<unknown>> {
-    const SENSITIVE_PREFIXES = ['identity.', 'jwt.', 'secret'];
+    // 密钥 / 凭据类：不只是「不能改」，连值都不该给店长看到（老板 2026-09-21 的安全与稳定口径）
+    const SENSITIVE_PREFIXES = ['identity.', 'jwt.', 'secret', 'ai.', 'turn.'];
     const keys = keysStr ? keysStr.split(',').map((k) => k.trim()) : Object.keys(DEFAULT_CONFIGS);
     const isOwner = req?.user?.role === 'OWNER';
     const safeKeys = keys.filter((k) => isOwner || !SENSITIVE_PREFIXES.some((p) => k.startsWith(p)));
@@ -86,6 +92,9 @@ export class SettingsController {
       overridden: resolved.overridden,
       /** 哪些键店长可以自己填 */
       studioScopedKeys: [...STUDIO_SCOPED_KEYS],
+      /** 哪些键只有老板能改（密钥 / 一份值绑住全站的开关），店长保存时会被跳过 */
+      ownerOnlyKeys: [...OWNER_ONLY_KEYS],
+      ownerOnlyPrefixes: [...OWNER_ONLY_PREFIXES],
     };
     return { code: 200, message: 'ok', data: result };
   }
@@ -196,37 +205,23 @@ export class SettingsController {
       });
     }
 
-    const isOwner = req?.user?.role === 'OWNER';
-    const studioId = (req?.user?.studioId as string) || null;
-
-    // 店长：只写本店覆盖，全局键跳过（不静默，在 skipped 里告诉对方）
-    if (!isOwner && studioId) {
-      const entries: Record<string, any> = {};
-      const skipped: string[] = [];
-      for (const [key, value] of Object.entries(body)) {
-        if (isStudioScopedKey(key)) entries[key] = value;
-        else skipped.push(key);
-      }
-      if (Object.keys(entries).length) await saveStudioConfigs(this.prisma, studioId, entries);
-      return {
-        code: 200,
-        message: skipped.length ? '本店设置已保存，部分全局项未改动' : 'ok',
-        data: { scope: 'studio', saved: Object.keys(entries), skipped },
-      };
-    }
-
-    const ops = Object.entries(body).map(([key, value]) =>
-      this.prisma.systemConfig.upsert({
-        where: { key },
-        create: { key, value },
-        update: { value },
-      }),
-    );
-    await Promise.all(ops);
-    if (body['blacklist.auto_kill'] !== undefined) {
+    // 写到哪里看身份（老板拍板：店跟店相互独立，默认全部归分店）：
+    // - 老板 → 全局默认（SystemConfig），所有店跟着变；
+    // - 店长 → 本店覆盖（StudioConfig），只影响自己店；
+    //   混进来的「老板专属键」（AI 密钥、客户端版本、杀进程开关…）不报错也不静默，
+    //   跳过并列在 `data.skipped` 里，界面照着提示「这些要找老板改」。
+    const result = await saveConfigsByRole(this.prisma, req?.user ?? {}, body);
+    if (result.skipped.length === 0 && body['blacklist.auto_kill'] !== undefined) {
       await this.pushBlacklistAfterToggle();
     }
-    return { code: 200, message: 'ok', data: { scope: 'global', saved: Object.keys(body), skipped: [] } };
+    return {
+      code: 200,
+      message:
+        result.skipped.length > 0
+          ? `本店设置已保存 ${result.saved.length} 项，${result.skipped.length} 项只有老板能改，未改动`
+          : 'ok',
+      data: result,
+    };
   }
 
   /**

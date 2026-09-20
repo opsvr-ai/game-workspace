@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { businessDayOf } from '../common/business-day';
 import { CompanionQuotaService } from '../orders/companion-quota.service';
 import { UserRole } from '@chunlv/shared';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 interface AuthUser {
   id: string;
@@ -51,9 +52,7 @@ export class CustomerTrackingService {
     // 抢单资格：老板 2026-09-20 起只看「每日立即打名额」，
     // 原来的「流水门槛」已删除；成功率门槛保留但默认关闭（线上没配置时不再误报受限）。
     const keys = ['pool.success_rate_gate_enabled', 'pool.success_rate_gate_threshold'];
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
-    const cfg: Record<string, any> = {};
-    for (const r of records) cfg[r.key] = r.value;
+    const cfg = await resolveConfigsRaw(this.prisma, user.studioId ?? null, keys);
 
     const bool = (k: string, def: boolean) => (cfg[k] === undefined ? def : cfg[k] === true || cfg[k] === 'true');
     const num = (k: string, def: number) => {
@@ -353,9 +352,7 @@ export class CustomerTrackingService {
   async listAnomalies(user: AuthUser) {
     const studioWhere: any = user.studioId ? { studioId: user.studioId } : {};
     const keys = ['anomaly.spend_drop_percent', 'anomaly.revenue_drop_percent', 'anomaly.hours_drop_percent'];
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
-    const cfg: Record<string, any> = {};
-    for (const r of records) cfg[r.key] = r.value;
+    const cfg = await resolveConfigsRaw(this.prisma, user.studioId ?? null, keys);
     const pct = typeof cfg['anomaly.spend_drop_percent'] === 'number' ? cfg['anomaly.spend_drop_percent'] : 50;
 
     const customers = await this.prisma.customer.findMany({

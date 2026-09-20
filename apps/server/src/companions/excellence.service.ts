@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange } from '../common/business-day';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 export interface ExcellenceResult {
   isExcellent: boolean;
@@ -21,31 +22,147 @@ export interface ExcellenceResult {
  * 该口径同时用于管理端「上等马/中等马/下等马」标记与订单池「上等马立刻看到」的延迟判断。
  */
 @Injectable()
-export class ExcellenceService {
+export class ExcellenceService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
-  async computeForCompanions(companionIds: string[]): Promise<Map<string, ExcellenceResult>> {
+  onModuleInit() {
+    // 下等马末位淘汰：每天检查一次（启动后 1 分钟先跑一次，之后每 24 小时）
+    setTimeout(() => this.runLowTierResignCheck().catch(() => {}), 60 * 1000);
+    setInterval(() => this.runLowTierResignCheck().catch(() => {}), 24 * 60 * 60 * 1000);
+  }
+
+  /**
+   * 下等马末位淘汰：连续 N 天是下等马（可配置 excellence.low_tier_auto_resign_days），
+   * 自动离职。默认 0 表示不自动离职（只由管理端手动处理）。
+   */
+  async runLowTierResignCheck(): Promise<number> {
+    // `excellence.low_tier_streak` 是服务端自己累加的全局状态（不是给人填的），保持全局一份。
+    const streakCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'excellence.low_tier_streak' },
+    });
+    const streak: Record<string, number> = (streakCfg?.value as Record<string, number>) || {};
+
+    const companions = await this.prisma.companion.findMany({
+      where: { isResigned: false },
+      select: { id: true, studioId: true },
+    });
+
+    let resigned = 0;
+    // 淘汰天数按店解析：每家店可以不一样，没配的店直接跳过（等于不自动离职）
+    const resignDaysCache = new Map<string, number>();
+    for (const c of companions) {
+      const cacheKey = c.studioId ?? '__global__';
+      if (!resignDaysCache.has(cacheKey)) {
+        const scoped = await resolveConfigsRaw(this.prisma, c.studioId, [
+          'excellence.low_tier_auto_resign_days',
+        ]);
+        resignDaysCache.set(cacheKey, Number(scoped['excellence.low_tier_auto_resign_days'] ?? 0));
+      }
+      const threshold = resignDaysCache.get(cacheKey) ?? 0;
+      if (!Number.isFinite(threshold) || threshold <= 0) continue;
+      const ex = await this.computeOne(c.id, c.studioId);
+      if (ex.tier === 'LOW') {
+        streak[c.id] = (streak[c.id] || 0) + 1;
+        if (streak[c.id] >= threshold) {
+          await this.prisma.companion.update({
+            where: { id: c.id },
+            data: {
+              status: 'OFFLINE',
+              balance: 0,
+              deposit: 0,
+              frozen: 0,
+              monthlyRevenue: 0,
+              isResigned: true,
+            },
+          }).catch(() => {});
+          delete streak[c.id];
+          resigned += 1;
+        }
+      } else if (streak[c.id]) {
+        delete streak[c.id];
+      }
+    }
+
+    await this.prisma.systemConfig.upsert({
+      where: { key: 'excellence.low_tier_streak' },
+      update: { value: streak },
+      create: { key: 'excellence.low_tier_streak', value: streak },
+    }).catch(() => {});
+
+    return resigned;
+  }
+
+  async computeForCompanions(
+    companionIds: string[],
+    opts?: { studioId?: string | null },
+  ): Promise<Map<string, ExcellenceResult>> {
     const result = new Map<string, ExcellenceResult>();
     if (companionIds.length === 0) return result;
 
-    // 评分权重可后台配置（默认：月流水50 + 续单20 + 复购20 + 首单10，上等马线50）
-    const [rwCfg, rcCfg, renewCfg, repurchaseCfg, firstCfg, thresholdCfg, middleCfg] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_weight' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.revenue_cap_yuan' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.renew_weight' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.repurchase_weight' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.first_success_weight' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.excellent_threshold' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'excellence.middle_tier_threshold' } }),
-    ]);
-    const num = (v: any, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
-    const revenueWeight = num(rwCfg?.value, 50);
-    const revenueCapYuan = Math.max(1, num(rcCfg?.value, 10000));
-    const renewWeight = num(renewCfg?.value, 20);
-    const repurchaseWeight = num(repurchaseCfg?.value, 20);
-    const firstSuccessWeight = num(firstCfg?.value, 10);
-    const excellentThreshold = num(thresholdCfg?.value, 50);
-    const middleTierThreshold = num(middleCfg?.value, 25);
+    const scoreByTiers = (value: number, tiers: Array<{ min: number; score: number }>) => {
+      let score = 0;
+      for (const t of tiers) {
+        if (value >= t.min) score = t.score;
+      }
+      return score;
+    };
+
+    // 评分口径按店解析（本店店长填的 → 老板全局默认），每家店的上等马线可以不一样。
+    const SCORE_KEYS = [
+      'excellence.revenue_tiers',
+      'excellence.renew_tiers',
+      'excellence.repurchase_tiers',
+      'excellence.first_success_tiers',
+      'excellence.excellent_threshold',
+      'excellence.middle_tier_threshold',
+    ];
+    const scoreCfgCache = new Map<string, Record<string, any>>();
+    const loadScoreCfg = async (studioId: string | null) => {
+      const cacheKey = studioId ?? '__global__';
+      if (!scoreCfgCache.has(cacheKey)) {
+        scoreCfgCache.set(
+          cacheKey,
+          await resolveConfigsRaw(this.prisma, studioId, SCORE_KEYS),
+        );
+      }
+      return scoreCfgCache.get(cacheKey)!;
+    };
+    const metricsFor = (cfg: Record<string, any>) => {
+      const num = (v: any, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
+      const parseTiers = (v: any, def: Array<{ min: number; score: number }>) => {
+        if (Array.isArray(v) && v.length > 0) {
+          return v
+            .map((t: any) => ({ min: Number(t?.min) || 0, score: Number(t?.score) || 0 }))
+            .sort((a, b) => a.min - b.min);
+        }
+        return def;
+      };
+      return {
+        revenueTiers: parseTiers(cfg['excellence.revenue_tiers'], [
+          { min: 0, score: 0 },
+          { min: 3000, score: 20 },
+          { min: 6000, score: 40 },
+          { min: 10000, score: 50 },
+        ]),
+        renewTiers: parseTiers(cfg['excellence.renew_tiers'], [
+          { min: 0, score: 0 },
+          { min: 30, score: 10 },
+          { min: 60, score: 20 },
+        ]),
+        repurchaseTiers: parseTiers(cfg['excellence.repurchase_tiers'], [
+          { min: 0, score: 0 },
+          { min: 30, score: 10 },
+          { min: 60, score: 20 },
+        ]),
+        firstSuccessTiers: parseTiers(cfg['excellence.first_success_tiers'], [
+          { min: 0, score: 0 },
+          { min: 40, score: 5 },
+          { min: 70, score: 10 },
+        ]),
+        excellentThreshold: num(cfg['excellence.excellent_threshold'], 50),
+        middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 25),
+      };
+    };
 
     const orderStats = await this.prisma.order.groupBy({
       by: ['companionId', 'type'],
@@ -103,9 +220,10 @@ export class ExcellenceService {
     // 战绩图采纳加分：直接叠加到综合分。
     const bonusRows = await this.prisma.companion.findMany({
       where: { id: { in: companionIds } },
-      select: { id: true, bonusScore: true },
+      select: { id: true, bonusScore: true, studioId: true },
     });
     const bonusMap = new Map(bonusRows.map((b) => [b.id, b.bonusScore || 0]));
+    const studioIdOfCompanion = new Map(bonusRows.map((b) => [b.id, b.studioId as string | null]));
 
     for (const [cid, s] of m) {
       const renewRate = s.count > 0 ? (s.renew / s.count) * 100 : 0;
@@ -113,20 +231,22 @@ export class ExcellenceService {
       const grabCount = grabMap.get(cid) || 0;
       const customerCount = customerMap.get(cid) || 0;
       const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
+      const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
+      const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;
-      const revenueScore = Math.min(revenueWeight, (revenue * revenueWeight) / revenueCapYuan);
-      const renewScore = (renewRate * renewWeight) / 100;
-      const repurchaseScore = (repurchaseRate * repurchaseWeight) / 100;
-      const firstSuccessScore = (firstSuccessRate * firstSuccessWeight) / 100;
+      const revenueScore = scoreByTiers(revenue, metrics.revenueTiers);
+      const renewScore = scoreByTiers(renewRate, metrics.renewTiers);
+      const repurchaseScore = scoreByTiers(repurchaseRate, metrics.repurchaseTiers);
+      const firstSuccessScore = scoreByTiers(firstSuccessRate, metrics.firstSuccessTiers);
       const bonus = bonusMap.get(cid) || 0;
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
-      const tier = rankScore >= excellentThreshold
+      const tier = rankScore >= metrics.excellentThreshold
         ? 'TOP'
-        : rankScore >= middleTierThreshold
+        : rankScore >= metrics.middleTierThreshold
           ? 'MIDDLE'
           : 'LOW';
       result.set(cid, {
-        isExcellent: rankScore >= excellentThreshold,
+        isExcellent: rankScore >= metrics.excellentThreshold,
         tier,
         rankScore,
         revenueScore: Math.round(revenueScore),
@@ -145,11 +265,11 @@ export class ExcellenceService {
     return map.get(companionId)?.isExcellent ?? false;
   }
 
-  async computeOne(companionId: string): Promise<ExcellenceResult> {
-    const map = await this.computeForCompanions([companionId]);
+  async computeOne(companionId: string, studioId?: string | null): Promise<ExcellenceResult> {
+    const map = await this.computeForCompanions([companionId], { studioId });
     return map.get(companionId) ?? {
       isExcellent: false,
-      tier: 'LOW',
+      tier: 'MIDDLE',
       rankScore: 0,
       revenueScore: 0,
       bonusScore: 0,

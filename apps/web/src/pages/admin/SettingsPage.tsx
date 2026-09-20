@@ -16,6 +16,7 @@ import ExcellenceSettings from '../settings/ExcellenceSettings';
 import AiSettings from '../settings/AiSettings';
 import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
 import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
 
@@ -33,6 +34,8 @@ interface SettingItem {
   label: string;
   hint: string;
   keywords: string;
+  /** 只有老板能改的项（密钥 / 凭据）：店长看不到，也不会误改。 */
+  ownerOnly?: boolean;
   render: () => React.ReactNode;
 }
 interface SettingGroup {
@@ -115,15 +118,17 @@ const GROUPS: SettingGroup[] = [
       {
         key: 'voice',
         label: '语音通话',
-        hint: 'TURN 穿透配置',
+        hint: 'TURN 穿透配置（老板专属）',
         keywords: '语音 通话 turn 穿透 麦克风',
+        ownerOnly: true,
         render: () => <VoiceSettings />,
       },
       {
         key: 'ai',
         label: 'AI 分析',
-        hint: '模型与密钥',
+        hint: '模型与密钥（老板专属）',
         keywords: 'ai 模型 密钥 分析 豆包 智能',
+        ownerOnly: true,
         render: () => <AiSettings />,
       },
       {
@@ -159,22 +164,36 @@ const GROUPS: SettingGroup[] = [
 const ALL_ITEMS = GROUPS.flatMap((g) => g.items.map((it) => ({ ...it, group: g.title })));
 
 const SettingsPage: React.FC = () => {
+  const user = useAuthStore((s) => s.user);
+  const isOwner = user?.role === 'OWNER';
   const [activeKey, setActiveKey] = useState('revenue');
   const [keyword, setKeyword] = useState('');
 
+  // 密钥 / 凭据类（AI、TURN）只有老板能改，店长连入口都不显示，避免误改与泄露。
+  const groupsForRole = useMemo(
+    () =>
+      GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter((it) => isOwner || !it.ownerOnly),
+      })).filter((g) => g.items.length > 0),
+    [isOwner],
+  );
+
   const kw = keyword.trim().toLowerCase();
   const visibleGroups = useMemo(() => {
-    if (!kw) return GROUPS;
-    return GROUPS.map((g) => ({
+    if (!kw) return groupsForRole;
+    return groupsForRole.map((g) => ({
       ...g,
       items: g.items.filter(
         (it) => `${it.label} ${it.hint} ${it.keywords} ${g.title}`.toLowerCase().includes(kw),
       ),
     })).filter((g) => g.items.length > 0);
-  }, [kw]);
+  }, [kw, groupsForRole]);
 
   // 搜索时如果当前打开的这一项被过滤掉了，就自动切到第一条命中项，
   // 否则会出现「左边只剩一项、右边还显示着别的内容」的错位感。
+  // 「共 N 项」按当前身份实际能看到几项算（老板比店长多出 AI / 语音这两项）
+  const availableCount = groupsForRole.reduce((n, g) => n + g.items.length, 0);
   const visibleItems = visibleGroups.flatMap((g) => g.items);
   const activeInView = visibleItems.some((it) => it.key === activeKey);
   const active = activeInView
@@ -190,7 +209,7 @@ const SettingsPage: React.FC = () => {
           系统设置
         </span>
         <Text type="secondary" style={{ marginLeft: 10, fontSize: 12 }}>
-          修改后即时生效 · 共 {ALL_ITEMS.length} 项，左边选分类，或者直接搜
+          修改后即时生效 · 共 {availableCount} 项，左边选分类，或者直接搜
         </Text>
       </div>
 

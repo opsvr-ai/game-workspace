@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class CompanionAttendanceService {
@@ -17,9 +18,10 @@ export class CompanionAttendanceService {
 
     if (existing) return existing;
 
-    // Read work start time from SystemConfig
-    const workStartCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workStart' } });
-    const workStartStr = (workStartCfg?.value as string) ?? '09:00';
+    // 上班时间：按「本店店长填的 → 老板全局默认」解析
+    const studioId = await this.studioIdOf(companionId);
+    const scoped = await resolveConfigsRaw(this.prisma, studioId, ['attendance.workStart']);
+    const workStartStr = (scoped['attendance.workStart'] as string) ?? '09:00';
     const [sh, sm] = workStartStr.split(':').map(Number);
     const workStart = new Date(today);
     workStart.setHours(sh, sm, 0, 0);
@@ -49,9 +51,10 @@ export class CompanionAttendanceService {
     const loginAt = new Date(record.loginAt);
     const workMinutes = Math.floor((now.getTime() - loginAt.getTime()) / 60000);
 
-    // Read work end time from SystemConfig
-    const workEndCfg = await this.prisma.systemConfig.findUnique({ where: { key: 'attendance.workEnd' } });
-    const workEndStr = (workEndCfg?.value as string) ?? '18:00';
+    // 下班时间：按「本店店长填的 → 老板全局默认」解析
+    const studioId = await this.studioIdOf(companionId);
+    const scoped = await resolveConfigsRaw(this.prisma, studioId, ['attendance.workEnd']);
+    const workEndStr = (scoped['attendance.workEnd'] as string) ?? '18:00';
     const [eh, em] = workEndStr.split(':').map(Number);
     const workEnd = new Date(today);
     workEnd.setHours(eh, em, 0, 0);
@@ -66,6 +69,14 @@ export class CompanionAttendanceService {
         isEarlyLeave,
       },
     });
+  }
+
+  /** 陪玩属于哪家店（考勤时间按店解析）。 */
+  private async studioIdOf(companionId: string): Promise<string | null> {
+    const row = await this.prisma.companion
+      .findUnique({ where: { id: companionId }, select: { studioId: true } })
+      .catch(() => null);
+    return row?.studioId ?? null;
   }
 
   async getAttendance(filters: { companionId?: string; dateFrom?: string; dateTo?: string }) {

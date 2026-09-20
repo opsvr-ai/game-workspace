@@ -6,8 +6,13 @@ import {
   resolveConfigNumber,
   saveStudioConfigs,
   resetStudioConfigs,
+  saveConfigsByRole,
 } from '../common/studio-config';
-import { assertStudioScopedKeys, isStudioScopedKey } from '../common/default-config';
+import {
+  assertStudioScopedKeys,
+  isOwnerOnlyKey,
+  isStudioScopedKey,
+} from '../common/default-config';
 
 /**
  * 分店配置（老板 2026-09-21：以后进来的租赁线下工作室 / 线上俱乐部，
@@ -145,26 +150,68 @@ describe('studio-config 分店配置解析', () => {
   });
 });
 
-describe('分店可自填的键白名单', () => {
-  it('钱 / 名额 / 计费类算分店的', () => {
-    expect(isStudioScopedKey('revenue.share_tiers')).toBe(true);
-    expect(isStudioScopedKey('revenue.club_companion_share')).toBe(true);
-    expect(isStudioScopedKey('commission.admin_offline_rate_percent')).toBe(true);
-    expect(isStudioScopedKey('dispatch.middle_tier_daily_new_limit')).toBe(true);
-    expect(isStudioScopedKey('entertainment.hourly_rate')).toBe(true);
+describe('配置归谁改：默认归分店，只有「安全与稳定」归老板', () => {
+  it('店长能改自己店里的任何业务配置（钱 / 名额 / 计费 / 考勤 / 截图 / 派单）', () => {
+    for (const key of [
+      'revenue.share_tiers',
+      'revenue.club_companion_share',
+      'commission.admin_offline_rate_percent',
+      'commission.admin_online_rate_percent',
+      'dispatch.middle_tier_daily_new_limit',
+      'entertainment.hourly_rate',
+      'attendance.workStart',
+      'attendance.workEnd',
+      'capture.expected_per_hour',
+      'pool.middle_delay_seconds',
+      'pool.bridge_return_jueju_cents',
+      'withdraw.monthly_limit',
+      'expense.monthly_items',
+      'excellence.excellent_threshold',
+      'traffic.play_guide',
+      'options.contact_results',
+      'billing.report_diff_warning_yuan',
+      'anomaly.spend_drop_percent',
+    ]) {
+      expect(isStudioScopedKey(key)).toBe(true);
+      expect(isOwnerOnlyKey(key)).toBe(false);
+    }
   });
 
-  it('全站唯一项一律不放行（放行就等于店长能改到别人家）', () => {
+  it('密钥 / 凭据类只有老板能改（泄露或被改会让全站不可用）', () => {
     for (const key of [
-      'blacklist.auto_kill',
-      'jwt.secret',
-      'web.frontend_version',
-      'ai.api_key',
-      'ws.token_grace_hours',
       'identity.app_code',
+      'identity.app_key',
+      'identity.app_secret',
+      'jwt.secret',
+      'ai.provider',
+      'ai.deepseek_api_key',
+      'ai.doubao_api_key',
+      'turn.url',
+      'turn.username',
+      'turn.credential',
     ]) {
+      expect(isOwnerOnlyKey(key)).toBe(true);
       expect(isStudioScopedKey(key)).toBe(false);
       expect(() => assertStudioScopedKeys([key])).toThrow();
+    }
+  });
+
+  it('一份值绑住全站的开关与版本号也只有老板能改', () => {
+    for (const key of [
+      'blacklist.auto_kill',
+      'agent.latest_version',
+      'agent.latest_download_url',
+      'cs.latest_version',
+      'web.frontend_version',
+      'ws.token_grace_hours',
+      'ws.offline_grace_seconds',
+      'service.stale_session_hours',
+      'counter.global_code',
+      'invite.abc123',
+      'cs.client.version.some-user',
+      'excellence.low_tier_streak',
+    ]) {
+      expect(isOwnerOnlyKey(key)).toBe(true);
     }
   });
 
@@ -176,16 +223,70 @@ describe('分店可自填的键白名单', () => {
       expect(String(e.message)).toContain('blacklist.auto_kill');
     }
   });
+});
 
-  it('没人读的键不许放进白名单（避免「店长填了不生效」）', () => {
-    // 这几个键目前全库没有读取点，线上实际走的是 pool.*，放进来只会误导店长
-    for (const key of [
-      'commission.attribution_window',
-      'dispatch.bridge_immediate_window_sec',
-      'dispatch.bridge_return_jimi_cents',
-      'dispatch.bridge_return_jueju_cents',
-    ]) {
-      expect(isStudioScopedKey(key)).toBe(false);
-    }
+describe('saveConfigsByRole：按身份写对地方（店跟店独立的关键）', () => {
+  const makeRolePrisma = () => ({
+    systemConfig: {
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(async () => ({})),
+    },
+    studioConfig: {
+      findMany: vi.fn(async () => []),
+      upsert: vi.fn(async () => ({})),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
+  }) as any;
+
+  it('店长保存 → 写本店覆盖，绝不写全站默认', async () => {
+    const prisma = makeRolePrisma();
+    const res = await saveConfigsByRole(
+      prisma,
+      { role: 'ADMIN', studioId: 'studio-a' },
+      { 'attendance.workStart': '10:00' },
+    );
+    expect(res).toEqual({ scope: 'studio', saved: ['attendance.workStart'], skipped: [] });
+    expect(prisma.studioConfig.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.studioConfig.upsert.mock.calls[0][0].where).toEqual({
+      studioId_key: { studioId: 'studio-a', key: 'attendance.workStart' },
+    });
+    expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('老板保存 → 写全站默认，所有店跟着变', async () => {
+    const prisma = makeRolePrisma();
+    const res = await saveConfigsByRole(
+      prisma,
+      { role: 'OWNER', studioId: null },
+      { 'attendance.workStart': '09:30' },
+    );
+    expect(res).toEqual({ scope: 'global', saved: ['attendance.workStart'], skipped: [] });
+    expect(prisma.systemConfig.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.studioConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('店长保存时混进老板专属键：跳过并在 skipped 里点名，不报错、也不悄悄丢掉', async () => {
+    const prisma = makeRolePrisma();
+    const res = await saveConfigsByRole(
+      prisma,
+      { role: 'ADMIN', studioId: 'studio-a' },
+      { 'revenue.free_threshold': 400, 'ai.deepseek_api_key': 'sk-leak' },
+    );
+    expect(res.scope).toBe('studio');
+    expect(res.saved).toEqual(['revenue.free_threshold']);
+    expect(res.skipped).toEqual(['ai.deepseek_api_key']);
+    // 密钥一个字节都没写进本店覆盖，更没写进全站
+    expect(prisma.studioConfig.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.studioConfig.upsert.mock.calls[0][0].create.key).toBe('revenue.free_threshold');
+    expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+  });
+
+  it('没绑定工作室的店长账号：直接报错，绝不悄悄改到全站默认', async () => {
+    const prisma = makeRolePrisma();
+    await expect(
+      saveConfigsByRole(prisma, { role: 'ADMIN', studioId: null }, { 'pool.popup_seconds': 30 }),
+    ).rejects.toThrow();
+    expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+    expect(prisma.studioConfig.upsert).not.toHaveBeenCalled();
   });
 });

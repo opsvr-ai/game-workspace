@@ -7,6 +7,7 @@ import { SettlementService } from './settlement.service';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { computeWithdrawable } from '../common/withdrawable';
 import { roundToJiao } from '../common/money';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class BillingService {
@@ -479,10 +480,11 @@ export class BillingService {
     const { start, end } = currentBusinessDayRange();
     const { actualHours, systemRevenue } = await this.computeActualServiceStats(companionId, start, end);
     const diff = systemRevenue - reportedAmount;
-    const thresholdCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'billing.report_diff_warning_yuan' },
-    });
-    const threshold = Number(thresholdCfg?.value ?? 10);
+    // 预警线按「本店店长填的 → 老板全局默认」解析，各店可以不一样
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'billing.report_diff_warning_yuan',
+    ]);
+    const threshold = Number(scoped['billing.report_diff_warning_yuan'] ?? 10);
 
     if (Math.abs(diff) > threshold) {
       const companion = await this.prisma.companion.findUnique({

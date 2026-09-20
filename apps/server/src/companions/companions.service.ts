@@ -628,15 +628,13 @@ export class CompanionsService {
       .findUnique({ where: { id: companionId }, select: { studioId: true } })
       .catch(() => null);
     const workbenchStudioId = studioRow?.studioId;
-    const [unlockCfg, scopedCfg] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'revenue.unlock_threshold' } }),
-      resolveConfigsRaw(this.prisma, workbenchStudioId, [
+    const scopedCfg = await resolveConfigsRaw(this.prisma, workbenchStudioId, [
         'revenue.free_threshold',
         'entertainment.revenue_threshold',
-        'entertainment.deposit_threshold',
-      ]),
+      'entertainment.deposit_threshold',
+      'revenue.unlock_threshold',
     ]);
-    const unlockThreshold = (unlockCfg?.value as number) ?? 200;
+    const unlockThreshold = (scopedCfg['revenue.unlock_threshold'] as number) ?? 200;
     const freeThreshold = (scopedCfg['revenue.free_threshold'] as number) ?? 300;
     const entertainmentThreshold = (scopedCfg['entertainment.revenue_threshold'] as number) ?? 200;
     const entertainmentDepositThreshold = (scopedCfg['entertainment.deposit_threshold'] as number) ?? 500;
@@ -845,8 +843,11 @@ export class CompanionsService {
     if (amount > wallet.withdrawable) {
       throw new ForbiddenException(`可支取金额不足，当前可支取: ¥${wallet.withdrawable}`);
     }
-    const [limitCfg, usedCount] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'withdraw.monthly_limit' } }),
+    const studioRow = await this.prisma.companion
+      .findUnique({ where: { id: companionId }, select: { studioId: true } })
+      .catch(() => null);
+    const [scopedLimit, usedCount] = await Promise.all([
+      resolveConfigsRaw(this.prisma, studioRow?.studioId ?? null, ['withdraw.monthly_limit']),
       this.prisma.walletTransaction.count({
         where: {
           companionId,
@@ -858,7 +859,7 @@ export class CompanionsService {
         },
       }),
     ]);
-    const limit = Number(limitCfg?.value ?? 2);
+    const limit = Number(scopedLimit['withdraw.monthly_limit'] ?? 2);
     if (limit > 0 && usedCount >= limit) {
       throw new ForbiddenException(`本月支取次数已达上限（${limit} 次）`);
     }

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
-import { resolveConfigsRaw } from '../common/studio-config';
+import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
 
 @Injectable()
 export class CommissionService {
@@ -795,8 +795,11 @@ export class CommissionService {
     };
   }
 
-  /** 保存客服桥接达标规则（每日桥接单数目标 + 未达标惩罚）。 */
-  async saveBridgeRule(dto: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number }) {
+  /** 保存客服桥接达标规则（每日桥接单数目标 + 未达标惩罚）。按身份写：老板全局 / 店长本店。 */
+  async saveBridgeRule(
+    dto: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number },
+    actor?: { role?: string | null; studioId?: string | null },
+  ) {
     const bridgeTarget = Number(dto.bridgeTarget);
     const missCommissionRate = Number(dto.missCommissionRate);
     const missSalaryRate = Number(dto.missSalaryRate);
@@ -807,23 +810,11 @@ export class CommissionService {
     ] as Array<[string, number]>) {
       if (!Number.isFinite(v) || v < 0) throw new NotFoundException(`${name} 必须是大于等于 0 的数字`);
     }
-    await Promise.all([
-      this.prisma.systemConfig.upsert({
-        where: { key: 'commission.cs_daily_bridge_target' },
-        create: { key: 'commission.cs_daily_bridge_target', value: bridgeTarget },
-        update: { value: bridgeTarget },
-      }),
-      this.prisma.systemConfig.upsert({
-        where: { key: 'commission.cs_bridge_miss_commission_rate' },
-        create: { key: 'commission.cs_bridge_miss_commission_rate', value: missCommissionRate },
-        update: { value: missCommissionRate },
-      }),
-      this.prisma.systemConfig.upsert({
-        where: { key: 'commission.cs_bridge_miss_salary_rate' },
-        create: { key: 'commission.cs_bridge_miss_salary_rate', value: missSalaryRate },
-        update: { value: missSalaryRate },
-      }),
-    ]);
+    await saveConfigsByRole(this.prisma, actor ?? {}, {
+      'commission.cs_daily_bridge_target': bridgeTarget,
+      'commission.cs_bridge_miss_commission_rate': missCommissionRate,
+      'commission.cs_bridge_miss_salary_rate': missSalaryRate,
+    });
     return { bridgeTarget, missCommissionRate, missSalaryRate };
   }
 

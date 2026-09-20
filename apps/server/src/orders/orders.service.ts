@@ -12,6 +12,7 @@ import { maskCustomerWechat } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange } from '../common/business-day';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 const PARTNER_INVITE_TTL_SEC = 60;
 
@@ -238,7 +239,7 @@ export class OrdersService implements OnModuleInit {
         studioId,
         newOrder.id,
         { ...popupPayload, _broadcast: true, _bridged: true },
-        await this.getBridgeDelayMs(),
+        await this.getBridgeDelayMs(studioId),
       );
     }
 
@@ -325,11 +326,11 @@ export class OrdersService implements OnModuleInit {
   }
 
   /** 桥接工作室等待时长（毫秒）：桥接工作室的陪玩要等这么久才能看到本店的单。 */
-  private async getBridgeDelayMs(): Promise<number> {
-    const cfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'pool.bridge_delay_seconds' },
-    });
-    return Number(cfg?.value ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
+  private async getBridgeDelayMs(studioId?: string | null): Promise<number> {
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'pool.bridge_delay_seconds',
+    ]);
+    return Number(scoped['pool.bridge_delay_seconds'] ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
   }
 
   async findPool(companionId?: string, studioId?: string) {
@@ -343,21 +344,24 @@ export class OrdersService implements OnModuleInit {
       where.studioId = { in: [studioId, ...bridgedIds] };
     }
 
-    const [priorityCfg, bridgeCfg, middleCfg, lowCfg, onlineCfg, studio] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.priority_delay_seconds' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_delay_seconds' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.middle_delay_seconds' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.low_delay_seconds' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.online_delay_seconds' } }),
+    // 等待时长按「本店店长填的 → 老板全局默认」解析，各店互不影响
+    const [poolCfg, studio] = await Promise.all([
+      resolveConfigsRaw(this.prisma, studioId ?? null, [
+        'pool.priority_delay_seconds',
+        'pool.bridge_delay_seconds',
+        'pool.middle_delay_seconds',
+        'pool.low_delay_seconds',
+        'pool.online_delay_seconds',
+      ]),
       studioId
         ? this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } })
         : null,
     ]);
-    const priorityDelay = Number(priorityCfg?.value ?? 0) * 1000;
-    const bridgeDelay = Number(bridgeCfg?.value ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
-    const middleDelay = Number(middleCfg?.value ?? 60) * 1000;
-    const lowDelay = Number(lowCfg?.value ?? 120) * 1000;
-    const onlineDelay = Number(onlineCfg?.value ?? 180) * 1000;
+    const priorityDelay = Number(poolCfg['pool.priority_delay_seconds'] ?? 0) * 1000;
+    const bridgeDelay = Number(poolCfg['pool.bridge_delay_seconds'] ?? DEFAULT_BRIDGE_DELAY_SECONDS) * 1000;
+    const middleDelay = Number(poolCfg['pool.middle_delay_seconds'] ?? 60) * 1000;
+    const lowDelay = Number(poolCfg['pool.low_delay_seconds'] ?? 120) * 1000;
+    const onlineDelay = Number(poolCfg['pool.online_delay_seconds'] ?? 180) * 1000;
     const studioType = studio?.type ?? 'DIRECT';
 
     // 当前陪玩的段位（只对自家工作室订单生效）
@@ -811,10 +815,10 @@ export class OrdersService implements OnModuleInit {
 
   async findUrgent(studioId: string, user?: { id: string; role: string }) {
     const now = Date.now();
-    const disappearCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'pool.immediate_disappear_minutes' },
-    });
-    const disappearSeconds = Number(disappearCfg?.value ?? 10) * 60;
+    const disappearScoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'pool.immediate_disappear_minutes',
+    ]);
+    const disappearSeconds = Number(disappearScoped['pool.immediate_disappear_minutes'] ?? 10) * 60;
     const where: any = { status: 'PENDING', dispatchType: 'POOL' };
     if (studioId) where.studioId = studioId;
     const orders = await this.prisma.order.findMany({
@@ -1003,10 +1007,7 @@ export class OrdersService implements OnModuleInit {
     const where: any = { companionId: { not: null }, status: { not: 'CANCELLED' } };
     if (studioId) where.studioId = studioId;
     if (user && user.role === 'CS') where.csUserId = user.id;
-    const bridgeCfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'pool.bridge_return_jueju_cents' },
-    });
-    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+    const juejuCents = await this.getJuejuReturnCents(studioId);
 
         const orders = await this.prisma.order.findMany({
         where,
@@ -1188,9 +1189,9 @@ export class OrdersService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.workWechatBalanceLog.findMany({ where: { studioId } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+      this.getJuejuReturnCents(studioId),
     ]);
-    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+    const juejuCents = bridgeCfg;
 
     const withdrawnMap = new Map<string, number>();
     for (const l of logs) {
@@ -1301,17 +1302,15 @@ export class OrdersService implements OnModuleInit {
 
   // 客服记完流水后，检查这单账是否还有异常；有异常就提醒负责的客服去修改。
   async checkAndNotifyCsAnomaly(orderId: string) {
-    const [order, bridgeCfg] = await Promise.all([
-      this.prisma.order.findUnique({
-        where: { id: orderId },
-        include: {
-          moneyFlows: true,
-          companion: { include: { studio: { select: { id: true, type: true } } } },
-        },
-      }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
-    ]);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        moneyFlows: true,
+        companion: { include: { studio: { select: { id: true, type: true } } } },
+      },
+    });
     if (!order) return;
+    const juejuCents = await this.getJuejuReturnCents(order.studioId);
 
     const cf = (order.customFields as any) || {};
     const wechatId = cf.csWorkWechatName;
@@ -1320,7 +1319,6 @@ export class OrdersService implements OnModuleInit {
     const workWechat = await this.prisma.workWechat.findUnique({ where: { wechatId } });
     if (!workWechat?.csUserId) return;
 
-    const juejuCents = Number(bridgeCfg?.value ?? 1500);
     const problems = this.evaluateOrderProblems(order, order.studioId, juejuCents);
     if (problems.length === 0) return;
 
@@ -1334,6 +1332,21 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
+  /**
+   * 绝密单的线上返款（分/小时）：取「设置 → 派单与提成 → 绝密线上返款」，按店解析。
+   * 兼容老的隐藏键 `pool.bridge_return_jueju_cents`（历史上只在库里手填过）。
+   */
+  private async getJuejuReturnCents(studioId?: string | null): Promise<number> {
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'dispatch.bridge_return_jueju_cents',
+      'pool.bridge_return_jueju_cents',
+    ]);
+    const v =
+      scoped['dispatch.bridge_return_jueju_cents'] ?? scoped['pool.bridge_return_jueju_cents'];
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 1500;
+  }
+
   async listMoneyReconciliation(studioId: string) {
     const [orders, bridgeCfg] = await Promise.all([
       this.prisma.order.findMany({
@@ -1344,9 +1357,9 @@ export class OrdersService implements OnModuleInit {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+      this.getJuejuReturnCents(studioId),
     ]);
-    const juejuCents = Number(bridgeCfg?.value ?? 1500);
+    const juejuCents = bridgeCfg;
 
     const rows = orders
       .filter((o) => o.moneyFlows.length > 0)

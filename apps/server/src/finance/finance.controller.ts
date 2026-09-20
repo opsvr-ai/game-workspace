@@ -1,9 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
 import { PriceRuleService } from './price-rule.service';
-import { SettlementSnapshotService } from './settlement-snapshot.service';
 import { CommissionService } from './commission.service';
 import { ReconciliationService } from './reconciliation.service';
 import { CustomerAnalyticsService } from './customer-analytics.service';
@@ -19,7 +18,6 @@ function studioIdFor(req: any, explicit?: string): string {
 export class FinanceController {
   constructor(
     private readonly priceRules: PriceRuleService,
-    private readonly settlements: SettlementSnapshotService,
     private readonly commissions: CommissionService,
     private readonly reconciliations: ReconciliationService,
     private readonly analytics: CustomerAnalyticsService,
@@ -50,19 +48,6 @@ export class FinanceController {
     return { code: 200, message: 'ok', data: this.priceRules.builtinModes() };
   }
 
-  @Post('settlement/:month')
-  async runSettlement(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string) {
-    const data = await this.settlements.runMonthlySettlement(studioIdFor(req, studioId), month);
-    return { code: 200, message: 'ok', data };
-  }
-
-  @Get('settlement/:month')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
-  async listSettlement(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string) {
-    const data = await this.settlements.listMonth(studioIdFor(req, studioId), month);
-    return { code: 200, message: 'ok', data };
-  }
-
   @Get('commission/rules')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async listCommissionRules(@Req() req: any, @Query('studioId') studioId?: string) {
@@ -82,6 +67,30 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('commission/today')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async commissionToday(@Req() req: any): Promise<any> {
+    const data = await this.commissions.getCsCommissionToday(studioIdFor(req));
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('commission/bridge-rule')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async saveCommissionBridgeRule(
+    @Req() req: any,
+    @Body() body: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number },
+  ): Promise<any> {
+    const data = await this.commissions.saveBridgeRule(
+      {
+        bridgeTarget: body.bridgeTarget,
+        missCommissionRate: body.missCommissionRate,
+        missSalaryRate: body.missSalaryRate,
+      },
+      req.user,
+    );
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('commission/:month')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async listCommission(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string) {
@@ -95,6 +104,13 @@ export class FinanceController {
     const d = new Date();
     const m = month || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const data = await this.commissions.computeCsCommission(studioIdFor(req), m, req.user.id);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('commission/my-salary')
+  @Roles(UserRole.CS)
+  async mySalary(@Req() req: any, @Query('month') month?: string): Promise<any> {
+    const data = await this.commissions.getCsMySalary(studioIdFor(req), req.user.id, month);
     return { code: 200, message: 'ok', data };
   }
 
@@ -112,16 +128,70 @@ export class FinanceController {
   }
 
   @Get('reconciliation')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   async reconciliation(@Req() req: any, @Query('day') day: string, @Query('studioId') studioId?: string) {
     const data = await this.reconciliations.getDailyReconciliation(studioIdFor(req, studioId), day);
     return { code: 200, message: 'ok', data };
   }
 
   @Get('account-reconciliation')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   async accountReconciliation(@Req() req: any, @Query('day') day: string, @Query('studioId') studioId?: string) {
     const data = await this.reconciliations.getAccountReconciliation(studioIdFor(req, studioId), day);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('bridge-online-daily')
+  async bridgeOnlineDaily(@Req() req: any, @Query('month') month: string, @Query('studioId') studioId?: string) {
+    const data = await this.reconciliations.getBridgeOnlineDaily(studioIdFor(req, studioId), month);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('profit-daily')
+  async profitDaily(@Req() req: any, @Query('month') month: string, @Query('studioId') studioId?: string) {
+    const data = await this.reconciliations.getProfitDaily(studioIdFor(req, studioId), month);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('bridge-returns')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async listBridgeReturns(@Req() req: any, @Query('month') month: string, @Query('studioId') studioId?: string) {
+    const data = await this.reconciliations.listBridgeReturns(studioIdFor(req, studioId), month);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('bridge-returns')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async createBridgeReturn(
+    @Req() req: any,
+    @Body() body: { amount: number; date?: string; note?: string },
+  ) {
+    const data = await this.reconciliations.createBridgeReturn(studioIdFor(req), body);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Delete('bridge-returns/:id')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async deleteBridgeReturn(@Req() req: any, @Param('id') id: string) {
+    await this.reconciliations.deleteBridgeReturn(id, studioIdFor(req));
+    return { code: 200, message: 'ok', data: null };
+  }
+
+  @Get('expense-items')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async getExpenseItems(@Req() req: any) {
+    const data = await this.reconciliations.getExpenseItems(studioIdFor(req));
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('expense-items')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async saveExpenseItems(
+    @Req() req: any,
+    @Body() body: { items: Array<{ id?: string; name?: string; amount?: number }> },
+  ) {
+    // 老板写全站默认，店长写本店（店跟店相互独立）
+    const data = await this.reconciliations.saveExpenseItems(body?.items || [], req.user);
     return { code: 200, message: 'ok', data };
   }
 

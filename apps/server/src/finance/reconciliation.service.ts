@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { businessDayRange } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
-import { resolveConfigsRaw } from '../common/studio-config';
+import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
 
 @Injectable()
 export class ReconciliationService {
@@ -17,12 +17,14 @@ export class ReconciliationService {
     { id: 'other', name: '其他', amount: 0 },
   ];
 
-  /** 读取每月固定支出项（房租/水电/网络/电话/其他，可自行添加）。 */
-  async getExpenseItems() {
-    const cfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'expense.monthly_items' },
-    });
-    const raw = (cfg?.value as Array<{ id?: string; name?: string; amount?: number }>) || this.DEFAULT_EXPENSE_ITEMS;
+  /** 读取每月固定支出项（房租/水电/网络/电话/其他，可自行添加）。按店解析。 */
+  async getExpenseItems(studioId?: string | null) {
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'expense.monthly_items',
+    ]);
+    const raw =
+      (scoped['expense.monthly_items'] as Array<{ id?: string; name?: string; amount?: number }>) ||
+      this.DEFAULT_EXPENSE_ITEMS;
     return raw.map((it, i) => ({
       id: it.id || `custom-${i}`,
       name: it.name || '其他',
@@ -30,18 +32,17 @@ export class ReconciliationService {
     }));
   }
 
-  /** 保存每月固定支出项。 */
-  async saveExpenseItems(items: Array<{ id?: string; name?: string; amount?: number }>) {
+  /** 保存每月固定支出项（老板写全站默认，店长写本店）。 */
+  async saveExpenseItems(
+    items: Array<{ id?: string; name?: string; amount?: number }>,
+    actor?: { role?: string | null; studioId?: string | null },
+  ) {
     const normalized = (items || []).map((it, i) => ({
       id: it.id || `custom-${i}`,
       name: (it.name || '').trim() || '其他',
       amount: Number(it.amount || 0),
     }));
-    await this.prisma.systemConfig.upsert({
-      where: { key: 'expense.monthly_items' },
-      update: { value: normalized },
-      create: { key: 'expense.monthly_items', value: normalized },
-    });
+    await saveConfigsByRole(this.prisma, actor ?? {}, { 'expense.monthly_items': normalized });
     return normalized;
   }
 
@@ -127,9 +128,9 @@ export class ReconciliationService {
           companion: { select: { id: true, createdAt: true, isSeniorStaff: true, studio: { select: { id: true, type: true } } } },
         },
       }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.bridge_return_jueju_cents' } }),
+      this.getBridgeReturnCents(studioId),
     ]);
-    const juejuCents = Number(juejuCfg?.value ?? 1500);
+    const juejuCents = juejuCfg;
 
     const dailyMap = new Map<string, any>();
     for (const o of orders) {
@@ -247,6 +248,21 @@ export class ReconciliationService {
     return this.prisma.expense.delete({ where: { id } });
   }
 
+  /**
+   * 绝密单的线上返款（分/小时）：取「设置 → 派单与提成 → 绝密线上返款」，按店解析。
+   * 兼容老的隐藏键 `pool.bridge_return_jueju_cents`（历史上只在库里手填过）。
+   */
+  private async getBridgeReturnCents(studioId?: string | null): Promise<number> {
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'dispatch.bridge_return_jueju_cents',
+      'pool.bridge_return_jueju_cents',
+    ]);
+    const v =
+      scoped['dispatch.bridge_return_jueju_cents'] ?? scoped['pool.bridge_return_jueju_cents'];
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 1500;
+  }
+
   /** 老板（OWNER）没有 studioId 时，默认落到第一个工作室。 */
   private async resolveStudioId(studioId: string): Promise<string> {
     if (studioId) return studioId;
@@ -282,7 +298,7 @@ export class ReconciliationService {
         'commission.cs_offline_rate_percent',
         'commission.cs_base_salary_yuan',
       ]),
-      this.getExpenseItems(),
+      this.getExpenseItems(studioId),
     ]);
 
     const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =

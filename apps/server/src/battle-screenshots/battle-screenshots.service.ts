@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class BattleScreenshotsService {
@@ -75,7 +76,7 @@ export class BattleScreenshotsService {
 
     if (action === 'approve') {
       // 采纳后给陪玩综合分加分（每采纳一组 +1 分，可通过配置调整）。
-      const bonus = await this.getBonusPerApproval();
+      const bonus = await this.getBonusPerApproval(item.studioId);
       await this.prisma.companion.update({
         where: { id: item.companionId },
         data: { bonusScore: { increment: bonus } },
@@ -85,11 +86,11 @@ export class BattleScreenshotsService {
     return { id, status };
   }
 
-  private async getBonusPerApproval(): Promise<number> {
-    const cfg = await this.prisma.systemConfig.findUnique({
-      where: { key: 'excellence.battle_screenshot_bonus' },
-    });
-    const v = Number(cfg?.value ?? 1);
+  private async getBonusPerApproval(studioId?: string | null): Promise<number> {
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'excellence.battle_screenshot_bonus',
+    ]);
+    const v = Number(scoped['excellence.battle_screenshot_bonus'] ?? 1);
     return Number.isFinite(v) && v > 0 ? v : 1;
   }
 }

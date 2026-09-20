@@ -28,6 +28,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
 import { yuanToCents } from '../common/money';
+import { resolveConfigsRaw } from '../common/studio-config';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 
 const SHOTS_DIR = join(process.cwd(), '..', '..', 'uploads', 'session-shots');
@@ -135,7 +136,7 @@ export class SessionShotsController {
     const shotCount = this.composite.countShots(id);
     const blackCount = this.composite.countBlackShots(id);
     const validShots = Math.max(0, shotCount - blackCount);
-    const cfg = await this.getCaptureConfig();
+    const cfg = await this.getCaptureConfig(req.user?.studioId ?? null);
     let flagged: 'red' | 'yellow' | null = null;
     let flaggedReason: string | null = null;
 
@@ -236,20 +237,16 @@ export class SessionShotsController {
 
     return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason } };
   }
-  private async getCaptureConfig(): Promise<{ expectedPerHour: number; minRatePercent: number; blackRateMaxPercent: number }> {
+  private async getCaptureConfig(studioId?: string | null): Promise<{ expectedPerHour: number; minRatePercent: number; blackRateMaxPercent: number }> {
     const keys = ['capture.expected_per_hour', 'capture.min_rate_percent', 'capture.black_rate_max_percent'];
     const defaults: Record<string, number> = {
       'capture.expected_per_hour': 4,
       'capture.min_rate_percent': 50,
       'capture.black_rate_max_percent': 30,
     };
-    const records = await this.prisma.systemConfig.findMany({ where: { key: { in: keys } } });
-    const map: Record<string, number> = {};
-    for (const r of records) {
-      const v = (r.value as any) as number;
-      map[r.key] = typeof v === 'number' ? v : Number(v);
-    }
-    const num = (k: string) => (Number.isFinite(map[k]) ? map[k] : defaults[k]);
+    // 按「本店店长填的 → 老板全局默认」解析，别的工作室改了不影响本店
+    const map = await resolveConfigsRaw(this.prisma, studioId ?? null, keys);
+    const num = (k: string) => (Number.isFinite(Number(map[k])) ? Number(map[k]) : defaults[k]);
     return {
       expectedPerHour: num('capture.expected_per_hour'),
       minRatePercent: num('capture.min_rate_percent'),

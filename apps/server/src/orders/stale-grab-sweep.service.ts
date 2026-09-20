@@ -3,6 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 /**
  * 抢单超时回收。
@@ -33,14 +34,30 @@ export class StaleGrabSweepService implements OnModuleInit {
   }
 
   async tick(): Promise<void> {
-    const [returnCfg, cancelCfg] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.grab_return_minutes' } }),
-      this.prisma.systemConfig.findUnique({ where: { key: 'pool.stale_cancel_hours' } }),
-    ]);
-    const returnMinutes = Number((returnCfg?.value as any) ?? 180);
-    const cancelHours = Number((cancelCfg?.value as any) ?? 24);
-    if (!Number.isFinite(returnMinutes) || returnMinutes <= 0) return;
-    const cutoff = new Date(Date.now() - returnMinutes * 60 * 1000);
+    // 回收时间按店解析（本店店长填的 → 老板全局默认），各店可以不一样。
+    // 先用「所有店里面最激进的回收时间」做初筛，再逐单按本店自己的配置判定，避免漏单。
+    const studioRows = await this.prisma.order.findMany({
+      where: { status: 'GRABBED', companionId: { not: null }, grabbedAt: { not: null } },
+      select: { studioId: true },
+      distinct: ['studioId'],
+    });
+    const cfgByStudio = new Map<string, { returnMinutes: number; cancelHours: number }>();
+    let earliestMicros: number | null = null;
+    for (const row of studioRows) {
+      const scoped = await resolveConfigsRaw(this.prisma, row.studioId, [
+        'pool.grab_return_minutes',
+        'pool.stale_cancel_hours',
+      ]);
+      const returnMinutes = Number(scoped['pool.grab_return_minutes'] ?? 180);
+      const cancelHours = Number(scoped['pool.stale_cancel_hours'] ?? 24);
+      cfgByStudio.set(row.studioId ?? '__global__', { returnMinutes, cancelHours });
+      if (Number.isFinite(returnMinutes) && returnMinutes > 0) {
+        earliestMicros =
+          earliestMicros === null ? returnMinutes : Math.min(earliestMicros, returnMinutes);
+      }
+    }
+    if (earliestMicros === null) return;
+    const cutoff = new Date(Date.now() - earliestMicros * 60 * 1000);
 
     const candidates = await this.prisma.order.findMany({
       where: { status: 'GRABBED', companionId: { not: null }, grabbedAt: { not: null, lt: cutoff } },
@@ -60,6 +77,14 @@ export class StaleGrabSweepService implements OnModuleInit {
     if (candidates.length === 0) return;
 
     for (const order of candidates) {
+      const storeCfg = cfgByStudio.get(order.studioId ?? '__global__');
+      if (!storeCfg) continue;
+      const { returnMinutes, cancelHours } = storeCfg;
+      if (!Number.isFinite(returnMinutes) || returnMinutes <= 0) continue;
+      // 这家店自己配的回收时间还没到，下一轮再看
+      const grabbedMs = order.grabbedAt ? new Date(order.grabbedAt).getTime() : Date.now();
+      if (Date.now() - grabbedMs < returnMinutes * 60 * 1000) continue;
+
       // 有服务记录的单不回收（可能只是一直没点结束，交给 stale-session-sweep 处理）
       const sessionCount = await this.prisma.orderSession
         .count({ where: { parentOrderId: order.id } })

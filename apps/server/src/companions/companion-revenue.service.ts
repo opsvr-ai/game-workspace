@@ -102,6 +102,7 @@ export class CompanionRevenueService {
         revenueShare: true,
         createdAt: true,
         isSeniorStaff: true,
+        studioId: true,
         studio: { select: { splitMode: true } },
       },
     });
@@ -110,8 +111,8 @@ export class CompanionRevenueService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    const [limitCfg, monthlyWithdrawUsed] = await Promise.all([
-      this.prisma.systemConfig.findUnique({ where: { key: 'withdraw.monthly_limit' } }),
+    const [scopedLimit, monthlyWithdrawUsed] = await Promise.all([
+      resolveConfigsRaw(this.prisma, companion?.studioId ?? null, ['withdraw.monthly_limit']),
       this.prisma.walletTransaction.count({
         where: {
           companionId,
@@ -123,7 +124,7 @@ export class CompanionRevenueService {
         },
       }),
     ]);
-    const monthlyWithdrawLimit = Number(limitCfg?.value ?? 2);
+    const monthlyWithdrawLimit = Number(scopedLimit['withdraw.monthly_limit'] ?? 2);
 
     // 可支取口径（需求文档 §7.1）统一在 common/withdrawable.ts 里实现，别处不要再抄一份
     const breakdown = await computeWithdrawable(this.prisma, companionId);
