@@ -619,6 +619,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Removed
 
+- **真正删掉 `apps/web/src/components/EditableWorkWechat.tsx`（老板 2026-09-22 问「这是什么」）：**
+  它是订单详情里一个**行内改工作微信**的小组件（Ant Design `Select`，读 `/companions/work-wechats`，
+  把选中的微信号存进 `order.customFields.workWechatId / workWechatName`）。全仓库搜不到任何引用，
+  而且这个功能现在由「发布订单」时的客服工作微信 + `csWorkWechatId / csWorkWechatName` 承担，
+  它已经没人用了。**注意**：本文件更早的一条 Removed 记录曾声称连同另外 13 个死代码文件一起删掉过它，
+  但实际它一直还在（那条记录不准，这次是真的删了）。
+
 - **客户端往「桌面」写调试日志的代码全部删除（18 处调用）:** 主进程原来在启动、加载、关闭、崩溃等
   每个节点都往桌面上的 `chunlv-trace.txt` **同步追加**一行（`fs.appendFileSync`），这是当初排查白屏时
   留下的脚手架，却一直留着——等于每台陪玩的桌面上都躺着一个没人认领的日志文件，每次启动都一次磁盘同步写。
