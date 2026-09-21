@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrdersService } from '../orders/orders.service';
-import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
+import { createMockPrisma } from '../__mocks__/prisma.mock';
 
 /**
  * 老板 2026-09-21：「发布出去的订单都显示在系统，已经被抢的抢单显示灰色」。

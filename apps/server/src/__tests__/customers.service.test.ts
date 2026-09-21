@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { CustomersService } from '../customers/customers.service';
 import { NotFoundException } from '@nestjs/common';
 import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
+import { UserRole } from '@chunlv/shared';
 
 describe('CustomersService', () => {
   let service: CustomersService;
@@ -17,7 +18,7 @@ describe('CustomersService', () => {
       const companionUser = {
         id: 'u1',
         username: 'zhangsan',
-        role: 'COMPANION' as const,
+        role: UserRole.COMPANION,
         studioId: 'studio-1',
         companionId: 'comp-1',
       };
@@ -32,7 +33,10 @@ describe('CustomersService', () => {
 
       expect(mockPrisma.customer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { companionId: 'comp-1' },
+          where: expect.objectContaining({
+            companionId: 'comp-1',
+            isDeletedByCustomer: false,
+          }),
         }),
       );
       expect(result).toEqual(expectedCustomers);
@@ -42,7 +46,7 @@ describe('CustomersService', () => {
       const csUser = {
         id: 'u2',
         username: 'kefu01',
-        role: 'CS' as const,
+        role: UserRole.CS,
         studioId: 'studio-1',
         companionId: undefined,
       };
@@ -116,21 +120,31 @@ describe('CustomersService', () => {
 
       const createdCustomer = {
         id: 'c-new',
-        customerCode: 'CABC123',
+        customerCode: '1',
         wechatId: 'wx-new',
         studioId: 'studio-1',
         companion: null,
       };
 
+      // 客户编码走 counter.global_code 自增；真实 Prisma 一定返回记录，
+      // mock 不设返回值会让 `cfg.value` 直接炸掉。
+      mockPrisma.systemConfig.upsert.mockResolvedValue({
+        key: 'counter.global_code',
+        value: '0',
+      });
+      mockPrisma.systemConfig.update.mockResolvedValue({
+        key: 'counter.global_code',
+        value: '1',
+      });
       mockPrisma.customer.create.mockResolvedValue(createdCustomer);
 
       const result = await service.create(dto);
 
-      // Should generate a customerCode starting with 'C'
+      // Should generate a customerCode from the global counter
       expect(mockPrisma.customer.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            customerCode: expect.stringMatching(/^C/),
+            customerCode: '1',
             wechatId: 'wx-new',
             studioId: 'studio-1',
           }),
@@ -158,9 +172,9 @@ describe('CustomersService', () => {
         notes: 'new note',
       });
 
-      expect(mockPrisma.customer.findUnique).toHaveBeenCalledWith({
-        where: { id: 'c1' },
-      });
+      expect(mockPrisma.customer.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'c1' } }),
+      );
       expect(mockPrisma.customer.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'c1' },
@@ -210,9 +224,9 @@ describe('CustomersService', () => {
 
       const result = await service.reassign('c1', 'comp-new');
 
-      expect(mockPrisma.customer.findUnique).toHaveBeenCalledWith({
-        where: { id: 'c1' },
-      });
+      expect(mockPrisma.customer.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'c1' } }),
+      );
       expect(mockPrisma.companion.findUnique).toHaveBeenCalledWith({
         where: { id: 'comp-new' },
       });

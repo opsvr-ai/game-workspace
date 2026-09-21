@@ -49,7 +49,11 @@ describe('StudiosService', () => {
       expect(result[0]._count.users).toBe(5);
       expect(result[0]._count.companions).toBe(3);
       expect(mockPrisma.studio.findMany).toHaveBeenCalledWith({
-        include: { _count: { select: { users: true, companions: true } } },
+        include: {
+          _count: { select: { users: true, companions: true } },
+          // findAll 现在还会顺带回该店的员工列表（「查看员工」弹窗用），最多 10 条
+          users: expect.objectContaining({ take: 10, orderBy: { createdAt: 'desc' } }),
+        },
       });
     });
   });

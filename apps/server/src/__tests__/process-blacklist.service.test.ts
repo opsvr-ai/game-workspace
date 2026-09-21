@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessBlacklistService } from '../process-blacklist/process-blacklist.service';
 import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 // ---------------------------------------------------------------------------
 // Test suite

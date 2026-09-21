@@ -41,7 +41,7 @@ describe('AgentService', () => {
 
       expect(result).toEqual({
         version: '1.0.0',
-        downloadUrl: '/api/agent/download/latest',
+        downloadUrl: '/uploads/chunlv-latest.zip',
       });
     });
   });

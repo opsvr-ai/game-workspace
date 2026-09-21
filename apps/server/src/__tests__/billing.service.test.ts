@@ -20,9 +20,19 @@ describe('BillingService', () => {
     getDailyRevenue: ReturnType<typeof vi.fn>;
     getMonthlyRevenue: ReturnType<typeof vi.fn>;
   };
+  let mockWsGateway: {
+    broadcastToBridgedStudios: ReturnType<typeof vi.fn>;
+    notifyUser: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
+    // WsGateway 是 BillingService 的第 2 个入参（排在 transactionService 之前）。
+    // 以前这里只传 3 个参数，后面两个 mock 整体错位，9 个用例全挂。
+    mockWsGateway = {
+      broadcastToBridgedStudios: vi.fn(),
+      notifyUser: vi.fn(),
+    };
     mockTransactionService = {
       createTransaction: vi.fn(),
       approve: vi.fn(),
@@ -37,7 +47,12 @@ describe('BillingService', () => {
       getDailyRevenue: vi.fn(),
       getMonthlyRevenue: vi.fn(),
     };
-    service = new BillingService(mockPrisma as any, mockTransactionService as any, mockSettlementService as any);
+    service = new BillingService(
+      mockPrisma as any,
+      mockWsGateway as any,
+      mockTransactionService as any,
+      mockSettlementService as any,
+    );
     vi.clearAllMocks();
   });
 
@@ -92,7 +107,9 @@ describe('BillingService', () => {
 
       expect(result.status).toBe('APPROVED');
       expect(result.reviewedById).toBe(reviewerId);
-      expect(mockTransactionService.approve).toHaveBeenCalledWith(transactionId, reviewerId);
+      // BillingService 现在还会把「审核人所在工作室 / 角色」透传下去（工作室隔离），
+      // 不传时就是两个 undefined。
+      expect(mockTransactionService.approve).toHaveBeenCalledWith(transactionId, reviewerId, undefined, undefined);
     });
 
     it('throws NotFoundException for missing transaction', async () => {
@@ -125,7 +142,7 @@ describe('BillingService', () => {
 
       expect(result.status).toBe('REJECTED');
       expect(result.reviewedById).toBe(reviewerId);
-      expect(mockTransactionService.reject).toHaveBeenCalledWith(transactionId, reviewerId);
+      expect(mockTransactionService.reject).toHaveBeenCalledWith(transactionId, reviewerId, undefined, undefined);
     });
   });
 
@@ -149,68 +166,44 @@ describe('BillingService', () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0]).toContain('tx-2');
       expect(result.errors[0]).toContain('该报账已处理');
-      expect(mockTransactionService.batchApprove).toHaveBeenCalledWith(ids, reviewerId);
+      expect(mockTransactionService.batchApprove).toHaveBeenCalledWith(ids, reviewerId, undefined, undefined);
     });
   });
 
   // ── Revenue statistics ──
 
   describe('getDailyRevenue', () => {
-    it('returns breakdown by order type with correct totals', async () => {
+    it('passes through the settlement daily revenue', async () => {
       const studioId = 'studio-1';
       const dateStr = '2026-06-25';
 
       mockSettlementService.getDailyRevenue.mockResolvedValue({
         date: '2026-06-25',
-        studioId: 'studio-1',
-        breakdown: {
-          NEW: { count: 2, amount: 150 },
-          RENEW: { count: 1, amount: 200 },
-          REPURCHASE: { count: 0, amount: 0 },
-          TIP: { count: 2, amount: 50 },
-        },
-        totalAmount: 400,
+        totalRevenue: 400,
+        orderCount: 5,
       });
 
       const result = await service.getDailyRevenue(studioId, dateStr);
 
-      expect(result.date).toBe('2026-06-25');
-      expect(result.studioId).toBe(studioId);
-      expect(result.breakdown.NEW).toEqual({ count: 2, amount: 150 });
-      expect(result.breakdown.RENEW).toEqual({ count: 1, amount: 200 });
-      expect(result.breakdown.REPURCHASE).toEqual({ count: 0, amount: 0 });
-      expect(result.breakdown.TIP).toEqual({ count: 2, amount: 50 });
-      expect(result.totalAmount).toBe(400);
+      expect(result).toEqual({ date: '2026-06-25', totalRevenue: 400, orderCount: 5 });
       expect(mockSettlementService.getDailyRevenue).toHaveBeenCalledWith(studioId, dateStr);
     });
   });
 
   describe('getMonthlyRevenue', () => {
-    it('returns companion revenue aggregation', async () => {
+    it('passes through the settlement monthly revenue', async () => {
       const studioId = 'studio-1';
       const monthStr = '2026-06';
 
       mockSettlementService.getMonthlyRevenue.mockResolvedValue({
         month: '2026-06',
-        studioId: 'studio-1',
-        totalAmount: 350,
-        companionRevenue: [
-          { name: 'zhangsan', amount: 150 },
-          { name: 'lisi', amount: 200 },
-        ],
+        totalRevenue: 350,
+        orderCount: 3,
       });
 
       const result = await service.getMonthlyRevenue(studioId, monthStr);
 
-      expect(result.month).toBe('2026-06');
-      expect(result.studioId).toBe(studioId);
-      expect(result.totalAmount).toBe(350);
-      expect(result.companionRevenue).toEqual(
-        expect.arrayContaining([
-          { name: 'zhangsan', amount: 150 },
-          { name: 'lisi', amount: 200 },
-        ]),
-      );
+      expect(result).toEqual({ month: '2026-06', totalRevenue: 350, orderCount: 3 });
       expect(mockSettlementService.getMonthlyRevenue).toHaveBeenCalledWith(studioId, monthStr);
     });
   });

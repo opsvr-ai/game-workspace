@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computeWithdrawable } from '../common/withdrawable';
-import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
+import { createMockPrisma } from '../__mocks__/prisma.mock';
 
 // ---------------------------------------------------------------------------
 // 可支取余额口径（老板 2026-09-21 拍板）：

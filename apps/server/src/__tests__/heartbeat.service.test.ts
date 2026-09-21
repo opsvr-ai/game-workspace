@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HeartbeatService, HeartbeatData, HeartbeatUser } from '../ws/heartbeat.service';
 import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
 
@@ -59,6 +59,9 @@ describe('HeartbeatService', () => {
     wsGateway = mockWsGateway();
     service = new HeartbeatService(mockPrisma as any, wsGateway as any);
     vi.clearAllMocks();
+    // 娱乐余额判定会聚合「今日已完成流水」；真实 Prisma 一定返回对象，
+    // mock 返回 undefined 会让 `order.aggregate(...).catch(...)` 直接炸掉。
+    mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
   });
 
   // =========================================================================
@@ -108,7 +111,8 @@ describe('HeartbeatService', () => {
 
       const upsertCall = mockPrisma.companionPC.upsert.mock.calls[0][0];
       expect(upsertCall.create.agentVersion).toBe('0.0.0');
-      expect(upsertCall.create.currentMode).toBe('ENTERTAINMENT');
+      // 客户端没上报模式时的兜底值是「空闲」，不是「娱乐」
+      expect(upsertCall.create.currentMode).toBe('AVAILABLE');
       expect(upsertCall.create.isThrottled).toBe(false);
       expect(upsertCall.create.throttleLimitKB).toBeNull();
     });
@@ -156,7 +160,7 @@ describe('HeartbeatService', () => {
         deposit: 0,
         status: 'ENTERTAINMENT',
       });
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'entertainment.hourly_rate', value: 60 });
+      mockPrisma.systemConfig.findMany.mockResolvedValue([{ key: 'entertainment.hourly_rate', value: 60 }]);
 
       await service.process(BASE_DATA, BASE_USER);
 
@@ -187,7 +191,7 @@ describe('HeartbeatService', () => {
         deposit: 0,
         status: 'ENTERTAINMENT',
       });
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'entertainment.hourly_rate', value: 60 });
+      mockPrisma.systemConfig.findMany.mockResolvedValue([{ key: 'entertainment.hourly_rate', value: 60 }]);
 
       await service.process(BASE_DATA, BASE_USER);
 
@@ -216,7 +220,7 @@ describe('HeartbeatService', () => {
         deposit: 0,
         status: 'ENTERTAINMENT',
       });
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'entertainment.hourly_rate', value: 60 });
+      mockPrisma.systemConfig.findMany.mockResolvedValue([{ key: 'entertainment.hourly_rate', value: 60 }]);
 
       await service.process(BASE_DATA, BASE_USER);
 
@@ -267,7 +271,7 @@ describe('HeartbeatService', () => {
         deposit: 0,
         status: 'BUSY',
       });
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'entertainment.hourly_rate', value: 60 });
+      mockPrisma.systemConfig.findMany.mockResolvedValue([{ key: 'entertainment.hourly_rate', value: 60 }]);
 
       await service.process(BASE_DATA, BASE_USER);
 

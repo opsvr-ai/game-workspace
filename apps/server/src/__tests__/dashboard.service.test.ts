@@ -6,17 +6,6 @@ import { createMockPrisma, MockPrisma } from '../__mocks__/prisma.mock';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function today() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function tomorrow() {
-  const d = today();
-  d.setDate(d.getDate() + 1);
-  return d;
-}
-
 function makeOrder(overrides: Record<string, any> = {}) {
   return {
     id: 'order-001',

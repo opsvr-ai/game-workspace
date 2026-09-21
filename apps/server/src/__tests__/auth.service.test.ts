@@ -16,6 +16,13 @@ function mockJwtService() {
   } as any;
 }
 
+function mockWsGateway() {
+  return {
+    notifyUser: vi.fn(),
+    broadcastToStudio: vi.fn(),
+  } as any;
+}
+
 function createUser(overrides: Record<string, any> = {}) {
   return {
     id: 'user-001',
@@ -37,12 +44,14 @@ function createUser(overrides: Record<string, any> = {}) {
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService: ReturnType<typeof mockJwtService>;
+  let wsGateway: ReturnType<typeof mockWsGateway>;
   let mockPrisma: MockPrisma;
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
     jwtService = mockJwtService();
-    service = new AuthService(mockPrisma as any, jwtService as any);
+    wsGateway = mockWsGateway();
+    service = new AuthService(mockPrisma as any, jwtService as any, wsGateway);
     mockPrisma.user.count.mockResolvedValue(0);
     vi.clearAllMocks();
   });
@@ -53,8 +62,8 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should return accessToken, refreshToken and user on successful login', async () => {
-      const user = createUser();
-      user.companion = { id: 'comp-001' };  // owner may also be a companion
+      // owner may also be a companion
+      const user = createUser({ companion: { id: 'comp-001' } });
       mockPrisma.user.findUnique.mockResolvedValue(user);
 
       const result = await service.login({
@@ -70,6 +79,7 @@ describe('AuthService', () => {
           username: 'testuser',
           role: UserRole.OWNER,
           studioId: 'studio-001',
+          studioName: null,
           companionId: 'comp-001',
           displayName: undefined,
           avatar: undefined,
@@ -79,7 +89,10 @@ describe('AuthService', () => {
 
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { username: 'testuser' },
-        include: { companion: { select: { id: true } } },
+        include: {
+          companion: { select: { id: true, isResigned: true, reviewStatus: true } },
+          studio: { select: { name: true, displayName: true } },
+        },
       });
       expect(jwtService.sign).toHaveBeenCalledTimes(2);
     });

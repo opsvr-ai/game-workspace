@@ -126,9 +126,9 @@ describe('OrdersService', () => {
       expect(wsGateway.broadcastToStudio).toHaveBeenCalledWith('studio-1', 'order:pool_updated', created);
     });
 
-    it('creates DIRECT order with specified companionId', async () => {
+    it('creates DIRECT order assigned to companion with status GRABBED', async () => {
       const dto = { ...baseDto, dispatchType: 'DIRECT', companionId: 'companion-1' };
-      const created = { id: 'order-2', ...dto, status: 'PENDING' };
+      const created = { id: 'order-2', ...dto, status: 'GRABBED' };
       prisma.order.create.mockResolvedValue(created);
 
       const result = await service.create(dto);
@@ -136,7 +136,8 @@ describe('OrdersService', () => {
       expect(prisma.order.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           companionId: 'companion-1',
-          status: 'PENDING',
+          // 指定派单 = 已经派到他手上，直接进 GRABBED，不需要再抢
+          status: 'GRABBED',
           dispatchType: 'DIRECT',
         }),
         include: { customer: true },
@@ -190,7 +191,11 @@ describe('OrdersService', () => {
 
   describe('findPool', () => {
     it('returns only PENDING + POOL + unassigned orders', async () => {
-      const poolOrders = [{ id: 'o1', status: 'PENDING', dispatchType: 'POOL', companionId: null }];
+      // createdAt 必须存在：订单池按「发布多久了 vs 段位等待时长」决定可不可见，
+      // 缺 createdAt 会被算成 NaN 而被过滤掉。
+      const poolOrders = [
+        { id: 'o1', status: 'PENDING', dispatchType: 'POOL', companionId: null, createdAt: new Date() },
+      ];
       prisma.order.findMany.mockResolvedValue(poolOrders);
 
       const result = await service.findPool();
@@ -306,8 +311,14 @@ describe('OrdersService', () => {
 
       const result = await service.complete('order-1');
 
-      expect(workflowService.complete).toHaveBeenCalledWith('order-1');
-      expect(result.status).toBe(OrderStatus.DONE);
+      expect(workflowService.complete).toHaveBeenCalledWith(
+        'order-1',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
+      expect(result!.status).toBe(OrderStatus.DONE);
     });
   });
 
@@ -325,7 +336,13 @@ describe('OrdersService', () => {
 
       const result = await service.cancel('order-1');
 
-      expect(workflowService.cancel).toHaveBeenCalledWith('order-1');
+      expect(workflowService.cancel).toHaveBeenCalledWith(
+        'order-1',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
       expect(result.status).toBe(OrderStatus.CANCELLED);
     });
   });

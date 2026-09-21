@@ -28,23 +28,43 @@ function createMockWechatService() {
   };
 }
 
+function createMockExcellenceService() {
+  return {
+    computeForCompanions: vi.fn().mockResolvedValue(new Map()),
+    computeOne: vi.fn().mockResolvedValue({ tier: 'MIDDLE', score: 0 }),
+    get: vi.fn(),
+  };
+}
+
+function createMockBridgeService() {
+  return {
+    getBridgedStudioIds: vi.fn().mockResolvedValue([]),
+  };
+}
+
 describe('CompanionsService', () => {
   let service: CompanionsService;
   let mockPrisma: MockPrisma;
   let mockRevenueService: ReturnType<typeof createMockRevenueService>;
   let mockAttendanceService: ReturnType<typeof createMockAttendanceService>;
   let mockWechatService: ReturnType<typeof createMockWechatService>;
+  let mockExcellenceService: ReturnType<typeof createMockExcellenceService>;
+  let mockBridgeService: ReturnType<typeof createMockBridgeService>;
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
     mockRevenueService = createMockRevenueService();
     mockAttendanceService = createMockAttendanceService();
     mockWechatService = createMockWechatService();
+    mockExcellenceService = createMockExcellenceService();
+    mockBridgeService = createMockBridgeService();
     service = new CompanionsService(
       mockPrisma as any,
       mockRevenueService as any,
       mockAttendanceService as any,
       mockWechatService as any,
+      mockExcellenceService as any,
+      mockBridgeService as any,
     );
 
     // Set up default return values for additional prisma calls used by findAll
@@ -79,7 +99,7 @@ describe('CompanionsService', () => {
       expect(mockPrisma.companion.findMany).toHaveBeenCalledWith({
         where: { studioId: 'studio-1' },
         include: {
-          user: { select: { username: true, avatar: true, displayName: true } },
+          user: { select: { id: true, username: true, avatar: true, displayName: true } },
           pc: { select: { currentMode: true, isThrottled: true, lastHeartbeat: true } },
         },
       });
@@ -91,7 +111,7 @@ describe('CompanionsService', () => {
   });
 
   describe('updateStatus', () => {
-    it('companion updates own status', async () => {
+    it('companion switches own status to a non-BUSY mode', async () => {
       const companionUser = {
         id: 'u5',
         username: 'zhangsan',
@@ -100,16 +120,40 @@ describe('CompanionsService', () => {
         companionId: 'comp-1',
       };
 
-      const updatedCompanion = { id: 'comp-1', status: 'BUSY' };
+      mockPrisma.companionPC.upsert.mockResolvedValue({ id: 'pc-1' });
+      mockPrisma.companion.findUnique.mockResolvedValue({ status: 'AVAILABLE' });
+      mockPrisma.orderSession.findFirst.mockResolvedValue(null);
+      mockPrisma.companionTimeLog.findFirst.mockResolvedValue(null);
+      mockPrisma.companionTimeLog.create.mockResolvedValue({ id: 'log-1' });
+
+      const updatedCompanion = { id: 'comp-1', status: 'ENTERTAINMENT' };
       mockPrisma.companion.update.mockResolvedValue(updatedCompanion);
 
-      const result = await service.updateStatus('comp-1', 'BUSY', companionUser);
+      const result = await service.updateStatus('comp-1', 'ENTERTAINMENT', companionUser);
 
       expect(mockPrisma.companion.update).toHaveBeenCalledWith({
         where: { id: 'comp-1' },
-        data: { status: 'BUSY' },
+        data: { status: 'ENTERTAINMENT' },
       });
       expect(result).toEqual(updatedCompanion);
+    });
+
+    it('rejects a manual switch to BUSY (接单状态只能由开始服务进入)', async () => {
+      const companionUser = {
+        id: 'u5',
+        username: 'zhangsan',
+        role: 'COMPANION' as const,
+        studioId: 'studio-1',
+        companionId: 'comp-1',
+      };
+
+      mockPrisma.companionPC.upsert.mockResolvedValue({ id: 'pc-1' });
+      mockPrisma.companion.findUnique.mockResolvedValue({ status: 'AVAILABLE' });
+
+      await expect(service.updateStatus('comp-1', 'BUSY', companionUser)).rejects.toThrow(
+        '接单状态由开始服务自动进入，无法手动切换',
+      );
+      expect(mockPrisma.companion.update).not.toHaveBeenCalled();
     });
 
     it("throws ForbiddenException when updating other's status", async () => {
