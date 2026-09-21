@@ -5,6 +5,7 @@ import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { presence } from '../common/presence';
 
 const execAsync = promisify(exec);
@@ -617,6 +618,50 @@ export class AgentService {
     const okCount = results.filter((r) => r.status === 'OK').length;
     logger.log(`Remote deploy complete: ${okCount}/${results.length} OK`);
     return { success: okCount > 0, results };
+  }
+
+  /**
+   * 新电脑装完机后上报自己的远程管理账号。
+   * 写入 repo 根目录下的 onboard-reports/machines.jsonl（不在 /uploads 下面，公网下不到），
+   * 管理员需要时直接读这个文件即可，不用再问电脑主人要密码。
+   */
+  recordOnboardReport(payload: any): { saved: boolean; at: string; file: string } {
+    const clean = (v: unknown, max: number) => String(v ?? '').slice(0, max);
+    const record = {
+      at: new Date().toISOString(),
+      hostname: clean(payload?.hostname, 100),
+      ip: clean(payload?.ip, 64),
+      mac: clean(payload?.mac, 64),
+      account: clean(payload?.account, 64),
+      password: clean(payload?.password, 128),
+      version: clean(payload?.version, 64),
+      source: clean(payload?.source, 64),
+    };
+    const dir = this.resolveOnboardReportDir();
+    const file = path.join(dir, 'machines.jsonl');
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(file, JSON.stringify(record) + '\n', 'utf8');
+      logger.log(`Onboard report saved: ${record.hostname} ${record.ip} ${record.account}`);
+      return { saved: true, at: record.at, file };
+    } catch (err: any) {
+      logger.error(`Onboard report failed: ${err?.message || err}`);
+      return { saved: false, at: record.at, file };
+    }
+  }
+
+  /** 装机上报目录：和 uploads 同级（部署在 repo 根目录），找不到就退回系统临时目录。 */
+  private resolveOnboardReportDir(): string {
+    let dir = __dirname;
+    for (let depth = 0; depth < 6; depth += 1) {
+      if (fs.existsSync(path.join(dir, 'uploads'))) {
+        return path.join(dir, 'onboard-reports');
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return path.join(os.tmpdir(), 'chunlv-onboard-reports');
   }
 
   private escapePowerShellLiteral(value: string): string {

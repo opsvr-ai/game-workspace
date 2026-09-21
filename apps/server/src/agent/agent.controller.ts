@@ -39,6 +39,12 @@ function resolveServerUrl(req: any): string {
   return `${req.protocol}://${selected}:3001`;
 }
 
+/**
+ * 新电脑自动装机上报用的共享令牌。
+ * 脚本里会带上它；只用于挡住误报/乱报，不是强认证（装机脚本本身是公开下载的）。
+ */
+const ONBOARD_REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
+
 @Controller('agent')
 export class AgentController {
   constructor(
@@ -77,6 +83,18 @@ export class AgentController {
   @Get('frontend-version')
   async getFrontendVersion(): Promise<ApiResponse<unknown>> {
     const data = await this.agentService.getFrontendVersion();
+    return { code: 200, message: 'ok', data };
+  }
+
+  // Public (shared token): a freshly onboarded PC reports the remote-support account it just
+  // created, so the machine stays remotely reachable without asking its owner for the password.
+  @Post('onboard-report')
+  async onboardReport(@Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const token = String(req.headers?.['x-onboard-token'] || '');
+    if (token !== ONBOARD_REPORT_TOKEN) {
+      return { code: 403, message: 'forbidden', data: null };
+    }
+    const data = this.agentService.recordOnboardReport(body);
     return { code: 200, message: 'ok', data };
   }
 
