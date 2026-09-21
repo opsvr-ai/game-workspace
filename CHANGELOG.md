@@ -64,6 +64,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩端装机脚本搞错了生效文件：真正被 electron-builder 加载的是 `build/installer.nsh`，
+  而它一直是**旧版「蠢驴电竞」**那一份（把 `$INSTDIR` 写死成 `C:\Program Files\蠢驴电竞`，
+  还顺手 `RMDir /r` 掉这个目录），仓库根那份写「陪玩管理」的 `installer.nsh` **从来没被加载过**。
+  因为 `productName` 已经是「陪玩管理」，装出来的 exe 也叫 陪玩管理.exe，所以现场表现是
+  「程序能跑、但装在蠢驴电竞目录里」——正是前面反复出现的「装完找不到目录 / 回传版本号 unknown」的根。
+  现在只保留一份 `build/installer.nsh`（陪玩管理），并在安装时清理旧的 `C:\Program Files\蠢驴电竞`。
+
+- **服务端 27 个历史坏单测全部修好，`tsc --noEmit` 从 12 个报错清到 0（老板 2026-09-22：自己看着办）：**
+  这些单测是历次功能改动后没跟着改的老断言（构造函数加参数、返回结构改名、指定派单直接进 `GRABBED`、
+  手动切「接单中」被业务规则拒绝、客户端默认模式从娱乐改成空闲……），不是本次改动弄坏的。
+  已按**当前真实业务规则**重写断言（含把两个「断言了根本不存在返回结构」的报账用例改成真实透传结构），
+  现在 `npx vitest run` 为 35 个文件 / 257 个用例全绿，`npx nest build` 与 `tsc --noEmit` 均 0 报错。
+
 - **更新包下载不限速 → 一台机器下载就把办公室那条网占满，别人的接口 25 秒超时（看起来像「掉线」）：**
   更新包 128MB，以前是全速下发。实测今天（2026-09-21）晚上发布时，
   客户端上报的三条「/companions/me/workbench、/companions/me/wallet timeout of 25000ms exceeded」

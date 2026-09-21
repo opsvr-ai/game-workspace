@@ -131,3 +131,10 @@ apps/web/.claude/
 /.tmp-*
 /.tmp_*
 /.audit/
+
+# electron-builder 的资源目录（directories.buildResources）。
+# 注意：上面的 `build/` 会连这里一起忽略，而 `installer.nsh` 恰恰是**真正被 electron-builder
+# 加载**的装机脚本 —— 2026-09-22 就是因为它被忽略、改错了同名文件在仓库根，
+# 导致「装完找不到目录 / 回传版本号 unknown」查了很久。这里显式放行，避免再被忽略。
+!apps/companion-electron/build/
+!apps/companion-electron/build/installer.nsh
