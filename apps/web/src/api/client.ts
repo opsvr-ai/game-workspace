@@ -85,6 +85,23 @@ const redirectToLogin = () => {
   window.location.href = '/login';
 };
 
+/**
+ * 登录态确定失效（服务端 401/403，且已经试过用 refreshToken 续期）时，把这一份也清干净。
+ *
+ * 为什么必须连客户端主进程那份一起清：主进程 config.json 里也存着 token/refreshToken，
+ * 登录页启动时会用它恢复会话（utils/sessionRestore.ts）。只清网页端的话，会出现
+ * 「登录页 → 读到旧令牌 → 401 → 又回登录页」的死循环，页面一直自己刷新。
+ */
+export const clearStoredSession = () => {
+  sessionStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  try {
+    const ea = (window as any).electronAPI;
+    ea?.storeSet?.('token', '');
+    ea?.storeSet?.('refreshToken', '');
+  } catch { /* 浏览器里没有这套 IPC */ }
+};
+
 http.interceptors.response.use(
   (response) => {
     if (isCacheableGet(response.config)) {
@@ -113,8 +130,7 @@ http.interceptors.response.use(
       // 断网/超时/服务端 5xx 是临时故障，清掉令牌等于把人踢回登录页。
       const status = error.response?.status;
       if (status && status >= 400 && status < 500) {
-        sessionStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        clearStoredSession();
         redirectToLogin();
       }
       return Promise.reject(error);
@@ -123,8 +139,7 @@ http.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
-        sessionStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        clearStoredSession();
         redirectToLogin();
         return Promise.reject(error);
       }
@@ -174,8 +189,7 @@ http.interceptors.response.use(
         // 同上：临时故障（断网、超时、5xx）保留登录态，只有 4xx 才判定为失效。
         const status = (refreshError as AxiosError)?.response?.status;
         if (status && status >= 400 && status < 500) {
-          sessionStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
+          clearStoredSession();
           redirectToLogin();
         }
         return Promise.reject(refreshError);

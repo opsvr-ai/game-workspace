@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { LoginRequest, UserInfo } from '@chunlv/shared';
-import { authApi } from '../api/client';
+import { authApi, clearStoredSession } from '../api/client';
 
 interface AuthState {
   user: UserInfo | null;
@@ -61,8 +61,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 这就是「动不动就不自动登录 / 动不动就掉线」的根之一。
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        sessionStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        clearStoredSession();
         set({ user: null, isAuthenticated: false });
       }
       return null;
