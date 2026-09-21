@@ -265,7 +265,7 @@ chunlv-esports/
 │   └── screenshots/                 # Uploaded billing screenshots (served as static files)
 │
 ├── docs/                            # Requirements, design docs, implementation plans
-├── scripts/                         # Automation scripts (changelog update, etc.)
+├── scripts/                         # 发版/运维链路脚本（见 scripts/README.md；一次性脚本不入库）
 ├── pnpm-workspace.yaml
 ├── package.json                     # Root workspace scripts
 ├── CHANGELOG.md
