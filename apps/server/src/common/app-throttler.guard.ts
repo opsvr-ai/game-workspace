@@ -1,5 +1,6 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ThrottlerException, ThrottlerGuard, ThrottlerLimitDetail } from '@nestjs/throttler';
+import { bearerToken } from './http-auth';
 
 /**
  * 限流按谁记账（老板 2026-09-21 报「秦伟杰登录不上，提示 too many request」）。
@@ -15,12 +16,6 @@ import { ThrottlerException, ThrottlerGuard, ThrottlerLimitDetail } from '@nestj
  *   ② 带令牌的请求 → 用户 id（同一个公网出口下每个陪玩各算各的）；
  *   ③ 没带令牌 → 仍按 IP。
  */
-
-/** 取出 Authorization 头里的令牌（不验签，只用来给限流分账；真伪由各接口自己的守卫判定） */
-function bearerToken(header: unknown): string {
-  const raw = typeof header === 'string' ? header : '';
-  return raw.toLowerCase().startsWith('bearer ') ? raw.slice(7).trim() : '';
-}
 
 /** 解出 JWT 里的 sub（用户 id）；解不出来返回空字符串 */
 export function jwtSubject(token: string): string {

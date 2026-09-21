@@ -43,9 +43,10 @@ import {
 } from '../../constants/datasetColumns';
 import {
   orderTypeConfig,
-  companionStatusConfig,
   personnelGroupRank,
   isPersonnelOnline,
+  displayStatus,
+  statusDotColor,
   serviceTypeConfig,
   PERSONNEL_COLUMN_WIDTH,
   QUICK_STATS_COLUMN_WIDTH,
@@ -92,28 +93,11 @@ interface PoolOrder {
   csUser?: { id?: string; username: string };
 }
 
-function displayStatus(c: Personnel): { label: string; color: string } {
-  if (!isPersonnelOnline(c)) return { label: '离线', color: 'default' };
-  if (c.status && c.status !== CompanionStatus.OFFLINE) {
-    return companionStatusConfig[c.status] || { label: c.status, color: 'default' };
-  }
-  return { label: '在线', color: 'green' };
-}
-
 const ROLE_TAG: Record<string, { color: string; label: string }> = {
   COMPANION: { color: 'blue', label: '陪玩' },
   CS: { color: 'cyan', label: '客服' },
   ADMIN: { color: 'orange', label: '店长' },
   OWNER: { color: 'purple', label: '老板' },
-};
-
-// 状态圆点颜色（配合头像右下角的状态点，比一排彩色 Tag 更清爽、易读）
-const STATUS_DOT: Record<string, string> = {
-  green: '#22C55E',
-  red: '#EF4444',
-  gold: '#F59E0B',
-  orange: '#F97316',
-  default: '#94A3B8',
 };
 
 const ROLE_TEXT_COLOR: Record<string, string> = {
@@ -122,10 +106,6 @@ const ROLE_TEXT_COLOR: Record<string, string> = {
   ADMIN: '#EA580C',
   OWNER: '#7C3AED',
 };
-
-function statusDotColor(c: Personnel): string {
-  return STATUS_DOT[displayStatus(c).color] || '#94A3B8';
-}
 
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);

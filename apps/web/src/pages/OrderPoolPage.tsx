@@ -18,7 +18,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import TierBadge from '../components/TierBadge';
 
 import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
-import { companionStatusConfig, personnelGroupRank, isPersonnelOnline } from '../constants/companions';
+import { personnelGroupRank, isPersonnelOnline, displayStatus, statusDotColor } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
 import { buildOrderInfoFields, fmtClock } from '../utils/orderPool';
 import {
@@ -31,14 +31,6 @@ import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
 
-function displayStatus(c: any): { label: string; color: string } {
-  if (!isPersonnelOnline(c)) return { label: '离线', color: 'default' };
-  if (c.status && c.status !== 'OFFLINE') {
-    return companionStatusConfig[c.status] || { label: c.status, color: 'default' };
-  }
-  return { label: '在线', color: 'green' };
-}
-
 /** 已被抢走的单在灰色记录里显示的进度文案（老板 2026-09-21） */
 const TAKEN_STATUS_LABEL: Record<string, string> = {
   GRABBED: '已被抢',
@@ -47,18 +39,6 @@ const TAKEN_STATUS_LABEL: Record<string, string> = {
   DONE: '已完成',
   CANCELLED: '已取消',
 };
-
-const STATUS_DOT: Record<string, string> = {
-  green: '#22C55E',
-  red: '#EF4444',
-  gold: '#F59E0B',
-  orange: '#F97316',
-  default: '#94A3B8',
-};
-
-function statusDotColor(c: any): string {
-  return STATUS_DOT[displayStatus(c).color] || '#94A3B8';
-}
 
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);

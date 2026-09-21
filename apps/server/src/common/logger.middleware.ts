@@ -2,6 +2,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
 import { presence } from './presence';
+import { bearerToken } from './http-auth';
 
 /**
  * 只解不验：日志 / 在线状态只需要「这是谁」，签名由各个 Guard 严格校验。
@@ -17,11 +18,6 @@ function decodeJwtPayload(token: string): any {
   } catch {
     return null;
   }
-}
-
-function bearerToken(req: Request): string {
-  const auth = req.get('authorization') || '';
-  return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 }
 
 function identityOf(token: string): { userId?: string; username?: string; role?: string } | null {
@@ -41,7 +37,7 @@ export class LoggerMiddleware implements NestMiddleware {
     const forwarded = (req.get('x-forwarded-for') || '').split(',')[0].trim();
     const clientIp = forwarded || req.ip || req.socket?.remoteAddress || '';
 
-    const token = bearerToken(req);
+    const token = bearerToken(req.get('authorization'));
     const caller = token ? identityOf(token) : null;
     if (caller?.userId) presence.markSeen(caller.userId);
 

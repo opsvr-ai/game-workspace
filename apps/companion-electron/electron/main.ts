@@ -11,7 +11,7 @@ import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent, isConnect
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray, updateTrayTooltip } from './tray';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
-import { handleStatusChanged, ensureHibernateEnabled, setAppPassword } from './screen-lock';
+import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -27,11 +27,6 @@ process.on('uncaughtException', (err) => {
     error: String(err?.stack || err?.message || err),
   });
 });
-
-// ── Utils ──
-function getAppPassword(): string {
-  return (store.get('appPassword') as string) || '123456';
-}
 
 /** 清空本地登录状态和“记住账号密码”，避免下次启动自动登录旧账号。 */
 function clearAuthState(): void {

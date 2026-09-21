@@ -13,6 +13,7 @@ import Redis from 'ioredis';
 import { JwtService } from '@nestjs/jwt';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ChatService } from './chat.service';
+import { isLanOrigin } from '../common/http-auth';
 
 interface ConnectedUser {
   userId: string;
@@ -27,10 +28,6 @@ interface ConnectedUser {
  * Handles real-time messaging events: typing indicators, message ACKs,
  * and pushes new messages to connected users.
  */
-function isLanOrigin(origin: string): boolean {
-  return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)(\d{1,3}\.)?\d{1,3}(:\d+)?$/.test(origin);
-}
-
 @WebSocketGateway({
   namespace: '/chat',
   cors: {

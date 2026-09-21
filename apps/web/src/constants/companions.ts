@@ -93,3 +93,29 @@ export function personnelGroupRank(p: PersonnelLike): number {
       return 70;
   }
 }
+
+/** 状态圆点用的色值（配合头像右下角的状态点，比一排彩色 Tag 更清爽、易读） */
+export const STATUS_DOT: Record<string, string> = {
+  green: '#22C55E',
+  red: '#EF4444',
+  gold: '#F59E0B',
+  orange: '#F97316',
+  default: '#94A3B8',
+};
+
+/**
+ * 人员对外展示的状态：离线优先（心跳超时即离线），其次查状态字典，
+ * 最后兜底「在线」。
+ */
+export function displayStatus(p: PersonnelLike): { label: string; color: string } {
+  if (!isPersonnelOnline(p)) return { label: '离线', color: 'default' };
+  if (p.status && p.status !== CompanionStatus.OFFLINE) {
+    return companionStatusConfig[p.status] || { label: p.status, color: 'default' };
+  }
+  return { label: '在线', color: 'green' };
+}
+
+/** 人员状态圆点颜色（取 displayStatus 的 color 再映射成色值） */
+export function statusDotColor(p: PersonnelLike): string {
+  return STATUS_DOT[displayStatus(p).color] || '#94A3B8';
+}

@@ -21,6 +21,7 @@ import { ExcellenceService } from '../companions/excellence.service';
 import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
+import { isLanOrigin } from '../common/http-auth';
 
 export interface ConnectedUser {
   id: string;
@@ -34,11 +35,6 @@ const wsAllowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,
 
 /** 语音通话中断线宽限期：比客户端自己的 30 秒稍长，让客户端先有机会重连上。 */
 const VOICE_RECONNECT_GRACE_MS = 45_000;
-
-/** Check if origin is a LAN IP (192.168.x.x or 10.x.x.x or 172.16-31.x.x) on allowed ports */
-function isLanOrigin(origin: string): boolean {
-  return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)(\d{1,3}\.)?\d{1,3}(:\d+)?$/.test(origin);
-}
 
 @WebSocketGateway({
   cors: {

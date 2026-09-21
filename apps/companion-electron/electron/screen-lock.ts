@@ -8,7 +8,8 @@ let lockWindow: BrowserWindow | null = null;
 let idleTimer: NodeJS.Timeout | null = null;
 const IDLE_TIMEOUT = 3 * 60 * 1000;
 
-function getAppPassword(): string {
+/** 应用密码（锁屏 / 退出登录校验用），未设置时默认 123456 */
+export function getAppPassword(): string {
   return (store.get('appPassword') as string) || '123456';
 }
 
