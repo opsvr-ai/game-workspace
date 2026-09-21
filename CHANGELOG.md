@@ -64,6 +64,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **更新包下载不限速 → 一台机器下载就把办公室那条网占满，别人的接口 25 秒超时（看起来像「掉线」）：**
+  更新包 128MB，以前是全速下发。实测今天（2026-09-21）晚上发布时，
+  客户端上报的三条「/companions/me/workbench、/companions/me/wallet timeout of 25000ms exceeded」
+  **全部落在有机器正在下载更新包的时间窗里**，而同期服务端自己记录的请求一条都不慢
+  （说明请求根本没及时到服务器 —— 是这条网被占满了）。现在新增 `common/throttled-file.ts`，
+  更新包走 `GET /api/agent/download/latest` **按 700KB/s 匀速下发**（`UPDATE_DOWNLOAD_KBPS` 可调，一个包约 3 分钟），
+  并把 `agent.latest_download_url` 从静态 `/uploads/chunlv-latest.zip` 改成走这个接口（老客户端也会读到新地址）。
+  服务端实测：限速后单连接稳定在 ~790KB/s（含开头 1 秒额度），同时另一台机器全速下载也不会互相挤死。
+
 - **接单中不再被「推送更新」打断（老板 2026-09-21「不影响他们正在运行三角洲接单」）：**
   启动时的更新检查本来就会跳过接单中（BUSY）的机器，但后台「推送更新」/ WS 命令走的是另一条路，
   以前会一路下完包再直接退出进程让看门狗重启 —— 正在跑的单子（计时、截图、客户在等）会被掐断。
