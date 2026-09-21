@@ -123,3 +123,11 @@ mcp-audit.jsonl
 SCRATCHPAD.md
 apps/server/.aura/
 apps/web/.claude/
+
+# Repo-root scratch: one-off debug dumps / temp scripts / audit screenshots
+# （历史遗留：_last.txt、_ws_events.txt、.tmp-*.py 这类一次性文件曾经直接堆在仓库根目录）
+/_*.txt
+/_*.out
+/.tmp-*
+/.tmp_*
+/.audit/
