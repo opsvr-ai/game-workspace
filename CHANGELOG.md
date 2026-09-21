@@ -132,6 +132,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **`scripts/` 从 448 个文件瘦身到 8 个（老板 2026-09-22：你自己看着办）：** 只有 4 个入库过，
+  其余 440 多个是历次排障留下的一次性脚本（82 个 `_q_*` 查询、68 个 `_patch*` 改代码、
+  还有 `_check_*` / `_fix_*` / `_run_q*`……）。其中 `_patch*.py` 最危险：误跑一次会把同一处代码
+  **重复打补丁**。现在：① 发版链路（`_deploy_web_cloud.py` / `_deploy_server_cloud.py` /
+  `_set_web_version.py` / `_publish_client.py` / `_upload_sh_cloud.py` / `_push_watchdog_all.py` /
+  `_repack_client_zip.py`）**全部入库**——以前 4 个里没有 `_deploy_web_cloud.py` 这些，
+  等于新克隆一份仓库根本发不了版；② 一次性脚本已打包备份到仓库外
+  `E:\source_code\_archive\game-workspace-scripts-20260922.zip` 后移出；③ `.gitignore` 加规则挡住
+  `scripts/_*`（白名单保留链路脚本）；④ 新增 `scripts/README.md` 说明哪几个是在用的。
+  顺带把 `陪玩端一键安装.bat/.ps1`（新电脑装机入口）入库，并忽略掉仓库根的一次性修复脚本。
+  仓库根未入库文件从 479 个降到 10 个。
+
 - **陪玩端客户端 1.0.20260924 已发布（老板 2026-09-21 同意先发）：** 内容就是本文件上面那几条
   ——自动更新名额不再饿死（未登录的登录页机器也能申请名额、服务端支持匿名排队 + 等待优先）、
   以及顺带带上的注册链路加固（网页端 v764 已经在线生效）。老板确认「杀黑名单进程」是关着的，

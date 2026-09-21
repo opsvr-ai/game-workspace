@@ -138,3 +138,28 @@ apps/web/.claude/
 # 导致「装完找不到目录 / 回传版本号 unknown」查了很久。这里显式放行，避免再被忽略。
 !apps/companion-electron/build/
 !apps/companion-electron/build/installer.nsh
+
+# scripts/ 下只保留发版/运维链路入库（见 scripts/README.md）。
+# 以前这里堆了 440 多个一次性查询/改数据/临时补丁脚本，git status 永远是几百个未入库文件。
+# 一次性脚本一律走这个忽略规则，别再入库；新增长期脚本记得加白名单。
+scripts/_*
+!scripts/_deploy_server_cloud.py
+!scripts/_deploy_web_cloud.py
+!scripts/_publish_client.py
+!scripts/_set_web_version.py
+!scripts/_upload_sh_cloud.py
+!scripts/_push_watchdog_all.py
+!scripts/_repack_client_zip.py
+
+# 仓库根目录遗留的「一次性修复脚本」（2026-09-22 清理：这些都是一次性的排障脚本，
+# 事情做完就没用了；正式装机入口是 陪玩端一键安装.bat / .ps1 + scripts/ 下的发版链路）
+/deploy-new.bat
+/deploy-unpacked.bat
+/fix-cloud-config.bat
+/fix-git-permissions.ps1
+/fix-remote.ps1
+/remote-fix.bat
+/install-chunlv.bat
+
+# 任何目录下的临时文件
+**/.tmp-*
