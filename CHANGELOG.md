@@ -1259,6 +1259,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   （一边返回结构化对象、一边返回字符串；一边是中文时长、一边是 `mm:ss`），所以故意没有合并。
   本次改动已在本地跑过 `tsc` / `nest build` / `vite build` / `esbuild` 验证（0 错误），未部署、未重启服务端、未发客户端。
 
+- **仓库自洽性修复（本次最重要的发现）：之前提交进 git 的这份代码，clone 下来根本编译不过。**
+  `apps/web/src/router.tsx`（已提交）import 了 7 个页面、`companions.module.ts` /
+  `orders.module.ts`（已提交）import 了 2 个 sweep 服务、`BillingOverview` / `CreateOrderModal` /
+  `CustomersPage`（已提交）import 了 `PasteImageBox` → `clipboardImage`，但这些被引用的文件
+  从来**没有提交过**，只存在于本机工作区（`git cat-file -e HEAD:<path>` 全部报
+  「exists on disk, but not in HEAD」）。也就是说这些**正在线上跑**的页面/服务，
+  本机磁盘一出问题就彻底没了。现在全部补交入库（含 3 个从未入库的 Prisma 迁移：
+  `add_blacklist_display_name` / `add_companion_is_senior_staff` / `add_message_mentions`）。
+
+- **同时补交 43 个已跟踪文件里「线上在跑、仓库没有」的改动（671 插入 / 1257 删除）：**
+  部署脚本是直接拿工作区构建上传的，但这批改动从 2026-09 起一直没提交 ——
+  等于线上跑的和仓库里存的是两份东西。现在原样入库，工作区已干净，
+  `git status` 与线上代码终于一致。（这批内容只验证了「能编译通过」，没有逐行审阅业务语义。）
+
 ## [3.0.0] — 2026-06-30
 
 ### Added
