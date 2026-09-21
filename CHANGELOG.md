@@ -11,6 +11,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **注册「Network Error」排查能力 + 上传链路加固（老板 2026-09-21 报：新电脑注册点提交提示 network error）：**
+  这类失败的请求**根本没到服务器**（服务端日志里一条都没有），只看服务端永远查不出原因。所以：
+  ① 前端新增 `POST /api/agent/client-error` 上报（`apps/web/src/api/diagnostics.ts`；注册失败、
+  以及所有「一个字节都没到服务端」的 axios 网络层失败都会回传），服务端落到仓库根目录
+  `client-errors/client-errors-<日期>.jsonl`，管理员直接读文件即可定位（新增 `AgentService.recordClientError`）。
+  ② 注册时**自动压缩身份证照片**（`apps/web/src/utils/imageCompress.ts`：长边 1600 / JPEG 0.82，
+  手机原图 4~8MB → 通常 100~400KB）。两张十几兆的 body 正是弱网 + 杀毒软件「上网保护」最爱掐的东西，
+  压缩后注册又快又稳；HEIC 等浏览器解不开的格式会**直接提示「请转成 JPG」**，不再是一个看不懂的网络错误。
+  ③ 网络层失败**自动重试一次**；仍失败就在弹窗里**当场自检**（纯文字 / 约 300KB / 约 5MB 三步，
+  故意留空必填字段所以不会写库），并把三步结果一起上报，用户看到的是「卡在哪一步、该怎么办」。
+  ④ 提供「先不带照片提交」兜底入口（店长之后补传），照片一直传不上去也能先把人录进系统。
+  服务端配套：`FileFieldsInterceptor` 不再「边传边拒」（multer 一拒就把连接掐掉，浏览器看到的正是
+  Network Error），改成**先收完字节再校验格式**并返回中文提示；照片超 10MB 也由英文 `File too large`
+  统一成中文提示（`common/http-exception.filter.ts`）。
+
+- **装机脚本认对安装目录（同一台新电脑暴露的问题）：** electron-builder 的 `installer.nsh` 把安装目录
+  写死成 `C:\Program Files\蠢驴电竞`，而 exe 名是「陪玩管理」。旧装机脚本只找
+  `C:\Program Files\陪玩管理`，于是回传的版本号是 `unknown`、桌面也不建快捷方式。
+  现在两个目录都试、并在装完后最多等 60 秒再确认（`陪玩端一键安装.ps1` / 云端 `install-companion.ps1`）。
+
 - **新电脑一键装机链接 + 装机账号自动回传（老板 2026-09-21 要的）：**
   以后新到一台电脑，只要在那台机器上用管理员身份跑一次
   `http://1.117.229.36:3001/uploads/install-companion.bat`，它会自动：
@@ -43,6 +63,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   光耀视角正好相反（净额 +¥100）。
 
 ### Fixed
+
+- **自动更新名额不再饿死某台机器（新装电脑一直卡在装机包那一版）：**
+  ① 客户端在没登录（登录页）时 `acquireUpdateSlot` 直接返回 false，日志却写「Update slot busy」，
+  于是新电脑永远更新不了 —— 现在没令牌也照常申请名额（`electron/updater.ts`）。
+  ② 服务端 `update/acquire` 对没有令牌的机器用 `anon:<ip>` 兜底记账，并记排队时间：
+  一直在排队、等了 5 分钟以上、而当前那台已经下载 3 分钟以上，就把名额让给它（`updateWaiters`），
+  避免老版本永远轮不到。
 
 - **语音通话「互相听不到声音」根因修复（老板 2026-09-21 报「王昊给邵泽慧打语音，互相听不到声音」）:**
   查下来是**点对点直连在这套网络里根本不可靠**，不是谁设备坏了：

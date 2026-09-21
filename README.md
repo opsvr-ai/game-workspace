@@ -598,6 +598,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/agent/download/exe` | None | -- | Full NSIS installer download (`陪玩管理-Setup.exe`). |
 | `GET` | `/api/agent/download/latest` | None | -- | Latest unpacked zip for self-update. |
 | `POST` | `/api/agent/onboard-report` | `x-onboard-token` header | -- | A freshly onboarded PC reports hostname / IP / MAC / client version and the remote-support account it just generated. Appended to `onboard-reports/machines.jsonl` (repo root, not web-served). |
+| `POST` | `/api/agent/client-error` | None | `{phase,url,status,message,detail}` | 前端上报「请求根本没到服务器」的网络层故障（注册失败、断网 / 被杀毒软件拦截等）。Appended to `client-errors/client-errors-<date>.jsonl` (repo root, not web-served). |
 
 ### Health
 
