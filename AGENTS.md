@@ -19,7 +19,7 @@
    具体：前端 `python scripts\_deploy_web_cloud.py` + `python scripts\_set_web_version.py vXXX`；
    服务端 `python scripts\_deploy_server_cloud.py`；客户端 `python scripts\_publish_client.py <版本号>`（安装包在
    `apps/companion-electron/release/win-unpacked`）。发布客户端后不要去强制推送（会打断接单），
-   客户端自己每 5 分钟查一次版本，接单中会自动跳过。
+   客户端自己每 30 分钟查一次版本（接单中会自动跳过；所以铺开是逐步的，别急着判定「没生效」）。
 6. **线上业务开关是老板的东西，脚本/自动化一律不许改。**（用户明确要求，2026-09-20）
    具体：`blacklist.auto_kill`（「自动结束黑名单进程」总开关）**只由老板在管理端手动拨动**；
    任何脚本、验证流程、维护/复位动作都不得把它改成别的值；测试必须先读原值、测完原样恢复。
