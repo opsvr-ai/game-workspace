@@ -590,6 +590,15 @@ Every endpoint returns a standard JSON envelope:
 |--------|------|------|-------|-------------|
 | `POST` | `/api/upload/screenshot` | JWT | COMPANION | Upload a billing screenshot. Multipart form: `file` (JPG/PNG/WebP, max 5 MB). |
 
+### Agent (客户端装机 / 更新)
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/agent/version` | None | -- | Latest companion client version + download URL (client polls this). |
+| `GET` | `/api/agent/download/exe` | None | -- | Full NSIS installer download (`陪玩管理-Setup.exe`). |
+| `GET` | `/api/agent/download/latest` | None | -- | Latest unpacked zip for self-update. |
+| `POST` | `/api/agent/onboard-report` | `x-onboard-token` header | -- | A freshly onboarded PC reports hostname / IP / MAC / client version and the remote-support account it just generated. Appended to `onboard-reports/machines.jsonl` (repo root, not web-served). |
+
 ### Health
 
 | Method | Path | Auth | Roles | Description |

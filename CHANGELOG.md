@@ -11,6 +11,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **新电脑一键装机链接 + 装机账号自动回传（老板 2026-09-21 要的）：**
+  以后新到一台电脑，只要在那台机器上用管理员身份跑一次
+  `http://1.117.229.36:3001/uploads/install-companion.bat`，它会自动：
+  ① 建/更新远程管理账号 `chunlvops`（管理员组、密码永不过期），密码**当场随机生成**；
+  ② 打开远程管理通道（`LocalAccountTokenFilterPolicy` / LanmanServer / 文件共享防火墙）；
+  ③ 下载并静默安装最新陪玩端（`/api/agent/download/exe`）+ 看门狗 `SystemHelper` + 桌面快捷方式 + 启动；
+  ④ 把主机名 / IP / MAC / 客户端版本 / 账号 / **生成的密码**回传到
+  `POST /api/agent/onboard-report`（头部 `x-onboard-token`），服务端落到仓库根目录
+  `onboard-reports/machines.jsonl`（不在 `/uploads` 下，公网抓不到），管理员随时可查，
+  不用再问电脑主人要密码 —— 这解决了以前「新电脑装完就失联」的老问题。
+  密码固定 14 位（`Chunlv!` + 6 位随机 + 1 位数字）：`net user` 对超过 14 位的密码会交互式追问，
+  在脚本里会直接失败（实测踩到）。装机脚本源码在仓库根目录
+  `陪玩端一键安装.bat` / `陪玩端一键安装.ps1`。
+
 - **桥接往来对账（老板 2026-09-21 定口径）：** 桥接的含义定死为「**双方能互相抢单、人员互通**」，
   系统**只统计、不自动转账**，钱由两个店长在微信上定期互相结。新增
   「工作室桥接 → 桥接往来（对账）」页 + `GET /api/bridges/settlement`，算清两向：
