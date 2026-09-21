@@ -50,6 +50,8 @@ const KEY_LABELS: Record<string, string> = {
   'commission.admin_online_rate_percent': '店长分成 · 线上（% 流水）',
   'bridge.secret_price_yuan': '机密桥接单价（元）',
   'bridge.jueju_net_yuan': '绝密桥接净收入（元）',
+  'dispatch.bridge_return_jimi_cents': '桥接首单返款 · 机密（分/小时）',
+  'dispatch.bridge_return_jueju_cents': '桥接首单返款 · 绝密（分/小时）',
   'dispatch.top_tier_daily_new_limit': '上等马 · 每日立即打名额',
   'dispatch.middle_tier_daily_new_limit': '中等马 · 每日立即打名额',
   'dispatch.low_tier_daily_new_limit': '下等马 · 每日立即打名额',

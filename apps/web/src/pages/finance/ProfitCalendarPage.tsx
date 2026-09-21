@@ -6,6 +6,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';
 import { configApi } from '../../api/config';
 import PageHeader from '../../components/PageHeader';
+import { Link } from 'react-router-dom';
 
 const { Text } = Typography;
 
@@ -25,7 +26,6 @@ const ProfitCalendarPage: React.FC = () => {
   const [returnNote, setReturnNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingBridge, setSavingBridge] = useState(false);
   const [savingReturn, setSavingReturn] = useState(false);
 
   const load = async (m: Dayjs) => {
@@ -89,22 +89,6 @@ const ProfitCalendarPage: React.FC = () => {
       message.error('保存失败');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const saveBridgePrices = async () => {
-    setSavingBridge(true);
-    try {
-      await configApi.update({
-        'bridge.secret_price_yuan': bridgePrices.secretPrice,
-        'bridge.jueju_net_yuan': bridgePrices.juejuNet,
-      });
-      message.success('桥接工作室结算已保存');
-      await load(month);
-    } catch {
-      message.error('保存失败');
-    } finally {
-      setSavingBridge(false);
     }
   };
 
@@ -277,36 +261,22 @@ const ProfitCalendarPage: React.FC = () => {
         size="small"
         title="桥接工作室结算（付给桥接，非客服提成）"
         style={{ marginBottom: 12 }}
-        extra={
-          <Space>
-            <Button size="small" type="primary" icon={<SaveOutlined />} loading={savingBridge} onClick={saveBridgePrices}>保存</Button>
-          </Space>
-        }
+        extra={<Link to="/admin/settings?tab=payment"><Button size="small">去「利润分成」修改</Button></Link>}
       >
         <Space size={16} wrap>
           <div>
             <Text>机密单价（元/人/时）</Text>
-            <InputNumber
-              min={0}
-              step={1}
-              value={bridgePrices.secretPrice}
-              onChange={(v) => setBridgePrices((p) => ({ ...p, secretPrice: Number(v ?? 0) }))}
-              style={{ width: 140, marginLeft: 8 }}
-            />
+            <Text strong style={{ marginLeft: 8, fontSize: 15 }}>{bridgePrices.secretPrice}</Text>
           </div>
           <div>
             <Text>绝密净价（元/人/时）</Text>
-            <InputNumber
-              min={0}
-              step={1}
-              value={bridgePrices.juejuNet}
-              onChange={(v) => setBridgePrices((p) => ({ ...p, juejuNet: Number(v ?? 0) }))}
-              style={{ width: 140, marginLeft: 8 }}
-            />
+            <Text strong style={{ marginLeft: 8, fontSize: 15 }}>{bridgePrices.juejuNet}</Text>
           </div>
         </Space>
         <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-          这是老板付给桥接/线上工作室的服务费（机密 35 元、绝密 45−15=30 元），按人数 × 时长结算；客服提成在「客服设置」里单独按单量设置。
+          这是老板付给桥接/线上工作室的服务费，按人数 × 时长结算。
+          <Text strong> 单价和首单返款都在「设置 → 系统配置 → 利润分成（分账规则）」里改</Text>
+          ，这里只读；客服提成在「客服设置」里单独按单量设置。
         </Text>
       </Card>
 

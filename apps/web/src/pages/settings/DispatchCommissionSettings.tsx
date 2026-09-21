@@ -4,9 +4,19 @@ import { Card, Button, Typography, Space, message, Row, Col } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
-import { clampPercent, FULL_PERCENT } from '../../utils/percent';
 
 const { Text } = Typography;
+
+/**
+ * 派单优先级（老板 2026-09-22 要求「同一个功能别到处出现」后精简）
+ *
+ * 这一页原来还塞着三组数，全都是重复的，已经搬走：
+ * - 「工作室分成比例」（dispatch.studio_share_percent）：**填了不参与任何计算**的历史遗留，直接删掉；
+ * - 「每日新客户名额」：属于段位规则，统一在「评分与名额」里按上等马 / 中等马 / 下等马设置；
+ * - 「机密 / 绝密线上返款」：桥接单价与首单返款统一在「利润分成（分账规则）」里设置。
+ *
+ * 留下的只有真正属于派单节奏的响应窗口。
+ */
 
 const DispatchCommissionSettings: React.FC = () => {
   const [config, setConfig] = useState<any>(null);
@@ -33,11 +43,7 @@ const DispatchCommissionSettings: React.FC = () => {
     setSaving(true);
     try {
       await configApi.update({
-        'dispatch.studio_share_percent': config?.['dispatch.studio_share_percent'] ?? 30,
-        'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'] ?? 1,
         'dispatch.bridge_immediate_window_sec': config?.['dispatch.bridge_immediate_window_sec'] ?? 60,
-        'dispatch.bridge_return_jimi_cents': Math.round((config?.['dispatch.bridge_return_jimi_cents'] ?? 100)),
-        'dispatch.bridge_return_jueju_cents': Math.round((config?.['dispatch.bridge_return_jueju_cents'] ?? 1500)),
       });
       message.success('派单设置已保存');
     } catch {
@@ -51,16 +57,10 @@ const DispatchCommissionSettings: React.FC = () => {
     return <div style={{ textAlign: 'center', padding: 40 }}><Text type="secondary">加载中...</Text></div>;
   }
 
-  // 工作室 / 陪玩是一对：工作室填多少，陪玩就是剩下的（合计恒为 100%）。
-  const studioSharePercent = clampPercent(config?.['dispatch.studio_share_percent'] ?? 30);
-
-  const jimiReturnYuan = (config?.['dispatch.bridge_return_jimi_cents'] ?? 100) / 100;
-  const juejuReturnYuan = (config?.['dispatch.bridge_return_jueju_cents'] ?? 1500) / 100;
-
   return (
     <div>
       <Card
-        title="🧭 派单优先级与桥接返还"
+        title="🧭 派单优先级"
         extra={
           <Space>
             <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
@@ -69,19 +69,12 @@ const DispatchCommissionSettings: React.FC = () => {
         }
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          派单优先级与桥接/线上结算返还。客服提成、底薪、桥接达标请在「员工管理 → 客服管理 → 客服设置」里统一设置。
+          各段位抢单名额在「评分与名额」里改；分成人 / 桥接单价在「利润分成（分账规则）」里改；
+          客服提成与底薪在「客服设置」里改。
         </Text>
         <Row gutter={24}>
           <Col span={12}>
-            <Field label="工作室分成比例（%）" value={studioSharePercent} step={1} max={100}
-              onChange={(v) => update('dispatch.studio_share_percent', clampPercent(v))}
-              suffix={`陪玩自动拿剩下的 ${FULL_PERCENT - studioSharePercent}%（合计恒为 100%）；用于算盈亏平衡`} />
-            <Field label="下等马每日有效客户名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="成交才占名额" />
             <Field label="线上响应窗口（秒）" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
-          </Col>
-          <Col span={12}>
-            <Field label="机密线上返款（元）" value={jimiReturnYuan} step={1} onChange={(v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100))} />
-            <Field label="绝密线上返款（元）" value={juejuReturnYuan} step={1} onChange={(v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100))} />
           </Col>
         </Row>
       </Card>

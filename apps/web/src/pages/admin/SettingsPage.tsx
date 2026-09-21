@@ -17,6 +17,7 @@ import AiSettings from '../settings/AiSettings';
 import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
 import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
 import { useAuthStore } from '../../stores/authStore';
+import { useSearchParams } from 'react-router-dom';
 
 const { Text } = Typography;
 
@@ -58,9 +59,9 @@ const GROUPS: SettingGroup[] = [
       },
       {
         key: 'payment',
-        label: '分账规则',
-        hint: '按流水档位分工作室 / 陪玩',
-        keywords: '分账 分成 档位 比例 分润',
+        label: '利润分成（分账规则）',
+        hint: '陪玩 / 店长 / 客服 / 工作室 + 桥接',
+        keywords: '分账 分成 档位 比例 分润 利润分成 桥接 单价 返还 机密 绝密 工作室 店长 客服 陪玩',
         render: () => <PaymentSettings />,
       },
       {
@@ -77,9 +78,9 @@ const GROUPS: SettingGroup[] = [
     items: [
       {
         key: 'dispatch',
-        label: '派单与提成',
-        hint: '工作室分成、名额、桥接返款',
-        keywords: '派单 提成 分成 名额 桥接 返款 机密 绝密',
+        label: '派单优先级',
+        hint: '线上响应窗口、桥接响应窗口',
+        keywords: '派单 优先级 响应 窗口 等待 桥接 线上',
         render: () => <DispatchCommissionSettings />,
       },
       {
@@ -166,7 +167,12 @@ const ALL_ITEMS = GROUPS.flatMap((g) => g.items.map((it) => ({ ...it, group: g.t
 const SettingsPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isOwner = user?.role === 'OWNER';
-  const [activeKey, setActiveKey] = useState('revenue');
+  // 支持 /admin/settings?tab=payment 这种直达链接：别的页面提到「去利润分成改」时可以一步跳过来。
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') || '';
+  const [activeKey, setActiveKey] = useState(
+    tabFromUrl && ALL_ITEMS.some((it) => it.key === tabFromUrl) ? tabFromUrl : 'revenue',
+  );
   const [keyword, setKeyword] = useState('');
 
   // 密钥 / 凭据类（AI、TURN）只有老板能改，店长连入口都不显示，避免误改与泄露。

@@ -63,7 +63,6 @@ import ManagedPcPage from './pages/admin/ManagedPcPage';
 import PcControlPage from './pages/admin/PcControlPage';
 import AnalyticsPage from './pages/admin/AnalyticsPage';
 import PayrollPage from './pages/admin/PayrollPage';
-import ProfitSplitPage from './pages/admin/ProfitSplitPage';
 import TrafficAccountPage from './pages/admin/TrafficAccountPage';
 import EmployeesPage from './pages/owner/EmployeesPage';
 import StudiosPage from './pages/owner/StudiosPage';
@@ -515,12 +514,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // 「利润分成」页 2026-09-22 合并进「设置 → 系统配置 → 利润分成（分账规则）」，
+        // 老书签/老链接照旧能用，直接落到那一页。
         path: 'admin/profit-split',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ProfitSplitPage />
-          </Suspense>
-        ),
+        element: <Navigate to="/admin/settings?tab=payment" replace />,
       },
       {
         path: 'admin/traffic-accounts',

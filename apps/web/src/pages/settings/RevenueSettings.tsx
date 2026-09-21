@@ -60,9 +60,6 @@ const RevenueSettings: React.FC = () => {
               onClick={() =>
                 saveKeys(
                   {
-                    'dispatch.top_tier_daily_new_limit': config?.['dispatch.top_tier_daily_new_limit'],
-                    'dispatch.middle_tier_daily_new_limit': config?.['dispatch.middle_tier_daily_new_limit'],
-                    'dispatch.low_tier_daily_new_limit': config?.['dispatch.low_tier_daily_new_limit'],
                     'revenue.free_threshold': config?.['revenue.free_threshold'],
                     'revenue.low_warning': config?.['revenue.low_warning'],
                     'billing.report_diff_warning_yuan': config?.['billing.report_diff_warning_yuan'],
@@ -78,37 +75,6 @@ const RevenueSettings: React.FC = () => {
         }
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Label>每日抢单名额（上等马 / 中等马 / 下等马）</Label>
-            <Space size={8}>
-              <InputNumber
-                min={0} step={1}
-                value={config?.['dispatch.top_tier_daily_new_limit'] ?? 3}
-                onChange={(v) => update('dispatch.top_tier_daily_new_limit', v ?? 0)}
-                style={{ width: 90 }}
-                addonBefore="上等马"
-              />
-              <InputNumber
-                min={0} step={1}
-                value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2}
-                onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v ?? 0)}
-                style={{ width: 90 }}
-                addonBefore="中等马"
-              />
-              <InputNumber
-                min={0} step={1}
-                value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1}
-                onChange={(v) => update('dispatch.low_tier_daily_new_limit', v ?? 0)}
-                style={{ width: 90 }}
-                addonBefore="下等马"
-              />
-            </Space>
-            <div>
-              <Text type="secondary">
-                每个陪玩每天能抢几个「立即打」的客户；当天没抢完的自动累计到以后。预约单不占名额。
-              </Text>
-            </div>
-          </div>
           <div>
             <Label>免手续费流水阈值（元）</Label>
             <InputNumber

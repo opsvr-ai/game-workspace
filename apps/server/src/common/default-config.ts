@@ -187,7 +187,6 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.middle_tier_daily_new_limit': 2,
   'dispatch.low_tier_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
-  'dispatch.studio_share_percent': 30,
   // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，上等马线50）
   'excellence.revenue_weight': 50,
   'excellence.revenue_cap_yuan': 10000,

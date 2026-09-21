@@ -32,6 +32,10 @@ const CONFIG_KEYS = [
   'commission.admin_offline_rate_percent',
   'commission.cs_online_per_order_yuan',
   'commission.admin_online_rate_percent',
+  'bridge.secret_price_yuan',
+  'bridge.jueju_net_yuan',
+  'dispatch.bridge_return_jimi_cents',
+  'dispatch.bridge_return_jueju_cents',
 ];
 
 interface ShareTier {
@@ -55,7 +59,7 @@ const ROLE_TINT = {
   studio: '#10B981',
 } as const;
 
-const GROUP_TINT = { offline: '#10B981', online: '#00B8D9' } as const;
+const GROUP_TINT = { offline: '#10B981', online: '#00B8D9', bridge: '#F97316' } as const;
 
 /** 缺配置时按后端实际生效的默认值补上：看到多少，算的就是多少。 */
 const withEffectiveDefaults = (raw: any) => {
@@ -68,6 +72,10 @@ const withEffectiveDefaults = (raw: any) => {
   fill('commission.admin_offline_rate_percent', 0);
   fill('commission.cs_online_per_order_yuan', 1);
   fill('commission.admin_online_rate_percent', 0);
+  fill('bridge.secret_price_yuan', 35);
+  fill('bridge.jueju_net_yuan', 30);
+  fill('dispatch.bridge_return_jimi_cents', 0);
+  fill('dispatch.bridge_return_jueju_cents', 1500);
   if (Array.isArray(next['revenue.share_tiers'])) {
     next['revenue.share_tiers'] = next['revenue.share_tiers'].map((t: any) => ({
       ...t,
@@ -144,6 +152,11 @@ const PaymentSettings: React.FC = () => {
   const clubCompanion = clampPercent(config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
   const adminOnline = clampPercent(config?.['commission.admin_online_rate_percent'] ?? 0);
   const csOnlinePerOrder = Number(config?.['commission.cs_online_per_order_yuan'] ?? 1);
+  // 桥接工作室：单价（元/人/小时）+ 首单返款（库里存「分」，界面显示「元」）。
+  const bridgeSecretPrice = Number(config?.['bridge.secret_price_yuan'] ?? 35);
+  const bridgeJuejuNet = Number(config?.['bridge.jueju_net_yuan'] ?? 30);
+  const bridgeReturnJimi = Number(config?.['dispatch.bridge_return_jimi_cents'] ?? 0) / 100;
+  const bridgeReturnJueju = Number(config?.['dispatch.bridge_return_jueju_cents'] ?? 1500) / 100;
 
   const offlineDeduct = round2(csOffline + adminOffline);
   const studioOf = (companion: unknown) => round2(FULL_PERCENT - clampPercent(companion) - offlineDeduct);
@@ -198,6 +211,10 @@ const PaymentSettings: React.FC = () => {
         'commission.cs_offline_rate_percent': csOffline,
         'commission.admin_online_rate_percent': adminOnline,
         'commission.cs_online_per_order_yuan': csOnlinePerOrder,
+        'bridge.secret_price_yuan': bridgeSecretPrice,
+        'bridge.jueju_net_yuan': bridgeJuejuNet,
+        'dispatch.bridge_return_jimi_cents': Math.round(bridgeReturnJimi * 100),
+        'dispatch.bridge_return_jueju_cents': Math.round(bridgeReturnJueju * 100),
       });
       message.success('分账规则 已保存');
       await fetchConfig();
@@ -234,6 +251,13 @@ const PaymentSettings: React.FC = () => {
     <Space size={4}>
       <InputNumber min={0} max={100} step={1} value={value} onChange={(v) => onChange(clampPercent(v))} style={{ width }} />
       <Text type="secondary">%</Text>
+    </Space>
+  );
+
+  const moneyInput = (value: number, onChange: (v: number) => void, width = 110) => (
+    <Space size={4}>
+      <InputNumber min={0} step={1} value={value} onChange={(v) => onChange(Number(v ?? 0))} style={{ width }} />
+      <Text type="secondary">元</Text>
     </Space>
   );
 
@@ -416,9 +440,50 @@ const PaymentSettings: React.FC = () => {
         </div>
       </div>
 
+      {/* ── 桥接工作室（原先散在「财务中心」和「派单与提成」两处，2026-09-22 合并到这一页） ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 26, marginBottom: 10 }}>
+        <span className="ui-dot" style={{ background: GROUP_TINT.bridge }} />
+        <Text strong style={{ fontSize: 14 }}>桥接工作室（付给合作方的钱）</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          单价按人数 × 时长结给桥接方；首单指第一个小时，机密默认不返、绝密按小时返
+        </Text>
+      </div>
+      <div className="ui-panel" style={{ overflowX: 'auto' }}>
+        <div style={gridCols(2)}>
+          <div style={{ ...HEAD_CELL, ...LABEL_CELL }}>结算项</div>
+          <div style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+            <Text strong style={{ fontSize: 12 }}>机密单</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>机密度订单</Text>
+          </div>
+          <div style={{ ...HEAD_CELL, flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+            <Text strong style={{ fontSize: 12 }}>绝密单</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>绝密度订单</Text>
+          </div>
+
+          {labelCell('studio', '单价', '元 / 人 / 小时')}
+          <div style={CELL}>
+            {moneyInput(bridgeSecretPrice, (v) => update('bridge.secret_price_yuan', v))}
+          </div>
+          <div style={CELL}>
+            {moneyInput(bridgeJuejuNet, (v) => update('bridge.jueju_net_yuan', v))}
+          </div>
+
+          {labelCell('cs', '首单返款', '元 / 小时 / 陪玩')}
+          <div style={CELL}>
+            {moneyInput(bridgeReturnJimi, (v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100)))}
+            <Text type="secondary" style={{ fontSize: 12 }}>填 0 = 不返还</Text>
+          </div>
+          <div style={CELL}>
+            {moneyInput(bridgeReturnJueju, (v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100)))}
+            <Text type="secondary" style={{ fontSize: 12 }}>双陪按 ×2 返</Text>
+          </div>
+        </div>
+      </div>
+
       <Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 12 }}>
-        📌 线下工作室用阶梯档位，线上俱乐部用固定比例，创建工作室时选择分账模式。
-        这一页和「设置 → 利润分成」「客服设置 → 客服提成比例」「店长设置」是同一个数，改哪边都一样。
+        📌 线下工作室用阶梯档位，线上俱乐部用固定比例，桥接工作室按单结给合作方，创建工作室时选择分账模式。
+        <Text strong> 四家分成、桥接单价与返款全都在这一页改</Text>
+        ——「利润分成」「客服设置」「财务中心」里现在只读展示，不会再出现两处都能改的情况。
       </Text>
     </Card>
   );
