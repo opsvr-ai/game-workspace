@@ -45,13 +45,70 @@ function resolveServerUrl(req: any): string {
  */
 const ONBOARD_REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
 
+/** 版本号比较：1.0.20260924 > 1.0.20260923。 */
+function compareVersionStrings(a: string, b: string): number {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
 @Controller('agent')
 export class AgentController {
   constructor(
     private readonly agentService: AgentService,
     private readonly wsGateway: WsGateway,
     private readonly jwt: JwtService,
-  ) {}
+  ) {
+    // 名额一空就叫下一位排队的人来下载（正在接单的跳过）。
+    // 没有这一步的话，一台下完名额就空着，其他人要等 30 分钟才来问一次，
+    // 一次发布要几小时才能铺开。
+    this.agentService.setUpdateNotifier(() => this.pumpUpdateQueue());
+  }
+
+  /**
+   * 叫号：按排队先后问一遍，跳过正在接单（不能打断）和已经是最新版本的机器，
+   * 把「去更新」推给第一台能更新的机器；剩下的等下一次 release 继续叫。
+   */
+  private async pumpUpdateQueue(): Promise<void> {
+    const skipped: Array<{ companionId: string; firstAskedAt: number }> = [];
+    try {
+      const { version, downloadUrl } = await this.agentService.getLatestVersion();
+      for (let i = 0; i < 50; i += 1) {
+        const next = this.agentService.takeNextUpdateWaiter();
+        if (!next) break;
+        if (await this.agentService.isCompanionInService(next.companionId)) {
+          skipped.push(next);
+          continue;
+        }
+        const [target] = await this.agentService.getCompanionTargetsByIds([next.companionId]);
+        if (target && compareVersionStrings(target.agentVersion, version) >= 0) {
+          logger.info('Update queue: already on latest, skip', {
+            companionId: next.companionId,
+            agentVersion: target.agentVersion,
+            version,
+          });
+          continue;
+        }
+        const sent = this.wsGateway.sendCommand(next.companionId, 'update', { downloadUrl, version });
+        logger.info('Update queue: notify next waiter', {
+          companionId: next.companionId,
+          name: target?.name,
+          sent,
+          version,
+        });
+        if (sent) return;
+      }
+    } catch (err: any) {
+      logger.warn(`Update queue pump error: ${err?.message || err}`);
+    } finally {
+      for (const waiter of skipped) this.agentService.requeueUpdateWaiter(waiter);
+    }
+  }
 
   /** 客户端更新时带的是 refreshToken（7 天），而标准 JWT 守卫只认 accessToken（15 分钟）。
    *  这里手动用双密钥验证，避免 update/acquire 因 401 卡住导致永远无法更新。 */
@@ -238,6 +295,14 @@ export class AgentController {
   async getVersionStatus(): Promise<ApiResponse<unknown>> {
     const data = await this.agentService.getVersionStatus();
     return { code: 200, message: 'ok', data };
+  }
+
+  // Admin only: 看更新队列（谁在下载、几台在排队），发布时用来盯铺开进度
+  @Get('update/queue')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getUpdateQueue(): Promise<ApiResponse<unknown>> {
+    return { code: 200, message: 'ok', data: this.agentService.getUpdateSlot() };
   }
 
   // Admin only: trigger build and push

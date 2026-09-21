@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
@@ -22,10 +22,45 @@ const HOLD_MIN_MS = 3 * 60 * 1000;
 /** 谁在排队、排了多久。 */
 const updateWaiters = new Map<string, { firstAskedAt: number }>();
 
+/** 排队中的一台机器（给 controller 叫号用）。 */
+export type UpdateWaiter = { companionId: string; firstAskedAt: number };
+
 @Injectable()
-export class AgentService {
+export class AgentService implements OnModuleInit, OnModuleDestroy {
   /** 进程启动标识：只给服务端自己看（诊断用），不再当作「前端构建号」下发。 */
   readonly processStartedId = Date.now().toString(36);
+
+  /**
+   * 叫号回调：由 AgentController 注入（只有它拿得到 WS 网关）。
+   * 名额一空就喊下一位排队的人立刻来下载，链条才不会断。
+   */
+  private updateNotifier: (() => Promise<void>) | null = null;
+
+  private updateSlotTimer: ReturnType<typeof setInterval> | null = null;
+
+  setUpdateNotifier(fn: () => Promise<void>): void {
+    this.updateNotifier = fn;
+  }
+
+  onModuleInit(): void {
+    // 每分钟看一眼更新队列：
+    // 1) 名额被占住却没人释放（客户端下到一半断网/崩了）→ 兜底腾位；
+    // 2) 名额空着却还有人在排队 → 继续叫号，别让队列停在那儿等人 30 分钟后自己来问。
+    this.updateSlotTimer = setInterval(() => {
+      if (updateSlot.companionId) {
+        if (Date.now() - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) return; // 有人在下载：别打扰
+        logger.warn(`Update slot timed out, releasing ${updateSlot.companionId}`);
+        updateSlot = { companionId: '', startedAt: 0 };
+      }
+      this.pumpUpdateQueue();
+    }, 60_000);
+    this.updateSlotTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.updateSlotTimer) clearInterval(this.updateSlotTimer);
+    this.updateSlotTimer = null;
+  }
 
   private webBuildCache: { key: string; id: string } | null = null;
 
@@ -133,6 +168,46 @@ export class AgentService {
       updateSlot = { companionId: '', startedAt: 0 };
     }
     updateWaiters.delete(companionId);
+    // 名额空了：立刻叫下一位，别让它干等到下一次 30 分钟轮询。
+    this.pumpUpdateQueue();
+  }
+
+  /** 当前名额状态（诊断/联调用）。 */
+  getUpdateSlot(): { companionId: string; heldMs: number; waiters: number } {
+    return {
+      companionId: updateSlot.companionId,
+      heldMs: updateSlot.companionId ? Date.now() - updateSlot.startedAt : 0,
+      waiters: updateWaiters.size,
+    };
+  }
+
+  /** 取排队最久的一台（跳过没身份、推不了 WS 的匿名机器）。 */
+  takeNextUpdateWaiter(): UpdateWaiter | null {
+    let next: UpdateWaiter | null = null;
+    for (const [companionId, waiter] of updateWaiters) {
+      if (companionId.startsWith('anon:')) continue;
+      if (!next || waiter.firstAskedAt < next.firstAskedAt) {
+        next = { companionId, firstAskedAt: waiter.firstAskedAt };
+      }
+    }
+    if (next) updateWaiters.delete(next.companionId);
+    return next;
+  }
+
+  /** 被跳过（例如正在接单）的机器放回队列，保留原来的排队时间，别让它排到队尾。 */
+  requeueUpdateWaiter(waiter: UpdateWaiter): void {
+    if (!updateWaiters.has(waiter.companionId)) {
+      updateWaiters.set(waiter.companionId, { firstAskedAt: waiter.firstAskedAt });
+    }
+  }
+
+  /** 名额一空就叫号（交给 controller，它才拿得到 WS 网关）。 */
+  pumpUpdateQueue(): void {
+    if (!this.updateNotifier) return;
+    if (updateSlot.companionId && Date.now() - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) return;
+    void this.updateNotifier().catch((err) =>
+      logger.warn(`Update queue pump failed: ${err?.message || err}`),
+    );
   }
 
   async getOnlineCompanionTargets(studioId?: string): Promise<
