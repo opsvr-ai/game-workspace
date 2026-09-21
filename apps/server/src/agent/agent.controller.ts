@@ -98,6 +98,14 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  // Public: 前端把「请求根本没到服务器」的网络层故障回传上来。
+  // 服务端日志看不到这类失败（连接都没建立），只能靠前端上报，落到 client-errors/。
+  @Post('client-error')
+  async clientError(@Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = this.agentService.recordClientError({ ...(body || {}), ip: req.ip });
+    return { code: 200, message: 'ok', data };
+  }
+
   // Public: CS client checks for its own updates
   @Get('cs-version')
   async getCsVersion(): Promise<ApiResponse<unknown>> {
@@ -176,8 +184,9 @@ export class AgentController {
   // 陪玩端下载更新前先申请名额，服务端串行放行，避免多台同时下载抢带宽。
   @Post('update/acquire')
   async acquireUpdateSlot(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const companionId = this.resolveCompanionId(req);
-    if (!companionId) return { code: 400, message: '缺少陪玩ID', data: null };
+    // 新机器装完还没登录，拿不到令牌：用 IP 兜底给它一个排队身份。
+    // 否则客户端只能打印「Update slot busy」，版本卡死在装机包那一版。
+    const companionId = this.resolveCompanionId(req) || `anon:${req.ip || 'unknown'}`;
     const result = this.agentService.acquireUpdateSlot(companionId);
     return { code: 200, message: 'ok', data: result };
   }

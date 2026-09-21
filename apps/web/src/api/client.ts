@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { reportClientError } from './diagnostics';
 import type {
   ApiResponse,
   LoginRequest,
@@ -92,6 +93,16 @@ http.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
+    // 网络层失败（服务端一个字节都没收到）在前端最难查：服务端日志里干干净净，什么都没有。
+    // 统一回传一条到服务器 client-errors/，以后「动不动报网络错误/掉线」有据可查。
+    if (!error.response) {
+      reportClientError({
+        phase: 'axios-network',
+        url: error.config?.url,
+        message: error.message,
+        detail: `method=${error.config?.method || ''} timeout=${(error.config as any)?.timeout || ''}`,
+      });
+    }
     const originalRequest = error.config as AxiosError['config'] & {
       _retry?: boolean;
     };

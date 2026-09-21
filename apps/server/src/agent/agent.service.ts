@@ -15,6 +15,12 @@ const logger = new Logger('AgentService');
 // 串行更新锁：同一时间只允许一个客户端下载更新包，避免多台机器同时抢带宽导致谁都下不动。
 let updateSlot: { companionId: string; startedAt: number } = { companionId: '', startedAt: 0 };
 const UPDATE_SLOT_TIMEOUT = 10 * 60 * 1000; // 10 分钟超时，避免某台卡死长期占住名额
+/** 一直在排队、等了这么久的机器可以直接把名额接过去（防止老版本永远轮不到）。 */
+const WAIT_PRIORITY_MS = 5 * 60 * 1000;
+/** 但当前那台至少先让它下载 3 分钟，别刚下到一半就被打断。 */
+const HOLD_MIN_MS = 3 * 60 * 1000;
+/** 谁在排队、排了多久。 */
+const updateWaiters = new Map<string, { firstAskedAt: number }>();
 
 @Injectable()
 export class AgentService {
@@ -101,9 +107,23 @@ export class AgentService {
     const now = Date.now();
     if (updateSlot.companionId && now - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) {
       if (updateSlot.companionId === companionId) return { granted: true };
+
+      // 排队记账：每 5 分钟来申请一次却一直抢不到的机器（新装的机房电脑常常这样），
+      // 等够 WAIT_PRIORITY_MS 就把名额让给它，避免老版本永远挂着不更新。
+      const waiter = updateWaiters.get(companionId) || { firstAskedAt: now };
+      updateWaiters.set(companionId, waiter);
+      const waitedMs = now - waiter.firstAskedAt;
+      const heldMs = now - updateSlot.startedAt;
+      if (waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
+        logger.warn(`Update slot preempted for waiter ${companionId} (waited ${Math.round(waitedMs / 1000)}s)`);
+        updateSlot = { companionId, startedAt: now };
+        updateWaiters.delete(companionId);
+        return { granted: true };
+      }
       return { granted: false, waitingFor: updateSlot.companionId };
     }
     updateSlot = { companionId, startedAt: now };
+    updateWaiters.delete(companionId);
     return { granted: true };
   }
 
@@ -112,6 +132,7 @@ export class AgentService {
     if (updateSlot.companionId === companionId) {
       updateSlot = { companionId: '', startedAt: 0 };
     }
+    updateWaiters.delete(companionId);
   }
 
   async getOnlineCompanionTargets(studioId?: string): Promise<
@@ -650,18 +671,60 @@ export class AgentService {
     }
   }
 
+  /**
+   * 前端报上来的「网络层故障」。
+   *
+   * 老板 2026-09-21 报「新电脑注册点了提交提示 Network Error」，服务端日志里连请求都没有
+   * （浏览器/Electron 在发出去之前就失败了），只看服务端永远查不到原因。前端在 catch 里
+   * 把这条记录回传上来，落到 client-errors/ 下面，管理员可以直接读文件定位。
+   */
+  recordClientError(payload: any): { saved: boolean; at: string; file: string } {
+    const clean = (v: unknown, max: number) => String(v ?? '').slice(0, max);
+    const record = {
+      at: new Date().toISOString(),
+      ip: clean(payload?.ip, 64),
+      user: clean(payload?.user, 64),
+      role: clean(payload?.role, 32),
+      appVersion: clean(payload?.appVersion, 64),
+      page: clean(payload?.page, 200),
+      url: clean(payload?.url, 300),
+      phase: clean(payload?.phase, 120),
+      status: typeof payload?.status === 'number' ? payload.status : null,
+      message: clean(payload?.message, 500),
+      detail: clean(payload?.detail, 1200),
+      ua: clean(payload?.ua, 400),
+    };
+    const dir = this.resolveDataDir('client-errors');
+    const day = record.at.slice(0, 10);
+    const file = path.join(dir, `client-errors-${day}.jsonl`);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(file, JSON.stringify(record) + '\n', 'utf8');
+      logger.warn(`Client error reported: [${record.phase}] ${record.url} ${record.message}`);
+      return { saved: true, at: record.at, file };
+    } catch (err: any) {
+      logger.error(`Client error report failed: ${err?.message || err}`);
+      return { saved: false, at: record.at, file };
+    }
+  }
+
   /** 装机上报目录：和 uploads 同级（部署在 repo 根目录），找不到就退回系统临时目录。 */
   private resolveOnboardReportDir(): string {
+    return this.resolveDataDir('onboard-reports');
+  }
+
+  /** 数据落盘目录：和 uploads 同级（部署在 repo 根目录），公网下不到，找不到就退回系统临时目录。 */
+  private resolveDataDir(name: string): string {
     let dir = __dirname;
     for (let depth = 0; depth < 6; depth += 1) {
       if (fs.existsSync(path.join(dir, 'uploads'))) {
-        return path.join(dir, 'onboard-reports');
+        return path.join(dir, name);
       }
       const parent = path.dirname(dir);
       if (parent === dir) break;
       dir = parent;
     }
-    return path.join(os.tmpdir(), 'chunlv-onboard-reports');
+    return path.join(os.tmpdir(), `chunlv-${name}`);
   }
 
   private escapePowerShellLiteral(value: string): string {

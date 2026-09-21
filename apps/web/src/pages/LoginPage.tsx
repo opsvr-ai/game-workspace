@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
+import { reportClientError, diagnoseUploadPath } from '../api/diagnostics';
+import { compressImage } from '../utils/imageCompress';
 
 const { Text } = Typography;
 const { Option } = Select;
 
 const IconUser = React.createElement(UserOutlined);
 const IconLock = React.createElement(LockOutlined);
+const CLIENT_VERSION = '1.0.20260854';
 
 const roleRouteMap: Record<UserRole, string> = {
   [UserRole.OWNER]: '/admin',
@@ -21,11 +24,24 @@ const roleRouteMap: Record<UserRole, string> = {
 
 const LoginPage: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite') || '';
+  const [inviteStudioName, setInviteStudioName] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [showInviteLogin, setShowInviteLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [usernameError, setUsernameError] = useState('');
   const didAutoLogin = useRef(false);
+  const [forgotVisible, setForgotVisible] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotIdNumber, setForgotIdNumber] = useState('');
+  const [forgotPassword, setForgotPassword] = useState('');
+  const [forgotConfirm, setForgotConfirm] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   // Electron 端自动填充上次安全保存的登录凭据
   useEffect(() => {
@@ -69,6 +85,7 @@ const LoginPage: React.FC = () => {
   const [registerStudioId, setRegisterStudioId] = useState('');
   const [registerAddress, setRegisterAddress] = useState('');
   const [leaseContract, setLeaseContract] = useState<File | null>(null);
+  const [skipPhotos, setSkipPhotos] = useState(false);
   const isCompanionRole = registerRole.includes('COMPANION');
   const isAdminRole = registerRole.includes('ADMIN');
   const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
@@ -154,7 +171,38 @@ const LoginPage: React.FC = () => {
 
   const handleLogin = () => performLogin(username, password, rememberMe);
 
-  const handleRegister = async () => {
+  const handleForgotPassword = async () => {
+    if (!forgotUsername.trim() || !forgotIdNumber.trim() || !forgotPassword || !forgotConfirm) {
+      message.warning('请填写账号、身份证号和新密码');
+      return;
+    }
+    if (forgotPassword.length < 6) {
+      message.warning('新密码至少6位');
+      return;
+    }
+    if (forgotPassword !== forgotConfirm) {
+      message.warning('两次输入的新密码不一致');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await http.post('/auth/forgot-password', {
+        username: forgotUsername.trim(),
+        idNumber: forgotIdNumber.trim(),
+        newPassword: forgotPassword,
+      });
+      message.success('密码已重置，请用新密码登录');
+      setForgotVisible(false);
+      setUsername(forgotUsername.trim());
+      setPassword('');
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '重置失败');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleRegister = async (allowNoPhotos = false) => {
     if (!password || !realName || !idNumber || !phone) {
       message.warning('请填写所有必填字段');
       return;
@@ -167,7 +215,7 @@ const LoginPage: React.FC = () => {
       message.warning('线下工作室店长需要填写地址');
       return;
     }
-    if (!idCardFront || !idCardBack) {
+    if (!allowNoPhotos && (!idCardFront || !idCardBack)) {
       message.warning('注册需要上传身份证正反面照片');
       return;
     }
@@ -179,23 +227,71 @@ const LoginPage: React.FC = () => {
     const apiRole = roleMap[registerRole] || 'COMPANION';
 
     setLoading(true);
+    let photoKb = 0;
     try {
-      console.log('注册提交', { username, realName, phone, apiRole, registerRole, registerStudioId, registerAddress });
-      const formData = new FormData();
-      formData.append('username', realName);
-      formData.append('password', password);
-      formData.append('realName', realName);
-      formData.append('idNumber', idNumber || '');
-      formData.append('phone', phone);
-      formData.append('studioId', registerStudioId);
-      formData.append('role', apiRole);
-      formData.append('registerRole', registerRole); // keep original for studio type detection
-      if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
-      if (isOfflineAdmin && leaseContract) formData.append('leaseContract', leaseContract);
-      if (idCardFront) formData.append('idCardFront', idCardFront);
-      if (idCardBack) formData.append('idCardBack', idCardBack);
+      console.log('注册提交', { realName, phone, apiRole, registerRole, registerStudioId, registerAddress, allowNoPhotos });
 
-      const res = await http.post('/auth/register', formData);
+      // 手机拍的身份证照片动辄 4~8MB，两张十几兆：弱网上传慢，还容易被安全软件的上网保护
+      // 掐断（表现就是「请求根本没到服务器」的 Network Error）。上传前统一压缩到长边 1600。
+      let frontFile: File | null = allowNoPhotos ? null : idCardFront;
+      let backFile: File | null = allowNoPhotos ? null : idCardBack;
+      if (frontFile && backFile) {
+        try {
+          [frontFile, backFile] = await Promise.all([compressImage(frontFile), compressImage(backFile)]);
+        } catch (err: any) {
+          reportClientError({
+            phase: 'register-photo-read',
+            url: '/auth/register',
+            message: String(err?.message || err),
+            detail: `front=${idCardFront?.name}/${idCardFront?.size}B back=${idCardBack?.name}/${idCardBack?.size}B`,
+          });
+          Modal.error({
+            title: '照片读取失败',
+            content: React.createElement(
+              'div',
+              null,
+              React.createElement('div', null, String(err?.message || '身份证照片读取失败')),
+              React.createElement('div', { style: { marginTop: 8 } }, '常见原因：① 照片是 iPhone 的 HEIC 等格式，请先转成 JPG 再上传；② 照片是从手机 / 网盘 / 微信临时目录里选的，原文件已经不在了，请先另存到【本机桌面】再选。'),
+            ),
+          });
+          return;
+        }
+        photoKb = Math.round((frontFile.size + backFile.size) / 1024);
+      }
+
+      const buildForm = () => {
+        const formData = new FormData();
+        formData.append('username', realName);
+        formData.append('password', password);
+        formData.append('realName', realName);
+        formData.append('idNumber', idNumber || '');
+        formData.append('phone', phone);
+        formData.append('studioId', registerStudioId);
+        formData.append('role', apiRole);
+        formData.append('registerRole', registerRole); // keep original for studio type detection
+        if (isOfflineAdmin && registerAddress) formData.append('address', registerAddress);
+        if (isOfflineAdmin && leaseContract) formData.append('leaseContract', leaseContract);
+        if (frontFile) formData.append('idCardFront', frontFile);
+        if (backFile) formData.append('idCardBack', backFile);
+        return formData;
+      };
+
+      let res;
+      try {
+        res = await http.post('/auth/register', buildForm());
+      } catch (err: any) {
+        // 没有 response = 请求根本没到服务器（断网 / 安全软件拦截 / 路由器掐断），先自动重试一次
+        if (err?.response || allowNoPhotos) throw err;
+        reportClientError({
+          phase: 'register-network-retry',
+          url: '/auth/register',
+          message: String(err?.message || err),
+          detail: `第一次失败，照片合计 ${photoKb}KB，1.5 秒后重试`,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        res = await http.post('/auth/register', buildForm());
+      }
+
       if (res.data?.code === 201) {
         message.success('✅ 注册成功！请等待管理员审核通过后登录', 8);
         setMode('login');
@@ -204,9 +300,92 @@ const LoginPage: React.FC = () => {
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || '注册失败，请检查网络';
-      Modal.error({ title: '注册失败', content: msg });
+      const networkLevel = !err?.response;
+      let diagnosis: string[] = [];
+      if (networkLevel) {
+        diagnosis = await diagnoseUploadPath();
+        reportClientError({
+          phase: allowNoPhotos ? 'register-failed-nophoto' : 'register-failed',
+          url: '/auth/register',
+          status: null,
+          message: msg,
+          detail: `${diagnosis.join(' | ')} | 本次照片 ${photoKb}KB`,
+        });
+      }
+      Modal.error({
+        title: '注册失败',
+        content: React.createElement(
+          'div',
+          null,
+          React.createElement('div', null, msg),
+          networkLevel
+            ? React.createElement('div', { style: { marginTop: 10, color: '#B45309' } },
+                '这次请求根本没到服务器（网络中断，或被这台电脑的安全软件 / 上网保护拦了）。系统已自动重试并做了一轮自检：')
+            : null,
+          ...diagnosis.map((line, index) =>
+            React.createElement('div', { key: index, style: { marginTop: 4, fontSize: 13, color: '#475569' } }, line)),
+          networkLevel
+            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: '#475569' } },
+                '自检里「纯文字请求」通了、带照片那条失败：多半是杀毒软件的上网保护在拦上传 —— 把 1.117.229.36 加进信任，或临时关掉「上网保护」再试一次。照片已经自动压缩过，正常网络下重试一般就能过。')
+            : null,
+          networkLevel && !allowNoPhotos
+            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: '#475569' } },
+                '照片一直传不上去：可以点下面的「先不带照片提交」，让店长之后在人员资料里补传照片。')
+            : null,
+        ),
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInviteRegister = async () => {
+    if (!inviteStudioName.trim() || !inviteUsername.trim() || !invitePassword) {
+      message.warning('请填写工作室名称、登录账号和密码');
+      return;
+    }
+    if (invitePassword.length < 6) {
+      message.warning('密码至少6位');
+      return;
+    }
+    setInviteSubmitting(true);
+    try {
+      const res = await http.post('/studios/register-invite', {
+        token: inviteToken,
+        studioName: inviteStudioName.trim(),
+        username: inviteUsername.trim(),
+        password: invitePassword,
+      });
+      if (res.data?.code === 200) {
+        // 开通成功后直接登录，不再让用户停在“下一步怎么登录”的疑惑里
+        setInviteSubmitting(false);
+        await performLogin(res.data.data.username, invitePassword, true);
+        // 登录成功后静默下载最新客户端，并用版本号防浏览器缓存旧包
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = `/api/agent/download/exe?v=${CLIENT_VERSION}`;
+          a.download = '陪玩管理-Setup.exe';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }, 800);
+        return;
+      } else {
+        const msg = res.data?.message || '开通失败';
+        if (res.data?.code === 409 || msg.includes('已存在') || msg.includes('已有')) {
+          setShowInviteLogin(true);
+          setUsername(inviteUsername.trim());
+          setPassword('');
+          message.warning('该登录账号已存在，请直接登录');
+        } else {
+          message.error(msg);
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || '开通失败';
+      message.error(msg);
+    } finally {
+      setInviteSubmitting(false);
     }
   };
 
@@ -215,9 +394,97 @@ const LoginPage: React.FC = () => {
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
-        <div className="subtitle">陪玩管理系统</div>
+        <div className="subtitle">陪玩管理系统 · 前端 v527</div>
 
-        {mode === 'login' ? (
+        {inviteToken ? (
+          showInviteLogin ? (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 16 }}>🔑 直接登录</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    账号已存在，请输入账号密码登录。
+                  </Text>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <Input
+                  size="large"
+                  placeholder="登录账号"
+                  prefix={IconUser}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onPressEnter={handleLogin}
+                />
+                <Input.Password
+                  size="large"
+                  placeholder="密码"
+                  prefix={IconLock}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onPressEnter={handleLogin}
+                />
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  loading={loading}
+                  onClick={handleLogin}
+                  style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4 }}
+                >
+                  登 录
+                </Button>
+                <Button type="link" onClick={() => { setShowInviteLogin(false); setPassword(''); }}>
+                  ← 返回工作室开通
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 16 }}>🏢 工作室开通</Text>
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    填写你的工作室名称和登录账号密码，提交后即可登录使用。
+                  </Text>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Input
+                  size="large"
+                  placeholder="工作室名称 *"
+                  value={inviteStudioName}
+                  onChange={(e) => setInviteStudioName(e.target.value)}
+                />
+                <Input
+                  size="large"
+                  placeholder="登录账号（店长姓名）*"
+                  value={inviteUsername}
+                  onChange={(e) => setInviteUsername(e.target.value)}
+                />
+                <Input.Password
+                  size="large"
+                  placeholder="密码（至少6位）*"
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                />
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  loading={inviteSubmitting}
+                  onClick={handleInviteRegister}
+                  style={{ height: 46, fontSize: 16, fontWeight: 600, borderRadius: 10, marginTop: 4 }}
+                >
+                  开通并登录
+                </Button>
+                <Button type="link" onClick={() => { setShowInviteLogin(true); setUsername(inviteUsername.trim()); }}>
+                  已有账号？直接登录
+                </Button>
+              </div>
+            </>
+          )
+        ) : mode === 'login' ? (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Input
@@ -240,6 +507,19 @@ const LoginPage: React.FC = () => {
                 <Checkbox checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}>
                   记住账号密码
                 </Checkbox>
+                <Button
+                  type="link"
+                  onClick={() => {
+                    setForgotUsername(username);
+                    setForgotIdNumber('');
+                    setForgotPassword('');
+                    setForgotConfirm('');
+                    setForgotVisible(true);
+                  }}
+                  style={{ float: 'right', padding: 0, fontSize: 13 }}
+                >
+                  忘记密码？
+                </Button>
               </div>
               <Button
                 type="primary"
@@ -366,12 +646,25 @@ const LoginPage: React.FC = () => {
                   </Button>
                 </Upload>
               </div>
+              {!skipPhotos && (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => {
+                    setSkipPhotos(true);
+                    void handleRegister(true);
+                  }}
+                  style={{ color: '#94A3B8', fontSize: 12, padding: 0, height: 20 }}
+                >
+                  照片一直传不上去？先不带照片提交（店长稍后补传）
+                </Button>
+              )}
               <Button
                 type="primary"
                 size="large"
                 block
                 loading={loading}
-                onClick={handleRegister}
+                onClick={() => handleRegister()}
                 style={{
                   height: 46,
                   fontSize: 16,
@@ -394,9 +687,45 @@ const LoginPage: React.FC = () => {
           </>
         )}
 
+        <Modal
+          title="重置密码"
+          open={forgotVisible}
+          onCancel={() => setForgotVisible(false)}
+          onOk={handleForgotPassword}
+          okText="重置密码"
+          cancelText="取消"
+          confirmLoading={forgotLoading}
+          width={360}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+            <Input
+              placeholder="登录姓名"
+              value={forgotUsername}
+              onChange={(e) => setForgotUsername(e.target.value)}
+            />
+            <Input
+              placeholder="身份证号"
+              value={forgotIdNumber}
+              onChange={(e) => setForgotIdNumber(e.target.value)}
+              maxLength={18}
+            />
+            <Input.Password
+              placeholder="新密码（至少6位）"
+              value={forgotPassword}
+              onChange={(e) => setForgotPassword(e.target.value)}
+            />
+            <Input.Password
+              placeholder="再次输入新密码"
+              value={forgotConfirm}
+              onChange={(e) => setForgotConfirm(e.target.value)}
+              onPressEnter={handleForgotPassword}
+            />
+          </div>
+        </Modal>
+
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           <a
-            href="/api/download/agent"
+            href={`/api/agent/download/exe?v=${CLIENT_VERSION}`}
             download
             style={{ color: '#2563EB', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
           >

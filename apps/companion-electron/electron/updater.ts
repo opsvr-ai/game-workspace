@@ -69,7 +69,6 @@ function downloadZipWithProgress(
 }
 
 async function acquireUpdateSlot(serverUrl: string, token: string): Promise<boolean> {
-  if (!token) return false;
   try {
     const res = await fetch(`${serverUrl}/api/agent/update/acquire`, {
       method: 'POST',
@@ -98,8 +97,10 @@ async function performUpdate(downloadUrl: string): Promise<void> {
   // 串行更新：先申请下载名额，没名额就等下一次检查，避免多台同时下载把带宽打满、谁也下不动。
   const serverUrl = getServerUrl();
   const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+  // 新机器刚装完还没登录，store 里没有令牌。以前这里直接 return false，于是永远打印一句
+  // 「Update slot busy」，客户端版本卡死在装机包那一版。现在没令牌也去申请名额（服务端按机器记账）。
   if (!(await acquireUpdateSlot(serverUrl, token))) {
-    logger.info('Update slot busy, skip this round and retry later');
+    logger.info('Update slot busy, skip this round and retry later', { hasToken: !!token });
     return;
   }
   const localDir = 'C:\\ProgramData\\chunlv';

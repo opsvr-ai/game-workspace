@@ -8,6 +8,7 @@ import { IdentityVerifyService } from './identity-verify.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { RolesGuard, Roles } from './roles.guard';
 import { UserRole } from '@chunlv/shared';
@@ -35,20 +36,20 @@ export class RegisterController {
       ],
       {
         storage: diskStorage({
-          destination: join(process.cwd(), '../../uploads/idcards'),
+          destination: (_req, _file, cb) => {
+            const dir = join(process.cwd(), '../../uploads/idcards');
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+          },
           filename: (_req, file, cb) => {
             const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
             cb(null, unique + extname(file.originalname));
           },
         }),
-        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-        fileFilter: (_req, file, cb) => {
-          if (!file.mimetype.match(/^image\/(jpeg|png|webp)$/)) {
-            cb(new Error('仅支持 JPG/PNG/WEBP 格式'), false);
-            return;
-          }
-          cb(null, true);
-        },
+        limits: { fileSize: 10 * 1024 * 1024 }, // 10MB，避免身份证照片稍大就触发服务器内部错误
+        // 这里故意不用 fileFilter 直接拒收：multer 一拒就会把正在上传的连接掐掉，
+        // 浏览器那边看到的是「Network Error（请求根本没到服务器）」，而不是一句人话。
+        // 改成先把字节收完，再在下面校验格式/大小，用户才能看到真正的提示。
       },
     ),
   )
@@ -95,6 +96,22 @@ export class RegisterController {
       if (!vr.valid) return { code: 400, message: vr.reason || '身份验证失败', data: null };
     } catch {}
 
+    // 上传格式校验（见上面的说明：不能在 multer 的 fileFilter 里拒，会变成网络错误）
+    const allowedImage = /^image\/(jpeg|png|webp)$/;
+    const uploadedFiles = [files?.idCardFront?.[0], files?.idCardBack?.[0], files?.leaseContract?.[0]]
+      .filter(Boolean) as Express.Multer.File[];
+    const badImage = uploadedFiles.find((f) => !allowedImage.test(f.mimetype));
+    if (badImage) {
+      for (const f of uploadedFiles) {
+        try { unlinkSync(f.path); } catch { /* 清理失败不影响返回 */ }
+      }
+      return {
+        code: 400,
+        message: `照片格式不支持（${badImage.originalname}），请用 JPG / PNG / WEBP 图片重新上传`,
+        data: null,
+      };
+    }
+
     const idCardFront = files?.idCardFront?.[0]?.filename ?? null;
     const idCardBack = files?.idCardBack?.[0]?.filename ?? null;
     const leaseContractUrl = files?.leaseContract?.[0]?.filename
@@ -106,6 +123,9 @@ export class RegisterController {
     const isCompanion = role === 'COMPANION';
 
     let studioId = body.studioId;
+    if (isCompanion && !studioId) {
+      return { code: 400, message: '请选择工作室', data: null };
+    }
 
     let user;
     try {
@@ -171,11 +191,11 @@ export class RegisterController {
         id: true, username: true, role: true, displayName: true, address: true,
         leaseContractUrl: true, realName: true, idNumber: true, phone: true, idCardFront: true, idCardBack: true, createdAt: true,
         studio: { select: { id: true, name: true } },
-        companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true, idCardFront: true, idCardBack: true } },
+        companion: { select: { id: true, realName: true, idNumber: true, phone: true, reviewStatus: true, idCardFront: true, idCardBack: true, isResigned: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return { code: 200, message: 'ok', data };
+    return { code: 200, message: 'ok', data: data.filter((u) => !u.companion?.isResigned) };
   }
 
   // 工作室客服列表（用于绑定工作室/客服微信）
@@ -202,7 +222,7 @@ export class RegisterController {
       where.studioId = req.user.studioId;
     }
     const data = await this.prisma.companion.findMany({
-      where,
+      where: { ...where, isResigned: false },
       include: {
         user: { select: { username: true } },
         studio: { select: { id: true, name: true } },
@@ -237,23 +257,23 @@ export class RegisterController {
 
     const isApproved = body.action === 'APPROVED';
 
-    await this.prisma.companion.update({
-      where: { id },
-      data: {
-        reviewStatus: body.action,
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
-        reviewNote: body.note ?? null,
-      },
-    });
-
-    // 审核通过时，自动授权用户登录
-    if (isApproved) {
-      await this.prisma.user.update({
+    // 审核状态与账号授权在同一个事务里原子更新，收敛成单一登录门槛（isAuthorized），
+    // 通过即授权、拒绝即取消授权，避免出现「审核过了但登录不了」的双系统不一致。
+    await this.prisma.$transaction([
+      this.prisma.companion.update({
+        where: { id },
+        data: {
+          reviewStatus: body.action,
+          reviewedById: req.user.id,
+          reviewedAt: new Date(),
+          reviewNote: body.note ?? null,
+        },
+      }),
+      this.prisma.user.update({
         where: { id: companion.userId },
-        data: { isAuthorized: true },
-      });
-    }
+        data: { isAuthorized: isApproved },
+      }),
+    ]);
 
     return {
       code: 200,
