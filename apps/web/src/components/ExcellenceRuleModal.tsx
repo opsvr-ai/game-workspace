@@ -46,7 +46,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
   const renewScore = Math.round((data?.renewRate ?? 0) * 0.2);
   const repurchaseScore = Math.round((data?.repurchaseRate ?? 0) * 0.2);
   const newScore = Math.round((data?.newRate ?? 0) * 0.1);
-  const tier = TIER[data?.tier || 'LOW'];
+  const tier = TIER[data?.tier || 'MIDDLE'];
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={640} title="🏆 综合评分说明">
@@ -62,7 +62,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               message={
                 <Space>
                   <span>我的综合分：<b>{data.rankScore ?? 0}</b> 分</span>
-                  <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={data?.tier || 'LOW'} /> {tier.label}</Tag>
+              <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={(data?.tier || 'MIDDLE') as 'TOP' | 'MIDDLE' | 'LOW'} /> {tier.label}</Tag>
                 </Space>
               }
               description={data.tier === 'TOP'
@@ -104,7 +104,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
             <li>客服派单时，快结束的陪玩列表里你排前面。</li>
           </ul>
 
-          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description="多上传你的高光战绩图（最少 3 张一组），管理端采纳后每组 +1 分；同时把续单/复购率做上去，月流水冲到 10000 元。综合分达到 50 分即进入上等马。" />
+          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description="综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。各项按「档位」给分（达到哪一档拿哪一档的分）；综合分达到 50 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。" />
         </div>
       )}
     </Modal>

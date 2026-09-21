@@ -33,6 +33,15 @@ export class AuthController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  async forgotPassword(
+    @Body() body: { username: string; idNumber: string; newPassword: string },
+  ): Promise<ApiResponse<null>> {
+    await this.authService.resetPasswordByIdNumber(body?.username, body?.idNumber, body?.newPassword);
+    return { code: 200, message: '密码已重置，请使用新密码登录', data: null };
+  }
+
   @Post('refresh')
   async refresh(@Body() dto: RefreshDto): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
     const data = await this.authService.refresh(dto.refreshToken);

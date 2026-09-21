@@ -5,10 +5,14 @@ import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Spa
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import PageHeader from '../components/PageHeader';
+import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
 const WorkWechatPage: React.FC = () => {
+  const role = useAuthStore((s) => s.user?.role);
+  const isCs = role === 'CS';
+
   const [searchParams] = useSearchParams();
   const typeFilter = searchParams.get('type') || '';
   const [wechats, setWechats] = useState<any[]>([]);
@@ -20,6 +24,8 @@ const WorkWechatPage: React.FC = () => {
   const [csUsers, setCsUsers] = useState<any[]>([]);
   const [bindingId, setBindingId] = useState<string | null>(null);
   const [boundNames, setBoundNames] = useState<Record<string, string>>({});
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [nicknameDraft, setNicknameDraft] = useState('');
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -137,6 +143,18 @@ const WorkWechatPage: React.FC = () => {
     }
   };
 
+  const saveNickname = async (id: string) => {
+    try {
+      await http.put(`/companions/work-wechats/${id}/nickname`, { nickname: nicknameDraft });
+      message.success('昵称已保存');
+      setEditingNicknameId(null);
+      setNicknameDraft('');
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '保存失败');
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -149,29 +167,31 @@ const WorkWechatPage: React.FC = () => {
         }
       />
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <Input
-          placeholder="输入微信号"
-          value={newWechatId}
-          onChange={(e) => setNewWechatId(e.target.value)}
-          onPressEnter={handleAdd}
-          style={{ width: 200 }}
-        />
-        {!typeFilter && (
-          <Select
-            value={newType}
-            onChange={setNewType}
-            style={{ width: 150 }}
-            options={[
-              { label: '陪玩微信', value: 'COMPANION' },
-              { label: '工作室/客服微信', value: 'STUDIO' },
-            ]}
+      {!isCs && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <Input
+            placeholder="输入微信号"
+            value={newWechatId}
+            onChange={(e) => setNewWechatId(e.target.value)}
+            onPressEnter={handleAdd}
+            style={{ width: 200 }}
           />
-        )}
-        <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
-          添加
-        </Button>
-      </div>
+          {!typeFilter && (
+            <Select
+              value={newType}
+              onChange={setNewType}
+              style={{ width: 150 }}
+              options={[
+                { label: '陪玩微信', value: 'COMPANION' },
+                { label: '工作室/客服微信', value: 'STUDIO' },
+              ]}
+            />
+          )}
+          <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
+            添加
+          </Button>
+        </div>
+      )}
 
       <Table
         dataSource={wechats}
@@ -191,6 +211,43 @@ const WorkWechatPage: React.FC = () => {
             dataIndex: 'wechatId',
             key: 'wechatId',
             render: (v: string) => <Text strong>📱 {v}</Text>,
+          },
+          {
+            title: '昵称',
+            dataIndex: 'nickname',
+            key: 'nickname',
+            width: 220,
+            render: (v: string, r: any) => {
+              if (editingNicknameId === r.id) {
+                return (
+                  <Input
+                    autoFocus
+                    size="small"
+                    value={nicknameDraft}
+                    onChange={(e) => setNicknameDraft(e.target.value)}
+                    onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+                    onBlur={() => saveNickname(r.id)}
+                    placeholder="输入昵称"
+                    style={{ width: 180 }}
+                  />
+                );
+              }
+              return (
+                <Space size={4}>
+                  <Text>{v || <Text type="secondary">未设置</Text>}</Text>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setEditingNicknameId(r.id);
+                      setNicknameDraft(v || '');
+                    }}
+                  >
+                    {v ? '改' : '设置'}
+                  </Button>
+                </Space>
+              );
+            },
           },
           {
             title: '状态',

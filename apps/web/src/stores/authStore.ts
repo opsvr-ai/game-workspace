@@ -23,6 +23,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.setItem('refreshToken', refreshToken);
     try { (window as any).electronAPI?.storeSet('token', accessToken); } catch {}
     try { (window as any).electronAPI?.storeSet('refreshToken', refreshToken); } catch {}
+    try { (window as any).electronAPI?.setCurrentUser?.(user.id, user.username); } catch {}
     try { (window as any).electronAPI?.setRole?.(user.role); } catch {}
     try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
     try { (window as any).electronAPI?.onLoggedIn?.(); } catch {}

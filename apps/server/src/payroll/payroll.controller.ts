@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
@@ -17,7 +17,10 @@ export class PayrollController {
 
   @Post('configs')
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async saveConfig(@Body() dto: any) {
+  async saveConfig(@Req() req: any, @Body() dto: any) {
+    if (req.user?.role === UserRole.ADMIN && dto?.role === 'ADMIN') {
+      throw new ForbiddenException('店长不能设置自己的工资，请联系老板设置');
+    }
     return { code: 200, data: await this.service.upsertConfig(dto) };
   }
 

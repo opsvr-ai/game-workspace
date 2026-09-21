@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -7,8 +7,13 @@ export class CompanionWechatService {
 
   async listWorkWechats(studioId: string, user?: any) {
     const where: any = { studioId };
+    // 客服只能看到并操作绑定给自己的客服微信，店长/老板看全部。
+    if (user?.role === 'CS') {
+      where.type = 'STUDIO';
+      where.csUserId = user.id;
+    }
     // 陪玩选择微信：俱乐部里的陪玩只看自己的微信，工作室里的陪玩只看本工作室的陪玩微信
-    if (user?.role === 'COMPANION' && user.companionId) {
+    else if (user?.role === 'COMPANION' && user.companionId) {
       const companion = await this.prisma.companion.findUnique({
         where: { id: user.companionId },
         select: { studio: { select: { type: true } } },
@@ -26,7 +31,23 @@ export class CompanionWechatService {
   }
 
   async addWorkWechat(studioId: string, wechatId: string, type?: string) {
-    return this.prisma.workWechat.create({ data: { studioId, wechatId, type: type || 'COMPANION' } });
+    const id = (wechatId || '').trim();
+    if (!id) throw new BadRequestException('请输入微信号');
+    const existing = await this.prisma.workWechat.findUnique({ where: { wechatId: id } });
+    if (existing) throw new ConflictException('该微信号已存在，请勿重复添加');
+    return this.prisma.workWechat.create({ data: { studioId, wechatId: id, type: type || 'COMPANION' } });
+  }
+
+  async updateWorkWechatNickname(id: string, nickname: string, user?: any) {
+    const wechat = await this.prisma.workWechat.findUnique({ where: { id } });
+    if (!wechat) throw new NotFoundException('微信不存在');
+    if (user?.role === 'CS' && wechat.csUserId !== user.id) {
+      throw new ForbiddenException('客服只能修改绑定给自己的微信');
+    }
+    return this.prisma.workWechat.update({
+      where: { id },
+      data: { nickname: nickname?.trim() || null },
+    });
   }
 
   async bindWechat(id: string, companionId: string) {
@@ -77,7 +98,12 @@ export class CompanionWechatService {
     return this.prisma.workWechat.update({ where: { id }, data: { csUserId: null, status: 'AVAILABLE' } });
   }
 
-  async deleteWorkWechat(id: string) {
+  async deleteWorkWechat(id: string, user?: any) {
+    const wechat = await this.prisma.workWechat.findUnique({ where: { id } });
+    if (!wechat) throw new NotFoundException('微信不存在');
+    if (user?.role === 'CS' && wechat.csUserId !== user.id) {
+      throw new ForbiddenException('客服只能删除绑定给自己的微信');
+    }
     return this.prisma.workWechat.delete({ where: { id } });
   }
 }

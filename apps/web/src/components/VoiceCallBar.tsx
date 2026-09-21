@@ -62,7 +62,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
           shape="circle"
           size="middle"
           icon={<PhoneOutlined style={{ transform: 'rotate(135deg)' }} />}
-          onClick={onHangup}
+          onClick={(e) => { e.stopPropagation(); onHangup(); }}
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>

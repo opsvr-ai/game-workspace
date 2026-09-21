@@ -124,11 +124,11 @@ export class ProcessBlacklistService {
     });
   }
 
-  async addPendingDisable(studioId: string, processName: string) {
+  async addPendingDisable(studioId: string, processName: string, displayName?: string) {
     return this.prisma.processPendingDisable.upsert({
       where: { studioId_processName: { studioId, processName } },
-      create: { studioId, processName },
-      update: {},
+      create: { studioId, processName, displayName: displayName || null },
+      update: displayName ? { displayName } : {},
     });
   }
 

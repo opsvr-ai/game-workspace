@@ -5,6 +5,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { StudiosService } from './studios.service';
 import { CreateStudioDto } from './dto/create-studio.dto';
@@ -32,6 +33,7 @@ export class StudiosController {
   }
 
   // 邀请注册（公开）：合作伙伴/租客通过邀请链接填写工作室信息自助开通
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
   @Post('studios/register-invite')
   async registerInvite(
     @Body()

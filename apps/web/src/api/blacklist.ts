@@ -40,7 +40,7 @@ export const blacklistApi = {
 
   // ── 待禁用进程名单 ──
   listPendingDisable: () => http.get('/processes/pending-disable'),
-  addPendingDisable: (data: { processName: string }) =>
+  addPendingDisable: (data: { processName: string; displayName?: string }) =>
     http.post('/processes/pending-disable', data),
   removePendingDisable: (id: string) =>
     http.delete(`/processes/pending-disable/${id}`),

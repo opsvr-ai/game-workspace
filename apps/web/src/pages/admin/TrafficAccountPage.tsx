@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert,
+  Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, FolderOpenOutlined, SettingOutlined, FileTextOutlined, ThunderboltOutlined,
@@ -91,6 +91,7 @@ const TrafficAccountPage: React.FC = () => {
   const canEditGuide = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN' || authUser?.role === 'CS';
   // 笔记记录
   const [noteDrawerOpen, setNoteDrawerOpen] = useState(false);
+  const [noteDrawerTab, setNoteDrawerTab] = useState<'notes' | 'plan'>('notes');
   const [noteAccount, setNoteAccount] = useState<TrafficAccountItem | null>(null);
   const [notes, setNotes] = useState<TrafficNoteItem[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
@@ -287,6 +288,7 @@ const TrafficAccountPage: React.FC = () => {
     setPlanBenchmarkSummary('');
     setPlanBenchmarkAnalysis(null);
     setPlanResult(null);
+    setNoteDrawerTab('plan');
     setPlanOpen(true);
   };
 
@@ -401,6 +403,24 @@ const TrafficAccountPage: React.FC = () => {
     } catch {
       message.error('复制失败，请手动选择表格复制');
     }
+  };
+
+  const applyPlanRow = (row: any) => {
+    const acc = accountForPlanRow(row);
+    if (!acc) return;
+    setNoteDrawerTab('notes');
+    setNoteAccount(acc);
+    loadNotes(acc.id);
+    setEditingNote(null);
+    noteForm.resetFields();
+    const next = {
+      title: row.title || '',
+      note: [row.body, row.topics].filter(Boolean).join('\n\n'),
+      publishDate: null,
+    };
+    noteForm.setFieldsValue(next);
+    setLiveNoteValues(next);
+    setNoteModalOpen(true);
   };
 
   const loadNotes = async (accountId: string) => {
@@ -819,16 +839,26 @@ const TrafficAccountPage: React.FC = () => {
         title={`${noteAccount?.nickname || '账号'} · 笔记记录`}
         open={noteDrawerOpen}
         onClose={() => setNoteDrawerOpen(false)}
-        width={860}
+        width={1060}
         extra={
           <Space>
-            <Button icon={<ThunderboltOutlined />} onClick={() => openPlanGenerator(noteAccount)}>计划表</Button>
-            <Button icon={<FileTextOutlined />} onClick={() => setTemplateOpen(true)}>文案模板</Button>
-            <Button icon={<ThunderboltOutlined />} onClick={doAnalyze} loading={analyzing}>AI 分析</Button>
+            <Button onClick={() => setNoteDrawerTab('notes')}>笔记记录</Button>
+            <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => setNoteDrawerTab('plan')}>内容计划</Button>
+            <Button icon={<ThunderboltOutlined />} onClick={() => { setNoteDrawerTab('notes'); doAnalyze(); }} loading={analyzing}>AI 分析</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openNoteCreate}>添加笔记</Button>
           </Space>
         }
       >
+        <Tabs
+          activeKey={noteDrawerTab}
+          onChange={(key) => setNoteDrawerTab(key as 'notes' | 'plan')}
+          size="small"
+          items={[
+            {
+              key: 'notes',
+              label: '笔记记录',
+              children: (
+                <>
         {analysis && (
           <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: 12, marginBottom: 12 }}>
             <Text strong style={{ color: '#389e0d' }}>AI 分析报告</Text>
@@ -926,6 +956,67 @@ const TrafficAccountPage: React.FC = () => {
                     <Button size="small" danger style={{ fontSize: 9 }}>删除</Button>
                   </Popconfirm>
                 </Space>
+              ),
+            },
+          ]}
+        />
+                </>
+              ),
+            },
+            {
+              key: 'plan',
+              label: '内容计划',
+              children: (
+                <div>
+                  <Card
+                    size="small"
+                    title="📅 账号计划表"
+                    extra={
+                      <Space>
+                        <Button icon={<ThunderboltOutlined />} onClick={() => openPlanGenerator(noteAccount)}>打开计划表生成器</Button>
+                      </Space>
+                    }
+                  >
+                    <Text type="secondary">
+                      按账号关键词生成「账号 × 7 天」计划表，得到标题、文案、话题、封面构图和配图建议。可先粘贴对标笔记 JSON 拆解爆款规律。
+                    </Text>
+                    {planResult?.rows?.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Text strong style={{ color: '#1677ff' }}>最近已生成 {planResult.rows.length} 条计划</Text>
+                        <Button size="small" style={{ marginLeft: 8 }} onClick={copyPlanTable} icon={<CopyOutlined />}>复制整表</Button>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card size="small" title="📋 文案模板（三角洲陪玩）" style={{ marginTop: 12 }}>
+                    <Tabs
+                      size="small"
+                      defaultActiveKey={noteAccount?.accountRole || NOTE_TEMPLATES[0].role}
+                      items={NOTE_TEMPLATES.map((t) => ({
+                        key: t.role,
+                        label: t.role,
+                        children: (
+                          <div style={{ fontSize: 13, lineHeight: 1.9 }}>
+                            <Text strong>标题模板</Text>
+                            <ul style={{ paddingLeft: 18, margin: '4px 0 12px' }}>
+                              {t.titles.map((x) => <li key={x}><Text copyable style={{ whiteSpace: 'normal' }}>{x}</Text></li>)}
+                            </ul>
+                            <Text strong>封面文案</Text>
+                            <ul style={{ paddingLeft: 18, margin: '4px 0 12px' }}>
+                              {t.coverTexts.map((x) => <li key={x}><Text copyable style={{ whiteSpace: 'normal' }}>{x}</Text></li>)}
+                            </ul>
+                            <Text strong>正文结构</Text>
+                            <ul style={{ paddingLeft: 18, margin: '4px 0 12px' }}>
+                              {t.body.map((x) => <li key={x}>{x}</li>)}
+                            </ul>
+                            <Text strong>标签</Text>
+                            <div style={{ marginTop: 4 }}><Text copyable>{t.tags}</Text></div>
+                          </div>
+                        ),
+                      }))}
+                    />
+                  </Card>
+                </div>
               ),
             },
           ]}
@@ -1088,6 +1179,12 @@ const TrafficAccountPage: React.FC = () => {
                   { title: '话题', dataIndex: 'topics', width: 180, render: (v: string) => <Text copyable style={{ whiteSpace: 'normal' }}>{v || '-'}</Text> },
                   { title: '封面构图', dataIndex: 'coverPlan', width: 230, render: (v: string) => v || '-' },
                   { title: '配图建议', dataIndex: 'imagePlan', width: 200, render: (v: string) => v || '-' },
+                  {
+                    title: '操作', key: 'action', width: 86, fixed: 'right' as const,
+                    render: (_: unknown, r: any) => (
+                      <Button size="small" type="primary" onClick={() => applyPlanRow(r)}>录入笔记</Button>
+                    ),
+                  },
                 ]}
               />
             </>
@@ -1163,7 +1260,7 @@ const TrafficAccountPage: React.FC = () => {
           <Row gutter={12}>
             <Col span={12}><Form.Item name="cityDist" label="城市分布（5个+占比）"><SearchListInput nameKey="city" count={5} /></Form.Item></Col>
             <Col span={12}><Form.Item name="interests" label="兴趣分布（2个+占比）"><SearchListInput nameKey="interest" count={2} /></Form.Item></Col>
-            <Col span={24}><Form.Item name="note" label="备注"><Input.TextArea rows={2} placeholder="这条笔记的备注" /></Form.Item></Col>
+            <Col span={24}><Form.Item name="note" label="文案 / 话题 / 备注"><Input.TextArea rows={4} placeholder="这里可以放生成的文案、话题，或这条笔记的备注" /></Form.Item></Col>
           </Row>
         </Form>
       </Modal>

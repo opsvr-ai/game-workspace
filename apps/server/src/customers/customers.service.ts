@@ -39,7 +39,9 @@ interface AuthenticatedUser {
 
 @Injectable()
 export class CustomersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+  ) {}
 
   async findAll(user: AuthenticatedUser, sortBy?: string) {
     const where: any = {};
@@ -152,7 +154,6 @@ export class CustomersService {
         customerCode,
         wechatId: data.wechatId,
         companionId: data.companionId ?? null,
-        isLegacy: data.isLegacy ?? false,
         platform: data.platform ?? null,
         platformAccount: data.platformAccount ?? null,
         consultDate: data.consultDate ? new Date(data.consultDate) : null,
@@ -173,6 +174,10 @@ export class CustomersService {
     const customer = await this.findOne(id, user); // Reuse scoped findOne
     if (!customer) {
       throw new NotFoundException('客户不存在');
+    }
+    // 桥接共享的客户只读，不能修改对方工作室的客户数据
+    if (user && user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('共享客户只读，不能修改对方工作室的数据');
     }
     // Prevent cross-studio companionId tampering
     if (user && data.companionId !== undefined) {
@@ -272,7 +277,10 @@ export class CustomersService {
   }
 
   async reassign(id: string, companionId: string | null, user?: AuthenticatedUser) {
-    await this.findOne(id, user); // Validate access
+    const customer = await this.findOne(id, user); // Validate access
+    if (user && user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('共享客户只读，不能重新分配');
+    }
 
     if (companionId) {
       const companion = await this.prisma.companion.findUnique({
@@ -305,6 +313,28 @@ export class CustomersService {
         companion: {
           include: {
             user: { select: { username: true } },
+          },
+        },
+        coCompanion: {
+          include: {
+            user: { select: { username: true, displayName: true } },
+          },
+        },
+        sessions: {
+          orderBy: { seq: 'asc' },
+          select: {
+            id: true,
+            companionId: true,
+            coCompanionId: true,
+            startedAt: true,
+            endedAt: true,
+            status: true,
+            pausedAt: true,
+            totalPausedSec: true,
+            duration: true,
+            claimedMode: true,
+            claimedPrice: true,
+            coAmount: true,
           },
         },
       },
@@ -358,7 +388,10 @@ export class CustomersService {
   }
 
   async updateProfile(customerId: string, data: any, user?: AuthenticatedUser) {
-    await this.findOne(customerId, user); // Validate access
+    const customer = await this.findOne(customerId, user); // Validate access
+    if (user && user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('共享客户只读，不能修改资料');
+    }
     return this.prisma.customerProfile.upsert({
       where: { customerId },
       create: { customerId, ...data },
@@ -381,7 +414,10 @@ export class CustomersService {
     content: string;
     nextAction?: string;
   }, user?: AuthenticatedUser) {
-    await this.findOne(dto.customerId, user); // Validate access
+    const customer = await this.findOne(dto.customerId, user); // Validate access
+    if (user && user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
+      throw new ForbiddenException('共享客户只读，不能添加跟进');
+    }
     const followUp = await this.prisma.customerFollowUp.create({ data: dto });
     // Auto-update customer status after follow-up
     await this.updateCustomerStatus(dto.customerId);

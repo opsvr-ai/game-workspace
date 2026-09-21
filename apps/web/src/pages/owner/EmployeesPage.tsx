@@ -69,6 +69,8 @@ interface Employee {
     phone?: string;
     idCardFront?: string;
     idCardBack?: string;
+    isResigned?: boolean;
+    isSeniorStaff?: boolean;
   } | null;
 }
 
@@ -396,15 +398,36 @@ const EmployeesPage: React.FC = () => {
             <Button type="link" size="small" icon={React.createElement(DollarOutlined)} onClick={() => openFinanceModal(record)}>编辑财务</Button>
           )}
           {record.role === UserRole.COMPANION && record.companion && (
+            <Button
+              type="link"
+              size="small"
+              onClick={async () => {
+                try {
+                  await companionsApi.setSeniorStaff(record.companion!.id, !record.companion!.isSeniorStaff);
+                  message.success(record.companion!.isSeniorStaff ? '已取消老员工标记' : '已标记为老员工');
+                  fetchEmployees();
+                } catch (e: any) {
+                  message.error(e?.response?.data?.message || '操作失败');
+                }
+              }}
+            >
+              {record.companion.isSeniorStaff ? '取消老员工' : '标记老员工'}
+            </Button>
+          )}
+          {record.role === UserRole.COMPANION && record.companion && (
             <>
-              <Popconfirm
-                title="确定离职处理？将清空流水/余额/机号，释放工位"
-                onConfirm={() => handleResign(record)}
-                okText="离职"
-                cancelText="取消"
-              >
-                <Button type="link" size="small" danger>离职</Button>
-              </Popconfirm>
+              {record.companion.isResigned ? (
+                <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
+              ) : (
+                <Popconfirm
+                  title="确定离职处理？将清空流水/余额/机号，释放工位"
+                  onConfirm={() => handleResign(record)}
+                  okText="离职"
+                  cancelText="取消"
+                >
+                  <Button type="link" size="small" danger>离职</Button>
+                </Popconfirm>
+              )}
             </>
           )}
           <Popconfirm

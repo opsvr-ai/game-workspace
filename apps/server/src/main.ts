@@ -5,10 +5,11 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
-import { join } from 'path';
+import { join, sep } from 'path';
 import { existsSync } from 'fs';
 import express from 'express';
 import helmet from 'helmet';
+import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
@@ -36,11 +37,14 @@ async function bootstrap() {
     }),
   );
 
+  // gzip 压缩：云服务器带宽有限，把 JS/CSS/JSON 等文本资源压小，显著加快前端首次加载。
+  app.use(compression());
+
   app.setGlobalPrefix('api');
 
   const corsOriginEnv =
     process.env.CORS_ORIGINS ||
-    'http://localhost:5173,http://localhost:8000,http://192.168.0.106:8000,http://192.168.0.106:5173';
+    'http://localhost:5173,http://localhost:8000,http://1.117.229.36:3001,http://1.117.229.36';
   app.enableCors({
     origin: corsOriginEnv.split(','),
     credentials: true,
@@ -75,12 +79,17 @@ async function bootstrap() {
     });
     // 前端资源全部强制不缓存：Electron 客户端历史上多次因磁盘/会话缓存拿到旧 bundle，
     // 导致订单池等页面「数据有但界面不显示」。这里统一 no-store，彻底杜绝旧前端。
+    // 但带 content-hash 的 /assets/* 资源是安全的，必须长期缓存，否则每次启动都重新下载几 MB 的 JS 导致白屏。
     expressApp.use(
       express.static(webDistPath, {
         etag: false,
         maxAge: 0,
-        setHeaders: (res) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        setHeaders: (res, filePath) => {
+          if (filePath && filePath.includes(`${sep}assets${sep}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
         },
       }),
     );

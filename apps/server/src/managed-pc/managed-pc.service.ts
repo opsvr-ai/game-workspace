@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WsGateway } from '../ws/ws.gateway';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
@@ -7,7 +8,7 @@ import * as fs from 'fs';
 const execFileAsync = promisify(execFile);
 
 const REMOTE_USER = 'chunlvops';
-const REMOTE_PASSWORD = 'Chunlv@Ops2026';
+const REMOTE_PASSWORD = process.env.CHUNLV_REMOTE_PASSWORD || '';
 const LAN_RELAY_IP = '192.168.0.106';
 const LAN_RELAY_USER = 'hanlei';
 
@@ -15,7 +16,10 @@ const LAN_RELAY_USER = 'hanlei';
 export class ManagedPcService {
   private readonly logger = new Logger(ManagedPcService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly wsGateway: WsGateway,
+  ) {}
 
   async list() {
     const items = await this.prisma.managedPC.findMany({ orderBy: { ip: 'asc' } });
@@ -34,11 +38,34 @@ export class ManagedPcService {
       }
     }
     const ONLINE_WINDOW_MS = 120_000; // 2 分钟内有心跳视为在线
+    const lanIps = items.filter((it) => /^192\.168\./.test(it.ip)).map((it) => it.ip);
+    const reachable = await this.getReachableLanIps(lanIps);
     return items.map((item) => {
       const hb = heartbeatByUsername.get(item.loginAccount);
       const online = hb ? Date.now() - new Date(hb).getTime() < ONLINE_WINDOW_MS : false;
-      return { ...item, online };
+      return { ...item, online, reachable: reachable.has(item.ip) };
     });
+  }
+
+  /** 通过中继机批量 ping，判断电脑网络是否通（不依赖客户端是否登录）。 */
+  private async getReachableLanIps(ips: string[]): Promise<Set<string>> {
+    if (!ips.length) return new Set();
+    const ipArg = ips.map((ip) => `'${ip}'`).join(' ');
+    try {
+      const { stdout } = await execFileAsync(
+        'ssh',
+        [
+          '-o', 'StrictHostKeyChecking=no',
+          '-o', 'ConnectTimeout=10',
+          `${LAN_RELAY_USER}@${LAN_RELAY_IP}`,
+          `fping -a ${ipArg} 2>/dev/null || true`,
+        ],
+        { timeout: 20000 },
+      );
+      return new Set(String(stdout).split(/\s+/).filter(Boolean));
+    } catch {
+      return new Set();
+    }
   }
 
   async create(dto: { ip: string; loginAccount: string; macAddress?: string; label?: string }) {
@@ -88,6 +115,21 @@ export class ManagedPcService {
       return { success: true, action };
     }
 
+    // 关机优先走在线客户端 WebSocket，避免云服务器直连内网 445 失败。
+    if (action === 'shutdown') {
+      const companion = await this.prisma.companion.findFirst({
+        where: { user: { username: pc.loginAccount } },
+        select: { id: true },
+      });
+      if (companion && this.wsGateway.sendCommand(companion.id, 'shutdown', {})) {
+        await this.prisma.managedPC.update({
+          where: { id },
+          data: { lastAction: action, lastActionAt: new Date(), updatedAt: new Date() },
+        });
+        return { success: true, action };
+      }
+    }
+
     const commands: Record<string, string> = {
       shutdown: 'cmd /c shutdown /s /t 0',
       restart: 'cmd /c shutdown /r /t 0',
@@ -96,14 +138,10 @@ export class ManagedPcService {
     };
     const remoteCommand = commands[action];
     if (!remoteCommand) throw new Error('未知电源操作');
+    if (!REMOTE_PASSWORD) throw new Error('未配置远程管理密码');
 
-    const target = `${REMOTE_USER}:${REMOTE_PASSWORD}@${pc.ip}`;
     try {
-      await execFileAsync(
-        'python3',
-        ['/usr/local/bin/atexec.py', target, remoteCommand],
-        { timeout: 20000 },
-      );
+      await this.runRelayCommand(pc.ip, remoteCommand);
       await this.prisma.managedPC.update({
         where: { id },
         data: { lastAction: action, lastActionAt: new Date(), updatedAt: new Date() },
@@ -113,6 +151,26 @@ export class ManagedPcService {
       this.logger.warn('power action failed', { ip: pc.ip, action, error: err?.message || err });
       throw new Error(`执行失败：${err?.message || err}`);
     }
+  }
+
+  /** 通过局域网中继机执行远程电源命令，避免云服务器直连内网 445 失败。 */
+  private async runRelayCommand(ip: string, remoteCommand: string): Promise<void> {
+    const relayCmd = [
+      'docker', 'exec', 'chunlv-app', 'python3', '/usr/local/bin/atexec.py',
+      '-codec', 'gbk',
+      `${REMOTE_USER}:${REMOTE_PASSWORD}@${ip}`,
+      remoteCommand,
+    ].join(' ');
+    await execFileAsync(
+      'ssh',
+      [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'ConnectTimeout=10',
+        `${LAN_RELAY_USER}@${LAN_RELAY_IP}`,
+        relayCmd,
+      ],
+      { timeout: 30000 },
+    );
   }
 
   async batchPower(ids: string[], action: 'wake' | 'shutdown' | 'restart' | 'sleep' | 'hibernate') {

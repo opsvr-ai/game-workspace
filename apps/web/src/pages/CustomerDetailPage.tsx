@@ -55,7 +55,7 @@ const orderTypeLabels: Record<string, string> = {
 
 const orderStatusLabels: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待接单', color: 'blue' },
-  GRABBED: { label: '已接单', color: 'cyan' },
+  GRABBED: { label: '已抢到订单', color: 'cyan' },
   CONFIRMED: { label: '已确认', color: 'geekblue' },
   DONE: { label: '已完成', color: 'green' },
   CANCELLED: { label: '已取消', color: 'default' },
@@ -326,15 +326,44 @@ const CustomerDetailPage: React.FC = () => {
       title: '日期',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 160,
+      width: 145,
       render: (v: string) => formatDate(v),
     },
     {
-      title: '陪玩',
+      title: '游戏',
+      dataIndex: 'gameName',
+      key: 'gameName',
+      width: 100,
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '主陪',
       dataIndex: ['companion', 'user', 'username'],
       key: 'companion',
-      width: 120,
+      width: 90,
       render: (v: string) => v ?? <Text type="secondary">-</Text>,
+    },
+    {
+      title: '副陪',
+      dataIndex: ['coCompanion', 'user', 'username'],
+      key: 'coCompanion',
+      width: 90,
+      render: (v: string) =>
+        v ? <Text style={{ color: '#722ed1' }}>{v}</Text> : <Text type="secondary">-</Text>,
+    },
+    {
+      title: '模式',
+      dataIndex: ['customFields', 'deltaMission'],
+      key: 'mode',
+      width: 80,
+      render: (v: string) => (v ? <Tag>{v}</Tag> : '-'),
+    },
+    {
+      title: '备注',
+      dataIndex: ['customFields', 'deltaNote'],
+      key: 'note',
+      width: 130,
+      render: (v: string) => v || '-',
     },
     {
       title: '时长',
@@ -342,6 +371,12 @@ const CustomerDetailPage: React.FC = () => {
       key: 'duration',
       width: 80,
       render: (v: number | null) => (v != null ? `${v}h` : '-'),
+    },
+    {
+      title: '会话',
+      key: 'sessions',
+      width: 70,
+      render: (_: unknown, record: any) => (record.sessions?.length ? `${record.sessions.length}段` : '-'),
     },
     {
       title: '金额',
@@ -740,6 +775,7 @@ const CustomerDetailPage: React.FC = () => {
           size="small"
           locale={{ emptyText: '暂无服务记录' }}
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 单` }}
+          scroll={{ x: 1000 }}
         />
       </Card>
 

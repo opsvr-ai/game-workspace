@@ -3,6 +3,7 @@ import http from './client';
 
 export const ordersApi = {
   urgent: () => http.get('/orders/urgent'),
+  pendingStart: () => http.get('/orders/pending-start'),
   markCsContact: (id: string, status: string, evidenceUrl?: string, extra?: { workWechatId?: string; workWechatName?: string; addResult?: string }) =>
     http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
   redispatch: (id: string) => http.post(`/orders/${id}/redispatch`),
@@ -12,13 +13,18 @@ export const ordersApi = {
   listMoneyFlows: (id: string) => http.get(`/orders/${id}/money-flows`),
   addMoneyFlow: (id: string, data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string }) =>
     http.post(`/orders/${id}/money-flows`, data),
-  moneyReconciliation: () => http.get('/orders/money-reconciliation'),
+  checkCsAnomaly: (id: string) => http.post(`/orders/${id}/check-cs-anomaly`),
   csWechatBalances: () => http.get('/orders/cs-wechat-balances'),
+  clearCsWechatBalance: (workWechatId: string, note?: string) =>
+    http.post(`/orders/cs-wechat-balances/${workWechatId}/clear`, { note }),
+  csWechatBalanceSummary: () => http.get('/orders/cs-wechat-balances/summary'),
+  csWechatFlow: () => http.get('/orders/cs-wechat-flow'),
   list: (params?: any) => http.get('/orders', { params }),
   getOrder: (id: string) => http.get(`/orders/${id}`),
   pool: () => http.get('/orders/pool'),
   poolStatus: () => http.get('/orders/pool/status'),
   create: (data: any) => http.post('/orders', data),
+  updateOrder: (id: string, data: any) => http.put(`/orders/${id}`, data),
   grab: (id: string) => http.post(`/orders/${id}/grab`),
   updateContact: (id: string, data: any) => http.put(`/orders/${id}/contact`, data),
   assign: (id: string, companionId: string) =>

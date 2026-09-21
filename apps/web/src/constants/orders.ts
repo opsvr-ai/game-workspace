@@ -15,7 +15,7 @@ export const orderTypeConfig: Record<string, { color: string; label: string }> =
 export const orderStatusConfig: Record<string, { color: string; label: string }> = {
   PENDING: { color: 'gold', label: '待派单' },
   CLAIMED: { color: 'purple', label: '客服认领' },
-  GRABBED: { color: 'blue', label: '已接单' },
+  GRABBED: { color: 'blue', label: '已抢到订单' },
   CONFIRMED: { color: 'green', label: '进行中' },
   DONE: { color: 'green', label: '已完成' },
   CANCELLED: { color: 'default', label: '已取消' },

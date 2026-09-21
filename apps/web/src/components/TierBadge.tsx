@@ -14,7 +14,7 @@ interface Props {
 
 /** 段位图标徽章：上等马=戴冠马+金色，中等马=银色，下等马=铜色。 */
 const TierBadge: React.FC<Props> = ({ tier, showLabel = false }) => {
-  const meta = TIER_META[tier || 'LOW'] || TIER_META.LOW;
+  const meta = TIER_META[tier || 'MIDDLE'] || TIER_META.MIDDLE;
   return (
     <span
       title={meta.label}
@@ -29,7 +29,7 @@ const TierBadge: React.FC<Props> = ({ tier, showLabel = false }) => {
         gap: 2,
       }}
     >
-      <TierHorseIcon tier={(tier || 'LOW') as 'TOP' | 'MIDDLE' | 'LOW'} />
+      <TierHorseIcon tier={(tier || 'MIDDLE') as 'TOP' | 'MIDDLE' | 'LOW'} />
       {showLabel && <span>{meta.label}</span>}
     </span>
   );

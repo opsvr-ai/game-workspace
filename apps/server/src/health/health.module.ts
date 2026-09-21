@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
-import { DownloadController } from './download.controller';
 
 @Module({
-  controllers: [HealthController, DownloadController],
+  controllers: [HealthController],
 })
 export class HealthModule {}

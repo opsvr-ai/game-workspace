@@ -1,10 +1,8 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState } from 'react';
-import { Modal, Select, InputNumber, Button, Row, Col, Radio, Switch, message, notification, Upload, Typography } from 'antd';
-import { CameraOutlined } from '@ant-design/icons';
+import { Modal, Select, InputNumber, Button, Row, Col, Radio, Switch, message, notification, Typography } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
-import { monitorApi } from '../api/monitor';
 import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
@@ -38,9 +36,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
   const [claimMode, setClaimMode] = useState('机密');
   const [claimPrice, setClaimPrice] = useState<number | null>(35);
   const [claimDuration, setClaimDuration] = useState<number>(1);
-  const [transferUrl, setTransferUrl] = useState('');
   const [useDeposit, setUseDeposit] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const loadCompanions = async () => {
@@ -62,33 +58,13 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       setClaimPrice(initialValues?.claimPrice ?? 35);
       setClaimDuration(initialValues?.claimDuration ?? 1);
       setPartnerMode('assign');
-      setTransferUrl('');
       setUseDeposit(false);
       loadCompanions();
     }
   }, [open]);
 
-  const uploadTransfer = async (file: File) => {
-    setUploading(true);
-    try {
-      const res: any = await monitorApi.uploadTransferScreenshot(file);
-      const url = res.data?.data?.url;
-      if (url) {
-        setTransferUrl(url);
-        message.success('转账截图已上传');
-      } else {
-        message.error('上传失败');
-      }
-    } catch (e: any) {
-      message.error(`上传失败：${e?.response?.data?.message || e?.message || '未知错误'}`);
-    }
-    setUploading(false);
-    return false;
-  };
-
   const handleStart = async () => {
     if (!orderId && !customerId) return;
-    if (!useDeposit && !transferUrl) return message.warning('请先上传客户转账截图，或选择用存单支付');
     if (!claimDuration || claimDuration <= 0) return message.warning('请填写有效时长');
     if (claimPrice == null || claimPrice <= 0) return message.warning('请填写单价');
     if (dual && partnerMode === 'assign' && !coId) return message.warning('双陪请选择搭档');
@@ -130,7 +106,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
           claimedMode: claimMode,
           claimedPrice: price,
-          transferScreenshotUrl: transferUrl,
           useDeposit,
         });
         sessionId = res?.data?.data?.id || res?.data?.id;
@@ -166,7 +141,6 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           claimedMode: claimMode,
           claimedPrice: price,
           duration: claimDuration,
-          transferScreenshotUrl: transferUrl,
           useDeposit,
         });
         if (!isHandoff) {
@@ -262,21 +236,8 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       )}
       <div style={{ marginTop: 12 }}>
         <Switch checked={useDeposit} onChange={setUseDeposit} />
-        <Text style={{ marginLeft: 8 }}>用存单支付（不传转账截图，结束后按实际计时从客户存单余额扣款）</Text>
+        <Text style={{ marginLeft: 8 }}>用存单支付（结束时按实际计时从客户存单余额扣款）</Text>
       </div>
-      {!useDeposit && (
-        <div style={{ marginTop: 12 }}>
-          <Text>客户转账截图（必传）</Text>
-          <div style={{ marginTop: 4 }}>
-            <Upload beforeUpload={uploadTransfer} showUploadList={false} accept="image/*">
-              <Button icon={<CameraOutlined />} loading={uploading}>
-                {transferUrl ? '重新上传转账截图' : '上传转账截图'}
-              </Button>
-            </Upload>
-            {transferUrl && <a href={transferUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>查看已上传截图</a>}
-          </div>
-        </div>
-      )}
       <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
         服务期间将自动开启工作记录（随机截图），请保持客户端运行。
       </Text>

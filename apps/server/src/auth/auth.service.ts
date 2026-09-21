@@ -20,7 +20,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { username: dto.username },
       include: {
-        companion: { select: { id: true } },
+        companion: { select: { id: true, reviewStatus: true, isResigned: true } },
         studio: { select: { name: true, displayName: true } },
       },
     });
@@ -32,6 +32,17 @@ export class AuthService {
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
       throw new UnauthorizedException('用户名或密码错误');
+    }
+
+    // 已离职陪玩不允许登录，避免离职后仍可进入系统。
+    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
+      throw new ForbiddenException('该账号已离职，无法登录');
+    }
+
+    // 审核双系统同步兜底：如果陪玩审核已通过但账号未授权，自动补授权，避免“审核过了还登录不了”
+    if (user.role === UserRole.COMPANION && user.companion?.reviewStatus === 'APPROVED' && !user.isAuthorized) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { isAuthorized: true } });
+      user.isAuthorized = true;
     }
 
     const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION, UserRole.ADMIN];
@@ -99,11 +110,21 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { companion: { select: { id: true } } },
+      include: { companion: { select: { id: true, reviewStatus: true, isResigned: true } } },
     });
 
     if (!user) {
       throw new UnauthorizedException('用户不存在');
+    }
+
+    // 已离职陪玩不允许刷新登录态。
+    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
+      throw new ForbiddenException('该账号已离职，无法登录');
+    }
+
+    if (user.role === UserRole.COMPANION && user.companion?.reviewStatus === 'APPROVED' && !user.isAuthorized) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { isAuthorized: true } });
+      user.isAuthorized = true;
     }
 
     const rolesRequiringAuth: UserRole[] = [UserRole.CS, UserRole.COMPANION, UserRole.ADMIN];
@@ -137,11 +158,14 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        companion: { select: { id: true } },
+        companion: { select: { id: true, isResigned: true } },
         studio: { select: { name: true, displayName: true } },
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
+    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
+      throw new UnauthorizedException('该账号已离职');
+    }
     // Include pending review count for OWNER/ADMIN
     let pendingReviewCount = 0;
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
@@ -218,6 +242,42 @@ export class AuthService {
     if (!valid) throw new BadRequestException('旧密码错误');
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
+  /**
+   * 忘记密码：通过「用户名 + 身份证号」核验身份后，允许设置新密码。
+   * 身份证号优先取 User.idNumber（非陪玩角色注册时填），陪玩角色可能只存在 Companion.idNumber。
+   */
+  async resetPasswordByIdNumber(username: string, idNumber: string, newPassword: string): Promise<void> {
+    if (!username?.trim() || !idNumber?.trim() || !newPassword?.trim()) {
+      throw new BadRequestException('用户名、身份证号和新密码均不能为空');
+    }
+    if (newPassword.length < 6) {
+      throw new BadRequestException('新密码至少6位');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { username: username.trim() },
+      include: { companion: { select: { idNumber: true } } },
+    });
+    if (!user) {
+      throw new BadRequestException('未找到该账号，请确认登录姓名');
+    }
+
+    const stored = (user.idNumber || user.companion?.idNumber || '').trim().toUpperCase();
+    const input = idNumber.trim().toUpperCase();
+    if (!stored) {
+      throw new BadRequestException('该账号未登记身份证号，请联系管理员重置密码');
+    }
+    if (stored !== input) {
+      throw new BadRequestException('身份证号验证不通过');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
   }
 
   async updateProfile(userId: string, displayName?: string) {

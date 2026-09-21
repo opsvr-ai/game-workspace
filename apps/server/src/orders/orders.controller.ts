@@ -32,6 +32,13 @@ export class OrdersController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('orders/pending-start')
+  @Roles(UserRole.COMPANION)
+  async pendingStart(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.findPendingStart(req.user?.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Put('orders/:id/cs-contact')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async markCsContact(
@@ -45,6 +52,17 @@ export class OrdersController {
       addResult: body?.addResult,
     }, req.user);
     return { code: 200, message: '已记录客服联系状态', data };
+  }
+
+  @Put('orders/:id')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  async updateOrder(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.updateOrderInfo(id, req.user, body);
+    return { code: 200, message: '订单信息已更新', data };
   }
 
   @Post('orders/:id/redispatch')
@@ -92,6 +110,13 @@ export class OrdersController {
     return { code: 201, message: '已记录', data };
   }
 
+  @Post('orders/:id/check-cs-anomaly')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async checkCsAnomaly(@Param('id') id: string): Promise<ApiResponse<unknown>> {
+    await this.ordersService.checkAndNotifyCsAnomaly(id);
+    return { code: 200, message: 'ok', data: null };
+  }
+
   @Get('orders/money-reconciliation')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async moneyReconciliation(@Req() req: any): Promise<ApiResponse<unknown>> {
@@ -102,7 +127,35 @@ export class OrdersController {
   @Get('orders/cs-wechat-balances')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async csWechatBalances(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.listCsWechatBalances(req.user.studioId);
+    const data = await this.ordersService.listCsWechatBalances(
+      req.user.studioId,
+      req.user.role === UserRole.CS ? req.user.id : undefined,
+    );
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('orders/cs-wechat-balances/:workWechatId/clear')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async clearCsWechatBalance(
+    @Param('workWechatId') workWechatId: string,
+    @Req() req: any,
+    @Body() body: { note?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.clearCsWechatBalance(req.user.studioId, workWechatId, body?.note);
+    return { code: 200, message: '余额已清零', data };
+  }
+
+  @Get('orders/cs-wechat-balances/summary')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async csWechatBalanceSummary(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.getCsWechatBalanceSummary(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Get('orders/cs-wechat-flow')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async csWechatFlow(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listCsWechatFlow(req.user.studioId);
     return { code: 200, message: 'ok', data };
   }
 
@@ -217,7 +270,7 @@ export class OrdersController {
   @Roles(UserRole.COMPANION)
   async acceptAssignment(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.acceptAssignment(id, req.user.companionId);
-    return { code: 200, message: '已接单', data };
+    return { code: 200, message: '已抢到订单', data };
   }
 
   @Get('orders/:id/sessions')

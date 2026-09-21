@@ -179,7 +179,7 @@ export class StudiosService {
         address: true,
         leaseContractUrl: true,
         studio: { select: { id: true, name: true, type: true } },
-        companion: { select: { id: true, status: true, monthlyRevenue: true, deposit: true, balance: true, frozen: true, games: true, billingCode: true, realName: true, idNumber: true, phone: true, idCardFront: true, idCardBack: true } },
+        companion: { select: { id: true, status: true, monthlyRevenue: true, deposit: true, balance: true, frozen: true, games: true, billingCode: true, realName: true, idNumber: true, phone: true, idCardFront: true, idCardBack: true, isResigned: true, isSeniorStaff: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
