@@ -10,6 +10,8 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  HttpException,
+  Logger,
   Res,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,11 +20,10 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole, type ApiResponse } from '@chunlv/shared';
 import { BattleScreenshotsService } from './battle-screenshots.service';
+import { writeZip } from '../common/zip';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { mkdirSync, rmSync, renameSync } from 'fs';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { basename, extname, join } from 'path';
+import { copyFileSync, existsSync, mkdirSync, rmSync, renameSync } from 'fs';
 import * as os from 'os';
 import type { Request } from 'express';
 import type { Response } from 'express';
@@ -32,7 +33,7 @@ const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'battle-screenshot
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic', '.heif', '.tif', '.tiff'];
 const MAX_FILES = 10;
 const MAX_SIZE = 20 * 1024 * 1024;
-const execFileAsync = promisify(execFile);
+const logger = new Logger('BattleScreenshots');
 
 const safeName = (s: string) => String(s || '未知').replace(/[\\/:*?"<>|]/g, '_').trim();
 const chinaDate = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
@@ -157,19 +158,37 @@ export class BattleScreenshotsController {
     try {
       rmSync(tmpDir, { recursive: true, force: true });
       mkdirSync(tmpDir, { recursive: true });
-      // 复制图片到临时目录，按 1.jpg/2.jpg/3.jpg 顺序命名，方便文件夹里查看。
+      // 复制图片到临时目录，按 1/2/3 顺序命名，方便文件夹里查看。
+      // 扩展名跟着真实文件走（以前一律叫 .jpg，PNG 也被改名叫 jpg，看着别扭）。
+      // 缺文件不再让整个「下载图片包」失败：以前 copyFileSync 一抛 ENOENT，
+      // 管理端看到的就是一句没头没尾的「打包失败」，现在少哪张就跳过哪张。
       const absFiles: string[] = [];
+      const missing: string[] = [];
       item.images.forEach((url, i) => {
         const rel = String(url).replace(/^\/uploads\/battle-screenshots\//, '');
-        const src = join(UPLOAD_DIR, rel);
         if (!rel) return;
-        const dst = join(tmpDir, `${i + 1}.jpg`);
-        require('fs').copyFileSync(src, dst);
+        const src = join(UPLOAD_DIR, rel);
+        if (!existsSync(src)) {
+          missing.push(`${i + 1}. ${rel}`);
+          return;
+        }
+        const ext = extname(rel).toLowerCase() || '.jpg';
+        const dst = join(tmpDir, `${absFiles.length + 1}${ext}`);
+        copyFileSync(src, dst);
         absFiles.push(dst);
       });
+      if (missing.length) {
+        logger.warn(`战绩图缺失 ${missing.length} 张（记录 ${id}）：${missing.join('、')}`);
+      }
+      if (!absFiles.length) {
+        throw new BadRequestException('这组战绩图的文件在服务器上找不到了，请让陪玩重新上传');
+      }
       const zipPath = join(os.tmpdir(), `battle-${id}.zip`);
       rmSync(zipPath, { force: true });
-      await execFileAsync('zip', ['-j', zipPath, ...absFiles]);
+      await writeZip(
+        zipPath,
+        absFiles.map((p) => ({ name: basename(p), path: p })),
+      );
       const name = item.companion?.user?.displayName || item.companion?.user?.username || '陪玩';
       const safeName = String(name).replace(/[\\/:*?"<>|]/g, '_');
       res.download(zipPath, `战绩图_${safeName}_${new Date(item.createdAt).toISOString().slice(0, 10)}.zip`, () => {
@@ -178,6 +197,8 @@ export class BattleScreenshotsController {
       });
     } catch (err: any) {
       try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+      // 自己抛的业务提示不要再被套一层「打包失败」
+      if (err instanceof HttpException) throw err;
       throw new BadRequestException(`打包失败: ${err?.message || String(err)}`);
     }
   }

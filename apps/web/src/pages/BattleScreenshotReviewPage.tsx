@@ -49,22 +49,43 @@ const BattleScreenshotReviewPage: React.FC = () => {
   };
 
   const downloadImages = async (it: BattleScreenshot) => {
+    const fallbackName = `战绩图_${it.companion?.user?.username || it.id}.zip`;
     try {
       const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`/api/battle-screenshots/${it.id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        message.error('下载失败');
+        // 服务端会给出具体原因（记录不存在 / 图片在服务器上丢了要重新上传 / 打包失败），
+        // 以前一律吞成「下载失败」，管理端根本不知道该怎么办。
+        let reason = '下载失败';
+        try {
+          const data = await res.json();
+          if (data?.message) reason = String(data.message);
+        } catch {}
+        message.error(reason);
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const cd = res.headers.get('Content-Disposition') || '';
-      const m = cd.match(/filename="?([^"]+)"?/);
+      // 中文文件名走 filename*=UTF-8''（服务端另给一份 ASCII 兜底），优先取前者，
+      // 否则存下来会变成「??_2026-09-22.zip」这种名字。
+      const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      const plain = cd.match(/filename=(?!\*)"?([^";]+)"?/i);
+      let filename = fallbackName;
+      if (star) {
+        try {
+          filename = decodeURIComponent(star[1]);
+        } catch {
+          filename = plain?.[1] || fallbackName;
+        }
+      } else if (plain) {
+        filename = plain[1];
+      }
       const a = document.createElement('a');
       a.href = url;
-      a.download = m?.[1] || `战绩图_${it.companion?.user?.username || it.id}.zip`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
