@@ -93,7 +93,31 @@ async function releaseUpdateSlot(serverUrl: string, token: string): Promise<void
   }
 }
 
+/** 陪玩正在接单/服务中。 */
+function companionBusy(): boolean {
+  return store.get('lastStatus') === 'BUSY';
+}
+
+/** 等陪玩空闲（最多 30 分钟）。返回 false = 还在接单，这一轮先不动它。 */
+async function waitUntilIdle(why: string): Promise<boolean> {
+  if (!companionBusy()) return true;
+  logger.info('Companion is busy, deferring update', { why });
+  const deadline = Date.now() + 30 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
+    if (!companionBusy()) return true;
+  }
+  return false;
+}
+
 async function performUpdate(downloadUrl: string): Promise<void> {
+  // 接单中不更新：更新最后要退出进程让看门狗重启，正在跑的单子会被打断
+  // （计时、截图、客户在等）。后台「推送更新」和 WS 命令都会走到这里，
+  // 所以这道闸必须在这里，而不是只靠启动时的更新检查。
+  if (!(await waitUntilIdle('before download'))) {
+    logger.info('Still busy after waiting, skip this update round');
+    return;
+  }
   // 串行更新：先申请下载名额，没名额就等下一次检查，避免多台同时下载把带宽打满、谁也下不动。
   const serverUrl = getServerUrl();
   const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
@@ -110,6 +134,15 @@ async function performUpdate(downloadUrl: string): Promise<void> {
     fs.mkdirSync(localDir, { recursive: true });
     await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
     setUpdateProgress(100);
+    // 下载这段时间里可能刚好接了一单：包已经在本地下好了，先放着，
+    // 等这单结束再交给看门狗重启，不要为了更新把订单掐掉。
+    if (!(await waitUntilIdle('after download'))) {
+      logger.info('Still busy after waiting, keep the downloaded package for the next round');
+      await releaseUpdateSlot(serverUrl, token);
+      stopUpdateSpin();
+      updateTrayTooltip('陪玩管理');
+      return;
+    }
     signalUpdate(downloadUrl, localZip);
     logger.info('Update downloaded, handing off to SystemHelper', { localZip });
     await releaseUpdateSlot(serverUrl, token);
