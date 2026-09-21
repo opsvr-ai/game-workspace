@@ -1220,6 +1220,45 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - 移除后端 `/revenue/daily`、`/revenue/monthly` 及其 CSV 导出接口
 - 清理前端 `dashboardApi.dailyPerformance/monthlyPerformance` 和 `billingApi.dailyRevenue/monthlyRevenue` 方法
 
+### Removed
+
+- **删除 14 个零引用的死代码文件（每个都先在仓库里搜过引用）：** 前端
+  `FloatingChatWidget.tsx`（`AppLayout` 里早就注明「removed — redundant with bell notification」）、
+  旧版 `MessageBubble.tsx`（正版在 `components/chat/MessageBubble.tsx`）、`EditableWorkWechat.tsx`、
+  `CompanionListPage.tsx`（`companions` 路由用的是 `CompanionsPage`）、`api/ai.ts`、
+  以及聊天目录的 barrel `components/chat/index.ts`（19 个 re-export 里只有 `ChatProvider` 有人用）；
+  服务端 `chat/migrate-legacy.ts`（一次性迁移脚本）和 3 个没人引用的 DTO
+  （`UpdateCompanionDto` / `UpdateStatusDto` / `UpdateProfileDto`）。
+
+- **删掉陪玩端那套「永远不会被加载」的前端渲染层：** 客户端主进程一直是
+  `loadURL(服务器 /login)`，全仓库没有任何 `loadFile` / 本地 `dist/index.html` 的加载路径，
+  但仓库里还留着 `index.html` + `src/`（App / LoginPage / client）+ `vite.config.ts`（45 条 alias）
+  和配套 `tsconfig.json`，而 `electron-builder.yml` 的 `files` 会把这份产物一起打进安装包 ——
+  等于每台陪玩电脑里都塞着一份用不到的前端副本。现在整块删除，`build` / `build:win` 里的
+  `vite build` 一并去掉（主进程仍由 `esbuild.electron.js` 打包，`dist-electron` 照旧）。
+
+- **仓库根目录的一次性文件清理：** 删掉 51 个临时/日志文件（`_last.txt`、`_ws_events.txt`、
+  `_client_logs*.txt`、`_status.txt`、`_verify_live.txt`、约 40 个 `.tmp-*.py` / `.tmp_*.cjs`、
+  空的 `xujie.out` 和 `路径：左侧菜单`），以及上一次审计会话留下的 `.audit/`（21 个探测脚本 + 36 张截图）。
+  `SCRATCHPAD.md` / `WORKING.md` / `TASK-QUEUE.md` 这三个空模板在同一份 CHANGELOG 里已经声明删除过，
+  但只删了陪玩端目录那一份、根目录这份漏掉了，这次补上。`.gitignore` 增加
+  `/_*.txt`、`/_*.out`、`/.tmp-*`、`/.tmp_*`、`/.audit/`，以后这类文件不会再污染 `git status`。
+
+- **3 份过期的开发 TASK / 核查报告移进 `docs/archive/`：** `VERIFICATION_REPORT.md`（2026-07-05 的一次性核查）、
+  `COMPANION_STATUS_REDESIGN.md`、`STUDIO_MANAGEMENT_TASKS.md`（都是已经做完的排期清单）。
+
+### Changed
+
+- **合并 5 组被抄了两遍的工具函数（逻辑一字未改，只是收敛到一处）：**
+  ① 前端 `displayStatus` / `statusDotColor` / `STATUS_DOT` —— `OrderPoolPage` 和
+  `dispatch/CSDispatchView` 各写了一份，统一搬进 `constants/companions.ts`；
+  ② 服务端 `isLanOrigin`（ws / chat 两个网关各一份）和 `bearerToken`（限流守卫 / 日志中间件各一份）——
+  新增 `common/http-auth.ts`；
+  ③ 陪玩端 `getAppPassword`（`main.ts` / `screen-lock.ts` 各一份）—— 统一由 `screen-lock.ts` 导出。
+  附注：`formatHeartbeat` / `formatDuration` 虽然同名，但两边**行为并不相同**
+  （一边返回结构化对象、一边返回字符串；一边是中文时长、一边是 `mm:ss`），所以故意没有合并。
+  本次改动已在本地跑过 `tsc` / `nest build` / `vite build` / `esbuild` 验证（0 错误），未部署、未重启服务端、未发客户端。
+
 ## [3.0.0] — 2026-06-30
 
 ### Added
