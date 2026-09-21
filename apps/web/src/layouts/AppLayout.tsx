@@ -1166,6 +1166,16 @@ const AppLayout: React.FC = () => {
       if (user?.role === 'COMPANION') {
         setUrgentOrder(data);
         window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+        // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗提示」：
+        // 以前只有窗口里那张右下角卡片，窗口被游戏挡住 / 缩到托盘时看不到也听不到，
+        // 一单就这么错过了。这里补上提示音 + Windows 系统通知，后台也能被叫到。
+        playNotificationSound();
+        showSystemNotification(
+          data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
+          `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
+            data?.duration || 1
+          }h · ${data?._createdBy || '系统'} 发布，快去抢`,
+        );
       }
     },
     onScheduledReminder: (data: any) => {

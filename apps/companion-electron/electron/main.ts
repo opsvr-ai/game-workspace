@@ -511,9 +511,11 @@ function escapeHtml(v: unknown): string {
   });
 }
 
-function broadcastPopupHtml(payload: { title?: string; body?: string }): string {
+function broadcastPopupHtml(payload: { title?: string; body?: string; icon?: string; seconds?: number }): string {
   const title = escapeHtml(payload?.title || '群聊广播');
   const body = escapeHtml(payload?.body || '');
+  const icon = escapeHtml(payload?.icon || '📢');
+  const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:transparent;font-family:"Microsoft YaHei",sans-serif;overflow:hidden}
@@ -521,24 +523,26 @@ html,body{background:transparent;font-family:"Microsoft YaHei",sans-serif;overfl
 .icon{font-size:22px;line-height:1.2}
 .t{font-size:14px;font-weight:700;color:#fff}
 .b{margin-top:6px;font-size:13px;line-height:1.6;color:#E2E8F0;word-break:break-word;max-height:66px;overflow:hidden}
-.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:#FF4757;transform-origin:left;animation:drain 5s linear forwards}
+.bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:#FF4757;transform-origin:left;animation:drain ${seconds}s linear forwards}
 @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style></head><body>
-<div class="card"><div class="icon">📢</div><div style="min-width:0;flex:1"><div class="t">${title}</div><div class="b">${body}</div></div><div class="bar"></div></div>
+<div class="card"><div class="icon">${icon}</div><div style="min-width:0;flex:1"><div class="t">${title}</div><div class="b">${body}</div></div><div class="bar"></div></div>
 </body></html>`;
 }
 
 const broadcastWindows: BrowserWindow[] = [];
 
 /**
- * 弹出广播提示：置顶、不抢焦点、鼠标穿透，5 秒后自己关闭。
+ * 弹出广播提示：置顶、不抢焦点、鼠标穿透，默认 5 秒后自己关闭。
  * 陪玩在打游戏或最小化了客户端时，也能在屏幕右下角看到。
+ * 新单提醒会带上自己的停留时长（服务端 _popupSeconds，默认 20 秒），比群聊广播停久一点。
  */
-function showBroadcastPopup(payload: { title?: string; body?: string }): void {
+function showBroadcastPopup(payload: { title?: string; body?: string; seconds?: number; icon?: string }): void {
   const W = 480;
   const H = 150;
   const GAP = 10;
   const MARGIN = 20;
+  const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
   const area = screen.getPrimaryDisplay().workArea;
 
   // 同时最多 3 个，超了先关掉最旧的
@@ -584,7 +588,7 @@ function showBroadcastPopup(payload: { title?: string; body?: string }): void {
   );
   setTimeout(() => {
     if (!win.isDestroyed()) win.destroy();
-  }, 5000);
+  }, seconds * 1000);
 }
 
 function promptPassword(title: string): Promise<boolean> {
@@ -1006,6 +1010,37 @@ app.whenReady().then(() => {
       }
     }
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
+  });
+  // 新单弹窗（老板 2026-09-22 报「发广播单所有人都没弹窗提示」）：
+  // 主进程这条 WebSocket 以前收到 order:urgent 直接丢掉，而界面里那张右下角卡片
+  // 在窗口被游戏挡住 / 缩到托盘时根本看不见，一单就这样错过了。
+  // 现在：窗口就在眼前只闪任务栏（不打扰玩游戏的）；窗口不在前面，就自己画一个置顶小窗。
+  onWsEvent('order:urgent', (data: any) => {
+    if (currentRole !== 'COMPANION') return;
+    try {
+      const facing =
+        !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused();
+      if (facing) {
+        mainWindow!.flashFrame(true);
+        return;
+      }
+      const title = data?._direct
+        ? '🎯 客服指定给你接单'
+        : data?._bridged
+          ? `🌉 桥接工作室发单！${data?._createdBy || '系统'} 发布`
+          : `⚡ 新订单！${data?._createdBy || '系统'} 发布`;
+      const body = `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
+        data?.duration || 1
+      }h · 去订单管理抢单`;
+      showBroadcastPopup({
+        title,
+        body,
+        icon: '⚡',
+        seconds: Number(data?._popupSeconds) > 0 ? Number(data._popupSeconds) : 20,
+      });
+    } catch (err: any) {
+      logger.warn('Urgent order popup failed', { error: err?.message || err });
+    }
   });
   const token = getWsToken();
   if (token) connectWebSocket(getServerUrl(), token, (store.get('companionId') || '') as string, refreshWsTokenAndReconnect);

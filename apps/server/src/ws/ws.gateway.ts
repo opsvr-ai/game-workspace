@@ -751,12 +751,32 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             { status: { in: ['BUSY', 'ENTERTAINMENT'] }, notifyWhileBusy: true },
           ],
         },
-        select: { id: true },
+        select: { id: true, user: { select: { username: true } } },
       });
       let sent = 0;
+      const notConnected: string[] = [];
       for (const c of companions) {
+        // 命中 ≠ 收到：客户端没连着的人，这条弹窗只会发进空气里。
+        if (!this.companionSockets.get(c.id)?.size) {
+          notConnected.push(c.user?.username || c.id);
+        }
         this.server.to(`companion:${c.id}`).emit('order:urgent', data);
         sent += 1;
+      }
+      // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗」：这条路径以前一句日志都没有，
+      // 出问题只能靠猜。现在把「命中几人 / 真正在线几人 / 谁不在线」都记下来。
+      logger.info('SEND order:urgent (broadcast)', {
+        studioId,
+        orderCode: (data as any)?.orderCode,
+        matched: sent,
+        connected: sent - notConnected.length,
+        notConnected,
+      });
+      if (sent === 0) {
+        logger.warn('Broadcast order reached nobody (no idle companion in studio)', {
+          studioId,
+          orderCode: (data as any)?.orderCode,
+        });
       }
       return sent;
     } catch (err) {

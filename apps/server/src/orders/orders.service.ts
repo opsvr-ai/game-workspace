@@ -221,10 +221,18 @@ export class OrdersService implements OnModuleInit {
       where: { id: dto.csUserId },
       select: { username: true, role: true },
     });
+    // 弹窗停留时长（设置里可配，默认 20 秒）随单下发，
+    // 让网页里的卡片和陪玩端置顶小窗用同一个数（老板 2026-09-22 要求弹窗别一闪而过）。
+    const popupCfg = await resolveConfigsRaw(this.prisma, studioId ?? null, [
+      'pool.popup_seconds',
+    ]).catch(() => ({}) as Record<string, unknown>);
+    const popupSecondsRaw = Number((popupCfg as Record<string, unknown>)['pool.popup_seconds']);
+    const popupSeconds = Number.isFinite(popupSecondsRaw) && popupSecondsRaw > 0 ? popupSecondsRaw : 20;
     const popupPayload = {
       ...newOrder,
       _createdBy: popupCreator?.username || '未知',
       _creatorRole: popupCreator?.role || 'CS',
+      _popupSeconds: popupSeconds,
     };
 
     // BROADCAST: 右下角弹窗给本店在线陪玩（接单中/娱乐中默认不打扰，可自行打开）

@@ -36,7 +36,11 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
 
   useEffect(() => {
     if (!urgentOrder) return;
-    const t = setTimeout(() => setUrgentOrder(null), popupSeconds * 1000);
+    // 服务端会按「设置 → 弹窗停留时长」把时长随单一起发下来（_popupSeconds），
+    // 拿不到才回落到这里自己查的配置，避免两处配置不一致。
+    const fromOrder = Number(urgentOrder?._popupSeconds);
+    const seconds = Number.isFinite(fromOrder) && fromOrder > 0 ? fromOrder : popupSeconds;
+    const t = setTimeout(() => setUrgentOrder(null), seconds * 1000);
     return () => clearTimeout(t);
   }, [urgentOrder, setUrgentOrder, popupSeconds]);
 
