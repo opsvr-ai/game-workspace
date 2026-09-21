@@ -11,7 +11,7 @@ import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
-import { ChatProvider } from '../components/chat';
+import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
 import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
