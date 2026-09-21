@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image, Empty, Spin } from 'antd';
+import type { UploadFile } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import { customersApi } from '../api/customers';
@@ -12,6 +13,25 @@ import { visibleInterval } from '../hooks/usePolling';
 const { Text } = Typography;
 const { Dragger } = Upload;
 
+// 与服务端 BattleScreenshotsController 的 ALLOWED_EXTS 保持一致。
+//
+// 为什么按「扩展名」而不是只写 `image/*`：陪玩的真实操作是「截图 → 粘贴到微信电脑端 →
+// 从微信拖进这个上传框」，微信拖出来的临时文件经常没有 MIME（file.type === ''）。
+// 而 antd 的拖拽是用 accept 过滤的（rc-upload：`files.filter(f => attrAccept(f, accept))`），
+// `image/*` 在 MIME 为空时匹配不上，文件就被**静默丢掉**（连 beforeUpload 都不会触发）——
+// 表现就是「图拖进去了，提交按钮一直灰着」。扩展名判断不看 MIME，微信拖的和手动选的都能进。
+const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic', '.heif', '.tif', '.tiff'];
+const IMAGE_ACCEPT = [...IMAGE_EXTS, 'image/*'].join(',');
+const MIN_FILES = 3;
+const MAX_FILES = 10;
+
+const extOf = (name: string) => {
+  const i = name.lastIndexOf('.');
+  return i >= 0 ? name.slice(i).toLowerCase() : '';
+};
+
+const looksLikeImage = (f: File) => (f.type || '').startsWith('image/') || IMAGE_EXTS.includes(extOf(f.name));
+
 const STATUS: Record<string, { color: string; label: string }> = {
   PENDING: { color: 'gold', label: '待审核' },
   APPROVED: { color: 'green', label: '已采纳' },
@@ -19,7 +39,7 @@ const STATUS: Record<string, { color: string; label: string }> = {
 };
 
 const BattleScreenshotsPage: React.FC = () => {
-  const [files, setFiles] = useState<File[]>([]);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +49,29 @@ const BattleScreenshotsPage: React.FC = () => {
   const [currentStatus, setCurrentStatus] = useState('AVAILABLE');
   const [pendingCount, setPendingCount] = useState(0);
   const pendingRef = useRef<Array<{ files: File[]; customerId?: string }>>([]);
+  // antd 会把 accept 匹配不上的拖拽文件静默丢掉，这里自己记一笔账：
+  // 拖进来的数量 ≠ 真正进列表的数量时，明确告诉陪玩「有几个没识别、该怎么办」。
+  const fileListRef = useRef<UploadFile[]>([]);
+  const dropProbeRef = useRef(0);
+
+  useEffect(() => {
+    fileListRef.current = fileList;
+  }, [fileList]);
+
+  // 真正要上传的文件：antd 的 fileList 里存的是包装对象，原始 File 在 originFileObj。
+  const files = useMemo(
+    () => fileList.map((f) => (f.originFileObj as File) ?? (f as unknown as File)),
+    [fileList],
+  );
+
+  // 不在这里上传，等点「提交审核」时统一提交（空闲立即传 / 服务中先暂存 的逻辑不变）。
+  const beforeUpload = (file: File) => {
+    if (!looksLikeImage(file)) {
+      message.error(`「${file.name || '这个文件'}」看起来不是图片，请用 JPG / PNG / WebP 等格式`);
+      return Upload.LIST_IGNORE;
+    }
+    return false;
+  };
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -84,11 +127,11 @@ const BattleScreenshotsPage: React.FC = () => {
   }, [user?.companionId, doUpload]);
 
   const submit = async () => {
-    if (files.length < 3) {
-      message.warning('最少上传 3 张战绩图为一组');
+    if (files.length < MIN_FILES) {
+      message.warning(`最少上传 ${MIN_FILES} 张战绩图为一组（现在 ${files.length} 张）`);
       return;
     }
-    setFiles([]);
+    setFileList([]);
     setCustomerId(undefined);
     if (currentStatus === 'AVAILABLE') {
       setSubmitting(true);
@@ -120,19 +163,45 @@ const BattleScreenshotsPage: React.FC = () => {
               }))}
             />
           </Space>
-          <Dragger
-            multiple
-            accept="image/*"
-            fileList={files.map((f: any, i) => ({ uid: String(i), name: f.name, status: 'done' }))}
-            beforeUpload={() => false}
-            onChange={(info) => setFiles(info.fileList.map((f: any) => f.originFileObj).filter(Boolean))}
+          <div
+            onDropCapture={(e) => {
+              const dropped = e.dataTransfer?.files?.length ?? 0;
+              if (!dropped) return;
+              const before = fileListRef.current.length;
+              dropProbeRef.current = dropped;
+              window.setTimeout(() => {
+                const added = fileListRef.current.length - before;
+                if (added < dropProbeRef.current) {
+                  message.warning(
+                    `拖进来 ${dropProbeRef.current} 个文件，只认出 ${Math.max(0, added)} 个。` +
+                      '微信拖出来的临时文件有时不是图片格式：先在微信里「另存为」成图片再拖，或点上面的框直接选文件。',
+                  );
+                }
+              }, 300);
+            }}
           >
-            <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-            <p className="ant-upload-text">点击或拖拽上传战绩图</p>
-            <p className="ant-upload-hint">必须同一个陪玩ID或同一个客户ID，最少 3 张为一组</p>
-          </Dragger>
-          <Button type="primary" loading={submitting} onClick={submit} disabled={files.length < 3}>
-            提交审核（{files.length} 张）
+            <Dragger
+              multiple
+              maxCount={MAX_FILES}
+              accept={IMAGE_ACCEPT}
+              fileList={fileList}
+              beforeUpload={beforeUpload}
+              onChange={(info) => setFileList(info.fileList)}
+            >
+              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-text">点击或拖拽上传战绩图</p>
+              <p className="ant-upload-hint">
+                必须同一个陪玩ID或同一个客户ID，最少 {MIN_FILES} 张为一组（最多 {MAX_FILES} 张）
+              </p>
+            </Dragger>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            支持 JPG / PNG / WebP / GIF / BMP；微信电脑端里的图可以直接拖进来，拖不动就先「另存为」成图片再拖。
+          </Text>
+          <Button type="primary" loading={submitting} onClick={submit} disabled={files.length < MIN_FILES}>
+            {files.length < MIN_FILES
+              ? `提交审核（已有 ${files.length} 张，还差 ${MIN_FILES - files.length} 张）`
+              : `提交审核（${files.length} 张）`}
           </Button>
           <Text type="secondary" style={{ fontSize: 12 }}>
             当前状态：{currentStatus === 'AVAILABLE' ? '空闲' : '服务中'}

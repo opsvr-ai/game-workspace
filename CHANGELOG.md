@@ -64,6 +64,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩端「上传战绩图」：从微信电脑端拖进来的图会被静默丢掉，提交按钮一直灰着（老板 2026-09-22 报，张权现场）：**
+  陪玩的真实操作是「游戏截图 → 粘贴到微信电脑端 → 从微信把图拖进上传框」。微信拖出来的临时文件
+  经常没有 MIME 类型（`file.type === ''`），而上传框原来写的是 `accept="image/*"`；antd/rc-upload
+  在**拖拽**时是按 accept 过滤的（`files.filter(f => attrAccept(f, accept))`），MIME 为空匹配不上，
+  文件就被**静默丢弃**——连 `beforeUpload` 都不触发，列表里什么都不显示，`files.length` 恒为 0，
+  于是「提交审核」永远灰着，人还以为是自己没拖对。
+  现场证据：服务端日志里 **`POST /api/battle-screenshots` 至今 0 条**（张权今天只有 3 次
+  `GET /api/battle-screenshots/mine` 轮询），说明请求从来没发出去过 —— 不是上传失败，是根本没进列表。
+  改法：① accept 改成按**扩展名**（与服务端 `ALLOWED_EXTS` 一致）并保留 `image/*`，扩展名判断不看 MIME，
+  微信拖的和手动选的都能进（已用线上同一版 rc-upload 的 `attr-accept` 逐例验证：无 MIME 的 `.png`/`.jpg`
+  由「拒绝」变「通过」，正常图与非图片行为不变）；② 不再自己拼一套 fileList（原来拿数组下标当 uid），
+  改成直接受控 antd 的 `fileList`、从 `originFileObj` 取原始文件；③ 增加拖拽对账：拖进来 N 个只认出 M 个时，
+  当场提示「先在微信里另存为图片再拖」；④ 按钮直接写明「已有 X 张，还差 Y 张」，不用再对着灰按钮猜；
+  ⑤ 最多 10 张（与服务端限制一致）。
+  已部署：网页端 `v764 → v765`（只发网页，没动服务端、没发客户端 exe）。
+
 - **陪玩端装机脚本搞错了生效文件：真正被 electron-builder 加载的是 `build/installer.nsh`，
   而它一直是**旧版「蠢驴电竞」**那一份（把 `$INSTDIR` 写死成 `C:\Program Files\蠢驴电竞`，
   还顺手 `RMDir /r` 掉这个目录），仓库根那份写「陪玩管理」的 `installer.nsh` **从来没被加载过**。
