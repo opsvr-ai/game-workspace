@@ -37,6 +37,8 @@ const logger = new Logger('BattleScreenshots');
 
 const safeName = (s: string) => String(s || '未知').replace(/[\\/:*?"<>|]/g, '_').trim();
 const chinaDate = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+/** 服务器跑 UTC，日期一律按北京时间算（否则半夜上传的图会显示成前一天）。 */
+const chinaDateOf = (d: Date) => new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 
 @Controller('battle-screenshots')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -191,7 +193,7 @@ export class BattleScreenshotsController {
       );
       const name = item.companion?.user?.displayName || item.companion?.user?.username || '陪玩';
       const safeName = String(name).replace(/[\\/:*?"<>|]/g, '_');
-      res.download(zipPath, `战绩图_${safeName}_${new Date(item.createdAt).toISOString().slice(0, 10)}.zip`, () => {
+      res.download(zipPath, `战绩图_${safeName}_${chinaDateOf(new Date(item.createdAt))}.zip`, () => {
         try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
         try { rmSync(zipPath, { force: true }); } catch {}
       });
