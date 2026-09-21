@@ -54,10 +54,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user, isAuthenticated: true });
       try { (window as any).electronAPI?.setStudioName?.(user.studioName || ''); } catch {}
       return user;
-    } catch {
-      sessionStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      set({ user: null, isAuthenticated: false });
+    } catch (err: any) {
+      // 只有服务端明确说「这个身份不认了」（401/403，且拦截器已经试过用 refreshToken 续期）
+      // 才清登录态。以前是任何异常都清 —— 断网、25 秒超时、服务端重启的 5xx 全都算，
+      // 于是办公室那条网一抖，所有人被踢回登录页，还得重新打密码。
+      // 这就是「动不动就不自动登录 / 动不动就掉线」的根之一。
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        sessionStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        set({ user: null, isAuthenticated: false });
+      }
       return null;
     }
   },

@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
 import { reportClientError, diagnoseUploadPath } from '../api/diagnostics';
 import { compressImage } from '../utils/imageCompress';
+import { restoreClientSession } from '../utils/sessionRestore';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -33,7 +34,9 @@ const LoginPage: React.FC = () => {
   const [showInviteLogin, setShowInviteLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  // 默认勾上：客户端是「一人一台机器」的接单工具，登录一次就该一直记住；
+  // 真要退出账号走的是托盘退出（需要管理密码，会把记住的账号密码一起清掉）。
+  const [rememberMe, setRememberMe] = useState(true);
   const [usernameError, setUsernameError] = useState('');
   const didAutoLogin = useRef(false);
   const [forgotVisible, setForgotVisible] = useState(false);
@@ -43,19 +46,37 @@ const LoginPage: React.FC = () => {
   const [forgotConfirm, setForgotConfirm] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Electron 端自动填充上次安全保存的登录凭据
+  // 客户端启动后自动恢复登录：
+  // ① 先用主进程里还没过期的令牌直接恢复（不需要密码）；
+  // ② 令牌真失效了（超过 7 天 / 主动退出过），再用「记住我」保存的账号密码登录。
   useEffect(() => {
     const api = (window as any).electronAPI;
-    if (!api?.getSavedCredentials || didAutoLogin.current) return;
-    api.getSavedCredentials().then((creds: any) => {
-      if (creds?.username && creds?.password) {
-        didAutoLogin.current = true;
-        setUsername(creds.username);
-        setPassword(creds.password);
-        setRememberMe(true);
-        performLogin(creds.username, creds.password, true);
-      }
-    }).catch(() => {});
+    if (!api || didAutoLogin.current) return;
+    restoreClientSession()
+      .then(async (restored) => {
+        if (restored && !didAutoLogin.current) {
+          didAutoLogin.current = true;
+          // 这里如果 accessToken 已经过期，axios 拦截器会自动用 refreshToken 换新的再重试。
+          const restoredUser = await fetchUser();
+          if (restoredUser) {
+            navigate(roleRouteMap[restoredUser.role] || '/login', { replace: true });
+            return;
+          }
+          // 令牌彻底不认了，交给下面的账号密码兜底
+          didAutoLogin.current = false;
+        }
+        if (!api.getSavedCredentials || didAutoLogin.current) return;
+        api.getSavedCredentials().then((creds: any) => {
+          if (creds?.username && creds?.password) {
+            didAutoLogin.current = true;
+            setUsername(creds.username);
+            setPassword(creds.password);
+            setRememberMe(true);
+            performLogin(creds.username, creds.password, true);
+          }
+        }).catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   // Check username availability on blur
@@ -72,6 +93,7 @@ const LoginPage: React.FC = () => {
   };
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
   const navigate = useNavigate();
 
   // 注册字段
