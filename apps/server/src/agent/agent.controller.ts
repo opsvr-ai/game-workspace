@@ -8,6 +8,7 @@ import { UserRole } from '@chunlv/shared';
 import { AgentService } from './agent.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
+import { streamFileThrottled } from '../common/throttled-file';
 import type { ApiResponse } from '@chunlv/shared';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -256,6 +257,7 @@ export class AgentController {
   }
 
   // Public: 自动更新专用 —— 返回 win-unpacked 的 zip，SystemHelper 服务按 zip 解压覆盖安装目录。
+  // 限速下发：全速下发会把办公室那条网占满，别的陪玩接口请求超时（看起来像掉线）。
   @Get('download/latest')
   async downloadLatest(@Res() res: Response): Promise<void> {
     const zipPath = this.agentService.getLatestZipPath();
@@ -263,7 +265,7 @@ export class AgentController {
       res.status(404).json({ code: 404, message: '更新包不存在，请先构建', data: null });
       return;
     }
-    res.download(zipPath, 'chunlv-latest.zip');
+    await streamFileThrottled(zipPath, 'chunlv-latest.zip', res);
   }
 
   // Public: 全新安装 / 远程部署专用 —— 返回 NSIS 安装器。
@@ -316,7 +318,7 @@ export class AgentController {
       if (req.user?.studioId) {
         this.wsGateway.broadcastToStudio(req.user.studioId, 'pc:command', {
           command: 'update',
-          downloadUrl: '/uploads/chunlv-latest.zip',
+          downloadUrl: '/api/agent/download/latest',
           version: result.version,
         });
       }
