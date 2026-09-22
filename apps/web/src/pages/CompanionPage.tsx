@@ -320,9 +320,11 @@ const CompanionPage: React.FC = () => {
                 }}
                 icon={React.createElement(ReloadOutlined)}
               />
-              <Button size="small" onClick={() => setNotifModalOpen(true)}>
-                🔔
-              </Button>
+              <Tooltip title="设置（订单通知：打单中也接收新单弹窗）">
+                <Button size="small" onClick={() => setNotifModalOpen(true)}>
+                  🔔
+                </Button>
+              </Tooltip>
             </Space>
           </Col>
         </Row>
