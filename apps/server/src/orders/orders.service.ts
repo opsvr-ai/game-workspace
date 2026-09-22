@@ -235,7 +235,8 @@ export class OrdersService implements OnModuleInit {
       _popupSeconds: popupSeconds,
     };
 
-    // BROADCAST: 右下角弹窗给本店在线陪玩（接单中/娱乐中默认不打扰，可自行打开）
+    // BROADCAST: 右下角弹窗给本店在线陪玩
+    // （空闲 + 娱乐中一定弹；接单中默认不打扰，陪玩可在「陪玩端 → 设置」自行打开）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
       await this.wsGateway.broadcastNewOrder(studioId, {
         ...popupPayload,

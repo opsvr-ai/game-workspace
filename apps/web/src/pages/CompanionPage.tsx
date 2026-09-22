@@ -766,14 +766,14 @@ const CompanionPage: React.FC = () => {
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 12 }}>
-          <Typography.Text strong>打单中 / 娱乐中也接收新单弹窗</Typography.Text>
+          <Typography.Text strong>打单中也接收新单弹窗</Typography.Text>
           <Switch
             checked={notifyWhileBusy}
             onChange={async (v) => {
               setNotifyWhileBusy(v);
               try {
                 await companionsApi.setNotifyPrefs({ notifyWhileBusy: v });
-                message.success(v ? '已打开：打单/娱乐时也会弹新单' : '已关闭：打单/娱乐时不打扰');
+                message.success(v ? '已打开：正在打单时也会弹新单' : '已关闭：打单时不打扰');
               } catch {
                 setNotifyWhileBusy(!v);
                 message.error('保存失败，请重试');
@@ -782,7 +782,8 @@ const CompanionPage: React.FC = () => {
           />
         </div>
         <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
-          默认关闭：正在打单或娱乐时不会弹出新单，避免打扰。想多抢单可以打开。
+          空闲、娱乐中一定会弹（娱乐中也能抢单）；这个开关只管「正在给别人打单」的时候 ——
+          默认关闭免得打扰，想多抢单可以打开。
         </Typography.Text>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
           <Typography.Text strong>提示音</Typography.Text>
