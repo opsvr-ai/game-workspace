@@ -152,6 +152,79 @@ function saveCredentials(creds) {
   }
 }
 
+/**
+ * 客户端改名/更新之后，老机器的桌面快捷方式会指向已经被删掉的旧目录
+ * （蠢驴电竞客服端 / 旧的客服管理目录），表现就是「图标变白、点开提示
+ * 无法在此电脑上运行」。陪玩端早就修过同一个问题（每次启动校正自己的快捷方式），
+ * 客服端一直缺这一段，所以这里补齐：
+ *   ① 每次启动把「客服管理」快捷方式指到本次正在运行的 exe；
+ *   ② 名字属于本产品、但目标已经不存在的旧图标（白图标）顺手清掉。
+ * 当前用户桌面和公共桌面都处理（老版本 perMachine 安装器把图标放公共桌面）。
+ */
+function ensureDesktopShortcut() {
+  // 开发模式（electron.exe）不建快捷方式，避免污染开发机桌面。
+  if (!app.isPackaged) return;
+
+  let target = '';
+  try {
+    target = app.getPath('exe');
+  } catch {
+    return;
+  }
+  if (!target || !fs.existsSync(target)) return;
+
+  let desktop = '';
+  try {
+    desktop = app.getPath('desktop');
+  } catch {
+    return;
+  }
+  const lnk = path.join(desktop, '客服管理.lnk');
+  const dir = path.dirname(target);
+  let publicDesktop = '';
+  try {
+    publicDesktop = path.join(path.dirname(app.getPath('home')), 'Public', 'Desktop');
+  } catch {
+    publicDesktop = '';
+  }
+  const q = (v) => "'" + String(v).replace(/'/g, "''") + "'";
+  const script = [
+    "$ErrorActionPreference='SilentlyContinue'",
+    '$w=New-Object -ComObject WScript.Shell',
+    '$s=$w.CreateShortcut(' + q(lnk) + ')',
+    '$s.TargetPath=' + q(target),
+    '$s.WorkingDirectory=' + q(dir),
+    '$s.IconLocation=' + q(target + ',0'),
+    "$s.Description='客服管理'",
+    '$s.Save()',
+    // 枚举桌面快捷方式必须用 -Path，不能用 -LiteralPath，否则 *.lnk 不会被展开。
+    // 小部分机器上「公共桌面」目录不存在（被删或被策略禁掉），先过滤掉：
+    // 否则 Get-ChildItem 会报错，powershell 以退出码 1 收场，日志里天天一条假告警。
+    '$desktops = @(' + q(desktop) + (publicDesktop ? ',' + q(publicDesktop) : '') + ') | Where-Object { $_ -and (Test-Path -LiteralPath $_) }',
+    'foreach($d in $desktops){',
+    "  Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {",
+    // 判断「是不是刚写的那个」必须比全路径：公共桌面上同名（客服管理.lnk）
+    // 的旧图标正是最常见的白图标来源，按名字跳过就永远清不掉。
+    "    if ($_.FullName -eq " + q(lnk) + ") { return }",
+    "    if ($_.Name -notmatch '客服管理|蠢驴电竞|chunlv') { return }",
+    // 旧品牌名字（蠢驴电竞客服端 / 蠢驴电竞）一律清掉，早就改名了。
+    "    if ($_.Name -match '蠢驴电竞') { Remove-Item -LiteralPath $_.FullName -Force; return }",
+    '    $t=$w.CreateShortcut($_.FullName).TargetPath',
+    '    if (-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ieq ' + q(target) + ')) { Remove-Item -LiteralPath $_.FullName -Force }',
+    '  }',
+    '}',
+  ].join(';');
+
+  require('child_process').execFile(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-Command', script],
+    { windowsHide: true },
+    (err) => {
+      if (err) console.warn('Desktop shortcut repair failed:', err.message);
+    },
+  );
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -265,6 +338,8 @@ app.whenReady().then(() => {
   });
   createWindow();
   createTray();
+  // 每次启动顺手校正桌面图标：更新/改名后老机器的图标会变白、点不开。
+  ensureDesktopShortcut();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。
   setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
   // 版本号查询从 5 分钟放宽到 30 分钟（一天 288 次没有意义）；
