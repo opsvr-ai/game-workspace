@@ -4,22 +4,8 @@ import { Card, Button, Space, Typography, message, Row, Col, InputNumber, Divide
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { payrollApi } from '../../api/payroll';
-import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
-
-/**
- * 只读展示：分成比例只在「设置 → 系统配置 → 利润分成（分账规则）」一处能改，
- * 这一页只显示当前值 + 一个跳转，免得同一个数两处都能填、谁也不知道哪个生效。
- */
-const ReadOnlyShare = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
-  <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-    <Text style={{ display: 'inline-block', minWidth: 150 }}>{label}</Text>
-    <Text strong style={{ fontSize: 15, color: '#1677ff', minWidth: 80 }}>{value}</Text>
-    <Link to="/admin/settings?tab=payment" style={{ fontSize: 12 }}>去「利润分成」修改</Link>
-    {hint && <Text type="secondary" style={{ fontSize: 12 }}>{hint}</Text>}
-  </div>
-);
 
 const Field = ({ label, unit, value, onChange, step = 1, min = 0, max, hint }: {
   label: string;
@@ -128,11 +114,6 @@ const CsSettingsPage: React.FC = () => {
         <Col xs={24} lg={12}>
           <Card size="small" title="🎧 客服提成" style={{ marginBottom: 16 }}>
             <Text strong style={{ color: '#52c41a' }}>线下</Text>
-            <ReadOnlyShare
-              label="线下提成比例"
-              value={`${getCfg('commission.cs_offline_rate_percent', 1)}%`}
-              hint="被线下陪玩接走的单，按流水比例；和「利润分成（分账规则）」是同一个数，在那页统一改"
-            />
             <Field label="线下保底" unit="元/单" value={getCfg('commission.cs_offline_floor_cents', 200) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_floor_cents', Math.round(v * 100))} hint="每单提成不足时按保底发" />
             <Field label="线下每单封顶" unit="元/单" value={getCfg('commission.cs_offline_per_order_cap_cents', 0) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_per_order_cap_cents', Math.round(v * 100))} hint="每单线下提成上限，0=不封顶" />
             <Divider style={{ margin: '8px 0' }} />
@@ -143,13 +124,6 @@ const CsSettingsPage: React.FC = () => {
             <Field label="5元/单门槛" unit="单/月" value={getCfg('commission.cs_bridge_tier5_threshold', 260)} step={5} onChange={(v) => setCfg('commission.cs_bridge_tier5_threshold', v)} hint="达到后按 5 元/单" />
             <Field label="3元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier3_yuan', 3)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier3_yuan', v)} />
             <Field label="5元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier5_yuan', 5)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier5_yuan', v)} />
-            <Divider style={{ margin: '8px 0' }} />
-            <Text strong style={{ color: '#722ed1' }}>线上</Text>
-            <ReadOnlyShare
-              label="线上每单提成"
-              value={`${getCfg('commission.cs_online_per_order_yuan', 1)} 元/单`}
-              hint="单陪算1单、双陪算2单；和「利润分成（分账规则）」是同一个数，在那页统一改"
-            />
           </Card>
 
           <Card size="small" title="🏇 桥接达标规则" style={{ marginBottom: 16 }}>

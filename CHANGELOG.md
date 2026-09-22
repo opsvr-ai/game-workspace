@@ -193,6 +193,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **多余的只读副本也删干净了（老板 2026-09-22「别跳转了，直接删除多余的就行」）：** 上一轮把重复的分成项
+  改成「只读 + 去利润分成修改」，老板看下来还是嫌绕 —— 留一行只读、还要点一下跳走，不如直接删。
+  所以「客服设置 → 客服提成」里那两行只读副本（**线下提成比例**、**线上每单提成**）**整行删除**
+  （`apps/web/src/pages/admin/CsSettingsPage.tsx`，只为它们存在的 `ReadOnlyShare` 组件与 `react-router` 引用一并删掉）；
+  这两个数只在「设置 → 系统配置 → 利润分成（分账规则）」里改。按老板原话保留一处：
+  「财务中心」的「桥接工作室结算」卡片继续是**只读 + 「去利润分成修改」按钮**（给会计看数用）。
+  另外已删除的「利润分成」独立页仍留一行兼容跳转（`/admin/profit-split` → 分账规则页）——
+  它不在任何菜单或按钮上，只是防止谁存过旧书签、点进去变成白屏。
+  顺手把「同一个数有几处能改」又核了一遍：`bridge.secret_price_yuan` / `bridge.jueju_net_yuan` /
+  `dispatch.bridge_return_jimi_cents` / `dispatch.bridge_return_jueju_cents` 以及四个人分成的键，
+  现在**只有 `PaymentSettings.tsx`（分账规则页）一处写**，其余页面全是读；`DispatchCommissionSettings.tsx`
+  也只剩「派单优先级」，没有重复输入框。网页已部署 **v772**。
+
 - **客服端客户端 1.0.20260927 发布（老板 2026-09-22「直接发」）：** 客服端攒着的改动只有一条 ——
   版本号查询从 **5 分钟放宽到 30 分钟**（`apps/cs-electron/main.js`；一天查 288 次没有意义，
   后台「推送更新」仍可立刻下发）。老板要求照样发出去，不再等下次。
