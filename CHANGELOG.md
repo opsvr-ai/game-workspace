@@ -193,6 +193,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **客服端客户端 1.0.20260927 发布（老板 2026-09-22「直接发」）：** 客服端攒着的改动只有一条 ——
+  版本号查询从 **5 分钟放宽到 30 分钟**（`apps/cs-electron/main.js`；一天查 288 次没有意义，
+  后台「推送更新」仍可立刻下发）。老板要求照样发出去，不再等下次。
+  顺带把客服端的发布链路补成脚本：新增 `scripts/_publish_cs_client.py`（陪玩端早有 `_publish_client.py`，
+  客服端以前只能手工传包 + 手工改库）。流程与陪玩端一致：先核对本地装机包里就是新代码，再
+  「传临时文件 → 原子改名」上传 `uploads/agent-cs-setup.exe`（外加中文名副本供新电脑手动装），
+  最后写 `cs.latest_version` / `cs.latest_download_url`；**要发的版本不递增会直接中止** ——
+  客服端只在「服务端版本严格更新」时才装，版本号漏改的表现是「发布成功，但一台机器都不升级」。
+  线上已复核：`/api/agent/cs-version` 返回 `1.0.20260927`，`/api/agent/download/cs` 可下载
+  （77,014,702 字节，与本地装机包一致）。客服端电脑**下次启动客户端时自动更新**，
+  不会打断任何人（客服端只有窗口可见时才上报心跳，也不在陪玩接单链路上）。
+
 - **同一批设置散在好几页，已合并（老板 2026-09-22 报：「分成在财务管理也有、设置也有」）：**
   盘了一遍全站「写配置」的地方，发现三组数是重复的，现在每组只剩一处能改，别处只读 + 给跳转：
   ① **四个人分成（陪玩 / 店长 / 客服 / 工作室）** 原先「利润分成」页、「设置 → 分账规则」、「客服设置」
@@ -278,6 +290,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   查库 `StudioConfig` 有这一行、`SystemConfig` 里那把真 Key **一个字节没动**；店长把本店「上等马线」改成 0 →
   本店 5 人变上等马（老板全站默认是 999），确认按店生效；改完点「全部恢复默认」→ 删掉 2 行覆盖，
   线上 `StudioConfig` 回到 0 行。
+
+### Removed
+
+- **清掉 `apps/` 根目录 424MB 历史垃圾（老板 2026-09-22「删」）：** `apps/` 根目录散着 19 个没人引用的文件 ——
+  一份完整的旧 Electron 解包（`蠢驴电竞.exe` 169MB + `icudtl.dat`、`*.pak`、`*.dll` 等运行时文件，
+  全是 2026-08-01 那一批）和两个 104MB 的 `app.zip` / `app (1).zip`，合计 424.4MB。
+  删前核实过三件事：① `git check-ignore` 显示它们**逐条写在 `.gitignore` 里**（本来就没入库，
+  删了不影响任何人 clone）；② 全仓库搜 `apps/蠢驴电竞.exe` / `apps/app.zip` **零引用**
+  （`deploy/repair-client.bat` 里的「蠢驴电竞.exe」是 `C:\Program Files\...` 的安装目录探测，
+  跟这两个文件无关）；③ 活跃发布链（`_publish_client.py`、`_deploy_*.py`）一个都不碰。
+  删除后 `apps/` 只剩 5 个源码子目录。
 
 ### Added
 

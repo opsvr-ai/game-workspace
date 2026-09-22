@@ -146,6 +146,7 @@ scripts/_*
 !scripts/_deploy_server_cloud.py
 !scripts/_deploy_web_cloud.py
 !scripts/_publish_client.py
+!scripts/_publish_cs_client.py
 !scripts/_set_web_version.py
 !scripts/_upload_sh_cloud.py
 !scripts/_push_watchdog_all.py
