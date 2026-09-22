@@ -85,7 +85,6 @@ import PriceRulesPage from './pages/finance/PriceRulesPage';
 import CommissionPage from './pages/finance/CommissionPage';
 import CsCommissionTodayPage from './pages/finance/CsCommissionTodayPage';
 import CsSettingsPage from './pages/admin/CsSettingsPage';
-import StoreManagerSettingsPage from './pages/admin/StoreManagerSettingsPage';
 import ReconciliationPage from './pages/finance/ReconciliationPage';
 import CsWechatFlowPage from './pages/finance/CsWechatFlowPage';
 import ProfitCalendarPage from './pages/finance/ProfitCalendarPage';
@@ -466,12 +465,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // 「店长设置」页 2026-09-22 并进「工资规则」（店长 / 客服就是同一张工资表的两行），
+        // 老书签/老链接照旧能用，直接落到那一页。
         path: 'admin/store-manager-settings',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StoreManagerSettingsPage />
-          </Suspense>
-        ),
+        element: <Navigate to="/admin/payroll" replace />,
       },
       {
         path: 'admin/finance/price-rules',

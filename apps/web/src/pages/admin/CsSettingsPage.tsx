@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Space, Typography, message, Row, Col, InputNumber, Divider } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
-import { payrollApi } from '../../api/payroll';
+import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -34,26 +34,14 @@ const Field = ({ label, unit, value, onChange, step = 1, min = 0, max, hint }: {
 
 const CsSettingsPage: React.FC = () => {
   const [config, setConfig] = useState<any>({});
-  const [csPayroll, setCsPayroll] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [csBase, setCsBase] = useState(0);
-  const [restDays, setRestDays] = useState(4);
-  const [lateDeduction, setLateDeduction] = useState(0);
-  const [absentDeduction, setAbsentDeduction] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, payrollRes] = await Promise.all([configApi.getAll(), payrollApi.configs()]);
+      const cfgRes = await configApi.getAll();
       setConfig((cfgRes.data as any)?.data || {});
-      const list = (payrollRes.data as any)?.data || [];
-      const cs = list.find((p: any) => p.role === 'CS') || {};
-      setCsPayroll(cs);
-      setCsBase(Number(cs?.baseSalary ?? 0));
-      setRestDays(Number(cs?.fullAttendanceDays ?? 4));
-      setLateDeduction(Number(cs?.lateDeduction ?? 0));
-      setAbsentDeduction(Number(cs?.absentDeduction ?? 0));
     } catch {
       message.error('加载设置失败');
     } finally {
@@ -81,13 +69,6 @@ const CsSettingsPage: React.FC = () => {
         'commission.cs_bridge_tier5_threshold': getCfg('commission.cs_bridge_tier5_threshold', 260),
         'commission.cs_bridge_tier3_yuan': getCfg('commission.cs_bridge_tier3_yuan', 3),
         'commission.cs_bridge_tier5_yuan': getCfg('commission.cs_bridge_tier5_yuan', 5),
-        'commission.cs_early_leave_deduction_yuan': getCfg('commission.cs_early_leave_deduction_yuan', 0),
-        'commission.cs_full_attendance_bonus_yuan': getCfg('commission.cs_full_attendance_bonus_yuan', 0),
-        'commission.cs_base_salary_yuan': csBase,
-      });
-      await payrollApi.saveConfig({
-        role: 'CS', baseSalary: csBase, fullAttendanceDays: restDays,
-        lateDeduction, absentDeduction,
       });
       message.success('客服设置已保存');
       await load();
@@ -102,7 +83,7 @@ const CsSettingsPage: React.FC = () => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>客服设置</Title>
-        <Text type="secondary">客服提成、桥接达标、客服工资，统一在这里设置。输入框右侧蓝色小字是单位。</Text>
+        <Text type="secondary">客服的提成与桥接达标规则在这里设置（底薪、月休、考勤扣款在「工资规则」里）。输入框右侧蓝色小字是单位。</Text>
       </div>
 
       <Space style={{ marginBottom: 16 }}>
@@ -125,22 +106,23 @@ const CsSettingsPage: React.FC = () => {
             <Field label="3元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier3_yuan', 3)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier3_yuan', v)} />
             <Field label="5元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier5_yuan', 5)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier5_yuan', v)} />
           </Card>
+        </Col>
 
+        <Col xs={24} lg={12}>
           <Card size="small" title="🏇 桥接达标规则" style={{ marginBottom: 16 }}>
             <Field label="每日桥接目标" unit="单" value={getCfg('commission.cs_daily_bridge_target', 10)} step={1} onChange={(v) => setCfg('commission.cs_daily_bridge_target', v)} hint="每人每天需达到的桥接单数" />
             <Field label="未达标提成比例" unit="%" value={getCfg('commission.cs_bridge_miss_commission_rate', 50)} step={1} max={100} onChange={(v) => setCfg('commission.cs_bridge_miss_commission_rate', v)} hint="整月未达标时提成按此比例发" />
             <Field label="未达标底薪比例" unit="%" value={getCfg('commission.cs_bridge_miss_salary_rate', 80)} step={1} max={100} onChange={(v) => setCfg('commission.cs_bridge_miss_salary_rate', v)} hint="整月未达标时底薪按此比例发" />
           </Card>
-        </Col>
 
-        <Col xs={24} lg={12}>
-          <Card size="small" title="💰 客服工资">
-            <Field label="客服基本工资" unit="元/月" value={csBase} step={100} onChange={setCsBase} />
-            <Field label="月休天数" unit="天" value={restDays} step={1} onChange={setRestDays} hint="满勤 = 当月天数 − 月休天数" />
-            <Field label="迟到扣款" unit="元/次" value={lateDeduction} step={1} onChange={setLateDeduction} />
-            <Field label="缺勤扣款" unit="元/天" value={absentDeduction} step={1} onChange={setAbsentDeduction} />
-            <Field label="早退扣款" unit="元/次" value={getCfg('commission.cs_early_leave_deduction_yuan', 0)} step={1} onChange={(v) => setCfg('commission.cs_early_leave_deduction_yuan', v)} />
-            <Field label="全勤奖" unit="元/月" value={getCfg('commission.cs_full_attendance_bonus_yuan', 0)} step={10} onChange={(v) => setCfg('commission.cs_full_attendance_bonus_yuan', v)} hint="当月无缺勤时发放" />
+          <Card size="small" title="💰 客服工资、月休与考勤扣款">
+            <Text type="secondary">
+              这页只管提成。客服的底薪 / 月休天数 / 迟到、缺勤、早退扣款 / 全勤奖
+              已经和店长的那些并到同一张「工资规则」表里了（2026-09-22 合并，免得同一个岗位的工资散在两页改漏）。
+            </Text>
+            <div style={{ marginTop: 12 }}>
+              <Link to="/admin/payroll"><Button size="small" type="primary">去「工资规则」设置</Button></Link>
+            </div>
           </Card>
         </Col>
       </Row>

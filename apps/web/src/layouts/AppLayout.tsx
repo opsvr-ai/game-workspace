@@ -223,8 +223,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           children: [
             { key: '/owner/settings', label: '系统配置' },
             { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
-            { key: '/admin/store-manager-settings', label: '店长设置', ratioKey: 'admin' },
-            { key: '/admin/payroll', label: '工资规则' },
+            { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
             { key: '/admin/finance/price-rules', label: '价格规则' },
           ],
         },
@@ -332,8 +331,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           children: [
             { key: '/admin/settings', label: '系统配置' },
             { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
-            { key: '/admin/store-manager-settings', label: '店长设置', ratioKey: 'admin' },
-            { key: '/admin/payroll', label: '工资规则' },
+            { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
             { key: '/admin/finance/price-rules', label: '价格规则' },
             { key: '/owner/bridges', label: '工作室桥接' },
           ],
