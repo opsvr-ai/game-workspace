@@ -359,7 +359,7 @@ sequenceDiagram
 **订单推送补充（订单池里程碑 / 广播）:**
 
 - 订单池的可见范围按里程碑逐级放开：本店上等马 → 桥接工作室 → 本店中等马 → …，「桥接工作室等待」由 `pool.bridge_delay_seconds` 控制（当前线上 300 秒）。
-- 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线空闲陪玩推 `order:urgent`（右下角弹窗）；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室的在线空闲陪玩推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。
+- 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线陪玩推 `order:urgent`（右下角弹窗）；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。收件人条件全站只有一份（`WsGateway.urgentRecipientWhere`）：`AVAILABLE`（空闲）与 `ENTERTAINMENT`（娱乐中）一定推，`BUSY`（接单中）只有本人打开 `Companion.notifyWhileBusy` 才推 —— 本店广播与桥接推送共用，避免两个店两套口径。
 - 网关连接时会自动 join 桥接工作室的房间（`studio:${bridgedStudioId}`），用于订单池、状态等跨工作室实时广播。
 
 ## 7. 认证流程

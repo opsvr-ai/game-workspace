@@ -193,6 +193,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **新单弹窗收件人规则改成老板口径：空闲 + 娱乐中一律弹，只有「正在给别人打单」看本人开关（老板 2026-09-22）：**
+  老板原话「空闲+娱乐的弹窗，接单中的陪玩可以自己设置弹不弹窗」。以前「娱乐中」必须自己打开
+  「打单中也接收新单弹窗」才收得到，也就是**娱乐中的人默认收不到新单**，跟老板口径不符。
+  现在服务端把收件人条件收成**全站唯一一份**（`WsGateway.urgentRecipientWhere`）：
+  `AVAILABLE`（空闲）+ `ENTERTAINMENT`（娱乐中）**一定推**；`BUSY`（接单中）只有本人打开了
+  `Companion.notifyWhileBusy` 才推。本店广播（`broadcastNewOrder`）与桥接工作室推送
+  （`broadcastToBridgedIdleCompanions`）**共用这一份**（以前桥接那边只推空闲，同一个「娱乐中弹不弹」
+  在两个店会变成两套口径）。已核对抢单链路**不拦陪玩状态**（`order-workflow.service.ts` /
+  `order-dispatch.service.ts` 的抢单只校验订单状态，不校验陪玩是不是空闲），所以娱乐中的人收到弹窗后
+  **真的抢得走**，不是弹了个点不动的窗。广播日志补了 `byStatus`（命中的人各是什么状态），
+  以后问「娱乐中的到底弹没弹」直接看日志。陪玩端设置里那个开关标题改成「打单中也接收新单弹窗」，
+  说明写明「空闲、娱乐中一定会弹（娱乐中也能抢单）；这个开关只管正在给别人打单的时候」。
+  新增 `apps/server/src/__tests__/ws.gateway.broadcast.test.ts`，钉死收件人条件 + 三种状态都能收到。
+
 - **「工资规则」一页管两个岗位，「店长设置」页删除（老板 2026-09-22「一样的功能全部放在一起，要不然乱七八糟」）：**
   「客服设置」和「店长设置」各装了一半「底薪 + 月休 + 考勤扣款」，其实是**同一张工资表的两个岗位行**，
   散在两页很容易改漏一个、也看不清全貌。现在收成一页（`apps/web/src/pages/admin/PayrollPage.tsx`，`/admin/payroll`）：
