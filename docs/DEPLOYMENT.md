@@ -693,6 +693,48 @@ deploy\repair-client.bat        # 云端副本：http://1.117.229.36:3001/upload
 `resources\SystemHelper.exe` 与自身比构建号，比自己新就替换（旧文件留 `.old` 兜底），下次服务启动生效。
 这样以后客户端发版就能顺手把看门狗一起带下去，不用再一台台手工装。
 
+### 5.8 客户端发版（陪玩端 / 客服端）
+
+两个桌面客户端是**各自独立**的发布链路，别混：陪玩端在 `apps/companion-electron`，
+客服端在 `apps/cs-electron`，服务端各读一组版本号（`agent.latest_*` / `cs.latest_*`）。
+
+**客服端（客服管理.exe）：**
+
+```powershell
+# 1) 改 apps/cs-electron/package.json 的 version（必须比线上大，否则白传 73MB）
+# 2) 打包（Electron 30 + nsis 都在本机缓存里，可离线打）
+cd apps\cs-electron; npx electron-builder
+# 3) 上传装机包 + 写 cs.latest_version / cs.latest_download_url
+cd ..\..; python scripts\_publish_cs_client.py <版本号>
+```
+
+客服端**没有** zip 自动更新包，走的就是 NSIS 安装器：客户端启动后 20 秒~2 分钟之间（随机错峰）
+查一次 `/api/agent/cs-version`，发现服务端版本更高就整包下到临时目录、静默装、退出重启。
+**只有「服务端版本严格大于本机版本」才装**，所以版本号漏改的表现是「发布成功但一台机器都不升级」；
+`_publish_cs_client.py` 会在版本不递增时直接中止。发完自查两件事：
+
+```bash
+curl -s http://127.0.0.1:3001/api/agent/cs-version          # 看 version 是新号
+curl -sI http://127.0.0.1:3001/api/agent/download/cs        # 200 且 Content-Length = 装机包大小
+```
+
+管理端「客服端版本」页（`GET /api/agent/cs-version-status`）按客服心跳里的版本号显示谁还没升上来。
+客服端版本号查询间隔是 30 分钟，**不要**为了催更新去重启客服电脑 —— 后台「推送更新」可以直接下发。
+
+**陪玩端（陪玩管理.exe）：**
+
+```powershell
+cd apps\companion-electron
+Copy-Item dist-electron/preload.js preload-dist/preload.js -Force   # 打包前必须同步一次
+npx electron-builder                                                 # 产出 release\陪玩管理 Setup <版本号>.exe
+cd ..\..; python scripts\_publish_client.py <版本号>                  # 更新包 zip + 装机包 + 版本号一起发
+```
+
+陪玩端有两条更新路径：**自动更新包**（`uploads/chunlv-latest.zip`，走限速接口
+`/api/agent/download/latest`，由看门狗解压覆盖）和**装机包**（`uploads/agent-setup.exe`，
+新电脑走 `/api/agent/download/exe`）。`_publish_client.py` 两个都发，漏发装机包会让新装的机器一上来就是旧版本。
+陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
+
 ## 6. 健康检查
 
 ### 6.1 应用健康检查接口

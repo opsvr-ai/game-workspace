@@ -19,6 +19,9 @@ python scripts\_deploy_server_cloud.py
 
 # 3. 陪玩端客户端（会打断接单，注意老板的「这两天不发客户端」）
 python scripts\_publish_client.py <版本号>
+
+# 4. 客服端客户端（只影响客服电脑，客服端下次启动自己更新；不碰陪玩接单链路）
+python scripts\_publish_cs_client.py <版本号>
 ```
 
 ## 运维 / 辅助
