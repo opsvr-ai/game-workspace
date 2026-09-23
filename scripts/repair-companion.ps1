@@ -226,6 +226,7 @@ $ForceOverwrite = ($args -contains '-ForceOverwrite') -or ($env:CHUNLV_FORCE_OVE
 Write-Host ''
 Write-Host '===== 蠢驴电竞 · 陪玩端一键修复 =====' -ForegroundColor Cyan
 Write-Host ('本机：' + (Host-Name) + '   时间：' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+Write-Host '本脚本会：① 配好远程管理通道 ② 换新客户端 ③ 重建看门狗和桌面图标'
 Write-Host ''
 
 W '开始收集现场…'
@@ -239,14 +240,119 @@ if ($DiagOnly) {
   exit 0
 }
 
+Write-Host ''
+Write-Host '[1/7] 配好远程管理账号和通道（以后管理员能直接连进来，不用再等人到电脑前）…' -ForegroundColor Cyan
+# 为什么这步要放在修复脚本里：2026-09-24 老板报「秦伟杰的电脑打不开」，那台机器从来没跑过
+# 装机脚本，本机既没有 chunlvops 账号、也没开远程管理通道 —— 我们连不进去，也看不到现场，
+# 只能干等人在那台电脑跟前。修复顺带把机器配成标准状态，下次同类故障我直接远程排查。
+$adminUser = 'chunlvops'
+$netExe = Join-Path $env:SystemRoot 'System32\net.exe'
+if (-not (Test-Path -LiteralPath $netExe)) { $netExe = 'net.exe' }
+$alreadyAdmin = $false
+try {
+  $admGroup = (Get-LocalGroup -SID 'S-1-5-32-544' -ErrorAction Stop).Name
+  $alreadyAdmin = (@(Get-LocalGroupMember -Group $admGroup -ErrorAction Stop | Where-Object { $_.Name -like ('*\' + $adminUser) }).Count -gt 0)
+} catch { }
+$exists = $false
+try { $exists = [bool](Get-LocalUser -Name $adminUser -ErrorAction SilentlyContinue) } catch { $exists = $false }
+$accountEvent = ''
+$adminPass = ''
+if ($exists -and $alreadyAdmin) {
+  # 已经配好的机器不动密码：改密码会把我们本来能用的那把换掉，万一回传又失败，
+  # 这台机器反而连不进去了。配置本来就是幂等的，保持原样最安全。
+  $accountEvent = 'kept'
+} else {
+  $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  $rand = New-Object System.Random
+  # 14 位是故意的：net user 对超过 14 位的口令会追问一句「继续吗」，脚本里答不上来会直接卡住。
+  $adminPass = 'Chunlv!' + (-join (1..6 | ForEach-Object { $chars[$rand.Next($chars.Length)] })) + $rand.Next(10)
+  $made = $false
+  try {
+    $sec = ConvertTo-SecureString $adminPass -AsPlainText -Force
+    if ($exists) {
+      Set-LocalUser -Name $adminUser -Password $sec -PasswordNeverExpires $true
+      $accountEvent = 'password-reset'
+    } else {
+      New-LocalUser -Name $adminUser -Password $sec -PasswordNeverExpires -Description 'Chunlv remote support account' | Out-Null
+      $accountEvent = 'created'
+    }
+    $made = $true
+  } catch {
+    W ('用 PowerShell 建账号没成，改用 net 命令：' + $_.Exception.Message)
+  }
+  if (-not $made) {
+    & $netExe user $adminUser $adminPass /add /passwordchg:no /expires:never 2>$null | Out-Null
+    & $netExe user $adminUser $adminPass 2>$null | Out-Null
+    $accountEvent = 'created-by-net'
+  }
+}
+if (-not $alreadyAdmin) {
+  & $netExe localgroup Administrators $adminUser /add 2>$null | Out-Null
+}
+try {
+  New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'LocalAccountTokenFilterPolicy' -Value 1 -PropertyType DWord -Force | Out-Null
+} catch { W ('注册表写入失败（不影响修复）：' + $_.Exception.Message) }
+try { Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name 'LimitBlankPasswordUse' -Value 0 -ErrorAction SilentlyContinue } catch { }
+try { Set-Service -Name LanmanServer -StartupType Automatic -ErrorAction Stop; Start-Service -Name LanmanServer -ErrorAction SilentlyContinue } catch { W ('Server 服务没拉起来（不影响修复）：' + $_.Exception.Message) }
+try { Set-NetFirewallRule -DisplayGroup 'File and Printer Sharing' -Enabled True -ErrorAction Stop } catch { W ('防火墙没放行文件共享（不影响修复）：' + $_.Exception.Message) }
+$ip = ''
+$mac = ''
+try {
+  # 先按「到云服务器的实际出口网卡」定位：装了 VMware / VirtualBox 的机器上会有一堆
+  # 192.168.* 的虚拟网卡，按顺序挑第一个挑到的往往是虚拟网卡，回传上来的地址就不是
+  # 这台机器真正在用的那个了（拿它去连必然连不上）。
+  $route = @(Find-NetRoute -RemoteIPAddress ([System.Uri]$cloud).Host -ErrorAction Stop | Where-Object { $_.IPAddress -and ($_.IPAddress -notlike '*:*') } | Select-Object -First 1)
+  if ($route.Count -gt 0) {
+    $ip = $route[0].IPAddress
+    $mac = (Get-NetAdapter -InterfaceIndex $route[0].InterfaceIndex -ErrorAction SilentlyContinue).MacAddress
+  }
+} catch { }
+if (-not $ip) {
+try {
+  $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -ne '127.0.0.1' -and ($_.IPAddress -like '192.168.*' -or $_.IPAddress -like '10.*') } | Select-Object -First 1
+  if (-not $addr) { $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1 }
+  if ($addr) { $ip = $addr.IPAddress }
+  $nic = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip } | Select-Object -First 1
+  if ($nic) { $mac = (Get-NetAdapter -InterfaceIndex $nic.InterfaceIndex -ErrorAction SilentlyContinue).MacAddress }
+  if (-not $mac) { $mac = (Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1).MacAddress }
+} catch { }
+}
+$versionBefore = 'unknown'
+$beforeExe = Join-Path (Resolve-InstallDir) $exeName
+if (Test-Path -LiteralPath $beforeExe) {
+  $pv = (Get-Item -LiteralPath $beforeExe).VersionInfo.ProductVersion
+  if ($pv) { $versionBefore = $pv }
+}
+$onboardReported = $false
+if ($adminPass) {
+  try {
+    # 中文必须自己转成 UTF-8 字节再发，同 Send-Diag：5.1 默认按 ANSI 发，中文会变「?」。
+    $body = (@{
+      hostname = (Host-Name)
+      ip = $ip
+      mac = $mac
+      account = $adminUser
+      password = $adminPass
+      version = $versionBefore
+      source = 'repair-companion'
+    } | ConvertTo-Json -Compress)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $resp = Invoke-RestMethod -Uri ($cloud + '/api/agent/onboard-report') -Method Post -ContentType 'application/json; charset=utf-8' -Headers @{ 'x-onboard-token' = $onboardToken } -Body $bytes -TimeoutSec 60
+    if ($resp.code -eq 200 -and $resp.data.saved) { $onboardReported = $true }
+  } catch { W ('远程管理账号回传云端失败（不影响修复）：' + $_.Exception.Message) }
+}
+# 回传现场只带「账号有没有建好」，绝不带密码（诊断是明文落盘的）。
+W ('远程管理：event=' + $accountEvent + ' ip=' + $ip + ' mac=' + $mac + ' 修复前版本=' + $versionBefore + ' 已回传=' + $onboardReported)
+Send-Diag 'repair-onboard' ('accountEvent=' + $accountEvent + ' exists=' + $exists + ' alreadyAdmin=' + $alreadyAdmin + ' reported=' + $onboardReported + ' ip=' + $ip + ' mac=' + $mac + ' version=' + $versionBefore + ' ps=' + $PSVersionTable.PSVersion.ToString()) | Out-Null
+
 $dir = Resolve-InstallDir
 $targetExe = Join-Path $dir $exeName
 W ('安装目录：' + $dir)
 
 Write-Host ''
-Write-Host '[1/6] 先停看门狗，再关客户端…' -ForegroundColor Cyan
+Write-Host '[2/7] 先停看门狗，再关客户端…' -ForegroundColor Cyan
 # 顺序不能反：先杀客户端的话，看门狗会在这几秒里马上把它重新拉起来（它盯着 PID 看），
-# 目录一直被占着，第 4 步「旧目录改名」就会失败（2026-09-24 在 3 台机上踩到）。
+# 目录一直被占着，第 5 步「旧目录改名」就会失败（2026-09-24 在 3 台机上踩到）。
 sc.exe stop SystemHelper | Out-Null
 for ($i = 0; $i -lt 15; $i++) { if ((Get-Service SystemHelper -ErrorAction SilentlyContinue).Status -ne 'Running') { break }; Start-Sleep -Seconds 1 }
 $killDirs = @($dir) + @('C:\Program Files\陪玩管理', 'C:\Program Files\@chunlvcompanion-electron', 'C:\Program Files\蠢驴电竞', 'C:\Program Files (x86)\陪玩管理', 'C:\Program Files (x86)\蠢驴电竞')
@@ -271,7 +377,7 @@ for ($i = 0; $i -lt 4; $i++) {
 }
 W ('看门狗已停，客户端进程剩余：' + @(Get-ClientProcs).Count)
 
-Write-Host '[2/6] 下载最新客户端整包（约 128MB，请等一会儿）…' -ForegroundColor Cyan
+Write-Host '[3/7] 下载最新客户端整包（约 128MB，请等一会儿）…' -ForegroundColor Cyan
 $zip = Join-Path $env:TEMP 'chunlv-repair.zip'
 $dl = $false
 if ($env:CHUNLV_REPAIR_ZIP -and (Test-Path -LiteralPath $env:CHUNLV_REPAIR_ZIP)) {
@@ -302,7 +408,7 @@ if (-not $dl) {
   exit 1
 }
 W ('已下载 ' + [math]::Round((Get-Item $zip).Length / 1MB, 1) + ' MB')
-Write-Host '[3/6] 解压并校验（这一步失败就原样不动）…' -ForegroundColor Cyan
+Write-Host '[4/7] 解压并校验（这一步失败就原样不动）…' -ForegroundColor Cyan
 $tmp = Join-Path $env:TEMP 'chunlv-repair-unpack'
 Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
@@ -319,7 +425,7 @@ if (-not $fresh) {
 $newExe = Join-Path $inner $exeName
 W ('解压并校验通过（' + $script:unpackHow + '）：' + (Get-Item -LiteralPath $newExe).Length + ' 字节')
 
-Write-Host '[4/6] 换上新客户端（旧目录改名留证据，不删）…' -ForegroundColor Cyan
+Write-Host '[5/7] 换上新客户端（旧目录改名留证据，不删）…' -ForegroundColor Cyan
 $bak = ''
 $mode = 'rename'
 if (Test-Path -LiteralPath $dir) {
@@ -440,7 +546,7 @@ if (Test-Path -LiteralPath $cfg) {
   } catch { W ('配置没改（不影响）：' + $_.Exception.Message) }
 }
 W '换新完成'
-Write-Host '[5/6] 装好看门狗（自动拉起客户端，坏了自己修）…' -ForegroundColor Cyan
+Write-Host '[6/7] 装好看门狗（自动拉起客户端，坏了自己修）…' -ForegroundColor Cyan
 New-Item -ItemType Directory -Path 'C:\Program Files\SystemHelper' -Force | Out-Null
 $sh = 'C:\Program Files\SystemHelper\SystemHelper.exe'
 try {
@@ -458,7 +564,7 @@ if (Test-Path -LiteralPath $sh) {
   W ('SystemHelper 状态：' + (Get-Service SystemHelper -ErrorAction SilentlyContinue).Status)
 }
 
-Write-Host '[6/6] 重建桌面图标并启动客户端…' -ForegroundColor Cyan
+Write-Host '[7/7] 重建桌面图标并启动客户端…' -ForegroundColor Cyan
 Fix-Shortcut $targetExe
 # 只有「有人登录的桌面会话」才自己拉起客户端。
 # 如果是远程/服务方式在会话 0（SYSTEM）里跑的，直接 Start-Process 会开出一份
@@ -491,5 +597,17 @@ if ($running -gt 0) {
   Write-Host '请把本窗口内容截图发给管理员。'
 }
 Write-Host ('本机日志：' + $log)
+Write-Host ''
+if ($adminPass) {
+  Write-Host ('远程管理账号：' + $adminUser) -ForegroundColor Yellow
+  Write-Host ('远程管理密码：' + $adminPass) -ForegroundColor Yellow
+  if ($onboardReported) {
+    Write-Host '账号密码已自动回传云端，管理员不用问你。' -ForegroundColor Green
+  } else {
+    Write-Host '回传云端失败：请把上面这一行密码发给管理员。' -ForegroundColor Yellow
+  }
+} elseif ($accountEvent -eq 'kept') {
+  Write-Host '这台电脑本来就配好了远程管理，密码没动。' -ForegroundColor Green
+}
 Write-Host ''
 Read-Host '按回车结束'

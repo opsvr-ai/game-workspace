@@ -3,6 +3,10 @@ $cloud = 'http://1.117.229.36:3001'
 $onboardToken = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34'
 $adminUser = 'chunlvops'
 $cn = '陪玩管理'
+# net.exe 不能靠 PATH 找：有的机器 PATH 里没有 System32（或被别的同名程序顶掉），
+# 那样加管理员组会静默失败，机器照样连不进去。
+$netExe = Join-Path $env:SystemRoot 'System32\net.exe'
+if (-not (Test-Path -LiteralPath $netExe)) { $netExe = 'net.exe' }
 # installer.nsh 把安装目录写死成「蠢驴电竞」，而 exe 名是「陪玩管理」。旧脚本只看
 # C:\Program Files\陪玩管理，结果版本号报 unknown、桌面也没有快捷方式。这里两个都试。
 $appDir = ''
@@ -47,10 +51,10 @@ try {
   $accountReady = $true
 } catch { }
 if (-not $accountReady) {
-  net.exe user $adminUser $adminPass /add /passwordchg:no /expires:never | Out-Null
+  & $netExe user $adminUser $adminPass /add /passwordchg:no /expires:never 2>$null | Out-Null
   Write-Host ('      已用 net 命令创建账号 ' + $adminUser)
 }
-net.exe localgroup Administrators $adminUser /add 2>$null | Out-Null
+& $netExe localgroup Administrators $adminUser /add 2>$null | Out-Null
 Write-Host '      密码已自动生成，稍后会一并回传到云端，管理员可随时查看'
 
 Write-Host '[2/8] 打开远程管理通道...'
@@ -137,6 +141,17 @@ Write-Host '[8/8] 把本机信息回传到云端...'
 $ip = ''
 $mac = ''
 try {
+  # 先按「到云服务器的实际出口网卡」定位：装了 VMware / VirtualBox 的机器上会有一堆
+  # 192.168.* 的虚拟网卡，按顺序挑第一个挑到的往往是虚拟网卡，回传的地址就是错的
+  # （拿它去连这台机器必然连不上）。
+  $route = @(Find-NetRoute -RemoteIPAddress ([System.Uri]$cloud).Host -ErrorAction Stop | Where-Object { $_.IPAddress -and ($_.IPAddress -notlike '*:*') } | Select-Object -First 1)
+  if ($route.Count -gt 0) {
+    $ip = $route[0].IPAddress
+    $mac = (Get-NetAdapter -InterfaceIndex $route[0].InterfaceIndex -ErrorAction SilentlyContinue).MacAddress
+  }
+} catch { }
+if (-not $ip) {
+try {
   $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -ne '127.0.0.1' -and ($_.IPAddress -like '192.168.*' -or $_.IPAddress -like '10.*') } | Select-Object -First 1
   if (-not $addr) { $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1 }
   if ($addr) { $ip = $addr.IPAddress }
@@ -144,6 +159,7 @@ try {
   if ($nic) { $mac = (Get-NetAdapter -InterfaceIndex $nic.InterfaceIndex -ErrorAction SilentlyContinue).MacAddress }
   if (-not $mac) { $mac = (Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1).MacAddress }
 } catch { }
+}
 
 $clientVersion = ''
 if (Test-Path -LiteralPath $appExe) { $clientVersion = (Get-Item -LiteralPath $appExe).VersionInfo.ProductVersion }

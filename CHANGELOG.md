@@ -11,6 +11,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **一键修复脚本顺手把「远程管理通道」配好（`scripts/repair-companion.ps1` 新增 `[1/7]` 步，已上线）：**
+  老板 2026-09-24 报「秦伟杰的电脑打不开」，可那台机器（`192.168.0.127`）**从来没跑过装机脚本** ——
+  本机没有 `chunlvops` 账号、也没开远程管理通道，我们既连不进去、也看不到现场，只能干等人在那台电脑跟前
+  （四种已知口令全试过，全是 `STATUS_LOGON_FAILURE`）。现在修复脚本第一步就会：①建 / 补齐 `chunlvops`
+  （管理员组、密码永不过期、当场随机生成 14 位）②打开远程管理通道（`LocalAccountTokenFilterPolicy` /
+  `LimitBlankPasswordUse` / `LanmanServer` / 文件共享防火墙）③把「主机名 + IP + MAC + 账号 + 密码 +
+  修复前版本」回传 `/api/agent/onboard-report`。以后同类故障我直接远程连进去看，不用再等人。
+  **已经配好的机器不动密码**（`accountEvent=kept`）：改密码会把我们本来能用的那把换掉，
+  万一回传又失败，这台机器反而连不进去。回传失败时脚本会当场把账号密码打在窗口里，让陪玩转给管理员。
+  现场回传（`repair-onboard`）只带「账号有没有建好」，**不带密码**（诊断是明文落盘的）。
+  本机按三种情形做了隔离自测（从没配过的机器 / 已经配好的机器 / 老系统上没有 LocalAccounts 模块），
+  建号分支、跳过分支、`net.exe` 降级分支和回传 JSON 全部核对过；`-DiagOnly` 仍然只回传现场、什么都不改。
+
 - **修掉「自动更新把陪玩电脑装成半残」的两个根因（老板 2026-09-23 报：陈佳祺双击桌面图标没反应）：**
   ① **服务端下发更新包时塞进烂字节**（`apps/server/src/common/throttled-file.ts`）：限速下发复用同一个 64KB buffer，
   `res.write()` 遇到背压时那块内存是「按引用」挂进发送队列的，下一轮 `readSync` 就把还没发出去的上一块覆盖掉 ——
@@ -139,6 +152,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     `studio-config` 四组回归用例按新语义重写（含「各店互不影响」「分不出哪家店时不发真名单」），服务端 275 条全过。
 
 ### Fixed
+
+- **装机入口两处「靠 PATH / 靠服务」的脆弱判断（`陪玩端一键安装.bat` / `陪玩端一键安装.ps1`，已同步到云端
+  `install-companion.*`）：** ①装机 bat 用 `net session` 判管理员，可新机器（或被清理过的机器）上
+  `LanmanServer` 常常是停的，`net session` 会把管理员误判成「没有权限」，于是无限弹授权窗口 ——
+  换成和修复脚本一样的 `fltmc` 判断，并补上「脚本没下全（字节数不够）就别执行」的校验。
+  ②`net.exe` 不再靠 PATH 找（有的机器 PATH 里没有 System32，或被别的同名程序顶掉，加管理员组会静默失败），
+  改用 `$env:SystemRoot\System32\net.exe`，找不到才退回 `net.exe`。
+  ③回传的局域网地址改成按「到云服务器的实际出口网卡」取（`Find-NetRoute`）：装了 VMware / VirtualBox 的
+  机器上一堆 `192.168.*` 虚拟网卡会抢答，以前可能把虚拟网卡的地址当成本机地址回传，拿着它连必然连不上；
+  原来的挑法保留当兜底。装机与修复两个脚本口径一致。
 
 - **一键修复脚本「换新后比对 exe 大小」量错了时机，改名方式下必然误判并回滚（`scripts/repair-companion.ps1`）：**
   上一个提交加的「铺完比对 exe 字节数」把期望值 `$newSize` 写在 `Move-Item` **之后**才取 ——
