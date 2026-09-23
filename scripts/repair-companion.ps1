@@ -219,6 +219,9 @@ function Fix-Shortcut([string]$exePath) {
 }
 # 参数：-DiagOnly 只回传现场，什么都不改（排查用，绝对安全）
 $DiagOnly = ($args -contains '-DiagOnly') -or ($env:CHUNLV_DIAG_ONLY -eq '1')
+# 参数：-ForceOverwrite 跳过「目录改名」，直接走「复制留底 + 覆盖」。
+# 给那些「整个目录改不了名」（系统 / 杀毒软件按住目录）的机器用，2026-09-24 实测到 3 台。
+$ForceOverwrite = ($args -contains '-ForceOverwrite') -or ($env:CHUNLV_FORCE_OVERWRITE -eq '1')
 
 Write-Host ''
 Write-Host '===== 蠢驴电竞 · 陪玩端一键修复 =====' -ForegroundColor Cyan
@@ -318,28 +321,80 @@ W ('解压并校验通过（' + $script:unpackHow + '）：' + (Get-Item -Litera
 
 Write-Host '[4/6] 换上新客户端（旧目录改名留证据，不删）…' -ForegroundColor Cyan
 $bak = ''
+$mode = 'rename'
 if (Test-Path -LiteralPath $dir) {
   $bak = $dir + '.broken-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-  try { Move-Item -LiteralPath $dir -Destination $bak -Force -ErrorAction Stop }
-  catch { W ('旧目录改名失败：' + $_.Exception.Message) }
-  if (Test-Path -LiteralPath $dir) {
-    # 旧目录没换走就继续铺新文件，会铺成「半新半旧」—— 那正是这次事故的成因，宁可不改。
-    W ('旧目录换不走（多半被占用或被杀毒软件锁着）：' + $dir)
-    sc.exe start SystemHelper | Out-Null
-    Send-Diag 'repair-failed' ('旧目录换不走：' + $dir) | Out-Null
-    Write-Host '旧目录正被占用，本机文件没动。请重启一次这台电脑，再跑一遍修复。' -ForegroundColor Red
-    Read-Host '按回车结束'
-    exit 1
+  $moved = $false
+  if ($ForceOverwrite) {
+    W '按要求（-ForceOverwrite）跳过「目录改名」，直接走覆盖方式'
+  } else {
+    for ($i = 1; $i -le 4; $i++) {
+      try { Move-Item -LiteralPath $dir -Destination $bak -Force -ErrorAction Stop; $moved = $true; break }
+      catch { W ('旧目录改名失败（第 ' + $i + ' 次）：' + $_.Exception.Message) }
+      Start-Sleep -Seconds 5
+    }
   }
-  W ('旧目录已改名备份：' + $bak)
+  if ($moved) {
+    W ('旧目录已改名备份：' + $bak)
+  } else {
+    # 有些机器上「整个目录」改不了名（系统 / 杀毒软件按住目录不放，但目录里的文件能读能写 ——
+    # 2026-09-24 在 3 台机上实测：改名一律「访问被拒绝」，文件却读写自如）。
+    # 这种情况退一步：把旧目录整份复制留底，再用新文件覆盖着铺进去。
+    # 覆盖前先确认客户端 exe 写得动 —— 写不动就宁可不改，绝不铺成「半新半旧」。
+    $writable = $false
+    for ($t = 1; $t -le 18; $t++) {
+      foreach ($e in @($targetExe, (Join-Path $dir '蠢驴电竞.exe'))) {
+        if (Test-Path -LiteralPath $e) {
+          try { $h = [IO.File]::Open($e, 'Open', 'Write', 'None'); $h.Close(); $writable = $true } catch { $writable = $false }
+          break
+        }
+      }
+      if ($writable) { break }
+      if (($t % 3) -eq 0) { W ('等客户端 exe 松开…（' + $t + '/18）') }
+      Start-Sleep -Seconds 5
+    }
+    if (-not $writable) {
+      # 旧目录没换走就继续铺新文件，会铺成「半新半旧」—— 那正是这次事故的成因，宁可不改。
+      W ('旧目录换不走（改名被拒、exe 也还写不动）：' + $dir)
+      sc.exe start SystemHelper | Out-Null
+      Send-Diag 'repair-failed' ('旧目录换不走：' + $dir) | Out-Null
+      Write-Host '旧目录正被占用，本机文件没动。请重启一次这台电脑，再跑一遍修复。' -ForegroundColor Red
+      Read-Host '按回车结束'
+      exit 1
+    }
+    W '目录改不了名，改用「整目录覆盖」方式（先把旧目录复制一份留底）'
+    Copy-Item -LiteralPath $dir -Destination $bak -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath (Join-Path $bak $exeName))) {
+      W ('留底复制失败，中止（本机文件没动）：' + $bak)
+      Remove-Item -LiteralPath $bak -Recurse -Force -ErrorAction SilentlyContinue
+      sc.exe start SystemHelper | Out-Null
+      Send-Diag 'repair-failed' '留底复制失败' | Out-Null
+      Write-Host '留底没做成，本机文件没动。请重启一次这台电脑，再跑一遍修复。' -ForegroundColor Red
+      Read-Host '按回车结束'
+      exit 1
+    }
+    W ('旧目录已复制留底：' + $bak)
+    $mode = 'overwrite'
+  }
 }
-New-Item -ItemType Directory -Path $dir -Force | Out-Null
-Move-Item -Path (Join-Path $inner '*') -Destination $dir -Force
-if (-not (Test-Path -LiteralPath $targetExe)) {
-  W '换新失败：目标目录里没有客户端 exe'
+if ($mode -eq 'rename') {
+  New-Item -ItemType Directory -Path $dir -Force | Out-Null
+  Move-Item -Path (Join-Path $inner '*') -Destination $dir -Force
+} else {
+  Copy-Item -Path (Join-Path $inner '*') -Destination $dir -Recurse -Force
+}
+$newSize = (Get-Item -LiteralPath $newExe).Length
+$gotSize = 0
+if (Test-Path -LiteralPath $targetExe) { $gotSize = (Get-Item -LiteralPath $targetExe).Length }
+if (($gotSize -eq 0) -or ($gotSize -ne $newSize)) {
+  W ('换新失败：客户端 exe 不在或大小不对（' + $gotSize + ' / 应为 ' + $newSize + '）')
   if ($bak -and (Test-Path -LiteralPath $bak)) {
-    Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
-    Move-Item -LiteralPath $bak -Destination $dir -Force -ErrorAction SilentlyContinue
+    if ($mode -eq 'rename') {
+      Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+      Move-Item -LiteralPath $bak -Destination $dir -Force -ErrorAction SilentlyContinue
+    } else {
+      Copy-Item -Path (Join-Path $bak '*') -Destination $dir -Recurse -Force -ErrorAction SilentlyContinue
+    }
     W '已把旧目录放回去，本机跟修复前一样'
   }
   sc.exe start SystemHelper | Out-Null
