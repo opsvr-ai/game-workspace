@@ -26,6 +26,15 @@ function Public-Desktop {
   return (Join-Path $p 'Desktop')
 }
 
+# 修复期间必须把看门狗服务停掉（不停的话它一直把客户端拉起来、目录换不走），
+# 但「停掉」这一步必须有人负责收尾：2026-09-24 秦伟杰那台第一次跑到一半被关掉窗口，
+# 看门狗就留在「已停止」状态没人拉，客户端再也没起来 —— 看起来又是「无缘无故坏了」。
+# 这段是保险：留一个标记文件 + 起一个盯着它的小进程，标记没了（或最多等 45 分钟）就把看门狗拉回来。
+$script:guardMarker = Join-Path (Join-Path $env:ProgramData 'chunlv') 'repair-active.txt'
+function Clear-Guard {
+  Remove-Item -LiteralPath $script:guardMarker -Force -ErrorAction SilentlyContinue
+}
+
 function Send-Diag([string]$source, [string]$text) {
   try {
     # 中文必须自己转成 UTF-8 字节再发：Windows PowerShell 5.1 的 Invoke-RestMethod
@@ -355,6 +364,25 @@ Write-Host '[2/7] 先停看门狗，再关客户端…' -ForegroundColor Cyan
 # 目录一直被占着，第 5 步「旧目录改名」就会失败（2026-09-24 在 3 台机上踩到）。
 sc.exe stop SystemHelper | Out-Null
 for ($i = 0; $i -lt 15; $i++) { if ((Get-Service SystemHelper -ErrorAction SilentlyContinue).Status -ne 'Running') { break }; Start-Sleep -Seconds 1 }
+# 装上「看门狗一定会回来」的保险（正常跑完会 Clear-Guard 让这个小进程立刻退出）。
+# 纯 PowerShell，不依赖别的工具；它自己起不来也只是少一层保险，不影响修复。
+try {
+  New-Item -ItemType Directory -Path (Split-Path -Parent $script:guardMarker) -Force | Out-Null
+  Set-Content -LiteralPath $script:guardMarker -Value ('repair in progress ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')) -Encoding UTF8
+  $guardPath = Join-Path $env:TEMP 'chunlv-watchdog-guard.ps1'
+  # 每一行都用单引号写：美元符一律留给那个小进程，别在这里展开。
+  $guardCode = @(
+    ('$marker = ' + "'" + $script:guardMarker + "'")
+    '$deadline = (Get-Date).AddMinutes(45)'
+    'while ((Test-Path -LiteralPath $marker) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Seconds 10 }'
+    "if ((Get-Service SystemHelper -ErrorAction SilentlyContinue).Status -ne 'Running') { sc.exe start SystemHelper | Out-Null }"
+    'Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue'
+    'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue'
+  ) -join ([string][char]13 + [string][char]10)
+  Set-Content -LiteralPath $guardPath -Value $guardCode -Encoding UTF8
+  Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $guardPath) -WindowStyle Hidden -ErrorAction SilentlyContinue
+  W '已装上「中途被关掉也能把看门狗拉回来」的保险'
+} catch { W ('看门狗保险没装上（不影响修复）：' + $_.Exception.Message) }
 $killDirs = @($dir) + @('C:\Program Files\陪玩管理', 'C:\Program Files\@chunlvcompanion-electron', 'C:\Program Files\蠢驴电竞', 'C:\Program Files (x86)\陪玩管理', 'C:\Program Files (x86)\蠢驴电竞')
 function Get-ClientProcs {
   # 名字被解压搞成乱码的客户端（????????.exe）按名字找不到，只能按 exe 路径找。
@@ -401,6 +429,7 @@ foreach ($u in @(($cloud + '/api/agent/download/latest'), ($cloud + '/uploads/ch
 }
 if (-not $dl) {
   W ('下载失败：请确认这台电脑能打开 ' + $cloud)
+  Clear-Guard
   sc.exe start SystemHelper | Out-Null
   Send-Diag 'repair-failed' '下载更新包失败' | Out-Null
   Write-Host '下载失败，没动本机任何文件。请把本窗口内容发给管理员。' -ForegroundColor Red
@@ -462,6 +491,7 @@ if (Test-Path -LiteralPath $dir) {
     if (-not $writable) {
       # 旧目录没换走就继续铺新文件，会铺成「半新半旧」—— 那正是这次事故的成因，宁可不改。
       W ('旧目录换不走（改名被拒、exe 也还写不动）：' + $dir)
+      Clear-Guard
       sc.exe start SystemHelper | Out-Null
       Send-Diag 'repair-failed' ('旧目录换不走：' + $dir) | Out-Null
       Write-Host '旧目录正被占用，本机文件没动。请重启一次这台电脑，再跑一遍修复。' -ForegroundColor Red
@@ -473,6 +503,7 @@ if (Test-Path -LiteralPath $dir) {
     if (-not (Test-Path -LiteralPath (Join-Path $bak $exeName))) {
       W ('留底复制失败，中止（本机文件没动）：' + $bak)
       Remove-Item -LiteralPath $bak -Recurse -Force -ErrorAction SilentlyContinue
+      Clear-Guard
       sc.exe start SystemHelper | Out-Null
       Send-Diag 'repair-failed' '留底复制失败' | Out-Null
       Write-Host '留底没做成，本机文件没动。请重启一次这台电脑，再跑一遍修复。' -ForegroundColor Red
@@ -506,6 +537,7 @@ if (($gotSize -eq 0) -or ($gotSize -ne $newSize)) {
     }
     W '已把旧目录放回去，本机跟修复前一样'
   }
+  Clear-Guard
   sc.exe start SystemHelper | Out-Null
   Send-Diag 'repair-failed' ('换新失败 targetExe=' + $targetExe) | Out-Null
   Write-Host '修复失败，请把本窗口内容发给管理员。' -ForegroundColor Red
@@ -584,6 +616,8 @@ if ($selfSession -eq 0) {
 }
 $running = (Get-Process -Name $cn -ErrorAction SilentlyContinue | Measure-Object).Count
 W ('客户端进程数：' + $running)
+# 客户端已经起来（或现场已回传），保险可以撤了
+Clear-Guard
 
 $after = Collect-Diag
 Send-Diag 'repair-after' ('dir=' + $dir + ' running=' + $running + "`n" + 'zip=' + $zip + "`n" + $after) | Out-Null
