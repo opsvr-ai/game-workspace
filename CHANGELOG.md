@@ -60,6 +60,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   不会因为 WebSocket 断了就绕过开关。
   另修一个小毛病：以前店长拨全站总开关时后端会跳过（只有老板能改），但界面照样弹「已开启」，
   现在按后端的 `skipped` 判断，没改成就不会假装改成功，那个开关对店长直接显示成不可拨。
+  （**2026-09-24 已被下面 `### Changed` 那条取代**：老板要求去掉全站总开关，只剩本店这一道闸。）
 
 - **注册「Network Error」排查能力 + 上传链路加固（老板 2026-09-21 报：新电脑注册点提交提示 network error）：**
   这类失败的请求**根本没到服务器**（服务端日志里一条都没有），只看服务端永远查不出原因。所以：
@@ -111,6 +112,31 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   新增 15 条单元测试（`apps/server/src/__tests__/bridge-settlement.test.ts`）。
   线上实测两家店互相镜像：蠢驴视角应付 ¥500 / 应收 ¥400 / 净额 −¥100（我该给对方），
   光耀视角正好相反（净额 +¥100）。
+
+### Changed
+
+- **去掉「全站总开关」，杀进程只剩店长自己那一个开关（老板 2026-09-24 要的）：** 老板原话「不需要总闸，
+  只需要店长自己定自己的俱乐部或者工作室是否生效就可以」。以前是「老板的全站总开关 `blacklist.auto_kill`
+  + 店长的本店开关」**两道闸、都开才杀进程**，他明确说不要总闸、也不要老板账号掺和这件事，
+  所以 `blacklist.auto_kill` **整条移除**（`DEFAULT_CONFIGS` / `OWNER_ONLY_KEYS` / 判定器 `common/blacklist-switch.ts`
+  / 网关那套总开关缓存 / 界面第二张卡片全部删干净，全仓库再搜不到这个键）：
+  - **唯一判定 = 本店开关** `blacklist.enabled`（店长在「进程黑名单」页顶部自己拨）。关着 / 没拨过就下发
+    **空名单**，本店陪玩一个进程都不会被结束；拨开就照常按状态下发，本店立刻动手。各店互不影响，
+    分不出是哪家店时也按「不生效」处理（说不清就绝不动手）。
+  - **默认值改成「不生效」**（`DEFAULT_CONFIGS['blacklist.enabled'] = false`）：等于去掉总闸之前的线上现状
+    —— 线上总开关一直是关的、`ProcessKillLog` 一条都没有，默认关就不会有哪家店在没人拨过的情况下
+    突然开始结束陪玩正在玩的游戏（2026-09-20 误杀事故的教训）。店长想真的动手自己拨开即可，一拨就生效。
+  - **页面**：店长看到的就是「本店黑名单是否生效」一个开关（另有一行「当前实际：会 / 不会结束名单里的进程」）；
+    老板账号那一张卡片改成**纯说明**（这一项由各店店长自己拨、老板不用管），他那个开关整块删掉。
+  - **「一拨就生效」不变**：改完当场清 5 秒缓存并重推名单，「恢复本店默认」也照样重推；REST 兜底拉名单
+    （`GET /api/processes/blacklist/my-rules`）同样只看这一个开关，WebSocket 断了也绕不过去。
+  - **线上实测（上线后全程只读、没动任何线上开关）**：蠢驴电竞「空闲 → 三角洲行动」规则还在，
+    `blacklist.enabled` 解析为 `false`（本店作用域、店长可改，已不在老板专属名单里），三名空闲（AVAILABLE）
+    陪玩的 `my-rules` 全部返回 `[]`，服务端日志 `studioEnabled:false suppressed:true blacklistCount:0`，
+    `ProcessKillLog` / `ProcessBlacklist` 仍是 0 行 —— 没有杀过任何进程。前端已发 v779
+    （`/home/ubuntu/chunlv/apps/server/web-dist` 里能搜到「本店黑名单是否生效」、搜不到 `blacklist.auto_kill`）。
+  - **测试同步**：`ws.gateway.blacklist` / `settings.controller.blacklist` / `process-blacklist.service` /
+    `studio-config` 四组回归用例按新语义重写（含「各店互不影响」「分不出哪家店时不发真名单」），服务端 275 条全过。
 
 ### Fixed
 

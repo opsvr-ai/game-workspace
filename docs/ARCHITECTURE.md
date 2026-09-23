@@ -439,7 +439,7 @@ flowchart LR
 - **归属是黑名单**（2026-09-21 从白名单翻过来）：`OWNER_ONLY_KEYS` / `OWNER_ONLY_PREFIXES`
   （`common/default-config.ts`）**之外的全部**归店长，写进本店 `StudioConfig`。
   老板专属只有两类：**密钥 / 凭据**（`identity.*` / `ai.*` / `turn.*` / `jwt.*` / `secret*`）和
-  **一份值绑住全站**（`blacklist.auto_kill`、客户端与网页版本号、`ws.*` 宽限期、
+  **一份值绑住全站**（客户端与网页版本号、`ws.*` 宽限期、
   `service.stale_session_hours`、`counter.global_code`、`invite.*`、`cs.client.version.*`、
   `excellence.low_tier_streak`）。
 - **写入唯一入口** `saveConfigsByRole(prisma, actor, entries)`：老板 → `SystemConfig`，
@@ -450,11 +450,11 @@ flowchart LR
   `DELETE /api/config/studio-overrides` 恢复默认，
   `GET /api/config` 返回生效值 + `_meta.overridden` / `_meta.ownerOnlyKeys`；
   密钥 / 凭据类的值不下发给店长。
-- **杀进程是「两道闸」**（`common/blacklist-switch.ts` 是唯一判定）：
-  全站总开关 `blacklist.auto_kill`（老板专属，默认关）+ 本店开关 `blacklist.enabled`
-  （店长可改，默认生效）——两个都开，服务端才把名单下发给客户端；任何一道关着都下发**空名单**
-  （老客户端收到空名单也会立刻停下，不用等它升级）。REST 兜底拉名单（`GET /api/processes/blacklist/my-rules`）
-  同样走这两道闸，WebSocket 断了也绕不过去。
+- **杀进程只剩一道闸**（`common/blacklist-switch.ts` 是唯一判定）：**本店开关** `blacklist.enabled`
+  （店长可改，默认**不生效**）。以前那道「全站总开关」`blacklist.auto_kill` 已于 2026-09-24 按老板要求整条移除
+  —— 现在**只有店长自己定本店要不要真的动手**。开关开着，服务端才把名单下发给客户端；
+  关着 / 没拨过 / 分不出是哪家店，都下发**空名单**（老客户端收到空名单也会立刻停下，不用等它升级）。
+  REST 兜底拉名单（`GET /api/processes/blacklist/my-rules`）同样只看这一个开关，WebSocket 断了也绕不过去。
 
 ## 9. 部署架构
 
