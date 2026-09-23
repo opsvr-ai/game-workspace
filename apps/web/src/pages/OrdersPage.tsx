@@ -40,14 +40,6 @@ import {
 const { Text } = Typography;
 const { Option } = Select;
 
-/** 派单人岗位（客服筛选下拉的前缀，老板 2026-09-24 要求店长能按客服看派单记录） */
-const DISPATCHER_ROLE_LABEL: Record<string, string> = {
-  CS: '客服',
-  ADMIN: '店长',
-  OWNER: '老板',
-  COMPANION: '陪玩',
-};
-
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
@@ -87,20 +79,34 @@ const OrdersPage: React.FC = () => {
     return user.role === 'OWNER';
   };
 
-  // 店长（看本店）/ 老板（看全部）能按客服筛派单记录；客服、陪玩看不到这个筛选。
+  // 店长（看本店）/ 老板（看全部）能按派单人筛派单记录；客服、陪玩看不到这个筛选。
   const canFilterByCs = user?.role === 'ADMIN' || user?.role === 'OWNER';
-  const csOptions = useMemo(() => {
-    if (!canFilterByCs) return [] as Array<{ id: string; label: string }>;
-    const seen = new Map<string, { id: string; label: string }>();
+  // 按岗位分组：客服 / 店长-老板 /「陪玩自己开的单」。
+  // 老板 2026-09-24 问「筛选里怎么冒出来个徐泽宁」——陪玩端的「首单/续单/复购」由陪玩
+  // 自己发起，订单发布人就是他本人（线上全站只有徐泽宁 1 条复购单，35 元），
+  // 分组标题直接把这件事说明白，而不是把这条记录藏掉。
+  const csGroupedOptions = useMemo(() => {
+    if (!canFilterByCs) return [];
+    const buckets: Record<string, Array<{ value: string; label: string }>> = {
+      CS: [],
+      ADMIN_OWNER: [],
+      COMPANION: [],
+    };
+    const seen = new Set<string>();
     orders.forEach((o: any) => {
       const u = o.csUser;
       if (!u?.id || seen.has(u.id)) return;
-      seen.set(u.id, {
-        id: u.id,
-        label: `${DISPATCHER_ROLE_LABEL[u.role] || u.role || '员工'} ${u.displayName || u.username || u.id}`,
-      });
+      seen.add(u.id);
+      const item = { value: u.id, label: u.displayName || u.username || u.id };
+      if (u.role === 'CS') buckets.CS.push(item);
+      else if (u.role === 'ADMIN' || u.role === 'OWNER') buckets.ADMIN_OWNER.push(item);
+      else buckets.COMPANION.push(item);
     });
-    return [...seen.values()];
+    const groups: Array<{ label: string; options: Array<{ value: string; label: string }> }> = [];
+    if (buckets.CS.length > 0) groups.push({ label: '客服', options: buckets.CS });
+    if (buckets.ADMIN_OWNER.length > 0) groups.push({ label: '店长 / 老板', options: buckets.ADMIN_OWNER });
+    if (buckets.COMPANION.length > 0) groups.push({ label: '陪玩自己开的单', options: buckets.COMPANION });
+    return groups;
   }, [orders, canFilterByCs]);
 
   const fetch = useCallback(async () => {
@@ -753,21 +759,16 @@ const OrdersPage: React.FC = () => {
           </Select>
           {canFilterByCs && (
             <Select
-              placeholder="客服筛选"
+              placeholder="派单人筛选"
               allowClear
               value={csFilter || undefined}
               onChange={(v) => setCsFilter(v || '')}
-              style={{ width: 140 }}
+              style={{ width: 150 }}
               size="small"
               showSearch
-              optionFilterProp="children"
-            >
-              {csOptions.map((c) => (
-                <Option key={c.id} value={c.id}>
-                  {c.label}
-                </Option>
-              ))}
-            </Select>
+              optionFilterProp="label"
+              options={csGroupedOptions}
+            />
           )}
         </div>
         {/* Today's order stats */}

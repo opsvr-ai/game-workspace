@@ -447,19 +447,32 @@ const CSDispatchView: React.FC = () => {
     );
   }, [allOrders, user, csFilter, canSeeAllDispatchRecords]);
 
-  // 客服筛选下拉：只列真的发过单的人（免得选了半天是空的），名字前带岗位。
+  // 派单人筛选下拉：按岗位分组，只列真的发过单的人（免得选了半天是空的）。
+  // 老板 2026-09-24 问「筛选里怎么冒出来个徐泽宁」——陪玩端的「首单/续单/复购」是
+  // 陪玩自己发起的，这条单的发布人就是他本人（线上全站只有徐泽宁 1 条复购单，35 元）。
+  // 所以分组标题里把这件事写明白，而不是把这条记录藏掉。
   const csFilterOptions = useMemo(() => {
     if (!canSeeAllDispatchRecords) return [];
-    const seen = new Map<string, { value: string; label: string }>();
+    const buckets: Record<string, Array<{ value: string; label: string }>> = {
+      CS: [],
+      ADMIN_OWNER: [],
+      COMPANION: [],
+    };
+    const seen = new Set<string>();
     allOrders.forEach((o: any) => {
       const u = o.csUser;
       if (!u?.id || seen.has(u.id)) return;
-      seen.set(u.id, {
-        value: u.id,
-        label: `${ROLE_TAG[u.role]?.label || u.role || '员工'} ${u.displayName || u.username || u.id}`,
-      });
+      seen.add(u.id);
+      const item = { value: u.id, label: u.displayName || u.username || u.id };
+      if (u.role === 'CS') buckets.CS.push(item);
+      else if (u.role === 'ADMIN' || u.role === 'OWNER') buckets.ADMIN_OWNER.push(item);
+      else buckets.COMPANION.push(item);
     });
-    return [...seen.values()];
+    const groups: Array<{ label: string; options: Array<{ value: string; label: string }> }> = [];
+    if (buckets.CS.length > 0) groups.push({ label: '客服', options: buckets.CS });
+    if (buckets.ADMIN_OWNER.length > 0) groups.push({ label: '店长 / 老板', options: buckets.ADMIN_OWNER });
+    if (buckets.COMPANION.length > 0) groups.push({ label: '陪玩自己开的单', options: buckets.COMPANION });
+    return groups;
   }, [allOrders, canSeeAllDispatchRecords]);
 
   /** 这个面板最多铺 100 行（店长/老板要看全店，一次铺几百张卡会卡），下面是引导去「全部订单」。 */
@@ -1003,13 +1016,13 @@ const CSDispatchView: React.FC = () => {
             <Card
               size="small"
               style={{ marginTop: 12 }}
-              title={`${canSeeAllDispatchRecords ? '客服派单记录' : '我发布的订单'}（${dispatchRecords.length}）`}
+              title={`${canSeeAllDispatchRecords ? (user.role === 'OWNER' ? '派单记录 · 全部工作室' : '本店派单记录') : '我发布的订单'}（${dispatchRecords.length}）`}
               extra={
                 canSeeAllDispatchRecords && csFilterOptions.length > 0 ? (
                   <Select
                     size="small"
                     allowClear
-                    placeholder="全部客服"
+                    placeholder="全部派单人"
                     style={{ width: 160 }}
                     value={csFilter || undefined}
                     onChange={(v) => setCsFilter(v || '')}
@@ -1033,7 +1046,7 @@ const CSDispatchView: React.FC = () => {
                   {dispatchRecords.length > shownDispatchRecords.length && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       只显示最近 {shownDispatchRecords.length} 条（共 {dispatchRecords.length} 条）：完整记录去「订单管理 → 全部订单」，
-                      那里也能按客服筛选。
+                      那里也能按派单人筛选。
                     </Text>
                   )}
                 </div>
