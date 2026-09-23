@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BUILTIN_WHITELIST } from './constants';
+import { isKillEffective } from '../common/blacklist-switch';
 
 @Injectable()
 export class ProcessBlacklistService {
@@ -71,6 +72,10 @@ export class ProcessBlacklistService {
       select: { studioId: true, status: true },
     });
     if (!companion) throw new NotFoundException('陪玩不存在');
+
+    // 两道闸（老板的全站总开关 + 本店「黑名单是否生效」）有一道关着就返回空名单：
+    // 客户端走 REST 兜底拉名单时同样不许杀进程，否则 WebSocket 一断就绕过了开关。
+    if (!(await isKillEffective(this.prisma as never, companion.studioId))) return [];
 
     // 只使用「状态黑名单」：陪玩处于哪个状态，就套用该状态下的黑名单
     const statusEntries = await this.prisma.companionStatusBlacklist.findMany({

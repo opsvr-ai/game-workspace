@@ -5,6 +5,7 @@ import { companionsApi } from '../../api/companions';
 import { blacklistApi } from '../../api/blacklist';
 import { companionStatusConfig } from '../../constants';
 import { configApi } from '../../api/config';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
 
@@ -17,11 +18,15 @@ interface PendingEntry {
 }
 
 const BlacklistPage: React.FC = () => {
+  const isOwner = useAuthStore((s) => s.user?.role) === 'OWNER';
   // 各状态黑名单
   const [entries, setEntries] = useState<any[]>([]);
-  // 自动杀进程总开关（默认关闭，见「自动结束黑名单进程」卡片）
+  // 全站总开关（老板的，默认关闭）—— 见「自动结束黑名单进程」卡片
   const [autoKill, setAutoKill] = useState(false);
   const [autoKillLoading, setAutoKillLoading] = useState(false);
+  // 本店「黑名单是否生效」开关（店长自己拨；老板拨的是全站默认值）
+  const [studioEnabled, setStudioEnabled] = useState(true);
+  const [studioEnabledLoading, setStudioEnabledLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // 采集
@@ -51,22 +56,32 @@ const BlacklistPage: React.FC = () => {
     }
   }, []);
 
-  const loadAutoKill = useCallback(async () => {
+  const loadSwitches = useCallback(async () => {
     try {
-      const { data } = await configApi.get(['blacklist.auto_kill']);
-      setAutoKill(data?.data?.['blacklist.auto_kill'] === true);
-    } catch {
-      /* 读不到就按关闭处理 */
-    }
+      const { data } = await configApi.get(['blacklist.auto_kill', 'blacklist.enabled']);
+      const values = data?.data ?? {};
+      setAutoKill(values['blacklist.auto_kill'] === true);
+      setStudioEnabled(values['blacklist.enabled'] !== false);
+    } catch {}
   }, []);
+
+  /** 保存一个开关：服务端返回 skipped（没权限改）时不改本地状态，免得界面假装改成功了。 */
+  const saveSwitch = async (key: string, next: boolean, done: (v: boolean) => void) => {
+    const { data } = await configApi.update({ [key]: next });
+    const skipped: string[] = data?.data?.skipped ?? [];
+    if (skipped.includes(key)) return false;
+    done(next);
+    return true;
+  };
 
   const toggleAutoKill = (next: boolean) => {
     const apply = async () => {
       setAutoKillLoading(true);
       try {
-        await configApi.update({ 'blacklist.auto_kill': next });
-        setAutoKill(next);
-        message.success(next ? '已开启：陪玩处于对应状态时会自动结束名单里的进程' : '已关闭：客户端不会再自动结束任何进程');
+        const ok = await saveSwitch('blacklist.auto_kill', next, setAutoKill);
+        if (ok) {
+          message.success(next ? '已开启：陪玩处于对应状态时会自动结束名单里的进程' : '已关闭：客户端不会再自动结束任何进程');
+        }
       } catch (err: any) {
         message.error(err?.response?.data?.message || '保存失败');
       } finally {
@@ -87,14 +102,51 @@ const BlacklistPage: React.FC = () => {
     });
   };
 
+  /** 本店「黑名单是否生效」：关掉 = 本店名单只记录不杀，出问题一键止血。 */
+  const toggleStudioEnabled = (next: boolean) => {
+    const apply = async () => {
+      setStudioEnabledLoading(true);
+      try {
+        const ok = await saveSwitch('blacklist.enabled', next, setStudioEnabled);
+        if (ok) {
+          message.success(
+            next
+              ? '已开启：本店名单会下发给本店陪玩（最终是否杀进程还要看全站总开关）'
+              : '已关闭：本店名单只做记录和上报，本店陪玩不会被自动结束任何进程',
+          );
+        }
+      } catch (err: any) {
+        message.error(err?.response?.data?.message || '保存失败');
+      } finally {
+        setStudioEnabledLoading(false);
+      }
+    };
+    if (next) {
+      void apply();
+      return;
+    }
+    Modal.confirm({
+      title: isOwner ? '确定让全站默认「不生效」？' : '确定让本店黑名单「不生效」？',
+      content: isOwner
+        ? '关掉后，没有自己拨过这个开关的店，名单都只做记录、不会结束任何进程。'
+        : '关掉后本店名单只做记录和上报，本店陪玩不会被自动结束任何进程；随时可以再打开。',
+      okText: '确定关闭',
+      cancelText: '取消',
+      onOk: apply,
+    });
+  };
+
+  /** 两道闸都开，客户端才会真的杀进程。 */
+  const killEffective = autoKill && studioEnabled;
+
   useEffect(() => {
     fetchAll();
-    loadAutoKill();
+    loadSwitches();
     companionsApi
       .list()
       .then(({ data }: any) => setCompanions(data.data ?? []))
       .catch(() => {});
-  }, [fetchAll, loadAutoKill]);
+  }, [fetchAll, loadSwitches]);
 
   const collectApps = async () => {
     if (!collectedCompanionId || collecting) return;
@@ -271,22 +323,64 @@ const BlacklistPage: React.FC = () => {
 
       <Card
         size="small"
-        style={{ marginBottom: 12, background: autoKill ? '#fff2f0' : '#f6ffed', borderColor: autoKill ? '#ffccc7' : '#b7eb8f' }}
+        style={{ marginBottom: 12, background: killEffective ? '#fff2f0' : '#f6ffed', borderColor: killEffective ? '#ffccc7' : '#b7eb8f' }}
       >
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <div>
             <Text strong style={{ fontSize: 13 }}>
-              自动结束黑名单进程
+              黑名单是否生效{isOwner ? '（全站默认值）' : '（本店）'}
             </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {studioEnabled
+                ? isOwner
+                  ? '已开启：名单会下发给各工作室 / 线上俱乐部（哪家店自己关掉了就跳过哪家）。'
+                  : '已开启：本店名单照常下发给本店陪玩。'
+                : isOwner
+                  ? '已关闭：全站默认「不生效」，各店名单都只做记录和上报。'
+                  : '已关闭：本店名单只做记录和上报，本店陪玩不会被自动结束任何进程。'}
+            </Text>
+            <br />
+            <Text type={killEffective ? 'danger' : 'success'} style={{ fontSize: 12 }}>
+              当前实际：{killEffective ? '会结束名单里的进程' : '不结束任何进程'}
+              {killEffective
+                ? ''
+                : !autoKill
+                  ? '（全站总开关是关的，两个开关都开才动手）'
+                  : '（本店开关关着）'}
+            </Text>
+          </div>
+          <Switch
+            checked={studioEnabled}
+            loading={studioEnabledLoading}
+            onChange={toggleStudioEnabled}
+            checkedChildren="开"
+            unCheckedChildren="关"
+          />
+        </Space>
+      </Card>
+
+      <Card size="small" style={{ marginBottom: 12, background: '#fafafa' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <div>
+            <Text strong style={{ fontSize: 13 }}>
+              全站总开关：自动结束黑名单进程
+            </Text>
+            {!isOwner && (
+              <Tag style={{ marginLeft: 6 }} color="default">
+                只有老板能改
+              </Tag>
+            )}
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {autoKill
                 ? '已开启：陪玩处于对应状态时，客户端每 10 秒强制结束上面的进程（会直接踢掉正在运行的游戏）。'
-                : '已关闭：名单只做记录和上报，不会自动结束任何进程。需要整治时再打开。'}
+                : '已关闭：客户端不会自动结束任何进程（上面那道本店开关拨开也不会动手）。需要整治时再由老板打开。'}
             </Text>
           </div>
           <Switch
             checked={autoKill}
+            disabled={!isOwner}
             loading={autoKillLoading}
             onChange={toggleAutoKill}
             checkedChildren="开"

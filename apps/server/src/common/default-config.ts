@@ -76,6 +76,11 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 陪玩处于「空闲/娱乐」等状态时，客户端是否自动结束状态黑名单里的进程。
   // 默认关闭：名单只记录不杀，避免把正在玩游戏的陪玩误杀（见 2026-09-20 误杀事故）。
   'blacklist.auto_kill': false,
+  // **本店**的「黑名单是否生效」开关（分店自己的，店长在「进程黑名单」页顶部自己拨）。
+  // 关掉 = 本店名单只记录、不下发给本店陪玩，进程一个都不会被结束；
+  // 打开也只解掉本店这道闸，真正要杀进程还得老板的全站总开关 `blacklist.auto_kill` 也是开。
+  // 默认 true 是为了「行为不变」：没拨过本店开关的店，跟着老板的总开关走。
+  'blacklist.enabled': true,
   'agent.latest_version': '1.0.0',
   'agent.latest_download_url': '/uploads/chunlv-latest.zip',
   'ai.provider': 'doubao',

@@ -211,8 +211,18 @@ export class SettingsController {
     //   混进来的「老板专属键」（AI 密钥、客户端版本、杀进程开关…）不报错也不静默，
     //   跳过并列在 `data.skipped` 里，界面照着提示「这些要找老板改」。
     const result = await saveConfigsByRole(this.prisma, req?.user ?? {}, body);
-    if (result.skipped.length === 0 && body['blacklist.auto_kill'] !== undefined) {
-      await this.pushBlacklistAfterToggle();
+    // 杀进程的两个开关（老板的全站总开关 / 店长的本店开关）一改就当场重推名单。
+    // 只看**真的写进去**的键（`result.saved`）：店长一次保存里混进老板专属键时，
+    // 那个键并没有改动，也就没什么要重推的（以前用 skipped.length===0 判断，会漏掉这种情况）。
+    const killSwitched = result.saved.some(
+      (key) => key === 'blacklist.auto_kill' || key === 'blacklist.enabled',
+    );
+    if (killSwitched) {
+      // 老板改的是全站默认 → 所有店都要重推；店长只影响自己店 → 只推本店，不打扰别家。
+      const isOwner = req?.user?.role === 'OWNER';
+      await this.pushBlacklistAfterToggle(
+        isOwner ? undefined : (req?.user?.studioId as string) || undefined,
+      );
     }
     return {
       code: 200,
@@ -247,21 +257,29 @@ export class SettingsController {
       ? keysStr.split(',').map((k) => k.trim()).filter(Boolean)
       : [];
     const removed = await resetStudioConfigs(this.prisma, studioId, keys);
+    // 「恢复默认」也可能把杀进程开关恢复回默认值（本店开关默认是「生效」）：
+    // 同样要当场重推一次名单，否则本店陪玩手里还是旧名单，得等下一次状态变化才纠正。
+    if (removed > 0 && (!keys.length || keys.includes('blacklist.enabled'))) {
+      await this.pushBlacklistAfterToggle(studioId);
+    }
     return { code: 200, message: `已恢复用老板默认（${removed} 项）`, data: { removed } };
   }
 
   /**
-   * 「自动结束黑名单进程」开关一改，立刻把新名单推给所有陪玩端。
+   * 「自动结束黑名单进程」/ 本店「黑名单是否生效」开关一改，立刻把新名单推给陪玩端。
    *
    * 客户端只在收到推送时才会更新本地的杀进程名单：不推的话，
    * 「关掉开关」要等下一次状态变化才生效，紧急止血会慢半拍，
    * 正在玩游戏的人会多挨几分钟。
+   *
+   * `studioId` 只推这一家店（店长拨本店开关时用）；不传 = 推所有店（老板拨全站总开关时）。
    */
-  private async pushBlacklistAfterToggle(): Promise<void> {
+  private async pushBlacklistAfterToggle(studioId?: string): Promise<void> {
     try {
       // 先让缓存失效，保证推出去的名单已经按新开关算过。
       this.wsGateway.invalidateAutoKillCache();
       const companions = await this.prisma.companion.findMany({
+        where: studioId ? { studioId } : undefined,
         select: { id: true, studioId: true },
       });
       for (const c of companions) {
@@ -291,4 +309,3 @@ export class SettingsController {
     return { code: 200, message: 'ok', data };
   }
 }
-

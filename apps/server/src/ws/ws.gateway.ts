@@ -22,6 +22,10 @@ import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
+import {
+  resolveAutoKillEnabled,
+  resolveStudioBlacklistEnabled,
+} from '../common/blacklist-switch';
 
 export interface ConnectedUser {
   id: string;
@@ -1111,11 +1115,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (this.autoKillCache && now - this.autoKillCache.at < 5000) {
       return this.autoKillCache.value;
     }
-    const cfg = await this.prisma.systemConfig
-      .findUnique({ where: { key: 'blacklist.auto_kill' } })
-      .catch(() => null);
-    const v = cfg?.value;
-    const value = v === true || v === 'true';
+    const value = await resolveAutoKillEnabled(this.prisma as never);
     this.autoKillCache = { at: now, value };
     return value;
   }
@@ -1123,9 +1123,29 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 自动杀进程总开关的短缓存，见 isAutoKillEnabled()。 */
   private autoKillCache: { at: number; value: boolean } | null = null;
 
-  /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒。 */
+  /**
+   * 本店「黑名单是否生效」开关（StudioConfig: blacklist.enabled，店长自己拨）。
+   *
+   * 关掉 = 这家店的名单只记录不下发；默认（没填过）跟随老板的全站总开关，行为与以前一致。
+   * 跟总开关一样加 5 秒缓存：一次工作室广播会给每个在线陪玩各查一次。
+   */
+  async isStudioBlacklistEnabled(studioId: string | null | undefined): Promise<boolean> {
+    if (!studioId) return true;
+    const now = Date.now();
+    const cached = this.studioBlacklistCache.get(studioId);
+    if (cached && now - cached.at < 5000) return cached.value;
+    const value = await resolveStudioBlacklistEnabled(this.prisma as never, studioId);
+    this.studioBlacklistCache.set(studioId, { at: now, value });
+    return value;
+  }
+
+  /** 各店「黑名单是否生效」的短缓存，见 isStudioBlacklistEnabled()。 */
+  private studioBlacklistCache = new Map<string, { at: number; value: boolean }>();
+
+  /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒（两个开关一起清）。 */
   invalidateAutoKillCache(): void {
     this.autoKillCache = null;
+    this.studioBlacklistCache.clear();
   }
 
   async sendBlacklistUpdate(
@@ -1135,14 +1155,19 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     version: number,
     status?: string,
     authoritative = false,
+    studioId?: string | null,
   ): Promise<void> {
     const autoKill = await this.isAutoKillEnabled();
-    // 总开关关掉时下发空名单：客户端收到空名单会立刻清掉自己手上的杀进程名单，不再误杀。
-    const effective = autoKill ? blacklist : [];
+    // 两道闸（老板的全站总开关 + 本店的「黑名单是否生效」）有一道关着就下发空名单：
+    // 客户端收到空名单会立刻清掉自己手上的杀进程名单，不再误杀（老客户端同样有效）。
+    const studioEnabled = await this.isStudioBlacklistEnabled(studioId);
+    const effective = autoKill && studioEnabled ? blacklist : [];
     logger.info('SEND blacklist:update', {
       companionId,
       blacklistCount: effective.length,
-      suppressed: !autoKill && blacklist.length > 0,
+      suppressed: effective.length === 0 && blacklist.length > 0,
+      autoKill,
+      studioEnabled,
       whitelistCount: whitelist.length,
       version,
       status,
@@ -1162,7 +1187,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const version = Date.now();
     let pushed = 0;
     for (const c of companions) {
-      await this.sendBlacklistUpdate(c.id, blacklist, whitelist.map((w) => ({ ...w, isSystem: false })), version);
+      await this.sendBlacklistUpdate(
+        c.id,
+        blacklist,
+        whitelist.map((w) => ({ ...w, isSystem: false })),
+        version,
+        undefined,
+        false,
+        studioId,
+      );
       pushed++;
     }
     logger.info('SEND blacklist:update (broadcast)', { studioId, total: companions.length, pushed, version });
@@ -1201,6 +1234,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         Date.now(),
         authoritative ? status : undefined,
         authoritative,
+        studioId,
       );
     } catch (err) {
       logger.warn('pushCurrentBlacklist failed', { companionId, error: (err as Error).message });

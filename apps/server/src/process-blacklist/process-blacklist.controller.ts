@@ -93,10 +93,11 @@ export class ProcessBlacklistController {
 
     let pushed = 0;
     const version = Date.now();
-    const whitelist = await this.service.getWhitelist(await this.sid(req));
+    const studioId = await this.sid(req);
+    const whitelist = await this.service.getWhitelist(studioId);
     for (const cid of companionIds) {
       const blacklist = await this.service.getEffectiveBlacklist(cid);
-      await this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version);
+      await this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version, undefined, false, studioId);
       pushed++;
     }
     logger.info("Blacklist push", { pushed, version, studioId: req.user.studioId });

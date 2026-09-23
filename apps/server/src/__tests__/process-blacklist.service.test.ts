@@ -168,4 +168,40 @@ describe('ProcessBlacklistService', () => {
       expect(mockPrisma.companionProcessReport.create).toHaveBeenCalled();
     });
   });
+
+  // =========================================================================
+  // getEffectiveBlacklist() —— 两个开关
+  // =========================================================================
+  describe('getEffectiveBlacklist（客户端走 REST 兜底拉名单时同样受开关约束）', () => {
+    beforeEach(() => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ studioId: 's1', status: 'AVAILABLE' });
+      mockPrisma.companionStatusBlacklist.findMany.mockResolvedValue([{ processName: 'game.exe' }]);
+    });
+
+    it('全站总开关没开（默认）：返回空名单', async () => {
+      mockPrisma.systemConfig.findUnique.mockResolvedValue(null);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
+    });
+
+    it('全站总开关打开、本店没拨过：返回本店状态名单', async () => {
+      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'blacklist.auto_kill', value: true });
+      mockPrisma.studioConfig.findMany.mockResolvedValue([]);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([
+        { processName: 'game.exe', processPath: null },
+      ]);
+    });
+
+    it('本店开关关掉：全站开着也返回空名单（别家店不受影响）', async () => {
+      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'blacklist.auto_kill', value: true });
+      mockPrisma.studioConfig.findMany.mockImplementation((args: any) =>
+        Promise.resolve(
+          args?.where?.studioId === 's1' ? [{ key: 'blacklist.enabled', value: false }] : [],
+        ),
+      );
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
+    });
+  });
 });
