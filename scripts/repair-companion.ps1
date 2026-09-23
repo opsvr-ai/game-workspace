@@ -377,13 +377,16 @@ if (Test-Path -LiteralPath $dir) {
     $mode = 'overwrite'
   }
 }
+# 期望大小必须在「搬过去」之前量好：改名方式下 Move-Item 会把 $inner 里的 exe 一起搬走，
+# 搬完再量就是 0，校验必然判成「大小不对」，白回滚一次、陪玩白等一场（2026-09-24 在马凝初那台实测）。
+$newSize = 0
+if (Test-Path -LiteralPath $newExe) { $newSize = (Get-Item -LiteralPath $newExe).Length }
 if ($mode -eq 'rename') {
   New-Item -ItemType Directory -Path $dir -Force | Out-Null
   Move-Item -Path (Join-Path $inner '*') -Destination $dir -Force
 } else {
   Copy-Item -Path (Join-Path $inner '*') -Destination $dir -Recurse -Force
 }
-$newSize = (Get-Item -LiteralPath $newExe).Length
 $gotSize = 0
 if (Test-Path -LiteralPath $targetExe) { $gotSize = (Get-Item -LiteralPath $targetExe).Length }
 if (($gotSize -eq 0) -or ($gotSize -ne $newSize)) {
