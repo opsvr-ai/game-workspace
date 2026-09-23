@@ -450,6 +450,11 @@ flowchart LR
   `DELETE /api/config/studio-overrides` 恢复默认，
   `GET /api/config` 返回生效值 + `_meta.overridden` / `_meta.ownerOnlyKeys`；
   密钥 / 凭据类的值不下发给店长。
+- **杀进程是「两道闸」**（`common/blacklist-switch.ts` 是唯一判定）：
+  全站总开关 `blacklist.auto_kill`（老板专属，默认关）+ 本店开关 `blacklist.enabled`
+  （店长可改，默认生效）——两个都开，服务端才把名单下发给客户端；任何一道关着都下发**空名单**
+  （老客户端收到空名单也会立刻停下，不用等它升级）。REST 兜底拉名单（`GET /api/processes/blacklist/my-rules`）
+  同样走这两道闸，WebSocket 断了也绕不过去。
 
 ## 9. 部署架构
 
