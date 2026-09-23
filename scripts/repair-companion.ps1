@@ -111,7 +111,9 @@ function Collect-Diag {
     Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {
       $t = ''
       try { $t = $w.CreateShortcut($_.FullName).TargetPath } catch { }
-      [void]$sb.AppendLine(('  {0} -> {1} (target exists={2})' -f $_.FullName, $t, (Test-Path -LiteralPath $t -ErrorAction SilentlyContinue)))
+      $ok = '<无目标>'
+      if ($t) { $ok = (Test-Path -LiteralPath $t -ErrorAction SilentlyContinue) }
+      [void]$sb.AppendLine(('  {0} -> {1} (target exists={2})' -f $_.FullName, $t, $ok))
     }
   }
 
@@ -239,11 +241,32 @@ $targetExe = Join-Path $dir $exeName
 W ('安装目录：' + $dir)
 
 Write-Host ''
-Write-Host '[1/6] 关掉正在运行的客户端和看门狗服务…' -ForegroundColor Cyan
-Get-Process -Name '陪玩管理', '蠢驴电竞' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Write-Host '[1/6] 先停看门狗，再关客户端…' -ForegroundColor Cyan
+# 顺序不能反：先杀客户端的话，看门狗会在这几秒里马上把它重新拉起来（它盯着 PID 看），
+# 目录一直被占着，第 4 步「旧目录改名」就会失败（2026-09-24 在 3 台机上踩到）。
 sc.exe stop SystemHelper | Out-Null
 for ($i = 0; $i -lt 15; $i++) { if ((Get-Service SystemHelper -ErrorAction SilentlyContinue).Status -ne 'Running') { break }; Start-Sleep -Seconds 1 }
-W '已完成'
+$killDirs = @($dir) + @('C:\Program Files\陪玩管理', 'C:\Program Files\@chunlvcompanion-electron', 'C:\Program Files\蠢驴电竞', 'C:\Program Files (x86)\陪玩管理', 'C:\Program Files (x86)\蠢驴电竞')
+function Get-ClientProcs {
+  # 名字被解压搞成乱码的客户端（????????.exe）按名字找不到，只能按 exe 路径找。
+  $list = @()
+  $list += Get-Process -Name $cn, '蠢驴电竞' -ErrorAction SilentlyContinue
+  $list += Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $p = $_.ExecutablePath
+    if (-not $p) { return $false }
+    $hit = $false
+    foreach ($d in $killDirs) { if ($p.StartsWith($d + '\', [System.StringComparison]::OrdinalIgnoreCase)) { $hit = $true } }
+    return $hit
+  } | ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
+  return @($list | Where-Object { $_ -ne $null } | Sort-Object Id -Unique)
+}
+for ($i = 0; $i -lt 4; $i++) {
+  $victims = @(Get-ClientProcs)
+  if ($victims.Count -eq 0) { break }
+  $victims | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 3
+}
+W ('看门狗已停，客户端进程剩余：' + @(Get-ClientProcs).Count)
 
 Write-Host '[2/6] 下载最新客户端整包（约 128MB，请等一会儿）…' -ForegroundColor Cyan
 $zip = Join-Path $env:TEMP 'chunlv-repair.zip'
@@ -297,7 +320,8 @@ Write-Host '[4/6] 换上新客户端（旧目录改名留证据，不删）…' 
 $bak = ''
 if (Test-Path -LiteralPath $dir) {
   $bak = $dir + '.broken-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-  Move-Item -LiteralPath $dir -Destination $bak -Force -ErrorAction SilentlyContinue
+  try { Move-Item -LiteralPath $dir -Destination $bak -Force -ErrorAction Stop }
+  catch { W ('旧目录改名失败：' + $_.Exception.Message) }
   if (Test-Path -LiteralPath $dir) {
     # 旧目录没换走就继续铺新文件，会铺成「半新半旧」—— 那正是这次事故的成因，宁可不改。
     W ('旧目录换不走（多半被占用或被杀毒软件锁着）：' + $dir)
