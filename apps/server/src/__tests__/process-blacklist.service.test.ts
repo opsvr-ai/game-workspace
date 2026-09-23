@@ -170,7 +170,7 @@ describe('ProcessBlacklistService', () => {
   });
 
   // =========================================================================
-  // getEffectiveBlacklist() —— 两个开关
+  // getEffectiveBlacklist() —— 本店开关（唯一的杀进程开关）
   // =========================================================================
   describe('getEffectiveBlacklist（客户端走 REST 兜底拉名单时同样受开关约束）', () => {
     beforeEach(() => {
@@ -178,26 +178,30 @@ describe('ProcessBlacklistService', () => {
       mockPrisma.companionStatusBlacklist.findMany.mockResolvedValue([{ processName: 'game.exe' }]);
     });
 
-    it('全站总开关没开（默认）：返回空名单', async () => {
-      mockPrisma.systemConfig.findUnique.mockResolvedValue(null);
+    it('本店开关没拨过（默认关）：返回空名单', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([]);
 
       expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
     });
 
-    it('全站总开关打开、本店没拨过：返回本店状态名单', async () => {
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'blacklist.auto_kill', value: true });
-      mockPrisma.studioConfig.findMany.mockResolvedValue([]);
+    it('本店开关拨开：返回本店状态名单', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([{ key: 'blacklist.enabled', value: true }]);
 
       expect(await service.getEffectiveBlacklist('c1')).toEqual([
         { processName: 'game.exe', processPath: null },
       ]);
     });
 
-    it('本店开关关掉：全站开着也返回空名单（别家店不受影响）', async () => {
-      mockPrisma.systemConfig.findUnique.mockResolvedValue({ key: 'blacklist.auto_kill', value: true });
+    it('本店开关关掉：返回空名单（一键止血）', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([{ key: 'blacklist.enabled', value: false }]);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
+    });
+
+    it('别家店拨开不影响本店：本店没拨过照样返回空名单', async () => {
       mockPrisma.studioConfig.findMany.mockImplementation((args: any) =>
         Promise.resolve(
-          args?.where?.studioId === 's1' ? [{ key: 'blacklist.enabled', value: false }] : [],
+          args?.where?.studioId === 'other-studio' ? [{ key: 'blacklist.enabled', value: true }] : [],
         ),
       );
 

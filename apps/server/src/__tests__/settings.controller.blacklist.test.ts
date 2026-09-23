@@ -2,12 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SettingsController } from '../auth/settings.controller';
 
 /**
- * 杀进程开关「一拨就生效」的回归测试（2026-09-23 加本店开关时一起锁住）。
+ * 杀进程开关「一拨就生效」的回归测试（2026-09-24 去掉全站总闸后更新）。
+ *
+ * 现在**只有一道闸**：店长自己拨的「本店黑名单是否生效」（`blacklist.enabled`）。
+ * 老板 2026-09-24 明确要求去掉以前那道全站总开关 `blacklist.auto_kill`（「不需要总闸，
+ * 只需要店长自己定自己的俱乐部或者工作室是否生效」），所以：
+ *  - 店长拨本店开关 / 「恢复默认」把本店开关恢复 → 当场重推本店名单；
+ *  - 老板拨这一项写的是**全站默认值**（各店没自己拨过时用它）→ 当场重推所有店。
  *
  * 客户端只在收到推送时才更新本地的杀进程名单，所以服务端**改完开关必须当场重推**：
- *  - 老板拨全站总开关 → 所有店重推；
- *  - 店长拨本店开关 / 「恢复默认」把本店开关恢复 → 只重推本店。
- * 漏推的表现就是老板在界面上拨了开关、陪玩电脑上没反应，得等下一次状态变化才生效。
+ * 漏推的表现就是开关在界面上拨了、陪玩电脑上没反应，得等下一次状态变化才生效。
  */
 function setup(companions: Array<{ id: string; studioId: string }> = [{ id: 'c1', studioId: 's1' }]) {
   const prisma = {
@@ -19,7 +23,7 @@ function setup(companions: Array<{ id: string; studioId: string }> = [{ id: 'c1'
     },
     companion: { findMany: vi.fn().mockResolvedValue(companions) },
   };
-  const ws = { invalidateAutoKillCache: vi.fn(), pushCurrentBlacklist: vi.fn() };
+  const ws = { invalidateBlacklistSwitchCache: vi.fn(), pushCurrentBlacklist: vi.fn() };
   const controller = new SettingsController(prisma as never, null as never, ws as never);
   return { controller, prisma, ws };
 }
@@ -27,35 +31,36 @@ function setup(companions: Array<{ id: string; studioId: string }> = [{ id: 'c1'
 describe('杀进程开关：改完当场重推名单', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('老板拨全站总开关 → 清缓存 + 推所有店（不加 studioId 过滤）', async () => {
+  it('店长拨本店开关 → 清缓存 + 只推本店', async () => {
     const { controller, prisma, ws } = setup();
 
     const res: any = await controller.updateConfig(
-      { 'blacklist.auto_kill': true },
-      { user: { role: 'OWNER', studioId: null } },
-    );
-
-    expect(res.data.saved).toContain('blacklist.auto_kill');
-    expect(ws.invalidateAutoKillCache).toHaveBeenCalled();
-    expect(prisma.companion.findMany).toHaveBeenCalledWith({
-      where: undefined,
-      select: { id: true, studioId: true },
-    });
-    expect(ws.pushCurrentBlacklist).toHaveBeenCalledWith('c1', 's1', false);
-  });
-
-  it('店长拨本店开关 → 只推本店', async () => {
-    const { controller, prisma, ws } = setup();
-
-    const res: any = await controller.updateConfig(
-      { 'blacklist.enabled': false },
+      { 'blacklist.enabled': true },
       { user: { role: 'ADMIN', studioId: 's1' } },
     );
 
     expect(res.data.scope).toBe('studio');
     expect(res.data.saved).toContain('blacklist.enabled');
+    expect(ws.invalidateBlacklistSwitchCache).toHaveBeenCalled();
     expect(prisma.companion.findMany).toHaveBeenCalledWith({
       where: { studioId: 's1' },
+      select: { id: true, studioId: true },
+    });
+    expect(ws.pushCurrentBlacklist).toHaveBeenCalledWith('c1', 's1', false);
+  });
+
+  it('老板拨这一项写的是全站默认值 → 清缓存 + 推所有店（不加 studioId 过滤）', async () => {
+    const { controller, prisma, ws } = setup();
+
+    const res: any = await controller.updateConfig(
+      { 'blacklist.enabled': true },
+      { user: { role: 'OWNER', studioId: null } },
+    );
+
+    expect(res.data.saved).toContain('blacklist.enabled');
+    expect(ws.invalidateBlacklistSwitchCache).toHaveBeenCalled();
+    expect(prisma.companion.findMany).toHaveBeenCalledWith({
+      where: undefined,
       select: { id: true, studioId: true },
     });
     expect(ws.pushCurrentBlacklist).toHaveBeenCalledWith('c1', 's1', false);
@@ -74,6 +79,18 @@ describe('杀进程开关：改完当场重推名单', () => {
     expect(ws.pushCurrentBlacklist).toHaveBeenCalled();
   });
 
+  it('只改别的配置项 → 不动杀进程名单（否则等于每次保存都惊动所有陪玩）', async () => {
+    const { controller, ws } = setup();
+
+    await controller.updateConfig(
+      { 'revenue.free_threshold': 5 },
+      { user: { role: 'ADMIN', studioId: 's1' } },
+    );
+
+    expect(ws.invalidateBlacklistSwitchCache).not.toHaveBeenCalled();
+    expect(ws.pushCurrentBlacklist).not.toHaveBeenCalled();
+  });
+
   it('店长「恢复默认」把本店开关恢复 → 也要当场重推', async () => {
     const { controller, ws } = setup();
 
@@ -83,7 +100,7 @@ describe('杀进程开关：改完当场重推名单', () => {
       undefined,
     );
 
-    expect(ws.invalidateAutoKillCache).toHaveBeenCalled();
+    expect(ws.invalidateBlacklistSwitchCache).toHaveBeenCalled();
     expect(ws.pushCurrentBlacklist).toHaveBeenCalledWith('c1', 's1', false);
   });
 

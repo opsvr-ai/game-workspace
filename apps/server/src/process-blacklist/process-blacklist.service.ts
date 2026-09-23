@@ -73,7 +73,7 @@ export class ProcessBlacklistService {
     });
     if (!companion) throw new NotFoundException('陪玩不存在');
 
-    // 两道闸（老板的全站总开关 + 本店「黑名单是否生效」）有一道关着就返回空名单：
+    // 本店「黑名单是否生效」开关关着就返回空名单（这是唯一的杀进程开关）：
     // 客户端走 REST 兜底拉名单时同样不许杀进程，否则 WebSocket 一断就绕过了开关。
     if (!(await isKillEffective(this.prisma as never, companion.studioId))) return [];
 

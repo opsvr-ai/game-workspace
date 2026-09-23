@@ -15,8 +15,9 @@ import {
  *   3. **DEFAULT_CONFIGS** —— 代码里的内置默认。
  *
  * 所以：店长不动 = 用老板的默认；店长一填 = 只影响自己这家店，别家不受影响。
- * **凡是影响数据安全与稳定性的键**（AI / 实名 / TURN 密钥、杀进程总开关、客户端与网页版本号、
+ * **凡是影响数据安全与稳定性的键**（AI / 实名 / TURN 密钥、客户端与网页版本号、
  * WebSocket 宽限期等）不走这里，见 `default-config.ts` 的 `OWNER_ONLY_KEYS`。
+ * 杀进程只有一个开关，就是**本店**的 `blacklist.enabled`（店长自己拨），不走老板专属名单。
  */
 export interface ResolvedConfigs {
   /** 生效值 */

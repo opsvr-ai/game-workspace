@@ -208,17 +208,16 @@ export class SettingsController {
     // 写到哪里看身份（老板拍板：店跟店相互独立，默认全部归分店）：
     // - 老板 → 全局默认（SystemConfig），所有店跟着变；
     // - 店长 → 本店覆盖（StudioConfig），只影响自己店；
-    //   混进来的「老板专属键」（AI 密钥、客户端版本、杀进程开关…）不报错也不静默，
+    //   混进来的「老板专属键」（AI 密钥、客户端版本、流水号…）不报错也不静默，
     //   跳过并列在 `data.skipped` 里，界面照着提示「这些要找老板改」。
     const result = await saveConfigsByRole(this.prisma, req?.user ?? {}, body);
-    // 杀进程的两个开关（老板的全站总开关 / 店长的本店开关）一改就当场重推名单。
+    // 「本店黑名单是否生效」开关一改就当场重推名单
+    // （老板 2026-09-24 已经把全站总开关 `blacklist.auto_kill` 整条去掉，这是唯一的杀进程开关）。
     // 只看**真的写进去**的键（`result.saved`）：店长一次保存里混进老板专属键时，
     // 那个键并没有改动，也就没什么要重推的（以前用 skipped.length===0 判断，会漏掉这种情况）。
-    const killSwitched = result.saved.some(
-      (key) => key === 'blacklist.auto_kill' || key === 'blacklist.enabled',
-    );
+    const killSwitched = result.saved.some((key) => key === 'blacklist.enabled');
     if (killSwitched) {
-      // 老板改的是全站默认 → 所有店都要重推；店长只影响自己店 → 只推本店，不打扰别家。
+      // 老板改的是全站默认值 → 各店都可能跟着变，全部重推；店长只影响自己店 → 只推本店，不打扰别家。
       const isOwner = req?.user?.role === 'OWNER';
       await this.pushBlacklistAfterToggle(
         isOwner ? undefined : (req?.user?.studioId as string) || undefined,
@@ -257,7 +256,7 @@ export class SettingsController {
       ? keysStr.split(',').map((k) => k.trim()).filter(Boolean)
       : [];
     const removed = await resetStudioConfigs(this.prisma, studioId, keys);
-    // 「恢复默认」也可能把杀进程开关恢复回默认值（本店开关默认是「生效」）：
+    // 「恢复默认」也可能把杀进程开关恢复回默认值（本店开关默认是「不生效」）：
     // 同样要当场重推一次名单，否则本店陪玩手里还是旧名单，得等下一次状态变化才纠正。
     if (removed > 0 && (!keys.length || keys.includes('blacklist.enabled'))) {
       await this.pushBlacklistAfterToggle(studioId);
@@ -266,18 +265,19 @@ export class SettingsController {
   }
 
   /**
-   * 「自动结束黑名单进程」/ 本店「黑名单是否生效」开关一改，立刻把新名单推给陪玩端。
+   * 本店「黑名单是否生效」开关一改，立刻把新名单推给陪玩端。
    *
    * 客户端只在收到推送时才会更新本地的杀进程名单：不推的话，
    * 「关掉开关」要等下一次状态变化才生效，紧急止血会慢半拍，
    * 正在玩游戏的人会多挨几分钟。
    *
-   * `studioId` 只推这一家店（店长拨本店开关时用）；不传 = 推所有店（老板拨全站总开关时）。
+   * `studioId` 只推这一家店（店长拨本店开关时用）；不传 = 推所有店
+   * （老板拨全站默认值时用：那是各店没自己拨过时的默认值）。
    */
   private async pushBlacklistAfterToggle(studioId?: string): Promise<void> {
     try {
       // 先让缓存失效，保证推出去的名单已经按新开关算过。
-      this.wsGateway.invalidateAutoKillCache();
+      this.wsGateway.invalidateBlacklistSwitchCache();
       const companions = await this.prisma.companion.findMany({
         where: studioId ? { studioId } : undefined,
         select: { id: true, studioId: true },

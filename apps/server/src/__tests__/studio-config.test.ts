@@ -134,7 +134,7 @@ describe('studio-config 分店配置解析', () => {
 
   it('保存时混进全站唯一的键 → 直接报错，不会悄悄改到全站配置', async () => {
     const prisma = makePrisma({});
-    await expect(saveStudioConfigs(prisma, 'studio-a', { 'blacklist.auto_kill': true })).rejects.toThrow();
+    await expect(saveStudioConfigs(prisma, 'studio-a', { 'ai.deepseek_api_key': 'x' })).rejects.toThrow();
     expect(prisma.studioConfig.upsert).not.toHaveBeenCalled();
   });
 
@@ -171,6 +171,8 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
       'options.contact_results',
       'billing.report_diff_warning_yuan',
       'anomaly.spend_drop_percent',
+      // 杀进程只剩这一个开关，是**本店**的：店长自己拨自己店的（2026-09-24 去掉全站总闸）
+      'blacklist.enabled',
     ]) {
       expect(isStudioScopedKey(key)).toBe(true);
       expect(isOwnerOnlyKey(key)).toBe(false);
@@ -196,9 +198,8 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
     }
   });
 
-  it('一份值绑住全站的开关与版本号也只有老板能改', () => {
+  it('一份值绑住全站的版本号与服务器参数也只有老板能改', () => {
     for (const key of [
-      'blacklist.auto_kill',
       'agent.latest_version',
       'agent.latest_download_url',
       'cs.latest_version',
@@ -217,10 +218,10 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
 
   it('错误信息里点名了是哪些键，方便界面直接提示', () => {
     try {
-      assertStudioScopedKeys(['revenue.free_threshold', 'blacklist.auto_kill']);
+      assertStudioScopedKeys(['revenue.free_threshold', 'ai.deepseek_api_key']);
       throw new Error('不该通过');
     } catch (e: any) {
-      expect(String(e.message)).toContain('blacklist.auto_kill');
+      expect(String(e.message)).toContain('ai.deepseek_api_key');
     }
   });
 });

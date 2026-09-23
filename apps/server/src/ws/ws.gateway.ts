@@ -23,7 +23,6 @@ import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
 import {
-  resolveAutoKillEnabled,
   resolveStudioBlacklistEnabled,
 } from '../common/blacklist-switch';
 
@@ -1104,33 +1103,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ── blacklist outbound ─────────────────────────────────────────────
 
   /**
-   * 自动杀进程总开关（SystemConfig: blacklist.auto_kill）。
-   * 默认关闭：只有明确把它设成 true 时，客户端才会按状态去杀名单里的进程。
-   * 之前没有这个开关时，服务端会主动把「空闲名单」推给客户端，
-   * 出现过正在玩游戏的陪玩被当成空闲而被杀进程的事故。
-   */
-  async isAutoKillEnabled(): Promise<boolean> {
-    // 一次工作室级推送会给每个在线陪玩各查一次配置，加 5 秒缓存避免把库打满。
-    const now = Date.now();
-    if (this.autoKillCache && now - this.autoKillCache.at < 5000) {
-      return this.autoKillCache.value;
-    }
-    const value = await resolveAutoKillEnabled(this.prisma as never);
-    this.autoKillCache = { at: now, value };
-    return value;
-  }
-
-  /** 自动杀进程总开关的短缓存，见 isAutoKillEnabled()。 */
-  private autoKillCache: { at: number; value: boolean } | null = null;
-
-  /**
-   * 本店「黑名单是否生效」开关（StudioConfig: blacklist.enabled，店长自己拨）。
+   * 本店「黑名单是否生效」开关（StudioConfig: blacklist.enabled，店长自己拨）——
+   * 这是「杀进程动不动手」的**唯一开关**（老板 2026-09-24：不要全站总闸）。
    *
-   * 关掉 = 这家店的名单只记录不下发；默认（没填过）跟随老板的全站总开关，行为与以前一致。
-   * 跟总开关一样加 5 秒缓存：一次工作室广播会给每个在线陪玩各查一次。
+   * 关着 / 没拨过 = 这家店的名单只记录不下发，本店陪玩一个进程都不会被结束。
+   * 加 5 秒缓存：一次工作室广播会给每个在线陪玩各查一次，避免把库打满。
    */
   async isStudioBlacklistEnabled(studioId: string | null | undefined): Promise<boolean> {
-    if (!studioId) return true;
+    // 分不出是哪家店时等于「不生效」（解析器会返回 false）：说不清就绝不动手。
+    if (!studioId) return false;
     const now = Date.now();
     const cached = this.studioBlacklistCache.get(studioId);
     if (cached && now - cached.at < 5000) return cached.value;
@@ -1142,9 +1123,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 各店「黑名单是否生效」的短缓存，见 isStudioBlacklistEnabled()。 */
   private studioBlacklistCache = new Map<string, { at: number; value: boolean }>();
 
-  /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒（两个开关一起清）。 */
-  invalidateAutoKillCache(): void {
-    this.autoKillCache = null;
+  /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒。 */
+  invalidateBlacklistSwitchCache(): void {
     this.studioBlacklistCache.clear();
   }
 
@@ -1157,16 +1137,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     authoritative = false,
     studioId?: string | null,
   ): Promise<void> {
-    const autoKill = await this.isAutoKillEnabled();
-    // 两道闸（老板的全站总开关 + 本店的「黑名单是否生效」）有一道关着就下发空名单：
-    // 客户端收到空名单会立刻清掉自己手上的杀进程名单，不再误杀（老客户端同样有效）。
+    // 只看本店这一个开关：关着就下发空名单，客户端收到空名单会当场停掉杀进程
+    // （连没升级的老客户端同样有效）。
     const studioEnabled = await this.isStudioBlacklistEnabled(studioId);
-    const effective = autoKill && studioEnabled ? blacklist : [];
+    const effective = studioEnabled ? blacklist : [];
     logger.info('SEND blacklist:update', {
       companionId,
       blacklistCount: effective.length,
       suppressed: effective.length === 0 && blacklist.length > 0,
-      autoKill,
       studioEnabled,
       whitelistCount: whitelist.length,
       version,
