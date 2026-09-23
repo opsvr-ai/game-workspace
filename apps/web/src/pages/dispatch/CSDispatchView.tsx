@@ -634,11 +634,16 @@ const CSDispatchView: React.FC = () => {
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
+                          {/* 第 1 行只放「段位 + 名字 + 聊天按钮」：
+                              名字以前和状态挤一行，246px 的列里段位（50px）+ 状态（36px）
+                              + 按钮（22px）把名字压到只剩 25px，「陈佳祺」被截成「陈…」。
+                              状态挪到第 2 行（那里本来就有角色/工作室），名字独占剩余宽度。 */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                             {c.role === 'COMPANION' && c.tier && (
                               <TierBadge tier={c.tier} showLabel />
                             )}
                             <span
+                              title={c.displayName || c.username || c.id}
                               style={{
                                 fontWeight: 600,
                                 fontSize: DATA_FONT_SIZE,
@@ -646,14 +651,11 @@ const CSDispatchView: React.FC = () => {
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
+                                flex: '1 1 auto',
                                 minWidth: 0,
                               }}
                             >
                               {c.displayName || c.username || c.id}
-                            </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                              <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
-                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
                             </span>
                             {hasUnread && (
                               <span
@@ -669,7 +671,7 @@ const CSDispatchView: React.FC = () => {
                             <Button
                               size="small"
                               type="text"
-                              style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
+                              style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 await useChatStore.getState().openConversation(c.id, {
@@ -700,6 +702,10 @@ const CSDispatchView: React.FC = () => {
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                              <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
+                            </span>
                             <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || '#64748B' }}>
                               {ROLE_TAG[c.role]?.label || c.role}
                             </span>

@@ -585,27 +585,31 @@ const OrderPoolPage: React.FC = () => {
                       />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* 第 1 行只放「段位 + 名字 + 聊天按钮」。
+                          老板 2026-09-24：以前名字和状态挤在同一行，246px 的列表里
+                          段位（50px）+ 状态（36px）+ 按钮（22px）把名字压到只剩 25px，
+                          三个字的名字被截成「陈…」。状态挪到第 2 行，名字独占剩余宽度。 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                         <TierBadge tier={c.tier} showLabel />
                         <span
+                          title={c.user?.displayName || c.user?.username || c.id}
                           style={{
                             fontWeight: 600,
                             fontSize: DATA_FONT_SIZE,
                             color: '#1F2937',
                             whiteSpace: 'nowrap',
-                            flexShrink: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            flex: '1 1 auto',
+                            minWidth: 0,
                           }}
                         >
                           {c.user?.displayName || c.user?.username || c.id}
                         </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                          <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
-                          <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
-                        </span>
                         <Button
                           size="small"
                           type="text"
-                          style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0, marginLeft: 'auto' }}
+                          style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
                           onClick={(e) => {
                             e.stopPropagation();
                             openCompanionChat(c);
@@ -614,11 +618,25 @@ const OrderPoolPage: React.FC = () => {
                           💬
                         </Button>
                       </div>
-                      {c.currentOrder && (
-                        <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#1677ff', marginTop: 2, whiteSpace: 'nowrap' }}>
-                          {orderTypeConfig[c.currentOrder.type]?.label || c.currentOrder.type} · {c.currentOrder.gameName}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, minWidth: 0, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                          <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
+                          <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
+                        </span>
+                        {c.currentOrder && (
+                          <span
+                            style={{
+                              fontSize: DATA_SUB_FONT_SIZE,
+                              color: '#1677ff',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {orderTypeConfig[c.currentOrder.type]?.label || c.currentOrder.type} · {c.currentOrder.gameName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </List.Item>
