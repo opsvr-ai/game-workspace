@@ -6,6 +6,7 @@
 
 ## Recent Updates (v3.2.0)
 
+- **「双击桌面图标没反应」的根因修完了（2026-09-23）:** 老板报陈佳祺那台陪玩电脑点了图标没反应。查出来是两个叠一起的根因：**服务端下发更新包时会塞进烂字节**（`common/throttled-file.ts` 复用同一个 64KB buffer，遇到背压时没发出去的那块被下一轮读覆盖 —— 字节数一个不差、内容全错；同一台机器连下两次 md5 都不一样），包烂了以后**老看门狗照样报「更新成功」**，于是目录里留下 0 字节 dll、中文名 exe 变成 `????????.exe`，客户端再也点不开。现在：下发每块单独分配内存（已实测整包 md5 与服务器一致）；看门狗（`2026-09-23.3`）改成「解压到旁边的临时目录 → 校验 → 整个目录换过去 → 等客户端自报健康 → 等不到就回滚 + 拉黑这个版本」，起不来还会整包自愈重装；陪玩端 `1.0.20260930` 每分钟写健康标记、被拉黑的版本不再下载、更新包不再自己跑安装器。已经点不开的机器（比如陈佳祺）用一键修复脚本：管理员跑 `http://1.117.229.36:3001/uploads/repair-companion.bat`，八件事一把做完（现场回传 → 下包 → 校验 → 换目录 → 停用旧目录客户端 → 装看门狗 → 重建图标 → 拉起客户端）。本机按同样故障状态跑通，看门狗的自愈路径也单独演练过。现场诊断回传见 `POST /api/agent/diag-report`。
 - **杀进程开关变成「两道闸」（2026-09-23）:** 「进程黑名单」页顶部现在有两个开关 —— 老板的全站总开关（`blacklist.auto_kill`，默认关，仍只由老板拨）+ **店长自己拨**的「黑名单是否生效」（`blacklist.enabled`，默认生效，只影响本店）。**两个都开**才真的杀进程，任何一道关着都下发空名单（老客户端也会立刻停，不用等升级）；开关一拨当场重推（店长只推本店），「恢复用老板的默认」也照样重推。页面直接写着「当前实际：会 / 不会结束名单里的进程」以及是哪道闸关着。判定收口在 `apps/server/src/common/blacklist-switch.ts`，REST 兜底拉名单同样受约束（WebSocket 断了也绕不过去）。线上总开关保持「关」，本店开关默认「生效」，等于没拨过的店行为跟以前一模一样。
 - **新单弹窗：空闲 + 娱乐中一律弹，只有「正在给别人打单」看本人开关（2026-09-22）:** 老板拍板「空闲+娱乐的弹窗，接单中的陪玩可以自己设置弹不弹窗」。以前娱乐中的人得自己开开关才收得到，等于娱乐中默认收不到新单。现在服务端收件人条件只有一份（`WsGateway.urgentRecipientWhere`）：空闲、娱乐中一定推；接单中只有本人打开了「打单中也接收新单弹窗」才推——本店广播和桥接工作室推送共用同一份，不会两个店两套口径。抢单链路本来就不校验陪玩状态，所以娱乐中收到弹窗后真的抢得走；广播日志新增 `byStatus`，命中的人各是什么状态一眼可见。
 - **「工资规则」一页管两个岗位，「店长设置」页删除（2026-09-22）:** 「客服设置」和「店长设置」各装了一半「底薪 + 月休 + 考勤扣款」，其实是同一张工资表的两个岗位行。现在合并到「设置中心 → 工资规则」一张表：店长 / 客服一岗一行（基本工资 / 月休天数 / 迟到扣款 / 缺勤扣款，客服多「早退扣款 / 全勤奖」两列），下面就是考勤登记与工资表；「店长设置」页与菜单项删除（旧书签自动落到工资规则），「客服设置」只留提成与桥接达标。陪玩不在这张表里（陪玩没有底薪，收入全是提成）。顺带修掉一个死设置：全系统没有任何地方能登记「早退」，客服早退扣款一直是填了不生效，现在考勤登记加了「早退」。
@@ -604,6 +605,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/agent/download/latest` | None | -- | Latest unpacked zip for self-update. |
 | `POST` | `/api/agent/onboard-report` | `x-onboard-token` header | -- | A freshly onboarded PC reports hostname / IP / MAC / client version and the remote-support account it just generated. Appended to `onboard-reports/machines.jsonl` (repo root, not web-served). |
 | `POST` | `/api/agent/client-error` | None | `{phase,url,status,message,detail}` | 前端上报「请求根本没到服务器」的网络层故障（注册失败、断网 / 被杀毒软件拦截等）。Appended to `client-errors/client-errors-<date>.jsonl` (repo root, not web-served). |
+| `POST` | `/api/agent/diag-report` | `x-onboard-token` header | `{hostname,source,lines}` | 看门狗 / 一键修复脚本回传现场诊断（主机名、安装目录、exe 大小与 PE 头、桌面快捷方式指向、服务状态、日志尾部……），落到 `onboard-reports/diag/<主机名>-<时间>-<来源>.log`（仓库根，公网下不到）。 |
 | `GET` | `/api/agent/update/queue` | JWT (ADMIN/OWNER/CS) | -- | 更新队列状态：谁在下载、下载了多久、几台在排队。发布时用来盯「铺开到哪台了」。 |
 
 ### Health

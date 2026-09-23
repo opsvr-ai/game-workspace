@@ -633,19 +633,49 @@ nssm remove chunlv-agent confirm  # 删除服务
 ### 5.6 看门狗服务（SystemHelper）更新
 
 陪玩端电脑上常驻一个 Windows 服务 `SystemHelper`（源码 `apps/watchdog-service/`，纯 Go）：
-开机拉起客户端、客户端没了自动重启、清理残留进程、执行客户端自动更新。
+开机拉起客户端、客户端没了自动重启、清理残留进程、执行客户端自动更新、装坏了自动整包重装。
 日志在 `C:\Program Files\SystemHelper\service.log`，启动那行就写着当前构建号：
 
 ```
-2026-09-20 20:17:22 [INFO] SystemHelper service starting (build 2026-09-20.4 / 2026092004)
+2026-09-23 23:15:22 [INFO] SystemHelper service starting (build 2026-09-23.3 / 2026092303)
 ```
 
-**当前线上构建号：`2026-09-20.5` / `2026092005`**（8 台机队 + 老板本机均已下发）。看门狗二进制
-md5 `814a1b514352df5a6bd1a64591ef318f`，9,662,976 字节。
+**当前线上构建号：`2026-09-23.3` / `2026092303`**（陪玩端 `1.0.20260930` 的更新包里带的也是这一份）。
+看门狗二进制 md5 `ae96a2ceb5fbd78973c75a2e7dda4fac`，9,755,648 字节；`/uploads/SystemHelper.exe`
+与更新包 `win-unpacked\resources\SystemHelper.exe` 已核对一致。
 
 排查「客户端闪退 / 起不来」时先看这个文件，关键词：`Adopted running client`（接管了已在跑的客户端）、
 `Killed N client processes`（杀进程）、`Client exe not found`（找不到客户端程序）、
-`restoring from`（用本机安装包自动补齐客户端）。
+`restoring from`（用本机安装包自动补齐客户端）、`repair done`（整包自愈重装，日志里会打出最终落地的 exe 路径）、
+`rolled back`（更新后客户端没在 5 分钟内自报健康，已整目录回滚并把该版本拉黑）、
+`client health marker seen`（客户端自报健康，这次更新算成功、回滚警报解除）。
+
+#### 5.6.1 更新为什么改成「原子换目录」（2026-09-23 修根）
+
+2026-09-23 老板报「陈佳祺双击桌面图标没反应」，挖出来是两个叠在一起的根因：
+
+1. **服务端下发更新包会塞进烂字节**（`apps/server/src/common/throttled-file.ts`）：限速下发复用了同一个
+   64KB buffer，`res.write()` 遇到背压时那块内存是按引用挂进发送队列的，下一轮 `readSync` 把还没发出去的
+   上一块覆盖掉 —— 现象是**字节数一个不差、内容全是错的**（同一台机器连下两次，md5 各不相同、解压报
+   `invalid data`）。已修：每块单独分配内存；修复后实测整包 md5 与服务器上的文件一致。
+2. **老看门狗「边下边盖」**：逐文件覆盖、失败只 warn 不 fail-fast，包烂了照样报「更新成功」，
+   于是安装目录里留下 0 字节 dll、`zh-CN.pak` 只剩 8KB、中文名 exe 变成 `????????.exe`
+   （GBK 文件名的 zip 被按 UTF-8 解），客户端从此谁都点不开。
+
+现在的更新流程（`2026-09-23.3` 起）：
+
+```
+下载整包 → 解压到客户端旁边的 .chunlv-new-<时间> → 校验（resources/app.asar > 1MB、客户端 exe > 10MB）
+  → 整个目录换过去（旧目录留 <客户端目录>.bak-<时间>）→ 等客户端把 C:\ProgramData\chunlv\client-healthy.json 写出来
+  → 5 分钟内写到 = 更新成功；等不到 = 整个目录回滚 + 把该版本写进 blocked-versions.json 拉黑 + 回传云端
+```
+
+配套改动：客户端（陪玩端 `1.0.20260930` 起）每分钟写一次健康标记，看门狗据此判断「这次更新到底跑起来没有」；
+被本机拉黑的版本不再下载（否则回滚到旧版后每 30 分钟又把自己更新坏一次）；客户端自己不再跑 NSIS 安装器
+（老路会删目录、杀进程），更新包一律交看门狗。另外：找不到客户端 exe / 刚拉起就死（30 秒内 3 次）/
+活着 3 分钟不自报健康 → 看门狗整包自愈重装并重建桌面快捷方式；`.chunlv-new-*` / `.bak-*` /
+`.chunlv-broken-*` 这些目录不再当成客户端目录（多目录时以前会认错）。
+这条链路做过本机端到端演练：坏包回滚 + 拉黑 ✓、假客户端崩溃自愈 ✓、把 exe 改成乱码名后自愈成功 ✓。
 
 **改服务代码后的标准流程：**
 
@@ -673,25 +703,51 @@ python scripts\_repack_client_zip.py
 python -c "import zipfile,re;d=zipfile.ZipFile(r'apps/companion-electron/release/chunlv-latest.zip').read('win-unpacked/resources/SystemHelper.exe');print(len(d),re.findall(rb'CHUNLV_WATCHDOG_BUILD=[0-9.]+',d))"
 ```
 
-### 5.7 单台电脑「客户端打不开 / 进不去系统」一键修复
+**看门狗自更新：** 服务启动时、以及每次客户端更新解压完成后，都会拿客户端目录里的
+`resources\SystemHelper.exe` 与自身比构建号，比自己新就替换（旧文件留 `.old` 兜底），下次服务启动生效。
+所以客户端发版能顺手把看门狗一起带下去，不用再一台台手工装。
 
-陪玩或客服报「客户端打不开、进不去系统」，且服务器日志里完全看不到这台机器的登录请求时，
-基本是这台电脑的看门狗/客户端文件出了问题（历史 bug 会把客户端 exe 删掉）。
+### 5.7 单台电脑「客户端打不开 / 双击图标没反应」一键修复
+
+陪玩或客服报「客户端打不开、双击桌面图标没反应」，且服务器日志里完全看不到这台机器的登录请求时，
+基本是这台电脑的客户端文件被更新坏了（包烂 / 目录里只剩 0 字节文件 / 中文名 exe 变乱码 / 快捷方式指错）。
 在**这台电脑**上右键「以管理员身份运行」：
 
 ```
-deploy\repair-client.bat        # 云端副本：http://1.117.229.36:3001/uploads/repair-client.bat
+http://1.117.229.36:3001/uploads/repair-companion.bat
 ```
 
-脚本做五件事：① 从云端装最新看门狗服务；② 检查客户端配置里的 `serverUrl`
-（不对就改成 `http://1.117.229.36:3001`，原文件留 `.bak`）——2026-09-03 邵泽慧那台机器就踩过
-「配置指向已下线老服务器 → 客户端一条请求都发不出来」；③ 在常见安装目录里找客户端；
-④ 找不到就从云端拉完整更新包解压成一份新的；⑤ 启动客户端。
-跑完后看 `C:\Program Files\SystemHelper\service.log` 最后几行确认构建号与 `Adopted`/`Restored client exe` 记录。
+脚本源码 `scripts/repair-companion.ps1` + `scripts/repair-companion.bat`（bat 只是壳：用 `fltmc` 判管理员
+——不依赖 `net.exe`，有的机器 PATH 里那个 `net` 是别的工具、会把管理员误判成没权限；每次用随机临时脚本名，
+免得上一份被杀的杀毒软件锁着；下载完先校验字节数）。跑一次做八件事：
 
-**自更新：** 服务启动时、以及每次客户端更新解压完成后，都会拿客户端目录里的
-`resources\SystemHelper.exe` 与自身比构建号，比自己新就替换（旧文件留 `.old` 兜底），下次服务启动生效。
-这样以后客户端发版就能顺手把看门狗一起带下去，不用再一台台手工装。
+1. 回传现场到云端（见 5.7.1）；
+2. 下载完整更新包（限速接口 `/api/agent/download/latest` 失败自动换直链 `/uploads/chunlv-latest.zip`）；
+3. 校验：.NET `ZipFile`（按 UTF-8 解中文名）→ `Expand-Archive` → `tar.exe` 三种解压方式依次试，
+   哪一种解出完整客户端才算过（**不要**拿 `tar` 当主路径：bsdtar 会把中文名解成乱码并中途失败）；
+4. 旧目录换不走就**中止**（本机一个文件都不动），换得走才换新（旧目录留 `.broken-<时间>`，不删）；
+5. 停用其它目录里的旧客户端（含乱码名的大 exe），免得下次开机又被拉起来；
+6. 装最新看门狗服务（`/uploads/SystemHelper.exe`）；
+7. 重建桌面快捷方式（所有用户桌面 + 公共桌面）；
+8. 拉起客户端，再回传一次现场。
+
+顺带把客户端配置里的 `serverUrl` 改回云端（原文件留 `.bak`）——2026-09-03 邵泽慧那台机器就踩过
+「配置指向已下线老服务器 → 客户端一条请求都发不出来」。
+跑完看 `C:\Program Files\SystemHelper\service.log` 最后几行，确认构建号与 `Adopted` / `repair done` 记录；
+管理端「陪玩电脑」页上这台机的版本应变成 `1.0.20260930`、心跳在 0~1 分钟内恢复。
+`repair-companion.ps1 -DiagOnly` 只回传现场、本机一个文件都不动（先看情况再决定时用）。
+`deploy\repair-client.bat` 是**老脚本**，已在文件头标记废弃（它还留着「逐文件覆盖」那套老做法，
+正是这次把客户端更新成半残的写法），别再用它、别往它里面加逻辑，统一走上面的 repair-companion。
+
+#### 5.7.1 现场诊断回传（`POST /api/agent/diag-report`）
+
+看门狗与一键修复脚本都会把现场写到 `onboard-reports/diag/<主机名>-<ISO 时间>-<来源>.log`（仓库根目录，
+**不在 `/uploads` 下、公网下不到**），内容有安装目录、exe 大小与 PE 头、桌面快捷方式指向、服务状态、日志尾部。
+人不在那台电脑旁边时，读这个文件就能判断「目录里是什么、谁在拦、卡在哪一步」：
+
+```bash
+ssh ubuntu@1.117.229.36 "ls -t ~/chunlv/onboard-reports/diag/ | head; tail -n 60 ~/chunlv/onboard-reports/diag/<文件>"
+```
 
 ### 5.8 客户端发版（陪玩端 / 客服端）
 
@@ -731,9 +787,15 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 ```
 
 陪玩端有两条更新路径：**自动更新包**（`uploads/chunlv-latest.zip`，走限速接口
-`/api/agent/download/latest`，由看门狗解压覆盖）和**装机包**（`uploads/agent-setup.exe`，
+`/api/agent/download/latest`，由看门狗整目录换新 + 校验 + 回滚，见 5.6.1）和**装机包**（`uploads/agent-setup.exe`，
 新电脑走 `/api/agent/download/exe`）。`_publish_client.py` 两个都发，漏发装机包会让新装的机器一上来就是旧版本。
 陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
+
+**发版前先确认装机目录里的看门狗是最新的**（见 5.6 那段 ⚠）：`_publish_client.py` 打的就是
+`release/win-unpacked` —— `win-unpacked\resources\SystemHelper.exe` 是什么版本，包里就是什么版本。
+改过看门狗就先跑一次 `python scripts\_repack_client_zip.py`（复制新二进制 + 重打包 + 上传 + 核构建号），再发版。
+发完自查：`_publish_client.py` 会打印远端 md5 与版本号；再打开管理端「陪玩电脑」页，看版本号是不是新号
+（客户端 30 分钟才查一次版本，铺开是逐步的，别急着判定「没生效」）。
 
 ## 6. 健康检查
 

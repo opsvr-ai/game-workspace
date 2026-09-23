@@ -524,6 +524,51 @@ graph TB
 - blacklist-notification.ts: 5秒倒计时气泡弹窗
 - 60秒 REST 轮询拉取黑名单 (WebSocket 断开时兜底)
 
+### 客户端自更新与看门狗模块 (SystemHelper)
+
+> 2026-09-23 重做：以前是「边下边盖」，包烂了照样报成功，能把客户端装成半残；现在下载 → 校验 → 整目录换 → 等健康标记 → 失败回滚并拉黑该版本。
+
+**服务端:**
+- 版本与下载地址：`SystemConfig` 的 `agent.latest_version` / `agent.latest_download_url`（客户端只认「服务端版本严格大于本机版本」）
+- 下发限速：`common/throttled-file.ts`（约 700KB/s；**每块必须单独分配内存** —— 复用同一块 buffer 会在背压时把还没发出去的数据覆盖成乱码，字节数却分毫不差）
+
+**API 端点:**
+- `GET /api/agent/version` — 最新版本号（客户端每 30 分钟查一次，接单中自动跳过）
+- `GET /api/agent/download/latest` — 自动更新包 `chunlv-latest.zip`（限速）
+- `GET /api/agent/update/queue` — 谁在下载 / 排队（发版时盯铺开进度）
+- `POST /api/agent/heartbeat` — 陪玩电脑心跳（带本机客户端版本、IP、MAC）
+- `POST /api/agent/diag-report` — 看门狗 / 一键修复脚本回传现场，落 `onboard-reports/diag/<主机名>-<时间>-<来源>.log`（公网下不到）
+
+**客户端侧落盘:**
+- `C:\ProgramData\chunlv\client-healthy.json` — 客户端启动后每分钟写一次的健康标记（版本 / exe 路径 / 时间），看门狗据此判定「这次更新到底跑起来没有」
+- `C:\ProgramData\chunlv\blocked-versions.json` — 本机拉黑的版本（更新完没跑起来就拉黑，避免每 30 分钟又把自己更新坏一次）
+- `<客户端目录>.bak-<时间>` / `.broken-<时间>` / `.chunlv-new-<时间>` — 回滚备份 / 修复留档 / 解压暂存（这三个前缀的目录不再被当成客户端目录）
+
+**更新与自愈链路:**
+
+```mermaid
+sequenceDiagram
+    participant C as 陪玩端 (Electron)
+    participant W as 看门狗 SystemHelper
+    participant S as 服务端 /api/agent
+    C->>S: POST /heartbeat（带本机版本）
+    C->>S: GET /version（30 分钟一次，接单中跳过）
+    S-->>C: 版本更高 → 通知看门狗更新
+    C->>W: 通知更新（可带本机已下好的 zip）
+    W->>S: GET /download/latest（限速）
+    S-->>W: chunlv-latest.zip
+    W->>W: 解压到 .chunlv-new-<时间> 并校验（app.asar > 1MB、客户端 exe > 10MB）
+    W->>W: 整目录换新（旧目录留 .bak-<时间>）
+    W->>C: 启动客户端
+    C->>W: 每分钟写 client-healthy.json
+    W->>W: 5 分钟内见到健康标记 = 成功；否则整目录回滚 + 把该版本写进 blocked-versions.json
+    W->>S: POST /diag-report（服务启动 / 回滚 / 自愈都回传现场）
+```
+
+- 自愈（`repairClientInstall`）：找不到客户端 exe / 刚拉起就死（30 秒内 3 次）/ 活着 3 分钟不自报健康 → 整包重装并重建桌面快捷方式；本机留的包坏了就改从云端拉
+- 客户端自己不再跑 NSIS 安装器（老路会删目录、杀进程），更新包一律交看门狗
+- 「双击桌面图标没反应」的机器用 `scripts/repair-companion.ps1`（云端入口 `http://1.117.229.36:3001/uploads/repair-companion.bat`）修，用法见 `docs/DEPLOYMENT.md` 5.7
+
 ### 内容查重与违禁词检测模块 (Content Check)
 
 **功能:**
