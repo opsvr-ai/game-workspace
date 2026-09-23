@@ -567,7 +567,9 @@ sequenceDiagram
 
 - 自愈（`repairClientInstall`）：找不到客户端 exe / 刚拉起就死（30 秒内 3 次）/ 活着 3 分钟不自报健康 → 整包重装并重建桌面快捷方式；本机留的包坏了就改从云端拉
 - 客户端自己不再跑 NSIS 安装器（老路会删目录、杀进程），更新包一律交看门狗
-- 「双击桌面图标没反应」的机器用 `scripts/repair-companion.ps1`（云端入口 `http://1.117.229.36:3001/uploads/repair-companion.bat`）修，用法见 `docs/DEPLOYMENT.md` 5.7
+- 「双击桌面图标没反应」的机器用 `scripts/repair-companion.ps1`（云端入口 `http://1.117.229.36:3001/uploads/repair-companion.bat`）修，用法见 `docs/DEPLOYMENT.md` 5.7；
+  它第 1 步还会把这台机配成可远程维护（建 `chunlvops` + 开远程管理通道 + 回传主机名/IP/MAC/账号到 `POST /api/agent/onboard-report`），
+  已经配好的机器不动账号密码（`accountEvent=kept`）
 
 ### 内容查重与违禁词检测模块 (Content Check)
 
