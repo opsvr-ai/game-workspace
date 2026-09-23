@@ -135,6 +135,8 @@ const CSDispatchView: React.FC = () => {
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
   const [gameSearch, setGameSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
+  // 店长/老板在派单工作台可以按客服看派单记录（老板 2026-09-24）
+  const [csFilter, setCsFilter] = useState('');
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
@@ -429,12 +431,40 @@ const CSDispatchView: React.FC = () => {
 
   // 店长/客服在派单工作台也要能直接看到“自己发布的订单”，
   // 否则订单一被抢或超时后，主订单池里就没有了，容易被误以为丢单。
-  const myOrders = useMemo(() => {
+  //
+  // 老板 2026-09-24：「店长可以看到所有客服的派单记录」——原来这里一律按
+  // csUserId === 自己 过滤，店长只能看到自己发的那几条，客服发的全看不见
+  // （线上蠢驴电竞：店长 31 条、客服邵泽慧 63 条，店长那 63 条一条都看不到）。
+  // 现在店长看本店（老板看全部）的派单记录，并可按客服筛出某一个人的。
+  const canSeeAllDispatchRecords = !!user && (user.role === 'ADMIN' || user.role === 'OWNER');
+  const dispatchRecords = useMemo(() => {
     if (!user || user.role === 'COMPANION') return [];
-    return allOrders
-      .filter((o) => o.csUserId === user.id)
-      .sort((a, b) => new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime());
-  }, [allOrders, user]);
+    const scoped = canSeeAllDispatchRecords ? allOrders : allOrders.filter((o) => o.csUserId === user.id);
+    const list = csFilter ? scoped.filter((o) => o.csUserId === csFilter) : scoped;
+    // 一定要先复制再 sort：allOrders 是 state，直接排序会把原数组也翻掉。
+    return [...list].sort(
+      (a, b) => new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime(),
+    );
+  }, [allOrders, user, csFilter, canSeeAllDispatchRecords]);
+
+  // 客服筛选下拉：只列真的发过单的人（免得选了半天是空的），名字前带岗位。
+  const csFilterOptions = useMemo(() => {
+    if (!canSeeAllDispatchRecords) return [];
+    const seen = new Map<string, { value: string; label: string }>();
+    allOrders.forEach((o: any) => {
+      const u = o.csUser;
+      if (!u?.id || seen.has(u.id)) return;
+      seen.set(u.id, {
+        value: u.id,
+        label: `${ROLE_TAG[u.role]?.label || u.role || '员工'} ${u.displayName || u.username || u.id}`,
+      });
+    });
+    return [...seen.values()];
+  }, [allOrders, canSeeAllDispatchRecords]);
+
+  /** 这个面板最多铺 100 行（店长/老板要看全店，一次铺几百张卡会卡），下面是引导去「全部订单」。 */
+  const DISPATCH_RECORDS_LIMIT = 100;
+  const shownDispatchRecords = dispatchRecords.slice(0, DISPATCH_RECORDS_LIMIT);
 
   return (
     <div>
@@ -970,14 +1000,42 @@ const CSDispatchView: React.FC = () => {
           </div>
 
           {user && user.role !== 'COMPANION' && (
-            <Card size="small" style={{ marginTop: 12 }} title={`我发布的订单（${myOrders.length}）`}>
-              {myOrders.length === 0 ? (
-                <EmptyState compact description="暂无你发布的订单" />
+            <Card
+              size="small"
+              style={{ marginTop: 12 }}
+              title={`${canSeeAllDispatchRecords ? '客服派单记录' : '我发布的订单'}（${dispatchRecords.length}）`}
+              extra={
+                canSeeAllDispatchRecords && csFilterOptions.length > 0 ? (
+                  <Select
+                    size="small"
+                    allowClear
+                    placeholder="全部客服"
+                    style={{ width: 160 }}
+                    value={csFilter || undefined}
+                    onChange={(v) => setCsFilter(v || '')}
+                    options={csFilterOptions}
+                    showSearch
+                    optionFilterProp="label"
+                  />
+                ) : undefined
+              }
+            >
+              {dispatchRecords.length === 0 ? (
+                <EmptyState
+                  compact
+                  description={canSeeAllDispatchRecords ? '本店还没有派单记录' : '暂无你发布的订单'}
+                />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {myOrders.map((o, idx) => (
+                  {shownDispatchRecords.map((o, idx) => (
                     <OrderRow key={o.id} order={o} index={idx} renderActions={() => null} />
                   ))}
+                  {dispatchRecords.length > shownDispatchRecords.length && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      只显示最近 {shownDispatchRecords.length} 条（共 {dispatchRecords.length} 条）：完整记录去「订单管理 → 全部订单」，
+                      那里也能按客服筛选。
+                    </Text>
+                  )}
                 </div>
               )}
             </Card>

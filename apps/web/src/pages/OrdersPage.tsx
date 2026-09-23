@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -40,6 +40,14 @@ import {
 const { Text } = Typography;
 const { Option } = Select;
 
+/** 派单人岗位（客服筛选下拉的前缀，老板 2026-09-24 要求店长能按客服看派单记录） */
+const DISPATCHER_ROLE_LABEL: Record<string, string> = {
+  CS: '客服',
+  ADMIN: '店长',
+  OWNER: '老板',
+  COMPANION: '陪玩',
+};
+
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
@@ -63,6 +71,8 @@ const OrdersPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [gameSearch, setGameSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
+  // 店长/老板按客服看派单记录（老板 2026-09-24）
+  const [csFilter, setCsFilter] = useState<string>('');
   const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [chatPartner, setChatPartner] = useState<any>(null);
@@ -76,6 +86,22 @@ const OrdersPage: React.FC = () => {
     if (user.role === 'ADMIN') return r.studioId === user.studioId;
     return user.role === 'OWNER';
   };
+
+  // 店长（看本店）/ 老板（看全部）能按客服筛派单记录；客服、陪玩看不到这个筛选。
+  const canFilterByCs = user?.role === 'ADMIN' || user?.role === 'OWNER';
+  const csOptions = useMemo(() => {
+    if (!canFilterByCs) return [] as Array<{ id: string; label: string }>;
+    const seen = new Map<string, { id: string; label: string }>();
+    orders.forEach((o: any) => {
+      const u = o.csUser;
+      if (!u?.id || seen.has(u.id)) return;
+      seen.set(u.id, {
+        id: u.id,
+        label: `${DISPATCHER_ROLE_LABEL[u.role] || u.role || '员工'} ${u.displayName || u.username || u.id}`,
+      });
+    });
+    return [...seen.values()];
+  }, [orders, canFilterByCs]);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -510,6 +536,10 @@ const OrdersPage: React.FC = () => {
     .filter((o: any) => {
       if (!companionFilter) return true;
       return o.companionId === companionFilter;
+    })
+    .filter((o: any) => {
+      if (!csFilter) return true;
+      return o.csUserId === csFilter;
     });
 
   const columns = [
@@ -721,6 +751,24 @@ const OrdersPage: React.FC = () => {
               </Option>
             ))}
           </Select>
+          {canFilterByCs && (
+            <Select
+              placeholder="客服筛选"
+              allowClear
+              value={csFilter || undefined}
+              onChange={(v) => setCsFilter(v || '')}
+              style={{ width: 140 }}
+              size="small"
+              showSearch
+              optionFilterProp="children"
+            >
+              {csOptions.map((c) => (
+                <Option key={c.id} value={c.id}>
+                  {c.label}
+                </Option>
+              ))}
+            </Select>
+          )}
         </div>
         {/* Today's order stats */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
