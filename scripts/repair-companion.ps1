@@ -378,8 +378,22 @@ if (Test-Path -LiteralPath $sh) {
 
 Write-Host '[6/6] 重建桌面图标并启动客户端…' -ForegroundColor Cyan
 Fix-Shortcut $targetExe
-Start-Process -FilePath $targetExe -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 20
+# 只有「有人登录的桌面会话」才自己拉起客户端。
+# 如果是远程/服务方式在会话 0（SYSTEM）里跑的，直接 Start-Process 会开出一份
+# 看不见的客户端（跑在 SYSTEM 账户下、没有登录态），白占内存、还可能和真正那份打架 ——
+# 这种情况交给看门狗：它用 CreateProcessAsUser 把客户端拉进当前登录的桌面会话。
+$selfSession = (Get-Process -Id $PID).SessionId
+if ($selfSession -eq 0) {
+  W '当前在会话 0（远程/服务方式）运行：不自己拉起，等看门狗把客户端拉进登录会话…'
+  $deadline = (Get-Date).AddSeconds(60)
+  while ((Get-Date) -lt $deadline) {
+    if ((Get-Process -Name $cn -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0) { break }
+    Start-Sleep -Seconds 5
+  }
+} else {
+  Start-Process -FilePath $targetExe -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 20
+}
 $running = (Get-Process -Name $cn -ErrorAction SilentlyContinue | Measure-Object).Count
 W ('客户端进程数：' + $running)
 
