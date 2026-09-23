@@ -9,14 +9,36 @@ import { execFile } from 'child_process';
 import { startUpdateSpin, stopUpdateSpin, updateTrayTooltip } from './tray';
 
 // 更新信号：陪玩端（普通权限）写入，SystemHelper 服务（系统权限）轮询并执行下载解压。
-function signalUpdate(downloadUrl: string, localPath?: string): void {
+// 看门狗把「装上就把客户端搞坏、已经回滚掉」的版本写进 blocked-versions.json。
+// 客户端也得认这份名单，否则回滚到旧版之后每 30 分钟又把同一个坏版本下回来。
+function blockedVersions(): Record<string, string> {
+  try {
+    const raw = fs.readFileSync('C:\\ProgramData\\chunlv\\blocked-versions.json', 'utf-8');
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function isVersionBlocked(version: string): boolean {
+  if (!version) return false;
+  return Object.prototype.hasOwnProperty.call(blockedVersions(), version);
+}
+
+// version：告诉看门狗这次装的是哪一版 —— 装完等不到这一版自报健康，它就整目录回滚并拉黑它。
+function signalUpdate(downloadUrl: string, localPath?: string, version?: string): void {
   const dir = 'C:\\ProgramData\\chunlv';
   const file = path.join(dir, 'update.json');
   try {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       file,
-      JSON.stringify({ url: downloadUrl, ...(localPath ? { localPath } : {}) }),
+      JSON.stringify({
+        url: downloadUrl,
+        ...(localPath ? { localPath } : {}),
+        ...(version ? { version } : {}),
+      }),
       'utf-8',
     );
     logger.info('Update signal written', { file });
@@ -110,7 +132,7 @@ async function waitUntilIdle(why: string): Promise<boolean> {
   return false;
 }
 
-async function performUpdate(downloadUrl: string): Promise<void> {
+async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   // 接单中不更新：更新最后要退出进程让看门狗重启，正在跑的单子会被打断
   // （计时、截图、客户在等）。后台「推送更新」和 WS 命令都会走到这里，
   // 所以这道闸必须在这里，而不是只靠启动时的更新检查。
@@ -143,12 +165,12 @@ async function performUpdate(downloadUrl: string): Promise<void> {
       updateTrayTooltip('陪玩管理');
       return;
     }
-    signalUpdate(downloadUrl, localZip);
+    signalUpdate(downloadUrl, localZip, version);
     logger.info('Update downloaded, handing off to SystemHelper', { localZip });
     await releaseUpdateSlot(serverUrl, token);
   } catch (err: any) {
     logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
-    signalUpdate(downloadUrl);
+    signalUpdate(downloadUrl, undefined, version);
     await releaseUpdateSlot(serverUrl, token);
   }
   stopUpdateSpin();
@@ -198,6 +220,13 @@ export async function checkForUpdates(): Promise<void> {
 
     const { version: latestVersion, downloadUrl } = json.data;
 
+    // 这个版本在这台机器上装坏过（看门狗已回滚 + 拉黑）：别再下了，
+    // 否则每 30 分钟白下 128MB，还要被看门狗反复回滚。
+    if (isVersionBlocked(latestVersion)) {
+      logger.warn('Latest version is blocked on this machine, skip this round', { latestVersion });
+      return;
+    }
+
     // Only update when the server version is strictly NEWER than local.
     // A plain !== here caused an endless update loop whenever the server
     // config held an older version string (e.g. 1.0.0 vs 1.0.20260810):
@@ -217,7 +246,7 @@ export async function checkForUpdates(): Promise<void> {
       ? downloadUrl
       : `${serverUrl}${downloadUrl}`;
 
-    await performUpdate(fullDownloadUrl);
+    await performUpdate(fullDownloadUrl, latestVersion);
   } catch (err: any) {
     logger.warn('Update check failed (non-fatal)', { error: err.message });
   } finally {
@@ -366,8 +395,21 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
     // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
     const staggerMs = Math.floor(Math.random() * 60_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
-    logger.info('Update command received, downloading...', { url });
-    await performUpdate(url);
+    // 远程推送也得先看清推的是哪一版：这台机器上装坏过、已经拉黑的版本不装。
+    let version = '';
+    try {
+      const res = await fetch(`${serverUrl}/api/agent/version`);
+      const json = (await res.json()) as any;
+      version = json?.data?.version || '';
+    } catch {
+      /* 版本号拿不到就照老样子装，看门狗那边还会再拦一道 */
+    }
+    if (isVersionBlocked(version)) {
+      logger.warn('Pushed version is blocked on this machine, skip', { version });
+      return;
+    }
+    logger.info('Update command received, downloading...', { url, version });
+    await performUpdate(url, version);
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }

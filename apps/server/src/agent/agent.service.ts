@@ -788,6 +788,41 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     return this.resolveDataDir('onboard-reports');
   }
 
+  /**
+   * 运维诊断回传：一键修复脚本 / 看门狗把「机器上现在到底是什么状态」整段传上来。
+   *
+   * 为什么需要：2026-09-23 陈佳祺那台机器「双击桌面图标没反应」，客户端进程根本没起来，
+   * 服务端日志里连一条请求都没有 —— 只能靠人去那台机器上看目录、看 service.log。
+   * 以后机器上的故障现场直接落到 onboard-reports/diag/ 下，管理员在云服务器上就能看。
+   */
+  recordDiagReport(payload: any): { saved: boolean; at: string; file: string } {
+    const clean = (v: unknown, max: number) => String(v ?? '').slice(0, max);
+    const at = new Date().toISOString();
+    const hostname = clean(payload?.hostname, 100) || 'unknown';
+    const source = clean(payload?.source, 64) || 'diag';
+    const lines = String(payload?.lines ?? '').slice(0, 200_000);
+    const dir = path.join(this.resolveOnboardReportDir(), 'diag');
+    const stamp = at.replace(/[:.]/g, '-');
+    const file = path.join(dir, `${hostname}-${stamp}-${source}.log`);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const header = [
+        `at=${at}`,
+        `hostname=${hostname}`,
+        `source=${source}`,
+        `ip=${clean(payload?.ip, 64)}`,
+        `version=${clean(payload?.version, 64)}`,
+        '',
+      ].join('\n');
+      fs.writeFileSync(file, header + lines + '\n', 'utf8');
+      logger.warn(`DIAG report received: ${hostname} [${source}] ${lines.length} chars`);
+      return { saved: true, at, file };
+    } catch (err: any) {
+      logger.error(`Diag report failed: ${err?.message || err}`);
+      return { saved: false, at, file };
+    }
+  }
+
   /** 数据落盘目录：和 uploads 同级（部署在 repo 根目录），公网下不到，找不到就退回系统临时目录。 */
   private resolveDataDir(name: string): string {
     let dir = __dirname;

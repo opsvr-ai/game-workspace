@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -27,14 +28,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-09-20.5"
+const serviceBuild = "2026-09-23.3"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026092005"
+const serviceBuildNumber = "2026092303"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092005" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092303" // 必须与 serviceBuildNumber 一致
 
 var searchPaths = []string{
 	`C:\Program Files\陪玩管理\陪玩管理.exe`,
@@ -73,6 +74,16 @@ func isClientDirName(name string) bool {
 	return false
 }
 
+// isSkippableDir 判断目录是不是我们自己的「临时/备份」目录，找客户端时必须跳过去。
+// 备份目录里也躺着一份客户端 exe，被 findClient 认出来就会去拉旧版 ——
+// 所以 staging / 备份 / 坏目录一律用点号开头，并且在这里统一排除。
+func isSkippableDir(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasPrefix(lower, ".") ||
+		strings.Contains(lower, ".bak-") ||
+		strings.Contains(lower, ".broken-")
+}
+
 var (
 	elog               *eventlog.Log
 	clientPath         string
@@ -85,6 +96,18 @@ var (
 	exitEvent          windows.Handle
 	suppressLaunch     int32
 	repairLastTry      int64
+)
+
+// 更新安全网 / 客户端启动健康度（2026-09-23 陈佳祺「双击图标没反应」事故之后加的）。
+var (
+	healthTrusted    int32 // 见过客户端写的健康标记 → 本机这套机制是通的，才敢按它回滚
+	lastShortcutMs   int64
+	launchAtMs       int64
+	launchPid        int64
+	crashCount       int32
+	crashWindowStart int64
+	zombieCount      int32
+	lastDiagMs       int64
 )
 
 var (
@@ -105,6 +128,11 @@ var updateSignalFile = `C:\ProgramData\chunlv\update.json`
 // 直接从云服务器取一份完整客户端包来补齐。以前这种情况直接放弃，
 // 结果就是那台电脑再也拉不起客户端 —— 用户看到的是「客户端打不开、进不去系统」。
 var cloudClientZipURL = "http://1.117.229.36:3001/api/agent/download/latest"
+
+// 看门狗自己的故障现场也回传云端（onboard-reports/diag/），
+// 这样客户端压根起不来的机器也能远程看状态，不用再让人去那台电脑上翻目录。
+const diagReportURL = "http://1.117.229.36:3001/api/agent/diag-report"
+const onboardToken = "c4f1a2e7d9b8435fa6e10c7d2b9f8e34"
 
 func writeLog(level, msg string) {
 	os.MkdirAll(logDir, 0755)
@@ -161,7 +189,7 @@ func findClient() string {
 			continue
 		}
 		for _, e := range entries {
-			if !e.IsDir() || !isClientDirName(e.Name()) {
+			if !e.IsDir() || isSkippableDir(e.Name()) || !isClientDirName(e.Name()) {
 				continue
 			}
 			for _, exe := range []string{"陪玩管理.exe", "蠢驴电竞.exe"} {
@@ -357,91 +385,716 @@ func ensureUpdateDir() {
 	_ = exec.Command("icacls", updateSignalDir, "/grant", "Everyone:(OI)(CI)F", "/T").Run()
 }
 
+// ── 更新安全网（2026-09-23）──────────────────────────────────────────────────
+// 事故：2026-09-22 17:25 陈佳祺那台机器自动更新到 1.0.20260926 之后就再没起来，
+// 陪玩那边看到的就是「双击桌面图标没反应」。
+// 老流程把 zip 逐文件直接覆盖进正在用的安装目录，写失败只记一条 warn 还继续，
+// 装到一半也算「更新成功」，然后把客户端拉起来 —— 一旦半新半旧，这台机器上就再也
+// 没有能跑起来的客户端，而且服务端一条日志都没有，只能靠人去现场翻目录。
+// 现在改成：解压到旁边的临时目录 → 校验 → 整个目录换过去（旧的留成备份）→
+// 等客户端自己写「我起来了」（client-healthy.json）→ 等不到就整目录回滚、拉回旧版，
+// 并把这个版本拉黑，免得客户端每 30 分钟又把自己更新坏一次。
+
 type updateRequest struct {
 	URL       string `json:"url"`
 	LocalPath string `json:"localPath"`
+	Version   string `json:"version"`
 }
 
-// downloadAndExtract 下载（或使用本地已下载文件）zip 并解压覆盖到目标目录（去掉 win-unpacked 顶层前缀）。
-// 返回包内顶层 exe 的文件名：调用方要靠它确认「新客户端真的落到磁盘上了」，
-// 再决定要不要删旧的那个 exe —— 删错一次，这台机器就再也没有客户端可拉起。
-func downloadAndExtract(url, localPath, destDir string) ([]string, error) {
-	tmp := ""
-	if localPath != "" {
-		tmp = localPath
-	} else {
-		safeInfo(fmt.Sprintf("Downloading update: %s", url))
-		resp, err := http.Get(url)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("download status %d", resp.StatusCode)
-		}
-		tmp = filepath.Join(os.TempDir(), "chunlv-update.zip")
-		f, err := os.Create(tmp)
-		if err != nil {
-			return nil, err
-		}
-		if _, err = io.Copy(f, resp.Body); err != nil {
-			f.Close()
-			return nil, err
-		}
-		f.Close()
-		defer os.Remove(tmp)
-	}
+// pendingUpdate 记录这次换上了什么、旧目录备份在哪，回滚时要用。
+type pendingUpdate struct {
+	Version   string `json:"version"`
+	DestDir   string `json:"destDir"`
+	ExePath   string `json:"exePath"`
+	BackupDir string `json:"backupDir"`
+	ApplyAt   int64  `json:"applyAt"`  // unix ms
+	Deadline  int64  `json:"deadline"` // unix ms
+}
 
-	zr, err := zip.OpenReader(tmp)
+// clientHealth 是陪玩端启动成功后写的：版本、exe 路径、时刻（unix ms）。
+type clientHealth struct {
+	Version string `json:"version"`
+	ExePath string `json:"exePath"`
+	At      int64  `json:"at"`
+}
+
+var (
+	pendingUpdateFile = filepath.Join(updateSignalDir, "pending-update.json")
+	healthyFile       = filepath.Join(updateSignalDir, "client-healthy.json")
+	blockedFile       = filepath.Join(updateSignalDir, "blocked-versions.json")
+)
+
+// 更新后等客户端自报健康的时限（慢机器 + 杀毒扫描也够）。
+const healthDeadline = 5 * time.Minute
+
+func readJSONFile(p string, v any) bool {
+	data, err := os.ReadFile(p)
 	if err != nil {
-		return nil, err
+		return false
+	}
+	return json.Unmarshal(data, v) == nil
+}
+
+func writeJSONFile(p string, v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0644)
+}
+
+// isVersionBlocked：这个版本在这台机器上试过、把客户端搞坏、已经回滚掉。
+// 回滚之后客户端还是旧版，每 30 分钟又会来要更新，所以客户端和看门狗两头都认这份名单。
+func isVersionBlocked(v string) bool {
+	if v == "" {
+		return false
+	}
+	m := map[string]string{}
+	if !readJSONFile(blockedFile, &m) {
+		return false
+	}
+	_, ok := m[v]
+	return ok
+}
+
+func blockVersion(v, reason string) {
+	if v == "" {
+		return
+	}
+	m := map[string]string{}
+	_ = readJSONFile(blockedFile, &m)
+	m[v] = time.Now().Format("2006-01-02 15:04:05") + " " + reason
+	_ = writeJSONFile(blockedFile, m)
+	safeWarn(fmt.Sprintf("version %s blocked on this machine: %s", v, reason))
+}
+
+// pendingBackupBase 返回「正要回滚的那份备份」的目录名，清理旧备份时不能删到它。
+func pendingBackupBase() string {
+	var p pendingUpdate
+	if readJSONFile(pendingUpdateFile, &p) && p.BackupDir != "" {
+		return filepath.Base(p.BackupDir)
+	}
+	return ""
+}
+
+// cleanupStaleDirs 只留最近一份备份，顺手清掉解压到一半留下的 staging 目录。
+func cleanupStaleDirs() {
+	keep := pendingBackupBase()
+	if p := findClient(); p != "" {
+		dir := filepath.Dir(p)
+		cleanupBackups(filepath.Dir(dir), dir, keep)
+	}
+	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !strings.HasPrefix(e.Name(), ".chunlv-new-") {
+				continue
+			}
+			full := filepath.Join(base, e.Name())
+			if fi, err := os.Stat(full); err == nil && time.Since(fi.ModTime()) > 2*time.Hour {
+				safeInfo("removing stale staging dir " + full)
+				_ = os.RemoveAll(full)
+			}
+		}
+	}
+}
+
+func cleanupBackups(parent, destDir, keep string) {
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return
+	}
+	prefix := filepath.Base(destDir) + ".bak-"
+	var stale []string
+	for _, e := range entries {
+		n := e.Name()
+		if n == keep {
+			continue
+		}
+		if strings.HasPrefix(n, prefix) || strings.HasPrefix(n, ".chunlv-broken-") {
+			stale = append(stale, n)
+		}
+	}
+	sort.Strings(stale)
+	for _, n := range stale {
+		safeInfo("removing old backup dir " + n)
+		_ = os.RemoveAll(filepath.Join(parent, n))
+	}
+}
+
+func downloadZipTo(url, dest string) error {
+	safeInfo("Downloading update: " + url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download status %d", resp.StatusCode)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	tmp := dest + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	n, cerr := io.Copy(f, resp.Body)
+	serr := f.Sync()
+	f.Close()
+	if cerr != nil {
+		_ = os.Remove(tmp)
+		return cerr
+	}
+	if serr != nil {
+		_ = os.Remove(tmp)
+		return serr
+	}
+	if resp.ContentLength > 0 && n != resp.ContentLength {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("download truncated: got %d of %d bytes", n, resp.ContentLength)
+	}
+	if n < 10<<20 {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("downloaded package too small: %d bytes", n)
+	}
+	return os.Rename(tmp, dest)
+}
+
+// resolveZip 给出一份「已经躺在本地、可以直接解压」的更新包。
+func resolveZip(url, localPath string) (string, error) {
+	if localPath != "" {
+		if fi, err := os.Stat(localPath); err == nil && fi.Size() > 10<<20 {
+			return localPath, nil
+		}
+		safeWarn(fmt.Sprintf("local package %s unusable — downloading instead", localPath))
+	}
+	dest := filepath.Join(updateSignalDir, "update-download.zip")
+	if err := downloadZipTo(url, dest); err != nil {
+		return "", err
+	}
+	return dest, nil
+}
+
+// localZipOrCloud 优先用本机已经下好的整包（省流量、断网也能自愈），没有就回云端拉。
+func localZipOrCloud() string {
+	p := filepath.Join(updateSignalDir, "update.zip")
+	if fi, err := os.Stat(p); err == nil && fi.Size() > 10<<20 {
+		return p
+	}
+	return cloudClientZipURL
+}
+
+// extractZipTo 把 zip 完整解压到 stagingDir。任何一步失败都直接报错：
+// 每个文件都要写全（字节数对得上，CRC 由 zip 包自己校验），不允许多半个文件就往下走。
+func extractZipTo(zipPath, stagingDir string) error {
+	if err := os.RemoveAll(stagingDir); err != nil {
+		return fmt.Errorf("clear staging dir: %w", err)
+	}
+	if err := os.MkdirAll(stagingDir, 0755); err != nil {
+		return fmt.Errorf("create staging dir: %w", err)
+	}
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
 	}
 	defer zr.Close()
-	var exeNames []string
-	failed := 0
+	files := 0
 	for _, zf := range zr.File {
 		rel := zf.Name
 		if strings.HasPrefix(rel, "win-unpacked/") {
 			rel = strings.TrimPrefix(rel, "win-unpacked/")
 		}
-		if rel == "" {
+		if rel == "" || strings.HasSuffix(rel, "/") {
 			continue
 		}
-		if !zf.FileInfo().IsDir() && !strings.ContainsAny(rel, `\/`) && strings.EqualFold(filepath.Ext(rel), ".exe") {
-			exeNames = append(exeNames, filepath.Base(rel))
-		}
-		dst := filepath.Join(destDir, rel)
-		if zf.FileInfo().IsDir() {
-			_ = os.MkdirAll(dst, 0755)
-			continue
-		}
-		_ = os.MkdirAll(filepath.Dir(dst), 0755)
-		out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			failed++
-			safeWarn(fmt.Sprintf("update: cannot write %s: %v", dst, err))
-			continue
+		dst := filepath.Join(stagingDir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return fmt.Errorf("mkdir for %s: %w", rel, err)
 		}
 		rc, err := zf.Open()
 		if err != nil {
-			out.Close()
-			failed++
-			continue
+			return fmt.Errorf("open %s in zip: %w", rel, err)
 		}
-		if _, err := io.Copy(out, rc); err != nil {
-			failed++
-			safeWarn(fmt.Sprintf("update: write failed %s: %v", dst, err))
+		out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			rc.Close()
+			return fmt.Errorf("create %s: %w", rel, err)
 		}
+		n, cerr := io.Copy(out, rc) // 读到底会校验 zip CRC，坏包在这里就报错
+		serr := out.Sync()
 		out.Close()
 		rc.Close()
+		if cerr != nil {
+			return fmt.Errorf("write %s: %w", rel, cerr)
+		}
+		if serr != nil {
+			return fmt.Errorf("flush %s: %w", rel, serr)
+		}
+		if uint64(n) != zf.UncompressedSize64 {
+			return fmt.Errorf("short write %s: got %d want %d", rel, n, zf.UncompressedSize64)
+		}
+		files++
 	}
-	if failed > 0 {
-		safeWarn(fmt.Sprintf("update: %d file(s) could not be written", failed))
+	if files < 10 {
+		return fmt.Errorf("zip looks empty (%d files)", files)
 	}
-	return exeNames, nil
+	return nil
 }
 
-// checkForUpdate 轮询更新信号文件，若存在则下载解压并重启客户端。
+// verifyStagingDir 确认解压出来的是「一份能跑的客户端」：入口 asar 在、客户端 exe 在。
+func verifyStagingDir(dir string) (string, error) {
+	asar := filepath.Join(dir, "resources", "app.asar")
+	if fi, err := os.Stat(asar); err != nil || fi.Size() < 1<<20 {
+		return "", fmt.Errorf("staged resources/app.asar missing or too small")
+	}
+	for _, n := range clientExeNames {
+		p := filepath.Join(dir, n)
+		if fi, err := os.Stat(p); err == nil && fi.Size() > 10<<20 {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("staged install has no client exe")
+}
+
+// applyUpdateAtomic 原子更新：解压到旁边的临时目录 → 校验 → 整个目录换过去。
+// 任何一步失败，正在用的安装目录都保持原样 —— 这是「更新把客户端搞没」的根治点。
+func applyUpdateAtomic(destDir, zipPath, version string) (string, error) {
+	if destDir == "" {
+		return "", fmt.Errorf("no install dir")
+	}
+	parent := filepath.Dir(destDir)
+	staging := filepath.Join(parent, ".chunlv-new-"+time.Now().Format("20060102-150405"))
+	if err := extractZipTo(zipPath, staging); err != nil {
+		_ = os.RemoveAll(staging)
+		return "", err
+	}
+	exe, err := verifyStagingDir(staging)
+	if err != nil {
+		_ = os.RemoveAll(staging)
+		return "", err
+	}
+	backup := ""
+	if _, err := os.Stat(destDir); err == nil {
+		cleanupBackups(parent, destDir, pendingBackupBase())
+		backup = destDir + ".bak-" + time.Now().Format("20060102-150405")
+		if err := renameWithRetry(destDir, backup); err != nil {
+			_ = os.RemoveAll(staging)
+			return "", fmt.Errorf("move current install aside: %w", err)
+		}
+	}
+	if err := os.Rename(staging, destDir); err != nil {
+		if backup != "" {
+			_ = os.Rename(backup, destDir) // 放回去，绝不给机器留一个空目录
+		}
+		_ = os.RemoveAll(staging)
+		return "", fmt.Errorf("move new install into place: %w", err)
+	}
+	// exe 路径要按「换完之后」的目录重算：verifyStagingDir 返回的是临时目录里的路径，
+	// 拿它写进 pending 会导致每次更新都判成「没等到健康标记」而白白回滚一次。
+	exe = filepath.Join(destDir, filepath.Base(exe))
+	// 旧标记先删掉：只有「这次更新之后」客户端新写的标记才算数。
+	_ = os.Remove(healthyFile)
+	_ = writeJSONFile(pendingUpdateFile, pendingUpdate{
+		Version:   version,
+		DestDir:   destDir,
+		ExePath:   exe,
+		BackupDir: backup,
+		ApplyAt:   time.Now().UnixMilli(),
+		Deadline:  time.Now().Add(healthDeadline).UnixMilli(),
+	})
+	clientPath = ""
+	clientPID = 0
+	atomic.StoreInt64(&launchPid, 0)
+	return exe, nil
+}
+
+// renameWithRetry 改目录名前多退几步：杀毒软件/资源管理器/残留句柄经常晚半秒才松开，
+// 一次失败就放弃的话，这台机器以后再也更新不了（而且日志里看不出原因）。
+func renameWithRetry(from, to string) error {
+	var err error
+	for i := 0; i < 5; i++ {
+		if err = os.Rename(from, to); err == nil {
+			return nil
+		}
+		safeWarn(fmt.Sprintf("rename %s -> %s failed (%v), retry %d", from, to, err, i+1))
+		time.Sleep(1200 * time.Millisecond)
+	}
+	return err
+}
+
+// healthMatches：客户端有没有在这次更新之后、以这个版本、从这个 exe 自报健康。
+func healthMatches(p *pendingUpdate) bool {
+	var h clientHealth
+	if !readJSONFile(healthyFile, &h) {
+		return false
+	}
+	if h.At < p.ApplyAt-10000 {
+		return false
+	}
+	if p.Version != "" && h.Version != "" && !strings.EqualFold(h.Version, p.Version) {
+		return false
+	}
+	if p.ExePath != "" && h.ExePath != "" && !strings.EqualFold(filepath.Clean(h.ExePath), filepath.Clean(p.ExePath)) {
+		return false
+	}
+	return true
+}
+
+// rollbackUpdate 把安装目录整个换回更新前那一份，并拉黑这个版本。
+func rollbackUpdate(p *pendingUpdate, why string) bool {
+	safeWarn(fmt.Sprintf("update to %q looks broken (%s) — rolling back", p.Version, why))
+	killAllClientProcesses()
+	time.Sleep(1500 * time.Millisecond)
+	restored := false
+	if p.BackupDir != "" {
+		if _, err := os.Stat(p.BackupDir); err != nil {
+			safeWarn("rollback: backup dir is gone: " + p.BackupDir)
+		} else {
+			broken := filepath.Join(filepath.Dir(p.DestDir), ".chunlv-broken-"+time.Now().Format("20060102-150405"))
+			if err := os.Rename(p.DestDir, broken); err != nil {
+				safeErr(fmt.Sprintf("rollback: cannot move broken install aside: %v", err))
+			} else if err := os.Rename(p.BackupDir, p.DestDir); err != nil {
+				_ = os.Rename(broken, p.DestDir)
+				safeErr(fmt.Sprintf("rollback: cannot restore backup: %v", err))
+			} else {
+				_ = os.RemoveAll(broken)
+				restored = true
+				safeInfo("rollback done — the previous client is back in place")
+			}
+		}
+	}
+	blockVersion(p.Version, why)
+	_ = os.Remove(pendingUpdateFile)
+	_ = os.Remove(healthyFile)
+	clientPath = ""
+	clientPID = 0
+	atomic.StoreInt64(&launchPid, 0)
+	reportDiag("rollback", serviceStateDiag(fmt.Sprintf("version=%s\nreason=%s\nrestored=%v", p.Version, why, restored)))
+	return restored
+}
+
+// checkUpdateHealth 每轮跑一次：更新后等客户端自报健康，等不到就整目录回滚。
+func checkUpdateHealth() {
+	var probe clientHealth
+	if readJSONFile(healthyFile, &probe) {
+		if atomic.CompareAndSwapInt32(&healthTrusted, 0, 1) {
+			safeInfo("client health marker seen — update rollback is armed on this machine")
+		}
+	}
+	var p pendingUpdate
+	if !readJSONFile(pendingUpdateFile, &p) {
+		return
+	}
+	if p.DestDir == "" {
+		_ = os.Remove(pendingUpdateFile)
+		return
+	}
+	if healthMatches(&p) {
+		safeInfo(fmt.Sprintf("update to %s verified healthy", p.Version))
+		if p.BackupDir != "" {
+			_ = os.RemoveAll(p.BackupDir)
+		}
+		_ = os.Remove(pendingUpdateFile)
+		return
+	}
+	if time.Now().UnixMilli() < p.Deadline {
+		return
+	}
+	if atomic.LoadInt32(&healthTrusted) == 0 {
+		// 本机从来没见过客户端的健康标记（老版本客户端没有这个功能）→ 判断不了就别乱动，
+		// 只把时限往后挪；等这台机器升到带标记的版本之后，才开始按它回滚。
+		p.Deadline = time.Now().Add(healthDeadline).UnixMilli()
+		_ = writeJSONFile(pendingUpdateFile, p)
+		return
+	}
+	if !rollbackUpdate(&p, fmt.Sprintf("no health marker for %s within %s", p.Version, healthDeadline)) {
+		repairClientInstall("update broken and there is no backup to roll back to", p.DestDir)
+	}
+	maybeLaunchClient()
+}
+
+// bumpCrash 统计「刚拉起就死」。短时间内反复死 → 这份安装是坏的，整包重装。
+func bumpCrash() {
+	now := time.Now().UnixMilli()
+	if now-atomic.LoadInt64(&crashWindowStart) > 10*60*1000 {
+		atomic.StoreInt32(&crashCount, 0)
+		atomic.StoreInt64(&crashWindowStart, now)
+	}
+	n := atomic.AddInt32(&crashCount, 1)
+	if n >= 3 {
+		atomic.StoreInt32(&crashCount, 0)
+		repairClientInstall(fmt.Sprintf("client died right after launch %d times", n), "")
+	}
+}
+
+// checkLaunchOutcome 看「刚拉起那次」的结果：
+// 进程很快就没了 → 算一次崩溃；活着却一直不自报健康（本机认这套标记时）→ 算僵尸，同样重装。
+func checkLaunchOutcome() {
+	pid := uint32(atomic.LoadInt64(&launchPid))
+	if pid == 0 {
+		return
+	}
+	if pid != clientPID {
+		atomic.StoreInt64(&launchPid, 0)
+		return
+	}
+	at := atomic.LoadInt64(&launchAtMs)
+	elapsed := time.Since(time.UnixMilli(at))
+	if !processExists(pid) {
+		atomic.StoreInt64(&launchPid, 0)
+		if elapsed >= 30*time.Second {
+			return
+		}
+		// 开机时「服务的启动」和「客户端自己的登录项」会同时拉起客户端，
+		// 抢不到单实例锁的那个进程立刻退出 —— 机器上还有活着的客户端就不算坏。
+		if other := findAnyClientPID(); other != 0 && other != pid {
+			safeInfo(fmt.Sprintf("launched pid=%d exited early but pid=%d is alive — not a crash", pid, other))
+			return
+		}
+		safeWarn(fmt.Sprintf("client pid=%d died within 30s of launch", pid))
+		bumpCrash()
+		return
+	}
+	if atomic.LoadInt32(&healthTrusted) == 0 {
+		atomic.StoreInt64(&launchPid, 0)
+		return
+	}
+	var h clientHealth
+	if readJSONFile(healthyFile, &h) && h.At >= at-5000 {
+		atomic.StoreInt64(&launchPid, 0)
+		atomic.StoreInt32(&zombieCount, 0)
+		return
+	}
+	if elapsed > 3*time.Minute {
+		atomic.StoreInt64(&launchPid, 0)
+		n := atomic.AddInt32(&zombieCount, 1)
+		safeWarn(fmt.Sprintf("client pid=%d alive but never reported healthy (%s) — count=%d", pid, elapsed.Round(time.Second), n))
+		if n >= 2 {
+			atomic.StoreInt32(&zombieCount, 0)
+			repairClientInstall("client runs but never becomes healthy", "")
+		}
+	}
+}
+
+// ensureShortcut 给所有用户桌面（含公共桌面）摆正「陪玩管理」快捷方式。
+// 客户端自己启动时也会重建一次，但它起不来的时候就没机会执行 ——
+// 陪玩看到的就是「双击桌面图标没反应」。看门狗是系统权限，哪台机器都能修。
+func ensureShortcut(exePath string, force bool) {
+	if exePath == "" {
+		return
+	}
+	now := time.Now().UnixNano()
+	if !force && now-atomic.LoadInt64(&lastShortcutMs) < 60*1e9 {
+		return
+	}
+	atomic.StoreInt64(&lastShortcutMs, now)
+	exe := strings.ReplaceAll(exePath, "'", "''")
+	script := "$ErrorActionPreference='SilentlyContinue';" +
+		"$exe='" + exe + "';" +
+		"$dir=Split-Path -Parent $exe;" +
+		"$name='陪玩管理';" +
+		"$pub=$env:PUBLIC; if(-not $pub){ $pub=[Environment]::GetEnvironmentVariable('PUBLIC','Machine') }; if(-not $pub){ $pub='C:\\Users\\Public' };" +
+		"$desktops=@((Join-Path $pub 'Desktop'));" +
+		"Get-ChildItem 'C:\\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object { $d=Join-Path $_.FullName 'Desktop'; if(Test-Path -LiteralPath $d){ $desktops+=$d } };" +
+		"$w=New-Object -ComObject WScript.Shell;" +
+		"foreach($d in ($desktops | Select-Object -Unique)){" +
+		" if(-not (Test-Path -LiteralPath $d)){ continue }" +
+		" $lnk=Join-Path $d ($name+'.lnk');" +
+		" $s=$w.CreateShortcut($lnk); $s.TargetPath=$exe; $s.WorkingDirectory=$dir; $s.IconLocation=($exe+',0'); $s.Description=$name; $s.Save();" +
+		" Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {" +
+		"  if($_.Name -match $name){ return }" +
+		"  if(-not ($_.Name -match '蠢驴|chunlv')){ return }" +
+		"  $t=$w.CreateShortcut($_.FullName).TargetPath;" +
+		"  if(-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ine $exe)){ Remove-Item -LiteralPath $_.FullName -Force }" +
+		" }" +
+		"}"
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		safeWarn(fmt.Sprintf("shortcut repair failed: %v %s", err, strings.TrimSpace(string(out))))
+	} else {
+		safeInfo("desktop shortcut repaired -> " + exePath)
+	}
+}
+
+func hostName() string {
+	h, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return h
+}
+
+func fileSize(p string) int64 {
+	if fi, err := os.Stat(p); err == nil {
+		return fi.Size()
+	}
+	return -1
+}
+
+// serviceStateDiag 拼一段「这台机器现在到底什么状态」，回传云端备查。
+func serviceStateDiag(extra string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "host=%s\n", hostName())
+	fmt.Fprintf(&b, "time=%s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "watchdogBuild=%s (%s)\n", serviceBuild, serviceBuildNumber)
+	fmt.Fprintf(&b, "healthTrusted=%v\n", atomic.LoadInt32(&healthTrusted) == 1)
+	fmt.Fprintf(&b, "clientPath=%s\n", findClient())
+	for _, d := range []string{`C:\Program Files\陪玩管理`, `C:\Program Files\@chunlvcompanion-electron`, `C:\Program Files\蠢驴电竞`} {
+		if _, err := os.Stat(d); err != nil {
+			continue
+		}
+		fmt.Fprintf(&b, "[dir] %s\n", d)
+		entries, err := os.ReadDir(d)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			full := filepath.Join(d, e.Name())
+			if e.IsDir() {
+				fmt.Fprintf(&b, "  dir  %s\n", e.Name())
+			} else {
+				fmt.Fprintf(&b, "  file %s %d\n", e.Name(), fileSize(full))
+			}
+		}
+	}
+	for _, f := range []string{updateSignalFile, pendingUpdateFile, healthyFile, blockedFile} {
+		if data, err := os.ReadFile(f); err == nil {
+			fmt.Fprintf(&b, "[file] %s = %s\n", f, strings.TrimSpace(string(data)))
+		}
+	}
+	if fi, err := os.Stat(filepath.Join(updateSignalDir, "update.zip")); err == nil {
+		fmt.Fprintf(&b, "[file] update.zip = %d bytes\n", fi.Size())
+	}
+	if data, err := os.ReadFile(filepath.Join(logDir, "service.log")); err == nil {
+		lines := strings.Split(strings.TrimRight(string(data), "\r\n"), "\n")
+		if len(lines) > 40 {
+			lines = lines[len(lines)-40:]
+		}
+		b.WriteString("[tail of service.log]\n")
+		b.WriteString(strings.Join(lines, "\n"))
+		b.WriteString("\n")
+	}
+	if extra != "" {
+		b.WriteString("[extra]\n" + extra)
+	}
+	return b.String()
+}
+
+// reportDiag 把现场回传云端（最多 5 秒一次）。失败就算了，绝不因为它影响拉起客户端。
+func reportDiag(source, text string) {
+	now := time.Now().UnixNano()
+	if now-atomic.LoadInt64(&lastDiagMs) < 5*1e9 {
+		return
+	}
+	atomic.StoreInt64(&lastDiagMs, now)
+	go func() {
+		body, err := json.Marshal(map[string]string{
+			"hostname": hostName(),
+			"source":   source,
+			"lines":    text,
+		})
+		if err != nil {
+			return
+		}
+		req, err := http.NewRequest("POST", diagReportURL, bytes.NewReader(body))
+		if err != nil {
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-onboard-token", onboardToken)
+		httpClient := &http.Client{Timeout: 30 * time.Second}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return
+		}
+		resp.Body.Close()
+	}()
+}
+
+// repairClientInstall 兜底自愈：这份安装已经起不来了（exe 没了 / 刚拉起就死 /
+// 一直不自报健康），就用本机留下的整包或云端整包重装一份。
+// 走的还是原子换目录，不会再往坏目录上盖文件。
+func repairClientInstall(why, preferDir string) string {
+	now := time.Now().UnixNano()
+	if now-atomic.LoadInt64(&repairLastTry) < 10*60*1e9 {
+		return ""
+	}
+	atomic.StoreInt64(&repairLastTry, now)
+	// 优先修「刚拉不起来的那个目录」：机器上可能同时存在好几分客户端目录
+	// （蠢驴电竞 / @chunlvcompanion-electron / 陪玩管理），修错目录等于白折腾。
+	dir := preferDir
+	if dir == "" {
+		if p := findClient(); p != "" {
+			dir = filepath.Dir(p)
+		} else {
+			dir = findClientDir()
+		}
+	}
+	if dir == "" {
+		dir = `C:\Program Files\陪玩管理`
+	}
+	// 先试本机留下的整包（省流量、断网也能自愈），不行再从云端重下一次。
+	// 注意 localZipOrCloud 可能直接返回云端 URL —— 必须走 resolveZip 下载成文件，
+	// 不能把 URL 当路径丢给解压（2026-09-23 实测报错：open zip: open http://...:
+	// The filename, directory name, or volume label syntax is incorrect.，自愈等于没做）。
+	sources := []string{localZipOrCloud()}
+	if sources[0] != cloudClientZipURL {
+		sources = append(sources, cloudClientZipURL)
+	}
+	for _, src := range sources {
+		zip := src
+		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			p, err := resolveZip(src, "")
+			if err != nil {
+				safeErr(fmt.Sprintf("repair download failed (%s): %v", src, err))
+				continue
+			}
+			zip = p
+		}
+		safeWarn(fmt.Sprintf("repairing client install (%s): dir=%s source=%s", why, dir, zip))
+		reportDiag("repair", serviceStateDiag(fmt.Sprintf("why=%s\ndir=%s\nsource=%s", why, dir, zip)))
+		killAllClientProcesses()
+		time.Sleep(1500 * time.Millisecond)
+		exe, err := applyUpdateAtomic(dir, zip, "")
+		if err != nil {
+			safeErr(fmt.Sprintf("repair failed (%s): %v", zip, err))
+			continue
+		}
+		ensureShortcut(exe, true)
+		safeInfo("repair done — " + exe)
+		return findClient()
+	}
+	return ""
+}
+
+// findClientDir 找「目录还在、客户端却起不来」的残局目录（有 resources\app.asar 的我们的目录）。
+func findClientDir() string {
+	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() || isSkippableDir(e.Name()) || !isClientDirName(e.Name()) {
+				continue
+			}
+			dir := filepath.Join(base, e.Name())
+			if _, err := os.Stat(filepath.Join(dir, "resources", "app.asar")); err != nil {
+				continue
+			}
+			return dir
+		}
+	}
+	return ""
+}
+
+// checkForUpdate 轮询更新信号文件，若存在就原子安装并重启客户端。
 func checkForUpdate(installDir string) {
 	data, err := os.ReadFile(updateSignalFile)
 	if err != nil {
@@ -451,60 +1104,45 @@ func checkForUpdate(installDir string) {
 	if json.Unmarshal(data, &req) != nil || req.URL == "" {
 		return
 	}
-	safeInfo("Update signal received")
+	// 先把信号删掉：下面下载/解压要几分钟，期间别再被同一份信号触发第二遍。
+	_ = os.Remove(updateSignalFile)
+	if req.Version != "" && isVersionBlocked(req.Version) {
+		safeWarn(fmt.Sprintf("ignoring update signal for blocked version %s", req.Version))
+		reportDiag("update-blocked", serviceStateDiag(fmt.Sprintf("blockedVersion=%s", req.Version)))
+		return
+	}
+	safeInfo(fmt.Sprintf("Update signal received (version=%s)", req.Version))
 	killAllClientProcesses()
 	time.Sleep(2 * time.Second)
-	// 解压到客户端「当前实际安装目录」（installDir 来自 findClient 返回的 clientPath），
-	// 不要写死「陪玩管理」目录：老版本可能还叫「蠢驴电竞」装在别的目录，写死会导致更新解压到
-	// 错误目录，重启后还是旧版、看门狗看起来像「没拉起」。
+	// 解压到客户端「当前实际安装目录」（installDir 来自 findClient 返回的 clientPath）。
+	// 不要写死「陪玩管理」目录：老机器可能装在「蠢驴电竞 / @chunlvcompanion-electron」，
+	// 写死会把新版装到另一个目录，老目录那份坏客户端照样被 findClient 拉起来。
 	destDir := installDir
 	if destDir == "" {
 		destDir = `C:\Program Files\陪玩管理`
 	}
-	_ = os.MkdirAll(destDir, 0755)
-	exeNames, err := downloadAndExtract(req.URL, req.LocalPath, destDir)
+	zip, err := resolveZip(req.URL, req.LocalPath)
 	if err != nil {
-		safeWarn(fmt.Sprintf("update failed: %v", err))
-		// 下载/解压失败时也要清掉信号文件，否则每 5 秒都会重新下载一遍，
-		// 造成全机反复下载大安装包、卡顿、并不断杀死/重启客户端。
-		_ = os.Remove(updateSignalFile)
+		safeErr(fmt.Sprintf("update download failed: %v — keeping the current install", err))
+		reportDiag("update-failed", serviceStateDiag(fmt.Sprintf("version=%s\nerror=%v", req.Version, err)))
 		clientPID = 0
 		clientPath = ""
 		maybeLaunchClient()
 		return
 	}
-	// 删旧 exe 必须满足两个条件：① 新包里的客户端 exe 真的已经躺在盘上；
-	// ② 它和旧路径不是同一个文件（也就是「改名」这种情况，例如老机器上还留着「蠢驴电竞.exe」）。
-	// 之前是无条件 os.Remove(clientPath)：同名升级时旧路径 == 新 exe，等于把刚更新出来的客户端删掉，
-	// 机器上再也没有客户端可拉起，日志里只剩 "Client exe not found"，
-	// 陪玩那边看到的就是「客户端闪退之后再打开都打不开」。
-	newExe := ""
-	for _, n := range exeNames {
-		if !isClientExe(n) {
-			continue
-		}
-		p := filepath.Join(destDir, n)
-		if fi, err := os.Stat(p); err == nil && fi.Size() > 0 {
-			newExe = p
-			break
-		}
+	exe, err := applyUpdateAtomic(destDir, zip, req.Version)
+	if err != nil {
+		// 安装目录还是更新前那一份，客户端照样拉得起来（顶多是旧版），机器不会变砖。
+		safeErr(fmt.Sprintf("update failed: %v — keeping the current install", err))
+		reportDiag("update-failed", serviceStateDiag(fmt.Sprintf("version=%s\nerror=%v", req.Version, err)))
+		clientPID = 0
+		clientPath = ""
+		maybeLaunchClient()
+		return
 	}
-	switch oldExe := clientPath; {
-	case newExe == "":
-		safeWarn("update: no client exe after extract — keeping the existing install untouched")
-	case oldExe == "" || strings.EqualFold(filepath.Clean(oldExe), filepath.Clean(newExe)):
-		// 同一个文件（同名升级）：它就是新客户端本体，绝不能删。
-	default:
-		if _, err := os.Stat(oldExe); err == nil {
-			_ = os.Remove(oldExe)
-			safeInfo(fmt.Sprintf("Removed old-named client exe %s (now using %s)", oldExe, newExe))
-		}
-	}
-	_ = os.Remove(updateSignalFile)
-	safeInfo("Update applied, relaunching client")
+	safeInfo(fmt.Sprintf("update to %s applied (%s)", req.Version, exe))
 	selfUpdateIfNeeded(destDir)
-	clientPID = 0
-	clientPath = ""
+	ensureShortcut(exe, true)
 	maybeLaunchClient()
 }
 
@@ -696,7 +1334,7 @@ func launchClient() {
 
 	path := findClient()
 	if path == "" {
-		path = repairMissingExe()
+		path = repairClientInstall("client exe not found", "")
 	}
 	if path == "" {
 		safeWarn("Client exe not found")
@@ -738,60 +1376,20 @@ func launchClient() {
 		clientPID = pid
 		safeInfo(fmt.Sprintf("Client started pid=%d", pid))
 	}
-}
-
-// repairMissingExe 兜底修复：客户端目录还在（resources\app.asar 在），但启动用的 exe 不见了。
-// 这是历史 bug 留下的残局——更新流程把「刚解压出来的客户端 exe」当成旧 exe 删掉了，
-// 之后每一轮 findClient 都返回空，看门狗只会一直写 "Client exe not found"，
-// 陪玩那边就是「客户端闪退之后再打开都打不开」。这里用本机已下载好的安装包把它补回去。
-func repairMissingExe() string {
-	now := time.Now().UnixNano()
-	if now-atomic.LoadInt64(&repairLastTry) < 10*60*1e9 {
-		return ""
+	if clientPID == 0 {
+		// 连进程都创建不出来：这份安装里的客户端已经不是个能跑的程序了
+		// （解压到一半的 exe、被删了一半的目录都会这样）。光重试没有意义 ——
+		// 日志里刷的 "Client PID gone — relaunching" 就是这么来的，
+		// 陪玩那边看到的是「双击图标没反应」。这里直接整包重装一份。
+		safeWarn("cannot start the client at all — repairing this install")
+		repairClientInstall("client cannot be started", filepath.Dir(path))
+		return
 	}
-	zipPath := filepath.Join(updateSignalDir, "update.zip")
-	// 本机没留下更新包（新装机器 / 从没更新过）时留空：
-	// 下面的 downloadAndExtract 会改用 cloudClientZipURL 从云端现拉一份。
-	if _, err := os.Stat(zipPath); err != nil {
-		zipPath = ""
-	}
-	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
-		entries, err := os.ReadDir(base)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			// 目录名必须是「我们的」客户端目录（蠢驴 / 陪玩 / chunlv）。
-			// 别的 Electron 程序（实测是 Logitech G HUB 的 LGHUB 目录）同样有
-			// resources\app.asar，只按 app.asar 判断会把整包客户端解压进别人的安装目录，
-			// 覆盖掉别人的 dll / app.asar，把那款软件搞坏。
-			if !isClientDirName(e.Name()) {
-				continue
-			}
-			dir := filepath.Join(base, e.Name())
-			if _, err := os.Stat(filepath.Join(dir, "resources", "app.asar")); err != nil {
-				continue
-			}
-			atomic.StoreInt64(&repairLastTry, now)
-			src := zipPath
-			if src == "" {
-				src = cloudClientZipURL
-			}
-			safeWarn(fmt.Sprintf("client exe gone but install dir intact (%s) — restoring from %s", dir, src))
-			if _, err := downloadAndExtract(cloudClientZipURL, zipPath, dir); err != nil {
-				safeErr(fmt.Sprintf("restore failed: %v", err))
-				return ""
-			}
-			if p := findClient(); p != "" {
-				safeInfo(fmt.Sprintf("Restored client exe: %s", p))
-				return p
-			}
-		}
-	}
-	return ""
+	// 记住这次拉起的 PID 和时刻：接下来靠「它有没有活着 + 有没有自报健康」判断
+	// 这份安装是不是坏的（进程在、界面却是死的，陪玩看到的就是「双击没反应」）。
+	atomic.StoreInt64(&launchPid, int64(clientPID))
+	atomic.StoreInt64(&launchAtMs, time.Now().UnixMilli())
+	ensureShortcut(path, false)
 }
 
 // maybeLaunchClient starts a launch in the background so the service control
@@ -835,6 +1433,8 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	status <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	setupExitEvent()
 	ensureUpdateDir()
+	cleanupStaleDirs()
+	reportDiag("service-start", serviceStateDiag(""))
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
@@ -866,6 +1466,8 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 			if p := findClient(); p != "" {
 				checkForUpdate(filepath.Dir(p))
 			}
+			checkUpdateHealth()
+			checkLaunchOutcome()
 			if !isClientRunning() {
 				// 「我这个 PID 没了」不等于「机器上没有客户端」。
 				// 开机时服务的启动和客户端自己的登录项会同时拉起客户端，抢不到单实例锁的那个进程
@@ -1009,6 +1611,8 @@ func runForeground() {
 	log.Println("SystemHelper watchdog foreground mode")
 	setupExitEvent()
 	ensureUpdateDir()
+	cleanupStaleDirs()
+	reportDiag("service-start-fg", serviceStateDiag(""))
 
 	if p := findClient(); p != "" {
 		log.Printf("Client found at: %s", p)
@@ -1038,6 +1642,8 @@ func runForeground() {
 		if p := findClient(); p != "" {
 			checkForUpdate(filepath.Dir(p))
 		}
+		checkUpdateHealth()
+		checkLaunchOutcome()
 		if !isClientRunning() {
 			log.Println("Client gone — relaunching...")
 			maybeLaunchClient()

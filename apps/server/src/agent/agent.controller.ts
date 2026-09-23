@@ -164,6 +164,19 @@ export class AgentController {
     return { code: 200, message: 'ok', data };
   }
 
+  // Public (shared token): 运维诊断回传。
+  // 一键修复脚本 / 看门狗在客户端起不来的机器上也能跑，所以不能要求登录令牌；
+  // 用和装机回传同一个共享令牌，内容落到 onboard-reports/diag/，公网下不到。
+  @Post('diag-report')
+  async diagReport(@Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const token = String(req.headers?.['x-onboard-token'] || '');
+    if (token !== ONBOARD_REPORT_TOKEN) {
+      return { code: 403, message: 'forbidden', data: null };
+    }
+    const data = this.agentService.recordDiagReport({ ...(body || {}), ip: req.ip });
+    return { code: 200, message: 'ok', data };
+  }
+
   // Public: CS client checks for its own updates
   @Get('cs-version')
   async getCsVersion(): Promise<ApiResponse<unknown>> {

@@ -36,7 +36,6 @@ export async function streamFileThrottled(
 
   const started = Date.now();
   const chunkSize = 64 * 1024;
-  const buffer = Buffer.alloc(chunkSize);
   const fd = fs.openSync(filePath, 'r');
   let sent = 0;
   try {
@@ -48,10 +47,17 @@ export async function streamFileThrottled(
         await new Promise((resolve) => setTimeout(resolve, 100));
         continue;
       }
-      const read = fs.readSync(fd, buffer, 0, Math.min(chunkSize, total - sent), sent);
+      // 每块单独分配，绝不能复用同一个 buffer：
+      // res.write 返回 false（背压）时，这一块是「按引用」挂进发送队列的，
+      // 复用同一个 buffer 会让还在队列里没发出去的上一块被下一次 readSync 覆盖，
+      // 结果就是「字节数一个不差、内容全是烂的」—— 客户端下完解压报 invalid data、
+      // 装出半新半旧的客户端（2026-09-23 定位：同一台机器下两次，md5 各不相同）。
+      const want = Math.min(chunkSize, total - sent);
+      const buffer = Buffer.allocUnsafe(want);
+      const read = fs.readSync(fd, buffer, 0, want, sent);
       if (read <= 0) break;
       sent += read;
-      if (!res.write(buffer.subarray(0, read))) {
+      if (!res.write(read === want ? buffer : buffer.subarray(0, read))) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }

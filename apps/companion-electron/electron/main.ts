@@ -174,6 +174,23 @@ function ensureDesktopShortcut(): void {
   );
 }
 
+// 看门狗更新完会等客户端自报「我起来了」（C:\ProgramData\chunlv\client-healthy.json）：
+// 等不到就整目录回滚到更新前那一版。这个是「这次更新到底有没有把客户端搞坏」的判据，
+// 所以只要主进程起来了就写，之后每分钟刷新一次时间戳。
+function writeHealthMarker(): void {
+  try {
+    const dir = 'C:\\ProgramData\\chunlv';
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'client-healthy.json'),
+      JSON.stringify({ version: app.getVersion(), exePath: app.getPath('exe'), at: Date.now() }),
+      'utf-8',
+    );
+  } catch {
+    // 写不了就算了：没见过这个标记的机器上，看门狗不会按它回滚，只是少一层保护。
+  }
+}
+
 // 前端热更：陪玩不需要彻底退出客户端。主进程定时询问服务器最新前端版本，
 // 一旦发现变了，只刷新当前页面（webContents.reload），不杀进程、不弹 UAC。
 async function checkFrontendVersion(): Promise<void> {
@@ -833,6 +850,8 @@ app.whenReady().then(() => {
   // Windows 通知需要 AppUserModelID，否则右下角系统通知弹不出来（搭档邀请、订单提醒等）。
   app.setAppUserModelId('com.chunlv.companion');
   ensureDesktopShortcut();
+  writeHealthMarker();
+  setInterval(writeHealthMarker, 60 * 1000);
   ensureHibernateEnabled();
   setupApplicationMenu();
   app.setLoginItemSettings({ openAtLogin: true });
