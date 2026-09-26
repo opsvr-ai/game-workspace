@@ -54,7 +54,7 @@ import {
   fixedColumnStyle,
 } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
-import { buildOrderInfoFields } from '../../utils/orderPool';
+import { buildOrderInfoFields, orderMatchesSearch } from '../../utils/orderPool';
 import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text } = Typography;
@@ -133,7 +133,10 @@ const CSDispatchView: React.FC = () => {
   const [dispatchSourceOrderId, setDispatchSourceOrderId] = useState<string | null>(null);
   const [selectedCompanion, setSelectedCompanion] = useState<Personnel | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<string | undefined>();
-  const [gameSearch, setGameSearch] = useState('');
+  // 派单池的搜索：客户微信 / 小红书账号 / 来源平台 / 昵称 / 客户编号 / 游戏名……一个框全搜
+  // （老板 2026-09-27 要求）。
+  const [poolSearch, setPoolSearch] = useState('');
+  const [recordSearch, setRecordSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
   // 店长/老板在派单工作台可以按客服看派单记录（老板 2026-09-24）
   const [csFilter, setCsFilter] = useState('');
@@ -419,7 +422,7 @@ const CSDispatchView: React.FC = () => {
   // Apply filters
   const filteredOrders = useMemo(() => {
     let result = poolOrders;
-    if (gameSearch) result = result.filter((o) => o.gameName?.toLowerCase().includes(gameSearch.toLowerCase()));
+    if (poolSearch) result = result.filter((o) => orderMatchesSearch(o, poolSearch));
     if (urgencyFilter) result = result.filter((o) => (o as any).customFields?.urgency === urgencyFilter);
     // 抢单池永远是「新单在最上面」。服务端已经按发布时间倒序返回，
     // 这里再排一次是为了不依赖接口顺序：以前这页直接用服务端顺序（最老的在前），
@@ -427,7 +430,7 @@ const CSDispatchView: React.FC = () => {
     return [...result].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  }, [poolOrders, gameSearch, urgencyFilter]);
+  }, [poolOrders, poolSearch, urgencyFilter]);
 
   // 店长/客服在派单工作台也要能直接看到“自己发布的订单”，
   // 否则订单一被抢或超时后，主订单池里就没有了，容易被误以为丢单。
@@ -440,12 +443,14 @@ const CSDispatchView: React.FC = () => {
   const dispatchRecords = useMemo(() => {
     if (!user || user.role === 'COMPANION') return [];
     const scoped = canSeeAllDispatchRecords ? allOrders : allOrders.filter((o) => o.csUserId === user.id);
-    const list = csFilter ? scoped.filter((o) => o.csUserId === csFilter) : scoped;
+    const byCs = csFilter ? scoped.filter((o) => o.csUserId === csFilter) : scoped;
+    // 客户搜索：和派单池同一个口径（微信 / 小红书账号 / 来源平台 / 昵称 / 客户编号 / 游戏名…）
+    const list = recordSearch ? byCs.filter((o) => orderMatchesSearch(o, recordSearch)) : byCs;
     // 一定要先复制再 sort：allOrders 是 state，直接排序会把原数组也翻掉。
     return [...list].sort(
       (a, b) => new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime(),
     );
-  }, [allOrders, user, csFilter, canSeeAllDispatchRecords]);
+  }, [allOrders, user, csFilter, recordSearch, canSeeAllDispatchRecords]);
 
   // 派单人筛选下拉：按岗位分组，只列真的发过单的人（免得选了半天是空的）。
   // 老板 2026-09-24 问「筛选里怎么冒出来个徐泽宁」——陪玩端的「首单/续单/复购」是
@@ -864,11 +869,11 @@ const CSDispatchView: React.FC = () => {
               {/* Filter bar */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                 <Input.Search
-                  placeholder="搜索游戏名"
-                  value={gameSearch}
-                  onChange={(e) => setGameSearch(e.target.value)}
+                  placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
+                  value={poolSearch}
+                  onChange={(e) => setPoolSearch(e.target.value)}
                   allowClear
-                  style={{ width: 200 }}
+                  style={{ width: 260 }}
                   size="small"
                 />
                 <Select
@@ -883,7 +888,7 @@ const CSDispatchView: React.FC = () => {
                   <Select.Option value="later">预约</Select.Option>
                   <Select.Option value="urgent">急单</Select.Option>
                 </Select>
-                {(gameSearch || urgencyFilter) && (
+                {(poolSearch || urgencyFilter) && (
                   <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
                     筛选结果: {filteredOrders.length}/{poolCount}
                   </Text>
@@ -1018,25 +1023,41 @@ const CSDispatchView: React.FC = () => {
               style={{ marginTop: 12 }}
               title={`${canSeeAllDispatchRecords ? (user.role === 'OWNER' ? '派单记录 · 全部工作室' : '本店派单记录') : '我发布的订单'}（${dispatchRecords.length}）`}
               extra={
-                canSeeAllDispatchRecords && csFilterOptions.length > 0 ? (
-                  <Select
-                    size="small"
+                <Space size={8}>
+                  <Input.Search
+                    placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
+                    value={recordSearch}
+                    onChange={(e) => setRecordSearch(e.target.value)}
                     allowClear
-                    placeholder="全部派单人"
-                    style={{ width: 160 }}
-                    value={csFilter || undefined}
-                    onChange={(v) => setCsFilter(v || '')}
-                    options={csFilterOptions}
-                    showSearch
-                    optionFilterProp="label"
+                    size="small"
+                    style={{ width: 240 }}
                   />
-                ) : undefined
+                  {canSeeAllDispatchRecords && csFilterOptions.length > 0 && (
+                    <Select
+                      size="small"
+                      allowClear
+                      placeholder="全部派单人"
+                      style={{ width: 160 }}
+                      value={csFilter || undefined}
+                      onChange={(v) => setCsFilter(v || '')}
+                      options={csFilterOptions}
+                      showSearch
+                      optionFilterProp="label"
+                    />
+                  )}
+                </Space>
               }
             >
               {dispatchRecords.length === 0 ? (
                 <EmptyState
                   compact
-                  description={canSeeAllDispatchRecords ? '本店还没有派单记录' : '暂无你发布的订单'}
+                  description={
+                    recordSearch
+                      ? `没有匹配「${recordSearch}」的派单记录`
+                      : canSeeAllDispatchRecords
+                        ? '本店还没有派单记录'
+                        : '暂无你发布的订单'
+                  }
                 />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

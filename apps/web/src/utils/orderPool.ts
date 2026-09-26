@@ -33,6 +33,57 @@ export const fmtSeconds = (s: number) => {
   return `${m}分${sec}秒`;
 };
 
+/**
+ * 「派单池 / 派单记录」的搜索：一个框同时搜客户和游戏。
+ *
+ * 老板 2026-09-27：「在派单池、派单记录加一个搜索功能，根据客户的微信或者小红书账号或者其他的可以搜索」。
+ * 客户信息在这套系统里散在好几个地方（订单上的 `customer`、以及 `customFields` 里客服手填的一堆字段），
+ * 这里把它们拼成一段文本一次搜掉，免得「微信搜得到、小红书账号搜不到」。
+ *
+ * 支持用空格分隔多个关键词（要**同时**命中，例如「小红书 shun」）。
+ */
+export function buildOrderSearchText(order: any): string {
+  const cf = order?.customFields || {};
+  return [
+    order?.gameName,
+    // 订单自带的客户信息
+    order?.customer?.wechatId,
+    order?.customer?.customerCode,
+    order?.customer?.platform,
+    // 客服发单时填的客户信息
+    cf.customerWechat,
+    cf.customerNickname,
+    cf.customerAccountId,
+    cf.customerSource, // 来源平台（小红书 / 抖音 / 快手…）
+    cf.customerSourceAccount, // 来源账号（发笔记的那个号）
+    cf.customerRoomCode,
+    cf.customerYy,
+    cf.customerPlatformAccount,
+    cf.deltaNote,
+    // 人和服务
+    order?.csUser?.username,
+    order?.csUser?.displayName,
+    order?.companion?.user?.username,
+    order?.companion?.user?.displayName,
+    order?.coCompanion?.user?.username,
+  ]
+    .filter((v) => v != null && v !== '')
+    .map((v) => String(v))
+    .join(' ')
+    .toLowerCase();
+}
+
+export function orderMatchesSearch(order: any, keyword: string): boolean {
+  const tokens = String(keyword || '')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = buildOrderSearchText(order);
+  return tokens.every((t) => haystack.includes(t));
+}
+
 export function buildOrderInfoFields(
   order: any,
   now: number,
