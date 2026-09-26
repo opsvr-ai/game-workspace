@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Modal, Select, Space, Tag, message } from 'antd';
+import { Button, Card, Input, Modal, Select, Space, Tag, Typography, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import OrderRow from './OrderRow';
 import { visibleInterval } from '../hooks/usePolling';
+import { orderMatchesSearch } from '../utils/orderPool';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -15,6 +16,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
   const [workWechats, setWorkWechats] = useState<any[]>([]);
   const [contactOrder, setContactOrder] = useState<any>(null);
   const [contactWechatId, setContactWechatId] = useState<string | undefined>();
+  // 客户搜索：和订单池 / 派单记录同一个口径（老板 2026-09-27 要求也加上）
+  const [search, setSearch] = useState('');
 
   const load = async () => {
     try {
@@ -59,6 +62,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
 
   if (items.length === 0) return null;
 
+  const shown = search ? items.filter((r) => orderMatchesSearch(r, search)) : items;
+
   const renderActions = (r: any) => (
     <Space size={4} wrap>
       {r.dispatchCount > 1 && <Tag color="orange" style={{ margin: 0 }}>第{r.dispatchCount}次派</Tag>}
@@ -88,11 +93,40 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
   return (
     <>
       <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, color: '#d4380d' }}>📥 订单池流转失败明细</div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ fontWeight: 600, color: '#d4380d' }}>📥 订单池流转失败明细</div>
+          <Input.Search
+            placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            allowClear
+            size="small"
+            style={{ width: 240 }}
+          />
+          {search && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              筛选结果: {shown.length}/{items.length}
+            </Typography.Text>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {items.map((r, idx) => (
-            <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
-          ))}
+          {shown.length === 0 ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              没有匹配「{search}」的流转失败订单。
+            </Typography.Text>
+          ) : (
+            shown.map((r, idx) => (
+              <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
+            ))
+          )}
         </div>
       </Card>
 
