@@ -836,7 +836,9 @@ export class OrdersService implements OnModuleInit {
         customer: { select: { wechatId: true, customerCode: true, platform: true } },
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      // 新的在前。原来是 asc（最老的排最前面），结果「刚流转失败」的那条被压在几十行旧单下面，
+      // 老板 2026-09-27 就因此以为「这单没进流转失败明细」（线上实测：客户 229 那张单排在第 29/29 条）。
+      orderBy: { createdAt: 'desc' },
     });
 
     const list = await Promise.all(
@@ -893,7 +895,7 @@ export class OrdersService implements OnModuleInit {
         }),
     );
 
-    // 已消失（待客服处理）的订单排最前
+    // 已消失（待客服处理）的订单排最前；同一组里保持上面查出来的「新的在前」（Array.sort 稳定）。
     return list.sort((a, b) => Number(b.poolExpired) - Number(a.poolExpired));
   }
 

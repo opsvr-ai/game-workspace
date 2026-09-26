@@ -161,6 +161,13 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, index, renderActions }) => {
             </Text>
           </Col>
         )}
+        {/* 老板 2026-09-27：「派单记录里的单怎么没显示被谁抢走」。没人抢的单确实没名字可显示，
+            但一行只写「待接单」看不出它到底还有没有人管，所以在「主陪/副陪」这个位置上明确写出来。 */}
+        {cf.poolExpired === true && !order.companion?.user?.username && (
+          <Col>
+            <Tag color="red" style={{ margin: 0 }}>无人接单 · 已流转失败</Tag>
+          </Col>
+        )}
         <Col>
           <Text style={{ fontSize: 14, fontWeight: 700, color: '#1677ff', whiteSpace: 'nowrap' }}>
             ¥{Number(order.amount).toFixed(0)}
