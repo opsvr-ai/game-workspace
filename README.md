@@ -99,7 +99,7 @@
 - **Enhanced Service Settlement:** 首单+续单结算, 自动创建续单子订单
 - **Dual Companion Flow:** 呼叫搭档/接受搭档 WebSocket 通知
 - **Traffic Pool:** 渠道管理（小红书/抖音/快手/转介绍）+ 统计
-- **Companion Resignation:** 一键离职处理（清数据/释工位/释微信）
+- **Resignation (陪玩/客服/店长):** 一键离职处理：停用登录 + 清流水/余额/押金 + 释放工位与工作微信 + 立刻踢下线；可「恢复在职」撤销
 - **Tenant Authorization:** 租客→客服权限范围管理
 - **Work WeChat Management:** 工作微信绑定/解绑/自动释放
 - **Unified Order Pool:** 全角色统一横向卡片 + 沟通按钮 + 抢单弹窗+复制微信
