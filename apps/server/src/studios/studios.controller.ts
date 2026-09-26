@@ -191,6 +191,23 @@ export class StudiosController {
     return { code: 200, message: '员工已删除', data: null };
   }
 
+  // 离职 / 复职：陪玩、客服、店长走同一条路，账号停用但历史记录全部保留。
+  @Post('employees/:id/resign')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async resignEmployee(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    await this.studiosService.resignEmployee(id, req.user?.studioId, req.user?.role);
+    return { code: 200, message: '已办理离职', data: null };
+  }
+
+  @Post('employees/:id/restore')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async restoreEmployee(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    await this.studiosService.restoreEmployee(id, req.user?.studioId, req.user?.role);
+    return { code: 200, message: '已恢复在职', data: null };
+  }
+
   // ── Payment Accounts ──
 
   @Get('payment-accounts')

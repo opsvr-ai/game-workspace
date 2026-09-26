@@ -58,6 +58,9 @@ describe('CompanionsService', () => {
     mockWechatService = createMockWechatService();
     mockExcellenceService = createMockExcellenceService();
     mockBridgeService = createMockBridgeService();
+    const mockStudiosService = {
+      resignEmployee: vi.fn().mockResolvedValue({ success: true }),
+    };
     service = new CompanionsService(
       mockPrisma as any,
       mockRevenueService as any,
@@ -65,6 +68,7 @@ describe('CompanionsService', () => {
       mockWechatService as any,
       mockExcellenceService as any,
       mockBridgeService as any,
+      mockStudiosService as any,
     );
 
     // Set up default return values for additional prisma calls used by findAll

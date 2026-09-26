@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { assertCanManage } from '../common/role-hierarchy';
+import { isResignedUser, RESIGNED_LOGIN_MESSAGE } from '../common/offboarding';
 import { LoginDto } from './dto/login.dto';
 import type { UserInfo, LoginResponse } from '@chunlv/shared';
 import { UserRole } from '@chunlv/shared';
@@ -34,9 +35,9 @@ export class AuthService {
       throw new UnauthorizedException('用户名或密码错误');
     }
 
-    // 已离职陪玩不允许登录，避免离职后仍可进入系统。
-    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
-      throw new ForbiddenException('该账号已离职，无法登录');
+    // 已离职账号（陪玩 / 客服 / 店长通用）不允许登录，避免离职后仍可进入系统。
+    if (isResignedUser(user)) {
+      throw new ForbiddenException(RESIGNED_LOGIN_MESSAGE);
     }
 
     // 审核双系统同步兜底：如果陪玩审核已通过但账号未授权，自动补授权，避免“审核过了还登录不了”
@@ -117,9 +118,9 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在');
     }
 
-    // 已离职陪玩不允许刷新登录态。
-    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
-      throw new ForbiddenException('该账号已离职，无法登录');
+    // 已离职账号（陪玩 / 客服 / 店长通用）不允许刷新登录态。
+    if (isResignedUser(user)) {
+      throw new ForbiddenException(RESIGNED_LOGIN_MESSAGE);
     }
 
     if (user.role === UserRole.COMPANION && user.companion?.reviewStatus === 'APPROVED' && !user.isAuthorized) {
@@ -163,7 +164,7 @@ export class AuthService {
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
-    if (user.role === UserRole.COMPANION && user.companion?.isResigned) {
+    if (isResignedUser(user)) {
       throw new UnauthorizedException('该账号已离职');
     }
     // Include pending review count for OWNER/ADMIN

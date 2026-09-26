@@ -13,6 +13,7 @@ import {
   Typography,
   InputNumber,
   Image,
+  Switch,
   message,
 } from 'antd';
 import {
@@ -45,6 +46,7 @@ interface Employee {
   role: string;
   studioId: string;
   isAuthorized: boolean;
+  resignedAt?: string | null;
   createdAt: string;
   displayName?: string;
   realName?: string;
@@ -118,6 +120,8 @@ const EmployeesPage: React.FC = () => {
   const [financeSubmitting, setFinanceSubmitting] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [filterRole, setFilterRole] = useState<string | undefined>(urlRole);
+  // 已离职的人默认不显示：老板 2026-09-26 反馈「点了离职看着没反应」，就是离职的人还混在在职名单里。
+  const [showResigned, setShowResigned] = useState(false);
   // Sync filterRole with URL when switching tabs
   useEffect(() => { setFilterRole(urlRole); setSearchText(''); }, [urlRole]);
   const fetchStudios = useCallback(async () => {
@@ -250,17 +254,32 @@ const EmployeesPage: React.FC = () => {
   const filteredEmployees = employees.filter((e) => {
     if (searchText && !e.username.toLowerCase().includes(searchText.toLowerCase())) return false;
     if (filterRole && e.role !== filterRole) return false;
+    if (!showResigned && e.resignedAt) return false;
     return true;
   });
   // --- Resign companion ---
   const handleResign = async (record: Employee) => {
-    if (!record.companion?.id) return;
     try {
-      await companionsApi.resign(record.companion.id);
-      message.success(`${record.username} 已离职，工位和微信已释放`);
+      // 陪玩走陪玩那条路（服务端会顺手把客户端踢下线）；客服/店长走统一的员工离职。
+      if (record.role === UserRole.COMPANION && record.companion?.id) {
+        await companionsApi.resign(record.companion.id);
+      } else {
+        await employeesApi.resign(record.id);
+      }
+      message.success(`${record.username} 已办理离职（账号已停用，历史记录保留）`);
       fetchEmployees();
     } catch (err: any) {
       message.error(err?.response?.data?.message || '离职处理失败');
+    }
+  };
+
+  const handleRestore = async (record: Employee) => {
+    try {
+      await employeesApi.restore(record.id);
+      message.success(`${record.username} 已恢复在职，可以重新登录了`);
+      fetchEmployees();
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '恢复失败');
     }
   };
 
@@ -280,7 +299,12 @@ const EmployeesPage: React.FC = () => {
     {
       title: '用户名',
       dataIndex: 'username',
-      render: (v: string, r: Employee) => <a onClick={() => setDetailEmployee(r)} style={{cursor:'pointer'}}>{v}</a>,
+      render: (v: string, r: Employee) => (
+        <Space size={4}>
+          <a onClick={() => setDetailEmployee(r)} style={{cursor:'pointer'}}>{v}</a>
+          {r.resignedAt && <Tag color="default" style={{ margin: 0 }}>已离职</Tag>}
+        </Space>
+      ),
       key: 'username',
       width: 140,
     },
@@ -366,11 +390,14 @@ const EmployeesPage: React.FC = () => {
       dataIndex: 'isAuthorized',
       key: 'isAuthorized',
       width: 100,
-      render: (isAuthorized: boolean) => (
-        <Tag color={isAuthorized ? 'green' : 'default'}>
-          {isAuthorized ? '已授权' : '待审核'}
-        </Tag>
-      ),
+      render: (isAuthorized: boolean, record: Employee) => {
+        if (record.resignedAt) return <Tag color="default">已离职</Tag>;
+        return (
+          <Tag color={isAuthorized ? 'green' : 'default'}>
+            {isAuthorized ? '已授权' : '待审核'}
+          </Tag>
+        );
+      },
     },
     {
       title: '创建时间',
@@ -414,13 +441,22 @@ const EmployeesPage: React.FC = () => {
               {record.companion.isSeniorStaff ? '取消老员工' : '标记老员工'}
             </Button>
           )}
-          {record.role === UserRole.COMPANION && record.companion && (
+          {record.role !== UserRole.OWNER && (
             <>
-              {record.companion.isResigned ? (
-                <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
+              {record.resignedAt ? (
+                <Popconfirm
+                  title="确定恢复在职？"
+                  description="恢复后可以重新登录。已清零的余额、已释放的工位和工作微信不会自动还原"
+                  onConfirm={() => handleRestore(record)}
+                  okText="恢复"
+                  cancelText="取消"
+                >
+                  <Button type="link" size="small">恢复在职</Button>
+                </Popconfirm>
               ) : (
                 <Popconfirm
-                  title="确定离职处理？将清空流水/余额/机号，释放工位"
+                  title="确定办理离职？"
+                  description="账号停用、无法登录；陪玩还会清空流水/余额并释放工位与工作微信。历史记录保留"
                   onConfirm={() => handleResign(record)}
                   okText="离职"
                   cancelText="取消"
@@ -492,6 +528,10 @@ const EmployeesPage: React.FC = () => {
                  <Option value="CS">客服</Option>
                </Select>
              )}
+          <Space size={4}>
+            <Switch size="small" checked={showResigned} onChange={setShowResigned} />
+            <Text style={{ fontSize: 13 }}>显示已离职</Text>
+          </Space>
           <Button
             icon={React.createElement(ReloadOutlined)}
             onClick={fetchEmployees}

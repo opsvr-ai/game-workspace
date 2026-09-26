@@ -18,6 +18,7 @@ import { CompanionAttendanceService } from './companion-attendance.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { ExcellenceService } from './excellence.service';
 import { BridgeService } from '../studios/bridge.service';
+import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
 
 @Injectable()
@@ -29,10 +30,16 @@ export class CompanionsService {
     private readonly wechatService: CompanionWechatService,
     private readonly excellence: ExcellenceService,
     private readonly bridgeService: BridgeService,
+    private readonly studiosService: StudiosService,
   ) {}
 
-  /** 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。 */
-  async listPersonnel(user: any, includeBridged = false) {
+  /**
+   * 人员列表：陪玩 + 客服 + 店长 + 老板，统一返回，附带各自的在线状态。
+   *
+   * 默认**不含已离职的人**：老板 2026-09-26 反馈「点了离职没反应」，
+   * 就是因为离职的人在各种名单里照旧出现。要查离职人员传 includeResigned=true。
+   */
+  async listPersonnel(user: any, includeBridged = false, includeResigned = false) {
     const where: any = { role: { in: ['COMPANION', 'CS', 'ADMIN', 'OWNER'] } };
     if (user.role !== 'OWNER') {
       if (includeBridged && user.studioId) {
@@ -42,6 +49,11 @@ export class CompanionsService {
         // 员工管理等页面只看本工作室；老板才看全部。
         where.studioId = user.studioId;
       }
+    }
+    if (!includeResigned) {
+      // 历史数据兜底：老代码只写了 Companion.isResigned，没有 User.resignedAt
+      where.resignedAt = null;
+      where.OR = [{ companion: null }, { companion: { isResigned: false } }];
     }
 
     const users = await this.prisma.user.findMany({
@@ -53,6 +65,7 @@ export class CompanionsService {
         displayName: true,
         avatar: true,
         isAuthorized: true,
+        resignedAt: true,
         studio: { select: { id: true, name: true, type: true } },
         companion: {
           select: {
@@ -122,6 +135,7 @@ export class CompanionsService {
       displayName: u.displayName,
       avatar: u.avatar,
       isAuthorized: u.isAuthorized,
+      resignedAt: u.resignedAt,
       studioId: u.studio?.id ?? null,
       studioName: u.studio?.name ?? null,
       studioType: u.studio?.type ?? null,
@@ -131,7 +145,7 @@ export class CompanionsService {
       realName: u.companion?.realName ?? null,
       phone: u.companion?.phone ?? null,
       monthlyRevenue: u.companion?.monthlyRevenue ?? null,
-      isResigned: u.companion?.isResigned ?? false,
+      isResigned: !!u.resignedAt || (u.companion?.isResigned ?? false),
       isSeniorStaff: u.companion?.isSeniorStaff ?? false,
       lastHeartbeat:
         u.companion?.pc?.lastHeartbeat ?? newestSeen(csSeen.get(u.id), staffPresence(u.id)),
@@ -897,22 +911,18 @@ export class CompanionsService {
 
   // ── Resignation ──
 
+  /**
+   * 陪玩离职：清账 + 释放工位与工作微信 + 停用账号。
+   * 具体动作统一收在 StudiosService.resignEmployee（客服/店长离职走同一条路），
+   * 这里只做「陪玩 id → 用户 id」的转换，避免两处逻辑漂移。
+   */
   async resignCompanion(companionId: string) {
     const companion = await this.prisma.companion.findUnique({
       where: { id: companionId },
       select: { userId: true },
     });
-    await this.prisma.companion.update({
-      where: { id: companionId },
-      data: { status: 'OFFLINE', balance: 0, deposit: 0, frozen: 0, monthlyRevenue: 0, isResigned: true },
-    });
-    if (companion?.userId) {
-      await this.prisma.user.update({
-        where: { id: companion.userId },
-        data: { isAuthorized: false },
-      });
-    }
-    return { success: true };
+    if (!companion) return { success: false };
+    return this.studiosService.resignEmployee(companion.userId);
   }
 
   // ── Work WeChat Management ──

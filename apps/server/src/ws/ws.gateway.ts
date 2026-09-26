@@ -748,6 +748,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private urgentRecipientWhere(studioId: string) {
     return {
       studioId,
+      // 已离职的人不再收到抢单弹窗（离职后状态会被置为 OFFLINE，这里再兜一道）
+      isResigned: false,
       OR: [
         { status: 'AVAILABLE' },
         { status: 'ENTERTAINMENT' },

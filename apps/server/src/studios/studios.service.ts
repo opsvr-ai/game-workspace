@@ -169,6 +169,7 @@ export class StudiosService {
         role: true,
         studioId: true,
         isAuthorized: true,
+        resignedAt: true,
         createdAt: true,
         displayName: true,
         realName: true,
@@ -280,10 +281,86 @@ export class StudiosService {
       if (!target) return;
       assertCanManage(role, target.role, adminStudioId, target.studioId);
     }
-    // Delete companion first if exists (cascade), then user
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companion: { select: { id: true } } },
+    });
     if (!user) return;
-    await this.prisma.user.delete({ where: { id: userId } });
+    // 先删陪玩档案再删账号：Companion.userId 是必填外键，不先删会直接报「数据操作失败」
+    // （2026-09-26 验证时踩到：删除陪玩账号 100% 失败）。陪玩有订单/流水等历史时会继续报错，
+    // 这是有意的 —— 有历史的人应该走「离职」，而不是「删除」。
+    await this.prisma.$transaction(async (tx) => {
+      const companionId = user.companion?.id;
+      if (companionId) {
+        await tx.workWechat.updateMany({ where: { companionId }, data: { companionId: null, status: 'AVAILABLE' } });
+        await tx.companionPC.deleteMany({ where: { companionId } });
+        await tx.companion.delete({ where: { id: companionId } });
+      }
+      await tx.chatRoomMember.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+  }
+
+  // ── 离职 / 复职（陪玩 / 客服 / 店长通用） ──
+
+  /**
+   * 办理离职。
+   *
+   * 老板 2026-09-26 反馈「点了离职没反应」：老代码只把陪玩自己的几个字段清零，
+   * 既没停账号、也没真的释放工位和工作微信（可弹窗上却写着「工位和微信已释放」），
+   * 人在各种名单里照旧出现。现在统一成：停登录 + 踢下线 + 陪玩额外清账、释放工位与微信。
+   */
+  async resignEmployee(userId: string, adminStudioId?: string, adminRole?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, studioId: true, companion: { select: { id: true } } },
+    });
+    if (!user) return { success: false };
+    if (user.role === 'OWNER') throw new ForbiddenException('老板账号不能办理离职');
+    if (adminRole && adminRole !== 'OWNER') {
+      assertCanManage(adminRole, user.role, adminStudioId, user.studioId);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { resignedAt: new Date(), isAuthorized: false },
+      });
+      const companionId = user.companion?.id;
+      if (!companionId) return;
+      // 工作微信是资产不是个人物品，离职必须交回（先解绑再置为可用）
+      await tx.workWechat.updateMany({
+        where: { companionId },
+        data: { companionId: null, status: 'AVAILABLE' },
+      });
+      // 释放工位：陪玩端的机器绑定由心跳在下次登录时重建
+      await tx.pCOperationLog.deleteMany({ where: { pc: { companionId } } });
+      await tx.companionPC.deleteMany({ where: { companionId } });
+      await tx.companion.update({
+        where: { id: companionId },
+        data: { status: 'OFFLINE', balance: 0, deposit: 0, frozen: 0, monthlyRevenue: 0, isResigned: true },
+      });
+    });
+    return { success: true };
+  }
+
+  /** 撤销离职（点错了用）：恢复登录。已清零的余额、已释放的工位和微信不自动还原。 */
+  async restoreEmployee(userId: string, adminStudioId?: string, adminRole?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, studioId: true, companion: { select: { id: true } } },
+    });
+    if (!user) return { success: false };
+    if (adminRole && adminRole !== 'OWNER') {
+      assertCanManage(adminRole, user.role, adminStudioId, user.studioId);
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { resignedAt: null, isAuthorized: true } });
+      if (user.companion?.id) {
+        await tx.companion.update({ where: { id: user.companion.id }, data: { isResigned: false } });
+      }
+    });
+    return { success: true };
   }
 
   // ── Payment Accounts ──

@@ -118,6 +118,7 @@ const CompanionsPage: React.FC = () => {
     { label: '娱乐', value: 'ENTERTAINMENT' },
     { label: '休息', value: 'RESTING' },
     { label: '离线', value: 'OFFLINE' },
+    { label: '已离职', value: 'RESIGNED' },
   ];
 
   // Expanded row time logs cache
@@ -129,7 +130,8 @@ const CompanionsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await companionsApi.listPersonnel();
+      // 带上已离职的人：主列表默认还是只显示在职的，「已离职」页签单独看
+      const { data } = await companionsApi.listPersonnel({ includeResigned: true });
       setCompanions(data.data ?? []);
     } catch (err: any) {
       setError(extractErrorMessage(err, '加载陪玩列表失败'));
@@ -208,9 +210,14 @@ const CompanionsPage: React.FC = () => {
       list = list.filter((c) => (c.username || '').toLowerCase().includes(lower));
     }
 
-    // Status filter
-    if (statusFilter) {
-      list = list.filter((c) => c.status === statusFilter);
+    // 离职的人单独一档：其他页签（包括「全部」）都不显示，避免出现「离职了还在名单里」
+    if (statusFilter === 'RESIGNED') {
+      list = list.filter((c) => c.isResigned);
+    } else {
+      list = list.filter((c) => !c.isResigned);
+      if (statusFilter) {
+        list = list.filter((c) => c.status === statusFilter);
+      }
     }
 
     // Game filter — checks companions.games array for string or object {game}
@@ -270,10 +277,20 @@ const CompanionsPage: React.FC = () => {
   const handleResign = async (id: string) => {
     try {
       await companionsApi.resign(id);
-      message.success('陪玩已离职，工位和微信已释放');
+      message.success('已办理离职：账号停用、工位和工作微信已交回');
       fetchCompanions();
     } catch (err: any) {
       message.error(extractErrorMessage(err, '操作失败'));
+    }
+  };
+
+  const handleRestore = async (record: Personnel) => {
+    try {
+      await employeesApi.restore(record.id);
+      message.success(`${record.username} 已恢复在职，可以重新登录了`);
+      fetchCompanions();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '恢复失败'));
     }
   };
 
@@ -492,11 +509,22 @@ const CompanionsPage: React.FC = () => {
                   身份证
                 </Button>
                 {record.isResigned ? (
-                  <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
+                  <>
+                    <Tag color="default" style={{ margin: 0 }}>已离职</Tag>
+                    <Popconfirm
+                      title="恢复在职？"
+                      description="恢复后可以重新登录；已清零的余额、已释放的工位和工作微信不会自动还原"
+                      onConfirm={() => handleRestore(record)}
+                      okText="恢复"
+                      cancelText="取消"
+                    >
+                      <Button type="link" size="small">恢复在职</Button>
+                    </Popconfirm>
+                  </>
                 ) : (
                   <Popconfirm
                     title="确认离职处理？"
-                    description="离职后陪玩状态将设为离线，余额、押金等将清零"
+                    description="账号停用、无法登录；流水/余额清零，工位和工作微信交回。历史记录保留"
                     onConfirm={() => handleResign(record.companionId || '')}
                     okText="确认"
                     cancelText="取消"

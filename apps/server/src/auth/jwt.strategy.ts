@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { isResignedUser } from '../common/offboarding';
 import type { JwtPayload } from './auth.service';
 
 @Injectable()
@@ -21,11 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         id: true,
         role: true,
         isAuthorized: true,
+        resignedAt: true,
         companion: { select: { isResigned: true } },
       },
     });
     if (!user) throw new UnauthorizedException('用户不存在');
-    if (user.role === 'COMPANION' && user.companion?.isResigned) {
+    if (isResignedUser(user)) {
       throw new UnauthorizedException('该账号已离职');
     }
     return {

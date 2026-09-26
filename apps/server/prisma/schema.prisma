@@ -14,6 +14,7 @@ model User {
   role               String   @default("COMPANION")
   studioId           String?
   isAuthorized       Boolean  @default(false)
+  resignedAt         DateTime? // 离职时间：陪玩 / 客服 / 店长通用（老板账号不允许离职）
   secondPasswordHash String?
   displayName        String?
   avatar             String?

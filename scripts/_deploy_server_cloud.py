@@ -9,6 +9,9 @@ PASSWORD = "Pw123456!"
 LOCAL_DIST = r"E:\source_code\game-workspace\apps\server\dist"
 REMOTE_DIR = "/home/ubuntu/chunlv/apps/server/dist"
 TMP_TGZ = "/home/ubuntu/chunlv-server-dist.tar.gz"
+LOCAL_SCHEMA = r"E:\source_code\game-workspace\apps\server\prisma\schema.prisma"
+REMOTE_SCHEMA = "/home/ubuntu/chunlv/apps/server/prisma/schema.prisma"
+REMOTE_SCHEMA_HASH = "/home/ubuntu/chunlv/apps/server/prisma/.schema-hash"
 
 
 def dist_hash():
@@ -42,6 +45,13 @@ def make_tgz():
         raise
 
 
+def schema_hash():
+    """schema.prisma 的指纹：变了就必须重新生成 Prisma 客户端，否则线上会报
+    「Unknown field xxx for select statement」——2026-09-26 加 User.resignedAt 时就这么翻过一次车。"""
+    with open(LOCAL_SCHEMA, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
 def main():
     local_tgz = make_tgz()
     c = paramiko.SSHClient()
@@ -69,10 +79,12 @@ def main():
 
     force = "--force" in sys.argv
     local_hash = dist_hash()
+    local_schema_hash = schema_hash()
     skip = False
     if not force:
         rc, remote_hash = run_raw(f"cat {REMOTE_DIR}/.deploy-hash 2>/dev/null || true")
-        if remote_hash.strip() == local_hash:
+        rc, remote_schema_hash = run_raw(f"cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
+        if remote_hash.strip() == local_hash and remote_schema_hash.strip() == local_schema_hash:
             skip = True
     if skip:
         c.close()
@@ -82,6 +94,20 @@ def main():
 
     run(f"rm -rf {REMOTE_DIR}/* && mkdir -p {REMOTE_DIR} && tar -xzf {TMP_TGZ} -C {REMOTE_DIR}")
     run(f"echo {local_hash} > {REMOTE_DIR}/.deploy-hash")
+
+    # schema 变了要单独同步 + 重新生成客户端（Prisma 客户端是构建产物，不在 dist 里）
+    rc, remote_schema_hash_now = run_raw(f"cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
+    if force or remote_schema_hash_now.strip() != local_schema_hash:
+        sftp = c.open_sftp()
+        sftp.put(LOCAL_SCHEMA, REMOTE_SCHEMA)
+        sftp.close()
+        gen_rc = run("cd /home/ubuntu/chunlv/apps/server && ./node_modules/.bin/prisma generate 2>&1 | tail -3")
+        if gen_rc != 0:
+            c.close()
+            raise SystemExit("prisma generate 失败，已中止部署（不重启，避免线上带着旧客户端跑）")
+        run(f"echo {local_schema_hash} > {REMOTE_SCHEMA_HASH}")
+        print(f"schema 已同步并重新生成 Prisma 客户端（{local_schema_hash[:12]}）")
+
     run("pm2 restart chunlv-server --update-env")
     c.close()
     print("done")

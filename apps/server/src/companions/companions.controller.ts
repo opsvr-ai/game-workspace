@@ -57,8 +57,16 @@ export class CompanionsController {
   }
 
   @Get('personnel')
-  async listPersonnel(@Req() req: any, @Query('includeBridged') includeBridged?: string): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listPersonnel(req.user, includeBridged === 'true');
+  async listPersonnel(
+    @Req() req: any,
+    @Query('includeBridged') includeBridged?: string,
+    @Query('includeResigned') includeResigned?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listPersonnel(
+      req.user,
+      includeBridged === 'true',
+      includeResigned === 'true',
+    );
     return { code: 200, message: 'ok', data };
   }
 
