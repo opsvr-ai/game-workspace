@@ -115,6 +115,69 @@ describe('CompanionsService', () => {
   });
 
   describe('updateStatus', () => {
+    it('listPersonnel: 在线状态由服务端按服务器时间判定', async () => {
+      const fresh = { lastHeartbeat: new Date(), currentMode: 'ENTERTAINMENT' };
+      const stale = { lastHeartbeat: new Date(Date.now() - 10 * 60 * 1000), currentMode: null };
+      const base = {
+        username: 'zhangsan',
+        role: 'COMPANION',
+        displayName: '张三',
+        avatar: null,
+        isAuthorized: true,
+        resignedAt: null,
+        studio: { id: 'studio-1', name: '店', type: 'OWN' },
+      };
+      const companionRow = (pc: any, status = 'AVAILABLE') => ({
+        ...base,
+        id: 'u-comp',
+        companion: {
+          id: 'comp-1',
+          status,
+          games: [],
+          realName: null,
+          phone: null,
+          monthlyRevenue: 0,
+          isResigned: false,
+          isSeniorStaff: false,
+          pc,
+        },
+      });
+      const owner = { id: 'u-owner', username: 'hanlei', role: 'OWNER', studioId: null };
+
+      // 心跳新鲜 = 在线
+      mockPrisma.user.findMany.mockResolvedValue([companionRow(fresh)]);
+      const [online] = await service.listPersonnel(owner);
+      expect(online.isOnline).toBe(true);
+
+      // 心跳过期 = 离线（即使状态还写着空闲）
+      mockPrisma.user.findMany.mockResolvedValue([companionRow(stale)]);
+      const [offline] = await service.listPersonnel(owner);
+      expect(offline.isOnline).toBe(false);
+
+      // 没有心跳（老数据/没装客户端）时退回工作状态
+      mockPrisma.user.findMany.mockResolvedValue([companionRow(null)]);
+      const [byStatus] = await service.listPersonnel(owner);
+      expect(byStatus.isOnline).toBe(true);
+
+      // 客服：客户端心跳新鲜 = 在线，过期 = 离线
+      const csRow = { ...base, id: 'cs-1', username: 'kefu01', role: 'CS', companion: null };
+      mockPrisma.user.findMany.mockResolvedValue([csRow]);
+      mockPrisma.systemConfig.findMany.mockResolvedValue([
+        { key: 'cs.client.version.cs-1', value: { version: '1.0.0', lastSeen: new Date().toISOString() } },
+      ]);
+      const [csOnline] = await service.listPersonnel(owner);
+      expect(csOnline.isOnline).toBe(true);
+
+      mockPrisma.systemConfig.findMany.mockResolvedValue([
+        {
+          key: 'cs.client.version.cs-1',
+          value: { version: '1.0.0', lastSeen: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
+        },
+      ]);
+      const [csOffline] = await service.listPersonnel(owner);
+      expect(csOffline.isOnline).toBe(false);
+    });
+
     it('companion switches own status to a non-BUSY mode', async () => {
       const companionUser = {
         id: 'u5',

@@ -13,6 +13,9 @@ extraResources:
     to: .
   - from: ../watchdog-service/SystemHelper.exe
     to: SystemHelper.exe
+  # 托盘图标要一起打包，否则运行时读不到图片、右下角托盘是个透明空图标。
+  - from: public/donkey.png
+    to: donkey.png
 win:
   icon: public/donkey.ico
   target:

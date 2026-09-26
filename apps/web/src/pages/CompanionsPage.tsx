@@ -46,6 +46,8 @@ interface Personnel {
   isResigned?: boolean;
   isSeniorStaff?: boolean;
   lastHeartbeat?: string | null;
+  /** 服务端按服务器时间算好的在线标记：本机时间不准也不会误判 */
+  isOnline?: boolean | null;
   currentMode?: string | null;
 }
 
@@ -68,15 +70,24 @@ function formatDuration(seconds: number): string {
   return rm > 0 ? `${h}时${rm}分` : `${h}小时`;
 }
 
-function formatHeartbeat(heartbeat: string | null | undefined): {
+function formatHeartbeat(
+  heartbeat: string | null | undefined,
+  serverOnline?: boolean | null,
+): {
   online: boolean;
   text: string;
 } {
-  if (!heartbeat) return { online: false, text: '离线' };
+  // 有服务端下发的 isOnline 就以它为准：本机系统时间偏几分钟时，
+  // 原来按本机时间算会把在线的人全显示成「异常离线」。
+  const trustServer = typeof serverOnline === 'boolean';
+  if (!heartbeat) {
+    const online = trustServer ? !!serverOnline : false;
+    return { online, text: online ? '在线' : '离线' };
+  }
   const dt = new Date(heartbeat);
   const now = Date.now();
   const diff = now - dt.getTime();
-  const online = diff < HEARTBEAT_THRESHOLD;
+  const online = trustServer ? !!serverOnline : diff < HEARTBEAT_THRESHOLD;
   const timeStr = dt.toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
@@ -452,7 +463,7 @@ const CompanionsPage: React.FC = () => {
         key: 'pcStatus',
         width: 140,
         render: (_: unknown, record: Personnel) => {
-          const hb = formatHeartbeat(record.lastHeartbeat);
+          const hb = formatHeartbeat(record.lastHeartbeat, record.isOnline);
           const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.lastHeartbeat !== null;
           return (
             <Space size={4}>

@@ -262,7 +262,7 @@ function createWindow() {
   });
   // 点 ❌ 最小化到托盘，不退出
   mainWindow.on('close', (e) => {
-    if (!isQuitting) {
+    if (!isQuitting && tray) {
       e.preventDefault();
       mainWindow.hide();
     }
@@ -282,15 +282,50 @@ function showWindow() {
   mainWindow.focus();
 }
 
-function createTray() {
-  const iconPath = path.join(process.resourcesPath, 'donkey.ico');
-  let icon;
-  try {
-    icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  } catch {
-    icon = nativeImage.createEmpty();
+// 托盘图标：优先用打包进 resources 的 donkey.ico，其次开发目录里的同名文件。
+// 老代码直接 createFromPath，文件不存在时拿到的是「空图片」，托盘里啥也看不见
+// —— 老板 2026-09-26 报的「客服端右下角没图标」就是这个（安装包里从来没打进这个 ico）。
+function createTrayIcon() {
+  const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'donkey.ico') : '',
+    path.join(__dirname, 'public', 'donkey.ico'),
+    process.resourcesPath ? path.join(process.resourcesPath, 'donkey.png') : '',
+    path.join(__dirname, 'public', 'donkey.png'),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) continue;
+      const img = nativeImage.createFromPath(candidate);
+      if (!img.isEmpty()) return img.resize({ width: 16, height: 16 });
+    } catch {
+      // 换下一个候选路径
+    }
   }
-  tray = new Tray(icon);
+  // 兜底：图标文件全都读不到时，画一个一定看得见的小圆点（灰蓝色，两种字节序看着都一样）。
+  const size = 16;
+  const buf = Buffer.alloc(size * size * 4, 0);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (Math.sqrt((x - 7.5) ** 2 + (y - 7.5) ** 2) > 7) continue;
+      const px = (y * size + x) * 4;
+      buf[px] = 0x4b;
+      buf[px + 1] = 0x55;
+      buf[px + 2] = 0x63;
+      buf[px + 3] = 0xff;
+    }
+  }
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+}
+
+function createTray() {
+  try {
+    tray = new Tray(createTrayIcon());
+  } catch (err) {
+    // 托盘建不出来时不要再走「关窗口=隐藏」，否则窗口一关就再也叫不出来了。
+    console.warn('Tray creation failed:', err && err.message);
+    tray = null;
+    return;
+  }
   tray.setToolTip('客服管理');
   tray.setContextMenu(
     Menu.buildFromTemplate([

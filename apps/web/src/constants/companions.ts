@@ -47,10 +47,19 @@ export interface PersonnelLike {
   role?: string | null;
   status?: string | null;
   lastHeartbeat?: string | null;
+  /** 服务端按服务器时间算好的在线标记（/personnel 会下发）；有它就以它为准。 */
+  isOnline?: boolean | null;
 }
 
-/** 该人员当前是否在线：统一按最后心跳判断（陪玩 + 客服/店长/老板），无心跳时回退到陪玩状态。 */
+/**
+ * 该人员当前是否在线。
+ *
+ * 优先用服务端下发的 isOnline：以前这里用「本机时间 - 心跳时间」来算，
+ * 客户机系统时间只要偏了几分钟，整张人员列表就会全变成离线。
+ * 没有 isOnline（老接口/别的列表）时才退回本地按心跳判断。
+ */
 export function isPersonnelOnline(p: PersonnelLike): boolean {
+  if (typeof p.isOnline === 'boolean') return p.isOnline;
   if (p.lastHeartbeat) {
     const isStaff = !!p.role && p.role !== 'COMPANION';
     const limit = isStaff ? STAFF_HEARTBEAT_THRESHOLD : HEARTBEAT_THRESHOLD;

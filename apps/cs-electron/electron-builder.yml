@@ -9,6 +9,10 @@ files:
 extraResources:
   - from: config.json
     to: config.json
+  # 托盘图标必须一起打包：以前只打包了 config.json，运行时在 resources 里
+  # 找不到 donkey.ico，托盘就是个透明空图标（右下角看不见图标）。
+  - from: public/donkey.ico
+    to: donkey.ico
 win:
   icon: public/donkey.ico
   target:

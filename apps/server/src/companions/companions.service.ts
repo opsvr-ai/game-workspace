@@ -21,6 +21,21 @@ import { BridgeService } from '../studios/bridge.service';
 import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
 
+/**
+ * 在线判定的时间阈值（和前端 constants/companions.ts 保持一致）：
+ * 陪玩端每 30 秒一次心跳，超过 2 分钟没心跳才算离线；
+ * 客服/店长/老板的客户端心跳是「窗口可见才发」，放宽到 5 分钟。
+ */
+const COMPANION_HEARTBEAT_MS = 120_000;
+const STAFF_HEARTBEAT_MS = 300_000;
+
+function seenWithin(seen: string | Date | null | undefined, limit: number, now: number): boolean {
+  if (!seen) return false;
+  const t = new Date(seen).getTime();
+  if (!Number.isFinite(t)) return false;
+  return now - t < limit;
+}
+
 @Injectable()
 export class CompanionsService {
   constructor(
@@ -128,6 +143,22 @@ export class CompanionsService {
       if (targetId) activeOrderByCompanion.set(targetId, { type: o.type, gameName: o.gameName });
     }
 
+    // 在线与否一律在服务端按服务器时间算好再下发。
+    // 以前是前端拿「自己电脑的系统时间」减心跳时间戳，客户机时间不准（差几分钟很常见）
+    // 时整张人员列表会全变离线 —— 老板 2026-09-26 报的「陪玩全部离线状态」就是这个。
+    const nowMs = Date.now();
+    const heartbeatOf = (u: (typeof users)[number]): string | Date | null =>
+      u.companion?.pc?.lastHeartbeat ?? newestSeen(csSeen.get(u.id), staffPresence(u.id));
+    const isOnlineFor = (u: (typeof users)[number]): boolean => {
+      const hb = heartbeatOf(u);
+      if (hb) {
+        const limit = u.role === 'COMPANION' ? COMPANION_HEARTBEAT_MS : STAFF_HEARTBEAT_MS;
+        return seenWithin(hb, limit, nowMs);
+      }
+      // 没有心跳：陪玩退回「工作状态」；客服/店长/老板没有状态可退，就是离线。
+      return !!u.companion?.status && u.companion.status !== 'OFFLINE';
+    };
+
     return users.map((u) => ({
       id: u.id,
       username: u.username,
@@ -147,8 +178,8 @@ export class CompanionsService {
       monthlyRevenue: u.companion?.monthlyRevenue ?? null,
       isResigned: !!u.resignedAt || (u.companion?.isResigned ?? false),
       isSeniorStaff: u.companion?.isSeniorStaff ?? false,
-      lastHeartbeat:
-        u.companion?.pc?.lastHeartbeat ?? newestSeen(csSeen.get(u.id), staffPresence(u.id)),
+      lastHeartbeat: heartbeatOf(u),
+      isOnline: isOnlineFor(u),
       currentMode: u.companion?.pc?.currentMode ?? null,
       currentOrder: u.companion ? activeOrderByCompanion.get(u.companion.id) ?? null : null,
       isExcellent: u.companion ? excellence.get(u.companion.id)?.isExcellent ?? false : false,

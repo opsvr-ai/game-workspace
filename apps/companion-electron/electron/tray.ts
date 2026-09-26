@@ -1,4 +1,5 @@
 import { Tray, Menu, nativeImage } from 'electron';
+import fs from 'fs';
 import path from 'path';
 
 let tray: Tray | null = null;
@@ -137,29 +138,42 @@ export function stopUpdateSpin(): void {
 }
 
 function createTrayIcon() {
-  const iconPath = path.join(__dirname, '../dist/donkey.png');
-  try {
-    return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  } catch {
-    const size = 16;
-    const buf = Buffer.alloc(size * size * 4);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const px = (y * size + x) * 4;
-        const dist = Math.sqrt((x - 8) ** 2 + (y - 8) ** 2);
-        if (dist <= 6) {
-          buf[px] = 0x8b;
-          buf[px + 1] = 0x45;
-          buf[px + 2] = 0x13;
-          buf[px + 3] = 0xff;
-        } else {
-          buf[px] = 0;
-          buf[px + 1] = 0;
-          buf[px + 2] = 0;
-          buf[px + 3] = 0;
-        }
+  // createFromPath 在文件不存在时不会抛错，只会返回「空图片」，托盘里什么都看不见。
+  // 所以这里必须自己 existsSync + isEmpty() 双重判断，否则托盘图标会静默失踪。
+  const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'donkey.png') : '',
+    path.join(__dirname, '../dist/donkey.png'),
+    path.join(__dirname, '../public/donkey.png'),
+    path.join(__dirname, 'donkey.png'),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) continue;
+      const img = nativeImage.createFromPath(candidate);
+      if (!img.isEmpty()) return img.resize({ width: 16, height: 16 });
+    } catch {
+      // 换下一个候选路径
+    }
+  }
+  // 最后的兜底：画一个深灰色小圆点，保证右下角一定有个看得见的图标。
+  const size = 16;
+  const buf = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const px = (y * size + x) * 4;
+      const dist = Math.sqrt((x - 8) ** 2 + (y - 8) ** 2);
+      if (dist <= 6) {
+        buf[px] = 0x4b;
+        buf[px + 1] = 0x55;
+        buf[px + 2] = 0x63;
+        buf[px + 3] = 0xff;
+      } else {
+        buf[px] = 0;
+        buf[px + 1] = 0;
+        buf[px + 2] = 0;
+        buf[px + 3] = 0;
       }
     }
-    return nativeImage.createFromBuffer(buf, { width: size, height: size });
   }
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
 }
