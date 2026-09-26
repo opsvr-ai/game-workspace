@@ -193,6 +193,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **离职的人不该再出现在「实名审核 / 客户端授权」（老板 2026-09-27 报「为什么李玉妹离职了突然出现在审核」）：**
+  离职动作里有一步是**停用账号**（`User.isAuthorized = false`），而「实名审核」页要的就是
+  `isAuthorized = false` 的人 —— 两件事撞在了一起：**客服 / 店长没有陪玩档案，原来那句
+  「过滤掉 Companion.isResigned」对它们根本不生效**，于是离职后立刻又被当成「新注册待审核」。
+  线上当时 4 个未授权账号（秦硕、许杰、李玉妹、杜欣悦）**全是已离职的**，一个真待审核都没有。
+  现在把「待审核」的口径收成一处（`common/offboarding.ts` 新增 `notResignedWhere()` /
+  `pendingReviewWhere()`：未授权 **且** 未离职，`User.resignedAt` 为主、`Companion.isResigned` 兜历史数据），
+  用到它的地方全部改掉：
+  - `GET /users/pending-review`（实名审核页 + 侧边栏红点 + 工作室管理页的待审核）；
+  - 登录 / 刷新登录态返回的 `pendingReviewCount`（老板和店长看到的「待审核」角标，之前一直虚高 4）；
+  - `GET /users/cs`（绑定工作微信时的客服下拉：**离职客服不再出现在名单里**，否则微信会被派给已经走的人）；
+  - `GET /personnel` 的「不含已离职」过滤顺手收敛到同一个 helper，避免以后又写两套口径。
+  前端「客户端授权」页（`/owner/authorizations`）也补了一条：离职的人不参与授权，
+  不再出现在「待审核」页签（员工管理页原本就会把离职的显示成「已离职」，不用改）。
+  新增 1 条服务端用例钉住这个口径，服务端 277 条全过；线上复查：`/users/pending-review` 0 人、
+  `pendingReviewCount` 0、`/personnel` 25 人（2 位离职客服已不在名单里），前端 v785。
+
 - **客服端右下角没有托盘图标（老板 2026-09-26 报「客服端怎么右下角没图标」）：**
   根因是**图标从来没打进安装包**：`apps/cs-electron/electron-builder.yml` 的 `extraResources` 只打包了
   `config.json`，而托盘代码读的是 `process.resourcesPath/donkey.ico`。`nativeImage.createFromPath()`

@@ -149,6 +149,22 @@ describe('AuthService', () => {
         service.login({ username: 'companion_user', password: 'correct-password' }),
       ).rejects.toThrow('账号尚未通过审核，请联系管理员');
     });
+
+    it('待审核数量不把已离职的人算进去（老板 2026-09-27 报「李玉妹离职了突然出现在审核」）', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(createUser({ role: 'OWNER' }));
+
+      await service.login({ username: 'testuser', password: 'correct-password' });
+
+      // 离职会把 isAuthorized 置 false，只按 isAuthorized=false 统计会把离职的人算成待审核
+      expect(mockPrisma.user.count).toHaveBeenCalledWith({
+        where: {
+          isAuthorized: false,
+          resignedAt: null,
+          OR: [{ companion: null }, { companion: { isResigned: false } }],
+        },
+      });
+    });
+
   });
 
   // =========================================================================

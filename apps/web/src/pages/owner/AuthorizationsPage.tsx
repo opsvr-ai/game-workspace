@@ -37,8 +37,16 @@ interface Employee {
   username: string;
   role: string;
   isAuthorized: boolean;
+  /** 已离职的人不参与「客户端授权」（离职会把 isAuthorized 置 false，别当成待审核） */
+  resignedAt?: string | null;
+  companion?: { isResigned?: boolean | null } | null;
   createdAt: string;
   studio?: { id: string; name: string };
+}
+
+/** 是否已离职：新的 User.resignedAt 为主，陪玩老字段 Companion.isResigned 兜底 */
+function isResignedEmployee(e: Employee): boolean {
+  return !!e.resignedAt || !!e.companion?.isResigned;
 }
 
 const AuthorizationsPage: React.FC = () => {
@@ -88,6 +96,7 @@ const AuthorizationsPage: React.FC = () => {
   };
 
   const filteredEmployees = employees.filter((e) => {
+    if (isResignedEmployee(e)) return false;
     const matchAuth = filter === 'pending' ? !e.isAuthorized : e.isAuthorized;
     const matchSearch = !searchText
       || (e.username || '').toLowerCase().includes(searchText.toLowerCase())

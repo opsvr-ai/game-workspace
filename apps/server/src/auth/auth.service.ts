@@ -4,7 +4,11 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { WsGateway } from '../ws/ws.gateway';
 import { assertCanManage } from '../common/role-hierarchy';
-import { isResignedUser, RESIGNED_LOGIN_MESSAGE } from '../common/offboarding';
+import {
+  isResignedUser,
+  pendingReviewWhere,
+  RESIGNED_LOGIN_MESSAGE,
+} from '../common/offboarding';
 import { LoginDto } from './dto/login.dto';
 import type { UserInfo, LoginResponse } from '@chunlv/shared';
 import { UserRole } from '@chunlv/shared';
@@ -74,9 +78,11 @@ export class AuthService {
     let pendingReviewCount = 0;
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
       if (user.role === 'ADMIN' && user.studioId) {
-        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false, studioId: user.studioId } });
+        pendingReviewCount = await this.prisma.user.count({
+          where: { ...pendingReviewWhere(), studioId: user.studioId },
+        });
       } else {
-        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+        pendingReviewCount = await this.prisma.user.count({ where: pendingReviewWhere() });
       }
     }
 
@@ -171,9 +177,11 @@ export class AuthService {
     let pendingReviewCount = 0;
     if (user.role === 'OWNER' || user.role === 'ADMIN') {
       if (user.role === 'ADMIN' && user.studioId) {
-        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false, studioId: user.studioId } });
+        pendingReviewCount = await this.prisma.user.count({
+          where: { ...pendingReviewWhere(), studioId: user.studioId },
+        });
       } else {
-        pendingReviewCount = await this.prisma.user.count({ where: { isAuthorized: false } });
+        pendingReviewCount = await this.prisma.user.count({ where: pendingReviewWhere() });
       }
     }
     return {

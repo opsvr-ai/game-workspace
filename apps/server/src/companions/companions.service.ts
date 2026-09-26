@@ -20,6 +20,7 @@ import { ExcellenceService } from './excellence.service';
 import { BridgeService } from '../studios/bridge.service';
 import { StudiosService } from '../studios/studios.service';
 import { presence } from '../common/presence';
+import { notResignedWhere } from '../common/offboarding';
 
 /**
  * 在线判定的时间阈值（和前端 constants/companions.ts 保持一致）：
@@ -67,8 +68,7 @@ export class CompanionsService {
     }
     if (!includeResigned) {
       // 历史数据兜底：老代码只写了 Companion.isResigned，没有 User.resignedAt
-      where.resignedAt = null;
-      where.OR = [{ companion: null }, { companion: { isResigned: false } }];
+      Object.assign(where, notResignedWhere());
     }
 
     const users = await this.prisma.user.findMany({

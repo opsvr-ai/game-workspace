@@ -10,6 +10,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
+import { notResignedWhere, pendingReviewWhere } from '../common/offboarding';
 import { RolesGuard, Roles } from './roles.guard';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
@@ -180,7 +181,8 @@ export class RegisterController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async listPendingUsers(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const where: any = { isAuthorized: false };
+    // 「待审核」= 未授权且未离职：离职会把 isAuthorized 置 false，不能算待审核
+    const where: any = pendingReviewWhere();
     // ADMIN can only see users in their own studio; OWNER sees all
     if (req.user.role === 'ADMIN' && req.user.studioId) {
       where.studioId = req.user.studioId;
@@ -195,7 +197,7 @@ export class RegisterController {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return { code: 200, message: 'ok', data: data.filter((u) => !u.companion?.isResigned) };
+    return { code: 200, message: 'ok', data };
   }
 
   // 工作室客服列表（用于绑定工作室/客服微信）
@@ -204,7 +206,8 @@ export class RegisterController {
   @Roles(UserRole.OWNER, UserRole.ADMIN)
   async listCsUsers(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.prisma.user.findMany({
-      where: { studioId: req.user.studioId, role: 'CS' },
+      // 离职的客服不再出现在绑定名单里（否则工作微信会被派给已经走的人）
+      where: { studioId: req.user.studioId, role: 'CS', ...notResignedWhere() },
       select: { id: true, username: true, displayName: true },
       orderBy: { createdAt: 'asc' },
     });
