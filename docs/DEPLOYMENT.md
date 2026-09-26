@@ -791,6 +791,14 @@ cd apps\cs-electron; npx electron-builder
 cd ..\..; python scripts\_publish_cs_client.py <版本号>
 ```
 
+> ⚠️ **打包清单：主进程运行时读的文件必须写进 `extraResources`。**
+> electron-builder 只会把 `files` / `extraResources` 里列出的东西放进安装包，代码里能读到的路径不代表
+> 装机后还存在。2026-09-26 的「客服端右下角没有托盘图标」就是这么来的：托盘读
+> `process.resourcesPath/donkey.ico`，但 `extraResources` 只打包了 `config.json`；
+> 而 `nativeImage.createFromPath()` 在文件不存在时**不报错、只返回空图片**，于是图标是透明的、
+> 日志里也什么都没有。新增任何运行时资源（图标 / 配置 / 外部 exe）时，先确认 `extraResources` 里有它，
+> 并尽量在代码里 `fs.existsSync` + `nativeImage.isEmpty()` 双检、再给一个兜底。
+
 客服端**没有** zip 自动更新包，走的就是 NSIS 安装器：客户端启动后 20 秒~2 分钟之间（随机错峰）
 查一次 `/api/agent/cs-version`，发现服务端版本更高就整包下到临时目录、静默装、退出重启。
 **只有「服务端版本严格大于本机版本」才装**，所以版本号漏改的表现是「发布成功但一台机器都不升级」；

@@ -362,6 +362,17 @@ sequenceDiagram
 - 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线陪玩推 `order:urgent`（右下角弹窗）；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。收件人条件全站只有一份（`WsGateway.urgentRecipientWhere`）：`AVAILABLE`（空闲）与 `ENTERTAINMENT`（娱乐中）一定推，`BUSY`（接单中）只有本人打开 `Companion.notifyWhileBusy` 才推 —— 本店广播与桥接推送共用，避免两个店两套口径。
 - 网关连接时会自动 join 桥接工作室的房间（`studio:${bridgedStudioId}`），用于订单池、状态等跨工作室实时广播。
 
+**在线状态口径（2026-09-26 起统一在服务端判定）:**
+
+- 「谁在线」在服务端按**服务器时间**算好后随 `GET /personnel` 下发（字段 `isOnline`）：
+  陪玩看 `CompanionPC.lastHeartbeat`（2 分钟内算在线，没有心跳时退回 `Companion.status`）；
+  客服 / 店长 / 老板看客户端心跳 `cs.client.version.*.lastSeen` 或网关在线表 `presence`（5 分钟内算在线）。
+- 前端 `isPersonnelOnline()`（`apps/web/src/constants/companions.ts`）**优先用这个字段**，
+  只有老接口没有该字段时才退回本机计算。以前一律本机算（`Date.now()` − 心跳时间戳），
+  客户机系统时间偏差几分钟就会把整张人员列表显示成「离线」，换一台电脑看又是好的。
+- 阈值只在两处、必须保持一致：服务端 `companions.service.ts` 的 `COMPANION_HEARTBEAT_MS` / `STAFF_HEARTBEAT_MS`，
+  前端 `HEARTBEAT_THRESHOLD` / `STAFF_HEARTBEAT_THRESHOLD`。
+
 ## 7. 认证流程
 
 ```
