@@ -185,6 +185,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **把「订单池流转失败明细」里堆着的 29 条老单清理掉（老板 2026-09-27 说「要」）：**
+  这 29 条都是超时没人抢、早就过期的池子单（9/14 – 9/26，全部是「三角洲行动」、全部属于蠢驴电竞店），
+  一直没人点「标记处理完成」越堆越多；其中 3 条（单号 193 / 189 / 179）客户其实已经加上微信、状态是「已添加」。
+  按界面上那个按钮的**同一语义**清理：给订单打上 `customFields.poolHandled = true` + `poolHandledAt`，
+  它们从流转失败明细里消失（面板空了会自己隐藏），**订单本身一条没删**（池子待处理单仍是 37 条，
+  全库订单数不变），派单记录 / 全部订单里照样查得到，真要恢复只要对单子点「再次发布」即可
+  （`redispatch` 会清掉 poolHandled / poolExpired 这两个标记）。
+  - **那 3 条「已添加」特意保留了 `contactStatus = 'added'`**：界面上直接点按钮会把它一并清成 null，
+    等于抹掉「这个客户已加微信」的转化记录，所以这次只加处理标记、不动转化状态（`csCultivated` /
+    客服企微 / 凭证也都原样留着）。
+  - 改前把 29 条完整行（id / 单号 / 时间 / contactStatus / csUserId / studioId / customFields）
+    备份到服务器 `/home/ubuntu/chunlv-backups/pool-expired-20260927.csv`（29 行 + 表头）。
+  - 复查：库里 29 条 `poolHandled` 全部为 true、3 条「已添加」的 contactStatus 仍是 added、
+    `GET /api/orders/urgent` 返回 **0 条**（面板清空），订单总数 107 不变。
+
 - **清掉 3 个「双方账号都已注销」的空聊天房间（老板 2026-09-27 说「做」）：**
   上一轮删掉 39 条测试聊天记录后，还剩 3 个房间只剩残留数据、对任何人都不可见，这次一并删掉：
   `6477c1bc`（原神外的三角洲房间，7/21，31 条）、`b4789753`（8/7，4 条）、`b47bdceb`（7/31，2 条）——
