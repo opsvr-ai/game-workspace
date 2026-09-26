@@ -15,25 +15,35 @@ interface TrayOptions {
   onQuit: () => void;
 }
 
-export function createTray(opts: TrayOptions): Tray {
+export function createTray(opts: TrayOptions): Tray | null {
   onShowCallback = opts.onShow;
   onStatusChange = opts.onStatusChange || null;
   onQuitCallback = opts.onQuit;
 
   const icon = createTrayIcon();
-  tray = new Tray(icon);
+  // 托盘建不出来（图标读不到、系统托盘不可用等）时返回 null：
+  // 调用方必须据此放弃「关窗口=隐藏」，否则窗口一关就再也叫不回来了。
+  let created: Tray;
+  try {
+    created = new Tray(icon);
+  } catch (err) {
+    console.warn('Tray creation failed:', err instanceof Error ? err.message : err);
+    tray = null;
+    return null;
+  }
+  tray = created;
 
-  tray.setToolTip('陪玩管理');
-  tray.setContextMenu(buildMenu());
+  created.setToolTip('陪玩管理');
+  created.setContextMenu(buildMenu());
 
-  tray.on('double-click', () => {
+  created.on('double-click', () => {
     onShowCallback?.();
   });
-  tray.on('click', () => {
+  created.on('click', () => {
     onShowCallback?.();
   });
 
-  return tray;
+  return created;
 }
 
 function buildMenu(): Menu {

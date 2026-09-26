@@ -16,6 +16,8 @@ import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPass
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let currentRole = 'COMPANION';
+// 托盘实例：托盘没建起来（返回 null）时不能走「关窗口=隐藏」，否则窗口再也叫不回来。
+let companionTray: ReturnType<typeof createTray> = null;
 
 // 允许局域网 http 地址使用麦克风/媒体接口
 app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', getServerUrl().replace(/\/$/, ''));
@@ -922,7 +924,7 @@ app.whenReady().then(() => {
   mainWindow.on('resize', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('move', () => scheduleSaveWindowBounds(mainWindow!));
   mainWindow.on('close', (e) => {
-    if (!isQuitting) {
+    if (!isQuitting && companionTray) {
       e.preventDefault();
       mainWindow?.hide();
     }
@@ -950,7 +952,7 @@ app.whenReady().then(() => {
     }
   });
 
-  createTray({
+  companionTray = createTray({
     onShow: () => {
       mainWindow?.show();
       mainWindow?.focus();
