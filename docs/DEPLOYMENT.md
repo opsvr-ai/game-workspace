@@ -747,7 +747,7 @@ http://1.117.229.36:3001/uploads/repair-companion.bat
 顺带把客户端配置里的 `serverUrl` 改回云端（原文件留 `.bak`）——2026-09-03 邵泽慧那台机器就踩过
 「配置指向已下线老服务器 → 客户端一条请求都发不出来」。
 跑完看 `C:\Program Files\SystemHelper\service.log` 最后几行，确认构建号与 `Adopted` / `repair done` 记录；
-管理端「陪玩电脑」页上这台机的版本应变成 `1.0.20260930`、心跳在 0~1 分钟内恢复。
+管理端「陪玩电脑」页上这台机的版本应变成**当前线上最新号**（截至 2026-09-27 是 `1.0.20260931`）、心跳在 0~1 分钟内恢复。
 `repair-companion.ps1 -DiagOnly` 只回传现场、本机一个文件都不动（先看情况再决定时用）。
 **「跑到一半被关掉」不会再让机器变半死：** 修复流程要换目录就必须先把看门狗服务停掉，所以停掉之后
 立刻装一层保险 -- 写一个标记文件（`C:\ProgramData\chunlv\repair-active.txt`）+ 起一个盯着它的小进程
@@ -825,6 +825,11 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 `/api/agent/download/latest`，由看门狗整目录换新 + 校验 + 回滚，见 5.6.1）和**装机包**（`uploads/agent-setup.exe`，
 新电脑走 `/api/agent/download/exe`）。`_publish_client.py` 两个都发，漏发装机包会让新装的机器一上来就是旧版本。
 陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
+
+> ⚠️ **陪玩端也是同一套 `extraResources` 规矩：托盘图标 `public/donkey.png` 必须写在里面**
+> （客服端那份教训见上面 5.8 客服端那段的 ⚠）。另外陪玩端 `electron/main.ts` 里
+> **「关窗口 = 收进托盘」必须以托盘建成功为前提**：托盘没建出来还照旧隐藏窗口，人就在右下角
+> 找不到图标、也再也叫不回窗口。2026-09-27 发 `1.0.20260931` 时把这两处都补齐了。
 
 **发版前先确认装机目录里的看门狗是最新的**（见 5.6 那段 ⚠）：`_publish_client.py` 打的就是
 `release/win-unpacked` —— `win-unpacked\resources\SystemHelper.exe` 是什么版本，包里就是什么版本。
