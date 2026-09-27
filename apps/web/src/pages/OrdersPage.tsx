@@ -18,7 +18,7 @@ import {
   Table,
   Card,
 } from 'antd';
-import { ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
@@ -380,8 +380,21 @@ const OrdersPage: React.FC = () => {
     </>
   );
 
-  // 所有角色统一的右侧操作：沟通 + 添加成功/添加失败
-  const renderAddActions = (r: any) => {
+  // 「操作」列：固定格子排布（2026-09-28 重做 —— 老板说这一列「很乱、不是对齐的」）。
+  // 以前是「有哪个按钮就挨着摆」：同一个「退款」，在抢到的行里被排到中间、在没人抢的行里贴着左边；
+  // 两个汉字的按钮还会被 antd 自动插一个空格（显示成「退 款」「沟 通」），图标又时有时无 —— 一列看下来就是乱的。
+  // 现在：第一行永远是「修改 / 退款」，第二行永远是「沟通 / 添加成功 / 添加失败」，
+  // 每个动作占一个固定宽度的格子（这一行没有这个动作就留空），所以同一个按钮在哪一行都在同一个位置；
+  // 按钮统一纯文字、等宽（图标去掉，绿 / 红底色表意），高度沿用全站表格按钮规格（22px）。
+  const ACTION_ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, minHeight: 22 };
+  const actionSlot = (w: number): React.CSSProperties => ({
+    width: w,
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+  });
+
+  const renderActions = (r: any) => {
     const chatTarget = isCompanion
       ? r.csUser
         ? {
@@ -402,125 +415,165 @@ const OrdersPage: React.FC = () => {
           }
         : null;
     const isCoCompanion = !!r.coCompanionId && r.companionId !== user?.companionId;
+    // 客户微信加了没有：added=已添加 / not_accepted=客户没同意 / pending=还没标 / none=这单不用标
+    const contactState = isCoCompanion
+      ? 'none'
+      : r.contactStatus === 'added'
+        ? 'added'
+        : r.contactStatus === 'not_accepted'
+          ? 'not_accepted'
+          : r.status === 'GRABBED' || r.status === 'CONFIRMED'
+            ? 'pending'
+            : 'none';
+    const hasOrderRow = !isCompanion && r.status !== 'CANCELLED';
+    const hasContactRow = !!chatTarget || contactState !== 'none';
+    if (!hasOrderRow && !hasContactRow) return null;
 
     return (
-      <Space size={4}>
-        {chatTarget && (
-          <Badge count={unreadMap[r.id] || 0} size="small">
-            <Button
-              size="small"
-              onClick={() => {
-                localStorage.removeItem(`unread-${r.id}`);
-                setUnreadMap((prev) => {
-                  const { [r.id]: _, ...rest } = prev;
-                  return rest;
-                });
-                const orderInfo = [
-                  `📋 ${r.gameName}`,
-                  `¥${Number(r.amount).toFixed(0)}`,
-                  r.duration ? `${r.duration}h` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ');
-                useChatStore.getState().openConversation(
-                  chatTarget.id,
-                  {
-                    userId: chatTarget.id,
-                    username: chatTarget.username,
-                    displayName: chatTarget.displayName,
-                    avatar: chatTarget.avatar,
-                    role: chatTarget.role,
-                  },
-                  orderInfo,
-                );
-                setChatPartner({
-                  conversationId: chatTarget.id,
-                  participant: {
-                    userId: chatTarget.id,
-                    username: chatTarget.username,
-                    displayName: chatTarget.displayName,
-                    avatar: chatTarget.avatar,
-                    role: chatTarget.role,
-                  },
-                  orderInfo,
-                });
-              }}
-            >
-              沟通
-            </Button>
-          </Badge>
-        )}
-        {!isCoCompanion && (
-          r.contactStatus === 'added' ? (
-            <Tag color="green">已添加</Tag>
-          ) : r.contactStatus === 'not_accepted' ? (
-            <Button
-              size="small"
-              type="primary"
-              style={{ background: '#16A34A', borderColor: '#16A34A' }}
-              onClick={async () => {
-                try {
-                  await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                  message.success('已标记为客户同意');
-                  fetch();
-                  gotoCustomersAfterAdd();
-                } catch (e: any) {
-                  message.error(extractErrorMessage(e, '操作失败'));
-                }
-              }}
-            >
-              客户已同意
-            </Button>
-          ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') ? (
-            <>
-              <Button
-                size="small"
-                type="primary"
-                style={{ background: '#16A34A', borderColor: '#16A34A' }}
-                onClick={async () => {
-                  try {
-                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
-                    message.success('已添加成功');
-                    fetch();
-                    gotoCustomersAfterAdd();
-                  } catch (e: any) {
-                    message.error(extractErrorMessage(e, '操作失败'));
-                  }
-                }}
-              >
-                ✅ 添加成功
-              </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {hasOrderRow && (
+          <div style={ACTION_ROW}>
+            <span style={actionSlot(62)}>
+              {canEditOrder(r) && (
+                <Button size="small" style={{ width: 62 }} onClick={() => setEditingOrder(r)}>
+                  修改
+                </Button>
+              )}
+            </span>
+            <span style={actionSlot(62)}>
               <Button
                 size="small"
                 danger
-                onClick={async () => {
-                  try {
-                    await http.put(`/orders/${r.id}/contact`, { contactStatus: 'not_accepted', notes: '客户一直没同意' });
-                    message.success('已标记添加失败');
-                    fetch();
-                  } catch (e: any) {
-                    message.error(extractErrorMessage(e, '操作失败'));
-                  }
+                style={{ width: 62 }}
+                onClick={() => {
+                  setRefundOrder(r);
+                  setRefundReason('');
                 }}
               >
-                ❌ 添加失败
+                退款
               </Button>
-            </>
-          ) : null
+            </span>
+          </div>
         )}
-        {!isCompanion && r.status !== 'CANCELLED' && (
-          <>
-            {canEditOrder(r) && (
-              <Button size="small" icon={React.createElement(EditOutlined)} onClick={() => setEditingOrder(r)}>
-                修改
-              </Button>
-            )}
-            <Button size="small" danger onClick={() => { setRefundOrder(r); setRefundReason(''); }}>
-              退款
-            </Button>
-          </>
+        {hasContactRow && (
+          <div style={ACTION_ROW}>
+            <span style={actionSlot(56)}>
+              {chatTarget && (
+                <Badge count={unreadMap[r.id] || 0} size="small">
+                  <Button
+                    size="small"
+                    style={{ width: 56 }}
+                    onClick={() => {
+                      localStorage.removeItem(`unread-${r.id}`);
+                      setUnreadMap((prev) => {
+                        const { [r.id]: _, ...rest } = prev;
+                        return rest;
+                      });
+                      const orderInfo = [
+                        `📋 ${r.gameName}`,
+                        `¥${Number(r.amount).toFixed(0)}`,
+                        r.duration ? `${r.duration}h` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
+                      useChatStore.getState().openConversation(
+                        chatTarget.id,
+                        {
+                          userId: chatTarget.id,
+                          username: chatTarget.username,
+                          displayName: chatTarget.displayName,
+                          avatar: chatTarget.avatar,
+                          role: chatTarget.role,
+                        },
+                        orderInfo,
+                      );
+                      setChatPartner({
+                        conversationId: chatTarget.id,
+                        participant: {
+                          userId: chatTarget.id,
+                          username: chatTarget.username,
+                          displayName: chatTarget.displayName,
+                          avatar: chatTarget.avatar,
+                          role: chatTarget.role,
+                        },
+                        orderInfo,
+                      });
+                    }}
+                  >
+                    沟通
+                  </Button>
+                </Badge>
+              )}
+            </span>
+            <span style={actionSlot(78)}>
+              {contactState === 'added' ? (
+                <Tag color="green" style={{ margin: 0 }}>
+                  已添加
+                </Tag>
+              ) : contactState === 'not_accepted' ? (
+                <Button
+                  size="small"
+                  type="primary"
+                  style={{ width: 78, background: '#16A34A', borderColor: '#16A34A' }}
+                  onClick={async () => {
+                    try {
+                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                      message.success('已标记为客户同意');
+                      fetch();
+                      gotoCustomersAfterAdd();
+                    } catch (e: any) {
+                      message.error(extractErrorMessage(e, '操作失败'));
+                    }
+                  }}
+                >
+                  客户已同意
+                </Button>
+              ) : contactState === 'pending' ? (
+                <Button
+                  size="small"
+                  type="primary"
+                  style={{ width: 78, background: '#16A34A', borderColor: '#16A34A' }}
+                  onClick={async () => {
+                    try {
+                      await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
+                      message.success('已添加成功');
+                      fetch();
+                      gotoCustomersAfterAdd();
+                    } catch (e: any) {
+                      message.error(extractErrorMessage(e, '操作失败'));
+                    }
+                  }}
+                >
+                  添加成功
+                </Button>
+              ) : null}
+            </span>
+            <span style={actionSlot(78)}>
+              {contactState === 'pending' && (
+                <Button
+                  size="small"
+                  danger
+                  style={{ width: 78 }}
+                  onClick={async () => {
+                    try {
+                      await http.put(`/orders/${r.id}/contact`, {
+                        contactStatus: 'not_accepted',
+                        notes: '客户一直没同意',
+                      });
+                      message.success('已标记添加失败');
+                      fetch();
+                    } catch (e: any) {
+                      message.error(extractErrorMessage(e, '操作失败'));
+                    }
+                  }}
+                >
+                  添加失败
+                </Button>
+              )}
+            </span>
+          </div>
         )}
-      </Space>
+      </div>
     );
   };
 
@@ -800,7 +853,7 @@ const OrdersPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       ...ORDER_ACTIONS_COLUMN,
-      render: (_: unknown, o: any) => renderAddActions(o),
+      render: (_: unknown, o: any) => renderActions(o),
     },
   ];
 
