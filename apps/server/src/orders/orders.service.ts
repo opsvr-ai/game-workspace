@@ -517,12 +517,12 @@ export class OrdersService implements OnModuleInit {
         where.csUserId = user.id;
       } else {
         // 默认「我接的单」：挂在我名下的单（抢到的 / 派给我的 / 我当搭档的）。
-        // 自己发布的单不掺进来，那些在「我发的单」里看（两边不重复）。
+        // 自己发的单只要也挂在我名下，这里照样留着 —— 老板 2026-09-27 明确
+        // 「自己发的单两个栏都显示」，所以这里不排除自己发布的那些。
         where.OR = [
           { companionId: user.companionId },
           { coCompanionId: user.companionId },
         ];
-        where.csUserId = { not: user.id };
         if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
       }
     } else if (user.role === 'CS') {
