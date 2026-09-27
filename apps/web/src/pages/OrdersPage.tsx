@@ -14,6 +14,7 @@ import {
   Input,
   Tooltip,
   Space,
+  Segmented,
   Table,
   Card,
 } from 'antd';
@@ -43,6 +44,7 @@ const { Option } = Select;
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
+  const isCs = user?.role === 'CS';
   const navigate = useNavigate();
 
   // 陪玩点「添加成功 / 客户已同意」后，直接进入客户管理接着打首单；
@@ -61,6 +63,8 @@ const OrdersPage: React.FC = () => {
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
+  // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
+  const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   const [gameSearch, setGameSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
   // 店长/老板按客服看派单记录（老板 2026-09-24）
@@ -114,6 +118,7 @@ const OrdersPage: React.FC = () => {
     try {
       const params: any = {};
       if (statusFilter) params.status = statusFilter;
+      if (isCs) params.scope = csScope;
       const { data } = await http.get('/orders', { params });
       setOrders(data.data?.items ?? data.data ?? []);
     } catch {
@@ -121,7 +126,7 @@ const OrdersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, isCs, csScope]);
 
   useEffect(() => {
     fetch();
@@ -770,6 +775,17 @@ const OrdersPage: React.FC = () => {
               options={csGroupedOptions}
             />
           )}
+          {isCs && (
+            <Segmented
+              size="small"
+              value={csScope}
+              onChange={(v) => setCsScope(v as 'mine' | 'all')}
+              options={[
+                { label: '我的订单', value: 'mine' },
+                { label: '全店订单', value: 'all' },
+              ]}
+            />
+          )}
         </div>
         {/* Today's order stats */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
@@ -813,7 +829,7 @@ const OrdersPage: React.FC = () => {
               pagination={false}
               style={TABLE_STYLE}
               scroll={{ x: sumWidths(ORDER_TABLE_KEYS) }}
-              locale={{ emptyText: '暂无订单' }}
+              locale={{ emptyText: isCs && csScope === 'mine' ? '暂无我发布的订单，可切到「全店订单」查看' : '暂无订单' }}
               // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
               onRow={(record: any) => ({
                 style: { cursor: 'pointer' },

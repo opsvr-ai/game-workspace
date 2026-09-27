@@ -215,6 +215,38 @@ describe('OrdersService', () => {
   });
 
   // ─── grab() ─────────────────────────────────────────────────
+  describe('findAll', () => {
+    const csUser = { id: 'cs-1', role: 'CS', studioId: 'studio-1' };
+
+    it('客服「只看我的」时按发布人 / 认领人过滤，不拉全店', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll(csUser, undefined, 'mine');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({
+        OR: [{ csUserId: 'cs-1' }, { claimedCsUserId: 'cs-1' }],
+      });
+    });
+
+    it('客服切「全店」时仍是本店 + 桥接工作室的口径', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll(csUser, undefined, 'all');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({
+        studioId: { in: ['studio-1'] },
+      });
+    });
+
+    it('店长不受 scope 影响，永远只看本店', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll({ id: 'admin-1', role: 'ADMIN', studioId: 'studio-1' }, undefined, 'mine');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({ studioId: 'studio-1' });
+    });
+  });
+
 
   describe('grab', () => {
     const orderId = 'order-1';

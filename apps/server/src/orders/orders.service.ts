@@ -498,7 +498,14 @@ export class OrdersService implements OnModuleInit {
       }));
   }
 
-  async findAll(user: any, status?: string) {
+  /**
+   * 订单管理列表。
+   *
+   * `scope` 只有客服端用得上：客服「只看我的」传 `mine`，
+   * 要看全店传 `all`（不传按原来的全店口径）。店长/老板/陪玩
+   * 不受影响，各自走下面的本店 / 接单历史分支。
+   */
+  async findAll(user: any, status?: string, scope?: string) {
     const where: any = {};
     if (status) where.status = status;
     // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
@@ -509,8 +516,15 @@ export class OrdersService implements OnModuleInit {
       ];
       if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
     } else if (user.role === 'CS') {
-      const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
-      where.studioId = { in: [user.studioId, ...bridgedIds] };
+      if (scope === 'mine') {
+        // 「我的单」= 自己发布的 + 自己认领的池子单：认领也是客服自己在跟的单，
+        // 漏掉它会出现「刚认领完就从列表里消失」。这个口径与 updatePayment /
+        // updateOrderInfo 里对客服的权限判断保持一致。
+        where.OR = [{ csUserId: user.id }, { claimedCsUserId: user.id }];
+      } else {
+        const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
+        where.studioId = { in: [user.studioId, ...bridgedIds] };
+      }
     } else if (user.role === 'ADMIN') {
       // 店长只显示本店，不跨桥接工作室
       where.studioId = user.studioId;
