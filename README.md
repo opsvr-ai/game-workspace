@@ -22,6 +22,7 @@
   ② 它**是在**流转失败明细里的，只是那个接口原来按 `createdAt` **asc** 返最老的在前，
   线上 29 条里它排**第 29/29 条**。现在改成 `createdAt desc`（和订单池一致），复查它已排**第 1 条**。
   新增 4 条服务端用例，服务端 281 条全过；已部署服务端 + 前端 `v786`。
+- **客服端「订单管理」默认只看自己的单（2026-09-27）:** 老板问「客服端显示的是所有发布的订单记录么？」——是，改之前客服看到的是本店（含桥接工作室）所有人发的单一锅端（线上 107 条，其中客服邵泽慧自己发的只有 75 条）。现在客服端订单管理多一个 `我的订单 / 全店订单` 开关，**默认「我的订单」**= 自己发布的 + 自己认领的池子单；要翻全店点一下即可，权限行为不变。店长 / 老板 / 陪玩端不受影响（`scope` 参数对他们无效）。服务端 `GET /orders` 新增 `scope`，前端 `v789` 已部署。
 - **两个客户端右下角托盘图标都能看见了；陪玩端补发 `1.0.20260931`（2026-09-27）:** 客服端 09-26 修完就发了新版，
   陪玩端当时只改了代码、没重打包，线上还是 9/23 那份包 —— 托盘要读的 `donkey.png` 没进 `extraResources`，
   而 `nativeImage.createFromPath()` 读不到文件时**不报错、只返回空图片**，所以右下角一直是个透明空图标。
@@ -428,7 +429,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders` | JWT | CS, ADMIN | Create a new order. Body: `CreateOrderDto`. |
 | `PUT` | `/api/orders/:id` | JWT | CS, ADMIN, OWNER, COMPANION | Update a published order (publisher or privileged role). Body includes order info fields such as customer WeChat/room code. |
 | `GET` | `/api/orders/pool` | JWT | -- | Get the dispatch pool (PENDING orders). |
-| `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`. Data isolation applied. |
+| `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`, plus `?scope=mine`（客服专用：只看自己发布 / 认领的单）或 `?scope=all`（本店 + 桥接工作室，默认口径）。Data isolation applied. |
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
