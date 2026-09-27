@@ -867,7 +867,7 @@ body {
    所以以后加新列表只要挂这个 class，不用给每个 Button 单独套 style。 */
 .app-content td.cell-actions .ant-btn {
   height: 22px;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 .app-content .ant-table-tbody > tr:hover > td {
   background: #f8f6ff !important;
