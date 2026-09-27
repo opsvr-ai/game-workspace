@@ -639,8 +639,11 @@ const OrdersPage: React.FC = () => {
       title: '金额 / 打单',
       key: 'amount',
       width: FIELD_WIDTH.amount,
+      // 金额和下面的「立即打 / 预约」标签都跟表头「金额 / 打单」左对齐（老板 2026-09-28：
+      // 「所有端的显示按上方标签列上下对齐」）。原来这里写的是 textAlign: 'right'，
+      // 金额被推到列的最右边、比表头往右偏 46px，跟下面那个标签也不是一条线。
       render: (_: unknown, o: any) => (
-        <div style={{ lineHeight: 1.4, textAlign: 'right' }}>
+        <div style={{ lineHeight: 1.4 }}>
           <Text strong>¥{Number(o.amount).toFixed(0)}</Text>
           <div>
             <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>
