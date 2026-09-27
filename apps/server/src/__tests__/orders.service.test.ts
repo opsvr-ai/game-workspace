@@ -245,6 +245,26 @@ describe('OrdersService', () => {
 
       expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({ studioId: 'studio-1' });
     });
+
+    it('陪玩默认「我接的单」：只认挂在我名下的单，且排掉我自己发的那些', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll({ id: 'u-1', role: 'COMPANION', companionId: 'c-1' }, undefined, 'taken');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({
+        OR: [{ companionId: 'c-1' }, { coCompanionId: 'c-1' }],
+        csUserId: { not: 'u-1' },
+        NOT: { status: 'PENDING', dispatchType: 'POOL' },
+      });
+    });
+
+    it('陪玩切「我发的单」：只看自己发布的单（含还没人抢的池子单）', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll({ id: 'u-1', role: 'COMPANION', companionId: 'c-1' }, undefined, 'published');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({ csUserId: 'u-1' });
+    });
   });
 
 

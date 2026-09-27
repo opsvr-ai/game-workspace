@@ -501,20 +501,30 @@ export class OrdersService implements OnModuleInit {
   /**
    * 订单管理列表。
    *
-   * `scope` 只有客服端用得上：客服「只看我的」传 `mine`，
-   * 要看全店传 `all`（不传按原来的全店口径）。店长/老板/陪玩
-   * 不受影响，各自走下面的本店 / 接单历史分支。
+   * `scope` 只有客服端和陪玩端用得上：
+   * - 客服：「只看我的」传 `mine`，要看全店传 `all`（不传按原来的全店口径）
+   * - 陪玩：「我接的单」传 `taken`（默认），「我发的单」传 `published`
+   * 店长 / 老板传什么都不受影响，各自走下面的本店 / 全部工作室分支。
    */
   async findAll(user: any, status?: string, scope?: string) {
     const where: any = {};
     if (status) where.status = status;
     // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
     if (user.role === 'COMPANION') {
-      where.OR = [
-        { companionId: user.companionId },
-        { coCompanionId: user.companionId },
-      ];
-      if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
+      if (scope === 'published') {
+        // 「我发的单」：陪玩端的首单 / 续费 / 复购是陪玩自己发起，发布人就是他本人。
+        // 这里不再排除 PENDING+POOL —— 自己发出去还没人抢的单也是「我发的单」。
+        where.csUserId = user.id;
+      } else {
+        // 默认「我接的单」：挂在我名下的单（抢到的 / 派给我的 / 我当搭档的）。
+        // 自己发布的单不掺进来，那些在「我发的单」里看（两边不重复）。
+        where.OR = [
+          { companionId: user.companionId },
+          { coCompanionId: user.companionId },
+        ];
+        where.csUserId = { not: user.id };
+        if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
+      }
     } else if (user.role === 'CS') {
       if (scope === 'mine') {
         // 「我的单」= 自己发布的 + 自己认领的池子单：认领也是客服自己在跟的单，

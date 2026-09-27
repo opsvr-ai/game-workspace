@@ -65,6 +65,8 @@ const OrdersPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('');
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
+  // 陪玩端默认只看「我接的单」，需要时切到「我发的单」（服务端 scope 参数）
+  const [companionScope, setCompanionScope] = useState<'taken' | 'published'>('taken');
   const [gameSearch, setGameSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
   // 店长/老板按客服看派单记录（老板 2026-09-24）
@@ -119,6 +121,7 @@ const OrdersPage: React.FC = () => {
       const params: any = {};
       if (statusFilter) params.status = statusFilter;
       if (isCs) params.scope = csScope;
+      if (isCompanion) params.scope = companionScope;
       const { data } = await http.get('/orders', { params });
       setOrders(data.data?.items ?? data.data ?? []);
     } catch {
@@ -126,7 +129,7 @@ const OrdersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, isCs, csScope]);
+  }, [statusFilter, isCs, csScope, isCompanion, companionScope]);
 
   useEffect(() => {
     fetch();
@@ -699,8 +702,14 @@ const OrdersPage: React.FC = () => {
     <>
       <div>
         <PageHeader
-          title={isCompanion ? '接单记录' : '📋 订单管理'}
-          subtitle={isCompanion ? '查看我的接单历史' : undefined}
+          title={isCompanion ? (companionScope === 'published' ? '我发的单' : '接单记录') : '📋 订单管理'}
+          subtitle={
+            isCompanion
+              ? companionScope === 'published'
+                ? '我自己发布过的订单（首单 / 续费 / 复购）'
+                : '查看我的接单历史'
+              : undefined
+          }
           extra={
             <div style={{ display: 'flex', gap: 8 }}>
               <Select
@@ -786,6 +795,17 @@ const OrdersPage: React.FC = () => {
               ]}
             />
           )}
+          {isCompanion && (
+            <Segmented
+              size="small"
+              value={companionScope}
+              onChange={(v) => setCompanionScope(v as 'taken' | 'published')}
+              options={[
+                { label: '我接的单', value: 'taken' },
+                { label: '我发的单', value: 'published' },
+              ]}
+            />
+          )}
         </div>
         {/* Today's order stats */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
@@ -829,7 +849,13 @@ const OrdersPage: React.FC = () => {
               pagination={false}
               style={TABLE_STYLE}
               scroll={{ x: sumWidths(ORDER_TABLE_KEYS) }}
-              locale={{ emptyText: isCs && csScope === 'mine' ? '暂无我发布的订单，可切到「全店订单」查看' : '暂无订单' }}
+              locale={{
+                emptyText: isCs && csScope === 'mine'
+                  ? '暂无我发布的订单，可切到「全店订单」查看'
+                  : isCompanion && companionScope === 'published'
+                    ? '我还没发过订单'
+                    : '暂无订单',
+              }}
               // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
               onRow={(record: any) => ({
                 style: { cursor: 'pointer' },
