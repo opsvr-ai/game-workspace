@@ -285,7 +285,7 @@ graph TB
 
     subgraph CS["💬 CS 客服"]
         C1["/cs/dispatch<br/>派单工作台"]
-        C2["/cs/orders<br/>派单记录"]
+        C2["/cs/orders<br/>订单管理<br/>（原派单记录，2026-09-27 合并）"]
         C3["/cs/companions<br/>陪玩状态"]
     end
 
