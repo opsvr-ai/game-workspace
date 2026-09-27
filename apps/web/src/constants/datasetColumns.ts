@@ -34,47 +34,61 @@ export const DETAIL_LABEL_WIDTH = 112;
 export const FIELD_WIDTH = {
   // ── 订单字段（订单管理表）──
   /** 「订单」合并列：订单号 + 订单类型标签（上下两行） */
-  orderCode: 100,
-  /** 订单管理表专用的状态列宽（客户表用下面的 status，两表不再互相牵制） */
-  orderStatus: 152,
+  orderCode: 80,
+  /**
+   * 订单管理表专用的状态列宽（客户表用下面的 status，两表不再互相牵制）。
+   * 状态标签和「⚠ 无人接单」上下两行排（实测并排要 164px），所以只要 96。
+   */
+  orderStatus: 102,
   /** 「游戏 / 服务」合并列：游戏名 + 「服务 · 单/双 · 任务」 */
-  game: 156,
+  game: 116,
   /** 「金额 / 打单」合并列：金额 + 立即打 / 预约 */
-  amount: 104,
-  /** 「主陪 / 副陪」合并列（主陪名 + 工作室标签上下排，副陪在第二行） */
-  studio: 150,
+  amount: 84,
   /** 「客户微信 / 编号」合并列 */
-  customerWechat: 130,
+  customerWechat: 132,
   /** 「客户账号」合并列（来源平台 / 来源账号 / 昵称 / 平台ID / 房间码 / YY / KOOK / 二维码） */
-  customerAccounts: 236,
+  customerAccounts: 200,
+  /** 「主陪 / 副陪」合并列（主陪名 + 工作室标签上下排，副陪在第二行） */
+  studio: 104,
   /** 「发布」合并列：发布人 + 发布时间（上下两行） */
-  createdAt: 128,
-  status: 90,
+  createdAt: 88,
+  status: 82,
 
   // ── 客户字段（客户管理表）──
-  /** 客户编号列：上面编号、下面小字微信号，再下面昵称，钉在左侧（见 CUSTOMER_CODE_COLUMN） */
-  customerCode: 200,
-  lastOrder: 216,
+  /**
+   * 客户编号列：上面编号、下面小字微信号，再下面昵称，钉在左侧（见 CUSTOMER_CODE_COLUMN）。
+   * 下面这 6 个宽度按客服客户端窗口（1320 宽 → 表格可用 991px）重定过：
+   * 原来合计 1446px，1536 的屏幕上「备注」整列被钉在右边的「操作」盖住，客服根本看不到。
+   */
+  customerCode: 180,
+  lastOrder: 194,
   /** 「来源 / 来源账号 / 时间」合并列（原来「来源账号」单独占 150px） */
-  sourceTime: 178,
+  sourceTime: 154,
   /** 「陪玩 / 所用微信」合并列 */
-  companionWechat: 150,
+  companionWechat: 122,
   /** 「最近跟进 / 累计消费」合并列 */
-  followUpSpent: 132,
+  followUpSpent: 118,
 
   // ── 两张表共用（同一份数据，必须同宽）──
   /** 客户管理表的「陪玩」列（独立使用时的大小，客户表已改为合并列） */
   companion: 110,
-  notes: 200,
+  notes: 148,
 
   // ── 操作列（定宽 + 钉在右侧，确保订单信息再长也挤不掉按钮）──
-  /** 客户管理表的操作列：归属调整 / 编辑 / 删除 */
-  actions: 280,
+  /**
+   * 客户管理表的操作列（陪玩视角）：沟通 / 首单 / 发布订单 / 预约 / 存单 / 查看 / 删除，
+   * 7 个按钮在列内自动换行（两行）。原来 268px 时整张表 1266px，
+   * 1536 的屏幕上「备注」还是会被钉住的「操作」盖住，压到 190px 整列就都露出来了。
+   */
+  actions: 190,
+  /** 客户管理表的操作列（客服 / 管理端）：归属调整 / 编辑 / 删除，三个链接按钮，窄列就够 */
+  actionsStaff: 176,
   /**
    * 订单管理表的操作列：沟通 / 已添加 / 添加成功 / 添加失败 / 修改 / 退款，
-   * 按钮最多的一行实测要 358px，再加上单元格内边距，280 会把「修改 / 退款」切掉。
+   * 最多的一行是「沟通 + 添加成功 + 添加失败 + 退款」，按钮统一成 22px 高 / 11px 字号
+   * （和工作室账号管理一致）后一行实测约 192px，加内边距 204 够用。
    */
-  orderActions: 344,
+  orderActions: 276,
 } as const;
 
 /** 计算 scroll.x：传进去的字段宽度之和，保证表头不会被挤到换行 / 列不会被压扁。 */
@@ -84,14 +98,14 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 
 /** 订单管理表的列（顺序即表头顺序），scroll.x 直接用它算。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'orderCode', 'orderStatus', 'game', 'amount', 'studio',
-  'customerWechat', 'customerAccounts', 'createdAt', 'orderActions',
+  'orderCode', 'orderStatus', 'game', 'amount',
+  'customerWechat', 'customerAccounts', 'studio', 'createdAt', 'orderActions',
 ];
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
 export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'customerCode', 'lastOrder', 'sourceTime', 'status',
-  'companionWechat', 'followUpSpent', 'notes', 'actions',
+  'companionWechat', 'followUpSpent', 'notes', 'actionsStaff',
 ];
 
 /** 客户管理表的列（陪玩视角：没有客户昵称 / 来源账号）。 */
@@ -130,14 +144,49 @@ export const CUSTOMER_CODE_COLUMN = {
   fixed: 'left' as const,
 };
 
-/** 操作列统一配置：定宽 + 钉在右侧。 */
+/**
+ * 操作列的统一 class：按钮规格（22px 高 / 11px 字号）只在 global.css 里写一次，
+ * 凡是挂了这个 class 的操作列，按钮自动变小 —— 不用给每个 Button 单独套 style。
+ */
+export const ACTIONS_CELL_CLASS = 'cell-actions';
+
+/** 客服 / 管理端客户表的操作列：定宽 + 钉在右侧。 */
 export const ACTIONS_COLUMN = {
-  width: FIELD_WIDTH.actions,
+  width: FIELD_WIDTH.actionsStaff,
   fixed: 'right' as const,
+  className: ACTIONS_CELL_CLASS,
 };
 
-/** 订单管理表的操作列：按钮更多，所以比客户表宽。 */
+/** 陪玩端客户表的操作列（按钮有 7 个，要宽一些）：定宽 + 钉在右侧。 */
+export const ACTIONS_COLUMN_COMPANION = {
+  width: FIELD_WIDTH.actions,
+  fixed: 'right' as const,
+  className: ACTIONS_CELL_CLASS,
+};
+
+/** 订单管理表的操作列：按钮最多的一行是「沟通 + 添加成功 + 添加失败 + 退款」，
+ *  按钮统一 22px 高 / 11px 字号（和工作室账号管理一致）后一行放得下。 */
 export const ORDER_ACTIONS_COLUMN = {
   width: FIELD_WIDTH.orderActions,
   fixed: 'right' as const,
+  className: ACTIONS_CELL_CLASS,
+};
+
+/**
+ * 单元格里的一行小字：一行一个字段，超长自己省略号，完整内容用 title / Tooltip 悬停看。
+ * 客户微信、小红书账号、昵称这些真实数据很长（如 YouCompleteMe-e…），
+ * 不省略就会把整列顶宽、把隔壁列挤出去。
+ */
+export const CELL_LINE_STYLE: React.CSSProperties = {
+  fontSize: 12,
+  whiteSpace: 'nowrap',
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+/** 同上，小一号（次要信息 / 11px）。 */
+export const CELL_SUB_LINE_STYLE: React.CSSProperties = {
+  ...CELL_LINE_STYLE,
+  fontSize: DATA_SUB_FONT_SIZE,
 };

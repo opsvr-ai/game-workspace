@@ -33,6 +33,7 @@ import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } 
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
 import {
+  CELL_LINE_STYLE,
   FIELD_WIDTH,
   ORDER_ACTIONS_COLUMN,
   ORDER_TABLE_KEYS,
@@ -596,19 +597,23 @@ const OrdersPage: React.FC = () => {
       key: 'status',
       width: FIELD_WIDTH.orderStatus,
       render: (_: unknown, o: any) => (
-        <div style={{ whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-          <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
-            {orderStatusConfig[o.status]?.label || o.status}
-          </Tag>
+        <div style={{ lineHeight: 1.4 }}>
+          <div>
+            <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
+              {orderStatusConfig[o.status]?.label || o.status}
+            </Tag>
+          </div>
           {/* 池子里超时没人抢、已退回流转失败明细的单：状态还是「待接单」，光看状态看不出它
-              已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。这里用短标 + 悬停说明，
-              不让第二个标签换行把整行撑高一倍。 */}
+              已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。短标 + 悬停说明，
+              并且单独占一行 —— 跟状态标签并排要 164px，窗口一窄就被切成半截。 */}
           {o.customFields?.poolExpired === true && !o.companionId && (
-            <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
-              <Tag color="red" style={{ margin: '0 0 0 4px' }}>
-                ⚠ 无人接单
-              </Tag>
-            </Tooltip>
+            <div style={{ marginTop: 2 }}>
+              <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
+                <Tag color="red" style={{ margin: 0 }}>
+                  ⚠ 无人接单
+                </Tag>
+              </Tooltip>
+            </div>
           )}
         </div>
       ),
@@ -646,6 +651,93 @@ const OrdersPage: React.FC = () => {
       ),
     },
     {
+      title: '客户微信 / 编号',
+      key: 'customerWechat',
+      width: FIELD_WIDTH.customerWechat,
+      render: (_: unknown, o: any) => {
+        const code = o.customer?.customerCode;
+        const wechat = o.customFields?.customerWechat || o.customer?.wechatId || '-';
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <div title={wechat} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {wechat}
+            </div>
+            {code && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                👤{code}
+              </Text>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '客户账号',
+      key: 'customerAccounts',
+      width: FIELD_WIDTH.customerAccounts,
+      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
+      // 不用再点开详情。客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
+      render: (_: unknown, o: any) => {
+        const cf = o.customFields || {};
+        const lines: React.ReactNode[] = [];
+        const platform = cf.customerSource || o.customer?.platform;
+        const srcText = platform
+          ? '📡' + platform + (!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '')
+          : '';
+        // 昵称 + 客户ID 合起来可能很长（这一列只有 190px），悬停显示完整两个字段
+        const nickText = [
+          cf.customerNickname ? '昵称:' + cf.customerNickname : '',
+          cf.customerAccountId ? '🆔' + cf.customerAccountId : '',
+        ].filter(Boolean).join(' ');
+        if (platform)
+          lines.push(
+            <Text key="plat" title={srcText} type="secondary" style={CELL_LINE_STYLE}>
+              {srcText}
+              {!isCompanion && cf.customerSourceAccount && inactiveAccounts.has(cf.customerSourceAccount) && (
+                <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
+                  已弃用
+                </Tag>
+              )}
+            </Text>,
+          );
+        if (!isCompanion && nickText)
+          lines.push(
+            <Tooltip key="nick" title={'客户：' + nickText}>
+              <Text type="secondary" style={CELL_LINE_STYLE}>
+                {nickText}
+              </Text>
+            </Tooltip>,
+          );
+        if (cf.customerRoomCode)
+          lines.push(
+            <Text key="room" title={'房间码 ' + cf.customerRoomCode} type="secondary" style={CELL_LINE_STYLE}>
+              🚪{cf.customerRoomCode}
+            </Text>,
+          );
+        if (cf.customerYy || cf.customerPlatformAccount)
+          lines.push(
+            <Text key="im" type="secondary" style={CELL_LINE_STYLE}>
+              {cf.customerYy ? 'YY:' + cf.customerYy : ''}
+              {cf.customerYy && cf.customerPlatformAccount ? ' ' : ''}
+              {cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : ''}
+            </Text>,
+          );
+        if (cf.customerWechatQr)
+          lines.push(
+            <Image
+              key="qr"
+              src={cf.customerWechatQr}
+              width={28}
+              height={28}
+              style={{ borderRadius: 4, objectFit: 'cover' }}
+              preview={{ mask: '二维码' }}
+            />,
+          );
+        if (!lines.length) return '-';
+        return <div style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.4 }}>{lines}</div>;
+      },
+    },
+    {
       title: '主陪 / 副陪',
       key: 'companion',
       width: FIELD_WIDTH.studio,
@@ -680,99 +772,26 @@ const OrdersPage: React.FC = () => {
       },
     },
     {
-      title: '客户微信 / 编号',
-      key: 'customerWechat',
-      width: FIELD_WIDTH.customerWechat,
-      render: (_: unknown, o: any) => {
-        const code = o.customer?.customerCode;
-        return (
-          <div style={{ lineHeight: 1.4 }}>
-            <div style={{ whiteSpace: 'nowrap' }}>{o.customFields?.customerWechat || o.customer?.wechatId || '-'}</div>
-            {code && (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                👤{code}
-              </Text>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: '客户账号',
-      key: 'customerAccounts',
-      width: FIELD_WIDTH.customerAccounts,
-      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
-      // 不用再点开详情。客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
-      render: (_: unknown, o: any) => {
-        const cf = o.customFields || {};
-        const lines: React.ReactNode[] = [];
-        const platform = cf.customerSource || o.customer?.platform;
-        if (platform)
-          lines.push(
-            <Text key="plat" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              📡{platform}
-              {!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : ''}
-              {!isCompanion && cf.customerSourceAccount && inactiveAccounts.has(cf.customerSourceAccount) && (
-                <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
-                  已弃用
-                </Tag>
-              )}
-            </Text>,
-          );
-        if (!isCompanion && (cf.customerNickname || cf.customerAccountId))
-          lines.push(
-            <Text key="nick" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              {cf.customerNickname ? '昵称:' + cf.customerNickname : ''}
-              {cf.customerNickname && cf.customerAccountId ? ' ' : ''}
-              {cf.customerAccountId && (
-                <Tooltip title={'客户ID：' + cf.customerAccountId}>
-                  <span style={{ cursor: 'help' }}>🆔{cf.customerAccountId}</span>
-                </Tooltip>
-              )}
-            </Text>,
-          );
-        if (cf.customerRoomCode)
-          lines.push(
-            <Text key="room" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              🚪{cf.customerRoomCode}
-            </Text>,
-          );
-        if (cf.customerYy || cf.customerPlatformAccount)
-          lines.push(
-            <Text key="im" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-              {cf.customerYy ? 'YY:' + cf.customerYy : ''}
-              {cf.customerYy && cf.customerPlatformAccount ? ' ' : ''}
-              {cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : ''}
-            </Text>,
-          );
-        if (cf.customerWechatQr)
-          lines.push(
-            <Image
-              key="qr"
-              src={cf.customerWechatQr}
-              width={28}
-              height={28}
-              style={{ borderRadius: 4, objectFit: 'cover' }}
-              preview={{ mask: '二维码' }}
-            />,
-          );
-        if (!lines.length) return '-';
-        return <div style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.4 }}>{lines}</div>;
-      },
-    },
-    {
       title: '发布',
       key: 'createdAt',
       width: FIELD_WIDTH.createdAt,
-      // 发布人和发布时间并成一列（原来各占 150 / 88px，两列都只放一个短词）
-      render: (_: unknown, o: any) => (
-        <div style={{ lineHeight: 1.4 }}>
-          <div style={{ whiteSpace: 'nowrap' }}>{o.csUser?.username || '-'}</div>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {new Date(o.grabbedAt || o.createdAt).toLocaleString('zh-CN', { hour12: false })}
-          </Text>
-        </div>
-      ),
+      // 发布人和发布时间并成一列。时间只写「09-27 01:11」——原来「2026/9/27 01:11:46」要 100px 以上，
+      // 把这一列撑到 128；完整时间（含年份）悬停看。
+      render: (_: unknown, o: any) => {
+        const d = new Date(o.grabbedAt || o.createdAt);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const short = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <div style={{ whiteSpace: 'nowrap' }}>{o.csUser?.username || '-'}</div>
+            <Tooltip title={d.toLocaleString('zh-CN', { hour12: false })}>
+              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                {short}
+              </Text>
+            </Tooltip>
+          </div>
+        );
+      },
     },
     {
       title: '操作',

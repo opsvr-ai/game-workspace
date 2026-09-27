@@ -56,6 +56,8 @@ import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import {
   ACTIONS_COLUMN,
+  ACTIONS_COLUMN_COMPANION,
+  CELL_SUB_LINE_STYLE,
   CUSTOMER_CODE_COLUMN,
   CUSTOMER_TABLE_KEYS,
   CUSTOMER_TABLE_KEYS_COMPANION,
@@ -392,7 +394,13 @@ const CustomersPage: React.FC = () => {
               </Tag>
             )}
             <br />
-            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE, whiteSpace: 'nowrap' }}>
+            <Text
+              type="secondary"
+              title={[record.wechatId || '-', !isCompanion && cf.customerNickname ? cf.customerNickname : '']
+                .filter(Boolean)
+                .join(' · ')}
+              style={{ ...CELL_SUB_LINE_STYLE, display: 'inline-block' }}
+            >
               {record.wechatId || '-'}
               {!isCompanion && cf.customerNickname ? ' · ' + cf.customerNickname : ''}
             </Text>
@@ -454,14 +462,14 @@ const CustomersPage: React.FC = () => {
         const cf = r.orders?.[0]?.customFields || {};
         const acc = cf.customerSourceAccount;
         return (
-          <div style={{ lineHeight: 1.6, whiteSpace: 'nowrap' }}>
+          <div style={{ lineHeight: 1.6 }}>
             {cf.customerSource && (
               <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>
                 📡{cf.customerSource}
               </Tag>
             )}
             {!isCompanion && acc && (
-              <div style={{ fontSize: 11 }}>
+              <div style={CELL_SUB_LINE_STYLE} title={acc}>
                 {acc}
                 {inactiveAccounts.has(acc) && (
                   <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
@@ -525,7 +533,9 @@ const CustomersPage: React.FC = () => {
           <div style={{ lineHeight: 1.6 }}>
             {latest ? (
               <>
-                <div style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{latest.content?.slice(0, 18)}</div>
+                <div style={CELL_SUB_LINE_STYLE} title={latest.content || ''}>
+                  {latest.content || ''}
+                </div>
                 <Text type="secondary" style={{ fontSize: 10 }}>
                   {new Date(latest.createdAt).toLocaleDateString('zh-CN')}
                 </Text>
@@ -569,7 +579,7 @@ const CustomersPage: React.FC = () => {
     columns.push({
       title: '操作',
       key: 'actions',
-      ...ACTIONS_COLUMN,
+      ...ACTIONS_COLUMN_COMPANION,
       render: (_: unknown, record: Customer) => {
         const contactStatus = record.orders?.[0]?.contactStatus;
         if (contactStatus === 'not_accepted') {
@@ -597,7 +607,7 @@ const CustomersPage: React.FC = () => {
         return (
           // 陪玩端操作按钮多（沟通 / 首单 / 发布订单 / 预约 / 存单），原来一行铺开会把表格顶宽、
           // 最右边那个按钮被切掉；这里在固定列宽内自动换行。
-          <Space size={4} wrap style={{ maxWidth: 268 }}>
+          <Space size={4} wrap style={{ maxWidth: '100%' }}>
           {record.orders?.[0]?.id && (
             <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>
               沟通
@@ -776,7 +786,7 @@ const CustomersPage: React.FC = () => {
       key: 'actions',
       ...ACTIONS_COLUMN,
       render: (_: unknown, record: Customer) => (
-        <Space size="small">
+        <Space size={4}>
           {canReassign && (
             <Button type="link" size="small" onClick={() => openReassignModal(record)}>
               归属调整
@@ -799,7 +809,12 @@ const CustomersPage: React.FC = () => {
               okText="确定"
               cancelText="取消"
             >
-              <Button type="link" size="small" danger icon={React.createElement(DeleteOutlined)}>
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={React.createElement(DeleteOutlined)}
+              >
                 删除
               </Button>
             </Popconfirm>

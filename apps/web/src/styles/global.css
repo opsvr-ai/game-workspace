@@ -845,8 +845,21 @@ body {
 .app-content .ant-table-thead > tr > th:not(:last-child)::before {
   background-color: #e2e8f0 !important;
 }
+/* 单元格内容一律顶对齐（浏览器对 td 的默认是垂直居中）：
+   订单 / 客户这些密集表里每列行数不一样，居中会让单行的「待接单」「未接单」
+   比旁边两行的列低 8~11px，看着就是「没对齐」。顶对齐后所有列的第一行都在同一条线上。 */
 .app-content .ant-table-tbody > tr > td {
   border-bottom: 1px solid #f4f7fb !important;
+  vertical-align: top;
+}
+/* 列表「操作」列的按钮统一规格：22px 高 / 左右内边距 6px（字号上面那条控件档规则已经压到 12px）。
+   订单表按钮最多的一行是「沟通 + 添加成功 + 添加失败 + 退款」，用 antd 默认小按钮要 267px 才能一行，
+   压到 22px 高之后约 192px 就够，整张表才装得进客服客户端的窗口（1320 宽）。
+   列上的 className 由 constants/datasetColumns.ts 的 ..._ACTIONS_COLUMN 统一加，
+   所以以后加新列表只要挂这个 class，不用给每个 Button 单独套 style。 */
+.app-content td.cell-actions .ant-btn {
+  height: 22px;
+  padding: 0 6px;
 }
 .app-content .ant-table-tbody > tr:hover > td {
   background: #f8f6ff !important;
