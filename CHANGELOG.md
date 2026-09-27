@@ -200,8 +200,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   - 线上现状（只读统计）：邵泽慧已发 75 条 → 默认看到 75 条；李玉妹 / 杜欣悦 / 孙可馨 三个客服账号
     一条单都没发过，默认列表是空的（页面有提示 + 一键切「全店订单」，不是坏了）。
   - 验证：服务端新增 3 条单测（客服 mine / 客服 all / 店长不受 scope 影响），`pnpm --filter @chunlv/server test`
-    284 passed；server + web typecheck 通过；线上 web 包（`v789`）已确认含「全店订单」开关，
-    服务端 `dist/orders/orders.service.js` 已确认含新分支并已 `pm2 restart` 完成。
+    284 passed；server + web typecheck + build 通过。
+    **线上部署后实测**（拿邵泽慧这个客服账号只读打真实接口）：不带参数 `107 条`、`?scope=mine` **`75 条`**
+    （全部是她自己发的，别人的 0 条）、`?scope=all` `107 条` —— 与库里「邵泽慧发布 75 / 本店 107」完全一致。
+    另外确认线上 web 包（`v789`，`index-DJd_DvIb.js`）里已带「全店订单」开关，
+    服务端 `dist/orders/orders.service.js` 已带新分支、`pm2 restart` 后 `online`。
 
 - **把「订单池流转失败明细」里堆着的 29 条老单清理掉（老板 2026-09-27 说「要」）：**
   这 29 条都是超时没人抢、早就过期的池子单（9/14 – 9/26，全部是「三角洲行动」、全部属于蠢驴电竞店），
