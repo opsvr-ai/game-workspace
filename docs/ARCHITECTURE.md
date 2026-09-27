@@ -310,6 +310,13 @@ graph TB
 `apps/web/src/constants/datasetColumns.ts`（启动时注入成 CSS 变量），
 视觉改版里出现 `font-size` 就会重新踩「同一个数据两个字号」的老坑。
 
+**铁律：列宽与总宽也只有一处。** 列宽同样只能从
+`apps/web/src/constants/datasetColumns.ts` 的 `FIELD_WIDTH` 取；表的 `scroll.x` 必须用
+`sumWidths(...)` （或从列定义自己求和）算出来，**不准写死数字**。
+宽度预算：1920 屏可用 **1591px**，订单管理（9 列 1500px）、客户管理（8 列 1446px）
+都在预算内，一屏放得下且不横向滚动；加列前先算总宽，超过 1591px 就要合并列或收窄。
+（2026-09-27 就是因为两个表各自写死了 `scroll.x`，才出现最右列被切、竖排单字。）
+
 ## 6. WebSocket 事件流
 
 ```mermaid
