@@ -46,6 +46,8 @@ export const FIELD_WIDTH = {
   studio: 124,
   coCompanion: 92,
   customerWechat: 140,
+  /** 「客户账号」合并列（客户编号 / 来源账号 / 昵称 / 二维码 / YY / KOOK / 房间码），2026-09-27 从派单记录并过来 */
+  customerAccounts: 160,
   source: 92,
   createdAt: 150,
   csUser: 88,
@@ -85,7 +87,7 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 /** 订单管理表的列（顺序即表头顺序），scroll.x 直接用它算。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'type', 'status', 'game', 'service', 'count', 'mission',
-  'amount', 'urgency', 'studio', 'coCompanion', 'customerWechat',
+  'amount', 'urgency', 'studio', 'coCompanion', 'customerWechat', 'customerAccounts',
   'source', 'createdAt', 'csUser', 'orderActions',
 ];
 

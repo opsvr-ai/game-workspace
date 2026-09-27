@@ -4,36 +4,9 @@ import { Card, Tag, Typography, Row, Col, Image, Tooltip } from 'antd';
 import { orderTypeConfig, serviceTypeConfig, urgencyConfig, billingModeConfig, dispatchTypeConfig, orderStatusConfig } from '../constants/orders';
 import { fmtClock, fmtAgo } from '../utils/orderPool';
 import { useAuthStore } from '../stores/authStore';
-import { trafficAccountApi } from '../api/trafficAccount';
+import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 
 const { Text } = Typography;
-
-let cachedInactiveAccounts: Set<string> | null = null;
-let cachedAt = 0;
-let pendingPromise: Promise<Set<string>> | null = null;
-
-// 全局共享一次请求：多个订单行同时挂载时也只发一次引流账号请求，避免重复请求拖慢列表。
-function loadInactiveAccounts(): Promise<Set<string>> {
-  if (cachedInactiveAccounts && Date.now() - cachedAt < 5 * 60 * 1000) {
-    return Promise.resolve(cachedInactiveAccounts);
-  }
-  if (pendingPromise) return pendingPromise;
-  pendingPromise = trafficAccountApi
-    .list('studio')
-    .then(({ data }: any) => {
-      const inactive = new Set<string>();
-      (data.data || []).forEach((a: any) => {
-        if (a.status === 'INACTIVE') inactive.add(a.nickname);
-      });
-      cachedInactiveAccounts = inactive;
-      cachedAt = Date.now();
-      return inactive;
-    })
-    .finally(() => {
-      pendingPromise = null;
-    });
-  return pendingPromise;
-}
 
 interface OrderRowProps {
   order: any;

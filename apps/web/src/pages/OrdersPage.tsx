@@ -26,6 +26,8 @@ import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
 import OrderDetailModal from '../components/OrderDetailModal';
 import { isRowClickIgnored } from '../utils/rowClick';
+import { orderMatchesSearch } from '../utils/orderPool';
+import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 import ChatModal from '../components/ChatModal';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
@@ -67,8 +69,22 @@ const OrdersPage: React.FC = () => {
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
   // 陪玩端默认只看「我接的单」，需要时切到「我发的单」（服务端 scope 参数）
   const [companionScope, setCompanionScope] = useState<'taken' | 'published'>('taken');
-  const [gameSearch, setGameSearch] = useState('');
+  // 客户 / 游戏 / 派单人… 一个框全搜（原来只搜游戏名，2026-09-27 从派单记录并过来）
+  const [orderSearch, setOrderSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
+  // 来源账号旁边标「已弃用」：和订单池的行共用同一份缓存（老板 2026-09-27 派单记录并过来）
+  const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    loadInactiveAccounts()
+      .then((inactive) => {
+        if (alive) setInactiveAccounts(inactive);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   // 店长/老板按客服看派单记录（老板 2026-09-24）
   const [csFilter, setCsFilter] = useState<string>('');
   const [companions, setCompanions] = useState<any[]>([]);
@@ -544,8 +560,8 @@ const OrdersPage: React.FC = () => {
       return o.type === typeFilter;
     })
     .filter((o: any) => {
-      if (!gameSearch) return true;
-      return (o.gameName || '').toLowerCase().includes(gameSearch.toLowerCase());
+      if (!orderSearch) return true;
+      return orderMatchesSearch(o, orderSearch);
     })
     .filter((o: any) => {
       if (!companionFilter) return true;
@@ -581,9 +597,18 @@ const OrdersPage: React.FC = () => {
       key: 'status',
       width: FIELD_WIDTH.status,
       render: (_: unknown, o: any) => (
-        <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
-          {orderStatusConfig[o.status]?.label || o.status}
-        </Tag>
+        <Space size={4} wrap>
+          <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
+            {orderStatusConfig[o.status]?.label || o.status}
+          </Tag>
+          {/* 池子里超时没人抢、已经被退回的那批单：状态还是「待接单」，
+              但列表里光看状态看不出它其实已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。 */}
+          {o.customFields?.poolExpired === true && !o.companionId && (
+            <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
+              <Tag color="red" style={{ margin: 0 }}>无人接单 · 已失败</Tag>
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
     {
@@ -673,6 +698,79 @@ const OrdersPage: React.FC = () => {
       render: (_: unknown, o: any) => o.customFields?.customerWechat || o.customer?.wechatId || '-',
     },
     {
+      title: '客户账号',
+      key: 'customerAccounts',
+      width: FIELD_WIDTH.customerAccounts,
+      // 这一列原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
+      // 不用再点开详情。客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
+      render: (_: unknown, o: any) => {
+        const cf = o.customFields || {};
+        const lines: React.ReactNode[] = [];
+        if (o.customer?.customerCode)
+          lines.push(
+            <Text key="code" type="secondary" style={{ fontSize: 12 }}>
+              👤{o.customer.customerCode}
+            </Text>,
+          );
+        if (!isCompanion && cf.customerSourceAccount)
+          lines.push(
+            <Text key="src" type="secondary" style={{ fontSize: 12 }}>
+              来源账号:{cf.customerSourceAccount}
+              {inactiveAccounts.has(cf.customerSourceAccount) && (
+                <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
+                  已弃用
+                </Tag>
+              )}
+            </Text>,
+          );
+        if (!isCompanion && cf.customerNickname)
+          lines.push(
+            <Text key="nick" type="secondary" style={{ fontSize: 12 }}>
+              昵称:{cf.customerNickname}
+            </Text>,
+          );
+        if (!isCompanion && cf.customerAccountId)
+          lines.push(
+            <Tooltip key="id" title={'客户ID：' + cf.customerAccountId}>
+              <Text type="secondary" style={{ fontSize: 12, cursor: 'help' }}>
+                🆔
+              </Text>
+            </Tooltip>,
+          );
+        if (cf.customerYy)
+          lines.push(
+            <Text key="yy" type="secondary" style={{ fontSize: 12 }}>
+              YY:{cf.customerYy}
+            </Text>,
+          );
+        if (cf.customerPlatformAccount)
+          lines.push(
+            <Text key="kook" type="secondary" style={{ fontSize: 12 }}>
+              KOOK:{cf.customerPlatformAccount}
+            </Text>,
+          );
+        if (cf.customerRoomCode)
+          lines.push(
+            <Text key="room" type="secondary" style={{ fontSize: 12 }}>
+              🚪{cf.customerRoomCode}
+            </Text>,
+          );
+        if (cf.customerWechatQr)
+          lines.push(
+            <Image
+              key="qr"
+              src={cf.customerWechatQr}
+              width={28}
+              height={28}
+              style={{ borderRadius: 4, objectFit: 'cover' }}
+              preview={{ mask: '二维码' }}
+            />,
+          );
+        if (!lines.length) return '-';
+        return <div style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.4 }}>{lines}</div>;
+      },
+    },
+    {
       title: '来源',
       key: 'customerSource',
       width: FIELD_WIDTH.source,
@@ -735,11 +833,11 @@ const OrdersPage: React.FC = () => {
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <Input.Search
-            placeholder="搜索游戏名"
+            placeholder="搜客户微信 / 小红书 / 昵称 / 编号 / 游戏名（空格分隔多个词）"
             allowClear
-            value={gameSearch}
-            onChange={(e) => setGameSearch(e.target.value)}
-            style={{ width: 160 }}
+            value={orderSearch}
+            onChange={(e) => setOrderSearch(e.target.value)}
+            style={{ width: 300 }}
             size="small"
           />
           <Select
@@ -805,6 +903,11 @@ const OrdersPage: React.FC = () => {
                 { label: '我发的单', value: 'published' },
               ]}
             />
+          )}
+          {(orderSearch || typeFilter || companionFilter || csFilter || dateFilter) && (
+            <Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
+              筛选结果: {sorted.length}/{orders.length}
+            </Text>
           )}
         </div>
         {/* Today's order stats */}

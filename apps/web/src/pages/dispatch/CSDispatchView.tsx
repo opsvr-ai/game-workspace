@@ -31,7 +31,6 @@ import { useSocket } from '../../hooks/useSocket';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CsConvertedPanel from '../../components/CsConvertedPanel';
-import OrderRow from '../../components/OrderRow';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
@@ -121,7 +120,6 @@ const CSDispatchView: React.FC = () => {
   const [companions, setCompanions] = useState<Personnel[]>([]);
   const [poolOrders, setPoolOrders] = useState<PoolOrder[]>([]);
   const [poolError, setPoolError] = useState('');
-  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [todayNew, setTodayNew] = useState(0);
   const [todayGrabbed, setTodayGrabbed] = useState(0);
   const [loadingCompanions, setLoadingCompanions] = useState(false);
@@ -136,10 +134,7 @@ const CSDispatchView: React.FC = () => {
   // 派单池的搜索：客户微信 / 小红书账号 / 来源平台 / 昵称 / 客户编号 / 游戏名……一个框全搜
   // （老板 2026-09-27 要求）。
   const [poolSearch, setPoolSearch] = useState('');
-  const [recordSearch, setRecordSearch] = useState('');
   const [companionSearch, setCompanionSearch] = useState('');
-  // 店长/老板在派单工作台可以按客服看派单记录（老板 2026-09-24）
-  const [csFilter, setCsFilter] = useState('');
   const [now, setNow] = useState(Date.now());
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
@@ -213,7 +208,6 @@ const CSDispatchView: React.FC = () => {
 
       if (allRes.status === 'fulfilled') {
         const all = allRes.value.data.data ?? [];
-        setAllOrders(all);
         const bizStart = currentBusinessDayStart().getTime();
         setTodayNew(all.filter((o: any) => new Date(o.createdAt).getTime() >= bizStart).length);
         setTodayGrabbed(
@@ -432,57 +426,6 @@ const CSDispatchView: React.FC = () => {
     );
   }, [poolOrders, poolSearch, urgencyFilter]);
 
-  // 店长/客服在派单工作台也要能直接看到“自己发布的订单”，
-  // 否则订单一被抢或超时后，主订单池里就没有了，容易被误以为丢单。
-  //
-  // 老板 2026-09-24：「店长可以看到所有客服的派单记录」——原来这里一律按
-  // csUserId === 自己 过滤，店长只能看到自己发的那几条，客服发的全看不见
-  // （线上蠢驴电竞：店长 31 条、客服邵泽慧 63 条，店长那 63 条一条都看不到）。
-  // 现在店长看本店（老板看全部）的派单记录，并可按客服筛出某一个人的。
-  const canSeeAllDispatchRecords = !!user && (user.role === 'ADMIN' || user.role === 'OWNER');
-  const dispatchRecords = useMemo(() => {
-    if (!user || user.role === 'COMPANION') return [];
-    const scoped = canSeeAllDispatchRecords ? allOrders : allOrders.filter((o) => o.csUserId === user.id);
-    const byCs = csFilter ? scoped.filter((o) => o.csUserId === csFilter) : scoped;
-    // 客户搜索：和派单池同一个口径（微信 / 小红书账号 / 来源平台 / 昵称 / 客户编号 / 游戏名…）
-    const list = recordSearch ? byCs.filter((o) => orderMatchesSearch(o, recordSearch)) : byCs;
-    // 一定要先复制再 sort：allOrders 是 state，直接排序会把原数组也翻掉。
-    return [...list].sort(
-      (a, b) => new Date(b.grabbedAt || b.createdAt).getTime() - new Date(a.grabbedAt || a.createdAt).getTime(),
-    );
-  }, [allOrders, user, csFilter, recordSearch, canSeeAllDispatchRecords]);
-
-  // 派单人筛选下拉：按岗位分组，只列真的发过单的人（免得选了半天是空的）。
-  // 老板 2026-09-24 问「筛选里怎么冒出来个徐泽宁」——陪玩端的「首单/续单/复购」是
-  // 陪玩自己发起的，这条单的发布人就是他本人（线上全站只有徐泽宁 1 条复购单，35 元）。
-  // 所以分组标题里把这件事写明白，而不是把这条记录藏掉。
-  const csFilterOptions = useMemo(() => {
-    if (!canSeeAllDispatchRecords) return [];
-    const buckets: Record<string, Array<{ value: string; label: string }>> = {
-      CS: [],
-      ADMIN_OWNER: [],
-      COMPANION: [],
-    };
-    const seen = new Set<string>();
-    allOrders.forEach((o: any) => {
-      const u = o.csUser;
-      if (!u?.id || seen.has(u.id)) return;
-      seen.add(u.id);
-      const item = { value: u.id, label: u.displayName || u.username || u.id };
-      if (u.role === 'CS') buckets.CS.push(item);
-      else if (u.role === 'ADMIN' || u.role === 'OWNER') buckets.ADMIN_OWNER.push(item);
-      else buckets.COMPANION.push(item);
-    });
-    const groups: Array<{ label: string; options: Array<{ value: string; label: string }> }> = [];
-    if (buckets.CS.length > 0) groups.push({ label: '客服', options: buckets.CS });
-    if (buckets.ADMIN_OWNER.length > 0) groups.push({ label: '店长 / 老板', options: buckets.ADMIN_OWNER });
-    if (buckets.COMPANION.length > 0) groups.push({ label: '陪玩自己开的单', options: buckets.COMPANION });
-    return groups;
-  }, [allOrders, canSeeAllDispatchRecords]);
-
-  /** 这个面板最多铺 100 行（店长/老板要看全店，一次铺几百张卡会卡），下面是引导去「全部订单」。 */
-  const DISPATCH_RECORDS_LIMIT = 100;
-  const shownDispatchRecords = dispatchRecords.slice(0, DISPATCH_RECORDS_LIMIT);
 
   return (
     <div>
@@ -1017,63 +960,6 @@ const CSDispatchView: React.FC = () => {
             </div>
           </div>
 
-          {user && user.role !== 'COMPANION' && (
-            <Card
-              size="small"
-              style={{ marginTop: 12 }}
-              title={`${canSeeAllDispatchRecords ? (user.role === 'OWNER' ? '派单记录 · 全部工作室' : '本店派单记录') : '我发布的订单'}（${dispatchRecords.length}）`}
-              extra={
-                <Space size={8}>
-                  <Input.Search
-                    placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
-                    value={recordSearch}
-                    onChange={(e) => setRecordSearch(e.target.value)}
-                    allowClear
-                    size="small"
-                    style={{ width: 240 }}
-                  />
-                  {canSeeAllDispatchRecords && csFilterOptions.length > 0 && (
-                    <Select
-                      size="small"
-                      allowClear
-                      placeholder="全部派单人"
-                      style={{ width: 160 }}
-                      value={csFilter || undefined}
-                      onChange={(v) => setCsFilter(v || '')}
-                      options={csFilterOptions}
-                      showSearch
-                      optionFilterProp="label"
-                    />
-                  )}
-                </Space>
-              }
-            >
-              {dispatchRecords.length === 0 ? (
-                <EmptyState
-                  compact
-                  description={
-                    recordSearch
-                      ? `没有匹配「${recordSearch}」的派单记录`
-                      : canSeeAllDispatchRecords
-                        ? '本店还没有派单记录'
-                        : '暂无你发布的订单'
-                  }
-                />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {shownDispatchRecords.map((o, idx) => (
-                    <OrderRow key={o.id} order={o} index={idx} renderActions={() => null} />
-                  ))}
-                  {dispatchRecords.length > shownDispatchRecords.length && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      只显示最近 {shownDispatchRecords.length} 条（共 {dispatchRecords.length} 条）：完整记录去「订单管理 → 全部订单」，
-                      那里也能按派单人筛选。
-                    </Text>
-                  )}
-                </div>
-              )}
-            </Card>
-          )}
         </Col>
 
         {/* Right: Stats + Chat panel */}
