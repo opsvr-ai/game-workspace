@@ -22,6 +22,7 @@
   ② 它**是在**流转失败明细里的，只是那个接口原来按 `createdAt` **asc** 返最老的在前，
   线上 29 条里它排**第 29/29 条**。现在改成 `createdAt desc`（和订单池一致），复查它已排**第 1 条**。
   新增 4 条服务端用例，服务端 281 条全过；已部署服务端 + 前端 `v786`。
+- **陪玩端「订单管理」默认只看自己接的单（2026-09-27）:** 陪玩这张表（页头写「接单记录」）以前按「挂不挂在我名下」过滤，抢到的、被派给他的、以及他自己发的单（首单 / 续费 / 复购由陪玩自己发起）混在一起。现在多一个 `我接的单 / 我发的单` 开关，**默认「我接的单」**，两边不重复；自己发的单点一下就能单独看。线上实测（徐泽宁，全站唯一发过单的陪玩）：默认 6 条（全是他接的）、切「我发的单」1 条（那条 35 元复购单），与库里「名下 7 = 接的 6 + 发的 1」一致。前端 `v790` 已部署。
 - **客服端「订单管理」默认只看自己的单（2026-09-27）:** 老板问「客服端显示的是所有发布的订单记录么？」——是，改之前客服看到的是本店（含桥接工作室）所有人发的单一锅端（线上 107 条，其中客服邵泽慧自己发的只有 75 条）。现在客服端订单管理多一个 `我的订单 / 全店订单` 开关，**默认「我的订单」**= 自己发布的 + 自己认领的池子单；要翻全店点一下即可，权限行为不变。店长 / 老板 / 陪玩端不受影响（`scope` 参数对他们无效）。服务端 `GET /orders` 新增 `scope`，前端 `v789` 已部署。
 - **两个客户端右下角托盘图标都能看见了；陪玩端补发 `1.0.20260931`（2026-09-27）:** 客服端 09-26 修完就发了新版，
   陪玩端当时只改了代码、没重打包，线上还是 9/23 那份包 —— 托盘要读的 `donkey.png` 没进 `extraResources`，
@@ -429,7 +430,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders` | JWT | CS, ADMIN | Create a new order. Body: `CreateOrderDto`. |
 | `PUT` | `/api/orders/:id` | JWT | CS, ADMIN, OWNER, COMPANION | Update a published order (publisher or privileged role). Body includes order info fields such as customer WeChat/room code. |
 | `GET` | `/api/orders/pool` | JWT | -- | Get the dispatch pool (PENDING orders). |
-| `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`, plus `?scope=mine`（客服专用：只看自己发布 / 认领的单）或 `?scope=all`（本店 + 桥接工作室，默认口径）。Data isolation applied. |
+| `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`; `?scope=` 客服 `mine`（自己发布 / 认领的单，前端默认）\| `all`（本店 + 桥接工作室）；陪玩 `taken`（我接的单，前端默认）\| `published`（我发的单）。ADMIN / OWNER 忽略 `scope`。Data isolation applied. |
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
