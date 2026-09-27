@@ -12,6 +12,7 @@ import { employeesApi } from '../../api/employees';
 import { configApi } from '../../api/config';
 import { contentCheckApi } from '../../api/contentCheck';
 import { useAuthStore } from '../../stores/authStore';
+import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
@@ -638,54 +639,123 @@ const TrafficAccountPage: React.FC = () => {
     render: (_: unknown, r: TrafficAccountItem) => <span style={{ whiteSpace: 'nowrap' }}>{r.extra?.keywords || '-'}</span>,
   };
 
+  // ── 分组列（老板 2026-09-27 要求「别重叠、别浪费空间」）──
+  // 原来 20 多个字段各占一列，一屏塞不下：每列只剩 40px，表头竖成单字、备注列被拉成 483px 高。
+  // 现在按「一眼要看的几件事」并成 8 大列，同组字段在单元格里一行一个，字号回到全站标准。
+  const FIELD_LABELS: Record<string, string> = {
+    type: '平台',
+    code: '编号',
+    trafficLevel: '流量',
+    nickname: '昵称',
+    accountId: 'ID',
+    wifi: 'WiFi',
+    wifiNote: 'WiFi备注',
+    wifiRegion: 'WiFi地区',
+    purchaseDate: '购买',
+    riskPopped: '弹过风险',
+    riskNote: '风险',
+    banned: '封禁过',
+    banNote: '封禁',
+    phone: '手机号',
+    promotionContact: '地推',
+    realName: '实名',
+    registerDate: '注册',
+    banDate: '封禁日期',
+    imageSourceNote: '图片来源',
+    otherNote: '备注',
+    __role: '人设',
+    __keywords: '关键词',
+    __ip: 'IP',
+  };
+  const GROUP_DEFS: Array<{ title: string; width: number; keys: string[] }> = [
+    // 2026-09-27 收窄：整表原来 1639px，1920 的屏只有 1591px，最右边的「删除」被切掉了；
+    // 单元格本来就是一行一字段、超长自己省略号，这里把每组压到刚好放下表头。
+    { title: '账号', width: 110, keys: ['type', 'code'] },
+    { title: '流量 / 人设 / 关键词', width: 142, keys: ['trafficLevel', '__role', '__keywords'] },
+    { title: '昵称 / ID', width: 132, keys: ['nickname', 'accountId'] },
+    { title: '网络', width: 134, keys: ['wifi', 'wifiNote', 'wifiRegion', '__ip'] },
+    { title: '时间', width: 110, keys: ['purchaseDate', 'registerDate', 'banDate'] },
+    { title: '风险 / 封禁', width: 134, keys: ['riskPopped', 'riskNote', 'banned', 'banNote'] },
+    { title: '账号资料', width: 130, keys: ['phone', 'realName', 'promotionContact'] },
+    { title: '图片 / 备注', width: 140, keys: ['imageSourceNote', 'otherNote'] },
+  ];
+  /** 组里真正要显示的字段：以「列设置」里还留着的为准（人设 / 关键词 / IP 固定显示） */
+  const visibleInGroup = (keys: string[]) =>
+    keys.filter((k) => k.startsWith('__') || columns.some((c) => c.key === k));
+  const cellOf = (key: string, r: TrafficAccountItem): React.ReactNode => {
+    if (key === '__role') return roleColumn.render(null, r);
+    if (key === '__keywords') return keywordColumn.render(null, r);
+    if (key === '__ip')
+      return <span style={{ whiteSpace: 'nowrap' }}>{r.extra?.ipAddress || '-'}</span>;
+    const col =
+      columns.find((c) => c.key === key) || ({ key, label: FIELD_LABELS[key] || key, custom: false } as ColumnDef);
+    return renderField(col, r);
+  };
+  /** 列设置里新加的自定义列单独成列 */
+  const customCols = columns.filter((c) => c.custom && !FIELD_LABELS[c.key]);
+  const shownGroups = GROUP_DEFS.filter((g) => visibleInGroup(g.keys).length > 0);
+  // 序号 44 + 归属客服 70 + 操作 176 + 自定义列 + 各分组
+  const tableWidth =
+    44 + 70 + 176 + customCols.length * 120 + shownGroups.reduce((total, g) => total + g.width, 0);
+
   const tableColumns = [
     {
-      title: '序号', key: '__index', width: 24, fixed: 'left' as const,
+      title: '序号', key: '__index', width: 44, fixed: 'left' as const,
       render: (_: unknown, __: TrafficAccountItem, index: number) => <span className="idx-cell">{index + 1}</span>,
     },
-    ...columns.flatMap((col) => {
-      const mapped = {
-        title: col.key === 'code' ? '矩阵手机编号' : col.label,
-        key: col.key,
-        dataIndex: col.custom ? undefined : col.key,
-        width: ['wifiNote', 'riskNote', 'banNote', 'imageSourceNote', 'otherNote'].includes(col.key)
-          ? (col.key === 'riskNote' ? 110 : 72)
-          : col.key === 'accountId'
-            ? 72
-            : col.key === 'code'
-              ? 90
-            : col.key === 'phone'
-              ? 85
-              : col.key === 'type'
-                ? 50
-                : ['registerDate', 'banDate', 'purchaseDate'].includes(col.key)
-                  ? 80
-                  : 40,
-        render: (_: unknown, r: TrafficAccountItem) => renderField(col, r),
-      };
-      return col.key === 'trafficLevel' ? [mapped, keywordColumn, roleColumn] : [mapped];
-    }),
+    ...shownGroups.map((g) => ({
+      title: g.title,
+      key: 'grp_' + g.keys.join('_'),
+      width: g.width,
+      render: (_: unknown, r: TrafficAccountItem) => {
+        const keys = visibleInGroup(g.keys);
+        // 「账号」组：平台标签和编号排在同一行，少占一行高度
+        if (keys.includes('type')) {
+          return (
+            <div style={{ lineHeight: 1.6, whiteSpace: 'nowrap' }}>
+              {keys.includes('type') && cellOf('type', r)}
+              {keys.includes('code') && <span style={{ marginLeft: 4 }}>{cellOf('code', r)}</span>}
+            </div>
+          );
+        }
+        return (
+          <div style={{ lineHeight: 1.5 }}>
+            {keys.map((k) => (
+              <div key={k} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ color: '#94A3B8', fontSize: 11 }}>{FIELD_LABELS[k] || k}</span> {cellOf(k, r)}
+              </div>
+            ))}
+          </div>
+        );
+      },
+    })),
+    ...customCols.map((c) => ({
+      title: c.label,
+      key: c.key,
+      width: 120,
+      render: (_: unknown, r: TrafficAccountItem) => renderField(c, r),
+    })),
     {
-      title: 'IP', key: '__ip', width: 78,
-      render: (_: unknown, r: TrafficAccountItem) => <span style={{ whiteSpace: 'nowrap' }}>{r.extra?.ipAddress || '-'}</span>,
+      title: '归属客服', key: '__owner', width: 70,
+      render: (_: unknown, r: TrafficAccountItem) => (
+        <span style={{ whiteSpace: 'nowrap' }}>{r.user?.displayName || r.user?.username || '-'}</span>
+      ),
     },
     {
-      title: '归属客服', key: '__owner', width: 45,
-      render: (_: unknown, r: TrafficAccountItem) => <span style={{ whiteSpace: 'nowrap' }}>{r.user?.displayName || r.user?.username || '-'}</span>,
-    },
-    {
-      title: '操作', key: 'actions', width: 122, fixed: 'right' as const,
+      // 四个按钮去掉图标、统一字号后一行放得下：带图标要 228px，
+      // 原来列宽 150 直接把「删除」挤出了可见区。所以这里列宽 176、四个都是纯文字按钮。
+      title: '操作', key: 'actions', width: 176, fixed: 'right' as const,
       render: (_: unknown, r: TrafficAccountItem) => (
         <Space size={4}>
-          <Button size="small" style={{ fontSize: 9, height: 20, padding: '0 4px' }} icon={<FileTextOutlined />} onClick={() => openNotes(r)}>笔记</Button>
-          <Button size="small" style={{ fontSize: 9, height: 20, padding: '0 4px' }} onClick={() => openEdit(r)}>编辑</Button>
+          <Button size="small" style={{ fontSize: 11, height: 22, padding: '0 6px' }} onClick={() => openNotes(r)}>笔记</Button>
+          <Button size="small" style={{ fontSize: 11, height: 22, padding: '0 6px' }} onClick={() => openEdit(r)}>编辑</Button>
           {r.status !== 'INACTIVE' && (
             <Popconfirm title="确定换号？系统会直接新建一个同编号手机的新账号，并把当前账号保存为已弃用。" onConfirm={() => openReplace(r)}>
-              <Button size="small" style={{ fontSize: 9, height: 20, padding: '0 4px' }}>换号</Button>
+              <Button size="small" style={{ fontSize: 11, height: 22, padding: '0 6px' }}>换号</Button>
             </Popconfirm>
           )}
           <Popconfirm title="确定彻底删除？删除后该账号记录将无法找回。" onConfirm={async () => { await trafficAccountApi.remove(r.id); fetchItems(); }}>
-            <Button size="small" danger icon={<DeleteOutlined />} style={{ fontSize: 9, height: 20, padding: '0 4px' }}>删除</Button>
+            <Button size="small" danger style={{ fontSize: 11, height: 22, padding: '0 6px' }}>删除</Button>
           </Popconfirm>
         </Space>
       ),
@@ -788,10 +858,19 @@ const TrafficAccountPage: React.FC = () => {
         ]}
         style={{ marginBottom: 8 }}
       />
-      <style>{`.ant-table-tbody > tr > td, .ant-table-thead > tr > th { padding: 2px 2px !important; font-size: 10px !important; color: #111827 !important; } .ant-table * { font-size: 10px !important; } .ant-tag { font-size: 9px !important; line-height: 16px !important; } .idx-cell { font-size: 9px !important; } .note-row-danger > td { background: #fff1f0 !important; } .traffic-account-form .ant-form-item { margin-bottom: 6px !important; }`}</style>
-      <div style={{ fontSize: 10 }}>
-        <Table rowKey="id" columns={tableColumns} dataSource={sortedItems} loading={loading} size="small" pagination={false} />
-      </div>
+      <style>{`.note-row-danger > td { background: #fff1f0 !important; } .traffic-account-form .ant-form-item { margin-bottom: 6px !important; }`}</style>
+      <Card size="small" style={{ overflow: "auto" }}>
+        <Table
+          rowKey="id"
+          columns={tableColumns}
+          dataSource={sortedItems}
+          loading={loading}
+          size="small"
+          pagination={false}
+          style={TABLE_STYLE}
+          scroll={{ x: tableWidth }}
+        />
+      </Card>
 
       {/* 账号编辑/新增 */}
       <Modal
@@ -1345,7 +1424,9 @@ const TrafficAccountPage: React.FC = () => {
               </div>
             ))}
           </div>
-          <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>左右箭头调整列顺序，自定义列可删除。</Text>
+          <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+            字段按固定的几大列分组显示（账号 / 流量 / 昵称 / 网络 / 时间 / 风险 / 资料 / 备注）；删掉某个字段它就不显示，新加的字段排在该组末尾，自定义列单独成列。
+          </Text>
         </div>
       </Modal>
 

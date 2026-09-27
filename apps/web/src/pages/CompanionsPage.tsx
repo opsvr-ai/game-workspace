@@ -352,7 +352,8 @@ const CompanionsPage: React.FC = () => {
               </div>
               <div>
                 <Text strong>{username}</Text>
-                {r.realName && (
+                {/* 艺名和真实姓名一样时不再重复写第二行（员工表里「周达 / 周达」看着像脏数据） */}
+                {r.realName && r.realName !== username && (
                   <>
                     <br />
                     <Text type="secondary" style={{ fontSize: 11 }}>

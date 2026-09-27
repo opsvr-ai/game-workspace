@@ -67,27 +67,95 @@ const StatsPage: React.FC = () => {
   const csList = data?.csList || [];
   const orders = data?.orders || [];
 
+  // 合并列（老板 2026-09-27：别重叠、别浪费空间）：原来 16 列写死 scroll.x=1600，
+  // 1920 的屏只有 1591px，最右边「费账号」被切掉半截；现在同类信息上下两行合成一列，
+  // 总量降到 1120px，一屏放得下；更窄的屏才会横向滚。
   const columns = [
-    { title: '时间', dataIndex: 'createdAt', width: 120, render: (v: string) => dayjs(v).format('MM/DD HH:mm') },
-    { title: '订单号', dataIndex: 'orderCode', width: 120, render: (v: string) => v || '-' },
+    {
+      title: '订单',
+      key: 'order',
+      width: 140,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>{o.orderCode || '-'}</div>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {dayjs(o.createdAt).format('MM/DD HH:mm')}
+          </Text>
+        </div>
+      ),
+    },
     { title: '游戏', dataIndex: 'gameName', width: 90 },
     { title: '金额', dataIndex: 'amount', width: 90, render: (v: number) => <Text strong style={{ color: '#cf1322' }}>¥{v?.toFixed(1)}</Text> },
     { title: '状态', dataIndex: 'status', width: 90, render: (v: string) => {
       const cfg = orderStatusConfig[v] ?? { color: 'default', label: v };
       return <Tag color={cfg.color}>{cfg.label}</Tag>;
     } },
-    { title: '发单客服', dataIndex: 'csName', width: 90, render: (v: string) => v || '-' },
-    { title: '认领客服', dataIndex: 'claimedCsName', width: 90, render: (v: string) => v || '-' },
-    { title: '工作微信', dataIndex: 'csWorkWechatName', width: 100, render: (v: string) => v || '-' },
-    { title: '客户付款去向', dataIndex: 'customerPaidTo', width: 110, render: (v: string) => paidToConfig[v] || v || '-' },
-    { title: '收款账号', dataIndex: 'customerPaymentAccountName', width: 100, render: (v: string) => v || '-' },
-    { title: '陪玩', dataIndex: 'companionName', width: 90, render: (v: string) => v || '-' },
-    { title: '陪玩工作室', dataIndex: 'companionStudio', width: 100, render: (v: string) => v || '-' },
-    { title: '陪玩费', dataIndex: 'companionFeeAmount', width: 90, render: (v: number) => v != null ? `¥${v.toFixed(1)}` : '-' },
-    { title: '费状态', dataIndex: 'companionFeeStatus', width: 80, render: (v: string) => <Tag color={v === 'PAID' ? 'green' : 'orange'}>{v === 'PAID' ? '已付' : '未付'}</Tag> },
-    { title: '费方式', dataIndex: 'companionFeeMethod', width: 80, render: (v: string) => v === 'WECHAT' ? '微信' : v === 'ALIPAY' ? '支付宝' : '-' },
-    { title: '费账号', dataIndex: 'companionFeeAccount', width: 100, render: (v: string) => v || '-' },
+    {
+      title: '客服',
+      key: 'cs',
+      width: 130,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>{o.csName || '-'}</div>
+          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+            认领:{o.claimedCsName || '-'}
+          </Text>
+        </div>
+      ),
+    },
+    { title: '工作微信', dataIndex: 'csWorkWechatName', width: 110, render: (v: string) => v || '-' },
+    {
+      title: '收款',
+      key: 'payment',
+      width: 160,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>{paidToConfig[o.customerPaidTo] || o.customerPaidTo || '-'}</div>
+          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+            {o.customerPaymentAccountName || '-'}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: '陪玩',
+      key: 'companion',
+      width: 130,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>{o.companionName || '-'}</div>
+          {o.companionStudio && (
+            <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+              {o.companionStudio}
+            </Text>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '陪玩费',
+      key: 'companionFee',
+      width: 180,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>
+            <Text strong>{o.companionFeeAmount != null ? `¥${o.companionFeeAmount.toFixed(1)}` : '-'}</Text>{' '}
+            <Tag color={o.companionFeeStatus === 'PAID' ? 'green' : 'orange'} style={{ margin: 0 }}>
+              {o.companionFeeStatus === 'PAID' ? '已付' : '未付'}
+            </Tag>
+            <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+              {o.companionFeeMethod === 'WECHAT' ? '微信' : o.companionFeeMethod === 'ALIPAY' ? '支付宝' : '-'}
+            </Text>
+          </div>
+          <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+            {o.companionFeeAccount || '-'}
+          </Text>
+        </div>
+      ),
+    },
   ];
+  // 宽度直接从列定义算，以后加减列不用再手改 scroll.x（就是手改漏了才把最右列压没的）。
+  const tableWidth = columns.reduce((total, c) => total + (Number(c.width) || 0), 0);
 
   return (
     <div>
@@ -157,7 +225,7 @@ const StatsPage: React.FC = () => {
           columns={columns}
           dataSource={orders}
           loading={loading}
-          scroll={{ x: 1600 }}
+          scroll={{ x: tableWidth }}
           pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `共 ${t} 单` }}
         />
       </Card>

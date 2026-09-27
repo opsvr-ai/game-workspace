@@ -33,40 +33,38 @@ export const DETAIL_LABEL_WIDTH = 112;
  */
 export const FIELD_WIDTH = {
   // ── 订单字段（订单管理表）──
-  orderCode: 88,
-  type: 76,
+  /** 「订单」合并列：订单号 + 订单类型标签（上下两行） */
+  orderCode: 100,
+  /** 订单管理表专用的状态列宽（客户表用下面的 status，两表不再互相牵制） */
+  orderStatus: 152,
+  /** 「游戏 / 服务」合并列：游戏名 + 「服务 · 单/双 · 任务」 */
+  game: 156,
+  /** 「金额 / 打单」合并列：金额 + 立即打 / 预约 */
+  amount: 104,
+  /** 「主陪 / 副陪」合并列（主陪名 + 工作室标签上下排，副陪在第二行） */
+  studio: 150,
+  /** 「客户微信 / 编号」合并列 */
+  customerWechat: 130,
+  /** 「客户账号」合并列（来源平台 / 来源账号 / 昵称 / 平台ID / 房间码 / YY / KOOK / 二维码） */
+  customerAccounts: 236,
+  /** 「发布」合并列：发布人 + 发布时间（上下两行） */
+  createdAt: 128,
   status: 90,
-  game: 110,
-  service: 80,
-  count: 60,
-  mission: 76,
-  amount: 84,
-  urgency: 82,
-  /** 「主陪 / 接单工作室」合并列（主陪名 + 工作室标签上下排） */
-  studio: 124,
-  coCompanion: 92,
-  customerWechat: 140,
-  /** 「客户账号」合并列（客户编号 / 来源账号 / 昵称 / 二维码 / YY / KOOK / 房间码），2026-09-27 从派单记录并过来 */
-  customerAccounts: 160,
-  source: 92,
-  createdAt: 150,
-  csUser: 88,
 
   // ── 客户字段（客户管理表）──
-  /** 客户编号列：上面编号、下面小字微信号，钉在左侧（见 CUSTOMER_CODE_COLUMN） */
-  customerCode: 150,
-  nickname: 120,
-  sourceAccount: 150,
-  lastOrder: 220,
-  workWechat: 100,
-  followUp: 120,
-  totalSpent: 120,
+  /** 客户编号列：上面编号、下面小字微信号，再下面昵称，钉在左侧（见 CUSTOMER_CODE_COLUMN） */
+  customerCode: 200,
+  lastOrder: 216,
+  /** 「来源 / 来源账号 / 时间」合并列（原来「来源账号」单独占 150px） */
+  sourceTime: 178,
+  /** 「陪玩 / 所用微信」合并列 */
+  companionWechat: 150,
+  /** 「最近跟进 / 累计消费」合并列 */
+  followUpSpent: 132,
 
   // ── 两张表共用（同一份数据，必须同宽）──
-  /** 客户管理表的「陪玩」列 */
+  /** 客户管理表的「陪玩」列（独立使用时的大小，客户表已改为合并列） */
   companion: 110,
-  /** 客户管理表的「来源/时间」列 */
-  sourceTime: 110,
   notes: 200,
 
   // ── 操作列（定宽 + 钉在右侧，确保订单信息再长也挤不掉按钮）──
@@ -86,22 +84,20 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 
 /** 订单管理表的列（顺序即表头顺序），scroll.x 直接用它算。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'orderCode', 'type', 'status', 'game', 'service', 'count', 'mission',
-  'amount', 'urgency', 'studio', 'coCompanion', 'customerWechat', 'customerAccounts',
-  'source', 'createdAt', 'csUser', 'orderActions',
+  'orderCode', 'orderStatus', 'game', 'amount', 'studio',
+  'customerWechat', 'customerAccounts', 'createdAt', 'orderActions',
 ];
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
 export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
-  'customerCode', 'nickname', 'sourceAccount', 'lastOrder',
-  'sourceTime', 'status', 'workWechat', 'companion', 'followUp',
-  'totalSpent', 'notes', 'actions',
+  'customerCode', 'lastOrder', 'sourceTime', 'status',
+  'companionWechat', 'followUpSpent', 'notes', 'actions',
 ];
 
 /** 客户管理表的列（陪玩视角：没有客户昵称 / 来源账号）。 */
 export const CUSTOMER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
   'customerCode', 'lastOrder', 'sourceTime', 'status',
-  'workWechat', 'companion', 'followUp', 'totalSpent', 'notes', 'actions',
+  'companionWechat', 'followUpSpent', 'notes', 'actions',
 ];
 
 /** 表格正文统一字号，给 antd Table 的 style 直接用。 */

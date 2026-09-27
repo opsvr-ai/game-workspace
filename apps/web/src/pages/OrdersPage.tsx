@@ -572,187 +572,177 @@ const OrdersPage: React.FC = () => {
       return o.csUserId === csFilter;
     });
 
+  // 合并列（老板 2026-09-27 要求「别重叠、别浪费空间」）：
+  // 原来 17 列要 1936px，1920 的屏只有 1591px，最后一列被压成竖排单字、状态两个标签把行撑到 100px。
+  // 现在把同类信息并成一列上下排，总量降到 1300 出头，一屏放得下。
   const columns = [
     {
       title: '订单',
-      dataIndex: 'orderCode',
       key: 'orderCode',
       width: FIELD_WIDTH.orderCode,
-      render: (_: unknown, o: any) => o.orderCode || o.id.slice(0, 8),
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: FIELD_WIDTH.type,
       render: (_: unknown, o: any) => (
-        <Tag color={orderTypeConfig[o.type]?.color || 'blue'} style={{ margin: 0 }}>
-          {orderTypeConfig[o.type]?.label || o.type}
-        </Tag>
+        <div style={{ lineHeight: 1.4 }}>
+          <Text strong>{o.orderCode || o.id.slice(0, 8)}</Text>
+          <div>
+            <Tag color={orderTypeConfig[o.type]?.color || 'blue'} style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>
+              {orderTypeConfig[o.type]?.label || o.type}
+            </Tag>
+          </div>
+        </div>
       ),
     },
     {
       title: '状态',
-      dataIndex: 'status',
       key: 'status',
-      width: FIELD_WIDTH.status,
+      width: FIELD_WIDTH.orderStatus,
       render: (_: unknown, o: any) => (
-        <Space size={4} wrap>
+        <div style={{ whiteSpace: 'nowrap', lineHeight: 1.4 }}>
           <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
             {orderStatusConfig[o.status]?.label || o.status}
           </Tag>
-          {/* 池子里超时没人抢、已经被退回的那批单：状态还是「待接单」，
-              但列表里光看状态看不出它其实已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。 */}
+          {/* 池子里超时没人抢、已退回流转失败明细的单：状态还是「待接单」，光看状态看不出它
+              已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。这里用短标 + 悬停说明，
+              不让第二个标签换行把整行撑高一倍。 */}
           {o.customFields?.poolExpired === true && !o.companionId && (
             <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
-              <Tag color="red" style={{ margin: 0 }}>无人接单 · 已失败</Tag>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '游戏',
-      dataIndex: 'gameName',
-      key: 'gameName',
-      width: FIELD_WIDTH.game,
-    },
-    {
-      title: '服务',
-      dataIndex: 'serviceType',
-      key: 'serviceType',
-      width: FIELD_WIDTH.service,
-      render: (_: unknown, o: any) => serviceTypeConfig[o.serviceType]?.label || '陪玩',
-    },
-    {
-      title: '单/双',
-      key: 'deltaCount',
-      width: FIELD_WIDTH.count,
-      render: (_: unknown, o: any) => o.customFields?.deltaCount || '单',
-    },
-    {
-      title: '任务',
-      key: 'deltaMission',
-      width: FIELD_WIDTH.mission,
-      render: (_: unknown, o: any) => o.customFields?.deltaMission || '-',
-    },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: FIELD_WIDTH.amount,
-      align: 'right' as const,
-      render: (_: unknown, o: any) => `¥${Number(o.amount).toFixed(0)}`,
-    },
-    {
-      title: '打单时间',
-      key: 'urgency',
-      width: FIELD_WIDTH.urgency,
-      render: (_: unknown, o: any) => (
-        <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0 }}>
-          {urgencyConfig[o.customFields?.urgency]?.label || '立即'}
-        </Tag>
-      ),
-    },
-    {
-      title: '主陪 / 接单工作室',
-      key: 'companion',
-      width: FIELD_WIDTH.studio,
-      render: (_: unknown, o: any) => {
-        const name = o.companion?.user?.username || '-';
-        const studio = o.companion?.studio;
-        if (!studio?.name) return name;
-        // 订单上的 studioId 是发布方；两者不一致就是桥接工作室接的单
-        const isBridged = !!o.studioId && o.studioId !== studio.id;
-        return (
-          <div style={{ lineHeight: 1.4 }}>
-            <div>{name}</div>
-            <Tooltip
-              title={
-                isBridged
-                  ? `桥接工作室接单：本单由${o.studio?.name || '发布方'}发布，${studio.name}的陪玩接单`
-                  : `${studio.name} 的陪玩接单`
-              }
-            >
-              <Tag
-                color={isBridged ? 'purple' : 'default'}
-                style={{ margin: 0, fontSize: 11, lineHeight: '16px', padding: '0 4px' }}
-              >
-                {isBridged ? `桥接·${studio.name}` : studio.name}
+              <Tag color="red" style={{ margin: '0 0 0 4px' }}>
+                ⚠ 无人接单
               </Tag>
             </Tooltip>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '游戏 / 服务',
+      key: 'game',
+      width: FIELD_WIDTH.game,
+      render: (_: unknown, o: any) => {
+        const cf = o.customFields || {};
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <Text strong>{o.gameName}</Text>
+            <div style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>
+              {serviceTypeConfig[o.serviceType]?.label || '陪玩'} · {cf.deltaCount || '单'}
+              {cf.deltaMission ? ' · ' + cf.deltaMission : ''}
+            </div>
           </div>
         );
       },
     },
     {
-      title: '副陪',
-      key: 'coCompanion',
-      width: FIELD_WIDTH.coCompanion,
-      render: (_: unknown, o: any) => o.coCompanion?.user?.username || '-',
+      title: '金额 / 打单',
+      key: 'amount',
+      width: FIELD_WIDTH.amount,
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4, textAlign: 'right' }}>
+          <Text strong>¥{Number(o.amount).toFixed(0)}</Text>
+          <div>
+            <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>
+              {urgencyConfig[o.customFields?.urgency]?.label || '立即'}
+            </Tag>
+          </div>
+        </div>
+      ),
     },
     {
-      title: '客户微信',
+      title: '主陪 / 副陪',
+      key: 'companion',
+      width: FIELD_WIDTH.studio,
+      render: (_: unknown, o: any) => {
+        const name = o.companion?.user?.username || '未接单';
+        const studio = o.companion?.studio;
+        const co = o.coCompanion?.user?.username;
+        // 订单上的 studioId 是发布方；两者不一致就是桥接工作室接的单
+        const isBridged = !!o.studioId && !!studio?.id && o.studioId !== studio.id;
+        return (
+          <div style={{ lineHeight: 1.45 }}>
+            <div style={{ whiteSpace: 'nowrap' }}>{name}</div>
+            {co && <div style={{ fontSize: 11, color: '#722ed1', whiteSpace: 'nowrap' }}>副陪:{co}</div>}
+            {studio?.name && (
+              <Tooltip
+                title={
+                  isBridged
+                    ? `桥接工作室接单：本单由${o.studio?.name || '发布方'}发布，${studio.name}的陪玩接单`
+                    : `${studio.name} 的陪玩接单`
+                }
+              >
+                <Tag
+                  color={isBridged ? 'purple' : 'default'}
+                  style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}
+                >
+                  {isBridged ? `桥接·${studio.name}` : studio.name}
+                </Tag>
+              </Tooltip>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '客户微信 / 编号',
       key: 'customerWechat',
       width: FIELD_WIDTH.customerWechat,
-      render: (_: unknown, o: any) => o.customFields?.customerWechat || o.customer?.wechatId || '-',
+      render: (_: unknown, o: any) => {
+        const code = o.customer?.customerCode;
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <div style={{ whiteSpace: 'nowrap' }}>{o.customFields?.customerWechat || o.customer?.wechatId || '-'}</div>
+            {code && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                👤{code}
+              </Text>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '客户账号',
       key: 'customerAccounts',
       width: FIELD_WIDTH.customerAccounts,
-      // 这一列原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
+      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
       // 不用再点开详情。客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
         const lines: React.ReactNode[] = [];
-        if (o.customer?.customerCode)
+        const platform = cf.customerSource || o.customer?.platform;
+        if (platform)
           lines.push(
-            <Text key="code" type="secondary" style={{ fontSize: 12 }}>
-              👤{o.customer.customerCode}
-            </Text>,
-          );
-        if (!isCompanion && cf.customerSourceAccount)
-          lines.push(
-            <Text key="src" type="secondary" style={{ fontSize: 12 }}>
-              来源账号:{cf.customerSourceAccount}
-              {inactiveAccounts.has(cf.customerSourceAccount) && (
+            <Text key="plat" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              📡{platform}
+              {!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : ''}
+              {!isCompanion && cf.customerSourceAccount && inactiveAccounts.has(cf.customerSourceAccount) && (
                 <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
                   已弃用
                 </Tag>
               )}
             </Text>,
           );
-        if (!isCompanion && cf.customerNickname)
+        if (!isCompanion && (cf.customerNickname || cf.customerAccountId))
           lines.push(
-            <Text key="nick" type="secondary" style={{ fontSize: 12 }}>
-              昵称:{cf.customerNickname}
-            </Text>,
-          );
-        if (!isCompanion && cf.customerAccountId)
-          lines.push(
-            <Tooltip key="id" title={'客户ID：' + cf.customerAccountId}>
-              <Text type="secondary" style={{ fontSize: 12, cursor: 'help' }}>
-                🆔
-              </Text>
-            </Tooltip>,
-          );
-        if (cf.customerYy)
-          lines.push(
-            <Text key="yy" type="secondary" style={{ fontSize: 12 }}>
-              YY:{cf.customerYy}
-            </Text>,
-          );
-        if (cf.customerPlatformAccount)
-          lines.push(
-            <Text key="kook" type="secondary" style={{ fontSize: 12 }}>
-              KOOK:{cf.customerPlatformAccount}
+            <Text key="nick" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              {cf.customerNickname ? '昵称:' + cf.customerNickname : ''}
+              {cf.customerNickname && cf.customerAccountId ? ' ' : ''}
+              {cf.customerAccountId && (
+                <Tooltip title={'客户ID：' + cf.customerAccountId}>
+                  <span style={{ cursor: 'help' }}>🆔{cf.customerAccountId}</span>
+                </Tooltip>
+              )}
             </Text>,
           );
         if (cf.customerRoomCode)
           lines.push(
-            <Text key="room" type="secondary" style={{ fontSize: 12 }}>
+            <Text key="room" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               🚪{cf.customerRoomCode}
+            </Text>,
+          );
+        if (cf.customerYy || cf.customerPlatformAccount)
+          lines.push(
+            <Text key="im" type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              {cf.customerYy ? 'YY:' + cf.customerYy : ''}
+              {cf.customerYy && cf.customerPlatformAccount ? ' ' : ''}
+              {cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : ''}
             </Text>,
           );
         if (cf.customerWechatQr)
@@ -771,22 +761,18 @@ const OrdersPage: React.FC = () => {
       },
     },
     {
-      title: '来源',
-      key: 'customerSource',
-      width: FIELD_WIDTH.source,
-      render: (_: unknown, o: any) => o.customFields?.customerSource || o.customer?.platform || '-',
-    },
-    {
-      title: '发布时间',
+      title: '发布',
       key: 'createdAt',
       width: FIELD_WIDTH.createdAt,
-      render: (_: unknown, o: any) => new Date(o.grabbedAt || o.createdAt).toLocaleString('zh-CN', { hour12: false }),
-    },
-    {
-      title: '发布人',
-      key: 'csUser',
-      width: FIELD_WIDTH.csUser,
-      render: (_: unknown, o: any) => o.csUser?.username || '-',
+      // 发布人和发布时间并成一列（原来各占 150 / 88px，两列都只放一个短词）
+      render: (_: unknown, o: any) => (
+        <div style={{ lineHeight: 1.4 }}>
+          <div style={{ whiteSpace: 'nowrap' }}>{o.csUser?.username || '-'}</div>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {new Date(o.grabbedAt || o.createdAt).toLocaleString('zh-CN', { hour12: false })}
+          </Text>
+        </div>
+      ),
     },
     {
       title: '操作',
