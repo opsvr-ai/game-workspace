@@ -119,6 +119,7 @@ export class TrafficAccountService {
     extra?: Record<string, any>;
     status?: string;
     notes?: string;
+    userId?: string;
   }) {
     const acc = await this.prisma.trafficAccount.findUnique({ where: { id } });
     if (!acc) throw new NotFoundException('引流账号不存在');
@@ -129,6 +130,22 @@ export class TrafficAccountService {
       throw new ForbiddenException('无权操作其他工作室的账号');
     }
     const data: any = {};
+    // 归属调整：原来管这个号的客服离职时，店长 / 老板要把号转到接手的人名下
+    //（表格里的「归属客服」那一列）。只允许转给本工作室在职的员工，
+    // 免得把号转给已经停用的账号、转完谁也不认。
+    if (dto.userId && dto.userId !== acc.userId) {
+      if (user.role !== 'ADMIN' && user.role !== 'OWNER') {
+        throw new ForbiddenException('只有店长 / 老板可以调整账号归属');
+      }
+      const target = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+        select: { id: true, studioId: true, resignedAt: true },
+      });
+      if (!target) throw new NotFoundException('要转给的员工不存在');
+      if (target.resignedAt) throw new ForbiddenException('该员工已离职，请选择在职员工');
+      if (target.studioId !== acc.studioId) throw new ForbiddenException('只能转给本工作室的员工');
+      data.userId = target.id;
+    }
     if (dto.type !== undefined) data.type = dto.type.trim();
     if (dto.code !== undefined) data.code = dto.code?.trim() || null;
     if (dto.trafficLevel !== undefined) data.trafficLevel = dto.trafficLevel?.trim() || null;

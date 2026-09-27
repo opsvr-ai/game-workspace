@@ -8,6 +8,7 @@ import {
   LeftOutlined, RightOutlined, CameraOutlined, CopyOutlined,
 } from '@ant-design/icons';
 import { trafficAccountApi, TrafficAccountItem, TrafficNoteItem } from '../../api/trafficAccount';
+import { employeesApi } from '../../api/employees';
 import { configApi } from '../../api/config';
 import { contentCheckApi } from '../../api/contentCheck';
 import { useAuthStore } from '../../stores/authStore';
@@ -89,6 +90,9 @@ const TrafficAccountPage: React.FC = () => {
   const [form] = Form.useForm();
   const authUser = useAuthStore((s) => s.user);
   const canEditGuide = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN' || authUser?.role === 'CS';
+  // 归属调整：「归属客服」那一列改给谁。只有店长 / 老板能改，别人看不到这个下拉。
+  const canReassignOwner = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN';
+  const [ownerCandidates, setOwnerCandidates] = useState<Array<{ id: string; label: string; resigned: boolean }>>([]);
   // 笔记记录
   const [noteDrawerOpen, setNoteDrawerOpen] = useState(false);
   const [noteDrawerTab, setNoteDrawerTab] = useState<'notes' | 'plan'>('notes');
@@ -144,14 +148,55 @@ const TrafficAccountPage: React.FC = () => {
     fetchItems();
   }, [fetchConfig, fetchItems]);
 
+  /**
+   * 可选的归属人：该工作室的客服（含已离职的 —— 离职的只展示、不可选，
+   * 这样店长一眼能看出「原来这个号是谁在管」）。
+   * 打开弹窗时拉一次：新入职 / 刚离职的人立刻就能反映出来。
+   * 老板传上账号所属工作室，避免下拉里出现全平台所有店的客服。
+   */
+  const loadOwnerCandidates = useCallback(
+    async (studioId?: string) => {
+      if (!canReassignOwner) return;
+      try {
+        const { data } = await employeesApi.list({ ...(studioId ? { studioId } : {}), role: 'CS' });
+        const list: any[] = data?.data || [];
+        setOwnerCandidates(
+          list.map((u) => ({
+            id: u.id,
+            label: `${u.displayName || u.username}${u.resignedAt ? '（已离职）' : ''}`,
+            resigned: !!u.resignedAt,
+          })),
+        );
+      } catch {
+        setOwnerCandidates([]);
+      }
+    },
+    [canReassignOwner],
+  );
+
+  const ownerOptions = React.useMemo(() => {
+    const opts = ownerCandidates.map((c) => ({ value: c.id, label: c.label, disabled: c.resigned }));
+    // 当前归属人不在名单里（例如归在老板账号下）时补一条，免得下拉显示成一串 id。
+    if (editing?.userId && !opts.some((o) => o.value === editing.userId)) {
+      opts.unshift({
+        value: editing.userId,
+        label: `${editing.user?.displayName || editing.user?.username || '当前归属'}（当前）`,
+        disabled: false,
+      });
+    }
+    return opts;
+  }, [ownerCandidates, editing]);
+
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
+    loadOwnerCandidates();
     setModalOpen(true);
   };
 
   const openEdit = (record: TrafficAccountItem) => {
     setEditing(record);
+    loadOwnerCandidates(record.studioId);
     // 先清空表单，再填当前记录，避免上一个账号的 WiFi 备注等字段残留到下一个账号。
     form.resetFields();
     const extraValues: Record<string, any> = { ...(record.extra || {}) };
@@ -763,6 +808,22 @@ const TrafficAccountPage: React.FC = () => {
             <Col span={8}><Form.Item name="type" label="平台" rules={[{ required: true, message: '请选择平台' }]}><Select options={PLATFORMS.map((t) => ({ value: t, label: t }))} placeholder="选择平台" /></Form.Item></Col>
             <Col span={8}><Form.Item name="code" label="矩阵手机编号"><Input placeholder="例如 XHS-1" /></Form.Item></Col>
             <Col span={8}><Form.Item name="trafficLevel" label="流量"><Select options={TRAFFIC_LEVELS.map((v) => ({ value: v, label: v }))} placeholder="优/中/差" allowClear /></Form.Item></Col>
+            {canReassignOwner && (
+              <Col span={8}>
+                <Form.Item
+                  name="userId"
+                  label="归属客服"
+                  tooltip="这个号算谁的。原归属的人离职了，就在这里改成接手的人（只有店长 / 老板能改）。"
+                >
+                  <Select
+                    options={ownerOptions}
+                    placeholder="选择归属客服（默认归自己）"
+                    showSearch
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+              </Col>
+            )}
             <Col span={8}><Form.Item name="ipAddress" label="IP"><Input placeholder="手动填写当前 IP" /></Form.Item></Col>
             <Col span={8}><Form.Item name="keywords" label="关键词"><Input placeholder="例如 三角洲 / 上分" /></Form.Item></Col>
             <Col span={8}><Form.Item name="accountRole" label="人设"><Select options={ACCOUNT_ROLES.map((v) => ({ value: v, label: v }))} placeholder="情绪娱乐/技术上分/避坑干货" allowClear /></Form.Item></Col>
