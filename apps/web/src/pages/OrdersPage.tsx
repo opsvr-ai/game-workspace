@@ -29,11 +29,12 @@ import { isRowClickIgnored } from '../utils/rowClick';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 import ChatModal from '../components/ChatModal';
-import { orderStatusConfig, orderTypeConfig, serviceTypeConfig, urgencyConfig } from '../constants';
+import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
 import {
-  CELL_LINE_STYLE,
+  CELL_ONE_LINE,
+  CELL_SUB_TEXT,
   FIELD_WIDTH,
   ORDER_ACTIONS_COLUMN,
   ORDER_TABLE_KEYS,
@@ -386,7 +387,7 @@ const OrdersPage: React.FC = () => {
   // 现在：第一行永远是「修改 / 退款」，第二行永远是「沟通 / 添加成功 / 添加失败」，
   // 每个动作占一个固定宽度的格子（这一行没有这个动作就留空），所以同一个按钮在哪一行都在同一个位置；
   // 按钮统一纯文字、等宽（图标去掉，绿 / 红底色表意），高度沿用全站表格按钮规格（22px）。
-  const ACTION_ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, minHeight: 22 };
+  const ACTION_ROW: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, minHeight: 22 };
   const actionSlot = (w: number): React.CSSProperties => ({
     width: w,
     flexShrink: 0,
@@ -433,18 +434,18 @@ const OrdersPage: React.FC = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {hasOrderRow && (
           <div style={ACTION_ROW}>
-            <span style={actionSlot(62)}>
+            <span style={actionSlot(38)}>
               {canEditOrder(r) && (
-                <Button size="small" style={{ width: 62 }} onClick={() => setEditingOrder(r)}>
+                <Button size="small" style={{ width: 38 }} onClick={() => setEditingOrder(r)}>
                   修改
                 </Button>
               )}
             </span>
-            <span style={actionSlot(62)}>
+            <span style={actionSlot(38)}>
               <Button
                 size="small"
                 danger
-                style={{ width: 62 }}
+                style={{ width: 38 }}
                 onClick={() => {
                   setRefundOrder(r);
                   setRefundReason('');
@@ -457,12 +458,12 @@ const OrdersPage: React.FC = () => {
         )}
         {hasContactRow && (
           <div style={ACTION_ROW}>
-            <span style={actionSlot(56)}>
+            <span style={actionSlot(38)}>
               {chatTarget && (
                 <Badge count={unreadMap[r.id] || 0} size="small">
                   <Button
                     size="small"
-                    style={{ width: 56 }}
+                    style={{ width: 38 }}
                     onClick={() => {
                       localStorage.removeItem(`unread-${r.id}`);
                       setUnreadMap((prev) => {
@@ -505,7 +506,7 @@ const OrdersPage: React.FC = () => {
                 </Badge>
               )}
             </span>
-            <span style={actionSlot(78)}>
+            <span style={actionSlot(72)}>
               {contactState === 'added' ? (
                 <Tag color="green" style={{ margin: 0 }}>
                   已添加
@@ -514,7 +515,7 @@ const OrdersPage: React.FC = () => {
                 <Button
                   size="small"
                   type="primary"
-                  style={{ width: 78, background: '#16A34A', borderColor: '#16A34A' }}
+                  style={{ width: 72, background: '#16A34A', borderColor: '#16A34A' }}
                   onClick={async () => {
                     try {
                       await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -532,7 +533,7 @@ const OrdersPage: React.FC = () => {
                 <Button
                   size="small"
                   type="primary"
-                  style={{ width: 78, background: '#16A34A', borderColor: '#16A34A' }}
+                  style={{ width: 72, background: '#16A34A', borderColor: '#16A34A' }}
                   onClick={async () => {
                     try {
                       await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -548,12 +549,12 @@ const OrdersPage: React.FC = () => {
                 </Button>
               ) : null}
             </span>
-            <span style={actionSlot(78)}>
+            <span style={actionSlot(60)}>
               {contactState === 'pending' && (
                 <Button
                   size="small"
                   danger
-                  style={{ width: 78 }}
+                  style={{ width: 60 }}
                   onClick={async () => {
                     try {
                       await http.put(`/orders/${r.id}/contact`, {
@@ -626,50 +627,62 @@ const OrdersPage: React.FC = () => {
       return o.csUserId === csFilter;
     });
 
-  // 合并列（老板 2026-09-27 要求「别重叠、别浪费空间」）：
-  // 原来 17 列要 1936px，1920 的屏只有 1591px，最后一列被压成竖排单字、状态两个标签把行撑到 100px。
-  // 现在把同类信息并成一列上下排，总量降到 1300 出头，一屏放得下。
+  // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
+  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（980px）。
+  // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
+  // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
+  // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线，
+  // 客服默认窗口（1320 宽 → 表格可用 991px）一屏放得下、不用左右拖。
+  const STATUS_TEXT_COLOR: Record<string, string> = {
+    PENDING: '#B45309',
+    CLAIMED: '#6D28D9',
+    GRABBED: '#1D4ED8',
+    CONFIRMED: '#15803D',
+    DONE: '#15803D',
+    CANCELLED: '#94A3B8',
+  };
+  // 「打单」不再用彩色标签：立即打是灰字，预约是蓝字（等时间的单要一眼看出来）
+  const URGENCY_TEXT: Record<string, string> = { now: '立即打', later: '预约' };
+
   const columns = [
     {
       title: '订单',
       key: 'orderCode',
       width: FIELD_WIDTH.orderCode,
-      render: (_: unknown, o: any) => (
-        <div style={{ lineHeight: 1.4 }}>
-          <Text strong>{o.orderCode || o.id.slice(0, 8)}</Text>
-          <div>
-            <Tag color={orderTypeConfig[o.type]?.color || 'blue'} style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>
-              {orderTypeConfig[o.type]?.label || o.type}
-            </Tag>
+      render: (_: unknown, o: any) => {
+        const code = o.orderCode || o.id.slice(0, 8);
+        const typeLabel = orderTypeConfig[o.type]?.label || o.type || '首单';
+        return (
+          <div style={CELL_ONE_LINE} title={`${code} · ${typeLabel}`}>
+            <Text strong>{code}</Text>
+            <span style={CELL_SUB_TEXT}>· {typeLabel}</span>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: '状态',
       key: 'status',
       width: FIELD_WIDTH.orderStatus,
-      render: (_: unknown, o: any) => (
-        <div style={{ lineHeight: 1.4 }}>
-          <div>
-            <Tag color={orderStatusConfig[o.status]?.color || 'default'} style={{ margin: 0 }}>
-              {orderStatusConfig[o.status]?.label || o.status}
-            </Tag>
-          </div>
-          {/* 池子里超时没人抢、已退回流转失败明细的单：状态还是「待接单」，光看状态看不出它
-              已经没人管了（原派单记录那张卡上的提示，2026-09-27 并过来）。短标 + 悬停说明，
-              并且单独占一行 —— 跟状态标签并排要 164px，窗口一窄就被切成半截。 */}
-          {o.customFields?.poolExpired === true && !o.companionId && (
-            <div style={{ marginTop: 2 }}>
+      render: (_: unknown, o: any) => {
+        const label = orderStatusConfig[o.status]?.label || o.status;
+        // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接单」
+        const stuck = o.customFields?.poolExpired === true && !o.companionId;
+        if (stuck) {
+          return (
+            <div style={CELL_ONE_LINE}>
               <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
-                <Tag color="red" style={{ margin: 0 }}>
-                  ⚠ 无人接单
-                </Tag>
+                <span style={{ color: '#DC2626' }}>无人接单</span>
               </Tooltip>
             </div>
-          )}
-        </div>
-      ),
+          );
+        }
+        return (
+          <div style={CELL_ONE_LINE} title={label}>
+            <span style={{ color: STATUS_TEXT_COLOR[o.status] || '#475569' }}>{label}</span>
+          </div>
+        );
+      },
     },
     {
       title: '游戏 / 服务',
@@ -677,13 +690,18 @@ const OrdersPage: React.FC = () => {
       width: FIELD_WIDTH.game,
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
+        const svc = serviceTypeConfig[o.serviceType]?.label;
+        const parts = [
+          // 默认服务就是「陪玩」，只在护航 / 做任务时写出来，把宽度留给游戏名和机密 / 绝密
+          svc && svc !== '陪玩' ? svc : '',
+          cf.deltaMission || '',
+          cf.deltaCount === '双' ? '双' : '',
+        ].filter(Boolean);
+        const text = `${o.gameName}${parts.length ? ' · ' + parts.join(' · ') : ''}`;
         return (
-          <div style={{ lineHeight: 1.4 }}>
+          <div style={CELL_ONE_LINE} title={text}>
             <Text strong>{o.gameName}</Text>
-            <div style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>
-              {serviceTypeConfig[o.serviceType]?.label || '陪玩'} · {cf.deltaCount || '单'}
-              {cf.deltaMission ? ' · ' + cf.deltaMission : ''}
-            </div>
+            {parts.length > 0 && <span style={CELL_SUB_TEXT}>· {parts.join(' · ')}</span>}
           </div>
         );
       },
@@ -692,19 +710,18 @@ const OrdersPage: React.FC = () => {
       title: '金额 / 打单',
       key: 'amount',
       width: FIELD_WIDTH.amount,
-      // 金额和下面的「立即打 / 预约」标签都跟表头「金额 / 打单」左对齐（老板 2026-09-28：
-      // 「所有端的显示按上方标签列上下对齐」）。原来这里写的是 textAlign: 'right'，
-      // 金额被推到列的最右边、比表头往右偏 46px，跟下面那个标签也不是一条线。
-      render: (_: unknown, o: any) => (
-        <div style={{ lineHeight: 1.4 }}>
-          <Text strong>¥{Number(o.amount).toFixed(0)}</Text>
-          <div>
-            <Tag color={urgencyConfig[o.customFields?.urgency]?.color || 'green'} style={{ margin: 0, fontSize: 10, lineHeight: '16px' }}>
-              {urgencyConfig[o.customFields?.urgency]?.label || '立即'}
-            </Tag>
+      render: (_: unknown, o: any) => {
+        const urgency = o.customFields?.urgency === 'later' ? 'later' : 'now';
+        const money = `¥${Number(o.amount).toFixed(0)}`;
+        return (
+          <div style={CELL_ONE_LINE} title={`${money} · ${URGENCY_TEXT[urgency]}`}>
+            <Text strong>{money}</Text>
+            <span style={{ ...CELL_SUB_TEXT, color: urgency === 'later' ? '#1D4ED8' : '#94A3B8' }}>
+              {URGENCY_TEXT[urgency]}
+            </span>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: '客户微信 / 编号',
@@ -714,15 +731,9 @@ const OrdersPage: React.FC = () => {
         const code = o.customer?.customerCode;
         const wechat = o.customFields?.customerWechat || o.customer?.wechatId || '-';
         return (
-          <div style={{ lineHeight: 1.4 }}>
-            <div title={wechat} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {wechat}
-            </div>
-            {code && (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                👤{code}
-              </Text>
-            )}
+          <div style={CELL_ONE_LINE} title={code ? `${wechat} · 编号 ${code}` : wechat}>
+            <span>{wechat}</span>
+            {code && <span style={CELL_SUB_TEXT}>· {code}</span>}
           </div>
         );
       },
@@ -731,66 +742,46 @@ const OrdersPage: React.FC = () => {
       title: '客户账号',
       key: 'customerAccounts',
       width: FIELD_WIDTH.customerAccounts,
-      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户，
-      // 不用再点开详情。客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
+      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
+      // 客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
+      // 原来是一格 5~6 行（来源、昵称、房间码、YY/KOOK、二维码），现在压成一行，长了自己省略号。
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
-        const lines: React.ReactNode[] = [];
         const platform = cf.customerSource || o.customer?.platform;
-        const srcText = platform
-          ? '📡' + platform + (!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '')
-          : '';
-        // 昵称 + 客户ID 合起来可能很长（这一列只有 190px），悬停显示完整两个字段
-        const nickText = [
-          cf.customerNickname ? '昵称:' + cf.customerNickname : '',
-          cf.customerAccountId ? '🆔' + cf.customerAccountId : '',
-        ].filter(Boolean).join(' ');
-        if (platform)
-          lines.push(
-            <Text key="plat" title={srcText} type="secondary" style={CELL_LINE_STYLE}>
-              {srcText}
-              {!isCompanion && cf.customerSourceAccount && inactiveAccounts.has(cf.customerSourceAccount) && (
-                <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
-                  已弃用
-                </Tag>
-              )}
-            </Text>,
-          );
-        if (!isCompanion && nickText)
-          lines.push(
-            <Tooltip key="nick" title={'客户：' + nickText}>
-              <Text type="secondary" style={CELL_LINE_STYLE}>
-                {nickText}
-              </Text>
-            </Tooltip>,
-          );
-        if (cf.customerRoomCode)
-          lines.push(
-            <Text key="room" title={'房间码 ' + cf.customerRoomCode} type="secondary" style={CELL_LINE_STYLE}>
-              🚪{cf.customerRoomCode}
-            </Text>,
-          );
-        if (cf.customerYy || cf.customerPlatformAccount)
-          lines.push(
-            <Text key="im" type="secondary" style={CELL_LINE_STYLE}>
-              {cf.customerYy ? 'YY:' + cf.customerYy : ''}
-              {cf.customerYy && cf.customerPlatformAccount ? ' ' : ''}
-              {cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : ''}
-            </Text>,
-          );
-        if (cf.customerWechatQr)
-          lines.push(
-            <Image
-              key="qr"
-              src={cf.customerWechatQr}
-              width={28}
-              height={28}
-              style={{ borderRadius: 4, objectFit: 'cover' }}
-              preview={{ mask: '二维码' }}
-            />,
-          );
-        if (!lines.length) return '-';
-        return <div style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.4 }}>{lines}</div>;
+        const deprecated = !isCompanion && !!cf.customerSourceAccount && inactiveAccounts.has(cf.customerSourceAccount);
+        const bits = [
+          platform ? platform + (!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '') : '',
+          !isCompanion && cf.customerNickname ? cf.customerNickname : '',
+          !isCompanion && cf.customerAccountId ? cf.customerAccountId : '',
+          cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',
+          cf.customerYy ? 'YY:' + cf.customerYy : '',
+          cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
+        ].filter(Boolean);
+        const text = bits.join(' · ');
+        const qr = cf.customerWechatQr;
+        if (!text && !qr) return '-';
+        return (
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}
+            title={text + (deprecated ? '（该来源账号已弃用）' : '')}
+          >
+            <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {text || '-'}
+            </span>
+            {deprecated && (
+              <span style={{ flex: '0 0 auto', fontSize: 11, color: '#94A3B8' }}>已弃用</span>
+            )}
+            {qr && (
+              <Image
+                src={qr}
+                width={16}
+                height={16}
+                style={{ flex: '0 0 auto', borderRadius: 2, objectFit: 'cover' }}
+                preview={{ mask: '二维码' }}
+              />
+            )}
+          </div>
+        );
       },
     },
     {
@@ -799,30 +790,16 @@ const OrdersPage: React.FC = () => {
       width: FIELD_WIDTH.studio,
       render: (_: unknown, o: any) => {
         const name = o.companion?.user?.username || '未接单';
-        const studio = o.companion?.studio;
         const co = o.coCompanion?.user?.username;
-        // 订单上的 studioId 是发布方；两者不一致就是桥接工作室接的单
+        // 订单上的 studioId 是发布方；两者不一致就是桥接工作室接的单（本店自己的工作室名不用重复写）
+        const studio = o.companion?.studio;
         const isBridged = !!o.studioId && !!studio?.id && o.studioId !== studio.id;
+        const text = `${name}${co ? '+' + co : ''}${isBridged ? ' · 桥接·' + studio.name : ''}`;
         return (
-          <div style={{ lineHeight: 1.45 }}>
-            <div style={{ whiteSpace: 'nowrap' }}>{name}</div>
-            {co && <div style={{ fontSize: 11, color: '#722ed1', whiteSpace: 'nowrap' }}>副陪:{co}</div>}
-            {studio?.name && (
-              <Tooltip
-                title={
-                  isBridged
-                    ? `桥接工作室接单：本单由${o.studio?.name || '发布方'}发布，${studio.name}的陪玩接单`
-                    : `${studio.name} 的陪玩接单`
-                }
-              >
-                <Tag
-                  color={isBridged ? 'purple' : 'default'}
-                  style={{ margin: 0, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}
-                >
-                  {isBridged ? `桥接·${studio.name}` : studio.name}
-                </Tag>
-              </Tooltip>
-            )}
+          <div style={CELL_ONE_LINE} title={text}>
+            <span style={{ color: o.companion ? undefined : '#94A3B8' }}>{name}</span>
+            {co && <span style={CELL_SUB_TEXT}>+{co}</span>}
+            {isBridged && <span style={{ ...CELL_SUB_TEXT, color: '#6D28D9' }}>· 桥接·{studio.name}</span>}
           </div>
         );
       },
@@ -831,20 +808,17 @@ const OrdersPage: React.FC = () => {
       title: '发布',
       key: 'createdAt',
       width: FIELD_WIDTH.createdAt,
-      // 发布人和发布时间并成一列。时间只写「09-27 01:11」——原来「2026/9/27 01:11:46」要 100px 以上，
-      // 把这一列撑到 128；完整时间（含年份）悬停看。
+      // 发布人 + 发布时间一行。时间只写「09-27 01:11」——原来「2026/9/27 01:11:46」要 100px 以上，
+      // 完整时间（含年份）悬停看。
       render: (_: unknown, o: any) => {
         const d = new Date(o.grabbedAt || o.createdAt);
         const pad = (n: number) => String(n).padStart(2, '0');
         const short = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        const who = o.csUser?.username || '-';
         return (
-          <div style={{ lineHeight: 1.4 }}>
-            <div style={{ whiteSpace: 'nowrap' }}>{o.csUser?.username || '-'}</div>
-            <Tooltip title={d.toLocaleString('zh-CN', { hour12: false })}>
-              <Text type="secondary" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                {short}
-              </Text>
-            </Tooltip>
+          <div style={CELL_ONE_LINE} title={`${who} · ${d.toLocaleString('zh-CN', { hour12: false })}`}>
+            <span>{who}</span>
+            <span style={CELL_SUB_TEXT}>{short}</span>
           </div>
         );
       },
@@ -861,7 +835,7 @@ const OrdersPage: React.FC = () => {
     <>
       <div>
         <PageHeader
-          title={isCompanion ? (companionScope === 'published' ? '我发的单' : '接单记录') : '📋 订单管理'}
+          title={isCompanion ? (companionScope === 'published' ? '我发的单' : '接单记录') : '订单管理'}
           subtitle={
             isCompanion
               ? companionScope === 'published'
@@ -971,41 +945,35 @@ const OrdersPage: React.FC = () => {
             </Text>
           )}
         </div>
-        {/* Today's order stats */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
-          <Tag color="blue">
-            📋 今日抢单：
-            {
-              orders.filter((o: any) => {
-                const d = new Date(o.grabbedAt || o.createdAt).toDateString();
-                return d === new Date().toDateString() && o.status !== 'CANCELLED';
-              }).length
-            }
-          </Tag>
-          <Tag color="red">
-            🔴 补单：
-            {
-              orders.filter((o: any) => {
-                const d = new Date(o.grabbedAt || o.createdAt).toDateString();
-                return d === new Date().toDateString() && (o.customFields?.deltaNote || o.notes || '').includes('补单');
-              }).length
-            }
-          </Tag>
-          <Tag color="green">
-            📊 合计：
-            {
-              orders.filter(
-                (o: any) => new Date(o.grabbedAt || o.createdAt).toDateString() === new Date().toDateString(),
-              ).length
-            }
-          </Tag>
+        {/* 今日单量：一行灰字（原来三个彩色标签块，视觉噪音太大，老板 2026-09-28） */}
+        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
+          今日抢单{' '}
+          {
+            orders.filter((o: any) => {
+              const d = new Date(o.grabbedAt || o.createdAt).toDateString();
+              return d === new Date().toDateString() && o.status !== 'CANCELLED';
+            }).length
+          }
+          {' · 补单 '}
+          {
+            orders.filter((o: any) => {
+              const d = new Date(o.grabbedAt || o.createdAt).toDateString();
+              return d === new Date().toDateString() && (o.customFields?.deltaNote || o.notes || '').includes('补单');
+            }).length
+          }
+          {' · 合计 '}
+          {
+            orders.filter(
+              (o: any) => new Date(o.grabbedAt || o.createdAt).toDateString() === new Date().toDateString(),
+            ).length
+          }
         </div>{' '}
         {loading && orders.length === 0 ? (
           <TableSkeleton columns={5} rows={5} />
         ) : (
           <Card size="small" style={{ overflow: 'auto' }}>
             <Table
-              className="orders-table"
+              className="data-table"
               rowKey="id"
               columns={columns as any}
               dataSource={sorted}

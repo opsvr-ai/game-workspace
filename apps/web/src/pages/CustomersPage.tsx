@@ -26,13 +26,6 @@ import zhCN from 'antd/locale/zh_CN';
 import {
   PlusOutlined,
   ReloadOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SwapOutlined,
-  MessageOutlined,
-  CalendarOutlined,
-  PlayCircleOutlined,
-  SendOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
@@ -43,7 +36,7 @@ import http from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { platformOptions, customerStatusConfig, orderTypeConfig, urgencyConfig, billingModeConfig } from '../constants';
+import { platformOptions, customerStatusConfig, orderTypeConfig } from '../constants';
 import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import StartServiceModal from '../components/StartServiceModal';
@@ -57,12 +50,12 @@ import PageHeader from '../components/PageHeader';
 import {
   ACTIONS_COLUMN,
   ACTIONS_COLUMN_COMPANION,
-  CELL_SUB_LINE_STYLE,
+  CELL_MAIN_TEXT,
+  CELL_ONE_LINE,
+  CELL_SUB_TEXT,
   CUSTOMER_CODE_COLUMN,
   CUSTOMER_TABLE_KEYS,
   CUSTOMER_TABLE_KEYS_COMPANION,
-  DATA_FONT_SIZE,
-  DATA_SUB_FONT_SIZE,
   FIELD_WIDTH,
   TABLE_STYLE,
   sumWidths,
@@ -374,9 +367,19 @@ const CustomersPage: React.FC = () => {
     }
   };
 
-  // 合并列（老板 2026-09-27 要求「别重叠、别浪费空间」）：
-  // 原来 12 列要 1770px，1920 的屏也只有 1591px，横向溢出的那几列会被挤成竖排单字。
-  // 现在把「昵称并进客户编号列、来源账号并进来源列、陪玩和所用微信并一列、跟进和累计消费并一列」。
+  // 客户管理表的列。历史：12 列（1770px）→ 合并成 8 列上下两行（1174px）→ 现在**一格一行**（976px）。
+  // 老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨 ——
+  // 一个格子只放一行（主信息深色，次要信息 11px 灰字用「·」跟在后面），长了自动省略号、
+  // 鼠标停上去看完整内容；彩色标签块全部去掉（状态 / 存单 / 预约改成彩色文字），累计消费不再用红色。
+  // 客服默认窗口（1320 宽 → 表格可用 991px）一屏放得下、不用左右拖。
+  // 客户状态用彩色文字代替彩色标签块（和订单管理的状态列同一种做法）
+  const CUSTOMER_STATUS_TEXT_COLOR: Record<string, string> = {
+    ACTIVE: '#15803D',
+    FOLLOW_UP: '#1D4ED8',
+    LOST: '#DC2626',
+    PENDING_DEVELOPMENT: '#B45309',
+  };
+
   const columns: any[] = [
     {
       title: '客户编号 / 微信号',
@@ -385,39 +388,25 @@ const CustomersPage: React.FC = () => {
       ...CUSTOMER_CODE_COLUMN,
       render: (code: string, record: Customer) => {
         const cf = record.orders?.[0]?.customFields || {};
+        const sub = [record.wechatId || '-', !isCompanion && cf.customerNickname ? cf.customerNickname : '']
+          .filter(Boolean)
+          .join(' · ');
+        const deposit =
+          Number(record.depositBalance) > 0 ? `存单 ¥${Number(record.depositBalance).toFixed(0)}` : '';
+        const scheduled = record.scheduledAt
+          ? (() => {
+              const d = new Date(record.scheduledAt);
+              const pad = (n: number) => String(n).padStart(2, '0');
+              return `预约 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            })()
+          : '';
+        const tail = [deposit, scheduled].filter(Boolean).join(' · ');
         return (
-          <>
-            <Text>{code}</Text>
-            {Number(record.depositBalance) > 0 && (
-              <Tag color="blue" style={{ marginLeft: 6 }}>
-                存单 ¥{Number(record.depositBalance).toFixed(1)}
-              </Tag>
-            )}
-            <br />
-            <Text
-              type="secondary"
-              title={[record.wechatId || '-', !isCompanion && cf.customerNickname ? cf.customerNickname : '']
-                .filter(Boolean)
-                .join(' · ')}
-              style={{ ...CELL_SUB_LINE_STYLE, display: 'inline-block' }}
-            >
-              {record.wechatId || '-'}
-              {!isCompanion && cf.customerNickname ? ' · ' + cf.customerNickname : ''}
-            </Text>
-            {record.scheduledAt &&
-              (() => {
-                const d = new Date(record.scheduledAt);
-                return (
-                  <>
-                    <br />
-                    <Tag color="purple" style={{ fontSize: 10, marginTop: 2 }}>
-                      📅{d.getMonth() + 1}月{d.getDate()}日 {String(d.getHours()).padStart(2, '0')}:
-                      {String(d.getMinutes()).padStart(2, '0')}
-                    </Tag>
-                  </>
-                );
-              })()}
-          </>
+          <div style={CELL_ONE_LINE} title={[code, sub, tail].filter(Boolean).join(' · ')}>
+            <Text strong>{code}</Text>
+            <span style={CELL_SUB_TEXT}>· {sub}</span>
+            {tail && <span style={{ ...CELL_SUB_TEXT, color: '#1D4ED8' }}>· {tail}</span>}
+          </div>
         );
       },
     },
@@ -429,63 +418,32 @@ const CustomersPage: React.FC = () => {
         const o = r.orders?.[0];
         if (!o) return <Text type="secondary">-</Text>;
         const cf = o.customFields || {};
+        // 只留「金额 · 类型」两件最要紧的：机密 / 双陪 / 时长在订单管理表和详情弹窗里都能看到，
+        // 挤在这里只会把游戏名顶成省略号（老板 2026-09-28：别浪费空间、别乱）
+        const bits = [`¥${Number(o.amount).toFixed(0)}`, orderTypeConfig[o.type]?.label || o.type].filter(Boolean);
         return (
-          <>
+          <div style={CELL_ONE_LINE} title={`${o.gameName} · ${bits.join(' · ')}`}>
             <Text strong>{o.gameName}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              <Tag color={orderTypeConfig[o.type]?.color} style={{ fontSize: 10, margin: 0 }}>
-                {orderTypeConfig[o.type]?.label || o.type}
-              </Tag>{' '}
-              ¥{Number(o.amount).toFixed(0)}
-              {cf.deltaMission && (
-                <Tag color="red" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
-                  {cf.deltaMission}
-                </Tag>
-              )}
-              {cf.deltaCount && <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>{cf.deltaCount}</Tag>}
-              {cf.billingMode === 'round' && (
-                <Tag style={{ fontSize: 10, margin: '0 0 0 4px' }}>🎯{o.duration || cf.deltaCount || '?'}局</Tag>
-              )}
-              {o.duration > 0 && cf.billingMode !== 'round' && <Text style={{ fontSize: 10 }}> · {o.duration}h</Text>}
-            </Text>
-          </>
+            <span style={CELL_SUB_TEXT}>· {bits.join(' · ')}</span>
+          </div>
         );
       },
     },
     {
-      // 原来「来源账号」单独占一列 150px（大多是空的），现在并进来源列
+      // 原来「来源账号」单独占一列 150px（大多是空的），现在和来源并成一行
       title: '来源 / 账号',
       key: 'source',
       width: FIELD_WIDTH.sourceTime,
       render: (_: any, r: any) => {
         const cf = r.orders?.[0]?.customFields || {};
-        const acc = cf.customerSourceAccount;
+        const acc = isCompanion ? '' : cf.customerSourceAccount;
+        const text = [cf.customerSource || '', acc || ''].filter(Boolean).join(' ');
+        if (!text) return <Text type="secondary">-</Text>;
+        const deprecated = !!acc && inactiveAccounts.has(acc);
         return (
-          <div style={{ lineHeight: 1.6 }}>
-            {cf.customerSource && (
-              <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>
-                📡{cf.customerSource}
-              </Tag>
-            )}
-            {!isCompanion && acc && (
-              <div style={CELL_SUB_LINE_STYLE} title={acc}>
-                {acc}
-                {inactiveAccounts.has(acc) && (
-                  <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>
-                    已弃用
-                  </Tag>
-                )}
-              </div>
-            )}
-            {cf.urgency && (
-              <Tag color={urgencyConfig[cf.urgency]?.color} style={{ fontSize: 10, margin: '2px 4px 0 0' }}>
-                {urgencyConfig[cf.urgency]?.label}
-              </Tag>
-            )}
-            {cf.billingMode && (
-              <Tag style={{ fontSize: 10, margin: '2px 0 0 0' }}>{billingModeConfig[cf.billingMode]?.label}</Tag>
-            )}
+          <div style={CELL_ONE_LINE} title={text + (deprecated ? '（已弃用）' : '')}>
+            <span>{text}</span>
+            {deprecated && <span style={{ ...CELL_SUB_TEXT, color: '#94A3B8' }}>已弃用</span>}
           </div>
         );
       },
@@ -497,55 +455,48 @@ const CustomersPage: React.FC = () => {
       width: FIELD_WIDTH.status,
       render: (s: string) => {
         const cfg = customerStatusConfig[s];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{s || '-'}</Tag>;
+        return (
+          <span style={{ color: CUSTOMER_STATUS_TEXT_COLOR[s] || '#475569' }}>{cfg?.label || s || '-'}</span>
+        );
       },
     },
     {
-      // 原来「所用微信」和「陪玩」各占一列（100 + 110px），两条都是短信息
+      // 原来「所用微信」和「陪玩」各占一列（100 + 110px），两条都是短信息，现在并成一行
       title: '陪玩 / 微信',
       key: 'companion',
       width: FIELD_WIDTH.companionWechat,
       render: (_: any, r: Customer) => {
         const wo: any = r.orders?.[0]?.customFields;
         const wx = wo?.workWechatName || (wo?.workWechatId ? wo.workWechatId.slice(0, 8) : '');
+        const name = r.companion?.user?.username;
         return (
-          <div style={{ lineHeight: 1.6 }}>
-            <div style={{ whiteSpace: 'nowrap' }}>
-              {r.companion?.user?.username ?? <Text type="secondary">未分配</Text>}
-            </div>
-            {wx && (
-              <Tag color="cyan" style={{ fontSize: 11, margin: 0 }}>
-                📱{wx}
-              </Tag>
-            )}
+          <div style={CELL_ONE_LINE} title={[name || '未分配', wx].filter(Boolean).join(' · ')}>
+            <span style={{ color: name ? undefined : '#94A3B8' }}>{name || '未分配'}</span>
+            {wx && <span style={CELL_SUB_TEXT}>· {wx}</span>}
           </div>
         );
       },
     },
     {
-      // 原来「最近跟进」和「累计消费」各占一列（120 + 120px）
+      // 原来「最近跟进」和「累计消费」各占一列（120 + 120px），现在并成一行：
+      // 累计消费深色（要一眼看到），后面跟最近一次跟进的时间 + 内容摘要
       title: '跟进 / 累计',
       key: 'followUp',
       width: FIELD_WIDTH.followUpSpent,
       render: (_: any, r: Customer) => {
         const latest = r.followUps?.[0];
+        const spent = `¥${Number(r.totalSpent ?? 0).toFixed(1)}`;
+        const when = latest
+          ? (() => {
+              const d = new Date(latest.createdAt);
+              return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })()
+          : '';
+        const note = latest ? latest.content || '' : '未跟进';
         return (
-          <div style={{ lineHeight: 1.6 }}>
-            {latest ? (
-              <>
-                <div style={CELL_SUB_LINE_STYLE} title={latest.content || ''}>
-                  {latest.content || ''}
-                </div>
-                <Text type="secondary" style={{ fontSize: 10 }}>
-                  {new Date(latest.createdAt).toLocaleDateString('zh-CN')}
-                </Text>
-              </>
-            ) : (
-              <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>
-                未跟进
-              </Tag>
-            )}
-            <div style={{ color: '#FF4757', fontWeight: 600 }}>¥{Number(r.totalSpent ?? 0).toFixed(1)}</div>
+          <div style={CELL_ONE_LINE} title={[spent, when, note].filter(Boolean).join(' · ')}>
+            <span style={CELL_MAIN_TEXT}>{spent}</span>
+            <span style={CELL_SUB_TEXT}>· {when ? when + ' ' : ''}{note}</span>
           </div>
         );
       },
@@ -570,7 +521,7 @@ const CustomersPage: React.FC = () => {
             }}
           />
         ) : (
-          <Text style={{ fontSize: DATA_FONT_SIZE }}>{r.notes || '-'}</Text>
+          <div style={CELL_ONE_LINE} title={r.notes || ''}>{r.notes || '-'}</div>
         ),
     },
   ];
@@ -600,7 +551,7 @@ const CustomersPage: React.FC = () => {
                 }
               }}
             >
-              ✅ 设置成功
+              设置成功
             </Button>
           );
         }
@@ -609,7 +560,7 @@ const CustomersPage: React.FC = () => {
           // 最右边那个按钮被切掉；这里在固定列宽内自动换行。
           <Space size={4} wrap style={{ maxWidth: '100%' }}>
           {record.orders?.[0]?.id && (
-            <Button size="small" icon={React.createElement(MessageOutlined)} onClick={() => openChat(record)}>
+            <Button size="small" onClick={() => openChat(record)}>
               沟通
             </Button>
           )}
@@ -663,7 +614,7 @@ const CustomersPage: React.FC = () => {
               };
             }
             return (
-              <Button type="primary" size="small" icon={React.createElement(PlayCircleOutlined)} onClick={action}>
+              <Button type="primary" size="small" onClick={action}>
                 {label}
               </Button>
             );
@@ -747,10 +698,10 @@ const CustomersPage: React.FC = () => {
               </Space>
             );
           })()}
-          <Button size="small" icon={React.createElement(SendOutlined)} onClick={() => setCreateOrderOpen(true)}>
+          <Button size="small" onClick={() => setCreateOrderOpen(true)}>
             发布订单
           </Button>
-          <Button size="small" icon={React.createElement(CalendarOutlined)} onClick={() => openScheduleModal(record)}>
+          <Button size="small" onClick={() => openScheduleModal(record)}>
             预约
           </Button>
           <Button size="small" onClick={() => {
@@ -793,12 +744,7 @@ const CustomersPage: React.FC = () => {
             </Button>
           )}
           {canManage && (
-            <Button
-              type="link"
-              size="small"
-              icon={React.createElement(EditOutlined)}
-              onClick={() => openEditModal(record)}
-            >
+            <Button type="link" size="small" onClick={() => openEditModal(record)}>
               编辑
             </Button>
           )}
@@ -809,12 +755,7 @@ const CustomersPage: React.FC = () => {
               okText="确定"
               cancelText="取消"
             >
-              <Button
-                type="link"
-                size="small"
-                danger
-                icon={React.createElement(DeleteOutlined)}
-              >
+              <Button type="link" size="small" danger>
                 删除
               </Button>
             </Popconfirm>
@@ -874,6 +815,7 @@ const CustomersPage: React.FC = () => {
                   ) : (
                     <Card size="small" style={{ overflow: 'auto' }}>
                       <Table
+                        className="data-table"
                         size="small"
                         columns={columns}
                         dataSource={customers.filter(

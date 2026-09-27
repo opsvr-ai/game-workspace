@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Modal, Descriptions, Tag, Typography } from 'antd';
+import { Modal, Descriptions, Image, Tag, Typography } from 'antd';
 import {
   orderStatusConfig,
   orderTypeConfig,
@@ -100,6 +100,19 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
         <Descriptions.Item label="客户昵称">{cf.customerNickname || '-'}</Descriptions.Item>
         <Descriptions.Item label="客户来源">{cf.customerSource || order.customer?.platform || '-'}</Descriptions.Item>
         <Descriptions.Item label="来源账号">{cf.customerSourceAccount || cf.customerAccountId || '-'}</Descriptions.Item>
+        <Descriptions.Item label="房间码">{cf.customerRoomCode || '-'}</Descriptions.Item>
+        <Descriptions.Item label="YY / KOOK">
+          {[cf.customerYy ? 'YY:' + cf.customerYy : '', cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '']
+            .filter(Boolean)
+            .join(' ') || '-'}
+        </Descriptions.Item>
+        <Descriptions.Item label="客户二维码">
+          {cf.customerWechatQr ? (
+            <Image src={cf.customerWechatQr} width={96} style={{ borderRadius: 4 }} preview={{ mask: '二维码' }} />
+          ) : (
+            '-'
+          )}
+        </Descriptions.Item>
         <Descriptions.Item label="发布时间">{fmtTime(order.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="接单时间">{fmtTime(order.grabbedAt)}</Descriptions.Item>
         <Descriptions.Item label="备注" span={2}>

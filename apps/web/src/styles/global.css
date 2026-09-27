@@ -669,22 +669,30 @@ body {
   align-items: flex-start;
 }
 
-/* 订单管理表：列宽已经定死 + 横向滚动 + 操作列钉右，字体统一走 --data-*，
-   不再单独缩成 11px（否则同一个数据在订单管理和客户管理里就是两个字号） */
-.orders-table .ant-table {
+/* 订单管理表 / 客户管理表（密集数据表，class = data-table）：
+   列宽已经定死 + 横向滚动 + 操作列钉右，字体统一走 --data-*，
+   不再单独缩成 11px（否则同一个数据在订单管理和客户管理里就是两个字号）。
+   2026-09-28（老板：所有信息不要分两层显示、别浪费空间）这两张表变成「一格一行」，
+   于是左右内边距收到 5px —— 每个格子多出 6px 放文字，9 列的表正好落在客服窗口的 991px 里；
+   上下 5px 让一张单行表的数据行高从 39px 降到 30px，一屏能多看好几行。 */
+.data-table .ant-table {
   font-size: var(--data-font-size);
 }
-.orders-table .ant-table-thead > tr > th {
+.data-table .ant-table-thead > tr > th {
   font-size: var(--data-head-font-size);
-  padding: 5px 6px;
   white-space: nowrap;
 }
-.orders-table .ant-table-tbody > tr > td {
-  padding: 5px 6px;
+.data-table .ant-table-tbody > tr > td {
   white-space: nowrap;
 }
-.orders-table .ant-table-cell-fix-right,
-.orders-table .ant-table-cell-fix-left {
+/* 只改真正的表头行和数据行：.ant-table-measure-row 是 antd 用来量列宽的空行，
+   它的单元格必须保持 padding 0，否则列宽会被量错。 */
+.data-table .ant-table-thead > tr > th.ant-table-cell,
+.data-table .ant-table-tbody > tr.ant-table-row > td.ant-table-cell {
+  padding: 5px 5px !important;
+}
+.data-table .ant-table-cell-fix-right,
+.data-table .ant-table-cell-fix-left {
   background: #fff;
 }
 
