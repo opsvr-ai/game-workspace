@@ -124,6 +124,29 @@ export const FIELD_WIDTH = {
 } as const;
 
 /**
+ * 「客服跟进台账」（派单管理里的那一页，老板 2026-09-29 定稿）的列宽。
+ * 和订单管理那套不一样：这一页是**按人看的台账** —— 客户 → 客服工作微信 → 走到哪一步 →
+ * 最后跟进（时间 + 聊了啥）→ 下次跟进 → 操作。一格一行、超长省略号 + 鼠标悬停看全。
+ * 宽度预算（基准 1066px）：客户 320 + 客服工作微信 108 + 添加情况 92 + 最后跟进 240
+ * + 下次跟进 104 + 操作 202。1320 的客服默认窗口（可用约 991px）会有约 75px 横向滚动，
+ * 和这一页以前那张表（1062px）差不多。
+ */
+export const LEDGER_FIELD_WIDTH = {
+  customer: 320,
+  workWechat: 108,
+  state: 92,
+  lastFollow: 240,
+  nextFollow: 104,
+  actions: 202,
+} as const;
+
+/** 跟进台账整表宽度（scroll.x）：列宽之和，别手写比它小的值，否则列会被压扁 */
+export const LEDGER_TABLE_WIDTH: number = Object.values(LEDGER_FIELD_WIDTH).reduce(
+  (total: number, w: number) => total + w,
+  0,
+);
+
+/**
  * 计算 scroll.x：传进去的字段宽度之和，保证表头不会被挤到换行 / 列不会被压扁。
  * 注意：下面这些宽度是「列宽」，单元格左右各留 5px 内边距（见 global.css 的 .data-table），
  * 所以真正放文字的地方是「列宽 − 10px」。

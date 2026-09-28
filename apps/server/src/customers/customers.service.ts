@@ -413,12 +413,29 @@ export class CustomersService {
     adminId?: string;
     content: string;
     nextAction?: string;
+    /** 下次跟进时间（客服在跟进台账里选的，ISO 字符串） */
+    nextFollowUpAt?: string;
+    /** 这次是用哪个客服工作微信加的客户 */
+    workWechatName?: string;
   }, user?: AuthenticatedUser) {
     const customer = await this.findOne(dto.customerId, user); // Validate access
     if (user && user.role !== 'OWNER' && user.studioId && customer.studioId !== user.studioId) {
       throw new ForbiddenException('共享客户只读，不能添加跟进');
     }
-    const followUp = await this.prisma.customerFollowUp.create({ data: dto });
+    // 显式列出字段（不再直接把 dto 丢给 prisma）：新加的两个字段要转成日期 / 空值
+    const nextFollowUpAt = dto.nextFollowUpAt ? new Date(dto.nextFollowUpAt) : null;
+    const followUp = await this.prisma.customerFollowUp.create({
+      data: {
+        customerId: dto.customerId,
+        playerId: dto.playerId,
+        adminId: dto.adminId,
+        content: dto.content,
+        nextAction: dto.nextAction,
+        nextFollowUpAt:
+          nextFollowUpAt && !Number.isNaN(nextFollowUpAt.getTime()) ? nextFollowUpAt : null,
+        workWechatName: dto.workWechatName || null,
+      },
+    });
     // Auto-update customer status after follow-up
     await this.updateCustomerStatus(dto.customerId);
     return followUp;

@@ -457,13 +457,20 @@ const CSDispatchView: React.FC = () => {
                     marginBottom: 12,
                   }}
                 >
-                  <Space>
-                    <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(false); setEditingOrder(null); setModalOpen(true); }}>
+                  <Space align="start">
+                    <Button icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(false); setEditingOrder(null); setModalOpen(true); }}>
                       发布订单
                     </Button>
-                    <Button icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setEditingOrder(null); setModalOpen(true); }}>
-                      直接添加客户
-                    </Button>
+                    {/* 老板 2026-09-29：客服养客的入口要显眼 —— 客户现在不打、先把微信加上的，
+                        全部走这里登记（只进客服跟进台账，不发单、不打扰陪玩）。 */}
+                    <div>
+                      <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setEditingOrder(null); setModalOpen(true); }}>
+                        直接添加客户
+                      </Button>
+                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                        客户还没决定打、先加上微信的走这里：只进客服跟进台账，不打扰陪玩
+                      </div>
+                    </div>
                   </Space>
                 </div>
 
@@ -1003,7 +1010,7 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'followup',
-            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户跟进列表</span>,
+            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>客服跟进台账</span>,
             children: (
               <CsFollowupPanel
                 refreshSignal={customerRefresh}

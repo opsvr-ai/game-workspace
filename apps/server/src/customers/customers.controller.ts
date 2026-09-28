@@ -154,17 +154,21 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 客服也能记跟进（跟进台账里的「记跟进」就是这个接口）——老板 2026-09-29
   @Post('customers/:id/follow-ups')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION, UserRole.CS)
   async addFollowUp(
     @Param('id') id: string,
     @Req() req: any,
-    @Body() dto: { content: string; nextAction?: string },
+    @Body()
+    dto: { content: string; nextAction?: string; nextFollowUpAt?: string; workWechatName?: string },
   ): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.addFollowUp({
       customerId: id,
       content: dto.content,
       nextAction: dto.nextAction,
+      nextFollowUpAt: dto.nextFollowUpAt,
+      workWechatName: dto.workWechatName,
       playerId: req.user.companionId,
       adminId: req.user.companionId ? undefined : req.user.id,
     }, req.user);

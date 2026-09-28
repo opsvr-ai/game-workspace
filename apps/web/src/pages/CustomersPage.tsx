@@ -21,6 +21,7 @@ import {
   Card,
   Tabs,
   Upload,
+  Tooltip,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -114,6 +115,8 @@ const CustomersPage: React.FC = () => {
   // Companion: chat, create order, schedule
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  // 客服养客：客户还没决定打的，先在客户管理这一页直接登记（和派单工作台的「直接添加客户」同一个弹窗）
+  const [directAddOpen, setDirectAddOpen] = useState(false);
 
   const openChat = (record: Customer) => {
     const o = record.orders?.[0];
@@ -797,8 +800,17 @@ const CustomersPage: React.FC = () => {
               <Button icon={React.createElement(ReloadOutlined)} onClick={() => fetchCustomers()} loading={loading}>
                 刷新
               </Button>
+              {/* 老板 2026-09-29：养客入口在客户管理也要点得到 —— 客户现在不打、先把微信加上的走这里，
+                  登记进「客服跟进台账」，客服持续跟，谈好了从台账直接派单。 */}
+              {canManage && (
+                <Tooltip title="客户还没决定打、先加上微信的走这里：只进客服跟进台账，不打扰陪玩">
+                  <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setDirectAddOpen(true)}>
+                    直接添加客户
+                  </Button>
+                </Tooltip>
+              )}
               {(canManage || isCompanion) && (
-                <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>
+                <Button icon={React.createElement(PlusOutlined)} onClick={openCreateModal}>
                   新建客户
                 </Button>
               )}
@@ -953,6 +965,17 @@ const CustomersPage: React.FC = () => {
           }}
           userId={user?.id}
           customerPreFill={startServicePreFill}
+        />
+        {/* 客服在客户管理里直接登记「先加微信、慢慢跟」的客户（和派单工作台同一个弹窗） */}
+        <CreateOrderModal
+          open={directAddOpen}
+          directAddMode
+          onClose={() => setDirectAddOpen(false)}
+          onCreated={() => {
+            setDirectAddOpen(false);
+            fetchCustomers();
+          }}
+          userId={user?.id}
         />
         <StartServiceModal
           open={!!startServiceOrder}

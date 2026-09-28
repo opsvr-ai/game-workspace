@@ -221,6 +221,17 @@ export class OrdersService implements OnModuleInit {
       include: { customer: true },
     });
 
+    // 从「客服跟进台账」点「直接派单」出来的单：把来源那条跟进标成「已派单」，
+    // 台账里那一行留着当记录，客服点「处理完成」才从台账里消失。
+    if ((dto as any).csCultivated === true && (dto as any).sourceOrderId) {
+      await this.prisma.order
+        .update({
+          where: { id: String((dto as any).sourceOrderId) },
+          data: { contactStatus: 'dispatched' },
+        })
+        .catch(() => null);
+    }
+
     // 弹窗只服务「广播」和「指定」两种方式：入池订单只进抢单池，不弹窗。
     const isUrgent = (dto as any).urgency === 'now';
     const popupCreator = await this.prisma.user.findUnique({
@@ -944,7 +955,17 @@ export class OrdersService implements OnModuleInit {
     }
     const cf = (order.customFields as any) || {};
     const result = extra?.addResult;
-    const contactStatus = result === 'passed' ? 'added' : result === 'failed' ? 'not_accepted' : 'pending';
+    // agreed = 客户已同意（跟进台账里点的那一步）、dispatched = 这条跟进已经派出单去了
+    const contactStatus =
+      status === 'agreed'
+        ? 'agreed'
+        : status === 'dispatched'
+          ? 'dispatched'
+          : result === 'passed'
+            ? 'added'
+            : result === 'failed'
+              ? 'not_accepted'
+              : 'pending';
     const poolHandled = status === 'added';
     return this.prisma.order.update({
       where: { id: orderId },
@@ -1025,7 +1046,9 @@ export class OrdersService implements OnModuleInit {
     const orders = await this.prisma.order.findMany({
       where,
       include: {
-        customer: true,
+        // 跟进台账要显示「最后跟进（时间 + 聊了啥）」「下次跟进」「客服工作微信」，
+        // 所以把客户最近一条跟进记录一起带出来（只取一条，代价很小）
+        customer: { include: { followUps: { orderBy: { createdAt: 'desc' }, take: 1 } } },
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         claimedCsUser: { select: { id: true, username: true, avatar: true, displayName: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
@@ -1039,8 +1062,16 @@ export class OrdersService implements OnModuleInit {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // 台账状态：待添加 / 已添加 / 客户已同意 / 添加失败 / 已派单。
+    // 「已派单」这一行留着当记录（客服点「处理完成」才从这里消失，见 markPoolHandled）。
     return orders.filter((o) => {
-      return o.contactStatus === 'pending' || o.contactStatus === 'added' || o.contactStatus === 'not_accepted';
+      return (
+        o.contactStatus === 'pending' ||
+        o.contactStatus === 'added' ||
+        o.contactStatus === 'agreed' ||
+        o.contactStatus === 'not_accepted' ||
+        o.contactStatus === 'dispatched'
+      );
     });
   }
 

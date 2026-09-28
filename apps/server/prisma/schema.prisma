@@ -492,13 +492,17 @@ model CustomerProfile {
 }
 
 model CustomerFollowUp {
-  id         String   @id @default(uuid())
-  customerId String
-  playerId   String?
-  adminId    String?
-  content    String
-  nextAction String?
-  createdAt  DateTime @default(now())
+  id             String    @id @default(uuid())
+  customerId     String
+  playerId       String?
+  adminId        String? // 记这条跟进的人（客服 / 店长 / 老板的 User.id）
+  content        String // 这次聊到哪一步
+  nextAction     String?
+  // 下次跟进时间（客服「记跟进」时自己选）：跟进台账里显示，到点了红字标出来
+  nextFollowUpAt DateTime?
+  // 这次是用哪个客服工作微信加的客户（工作微信台账里的微信号）
+  workWechatName String?
+  createdAt      DateTime  @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id])
 }

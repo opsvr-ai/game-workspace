@@ -68,7 +68,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
       workWechatName: wx?.wechatId,
       ...(alreadyCultivated ? { addResult: 'passed' } : {}),
     });
-    message.success(alreadyCultivated ? '已回到跟进列表（保持已添加）' : '已标记添加，稍后在跟进列表确认成功/失败');
+    message.success(alreadyCultivated ? '已回到客服跟进台账（保持已添加）' : '已标记添加，稍后在客服跟进台账确认成功/失败');
     setContactOrder(null);
     load();
     onGotoFollowup?.();
@@ -202,7 +202,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
               </Select>
             </div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              确认后即标记「已添加」；添加成功或失败，请在「跟进列表」里选择，无需上传截图。
+              确认后即标记「已添加」；添加成功或失败，请在「客服跟进台账」里选择，无需上传截图。
             </div>
           </div>
         )}

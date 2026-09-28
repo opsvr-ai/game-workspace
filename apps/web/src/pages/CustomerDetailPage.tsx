@@ -14,6 +14,7 @@ import {
   InputNumber,
   Select,
   Switch,
+  DatePicker,
   Skeleton,
   Space,
   Typography,
@@ -124,6 +125,8 @@ const CustomerDetailPage: React.FC = () => {
   // Follow-up form
   const [followUpContent, setFollowUpContent] = useState('');
   const [followUpNextAction, setFollowUpNextAction] = useState('');
+  // 下次跟进时间（老板 2026-09-29）：和「客服跟进台账」里的「记跟进」写的是同一个字段
+  const [followUpNextAt, setFollowUpNextAt] = useState<any>(null);
   const [submittingFollowUp, setSubmittingFollowUp] = useState(false);
 
   // Error state
@@ -242,10 +245,12 @@ const CustomerDetailPage: React.FC = () => {
       await customersApi.addFollowUp(id!, {
         content: followUpContent,
         nextAction: followUpNextAction || undefined,
+        nextFollowUpAt: followUpNextAt ? followUpNextAt.toISOString() : undefined,
       });
       message.success('跟进记录已添加');
       setFollowUpContent('');
       setFollowUpNextAction('');
+      setFollowUpNextAt(null);
       fetchFollowUps();
       fetchCustomer(); // refresh status
     } catch (err: any) {
@@ -826,6 +831,16 @@ const CustomerDetailPage: React.FC = () => {
                 placeholder="如: 3天后回访、发送优惠券..."
               />
             </Form.Item>
+            <Form.Item label="下次跟进时间">
+              <DatePicker
+                showTime
+                format="M月D日 HH:mm"
+                value={followUpNextAt}
+                onChange={(v) => setFollowUpNextAt(v)}
+                placeholder="可选：到点了在客服跟进台账里提醒客服"
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
             <Button
               type="primary"
               icon={React.createElement(PlusOutlined)}
@@ -850,6 +865,14 @@ const CustomerDetailPage: React.FC = () => {
                   {f.nextAction && (
                     <div style={{ marginBottom: 4 }}>
                       <Tag color="blue">下一步: {f.nextAction}</Tag>
+                    </div>
+                  )}
+                  {(f.nextFollowUpAt || f.workWechatName) && (
+                    <div style={{ marginBottom: 4 }}>
+                      {f.nextFollowUpAt && (
+                        <Tag color="purple">下次跟进: {formatDate(f.nextFollowUpAt)}</Tag>
+                      )}
+                      {f.workWechatName && <Tag>客服微信: {f.workWechatName}</Tag>}
                     </div>
                   )}
                   <div>
