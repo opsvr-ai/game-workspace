@@ -8,6 +8,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import PageHeader from '../../components/PageHeader';
 import { expenseReportsApi } from '../../api/expenses';
 import { billingApi } from '../../api/billing';
+import PayoutQrScan from '../../components/PayoutQrScan';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -121,6 +122,17 @@ const ExpenseReviewPage: React.FC = () => {
     { title: '类型', dataIndex: 'type', render: (v: string) => <Tag color={expenseTypeConfig[v]?.color}>{expenseTypeConfig[v]?.label || v}</Tag> },
     { title: '金额', dataIndex: 'amount', render: (v: number) => <Text strong>¥{Number(v || 0).toFixed(1)}</Text> },
     { title: '说明', dataIndex: 'description', ellipsis: true },
+    {
+      title: '收款码', width: 100,
+      // 「每次报账点开这个码，拿手机扫一扫就可以了」（老板 2026-09-29）
+      render: (_: any, r: any) => (
+        <PayoutQrScan
+          url={r.companion?.payoutQrUrl}
+          who={r.companion?.user?.username}
+          updatedAt={r.companion?.payoutQrUpdatedAt}
+        />
+      ),
+    },
     {
       title: '截图', dataIndex: 'screenshotUrl', width: 90,
       render: (v: string) => v ? (
@@ -240,6 +252,19 @@ const ExpenseReviewPage: React.FC = () => {
             <div style={{ marginBottom: 12 }}>
               <Text>{reviewRecord.companion?.user?.username || '-'} · {expenseTypeConfig[reviewRecord.type]?.label || reviewRecord.type} · </Text>
               <Text strong>¥{Number(reviewRecord.amount || 0).toFixed(1)}</Text>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <Space size={8} wrap>
+                <PayoutQrScan
+                  url={reviewRecord.companion?.payoutQrUrl}
+                  who={reviewRecord.companion?.user?.username}
+                  updatedAt={reviewRecord.companion?.payoutQrUpdatedAt}
+                  label="点开收款码，手机扫一扫转账"
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  通过 = 要给他打钱，点开这个码直接扫就行（没传过就是灰的）
+                </Text>
+              </Space>
             </div>
             <TextArea rows={3} value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="审核备注（可选）" />
           </div>

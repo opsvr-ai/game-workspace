@@ -8,6 +8,7 @@ import { billingApi } from '../../api/billing';
 import { companionsApi } from '../../api/companions';
 import { expenseReportsApi } from '../../api/expenses';
 import PageHeader from '../../components/PageHeader';
+import PayoutQrScan from '../../components/PayoutQrScan';
 import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
@@ -33,6 +34,8 @@ const CompanionWalletCalendarPage: React.FC = () => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
+  // 管理端：每个陪玩的报账微信码（点开就能扫）——老板 2026-09-29
+  const [qrMap, setQrMap] = useState<Record<string, any>>({});
 
   // 陪玩端：自己的钱包 + 报账/支取
   const [wallet, setWallet] = useState<any>({});
@@ -42,6 +45,14 @@ const CompanionWalletCalendarPage: React.FC = () => {
     setLoading(true);
     try {
       const { data: res } = await billingApi.walletDaily(m.format('YYYY-MM'));
+      companionsApi
+        .list()
+        .then((r: any) => {
+          const map: Record<string, any> = {};
+          ((r as any)?.data?.data || []).forEach((k: any) => { map[k.id] = k; });
+          setQrMap(map);
+        })
+        .catch(() => setQrMap({}));
       setData(res.data || {});
     } catch {
       setData({});
@@ -274,6 +285,16 @@ const CompanionWalletCalendarPage: React.FC = () => {
               { title: '收入笔数', dataIndex: 'incomeCount', width: 90, align: 'center' as const },
               { title: '支取笔数', dataIndex: 'withdrawCount', width: 90, align: 'center' as const },
               { title: '最近一笔', dataIndex: 'lastDate', width: 120, render: (v: string) => v || '-' },
+              {
+                title: '报账微信码', width: 110,
+                render: (_: any, r: any) => (
+                  <PayoutQrScan
+                    url={qrMap[r.companionId]?.payoutQrUrl}
+                    who={r.name || r.realName}
+                    updatedAt={qrMap[r.companionId]?.payoutQrUpdatedAt}
+                  />
+                ),
+              },
             ]}
           />
         </Spin>

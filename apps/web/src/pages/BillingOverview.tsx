@@ -38,6 +38,7 @@ const IconReload = React.createElement(ReloadOutlined);
 import { UserRole } from '@chunlv/shared';
 import http from '../api/client';
 import { companionsApi } from '../api/companions';
+import MyPayoutQrCard from '../components/MyPayoutQrCard';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
 import CardSkeleton from '../components/CardSkeleton';
@@ -457,6 +458,9 @@ const BillingOverview: React.FC = () => {
           </Space>
         </Col>
       </Row>
+
+      {/* 我的报账微信码（陪玩自己传一次，财务报账 / 发工资时点开扫一扫）——老板 2026-09-29 */}
+      {isCompanion && <MyPayoutQrCard />}
 
       {loading && !overviewData ? (
         <CardSkeleton lines={6} />

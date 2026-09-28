@@ -21,6 +21,9 @@ export const companionsApi = {
   setNotifyPrefs: (data: { notifyWhileBusy?: boolean }) =>
     http.put('/companions/me/notify-prefs', data),
   wallet: () => http.get('/companions/me/wallet'),
+  /** 我的报账微信码（陪玩自己上传的收款码） */
+  payoutQr: () => http.get('/companions/me/payout-qr'),
+  setPayoutQr: (url: string) => http.put('/companions/me/payout-qr', { url }),
   requestWithdraw: (amount: number) => http.post('/companions/me/withdraw', { amount }),
   resign: (id: string) => http.post(`/companions/${id}/resign`),
   updateFinance: (id: string, data: { todayRevenue?: number; totalRevenue?: number; totalWithdrawn?: number; pendingWithdraw?: number; deposit?: number; note?: string }) => http.put(`/companions/${id}/finance`, data),

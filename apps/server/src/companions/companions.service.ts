@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS003
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeRevenueSplit, effectiveTenureMonths } from '../common/revenue-calculator';
 import type { RevenueSplitTier } from '../common/revenue-calculator';
@@ -256,6 +256,8 @@ export class CompanionsService {
 
     return companions.map((c) => ({
       ...c,
+      // 报账微信码只有财务/客服/店长看得到；陪玩只能看自己的（自己的那份在「报账」页里）
+      payoutQrUrl: user.role === 'COMPANION' ? null : c.payoutQrUrl,
       processStatus: blockedSet.has(c.id) ? 'BLOCKED' : (killMap.get(c.id) || 0) >= 1 ? 'WARNING' : 'NORMAL',
       todayOrderCount: (orderCounts.get(c.id) || 0) + (budanCounts.get(c.id) || 0),
       tier: excellence.get(c.id)?.tier ?? 'MIDDLE',
@@ -876,6 +878,39 @@ export class CompanionsService {
 
   async getWallet(companionId: string) {
     return this.revenueService.getWallet(companionId);
+  }
+
+  // ── 报账微信码（老板 2026-09-29）──────────────────────────────────────────
+  // 「每个陪玩在报账那里给他留个位置，让陪玩自己上传自己的报账微信码，
+  //   每次报账点开这个码，拿手机扫一扫就可以了。」
+  // 所以收款码挂在陪玩档案上（Companion.payoutQrUrl）：陪玩自己传一次，财务在
+  // 「陪玩审核 + 支取」「报账与支取统计」里点开就能扫，不用每次在群里要图。
+
+  /** 我（陪玩）的报账微信码 */
+  async getMyPayoutQr(companionId: string) {
+    if (!companionId) throw new ForbiddenException('只有陪玩能设置自己的报账微信码');
+    const row = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { id: true, payoutQrUrl: true, payoutQrUpdatedAt: true },
+    });
+    if (!row) throw new NotFoundException('陪玩不存在');
+    return { payoutQrUrl: row.payoutQrUrl || null, payoutQrUpdatedAt: row.payoutQrUpdatedAt || null };
+  }
+
+  /** 上传 / 更换我（陪玩）的报账微信码 */
+  async setMyPayoutQr(companionId: string, url?: string | null) {
+    if (!companionId) throw new ForbiddenException('只有陪玩能设置自己的报账微信码');
+    const clean = (url || '').trim();
+    if (!clean) throw new BadRequestException('请先上传收款码图片');
+    if (!/^(https?:\/\/|\/)\S+$/.test(clean)) {
+      throw new BadRequestException('收款码地址不合法');
+    }
+    const row = await this.prisma.companion.update({
+      where: { id: companionId },
+      data: { payoutQrUrl: clean, payoutQrUpdatedAt: new Date() },
+      select: { payoutQrUrl: true, payoutQrUpdatedAt: true },
+    });
+    return { payoutQrUrl: row.payoutQrUrl, payoutQrUpdatedAt: row.payoutQrUpdatedAt };
   }
 
   // Check if companion can enter entertainment mode: needs undrawn balance > 0

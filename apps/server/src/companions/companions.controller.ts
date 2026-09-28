@@ -226,6 +226,23 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  @Get('companions/me/payout-qr')
+  @Roles(UserRole.COMPANION)
+  async getMyPayoutQr(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getMyPayoutQr(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('companions/me/payout-qr')
+  @Roles(UserRole.COMPANION)
+  async setMyPayoutQr(
+    @Req() req: any,
+    @Body() body: { url?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.setMyPayoutQr(req.user.companionId, body?.url);
+    return { code: 200, message: '报账微信码已保存', data };
+  }
+
   @Post('companions/me/withdraw')
   @Roles(UserRole.COMPANION)
   async requestWithdraw(@Req() req: any, @Body() dto: { amount: number; note?: string }): Promise<ApiResponse<unknown>> {

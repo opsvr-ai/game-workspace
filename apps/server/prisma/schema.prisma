@@ -112,6 +112,9 @@ model Companion {
   quotaGrantedThrough DateTime?
   // 接单中 / 娱乐中是否也接收新单弹窗（默认不打扰，想抢单的自己开）
   notifyWhileBusy     Boolean   @default(false)
+  // 报账微信码：陪玩自己上传的收款码图片（财务报账 / 发工资时点开扫一扫就转钱）
+  payoutQrUrl         String?
+  payoutQrUpdatedAt   DateTime?
   createdAt      DateTime  @default(now())
 
   user                User                         @relation(fields: [userId], references: [id])

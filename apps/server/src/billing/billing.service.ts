@@ -165,8 +165,18 @@ export class BillingService {
     });
   }
 
+  /**
+   * 工作室过滤：老板（OWNER）没有 studioId，看全店 —— 这时不按工作室过滤。
+   * 2026-09-29 修：老板打开「陪玩审核 + 支取」「报账与支取统计」一直报「数据操作失败」，
+   * 服务端日志是 Prisma 的 Argument studioId must not be null —— 把 null 当条件传下去了。
+   * 同文件 getPendingCount() 早就写了 OWNER 不过滤那一套，下面这几处漏了同款判断。
+   */
+  private studioScope(studioId?: string | null) {
+    return studioId ? { studioId } : {};
+  }
+
   async findExpenseReports(studioId: string, status?: string) {
-    const where: any = { studioId };
+    const where: any = { ...this.studioScope(studioId) };
     if (status) where.status = status;
     return this.prisma.expenseReport.findMany({
       where,
@@ -203,7 +213,7 @@ export class BillingService {
 
     const reports = await this.prisma.expenseReport.findMany({
       where: {
-        studioId,
+        ...this.studioScope(studioId),
         createdAt: { gte: start, lt: end },
       },
     });
@@ -230,7 +240,7 @@ export class BillingService {
   // ── Wallet Transactions ──
 
   async getWalletTransactions(studioId: string, status?: string) {
-    const where: any = { companion: { studioId } };
+    const where: any = { ...(studioId ? { companion: { studioId } } : {}) };
     if (status) where.status = status;
     return this.prisma.walletTransaction.findMany({
       where,
@@ -296,7 +306,7 @@ export class BillingService {
 
     // 管理端：按陪玩汇总，20 人以内直接一张表展示
     const txs = await this.prisma.walletTransaction.findMany({
-      where: { ...baseWhere, companion: { studioId } },
+      where: { ...baseWhere, ...(studioId ? { companion: { studioId } } : {}) },
       select: {
         type: true,
         amount: true,
@@ -413,7 +423,7 @@ export class BillingService {
       where: {
         type: 'SETTLEMENT',
         createdAt: { gte: start, lt: end },
-        companion: { studioId },
+        ...(studioId ? { companion: { studioId } } : {}),
       },
       include: {
         companion: {
