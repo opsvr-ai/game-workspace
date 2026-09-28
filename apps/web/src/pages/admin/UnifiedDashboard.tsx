@@ -9,6 +9,7 @@ import http from '../../api/client';
 import ErrorBanner from '../../components/ErrorBanner';
 import CardSkeleton from '../../components/CardSkeleton';
 import EmptyState from '../../components/EmptyState';
+import DueFollowUpBanner from '../../components/DueFollowUpBanner';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -106,6 +107,8 @@ const RevenueDashboard: React.FC = () => {
   return (
     <div>
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
+      {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
+      <DueFollowUpBanner />
 
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 20 }}>

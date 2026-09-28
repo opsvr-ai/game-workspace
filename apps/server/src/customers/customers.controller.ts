@@ -48,6 +48,26 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  // ── 重复客户档案（MUST be before :id routes）——老板 2026-09-29 ──
+
+  @Get('customers/duplicates')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async listDuplicates(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.listDuplicateGroups(req.user.studioId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Post('customers/:id/merge-into')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async mergeInto(
+    @Param('id') id: string,
+    @Body() dto: { targetId: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.mergeCustomers(id, dto?.targetId, req.user);
+    return { code: 200, message: '已合并', data };
+  }
+
   @Get('customers/:id')
   async findOne(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.findOne(id, req.user);

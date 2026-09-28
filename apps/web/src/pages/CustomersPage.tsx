@@ -22,6 +22,8 @@ import {
   Tabs,
   Upload,
   Tooltip,
+  Alert,
+  Radio,
 } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
@@ -225,6 +227,50 @@ const CustomersPage: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  // ── 重复客户档案清理（同一个微信号建了多条）：老板 / 店长在这里合并 ──
+  const [dupGroups, setDupGroups] = useState<any[]>([]);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupChoice, setDupChoice] = useState<Record<string, string>>({});
+  const [dupMerging, setDupMerging] = useState('');
+
+  const fetchDuplicates = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const { data } = await customersApi.duplicates();
+      const groups: any[] = data.data || [];
+      setDupGroups(groups);
+      // 默认选中「保留」的那条（服务端已经按「谁身上有活、否则最早的」算好）
+      setDupChoice((prev) => {
+        const next: Record<string, string> = {};
+        for (const g of groups) next[g.wechatId] = prev[g.wechatId] || g.keepId;
+        return next;
+      });
+    } catch {
+      // 查重只是清理入口，拉不到就不提示，别影响客户列表
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    fetchDuplicates();
+  }, [fetchDuplicates]);
+
+  const mergeGroup = async (group: any) => {
+    const keepId = dupChoice[group.wechatId] || group.keepId;
+    const sources = (group.customers || []).filter((c: any) => c.id !== keepId);
+    setDupMerging(group.wechatId);
+    try {
+      for (const source of sources) {
+        await customersApi.mergeCustomers(source.id, keepId);
+      }
+      message.success(`已合并 ${sources.length} 条重复档案`);
+      await fetchDuplicates();
+      fetchCustomers();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '合并失败'));
+    } finally {
+      setDupMerging('');
+    }
+  };
 
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassigningCustomer, setReassigningCustomer] = useState<Customer | null>(null);
@@ -826,6 +872,22 @@ const CustomersPage: React.FC = () => {
               children: (
                 <>
                   {error && <ErrorBanner message={error} onRetry={fetchCustomers} />}
+                  {/* 重复客户档案：同一个微信号建了多条（发单丢客户ID的老毛病留下的），
+                      老板 2026-09-29：这一轮清干净。只有老板 / 店长看得到。 */}
+                  {isAdmin && dupGroups.length > 0 && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      style={{ marginBottom: 12 }}
+                      message={`发现 ${dupGroups.length} 组重复客户档案（同一个微信号建了多条）`}
+                      description="合并只保留一条：这条的订单、跟进、存单、客户资料会转到保留的那条，多余那条删掉（备注拼起来、金额相加，不丢信息）。"
+                      action={
+                        <Button size="small" type="primary" onClick={() => setDupOpen(true)}>
+                          去合并
+                        </Button>
+                      }
+                    />
+                  )}
                   {loading && customers.length === 0 ? (
                     <TableSkeleton columns={6} rows={5} />
                   ) : (
@@ -1071,6 +1133,71 @@ const CustomersPage: React.FC = () => {
           open={!!detailCustomer}
           onClose={() => setDetailCustomer(null)}
         />
+        {/* 重复客户档案清理：一组一组来，默认留「有活的那条 / 最早那条」，可以改成留别的 */}
+        <Modal
+          title="重复客户档案清理"
+          open={dupOpen}
+          onCancel={() => setDupOpen(false)}
+          footer={null}
+          width={780}
+          destroyOnClose
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            同一个微信号只留一条。选中「保留这条」之后，这一组里其他档案的订单、跟进、存单、客户资料都会转到它身上，
+            多余那条删掉（备注会拼起来、累计金额相加，不丢信息）。
+          </Text>
+          {dupGroups.map((g: any) => {
+            const keepId = dupChoice[g.wechatId] || g.keepId;
+            const keepCode = (g.customers || []).find((c: any) => c.id === keepId)?.customerCode;
+            return (
+              <Card key={g.wechatId} size="small" style={{ marginBottom: 12 }} title={`微信号 ${g.wechatId}`}>
+                <Radio.Group
+                  value={keepId}
+                  onChange={(e) =>
+                    setDupChoice((prev) => ({ ...prev, [g.wechatId]: e.target.value }))
+                  }
+                  style={{ display: 'block' }}
+                >
+                  {(g.customers || []).map((c: any) => (
+                    <Radio
+                      key={c.id}
+                      value={c.id}
+                      style={{ display: 'block', marginBottom: 6, whiteSpace: 'normal' }}
+                    >
+                      # 保留这条 #{c.customerCode} · {c.platform || '来源未知'}{' '}
+                      {c.platformAccount || ''} · 建 {String(c.createdAt || '').slice(5, 10)} · 订单{' '}
+                      {c._count?.orders ?? 0} / 跟进 {c._count?.followUps ?? 0} / 存单{' '}
+                      {c._count?.deposits ?? 0} · 累计 ¥{Number(c.totalSpent || 0).toFixed(0)}
+                    </Radio>
+                  ))}
+                </Radio.Group>
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    合并后保留 #{keepCode}，其余 {g.customers.length - 1} 条删掉
+                  </Text>
+                  <Popconfirm
+                    title="确认合并这一组？"
+                    description="多余那条会删掉，订单 / 跟进 / 存单 / 客户资料转到保留那条。"
+                    okText="合并"
+                    cancelText="取消"
+                    onConfirm={() => mergeGroup(g)}
+                  >
+                    <Button type="primary" size="small" loading={dupMerging === g.wechatId}>
+                      合并到保留那条
+                    </Button>
+                  </Popconfirm>
+                </div>
+              </Card>
+            );
+          })}
+        </Modal>
         <Modal
           title="预约时间"
           open={scheduleModalOpen}

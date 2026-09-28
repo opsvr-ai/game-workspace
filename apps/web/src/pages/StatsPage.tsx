@@ -4,6 +4,7 @@ import { Card, Typography, Button, Row, Col, Space, DatePicker, Select, Input, T
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { statsApi } from '../api/stats';
+import DueFollowUpBanner from '../components/DueFollowUpBanner';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -159,6 +160,8 @@ const StatsPage: React.FC = () => {
 
   return (
     <div>
+      {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
+      <DueFollowUpBanner />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>客服派单 / 提成核对</Title>

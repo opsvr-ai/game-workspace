@@ -441,6 +441,183 @@ export class CustomersService {
     return followUp;
   }
 
+  // ── 重复客户档案（老板 2026-09-29：「线上那几条重复的客户档案要不要一起清一轮」）──
+  //
+  // 线上出现过同一个微信号建了 2~3 条档案（根因是发单时没带原客户ID，服务端就新插一条，
+  // 已于 2026-09-29 修掉，见 CreateOrderModal）。这里做两件事：
+  //   ① 把「同一个工作室 + 同一个微信号」的重复组查出来（只读，给界面看）；
+  //   ② 把一条并到另一条 —— 订单 / 跟进 / 存单 / 接触记录 / 轨迹 / 报账单 / 客户资料全部挪过去，
+  //      标量字段「保留的那条为主、空着的用来源补、金额相加、备注拼接」，最后删掉多余那条。
+
+  /** 重复客户档案分组（同一工作室下、微信号相同且非空的档案） */
+  async listDuplicateGroups(studioId?: string | null) {
+    const where: any = { wechatId: { not: '' } };
+    if (studioId) where.studioId = studioId;
+    const rows = await this.prisma.customer.findMany({
+      where,
+      select: {
+        id: true,
+        studioId: true,
+        customerCode: true,
+        wechatId: true,
+        platform: true,
+        platformAccount: true,
+        notes: true,
+        totalSpent: true,
+        depositBalance: true,
+        status: true,
+        createdAt: true,
+        companionId: true,
+        _count: { select: { orders: true, followUps: true, deposits: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const groups = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const key = `${row.studioId}|${row.wechatId.trim()}`;
+      const list = groups.get(key) || [];
+      list.push(row);
+      groups.set(key, list);
+    }
+
+    return [...groups.values()]
+      .filter((list) => list.length > 1)
+      .map((list) => {
+        // 默认保留哪一条：先看谁身上有活（订单 > 跟进 > 存单），一样多就留最早那条原始档案。
+        // 界面上老板/店长可以改成保留别的，改完再合。
+        const score = (c: (typeof list)[number]) =>
+          c._count.orders * 100 + c._count.followUps * 10 + c._count.deposits;
+        const keep = [...list].sort(
+          (a, b) =>
+            score(b) - score(a) || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )[0];
+        return {
+          wechatId: list[0].wechatId,
+          keepId: keep.id,
+          customers: list.map((c) => ({ ...c, isKeep: c.id === keep.id })),
+        };
+      });
+  }
+
+  /** 把 sourceId 这条档案并进 targetId（保留 targetId），并删掉 sourceId */
+  async mergeCustomers(sourceId: string, targetId: string, user?: AuthenticatedUser) {
+    if (!sourceId || !targetId || sourceId === targetId) {
+      throw new ForbiddenException('要合并的两条档案不能是同一条');
+    }
+    const [source, target] = await Promise.all([
+      this.prisma.customer.findUnique({ where: { id: sourceId } }),
+      this.prisma.customer.findUnique({ where: { id: targetId } }),
+    ]);
+    if (!source) throw new NotFoundException('要合并的客户档案不存在');
+    if (!target) throw new NotFoundException('要保留的客户档案不存在');
+    if (source.studioId !== target.studioId) {
+      throw new ForbiddenException('两条档案不在同一个工作室，不能合并');
+    }
+    if (user && user.role !== 'OWNER' && user.studioId && target.studioId !== user.studioId) {
+      throw new ForbiddenException('只能合并本工作室的客户档案');
+    }
+
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const orders = await tx.order.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const followUps = await tx.customerFollowUp.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const deposits = await tx.customerDeposit.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const contacts = await tx.customerContact.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const tracks = await tx.customerTrack.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const deleteRequests = await tx.customerDeleteRequest.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+      const screenshots = await tx.battleScreenshot.updateMany({
+        where: { customerId: sourceId },
+        data: { customerId: targetId },
+      });
+
+      // 客户资料是一对一：保留的那条没有就搬过去，两边都有就留保留那条的（来源那条删掉，不残留孤儿行）
+      let profileMoved = false;
+      const sourceProfile = await tx.customerProfile.findUnique({ where: { customerId: sourceId } });
+      if (sourceProfile) {
+        const targetProfile = await tx.customerProfile.findUnique({
+          where: { customerId: targetId },
+        });
+        if (targetProfile) {
+          await tx.customerProfile.delete({ where: { customerId: sourceId } });
+        } else {
+          await tx.customerProfile.update({
+            where: { customerId: sourceId },
+            data: { customerId: targetId },
+          });
+          profileMoved = true;
+        }
+      }
+
+      const STATUS_RANK: Record<string, number> = {
+        ACTIVE: 3,
+        FOLLOW_UP: 2,
+        PENDING_DEVELOPMENT: 1,
+        LOST: 0,
+      };
+      const mergedNotes = [
+        target.notes,
+        source.notes ? `[合并 #${source.customerCode}] ${source.notes}` : '',
+      ]
+        .map((v) => (v || '').trim())
+        .filter(Boolean)
+        .join('\n');
+
+      await tx.customer.update({
+        where: { id: targetId },
+        data: {
+          platform: target.platform || source.platform,
+          platformAccount: target.platformAccount || source.platformAccount,
+          consultDate: target.consultDate || source.consultDate,
+          wechatAddDate: target.wechatAddDate || source.wechatAddDate,
+          notes: mergedNotes || null,
+          totalSpent: target.totalSpent + source.totalSpent,
+          depositBalance: target.depositBalance + source.depositBalance,
+          status:
+            (STATUS_RANK[source.status] || 0) > (STATUS_RANK[target.status] || 0)
+              ? source.status
+              : target.status,
+          companionId: target.companionId || source.companionId,
+          scheduledAt: target.scheduledAt || source.scheduledAt,
+          isAccountBanned: target.isAccountBanned || source.isAccountBanned,
+          isDeletedByCustomer: target.isDeletedByCustomer && source.isDeletedByCustomer,
+        },
+      });
+
+      await tx.customer.delete({ where: { id: sourceId } });
+
+      return {
+        orders: orders.count,
+        followUps: followUps.count,
+        deposits: deposits.count,
+        contacts: contacts.count,
+        tracks: tracks.count,
+        screenshots: screenshots.count,
+        deleteRequests: deleteRequests.count,
+        profileMoved,
+      };
+    });
+
+    return { sourceCode: source.customerCode, targetCode: target.customerCode, ...moved };
+  }
+
   // ── Traffic Pool ──
 
   async getTrafficPool(studioId: string, platform?: string) {

@@ -12,6 +12,7 @@ import {
 } from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
 import { extractErrorMessage } from '../utils/error-handler';
+import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
 
 interface Props {
@@ -35,15 +36,6 @@ const stateOf = (r: any): { text: string; color: string } => {
   }
 };
 
-/** 台账里的时间：月-日 时:分（当年的年份不显示，省宽度） */
-const mmddhhmm = (value?: string | null): string => {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
 /**
  * 客服跟进台账（老板 2026-09-29 定稿；以前叫「管理端直添客户跟进列表」）。
  *
@@ -62,6 +54,13 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [followTarget, setFollowTarget] = useState<any>(null);
+  // 「到点该跟进了」要用当前时间比，所以每 30 秒自己走一下表（列表本身是每 60 秒刷一次）
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -87,8 +86,9 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((r) => {
+    const matched = !q
+      ? items
+      : items.filter((r) => {
       const cf = r.customFields || {};
       const c = r.customer || {};
       const last = (c.followUps || [])[0] || {};
@@ -118,7 +118,22 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [items, search]);
+    // 到点该跟进的排最上面（最早该跟的排最前），其余保持原来的顺序 —— 老板 2026-09-29：
+    // 「下次跟进时间到了，这页红字置顶」。
+    return [...matched].sort((a, b) => {
+      const at = dueFollowUpAtOf(a, now);
+      const bt = dueFollowUpAtOf(b, now);
+      if (at !== null && bt !== null) return at - bt;
+      if (at !== null) return -1;
+      if (bt !== null) return 1;
+      return 0;
+    });
+  }, [items, search, now]);
+
+  const dueRows = useMemo(
+    () => filtered.filter((r) => dueFollowUpAtOf(r, now) !== null),
+    [filtered, now],
+  );
 
   const mark = async (item: any, status: string, addResult?: 'passed' | 'failed', done?: string) => {
     try {
@@ -310,10 +325,19 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       key: 'nextFollow',
       width: LEDGER_FIELD_WIDTH.nextFollow,
       render: (_: unknown, r: any) => {
-        const last = ((r.customer || {}).followUps || [])[0];
-        const at = last?.nextFollowUpAt;
+        const at = lastFollowUpOf(r)?.nextFollowUpAt;
         if (!at) return <span style={{ color: '#94A3B8' }}>-</span>;
-        return <span style={{ color: '#7C3AED' }}>{mmddhhmm(at)}</span>;
+        // 到点了就红字加粗、后面缀「该跟进了」；没到点是紫色（老板 2026-09-29：红字置顶）
+        const due = dueFollowUpAtOf(r, now) !== null;
+        return (
+          <span
+            style={{ color: due ? '#DC2626' : '#7C3AED', fontWeight: due ? 600 : 400 }}
+            title={due ? `${mmddhhmm(at)} 到点了，该跟进了` : mmddhhmm(at)}
+          >
+            {mmddhhmm(at)}
+            {due ? ' 该跟进了' : ''}
+          </span>
+        );
       },
     },
     {
@@ -330,7 +354,14 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     <Card size="small" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
         <div>
-          <div style={{ fontWeight: 600 }}>客服跟进台账</div>
+          <div style={{ fontWeight: 600 }}>
+            客服跟进台账
+            {dueRows.length > 0 && (
+              <span style={{ color: '#DC2626', marginLeft: 8 }}>
+                有 {dueRows.length} 位客户到点该跟进了（已红字排在最上面）
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>
             客户先加到客服工作微信上、慢慢聊；谈得差不多了点「直接派单」发给陪玩。没记过跟进的客户排在最前面记一次。
           </div>
@@ -354,6 +385,9 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         pagination={false}
         style={TABLE_STYLE}
         scroll={{ x: LEDGER_TABLE_WIDTH }}
+        onRow={(r: any) =>
+          dueFollowUpAtOf(r, now) !== null ? { style: { background: '#FFF1F2' } } : {}
+        }
         locale={{ emptyText: '暂无待跟进的客户（客户还没决定打的，从「派单工作台 → 直接添加客户」登记）' }}
       />
       <FollowUpModal
