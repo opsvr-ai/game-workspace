@@ -22,6 +22,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { HeartbeatService } from './heartbeat.service';
 import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
+import { stripCustomerSourceDeep } from '../common/order-privacy';
 import {
   resolveStudioBlacklistEnabled,
 } from '../common/blacklist-switch';
@@ -710,7 +711,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   pushOrder(companionId: string, order: unknown): void {
     logger.info('SEND order:new', { companionId, orderId: (order as any)?.id });
-    this.server.to(`companion:${companionId}`).emit('order:new', order);
+    // 陪玩端一律不收「客户来源 / 来源账号」（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）：
+    // 这条通道只发给陪玩，所以在这里统一摘掉，不用每个调用点各记一次。
+    this.server.to(`companion:${companionId}`).emit('order:new', stripCustomerSourceDeep(order));
   }
 
   pushToCompanion(companionId: string, event: string, data: unknown): void {

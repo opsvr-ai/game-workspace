@@ -8,7 +8,8 @@ import {
   urgencyConfig,
   billingModeConfig,
 } from '../constants';
-import { DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
+import { canSeeCustomerSource, DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
+import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
@@ -27,6 +28,13 @@ const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleString('zh-CN', 
  * 客服想核一眼客户微信或备注只能去别处翻。现在整行点开就是这张只读卡。
  */
 const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
+  // 陪玩点整行也会开到这张卡（OrdersPage 的 onRow 是「能改的进编辑、不能改的进详情」），
+  // 所以「客户昵称 / 客户来源 / 来源账号」这三行也要按角色藏：老板 2026-09-29「陪玩端 隐藏客户小红书信息」。
+  // 昵称也是小红书昵称（建单时那个框写的就是「小红书昵称/抖音昵称等」），订单列表对陪玩本来就不显示，
+  // 这里不一起藏掉的话，点开整行又能看见。
+  // hook 必须放在下面的 `if (!order) return null` 之前。
+  const role = useAuthStore((s) => s.user?.role);
+  const showSource = canSeeCustomerSource(role);
   if (!order) return null;
   const cf = order.customFields || {};
   const isRound = cf.billingMode === 'round';
@@ -97,9 +105,13 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
         <Descriptions.Item label="副陪">{order.coCompanion?.user?.username || '-'}</Descriptions.Item>
         <Descriptions.Item label="发布人">{order.csUser?.username || '-'}</Descriptions.Item>
         <Descriptions.Item label="客户微信">{cf.customerWechat || order.customer?.wechatId || '-'}</Descriptions.Item>
-        <Descriptions.Item label="客户昵称">{cf.customerNickname || '-'}</Descriptions.Item>
-        <Descriptions.Item label="客户来源">{cf.customerSource || order.customer?.platform || '-'}</Descriptions.Item>
-        <Descriptions.Item label="来源账号">{cf.customerSourceAccount || cf.customerAccountId || '-'}</Descriptions.Item>
+        {showSource && (
+          <>
+            <Descriptions.Item label="客户昵称">{cf.customerNickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="客户来源">{cf.customerSource || order.customer?.platform || '-'}</Descriptions.Item>
+            <Descriptions.Item label="来源账号">{cf.customerSourceAccount || cf.customerAccountId || '-'}</Descriptions.Item>
+          </>
+        )}
         <Descriptions.Item label="房间码">{cf.customerRoomCode || '-'}</Descriptions.Item>
         <Descriptions.Item label="YY / KOOK">
           {[cf.customerYy ? 'YY:' + cf.customerYy : '', cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '']

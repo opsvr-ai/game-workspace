@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -17,9 +18,11 @@ import { CustomersService } from './customers.service';
 import type { CreateCustomerDto, UpdateCustomerDto } from './customers.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
+import { CustomerProfileSourceMaskInterceptor } from '../common/customer-source-mask.interceptor';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseInterceptors(CustomerProfileSourceMaskInterceptor)
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 

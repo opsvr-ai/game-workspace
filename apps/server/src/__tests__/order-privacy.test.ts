@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { canSeeSourceAccount, maskCustomerWechat } from '../common/order-privacy';
+import {
+  canSeeCustomerSource,
+  canSeeSourceAccount,
+  maskCustomerWechat,
+  stripCustomerSource,
+  stripCustomerSourceDeep,
+} from '../common/order-privacy';
 
 /**
  * 来源账号（发笔记的那个小红书 / 抖音号）的可见性 —— 老板 2026-09-28 定的口径：
@@ -60,5 +66,125 @@ describe('maskCustomerWechat（客户微信可见性，口径不变）', () => {
     expect(out.customer.wechatId).toBe('');
     expect(out.customFields.customerWechat).toBe('');
     expect(out.customFields.customerWechatQr).toBeUndefined();
+  });
+});
+
+/**
+ * 客户来源（小红书 / 抖音…）对陪玩端整体消失 —— 老板 2026-09-29「陪玩端 隐藏 客户小红书信息」。
+ * 只抹账号（`***`）是不够的：留着「小红书」三个字，陪玩照样知道这单从哪来。
+ */
+describe('canSeeCustomerSource（客户来源可见性）', () => {
+  it('陪玩看不到；客服 / 店长 / 老板照常', () => {
+    expect(canSeeCustomerSource({ id: 'c1', role: 'COMPANION', companionId: 'cp1' })).toBe(false);
+    expect(canSeeCustomerSource({ id: 'cs1', role: 'CS' })).toBe(true);
+    expect(canSeeCustomerSource({ id: 'admin1', role: 'ADMIN' })).toBe(true);
+    expect(canSeeCustomerSource({ id: 'owner1', role: 'OWNER' })).toBe(true);
+  });
+
+  it('没有登录用户（socket / 匿名）一律不给看', () => {
+    expect(canSeeCustomerSource(null)).toBe(false);
+    expect(canSeeCustomerSource(undefined)).toBe(false);
+  });
+});
+
+describe('stripCustomerSource（把来源从订单里摘掉）', () => {
+  const fullOrder = () => ({
+    id: 'o1',
+    gameName: '三角洲行动',
+    customer: { customerCode: 'C001', platform: '小红书', wechatId: 'wx1' },
+    customFields: {
+      customerSource: '小红书',
+      customerSourceAccount: 'ok绷',
+      customerNickname: '小美',
+      customerAccountId: 'xhs_123',
+      customerWechat: 'wx1',
+      customerRoomCode: '8888',
+    },
+  });
+
+  it('来源平台 + 来源账号直接删键（不是抹成 ***），陪玩要用的联系方式原样留着', () => {
+    const out: any = stripCustomerSource(fullOrder());
+    expect(out.customFields).not.toHaveProperty('customerSource');
+    expect(out.customFields).not.toHaveProperty('customerSourceAccount');
+    expect(out.customFields.customerWechat).toBe('wx1');
+    expect(out.customFields.customerRoomCode).toBe('8888');
+  });
+
+  it('customer.platform 也清空（老单那一格的兜底就是它）', () => {
+    const out: any = stripCustomerSource(fullOrder());
+    expect(out.customer.platform).toBe('');
+    expect(out.customer.customerCode).toBe('C001');
+  });
+
+  it('不改传进来的原对象（调用方还要拿原对象去别处推送）', () => {
+    const order = fullOrder();
+    stripCustomerSource(order);
+    expect((order.customFields as any).customerSource).toBe('小红书');
+    expect(order.customer.platform).toBe('小红书');
+  });
+
+  it('没有 customFields（会话 / 邀请这类对象）也能安全过一遍', () => {
+    const session = { id: 's1', type: 'DUAL_INVITE' };
+    expect(stripCustomerSource(session)).toBe(session);
+    expect(stripCustomerSource(null)).toBe(null);
+  });
+});
+
+describe('stripCustomerSourceDeep（响应体递归清理）', () => {
+  it('{ code, message, data:[订单] } 这种包一层 + 数组都能清到', () => {
+    const payload = {
+      code: 200,
+      message: 'ok',
+      data: [
+        { id: 'o1', customFields: { customerSource: '小红书', customerSourceAccount: 'ok绷' } },
+        { id: 'o2', customFields: { customerSourceAccount: 'ok绷' }, customer: { platform: '小红书' } },
+      ],
+    };
+    const out: any = stripCustomerSourceDeep(payload);
+    expect(out.data[0].customFields).not.toHaveProperty('customerSource');
+    expect(out.data[0].customFields).not.toHaveProperty('customerSourceAccount');
+    expect(out.data[1].customFields).not.toHaveProperty('customerSourceAccount');
+    expect(out.data[1].customer.platform).toBe('');
+    // 原来的 payload 不动
+    expect(payload.data[0].customFields.customerSource).toBe('小红书');
+  });
+
+  it('订单里再嵌订单（搭档邀请）也能清到', () => {
+    const payload = {
+      code: 200,
+      data: {
+        id: 's1',
+        parentOrder: { id: 'o1', customFields: { customerSource: '小红书' } },
+      },
+    };
+    const out: any = stripCustomerSourceDeep(payload);
+    expect(out.data.parentOrder.customFields).not.toHaveProperty('customerSource');
+  });
+});
+
+/**
+ * 客户档案（CustomersController）走的是 `{ platform: false }`：只摘 customFields 里的
+ * 来源 / 来源账号，**不动** `customer.platform` —— 客户档案里这个字段还兼着
+ * 「微信 / QQ / 电话」，清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
+ */
+describe('stripCustomerSource(…, { platform: false })（客户档案：留着联系方式平台）', () => {
+  const customer = () => ({
+    id: 'cu1',
+    platform: 'QQ',
+    platformAccount: '12345',
+    orders: [{ id: 'o1', customFields: { customerSource: '小红书', customerSourceAccount: 'ok绷' } }],
+  });
+
+  it('来源 / 来源账号照删，platform 原样留着', () => {
+    const out: any = stripCustomerSourceDeep(customer(), { platform: false });
+    expect(out.orders[0].customFields).not.toHaveProperty('customerSource');
+    expect(out.orders[0].customFields).not.toHaveProperty('customerSourceAccount');
+    expect(out.platform).toBe('QQ');
+    expect(out.platformAccount).toBe('12345');
+  });
+
+  it('单层调用也给同一个开关', () => {
+    const out: any = stripCustomerSource({ customer: { platform: '小红书' } }, { platform: false });
+    expect(out.customer.platform).toBe('小红书');
   });
 });

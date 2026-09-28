@@ -718,7 +718,8 @@ const OrderPoolPage: React.FC = () => {
 
           {isCompanion && (
             <Card size="small" style={{ marginTop: 16 }}>
-              <Text type="secondary">💡 抢单后可见客户联系方式和来源账号ID</Text>
+              {/* 客户来源（小红书…）对陪玩已隐藏（老板 2026-09-29），这条提示跟着改。 */}
+              <Text type="secondary">💡 抢单后可见客户联系方式</Text>
             </Card>
           )}
 

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Image, Tooltip, Typography } from 'antd';
 import {
+  canSeeCustomerSource,
   CELL_ONE_LINE,
   CELL_SUB_TEXT,
   FIELD_WIDTH,
@@ -145,14 +146,17 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
       key: 'customerAccounts',
       width: FIELD_WIDTH.customerAccounts,
       // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
-      // 客户ID / 昵称 / 来源账号对陪玩不展示（和订单池的行口径一致）。
+      // 客户ID / 昵称对陪玩不展示（和订单池的行口径一致）。
+      // 来源平台（「小红书」三个字）和来源账号一起对陪玩藏掉 —— 老板 2026-09-29：
+      // 「陪玩端 隐藏 客户小红书信息」。房间码 / YY / KOOK 是陪玩自己找人对局要用的，照常显示。
       // 原来是一格 5~6 行（来源、昵称、房间码、YY/KOOK、二维码），现在压成一行，长了自己省略号。
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
-        const platform = cf.customerSource || o.customer?.platform;
+        const showSource = canSeeCustomerSource(isCompanion ? 'COMPANION' : 'CS');
+        const platform = showSource ? cf.customerSource || o.customer?.platform : '';
         const deprecated = !isCompanion && !!cf.customerSourceAccount && (inactiveAccounts ?? new Set()).has(cf.customerSourceAccount);
         const bits = [
-          platform ? platform + (!isCompanion && cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '') : '',
+          platform ? platform + (cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '') : '',
           !isCompanion && cf.customerNickname ? cf.customerNickname : '',
           !isCompanion && cf.customerAccountId ? cf.customerAccountId : '',
           cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',

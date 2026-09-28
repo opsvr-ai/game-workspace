@@ -217,6 +217,18 @@ export const CELL_MAIN_TEXT: React.CSSProperties = {
   fontWeight: 600,
 };
 
+/**
+ * 客户来源（小红书 / 抖音 / 快手…）和来源账号，对**陪玩端一律不显示**。
+ *
+ * 老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」。服务端
+ * `common/order-privacy.ts` 的 `canSeeSourceAccount()` 已经把来源账号抹成 `***`，
+ * 前端这里把「小红书」这三个字本身、以及详情弹窗里的「客户来源 / 来源账号」两行也一起藏掉 ——
+ * 只抹账号、留着平台名，陪玩还是能看到「这一单是从小红书来的」。
+ *
+ * 客服 / 店长 / 老板都是管理端，照常显示。
+ */
+export const canSeeCustomerSource = (role?: string | null): boolean => role !== 'COMPANION';
+
 /** 同上（兼容老名字）：单元格里的一行小字，超长省略号 */
 export const CELL_LINE_STYLE: React.CSSProperties = {
   display: 'block',

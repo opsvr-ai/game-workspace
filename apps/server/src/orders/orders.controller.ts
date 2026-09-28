@@ -1,14 +1,16 @@
 // craftsman-ignore: TS001,TS003
-import { Controller, Get, Post, Put, Param, Body, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
+import { CustomerSourceMaskInterceptor } from '../common/customer-source-mask.interceptor';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseInterceptors(CustomerSourceMaskInterceptor)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 

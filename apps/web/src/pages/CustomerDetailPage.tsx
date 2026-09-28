@@ -26,6 +26,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';
 import { ordersApi } from '../api/orders';
 import { customerTrackingApi } from '../api/customerTracking';
+import { useAuthStore } from '../stores/authStore';
+import { canSeeCustomerSource } from '../constants/datasetColumns';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -91,6 +93,10 @@ const journeyColor = (type: string) => {
 const CustomerDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // 陪玩端隐藏「客户来源」（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）。
+  // 订单流程会把客户来源（小红书 / 抖音…）同步进 `customer.platform`，所以这一格
+  // 不能无条件显示，否则点开客户又能看见「小红书」三个字。
+  const role = useAuthStore((s) => s.user?.role);
 
   // Data states
   const [customer, setCustomer] = useState<any>(null);
@@ -252,7 +258,13 @@ const CustomerDetailPage: React.FC = () => {
   // ── Derived values ─────────────────────────────────────────
 
   const statusInfo = statusMap[customer?.status] ?? { label: customer?.status ?? '未知', color: 'default' };
-  const platformLabel = platformLabels[customer?.platform] ?? customer?.platform ?? '-';
+  // `platform` 对陪玩只放行真正的联系方式平台（微信 / QQ / 电话 / 其他）；
+  // 小红书 / 抖音 / 快手 这类来源值统一显示 '-'（客服 / 店长 / 老板照常）。
+  const rawPlatform = customer?.platform;
+  const platformLabel =
+    canSeeCustomerSource(role) || !!platformLabels[rawPlatform]
+      ? platformLabels[rawPlatform] ?? rawPlatform ?? '-'
+      : '-';
   const orderCount = orders.length;
 
   const handleOrderAction = async (action: 'complete' | 'refund' | 'deposit') => {

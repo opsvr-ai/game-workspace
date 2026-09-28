@@ -58,6 +58,7 @@ import {
   CUSTOMER_TABLE_KEYS_COMPANION,
   FIELD_WIDTH,
   TABLE_STYLE,
+  canSeeCustomerSource,
   sumWidths,
 } from '../constants/datasetColumns';
 import TableSkeleton from '../components/TableSkeleton';
@@ -435,8 +436,11 @@ const CustomersPage: React.FC = () => {
       key: 'source',
       width: FIELD_WIDTH.sourceTime,
       render: (_: any, r: any) => {
+        // 来源平台（小红书 / 抖音…）和来源账号都不给陪玩看（老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」）：
+        // 以前只是把账号抹掉、留着「小红书」三个字，陪玩还是知道这单从哪来的。
+        if (!canSeeCustomerSource(role)) return <Text type="secondary">-</Text>;
         const cf = r.orders?.[0]?.customFields || {};
-        const acc = isCompanion ? '' : cf.customerSourceAccount;
+        const acc = cf.customerSourceAccount;
         const text = [cf.customerSource || '', acc || ''].filter(Boolean).join(' ');
         if (!text) return <Text type="secondary">-</Text>;
         const deprecated = !!acc && inactiveAccounts.has(acc);
