@@ -163,11 +163,11 @@ describe('stripCustomerSourceDeep（响应体递归清理）', () => {
 });
 
 /**
- * 客户档案（CustomersController）走的是 `{ platform: false }`：只摘 customFields 里的
- * 来源 / 来源账号，**不动** `customer.platform` —— 客户档案里这个字段还兼着
- * 「微信 / QQ / 电话」，清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
+ * 客户档案（CustomersController）走的是 `{ platform: 'contactOnly' }`：摘 customFields 里的
+ * 来源 / 来源账号；`customer.platform` 只有存的是**来源**（小红书 / 抖音…）才清空，
+ * 存的是联系方式平台（微信 / QQ / 电话 / 其他）时原样留着 —— 客户档案里这个字段是两用的。
  */
-describe('stripCustomerSource(…, { platform: false })（客户档案：留着联系方式平台）', () => {
+describe("stripCustomerSource(…, { platform: contactOnly })（客户档案：只留联系方式平台）", () => {
   const customer = () => ({
     id: 'cu1',
     platform: 'QQ',
@@ -175,16 +175,48 @@ describe('stripCustomerSource(…, { platform: false })（客户档案：留着�
     orders: [{ id: 'o1', customFields: { customerSource: '小红书', customerSourceAccount: 'ok绷' } }],
   });
 
-  it('来源 / 来源账号照删，platform 原样留着', () => {
-    const out: any = stripCustomerSourceDeep(customer(), { platform: false });
+  it("来源 / 来源账号照删，联系方式平台（QQ）原样留着", () => {
+    const out: any = stripCustomerSourceDeep(customer(), { platform: 'contactOnly' });
     expect(out.orders[0].customFields).not.toHaveProperty('customerSource');
     expect(out.orders[0].customFields).not.toHaveProperty('customerSourceAccount');
     expect(out.platform).toBe('QQ');
     expect(out.platformAccount).toBe('12345');
   });
 
-  it('单层调用也给同一个开关', () => {
-    const out: any = stripCustomerSource({ customer: { platform: '小红书' } }, { platform: false });
-    expect(out.customer.platform).toBe('小红书');
+  it('platform 存的是来源（小红书）时照样清掉 —— 客户档案里这个字段兼着来源', () => {
+    const out: any = stripCustomerSourceDeep(customer(), { platform: 'contactOnly' });
+    const out2: any = stripCustomerSource(
+      { customer: { platform: '小红书' } },
+      { platform: 'contactOnly' },
+    );
+    expect(out2.customer.platform).toBe('');
+    expect(out.platform).toBe('QQ');
+  });
+
+  it('默认（不传 opts）还是订单那套：一律清空', () => {
+    const out: any = stripCustomerSource({ customer: { platform: 'QQ' } });
+    expect(out.customer.platform).toBe('');
+  });
+
+  it('客户对象自己的 platform（GET /customers 的形态）：来源清掉、联系方式平台留着', () => {
+    const src = {
+      list: [
+        { id: 'cu1', customerCode: 'C001', wechatId: 'wx1', platform: '小红书' },
+        { id: 'cu2', customerCode: 'C002', wechatId: 'wx2', platform: 'QQ' },
+        { id: 'cu3', customerCode: 'C003', wechatId: 'wx3', platform: null },
+      ],
+    };
+    const out: any = stripCustomerSourceDeep(src, { platform: 'contactOnly' });
+    expect(out.list[0].platform).toBe('');
+    expect(out.list[1].platform).toBe('QQ');
+    expect(out.list[2].platform).toBe(null);
+    // 原对象不动
+    expect(src.list[0].platform).toBe('小红书');
+  });
+
+  it('引流账号那种对象也有 platform，但没客户字段，不能被误清', () => {
+    const src = { platform: '小红书', accountName: 'ok绷' };
+    const out: any = stripCustomerSource(src, { platform: 'contactOnly' });
+    expect(out.platform).toBe('小红书');
   });
 });

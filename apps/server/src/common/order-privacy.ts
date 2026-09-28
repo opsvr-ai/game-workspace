@@ -62,12 +62,16 @@ const SOURCE_KEYS = ['customerSource', 'customerSourceAccount'];
 
 export interface StripSourceOptions {
   /**
-   * 要不要连带清空 `customer.platform`。默认 **true**（订单响应要清，见下）；
-   * 客户档案响应要传 **false** —— 同一个字段在客户档案里还兼着「微信 / QQ / 电话」，
-   * 清掉会让陪玩端连客户的 QQ / 电话都显示成「未绑定」。
+   * 怎么处理 `customer.platform`：
+   * - `'blank'`（默认，订单响应）：直接清空 —— 订单里这个字段存的就是来源（小红书 / 抖音…）；
+   * - `'contactOnly'`（客户档案响应）：只有**不是**联系方式平台时才清空 —— 同一个字段在客户档案里
+   *   还兼着「客户用的是微信 / QQ / 电话 / 其他」，一律清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
    */
-  platform?: boolean;
+  platform?: 'blank' | 'contactOnly';
 }
+
+/** 客户档案里 `customer.platform` 真正表示「联系方式平台」的取值（和前端 `platformLabels` 一致）。 */
+const CONTACT_PLATFORMS = new Set(['WECHAT', 'QQ', 'PHONE', 'OTHER']);
 
 /**
  * 把一个订单对象上的客户来源摘干净（**删键**，不是抹成 `***`）。
@@ -80,7 +84,7 @@ export interface StripSourceOptions {
  */
 export function stripCustomerSource<T>(order: T, opts: StripSourceOptions = {}): T {
   if (!order || typeof order !== 'object') return order;
-  const clearPlatform = opts.platform !== false;
+  const platformMode = opts.platform ?? 'blank';
   const src = order as any;
   let out: any = src;
 
@@ -98,8 +102,21 @@ export function stripCustomerSource<T>(order: T, opts: StripSourceOptions = {}):
   }
 
   const customer = src.customer;
-  if (clearPlatform && customer && typeof customer === 'object' && customer.platform) {
+  const shouldClearPlatform =
+    platformMode === 'blank' || !CONTACT_PLATFORMS.has(String(customer?.platform));
+  if (customer && typeof customer === 'object' && customer.platform && shouldClearPlatform) {
     out = { ...out, customer: { ...customer, platform: '' } };
+  }
+
+  // 客户档案（`GET /customers`）里 `platform` 是直接挂在**客户对象自己**身上的
+  // （订单里才是 `order.customer.platform`，上面那段管的就是它）。判据用客户档案独有的字段，
+  // 免得误伤别的对象 —— 引流账号（TrafficAccount）也有个 `platform`，那是它自己的平台，不能清。
+  const ownPlatform = (src as any).platform;
+  const looksLikeCustomer = typeof src.customerCode === 'string' || typeof src.wechatId === 'string';
+  const shouldClearOwn =
+    platformMode === 'blank' || !CONTACT_PLATFORMS.has(String(ownPlatform));
+  if (looksLikeCustomer && typeof ownPlatform === 'string' && ownPlatform && shouldClearOwn) {
+    out = { ...out, platform: '' };
   }
 
   return out;
@@ -109,7 +126,9 @@ export function stripCustomerSource<T>(order: T, opts: StripSourceOptions = {}):
  * 递归过一遍任意响应体：数组、`{ code, message, data }` 这类包一层的、
  * 订单里再嵌订单的（搭档邀请 / 会话），都能清理到。
  *
- * 挂在 OrdersController 的拦截器上，所以陪玩端**每个**订单接口都自动生效，
+ * `opts` 一层层传下去（数组 / 嵌套对象都带同一个开关）。
+ *
+ * 挂在 OrdersController / CustomersController 的拦截器上，所以陪玩端**每个**接口都自动生效，
  * 不用每个方法各写一遍，也不会「新加个接口忘了过滤」。
  */
 export function stripCustomerSourceDeep<T>(payload: T, opts: StripSourceOptions = {}): T {

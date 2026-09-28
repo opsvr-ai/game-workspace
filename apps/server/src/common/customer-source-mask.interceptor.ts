@@ -30,15 +30,16 @@ abstract class BaseCustomerSourceMaskInterceptor implements NestInterceptor {
  */
 @Injectable()
 export class CustomerSourceMaskInterceptor extends BaseCustomerSourceMaskInterceptor {
-  protected readonly opts: StripSourceOptions = { platform: true };
+  protected readonly opts: StripSourceOptions = { platform: 'blank' };
 }
 
 /**
- * 客户档案接口的版本（CustomersController）：只摘 `customFields` 里的来源 / 来源账号，
- * **不动** `customer.platform` —— 客户档案里这个字段还兼着「微信 / QQ / 电话」，
- * 清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
+ * 客户档案接口的版本（CustomersController）：摘 `customFields` 里的来源 / 来源账号，
+ * `customer.platform` 只清「不是联系方式平台」的取值（小红书 / 抖音 / 快手…）——
+ * 这个字段在客户档案里还兼着「客户用的是微信 / QQ / 电话 / 其他」，
+ * 一律清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
  */
 @Injectable()
 export class CustomerProfileSourceMaskInterceptor extends BaseCustomerSourceMaskInterceptor {
-  protected readonly opts: StripSourceOptions = { platform: false };
+  protected readonly opts: StripSourceOptions = { platform: 'contactOnly' };
 }
