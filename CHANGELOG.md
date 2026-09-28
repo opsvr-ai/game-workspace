@@ -11,6 +11,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **陪玩端整体隐藏「客户来源（小红书 / 抖音…）」和「来源账号」（老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」）：**
+  以前陪玩端只是把**来源账号**抹成 `***`，但**来源平台**（「小红书」这三个字）还留在订单列表的「客户账号」格、
+  客户管理的「来源 / 账号」列、订单详情弹窗和客户详情页里 —— 陪玩照样知道这一单是从小红书来的。现在服务端 + 前端一起收口：
+  - **服务端**（口径只写一处）：`common/order-privacy.ts` 新增 `canSeeCustomerSource()`（只有 `COMPANION` 看不到，
+    客服 / 店长 / 老板照常）与 `stripCustomerSource() / stripCustomerSourceDeep()`（**删键**，不是抹 `***`，
+    返回新对象不动入参）。
+    `OrdersController` 挂 `CustomerSourceMaskInterceptor` —— 订单列表 / 订单池 / 抢单 / 详情 / 改单…… 这一层
+    每个接口统一生效，不用每个方法各写一遍，也不会「以后新加接口忘了过滤」；`WsGateway.pushOrder()` 推给陪玩的
+    `order:new` 也先过一遍。`CustomersController` 挂 `CustomerProfileSourceMaskInterceptor`：只摘 `customFields`
+    里的来源 / 来源账号，**不动** `customer.platform` —— 那个字段在客户档案里还兼着「微信 / QQ / 电话」，
+    清掉会让陪玩端把客户的 QQ / 电话显示成「未绑定」。
+  - **前端**：`constants/datasetColumns.ts` 的 `canSeeCustomerSource()` 管展示 —— 订单列表「客户账号」格、
+    客户管理「来源 / 账号」列、订单详情弹窗的「客户昵称 / 客户来源 / 来源账号」三行、客户详情页的「平台」标签
+    （只有微信 / QQ / 电话 / 其他这种真正的联系方式平台才给陪玩看）；订单池那句
+    「抢单后可见客户联系方式和来源账号ID」改成「抢单后可见客户联系方式」。
+  - **陪玩接单要用的照常**：房间码 / 微信 / 二维码 / YY / KOOK 都不动；客服 / 店长 / 老板完全不受影响
+    （店长 / 老板依旧看全局来源账号）。
+  - 单元测试 `apps/server/src/__tests__/order-privacy.test.ts` 加到 **17 条**：四种角色可见性、「删键而不是抹 `***`」、
+    不改原对象、包一层 / 数组 / 嵌套订单的递归清理、客户档案版不动 `platform`。
+
 - **陪玩端逐页实测（老板 2026-09-29 给的陪玩账号「徐泽宁」）：** 客服端量完之后，用真实的陪玩账号把陪玩端
   也按同一套指标量了一遍（表头文字 x 与格子第一行内容 x 的差、每格行数、表格溢出、行高），
   线上真实数据、四档窗口宽度（1080 / 1320 / 1536 / 1920）：
