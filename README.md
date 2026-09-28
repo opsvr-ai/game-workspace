@@ -6,6 +6,20 @@
 
 ## Recent Updates (v3.2.0)
 
+- **「报账微信码」：每个陪玩在自己的报账页传一次收款码，财务报账时点开扫一扫（2026-09-29）:** 老板要的是
+  「每个陪玩在报账那里给他留个位置，让陪玩自己上传自己的报账微信码，每次报账点开这个码，拿手机扫一扫就可以了」。
+  现在陪玩端「财务管理 → 报账系统」顶上多一张**我的报账微信码**卡片：上传 / Ctrl+V 粘贴一次收款码截图即可
+  （存 `Companion.payoutQrUrl`，迁移 `20260929200000_add_companion_payout_qr`），换号了从同一张卡片「换一张」覆盖。
+  财务侧两页都多一列 / 一个按钮：**陪玩审核 + 支取**（支出/支取申请列表每行「收款码」+ 审核弹窗里也有）、
+  **报账与支取统计**（每个陪玩一行「收款码」），点开就是 360×360 大图 +「打开手机微信 → 扫一扫」提示，
+  不用再去群里翻陪玩发过的截图。陪玩列表接口对**陪玩本人**返回的 `payoutQrUrl` 一律置空（别人的码看不到）；
+  新接口 `GET/PUT /api/companions/me/payout-qr`（限 COMPANION）。
+
+- **老板打开「陪玩审核 + 支取」「报账与支取统计」一直报「数据操作失败」，根因修掉了（2026-09-29）:** 老板（OWNER）
+  没有 `studioId`，后端却把 `null` 当工作室过滤条件传给 Prisma，报 `Argument studioId must not be null` → 500，
+  四五个报账相关接口（支出/支取申请、月度汇总、钱包流水、报账与支取统计、月度结算明细）**全都打不开**，
+  老板自己根本看不到报账数据。现在统一走一个 `studioScope()`：没有 studioId（老板）就看全店、不过滤，
+  与同文件 `getPendingCount()` 早就写好的 OWNER 逻辑一致；线上用老板账号逐条复测，全部 200。
 - **抢单去重改成「按陪玩」（2026-09-29）:** 老板定的口径 ——「允许同一个客户被不同的陪玩去抢单，
   但是不允许同一个客户同一个陪玩去抢」。以前按**工作微信**判重（换了微信就能再接，微信换了人反而被拦），
   现在按**陪玩**：同一个客户同一个陪玩只接一次（他当搭档的双人局也算接过），**不同陪玩之间互不影响**，
@@ -670,6 +684,8 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
+| `GET` | `/api/companions/me/payout-qr` | JWT | COMPANION | 我（陪玩）的**报账微信码**（财务报账 / 发工资时点开扫一扫）。 |
+| `PUT` | `/api/companions/me/payout-qr` | JWT | COMPANION | 上传 / 更换我自己的报账微信码。Body: `{ url }`（先走 `POST /api/upload/screenshot`）。 |
 | `GET` | `/api/companions/me/wallet` | JWT | COMPANION | Get wallet balance. |
 | `POST` | `/api/companions/me/withdraw` | JWT | COMPANION | Request withdrawal. |
 | `GET` | `/api/wallet-transactions` | JWT | ADMIN, OWNER | List wallet transactions. |

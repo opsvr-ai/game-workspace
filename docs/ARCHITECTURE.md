@@ -657,6 +657,7 @@ sequenceDiagram
 - 「每日统计」页复用 `GET /api/stats/daily`，升级为客服派单/提成核对工作台：发单客服、认领客服、工作微信、客户付款去向、收款账号、陪玩费状态与方式
 - 报账协商：`PUT /api/transactions/:id/propose` 发起改价（`NEGOTIATING`），`accept-proposal` / `reject-proposal` 由陪玩确认或退回
 - 支出/支取审核：`GET/PUT /api/expense-reports*` 与 `GET/PUT /api/wallet-transactions*` 审核陪玩支出、支取与钱包流水（`PENDING → APPROVED/REJECTED`）
+- 报账微信码：陪玩在报账页上传自己的收款码（`Companion.payoutQrUrl`），财务在支出/支取审核与报账统计里点开扫码打钱；`GET /api/companions` 对陪玩本人返回的 `payoutQrUrl` 一律置空
 - 提成复核：`PATCH /api/finance/commission/ledgers/:id/status` 将 `CommissionLedger` 在 `DRAFT / CONFIRMED` 间流转
 - 截图阈值：`GET/PUT /api/config` 读取/更新 `capture.*`（截图间隔、首张延迟、黑屏判定、每小时期望张数与合格率），Electron 客户端开始服务时拉取并动态执行
 
@@ -671,4 +672,5 @@ sequenceDiagram
 - `PATCH /api/finance/commission/ledgers/:id/status` — 提成结算确认/撤销
 - `GET/PUT /api/expense-reports*` — 支出/支取申请查询与审核
 - `GET/PUT /api/wallet-transactions*` — 钱包流水查询与审核
+- `GET/PUT /api/companions/me/payout-qr` — 陪玩自己的报账微信码（读 / 上传更换，限 COMPANION）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）
