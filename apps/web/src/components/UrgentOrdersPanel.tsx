@@ -74,8 +74,8 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
     onGotoFollowup?.();
   };
 
-  if (items.length === 0) return null;
-
+  // 同上（2026-09-28）：这一页也是派单管理里的独立标签页，空的就整页白板太吓人，
+  // 一律保留标题 + 表头 + 「暂无」提示。
   const shown = search ? items.filter((r) => orderMatchesSearch(r, search)) : items;
 
   // 这一页特有的「这一单现在什么情况」：加了没有 / 退回了 / 派了几次 / 谁发的能不能处理

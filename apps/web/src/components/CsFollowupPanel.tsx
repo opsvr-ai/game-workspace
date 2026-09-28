@@ -131,8 +131,10 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       </Space>
     );
 
-  if (items.length === 0) return null;
-
+  // 老板 2026-09-28：「查查所有角色所有页面」——这一页是派单管理里的一个独立标签页，
+  // 以前「一条跟进都没有」时整页 return null，客服点进来看到的是一片空白，
+  // 既不知道是没数据还是坏了。现在和同组的「流转失败明细 / 流转明细」一样：
+  // 标题、搜索框、表头都在，中间显示「暂无待跟进的直添客户」。
   return (
     <Card size="small" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
