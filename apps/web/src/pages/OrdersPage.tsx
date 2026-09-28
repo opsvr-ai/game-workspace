@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -39,11 +39,38 @@ import {
   ORDER_TABLE_KEYS,
   ORDER_TABLE_KEYS_COMPANION,
   TABLE_STYLE,
+  fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
 
 const { Text } = Typography;
 const { Option } = Select;
+
+/**
+ * 量「这张表真正能用的宽度」（订单管理表所在卡片内容区的宽度）。
+ * 窗口一拉宽就重新算列宽：多出来的宽度补给客户信息列，操作列保持定宽
+ * —— 老板 2026-09-29：「操作的退款后边不是还有很多空间么？不能让退款靠在最右边？
+ * 让前边的客户信息全部显示出来？」（算法见 datasetColumns.ts 的 fitOrderColumnWidths）
+ */
+function useTableAvailWidth(): [(node: HTMLDivElement | null) => void, number] {
+  // 用回调 ref 而不是 useRef：这张表是「数据回来之后才渲染」的（先出骨架屏），
+  // useRef + 只跑一次的 effect 会在表格还没出现时就量完（量到 0），之后再也不量。
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  React.useLayoutEffect(() => {
+    if (!node) return undefined;
+    const update = () => setWidth(node.clientWidth);
+    update();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [node]);
+  return [setNode, width];
+}
 
 const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -95,6 +122,9 @@ const OrdersPage: React.FC = () => {
   const [refundOrder, setRefundOrder] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
+  // 列宽按窗口宽度现算（老板 2026-09-29）：窗口宽出来的部分给客户信息列，操作列定宽
+  const [tableWrapRef, tableAvailWidth] = useTableAvailWidth();
+  const fittedColumns = fitOrderColumnWidths(tableAvailWidth);
 
   const canEditOrder = (r: any) => {
     if (!user || user.role === 'COMPANION' || r.dispatchType !== 'POOL' || r.status === 'CANCELLED') return false;
@@ -629,7 +659,13 @@ const OrdersPage: React.FC = () => {
   // 保证「订单管理 / 流转失败明细 / 跟进列表 / 流转明细」四处的订单长得一模一样
   // （老板 2026-09-28：「流转失败列表页很混乱，你再查查所有角色所有页面 还有同样问题的么」）。
   const columns = [
-    ...buildOrderColumns({ isCompanion, inactiveAccounts }),
+    // 管理端把按窗口算出来的列宽传进去（客户账号这类列窗口一宽就变宽）；
+    // 陪玩端不传，维持固定的窄版列宽（见 orderColumns.tsx 的 OrderColumnOptions.widths）
+    ...buildOrderColumns({
+      isCompanion,
+      inactiveAccounts,
+      widths: isCompanion ? undefined : fittedColumns.widths,
+    }),
     {
       title: '操作',
       key: 'actions',
@@ -781,34 +817,39 @@ const OrdersPage: React.FC = () => {
           <TableSkeleton columns={5} rows={5} />
         ) : (
           <Card size="small" style={{ overflow: 'auto' }}>
-            <Table
-              className="data-table"
-              rowKey="id"
-              columns={columns as any}
-              dataSource={sorted}
-              size="small"
-              pagination={false}
-              style={TABLE_STYLE}
-              scroll={{
-                x: sumWidths(isCompanion ? ORDER_TABLE_KEYS_COMPANION : ORDER_TABLE_KEYS),
-              }}
-              locale={{
-                emptyText: isCs && csScope === 'mine'
-                  ? '暂无我发布的订单，可切到「全店订单」查看'
-                  : isCompanion && companionScope === 'published'
-                    ? '我还没发过订单'
-                    : '暂无订单',
-              }}
-              // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
-              onRow={(record: any) => ({
-                style: { cursor: 'pointer' },
-                onClick: (e: React.MouseEvent) => {
-                  if (isRowClickIgnored(e)) return;
-                  if (canEditOrder(record)) setEditingOrder(record);
-                  else setDetailOrder(record);
-                },
-              })}
-            />
+            {/* 这个 div 就是「表格真正能用的宽度」，窗口拖动 / 侧栏收起都会重新量一遍 */}
+            <div ref={tableWrapRef}>
+              <Table
+                className="data-table"
+                rowKey="id"
+                columns={columns as any}
+                dataSource={sorted}
+                size="small"
+                pagination={false}
+                style={TABLE_STYLE}
+                scroll={{
+                  // 管理端用算出来的 scroll.x：窗口窄时和以前一样是 1072px（横向滚动照旧），
+                  // 窗口宽时正好等于表格能用的宽度，列不会被按比例压扁
+                  x: isCompanion ? sumWidths(ORDER_TABLE_KEYS_COMPANION) : fittedColumns.scrollX,
+                }}
+                locale={{
+                  emptyText: isCs && csScope === 'mine'
+                    ? '暂无我发布的订单，可切到「全店订单」查看'
+                    : isCompanion && companionScope === 'published'
+                      ? '我还没发过订单'
+                      : '暂无订单',
+                }}
+                // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
+                onRow={(record: any) => ({
+                  style: { cursor: 'pointer' },
+                  onClick: (e: React.MouseEvent) => {
+                    if (isRowClickIgnored(e)) return;
+                    if (canEditOrder(record)) setEditingOrder(record);
+                    else setDetailOrder(record);
+                  },
+                })}
+              />
+            </div>
           </Card>
         )}
         <Modal

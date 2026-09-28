@@ -26,16 +26,25 @@ export interface OrderColumnOptions {
   isCompanion: boolean;
   /** 已弃用的来源账号（后面跟灰字「已弃用」） */
   inactiveAccounts?: Set<string>;
+  /**
+   * 按窗口宽度算出来的列宽（`fitOrderColumnWidths`，键是 FIELD_WIDTH 里的字段名）。
+   * 只有订单管理表传这个值 —— 窗口宽的时候「客户账号」这类列要跟着变宽。
+   * 不传就按 FIELD_WIDTH 的基准宽度（派单管理那三张列表就是这么用的）。
+   */
+  widths?: Record<string, number>;
 }
 
-export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumnOptions): any[] {
+export function buildOrderColumns({ isCompanion, inactiveAccounts, widths }: OrderColumnOptions): any[] {
+  // 列宽统一走这里取：传了 widths（订单管理表）就用算出来的宽度，没传就用基准宽度
+  const W = (key: string, fallback: number) => widths?.[key] ?? fallback;
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
   // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（管理端 1072px、陪玩端 984px）。
   // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
   // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
   // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线。
   // 2026-09-29：管理端「客户账号」列按老板要求加宽到 176px（来源 / 昵称 / 客户账号ID 要看得见），
-  // 管理端整表 1072px —— 1320 宽的窗口会有约 80px 横向滚动，这是这一列显示全的代价。
+  // 管理端整表基准 1072px（1320 宽的窗口会有约 80px 横向滚动）；窗口比这宽时多出来的宽度
+  // 由 fitOrderColumnWidths 补给客户信息列（订单管理会传 widths 进来，见 OrderColumnOptions）。
   // 陪玩端那套列用窄版（84px），合计仍然是 984px，陪玩端窗口不会多出滚动条。
   const STATUS_TEXT_COLOR: Record<string, string> = {
     PENDING: '#B45309',
@@ -53,7 +62,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '订单',
       key: 'orderCode',
-      width: FIELD_WIDTH.orderCode,
+      width: W('orderCode', FIELD_WIDTH.orderCode),
       render: (_: unknown, o: any) => {
         const code = o.orderCode || o.id.slice(0, 8);
         const typeLabel = orderTypeConfig[o.type]?.label || o.type || '首单';
@@ -68,7 +77,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '状态',
       key: 'status',
-      width: FIELD_WIDTH.orderStatus,
+      width: W('orderStatus', FIELD_WIDTH.orderStatus),
       render: (_: unknown, o: any) => {
         const label = orderStatusConfig[o.status]?.label || o.status;
         // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接单」
@@ -92,7 +101,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '游戏 / 服务',
       key: 'game',
-      width: FIELD_WIDTH.game,
+      width: W('game', FIELD_WIDTH.game),
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
         const svc = serviceTypeConfig[o.serviceType]?.label;
@@ -114,7 +123,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '金额 / 打单',
       key: 'amount',
-      width: FIELD_WIDTH.amount,
+      width: W('amount', FIELD_WIDTH.amount),
       render: (_: unknown, o: any) => {
         const urgency = o.customFields?.urgency === 'later' ? 'later' : 'now';
         const money = `¥${Number(o.amount).toFixed(0)}`;
@@ -131,7 +140,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '客户微信 / 编号',
       key: 'customerWechat',
-      width: FIELD_WIDTH.customerWechat,
+      width: W('customerWechat', FIELD_WIDTH.customerWechat),
       render: (_: unknown, o: any) => {
         const code = o.customer?.customerCode;
         const wechat = o.customFields?.customerWechat || o.customer?.wechatId || '-';
@@ -147,7 +156,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
       title: '客户账号',
       key: 'customerAccounts',
       // 管理端 176px（来源 / 昵称 / 客户账号ID 都要看得见）、陪玩端 84px（只有房间码 / YY / KOOK）
-      width: isCompanion ? FIELD_WIDTH.customerAccountsCompanion : FIELD_WIDTH.customerAccounts,
+      width: isCompanion ? FIELD_WIDTH.customerAccountsCompanion : W('customerAccounts', FIELD_WIDTH.customerAccounts),
       // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
       // 客户ID / 昵称对陪玩不展示（和订单池的行口径一致）。
       // 来源平台（「小红书」三个字）和来源账号一起对陪玩藏掉 —— 老板 2026-09-29：
@@ -234,7 +243,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '主陪 / 副陪',
       key: 'companion',
-      width: FIELD_WIDTH.studio,
+      width: W('studio', FIELD_WIDTH.studio),
       render: (_: unknown, o: any) => {
         const name = o.companion?.user?.username || '未接单';
         const co = o.coCompanion?.user?.username;
@@ -254,7 +263,7 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '发布',
       key: 'createdAt',
-      width: FIELD_WIDTH.createdAt,
+      width: W('createdAt', FIELD_WIDTH.createdAt),
       // 发布人 + 发布时间一行。时间只写「09-27 01:11」——原来「2026/9/27 01:11:46」要 100px 以上，
       // 完整时间（含年份）悬停看。
       render: (_: unknown, o: any) => {

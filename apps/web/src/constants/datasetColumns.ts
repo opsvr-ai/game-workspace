@@ -53,7 +53,9 @@ export const FIELD_WIDTH = {
    *  房间码 70px，整格最长 308px —— 原来 84px（放字的地方 74px）只看得见三个字。
    *  这里取 176px（放字的地方 166px）：来源/昵称/账号ID 大多数单子能一口气看全，
    *  最长的那几单仍然靠省略号 + 悬停 + 详情弹窗看全。
-   *  代价：管理端订单表合计 1072px，1320 宽的窗口会有约 80px 横向滚动 —— 这是「这一列显示全」的代价。 */
+   *  代价：管理端订单表基准合计 1072px，1320 宽的窗口会有约 80px 横向滚动 —— 这是「这一列显示全」的代价。
+   *  2026-09-29 当天下半场：窗口比 1072px 宽出来的宽度不再堆在「退款」右边，而是按 fitOrderColumnWidths
+   *  先补给这一列（最长可到 336px）和「客户微信 / 编号」「主陪 / 副陪」等列。 */
   customerAccounts: 176,
   /** 「客户账号」单行（陪玩端）：陪玩看不到来源 / 昵称 / 账号ID（见 canSeeCustomerSource），
    *  这一格只剩房间码 + YY + KOOK（实测最长 70px），84px 绰绰有余，
@@ -131,7 +133,8 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 }
 
 /** 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
- *  2026-09-29「客户账号」列 84 → 176 之后，合计 66+72+112+74+118+176+84+116+254 = **1072px**。 */
+ *  2026-09-29「客户账号」列 84 → 176 之后，合计 66+72+112+74+118+176+84+116+254 = **1072px**。
+ *  窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（补给客户信息列，不再堆在退款右边）。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerWechat', 'customerAccounts', 'studio', 'createdAt', 'orderActions',
@@ -146,6 +149,85 @@ export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerWechat', 'customerAccountsCompanion', 'orderNote', 'studio', 'createdAt', 'companionOrderActions',
 ];
+
+/**
+ * 订单管理表九列的基准宽度之和 —— 也是这张表 scroll.x 的下限（66+72+112+74+118+176+84+116+254 = 1072px）。
+ */
+export const ORDER_TABLE_BASE_WIDTH = sumWidths(ORDER_TABLE_KEYS);
+
+/**
+ * 各列「内容真正需要的宽度」（线上 112 单实测 = 内容最长值 + 左右各 5px 内边距 + 2px 余量）。
+ * 窗口比表格宽出来的部分，优先补到这些上限 —— 补到这儿，客户来源 / 昵称 / 账号ID、微信号、
+ * 主陪、金额就全都能显示下、不再是省略号了。
+ */
+export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
+  orderCode: 74, // 实测最长 61（「232 · 首单」）
+  amount: 82, // 实测最长 68（「¥188 立即打」）
+  customerWechat: 150, // 实测最长 138（客户微信号）
+  customerAccounts: 336, // 实测最长 324（来源 + 来源账号 + 昵称 + 客户账号ID + 房间码）
+  studio: 132, // 实测最长 119（陪玩名 + 副陪 + 桥接工作室）
+};
+
+/**
+ * 补宽顺序。
+ *  1. 先补「差几 px 就能显示全」的小列（金额差 4px、订单号差 5px）——
+ *     这两个不补的话，几乎每一行的「· 首单」「立即打」都会被省略号吃掉，最扎眼；
+ *  2. 再补最缺宽度的「客户账号」（差 160px，来源 / 昵称 / 账号ID 全在里面）；
+ *  3. 然后「客户微信 / 编号」「主陪 / 副陪」。
+ */
+export const ORDER_COLUMN_FIT_ORDER: string[] = [
+  'amount',
+  'orderCode',
+  'customerAccounts',
+  'customerWechat',
+  'studio',
+];
+
+/**
+ * 订单管理表的列宽：按窗口真正能给的宽度算。
+ *
+ * 老板 2026-09-29：「操作的退款后边不是还有很多空间么？不能让退款靠在最右边？
+ * 让前边的客户信息全部显示出来？」以前九列全是写死的宽度，窗口比表格宽出来的那一段，
+ * 浏览器会按列宽比例平摊给**所有**列（操作列也摊），于是那段空间落在了「退款」右边 ——
+ * 该宽的客户信息没宽（只能看省略号），操作列却白撑出一大块空白。
+ * 现在改成三步：
+ *  1. 先把多出来的宽度按 ORDER_COLUMN_FIT_ORDER 补给被截断的列，补到内容需要的宽度就停
+ *     （「客户账号」排第一，所以窗口一宽，来源 / 昵称 / 账号ID 就先显示全）；
+ *  2. 还有富余，再按列宽比例摊给 8 个数据列（和浏览器平时的做法一样，只是不再摊给操作列）；
+ *  3. 操作列宽度永远不变，按钮靠右对齐 —— 「退款」就贴在表格最右边，后面不留空。
+ * 窗口不够宽（可用宽度 < 1072px）时九列维持基准宽度，横向滚动条和以前完全一样。
+ *
+ * @param availableWidth 表格真正能用的宽度（卡片内容区的宽度，不含页面内边距）
+ */
+export function fitOrderColumnWidths(availableWidth: number): {
+  widths: Record<string, number>;
+  scrollX: number;
+} {
+  const widths: Record<string, number> = { ...FIELD_WIDTH };
+  // 留 1px 给浏览器取整：列宽之和正好等于可用宽度时，容易因为小数位冒出一条横向滚动条
+  const available = Math.max(0, availableWidth - 1);
+  const scrollX = Math.max(ORDER_TABLE_BASE_WIDTH, available);
+  let spare = available - ORDER_TABLE_BASE_WIDTH;
+  if (spare <= 0) return { widths, scrollX };
+  for (const key of ORDER_COLUMN_FIT_ORDER) {
+    const room = Math.max(0, (ORDER_COLUMN_MAX_WIDTH[key] ?? widths[key]) - widths[key]);
+    const add = Math.min(room, spare);
+    widths[key] += add;
+    spare -= add;
+    if (spare <= 0) return { widths, scrollX };
+  }
+  // 每列都补到内容需要的宽度了还有富余：按列宽比例摊给数据列（操作列不参与，空白不会再跑到「退款」右边）
+  const dataKeys = ORDER_TABLE_KEYS.filter((key) => key !== 'orderActions');
+  const dataSum = dataKeys.reduce((total, key) => total + widths[key], 0);
+  let left = spare;
+  for (const key of dataKeys) {
+    const add = Math.min(left, Math.floor((spare * widths[key]) / dataSum));
+    widths[key] += add;
+    left -= add;
+  }
+  widths.customerAccounts += left;
+  return { widths, scrollX };
+}
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
 export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
@@ -219,7 +301,10 @@ export const ACTIONS_COLUMN_COMPANION = {
 };
 
 /** 订单管理表的操作列：按钮最多的一行是「沟通 + 添加成功 + 添加失败 + 退款」，
- *  按钮统一 22px 高 / 11px 字号（和工作室账号管理一致）后一行放得下。 */
+ *  按钮统一 22px 高 / 11px 字号（和工作室账号管理一致）后一行正好 244px，列宽 254px
+ *  （左右各 5px 内边距）—— 严丝合缝，所以「退款」的右端就贴着表格右边，
+ *  后面不会再有空白（老板 2026-09-29：「不能让退款靠在最右边？」）。
+ *  这一列是**定宽**的：窗口多出来的宽度全部补给前面的客户信息列，见 fitOrderColumnWidths。 */
 export const ORDER_ACTIONS_COLUMN = {
   width: FIELD_WIDTH.orderActions,
   fixed: 'right' as const,
