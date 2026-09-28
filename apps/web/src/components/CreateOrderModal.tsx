@@ -153,8 +153,15 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       const payload: any = {
         ...v,
         csUserId: userId,
+        // 原客户ID必须显式带上：`validateFields()` 只返回「注册过的字段」，而 customerId 只是
+        // setFieldsValue 塞进去的隐藏值（弹窗里没有这个 Form.Item），所以 `...v` 里根本没有它 ——
+        // 结果每发一次单就新插一条客户档案，「客户管理」里同一个人出现两条
+        // （2026-09-29 线上只读核查：sj13771731714 三条、amm070701 两条、slsz899 两条……）。
+        customerId: (v as any).customerId || prefill.customerId || undefined,
         isCompensation: (v as any).isCompensation,
         csCultivated: prefill.csCultivated === true ? true : undefined,
+        // 客服养好的客户重新派单：记下从哪张单派出去的（流转明细可追溯）
+        sourceOrderId: prefill.sourceOrderId || undefined,
         workWechatId,
         workWechatName,
         ...(directAddMode

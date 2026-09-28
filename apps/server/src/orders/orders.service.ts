@@ -186,6 +186,12 @@ export class OrdersService implements OnModuleInit {
           csWorkWechatId: (dto as any).workWechatId || undefined,
           csWorkWechatName: (dto as any).workWechatName || undefined,
           csCultivated: (dto as any).csCultivated === true ? true : undefined,
+          // 这张单是从哪张「客服养好的客户」派出去的（跟进列表「重新派单」带过来），
+          // 有了它，「管理端直添客户流转明细」才追得回源头。
+          cultivatedFromOrderId:
+            (dto as any).csCultivated === true
+              ? ((dto as any).sourceOrderId || undefined)
+              : undefined,
           deltaMission: (dto as any).deltaMission,
           deltaCount: (dto as any).deltaCount,
           deltaNote: (dto as any).deltaNote,

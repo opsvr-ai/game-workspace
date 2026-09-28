@@ -279,9 +279,14 @@ const CSDispatchView: React.FC = () => {
     );
   };
 
-  const handleDispatch = (item: any) => {
+  // opts.cultivated：从「管理端直添客户跟进列表」点「重新派单」时传 true ——
+  // 这张新单要记成「客服养好的客户」（流转明细据此统计），并带上原单号 + 原客户ID。
+  const handleDispatch = (item: any, opts?: { cultivated?: boolean }) => {
     const cf = item.customFields || {};
+    const cultivated = opts?.cultivated === true || cf.csCultivated === true;
     setDispatchPrefill({
+      customerId: item.customerId,
+      sourceOrderId: cultivated ? item.id : undefined,
       gameName: item.gameName,
       amount: item.amount,
       duration: item.duration,
@@ -299,7 +304,7 @@ const CSDispatchView: React.FC = () => {
       customerPlatformAccount: cf.customerPlatformAccount,
       customerRoomCode: cf.customerRoomCode,
       customerWechatQr: cf.customerWechatQr,
-      csCultivated: cf.csCultivated === true,
+      csCultivated: cultivated,
       workWechatId: cf.csWorkWechatId,
       workWechatName: cf.csWorkWechatName,
       urgency: item.isScheduled ? 'later' : 'now',
@@ -999,7 +1004,12 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'followup',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户跟进列表</span>,
-            children: <CsFollowupPanel refreshSignal={customerRefresh} onDispatch={handleDispatch} />,
+            children: (
+              <CsFollowupPanel
+                refreshSignal={customerRefresh}
+                onDispatch={(r: any) => handleDispatch(r, { cultivated: true })}
+              />
+            ),
           },
           {
             key: 'converted',

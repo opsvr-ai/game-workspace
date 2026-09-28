@@ -51,4 +51,6 @@ export class CreateOrderDto {
   @IsOptional() @IsString() workWechatId?: string;
   @IsOptional() @IsString() workWechatName?: string;
   @IsOptional() @IsBoolean() csCultivated?: boolean;
+  /** 客服养好的客户重新派单时，指向原来那张单（追溯 + 流转明细用） */
+  @IsOptional() @IsString() sourceOrderId?: string;
 }
