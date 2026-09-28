@@ -8,7 +8,7 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
-import { maskCustomerWechat } from '../common/order-privacy';
+import { canSeeSourceAccount, maskCustomerWechat } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange } from '../common/business-day';
@@ -565,16 +565,12 @@ export class OrdersService implements OnModuleInit {
       },
       orderBy: { createdAt: 'desc' },
     });
-    // 隐私：副陪（搭档）看不到主陪的客户微信；**来源账号（发笔记的那个小红书 / 抖音号）只对陪玩隐藏**。
-    // 2026-09-28 修：这里原来写的是 `o.csUserId !== user.id`，而店长 / 老板的 user.id 永远不等于客服 id，
-    // 于是**管理端整张「订单管理」表的来源账号全被换成 `***`**（老板报「客服端订单管理 客户的小红书信息
-    // 怎么不显示？陪玩端不显示，但是管理端得显示」）。口径和 common/order-privacy.ts 里那句
-    // 「客户微信只有主陪、客服、店长、老板可见」保持一致：客服 / 店长 / 老板都是管理端，都看得到；
-    // 只有陪玩拿到 `***`（陪玩端那一列本来也不渲染来源账号）。
+    // 隐私：副陪（搭档）看不到主陪的客户微信；来源账号按 canSeeSourceAccount 的口径过滤
+    // （陪玩看不到、客服只看自己发布的单、店长/老板看全局 —— 老板 2026-09-28 定的）。
     return orders.map((o) => {
       const masked = maskCustomerWechat(o, user);
       const cf = masked.customFields as any;
-      if (user.role === 'COMPANION' && cf?.customerSourceAccount) {
+      if (!canSeeSourceAccount(user, o) && cf?.customerSourceAccount) {
         return { ...masked, customFields: { ...cf, customerSourceAccount: '***' } };
       }
       return masked;
