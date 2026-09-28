@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
+import { assertCustomerNotTakenByCompanion } from './customer-companion-rule';
 
 @Injectable()
 export class OrderDispatchService {
@@ -21,27 +22,6 @@ export class OrderDispatchService {
       .update({ where: { id: companionId }, data: { status: 'AVAILABLE' } })
       .catch(() => {});
     await this.wsGateway.refreshCompanionBlacklist(companionId);
-  }
-
-  /** 客户只跟工作微信有关：当前工作微信已「添加成功」该客户则拦截（添加失败不算），换新微信后可再接。 */
-  private async assertCustomerNotAddedByCurrentWechat(companionId: string, customerId: string) {
-    const currentWorkWechat = await this.prisma.workWechat.findUnique({
-      where: { companionId },
-      select: { wechatId: true },
-    });
-    if (!currentWorkWechat?.wechatId) return;
-    const addedOrders = await this.prisma.order.findMany({
-      where: { customerId, contactStatus: 'added' },
-      select: { customFields: true },
-    });
-    const currentWx = currentWorkWechat.wechatId.trim();
-    const alreadyAdded = addedOrders.some((o) => {
-      const wx = ((o.customFields as any)?.workWechatName || '').trim();
-      return currentWx && wx === currentWx;
-    });
-    if (alreadyAdded) {
-      throw new ForbiddenException(`你的工作微信「${currentWx}」已添加过这个客户，更换新微信后可再接`);
-    }
   }
 
   async assign(orderId: string, companionId: string, userStudioId?: string) {
@@ -61,7 +41,10 @@ export class OrderDispatchService {
     if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
       throw new ForbiddenException('已完成或已取消的订单不可重新分配');
     }
-    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
+    // 客户跟陪玩：同一个客户同一个陪玩只接一次（这张单本身就是派给他的，所以要排除自己）。
+    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId, {
+      excludeOrderId: orderId,
+    });
     // Atomic update: guards against order deletion between fetch and update
     const result = await this.prisma.order.updateMany({
       where: { id: orderId, status: { notIn: [OrderStatus.DONE, OrderStatus.CANCELLED] }, companionId: null },
@@ -96,7 +79,10 @@ export class OrderDispatchService {
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
     if (order.status !== OrderStatus.PENDING) throw new ForbiddenException('订单状态不正确');
-    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
+    // 客户跟陪玩：同一个客户同一个陪玩只接一次（这张单本身就是派给他的，所以要排除自己）。
+    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId, {
+      excludeOrderId: orderId,
+    });
 
     // Atomic update with status guard (C1 fix)
     const result = await this.prisma.order.updateMany({
@@ -157,7 +143,8 @@ export class OrderDispatchService {
     // Prevent self-grabbing
     const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
-    await this.assertCustomerNotAddedByCurrentWechat(companionId, order.customerId);
+    // 客户跟陪玩（不再跟工作微信）：同一个客户同一个陪玩只能接一次，不同陪玩互不影响。
+    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId);
 
     // 每日「立即打」名额（取代原来的流水门槛，见 companion-quota.service.ts）
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });

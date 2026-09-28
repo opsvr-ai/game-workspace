@@ -6,6 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
+import { assertCustomerNotTakenByCompanion } from './customer-companion-rule';
 import { companionOrderRevenue } from '../common/order-revenue';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -50,26 +51,8 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单已超时，仅客服可处理');
     }
 
-    // 客户只跟工作微信有关：当前工作微信只要「添加成功」过该客户（添加失败不算），就拦截；
-    // 不管张三李四，谁绑了同一个微信都一样；换了新微信后可以再接。
-    const currentWorkWechat = await this.prisma.workWechat.findUnique({
-      where: { companionId },
-      select: { wechatId: true },
-    });
-    if (currentWorkWechat?.wechatId) {
-      const addedOrders = await this.prisma.order.findMany({
-        where: { customerId: order.customerId, contactStatus: 'added' },
-        select: { customFields: true },
-      });
-      const currentWx = currentWorkWechat.wechatId.trim();
-      const alreadyAdded = addedOrders.some((o) => {
-        const wx = ((o.customFields as any)?.workWechatName || '').trim();
-        return currentWx && wx === currentWx;
-      });
-      if (alreadyAdded) {
-        throw new ForbiddenException(`你的工作微信「${currentWx}」已添加过这个客户，更换新微信后可再接`);
-      }
-    }
+    // 客户跟陪玩（不再跟工作微信）：同一个客户同一个陪玩只能接一次，不同陪玩互不影响。
+    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId);
 
     // Cross-studio scope: companion can only grab from own or bridged studios
     const companion = await this.prisma.companion.findUnique({
