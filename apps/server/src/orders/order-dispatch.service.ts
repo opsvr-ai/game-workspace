@@ -6,7 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
-import { assertCustomerNotTakenByCompanion } from './customer-companion-rule';
+import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
 
 @Injectable()
 export class OrderDispatchService {
@@ -41,10 +41,8 @@ export class OrderDispatchService {
     if (order.status === OrderStatus.DONE || order.status === OrderStatus.CANCELLED) {
       throw new ForbiddenException('已完成或已取消的订单不可重新分配');
     }
-    // 客户跟陪玩：同一个客户同一个陪玩只接一次（这张单本身就是派给他的，所以要排除自己）。
-    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId, {
-      excludeOrderId: orderId,
-    });
+    // 客服指定派单不算「抢」：客服是主动挑人的，老客户回头要能派回给原来那个陪玩，
+    // 所以这里**故意不做**「同一个微信不能抢同一个客户」的判重（老板 2026-09-29：要堵一句话就堵）。
     // Atomic update: guards against order deletion between fetch and update
     const result = await this.prisma.order.updateMany({
       where: { id: orderId, status: { notIn: [OrderStatus.DONE, OrderStatus.CANCELLED] }, companionId: null },
@@ -79,10 +77,8 @@ export class OrderDispatchService {
     if (!order) throw new NotFoundException('订单不存在');
     if (order.companionId !== companionId) throw new ForbiddenException('该订单未指派给你');
     if (order.status !== OrderStatus.PENDING) throw new ForbiddenException('订单状态不正确');
-    // 客户跟陪玩：同一个客户同一个陪玩只接一次（这张单本身就是派给他的，所以要排除自己）。
-    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId, {
-      excludeOrderId: orderId,
-    });
+    // 陪玩接受「客服指定给他的单」同样不算抢：客服点了名就让他接，否则这张单会卡在这
+    // （companionId 已写、状态还是 PENDING，谁都接不走）。判重只管陪玩自己在池子里抢。
 
     // Atomic update with status guard (C1 fix)
     const result = await this.prisma.order.updateMany({
@@ -143,8 +139,8 @@ export class OrderDispatchService {
     // Prevent self-grabbing
     const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
-    // 客户跟陪玩（不再跟工作微信）：同一个客户同一个陪玩只能接一次，不同陪玩互不影响。
-    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId);
+    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接。
+    await assertCustomerNotTakenByCurrentWechat(this.prisma, companionId, order.customerId);
 
     // 每日「立即打」名额（取代原来的流水门槛，见 companion-quota.service.ts）
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });

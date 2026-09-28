@@ -6,7 +6,7 @@ import { BridgeService } from '../studios/bridge.service';
 import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
-import { assertCustomerNotTakenByCompanion } from './customer-companion-rule';
+import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
 import { companionOrderRevenue } from '../common/order-revenue';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -51,8 +51,8 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单已超时，仅客服可处理');
     }
 
-    // 客户跟陪玩（不再跟工作微信）：同一个客户同一个陪玩只能接一次，不同陪玩互不影响。
-    await assertCustomerNotTakenByCompanion(this.prisma, companionId, order.customerId);
+    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接。
+    await assertCustomerNotTakenByCurrentWechat(this.prisma, companionId, order.customerId);
 
     // Cross-studio scope: companion can only grab from own or bridged studios
     const companion = await this.prisma.companion.findUnique({
