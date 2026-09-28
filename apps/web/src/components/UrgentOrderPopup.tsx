@@ -82,6 +82,22 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               {urgentOrder.customFields?.deltaMission ? ` · ${urgentOrder.customFields.deltaMission}` : ''}
               {urgentOrder.customFields?.urgency === 'later' ? ' · 预约（不占名额）' : ' · 立即打（占 1 个名额）'}
             </div>
+            {/* 客服发单时填的备注（老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时
+                填写的备注」）。抢单前就得看见 —— 客人对局的要求常常写在这儿，抢完再说就晚了。 */}
+            {urgentOrder.customFields?.deltaNote && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: '#B45309',
+                  marginTop: 4,
+                  wordBreak: 'break-word',
+                  maxHeight: 54,
+                  overflow: 'hidden',
+                }}
+              >
+                📝 {urgentOrder.customFields.deltaNote}
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 14 }}>
             {urgentOrder._direct ? (
@@ -152,6 +168,9 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
                 <div>
                   🏠 房间码：<Text copyable>{urgentGrabbed.customFields.customerRoomCode}</Text>
                 </div>
+              )}
+              {urgentGrabbed.customFields?.deltaNote && (
+                <div style={{ color: '#B45309' }}>📝 备注：{urgentGrabbed.customFields.deltaNote}</div>
               )}
             </div>
             <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>

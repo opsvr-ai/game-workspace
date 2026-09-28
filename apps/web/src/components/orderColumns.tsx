@@ -190,6 +190,29 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
         );
       },
     },
+    /* 陪玩端在「客户账号」后面多一列「备注」：客服发单时填的备注（`customFields.deltaNote`）。
+       以前只有订单池卡片和订单详情弹窗里有，抢完单进了接单记录就看不到了 ——
+       老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」。
+       客人对局的要求常常就写在这儿，陪玩必须一眼看得到。列宽用的是陪玩操作列省下来的那 80px
+       （见 datasetColumns.ts 的 ORDER_TABLE_KEYS_COMPANION），整张表仍落在 1320 窗口的 985px 里。 */
+    ...(isCompanion
+      ? [
+          {
+            title: '备注',
+            key: 'orderNote',
+            width: FIELD_WIDTH.orderNote,
+            render: (_: unknown, o: any) => {
+              const note = o.customFields?.deltaNote || o.notes || '';
+              if (!note) return <Text type="secondary">-</Text>;
+              return (
+                <div style={CELL_ONE_LINE} title={note}>
+                  {note}
+                </div>
+              );
+            },
+          },
+        ]
+      : []),
     {
       title: '主陪 / 副陪',
       key: 'companion',

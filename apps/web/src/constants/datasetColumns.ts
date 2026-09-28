@@ -89,6 +89,20 @@ export const FIELD_WIDTH = {
    */
   orderActions: 254,
   /**
+   * 陪玩端订单管理（接单记录）的操作列：陪玩没有「修改 / 退款」
+   * （OrdersPage 的 canEditOrder 对陪玩恒为 false、hasOrderRow 也是 false），
+   * 一行最多「沟通 36 + 添加成功 / 已同意 60 + 添加失败 60」= 156px（间隔 4×2）+
+   * 单元格内边距 10px → 174。省下来的 80px 给了「备注」列，整张表 984px，
+   * 仍然落在 1320 窗口的 985px 里（不会因为多一列就长出横向滚动条）。
+   */
+  companionOrderActions: 174,
+  /**
+   * 陪玩端的「备注」列：客服发单时填的备注（`customFields.deltaNote`）。
+   * 老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」——
+   * 这一列以前只有订单池卡片和订单详情弹窗里有。一格一行、超长省略号 + 鼠标悬停看全。
+   */
+  orderNote: 84,
+  /**
    * 派单管理下面三张订单列表（订单池流转失败明细 / 管理端直添客户跟进列表 / 流转明细）的
    * 「说明」列：退回时间 / 添加情况 / 收款情况。老板 2026-09-28：「流转失败列表页很混乱」——
    * 这三张表以前是卡片行，一格叠 2~3 行、十几个彩色标签，现在和订单管理一样「一格一行」。
@@ -111,6 +125,15 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerWechat', 'customerAccounts', 'studio', 'createdAt', 'orderActions',
+];
+
+/**
+ * 陪玩端订单管理（接单记录）的列：比客服端多一列「备注」（插在「客户账号」后面）。
+ * 合计 66+72+112+74+118+84+84+84+116+174 = **984px**，仍在 1320 窗口的 985px 里。
+ */
+export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
+  'orderCode', 'orderStatus', 'game', 'amount',
+  'customerWechat', 'customerAccounts', 'orderNote', 'studio', 'createdAt', 'companionOrderActions',
 ];
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
@@ -187,6 +210,13 @@ export const ACTIONS_COLUMN_COMPANION = {
  *  按钮统一 22px 高 / 11px 字号（和工作室账号管理一致）后一行放得下。 */
 export const ORDER_ACTIONS_COLUMN = {
   width: FIELD_WIDTH.orderActions,
+  fixed: 'right' as const,
+  className: ACTIONS_CELL_CLASS,
+};
+
+/** 陪玩端订单管理的操作列：没有「修改 / 退款」，比客服端窄 80px，正好让给「备注」列。 */
+export const ORDER_ACTIONS_COLUMN_COMPANION = {
+  width: FIELD_WIDTH.companionOrderActions,
   fixed: 'right' as const,
   className: ACTIONS_CELL_CLASS,
 };

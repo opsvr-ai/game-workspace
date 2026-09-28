@@ -2032,6 +2032,11 @@ const AppLayout: React.FC = () => {
                   {Number(g.amount).toFixed(0)} · {g.duration}h
                 </div>
                 {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
+                {/* 客服发单时填的备注：抢单成功这张卡是陪玩唯一会认真看的一屏（老板 2026-09-29
+                    「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」）。 */}
+                {g.customFields?.deltaNote && (
+                  <div style={{ color: '#B45309' }}>📝 备注：{g.customFields.deltaNote}</div>
+                )}
                 {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
                 {g.customFields?.csCultivated === true && (
                   <div style={{ color: '#1677ff', fontWeight: 500 }}>

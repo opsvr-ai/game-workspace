@@ -35,7 +35,9 @@ import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
 import {
   ORDER_ACTIONS_COLUMN,
+  ORDER_ACTIONS_COLUMN_COMPANION,
   ORDER_TABLE_KEYS,
+  ORDER_TABLE_KEYS_COMPANION,
   TABLE_STYLE,
   sumWidths,
 } from '../constants/datasetColumns';
@@ -631,7 +633,9 @@ const OrdersPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      ...ORDER_ACTIONS_COLUMN,
+      // 陪玩没有「修改 / 退款」这两个按钮，操作列窄 80px，省下来的宽度给「备注」列
+      // （见 datasetColumns.ts 的 ORDER_ACTIONS_COLUMN_COMPANION）。
+      ...(isCompanion ? ORDER_ACTIONS_COLUMN_COMPANION : ORDER_ACTIONS_COLUMN),
       render: (_: unknown, o: any) => renderActions(o),
     },
   ];
@@ -785,7 +789,9 @@ const OrdersPage: React.FC = () => {
               size="small"
               pagination={false}
               style={TABLE_STYLE}
-              scroll={{ x: sumWidths(ORDER_TABLE_KEYS) }}
+              scroll={{
+                x: sumWidths(isCompanion ? ORDER_TABLE_KEYS_COMPANION : ORDER_TABLE_KEYS),
+              }}
               locale={{
                 emptyText: isCs && csScope === 'mine'
                   ? '暂无我发布的订单，可切到「全店订单」查看'
