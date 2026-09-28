@@ -30,11 +30,13 @@ export interface OrderColumnOptions {
 
 export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumnOptions): any[] {
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
-  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（980px）。
+  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（管理端 1072px、陪玩端 984px）。
   // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
   // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
-  // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线，
-  // 客服默认窗口（1320 宽 → 表格可用 991px）一屏放得下、不用左右拖。
+  // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线。
+  // 2026-09-29：管理端「客户账号」列按老板要求加宽到 176px（来源 / 昵称 / 客户账号ID 要看得见），
+  // 管理端整表 1072px —— 1320 宽的窗口会有约 80px 横向滚动，这是这一列显示全的代价。
+  // 陪玩端那套列用窄版（84px），合计仍然是 984px，陪玩端窗口不会多出滚动条。
   const STATUS_TEXT_COLOR: Record<string, string> = {
     PENDING: '#B45309',
     CLAIMED: '#6D28D9',
@@ -144,12 +146,15 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
     {
       title: '客户账号',
       key: 'customerAccounts',
-      width: FIELD_WIDTH.customerAccounts,
+      // 管理端 176px（来源 / 昵称 / 客户账号ID 都要看得见）、陪玩端 84px（只有房间码 / YY / KOOK）
+      width: isCompanion ? FIELD_WIDTH.customerAccountsCompanion : FIELD_WIDTH.customerAccounts,
       // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
       // 客户ID / 昵称对陪玩不展示（和订单池的行口径一致）。
       // 来源平台（「小红书」三个字）和来源账号一起对陪玩藏掉 —— 老板 2026-09-29：
       // 「陪玩端 隐藏 客户小红书信息」。房间码 / YY / KOOK 是陪玩自己找人对局要用的，照常显示。
       // 原来是一格 5~6 行（来源、昵称、房间码、YY/KOOK、二维码），现在压成一行，长了自己省略号。
+      // 管理端这一列 176px（FIELD_WIDTH.customerAccounts）：来源 / 昵称 / 账号ID 一眼看全，
+      // 陪玩端只有 84px 的窄版（FIELD_WIDTH.customerAccountsCompanion）。
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
         const showSource = canSeeCustomerSource(isCompanion ? 'COMPANION' : 'CS');
@@ -163,16 +168,29 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts }: OrderColumn
           cf.customerYy ? 'YY:' + cf.customerYy : '',
           cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
         ].filter(Boolean);
-        const text = bits.join(' · ');
+        // 段与段之间只留一个小灰点。老版是「 · 」（点两边各一个空格），三四个点就白吃掉 20~30px ——
+        // 老板 2026-09-29：「把标签之间的间距压缩一下，现在左右标签之间距离太大了」。
+        const text = bits.join('·');
         const qr = cf.customerWechatQr;
-        if (!text && !qr) return '-';
+        if (!bits.length && !qr) return '-';
         return (
           <div
             style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}
             title={text + (deprecated ? '（该来源账号已弃用）' : '')}
           >
-            <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {text || '-'}
+            {/* 宽度按内容走（flex: 0 1 auto）：二维码 / 已弃用 紧跟在文字后面，
+                不再被 flex 撑到列的另一头去。 */}
+            <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {bits.length ? (
+                bits.map((bit, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span style={{ color: '#CBD5E1' }}>·</span>}
+                    <span>{bit}</span>
+                  </React.Fragment>
+                ))
+              ) : (
+                '-'
+              )}
             </span>
             {deprecated && (
               <span style={{ flex: '0 0 auto', fontSize: 11, color: '#94A3B8' }}>已弃用</span>

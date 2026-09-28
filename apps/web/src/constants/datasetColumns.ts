@@ -47,9 +47,18 @@ export const FIELD_WIDTH = {
   amount: 74,
   /** 「客户微信 / 编号」单行 */
   customerWechat: 118,
-  /** 「客户账号」单行：来源平台 + 来源账号 + 昵称 + 客户ID + 房间码 + YY / KOOK（+ 二维码小图）；
-   *  这一格本来就长，靠省略号 + 悬停 + 详情弹窗看全，宽度优先让给其它列 */
-  customerAccounts: 84,
+  /** 「客户账号」单行（管理端）：来源平台 + 来源账号 + 昵称 + 客户账号ID + 房间码 + YY / KOOK（+ 二维码小图）。
+   *  老板 2026-09-29：「订单管理的客户账号那里显示的全一点：包括客户来源 客户昵称 客户账号ID」、
+   *  「是管理端这一列加宽」。实测线上 120 单：来源+来源账号最长 220px、昵称最长 84px、账号ID 最长 92px、
+   *  房间码 70px，整格最长 308px —— 原来 84px（放字的地方 74px）只看得见三个字。
+   *  这里取 176px（放字的地方 166px）：来源/昵称/账号ID 大多数单子能一口气看全，
+   *  最长的那几单仍然靠省略号 + 悬停 + 详情弹窗看全。
+   *  代价：管理端订单表合计 1072px，1320 宽的窗口会有约 80px 横向滚动 —— 这是「这一列显示全」的代价。 */
+  customerAccounts: 176,
+  /** 「客户账号」单行（陪玩端）：陪玩看不到来源 / 昵称 / 账号ID（见 canSeeCustomerSource），
+   *  这一格只剩房间码 + YY + KOOK（实测最长 70px），84px 绰绰有余，
+   *  也让陪玩端的接单记录仍然是 984px、不给陪玩加横向滚动。 */
+  customerAccountsCompanion: 84,
   /** 「主陪 / 副陪」单行：陪玩名（+副陪、桥接工作室） */
   studio: 84,
   /** 「发布」单行：发布人 + 发布时间 */
@@ -121,7 +130,8 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
   return keys.reduce((total, key) => total + FIELD_WIDTH[key], 0);
 }
 
-/** 订单管理表的列（顺序即表头顺序），scroll.x 直接用它算。 */
+/** 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
+ *  2026-09-29「客户账号」列 84 → 176 之后，合计 66+72+112+74+118+176+84+116+254 = **1072px**。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerWechat', 'customerAccounts', 'studio', 'createdAt', 'orderActions',
@@ -129,11 +139,12 @@ export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 
 /**
  * 陪玩端订单管理（接单记录）的列：比客服端多一列「备注」（插在「客户账号」后面）。
+ * 「客户账号」用陪玩端的窄版（customerAccountsCompanion —— 陪玩只看得到房间码 / YY / KOOK）。
  * 合计 66+72+112+74+118+84+84+84+116+174 = **984px**，仍在 1320 窗口的 985px 里。
  */
 export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
-  'customerWechat', 'customerAccounts', 'orderNote', 'studio', 'createdAt', 'companionOrderActions',
+  'customerWechat', 'customerAccountsCompanion', 'orderNote', 'studio', 'createdAt', 'companionOrderActions',
 ];
 
 /** 客户管理表的列（管理端 / 客服视角）。 */
@@ -144,8 +155,9 @@ export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 
 /**
  * 派单管理下面三张订单列表的列（订单池流转失败明细 / 跟进列表 / 流转明细）。
- * 和订单管理同一套宽度（多一个「说明」列、操作列窄一些），四张表在同一个窗口里宽度一致、都是 976px，
- * 客服默认窗口（1320 宽 → 可用 991px）一屏放得下、不用往右拖。
+ * 和订单管理同一套宽度（多一个「说明」列、操作列窄一些，并且三张表都用 hideStudio 去掉「主陪 / 副陪」）：
+ * 66+72+112+74+118+176+150+116+178 − 84 = **978px**，1320 窗口（可用 991px）仍然一屏放得下。
+ * 注意：这三张列表实际用 OrderTable 渲染，scroll.x 是按真实列宽之和算的，这里只是留档。
  */
 export const ORDER_PANEL_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
