@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Input, Modal, Select, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Input, Modal, Select, Space, Typography, message } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
-import OrderRow from './OrderRow';
+import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 import { orderMatchesSearch } from '../utils/orderPool';
 
@@ -11,6 +11,20 @@ interface Props {
   onGotoFollowup?: () => void;
 }
 
+/** 说明列里的短时间（09-27 04:14）：完整时间放 title 里悬停看 */
+const fmtShort = (v: string) => {
+  const d = new Date(v);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
+ * 订单池流转失败明细（老板 2026-09-28：「流转失败列表页很混乱」）。
+ *
+ * 以前这一页是卡片行：一格叠两三行、十几个彩色标签、按钮自己占一行还不对齐。
+ * 现在和订单管理用的是同一张表（components/OrderTable.tsx）：
+ * 一格一行、列和表头上下对齐、状态只用彩色文字，退回时间 / 派了几次 / 添加情况收在「退回情况」列里。
+ */
 const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
   const [items, setItems] = useState<any[]>([]);
   const [workWechats, setWorkWechats] = useState<any[]>([]);
@@ -64,35 +78,47 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
 
   const shown = search ? items.filter((r) => orderMatchesSearch(r, search)) : items;
 
-  const renderActions = (r: any) => (
-    <Space size={4} wrap>
-      {r.dispatchCount > 1 && <Tag color="orange" style={{ margin: 0 }}>第{r.dispatchCount}次派</Tag>}
-      {r.customFields?.directAdd && <Tag color="cyan" style={{ margin: 0 }}>直接添加</Tag>}
-      {r.csContactStatus === 'added' ? (
-        <Tag color="green">已添加</Tag>
-      ) : r.csContactStatus === 'not_accepted' ? (
-        <Tag color="orange">添加失败</Tag>
-      ) : r.poolExpired ? (
-        <Tag color="red" style={{ margin: 0 }}>流转失败</Tag>
-      ) : r.requireCsContact ? (
-        <Tag color="red" style={{ margin: 0 }}>需添加</Tag>
-      ) : null}
-      {r.canProcess === false ? (
-        <Tag color="default" style={{ margin: 0 }}>仅发单客服可处理</Tag>
-      ) : (
-        <>
-          {r.csContactStatus !== 'added' && (
-            <Button size="small" onClick={() => openContact(r)}>跳转到直添客户跟进列表</Button>
-          )}
-          <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>再次发布订单</Button>
-        </>
-      )}
-    </Space>
-  );
+  // 这一页特有的「这一单现在什么情况」：加了没有 / 退回了 / 派了几次 / 谁发的能不能处理
+  const contactStateOf = (r: any) => {
+    if (r.csContactStatus === 'added') return { text: '已添加', color: '#15803D' };
+    if (r.csContactStatus === 'not_accepted') return { text: '添加失败', color: '#B45309' };
+    if (r.poolExpired) return { text: '流转失败', color: '#DC2626' };
+    if (r.requireCsContact) return { text: '需添加', color: '#DC2626' };
+    return null;
+  };
+  const noteBits = (r: any) => {
+    const cf = r.customFields || {};
+    return [
+      r.companion?.user?.username ? `主陪 ${r.companion.user.username}` : '',
+      r.poolExpiredAt ? `退回 ${fmtShort(r.poolExpiredAt)}` : '',
+      r.dispatchCount > 1 ? `第${r.dispatchCount}次派` : '',
+      cf.directAdd ? '直接添加' : '',
+      cf.csCultivated ? '客服加过微信' : '',
+      r.canProcess === false ? '仅发单客服可处理' : '',
+    ].filter(Boolean);
+  };
+  const noteTitle = (r: any) => {
+    const st = contactStateOf(r);
+    return [st?.text, ...noteBits(r)].filter(Boolean).join(' · ');
+  };
+
+  const renderActions = (r: any) =>
+    r.canProcess === false ? null : (
+      <Space size={4}>
+        {r.csContactStatus !== 'added' && (
+          <Button size="small" onClick={() => openContact(r)}>
+            去跟进
+          </Button>
+        )}
+        <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>
+          再次发布
+        </Button>
+      </Space>
+    );
 
   return (
     <>
-      <Card size="small" style={{ marginBottom: 12, borderColor: '#ff4d4f' }}>
+      <Card size="small" style={{ marginBottom: 12 }}>
         <div
           style={{
             display: 'flex',
@@ -102,7 +128,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ fontWeight: 600, color: '#d4380d' }}>📥 订单池流转失败明细</div>
+          <div style={{ fontWeight: 600 }}>订单池流转失败明细</div>
           <Input.Search
             placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
             value={search}
@@ -117,17 +143,32 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
             </Typography.Text>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {shown.length === 0 ? (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              没有匹配「{search}」的流转失败订单。
-            </Typography.Text>
-          ) : (
-            shown.map((r, idx) => (
-              <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
-            ))
-          )}
-        </div>
+        <OrderTable
+          orders={shown}
+          hideStudio
+          renderActions={renderActions}
+          emptyText={`没有匹配「${search}」的流转失败订单。`}
+          noteColumn={{
+            title: '退回情况',
+            render: (r: any) => {
+              const st = contactStateOf(r);
+              const bits = noteBits(r);
+              return (
+                <>
+                  {st && <span style={{ color: st.color }}>{st.text}</span>}
+                  {bits.length > 0 && (
+                    <span style={noteSub}>
+                      {st ? NOTE_SEP : ''}
+                      {bits.join(NOTE_SEP)}
+                    </span>
+                  )}
+                  {!st && bits.length === 0 && <span style={{ color: '#94A3B8' }}>-</span>}
+                </>
+              );
+            },
+            titleText: noteTitle,
+          }}
+        />
       </Card>
 
       <Modal
@@ -141,7 +182,9 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
       >
         {contactOrder && (
           <div style={{ lineHeight: 2.4 }}>
-            <div>📋 {contactOrder.gameName} · ¥{contactOrder.amount}</div>
+            <div>
+              {contactOrder.gameName} · ¥{contactOrder.amount}
+            </div>
             <div>
               <strong>工作微信：</strong>
               <Select
@@ -159,7 +202,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
               </Select>
             </div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              确认后即标记“已添加”；添加成功或失败，请在「跟进列表」里选择，无需上传截图。
+              确认后即标记「已添加」；添加成功或失败，请在「跟进列表」里选择，无需上传截图。
             </div>
           </div>
         )}

@@ -15,6 +15,12 @@ import EmptyState from '../components/EmptyState';
 import TableSkeleton from '../components/TableSkeleton';
 import WorkRecordsDrawer from '../components/WorkRecordsDrawer';
 import { visibleInterval } from '../hooks/usePolling';
+import {
+  ACTIONS_CELL_CLASS,
+  CELL_ONE_LINE,
+  CELL_SUB_TEXT,
+  TABLE_STYLE,
+} from '../constants/datasetColumns';
 
 const { Text } = Typography;
 
@@ -305,13 +311,15 @@ const CompanionsPage: React.FC = () => {
     }
   };
 
+
   const columns = useMemo(() => {
     const cols: any[] = [
       {
         title: '角色',
         dataIndex: 'role',
         key: 'role',
-        width: 70,
+        fixed: 'left' as const,
+        width: 66,
         render: (role: string) => {
           const cfg: Record<string, { label: string; color: string }> = {
             COMPANION: { label: '陪玩', color: 'blue' },
@@ -325,17 +333,19 @@ const CompanionsPage: React.FC = () => {
       {
         title: '姓名',
         key: 'name',
-        width: 90,
+        width: 132,
+        // 一格一行（老板 2026-09-28）：头像 + 名字 + 灰色真名跟在后面。
+        // 以前是名字下面再叠一行真名，一个格子两行，整张表的行高忽高忽低（「马凝 初」还会被挤成竖排）。
         render: (_: unknown, r: Personnel) => {
           const username = r.username || r.id;
           const avatarUrl = r.avatar ? `/uploads/avatars/${r.avatar}?v=${r.avatar}` : null;
+          const showReal = !!r.realName && r.realName !== username;
           return (
-            <div style={{ cursor: 'pointer' }} onClick={() => openDetail(r)}>
-              <Space size={8}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, cursor: 'pointer' }} onClick={() => openDetail(r)}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                   borderRadius: '50%',
                   background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
                   display: 'flex',
@@ -345,24 +355,15 @@ const CompanionsPage: React.FC = () => {
                 }}
               >
                 {!avatarUrl && (
-                  <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
                     {(username || '?')[0].toUpperCase()}
                   </span>
                 )}
               </div>
-              <div>
+              <div style={{ ...CELL_ONE_LINE, minWidth: 0 }} title={showReal ? `${username} · ${r.realName}` : username}>
                 <Text strong>{username}</Text>
-                {/* 艺名和真实姓名一样时不再重复写第二行（员工表里「周达 / 周达」看着像脏数据） */}
-                {r.realName && r.realName !== username && (
-                  <>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      {r.realName}
-                    </Text>
-                  </>
-                )}
+                {showReal && <span style={CELL_SUB_TEXT}>· {r.realName}</span>}
               </div>
-              </Space>
             </div>
           );
         },
@@ -371,7 +372,7 @@ const CompanionsPage: React.FC = () => {
         title: '工作室/俱乐部',
         dataIndex: 'studioName',
         key: 'studioName',
-        width: 140,
+        width: 104,
         render: (_: unknown, r: Personnel) => {
           if (!r.studioName) return <Text type="secondary">-</Text>;
           const isRental = r.studioType === 'RENTAL';
@@ -386,7 +387,7 @@ const CompanionsPage: React.FC = () => {
         title: '状态',
         dataIndex: 'status',
         key: 'status',
-        width: 70,
+        width: 66,
         render: (status: CompanionStatus | null) => {
           if (!status) return <Text type="secondary">-</Text>;
           const cfg = companionStatusConfig[status];
@@ -397,46 +398,40 @@ const CompanionsPage: React.FC = () => {
         title: '游戏',
         dataIndex: 'games',
         key: 'games',
-        width: 180,
+        width: 152,
+        // 一格一行（老板 2026-09-28）：以前每个游戏一个彩色块、放不下就换行，
+        // 一列游戏多的陪玩行高能到三行。现在只写第一个游戏（保留段位颜色），
+        // 后面跟「+N」，完整的在悬停里看。
         render: (games: any[] | undefined) => {
           if (!games || games.length === 0) return <Text type="secondary">-</Text>;
           const isProfile = typeof games[0] === 'object';
+          const full = games
+            .map((g: any) => (isProfile ? `${g.game} ${g.rank || '?'} ${g.hasAccount ? '有号' : '无号'}` : String(g)))
+            .join(' · ');
+          if (!isProfile) {
+            return (
+              <div style={CELL_ONE_LINE} title={full}>
+                {games.join(' ')}
+              </div>
+            );
+          }
+          const first = games[0];
           return (
-            <Space size={[4, 4]} wrap>
-              {games.map((g: any, i: number) => {
-                if (!isProfile) return <Tag key={i}>{g}</Tag>;
-                return (
-                  <Tag key={i} style={{ padding: '2px 8px', lineHeight: '20px' }}>
-                    {g.game}
-                    <span
-                      style={{
-                        color: '#7C3AED',
-                        fontWeight: 600,
-                        marginLeft: 4,
-                      }}
-                    >
-                      {g.rank || '?'}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        marginLeft: 2,
-                        color: g.hasAccount ? '#34C759' : '#94A3B8',
-                      }}
-                    >
-                      {g.hasAccount ? '有号' : '无号'}
-                    </span>
-                  </Tag>
-                );
-              })}
-            </Space>
+            <div style={CELL_ONE_LINE} title={full}>
+              <Text strong>{first.game}</Text>
+              <span style={{ ...CELL_SUB_TEXT, color: '#7C3AED', fontWeight: 600 }}>{first.rank || '?'}</span>
+              <span style={{ ...CELL_SUB_TEXT, color: first.hasAccount ? '#34C759' : '#94A3B8' }}>
+                {first.hasAccount ? '有号' : '无号'}
+              </span>
+              {games.length > 1 && <span style={CELL_SUB_TEXT}>+{games.length - 1}</span>}
+            </div>
           );
         },
       },
       {
-        title: '今日接单数量',
+        title: '今日接单',
         key: 'todayOrders',
-        width: 80,
+        width: 76,
         render: (_: unknown, r: any) => (
           <Text strong style={{ fontSize: 13 }}>
             {r.todayOrderCount ?? '-'}
@@ -456,13 +451,13 @@ const CompanionsPage: React.FC = () => {
         title: '手机',
         dataIndex: 'phone',
         key: 'phone',
-        width: 90,
+        width: 96,
         render: (v: string | undefined) => v || '-',
       },
       {
         title: 'PC状态',
         key: 'pcStatus',
-        width: 140,
+        width: 158,
         render: (_: unknown, record: Personnel) => {
           const hb = formatHeartbeat(record.lastHeartbeat, record.isOnline);
           const isAbnormal = !hb.online && record.status !== 'OFFLINE' && record.lastHeartbeat !== null;
@@ -494,7 +489,10 @@ const CompanionsPage: React.FC = () => {
       cols.push({
         title: '操作',
         key: 'actions',
-        width: 220,
+        // 248 = 「标记老员工 工作记录 身份证 离职处理」排一行要的宽度（老板 2026-09-28：写 240 时最后一个字被切）
+        width: 248,
+        fixed: 'right' as const,
+        className: ACTIONS_CELL_CLASS,
         render: (_: unknown, record: Personnel) => (
           <Space size={0}>
             {record.role === 'COMPANION' && (
@@ -560,6 +558,14 @@ const CompanionsPage: React.FC = () => {
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  // 横向滚动宽度 = 当前真正渲染出来的列宽之和（+50 是左边那根「展开」小三角列）。
+  // 老板 2026-09-28：写死 1170 的话，客服端（没有「操作」列）会被硬撑到 1170，
+  // 白白多出一条横向滚动条、右边那列还被切一半；按实际列算就不会。
+  const tableScrollX = useMemo(
+    () => columns.reduce((sum, c: any) => sum + (typeof c?.width === 'number' ? c.width : 0), 0) + 50,
+    [columns],
+  );
 
   // Inner component for expandable time log rows
   const ExpandableRow: React.FC<{ record: Personnel }> = ({ record }) => {
@@ -726,11 +732,16 @@ const CompanionsPage: React.FC = () => {
             </div>
           </div>
 
+          {/* 老板 2026-09-28：这张表和员工表一样，以前没有定宽也不能横向滚，
+              客服窗口（1320）里 10 列被硬挤，时间和「马凝初」这种三字名会被压成竖排。 */}
           <Table
+            className="data-table"
             columns={columns}
             dataSource={sorted}
             rowKey="id"
             size="small"
+            style={TABLE_STYLE}
+            scroll={{ x: tableScrollX }}
             locale={{ emptyText: '暂无人员数据' }}
             pagination={{
               pageSize: 20,

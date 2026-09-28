@@ -30,6 +30,12 @@ import { billingApi } from '../../api/billing';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '@chunlv/shared';
 import { companionStatusConfig } from '../../constants';
+import {
+  ACTIONS_CELL_CLASS,
+  CELL_ONE_LINE,
+  CELL_SUB_TEXT,
+  TABLE_STYLE,
+} from '../../constants/datasetColumns';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -295,24 +301,29 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+/** 员工表 13 列的宽度之和（= 下面每一列的 width）：写小了 antd 会把列按比例压扁、字被挤成竖排 */
+const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 + 84 + 104 + 320;
+
   const columns = [
     {
       title: '用户名',
       dataIndex: 'username',
+      fixed: 'left' as const,
+      // 一格一行（老板 2026-09-28）：名字 + 灰色「已离职」跟在后面，长了自己省略号
       render: (v: string, r: Employee) => (
-        <Space size={4}>
-          <a onClick={() => setDetailEmployee(r)} style={{cursor:'pointer'}}>{v}</a>
-          {r.resignedAt && <Tag color="default" style={{ margin: 0 }}>已离职</Tag>}
-        </Space>
+        <div style={CELL_ONE_LINE} title={r.resignedAt ? `${v} · 已离职` : v}>
+          <a onClick={() => setDetailEmployee(r)} style={{ cursor: 'pointer' }}>{v}</a>
+          {r.resignedAt && <span style={CELL_SUB_TEXT}>· 已离职</span>}
+        </div>
       ),
       key: 'username',
-      width: 140,
+      width: 120,
     },
     {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      width: 100,
+      width: 76,
       render: (role: string) => {
         const cfg = roleLabels[role];
         return <Tag color={cfg?.color}>{cfg?.label ?? role}</Tag>;
@@ -322,21 +333,25 @@ const EmployeesPage: React.FC = () => {
       title: '工作室',
       dataIndex: 'studioId',
       key: 'studioId',
-      width: 160,
-      render: (studioId: string) => getStudioName(studioId),
+      width: 110,
+      // 一格一行：这一列以前被挤到 20px 宽，「蠢驴电竞」四个字竖着排（老板：很乱）
+      render: (studioId: string) => {
+        const name = getStudioName(studioId) || '-';
+        return <div style={CELL_ONE_LINE} title={name}>{name}</div>;
+      },
     },
     {
       title: '机号',
       dataIndex: ['companion', 'billingCode'],
       key: 'billingCode',
-      width: 80,
+      width: 96,
       render: (_: unknown, record: Employee) => record.companion?.billingCode || '-',
     },
     {
       title: '陪玩状态',
       dataIndex: ['companion', 'status'],
       key: 'status',
-      width: 110,
+      width: 80,
       render: (_: unknown, record: Employee) => {
         if (!record.companion) return '-';
         const s = companionStatusConfig[record.companion.status];
@@ -347,25 +362,31 @@ const EmployeesPage: React.FC = () => {
       title: '游戏',
       dataIndex: ['companion', 'games'],
       key: 'games',
-      width: 160,
+      width: 130,
+      // 一格一行（以前每个游戏一个彩色小标签，一行放不下就换行，行高忽高忽低）
       render: (_: unknown, record: Employee) => {
         const games = record.companion?.games;
         if (!games || games.length === 0) return '-';
-        return games.slice(0, 3).map((g: any) => {
-          const name = typeof g === 'string' ? g : g?.game || g?.name || JSON.stringify(g);
-          return <Tag key={name} style={{ marginBottom: 2 }}>{name}</Tag>;
-        });
+        const names = games.map((g: any) =>
+          typeof g === 'string' ? g : g?.game || g?.name || '',
+        ).filter(Boolean);
+        const text = names.length > 3 ? `${names.slice(0, 3).join(' ')} +${names.length - 3}` : names.join(' ');
+        return (
+          <div style={CELL_ONE_LINE} title={names.join(' · ')}>
+            {text}
+          </div>
+        );
       },
     },
     {
-      title: '今日接单数量', key: 'todayOrders', width: 80,
+      title: '今日接单', key: 'todayOrders', width: 76,
       render: (_: unknown, record: any) => <Text strong style={{fontSize:13}}>{record.companion?.todayOrderCount ?? '-'}</Text>,
     },
     {
       title: '总流水',
       dataIndex: ['companion', 'monthlyRevenue'],
       key: 'revenue',
-      width: 100,
+      width: 88,
       render: (_: unknown, record: Employee) =>
         record.companion ? `¥${(record.companion.monthlyRevenue || 0).toLocaleString()}` : '-',
     },
@@ -373,7 +394,7 @@ const EmployeesPage: React.FC = () => {
       title: '押金',
       dataIndex: ['companion', 'deposit'],
       key: 'deposit',
-      width: 90,
+      width: 80,
       render: (_: unknown, record: Employee) =>
         record.companion?.deposit !== undefined ? `¥${(record.companion.deposit || 0).toLocaleString()}` : '-',
     },
@@ -381,7 +402,7 @@ const EmployeesPage: React.FC = () => {
       title: '可支取余额',
       dataIndex: ['companion', 'balance'],
       key: 'balance',
-      width: 90,
+      width: 96,
       render: (_: unknown, record: Employee) =>
         record.companion?.balance !== undefined ? `¥${(record.companion.balance || 0).toLocaleString()}` : '-',
     },
@@ -389,7 +410,7 @@ const EmployeesPage: React.FC = () => {
       title: '审核',
       dataIndex: 'isAuthorized',
       key: 'isAuthorized',
-      width: 100,
+      width: 84,
       render: (isAuthorized: boolean, record: Employee) => {
         if (record.resignedAt) return <Tag color="default">已离职</Tag>;
         return (
@@ -403,26 +424,35 @@ const EmployeesPage: React.FC = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 180,
-      render: (val: string) =>
-        val ? new Date(val).toLocaleString('zh-CN') : '-',
+      width: 104,
+      // 只写「09-28 04:46」（原来写「2026/9/28 04:46:12」要 180px，把别的列挤扁）；完整时间悬停看
+      render: (val: string) => {
+        if (!val) return '-';
+        const d = new Date(val);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return (
+          <div style={CELL_ONE_LINE} title={d.toLocaleString('zh-CN', { hour12: false })}>
+            {`${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
+          </div>
+        );
+      },
     },
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      // 320 是「重置密码 编辑财务 标记老员工 离职 删除」排一行真正要的宽度，写 228 时删除按钮会被切掉（老板 2026-09-28）
+      width: 320,
+      fixed: 'right' as const,
+      className: ACTIONS_CELL_CLASS,
       render: (_: unknown, record: Employee) => !isAdmin ? <Text type="secondary">-</Text> : (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={React.createElement(KeyOutlined)}
-            onClick={() => openResetModal(record)}
-          >
+          <Button type="link" size="small" onClick={() => openResetModal(record)}>
             重置密码
           </Button>
           {record.role === UserRole.COMPANION && record.companion && (
-            <Button type="link" size="small" icon={React.createElement(DollarOutlined)} onClick={() => openFinanceModal(record)}>编辑财务</Button>
+            <Button type="link" size="small" onClick={() => openFinanceModal(record)}>
+              编辑财务
+            </Button>
           )}
           {record.role === UserRole.COMPANION && record.companion && (
             <Button
@@ -566,11 +596,18 @@ const EmployeesPage: React.FC = () => {
         </div>
       )}
 
+      {/* 老板 2026-09-28：这张表以前没有定宽、也不能横向滚动，13 列被硬挤进一屏，
+          「工作室」「今日接单数量」被压到 20px 宽、字竖着排。现在列宽定死，一屏放不下就左右滚
+          （用户名钉左边、操作钉右边），每格仍然是一行。 */}
       <Table
+        className="data-table"
+        size="small"
         columns={columns}
         dataSource={filteredEmployees}
         rowKey="id"
         loading={loading}
+        style={TABLE_STYLE}
+        scroll={{ x: EMPLOYEE_TABLE_WIDTH }}
         locale={{ emptyText: '暂无员工数据' }}
         pagination={{
           pageSize: 20,

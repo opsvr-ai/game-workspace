@@ -84,6 +84,14 @@ export const FIELD_WIDTH = {
    * 而且所有行的数据行高统一 33px（以前有沟通按钮的行要两行 = 59px）。
    */
   orderActions: 254,
+  /**
+   * 派单管理下面三张订单列表（订单池流转失败明细 / 管理端直添客户跟进列表 / 流转明细）的
+   * 「说明」列：退回时间 / 添加情况 / 收款情况。老板 2026-09-28：「流转失败列表页很混乱」——
+   * 这三张表以前是卡片行，一格叠 2~3 行、十几个彩色标签，现在和订单管理一样「一格一行」。
+   */
+  panelNote: 150,
+  /** 上面三张列表的操作列：按钮只有 2~3 个，比订单管理的窄，钉在右侧不让内容挤掉 */
+  panelActions: 178,
 } as const;
 
 /**
@@ -105,6 +113,16 @@ export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'customerCode', 'lastOrder', 'sourceTime', 'status',
   'companionWechat', 'followUpSpent', 'notes', 'actionsStaff',
+];
+
+/**
+ * 派单管理下面三张订单列表的列（订单池流转失败明细 / 跟进列表 / 流转明细）。
+ * 和订单管理同一套宽度（多一个「说明」列、操作列窄一些），四张表在同一个窗口里宽度一致、都是 976px，
+ * 客服默认窗口（1320 宽 → 可用 991px）一屏放得下、不用往右拖。
+ */
+export const ORDER_PANEL_KEYS: Array<keyof typeof FIELD_WIDTH> = [
+  'orderCode', 'orderStatus', 'game', 'amount',
+  'customerWechat', 'customerAccounts', 'panelNote', 'createdAt', 'panelActions',
 ];
 
 /** 客户管理表的列（陪玩视角：没有客户昵称 / 来源账号）。 */

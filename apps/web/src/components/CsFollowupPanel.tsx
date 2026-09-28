@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Space, Tag, message } from 'antd';
+import { Button, Card, Input, Space, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
-import OrderRow from './OrderRow';
+import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 
 interface Props {
@@ -10,6 +10,12 @@ interface Props {
   onDispatch?: (item: any) => void;
 }
 
+/**
+ * 管理端直添客户跟进列表（老板 2026-09-28：「流转失败列表页很混乱，你再查查所有角色所有页面」）。
+ *
+ * 和「订单池流转失败明细」一样，从卡片行改成和订单管理同一张表：
+ * 一格一行、列和表头上下对齐、添加情况收在「添加情况」列里（彩色文字，不再彩色标签块）。
+ */
 const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,38 +80,63 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     load();
   };
 
-  const renderActions = (r: any) => (
-    <Space size={4} wrap>
-      {r.contactStatus === 'added' ? (
-        <>
-          <Tag color="green">已添加</Tag>
-          <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>
-            重新派单
-          </Button>
-        </>
-      ) : r.contactStatus === 'not_accepted' ? (
-        <Button size="small" type="primary" style={{ background: '#16A34A', borderColor: '#16A34A' }} onClick={() => markResult(r, 'passed')}>
+  // 这一页特有的「加到哪一步了」：已添加 / 客户已同意 / 添加失败 / 还没标
+  const stateOf = (r: any) => {
+    if (r.contactStatus === 'added') return { text: '已添加', color: '#15803D' };
+    if (r.contactStatus === 'not_accepted') return { text: '客户已同意', color: '#15803D' };
+    if (r.status === 'GRABBED' || r.status === 'CONFIRMED') return { text: '添加失败', color: '#B45309' };
+    return { text: '待添加', color: '#B45309' };
+  };
+  const bitsOf = (r: any) => {
+    const cf = r.customFields || {};
+    return [
+      cf.directAdd ? '直接添加' : '',
+      r.companion?.user?.username ? `主陪 ${r.companion.user.username}` : '',
+      cf.deltaNote ? `备注 ${cf.deltaNote}` : '',
+      cf.scheduledTimeText ? cf.scheduledTimeText : '',
+    ].filter(Boolean);
+  };
+
+  const renderActions = (r: any) =>
+    r.contactStatus === 'added' ? (
+      <Space size={4}>
+        <Button size="small" type="primary" onClick={() => onDispatch?.(r)}>
+          重新派单
+        </Button>
+      </Space>
+    ) : r.contactStatus === 'not_accepted' ? (
+      <Space size={4}>
+        <Button
+          size="small"
+          type="primary"
+          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          onClick={() => markResult(r, 'passed')}
+        >
           客户已同意
         </Button>
-      ) : (
-        <>
-          <Button size="small" type="primary" style={{ background: '#16A34A', borderColor: '#16A34A' }} onClick={() => markResult(r, 'passed')}>
-            ✅ 添加成功
-          </Button>
-          <Button size="small" danger onClick={() => markResult(r, 'failed')}>
-            ❌ 添加失败
-          </Button>
-        </>
-      )}
-    </Space>
-  );
+      </Space>
+    ) : (
+      <Space size={4}>
+        <Button
+          size="small"
+          type="primary"
+          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          onClick={() => markResult(r, 'passed')}
+        >
+          添加成功
+        </Button>
+        <Button size="small" danger onClick={() => markResult(r, 'failed')}>
+          添加失败
+        </Button>
+      </Space>
+    );
 
   if (items.length === 0) return null;
 
   return (
-    <Card size="small" style={{ marginBottom: 12, borderColor: '#722ed1' }}>
+    <Card size="small" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 12 }}>
-        <div style={{ fontWeight: 600 }}>📥 管理端直添客户跟进列表</div>
+        <div style={{ fontWeight: 600 }}>管理端直添客户跟进列表</div>
         <Input
           allowClear
           prefix={<SearchOutlined />}
@@ -115,11 +146,27 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           style={{ maxWidth: 300 }}
         />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filtered.map((r, idx) => (
-          <OrderRow key={r.id} order={r} index={idx} renderActions={renderActions} />
-        ))}
-      </div>
+      <OrderTable
+        orders={filtered}
+        hideStudio
+        loading={loading}
+        renderActions={renderActions}
+        emptyText="暂无待跟进的直添客户"
+        noteColumn={{
+          title: '添加情况',
+          render: (r: any) => {
+            const st = stateOf(r);
+            const bits = bitsOf(r);
+            return (
+              <>
+                <span style={{ color: st.color }}>{st.text}</span>
+                {bits.length > 0 && <span style={noteSub}>{NOTE_SEP}{bits.join(NOTE_SEP)}</span>}
+              </>
+            );
+          },
+          titleText: (r: any) => [stateOf(r).text, ...bitsOf(r)].join(' · '),
+        }}
+      />
     </Card>
   );
 };

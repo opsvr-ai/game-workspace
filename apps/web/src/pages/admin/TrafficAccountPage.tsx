@@ -694,9 +694,9 @@ const TrafficAccountPage: React.FC = () => {
   /** 列设置里新加的自定义列单独成列 */
   const customCols = columns.filter((c) => c.custom && !FIELD_LABELS[c.key]);
   const shownGroups = GROUP_DEFS.filter((g) => visibleInGroup(g.keys).length > 0);
-  // 序号 44 + 归属客服 70 + 操作 176 + 自定义列 + 各分组
+  // 序号 44 + 归属客服 70 + 操作 184 + 自定义列 + 各分组
   const tableWidth =
-    44 + 70 + 176 + customCols.length * 120 + shownGroups.reduce((total, g) => total + g.width, 0);
+    44 + 70 + 184 + customCols.length * 120 + shownGroups.reduce((total, g) => total + g.width, 0);
 
   const tableColumns = [
     {
@@ -742,9 +742,9 @@ const TrafficAccountPage: React.FC = () => {
       ),
     },
     {
-      // 四个按钮去掉图标、统一字号后一行放得下：带图标要 228px，
-      // 原来列宽 150 直接把「删除」挤出了可见区。所以这里列宽 176、四个都是纯文字按钮。
-      title: '操作', key: 'actions', width: 176, fixed: 'right' as const,
+      // 四个按钮去掉图标、统一字号后一行放得下：带图标要 228px，原来列宽 150 直接把「删除」挤出了可见区。
+      // 184 是「笔记 编辑 换号 删除」四个按钮排一行真正要的宽度（176 时删除按钮右边缘被切 4px，老板 2026-09-28）。
+      title: '操作', key: 'actions', width: 184, fixed: 'right' as const,
       render: (_: unknown, r: TrafficAccountItem) => (
         <Space size={4}>
           <Button size="small" style={{ fontSize: 11, height: 22, padding: '0 6px' }} onClick={() => openNotes(r)}>笔记</Button>

@@ -5,7 +5,7 @@ import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import { extractErrorMessage } from '../utils/error-handler';
-import OrderRow from './OrderRow';
+import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
@@ -166,27 +166,19 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
     }
   };
 
-  const renderMoneyDetail = (r: any) => {
+  // 收款情况（老板 2026-09-28：一张单原来要在下面叠 5 行小字，现在压成一行，长了鼠标悬停看全）
+  const moneyBits = (r: any) => {
     const cf = r.customFields || {};
     const csName = r.csUser?.displayName || r.csUser?.username || '-';
     const csWechat = cf.csWorkWechatName || '-';
     const wechatBalance = balanceByWechat.get(csWechat);
-
-    // 只显示客服实际记录的流水，不推算、不猜。
     const moneyIn = Number(r.moneyIn || 0);
-
     const moneyOut = Number(r.moneyOut || 0);
     const feePaid = r.companionFeeStatus === 'PAID';
     const feeAmount = Number(r.companionFeeAmount || 0);
-    let outText = '未转';
-    let outIsPaid = false;
-    if (moneyOut > 0) {
-      outText = `¥${moneyOut.toFixed(1)}`;
-      outIsPaid = true;
-    } else if (feePaid && feeAmount > 0) {
-      outText = `¥${feeAmount.toFixed(1)}`;
-      outIsPaid = true;
-    }
+    let outText = '未转陪玩';
+    if (moneyOut > 0) outText = `转陪玩 ¥${moneyOut.toFixed(1)}`;
+    else if (feePaid && feeAmount > 0) outText = `转陪玩 ¥${feeAmount.toFixed(1)}`;
 
     const paidTo = r.customerPaidTo;
     const paidToLabel =
@@ -198,57 +190,41 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
             ? '客户转工作室'
             : '收款去向未填';
 
-    return (
-      <div
-        style={{
-          marginTop: 6,
-          padding: '8px 10px',
-          background: '#F8FAFC',
-          borderRadius: 6,
-          fontSize: 12,
-          lineHeight: 2,
-          color: '#334155',
-        }}
-      >
-        <div>
-          客服：<Text strong>{csName}</Text> ｜ 客服微信：<Text strong>{csWechat}</Text>
-        </div>
-        <div>
-          客户转入：
-          <Text strong style={{ color: moneyIn > 0 ? '#1677ff' : '#94A3B8' }}>
-            {moneyIn > 0 ? `¥${moneyIn.toFixed(1)}` : '未记录'}
-          </Text>
-          <Text type="secondary" style={{ marginLeft: 6 }}>
-            {paidToLabel}
-            {r.customerPaidAccount ? ` · ${r.customerPaidAccount}` : ''}
-          </Text>
-        </div>
-        <div>
-          已转给陪玩：
-          <Text strong style={{ color: outIsPaid ? '#16A34A' : '#94A3B8' }}>
-            {outText}
-          </Text>
-        </div>
-        <div>
-          去向：<Text>{r.destination || '-'}</Text>
-        </div>
-        {wechatBalance !== undefined && (
-          <div>
-            该客服微信当前累计余额：
-            <Text strong style={{ color: wechatBalance < 0 ? '#cf1322' : '#16A34A' }}>
-              ¥{wechatBalance.toFixed(1)}
-            </Text>
-          </div>
-        )}
-      </div>
-    );
+    const bits = [
+      r.companion?.user?.username ? `主陪 ${r.companion.user.username}` : '',
+      `客服 ${csName} · 微信 ${csWechat}`,
+      moneyIn > 0
+        ? `转入 ¥${moneyIn.toFixed(1)}（${paidToLabel}${r.customerPaidAccount ? ' ' + r.customerPaidAccount : ''}）`
+        : `未记转入（${paidToLabel}）`,
+      outText,
+      `去向 ${r.destination || '-'}`,
+    ];
+    if (wechatBalance !== undefined) bits.push(`该微信累计余额 ¥${wechatBalance.toFixed(1)}`);
+    return bits;
+  };
+
+  // 一行字能看出来的收款进度
+  const moneyStateOf = (r: any) => {
+    const moneyIn = Number(r.moneyIn || 0);
+    const moneyOut = Number(r.moneyOut || 0);
+    const feePaid = r.companionFeeStatus === 'PAID';
+    const feeAmount = Number(r.companionFeeAmount || 0);
+    const out = moneyOut > 0 || (feePaid && feeAmount > 0);
+    if (moneyIn > 0 && out) return { text: '已收已转', color: '#15803D' };
+    if (moneyIn > 0) return { text: '已收未转', color: '#B45309' };
+    if (out) return { text: '未记转入', color: '#B45309' };
+    return { text: '未记流水', color: '#94A3B8' };
+  };
+
+  const contactStateOf = (r: any) => {
+    if (r.contactStatus === 'added') return { text: '已添加', color: '#15803D' };
+    if (r.contactStatus === 'not_accepted') return { text: '客户已同意', color: '#B45309' };
+    return null;
   };
 
   const renderActions = (r: any) => (
-    <Space size={4} wrap>
-      {r.contactStatus === 'added' ? (
-        <Tag color="green">已添加</Tag>
-      ) : r.contactStatus === 'not_accepted' ? (
+    <Space size={4}>
+      {r.contactStatus === 'not_accepted' ? (
         <Button
           size="small"
           type="primary"
@@ -257,7 +233,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
         >
           客户已同意
         </Button>
-      ) : r.status === 'GRABBED' || r.status === 'CONFIRMED' ? (
+      ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') && r.contactStatus !== 'added' ? (
         <>
           <Button
             size="small"
@@ -265,10 +241,10 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
             style={{ background: '#16A34A', borderColor: '#16A34A' }}
             onClick={() => markContact(r, 'added')}
           >
-            ✅ 添加成功
+            添加成功
           </Button>
           <Button size="small" danger onClick={() => markContact(r, 'not_accepted')}>
-            ❌ 添加失败
+            添加失败
           </Button>
         </>
       ) : null}
@@ -279,9 +255,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
   );
 
   return (
-    <Card size="small" style={{ marginBottom: 12, borderColor: '#13c2c2' }}>
+    <Card size="small" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontWeight: 600 }}>🎯 管理端直添客户流转明细</div>
+        <div style={{ fontWeight: 600 }}>管理端直添客户流转明细</div>
         <Button size="small" onClick={load} loading={loading}>
           刷新
         </Button>
@@ -350,14 +326,31 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
           <Text>累计 <Text strong>¥{Number(summary.allTotal || 0).toFixed(1)}</Text></Text>
         </div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {items.map((r, idx) => (
-          <div key={r.id} style={{ border: '1px solid #E8E9EB', borderRadius: 8, padding: 8 }}>
-            <OrderRow order={r} index={idx} renderActions={renderActions} />
-            {renderMoneyDetail(r)}
-          </div>
-        ))}
-      </div>
+      <OrderTable
+        orders={items}
+        hideStudio
+        loading={loading}
+        renderActions={renderActions}
+        emptyText="暂无直添客户流转记录"
+        noteColumn={{
+          title: '收款情况',
+          render: (r: any) => {
+            const st = moneyStateOf(r);
+            const ct = contactStateOf(r);
+            return (
+              <>
+                <span style={{ color: st.color }}>{st.text}</span>
+                {ct && <span style={noteSub}>{NOTE_SEP}{ct.text}</span>}
+                <span style={noteSub}>
+                  {NOTE_SEP}
+                  {moneyBits(r).join(NOTE_SEP)}
+                </span>
+              </>
+            );
+          },
+          titleText: (r: any) => [moneyStateOf(r).text, contactStateOf(r)?.text, ...moneyBits(r)].filter(Boolean).join(' · '),
+        }}
+      />
 
       <Modal
         title="记资金流水"
