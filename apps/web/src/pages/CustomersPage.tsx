@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { extractErrorMessage } from '../utils/error-handler';
 import { isRowClickIgnored } from '../utils/rowClick';
+import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import {
   Table,
   Button,
@@ -133,7 +134,7 @@ const CustomersPage: React.FC = () => {
         avatar: o?.csUser?.avatar,
         role: 'CS',
       },
-      orderInfo: o ? `${o.gameName} · ¥${Number(o.amount || 0).toFixed(0)}` : undefined,
+      orderInfo: encodeOrderInfo(orderInfoTextOf(o), o?.id),
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);

@@ -55,6 +55,7 @@ import {
 } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
 import { buildOrderInfoFields, orderMatchesSearch } from '../../utils/orderPool';
+import { encodeOrderInfo, orderInfoTextOf } from '../../utils/chatOrder';
 import { visibleInterval } from '../../hooks/usePolling';
 
 const { Text } = Typography;
@@ -922,7 +923,7 @@ const CSDispatchView: React.FC = () => {
                                           username: order.csUser?.username || '客服',
                                           role: 'CS',
                                         },
-                                        order.gameName ? `${order.gameName} · ¥${order.amount}` : undefined,
+                                        encodeOrderInfo(orderInfoTextOf(order), order.id),
                                       );
                                     window.dispatchEvent(
                                       new CustomEvent('open-chat-modal', {
@@ -933,9 +934,7 @@ const CSDispatchView: React.FC = () => {
                                             username: order.csUser?.username || '客服',
                                             role: 'CS',
                                           },
-                                          orderInfo: order.gameName
-                                            ? `${order.gameName} · ¥${order.amount}`
-                                            : undefined,
+                                          orderInfo: encodeOrderInfo(orderInfoTextOf(order), order.id),
                                         },
                                       }),
                                     );

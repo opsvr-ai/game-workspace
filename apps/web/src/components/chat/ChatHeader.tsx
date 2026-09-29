@@ -2,7 +2,10 @@
 import React from 'react';
 import { Button, Space, Tag, Typography } from 'antd';
 import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
+import { useAuthStore } from '../../stores/authStore';
+import { ordersPathWithOrder, parseOrderInfo } from '../../utils/chatOrder';
 
 const { Text } = Typography;
 
@@ -38,6 +41,11 @@ function formatCallDuration(seconds?: number) {
 const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick, onBroadcast }) => {
   const call = useVoiceCallStore((s) => s.call);
   const inCall = call.status === 'connected' && !!userId && call.peerId === userId;
+  const navigate = useNavigate();
+  const myRole = useAuthStore((s) => s.user?.role);
+  // 聊天框顶上那行「这一单」（老板 2026-09-30）：带着订单 id 就能点，点一下跳到订单管理
+  // 并把这一单的详情弹窗打开；老会话只存了一句文本，照旧只显示、不给点。
+  const orderRef = parseOrderInfo(orderInfo);
 
   return (
     <div
@@ -76,11 +84,33 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
             </Text>
             <Tag style={{ fontSize: 11, padding: '0 6px', lineHeight: '18px' }}>{ROLE_LABELS[role] || role}</Tag>
           </Space>
-        {orderInfo && (
-          <Text type="secondary" style={{ fontSize: 12, marginTop: 1 }}>
-            {orderInfo}
-          </Text>
-        )}
+        {orderRef &&
+          (orderRef.orderId ? (
+            <span
+              role="button"
+              onClick={() => navigate(ordersPathWithOrder(myRole, orderRef.orderId!))}
+              title="点这里打开这一单：客户微信 / 来源账号 / 昵称 / 账号ID / 联系方式都在订单详情里"
+              style={{
+                fontSize: 12,
+                marginTop: 1,
+                color: '#2563EB',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                maxWidth: '100%',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {orderRef.text || '这一单'}
+              </span>
+              <span style={{ flexShrink: 0, textDecoration: 'underline' }}>查看订单 ›</span>
+            </span>
+          ) : (
+            <Text type="secondary" style={{ fontSize: 12, marginTop: 1 }}>
+              {orderRef.text}
+            </Text>
+          ))}
         {inCall && (
           <span
             style={{
