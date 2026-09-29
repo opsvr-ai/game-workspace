@@ -11,13 +11,16 @@ import { logger } from '../common/logger';
 import { canSeeSourceAccount, maskCustomerWechat } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
-import { currentBusinessDayRange } from '../common/business-day';
+import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { PoolScope, OrderOutcome } from '@chunlv/shared';
 import {
   normalizePoolScope,
   visibleToOwnOffline,
   orderChannelOf,
+  orderUnits,
+  outcomeOf,
+  outsideViewerVisible,
 } from '../common/order-outcome';
 
 const PARTNER_INVITE_TTL_SEC = 60;
@@ -404,6 +407,7 @@ export class OrdersService implements OnModuleInit {
         'pool.low_delay_seconds',
         'pool.online_delay_seconds',
         'pool.online_first_release_minutes',
+        'pool.offline_first_bridge_minutes',
       ]),
       studioId
         ? this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } })
@@ -416,6 +420,9 @@ export class OrdersService implements OnModuleInit {
     const onlineDelay = Number(poolCfg['pool.online_delay_seconds'] ?? 180) * 1000;
     // 「先线上」的单没人管时，多久自动放给本店线下陪玩（分钟）
     const onlineFirstReleaseMinutes = Number(poolCfg['pool.online_first_release_minutes'] ?? 5);
+    // 「线下+线上流转入池」的单：本店线下先抢这么久，没人接才轮到桥接 / 线上俱乐部（分钟）
+    const offlineFirstBridgeMinutes = Number(poolCfg['pool.offline_first_bridge_minutes'] ?? 3);
+    const offlineFirstBridgeDelay = Math.max(0, offlineFirstBridgeMinutes) * 60_000;
     const studioType = studio?.type ?? 'DIRECT';
 
     // 当前陪玩的段位（只对自家工作室订单生效）
@@ -457,24 +464,34 @@ export class OrdersService implements OnModuleInit {
         if (isCompanion && !visibleToOwnOffline(o, onlineFirstReleaseMinutes, now)) return false;
         return true;
       }
+      const waited = now - new Date(o.createdAt).getTime();
       let delay: number;
       if (!studioId) {
         delay = 0; // 老板（无工作室）看全部订单，立即可见
-      } else if (studioType === 'RENTAL') {
-        delay = onlineDelay;
-      } else if (o.studioId !== studioId) {
-        delay = bridgeDelay; // 桥接工作室订单
-      } else if (cf.broadcast === true) {
-        // 客服按「广播」发的急单：自家工作室所有人立即可见，不再排段位，
-        // 避免错过 15 秒弹窗的人还要再等 60/120 秒。
-        delay = 0;
+      } else if (ownOfflineOrder) {
+        // 本店自己的单：广播的急单自家所有人立即可见；其余按段位（管理端/客服不受段位限制）
+        delay =
+          cf.broadcast === true || !isCompanion
+            ? 0
+            : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
       } else {
-        // 管理端/客服没有陪玩身份，不应受段位可见延迟影响，自己发的单立即可见
-        delay = !isCompanion
-          ? 0
-          : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
+        // 别家看本店的单：桥接工作室 / 线上俱乐部。
+        // 「线上入池」= 桥接一发布就能看到，线上俱乐部按线上等待时间；
+        // 「线下+线上流转入池」= 本店线下先抢 offlineFirstBridgeDelay 分钟，没人接才轮到桥接 / 线上
+        //（老板 2026-09-29：「线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部」——
+        //  所以这里桥接和线上用同一个下限，桥接没人接线上马上能接）。
+        return outsideViewerVisible(
+          o,
+          {
+            bridgeDelayMs: bridgeDelay,
+            onlineDelayMs: onlineDelay,
+            offlineFirstBridgeMs: offlineFirstBridgeDelay,
+            isRentalViewer: studioType === 'RENTAL',
+          },
+          now,
+        );
       }
-      return now - new Date(o.createdAt).getTime() >= delay;
+      return waited >= delay;
     });
 
     // 老板 2026-09-21：订单池里只看得到「还没被抢走」的单，陪玩一忙、一看视频就以为
@@ -1096,7 +1113,12 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  async redispatch(orderId: string, studioId?: string, user?: { id: string; role: string }) {
+  async redispatch(
+    orderId: string,
+    studioId?: string,
+    user?: { id: string; role: string },
+    body?: { poolScope?: string },
+  ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.status !== 'PENDING' || order.dispatchType !== 'POOL') {
@@ -1121,6 +1143,18 @@ export class OrdersService implements OnModuleInit {
         where: { id: orderId },
         data: {
           contactStatus: null,
+          // 重新派单时客服可以再选一次入池方式（老板 2026-09-29）：
+          // 「线下+线上流转入池」/「线上入池」。不传就沿用原来那张单的方式。
+          ...(body && body.poolScope !== undefined
+            ? {
+                poolScope:
+                  normalizePoolScope(body.poolScope) === PoolScope.ONLINE_FIRST
+                    ? PoolScope.ONLINE_FIRST
+                    : null,
+                // 换了方式就把「手动放给线下」的时间清掉，重新按新方式排
+                releasedToOfflineAt: null,
+              }
+            : {}),
           customFields: {
             ...cf,
             dispatchCount: (cf.dispatchCount || 1) + 1,
@@ -1250,6 +1284,180 @@ export class OrdersService implements OnModuleInit {
             destination,
         };
       });
+  }
+
+  /**
+   * 「线下+线上流转入池」的单，线下没人接、被桥接工作室 / 线上俱乐部接走 —— 统计 + 标注
+   * （老板 2026-09-29：「选择线下+线上入池的时候，线下没人接，被桥接工作室或者线上俱乐部接走
+   * 你要做好统计，并做好标注，记录好机密还是绝密、应收多少，钱在哪里等信息并做好汇总」）。
+   *
+   * 口径：
+   *  - 只统计**本店**发的、入池方式 =「线下+线上流转入池」的单（poolScope 不是 ONLINE_FIRST）；
+   *  - 只统计**已经被人抢走**、而且抢的人不是本店线下（桥接工作室 / 线上俱乐部）的单；
+   *  - **桥接工作室** = 「首单不结」模式：机密 35 元/人/时、绝密 30 元/人/时是工作室净得的；
+   *  - **线上俱乐部** = 「抽成」模式：工作室拿 100 − 陪玩分成（revenue.club_companion_share）；
+   *  - 应收 = 客户按流水（单价 × 时长，双陪算两份）；
+   *  - 应返还 = 绝密单返还给接单方（默认 15 元/人/小时，双陪 ×2）；机密首单不结、不返还。
+   */
+  async listEscalatedPoolOrders(studioId: string, opts?: { month?: string; csUserId?: string }) {
+    const now = new Date();
+    const month = opts?.month || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const blankTotals = () => ({
+      count: 0,
+      bridgeCount: 0,
+      onlineCount: 0,
+      units: 0,
+      jimiUnits: 0,
+      juejuUnits: 0,
+      grossYuan: 0,
+      returnYuan: 0,
+      studioNetYuan: 0,
+      bridgeGrossYuan: 0,
+      onlineGrossYuan: 0,
+      bridgeReturnYuan: 0,
+      onlineReturnYuan: 0,
+      moneyInYuan: 0,
+      moneyOutYuan: 0,
+    });
+    if (!studioId) return { month, totals: blankTotals(), rows: [] as any[] };
+    const { start, end } = settlementMonthRange(month);
+
+    const [juejuCents, scopedCfg] = await Promise.all([
+      this.getJuejuReturnCents(studioId),
+      resolveConfigsRaw(this.prisma, studioId, [
+        'bridge.secret_price_yuan',
+        'bridge.jueju_net_yuan',
+        'revenue.club_companion_share',
+      ]),
+    ]);
+    const secretPrice = Number(scopedCfg['bridge.secret_price_yuan'] ?? 35);
+    const juejuNet = Number(scopedCfg['bridge.jueju_net_yuan'] ?? 30);
+    const clubCompanionShare = Number(scopedCfg['revenue.club_companion_share'] ?? 80);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        studioId,
+        createdAt: { gte: start, lt: end },
+        companionId: { not: null },
+        status: { not: 'CANCELLED' },
+        // 「线下+线上流转入池」= poolScope 不是 ONLINE_FIRST（含历史 null）
+        NOT: { poolScope: PoolScope.ONLINE_FIRST },
+        ...(opts?.csUserId
+          ? {
+              OR: [
+                { attributedCsUserId: opts.csUserId },
+                { claimedCsUserId: opts.csUserId },
+                { csUserId: opts.csUserId },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        customer: { select: { customerCode: true, wechatId: true } },
+        csUser: { select: { id: true, username: true, displayName: true } },
+        claimedCsUser: { select: { id: true, username: true, displayName: true } },
+        companion: {
+          include: {
+            user: { select: { username: true, displayName: true } },
+            studio: { select: { id: true, name: true, type: true } },
+          },
+        },
+        coCompanion: { include: { user: { select: { username: true } } } },
+        moneyFlows: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const rows = orders
+      .filter((o) => {
+        const compStudio = o.companion?.studio;
+        // 只留「被别家接走」的：桥接工作室（别的店）或线上俱乐部（租赁店）
+        return !!compStudio && (compStudio.id !== studioId || compStudio.type === 'RENTAL');
+      })
+      .map((o) => {
+        const cf = (o.customFields as any) || {};
+        const compStudio = o.companion!.studio!;
+        const isOnline = compStudio.type === 'RENTAL';
+        const mission =
+          cf.deltaMission === '绝密' ? '绝密' : cf.deltaMission === '机密' ? '机密' : '';
+        const units = orderUnits(o as any);
+        const duration = Number(o.duration) || 1;
+        const gross = (Number(o.amount || 0) + Number(o.coAmount || 0)) * duration;
+        const returnYuan = mission === '绝密' ? (juejuCents / 100) * duration * units : 0;
+        const studioNetYuan = isOnline
+          ? Number((gross * ((100 - clubCompanionShare) / 100)).toFixed(2))
+          : Number(((mission === '绝密' ? juejuNet : secretPrice) * duration * units).toFixed(2));
+        const moneyIn = o.moneyFlows
+          .filter((f) => f.direction === 'IN')
+          .reduce((s, f) => s + Number(f.amount || 0), 0);
+        const moneyOut = o.moneyFlows
+          .filter((f) => f.direction === 'OUT')
+          .reduce((s, f) => s + Number(f.amount || 0), 0);
+        const moneyWhere = Array.from(
+          new Set(
+            [
+              cf.csWorkWechatName ? `客服工作微信 ${cf.csWorkWechatName}` : '',
+              o.customerPaymentAccountName ? `客户付款到 ${o.customerPaymentAccountName}` : '',
+              ...o.moneyFlows.map((f) =>
+                f.counterpart ? `${f.direction === 'IN' ? '转入' : '转出'} ${f.counterpart}` : '',
+              ),
+            ].filter(Boolean),
+          ),
+        );
+        const decision = outcomeOf(o as any, studioId);
+        return {
+          orderId: o.id,
+          orderCode: o.orderCode,
+          createdAt: o.createdAt,
+          grabbedAt: o.grabbedAt,
+          gameName: o.gameName,
+          customerCode: o.customer?.customerCode || '',
+          customerWechat: o.customer?.wechatId || cf.customerWechat || '',
+          csName: o.csUser?.displayName || o.csUser?.username || '',
+          mission,
+          countText: units === 2 ? '双陪' : '单陪',
+          units,
+          duration,
+          destination: isOnline ? '线上俱乐部' : '桥接工作室',
+          destinationStudioName: compStudio.name || '',
+          settleMode: isOnline ? '抽成' : '首单不结',
+          grossYuan: Number(gross.toFixed(2)),
+          returnYuan: Number(returnYuan.toFixed(2)),
+          studioNetYuan,
+          moneyInYuan: Number(moneyIn.toFixed(2)),
+          moneyOutYuan: Number(moneyOut.toFixed(2)),
+          moneyWhere,
+          state: decision.state,
+          stateReason: decision.reason,
+        };
+      });
+
+    const totals = blankTotals();
+    for (const r of rows) {
+      totals.count += 1;
+      totals.units += r.units;
+      if (r.mission === '绝密') totals.juejuUnits += r.units;
+      else if (r.mission === '机密') totals.jimiUnits += r.units;
+      totals.grossYuan += r.grossYuan;
+      totals.returnYuan += r.returnYuan;
+      totals.studioNetYuan += r.studioNetYuan;
+      totals.moneyInYuan += r.moneyInYuan;
+      totals.moneyOutYuan += r.moneyOutYuan;
+      if (r.destination === '线上俱乐部') {
+        totals.onlineCount += 1;
+        totals.onlineGrossYuan += r.grossYuan;
+        totals.onlineReturnYuan += r.returnYuan;
+      } else {
+        totals.bridgeCount += 1;
+        totals.bridgeGrossYuan += r.grossYuan;
+        totals.bridgeReturnYuan += r.returnYuan;
+      }
+    }
+    const rounded: Record<string, number> = {};
+    for (const [k, v] of Object.entries(totals)) {
+      rounded[k] = k.endsWith('Yuan') ? Number(v.toFixed(2)) : v;
+    }
+    return { month, totals: rounded, rows };
   }
 
   async listMoneyFlows(orderId: string) {

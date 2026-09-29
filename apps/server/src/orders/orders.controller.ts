@@ -69,8 +69,17 @@ export class OrdersController {
 
   @Post('orders/:id/redispatch')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
-  async redispatch(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.redispatch(id, req.user?.studioId || undefined, req.user);
+  async redispatch(
+    @Param('id') id: string,
+    @Body() body: { poolScope?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.redispatch(
+      id,
+      req.user?.studioId || undefined,
+      req.user,
+      body,
+    );
     return { code: 200, message: '已重新派到抢单池', data };
   }
 
@@ -92,6 +101,23 @@ export class OrdersController {
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async csConverted(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.listCsConverted(req.user.studioId, req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /**
+   * 「线下+线上流转入池」的单，线下没人接被桥接工作室 / 线上俱乐部接走的统计 + 标注（老板 2026-09-29）。
+   */
+  @Get('orders/escalated-pool')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async escalatedPool(
+    @Req() req: any,
+    @Query('month') month?: string,
+    @Query('csUserId') csUserId?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listEscalatedPoolOrders(req.user.studioId, {
+      month,
+      csUserId,
+    });
     return { code: 200, message: 'ok', data };
   }
 

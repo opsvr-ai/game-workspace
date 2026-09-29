@@ -178,8 +178,8 @@ const CsSettingsPage: React.FC = () => {
         }
       >
         <Text type="secondary">
-          默认派单范围决定这个客服新建单时「先给谁抢」：先本店线下（线下陪玩先看见）/ 先桥接+线上（本店线下先看不见，
-          要客服放出去或等 5 分钟自动放开）。底薪留空 = 用「工资规则」里的统一底薪（当前 ¥
+          默认入池方式决定这个客服新建单时怎么派：线下+线上流转入池（本店线下先抢，几分钟没人接才轮到桥接 / 线上）/
+          线上入池（优先桥接工作室，本店线下先看不见，要客服放出去或等 5 分钟自动放开）。底薪留空 = 用「工资规则」里的统一底薪（当前 ¥
           {Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}/月）。
         </Text>
         <Table
@@ -206,8 +206,8 @@ const CsSettingsPage: React.FC = () => {
                   value={v || 'OFFLINE_FIRST'}
                   onChange={(next) => patchProfile(r.userId, { poolScope: next })}
                   options={[
-                    { value: 'OFFLINE_FIRST', label: '先本店线下' },
-                    { value: 'ONLINE_FIRST', label: '先桥接 + 线上' },
+                    { value: 'OFFLINE_FIRST', label: '线下 + 线上流转入池' },
+                    { value: 'ONLINE_FIRST', label: '线上入池' },
                   ]}
                 />
               ),

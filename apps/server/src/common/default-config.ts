@@ -178,6 +178,10 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 过了这么多分钟还没人接，自动放给本店线下陪玩（老板 2026-09-29）。
   // 客服/店长随时可以手动「放给线下」，不用等这个时间。
   'pool.online_first_release_minutes': 5,
+  // 「线下+线上流转入池」的单（邵泽慧那种）：本店线下先抢这么多分钟，没人接才轮到桥接 + 线上俱乐部
+  // （老板 2026-09-29：「线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部」）。
+  // 「线上入池」的单不吃这个值，桥接一发布就能看到。
+  'pool.offline_first_bridge_minutes': 3,
   'pool.immediate_disappear_minutes': 10,
   'pool.scheduled_disappear_minutes': 60,
   'pool.grab_return_minutes': 180,
@@ -275,6 +279,9 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'commission.admin_online_rate_percent': 0,
   'commission.cs_offline_floor_cents': 200,
   'commission.cs_online_per_order_yuan': 1,
+  // 线上俱乐部订单的客服提成：按**流水比例**计提（老板 2026-09-29：「桥接按单量计提、线上按流水计提」）。
+  // 桥接工作室仍是「按单量计提」（见 commission.cs_bridge_per_order_yuan 与 cs_bridge_tier*_*）。
+  'commission.cs_online_rate_percent': 1,
   'commission.cs_offline_per_order_cap_cents': 0,
   'commission.attribution_window': 'month',
 };

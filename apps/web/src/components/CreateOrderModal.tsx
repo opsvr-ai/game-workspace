@@ -307,19 +307,19 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 ) : null
               }
             </Form.Item>
-            {/* 入池的单：先给谁抢（老板 2026-09-29）。默认值自动带发单客服自己的档位。 */}
+            {/* 入池的单：入池方式（老板 2026-09-29）。默认值自动带发单客服自己的档位。 */}
             <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
               {({ getFieldValue }) =>
                 getFieldValue('dispatchType') === DispatchType.POOL ? (
                   <Form.Item
                     name="poolScope"
-                    label="先给谁抢"
+                    label="入池方式"
                     initialValue="OFFLINE_FIRST"
-                    extra="先本店线下：自家陪玩先看见；先桥接+线上：先给别家工作室 / 线上俱乐部，本店线下陪玩暂时看不见（随时能放给线下，不点也会自动放开）。"
+                    extra="线下+线上流转入池：本店线下先抢，几分钟没人接轮到桥接工作室，桥接没人接直接到线上俱乐部。线上入池：优先桥接工作室，几分钟没人接进线上俱乐部；桥接和线上都没人接就算派单失败，可重新派单换方式。"
                   >
                     <Select>
-                      <Option value="OFFLINE_FIRST">先本店线下</Option>
-                      <Option value="ONLINE_FIRST">先桥接 + 线上</Option>
+                      <Option value="OFFLINE_FIRST">线下 + 线上流转入池</Option>
+                      <Option value="ONLINE_FIRST">线上入池</Option>
                     </Select>
                   </Form.Item>
                 ) : null

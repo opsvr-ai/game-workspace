@@ -6,10 +6,12 @@ export const ordersApi = {
   pendingStart: () => http.get('/orders/pending-start'),
   markCsContact: (id: string, status: string, evidenceUrl?: string, extra?: { workWechatId?: string; workWechatName?: string; addResult?: string }) =>
     http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
-  redispatch: (id: string) => http.post(`/orders/${id}/redispatch`),
+  redispatch: (id: string, poolScope?: string) => http.post(`/orders/${id}/redispatch`, { poolScope }),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
   csFollowup: () => http.get('/orders/cs-followup'),
   csConverted: () => http.get('/orders/cs-converted'),
+  escalatedPool: (params?: { month?: string; csUserId?: string }) =>
+    http.get('/orders/escalated-pool', { params }),
   listMoneyFlows: (id: string) => http.get(`/orders/${id}/money-flows`),
   addMoneyFlow: (id: string, data: { direction: string; amount: number; counterpart: string; counterpartId?: string; note?: string }) =>
     http.post(`/orders/${id}/money-flows`, data),

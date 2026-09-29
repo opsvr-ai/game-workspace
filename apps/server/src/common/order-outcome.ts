@@ -143,3 +143,63 @@ export function visibleToOwnOffline(
 export function normalizePoolScope(v: unknown): PoolScope {
   return v === PoolScope.ONLINE_FIRST ? PoolScope.ONLINE_FIRST : PoolScope.OFFLINE_FIRST;
 }
+
+/**
+ * 「别家」（桥接工作室 / 线上俱乐部）什么时候才看得见这张单。
+ *
+ * 老板 2026-09-29 定的两条链：
+ *  - **线下+线上流转入池**（poolScope 不是 ONLINE_FIRST）：本店线下先抢
+ *    `offlineFirstBridgeMs`，没人接才轮到桥接 / 线上 —— 桥接和线上用**同一个下限**，
+ *    桥接没人接线上马上能接（老板原话：「桥接没人接直接到线上俱乐部」）。
+ *  - **线上入池**（ONLINE_FIRST）：桥接一发布就能看到（`bridgeDelayMs`），
+ *    线上俱乐部按 `onlineDelayMs` 稍后看到。
+ *
+ * @param isRentalViewer 看的人是不是线上俱乐部（租赁店）
+ */
+export function outsideViewerVisible(
+  order: { poolScope?: string | null; createdAt?: Date | string | null },
+  opts: {
+    bridgeDelayMs: number;
+    onlineDelayMs: number;
+    offlineFirstBridgeMs: number;
+    isRentalViewer: boolean;
+  },
+  now: number = Date.now(),
+): boolean {
+  const modeA = order.poolScope !== PoolScope.ONLINE_FIRST;
+  const base = opts.isRentalViewer ? opts.onlineDelayMs : opts.bridgeDelayMs;
+  const delay = modeA ? Math.max(base, opts.offlineFirstBridgeMs) : base;
+  const created = order.createdAt ? new Date(order.createdAt).getTime() : 0;
+  return now - created >= delay;
+}
+
+/**
+ * 「算几单」（老板 2026-09-29）：**单陪算 1 单、双陪算 2 单**，机密 / 绝密一样。
+ *
+ * 双陪认两种标记：有搭档 `coCompanionId`，或客服发单时在「单/双陪」里选的「双」
+ * （`customFields.deltaCount === '双'`）。以前只认 `coCompanionId`，客服选了「双」但
+ * 还没配搭档的单会被当成 1 单 —— 提成、桥接达标、返还算出来都少一半。
+ */
+export function orderUnits(order: {
+  coCompanionId?: string | null;
+  customFields?: unknown;
+}): number {
+  const cf = (order.customFields as Record<string, unknown>) || {};
+  return order.coCompanionId || cf.deltaCount === '双' ? 2 : 1;
+}
+
+/**
+ * 一张单的**流水**（元）= 单价 × 时长。单价是「元/人/小时」，所以 2 小时的单流水是单价 ×2。
+ * 和 `finance/reconciliation.service.ts` 里算利润 / 对账用的 `gross` 是同一个口径。
+ */
+export function orderGrossYuan(order: {
+  amount?: number | string | null;
+  duration?: number | string | null;
+}): number {
+  return Number(order.amount || 0) * (Number(order.duration) || 1);
+}
+
+/** 这张单是不是「双陪」（单量 2）。 */
+export function isDoubleCompanion(order: { coCompanionId?: string | null; customFields?: unknown }): boolean {
+  return orderUnits(order) === 2;
+}

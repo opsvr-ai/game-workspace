@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
-import { successOrderWhere, outcomeOf } from '../common/order-outcome';
+import { successOrderWhere, outcomeOf, orderUnits, orderGrossYuan } from '../common/order-outcome';
 
 @Injectable()
 export class CommissionService {
@@ -185,6 +185,7 @@ export class CommissionService {
       'commission.cs_offline_floor_cents',
       'commission.cs_bridge_per_order_yuan',
       'commission.cs_online_per_order_yuan',
+      'commission.cs_online_rate_percent',
       'commission.cs_offline_per_order_cap_cents',
     ];
     const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
@@ -195,6 +196,10 @@ export class CommissionService {
       floorCents: map['commission.cs_offline_floor_cents'] ?? 200,
       bridgePerOrderCents: Math.round((map['commission.cs_bridge_per_order_yuan'] ?? 1) * 100),
       onlinePerOrderCents: Math.round((map['commission.cs_online_per_order_yuan'] ?? 1) * 100),
+      // 线上俱乐部订单：客服**按流水比例**计提（老板 2026-09-29）。桥接仍是按单量。
+      onlineRatePercent: Number.isFinite(map['commission.cs_online_rate_percent'])
+        ? map['commission.cs_online_rate_percent']
+        : 1,
       perOrderCapCents: map['commission.cs_offline_per_order_cap_cents'] ?? 0,
     };
   }
@@ -330,11 +335,14 @@ export class CommissionService {
         orderCode: true,
         type: true,
         amount: true,
+        duration: true,
+        customFields: true,
         coCompanionId: true,
         csUserId: true,
         attributedCsUserId: true,
         claimedCsUserId: true,
         createdAt: true,
+        poolScope: true,
         companion: { select: { studio: { select: { id: true, type: true } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -360,6 +368,8 @@ export class CommissionService {
         outcomeReason: true,
         refundedAt: true,
         amount: true,
+        duration: true,
+        customFields: true,
         coCompanionId: true,
         csUserId: true,
         attributedCsUserId: true,
@@ -418,12 +428,14 @@ export class CommissionService {
       let offlineCents = 0;
       let bridgeUnits = 0;
       let onlineUnits = 0;
+      let onlineRevenueYuan = 0;
       const trace = [];
 
       for (const o of userOrders) {
         const compStudio = o.companion?.studio;
-        const units = o.coCompanionId ? 2 : 1;
+        const units = orderUnits(o as any);
         const amount = Number(o.amount || 0);
+        const gross = orderGrossYuan(o as any);
         let kind: 'offline' | 'bridge' | 'online' = 'offline';
         if (compStudio) {
           if (compStudio.type === 'RENTAL') kind = 'online';
@@ -438,8 +450,10 @@ export class CommissionService {
           commissionYuan = centsToYuan(c);
           offlineCents += c;
         } else if (kind === 'online') {
+          // 线上俱乐部：客服**按流水比例**计提（老板 2026-09-29）；单量只用于看板统计
           onlineUnits += units;
-          commissionYuan = cfg.onlinePerOrderCents / 100 * units;
+          onlineRevenueYuan += gross;
+          commissionYuan = (gross * cfg.onlineRatePercent) / 100;
         } else {
           bridgeUnits += units;
           commissionYuan = 0; // 桥接单价在月末按阶梯统一算
@@ -450,6 +464,7 @@ export class CommissionService {
           orderCode: o.orderCode,
           type: o.type,
           amount,
+          gross,
           units,
           kind,
           companionStudioType: compStudio?.type || 'OFFLINE',
@@ -460,7 +475,7 @@ export class CommissionService {
 
       const tier = this.bridgeTier(bridgeUnits, cfg);
       const bridgeCommissionYuan = bridgeUnits * tier.perUnitYuan;
-      const onlineCommissionYuan = onlineUnits * (cfg.onlinePerOrderCents / 100);
+      const onlineCommissionYuan = Number(((onlineRevenueYuan * cfg.onlineRatePercent) / 100).toFixed(2));
       const offlineCommissionYuan = centsToYuan(offlineCents);
       const commissionYuan = Number((offlineCommissionYuan + bridgeCommissionYuan + onlineCommissionYuan).toFixed(2));
 
@@ -492,6 +507,8 @@ export class CommissionService {
         bridgePerUnitYuan: tier.perUnitYuan,
         bridgeCommissionYuan: Number(bridgeCommissionYuan.toFixed(2)),
         offlineCommissionYuan: Number(offlineCommissionYuan.toFixed(2)),
+        onlineUnits,
+        onlineRevenueYuan: Number(onlineRevenueYuan.toFixed(2)),
         onlineCommissionYuan: Number(onlineCommissionYuan.toFixed(2)),
         commissionYuan,
         totalYuan,
@@ -514,7 +531,8 @@ export class CommissionService {
     const allOrders = row ? await this.queryAllCsOrders(studioId, start, end, userId) : [];
     const orders = allOrders.map((o) => {
       const compStudio = o.companion?.studio;
-      const units = o.coCompanionId ? 2 : 1;
+      const units = orderUnits(o as any);
+      const gross = orderGrossYuan(o as any);
       let kind: 'offline' | 'bridge' | 'online' = 'offline';
       if (compStudio) {
         if (compStudio.type === 'RENTAL') kind = 'online';
@@ -531,7 +549,8 @@ export class CommissionService {
           if (built.config.perOrderCapCents > 0) c = Math.min(c, built.config.perOrderCapCents);
           commissionYuan = centsToYuan(c);
         } else if (kind === 'online') {
-          commissionYuan = Number((centsToYuan(built.config.onlinePerOrderCents) * units).toFixed(2));
+          // 线上俱乐部：按流水比例计提
+          commissionYuan = Number(((gross * built.config.onlineRatePercent) / 100).toFixed(2));
         } else {
           commissionYuan = Number((row!.bridgePerUnitYuan * units).toFixed(2));
         }
@@ -543,6 +562,7 @@ export class CommissionService {
         status: o.status,
         contactStatus: o.contactStatus,
         amount: Number(o.amount || 0),
+        gross,
         units,
         kind,
         companionStudioType: compStudio?.type || 'OFFLINE',
@@ -574,6 +594,7 @@ export class CommissionService {
         bridgeTier3Yuan: built.config.bridgeTier3Yuan,
         bridgeTier5Yuan: built.config.bridgeTier5Yuan,
         onlinePerOrderYuan: centsToYuan(built.config.onlinePerOrderCents),
+        onlineRatePercent: built.config.onlineRatePercent,
       },
       row,
       orders,
@@ -601,6 +622,8 @@ export class CommissionService {
         },
         select: {
           amount: true,
+          duration: true,
+          customFields: true,
           coCompanionId: true,
           companion: { select: { studio: { select: { id: true, type: true } } } },
         },
@@ -608,11 +631,13 @@ export class CommissionService {
       let offlineCents = 0;
       let bridgeCents = 0;
       let onlineCents = 0;
+      let onlineRevenueYuan = 0;
       for (const o of orders) {
         const compStudio = o.companion?.studio;
-        const companions = o.coCompanionId ? 2 : 1;
+        const companions = orderUnits(o as any);
         if (compStudio?.type === 'RENTAL') {
-          onlineCents += cfg.onlinePerOrderCents * companions;
+          // 线上俱乐部：按流水比例计提（老板 2026-09-29）
+          onlineRevenueYuan += orderGrossYuan(o as any);
         } else if (compStudio && compStudio.id !== studioId) {
           bridgeCents += cfg.bridgePerOrderCents * companions;
         } else {
@@ -622,6 +647,7 @@ export class CommissionService {
           offlineCents += c;
         }
       }
+      onlineCents += Math.round(onlineRevenueYuan * (cfg.onlineRatePercent / 100) * 100);
       rows.push({
         userId: u.id,
         username: u.username,
@@ -722,6 +748,7 @@ export class CommissionService {
       onlineSuccess: 0,
       failReasons: {} as Record<string, number>,
       offlineFlow: 0,
+      onlineFlow: 0,
       offlineCommission: 0,
       bridgeCommission: 0,
       onlineCommission: 0,
@@ -734,8 +761,9 @@ export class CommissionService {
       const csId = o.attributedCsUserId || o.claimedCsUserId || o.csUserId || '';
       const cs = csMap.get(csId) || others;
       const decision = outcomeOf(o, studioId);
-      const units = o.coCompanionId ? 2 : 1;
+      const units = orderUnits(o as any);
       const amount = Number(o.amount || 0);
+      const gross = orderGrossYuan(o as any);
       const dispatched = !!o.companionId;
       const bridgeCountsForTarget =
         decision.channel !== 'offline' && dispatched && !o.refundedAt && o.status !== 'CANCELLED' && decision.state !== 'FAILED';
@@ -771,7 +799,9 @@ export class CommissionService {
           if (salaryCfg.perOrderCapCents > 0) c = Math.min(c, salaryCfg.perOrderCapCents / 100);
           target.offlineCommission += c;
         } else if (decision.channel === 'online') {
-          target.onlineCommission += (salaryCfg.onlinePerOrderCents / 100) * units;
+          // 线上俱乐部：按流水比例计提（老板 2026-09-29）
+          target.onlineFlow += gross;
+          target.onlineCommission += (gross * salaryCfg.onlineRatePercent) / 100;
         } else {
           target.bridgeCommission += (salaryCfg.bridgePerOrderCents / 100) * units;
         }
@@ -792,6 +822,7 @@ export class CommissionService {
         return {
           ...c,
           offlineFlow: round2(c.offlineFlow),
+          onlineFlow: round2(c.onlineFlow),
           offlineCommission: round2(c.offlineCommission),
           bridgeCommission: round2(c.bridgeCommission),
           onlineCommission: round2(c.onlineCommission),
@@ -817,6 +848,7 @@ export class CommissionService {
       config: {
         bridgePerOrderYuan: salaryCfg.bridgePerOrderCents / 100,
         onlinePerOrderYuan: salaryCfg.onlinePerOrderCents / 100,
+        onlineRatePercent: salaryCfg.onlineRatePercent,
         offlineRatePercent: salaryCfg.ratePercent,
         baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,
@@ -837,6 +869,7 @@ export class CommissionService {
         onlineOrders: s.onlineOrders,
         totalFlow: round2(s.offlineFlow),
         offlineFlow: round2(s.offlineFlow),
+        onlineFlow: round2(s.onlineFlow),
         offlineCommission: round2(s.offlineCommission),
         bridgeCommission: round2(s.bridgeCommission),
         onlineCommission: round2(s.onlineCommission),

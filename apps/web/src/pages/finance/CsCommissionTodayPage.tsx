@@ -39,10 +39,10 @@ const { Text } = Typography;
  * 应发提成 / 罚后提成 / 底薪日发 / 今日应发 / 当月累计。老板、店长、客服都看得见。
  */
 
-/** 派单范围（老板 2026-09-29）：先本店线下 / 先桥接 + 线上。 */
+/** 入池方式（老板 2026-09-29）：线下+线上流转入池 / 线上入池。 */
 const POOL_SCOPE: Record<string, { label: string; color: string }> = {
-  OFFLINE_FIRST: { label: '先本店线下', color: 'blue' },
-  ONLINE_FIRST: { label: '先桥接+线上', color: 'purple' },
+  OFFLINE_FIRST: { label: '线下+线上流转', color: 'blue' },
+  ONLINE_FIRST: { label: '线上入池', color: 'purple' },
 };
 
 const CHANNEL: Record<string, { label: string; color: string }> = {

@@ -31,6 +31,7 @@ import { useSocket } from '../../hooks/useSocket';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
 import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CsConvertedPanel from '../../components/CsConvertedPanel';
+import EscalatedPoolPanel from '../../components/EscalatedPoolPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
 import TierBadge from '../../components/TierBadge';
@@ -1022,6 +1023,11 @@ const CSDispatchView: React.FC = () => {
             key: 'converted',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户流转明细</span>,
             children: <CsConvertedPanel refreshSignal={customerRefresh} />,
+          },
+          {
+            key: 'escalated',
+            label: <span style={{ color: '#7C3AED', fontWeight: 600 }}>线下转桥接/线上统计</span>,
+            children: <EscalatedPoolPanel />,
           },
         ]}
       />

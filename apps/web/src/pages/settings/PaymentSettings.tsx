@@ -15,7 +15,7 @@ const { Text } = Typography;
  *
  * - 陪玩：线下按当月流水分档（一档一列），线上俱乐部用固定比例；
  * - 店长：全店统一，不随流水变化，按流水比例提成；
- * - 客服：线下按流水比例、线上按每单固定金额；
+ * - 客服：线下按流水比例、线上（俱乐部）也按流水比例、桥接按单量；
  * - 工作室：**自动** = 100 − 陪玩 − 店长 − 客服，只读、不用手填 —— 从源头杜绝「加起来 120%」，
  *   库里存的也正好是工作室真正拿到手的份额（对账直接用这个数）。
  *
@@ -31,6 +31,7 @@ const CONFIG_KEYS = [
   'commission.cs_offline_rate_percent',
   'commission.admin_offline_rate_percent',
   'commission.cs_online_per_order_yuan',
+  'commission.cs_online_rate_percent',
   'commission.admin_online_rate_percent',
   'bridge.secret_price_yuan',
   'bridge.jueju_net_yuan',
@@ -71,6 +72,7 @@ const withEffectiveDefaults = (raw: any) => {
   fill('commission.cs_offline_rate_percent', 1);
   fill('commission.admin_offline_rate_percent', 0);
   fill('commission.cs_online_per_order_yuan', 1);
+  fill('commission.cs_online_rate_percent', 1);
   fill('commission.admin_online_rate_percent', 0);
   fill('bridge.secret_price_yuan', 35);
   fill('bridge.jueju_net_yuan', 30);
@@ -152,6 +154,8 @@ const PaymentSettings: React.FC = () => {
   const clubCompanion = clampPercent(config?.['revenue.club_companion_share'] ?? DEFAULT_CLUB_COMPANION_SHARE, 1, 99);
   const adminOnline = clampPercent(config?.['commission.admin_online_rate_percent'] ?? 0);
   const csOnlinePerOrder = Number(config?.['commission.cs_online_per_order_yuan'] ?? 1);
+  // 线上俱乐部订单的客服提成：按流水比例计提（老板 2026-09-29）。
+  const csOnlineRate = clampPercent(config?.['commission.cs_online_rate_percent'] ?? 1);
   // 桥接工作室：单价（元/人/小时）+ 首单返款（库里存「分」，界面显示「元」）。
   const bridgeSecretPrice = Number(config?.['bridge.secret_price_yuan'] ?? 35);
   const bridgeJuejuNet = Number(config?.['bridge.jueju_net_yuan'] ?? 30);
@@ -160,7 +164,7 @@ const PaymentSettings: React.FC = () => {
 
   const offlineDeduct = round2(csOffline + adminOffline);
   const studioOf = (companion: unknown) => round2(FULL_PERCENT - clampPercent(companion) - offlineDeduct);
-  const onlineStudio = round2(FULL_PERCENT - clubCompanion - adminOnline);
+  const onlineStudio = round2(FULL_PERCENT - clubCompanion - adminOnline - csOnlineRate);
 
   const badTierIdx = tiers.findIndex((t) => studioOf(t?.companion) < 0);
   const offlineBroken = badTierIdx >= 0;
@@ -211,6 +215,7 @@ const PaymentSettings: React.FC = () => {
         'commission.cs_offline_rate_percent': csOffline,
         'commission.admin_online_rate_percent': adminOnline,
         'commission.cs_online_per_order_yuan': csOnlinePerOrder,
+        'commission.cs_online_rate_percent': csOnlineRate,
         'bridge.secret_price_yuan': bridgeSecretPrice,
         'bridge.jueju_net_yuan': bridgeJuejuNet,
         'dispatch.bridge_return_jimi_cents': Math.round(bridgeReturnJimi * 100),
@@ -364,7 +369,7 @@ const PaymentSettings: React.FC = () => {
           <div style={{ ...CELL, gridColumn: `span ${tiers.length}` }}>
             {percentInput(csOffline, (v) => update('commission.cs_offline_rate_percent', v))}
             <Text type="secondary" style={{ fontSize: 12 }}>
-              按流水比例提成；线上俱乐部是「每单固定金额」，在下面单独设置
+              按流水比例提成；线上俱乐部也按流水比例，在下面单独设置
             </Text>
           </div>
 
@@ -399,7 +404,7 @@ const PaymentSettings: React.FC = () => {
           type="error"
           showIcon
           style={{ marginBottom: 8 }}
-          message={`陪玩 ${clubCompanion}% + 店长 ${adminOnline}% 超过 100% 了，工作室会变成负数，请先调整`}
+          message={`陪玩 ${clubCompanion}% + 店长 ${adminOnline}% + 客服 ${csOnlineRate}% 超过 100% 了，工作室会变成负数，请先调整`}
         />
       )}
       <div className="ui-panel" style={{ overflowX: 'auto' }}>
@@ -422,20 +427,16 @@ const PaymentSettings: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例；店里多位店长时按人数均分</Text>
           </div>
 
-          {labelCell('cs', '客服', '每单固定金额')}
+          {labelCell('cs', '客服', '按流水比例')}
           <div style={CELL}>
-            <Space size={4}>
-              <InputNumber min={0} step={0.5} value={csOnlinePerOrder}
-                onChange={(v) => update('commission.cs_online_per_order_yuan', Number(v ?? 0))} style={{ width: 110 }} />
-              <Text type="secondary">元/单</Text>
-            </Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>单陪算 1 单、双陪算 2 单；从工作室那份里出</Text>
+            {percentInput(csOnlineRate, (v) => update('commission.cs_online_rate_percent', v))}
+            <Text type="secondary" style={{ fontSize: 12 }}>按线上单流水比例提成；从工作室那份里出</Text>
           </div>
 
           {labelCell('studio', '工作室', '自动算出')}
           <div style={{ ...CELL, background: `${ROLE_TINT.studio}0A` }}>
             <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? '#EF4444' : ROLE_TINT.studio }}>{onlineStudio}%</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>100 − 陪玩 − 店长（客服每单金额再从这份里出）</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>100 − 陪玩 − 店长 − 客服</Text>
           </div>
         </div>
       </div>

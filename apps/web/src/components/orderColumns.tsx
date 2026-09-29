@@ -120,13 +120,13 @@ export function buildOrderColumns({
                 onClick={!o.releasedToOfflineAt && onReleaseToOffline ? () => onReleaseToOffline(o) : undefined}
                 title={
                   o.releasedToOfflineAt
-                    ? '「先线上」的单，已经放给本店线下陪玩了'
+                    ? '「线上入池」的单，已经放给本店线下陪玩了'
                     : onReleaseToOffline
-                      ? '「先线上」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见 —— 点这里可以现在就放给线下'
-                      : '「先线上」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见'
+                      ? '「线上入池」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见 —— 点这里可以现在就放给线下'
+                      : '「线上入池」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见'
                 }
               >
-                · {o.releasedToOfflineAt ? '已放给线下' : '先线上'}
+                · {o.releasedToOfflineAt ? '已放给线下' : '线上入池'}
               </span>
             )}
             {/* 线上 / 桥接单的结果（成功 / 不成功 / 待反馈）；线下单不显示 */}
