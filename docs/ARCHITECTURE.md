@@ -19,7 +19,9 @@
   `pool.online_delay_seconds` 稍后；客服提成桥接按单量、线上按流水比例（`commission.cs_online_rate_percent`）；
   新页「线下转桥接/线上统计」（`GET /orders/escalated-pool` + `EscalatedPoolPanel`）标注去向 / 结算模式
   （首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里，并给按月汇总；
-  这页可按月 + 按客服（`csUserId`，CS 角色服务端强制成自己）筛选，前端一键导出 CSV（逐单明细 + 汇总）
+  这页可按月 + 按客服（`csUserId`，CS 角色服务端强制成自己）筛选，前端一键导出 CSV（逐单明细 + 汇总）；
+  「一键导出全员」把每个客服一份月表打成一个 zip（`utils/escalated-pool-csv.ts` 拼表 + `utils/zip.ts` 手写 ZIP，
+  不引第三方库），表内容与单人导出同源
 
 ---
 
