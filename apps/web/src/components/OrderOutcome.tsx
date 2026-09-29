@@ -56,6 +56,17 @@ const STATE_STYLE: Record<string, { label: string; color: string }> = {
 };
 
 /**
+ * 状态格里那行小字的纯文本（「 · 成功」/「 · 不成功」/「 · 待反馈」），线下单返回空串。
+ * 订单管理的状态列只有 46px（3 个字，老板 2026-09-30 让收窄的），这行小字经常放不下、
+ * 被单元格的省略号吃掉，所以 orderColumns.tsx 把结果拼进 title —— 鼠标悬停照样看全。
+ */
+export function outcomeSuffixText(order: any): string {
+  if (orderChannelOf(order) === 'offline') return '';
+  const cfg = STATE_STYLE[outcomeStateOf(order)];
+  return cfg ? ` · ${cfg.label}` : '';
+}
+
+/**
  * 状态格里缀在状态后面的小字（线下单不显示 —— 线下看「进行中 / 已完成」就够了）。
  * 传了 `onClick` 就能点：客服 / 店长点一下直接记「成功 / 不成功」。
  */
