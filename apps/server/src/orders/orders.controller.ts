@@ -116,7 +116,8 @@ export class OrdersController {
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.listEscalatedPoolOrders(req.user.studioId, {
       month,
-      csUserId,
+      // 客服只能看/导出自己发的（跟订单列表同一个口径）；店长、老板可以按客服筛。
+      csUserId: req.user.role === UserRole.CS ? req.user.id : csUserId,
     });
     return { code: 200, message: 'ok', data };
   }

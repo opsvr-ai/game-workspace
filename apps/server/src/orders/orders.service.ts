@@ -1420,6 +1420,7 @@ export class OrdersService implements OnModuleInit {
           customerCode: o.customer?.customerCode || '',
           customerWechat: o.customer?.wechatId || cf.customerWechat || '',
           csName: o.csUser?.displayName || o.csUser?.username || '',
+          csUserId: o.csUser?.id || '',
           mission,
           countText: units === 2 ? '双陪' : '单陪',
           units,
