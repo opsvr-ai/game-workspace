@@ -1447,7 +1447,9 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markContactSeen();
-                        navigate(`${child.key}?tab=followup`);
+                        // 「客服跟进台账」已并进「管理端直添客户流转明细」（老板 2026-09-30），
+                        // 待跟进角标点进去就是那一页
+                        navigate(`${child.key}?tab=converted`);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
                     >
