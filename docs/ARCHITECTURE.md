@@ -687,6 +687,11 @@ sequenceDiagram
   空 = 待反馈，`FAILED` 不计提成且带 `outcomeReason`（原因字典 `options.outcome_fail_reasons`）；
   退款 / 取消一律不算。提成（`commission.service`）、工资达标（`payroll.service`）、今日看板三处调同一套，
   不允许再各写一份（这个项目已经在「两套口径」上翻过车）
+- **线上俱乐部提成口径**（老板 2026-09-30）：`commission.cs_online_mode` = `RATE`（默认，流水 ×
+  `commission.cs_online_rate_percent`，2026-09-29 定的口径）/ `PER_ORDER`（成功单数 ×
+  `commission.cs_online_per_order_yuan`）。判定在 `onlineModeOf`，算钱只走 `CommissionService.onlineCommissionOf`，
+  月度工资、今日看板、`computeCsCommission`、月度对账（`reconciliation.service`）四处共用同一份 ——
+  **两个数不叠加**，没配过就是按流水，钱不变
 - **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）与
   `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）；今日看板、月度结算、工资生成按人取底薪
 - **结果反馈「催得动」+ 接单方看板**（老板 2026-09-30）：`Order.feedbackChasedAt / feedbackChaseCount`

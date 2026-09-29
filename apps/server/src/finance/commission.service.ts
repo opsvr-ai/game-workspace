@@ -5,6 +5,16 @@ import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
 import { successOrderWhere, outcomeOf, orderUnits, orderGrossYuan } from '../common/order-outcome';
 
+/**
+ * 线上俱乐部订单的客服提成口径（老板 2026-09-30「这些数我自己填」）：
+ *  - `RATE`（默认）= 流水 × `commission.cs_online_rate_percent`（2026-09-29 定的口径）；
+ *  - `PER_ORDER`  = 成功单数 × `commission.cs_online_per_order_yuan`。
+ * 两个数都在「设置 → 客服设置」里，老板自己拨；**没配过就还是按流水算，钱一分不变**。
+ */
+function onlineModeOf(raw: unknown): 'RATE' | 'PER_ORDER' {
+  return String(raw ?? '').toUpperCase() === 'PER_ORDER' ? 'PER_ORDER' : 'RATE';
+}
+
 @Injectable()
 export class CommissionService {
   constructor(private readonly prisma: PrismaService) {}
@@ -187,6 +197,7 @@ export class CommissionService {
       'commission.cs_online_per_order_yuan',
       'commission.cs_online_rate_percent',
       'commission.cs_offline_per_order_cap_cents',
+      'commission.cs_online_mode',
     ];
     const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
@@ -201,6 +212,8 @@ export class CommissionService {
         ? map['commission.cs_online_rate_percent']
         : 1,
       perOrderCapCents: map['commission.cs_offline_per_order_cap_cents'] ?? 0,
+      // 线上俱乐部订单怎么算提成（老板 2026-09-30：线上是「单数 × 每单单价」还是「流水 × 比例」他自己填）
+      onlineMode: onlineModeOf(resolved['commission.cs_online_mode']),
     };
   }
 
@@ -306,6 +319,18 @@ export class CommissionService {
   }
 
   /** 桥接阶梯：返回每单单价和底薪是否全额。 */
+  /** 线上俱乐部订单的客服提成（两种口径，见 `onlineModeOf`）。`units` 已含双陪的 2 份。 */
+  private onlineCommissionOf(
+    cfg: { onlineMode?: string; onlineRatePercent: number; onlinePerOrderCents: number },
+    units: number,
+    grossYuan: number,
+  ): number {
+    if (cfg.onlineMode === 'PER_ORDER') {
+      return Number(((units * cfg.onlinePerOrderCents) / 100).toFixed(2));
+    }
+    return Number(((grossYuan * cfg.onlineRatePercent) / 100).toFixed(2));
+  }
+
   private bridgeTier(units: number, cfg: any): { perUnitYuan: number; baseFull: boolean } {
     if (units < cfg.bridgeMin) return { perUnitYuan: cfg.bridgePerOrderCents / 100, baseFull: false };
     if (units >= cfg.bridgeTier5) return { perUnitYuan: cfg.bridgeTier5Yuan, baseFull: true };
@@ -455,7 +480,7 @@ export class CommissionService {
           // 线上俱乐部：客服**按流水比例**计提（老板 2026-09-29）；单量只用于看板统计
           onlineUnits += units;
           onlineRevenueYuan += gross;
-          commissionYuan = (gross * cfg.onlineRatePercent) / 100;
+          commissionYuan = this.onlineCommissionOf(cfg, units, gross);
         } else {
           bridgeUnits += units;
           commissionYuan = 0; // 桥接单价在月末按阶梯统一算
@@ -477,7 +502,7 @@ export class CommissionService {
 
       const tier = this.bridgeTier(bridgeUnits, cfg);
       const bridgeCommissionYuan = bridgeUnits * tier.perUnitYuan;
-      const onlineCommissionYuan = Number(((onlineRevenueYuan * cfg.onlineRatePercent) / 100).toFixed(2));
+      const onlineCommissionYuan = this.onlineCommissionOf(cfg, onlineUnits, onlineRevenueYuan);
       const offlineCommissionYuan = centsToYuan(offlineCents);
       const commissionYuan = Number((offlineCommissionYuan + bridgeCommissionYuan + onlineCommissionYuan).toFixed(2));
 
@@ -551,8 +576,8 @@ export class CommissionService {
           if (built.config.perOrderCapCents > 0) c = Math.min(c, built.config.perOrderCapCents);
           commissionYuan = centsToYuan(c);
         } else if (kind === 'online') {
-          // 线上俱乐部：按流水比例计提
-          commissionYuan = Number(((gross * built.config.onlineRatePercent) / 100).toFixed(2));
+          // 线上俱乐部：口径见「设置 → 客服设置」里的线上那两项
+          commissionYuan = this.onlineCommissionOf(built.config, units, gross);
         } else {
           commissionYuan = Number((row!.bridgePerUnitYuan * units).toFixed(2));
         }
@@ -597,6 +622,7 @@ export class CommissionService {
         bridgeTier5Yuan: built.config.bridgeTier5Yuan,
         onlinePerOrderYuan: centsToYuan(built.config.onlinePerOrderCents),
         onlineRatePercent: built.config.onlineRatePercent,
+        onlineMode: built.config.onlineMode,
       },
       row,
       orders,
@@ -634,12 +660,14 @@ export class CommissionService {
       let offlineCents = 0;
       let bridgeCents = 0;
       let onlineCents = 0;
+      let onlineUnits = 0;
       let onlineRevenueYuan = 0;
       for (const o of orders) {
         const compStudio = o.companion?.studio;
         const companions = orderUnits(o as any);
         if (compStudio?.type === 'RENTAL') {
-          // 线上俱乐部：按流水比例计提（老板 2026-09-29）
+          // 线上俱乐部：口径见「设置 → 客服设置」里的线上那两项（老板 2026-09-30）
+          onlineUnits += companions;
           onlineRevenueYuan += orderGrossYuan(o as any);
         } else if (compStudio && compStudio.id !== studioId) {
           bridgeCents += cfg.bridgePerOrderCents * companions;
@@ -650,7 +678,7 @@ export class CommissionService {
           offlineCents += c;
         }
       }
-      onlineCents += Math.round(onlineRevenueYuan * (cfg.onlineRatePercent / 100) * 100);
+      onlineCents += Math.round(this.onlineCommissionOf(cfg, onlineUnits, onlineRevenueYuan) * 100);
       rows.push({
         userId: u.id,
         username: u.username,
@@ -802,9 +830,9 @@ export class CommissionService {
           if (salaryCfg.perOrderCapCents > 0) c = Math.min(c, salaryCfg.perOrderCapCents / 100);
           target.offlineCommission += c;
         } else if (decision.channel === 'online') {
-          // 线上俱乐部：按流水比例计提（老板 2026-09-29）
+          // 线上俱乐部：口径见「设置 → 客服设置」里的线上那两项
           target.onlineFlow += gross;
-          target.onlineCommission += (gross * salaryCfg.onlineRatePercent) / 100;
+          target.onlineCommission += this.onlineCommissionOf(salaryCfg, units, gross);
         } else {
           target.bridgeCommission += (salaryCfg.bridgePerOrderCents / 100) * units;
         }
@@ -852,6 +880,7 @@ export class CommissionService {
         bridgePerOrderYuan: salaryCfg.bridgePerOrderCents / 100,
         onlinePerOrderYuan: salaryCfg.onlinePerOrderCents / 100,
         onlineRatePercent: salaryCfg.onlineRatePercent,
+        onlineMode: salaryCfg.onlineMode,
         offlineRatePercent: salaryCfg.ratePercent,
         baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,

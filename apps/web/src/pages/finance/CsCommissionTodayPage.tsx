@@ -399,7 +399,11 @@ const CsCommissionTodayPage: React.FC = () => {
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               目标：每人 {s?.bridgeTarget ?? 10} 单/日（未达标提成 {data?.config?.missCommissionRate ?? 50}%、底薪{' '}
-              {data?.config?.missSalaryRate ?? 80}%）
+              {data?.config?.missSalaryRate ?? 80}%）；线上按
+              {data?.config?.onlineMode === 'PER_ORDER'
+                ? `每单 ¥${data?.config?.onlinePerOrderYuan ?? 1}`
+                : `流水 ${data?.config?.onlineRatePercent ?? 1}%`}
+              算
             </Text>
           </Card>
         </Col>

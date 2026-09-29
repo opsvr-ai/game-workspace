@@ -99,6 +99,11 @@ const CsSettingsPage: React.FC = () => {
     try {
       await configApi.update({
         'commission.cs_bridge_per_order_yuan': getCfg('commission.cs_bridge_per_order_yuan', 1),
+        'commission.cs_offline_rate_percent': getCfg('commission.cs_offline_rate_percent', 1),
+        // 线上俱乐部怎么算（老板 2026-09-30「这些我自己填写」）：口径 + 两个数，两个数都填也只按选中的那一种算
+        'commission.cs_online_mode': String(config?.['commission.cs_online_mode'] ?? 'RATE'),
+        'commission.cs_online_rate_percent': getCfg('commission.cs_online_rate_percent', 1),
+        'commission.cs_online_per_order_yuan': getCfg('commission.cs_online_per_order_yuan', 1),
         'commission.cs_offline_floor_cents': Math.round(getCfg('commission.cs_offline_floor_cents', 200)),
         'commission.cs_offline_per_order_cap_cents': Math.round(getCfg('commission.cs_offline_per_order_cap_cents', 0)),
         'commission.cs_daily_bridge_target': getCfg('commission.cs_daily_bridge_target', 10),
@@ -123,7 +128,10 @@ const CsSettingsPage: React.FC = () => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>客服设置</Title>
-        <Text type="secondary">客服的提成与桥接达标规则在这里设置（底薪、月休、考勤扣款在「工资规则」里）。输入框右侧蓝色小字是单位。</Text>
+        <Text type="secondary">
+          客服的提成与桥接达标规则在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
+          输入框右侧蓝色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
+        </Text>
       </div>
 
       <Space style={{ marginBottom: 16 }}>
@@ -135,6 +143,14 @@ const CsSettingsPage: React.FC = () => {
         <Col xs={24} lg={12}>
           <Card size="small" title="🎧 客服提成" style={{ marginBottom: 16 }}>
             <Text strong style={{ color: '#52c41a' }}>线下</Text>
+            <Field
+              label="线下提成比例"
+              unit="%"
+              value={getCfg('commission.cs_offline_rate_percent', 1)}
+              step={0.5}
+              onChange={(v) => setCfg('commission.cs_offline_rate_percent', v)}
+              hint="每单 = 流水 × 此比例，不足「线下保底」按保底发"
+            />
             <Field label="线下保底" unit="元/单" value={getCfg('commission.cs_offline_floor_cents', 200) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_floor_cents', Math.round(v * 100))} hint="每单提成不足时按保底发" />
             <Field label="线下每单封顶" unit="元/单" value={getCfg('commission.cs_offline_per_order_cap_cents', 0) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_per_order_cap_cents', Math.round(v * 100))} hint="每单线下提成上限，0=不封顶" />
             <Divider style={{ margin: '8px 0' }} />
@@ -145,6 +161,37 @@ const CsSettingsPage: React.FC = () => {
             <Field label="5元/单门槛" unit="单/月" value={getCfg('commission.cs_bridge_tier5_threshold', 260)} step={5} onChange={(v) => setCfg('commission.cs_bridge_tier5_threshold', v)} hint="达到后按 5 元/单" />
             <Field label="3元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier3_yuan', 3)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier3_yuan', v)} />
             <Field label="5元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier5_yuan', 5)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier5_yuan', v)} />
+            <Divider style={{ margin: '8px 0' }} />
+            <Text strong style={{ color: '#722ed1' }}>线上俱乐部</Text>
+            <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <Text style={{ display: 'inline-block', minWidth: 150 }}>线上怎么算</Text>
+              <Select
+                value={String(config?.['commission.cs_online_mode'] ?? 'RATE')}
+                onChange={(v) => setCfg('commission.cs_online_mode', v as any)}
+                style={{ width: 230 }}
+                options={[
+                  { value: 'RATE', label: '按流水比例（%）' },
+                  { value: 'PER_ORDER', label: '按成功单数 × 每单单价' },
+                ]}
+              />
+              <Text type="secondary">两个数都填也只按选中的这一种算，不会叠加</Text>
+            </div>
+            <Field
+              label="线上流水比例"
+              unit="%"
+              value={getCfg('commission.cs_online_rate_percent', 1)}
+              step={0.5}
+              onChange={(v) => setCfg('commission.cs_online_rate_percent', v)}
+              hint="选「按流水比例」时用：每单 = 流水 × 此比例"
+            />
+            <Field
+              label="线上每单单价"
+              unit="元/单"
+              value={getCfg('commission.cs_online_per_order_yuan', 1)}
+              step={0.5}
+              onChange={(v) => setCfg('commission.cs_online_per_order_yuan', v)}
+              hint="选「按成功单数」时用：双陪算 2 单"
+            />
           </Card>
         </Col>
 

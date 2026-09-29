@@ -296,6 +296,7 @@ export class ReconciliationService {
         'commission.cs_bridge_per_order_yuan',
         'commission.cs_online_per_order_yuan',
         'commission.cs_online_rate_percent',
+        'commission.cs_online_mode',
         'commission.cs_offline_rate_percent',
         'commission.cs_base_salary_yuan',
       ]),
@@ -312,8 +313,11 @@ export class ReconciliationService {
     const secretPrice = Number(scopedCfg['bridge.secret_price_yuan'] ?? 35);
     const juejuNet = Number(scopedCfg['bridge.jueju_net_yuan'] ?? 30);
     const bridgePerOrder = Number(scopedCfg['commission.cs_bridge_per_order_yuan'] ?? 1);
-    // 线上俱乐部客服提成：按**流水比例**计提（老板 2026-09-29）；桥接仍按单量。
+    // 线上俱乐部客服提成：按流水比例计提（老板 2026-09-29），或按单数 × 每单单价
+    // —— 用哪一种由「设置 → 客服设置」里的 `commission.cs_online_mode` 决定（老板 2026-09-30）。
     const onlineRatePct = Number(scopedCfg['commission.cs_online_rate_percent'] ?? 1);
+    const onlinePerOrder = Number(scopedCfg['commission.cs_online_per_order_yuan'] ?? 1);
+    const onlineMode = String(scopedCfg['commission.cs_online_mode'] ?? 'RATE').toUpperCase() === 'PER_ORDER' ? 'PER_ORDER' : 'RATE';
     const offlineRatePct = Number(scopedCfg['commission.cs_offline_rate_percent'] ?? 1);
     const csBaseSalary = Number(scopedCfg['commission.cs_base_salary_yuan'] ?? 0);
     const monthlyTotalExpense = expenseItems.reduce((s, it) => s + it.amount, 0);
@@ -368,11 +372,12 @@ export class ReconciliationService {
         }
       }
 
-      // 客服提成：桥接按单量（每单单价 × 单量）+ 线上按流水比例 + 线下按订单流水比例。
+      // 客服提成：桥接按单量（每单单价 × 单量）+ 线上按流水比例（或按单数 × 每单单价）+ 线下按订单流水比例。
       let csCommission = 0;
       if (o.attributedCsUserId || o.claimedCsUserId || o.csUserId) {
         if (compStudio?.type === 'RENTAL') {
-          csCommission += (gross * onlineRatePct) / 100;
+          csCommission +=
+            onlineMode === 'PER_ORDER' ? onlinePerOrder * companions : (gross * onlineRatePct) / 100;
         } else if (compStudio && compStudio.id !== studioId) {
           csCommission += bridgePerOrder * companions;
         } else {

@@ -283,6 +283,11 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 线上俱乐部订单的客服提成：按**流水比例**计提（老板 2026-09-29：「桥接按单量计提、线上按流水计提」）。
   // 桥接工作室仍是「按单量计提」（见 commission.cs_bridge_per_order_yuan 与 cs_bridge_tier*_*）。
   'commission.cs_online_rate_percent': 1,
+  // 线上俱乐部订单的客服提成口径（老板 2026-09-30：「这些我自己填写」）：
+  //   'RATE'      = 按流水比例（`commission.cs_online_rate_percent`，2026-09-29 定的口径，默认）
+  //   'PER_ORDER' = 按成功单数 × 每单单价（`commission.cs_online_per_order_yuan`）
+  // 两个数都在「设置 → 客服设置」里填，这里只管默认用哪一种。
+  'commission.cs_online_mode': 'RATE',
   'commission.cs_offline_per_order_cap_cents': 0,
   'commission.attribution_window': 'month',
 };
