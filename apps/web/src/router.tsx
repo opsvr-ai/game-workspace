@@ -701,6 +701,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // 客服自己的提成看板（老板 2026-09-29）：和店长/老板那张是同一页，
+        // 客服打开只能看自己的明细（后端强制），但整张表的人和数字都看得见。
+        path: 'cs/finance/commission-today',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CsCommissionTodayPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'cs/traffic-accounts',
         element: (
           <Suspense fallback={<SuspenseFallback />}>

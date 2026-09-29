@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { bridgeMetOrderWhere } from '../common/order-outcome';
 
 @Injectable()
 export class PayrollService {
@@ -53,16 +54,20 @@ export class PayrollService {
     const bridgeTarget = Number(scoped['commission.cs_daily_bridge_target'] ?? 10);
     const missSalaryRate = Number(scoped['commission.cs_bridge_miss_salary_rate'] ?? 80);
     const bridgeCounts = await this.bridgeOrderCounts(studioId, start, end);
+    // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里的
+    const csProfiles = await this.prisma.csProfile.findMany({ where: { studioId } }).catch(() => []);
+    const profileByUser = new Map(csProfiles.map((p) => [p.userId, p]));
     const records = [];
     for (const user of staff) {
       const config = await this.prisma.payrollConfig.findUnique({ where: { role: user.role } });
       if (!config) continue;
+      const baseSalaryCfg = Number(profileByUser.get(user.id)?.baseSalaryYuan ?? config.baseSalary);
       const attendance = await this.prisma.staffAttendance.findMany({
         where: { userId: user.id, date: { gte: start, lt: end } },
       });
       const absent = attendance.filter((a) => a.status === 'ABSENT').length;
       const late = attendance.filter((a) => a.status === 'LATE').length;
-      let base = config.baseSalary;
+      let base = baseSalaryCfg;
       // 月休天数（复用 fullAttendanceDays 存），满勤 = 当月天数 − 月休天数；月休内缺勤不扣款
       const monthDays = Math.round((end.getTime() - start.getTime()) / 86400000);
       const restDays = config.fullAttendanceDays ?? 4;
@@ -124,7 +129,14 @@ export class PayrollService {
 
   private async bridgeOrderCounts(studioId: string, start: Date, end: Date): Promise<Map<string, number>> {
     const orders = await this.prisma.order.findMany({
-      where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end }, companionId: { not: null } },
+      where: {
+        studioId,
+        createdAt: { gte: start, lt: end },
+        // 桥接达标口径走 common/order-outcome.ts（和「今日看板」用的是同一个）：
+        // 跑了多少桥接单，只排除明确不成功 / 退款 / 取消的；接单方还没反馈的照算 ——
+        // 对方没回话，不该扣客服的底薪。两处必须同口径，否则「看板说达标、工资却扣了」。
+        ...bridgeMetOrderWhere(),
+      },
       select: {
         csUserId: true,
         attributedCsUserId: true,

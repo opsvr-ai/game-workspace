@@ -91,6 +91,30 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29）。客服也能读（发单弹窗要用自己的默认值）。 */
+  @Get('commission/cs-profiles')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listCsProfiles(@Req() req: any): Promise<any> {
+    const data = await this.commissions.listCsProfiles(studioIdFor(req));
+    return { code: 200, message: 'ok', data };
+  }
+
+  @Put('commission/cs-profiles')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async saveCsProfile(@Req() req: any, @Body() body: any): Promise<any> {
+    const data = await this.commissions.saveCsProfile(studioIdFor(req), body || {});
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 今日看板点开某一行：这个客服今天发出的单 + 每张单现在的结果（明细 + 原因排行）。客服只看自己。 */
+  @Get('commission/cs-today-orders')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async csTodayOrders(@Req() req: any, @Query('userId') userId?: string): Promise<any> {
+    const target = req.user.role === UserRole.CS ? req.user.id : userId;
+    const data = await this.commissions.csTodayOrders(studioIdFor(req), target || '');
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('commission/:month')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async listCommission(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string) {

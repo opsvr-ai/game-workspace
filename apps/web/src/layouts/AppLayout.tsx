@@ -392,6 +392,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'cs-finance', icon: IconRevenue, label: '财务管理',
       children: [
+        { key: '/cs/finance/commission-today', label: '我的提成看板' },
         { key: '/cs/billing', label: '报账系统' },
       ],
     },

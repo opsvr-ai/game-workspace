@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
+import { successOrderWhere, outcomeOf } from '../common/order-outcome';
 
 @Injectable()
 export class CommissionService {
@@ -315,13 +316,14 @@ export class CommissionService {
     return this.prisma.order.findMany({
       where: {
         studioId,
-        status: 'DONE',
         type: 'NEW',
         createdAt: { gte: start, lt: end },
-        companionId: { not: null },
         ...(userId
           ? { OR: [{ attributedCsUserId: userId }, { claimedCsUserId: userId }, { csUserId: userId }] }
           : {}),
+        // 成功口径统一走 common/order-outcome.ts（老板 2026-09-29）：
+        // 线下 = 点了「开始首单」（历史 DONE 单也算）；桥接 / 线上 = 接单方反馈「成功」。
+        AND: [successOrderWhere(studioId)],
       },
       select: {
         id: true,
@@ -354,6 +356,9 @@ export class CommissionService {
         type: true,
         status: true,
         contactStatus: true,
+        outcome: true,
+        outcomeReason: true,
+        refundedAt: true,
         amount: true,
         coCompanionId: true,
         csUserId: true,
@@ -361,6 +366,7 @@ export class CommissionService {
         claimedCsUserId: true,
         createdAt: true,
         companion: { select: { studio: { select: { id: true, type: true } } } },
+        sessions: { select: { startedAt: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -381,10 +387,14 @@ export class CommissionService {
         })
       : [];
     const orders = await this.querySuccessfulCsOrders(studioId, start, end, userId);
+    // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里客服那一个数
+    const profiles = await this.prisma.csProfile
+      .findMany({ where: { studioId } })
+      .catch(() => [] as Array<{ userId: string; baseSalaryYuan: number | null }>);
+    const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
 
     const monthDays = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 0).getDate();
     const fullAttendance = Math.max(0, monthDays - cfg.restDays);
-    const dailyBase = cfg.baseSalary / Math.max(1, fullAttendance);
 
     const orderByUser = new Map<string, any[]>();
     for (const o of orders) {
@@ -402,6 +412,8 @@ export class CommissionService {
       const late = att.filter((a) => a.status === 'LATE').length;
       const earlyLeave = att.filter((a) => a.status === 'EARLY_LEAVE').length;
       const absent = att.filter((a) => a.status === 'ABSENT').length;
+      const userBaseSalary = Number(profileByUser.get(u.id)?.baseSalaryYuan ?? cfg.baseSalary);
+      const dailyBase = userBaseSalary / Math.max(1, fullAttendance);
 
       let offlineCents = 0;
       let bridgeUnits = 0;
@@ -452,7 +464,7 @@ export class CommissionService {
       const offlineCommissionYuan = centsToYuan(offlineCents);
       const commissionYuan = Number((offlineCommissionYuan + bridgeCommissionYuan + onlineCommissionYuan).toFixed(2));
 
-      const baseEffective = tier.baseFull ? cfg.baseSalary : cfg.baseSalary / 2;
+      const baseEffective = tier.baseFull ? userBaseSalary : userBaseSalary / 2;
       const attendanceDeduction = Number(
         (
           Math.max(0, absent) * dailyBase +
@@ -468,7 +480,7 @@ export class CommissionService {
         userId: u.id,
         username: u.username,
         displayName: u.displayName,
-        baseSalary: cfg.baseSalary,
+        baseSalary: userBaseSalary,
         baseEffective,
         restDays: cfg.restDays,
         fullAttendance,
@@ -508,7 +520,9 @@ export class CommissionService {
         if (compStudio.type === 'RENTAL') kind = 'online';
         else if (compStudio.id !== studioId) kind = 'bridge';
       }
-      const counted = o.type === 'NEW' && o.status === 'DONE';
+      // 成功口径：线下 = 点了「开始首单」；桥接 / 线上 = 接单方反馈成功
+      const decision = outcomeOf(o as any, studioId);
+      const counted = o.type === 'NEW' && decision.counted;
       let commissionYuan: number | null = null;
       if (counted) {
         if (kind === 'offline') {
@@ -533,6 +547,8 @@ export class CommissionService {
         kind,
         companionStudioType: compStudio?.type || 'OFFLINE',
         counted,
+        state: decision.state,
+        stateReason: decision.reason,
         commissionYuan,
         createdAt: o.createdAt,
       };
@@ -577,10 +593,11 @@ export class CommissionService {
     for (const u of users) {
       const orders = await this.prisma.order.findMany({
         where: {
-          status: 'DONE',
+          type: 'NEW',
           createdAt: { gte: start, lt: end },
           OR: [{ attributedCsUserId: u.id }, { claimedCsUserId: u.id }],
-          companionId: { not: null },
+          // 成功口径统一走 common/order-outcome.ts（老板 2026-09-29）
+          AND: [successOrderWhere(studioId)],
         },
         select: {
           amount: true,
@@ -618,126 +635,149 @@ export class CommissionService {
     return { month, rows };
   }
 
-  /** 客服提成 · 今日看板（实时估算，不落库）。 */
+  /**
+   * 客服提成 · 今日看板（实时估算，不落库）。
+   *
+   * 老板 2026-09-29 定的一屏：「今天派出多少 / 成功多少 / 不成功多少 / 待反馈多少 / 成功率 /
+   * 今天应发（底薪按天折算 + 提成）、当月累计」，店长、客服都能看到自己那一行。
+   * 口径全部走 `common/order-outcome.ts`（和真的算钱的地方共用同一套）：
+   *  - **线下单**：陪玩点了「开始首单」才算成功（退款 / 取消不算）；
+   *  - **桥接 / 线上单**：接单方反馈「成功」才算，没反馈 = 待反馈；
+   *  - **提成只按成功单算**；不成功的单不计提成、也不扣钱，但会留记录（原因排行看得到）；
+   *  - **桥接达标**（底薪是否打折）按「跑了多少桥接单」算，只排除明确不成功的单 ——
+   *    免得客服替接单方背锅（对方没回话，底薪先被扣了）。
+   */
   async getCsCommissionToday(studioId: string) {
     if (!studioId) {
       const first = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
       studioId = first?.id || '';
     }
+    const bd = businessDayOf(new Date());
+    const dateLabel = `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`;
     const { start, end } = currentBusinessDayRange();
-    const cfg = await resolveConfigsRaw(this.prisma, studioId, [
-      'commission.cs_bridge_per_order_yuan',
-      'commission.cs_online_per_order_yuan',
-      'commission.cs_offline_rate_percent',
-      'commission.cs_offline_floor_cents',
-      'commission.cs_offline_per_order_cap_cents',
-      'commission.cs_base_salary_yuan',
+    const salaryCfg = await this.csSalaryConfig(studioId);
+    const dayCfg = await resolveConfigsRaw(this.prisma, studioId, [
       'commission.cs_daily_bridge_target',
       'commission.cs_bridge_miss_commission_rate',
       'commission.cs_bridge_miss_salary_rate',
     ]);
-    const [csPayrollCfg, orders, csUsers] = await Promise.all([
-      this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } }),
+    const bridgeTarget = Number((dayCfg as Record<string, unknown>)['commission.cs_daily_bridge_target'] ?? 10);
+    const missCommissionRate = Number(
+      (dayCfg as Record<string, unknown>)['commission.cs_bridge_miss_commission_rate'] ?? 50,
+    );
+    const missSalaryRate = Number(
+      (dayCfg as Record<string, unknown>)['commission.cs_bridge_miss_salary_rate'] ?? 80,
+    );
+
+    const [orders, csUsers, profiles, monthBuilt] = await Promise.all([
       this.prisma.order.findMany({
-        where: { studioId, status: 'DONE', createdAt: { gte: start, lt: end }, companionId: { not: null } },
-        include: { companion: { include: { studio: { select: { id: true, type: true } } } } },
+        where: { studioId, createdAt: { gte: start, lt: end } },
+        include: {
+          companion: {
+            include: {
+              studio: { select: { id: true, type: true } },
+              user: { select: { username: true, displayName: true } },
+            },
+          },
+          sessions: { select: { startedAt: true } },
+        },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.user.findMany({
         where: { studioId, role: 'CS' },
         select: { id: true, username: true, displayName: true },
       }),
+      this.prisma.csProfile.findMany({ where: { studioId } }).catch(() => []),
+      this.buildCsSalaryRows(studioId, settlementMonthRange(dateLabel.slice(0, 7)).start, settlementMonthRange(dateLabel.slice(0, 7)).end).catch(
+        () => ({ rows: [] as any[] }),
+      ),
     ]);
 
-    const bridgePerOrder = Number(cfg['commission.cs_bridge_per_order_yuan'] ?? 1);
-    const onlinePerOrder = Number(cfg['commission.cs_online_per_order_yuan'] ?? 1);
-    const offlineRatePct = Number(cfg['commission.cs_offline_rate_percent'] ?? 1);
-    const offlineFloorYuan = Number(cfg['commission.cs_offline_floor_cents'] ?? 200) / 100;
-    const offlineCapYuan = Number(cfg['commission.cs_offline_per_order_cap_cents'] ?? 0) / 100;
-    const baseSalaryYuan = Number(csPayrollCfg?.baseSalary ?? cfg['commission.cs_base_salary_yuan'] ?? 0);
-    const bridgeTarget = Number(cfg['commission.cs_daily_bridge_target'] ?? 10);
-    const missCommissionRate = Number(cfg['commission.cs_bridge_miss_commission_rate'] ?? 50);
-    const missSalaryRate = Number(cfg['commission.cs_bridge_miss_salary_rate'] ?? 80);
-
     const round2 = (n: number) => Number(n.toFixed(2));
-    const offlineCommissionOf = (amount: number) => {
-      let c = amount * (offlineRatePct / 100);
-      c = Math.max(c, offlineFloorYuan);
-      if (offlineCapYuan > 0) c = Math.min(c, offlineCapYuan);
-      return round2(c);
-    };
-    const s = {
+    const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
+    const baseSalaryOf = (userId: string) =>
+      Number(profileByUser.get(userId)?.baseSalaryYuan ?? salaryCfg.baseSalary ?? 0);
+    const monthByUser = new Map((monthBuilt.rows as any[]).map((r) => [r.userId, r]));
+    const monthDays = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    const fullAttendance = Math.max(1, monthDays - salaryCfg.restDays);
+
+    const blank = (u: { id: string; username: string; displayName?: string | null }) => ({
+      userId: u.id,
+      username: u.username,
+      displayName: u.displayName,
+      poolScope: profileByUser.get(u.id)?.poolScope ?? 'OFFLINE_FIRST',
+      baseSalaryYuan: baseSalaryOf(u.id),
+      published: 0,
+      dispatched: 0,
       totalOrders: 0,
       offlineOrders: 0,
       bridgeOrders: 0,
       onlineOrders: 0,
-      totalFlow: 0,
+      success: 0,
+      failed: 0,
+      pending: 0,
+      unstarted: 0,
+      offlineSuccess: 0,
+      bridgeSuccess: 0,
+      onlineSuccess: 0,
+      failReasons: {} as Record<string, number>,
       offlineFlow: 0,
       offlineCommission: 0,
       bridgeCommission: 0,
       onlineCommission: 0,
-    };
-
-    const csMap = new Map<string, any>();
-    for (const u of csUsers) {
-      csMap.set(u.id, {
-        userId: u.id,
-        username: u.username,
-        displayName: u.displayName,
-        totalOrders: 0,
-        offlineOrders: 0,
-        bridgeOrders: 0,
-        onlineOrders: 0,
-        offlineFlow: 0,
-        offlineCommission: 0,
-        bridgeCommission: 0,
-        onlineCommission: 0,
-      });
-    }
+    });
+    const csMap = new Map<string, any>(csUsers.map((u) => [u.id, blank(u)]));
+    const others = blank({ id: '', username: '（未认领）' }); // 发单客服已离职 / 归属人查不到时兜底，只进总计
+    const s = blank({ id: '', username: '合计' });
 
     for (const o of orders) {
-      const compStudio = o.companion?.studio;
-      const companions = o.coCompanionId ? 2 : 1;
+      const csId = o.attributedCsUserId || o.claimedCsUserId || o.csUserId || '';
+      const cs = csMap.get(csId) || others;
+      const decision = outcomeOf(o, studioId);
+      const units = o.coCompanionId ? 2 : 1;
       const amount = Number(o.amount || 0);
-      const csId = o.attributedCsUserId || o.claimedCsUserId || o.csUserId;
+      const dispatched = !!o.companionId;
+      const bridgeCountsForTarget =
+        decision.channel !== 'offline' && dispatched && !o.refundedAt && o.status !== 'CANCELLED' && decision.state !== 'FAILED';
 
-      let kind: 'offline' | 'bridge' | 'online' = 'offline';
-      if (compStudio) {
-        if (compStudio.type === 'RENTAL') kind = 'online';
-        else if (compStudio.id !== studioId) kind = 'bridge';
-      }
-
-      s.totalOrders += 1;
-      s.totalFlow += amount;
-      if (kind === 'offline') {
-        s.offlineOrders += 1;
-        s.offlineFlow += amount;
-        s.offlineCommission += offlineCommissionOf(amount);
-      } else if (kind === 'online') {
-        s.onlineOrders += 1;
-        s.onlineCommission += onlinePerOrder * companions;
-      } else {
-        s.bridgeOrders += 1;
-        s.bridgeCommission += bridgePerOrder * companions;
-      }
-
-      const cs = csMap.get(csId);
-      if (cs) {
-        cs.totalOrders += 1;
-        if (kind === 'offline') {
-          cs.offlineOrders += 1;
-          cs.offlineFlow += amount;
-          cs.offlineCommission += offlineCommissionOf(amount);
-        } else if (kind === 'online') {
-          cs.onlineOrders += 1;
-          cs.onlineCommission += onlinePerOrder * companions;
+      for (const target of [s, cs]) {
+        target.published += 1;
+        if (!dispatched) continue;
+        target.dispatched += 1;
+        target.totalOrders += 1;
+        if (decision.channel === 'offline') target.offlineOrders += 1;
+        else if (decision.channel === 'online') target.onlineOrders += bridgeCountsForTarget ? units : 0;
+        else target.bridgeOrders += bridgeCountsForTarget ? units : 0;
+        if (decision.state === 'SUCCESS') {
+          target.success += 1;
+          if (decision.channel === 'offline') target.offlineSuccess += 1;
+          else if (decision.channel === 'online') target.onlineSuccess += units;
+          else target.bridgeSuccess += units;
+        } else if (decision.state === 'FAILED') {
+          target.failed += 1;
+          const reason = (o.outcomeReason || '未填原因').trim() || '未填原因';
+          target.failReasons[reason] = (target.failReasons[reason] || 0) + 1;
+        } else if (decision.state === 'PENDING') {
+          target.pending += 1;
         } else {
-          cs.bridgeOrders += 1;
-          cs.bridgeCommission += bridgePerOrder * companions;
+          target.unstarted += 1;
+        }
+        if (!decision.counted) continue;
+        // 算钱（只算成功单）
+        if (decision.channel === 'offline') {
+          target.offlineFlow += amount;
+          let c = amount * (salaryCfg.ratePercent / 100);
+          c = Math.max(c, salaryCfg.floorCents / 100);
+          if (salaryCfg.perOrderCapCents > 0) c = Math.min(c, salaryCfg.perOrderCapCents / 100);
+          target.offlineCommission += c;
+        } else if (decision.channel === 'online') {
+          target.onlineCommission += (salaryCfg.onlinePerOrderCents / 100) * units;
+        } else {
+          target.bridgeCommission += (salaryCfg.bridgePerOrderCents / 100) * units;
         }
       }
     }
 
-    const totalCommission = s.offlineCommission + s.bridgeCommission + s.onlineCommission;
     let bridgeMetCount = 0;
     const csList = Array.from(csMap.values())
       .map((c) => {
@@ -745,7 +785,10 @@ export class CommissionService {
         const bridgeMet = c.bridgeOrders >= bridgeTarget;
         if (bridgeMet) bridgeMetCount += 1;
         const commissionAfter = bridgeMet ? totalCommissionYuan : round2(totalCommissionYuan * (missCommissionRate / 100));
-        const salaryAfter = bridgeMet ? baseSalaryYuan : round2(baseSalaryYuan * (missSalaryRate / 100));
+        const salaryAfter = bridgeMet ? c.baseSalaryYuan : round2(c.baseSalaryYuan * (missSalaryRate / 100));
+        const salaryDaily = round2(salaryAfter / fullAttendance);
+        const month = monthByUser.get(c.userId);
+        const concluded = c.success + c.failed;
         return {
           ...c,
           offlineFlow: round2(c.offlineFlow),
@@ -757,44 +800,158 @@ export class CommissionService {
           bridgeMet,
           commissionAfter,
           salaryAfter,
+          salaryDaily,
+          todayPay: round2(salaryDaily + commissionAfter),
+          successRate: concluded > 0 ? round2((c.success / concluded) * 100) : null,
+          monthCommissionYuan: month ? round2(Number(month.commissionYuan || 0)) : 0,
+          monthTotalYuan: month ? round2(Number(month.totalYuan || 0)) : 0,
         };
       })
-      .sort((a, b) => b.totalCommission - a.totalCommission || b.totalOrders - a.totalOrders);
+      .sort((a, b) => b.todayPay - a.todayPay || b.totalOrders - a.totalOrders);
 
-    const bd = businessDayOf(new Date());
-    const dateLabel = `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`;
+    const totalCommission = s.offlineCommission + s.bridgeCommission + s.onlineCommission;
+    const concluded = s.success + s.failed;
 
     return {
       date: dateLabel,
       config: {
-        bridgePerOrderYuan: bridgePerOrder,
-        onlinePerOrderYuan: onlinePerOrder,
-        offlineRatePercent: offlineRatePct,
-        baseSalaryYuan,
+        bridgePerOrderYuan: salaryCfg.bridgePerOrderCents / 100,
+        onlinePerOrderYuan: salaryCfg.onlinePerOrderCents / 100,
+        offlineRatePercent: salaryCfg.ratePercent,
+        baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,
         missCommissionRate,
         missSalaryRate,
+        fullAttendance,
       },
       summary: {
+        published: s.published,
+        dispatched: s.dispatched,
+        success: s.success,
+        failed: s.failed,
+        pending: s.pending,
+        successRate: concluded > 0 ? round2((s.success / concluded) * 100) : null,
         totalOrders: s.totalOrders,
         offlineOrders: s.offlineOrders,
         bridgeOrders: s.bridgeOrders,
         onlineOrders: s.onlineOrders,
-        totalFlow: round2(s.totalFlow),
+        totalFlow: round2(s.offlineFlow),
         offlineFlow: round2(s.offlineFlow),
         offlineCommission: round2(s.offlineCommission),
         bridgeCommission: round2(s.bridgeCommission),
         onlineCommission: round2(s.onlineCommission),
         totalCommission: round2(totalCommission),
-        baseSalaryYuan,
+        baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,
         bridgeMetCount,
         csCount: csList.length,
+        failReasons: s.failReasons,
       },
       csList,
     };
   }
 
+  /**
+   * 今日看板点开某一行时的明细：这个客服今天发出去的单 + 每张单现在的结果。
+   * 界面据此出「原因排行」和逐单的「反馈」按钮。
+   */
+  async csTodayOrders(studioId: string, userId: string) {
+    if (!studioId) {
+      const first = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
+      studioId = first?.id || '';
+    }
+    const { start, end } = currentBusinessDayRange();
+    const orders = await this.prisma.order.findMany({
+      where: {
+        studioId,
+        createdAt: { gte: start, lt: end },
+        OR: [{ attributedCsUserId: userId }, { claimedCsUserId: userId }, { csUserId: userId }],
+      },
+      include: {
+        companion: { include: { studio: { select: { id: true, name: true, type: true } }, user: { select: { username: true, displayName: true } } } },
+        customer: { select: { customerCode: true, wechatId: true } },
+        sessions: { select: { startedAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return orders.map((o) => {
+      const decision = outcomeOf(o, studioId);
+      return {
+        orderId: o.id,
+        orderCode: o.orderCode,
+        type: o.type,
+        status: o.status,
+        amount: Number(o.amount || 0),
+        units: o.coCompanionId ? 2 : 1,
+        customerCode: o.customer?.customerCode || null,
+        customerWechat: o.customer?.wechatId || null,
+        companionName:
+          o.companion?.user?.displayName || o.companion?.user?.username || null,
+        companionStudio: o.companion?.studio?.name || null,
+        channel: decision.channel,
+        state: decision.state,
+        counted: decision.counted,
+        stateReason: decision.reason,
+        outcome: o.outcome,
+        outcomeReason: o.outcomeReason,
+        outcomeNote: o.outcomeNote,
+        outcomeAt: o.outcomeAt,
+        refundedAt: o.refundedAt,
+        createdAt: o.createdAt,
+      };
+    });
+  }
+
+  /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29）。 */
+  async listCsProfiles(studioId: string) {
+    const resolved = await this.resolveStudioId(studioId);
+    const [users, profiles] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { studioId: resolved, role: 'CS' },
+        select: { id: true, username: true, displayName: true },
+        orderBy: { username: 'asc' },
+      }),
+      this.prisma.csProfile.findMany({ where: { studioId: resolved } }).catch(() => []),
+    ]);
+    const payroll = await this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } });
+    const byUser = new Map(profiles.map((p) => [p.userId, p]));
+    return {
+      defaultBaseSalaryYuan: Number(payroll?.baseSalary ?? 0),
+      items: users.map((u) => ({
+        userId: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        poolScope: byUser.get(u.id)?.poolScope ?? 'OFFLINE_FIRST',
+        baseSalaryYuan: byUser.get(u.id)?.baseSalaryYuan ?? null,
+      })),
+    };
+  }
+
+  /** 存某个客服的档位（默认派单范围 + 底薪；填空 = 用统一默认）。 */
+  async saveCsProfile(
+    studioId: string,
+    dto: { userId: string; poolScope?: string; baseSalaryYuan?: number | null },
+  ) {
+    const resolved = await this.resolveStudioId(studioId);
+    if (!dto.userId) throw new NotFoundException('缺少客服');
+    const user = await this.prisma.user.findFirst({
+      where: { id: dto.userId, studioId: resolved, role: 'CS' },
+      select: { id: true, username: true, displayName: true },
+    });
+    if (!user) throw new NotFoundException('这家店里没有这个客服');
+    const poolScope = dto.poolScope === 'ONLINE_FIRST' ? 'ONLINE_FIRST' : 'OFFLINE_FIRST';
+    const baseSalaryYuan =
+      dto.baseSalaryYuan === null || dto.baseSalaryYuan === undefined || Number.isNaN(Number(dto.baseSalaryYuan))
+        ? null
+        : Number(dto.baseSalaryYuan);
+    if (baseSalaryYuan !== null && baseSalaryYuan < 0) throw new NotFoundException('底薪不能是负数');
+    await this.prisma.csProfile.upsert({
+      where: { userId: dto.userId },
+      create: { userId: dto.userId, studioId: resolved, poolScope, baseSalaryYuan },
+      update: { poolScope, baseSalaryYuan, studioId: resolved },
+    });
+    return this.listCsProfiles(resolved);
+  }
   /** 保存客服桥接达标规则（每日桥接单数目标 + 未达标惩罚）。按身份写：老板全局 / 店长本店。 */
   async saveBridgeRule(
     dto: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number },

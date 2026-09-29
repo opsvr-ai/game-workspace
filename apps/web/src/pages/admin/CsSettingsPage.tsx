@@ -1,8 +1,10 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Space, Typography, message, Row, Col, InputNumber, Divider } from 'antd';
+import { Card, Button, Space, Typography, message, Row, Col, InputNumber, Divider, Table, Select, Tag } from 'antd';
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
+import { financeApi } from '../../api/finance';
+import { extractErrorMessage } from '../../utils/error-handler';
 import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
@@ -36,6 +38,9 @@ const CsSettingsPage: React.FC = () => {
   const [config, setConfig] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // 客服档位（老板 2026-09-29）：按人存的「默认派单范围 + 底薪」，谁不一样就单独改这一行
+  const [profiles, setProfiles] = useState<any>(null);
+  const [profileSaving, setProfileSaving] = useState<string>('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +55,41 @@ const CsSettingsPage: React.FC = () => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const { data: res } = await financeApi.commission.csProfiles();
+      setProfiles((res as any)?.data || null);
+    } catch {
+      // 档位表是附加信息，读不到不影响上面那些提成设置
+    }
+  }, []);
+
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
+
+  const patchProfile = (userId: string, patch: any) =>
+    setProfiles((p: any) =>
+      p ? { ...p, items: (p.items || []).map((it: any) => (it.userId === userId ? { ...it, ...patch } : it)) } : p,
+    );
+
+  const saveProfile = async (row: any) => {
+    setProfileSaving(row.userId);
+    try {
+      const blank = row.baseSalaryYuan === null || row.baseSalaryYuan === undefined || row.baseSalaryYuan === '';
+      const { data: res } = await financeApi.commission.saveCsProfile({
+        userId: row.userId,
+        poolScope: row.poolScope,
+        baseSalaryYuan: blank ? null : Number(row.baseSalaryYuan),
+      });
+      const next = (res as any)?.data;
+      if (next) setProfiles(next);
+      message.success(`${row.displayName || row.username} 的档位已保存`);
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '保存失败'));
+    } finally {
+      setProfileSaving('');
+    }
+  };
 
   const getCfg = (key: string, def: number) => Number(config?.[key] ?? def);
   const setCfg = (key: string, v: number) => setConfig((c: any) => ({ ...c, [key]: v }));
@@ -126,6 +166,95 @@ const CsSettingsPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      <Card
+        size="small"
+        title="👤 客服档位（每人的默认派单范围 + 底薪）"
+        style={{ marginTop: 16 }}
+        extra={
+          <Button size="small" icon={<ReloadOutlined />} onClick={loadProfiles}>
+            刷新
+          </Button>
+        }
+      >
+        <Text type="secondary">
+          默认派单范围决定这个客服新建单时「先给谁抢」：先本店线下（线下陪玩先看见）/ 先桥接+线上（本店线下先看不见，
+          要客服放出去或等 5 分钟自动放开）。底薪留空 = 用「工资规则」里的统一底薪（当前 ¥
+          {Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}/月）。
+        </Text>
+        <Table
+          style={{ marginTop: 12 }}
+          rowKey="userId"
+          size="small"
+          pagination={false}
+          dataSource={profiles?.items || []}
+          locale={{ emptyText: '这家店还没有客服' }}
+          columns={[
+            {
+              title: '客服',
+              dataIndex: 'displayName',
+              render: (v: string, r: any) => v || r.username,
+            },
+            {
+              title: '默认派单范围',
+              dataIndex: 'poolScope',
+              width: 200,
+              render: (v: string, r: any) => (
+                <Select
+                  size="small"
+                  style={{ width: 180 }}
+                  value={v || 'OFFLINE_FIRST'}
+                  onChange={(next) => patchProfile(r.userId, { poolScope: next })}
+                  options={[
+                    { value: 'OFFLINE_FIRST', label: '先本店线下' },
+                    { value: 'ONLINE_FIRST', label: '先桥接 + 线上' },
+                  ]}
+                />
+              ),
+            },
+            {
+              title: '底薪（月）',
+              dataIndex: 'baseSalaryYuan',
+              width: 200,
+              render: (v: number | null, r: any) => (
+                <Space size={6}>
+                  <InputNumber
+                    size="small"
+                    min={0}
+                    step={100}
+                    style={{ width: 120 }}
+                    value={v ?? undefined}
+                    placeholder={`默认 ${Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}`}
+                    onChange={(next) => patchProfile(r.userId, { baseSalaryYuan: next })}
+                  />
+                  <Text type="secondary" style={{ fontSize: 12 }}>元/月</Text>
+                </Space>
+              ),
+            },
+            {
+              title: '',
+              width: 200,
+              render: (_: unknown, r: any) => (
+                <Space size={6}>
+                  <Button
+                    size="small"
+                    type="primary"
+                    loading={profileSaving === r.userId}
+                    onClick={() => saveProfile(r)}
+                  >
+                    保存
+                  </Button>
+                  {r.baseSalaryYuan == null ? (
+                    <Tag color="default">用统一底薪</Tag>
+                  ) : (
+                    <Tag color="blue">单独底薪</Tag>
+                  )}
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
     </div>
   );
 };

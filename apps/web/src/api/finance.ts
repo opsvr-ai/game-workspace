@@ -19,6 +19,13 @@ export const financeApi = {
     today: () => http.get('/finance/commission/today'),
     saveBridgeRule: (data: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number }) =>
       http.put('/finance/commission/bridge-rule', data),
+    /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29） */
+    csProfiles: () => http.get('/finance/commission/cs-profiles'),
+    saveCsProfile: (data: { userId: string; poolScope?: string; baseSalaryYuan?: number | null }) =>
+      http.put('/finance/commission/cs-profiles', data),
+    /** 今日看板点开一行：这个客服今天发出的单 + 每张单的结果 */
+    csTodayOrders: (userId?: string) =>
+      http.get('/finance/commission/cs-today-orders', { params: { userId } }),
   },
 
   // ── 每日到账对账 ──
