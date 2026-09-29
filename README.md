@@ -18,7 +18,9 @@
   被桥接工作室 / 线上俱乐部接走的单，标注去向、结算模式（首单不结 / 抽成）、机密 / 绝密、单量、应收、应返还、
   工作室净得、钱在哪里、结果，顶部按月汇总；**⑥ 客服提成**桥接按单量计提、线上俱乐部**改按流水比例**
   （`commission.cs_online_rate_percent`，默认 1%），单量统一由 `orderUnits()` 判定（选了「双陪」也算 2 单）；
-  绝密首单返还 15 元/人/小时（双陪 ×2）、机密首单不结不返还。
+  绝密首单返还 15 元/人/小时（双陪 ×2）、机密首单不结不返还；**⑦ 这页支持按客服筛选 + 导出 CSV**：
+  每个客服都能导出自己名下的（逐单明细 + 顶部汇总，Excel 双击即开），店长 / 老板可以按客服筛着导，
+  客服端看不到别人（服务端对 CS 角色强制 `req.user.id` 兜底）。
 
 - **客服派单「先给谁抢」+ 线上 / 桥接单「成不成」反馈 + 客服提成看板重做（2026-09-29）:** 老板要的是
   「并不是订单派出去了，被抢走了就计算了……点开始首单就可以判定这个客户真消费没；线上不好判定，需要接单者
@@ -663,7 +665,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
 | `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上入池」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
-| `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`。每条带去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总。 |
+| `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
 | `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
 | `POST` | `/api/orders/:id/confirm` | JWT | COMPANION | Confirm a grabbed order (start service). |
