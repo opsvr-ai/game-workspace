@@ -16,6 +16,14 @@ const IconUser = React.createElement(UserOutlined);
 const IconLock = React.createElement(LockOutlined);
 const CLIENT_VERSION = '1.0.20260854';
 
+/**
+ * 登录页最下面那行「前端 vXXX」—— 拿不到服务端版本时的兜底。
+ * 以前这里是写死的，发一版就得手动改一次（v527 / v827 都是这么落下的），老板一眼看过去
+ * 就以为没更新。现在登录页会去问服务端要 web.frontend_version（见下面的 useEffect），
+ * 这个常量只在「服务端还没连上 / 接口还没回来」的那一瞬间顶一下。
+ */
+const FALLBACK_WEB_VERSION = 'v832';
+
 const roleRouteMap: Record<UserRole, string> = {
   [UserRole.OWNER]: '/admin',
   [UserRole.ADMIN]: '/admin/dispatch',
@@ -45,6 +53,7 @@ const LoginPage: React.FC = () => {
   const [forgotPassword, setForgotPassword] = useState('');
   const [forgotConfirm, setForgotConfirm] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [webVersion, setWebVersion] = useState(FALLBACK_WEB_VERSION);
 
   // 客户端启动后自动恢复登录：
   // ① 先用主进程里还没过期的令牌直接恢复（不需要密码）；
@@ -75,6 +84,19 @@ const LoginPage: React.FC = () => {
             performLogin(creds.username, creds.password, true);
           }
         }).catch(() => {});
+      })
+      .catch(() => {});
+  }, []);
+
+  // 登录页下面那行「前端 vXXX」：直接问服务端要（GET /agent/frontend-version 是公开接口，
+  // 不用登录就能调；客户端也是拿这个判断「网页是不是该刷新了」），以后发版不用再改代码。
+  // 拿不到（断网 / 服务端没起）就继续显示兜底的那个版本号，不影响登录。
+  useEffect(() => {
+    http
+      .get('/agent/frontend-version')
+      .then((res) => {
+        const v = res.data?.data?.version;
+        if (typeof v === 'string' && v) setWebVersion(v);
       })
       .catch(() => {});
   }, []);
@@ -416,7 +438,7 @@ const LoginPage: React.FC = () => {
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
-        <div className="subtitle">陪玩管理系统 · 前端 v827</div>
+        <div className="subtitle">陪玩管理系统 · 前端 {webVersion}</div>
 
         {inviteToken ? (
           showInviteLogin ? (
