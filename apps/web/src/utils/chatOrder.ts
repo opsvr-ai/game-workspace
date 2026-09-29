@@ -15,7 +15,7 @@
  */
 
 export interface ChatOrderInfo {
-  /** 显示在聊天框顶上那行字（如「三角洲行动 · ¥35 · 2h · 单号 250」） */
+  /** 显示在聊天框顶上那行字（如「单号 250 · 三角洲行动 · ¥35 · 2h」） */
   text: string;
   /** 点这行字要跳哪一单；没有（老会话 / 不带订单的会话）就不给点 */
   orderId?: string;
@@ -46,14 +46,15 @@ export function parseOrderInfo(raw?: string | null): ChatOrderInfo | null {
   return { text: raw };
 }
 
-/** 订单在聊天框顶上那行字：游戏 · 金额 · 时长 · 单号（单号就是老板嘴里「250 单」那个号）。 */
+/** 订单在聊天框顶上那行字：单号 · 游戏 · 金额 · 时长（单号就是老板嘴里「250 单」那个号，放最前面）。 */
 export function orderInfoTextOf(order: any): string {
   if (!order) return '';
+  // 单号放最前面：聊天框那一条很窄，后面会被截断，而客服最需要看到的就是这个单号。
   return [
+    order.orderCode ? `单号 ${order.orderCode}` : '',
     order.gameName || '',
     order.amount !== null && order.amount !== undefined && order.amount !== '' ? `¥${Number(order.amount).toFixed(0)}` : '',
     order.duration ? `${order.duration}h` : '',
-    order.orderCode ? `单号 ${order.orderCode}` : '',
   ]
     .filter(Boolean)
     .join(' · ');
