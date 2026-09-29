@@ -45,24 +45,33 @@ export const FIELD_WIDTH = {
   game: 112,
   /** 「金额 / 打单」单行：¥金额 + 立即打（预约是蓝字） */
   amount: 74,
-  /** 「客户微信 / 编号」单行 */
+  /** 「客户微信 / 编号」单行（**陪玩端专用**）：陪玩端看到的客户微信 + 客户编号。
+   *  管理端 2026-09-30 起不再用这一列 —— 「客户账号」按发布订单表单（CreateOrderModal）的口径
+   *  拆成 来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 五列（见下面五个字段），
+   *  客户微信也挪进了「客户联系方式」。陪玩端一个字没动，所以这个键保留。 */
   customerWechat: 118,
-  /** 「客户账号」单行（管理端）：来源平台 + 来源账号 + 昵称 + 客户账号ID + 房间码 + YY / KOOK（+ 二维码小图）。
-   *  老板 2026-09-29：「订单管理的客户账号那里显示的全一点：包括客户来源 客户昵称 客户账号ID」、
-   *  「是管理端这一列加宽」。实测线上 120 单：来源+来源账号最长 220px、昵称最长 84px、账号ID 最长 92px、
-   *  房间码 70px，整格最长 308px —— 原来 84px（放字的地方 74px）只看得见三个字。
-   *  2026-09-29 先加到 176px；老板 2026-09-30 又提：「主陪跟发布中间不是有这么大的空间么？
-   *  你把他们距离缩小，让客户账号全部显示全不行么？」—— 线上 118 单实测这一格最长要 326px
-   *  （来源 + 来源账号 + 昵称 + 客户账号ID），所以：
-   *    · 这一列再加到 216px（放字 206px）；
-   *    · 「主陪 / 副陪」84 → 66，让出 18px 给这一列；
-   *    · 窗口比表格宽出来的宽度，按 fitOrderColumnWidths **先全部**补给这一列
-   *      （最多到 ORDER_COLUMN_MAX_WIDTH 的 340px），喂饱了才轮到别的列 ——
-   *      所以窗口 ≥1536 时这一列就是完整显示、不再有省略号。
-   *  代价：管理端订单表基准合计 1092px，客服客户端 1320 的窗口会有约 90px 横向滚动 ——
-   *  「这一列显示全」的代价，老板 2026-09-29 起就明确选了这个取舍。 */
-  customerAccounts: 216,
-  /** 「客户账号」单行（陪玩端）：陪玩看不到来源 / 昵称 / 账号ID（见 canSeeCustomerSource），
+  /** 「来源」单行（管理端）：客户是从哪个平台来的（小红书 / 抖音 / 快手…）。
+   *  老板 2026-09-30：「你把客户账号拆分成发布订单时细分的名称不行么？比如来源：小红书
+   *  引流账号： 客户昵称 客户账号id 客户联系方式，把前边的微信 挪过去」——
+   *  原来这一格和来源账号 / 昵称 / 账号ID / 房间码挤在同一列里（216px，实测最长要 326px、
+   *  只能显示省略号）；现在一列只放一个字段，每个字段都能显示全。
+   *  实测线上 120 单这一格最长「小红书」= 46px（含左右各 5px 内边距）。 */
+  customerSource: 50,
+  /** 「引流账号」单行（管理端）：发笔记的那个小红书 / 抖音号（trafficAccount.nickname）。
+   *  实测最长「总掉萌萌泪 旧 新 鱼鱼鱼🐟」= 157px；再长就省略号 + 鼠标悬停看全。
+   *  别人的单对客服是 `***`（服务端 canSeeSourceAccount 过滤），已弃用的账号后面跟小灰字「已弃用」。 */
+  customerSourceAccount: 116,
+  /** 「客户昵称」单行（管理端）：客户昵称 + 灰字客户编号（编号只有 1~3 位，单独占一列太浪费）。
+   *  实测最长「绝密航天毁一生 · 219」= 123px。 */
+  customerNickname: 96,
+  /** 「客户账号ID」单行（管理端）：客户自己的小红书 ID / 抖音号（到底是哪个客户）。
+   *  实测最长「308798116_Peng」= 100px。 */
+  customerAccountId: 88,
+  /** 「客户联系方式」单行（管理端）：微信 + YY + KOOK + 房间码（+ 二维码小图）。
+   *  微信原来单独一列（「客户微信 / 编号」），老板 2026-09-30 让挪到这一格里来。
+   *  实测最长「gqs980190843 · 房间OLJ9896」= 167px。 */
+  customerContact: 132,
+  /** 「客户账号」单行（**陪玩端专用**）：陪玩看不到来源 / 昵称 / 账号ID（见 canSeeCustomerSource），
    *  这一格只剩房间码 + YY + KOOK（实测最长 70px），84px 绰绰有余，
    *  也让陪玩端的接单记录仍然是 1024px、不给陪玩加横向滚动。 */
   customerAccountsCompanion: 84,
@@ -177,13 +186,16 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 }
 
 /** 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
- *  2026-09-30「客户账号」216（从「主陪 / 副陪」挤 18px）之后，合计
- *  66+72+112+74+118+216+66+116+254 = **1094px**。
- *  窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（先全部给「客户账号」，
- *  不再堆在「退款」右边，也不会把「主陪 / 副陪」撑出一截空白）。 */
+ *  2026-09-30 老板让把「客户账号」按发布订单表单的口径拆成五列
+ *  （来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式，客户微信从「客户微信 / 编号」挪进
+ *  「客户联系方式」），所以管理端有 12 个数据列；合计
+ *  66+72+112+74+50+116+96+88+132+66+116+254 = **1242px**。
+ *  窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（按 ORDER_COLUMN_FIT_ORDER
+ *  先补给客户那五列，不再堆在「退款」右边，也不会把「主陪 / 副陪」撑出一截空白）。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
-  'customerWechat', 'customerAccounts', 'studio', 'createdAt', 'orderActions',
+  'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
+  'studio', 'createdAt', 'orderActions',
 ];
 
 /**
@@ -198,7 +210,8 @@ export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
 ];
 
 /**
- * 订单管理表九列的基准宽度之和 —— 也是这张表 scroll.x 的下限（66+72+112+74+118+216+66+116+254 = 1094px）。
+ * 订单管理表的基准宽度之和 —— 也是这张表 scroll.x 的下限
+ * （66+72+112+74+50+116+96+88+132+66+116+254 = 1242px）。
  */
 export const ORDER_TABLE_BASE_WIDTH = sumWidths(ORDER_TABLE_KEYS);
 
@@ -214,22 +227,29 @@ export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
   orderStatus: 124, // 最长 109（「已抢到订单 · 待反馈」）
   game: 126, // 最长 111（「三角洲行动 机密 双」）
   amount: 82, // 最长 63（「¥35 立即打」）
-  customerWechat: 150, // 最长 137（客户微信号 + 客户编号）
-  customerAccounts: 340, // 最长 316（来源 + 来源账号 + 昵称 + 客户账号ID + 房间码），留 24px 余量
+  customerSource: 60, // 最长 46（「小红书」）
+  customerSourceAccount: 164, // 最长 157（「总掉萌萌泪 旧 新 鱼鱼鱼🐟」）
+  customerNickname: 130, // 最长 123（「绝密航天毁一生 · 219」，含客户编号）
+  customerAccountId: 108, // 最长 100（「308798116_Peng」）
+  customerContact: 180, // 最长 167（「gqs980190843 · 房间OLJ9896」，微信 + 房间码）
   studio: 116, // 最长 103（陪玩名 + 副陪 + 桥接工作室）
   createdAt: 118, // 基础 116 就够（发布人 +「MM-DD HH:mm」），留 2px 余量
 };
 
 /**
- * 补宽顺序（老板 2026-09-30「让客户账号全部显示全」→「客户账号」永远排第一）。
- *  1. 「客户账号」排第一：窗口宽出来的宽度先全喂给它（最多 340px），它显示全了才轮到别人；
- *  2. 然后是同样被截断的「客户微信 / 编号」「主陪 / 副陪」「发布」；
+ * 补宽顺序（哪一列被截断了就先补谁）。
+ *  1. 客户那五列排最前：「客户账号」拆成「一列一个字段」之后它们宽度最紧，先把它们喂饱
+ *     （每列补到 ORDER_COLUMN_MAX_WIDTH 就停，不会再出现「一列撑出一大截空白、旁边还在省略号」）；
+ *  2. 然后是同样被截断的「主陪 / 副陪」「发布」；
  *  3. 最后才是「游戏 / 服务」「状态」「订单」「金额 / 打单」—— 这几列差得少（2~14px），
- *     排在后面就不会出现「它们被撑得空落落、客户账号那边还在省略号」的怪现象。
+ *     排在后面就不会出现「它们被撑得空落落、客户那几列还在省略号」的怪现象。
  */
 export const ORDER_COLUMN_FIT_ORDER: string[] = [
-  'customerAccounts',
-  'customerWechat',
+  'customerSourceAccount',
+  'customerContact',
+  'customerNickname',
+  'customerAccountId',
+  'customerSource',
   'studio',
   'createdAt',
   'game',
@@ -242,18 +262,15 @@ export const ORDER_COLUMN_FIT_ORDER: string[] = [
  * 订单管理表的列宽：按窗口真正能给的宽度算。
  *
  * 老板 2026-09-29：「操作的退款后边不是还有很多空间么？不能让退款靠在最右边？
- * 让前边的客户信息全部显示出来？」以前九列全是写死的宽度，窗口比表格宽出来的那一段，
+ * 让前边的客户信息全部显示出来？」以前全是写死的宽度，窗口比表格宽出来的那一段，
  * 浏览器会按列宽比例平摊给**所有**列（操作列也摊），于是那段空间落在了「退款」右边 ——
  * 该宽的客户信息没宽（只能看省略号），操作列却白撑出一大块空白。
- * 老板 2026-09-30 又提：「主陪跟发布中间不是有这么大的空间么？你把他们距离缩小，
- * 让客户账号全部显示全不行么？」—— 「客户账号」现在**稳居补宽第一位**：窗口宽出来的宽度先全部喂给它
- * （最多 340px），喂饱了才轮到别的列；别的列补到 ORDER_COLUMN_MAX_WIDTH 就停，不再按比例撑成空白。
- * 现在改成三步：
+ * 老板 2026-09-30 让把「客户账号」拆成五列之后，改成三步：
  *  1. 先把多出来的宽度按 ORDER_COLUMN_FIT_ORDER 补给被截断的列，补到内容需要的宽度就停
- *     （「客户账号」排第一，所以窗口一宽，来源 / 昵称 / 账号ID 就先显示全）；
- *  2. 只有**所有**列都补满（≥1680 的窗口才会）还有富余，才按列宽比例摊给 8 个数据列；
+ *     （客户那五列排最前，所以窗口一宽，引流账号 / 联系方式 / 昵称 / 账号ID 就先显示全）；
+ *  2. 只有**所有**列都补满（窗口远宽于 1532px 时）还有富余，才按列宽比例摊给数据列；
  *  3. 操作列宽度永远不变，按钮靠右对齐 —— 「退款」就贴在表格最右边，后面不留空。
- * 窗口不够宽（可用宽度 < 1094px）时九列维持基准宽度，横向滚动条和以前完全一样。
+ * 窗口不够宽（可用宽度 < 1242px）时各列维持基准宽度，横向滚动条和以前完全一样。
  *
  * @param availableWidth 表格真正能用的宽度（卡片内容区的宽度，不含页面内边距）
  */
@@ -283,7 +300,7 @@ export function fitOrderColumnWidths(availableWidth: number): {
     widths[key] += add;
     left -= add;
   }
-  widths.customerAccounts += left;
+  widths.customerSourceAccount += left;
   return { widths, scrollX };
 }
 
@@ -295,14 +312,16 @@ export const CUSTOMER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 
 /**
  * 派单管理下面三张订单列表的列（订单池流转失败明细 / 跟进列表 / 流转明细）。
- * 和订单管理同一套宽度（多一个「说明」列、操作列窄一些，并且三张表都用 hideStudio 去掉「主陪 / 副陪」）：
- * 66+72+112+74+118+216+150+116+178 = **1102px**，1320 窗口（可用 991px）会有约 110px 横向滚动
- * （和订单管理共用同一份列宽，所以「客户账号」在这里同样是 216px —— 这几张表也一起变宽了）。
+ * 和订单管理同一套列宽（同样拆成来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式五列，
+ * 多一个「说明」列、操作列窄一些，并且三张表都用 hideStudio 去掉「主陪 / 副陪」）：
+ * 66+72+112+74+50+116+96+88+132+150+116+178 = **1250px**，1320 窗口（可用 991px）会有横向滚动
+ * （和订单管理共用同一份列宽，所以这几张表也一起变宽了）。
  * 注意：这三张列表实际用 OrderTable 渲染，scroll.x 是按真实列宽之和算的，这里只是留档。
  */
 export const ORDER_PANEL_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
-  'customerWechat', 'customerAccounts', 'panelNote', 'createdAt', 'panelActions',
+  'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
+  'panelNote', 'createdAt', 'panelActions',
 ];
 
 /** 客户管理表的列（陪玩视角：没有客户昵称 / 来源账号）。 */

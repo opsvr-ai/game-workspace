@@ -5,6 +5,7 @@ import {
   canSeeCustomerSource,
   CELL_ONE_LINE,
   CELL_SUB_TEXT,
+  DATA_SUB_FONT_SIZE,
   FIELD_WIDTH,
 } from '../constants/datasetColumns';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
@@ -52,18 +53,23 @@ export function buildOrderColumns({
 }: OrderColumnOptions): any[] {
   // 列宽统一走这里取：传了 widths（订单管理表）就用算出来的宽度，没传就用基准宽度
   const W = (key: string, fallback: number) => widths?.[key] ?? fallback;
+  // 客户来源 / 来源账号：陪玩端一律不显示（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）。
+  // 管理端（客服 / 店长 / 老板）照常显示。
+  const showCustomerSource = canSeeCustomerSource(isCompanion ? 'COMPANION' : 'CS');
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
-  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（管理端 1092px、陪玩端 1004px）。
+  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 一格一行（管理端 1092px）→
+  // 2026-09-30 客户信息按发布订单表单的口径拆成五列（管理端 1242px、陪玩端 1024px）。
   // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
   // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
   // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线。
   // 2026-09-29：管理端「客户账号」列按老板要求加宽到 176px（来源 / 昵称 / 客户账号ID 要看得见）。
-  // 2026-09-30：老板「主陪跟发布中间不是有这么大的空间么？你把他们距离缩小，让客户账号全部显示全」——
-  // 「客户账号」216px（再靠 fitOrderColumnWidths 优先补到 340px）、「主陪 / 副陪」84 → 66、
-  // 管理端整表基准 1094px（1320 的窗口约 93px 横向滚动，这是「客户账号显示全」的代价）；
-  // 窗口比这宽时多出来的宽度由 fitOrderColumnWidths **先全部**补给「客户账号」
-  // （订单管理会传 widths 进来，见 OrderColumnOptions）。
-  // 陪玩端那套列用窄版（客户账号 84px、「主陪」84px），合计 1024px，和管理端互不影响。
+  // 2026-09-30：老板「主陪跟发布中间不是有这么大的空间么？你把他们距离缩小，让客户账号全部显示全」，
+  // 于是先做了「客户账号 216px + 主陪 84 → 66」；同一天老板又提「你把客户账号拆分成发布订单时
+  // 细分的名称不行么？比如来源：小红书 引流账号： 客户昵称 客户账号id 客户联系方式，把前边的微信
+  // 挪过去」—— 管理端那一列从此拆成五列（来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式），
+  // 客户微信从「客户微信 / 编号」挪进「客户联系方式」，管理端整表基准 1242px
+  // （再靠 fitOrderColumnWidths 按 ORDER_COLUMN_FIT_ORDER 优先补给这五列）。
+  // 陪玩端那套列一个字没动（客户微信 118px、「客户账号」84px、「主陪」84px，合计 1024px）。
   const STATUS_TEXT_COLOR: Record<string, string> = {
     PENDING: '#B45309',
     CLAIMED: '#6D28D9',
@@ -180,86 +186,190 @@ export function buildOrderColumns({
         );
       },
     },
-    {
-      title: '客户微信 / 编号',
-      key: 'customerWechat',
-      width: W('customerWechat', FIELD_WIDTH.customerWechat),
-      render: (_: unknown, o: any) => {
-        const code = o.customer?.customerCode;
-        const wechat = o.customFields?.customerWechat || o.customer?.wechatId || '-';
-        return (
-          <div style={CELL_ONE_LINE} title={code ? `${wechat} · 编号 ${code}` : wechat}>
-            <span>{wechat}</span>
-            {code && <span style={CELL_SUB_TEXT}>· {code}</span>}
-          </div>
-        );
-      },
-    },
-    {
-      title: '客户账号',
-      key: 'customerAccounts',
-      // 管理端 216px（来源 / 昵称 / 客户账号ID 都要看得见）、陪玩端 84px（只有房间码 / YY / KOOK）
-      width: isCompanion ? FIELD_WIDTH.customerAccountsCompanion : W('customerAccounts', FIELD_WIDTH.customerAccounts),
-      // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
-      // 客户ID / 昵称对陪玩不展示（和订单池的行口径一致）。
-      // 来源平台（「小红书」三个字）和来源账号一起对陪玩藏掉 —— 老板 2026-09-29：
-      // 「陪玩端 隐藏 客户小红书信息」。房间码 / YY / KOOK 是陪玩自己找人对局要用的，照常显示。
-      // 原来是一格 5~6 行（来源、昵称、房间码、YY/KOOK、二维码），现在压成一行，长了自己省略号。
-      // 管理端这一列 216px（FIELD_WIDTH.customerAccounts）：来源 / 昵称 / 账号ID 一眼看全，
-      // 陪玩端只有 84px 的窄版（FIELD_WIDTH.customerAccountsCompanion）。
-      render: (_: unknown, o: any) => {
-        const cf = o.customFields || {};
-        const showSource = canSeeCustomerSource(isCompanion ? 'COMPANION' : 'CS');
-        const platform = showSource ? cf.customerSource || o.customer?.platform : '';
-        const deprecated = !isCompanion && !!cf.customerSourceAccount && (inactiveAccounts ?? new Set()).has(cf.customerSourceAccount);
-        const bits = [
-          platform ? platform + (cf.customerSourceAccount ? ' ' + cf.customerSourceAccount : '') : '',
-          !isCompanion && cf.customerNickname ? cf.customerNickname : '',
-          !isCompanion && cf.customerAccountId ? cf.customerAccountId : '',
-          cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',
-          cf.customerYy ? 'YY:' + cf.customerYy : '',
-          cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
-        ].filter(Boolean);
-        // 段与段之间只留一个小灰点。老版是「 · 」（点两边各一个空格），三四个点就白吃掉 20~30px ——
-        // 老板 2026-09-29：「把标签之间的间距压缩一下，现在左右标签之间距离太大了」。
-        const text = bits.join('·');
-        const qr = cf.customerWechatQr;
-        if (!bits.length && !qr) return '-';
-        return (
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}
-            title={text + (deprecated ? '（该来源账号已弃用）' : '')}
-          >
-            {/* 宽度按内容走（flex: 0 1 auto）：二维码 / 已弃用 紧跟在文字后面，
-                不再被 flex 撑到列的另一头去。 */}
-            <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bits.length ? (
-                bits.map((bit, i) => (
-                  <React.Fragment key={i}>
-                    {i > 0 && <span style={{ color: '#CBD5E1' }}>·</span>}
-                    <span>{bit}</span>
-                  </React.Fragment>
-                ))
-              ) : (
-                '-'
-              )}
-            </span>
-            {deprecated && (
-              <span style={{ flex: '0 0 auto', fontSize: 11, color: '#94A3B8' }}>已弃用</span>
-            )}
-            {qr && (
-              <Image
-                src={qr}
-                width={16}
-                height={16}
-                style={{ flex: '0 0 auto', borderRadius: 2, objectFit: 'cover' }}
-                preview={{ mask: '二维码' }}
-              />
-            )}
-          </div>
-        );
-      },
-    },
+    // ── 客户信息（五列，老板 2026-09-30）─────────────────────────────────────────
+    // 老板：「你把客户账号拆分成发布订单时细分的名称不行么？比如来源：小红书 引流账号：
+    // 客户昵称 客户账号id 客户联系方式，把前边的微信 挪过去」——
+    // 管理端原来只有两列：「客户微信 / 编号」和「客户账号」（来源 / 来源账号 / 昵称 / 账号ID /
+    // 房间码 / YY / KOOK 全挤在一格里，实测最长要 326px、只能显示省略号）。现在按发布订单表单
+    // （CreateOrderModal）的字段口径拆成五列 —— 一列只放一个字段，每个字段都能显示全：
+    //   来源（customerSource）· 引流账号（customerSourceAccount）· 客户昵称（customerNickname）
+    //   · 客户账号ID（customerAccountId）· 客户联系方式（customerContact = 微信 + YY + KOOK + 房间码）；
+    // 客户微信从原来那一列挪进了「客户联系方式」，客户编号（1~3 位）跟在「客户昵称」后面当小灰字。
+    // **陪玩端不拆**（陪玩看不到来源 / 昵称 / 账号ID），仍是原来那两列，列宽也一个字没动。
+    ...(isCompanion
+      ? [
+          {
+            title: '客户微信 / 编号',
+            key: 'customerWechat',
+            width: FIELD_WIDTH.customerWechat,
+            render: (_: unknown, o: any) => {
+              const code = o.customer?.customerCode;
+              const wechat = o.customFields?.customerWechat || o.customer?.wechatId || '-';
+              return (
+                <div style={CELL_ONE_LINE} title={code ? `${wechat} · 编号 ${code}` : wechat}>
+                  <span>{wechat}</span>
+                  {code && <span style={CELL_SUB_TEXT}>· {code}</span>}
+                </div>
+              );
+            },
+          },
+          {
+            title: '客户账号',
+            key: 'customerAccounts',
+            // 陪玩端 84px 的窄版（只有房间码 / YY / KOOK + 二维码小图），和管理端的五列互不影响
+            width: FIELD_WIDTH.customerAccountsCompanion,
+            render: (_: unknown, o: any) => {
+              const cf = o.customFields || {};
+              const bits = [
+                cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',
+                cf.customerYy ? 'YY:' + cf.customerYy : '',
+                cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
+              ].filter(Boolean);
+              const text = bits.join('·');
+              const qr = cf.customerWechatQr;
+              if (!bits.length && !qr) return '-';
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }} title={text}>
+                  <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {bits.length ? (
+                      bits.map((bit, i) => (
+                        <React.Fragment key={i}>
+                          {i > 0 && <span style={{ color: '#CBD5E1' }}>·</span>}
+                          <span>{bit}</span>
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      '-'
+                    )}
+                  </span>
+                  {qr && (
+                    <Image
+                      src={qr}
+                      width={16}
+                      height={16}
+                      style={{ flex: '0 0 auto', borderRadius: 2, objectFit: 'cover' }}
+                      preview={{ mask: '二维码' }}
+                    />
+                  )}
+                </div>
+              );
+            },
+          },
+        ]
+      : [
+          {
+            title: '来源',
+            key: 'customerSource',
+            width: W('customerSource', FIELD_WIDTH.customerSource),
+            render: (_: unknown, o: any) => {
+              const platform = showCustomerSource ? o.customFields?.customerSource || o.customer?.platform : '';
+              if (!platform) return <Text type="secondary">-</Text>;
+              return (
+                <div style={CELL_ONE_LINE} title={platform}>
+                  {platform}
+                </div>
+              );
+            },
+          },
+          {
+            title: '引流账号',
+            key: 'customerSourceAccount',
+            width: W('customerSourceAccount', FIELD_WIDTH.customerSourceAccount),
+            // 别人的单，服务端（common/order-privacy.ts 的 canSeeSourceAccount）把来源账号抹成 `***`；
+            // 已弃用的账号后面跟一个小灰字「已弃用」
+            render: (_: unknown, o: any) => {
+              const account = showCustomerSource ? o.customFields?.customerSourceAccount || '' : '';
+              const deprecated = !!account && (inactiveAccounts ?? new Set()).has(account);
+              if (!account) return <Text type="secondary">-</Text>;
+              return (
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}
+                  title={account + (deprecated ? '（该来源账号已弃用）' : '')}
+                >
+                  <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {account}
+                  </span>
+                  {deprecated && (
+                    <span style={{ flex: '0 0 auto', fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>已弃用</span>
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            title: '客户昵称',
+            key: 'customerNickname',
+            width: W('customerNickname', FIELD_WIDTH.customerNickname),
+            // 客户编号（1~3 位）单独占一列太浪费，跟在昵称后面当小灰字（和「客户微信 / 编号」的老口径一致）
+            render: (_: unknown, o: any) => {
+              const nickname = o.customFields?.customerNickname || '';
+              const code = o.customer?.customerCode;
+              if (!nickname && !code) return <Text type="secondary">-</Text>;
+              return (
+                <div
+                  style={CELL_ONE_LINE}
+                  title={[nickname || '-', code ? `编号 ${code}` : ''].filter(Boolean).join(' · ')}
+                >
+                  <span>{nickname || '-'}</span>
+                  {code && <span style={CELL_SUB_TEXT}>· {code}</span>}
+                </div>
+              );
+            },
+          },
+          {
+            title: '客户账号ID',
+            key: 'customerAccountId',
+            width: W('customerAccountId', FIELD_WIDTH.customerAccountId),
+            render: (_: unknown, o: any) => {
+              const accountId = o.customFields?.customerAccountId || '';
+              if (!accountId) return <Text type="secondary">-</Text>;
+              return (
+                <div style={CELL_ONE_LINE} title={accountId}>
+                  {accountId}
+                </div>
+              );
+            },
+          },
+          {
+            title: '客户联系方式',
+            key: 'customerContact',
+            width: W('customerContact', FIELD_WIDTH.customerContact),
+            // 微信（原来在「客户微信 / 编号」那一列里）+ YY + KOOK + 房间码，二维码小图跟在后面
+            render: (_: unknown, o: any) => {
+              const cf = o.customFields || {};
+              const bits = [
+                cf.customerWechat || o.customer?.wechatId || '',
+                cf.customerYy ? 'YY:' + cf.customerYy : '',
+                cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '',
+                cf.customerRoomCode ? '房间' + cf.customerRoomCode : '',
+              ].filter(Boolean);
+              const qr = cf.customerWechatQr;
+              if (!bits.length && !qr) return <Text type="secondary">-</Text>;
+              const text = bits.join(' · ');
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }} title={text}>
+                  <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {bits.map((bit, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && <span style={{ color: '#CBD5E1' }}> · </span>}
+                        <span>{bit}</span>
+                      </React.Fragment>
+                    ))}
+                  </span>
+                  {qr && (
+                    <Image
+                      src={qr}
+                      width={16}
+                      height={16}
+                      style={{ flex: '0 0 auto', borderRadius: 2, objectFit: 'cover' }}
+                      preview={{ mask: '二维码' }}
+                    />
+                  )}
+                </div>
+              );
+            },
+          },
+        ]),
     /* 陪玩端在「客户账号」后面多一列「备注」：客服发单时填的备注（`customFields.deltaNote`）。
        以前只有订单池卡片和订单详情弹窗里有，抢完单进了接单记录就看不到了 ——
        老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」。

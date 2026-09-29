@@ -774,7 +774,7 @@ const OrdersPage: React.FC = () => {
       return o.csUserId === csFilter;
     });
 
-  // 订单管理的 8 列来自 components/orderColumns.tsx —— 和派单管理下面的三张订单列表共用同一份，
+  // 订单管理的列来自 components/orderColumns.tsx —— 和派单管理下面的三张订单列表共用同一份，
   // 保证「订单管理 / 流转失败明细 / 跟进列表 / 流转明细」四处的订单长得一模一样
   // （老板 2026-09-28：「流转失败列表页很混乱，你再查查所有角色所有页面 还有同样问题的么」）。
   const columns = [
@@ -950,7 +950,7 @@ const OrdersPage: React.FC = () => {
                 pagination={false}
                 style={TABLE_STYLE}
                 scroll={{
-                  // 管理端用算出来的 scroll.x：窗口窄时是 1092px（横向滚动照旧），
+                  // 管理端用算出来的 scroll.x：窗口窄时是 1242px（横向滚动照旧），
                   // 窗口宽时正好等于表格能用的宽度，列不会被按比例压扁
                   x: isCompanion ? sumWidths(ORDER_TABLE_KEYS_COMPANION) : fittedColumns.scrollX,
                 }}
