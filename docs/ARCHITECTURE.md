@@ -692,8 +692,6 @@ sequenceDiagram
   `commission.cs_online_per_order_yuan`）。判定在 `onlineModeOf`，算钱只走 `CommissionService.onlineCommissionOf`，
   月度工资、今日看板、`computeCsCommission`、月度对账（`reconciliation.service`）四处共用同一份 ——
   **两个数不叠加**，没配过就是按流水，钱不变
-- **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）与
-  `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）；今日看板、月度结算、工资生成按人取底薪
 - **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）、
   `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）与 `commissionConfig`（这个人的「单独一套提成」，
   JSON，只存他填过的项；空 = 全套用店里的）；今日看板、月度结算、工资生成按人取底薪
@@ -702,6 +700,14 @@ sequenceDiagram
   「本店 → 老板 → 内置」那一套上（**没填任何项就原样返回**，所以老数据钱不变）；`commission.cs_include_renewal`
   （默认 `false`）决定算哪些单类型 —— 开关在 `csCommissionOrderTypes` 一处，`computeCsCommission`、
   `buildCsSalaryRows`、今日看板三处共用，**没有再写第二条口径**
+- **桥接达标 / 底薪只有一套口径**（老板 2026-09-30）：以前三处各写一份 —— 今日看板「未达标提成 ×50%、
+  底薪 ×80%」、月度提成明细「当月桥接 < 最低单数 → 底薪减半（硬编码 /2）」、工资生成「< 每日目标 × 月天数 →
+  底薪 × 未达标底薪比例」。老板：「这个我建议别这样了，扣底薪客服会不愿意的」。现在统一成
+  **底薪永远全额** + 桥接提成只按**本月单价阶梯**（`CommissionService.bridgeTier()`：< `commission.cs_bridge_min_threshold`
+  按 `commission.cs_bridge_per_order_yuan`，≥ `commission.cs_bridge_tier3_threshold` 3 元/单、
+  ≥ `commission.cs_bridge_tier5_threshold` 5 元/单）；`commission.cs_daily_bridge_target` 只当看板进度统计。
+  `commission.cs_bridge_miss_commission_rate` / `cs_bridge_miss_salary_rate` 已从默认值、设置页、服务端读取四处
+  全部删除（老库里的历史行没人再读）
 - **结果反馈「催得动」+ 接单方看板**（老板 2026-09-30）：`Order.feedbackChasedAt / feedbackChaseCount`
   记「催了几次、最后一次什么时候」；`POST /api/orders/:id/chase-feedback`（CS / ADMIN / OWNER，只在
   线上 / 桥接单、还没反馈结果时可用）随手把 `order:feedback_chase` 推给**接单工作室**
