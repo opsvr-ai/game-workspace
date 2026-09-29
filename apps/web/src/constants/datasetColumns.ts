@@ -166,15 +166,22 @@ export const FIELD_WIDTH = {
 } as const;
 
 /**
- * 「客服跟进台账」（派单管理里的那一页，老板 2026-09-29 定稿）的列宽。
- * 和订单管理那套不一样：这一页是**按人看的台账** —— 客户 → 客服工作微信 → 走到哪一步 →
- * 最后跟进（时间 + 聊了啥）→ 下次跟进 → 操作。一格一行、超长省略号 + 鼠标悬停看全。
- * 宽度预算（基准 1066px）：客户 320 + 客服工作微信 108 + 添加情况 92 + 最后跟进 240
- * + 下次跟进 104 + 操作 202。1320 的客服默认窗口（可用约 991px）会有约 75px 横向滚动，
- * 和这一页以前那张表（1062px）差不多。
+ * 「客服跟进台账」（派单管理里的那一页，老板 2026-09-29 定稿）**特有**的那几列列宽。
+ * 这一页是**按人看的台账** —— 客户信息（五列，和订单列表共用同一份，见 orderColumns.tsx 的
+ * buildCustomerInfoColumns）→ 客服工作微信 → 走到哪一步 → 最后跟进（时间 + 聊了啥）→
+ * 下次跟进 → 操作。一格一行、超长省略号 + 鼠标悬停看全。
+ *
+ * 客户信息以前是这一格里自己拼的一列「客户」（320px，编号·微信·昵称·来源·来源账号·账号ID
+ * 全挤在一格、用「·」拼），老板 2026-09-30：「管理端直添客户流转明细做的跟订单池流转失败明细
+ * +派单工作台一样的标签格式一样…显示的不一样 显得乱七八糟的」—— 现在改成和订单列表一模一样的
+ * 五列（来源 50 / 引流账号 116 / 客户昵称 96 / 客户账号ID 88 / 客户联系方式 132 = 482px，
+ * 直接用 FIELD_WIDTH 里那几个数，两边不会各写一份慢慢走样）。
+ *
+ * 宽度预算（基准 1228px）= 客户信息五列 482 + 客服工作微信 108 + 添加情况 92 + 最后跟进 240
+ * + 下次跟进 104 + 操作 202，跟派单管理下面那三张订单列表（1224px）几乎同宽；
+ * 1320 的客服默认窗口（可用约 991px）会有约 237px 横向滚动（那三张列表也一样）。
  */
 export const LEDGER_FIELD_WIDTH = {
-  customer: 320,
   workWechat: 108,
   state: 92,
   lastFollow: 240,
@@ -182,11 +189,16 @@ export const LEDGER_FIELD_WIDTH = {
   actions: 202,
 } as const;
 
-/** 跟进台账整表宽度（scroll.x）：列宽之和，别手写比它小的值，否则列会被压扁 */
-export const LEDGER_TABLE_WIDTH: number = Object.values(LEDGER_FIELD_WIDTH).reduce(
-  (total: number, w: number) => total + w,
-  0,
-);
+/** 跟进台账整表宽度（scroll.x）：客户信息五列（和订单表同一份 FIELD_WIDTH）+ 这一页特有的几列 */
+export const LEDGER_TABLE_WIDTH: number =
+  sumWidths([
+    'customerSource',
+    'customerSourceAccount',
+    'customerNickname',
+    'customerAccountId',
+    'customerContact',
+  ]) +
+  Object.values(LEDGER_FIELD_WIDTH).reduce((total: number, w: number) => total + w, 0);
 
 /**
  * 计算 scroll.x：传进去的字段宽度之和，保证表头不会被挤到换行 / 列不会被压扁。

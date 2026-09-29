@@ -445,3 +445,24 @@ export function buildOrderColumns({
     },
   ];
 }
+
+/**
+ * 客户信息的「标签」列：来源 / 引流账号 / 客户昵称（带编号）/ 客户账号ID / 客户联系方式。
+ *
+ * 老板 2026-09-30：「管理端直添客户流转明细做的跟订单池流转失败明细+派单工作台一样的标签格式一样，
+ * 他们本来就是一样的…他们都是一样的，显示的不一样 显得乱七八糟的」——「客服跟进台账」原来把
+ * 编号·微信·昵称·来源·来源账号·账号ID 全挤在一格（用「·」拼），跟订单列表里的五列不是一个样子。
+ * 现在它直接复用订单表这几列（同一个函数、同一份列宽），客户信息在哪儿都长一个样，
+ * 不会两边各写一份慢慢走样。
+ */
+export const CUSTOMER_INFO_COLUMN_KEYS: string[] = [
+  'customerSource',
+  'customerSourceAccount',
+  'customerNickname',
+  'customerAccountId',
+  'customerContact',
+];
+
+export function buildCustomerInfoColumns(options: OrderColumnOptions): any[] {
+  return buildOrderColumns(options).filter((c) => CUSTOMER_INFO_COLUMN_KEYS.includes(c.key));
+}

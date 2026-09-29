@@ -14,6 +14,8 @@ import { visibleInterval } from '../hooks/usePolling';
 import { extractErrorMessage } from '../utils/error-handler';
 import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
+import { buildCustomerInfoColumns } from './orderColumns';
+import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 
 interface Props {
   refreshSignal?: number;
@@ -42,12 +44,17 @@ const stateOf = (r: any): { text: string; color: string } => {
  * 老板的原话：「不就是客户现在不打，客服加到了客服自己的工作微信上了么？
  * 这里不就是负责让客服持续追踪客户用的，然后时机成熟客服直接派单出去」。
  * 所以这一页不看「订单」，只按**客户**看：
- *   客户（编号 / 微信 / 昵称 / 来源账号）→ 客服工作微信 → 添加情况 → 最后跟进 → 下次跟进 → 操作。
+ *   客户信息（来源 / 引流账号 / 客户昵称（带编号）/ 客户账号ID / 客户联系方式，和订单列表共用同一份）
+ *   → 客服工作微信 → 添加情况 → 最后跟进 → 下次跟进 → 操作。
  *
  * 状态和订单池那套脱钩：待添加 / 已添加 / 客户已同意 / 添加失败 / 已派单，
  * 不会再出现「无人接单」这种和客服无关的词。
  * 「记跟进」写的是**客户档案里那条跟进记录**（客户管理里能看到同一条），
  * 「直接派单」沿用养客客户重新发单那条链路（带原客户ID + 标记客服养好的客户）。
+ *
+ * 2026-09-30 老板：「管理端直添客户流转明细做的跟订单池流转失败明细+派单工作台一样的标签格式
+ * 一样…显示的不一样 显得乱七八糟的」—— 客户信息不再自己挤成一格，直接复用订单表那五列
+ * （来源 / 引流账号 / 客户昵称（带编号）/ 客户账号ID / 客户联系方式，见 buildCustomerInfoColumns）。
  */
 const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [items, setItems] = useState<any[]>([]);
@@ -56,10 +63,24 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const [followTarget, setFollowTarget] = useState<any>(null);
   // 「到点该跟进了」要用当前时间比，所以每 30 秒自己走一下表（列表本身是每 60 秒刷一次）
   const [now, setNow] = useState(Date.now());
+  // 「引流账号」那列要标「已弃用」，跟订单表同一个数据源（加载一次就够）
+  const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    loadInactiveAccounts()
+      .then((set) => {
+        if (alive) setInactiveAccounts(set);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const load = async () => {
@@ -155,20 +176,6 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     }
   };
 
-  // 客户的「一行看全」：编号 · 微信 · 昵称 · 来源账号 · 客户账号ID，段间只有一个小灰点。
-  const customerBits = (r: any): string[] => {
-    const cf = r.customFields || {};
-    const c = r.customer || {};
-    const source = [cf.customerSource || c.platform, cf.customerSourceAccount].filter(Boolean).join(' ');
-    return [
-      c.customerCode ? `#${c.customerCode}` : '',
-      c.wechatId || cf.customerWechat || '',
-      cf.customerNickname || '',
-      source,
-      cf.customerAccountId || '',
-    ].filter((v) => v != null && String(v).trim() !== '');
-  };
-
   const workWechatOf = (r: any): string =>
     (r.customFields || {}).csWorkWechatName ||
     ((r.customer || {}).followUps || [])[0]?.workWechatName ||
@@ -244,35 +251,9 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   };
 
   const columns: any[] = [
-    {
-      title: '客户',
-      key: 'customer',
-      width: LEDGER_FIELD_WIDTH.customer,
-      fixed: 'left' as const,
-      render: (_: unknown, r: any) => {
-        const bits = customerBits(r);
-        // 段之间只留一个小灰点，不加空格（和订单管理的「客户账号」列同一个规矩 ——
-        // 老板 2026-09-29：「把标签之间的间距压缩一下，现在左右标签之间距离太大了」）。
-        const text = bits.join('·');
-        return (
-          <div
-            style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={text}
-          >
-            {bits.length ? (
-              bits.map((bit, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <span style={{ color: '#CBD5E1' }}>·</span>}
-                  <span>{bit}</span>
-                </React.Fragment>
-              ))
-            ) : (
-              <span style={{ color: '#94A3B8' }}>-</span>
-            )}
-          </div>
-        );
-      },
-    },
+    // 客户信息直接复用订单表那五列（来源 / 引流账号 / 客户昵称（带编号）/ 客户账号ID /
+    // 客户联系方式）—— 老板 2026-09-30：「跟订单池流转失败明细+派单工作台一样的标签格式」。
+    ...buildCustomerInfoColumns({ isCompanion: false, inactiveAccounts }),
     {
       title: '客服工作微信',
       key: 'workWechat',
