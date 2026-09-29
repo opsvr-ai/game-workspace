@@ -694,6 +694,14 @@ sequenceDiagram
   **两个数不叠加**，没配过就是按流水，钱不变
 - **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）与
   `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）；今日看板、月度结算、工资生成按人取底薪
+- **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）、
+  `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）与 `commissionConfig`（这个人的「单独一套提成」，
+  JSON，只存他填过的项；空 = 全套用店里的）；今日看板、月度结算、工资生成按人取底薪
+- **客服提成「按人一套」+「只算首单」**（老板 2026-09-30）：`CsProfile.commissionConfig` 经
+  `common/cs-commission.ts` 的 `normalizeCsCommissionOverride` / `applyCsCommissionOverride` 叠到
+  「本店 → 老板 → 内置」那一套上（**没填任何项就原样返回**，所以老数据钱不变）；`commission.cs_include_renewal`
+  （默认 `false`）决定算哪些单类型 —— 开关在 `csCommissionOrderTypes` 一处，`computeCsCommission`、
+  `buildCsSalaryRows`、今日看板三处共用，**没有再写第二条口径**
 - **结果反馈「催得动」+ 接单方看板**（老板 2026-09-30）：`Order.feedbackChasedAt / feedbackChaseCount`
   记「催了几次、最后一次什么时候」；`POST /api/orders/:id/chase-feedback`（CS / ADMIN / OWNER，只在
   线上 / 桥接单、还没反馈结果时可用）随手把 `order:feedback_chase` 推给**接单工作室**
