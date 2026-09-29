@@ -29,7 +29,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { useSocket } from '../../hooks/useSocket';
 import UrgentOrdersPanel from '../../components/UrgentOrdersPanel';
-import CsFollowupPanel from '../../components/CsFollowupPanel';
 import CsConvertedPanel from '../../components/CsConvertedPanel';
 import EscalatedPoolPanel from '../../components/EscalatedPoolPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
@@ -148,11 +147,16 @@ const CSDispatchView: React.FC = () => {
   const [disappearMinutes, setDisappearMinutes] = useState(10);
   const [scheduledDisappearMinutes, setScheduledDisappearMinutes] = useState(60);
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'followup' ? 'followup' : 'dispatch';
+  // 「客服跟进台账」已经并进「管理端直添客户流转明细」（老板 2026-09-30），
+  // 首页「到点该跟进」那条红条和侧边栏的待跟进角标都往 ?tab=followup 跳，
+  // 老链接一律落到「管理端直添客户流转明细」那一页，不用改大家收藏的地址。
+  const tabParam = searchParams.get('tab');
+  const initialTab = tabParam === 'converted' || tabParam === 'followup' ? 'converted' : 'dispatch';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [customerRefresh, setCustomerRefresh] = useState(0);
   useEffect(() => {
-    if (searchParams.get('tab') === 'followup') setActiveTab('followup');
+    const t = searchParams.get('tab');
+    if (t === 'converted' || t === 'followup') setActiveTab('converted');
   }, [searchParams]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -288,7 +292,7 @@ const CSDispatchView: React.FC = () => {
     );
   };
 
-  // opts.cultivated：从「管理端直添客户跟进列表」点「重新派单」时传 true ——
+  // opts.cultivated：从「管理端直添客户流转明细」点「直接派单」时传 true ——
   // 这张新单要记成「客服养好的客户」（流转明细据此统计），并带上原单号 + 原客户ID。
   const handleDispatch = (item: any, opts?: { cultivated?: boolean }) => {
     const cf = item.customFields || {};
@@ -471,13 +475,13 @@ const CSDispatchView: React.FC = () => {
                       发布订单
                     </Button>
                     {/* 老板 2026-09-29：客服养客的入口要显眼 —— 客户现在不打、先把微信加上的，
-                        全部走这里登记（只进客服跟进台账，不发单、不打扰陪玩）。 */}
+                        全部走这里登记（只进「管理端直添客户流转明细」，不发单、不打扰陪玩）。 */}
                     <div>
                       <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setEditingOrder(null); setModalOpen(true); }}>
                         直接添加客户
                       </Button>
                       <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-                        客户还没决定打、先加上微信的走这里：只进客服跟进台账，不打扰陪玩
+                        客户还没决定打、先加上微信的走这里：只进客户流转明细，不打扰陪玩
                       </div>
                     </div>
                   </Space>
@@ -1002,22 +1006,17 @@ const CSDispatchView: React.FC = () => {
           {
             key: 'pending',
             label: <span style={{ color: '#1677ff', fontWeight: 600 }}>订单池流转失败明细</span>,
-            children: <UrgentOrdersPanel onDispatch={handleDispatch} onGotoFollowup={() => setActiveTab('followup')} />,
-          },
-          {
-            key: 'followup',
-            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>客服跟进台账</span>,
-            children: (
-              <CsFollowupPanel
-                refreshSignal={customerRefresh}
-                onDispatch={(r: any) => handleDispatch(r, { cultivated: true })}
-              />
-            ),
+            children: <UrgentOrdersPanel onDispatch={handleDispatch} onGotoFollowup={() => setActiveTab('converted')} />,
           },
           {
             key: 'converted',
             label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户流转明细</span>,
-            children: <CsConvertedPanel refreshSignal={customerRefresh} />,
+            children: (
+              <CsConvertedPanel
+                refreshSignal={customerRefresh}
+                onDispatch={(r: any) => handleDispatch(r, { cultivated: true })}
+              />
+            ),
           },
           {
             key: 'escalated',

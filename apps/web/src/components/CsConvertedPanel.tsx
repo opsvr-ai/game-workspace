@@ -1,20 +1,50 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Space, Tag, message, Modal, InputNumber, Select, Typography, Popconfirm } from 'antd';
+import { Button, Card, Input, Space, message, Modal, InputNumber, Select, Typography, Popconfirm } from 'antd';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import { extractErrorMessage } from '../utils/error-handler';
 import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
+import {
+  CELL_ONE_LINE,
+  DATA_SUB_FONT_SIZE,
+  FIELD_WIDTH,
+  LEDGER_FIELD_WIDTH,
+} from '../constants/datasetColumns';
+import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
+import { orderMatchesSearch } from '../utils/orderPool';
+import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
+import FollowUpModal from './FollowUpModal';
 
 const { Text } = Typography;
 
 interface Props {
   refreshSignal?: number;
+  /** 客户谈好了，「直接派单」把这张单重新发给陪玩（走 CSDispatchView 的 handleDispatch） */
+  onDispatch?: (item: any) => void;
 }
 
-const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
+/**
+ * 管理端直添客户流转明细 —— 客服加过工作微信的客户，只有这一份台账。
+ *
+ * 老板 2026-09-30：「把客服跟进台账删除，把他的功能合并到管理端直添客户流转明细」。
+ * 以前是两页：单独的「客服跟进台账」（还没派出去的客户）和这一页（已经派出去被陪玩接的）。
+ * 同一批客户在两个页面上各显示一遍、列法还不一样，客服自己得拼着看 —— 老板的原话是
+ * 「显示的不一样 显得乱七八糟的」。现在合成一页，两种情况在**同一张表**里上下排开：
+ *
+ *  - 还没派出去的（客户先加到了客服工作微信上）：看「添加情况 / 最后跟进 / 下次跟进」，
+ *    点「记跟进」写客户档案（客户管理里能看到同一条），谈好了点「直接派单」发给陪玩，
+ *    谈崩了点「处理完成」收起来；
+ *  - 已经派出去、陪玩接了的：看「收款情况」（转入 / 转出 / 去向 / 客服微信余额），
+ *    账不对点「记流水」补记。
+ *
+ * 客户信息那五列（来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式）直接调订单表
+ * 那一份（orderColumns.tsx 的 buildCustomerInfoColumns），和数据、列宽、字号和订单管理 /
+ * 订单池流转失败明细 / 派单工作台一模一样 —— 这一页不再自己写一套标签。
+ */
+const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const role = useAuthStore((s) => s.user?.role);
   const canClearBalance = role === 'ADMIN' || role === 'OWNER';
 
@@ -23,6 +53,10 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
   const [summary, setSummary] = useState<any>({ monthTotal: 0, yearTotal: 0, allTotal: 0 });
   const [people, setPeople] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  // 「到点该跟进了」要用当前时间比，所以每 30 秒自己走一下表（列表本身每 60 秒刷一次）
+  const [now, setNow] = useState(Date.now());
+  const [followTarget, setFollowTarget] = useState<any>(null);
   const [flowOrder, setFlowOrder] = useState<any>(null);
   const [inAmount, setInAmount] = useState<number>(0);
   const [outAmount, setOutAmount] = useState<number>(0);
@@ -32,11 +66,24 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
   const load = async () => {
     setLoading(true);
     try {
-      const [convRes, balRes] = await Promise.all([
+      // 一张台账，两半数据：cs-converted = 已经派出去被陪玩接了的（带收款），
+      // cs-followup = 还没派出去的（带最后一条跟进记录）。按订单 id 合成一页。
+      const [convRes, followRes, balRes] = await Promise.all([
         ordersApi.csConverted(),
+        ordersApi.csFollowup(),
         ordersApi.csWechatBalances(),
       ]);
-      setItems(convRes.data.data || []);
+      const converted = convRes.data.data || [];
+      const following = followRes.data.data || [];
+      const byId = new Map<string, any>();
+      for (const r of converted) byId.set(r.id, { ...r, _converted: true });
+      for (const r of following) {
+        const prev = byId.get(r.id);
+        // 正常不会撞 id（派出去是另外新发的一张单）；真撞上就以带收款信息的那条为准，
+        // 只把跟进记录补进去。
+        byId.set(r.id, prev ? { ...prev, ...r, _converted: true } : { ...r, _converted: false });
+      }
+      setItems(Array.from(byId.values()));
       setBalances(balRes.data.data || []);
 
       if (canClearBalance) {
@@ -64,8 +111,12 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
   useEffect(() => {
     load();
     loadPeople();
-    const t = visibleInterval(load, 120000);
-    return () => clearInterval(t);
+    const tick = setInterval(() => setNow(Date.now()), 30000);
+    const timer = visibleInterval(load, 60000);
+    return () => {
+      clearInterval(tick);
+      clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -78,6 +129,61 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
     return m;
   }, [balances]);
 
+  // 搜索走和订单池 / 订单管理 / 订单池流转失败明细同一个口径（utils/orderPool）：
+  // 一个框搜客户、游戏、客服、陪玩，空格分隔多个词。
+  const filtered = useMemo(() => {
+    const matched = search.trim() ? items.filter((r) => orderMatchesSearch(r, search)) : items;
+    // 到点该跟进的排最上面（最早该跟的排最前）——老板 2026-09-29：「下次跟进时间到了，这页红字置顶」；
+    // 其余的还是「还没派出去的在前、已经流转出去的在后」，读起来就是客服的一天。
+    return [...matched].sort((a, b) => {
+      const at = dueFollowUpAtOf(a, now);
+      const bt = dueFollowUpAtOf(b, now);
+      if (at !== null && bt !== null) return at - bt;
+      if (at !== null) return -1;
+      if (bt !== null) return 1;
+      return (a._converted ? 1 : 0) - (b._converted ? 1 : 0);
+    });
+  }, [items, search, now]);
+
+  const dueRows = useMemo(
+    () => filtered.filter((r) => dueFollowUpAtOf(r, now) !== null),
+    [filtered, now],
+  );
+
+  /** 添加情况：待添加 / 已添加 / 客户已同意 / 添加失败 / 已派单（跟客服有关的那几步，没有「无人接单」） */
+  const stageOf = (r: any): { text: string; color: string } => {
+    switch (r.contactStatus) {
+      case 'dispatched':
+        return { text: '已派单', color: '#2563EB' };
+      case 'agreed':
+        return { text: '客户已同意', color: '#15803D' };
+      case 'added':
+        return { text: '已添加', color: '#15803D' };
+      case 'not_accepted':
+        return { text: '添加失败', color: '#B45309' };
+      case 'pending':
+        return { text: '待添加', color: '#B45309' };
+      default:
+        // 没标过添加结果、但已经派出去被陪玩接了的老数据
+        return r._converted ? { text: '已派单', color: '#2563EB' } : { text: '待添加', color: '#B45309' };
+    }
+  };
+
+  const workWechatOf = (r: any): string =>
+    (r.customFields || {}).csWorkWechatName ||
+    ((r.customer || {}).followUps || [])[0]?.workWechatName ||
+    '';
+
+  const mark = async (item: any, status: string, addResult?: 'passed' | 'failed', done?: string) => {
+    try {
+      await ordersApi.markCsContact(item.id, status, undefined, addResult ? { addResult } : undefined);
+      message.success(done || '已记录');
+      load();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    }
+  };
+
   const markContact = async (r: any, status: 'added' | 'not_accepted') => {
     try {
       await ordersApi.updateContact(r.id, {
@@ -89,6 +195,74 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
     } catch (e: any) {
       message.error(extractErrorMessage(e, '操作失败'));
     }
+  };
+
+  const handleDone = async (item: any) => {
+    try {
+      await ordersApi.markPoolHandled(item.id);
+      message.success('已从这份台账里收起来');
+      load();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    }
+  };
+
+  // ── 收款情况（老板 2026-09-28：一张单原来要在下面叠 5 行小字，现在压成一行，长了鼠标悬停看全）──
+  // 一行里先说**钱**（转入 / 转出 / 收款去向），再说单子去向和人；这一格窄，
+  // 后面几项看不全就省略号 + 鼠标悬停（这一列的 title 拼的是同一串，一个字都不丢）。
+  const paidToLabelOf = (r: any) => {
+    const paidTo = r.customerPaidTo;
+    if (paidTo === 'CS_WECHAT') return '已进客服微信';
+    if (paidTo === 'COMPANION_WECHAT') return '客户直接转陪玩';
+    if (paidTo === 'STUDIO_ACCOUNT') return '客户转工作室';
+    return '收款去向未填';
+  };
+
+  const moneyBits = (r: any) => {
+    const cf = r.customFields || {};
+    const csName = r.csUser?.displayName || r.csUser?.username || '-';
+    const csWechat = cf.csWorkWechatName || '-';
+    const wechatBalance = balanceByWechat.get(csWechat);
+    const moneyIn = Number(r.moneyIn || 0);
+    const moneyOut = Number(r.moneyOut || 0);
+    const feePaid = r.companionFeeStatus === 'PAID';
+    const feeAmount = Number(r.companionFeeAmount || 0);
+    let outText = '未转陪玩';
+    if (moneyOut > 0) outText = `转陪玩 ¥${moneyOut.toFixed(1)}`;
+    else if (feePaid && feeAmount > 0) outText = `转陪玩 ¥${feeAmount.toFixed(1)}`;
+
+    const paidToLabel = paidToLabelOf(r);
+    const bits = [
+      moneyIn > 0 ? `转入 ¥${moneyIn.toFixed(1)}` : '未记转入',
+      outText,
+      paidToLabel,
+      `去向 ${r.destination || '-'}`,
+      r.companion?.user?.username ? `主陪 ${r.companion.user.username}` : '',
+      `客服 ${csName} · 微信 ${csWechat}`,
+    ];
+    if (wechatBalance !== undefined) bits.push(`该微信累计余额 ¥${wechatBalance.toFixed(1)}`);
+    return bits;
+  };
+
+  /** 收款情况那一格的鼠标悬停全文：跟格子里同一串，只多了「客户从哪个号转的」这一项 */
+  const moneyTitleOf = (r: any) => {
+    const account = r.customerPaidAccount ? String(r.customerPaidAccount) : '';
+    return [moneyStateOf(r).text, ...moneyBits(r), account ? `收款账号 ${account}` : '']
+      .filter(Boolean)
+      .join(NOTE_SEP);
+  };
+
+  // 一行字能看出来的收款进度
+  const moneyStateOf = (r: any) => {
+    const moneyIn = Number(r.moneyIn || 0);
+    const moneyOut = Number(r.moneyOut || 0);
+    const feePaid = r.companionFeeStatus === 'PAID';
+    const feeAmount = Number(r.companionFeeAmount || 0);
+    const out = moneyOut > 0 || (feePaid && feeAmount > 0);
+    if (moneyIn > 0 && out) return { text: '已收已转', color: '#15803D' };
+    if (moneyIn > 0) return { text: '已收未转', color: '#B45309' };
+    if (out) return { text: '未记转入', color: '#B45309' };
+    return { text: '未记流水', color: '#94A3B8' };
   };
 
   const openFlow = (r: any) => {
@@ -166,102 +340,230 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
     }
   };
 
-  // 收款情况（老板 2026-09-28：一张单原来要在下面叠 5 行小字，现在压成一行，长了鼠标悬停看全）
-  const moneyBits = (r: any) => {
-    const cf = r.customFields || {};
-    const csName = r.csUser?.displayName || r.csUser?.username || '-';
-    const csWechat = cf.csWorkWechatName || '-';
-    const wechatBalance = balanceByWechat.get(csWechat);
-    const moneyIn = Number(r.moneyIn || 0);
-    const moneyOut = Number(r.moneyOut || 0);
-    const feePaid = r.companionFeeStatus === 'PAID';
-    const feeAmount = Number(r.companionFeeAmount || 0);
-    let outText = '未转陪玩';
-    if (moneyOut > 0) outText = `转陪玩 ¥${moneyOut.toFixed(1)}`;
-    else if (feePaid && feeAmount > 0) outText = `转陪玩 ¥${feeAmount.toFixed(1)}`;
-
-    const paidTo = r.customerPaidTo;
-    const paidToLabel =
-      paidTo === 'CS_WECHAT'
-        ? '已进客服微信'
-        : paidTo === 'COMPANION_WECHAT'
-          ? '客户直接转陪玩'
-          : paidTo === 'STUDIO_ACCOUNT'
-            ? '客户转工作室'
-            : '收款去向未填';
-
-    const bits = [
-      r.companion?.user?.username ? `主陪 ${r.companion.user.username}` : '',
-      `客服 ${csName} · 微信 ${csWechat}`,
-      moneyIn > 0
-        ? `转入 ¥${moneyIn.toFixed(1)}（${paidToLabel}${r.customerPaidAccount ? ' ' + r.customerPaidAccount : ''}）`
-        : `未记转入（${paidToLabel}）`,
-      outText,
-      `去向 ${r.destination || '-'}`,
-    ];
-    if (wechatBalance !== undefined) bits.push(`该微信累计余额 ¥${wechatBalance.toFixed(1)}`);
-    return bits;
-  };
-
-  // 一行字能看出来的收款进度
-  const moneyStateOf = (r: any) => {
-    const moneyIn = Number(r.moneyIn || 0);
-    const moneyOut = Number(r.moneyOut || 0);
-    const feePaid = r.companionFeeStatus === 'PAID';
-    const feeAmount = Number(r.companionFeeAmount || 0);
-    const out = moneyOut > 0 || (feePaid && feeAmount > 0);
-    if (moneyIn > 0 && out) return { text: '已收已转', color: '#15803D' };
-    if (moneyIn > 0) return { text: '已收未转', color: '#B45309' };
-    if (out) return { text: '未记转入', color: '#B45309' };
-    return { text: '未记流水', color: '#94A3B8' };
-  };
-
-  const contactStateOf = (r: any) => {
-    if (r.contactStatus === 'added') return { text: '已添加', color: '#15803D' };
-    if (r.contactStatus === 'not_accepted') return { text: '客户已同意', color: '#B45309' };
-    return null;
-  };
-
-  const renderActions = (r: any) => (
-    <Space size={4}>
-      {r.contactStatus === 'not_accepted' ? (
+  /**
+   * 操作按钮分两套（同一张表里的两种行）：
+   *  - 还没派出去的（跟进中）：添加成功 / 添加失败 / 客户已同意 / 直接派单 / 处理完成 + 记跟进；
+   *  - 已经派出去被陪玩接的：补「添加成功 / 添加失败」+ 记跟进 / 记流水。
+   */
+  const renderActions = (r: any) => {
+    const st = r.contactStatus;
+    const buttons: React.ReactNode[] = [];
+    if (!r._converted) {
+      if (st === 'dispatched') {
+        buttons.push(
+          <Button key="done" size="small" onClick={() => handleDone(r)}>
+            处理完成
+          </Button>,
+        );
+      } else if (st === 'agreed') {
+        buttons.push(
+          <Button key="dispatch" size="small" type="primary" onClick={() => onDispatch?.(r)}>
+            直接派单
+          </Button>,
+        );
+      } else if (st === 'added') {
+        buttons.push(
+          <Button key="agree" size="small" onClick={() => mark(r, 'agreed', undefined, '已标记：客户同意打了')}>
+            客户已同意
+          </Button>,
+        );
+        buttons.push(
+          <Button key="dispatch" size="small" type="primary" onClick={() => onDispatch?.(r)}>
+            直接派单
+          </Button>,
+        );
+      } else if (st === 'not_accepted') {
+        buttons.push(
+          <Button
+            key="passed"
+            size="small"
+            type="primary"
+            style={{ background: '#16A34A', borderColor: '#16A34A' }}
+            onClick={() => mark(r, 'added', 'passed', '已标记添加成功')}
+          >
+            加上了
+          </Button>,
+        );
+        buttons.push(
+          <Button key="agree" size="small" onClick={() => mark(r, 'agreed', undefined, '已标记：客户同意打了')}>
+            客户已同意
+          </Button>,
+        );
+      } else {
+        buttons.push(
+          <Button
+            key="passed"
+            size="small"
+            type="primary"
+            style={{ background: '#16A34A', borderColor: '#16A34A' }}
+            onClick={() => mark(r, 'added', 'passed', '已标记添加成功')}
+          >
+            添加成功
+          </Button>,
+        );
+        buttons.push(
+          <Button key="failed" size="small" danger onClick={() => mark(r, 'added', 'failed', '已标记添加失败')}>
+            添加失败
+          </Button>,
+        );
+      }
+    } else if (st === 'not_accepted') {
+      buttons.push(
         <Button
+          key="agree"
           size="small"
           type="primary"
           style={{ background: '#16A34A', borderColor: '#16A34A' }}
           onClick={() => markContact(r, 'added')}
         >
           客户已同意
-        </Button>
-      ) : (r.status === 'GRABBED' || r.status === 'CONFIRMED') && r.contactStatus !== 'added' ? (
-        <>
-          <Button
-            size="small"
-            type="primary"
-            style={{ background: '#16A34A', borderColor: '#16A34A' }}
-            onClick={() => markContact(r, 'added')}
+        </Button>,
+      );
+    } else if ((r.status === 'GRABBED' || r.status === 'CONFIRMED') && st !== 'added') {
+      buttons.push(
+        <Button
+          key="passed"
+          size="small"
+          type="primary"
+          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          onClick={() => markContact(r, 'added')}
+        >
+          添加成功
+        </Button>,
+      );
+      buttons.push(
+        <Button key="failed" size="small" danger onClick={() => markContact(r, 'not_accepted')}>
+          添加失败
+        </Button>,
+      );
+    }
+    buttons.push(
+      <Button key="follow" size="small" onClick={() => setFollowTarget(r)}>
+        记跟进
+      </Button>,
+    );
+    if (r._converted) {
+      buttons.push(
+        <Button key="flow" size="small" onClick={() => openFlow(r)}>
+          记流水
+        </Button>,
+      );
+    }
+    return <Space size={4}>{buttons}</Space>;
+  };
+
+  /** 这一页特有的四列：客服工作微信 / 添加情况 / 最后跟进 / 下次跟进（原跟进台账那几列） */
+  const extraColumns: any[] = [
+    {
+      title: ORDER_FIELD_LABELS.workWechat,
+      key: 'workWechat',
+      width: LEDGER_FIELD_WIDTH.workWechat,
+      render: (_: unknown, r: any) => {
+        const wx = workWechatOf(r);
+        return (
+          <div style={CELL_ONE_LINE} title={wx}>
+            {wx || <span style={{ color: '#94A3B8' }}>-</span>}
+          </div>
+        );
+      },
+    },
+    {
+      title: '添加情况',
+      key: 'stage',
+      width: LEDGER_FIELD_WIDTH.stage,
+      render: (_: unknown, r: any) => {
+        const st = stageOf(r);
+        return (
+          <div style={CELL_ONE_LINE} title={st.text}>
+            <span style={{ color: st.color }}>{st.text}</span>
+          </div>
+        );
+      },
+    },
+    {
+      title: '最后跟进',
+      key: 'lastFollow',
+      width: LEDGER_FIELD_WIDTH.lastFollow,
+      render: (_: unknown, r: any) => {
+        const last = lastFollowUpOf(r);
+        if (!last) return <span style={{ color: '#94A3B8' }}>还没记过跟进</span>;
+        const text = `${mmddhhmm(last.createdAt)} · ${last.content || ''}`;
+        return (
+          <div style={CELL_ONE_LINE} title={text}>
+            <span style={{ color: '#94A3B8' }}>{mmddhhmm(last.createdAt)}</span>
+            <span style={{ color: '#CBD5E1' }}> · </span>
+            <span>{last.content}</span>
+          </div>
+        );
+      },
+    },
+    {
+      title: '下次跟进',
+      key: 'nextFollow',
+      width: LEDGER_FIELD_WIDTH.nextFollow,
+      render: (_: unknown, r: any) => {
+        const at = lastFollowUpOf(r)?.nextFollowUpAt;
+        if (!at) return <span style={{ color: '#94A3B8' }}>-</span>;
+        // 到点了就红字加粗、后面缀「该跟进了」；没到点是紫色
+        const due = dueFollowUpAtOf(r, now) !== null;
+        return (
+          <span
+            style={{ color: due ? '#DC2626' : '#7C3AED', fontWeight: due ? 600 : 400 }}
+            title={due ? `${mmddhhmm(at)} 到点了，该跟进了` : mmddhhmm(at)}
           >
-            添加成功
-          </Button>
-          <Button size="small" danger onClick={() => markContact(r, 'not_accepted')}>
-            添加失败
-          </Button>
-        </>
-      ) : null}
-      <Button size="small" onClick={() => openFlow(r)}>
-        记流水
-      </Button>
-    </Space>
-  );
+            {mmddhhmm(at)}
+            {due ? ' 该跟进了' : ''}
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
     <Card size="small" style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontWeight: 600 }}>管理端直添客户流转明细</div>
-        <Button size="small" onClick={load} loading={loading}>
-          刷新
-        </Button>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+          marginBottom: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600 }}>
+            管理端直添客户流转明细
+            {dueRows.length > 0 && (
+              <span style={{ color: '#DC2626', marginLeft: 8 }}>
+                有 {dueRows.length} 位客户到点该跟进了（已红字排在最上面）
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>
+            客户先加到客服工作微信上、慢慢聊；谈得差不多了点「直接派单」发给陪玩。已经派出去的在下面，看「收款情况」记流水。
+          </div>
+        </div>
+        <Space size={8}>
+          {search && (
+            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+              筛选结果 {filtered.length}/{items.length}
+            </Text>
+          )}
+          <Input
+            allowClear
+            placeholder={ORDER_SEARCH_PLACEHOLDER}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: 300 }}
+            size="small"
+          />
+          <Button size="small" onClick={load} loading={loading}>
+            刷新
+          </Button>
+        </Space>
       </div>
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         {balances.length === 0 ? (
           <Text type="secondary" style={{ fontSize: 12 }}>暂无客服工作微信</Text>
@@ -326,21 +628,27 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
           <Text>累计 <Text strong>¥{Number(summary.allTotal || 0).toFixed(1)}</Text></Text>
         </div>
       )}
+
       <OrderTable
-        orders={items}
+        orders={filtered}
         hideStudio
         loading={loading}
+        extraColumns={extraColumns}
+        actionsWidth={FIELD_WIDTH.orderActions}
         renderActions={renderActions}
-        emptyText="暂无直添客户流转记录"
+        // 到点该跟进的那一行整行淡红底（老板 2026-09-29：「红字置顶」）
+        rowStyle={(r: any) => (dueFollowUpAtOf(r, now) !== null ? { background: '#FFF1F2' } : undefined)}
+        emptyText={items.length === 0 ? '还没有直添客户流转记录：派单工作台点「直接添加客户」开始登记。' : `没有匹配「${search}」的客户。`}
         noteColumn={{
           title: '收款情况',
+          width: LEDGER_FIELD_WIDTH.receipt,
           render: (r: any) => {
+            // 还没派出去的这一半：钱还没到，写清楚，别让人以为漏记了
+            if (!r._converted) return <span style={{ color: '#94A3B8' }}>还没派出去</span>;
             const st = moneyStateOf(r);
-            const ct = contactStateOf(r);
             return (
               <>
                 <span style={{ color: st.color }}>{st.text}</span>
-                {ct && <span style={noteSub}>{NOTE_SEP}{ct.text}</span>}
                 <span style={noteSub}>
                   {NOTE_SEP}
                   {moneyBits(r).join(NOTE_SEP)}
@@ -348,8 +656,15 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal }) => {
               </>
             );
           },
-          titleText: (r: any) => [moneyStateOf(r).text, contactStateOf(r)?.text, ...moneyBits(r)].filter(Boolean).join(' · '),
+          titleText: (r: any) => (r._converted ? moneyTitleOf(r) : '还没派出去'),
         }}
+      />
+
+      <FollowUpModal
+        open={!!followTarget}
+        item={followTarget}
+        onClose={() => setFollowTarget(null)}
+        onSaved={load}
       />
 
       <Modal

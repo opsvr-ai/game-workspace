@@ -851,9 +851,9 @@ const CustomersPage: React.FC = () => {
                 刷新
               </Button>
               {/* 老板 2026-09-29：养客入口在客户管理也要点得到 —— 客户现在不打、先把微信加上的走这里，
-                  登记进「客服跟进台账」，客服持续跟，谈好了从台账直接派单。 */}
+                  登记进「管理端直添客户流转明细」，客服持续跟，谈好了从那一页直接派单。 */}
               {canManage && (
-                <Tooltip title="客户还没决定打、先加上微信的走这里：只进客服跟进台账，不打扰陪玩">
+                <Tooltip title="客户还没决定打、先加上微信的走这里：只进客户流转明细，不打扰陪玩">
                   <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => setDirectAddOpen(true)}>
                     直接添加客户
                   </Button>

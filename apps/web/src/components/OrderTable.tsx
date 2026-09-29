@@ -14,7 +14,8 @@ import { useAuthStore } from '../stores/authStore';
 const { Text } = Typography;
 
 /**
- * 派单管理下面三张订单列表（订单池流转失败明细 / 管理端直添客户跟进列表 / 流转明细）共用的表格。
+ * 派单管理下面几张订单列表（订单池流转失败明细 / 管理端直添客户流转明细 /
+ * 线下转桥接·线上统计）共用的表格。
  *
  * 老板 2026-09-28：「流转失败列表页很混乱，你再查查所有角色所有页面 还有同样问题的么 解决」。
  * 以前这三张列表用的是老的卡片行（OrderRow）：一格叠 2~3 行、十几个彩色标签、
@@ -42,6 +43,19 @@ export interface OrderTableProps {
   emptyText?: React.ReactNode;
   /** 整行点一下（可选） */
   onRowClick?: (o: any) => void;
+  /**
+   * 这一页特有的列，插在订单列之后、「说明」列之前。
+   *
+   * 老板 2026-09-30：「把客服跟进台账删除，把他的功能合并到管理端直添客户流转明细」——
+   * 合并后这一页除了订单列 + 收款情况，还要有跟进台账那几列（客服工作微信 / 添加情况 /
+   * 最后跟进 / 下次跟进）。列定义还是各页自己写（那是它特有的），
+   * 但表格外壳、行高、省略号、表头对齐一律走这张表，跟别的页长一个样。
+   */
+  extraColumns?: any[];
+  /** 操作列的宽度（默认 panelActions；合并后的流转明细按钮多，用订单管理那档 254px） */
+  actionsWidth?: number;
+  /** 整行样式（「到点该跟进」的行底色标红，见派单管理的流转明细） */
+  rowStyle?: (o: any) => React.CSSProperties | undefined;
 }
 
 const OrderTable: React.FC<OrderTableProps> = ({
@@ -52,6 +66,9 @@ const OrderTable: React.FC<OrderTableProps> = ({
   loading,
   emptyText = '暂无订单',
   onRowClick,
+  extraColumns,
+  actionsWidth,
+  rowStyle,
 }) => {
   const role = useAuthStore((s) => s.user?.role);
   const isCompanion = role === 'COMPANION';
@@ -72,6 +89,11 @@ const OrderTable: React.FC<OrderTableProps> = ({
   const columns: any[] = buildOrderColumns({ isCompanion, inactiveAccounts }).filter(
     (c) => !(hideStudio && c.key === 'companion'),
   );
+  // 这一页特有的列（跟进台账的「客服工作微信 / 添加情况 / 最后跟进 / 下次跟进」）插在
+  // 订单列之后、「说明」列之前：客户信息那几列和别的页一个字都不差，多的只有自己这几列。
+  if (extraColumns && extraColumns.length > 0) {
+    columns.push(...extraColumns);
+  }
   if (noteColumn) {
     columns.push({
       title: noteColumn.title,
@@ -88,7 +110,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
     columns.push({
       title: '操作',
       key: 'actions',
-      width: FIELD_WIDTH.panelActions,
+      width: actionsWidth ?? FIELD_WIDTH.panelActions,
       fixed: 'right' as const,
       className: ACTIONS_CELL_CLASS,
       render: (_: unknown, o: any) => renderActions(o),
@@ -110,11 +132,14 @@ const OrderTable: React.FC<OrderTableProps> = ({
       style={TABLE_STYLE}
       scroll={{ x: scrollX }}
       locale={{ emptyText }}
-      onRow={
-        onRowClick
-          ? (record: any) => ({ style: { cursor: 'pointer' }, onClick: () => onRowClick(record) })
-          : undefined
-      }
+      onRow={(record: any) => {
+        const extra = rowStyle ? rowStyle(record) : undefined;
+        if (!onRowClick && !extra) return {};
+        return {
+          style: { ...(onRowClick ? { cursor: 'pointer' as const } : {}), ...(extra || {}) },
+          ...(onRowClick ? { onClick: () => onRowClick(record) } : {}),
+        };
+      }}
     />
   );
 };

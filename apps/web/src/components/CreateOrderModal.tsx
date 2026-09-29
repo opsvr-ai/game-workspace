@@ -201,7 +201,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         message.success('订单信息已更新');
       } else {
         await ordersApi.create(payload);
-        message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入客服跟进台账' : '订单已发布');
+        message.success(customerPreFill ? '已开始服务' : directAddMode ? '客户已加入「管理端直添客户流转明细」' : '订单已发布');
       }
       form.resetFields();
       onClose();
@@ -223,7 +223,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         onClose();
       }}
       confirmLoading={loading}
-      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入客服跟进台账' : '发布'}
+      okText={editingOrder ? '保存修改' : customerPreFill ? '开始服务' : directAddMode ? '加入客户流转明细' : '发布'}
       cancelText="取消"
       destroyOnClose
       width={520}

@@ -7,7 +7,7 @@ import { extractErrorMessage } from '../utils/error-handler';
 
 interface Props {
   open: boolean;
-  /** 跟进台账里的那一行（带 customerId / customer / customFields） */
+  /** 流转明细里的那一行（带 customerId / customer / customFields） */
   item: any;
   onClose: () => void;
   onSaved?: () => void;
@@ -17,7 +17,7 @@ interface Props {
  * 「记跟进」弹窗（老板 2026-09-29 定的用法）：
  * 客服写一句「这次聊到哪一步」+ 选个下次跟进时间，写进**客户档案里那条跟进记录**
  * （customer 的跟进记录），所以在客户管理 / 客户详情里能看到同一条 —— 不开第二本账。
- * 顺手记一下这次是用哪个客服工作微信加的，跟进台账的「客服工作微信」列就有了。
+ * 顺手记一下这次是用哪个客服工作微信加的，「管理端直添客户流转明细」的「工作微信」列就有了。
  */
 const FollowUpModal: React.FC<Props> = ({ open, item, onClose, onSaved }) => {
   const [form] = Form.useForm();

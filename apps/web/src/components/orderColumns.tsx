@@ -108,8 +108,11 @@ export function buildOrderColumns({
       width: W('orderStatus', FIELD_WIDTH.orderStatus),
       render: (_: unknown, o: any) => {
         const label = orderStatusConfig[o.status]?.label || o.status;
-        // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接」（3 个字）
-        const stuck = o.customFields?.poolExpired === true && !o.companionId;
+        // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接」（3 个字）。
+        // 「直添客户」的单（directAdd）从来没进过抢单池，别给它按上「无人接」——按它自己的状态走
+        // （待派单：客户还在客服这儿养着，谈好了客服直接派给陪玩）。
+        const stuck =
+          o.customFields?.poolExpired === true && !o.companionId && o.customFields?.directAdd !== true;
         if (stuck) {
           return (
             <div style={CELL_ONE_LINE}>
@@ -392,7 +395,8 @@ export function buildOrderColumns({
  * 他们本来就是一样的…他们都是一样的，显示的不一样 显得乱七八糟的」——「客服跟进台账」原来把
  * 编号·微信·昵称·来源·来源账号·账号ID 全挤在一格（用「·」拼），跟订单列表里的五列不是一个样子。
  * 现在它直接复用订单表这几列（同一个函数、同一份列宽），客户信息在哪儿都长一个样，
- * 不会两边各写一份慢慢走样。
+ * 不会两边各写一份慢慢走样。当天随后老板又说「把客服跟进台账删除，把他的功能合并到管理端直添
+ * 客户流转明细」—— 那一页现在就是这份台账，客户信息这几列的来路一个字都没变。
  */
 export const CUSTOMER_INFO_COLUMN_KEYS: string[] = [
   'customerSource',
