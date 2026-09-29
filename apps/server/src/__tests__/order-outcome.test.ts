@@ -156,9 +156,12 @@ describe('单量：单陪算 1 单、双陪算 2 单（老板 2026-09-29）', ()
   });
 });
 
-describe('流水：单价 × 时长', () => {
+describe('流水：（主陪单价 + 搭档单价）× 时长', () => {
   it('2 小时 x 80 = 160', () => {
     expect(orderGrossYuan({ amount: 80, duration: 2 })).toBe(160);
+  });
+  it('双陪要把搭档那份一起算上，(60 + 60) x 1 = 120', () => {
+    expect(orderGrossYuan({ amount: 60, coAmount: 60, duration: 1 })).toBe(120);
   });
   it('没填时长按 1 小时算', () => {
     expect(orderGrossYuan({ amount: 80 })).toBe(80);

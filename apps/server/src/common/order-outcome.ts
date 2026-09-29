@@ -189,14 +189,15 @@ export function orderUnits(order: {
 }
 
 /**
- * 一张单的**流水**（元）= 单价 × 时长。单价是「元/人/小时」，所以 2 小时的单流水是单价 ×2。
- * 和 `finance/reconciliation.service.ts` 里算利润 / 对账用的 `gross` 是同一个口径。
+ * 一张单的**流水**（元）=（主陪单价 + 搭档单价）× 时长。单价是「元/人/小时」，
+ * 所以 2 小时的单流水是单价 ×2；双陪要把搭档那份（`coAmount`）一起算上，否则双陪的流水会少一半。
  */
 export function orderGrossYuan(order: {
   amount?: number | string | null;
+  coAmount?: number | string | null;
   duration?: number | string | null;
 }): number {
-  return Number(order.amount || 0) * (Number(order.duration) || 1);
+  return (Number(order.amount || 0) + Number(order.coAmount || 0)) * (Number(order.duration) || 1);
 }
 
 /** 这张单是不是「双陪」（单量 2）。 */

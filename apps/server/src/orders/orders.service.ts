@@ -1340,17 +1340,23 @@ export class OrdersService implements OnModuleInit {
         createdAt: { gte: start, lt: end },
         companionId: { not: null },
         status: { not: 'CANCELLED' },
-        // 「线下+线上流转入池」= poolScope 不是 ONLINE_FIRST（含历史 null）
-        NOT: { poolScope: PoolScope.ONLINE_FIRST },
-        ...(opts?.csUserId
-          ? {
-              OR: [
-                { attributedCsUserId: opts.csUserId },
-                { claimedCsUserId: opts.csUserId },
-                { csUserId: opts.csUserId },
-              ],
-            }
-          : {}),
+        AND: [
+          // 「线下+线上流转入池」= poolScope 不是 ONLINE_FIRST（含历史 null）。
+          // 注意：这里必须显式写 `null OR <>`，不能用 `NOT: { poolScope: ... }` ——
+          // SQL 里 `NOT (poolScope = 'x')` 对 NULL 求值还是 NULL，会把所有老单（poolScope 为 null）全过滤掉。
+          { OR: [{ poolScope: null }, { poolScope: { not: PoolScope.ONLINE_FIRST } }] },
+          ...(opts?.csUserId
+            ? [
+                {
+                  OR: [
+                    { attributedCsUserId: opts.csUserId },
+                    { claimedCsUserId: opts.csUserId },
+                    { csUserId: opts.csUserId },
+                  ],
+                },
+              ]
+            : []),
+        ],
       },
       include: {
         customer: { select: { customerCode: true, wechatId: true } },

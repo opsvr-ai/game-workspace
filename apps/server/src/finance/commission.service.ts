@@ -338,6 +338,7 @@ export class CommissionService {
         duration: true,
         customFields: true,
         coCompanionId: true,
+        coAmount: true,
         csUserId: true,
         attributedCsUserId: true,
         claimedCsUserId: true,
@@ -371,6 +372,7 @@ export class CommissionService {
         duration: true,
         customFields: true,
         coCompanionId: true,
+        coAmount: true,
         csUserId: true,
         attributedCsUserId: true,
         claimedCsUserId: true,
@@ -625,6 +627,7 @@ export class CommissionService {
           duration: true,
           customFields: true,
           coCompanionId: true,
+          coAmount: true,
           companion: { select: { studio: { select: { id: true, type: true } } } },
         },
       });
