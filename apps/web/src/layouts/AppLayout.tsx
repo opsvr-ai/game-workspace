@@ -19,9 +19,11 @@ import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
 import { showSystemNotification, playNotificationSound } from '../utils/notify';
+import { notifyNotice, recordNotice } from '../utils/notice';
+import { useNotifStore, selectUnreadNotices } from '../stores/notifStore';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
-import { ConversationList } from '../components/ConversationList';
+import { NoticeList } from '../components/NoticeList';
 import LeftMessagePanel from '../components/LeftMessagePanel';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -536,6 +538,16 @@ const decorateMenu = (
     return next;
   });
 
+/** 通知里的「查看 ›」跳哪：同一模块四个角色的路由都不一样，按角色查一次 */
+const ROLE_PAGES: Record<string, Record<string, string>> = {
+  COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion' },
+  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees' },
+  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION' },
+  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review' },
+};
+
+const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
+
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const [isCompact, setIsCompact] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= 1080);
@@ -687,6 +699,12 @@ const AppLayout: React.FC = () => {
   );
   // 群聊未读只展示在左侧消息面板，不再计入铃铛和导航聊天角标。
   const directUnread = Math.max(0, totalUnread - groupUnread);
+  // 右上角铃铛 = 只放通知（老板 2026-09-30：「铃铛那里去除聊天的信息，只保留其他的通知」）。
+  // 聊天未读不再进铃铛：左侧消息面板（私聊 + 群聊）+ 导航角标 + 提示音/Windows 通知都还在。
+  const unreadNotices = useNotifStore(selectUnreadNotices);
+  useEffect(() => {
+    useNotifStore.getState().hydrate(user?.id || null);
+  }, [user?.id]);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
   const [commandPalette, setCommandPalette] = React.useState(false);
 
@@ -907,8 +925,8 @@ const AppLayout: React.FC = () => {
     return () => window.removeEventListener('open-chat-modal', handler as EventListener);
   }, []);
 
-  // Open chat from notification
-  const openChatFromNotification = useCallback((conversationId: string, participantName: string) => {
+  // 打开和某个人的私聊：左侧消息面板点人、订单/客户页点「沟通」都走这里
+  const openDirectChat = useCallback((conversationId: string, participantName: string) => {
     const conv = useChatStore.getState().conversations[conversationId];
     setNotifOpen(false);
     setGlobalChatPartner({
@@ -1041,6 +1059,14 @@ const AppLayout: React.FC = () => {
         expiresAt: Date.now() + ttl * 1000,
       });
       setPartnerInviteModalOpen(true);
+      recordNotice({
+        kind: 'invite',
+        icon: '🤝',
+        title: `搭档邀请 · ${inviter}`,
+        desc,
+        dedupeKey: `partner-invite:${data.id}`,
+        dedupeMs: 60_000,
+      });
       showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
       playNotificationSound();
     },
@@ -1048,10 +1074,13 @@ const AppLayout: React.FC = () => {
       // 有人把单转给我（老板 2026-09-29）：弹一条提醒并刷新接单记录，
       // 别让陪玩端着电脑还不知道自己名下来了单。
       if (data?.toCompanionId && user?.companionId && data.toCompanionId !== user.companionId) return;
-      notification.info({
-        message: '🔁 有人把订单转让给你',
-        description: `${data?.fromName || '同事'}把「${data?.gameName || ''}」转给了你，去「接单记录」看`,
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'order',
+        icon: '🔁',
+        title: '🔁 有人把订单转让给你',
+        desc: `${data?.fromName || '同事'}把「${data?.gameName || ''}」转给了你，去「接单记录」看`,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'info',
         duration: 6,
       });
       try {
@@ -1080,29 +1109,35 @@ const AppLayout: React.FC = () => {
       window.dispatchEvent(new Event('chunlv:received-board-updated'));
     },
     onPartnerAccepted: (data: any) => {
-      notification.success({
-        message: '✅ 搭档已同意',
-        description: '开始计时，进入接单中，用心服务',
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'invite',
+        icon: '✅',
+        title: '✅ 搭档已同意',
+        desc: '开始计时，进入接单中，用心服务',
+        toast: 'success',
         duration: 4,
       });
       (window as any).electronAPI?.sessionWatch?.(data.sessionId);
       window.dispatchEvent(new Event('chunlv:service-started'));
     },
     onPartnerRejected: (data: any) => {
-      notification.warning({
-        message: '🙅 搭档已拒绝',
-        description: `${data?.partnerName || '搭档'} 拒绝了你的搭档邀请`,
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'invite',
+        icon: '🙅',
+        title: '🙅 搭档已拒绝',
+        desc: `${data?.partnerName || '搭档'} 拒绝了你的搭档邀请`,
+        toast: 'warning',
         duration: 4,
       });
       window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
     },
     onPartnerTimeout: (data: any) => {
-      notification.info({
-        message: '⏰ 搭档未回应',
-        description: '搭档在倒计时内未回应，邀请已自动取消',
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'invite',
+        icon: '⏰',
+        title: '⏰ 搭档未回应',
+        desc: '搭档在倒计时内未回应，邀请已自动取消',
+        toast: 'info',
         duration: 4,
       });
       window.dispatchEvent(new Event('chunlv:dual-invite-expired'));
@@ -1123,6 +1158,14 @@ const AppLayout: React.FC = () => {
         expiresAt: Date.now() + ttl * 1000,
       });
       setPartnerInviteModalOpen(true);
+      recordNotice({
+        kind: 'invite',
+        icon: '📣',
+        title: '📣 广播找搭档',
+        desc,
+        dedupeKey: `dual-invite:${data.sessionId}`,
+        dedupeMs: 60_000,
+      });
       showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
       playNotificationSound();
     },
@@ -1137,10 +1180,13 @@ const AppLayout: React.FC = () => {
     },
     onServiceHandoff: (data: any) => {
       // 换主陪：原主陪把订单交给自己启动，这里开启自己的计时和工作记录
-      notification.success({
-        message: '🤝 有陪玩把订单交给你',
-        description: '已进入接单中，用心服务',
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'order',
+        icon: '🤝',
+        title: '🤝 有陪玩把订单交给你',
+        desc: '已进入接单中，用心服务',
+        href: rolePage(user?.role, 'orders'),
+        toast: 'success',
         duration: 4,
       });
       (window as any).electronAPI?.sessionWatch?.(data?.sessionId);
@@ -1149,20 +1195,26 @@ const AppLayout: React.FC = () => {
     onSegmentFinished: (data: any) => {
       const amount = Number(data?.amount || 0).toFixed(1);
       const desc = data?.message || `你这一段服务已结束，本段计入流水 ¥${amount}`;
-      notification.info({
-        message: '🏁 这一段服务已结束',
-        description: desc,
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'order',
+        icon: '🏁',
+        title: '🏁 这一段服务已结束',
+        desc,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'info',
         duration: 6,
       });
       showSystemNotification('蠢驴电竞 · 服务结束', desc);
     },
     onServiceDurationReminder: (data: any) => {
       const desc = data?.message || '服务时间已到，请引导客户续单';
-      notification.warning({
-        message: '⏰ 时间到了',
-        description: desc,
-        placement: 'bottomRight',
+      notifyNotice({
+        kind: 'order',
+        icon: '⏰',
+        title: '⏰ 时间到了',
+        desc,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'warning',
         duration: 5,
       });
       showSystemNotification('蠢驴电竞 · 时间提醒', desc);
@@ -1204,44 +1256,87 @@ const AppLayout: React.FC = () => {
         // 以前只有窗口里那张右下角卡片，窗口被游戏挡住 / 缩到托盘时看不到也听不到，
         // 一单就这么错过了。这里补上提示音 + Windows 系统通知，后台也能被叫到。
         playNotificationSound();
+        const urgentDesc = `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
+          data?.duration || 1
+        }h · ${data?._createdBy || '系统'} 发布，快去抢`;
+        recordNotice({
+          kind: 'order',
+          icon: data?._direct ? '🎯' : '⚡',
+          title: data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
+          desc: urgentDesc,
+          href: '/companion/pool',
+          dedupeKey: `urgent:${data?.id || data?.orderCode || urgentDesc}`,
+          dedupeMs: 5 * 60_000,
+        });
         showSystemNotification(
           data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-          `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
-            data?.duration || 1
-          }h · ${data?._createdBy || '系统'} 发布，快去抢`,
+          urgentDesc,
         );
       }
     },
     onScheduledReminder: (data: any) => {
       if (user?.role === 'CS' || user?.role === 'ADMIN' || user?.role === 'OWNER') {
-        message.warning({ content: data.message || '你发布的预约单已超时未接，请跟进对接客户', duration: 10 });
+        const text = data.message || '你发布的预约单已超时未接，请跟进对接客户';
+        message.warning({ content: text, duration: 10 });
+        recordNotice({
+          kind: 'order',
+          icon: '⏰',
+          title: '预约单超时未接',
+          desc: text,
+          href: rolePage(user?.role, 'orders'),
+        });
       }
     },
     onWalletReviewed: (data: any) => {
-      message.info(data.message || `支取 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`);
+      const text = data.message || `支取 ¥${data.amount} ${data.status === 'APPROVED' ? '已通过' : '已拒绝'}`;
+      message.info(text);
+      recordNotice({
+        kind: 'finance',
+        icon: '💰',
+        title: data.status === 'APPROVED' ? '支取已通过' : '支取被拒绝',
+        desc: text,
+        href: rolePage(user?.role, 'billing'),
+      });
     },
     onUserAuthorized: (data: any) => {
-      message.success(data.message || '注册申请已通过审核', 6);
+      const text = data.message || '注册申请已通过审核';
+      message.success(text, 6);
+      recordNotice({ kind: 'audit', icon: '✅', title: '注册申请已通过审核', desc: text });
     },
     onUserRejected: (data: any) => {
-      message.warning(data.message || '注册申请未通过审核', 6);
+      const text = data.message || '注册申请未通过审核';
+      message.warning(text, 6);
+      recordNotice({ kind: 'audit', icon: '⛔', title: '注册申请未通过审核', desc: text });
     },
     onBridgeResponded: (data: any) => {
-      message.info(data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请'));
+      const text = data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请');
+      message.info(text);
+      recordNotice({
+        kind: 'system',
+        icon: data.accepted ? '🔗' : '🚫',
+        title: data.accepted ? '桥接申请已同意' : '桥接申请被拒绝',
+        desc: text,
+      });
     },
     onRevenueDiff: (data: any) => {
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
       if (isMgmt && data.message) {
         message.warning({ content: data.message, duration: 10 });
+        recordNotice({ kind: 'finance', icon: '📉', title: '营收差异提醒', desc: data.message });
       }
     },
     onReviewAlert: (data: any) => {
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
       if (isMgmt) {
         setReviewBadge((p) => p + 1);
-        message.warning({
-          content: `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`,
-          duration: 10,
+        const text = `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`;
+        message.warning({ content: text, duration: 10 });
+        recordNotice({
+          kind: 'audit',
+          icon: '🛡️',
+          title: `工作抽查异常 · ${data.companionName || ''}`,
+          desc: text,
+          href: rolePage(user?.role, 'audits'),
         });
       }
     },
@@ -1249,8 +1344,21 @@ const AppLayout: React.FC = () => {
       if (user?.role === 'CS' && data.message) {
         message.warning({ content: data.message, duration: 12 });
         showSystemNotification('蠢驴电竞 · 账目异常', data.message);
+        recordNotice({
+          kind: 'finance',
+          icon: '⚠️',
+          title: '账目异常',
+          desc: data.message,
+          href: rolePage(user?.role, 'billing'),
+        });
       }
     },
+  });
+
+  // 通知自检入口：排查「铃铛里没收到通知」时不用去造真实订单，
+  // 在控制台执行 window.__chunlvNotice({ title: '测试', desc: '随便写' }) 就能验证铃铛。
+  useEffect(() => {
+    (window as any).__chunlvNotice = notifyNotice;
   });
 
   // Voice call handler — uses the same WebSocket from useSocket
@@ -1670,7 +1778,9 @@ const AppLayout: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          {!messagePanelCollapsed && <LeftMessagePanel onOpenChat={openGroupChat} />}
+          {!messagePanelCollapsed && (
+            <LeftMessagePanel onOpenChat={openGroupChat} onOpenDirectChat={openDirectChat} />
+          )}
         </Sider>
 
         <Layout style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
@@ -1711,26 +1821,22 @@ const AppLayout: React.FC = () => {
                   onOpenChange={setNotifOpen}
                   trigger="click"
                   placement="bottomRight"
-                  title="消息通知"
+                  title="通知"
                   content={
-                    <ConversationList
-                      onOpenChat={openChatFromNotification}
-                      onClose={() => setNotifOpen(false)}
-                      hideGroups
-                    />
+                    <NoticeList onClose={() => setNotifOpen(false)} onNavigate={(href) => navigate(href)} />
                   }
                 >
                   <Badge
-                    count={directUnread}
+                    count={unreadNotices}
                     overflowCount={99}
                     size="default"
                     offset={[-2, 8]}
-                    className={directUnread > 0 ? 'badge-pop-active' : undefined}
+                    className={unreadNotices > 0 ? 'badge-pop-active' : undefined}
                   >
                     <div
                       style={{
                         borderRadius: 8,
-                        ...(directUnread > 0
+                        ...(unreadNotices > 0
                           ? {
                               animation: 'bell-glow 2s ease-in-out infinite',
                               boxShadow: '0 0 12px rgba(37, 99, 235, 0.5)',
@@ -1742,10 +1848,10 @@ const AppLayout: React.FC = () => {
                         type="text"
                         icon={React.createElement(BellOutlined)}
                         style={{
-                          color: directUnread > 0 ? '#2563EB' : commander.textSecondary,
+                          color: unreadNotices > 0 ? '#2563EB' : commander.textSecondary,
                           fontSize: 20,
                         }}
-                        className={directUnread > 0 ? 'bell-glow-active' : ''}
+                        className={unreadNotices > 0 ? 'bell-glow-active' : ''}
                       />
                     </div>
                   </Badge>
