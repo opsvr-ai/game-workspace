@@ -197,6 +197,22 @@ export class OrdersController {
     return { code: 200, message: '已更新', data };
   }
 
+  /** 「先线上」的单：放给本店线下陪玩（老板 2026-09-29）。 */
+  @Post('orders/:id/release-to-offline')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async releaseToOffline(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.releaseToOffline(id, req.user);
+    return { code: 200, message: '已放给本店线下', data };
+  }
+
+  /** 线上 / 桥接单的结果反馈：成功 / 不成功（带原因 + 备注）。 */
+  @Post('orders/:id/outcome')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async recordOutcome(@Param('id') id: string, @Req() req: any, @Body() body: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.recordOutcome(id, req.user, body || {});
+    return { code: 200, message: '已记录结果', data };
+  }
+
   @Post('orders/:id/compensate-customer')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async compensateCustomer(@Param('id') id: string): Promise<ApiResponse<unknown>> {

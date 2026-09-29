@@ -244,6 +244,21 @@ model Order {
   depositedAt   DateTime? // 存单时间
   depositAmount Float? // 存单金额（元）
 
+  // 派单范围（老板 2026-09-29）：这张单先给谁抢。
+  // null / OFFLINE_FIRST = 先给本店线下陪玩（老行为）；
+  // ONLINE_FIRST = 先给桥接工作室 + 线上俱乐部，本店线下陪玩先看不见。
+  poolScope String?
+  // ONLINE_FIRST 的单被客服/店长手动放给本店线下的时间（自动放行走配置，不写库）
+  releasedToOfflineAt DateTime?
+
+  // 结果反馈（老板 2026-09-29）：线上 / 桥接单要接单方反馈「成功 / 不成功」。
+  // outcome 为空 = 待反馈；线下单不走这里（点了「开始首单」就算成功）。
+  outcome         String? // SUCCESS | FAILED
+  outcomeReason   String?
+  outcomeNote     String?
+  outcomeByUserId String?
+  outcomeAt       DateTime?
+
   studio         Studio                @relation(fields: [studioId], references: [id])
   csUser         User                  @relation("CSUser", fields: [csUserId], references: [id])
   claimedCsUser  User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])
@@ -1147,6 +1162,21 @@ model StaffAttendance {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+// 客服档位（老板 2026-09-29）：按人存「默认派单范围」和「底薪」。
+// 老板原话：「邵泽慧……主管线下工作室的订单」「孙可馨……主要负责线上派单」
+// 「邵、孙各自底薪多少？」—— 以前派单范围和底薪都是全店一个数，这里按人覆盖。
+// 没建过档的客服 = 默认先线下 + 用「工资规则」里的客服底薪，行为与老口径一致。
+model CsProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  studioId       String
+  poolScope      String   @default("OFFLINE_FIRST") // OFFLINE_FIRST | ONLINE_FIRST
+  baseSalaryYuan Float? // 空 = 用「工资规则」里客服的底薪
+  updatedAt      DateTime @updatedAt
+
+  @@index([studioId])
 }
 
 model PayrollRecord {

@@ -32,6 +32,23 @@ export enum OrderSource {
   BRIDGE = 'BRIDGE',
 }
 
+/**
+ * 这张单先给谁抢（老板 2026-09-29）：
+ * - OFFLINE_FIRST：先给本店线下陪玩（老行为，默认）；
+ * - ONLINE_FIRST：先给桥接工作室 + 线上俱乐部，本店线下陪玩先看不见，
+ *   由发单客服/店长点「放给线下」或过了自动放行时间才放给本店。
+ */
+export enum PoolScope {
+  OFFLINE_FIRST = 'OFFLINE_FIRST',
+  ONLINE_FIRST = 'ONLINE_FIRST',
+}
+
+/** 线上 / 桥接单的接单方反馈（老板 2026-09-29）：没反馈 = 待反馈（null）。 */
+export enum OrderOutcome {
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+}
+
 export enum CompanionStatus {
   AVAILABLE = 'AVAILABLE',
   BUSY = 'BUSY',

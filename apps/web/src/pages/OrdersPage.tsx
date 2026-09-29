@@ -21,10 +21,12 @@ import {
 import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import http from '../api/client';
+import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
 import OrderDetailModal from '../components/OrderDetailModal';
+import OrderOutcomeModal, { orderChannelOf } from '../components/OrderOutcome';
 import { buildOrderColumns } from '../components/orderColumns';
 import { isRowClickIgnored } from '../utils/rowClick';
 import { orderMatchesSearch } from '../utils/orderPool';
@@ -122,6 +124,11 @@ const OrdersPage: React.FC = () => {
   const [refundOrder, setRefundOrder] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
+  // 线上 / 桥接单的结果反馈（老板 2026-09-29）：客服 / 店长点状态格或操作列的「记结果」都能打开
+  const [outcomeOrder, setOutcomeOrder] = useState<any>(null);
+  // 「先线上」的单提前放给本店线下陪玩（点状态格的「先线上」小字，走二次确认）
+  const [releaseOrder, setReleaseOrder] = useState<any>(null);
+  const [releaseSubmitting, setReleaseSubmitting] = useState(false);
   // 列宽按窗口宽度现算（老板 2026-09-29）：窗口宽出来的部分给客户信息列，操作列定宽
   const [tableWrapRef, tableAvailWidth] = useTableAvailWidth();
   const fittedColumns = fitOrderColumnWidths(tableAvailWidth);
@@ -132,6 +139,18 @@ const OrdersPage: React.FC = () => {
     if (user.role === 'ADMIN') return r.studioId === user.studioId;
     return user.role === 'OWNER';
   };
+
+  /**
+   * 能不能给这张单记结果（老板 2026-09-29）：只有桥接 / 线上单要接单方反馈，
+   * 本店线下的单看「开始首单」就自动算成功、不用记；还没人接的单也没结果可记。
+   * 陪玩端不参与（反馈是客服 / 店长代录）。
+   */
+  const canRecordOutcome = (r: any) =>
+    !isCompanion &&
+    !!r.companionId &&
+    r.status !== 'CANCELLED' &&
+    !r.refundedAt &&
+    orderChannelOf(r) !== 'offline';
 
   // 店长（看本店）/ 老板（看全部）能按派单人筛派单记录；客服、陪玩看不到这个筛选。
   const canFilterByCs = user?.role === 'ADMIN' || user?.role === 'OWNER';
@@ -558,7 +577,7 @@ const OrdersPage: React.FC = () => {
           ) : null}
         </span>
         <span style={actionSlot(60)}>
-          {contactState === 'pending' && (
+          {contactState === 'pending' ? (
             <Button
               size="small"
               danger
@@ -578,7 +597,13 @@ const OrdersPage: React.FC = () => {
             >
               添加失败
             </Button>
-          )}
+          ) : canRecordOutcome(r) ? (
+            // 这一格平时被「添加失败」占着；客户微信已经加过（或这单不用标）时就空出来了，
+            // 空出来正好放「记结果」—— 位置固定（永远第 3 格 60px），操作列宽度不变、行高不变。
+            <Button size="small" style={{ width: 58 }} onClick={() => setOutcomeOrder(r)}>
+              记结果
+            </Button>
+          ) : null}
         </span>
         <span style={actionSlot(36)}>
           {canEditOrder(r) && (
@@ -626,6 +651,21 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const submitRelease = async () => {
+    if (!releaseOrder) return;
+    setReleaseSubmitting(true);
+    try {
+      await ordersApi.releaseToOffline(releaseOrder.id);
+      message.success('已放给本店线下陪玩，现在线下可以抢这单了');
+      setReleaseOrder(null);
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    } finally {
+      setReleaseSubmitting(false);
+    }
+  };
+
   const sorted = [...orders]
     .sort((a: any, b: any) => {
       const aUnread = unreadMap[a.id] || 0;
@@ -665,6 +705,9 @@ const OrdersPage: React.FC = () => {
       isCompanion,
       inactiveAccounts,
       widths: isCompanion ? undefined : fittedColumns.widths,
+      // 客服 / 店长能点状态格记结果、点「先线上」把单放给线下；陪玩端不给这两个入口
+      onOutcomeClick: isCompanion ? undefined : (o: any) => setOutcomeOrder(o),
+      onReleaseToOffline: isCompanion ? undefined : (o: any) => setReleaseOrder(o),
     }),
     {
       title: '操作',
@@ -981,6 +1024,31 @@ const OrdersPage: React.FC = () => {
             placeholder="例如：客户不满意要求退款 / 未按时开始"
             style={{ marginTop: 8 }}
           />
+        </div>
+      </Modal>
+      {/* 线上 / 桥接单的结果反馈（成功 / 不成功）；状态格和操作列都能打开 */}
+      <OrderOutcomeModal
+        open={!!outcomeOrder}
+        order={outcomeOrder || {}}
+        onClose={() => setOutcomeOrder(null)}
+        onSaved={fetch}
+      />
+      <Modal
+        title="放给本店线下陪玩"
+        open={!!releaseOrder}
+        onOk={submitRelease}
+        onCancel={() => setReleaseOrder(null)}
+        okText="放给线下"
+        cancelText="取消"
+        confirmLoading={releaseSubmitting}
+      >
+        <div style={{ marginTop: 8 }}>
+          <Text>
+            这单是「先线上」的：本来要先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见。现在就放给本店线下陪玩？
+          </Text>
+          <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
+            放出去之后，本店线下陪玩马上能在订单池里抢到这单。
+          </Text>
         </div>
       </Modal>
     </>

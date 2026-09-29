@@ -13,6 +13,12 @@ import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { PoolScope, OrderOutcome } from '@chunlv/shared';
+import {
+  normalizePoolScope,
+  visibleToOwnOffline,
+  orderChannelOf,
+} from '../common/order-outcome';
 
 const PARTNER_INVITE_TTL_SEC = 60;
 
@@ -169,6 +175,8 @@ export class OrdersService implements OnModuleInit {
         coAmount: (dto as any).coAmount ?? null,
         status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'GRABBED' : 'PENDING',
         contactStatus: (dto as any).directAdd === true ? 'pending' : undefined,
+        // 先给谁抢（老板 2026-09-29）：空 = 先本店线下（老行为）；ONLINE_FIRST = 先桥接 + 线上俱乐部
+        poolScope: normalizePoolScope((dto as any).poolScope) === PoolScope.ONLINE_FIRST ? PoolScope.ONLINE_FIRST : null,
         amount: dto.amount,
         gameName: dto.gameName,
         serviceType: (dto as any).serviceType ?? 'PLAY_WITH',
@@ -251,10 +259,22 @@ export class OrdersService implements OnModuleInit {
       _creatorRole: popupCreator?.role || 'CS',
       _popupSeconds: popupSeconds,
     };
+    // 「先线上」的单（老板 2026-09-29）：本店线下陪玩先看不见，弹窗 / 通知都只往桥接 + 线上那边发，
+    // 否则本店陪玩会收到一个自己抢不到的单的弹窗（点进去还提示没权限）。
+    const onlineFirst = newOrder.poolScope === PoolScope.ONLINE_FIRST;
 
     // BROADCAST: 右下角弹窗给本店在线陪玩
     // （空闲 + 娱乐中一定弹；接单中默认不打扰，陪玩可在「陪玩端 → 设置」自行打开）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
+      if (onlineFirst) {
+        // 本店不弹；桥接 / 线上那边立即弹（这张单本来就是先给他们的，没有「本店先手」一说）
+        void this.wsGateway.broadcastUrgentToBridgedStudios(
+          studioId,
+          newOrder.id,
+          { ...popupPayload, _broadcast: true, _bridged: true },
+          0,
+        );
+      } else {
       await this.wsGateway.broadcastNewOrder(studioId, {
         ...popupPayload,
         _broadcast: true,
@@ -267,6 +287,7 @@ export class OrdersService implements OnModuleInit {
         { ...popupPayload, _broadcast: true, _bridged: true },
         await this.getBridgeDelayMs(studioId),
       );
+      }
     }
 
     // DIRECT: 指定给某个陪玩，右下角弹窗提醒他
@@ -316,7 +337,9 @@ export class OrdersService implements OnModuleInit {
     }
 
     if (studioId && newOrder.dispatchType === 'POOL') {
-      if (isUrgent) {
+      if (onlineFirst) {
+        this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
+      } else if (isUrgent) {
         this.wsGateway.broadcastToBridgedStudios(studioId, 'order:pool_updated', newOrder);
       } else {
         this.wsGateway.broadcastToStudio(studioId, 'order:pool_updated', newOrder);
@@ -335,7 +358,9 @@ export class OrdersService implements OnModuleInit {
         _label: isBuDan ? '补单' : '新订单',
       });
     } else if (studioId) {
-      if (isUrgent) {
+      if (onlineFirst) {
+        // 先线上的单：本店陪玩在这张单被放给线下之前根本看不到，不给本店发通知
+      } else if (isUrgent) {
         this.wsGateway.broadcastToBridgedStudios(studioId, 'order:new', {
           ...newOrder,
           _notify: true,
@@ -378,6 +403,7 @@ export class OrdersService implements OnModuleInit {
         'pool.middle_delay_seconds',
         'pool.low_delay_seconds',
         'pool.online_delay_seconds',
+        'pool.online_first_release_minutes',
       ]),
       studioId
         ? this.prisma.studio.findUnique({ where: { id: studioId }, select: { type: true } })
@@ -388,6 +414,8 @@ export class OrdersService implements OnModuleInit {
     const middleDelay = Number(poolCfg['pool.middle_delay_seconds'] ?? 60) * 1000;
     const lowDelay = Number(poolCfg['pool.low_delay_seconds'] ?? 120) * 1000;
     const onlineDelay = Number(poolCfg['pool.online_delay_seconds'] ?? 180) * 1000;
+    // 「先线上」的单没人管时，多久自动放给本店线下陪玩（分钟）
+    const onlineFirstReleaseMinutes = Number(poolCfg['pool.online_first_release_minutes'] ?? 5);
     const studioType = studio?.type ?? 'DIRECT';
 
     // 当前陪玩的段位（只对自家工作室订单生效）
@@ -420,6 +448,15 @@ export class OrdersService implements OnModuleInit {
       if (cf.poolHandled) return false;
       // 超时未处理的订单只进入客服/管理端的“流转失败明细”，不再出现在陪玩订单池。
       if (cf.poolExpired) return false;
+      // 「先线上」的单（老板 2026-09-29）：本店线下陪玩先看不见，客服/店长手动放了、
+      // 或过了自动放行时间才出现；一旦放行立即可见，不再排段位。
+      // （客服 / 店长的派单工作台一直看得见，只是这一列会带「先线上」的标记。）
+      const onlineFirstOrder = o.poolScope === PoolScope.ONLINE_FIRST;
+      const ownOfflineOrder = !!studioId && o.studioId === studioId && studioType !== 'RENTAL';
+      if (onlineFirstOrder && ownOfflineOrder) {
+        if (isCompanion && !visibleToOwnOffline(o, onlineFirstReleaseMinutes, now)) return false;
+        return true;
+      }
       let delay: number;
       if (!studioId) {
         delay = 0; // 老板（无工作室）看全部订单，立即可见
@@ -570,7 +607,9 @@ export class OrdersService implements OnModuleInit {
         companion: {
           include: {
             user: { select: { id: true, username: true, avatar: true, displayName: true } },
-            studio: { select: { id: true, name: true } },
+            // type 也要带上：前端靠它区分「桥接别家店」和「线上俱乐部（租赁）」，
+            // 好决定这张线上 / 桥接单要不要让接单方反馈「成功 / 不成功」。
+            studio: { select: { id: true, name: true, type: true } },
           },
         },
         coCompanion: { include: { user: { select: { username: true } } } },
@@ -657,6 +696,79 @@ export class OrdersService implements OnModuleInit {
         },
       });
     }
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  /**
+   * 「先线上」的单：客服 / 店长点一下放给本店线下陪玩（老板 2026-09-29：
+   * 「孙或店长点一下『也放给线下陪玩』」）。没人点也会在
+   * `pool.online_first_release_minutes` 分钟后自动放行（判定在 findPool 里，纯读时计算）。
+   */
+  async releaseToOffline(orderId: string, user: any) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (user?.role !== 'OWNER' && user?.studioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (order.poolScope !== PoolScope.ONLINE_FIRST) {
+      throw new ForbiddenException('这张单本来就是先给本店线下的，不用放');
+    }
+    if (order.releasedToOfflineAt) return order; // 已经放过，重复点不报错
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { releasedToOfflineAt: new Date() },
+    });
+    this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  /**
+   * 线上 / 桥接单的结果反馈（老板 2026-09-29）：接单方（或替他代填的客服 / 店长）点
+   * 「成功 / 不成功」；不成功要选原因。没反馈 = 待反馈，不算成功也不算不成功，不计提成。
+   * 本店线下的单不用反馈：陪玩点「开始首单」就算成功（见 common/order-outcome.ts）。
+   */
+  async recordOutcome(
+    orderId: string,
+    user: any,
+    body: { outcome?: string; reason?: string; note?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { companion: { select: { studioId: true, studio: { select: { id: true, type: true } } } } },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能记结果反馈');
+    }
+    if (user?.role !== 'OWNER' && user?.studioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (!order.companionId) throw new ForbiddenException('这张单还没人接，先等陪玩抢单');
+    if (orderChannelOf(order, order.studioId) === 'offline') {
+      throw new ForbiddenException('本店线下的单不用反馈：陪玩点了「开始首单」就算成功');
+    }
+    const outcome =
+      body.outcome === OrderOutcome.SUCCESS
+        ? OrderOutcome.SUCCESS
+        : body.outcome === OrderOutcome.FAILED
+          ? OrderOutcome.FAILED
+          : null;
+    if (!outcome) throw new BadRequestException('结果只能是「成功」或「不成功」');
+    const reason = (body.reason || '').trim();
+    if (outcome === OrderOutcome.FAILED && !reason) throw new BadRequestException('不成功要选一个原因');
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        outcome,
+        outcomeReason: reason || null,
+        outcomeNote: (body.note || '').trim() || null,
+        outcomeByUserId: user?.id ?? null,
+        outcomeAt: new Date(),
+      },
+    });
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
   }

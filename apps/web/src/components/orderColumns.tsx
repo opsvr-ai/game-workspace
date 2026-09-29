@@ -8,6 +8,7 @@ import {
   FIELD_WIDTH,
 } from '../constants/datasetColumns';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
+import { OutcomeSuffix } from './OrderOutcome';
 
 const { Text } = Typography;
 
@@ -32,9 +33,22 @@ export interface OrderColumnOptions {
    * 不传就按 FIELD_WIDTH 的基准宽度（派单管理那三张列表就是这么用的）。
    */
   widths?: Record<string, number>;
+  /**
+   * 客服 / 店长点状态格里「成功 / 不成功 / 待反馈」时回调（订单管理 + 派单管理传）。
+   * 不传就是只读小字（陪玩端根本不会传这个）。
+   */
+  onOutcomeClick?: (order: any) => void;
+  /** 客服点「先线上」小字，把这单提前放给本店线下陪玩（订单管理传）。 */
+  onReleaseToOffline?: (order: any) => void;
 }
 
-export function buildOrderColumns({ isCompanion, inactiveAccounts, widths }: OrderColumnOptions): any[] {
+export function buildOrderColumns({
+  isCompanion,
+  inactiveAccounts,
+  widths,
+  onOutcomeClick,
+  onReleaseToOffline,
+}: OrderColumnOptions): any[] {
   // 列宽统一走这里取：传了 widths（订单管理表）就用算出来的宽度，没传就用基准宽度
   const W = (key: string, fallback: number) => widths?.[key] ?? fallback;
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
@@ -94,6 +108,31 @@ export function buildOrderColumns({ isCompanion, inactiveAccounts, widths }: Ord
         return (
           <div style={CELL_ONE_LINE} title={label}>
             <span style={{ color: STATUS_TEXT_COLOR[o.status] || '#475569' }}>{label}</span>
+            {!isCompanion && o.poolScope === 'ONLINE_FIRST' && (
+              <span
+                style={{
+                  color: '#7C3AED',
+                  marginLeft: 6,
+                  cursor: !o.releasedToOfflineAt && onReleaseToOffline ? 'pointer' : 'default',
+                  textDecoration:
+                    !o.releasedToOfflineAt && onReleaseToOffline ? 'underline dotted' : undefined,
+                }}
+                onClick={!o.releasedToOfflineAt && onReleaseToOffline ? () => onReleaseToOffline(o) : undefined}
+                title={
+                  o.releasedToOfflineAt
+                    ? '「先线上」的单，已经放给本店线下陪玩了'
+                    : onReleaseToOffline
+                      ? '「先线上」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见 —— 点这里可以现在就放给线下'
+                      : '「先线上」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见'
+                }
+              >
+                · {o.releasedToOfflineAt ? '已放给线下' : '先线上'}
+              </span>
+            )}
+            {/* 线上 / 桥接单的结果（成功 / 不成功 / 待反馈）；线下单不显示 */}
+            {!isCompanion && (
+              <OutcomeSuffix order={o} onClick={onOutcomeClick ? () => onOutcomeClick(o) : undefined} />
+            )}
           </div>
         );
       },

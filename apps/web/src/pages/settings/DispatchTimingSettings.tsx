@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Card, Form, InputNumber, message, Typography } from 'antd';
 import { configApi } from '../../api/config';
 
-const KEYS = ['pool.priority_delay_seconds', 'pool.bridge_delay_seconds', 'pool.middle_delay_seconds', 'pool.low_delay_seconds', 'pool.online_delay_seconds', 'pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes'];
+const KEYS = ['pool.priority_delay_seconds', 'pool.bridge_delay_seconds', 'pool.middle_delay_seconds', 'pool.low_delay_seconds', 'pool.online_delay_seconds', 'pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes', 'pool.online_first_release_minutes'];
 
 const DispatchTimingSettings: React.FC = () => {
   const [form] = Form.useForm();
@@ -35,6 +35,16 @@ const DispatchTimingSettings: React.FC = () => {
         <Form.Item name="pool.online_delay_seconds" label="线上俱乐部等待（秒）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.immediate_disappear_minutes" label="立即打订单消失时间（分钟）"><InputNumber min={0} /></Form.Item>
         <Form.Item name="pool.scheduled_disappear_minutes" label="预约订单消失时间（分钟）"><InputNumber min={0} /></Form.Item>
+        <Form.Item
+          name="pool.online_first_release_minutes"
+          label="「先桥接+线上」的单多久自动放给本店线下（分钟）"
+        >
+          <InputNumber min={1} />
+        </Form.Item>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          「先桥接+线上」的单：本店线下陪玩先看不见，过了这个时间还没被桥接 / 线上抢走，就自动放进本店线下陪玩的池子
+          （客服也可以随时手动放给线下）。
+        </Typography.Text>
         <Button type="primary" loading={saving} onClick={save}>保存等待时间</Button>
       </Form>
     </Card>

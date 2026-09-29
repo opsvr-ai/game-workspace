@@ -4,6 +4,7 @@ import { Modal, Form, Input, Select, InputNumber, message, Upload, Button, Check
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { trafficAccountApi } from '../api/trafficAccount';
+import { financeApi } from '../api/finance';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
@@ -43,6 +44,24 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
   const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
   const [customerWechatQr, setCustomerWechatQr] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  /**
+   * 「先给谁抢」的默认值来自发单客服自己的档位（老板 2026-09-29）：
+   * 邵泽慧这类「先本店线下」，孙可馨这类「先桥接 + 线上」。没配过就是先本店线下。
+   * 客服 / 店长 / 老板都能读这张表；陪玩读不到就按默认来（catch 掉）。
+   */
+  useEffect(() => {
+    if (!open || editingOrder) return;
+    financeApi.commission
+      .csProfiles()
+      .then(({ data: res }: any) => {
+        const me = (res?.data?.items || []).find((it: any) => it.userId === userId);
+        if (me?.poolScope && !form.getFieldValue('poolScope')) {
+          form.setFieldsValue({ poolScope: me.poolScope });
+        }
+      })
+      .catch(() => {});
+  }, [open, userId, editingOrder, form]);
 
   useEffect(() => {
     if (open)
@@ -283,6 +302,24 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                           {c.user?.displayName || c.user?.username}
                         </Option>
                       ))}
+                    </Select>
+                  </Form.Item>
+                ) : null
+              }
+            </Form.Item>
+            {/* 入池的单：先给谁抢（老板 2026-09-29）。默认值自动带发单客服自己的档位。 */}
+            <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
+              {({ getFieldValue }) =>
+                getFieldValue('dispatchType') === DispatchType.POOL ? (
+                  <Form.Item
+                    name="poolScope"
+                    label="先给谁抢"
+                    initialValue="OFFLINE_FIRST"
+                    extra="先本店线下：自家陪玩先看见；先桥接+线上：先给别家工作室 / 线上俱乐部，本店线下陪玩暂时看不见（随时能放给线下，不点也会自动放开）。"
+                  >
+                    <Select>
+                      <Option value="OFFLINE_FIRST">先本店线下</Option>
+                      <Option value="ONLINE_FIRST">先桥接 + 线上</Option>
                     </Select>
                   </Form.Item>
                 ) : null

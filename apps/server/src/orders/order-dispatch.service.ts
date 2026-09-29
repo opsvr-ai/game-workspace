@@ -7,6 +7,9 @@ import { OrderStatus } from '@chunlv/shared';
 import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
 import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
+import { PoolScope } from '@chunlv/shared';
+import { visibleToOwnOffline } from '../common/order-outcome';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 @Injectable()
 export class OrderDispatchService {
@@ -129,7 +132,21 @@ export class OrderDispatchService {
     // First fetch order to get customerId and validate
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true, studioId: true, dispatchType: true, csUserId: true, type: true, source: true, amount: true, customFields: true, gameName: true },
+      select: {
+        id: true,
+        customerId: true,
+        studioId: true,
+        dispatchType: true,
+        csUserId: true,
+        type: true,
+        source: true,
+        amount: true,
+        customFields: true,
+        gameName: true,
+        poolScope: true,
+        createdAt: true,
+        releasedToOfflineAt: true,
+      },
     });
     if (!order) throw new NotFoundException('订单不存在');
     if (order.dispatchType !== 'POOL') throw new ForbiddenException('该订单不在抢单池中');
@@ -139,6 +156,14 @@ export class OrderDispatchService {
     // Prevent self-grabbing
     const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
+    // 「先线上」的单：本店线下陪玩在放行之前抢不了（服务端兜底，池子里本来就不显示）
+    if (order.poolScope === PoolScope.ONLINE_FIRST && comp?.studioId === order.studioId) {
+      const cfg = await resolveConfigsRaw(this.prisma, order.studioId, ['pool.online_first_release_minutes']);
+      const minutes = Number((cfg as Record<string, unknown>)['pool.online_first_release_minutes'] ?? 5);
+      if (!visibleToOwnOffline(order, minutes)) {
+        throw new ForbiddenException('这张单先给桥接工作室 / 线上俱乐部，暂时还抢不了；客服放给线下后就能抢');
+      }
+    }
     // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接。
     await assertCustomerNotTakenByCurrentWechat(this.prisma, companionId, order.customerId);
 

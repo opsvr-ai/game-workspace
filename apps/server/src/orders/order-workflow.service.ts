@@ -8,6 +8,9 @@ import { logger } from '../common/logger';
 import { CompanionQuotaService } from './companion-quota.service';
 import { assertCustomerNotTakenByCurrentWechat } from './customer-wechat-rule';
 import { companionOrderRevenue } from '../common/order-revenue';
+import { PoolScope } from '@chunlv/shared';
+import { visibleToOwnOffline } from '../common/order-outcome';
+import { resolveConfigsRaw } from '../common/studio-config';
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.PENDING]: [OrderStatus.GRABBED, OrderStatus.CLAIMED, OrderStatus.CANCELLED],
@@ -64,6 +67,15 @@ export class OrderWorkflowService {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(companion.studioId);
       if (!bridgedIds.includes(order.studioId)) {
         throw new ForbiddenException('无权抢其他工作室的订单');
+      }
+    }
+    // 「先线上」的单：本店线下陪玩在客服放行（或过了自动放行时间）之前抢不了。
+    // 池子里本来就不给他看，这里是服务端兜底 —— 别让人拿旧页面 / 直连接口绕过。
+    if (order.poolScope === PoolScope.ONLINE_FIRST && companion.studioId === order.studioId) {
+      const cfg = await resolveConfigsRaw(this.prisma, order.studioId, ['pool.online_first_release_minutes']);
+      const minutes = Number((cfg as Record<string, unknown>)['pool.online_first_release_minutes'] ?? 5);
+      if (!visibleToOwnOffline(order, minutes)) {
+        throw new ForbiddenException('这张单先给桥接工作室 / 线上俱乐部，暂时还抢不了；客服放给线下后就能抢');
       }
     }
 

@@ -40,6 +40,12 @@ export class CreateOrderDto {
   // Urgency
   @IsOptional() @IsString() urgency?: string;
 
+  /**
+   * 这张单先给谁抢（老板 2026-09-29）：OFFLINE_FIRST（默认/不填）= 先给本店线下，
+   * ONLINE_FIRST = 先给桥接 + 线上俱乐部，本店线下陪玩先看不见。
+   */
+  @IsOptional() @IsString() poolScope?: string;
+
   // 预约时间（客服自由文本）
   @IsOptional() @IsString() scheduledTimeText?: string;
 

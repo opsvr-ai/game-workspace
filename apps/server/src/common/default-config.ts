@@ -42,6 +42,15 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'options.contact_results': ['现在玩', '改天玩', '未回消息', '好友未通过', '被客户删除'],
   'options.finish_results': ['正常完成', '客户续单', '变声器退款', '技术差退款'],
   'options.fail_reasons': ['抢单未加微信', '好友未通过', '客户不回消息', '客户删除', '客户说不打', '其他'],
+  // 线上 / 桥接单接单方反馈「不成功」的原因（老板 2026-09-29 口述的 6 项）
+  'options.outcome_fail_reasons': [
+    '客户对陪玩不满意',
+    '陪玩没接、放鸽子',
+    '时间对不上',
+    '价格没谈拢',
+    '客户临时取消',
+    '其他',
+  ],
   'traffic.account_types': ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'],
   'traffic.account_columns': [
     { key: 'type', label: '平台', custom: false },
@@ -165,6 +174,10 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'pool.middle_delay_seconds': 60,
   'pool.low_delay_seconds': 120,
   'pool.online_delay_seconds': 180,
+  // 「先线上」的单（孙可馨那种）先给桥接 + 线上俱乐部，本店线下陪玩先看不见；
+  // 过了这么多分钟还没人接，自动放给本店线下陪玩（老板 2026-09-29）。
+  // 客服/店长随时可以手动「放给线下」，不用等这个时间。
+  'pool.online_first_release_minutes': 5,
   'pool.immediate_disappear_minutes': 10,
   'pool.scheduled_disappear_minutes': 60,
   'pool.grab_return_minutes': 180,
