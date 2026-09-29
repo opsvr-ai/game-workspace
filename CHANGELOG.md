@@ -160,6 +160,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **线上实测抓到两个问题（老板 2026-09-29 入池方式那套的复验，46 项断言）。**
+  **①「线下转桥接/线上统计」一张单都不显示**：`listEscalatedPoolOrders` 用了
+  `NOT: { poolScope: 'ONLINE_FIRST' }`，而 SQL 里 `NOT (poolScope = 'x')` 对 `NULL` 求值还是 `NULL` ——
+  把所有 `poolScope` 为 `null` 的老单（也就是默认的「线下+线上流转入池」）全过滤掉了。改成显式
+  `poolScope IS NULL OR poolScope <> 'ONLINE_FIRST'`。**② 双陪流水少一半**：`orderGrossYuan` 只算了
+  `amount × 时长`，漏了搭档那份 `coAmount`，改成 `(amount + coAmount) × 时长`，和统计页 / 客服按流水计提对齐。
 - **部署链路修根：服务端一直加载的是旧的 `@chunlv/shared`，`packages/shared/dist` 从来没被推上服务器
   （2026-09-29）。** `apps/server/node_modules/@chunlv/shared` 是软链到 `packages/shared` 的，而
   `scripts/_deploy_server_cloud.py` 只推 `apps/server/dist` —— 线上那份 `enums.js` 还停在 9/19。
