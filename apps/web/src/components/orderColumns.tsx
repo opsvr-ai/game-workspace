@@ -53,14 +53,17 @@ export function buildOrderColumns({
   // 列宽统一走这里取：传了 widths（订单管理表）就用算出来的宽度，没传就用基准宽度
   const W = (key: string, fallback: number) => widths?.[key] ?? fallback;
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
-  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（管理端 1072px、陪玩端 984px）。
+  // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 现在**一格一行**（管理端 1092px、陪玩端 1004px）。
   // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
   // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
   // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线。
-  // 2026-09-29：管理端「客户账号」列按老板要求加宽到 176px（来源 / 昵称 / 客户账号ID 要看得见），
-  // 管理端整表基准 1072px（1320 宽的窗口会有约 80px 横向滚动）；窗口比这宽时多出来的宽度
-  // 由 fitOrderColumnWidths 补给客户信息列（订单管理会传 widths 进来，见 OrderColumnOptions）。
-  // 陪玩端那套列用窄版（84px），合计仍然是 984px，陪玩端窗口不会多出滚动条。
+  // 2026-09-29：管理端「客户账号」列按老板要求加宽到 176px（来源 / 昵称 / 客户账号ID 要看得见）。
+  // 2026-09-30：老板「主陪跟发布中间不是有这么大的空间么？你把他们距离缩小，让客户账号全部显示全」——
+  // 「客户账号」216px（再靠 fitOrderColumnWidths 优先补到 340px）、「主陪 / 副陪」84 → 66、
+  // 管理端整表基准 1094px（1320 的窗口约 93px 横向滚动，这是「客户账号显示全」的代价）；
+  // 窗口比这宽时多出来的宽度由 fitOrderColumnWidths **先全部**补给「客户账号」
+  // （订单管理会传 widths 进来，见 OrderColumnOptions）。
+  // 陪玩端那套列用窄版（客户账号 84px、「主陪」84px），合计 1024px，和管理端互不影响。
   const STATUS_TEXT_COLOR: Record<string, string> = {
     PENDING: '#B45309',
     CLAIMED: '#6D28D9',
@@ -195,14 +198,14 @@ export function buildOrderColumns({
     {
       title: '客户账号',
       key: 'customerAccounts',
-      // 管理端 176px（来源 / 昵称 / 客户账号ID 都要看得见）、陪玩端 84px（只有房间码 / YY / KOOK）
+      // 管理端 216px（来源 / 昵称 / 客户账号ID 都要看得见）、陪玩端 84px（只有房间码 / YY / KOOK）
       width: isCompanion ? FIELD_WIDTH.customerAccountsCompanion : W('customerAccounts', FIELD_WIDTH.customerAccounts),
       // 这一列的字段原样搬自「派单工作台 → 派单记录」的订单行：客服核单时一眼认出是哪个客户。
       // 客户ID / 昵称对陪玩不展示（和订单池的行口径一致）。
       // 来源平台（「小红书」三个字）和来源账号一起对陪玩藏掉 —— 老板 2026-09-29：
       // 「陪玩端 隐藏 客户小红书信息」。房间码 / YY / KOOK 是陪玩自己找人对局要用的，照常显示。
       // 原来是一格 5~6 行（来源、昵称、房间码、YY/KOOK、二维码），现在压成一行，长了自己省略号。
-      // 管理端这一列 176px（FIELD_WIDTH.customerAccounts）：来源 / 昵称 / 账号ID 一眼看全，
+      // 管理端这一列 216px（FIELD_WIDTH.customerAccounts）：来源 / 昵称 / 账号ID 一眼看全，
       // 陪玩端只有 84px 的窄版（FIELD_WIDTH.customerAccountsCompanion）。
       render: (_: unknown, o: any) => {
         const cf = o.customFields || {};
@@ -283,7 +286,8 @@ export function buildOrderColumns({
     {
       title: '主陪 / 副陪',
       key: 'companion',
-      width: W('studio', FIELD_WIDTH.studio),
+      // 管理端用收窄后的 studio（66px，把宽度让给「客户账号」）；陪玩端保持 studioCompanion（84px）
+      width: isCompanion ? FIELD_WIDTH.studioCompanion : W('studio', FIELD_WIDTH.studio),
       render: (_: unknown, o: any) => {
         const name = o.companion?.user?.username || '未接单';
         const co = o.coCompanion?.user?.username;

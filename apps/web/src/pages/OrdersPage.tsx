@@ -950,7 +950,7 @@ const OrdersPage: React.FC = () => {
                 pagination={false}
                 style={TABLE_STYLE}
                 scroll={{
-                  // 管理端用算出来的 scroll.x：窗口窄时和以前一样是 1072px（横向滚动照旧），
+                  // 管理端用算出来的 scroll.x：窗口窄时是 1092px（横向滚动照旧），
                   // 窗口宽时正好等于表格能用的宽度，列不会被按比例压扁
                   x: isCompanion ? sumWidths(ORDER_TABLE_KEYS_COMPANION) : fittedColumns.scrollX,
                 }}
