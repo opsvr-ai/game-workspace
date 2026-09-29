@@ -12,10 +12,13 @@ export const orderTypeConfig: Record<string, { color: string; label: string }> =
   TIP: { color: 'orange', label: '打赏' },
 };
 
+// 老板 2026-09-30：「状态 已抢到订单改成已被抢 无人接单改成 无人接 全部压缩到3个字，
+// 状态跟游戏之间再缩短一点，这不就有位置了」—— 状态文案一律 **3 个字**（多一个字，
+// 订单管理那张表的状态列就要多 12px，13 列的表就多一格横向滚动）。
 export const orderStatusConfig: Record<string, { color: string; label: string }> = {
   PENDING: { color: 'gold', label: '待派单' },
-  CLAIMED: { color: 'purple', label: '客服认领' },
-  GRABBED: { color: 'blue', label: '已抢到订单' },
+  CLAIMED: { color: 'purple', label: '已认领' },
+  GRABBED: { color: 'blue', label: '已被抢' },
   CONFIRMED: { color: 'green', label: '进行中' },
   DONE: { color: 'green', label: '已完成' },
   CANCELLED: { color: 'default', label: '已取消' },

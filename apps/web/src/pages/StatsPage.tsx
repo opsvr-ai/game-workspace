@@ -15,7 +15,8 @@ const orderStatusConfig: Record<string, { color: string; label: string }> = {
   CONFIRMED: { color: 'cyan', label: '已确认' },
   DONE: { color: 'green', label: '已完成' },
   CANCELLED: { color: 'red', label: '已取消' },
-  CLAIMED: { color: 'purple', label: '客服认领' },
+  // 状态文案统一 3 个字（老板 2026-09-30），跟 constants/orders.ts 保持一致
+  CLAIMED: { color: 'purple', label: '已认领' },
 };
 
 const paidToConfig: Record<string, string> = {

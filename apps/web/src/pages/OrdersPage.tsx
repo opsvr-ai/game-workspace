@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Typography,
   Button,
@@ -30,6 +30,7 @@ import OrderDetailModal from '../components/OrderDetailModal';
 import OrderOutcomeModal, { orderChannelOf } from '../components/OrderOutcome';
 import { buildOrderColumns } from '../components/orderColumns';
 import { isRowClickIgnored } from '../utils/rowClick';
+import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 import ChatModal from '../components/ChatModal';
@@ -88,6 +89,8 @@ const OrdersPage: React.FC = () => {
   };
 
   const [orders, setOrders] = useState<any[]>([]);
+  // 从聊天框点「查看订单」跳过来时带的订单 id（见下面的 focus 效果）
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -222,6 +225,32 @@ const OrdersPage: React.FC = () => {
     fetch();
   }, [fetch]);
 
+  // 从聊天框点「查看订单」跳过来：<角色>/orders?orderId=<id> —— 直接把那一单的详情弹窗打开
+  // （老板 2026-09-30：「客服点击这个位置会跳转到该订单方便查看客户信息」）。
+  // 先把参数从地址里抹掉，免得关掉弹窗 / 刷新页面时又自己弹回来；不在当前筛选范围里
+  // （客服默认只看自己的单）就单独把这一单取回来。
+  useEffect(() => {
+    const focusId = searchParams.get('orderId');
+    if (!focusId) return;
+    if (loading && orders.length === 0) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('orderId');
+    setSearchParams(next, { replace: true });
+    const hit = orders.find((o: any) => o.id === focusId);
+    if (hit) {
+      setDetailOrder(hit);
+      return;
+    }
+    ordersApi
+      .getOrder(focusId)
+      .then(({ data }: any) => {
+        const one = data?.data;
+        if (one?.id) setDetailOrder(one);
+        else message.error('没找到这个订单');
+      })
+      .catch((e: any) => message.error(extractErrorMessage(e, '没找到这个订单')));
+  }, [searchParams, setSearchParams, orders, loading]);
+
   useEffect(() => {
     const refreshOrders = () => fetch();
     window.addEventListener('chunlv:order-pool-updated', refreshOrders);
@@ -246,13 +275,8 @@ const OrdersPage: React.FC = () => {
               });
               const csUser = r.csUser;
               if (csUser?.id) {
-                const orderInfo = [
-                  `📋 ${r.gameName}`,
-                  `¥${Number(r.amount).toFixed(0)}`,
-                  r.duration ? `${r.duration}h` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ');
+                // 「这一单」那行字带上订单 id / 单号：客服在聊天框里点一下就能跳到这张单
+                const orderInfo = encodeOrderInfo(orderInfoTextOf(r), r.id);
                 useChatStore.getState().openConversation(
                   csUser.id,
                   {
@@ -525,13 +549,8 @@ const OrdersPage: React.FC = () => {
                     const { [r.id]: _, ...rest } = prev;
                     return rest;
                   });
-                  const orderInfo = [
-                    `📋 ${r.gameName}`,
-                    `¥${Number(r.amount).toFixed(0)}`,
-                    r.duration ? `${r.duration}h` : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
+                  // 「这一单」那行字带上订单 id / 单号（同上，客服点了直接跳过去看客户信息）
+                  const orderInfo = encodeOrderInfo(orderInfoTextOf(r), r.id);
                   useChatStore.getState().openConversation(
                     chatTarget.id,
                     {
@@ -950,7 +969,7 @@ const OrdersPage: React.FC = () => {
                 pagination={false}
                 style={TABLE_STYLE}
                 scroll={{
-                  // 管理端用算出来的 scroll.x：窗口窄时是 1242px（横向滚动照旧），
+                  // 管理端用算出来的 scroll.x：窗口窄时是 1220px（横向滚动照旧），
                   // 窗口宽时正好等于表格能用的宽度，列不会被按比例压扁
                   x: isCompanion ? sumWidths(ORDER_TABLE_KEYS_COMPANION) : fittedColumns.scrollX,
                 }}

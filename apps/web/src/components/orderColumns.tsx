@@ -58,7 +58,8 @@ export function buildOrderColumns({
   const showCustomerSource = canSeeCustomerSource(isCompanion ? 'COMPANION' : 'CS');
   // 订单管理表的列（老板 2026-09-28：所有信息不要分两层显示、该把字体调小就调小、别花里胡哨）：
   // 历史：17 列（1936px）→ 合并成 9 列上下两行（1182px）→ 一格一行（管理端 1092px）→
-  // 2026-09-30 客户信息按发布订单表单的口径拆成五列（管理端 1242px、陪玩端 1024px）。
+  // 2026-09-30 客户信息按发布订单表单的口径拆成五列（管理端 1242px、陪玩端 1024px），
+  // 当天随后又按老板要求把状态文案压到 3 个字、状态列 72 → 50px（管理端基准 1220px、陪玩端 1002px）。
   // 一个格子只放一行 —— 主信息深色（订单号 / 游戏名 / 金额 / 陪玩名），次要信息 11px 灰字用「·」
   // 跟在后面；长了自动省略号，鼠标停上去看完整内容。状态只用彩色文字、不再用彩色标签块，
   // emoji / 图标全部去掉，行高固定 20px，所以整张表每行一样高（33px）、每列都跟表头一条线。
@@ -67,9 +68,10 @@ export function buildOrderColumns({
   // 于是先做了「客户账号 216px + 主陪 84 → 66」；同一天老板又提「你把客户账号拆分成发布订单时
   // 细分的名称不行么？比如来源：小红书 引流账号： 客户昵称 客户账号id 客户联系方式，把前边的微信
   // 挪过去」—— 管理端那一列从此拆成五列（来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式），
-  // 客户微信从「客户微信 / 编号」挪进「客户联系方式」，管理端整表基准 1242px
+  // 客户微信从「客户微信 / 编号」挪进「客户联系方式」，管理端整表基准 1220px
   // （再靠 fitOrderColumnWidths 按 ORDER_COLUMN_FIT_ORDER 优先补给这五列）。
-  // 陪玩端那套列一个字没动（客户微信 118px、「客户账号」84px、「主陪」84px，合计 1024px）。
+  // 陪玩端那套列一个字没动（客户微信 118px、「客户账号」84px、「主陪」84px，合计 1002px；
+  // 只有共用的「状态」列跟着收窄到 50px，陪玩端状态格里只有 2~3 个字，照样放得下）。
   const STATUS_TEXT_COLOR: Record<string, string> = {
     PENDING: '#B45309',
     CLAIMED: '#6D28D9',
@@ -104,13 +106,13 @@ export function buildOrderColumns({
       width: W('orderStatus', FIELD_WIDTH.orderStatus),
       render: (_: unknown, o: any) => {
         const label = orderStatusConfig[o.status]?.label || o.status;
-        // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接单」
+        // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接」（3 个字）
         const stuck = o.customFields?.poolExpired === true && !o.companionId;
         if (stuck) {
           return (
             <div style={CELL_ONE_LINE}>
               <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
-                <span style={{ color: '#DC2626' }}>无人接单</span>
+                <span style={{ color: '#DC2626' }}>无人接</span>
               </Tooltip>
             </div>
           );

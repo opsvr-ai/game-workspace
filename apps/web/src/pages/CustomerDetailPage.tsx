@@ -59,7 +59,7 @@ const orderTypeLabels: Record<string, string> = {
 
 const orderStatusLabels: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待接单', color: 'blue' },
-  GRABBED: { label: '已抢到订单', color: 'cyan' },
+  GRABBED: { label: '已被抢', color: 'cyan' },
   CONFIRMED: { label: '已确认', color: 'geekblue' },
   DONE: { label: '已完成', color: 'green' },
   CANCELLED: { label: '已取消', color: 'default' },
