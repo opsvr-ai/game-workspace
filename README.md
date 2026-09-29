@@ -6,6 +6,20 @@
 
 ## Recent Updates (v3.2.0)
 
+- **客服派单「先给谁抢」+ 线上 / 桥接单「成不成」反馈 + 客服提成看板重做（2026-09-29）:** 老板要的是
+  「并不是订单派出去了，被抢走了就计算了……点开始首单就可以判定这个客户真消费没；线上不好判定，需要接单者
+  给我反馈，比如派给桥接俱乐部一个订单，对方对陪玩不满意，那么这单就不成功」。现在：
+  **① 发单弹窗**多一个「先给谁抢」（先本店线下 / 先桥接+线上）——选后者时本店线下陪玩先看不见，
+  客服点订单管理里的紫色「先线上」小字就能放给线下，不点也会在 `pool.online_first_release_minutes`
+  （默认 5 分钟）后自动放行（`Order.poolScope` / `releasedToOfflineAt`，迁移 `20260929220000_add_order_scope_outcome_cs_profile`）；
+  **② 「成不成」只有一套口径**（`apps/server/src/common/order-outcome.ts`）——本店线下点了「开始首单」即成功，
+  桥接 / 线上**只有接单方反馈成功才算**、没反馈=待反馈、不成功要选原因（`options.outcome_fail_reasons`），
+  提成 / 看板 / 达标全调它；**③ 今日看板重做**（`/admin/finance/commission-today`，客服另有
+  `/cs/finance/commission-today`）：每人发单 / 派出 / 线下·桥接·线上 / 成功·不成功·待反馈 / 成功率 /
+  应发提成 / 罚后提成 / 底薪日发 / 今日应发 / 当月累计，点一行看逐单结果；**④ 客服档位**（`CsProfile`，
+  `GET/PUT /api/finance/commission/cs-profiles`）：按人配默认派单范围 + 底薪。线上另建临时工作室 / 账号 /
+  客户 / 4 张单跑完 39 项断言，测试数据已当场删干净。
+
 - **「报账微信码」：每个陪玩在自己的报账页传一次收款码，财务报账时点开扫一扫（2026-09-29）:** 老板要的是
   「每个陪玩在报账那里给他留个位置，让陪玩自己上传自己的报账微信码，每次报账点开这个码，拿手机扫一扫就可以了」。
   现在陪玩端「财务管理 → 报账系统」顶上多一张**我的报账微信码**卡片：上传 / Ctrl+V 粘贴一次收款码截图即可
@@ -633,6 +647,8 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
+| `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「先给谁抢 = 先桥接 + 线上」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
+| `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
 | `POST` | `/api/orders/:id/confirm` | JWT | COMPANION | Confirm a grabbed order (start service). |
 | `POST` | `/api/orders/:id/complete` | JWT | CS, ADMIN, COMPANION | Mark order as completed. |
@@ -710,6 +726,9 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/finance/commission/rules` | JWT | ADMIN, OWNER | Create/update commission rule. |
 | `POST` | `/api/finance/commission/calculate/:month` | JWT | ADMIN, OWNER | Calculate monthly commission (idempotent). |
 | `GET` | `/api/finance/commission/:month` | JWT | ADMIN, OWNER, CS | List commission ledgers for month. |
+| `GET` | `/api/finance/commission/cs-profiles` | JWT | ADMIN, OWNER, CS | 客服档位：每人的默认派单范围（`OFFLINE_FIRST` / `ONLINE_FIRST`）+ 底薪（`null` = 用「工资规则」里统一那个数）。 |
+| `PUT` | `/api/finance/commission/cs-profiles` | JWT | ADMIN, OWNER | 存某客服的档位。Body: `{ userId, poolScope?, baseSalaryYuan? }`。 |
+| `GET` | `/api/finance/commission/cs-today-orders` | JWT | ADMIN, OWNER, CS | 今日看板点开一行：这个客服今天发出的单 + 每张单现在的结果（渠道 / 成功·不成功·待反馈 / 原因）。客服只能看自己。 |
 | `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
 | `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue. |
 

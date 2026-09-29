@@ -1,7 +1,7 @@
 # 蠢驴电竞陪玩派单管理系统 — 架构说明
 
 > 以图表形式阐述整个平台的系统架构、数据流转、业务流程和部署拓扑。
-> 最后更新: 2026-06-30 · v3.0.0
+> 最后更新: 2026-09-29 · v3.2.0
 
 ## 新增功能
 
@@ -10,6 +10,9 @@
 - **客户画像+AI**: 19字段画像, 首单/复购检测, 活跃状态判定, AI分析+话术生成
 - **双陪搭档**: 呼叫/接受搭档 WebSocket 通知
 - **流量池+离职+授权+工作微信**: 渠道管理, 离职清退, 租客授权, 微信绑定
+- **客服派单范围 + 结果反馈 + 提成看板**（2026-09-29）: 每张单「先给谁抢」（先本店线下 / 先桥接+线上，
+  `Order.poolScope`）、线上 / 桥接单的接单方反馈（`Order.outcome`，线下点「开始首单」即成功）、
+  成功口径唯一实现 `common/order-outcome.ts`、按人客服档位 `CsProfile`、重做的今日看板
 
 ---
 
@@ -287,6 +290,7 @@ graph TB
         C1["/cs/dispatch<br/>派单工作台"]
         C2["/cs/orders<br/>订单管理<br/>（原派单记录，2026-09-27 合并）"]
         C3["/cs/companions<br/>陪玩状态"]
+        C4["/cs/finance/commission-today<br/>我的提成看板"]
     end
 
     style OWNER fill:#e8f5e9
@@ -658,6 +662,19 @@ sequenceDiagram
 - 报账协商：`PUT /api/transactions/:id/propose` 发起改价（`NEGOTIATING`），`accept-proposal` / `reject-proposal` 由陪玩确认或退回
 - 支出/支取审核：`GET/PUT /api/expense-reports*` 与 `GET/PUT /api/wallet-transactions*` 审核陪玩支出、支取与钱包流水（`PENDING → APPROVED/REJECTED`）
 - 报账微信码：陪玩在报账页上传自己的收款码（`Companion.payoutQrUrl`），财务在支出/支取审核与报账统计里点开扫码打钱；`GET /api/companions` 对陪玩本人返回的 `payoutQrUrl` 一律置空
+- **客服派单「先给谁抢」**（老板 2026-09-29）：发单时给 `Order.poolScope` 写 `ONLINE_FIRST`（本店线下先看不见，
+  弹窗 / 通知只发桥接 + 线上）或留空（先本店线下，老行为）。本店线下的可见性判定在
+  `common/order-outcome.ts#visibleToOwnOffline`（`releasedToOfflineAt` 手动放行，或
+  `pool.online_first_release_minutes` 分钟自动放行），`orders.service.findPool` 过滤 +
+  `order-workflow.service.grab` / `order-dispatch.service.quickGrab` 服务端兜底双保险
+- **「这单成不成」唯一口径**（老板 2026-09-29）：`common/order-outcome.ts` ——
+  `successOrderWhere()`（算钱的成功单）/ `bridgeMetOrderWhere()`（桥接达标）/ `outcomeOf()`（界面展示）。
+  本店线下 = 会话有 `startedAt` 或 `status=DONE` 即成功；桥接 / 线上 = `Order.outcome=SUCCESS` 才算，
+  空 = 待反馈，`FAILED` 不计提成且带 `outcomeReason`（原因字典 `options.outcome_fail_reasons`）；
+  退款 / 取消一律不算。提成（`commission.service`）、工资达标（`payroll.service`）、今日看板三处调同一套，
+  不允许再各写一份（这个项目已经在「两套口径」上翻过车）
+- **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）与
+  `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）；今日看板、月度结算、工资生成按人取底薪
 - 提成复核：`PATCH /api/finance/commission/ledgers/:id/status` 将 `CommissionLedger` 在 `DRAFT / CONFIRMED` 间流转
 - 截图阈值：`GET/PUT /api/config` 读取/更新 `capture.*`（截图间隔、首张延迟、黑屏判定、每小时期望张数与合格率），Electron 客户端开始服务时拉取并动态执行
 
@@ -673,4 +690,8 @@ sequenceDiagram
 - `GET/PUT /api/expense-reports*` — 支出/支取申请查询与审核
 - `GET/PUT /api/wallet-transactions*` — 钱包流水查询与审核
 - `GET/PUT /api/companions/me/payout-qr` — 陪玩自己的报账微信码（读 / 上传更换，限 COMPANION）
+- `GET/PUT /api/finance/commission/cs-profiles` — 客服档位（默认派单范围 + 底薪；读放开到 CS，写限 ADMIN/OWNER）
+- `GET /api/finance/commission/cs-today-orders` — 今日看板点开一行：这个客服今天发出的单 + 每张单的结果（客服只看自己）
+- `POST /api/orders/:id/release-to-offline` — 「先桥接+线上」的单提前放给本店线下（CS/ADMIN/OWNER）
+- `POST /api/orders/:id/outcome` — 线上 / 桥接单的结果反馈（`SUCCESS`/`FAILED`+原因+备注，CS/ADMIN/OWNER）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）
