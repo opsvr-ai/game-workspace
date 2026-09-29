@@ -262,6 +262,11 @@ model Order {
   outcomeByUserId String?
   outcomeAt       DateTime?
 
+  // 「催一下」（老板 2026-09-30）：线上 / 桥接单一直是「待反馈」时，发单的客服可以催接单
+  // 工作室给个说法。催了几次、最后一次什么时候记在这里；接单方的看板上显示「对方催过 N 次」。
+  feedbackChasedAt   DateTime?
+  feedbackChaseCount Int       @default(0)
+
   studio         Studio                @relation(fields: [studioId], references: [id])
   csUser         User                  @relation("CSUser", fields: [csUserId], references: [id])
   claimedCsUser  User?                 @relation("ClaimedCS", fields: [claimedCsUserId], references: [id])

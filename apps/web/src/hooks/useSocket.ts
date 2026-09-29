@@ -11,6 +11,8 @@ interface UseSocketOptions {
   onOrderUrgent?: (data: any) => void;
   /** 有人把订单转让给我（老板 2026-09-29：是谁抢的就是谁的，换手只能靠转让） */
   onOrderTransferred?: (data: any) => void;
+  /** 接单工作室被催结果（老板 2026-09-30：待反馈的单，发单客服可以「催一下」） */
+  onFeedbackChase?: (data: any) => void;
   onScheduledReminder?: (data: any) => void;
   onStatusBroadcast?: (data: any) => void;
   /** 群聊广播：客服/店长在群聊里发的广播，陪玩端要弹 Windows 提醒 */
@@ -235,6 +237,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:transferred', (data: any) => {
       optsRef.current.onOrderTransferred?.(data);
+    });
+
+    socket.on('order:feedback_chase', (data: any) => {
+      optsRef.current.onFeedbackChase?.(data);
     });
 
     socket.on('order:partner_accepted', (data: any) => {

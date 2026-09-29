@@ -689,6 +689,13 @@ sequenceDiagram
   不允许再各写一份（这个项目已经在「两套口径」上翻过车）
 - **客服档位**：`CsProfile`（`userId` 唯一）按人存 `poolScope`（默认派单范围，发单弹窗的默认值）与
   `baseSalaryYuan`（空 = 用 `PayrollConfig(role=CS).baseSalary`）；今日看板、月度结算、工资生成按人取底薪
+- **结果反馈「催得动」+ 接单方看板**（老板 2026-09-30）：`Order.feedbackChasedAt / feedbackChaseCount`
+  记「催了几次、最后一次什么时候」；`POST /api/orders/:id/chase-feedback`（CS / ADMIN / OWNER，只在
+  线上 / 桥接单、还没反馈结果时可用）随手把 `order:feedback_chase` 推给**接单工作室**
+  （`wsGateway.broadcastToStudio` → 那边客服 / 店长右下角提醒）；`GET /api/finance/received-today`
+  （`commission.service.getReceivedToday`）给桥接店 / 线上俱乐部看「今天我们店接的单」：
+  `companion.studioId = 本店` 且 `order.studioId != 本店`，结果判定仍走 `outcomeOf(o, 本店)` 那一份口径，
+  明细带「谁记的结果」（`outcomeByUserId` 裸字段 → 单独查用户名）
 - 提成复核：`PATCH /api/finance/commission/ledgers/:id/status` 将 `CommissionLedger` 在 `DRAFT / CONFIRMED` 间流转
 - 截图阈值：`GET/PUT /api/config` 读取/更新 `capture.*`（截图间隔、首张延迟、黑屏判定、每小时期望张数与合格率），Electron 客户端开始服务时拉取并动态执行
 
@@ -705,6 +712,8 @@ sequenceDiagram
 - `GET/PUT /api/wallet-transactions*` — 钱包流水查询与审核
 - `GET/PUT /api/companions/me/payout-qr` — 陪玩自己的报账微信码（读 / 上传更换，限 COMPANION）
 - `GET/PUT /api/finance/commission/cs-profiles` — 客服档位（默认派单范围 + 底薪；读放开到 CS，写限 ADMIN/OWNER）
+- `POST /api/orders/:id/chase-feedback` — 催接单工作室反馈结果（线上 / 桥接单待反馈时，记催的次数 + 推 `order:feedback_chase`）
+- `GET /api/finance/received-today` — 「今天我们店接的单」（桥接店 / 线上俱乐部看今天接了多少 / 成功 / 不成功 / 待反馈）
 - `GET /api/finance/commission/cs-today-orders` — 今日看板点开一行：这个客服今天发出的单 + 每张单的结果（客服只看自己）
 - `POST /api/orders/:id/release-to-offline` — 「先桥接+线上」的单提前放给本店线下（CS/ADMIN/OWNER）
 - `POST /api/orders/:id/transfer` — 陪玩把单转让给同工作室的另一个人（**只有 COMPANION 且只有当前持单人**）：

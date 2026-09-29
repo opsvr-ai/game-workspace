@@ -1061,6 +1061,24 @@ const AppLayout: React.FC = () => {
       }
       window.dispatchEvent(new Event('chunlv:order-pool-updated'));
     },
+    onFeedbackChase: (data: any) => {
+      // 发单那边的客服在催这一单的结果（老板 2026-09-30：「待反馈……看得见、催得动」）。
+      // 这条推给**接单工作室**（桥接店 / 线上俱乐部）的客服和店长：提醒他们去「接单看板」记结果。
+      notification.warning({
+        message: '📣 对方在催这一单的结果',
+        description: `${data?.fromName || '发单客服'} 催「${data?.orderCode || ''} ${data?.gameName || ''}」的接单结果${
+          data?.chaseCount ? `（已催 ${data.chaseCount} 次）` : ''
+        }，去「客服提成 · 今日看板 → 今天我们店接的单」记一下成功 / 不成功`,
+        placement: 'bottomRight',
+        duration: 10,
+      });
+      try {
+        playNotificationSound();
+      } catch {
+        /* 声音播不出来不影响提醒 */
+      }
+      window.dispatchEvent(new Event('chunlv:received-board-updated'));
+    },
     onPartnerAccepted: (data: any) => {
       notification.success({
         message: '✅ 搭档已同意',

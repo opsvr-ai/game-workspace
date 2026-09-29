@@ -26,6 +26,8 @@ export const financeApi = {
     /** 今日看板点开一行：这个客服今天发出的单 + 每张单的结果 */
     csTodayOrders: (userId?: string) =>
       http.get('/finance/commission/cs-today-orders', { params: { userId } }),
+    /** 「今天我们店接的单」（老板 2026-09-30）：桥接店 / 线上俱乐部自己看今天接了多少、成功多少、不成功多少 */
+    receivedToday: () => http.get('/finance/received-today'),
   },
 
   // ── 每日到账对账 ──

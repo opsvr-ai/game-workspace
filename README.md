@@ -6,6 +6,17 @@
 
 ## Recent Updates (v3.2.0)
 
+- **线上 / 桥接单结果反馈「催得动」+「今天我们店接的单」接单方看板（2026-09-30）:** 老板「没反馈的算待反馈，
+  不算成功也不算失败，看得见、催得动」「桥接店 / 线上俱乐部看『今天你们接了多少、成功多少、不成功多少』」。
+  - 「催一下」：发单客服在「客服提成 · 今日看板 → 点开自己那行」对还挂着「待反馈」的线上 / 桥接单点一下 ——
+    单上记一笔（`Order.feedbackChasedAt` / `feedbackChaseCount`），接单工作室的客服 / 店长**立刻收到提醒**
+    （`order:feedback_chase` + 右下角通知，接单方正开着看板会自动刷新）。
+  - 「今天我们店接的单」看板（`GET /api/finance/received-today`）：桥接店 / 线上俱乐部看今天别人家的单被我们
+    陪玩接了多少 / 成功多少 / 不成功多少 / 待反馈多少 / 成功率 / 桥接·线上各几单 / 被催过几单，待反馈的单
+    旁边直接就能「记结果」。明细还标出「某某 记」（谁、哪单、什么原因）。
+  - 口径与提成规则不变（`common/order-outcome.ts`）：线下点「开始首单」即成功；桥接 / 线上只有接单方反馈
+    「成功」才算；没反馈 = 待反馈不计提成；退款 / 取消自动不算；原因字典 `options.outcome_fail_reasons` 可改。
+
 - **聊天框「这一单」双方实时同步 + 人员列表点聊天不带订单（2026-09-30，v834）:** 老板「陪玩/管理端通过
   某个链接点沟通，就要双方互相显示该订单，并且可以点进去；如果通过抢单池左侧的人员列表点聊天，那么聊天框
   就不要显示订单信息」。房间上的订单上下文现在是三态：带订单 = 写上 / 显式 null = 清掉 / **不传 = 别动原来
@@ -735,6 +746,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上入池」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
 | `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
+| `POST` | `/api/orders/:id/chase-feedback` | JWT | CS, ADMIN, OWNER | 「催一下」：线上 / 桥接单还挂着「待反馈」时催接单工作室给个说法。单上记 `feedbackChasedAt` / `feedbackChaseCount`，并把 `order:feedback_chase` 推给接单工作室（客服 / 店长右下角提醒）。已反馈过 / 没人接 / 本店线下单会 403。 |
 | `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
 | `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
@@ -817,6 +829,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/finance/commission/cs-profiles` | JWT | ADMIN, OWNER, CS | 客服档位：每人的默认派单范围（`OFFLINE_FIRST` / `ONLINE_FIRST`）+ 底薪（`null` = 用「工资规则」里统一那个数）。 |
 | `PUT` | `/api/finance/commission/cs-profiles` | JWT | ADMIN, OWNER | 存某客服的档位。Body: `{ userId, poolScope?, baseSalaryYuan? }`。 |
 | `GET` | `/api/finance/commission/cs-today-orders` | JWT | ADMIN, OWNER, CS | 今日看板点开一行：这个客服今天发出的单 + 每张单现在的结果（渠道 / 成功·不成功·待反馈 / 原因）。客服只能看自己。 |
+| `GET` | `/api/finance/received-today` | JWT | ADMIN, OWNER, CS | 「今天我们店接的单」：别的店发的单被本店陪玩接走的（`companion.studioId=本店` 且 `order.studioId!=本店`），返回今天接了多少 / 成功 / 不成功 / 待反馈 / 成功率 / 桥接·线上各几单 / 被催过几单 + 逐单明细（含「谁记的结果」）。 |
 | `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
 | `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue. |
 

@@ -115,6 +115,18 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 「今天我们店接的单」（老板 2026-09-30）：桥接店 / 线上俱乐部自己看 ——
+   * 今天别人家的单被我们店陪玩接了多少、成功多少、不成功多少、还有多少没反馈。
+   * 老板 / 店长看本店的全部，客服看本店的（这页本来就只有本店范围）。陪玩端没有这个入口。
+   */
+  @Get('received-today')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async receivedToday(@Req() req: any): Promise<any> {
+    const data = await this.commissions.getReceivedToday(studioIdFor(req));
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('commission/:month')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async listCommission(@Req() req: any, @Param('month') month: string, @Query('studioId') studioId?: string) {

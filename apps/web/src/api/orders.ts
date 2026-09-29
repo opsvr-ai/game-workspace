@@ -52,6 +52,8 @@ export const ordersApi = {
   /** 线上 / 桥接单的结果反馈：成功 / 不成功（不成功要带原因） */
   recordOutcome: (id: string, data: { outcome: 'SUCCESS' | 'FAILED'; reason?: string; note?: string }) =>
     http.post(`/orders/${id}/outcome`, data),
+  /** 「催一下」：线上 / 桥接单一直没反馈结果时，催接单工作室给个说法（老板 2026-09-30） */
+  chaseFeedback: (id: string) => http.post(`/orders/${id}/chase-feedback`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
   addSession: (id: string, data: any) => http.post(`/orders/${id}/sessions`, data),
   acceptPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-accept`),

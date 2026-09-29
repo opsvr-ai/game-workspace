@@ -265,6 +265,14 @@ export class OrdersController {
     return { code: 200, message: '已记录结果', data };
   }
 
+  /** 「催一下」：线上 / 桥接单一直没反馈结果时，发单的客服催接单工作室给个说法。 */
+  @Post('orders/:id/chase-feedback')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async chaseFeedback(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.chaseFeedback(id, req.user);
+    return { code: 200, message: '已催接单工作室反馈', data };
+  }
+
   @Post('orders/:id/compensate-customer')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
   async compensateCustomer(@Param('id') id: string): Promise<ApiResponse<unknown>> {

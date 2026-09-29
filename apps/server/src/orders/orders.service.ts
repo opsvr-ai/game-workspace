@@ -810,6 +810,60 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
+   * 「催一下」（老板 2026-09-30）：线上 / 桥接单还挂着「待反馈」时，发单的客服按一下，
+   * 把话说到接单那边去 —— 「没反馈的算待反馈，不算成功也不算失败，看得见、催得动」。
+   *
+   * 做三件事：
+   *  1. 单上记一笔（催了几次、最后一次什么时候）：接单方的看板上显示「对方催过 N 次」，
+   *     发单的客服自己也知道催过几回，不用在微信里翻聊天记录；
+   *  2. 给接单工作室（桥接店 / 线上俱乐部）的客服 / 店长推一条实时提醒；
+   *  3. 返回更新后的单，界面立刻刷新。
+   *
+   * 已经反馈过结果、还没人接、本店线下单，都不给催。
+   */
+  async chaseFeedback(orderId: string, user: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        companion: { select: { studioId: true, studio: { select: { id: true, type: true, name: true } } } },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能催结果');
+    }
+    if (user?.role !== 'OWNER' && user?.studioId) {
+      const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
+      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (!order.companionId) throw new ForbiddenException('这张单还没人接，先等陪玩抢单');
+    if (orderChannelOf(order, order.studioId) === 'offline') {
+      throw new ForbiddenException('本店线下的单不用反馈：陪玩点了「开始首单」就算成功');
+    }
+    if (order.outcome === OrderOutcome.SUCCESS || order.outcome === OrderOutcome.FAILED) {
+      throw new ForbiddenException('这张单已经反馈过结果了，不用再催');
+    }
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { feedbackChasedAt: new Date(), feedbackChaseCount: { increment: 1 } },
+    });
+    const targetStudioId = order.companion?.studioId ?? null;
+    if (targetStudioId) {
+      this.wsGateway.broadcastToStudio(targetStudioId, 'order:feedback_chase', {
+        orderId: updated.id,
+        orderCode: updated.orderCode,
+        gameName: updated.gameName,
+        chaseCount: updated.feedbackChaseCount,
+        fromName: user?.displayName || user?.username || '对方客服',
+        fromStudioId: order.studioId,
+        chasedAt: updated.feedbackChasedAt,
+        _notify: true,
+      });
+    }
+    return updated;
+  }
+
+  /**
    * 陪玩把订单转让给别人（老板 2026-09-29）。
    *
    * 「抢单超时自动回收」已经整条删除 —— 是谁抢的就是谁的；换手只剩这一条路：

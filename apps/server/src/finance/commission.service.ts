@@ -910,15 +910,26 @@ export class CommissionService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // 「谁记的结果」：outcomeByUserId 在库里是个裸字段（不是外键关系），单独查一下用户名。
+    const byIds = Array.from(new Set(orders.map((o) => o.outcomeByUserId).filter(Boolean))) as string[];
+    const byUsers = byIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: byIds } },
+          select: { id: true, username: true, displayName: true },
+        })
+      : [];
+    const byMap = new Map(byUsers.map((u) => [u.id, u]));
     return orders.map((o) => {
       const decision = outcomeOf(o, studioId);
+      const who = o.outcomeByUserId ? byMap.get(o.outcomeByUserId) : null;
       return {
         orderId: o.id,
         orderCode: o.orderCode,
         type: o.type,
         status: o.status,
         amount: Number(o.amount || 0),
-        units: o.coCompanionId ? 2 : 1,
+        // 「算几单」跟提成同一份口径（单陪 1、双陪 2；客服选了「双」还没配搭档也算 2）
+        units: orderUnits(o as any),
         customerCode: o.customer?.customerCode || null,
         customerWechat: o.customer?.wechatId || null,
         companionName:
@@ -932,10 +943,110 @@ export class CommissionService {
         outcomeReason: o.outcomeReason,
         outcomeNote: o.outcomeNote,
         outcomeAt: o.outcomeAt,
+        outcomeBy: who ? who.displayName || who.username : null,
+        chaseCount: o.feedbackChaseCount ?? 0,
+        chasedAt: o.feedbackChasedAt,
         refundedAt: o.refundedAt,
         createdAt: o.createdAt,
       };
     });
+  }
+
+  /**
+   * 「今天我们店接的单」（老板 2026-09-30）：桥接工作室 / 线上俱乐部自己看的看板 ——
+   * 今天别人家的单被我们店陪玩接了多少、成功多少、不成功多少、还有多少没反馈。
+   *
+   * 口径：只看**不是本店发的**单（order.studioId 不等于本店），接单人属于本店（companion.studioId = 本店）。
+   * 本店自己发的单在「发单看板」（getCsCommissionToday）那边统计，两边不重不漏。
+   * 结果判定跟提成同一份（common/order-outcome.ts）：线下不用反馈，桥接 / 线上要接单方反馈「成功」才算；
+   * 没反馈 = 待反馈；退款 / 取消自动不算。
+   */
+  async getReceivedToday(studioId: string) {
+    if (!studioId) {
+      const first = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
+      studioId = first?.id || '';
+    }
+    const bd = businessDayOf(new Date());
+    const dateLabel = `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`;
+    const { start, end } = currentBusinessDayRange();
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: start, lt: end },
+        studioId: { not: studioId },
+        companion: { studioId },
+      },
+      include: {
+        companion: { include: { user: { select: { username: true, displayName: true } } } },
+        customer: { select: { customerCode: true, wechatId: true } },
+        studio: { select: { id: true, name: true } },
+        sessions: { select: { startedAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const byIds = Array.from(new Set(orders.map((o) => o.outcomeByUserId).filter(Boolean))) as string[];
+    const byUsers = byIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: byIds } },
+          select: { id: true, username: true, displayName: true },
+        })
+      : [];
+    const byMap = new Map(byUsers.map((u) => [u.id, u]));
+    const round2 = (n: number) => Number(n.toFixed(2));
+    const rows = orders.map((o) => {
+      // 渠道必须按**发单店**那把尺子量：单是别家发的、接单人是我店的 → 「桥接 / 线上」；
+      // 拿自己当基准会把它算成「本店线下」（线下不用反馈），结果和待反馈就全错了。
+      const decision = outcomeOf(o, o.studioId);
+      const who = o.outcomeByUserId ? byMap.get(o.outcomeByUserId) : null;
+      return {
+        orderId: o.id,
+        orderCode: o.orderCode,
+        gameName: o.gameName,
+        type: o.type,
+        status: o.status,
+        amount: Number(o.amount || 0),
+        units: orderUnits(o as any),
+        channel: decision.channel,
+        state: decision.state,
+        counted: decision.counted,
+        stateReason: decision.reason,
+        customerCode: o.customer?.customerCode || null,
+        customerWechat: o.customer?.wechatId || null,
+        companionId: o.companionId,
+        companionName: o.companion?.user?.displayName || o.companion?.user?.username || null,
+        issuerStudio: o.studio?.name || null,
+        issuerStudioId: o.studio?.id || null,
+        grabbedAt: o.grabbedAt,
+        createdAt: o.createdAt,
+        outcome: o.outcome,
+        outcomeReason: o.outcomeReason,
+        outcomeNote: o.outcomeNote,
+        outcomeAt: o.outcomeAt,
+        outcomeBy: who ? who.displayName || who.username : null,
+        chaseCount: o.feedbackChaseCount ?? 0,
+        chasedAt: o.feedbackChasedAt,
+        refundedAt: o.refundedAt,
+      };
+    });
+    const count = (fn: (r: (typeof rows)[number]) => boolean) => rows.filter(fn).length;
+    const success = count((r) => r.state === 'SUCCESS');
+    const failed = count((r) => r.state === 'FAILED');
+    const concluded = success + failed;
+    return {
+      date: dateLabel,
+      studioId,
+      summary: {
+        total: rows.length,
+        units: rows.reduce((sum, r) => sum + r.units, 0),
+        success,
+        failed,
+        pending: count((r) => r.state === 'PENDING'),
+        successRate: concluded > 0 ? round2((success / concluded) * 100) : null,
+        bridge: count((r) => r.channel === 'bridge'),
+        online: count((r) => r.channel === 'online'),
+        chased: count((r) => r.chaseCount > 0),
+      },
+      rows,
+    };
   }
 
   /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29）。 */

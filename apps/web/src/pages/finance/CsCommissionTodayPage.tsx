@@ -18,6 +18,7 @@ import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { financeApi } from '../../api/finance';
+import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
 import OrderOutcomeModal from '../../components/OrderOutcome';
@@ -69,6 +70,9 @@ const CsCommissionTodayPage: React.FC = () => {
   const [drill, setDrill] = useState<any>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [outcomeTarget, setOutcomeTarget] = useState<any>(null);
+  // 「今天我们店接的单」（老板 2026-09-30）：桥接店 / 线上俱乐部看自己今天接的单和结果
+  const [received, setReceived] = useState<any>(null);
+  const [receivedLoading, setReceivedLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,9 +86,30 @@ const CsCommissionTodayPage: React.FC = () => {
     }
   }, []);
 
+  const loadReceived = useCallback(async () => {
+    setReceivedLoading(true);
+    try {
+      const { data: res } = await financeApi.commission.receivedToday();
+      setReceived((res as any)?.data || null);
+    } catch {
+      // 接单看板拉不到（老服务端 / 断网）不该把提成看板一起弄崩
+      setReceived(null);
+    } finally {
+      setReceivedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadReceived();
+  }, [load, loadReceived]);
+
+  // 对方客服「催一下」时，接单方正开着的这一页立刻刷新
+  useEffect(() => {
+    const onChased = () => loadReceived();
+    window.addEventListener('chunlv:received-board-updated', onChased);
+    return () => window.removeEventListener('chunlv:received-board-updated', onChased);
+  }, [loadReceived]);
 
   // 客服只能点开自己那一行（后端也只返回自己的明细）；店长 / 老板点谁都行
   const isCs = user?.role === 'CS';
@@ -102,6 +127,20 @@ const CsCommissionTodayPage: React.FC = () => {
       setDrill({ row, orders: [] });
     } finally {
       setDrillLoading(false);
+    }
+  };
+
+  /** 「催一下」：线上 / 桥接单还挂着「待反馈」时，催接单工作室（桥接店 / 线上俱乐部）给个说法。 */
+  const chaseFeedback = async (r: any) => {
+    const id = r?.orderId || r?.id;
+    if (!id) return;
+    try {
+      await ordersApi.chaseFeedback(id);
+      message.success('已催接单工作室反馈结果');
+      load();
+      if (drill?.row) openRow(drill.row);
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '催失败');
     }
   };
 
@@ -262,6 +301,8 @@ const CsCommissionTodayPage: React.FC = () => {
   ];
 
   const drillOrders: any[] = drill?.orders || [];
+  const receivedRows: any[] = received?.rows || [];
+  const rc = received?.summary || null;
 
   return (
     <div>
@@ -407,6 +448,122 @@ const CsCommissionTodayPage: React.FC = () => {
         />
       </Card>
 
+      <Card
+        size="small"
+        style={{ marginTop: 12 }}
+        title="今天我们店接的单（别的店发来、我们陪玩接的）"
+        extra={
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            桥接工作室 / 线上俱乐部看这里：今天接了多少、成功多少、不成功多少
+          </Text>
+        }
+      >
+        <Space size={[6, 6]} wrap style={{ marginBottom: 10 }}>
+          <Tag color="blue">接单 {rc?.total ?? 0}</Tag>
+          {Number(rc?.units || 0) !== Number(rc?.total || 0) && <Tag color="blue">算 {rc?.units ?? 0} 份</Tag>}
+          <Tag color="green">成功 {rc?.success ?? 0}</Tag>
+          <Tag color="red">不成功 {rc?.failed ?? 0}</Tag>
+          <Tag color="orange">待反馈 {rc?.pending ?? 0}</Tag>
+          <Tag color="purple">成功率 {rc?.successRate == null ? '-' : rc.successRate.toFixed(0) + '%'}</Tag>
+          <Tag>桥接 {rc?.bridge ?? 0}</Tag>
+          <Tag>线上 {rc?.online ?? 0}</Tag>
+          {(rc?.chased ?? 0) > 0 && <Tag color="volcano">被催过 {rc.chased} 单</Tag>}
+        </Space>
+        <Table
+          rowKey="orderId"
+          size="small"
+          loading={receivedLoading}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          dataSource={receivedRows}
+          locale={{ emptyText: '今天还没有接到别的店的单' }}
+          scroll={{ x: 900 }}
+          columns={[
+            {
+              title: '订单',
+              dataIndex: 'orderCode',
+              width: 104,
+              render: (v: string, r: any) => (
+                <div>
+                  <Text strong>{v || r.orderId?.slice(0, 8)}</Text>
+                  <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.gameName || '—'}</div>
+                </div>
+              ),
+            },
+            {
+              title: '渠道 / 发单店',
+              width: 132,
+              render: (_: unknown, r: any) => (
+                <div>
+                  <Tag color={CHANNEL[r.channel]?.color || 'default'} style={{ marginInlineEnd: 0 }}>
+                    {CHANNEL[r.channel]?.label || r.channel}
+                  </Tag>
+                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{r.issuerStudio || '—'}</div>
+                </div>
+              ),
+            },
+            { title: '接单陪玩', dataIndex: 'companionName', width: 100, render: (v: string) => v || '—' },
+            {
+              title: '客户',
+              width: 120,
+              render: (_: unknown, r: any) => (
+                <Text style={{ fontSize: 12 }}>{r.customerCode || r.customerWechat || '—'}</Text>
+              ),
+            },
+            { title: '金额', dataIndex: 'amount', width: 70, render: (v: number) => yuan(v, 0) },
+            {
+              title: '结果',
+              width: 138,
+              render: (_: unknown, r: any) => {
+                const st = STATE[r.state] || STATE.NONE;
+                return (
+                  <div>
+                    <Text strong style={{ color: st.color }}>
+                      {st.label}
+                    </Text>
+                    {r.state === 'FAILED' && r.outcomeReason && (
+                      <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
+                    )}
+                    {r.outcomeBy && <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.outcomeBy} 记</div>}
+                    {r.refundedAt && <div style={{ fontSize: 11, color: '#94A3B8' }}>已退款</div>}
+                  </div>
+                );
+              },
+            },
+            {
+              title: '催',
+              width: 86,
+              render: (_: unknown, r: any) =>
+                r.chaseCount > 0 ? (
+                  <Tooltip title={'对方最后催于 ' + dayjs(r.chasedAt).format('MM-DD HH:mm')}>
+                    <Tag color="volcano" style={{ marginInlineEnd: 0 }}>
+                      催过 {r.chaseCount} 次
+                    </Tag>
+                  </Tooltip>
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    -
+                  </Text>
+                ),
+            },
+            {
+              title: '操作',
+              width: 88,
+              fixed: 'right' as const,
+              render: (_: unknown, r: any) =>
+                r.state === 'PENDING' ? (
+                  <Button size="small" onClick={() => setOutcomeTarget(r)}>
+                    记结果
+                  </Button>
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    已反馈
+                  </Text>
+                ),
+            },
+          ]}
+        />
+      </Card>
+
       <Drawer
         open={!!drill}
         onClose={() => setDrill(null)}
@@ -488,6 +645,10 @@ const CsCommissionTodayPage: React.FC = () => {
                     {r.state === 'FAILED' && r.outcomeReason && (
                       <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
                     )}
+                    {r.outcomeBy && <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.outcomeBy} 记</div>}
+                    {r.state === 'PENDING' && r.chaseCount > 0 && (
+                      <div style={{ fontSize: 11, color: '#fa541c' }}>已催 {r.chaseCount} 次</div>
+                    )}
                     {r.refundedAt && <div style={{ fontSize: 11, color: '#94A3B8' }}>已退款</div>}
                   </div>
                 );
@@ -495,13 +656,20 @@ const CsCommissionTodayPage: React.FC = () => {
             },
             {
               title: '操作',
-              width: 82,
+              width: 140,
               fixed: 'right' as const,
               render: (_: unknown, r: any) =>
                 r.channel !== 'offline' ? (
-                  <Button size="small" onClick={() => setOutcomeTarget(r)}>
-                    记结果
-                  </Button>
+                  <Space size={4}>
+                    <Button size="small" onClick={() => setOutcomeTarget(r)}>
+                      记结果
+                    </Button>
+                    {r.state === 'PENDING' && (
+                      <Button size="small" type="link" style={{ padding: 0 }} onClick={() => chaseFeedback(r)}>
+                        催一下
+                      </Button>
+                    )}
+                  </Space>
                 ) : (
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     线下自动判
