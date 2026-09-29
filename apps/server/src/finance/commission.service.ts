@@ -4,6 +4,12 @@ import { settlementMonthRange, currentBusinessDayRange, businessDayOf } from '..
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
 import { successOrderWhere, outcomeOf, orderUnits, orderGrossYuan } from '../common/order-outcome';
+import {
+  applyCsCommissionOverride,
+  csCommissionOrderTypes,
+  csCountsForCommission,
+  normalizeCsCommissionOverride,
+} from '../common/cs-commission';
 
 /**
  * 线上俱乐部订单的客服提成口径（老板 2026-09-30「这些数我自己填」）：
@@ -198,6 +204,7 @@ export class CommissionService {
       'commission.cs_online_rate_percent',
       'commission.cs_offline_per_order_cap_cents',
       'commission.cs_online_mode',
+      'commission.cs_include_renewal',
     ];
     const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
@@ -214,6 +221,10 @@ export class CommissionService {
       perOrderCapCents: map['commission.cs_offline_per_order_cap_cents'] ?? 0,
       // 线上俱乐部订单怎么算提成（老板 2026-09-30：线上是「单数 × 每单单价」还是「流水 × 比例」他自己填）
       onlineMode: onlineModeOf(resolved['commission.cs_online_mode']),
+      // 客服提成只算首单（默认）；打开开关后续单 / 复购 / 打赏也算（老板 2026-09-30「我自己填写」）
+      includeRenewal:
+        resolved['commission.cs_include_renewal'] === true ||
+        String(resolved['commission.cs_include_renewal'] ?? '').toLowerCase() === 'true',
     };
   }
 
@@ -331,6 +342,14 @@ export class CommissionService {
     return Number(((grossYuan * cfg.onlineRatePercent) / 100).toFixed(2));
   }
 
+  /**
+   * 按人取生效的提成配置（老板 2026-09-30：「孙也照用，还是他单独一套？」→ 按人填了就按他的算）。
+   * 这个人没填过 = 原样用店里那一套。
+   */
+  private csCfgForUser(base: any, override: unknown) {
+    return applyCsCommissionOverride(base, normalizeCsCommissionOverride(override));
+  }
+
   private bridgeTier(units: number, cfg: any): { perUnitYuan: number; baseFull: boolean } {
     if (units < cfg.bridgeMin) return { perUnitYuan: cfg.bridgePerOrderCents / 100, baseFull: false };
     if (units >= cfg.bridgeTier5) return { perUnitYuan: cfg.bridgeTier5Yuan, baseFull: true };
@@ -339,14 +358,23 @@ export class CommissionService {
   }
 
   /**
-   * 统计成功单：必须是被陪玩抢走、且已经打了首单（type=NEW、status=DONE）。
+   * 统计成功单：必须是被陪玩抢走、且已经打了首单（status=DONE）+ 接单方反馈成功。
    * 单陪算 1 单，双陪算 2 单。
+   *
+   * 算哪些**单类型**由 `commission.cs_include_renewal` 决定（老板 2026-09-30：客服提成默认**只算首单**，
+   * 续单 / 复购 / 打赏多是陪玩自己维护的；要算就打开开关）。
    */
-  private async querySuccessfulCsOrders(studioId: string, start: Date, end: Date, userId?: string) {
+  private async querySuccessfulCsOrders(
+    studioId: string,
+    start: Date,
+    end: Date,
+    userId?: string,
+    includeRenewal = false,
+  ) {
     return this.prisma.order.findMany({
       where: {
         studioId,
-        type: 'NEW',
+        type: { in: csCommissionOrderTypes(includeRenewal) },
         createdAt: { gte: start, lt: end },
         ...(userId
           ? { OR: [{ attributedCsUserId: userId }, { claimedCsUserId: userId }, { csUserId: userId }] }
@@ -423,12 +451,20 @@ export class CommissionService {
           where: { userId: { in: ids }, date: { gte: start, lt: end } },
         })
       : [];
-    const orders = await this.querySuccessfulCsOrders(studioId, start, end, userId);
-    // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里客服那一个数
+    const orders = await this.querySuccessfulCsOrders(studioId, start, end, userId, cfg.includeRenewal);
+    // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里客服那一个数；
+    // 2026-09-30 起同一份档位里还能存「这个人单独一套提成」（没填的项仍用店里的）。
     const profiles = await this.prisma.csProfile
       .findMany({ where: { studioId } })
-      .catch(() => [] as Array<{ userId: string; baseSalaryYuan: number | null }>);
+      .catch(
+        () => [] as Array<{ userId: string; baseSalaryYuan: number | null; commissionConfig?: unknown }>,
+      );
     const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
+    const cfgByUser = new Map<string, any>();
+    const cfgOf = (uid: string) => {
+      if (!cfgByUser.has(uid)) cfgByUser.set(uid, this.csCfgForUser(cfg, profileByUser.get(uid)?.commissionConfig));
+      return cfgByUser.get(uid);
+    };
 
     const monthDays = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 0).getDate();
     const fullAttendance = Math.max(0, monthDays - cfg.restDays);
@@ -451,6 +487,7 @@ export class CommissionService {
       const absent = att.filter((a) => a.status === 'ABSENT').length;
       const userBaseSalary = Number(profileByUser.get(u.id)?.baseSalaryYuan ?? cfg.baseSalary);
       const dailyBase = userBaseSalary / Math.max(1, fullAttendance);
+      const uCfg = cfgOf(u.id);
 
       let offlineCents = 0;
       let bridgeUnits = 0;
@@ -471,16 +508,16 @@ export class CommissionService {
 
         let commissionYuan = 0;
         if (kind === 'offline') {
-          const base = Math.round(amount * 100 * (cfg.ratePercent / 100));
-          let c = Math.max(cfg.floorCents, base);
-          if (cfg.perOrderCapCents > 0) c = Math.min(c, cfg.perOrderCapCents);
+          const base = Math.round(amount * 100 * (uCfg.ratePercent / 100));
+          let c = Math.max(uCfg.floorCents, base);
+          if (uCfg.perOrderCapCents > 0) c = Math.min(c, uCfg.perOrderCapCents);
           commissionYuan = centsToYuan(c);
           offlineCents += c;
         } else if (kind === 'online') {
           // 线上俱乐部：客服**按流水比例**计提（老板 2026-09-29）；单量只用于看板统计
           onlineUnits += units;
           onlineRevenueYuan += gross;
-          commissionYuan = this.onlineCommissionOf(cfg, units, gross);
+          commissionYuan = this.onlineCommissionOf(uCfg, units, gross);
         } else {
           bridgeUnits += units;
           commissionYuan = 0; // 桥接单价在月末按阶梯统一算
@@ -500,9 +537,9 @@ export class CommissionService {
         });
       }
 
-      const tier = this.bridgeTier(bridgeUnits, cfg);
+      const tier = this.bridgeTier(bridgeUnits, uCfg);
       const bridgeCommissionYuan = bridgeUnits * tier.perUnitYuan;
-      const onlineCommissionYuan = this.onlineCommissionOf(cfg, onlineUnits, onlineRevenueYuan);
+      const onlineCommissionYuan = this.onlineCommissionOf(uCfg, onlineUnits, onlineRevenueYuan);
       const offlineCommissionYuan = centsToYuan(offlineCents);
       const commissionYuan = Number((offlineCommissionYuan + bridgeCommissionYuan + onlineCommissionYuan).toFixed(2));
 
@@ -544,7 +581,7 @@ export class CommissionService {
       });
     }
 
-    return { config: cfg, rows, fullAttendance, monthDays };
+    return { config: cfg, configByUser: cfgByUser, rows, fullAttendance, monthDays };
   }
 
   /** 客服端右上角「底薪+提奖」：只看当前登录客服本人。 */
@@ -556,6 +593,8 @@ export class CommissionService {
     const built = await this.buildCsSalaryRows(studioId, start, end, userId);
     const row = built.rows[0] || null;
     const allOrders = row ? await this.queryAllCsOrders(studioId, start, end, userId) : [];
+    // 这个人生效的那一套（他自己填过就用他的）
+    const userCfg = (built as any).configByUser?.get?.(userId) ?? built.config;
     const orders = allOrders.map((o) => {
       const compStudio = o.companion?.studio;
       const units = orderUnits(o as any);
@@ -567,17 +606,17 @@ export class CommissionService {
       }
       // 成功口径：线下 = 点了「开始首单」；桥接 / 线上 = 接单方反馈成功
       const decision = outcomeOf(o as any, studioId);
-      const counted = o.type === 'NEW' && decision.counted;
+      const counted = csCountsForCommission(o, userCfg.includeRenewal) && decision.counted;
       let commissionYuan: number | null = null;
       if (counted) {
         if (kind === 'offline') {
-          const base = Math.round(Number(o.amount || 0) * 100 * (built.config.ratePercent / 100));
-          let c = Math.max(built.config.floorCents, base);
-          if (built.config.perOrderCapCents > 0) c = Math.min(c, built.config.perOrderCapCents);
+          const base = Math.round(Number(o.amount || 0) * 100 * (userCfg.ratePercent / 100));
+          let c = Math.max(userCfg.floorCents, base);
+          if (userCfg.perOrderCapCents > 0) c = Math.min(c, userCfg.perOrderCapCents);
           commissionYuan = centsToYuan(c);
         } else if (kind === 'online') {
           // 线上俱乐部：口径见「设置 → 客服设置」里的线上那两项
-          commissionYuan = this.onlineCommissionOf(built.config, units, gross);
+          commissionYuan = this.onlineCommissionOf(userCfg, units, gross);
         } else {
           commissionYuan = Number((row!.bridgePerUnitYuan * units).toFixed(2));
         }
@@ -605,24 +644,25 @@ export class CommissionService {
       fullAttendance: built.fullAttendance,
       monthDays: built.monthDays,
       config: {
-        baseSalary: built.config.baseSalary,
-        restDays: built.config.restDays,
-        lateDeduction: built.config.lateDeduction,
-        earlyLeaveDeduction: built.config.earlyLeaveDeduction,
-        absentDeductionPerDay: built.config.baseSalary / Math.max(1, built.fullAttendance),
-        fullAttendanceBonus: built.config.fullAttendanceBonus,
-        offlineRatePercent: built.config.ratePercent,
-        offlineFloorYuan: centsToYuan(built.config.floorCents),
-        offlineCapYuan: centsToYuan(built.config.perOrderCapCents),
-        bridgeMin: built.config.bridgeMin,
-        bridgeTier3: built.config.bridgeTier3,
-        bridgeTier5: built.config.bridgeTier5,
-        bridgeBaseYuan: centsToYuan(built.config.bridgePerOrderCents),
-        bridgeTier3Yuan: built.config.bridgeTier3Yuan,
-        bridgeTier5Yuan: built.config.bridgeTier5Yuan,
-        onlinePerOrderYuan: centsToYuan(built.config.onlinePerOrderCents),
-        onlineRatePercent: built.config.onlineRatePercent,
-        onlineMode: built.config.onlineMode,
+        baseSalary: (row as any)?.baseSalary ?? userCfg.baseSalary,
+        restDays: userCfg.restDays,
+        lateDeduction: userCfg.lateDeduction,
+        earlyLeaveDeduction: userCfg.earlyLeaveDeduction,
+        absentDeductionPerDay: userCfg.baseSalary / Math.max(1, built.fullAttendance),
+        fullAttendanceBonus: userCfg.fullAttendanceBonus,
+        offlineRatePercent: userCfg.ratePercent,
+        offlineFloorYuan: centsToYuan(userCfg.floorCents),
+        offlineCapYuan: centsToYuan(userCfg.perOrderCapCents),
+        bridgeMin: userCfg.bridgeMin,
+        bridgeTier3: userCfg.bridgeTier3,
+        bridgeTier5: userCfg.bridgeTier5,
+        bridgeBaseYuan: centsToYuan(userCfg.bridgePerOrderCents),
+        bridgeTier3Yuan: userCfg.bridgeTier3Yuan,
+        bridgeTier5Yuan: userCfg.bridgeTier5Yuan,
+        onlinePerOrderYuan: centsToYuan(userCfg.onlinePerOrderCents),
+        onlineRatePercent: userCfg.onlineRatePercent,
+        onlineMode: userCfg.onlineMode,
+        includeRenewal: userCfg.includeRenewal,
       },
       row,
       orders,
@@ -639,10 +679,16 @@ export class CommissionService {
       select: { id: true, username: true, displayName: true },
     });
     const rows: Array<Record<string, unknown>> = [];
+    // 按人一套提成（老板 2026-09-30）：这个人填了就用他的
+    const profiles = await this.prisma.csProfile
+      .findMany({ where: { studioId } })
+      .catch(() => [] as Array<{ userId: string; commissionConfig?: unknown }>);
+    const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
     for (const u of users) {
+      const uCfg = this.csCfgForUser(cfg, profileByUser.get(u.id)?.commissionConfig);
       const orders = await this.prisma.order.findMany({
         where: {
-          type: 'NEW',
+          type: { in: csCommissionOrderTypes(uCfg.includeRenewal) },
           createdAt: { gte: start, lt: end },
           OR: [{ attributedCsUserId: u.id }, { claimedCsUserId: u.id }],
           // 成功口径统一走 common/order-outcome.ts（老板 2026-09-29）
@@ -670,15 +716,15 @@ export class CommissionService {
           onlineUnits += companions;
           onlineRevenueYuan += orderGrossYuan(o as any);
         } else if (compStudio && compStudio.id !== studioId) {
-          bridgeCents += cfg.bridgePerOrderCents * companions;
+          bridgeCents += uCfg.bridgePerOrderCents * companions;
         } else {
-          const base = Math.round(o.amount * 100 * (cfg.ratePercent / 100));
-          let c = Math.max(cfg.floorCents, base);
-          if (cfg.perOrderCapCents > 0) c = Math.min(c, cfg.perOrderCapCents);
+          const base = Math.round(o.amount * 100 * (uCfg.ratePercent / 100));
+          let c = Math.max(uCfg.floorCents, base);
+          if (uCfg.perOrderCapCents > 0) c = Math.min(c, uCfg.perOrderCapCents);
           offlineCents += c;
         }
       }
-      onlineCents += Math.round(this.onlineCommissionOf(cfg, onlineUnits, onlineRevenueYuan) * 100);
+      onlineCents += Math.round(this.onlineCommissionOf(uCfg, onlineUnits, onlineRevenueYuan) * 100);
       rows.push({
         userId: u.id,
         username: u.username,
@@ -757,6 +803,14 @@ export class CommissionService {
     const monthByUser = new Map((monthBuilt.rows as any[]).map((r) => [r.userId, r]));
     const monthDays = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
     const fullAttendance = Math.max(1, monthDays - salaryCfg.restDays);
+    // 每个人生效的那一套（他自己填过就用他的）
+    const moneyCfgCache = new Map<string, any>();
+    const moneyCfgOf = (uid: string) => {
+      if (!moneyCfgCache.has(uid)) {
+        moneyCfgCache.set(uid, this.csCfgForUser(salaryCfg, profileByUser.get(uid)?.commissionConfig));
+      }
+      return moneyCfgCache.get(uid);
+    };
 
     const blank = (u: { id: string; username: string; displayName?: string | null }) => ({
       userId: u.id,
@@ -822,19 +876,21 @@ export class CommissionService {
           target.unstarted += 1;
         }
         if (!decision.counted) continue;
-        // 算钱（只算成功单）
+        // 算钱（只算成功单，且只算「算提成的单类型」—— 默认只算首单）
+        if (!csCountsForCommission(o, salaryCfg.includeRenewal)) continue;
+        const moneyCfg = target === s ? salaryCfg : moneyCfgOf(csId);
         if (decision.channel === 'offline') {
           target.offlineFlow += amount;
-          let c = amount * (salaryCfg.ratePercent / 100);
-          c = Math.max(c, salaryCfg.floorCents / 100);
-          if (salaryCfg.perOrderCapCents > 0) c = Math.min(c, salaryCfg.perOrderCapCents / 100);
+          let c = amount * (moneyCfg.ratePercent / 100);
+          c = Math.max(c, moneyCfg.floorCents / 100);
+          if (moneyCfg.perOrderCapCents > 0) c = Math.min(c, moneyCfg.perOrderCapCents / 100);
           target.offlineCommission += c;
         } else if (decision.channel === 'online') {
           // 线上俱乐部：口径见「设置 → 客服设置」里的线上那两项
           target.onlineFlow += gross;
-          target.onlineCommission += this.onlineCommissionOf(salaryCfg, units, gross);
+          target.onlineCommission += this.onlineCommissionOf(moneyCfg, units, gross);
         } else {
-          target.bridgeCommission += (salaryCfg.bridgePerOrderCents / 100) * units;
+          target.bridgeCommission += (moneyCfg.bridgePerOrderCents / 100) * units;
         }
       }
     }
@@ -887,6 +943,7 @@ export class CommissionService {
         missCommissionRate,
         missSalaryRate,
         fullAttendance,
+        includeRenewal: salaryCfg.includeRenewal,
       },
       summary: {
         published: s.published,
@@ -1091,22 +1148,43 @@ export class CommissionService {
     ]);
     const payroll = await this.prisma.payrollConfig.findUnique({ where: { role: 'CS' } });
     const byUser = new Map(profiles.map((p) => [p.userId, p]));
+    // 本店现在这一套（界面拿它当「留空 = 用这个」的提示值）
+    const base = await this.csSalaryConfig(resolved);
     return {
-      defaultBaseSalaryYuan: Number(payroll?.baseSalary ?? 0),
+      defaultBaseSalaryYuan: Number(payroll?.baseSalary ?? base.baseSalary ?? 0),
+      defaults: {
+        offlineRatePercent: base.ratePercent,
+        offlineFloorYuan: centsToYuan(base.floorCents),
+        offlineCapYuan: centsToYuan(base.perOrderCapCents),
+        bridgePerOrderYuan: centsToYuan(base.bridgePerOrderCents),
+        bridgeMinThreshold: base.bridgeMin,
+        bridgeTier3Threshold: base.bridgeTier3,
+        bridgeTier5Threshold: base.bridgeTier5,
+        bridgeTier3Yuan: base.bridgeTier3Yuan,
+        bridgeTier5Yuan: base.bridgeTier5Yuan,
+        onlineMode: base.onlineMode,
+        onlineRatePercent: base.onlineRatePercent,
+        onlinePerOrderYuan: centsToYuan(base.onlinePerOrderCents),
+        includeRenewal: base.includeRenewal,
+      },
       items: users.map((u) => ({
         userId: u.id,
         username: u.username,
         displayName: u.displayName,
         poolScope: byUser.get(u.id)?.poolScope ?? 'OFFLINE_FIRST',
         baseSalaryYuan: byUser.get(u.id)?.baseSalaryYuan ?? null,
+        commissionConfig: normalizeCsCommissionOverride(byUser.get(u.id)?.commissionConfig),
       })),
     };
   }
 
-  /** 存某个客服的档位（默认派单范围 + 底薪；填空 = 用统一默认）。 */
+  /**
+   * 存某个客服的档位（默认派单范围 + 底薪 + 可选的「这个人单独一套提成」）。
+   * 填空 / 传 null = 用本店的（老板 2026-09-30：「我自己填写」）。
+   */
   async saveCsProfile(
     studioId: string,
-    dto: { userId: string; poolScope?: string; baseSalaryYuan?: number | null },
+    dto: { userId: string; poolScope?: string; baseSalaryYuan?: number | null; commissionConfig?: unknown },
   ) {
     const resolved = await this.resolveStudioId(studioId);
     if (!dto.userId) throw new NotFoundException('缺少客服');
@@ -1121,10 +1199,13 @@ export class CommissionService {
         ? null
         : Number(dto.baseSalaryYuan);
     if (baseSalaryYuan !== null && baseSalaryYuan < 0) throw new NotFoundException('底薪不能是负数');
+    // 单独一套提成：一项都没填就当没有（清空），存回库里也只存填了的项
+    const commissionConfig = normalizeCsCommissionOverride(dto.commissionConfig);
+    const commissionValue = Object.keys(commissionConfig).length ? commissionConfig : null;
     await this.prisma.csProfile.upsert({
       where: { userId: dto.userId },
-      create: { userId: dto.userId, studioId: resolved, poolScope, baseSalaryYuan },
-      update: { poolScope, baseSalaryYuan, studioId: resolved },
+      create: { userId: dto.userId, studioId: resolved, poolScope, baseSalaryYuan, commissionConfig: commissionValue as any },
+      update: { poolScope, baseSalaryYuan, studioId: resolved, commissionConfig: commissionValue as any },
     });
     return this.listCsProfiles(resolved);
   }

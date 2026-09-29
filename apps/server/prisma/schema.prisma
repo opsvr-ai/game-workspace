@@ -1208,6 +1208,9 @@ model CsProfile {
   studioId       String
   poolScope      String   @default("OFFLINE_FIRST") // OFFLINE_FIRST | ONLINE_FIRST
   baseSalaryYuan Float? // 空 = 用「工资规则」里客服的底薪
+  // 这个人的「单独一套提成」（老板 2026-09-30：「孙也照用，还是他单独一套？」→「我自己填写」）。
+  // 结构见 apps/server/src/common/cs-commission.ts：只存他填了的项，金额是元；空 = 全套用店里的。
+  commissionConfig Json? // { offlineRatePercent?, offlineFloorYuan?, bridgeTier3Yuan?, onlineMode?, ... }
   updatedAt      DateTime @updatedAt
 
   @@index([studioId])

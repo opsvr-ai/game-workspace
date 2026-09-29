@@ -288,6 +288,10 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   //   'PER_ORDER' = 按成功单数 × 每单单价（`commission.cs_online_per_order_yuan`）
   // 两个数都在「设置 → 客服设置」里填，这里只管默认用哪一种。
   'commission.cs_online_mode': 'RATE',
+  // 客服提成算不算「续单 / 复购 / 打赏」（老板 2026-09-30：「客服提成只算首单（现在的口径），
+  // 还是续单/复购也算？——我建议保持只算首单，续单多是陪玩自己维护的」→「我自己填写」）。
+  // 默认 false = **只算首单**（跟以前一模一样）；勾上才算续单那些。
+  'commission.cs_include_renewal': false,
   'commission.cs_offline_per_order_cap_cents': 0,
   'commission.attribution_window': 'month',
 };

@@ -21,8 +21,17 @@ export const financeApi = {
       http.put('/finance/commission/bridge-rule', data),
     /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29） */
     csProfiles: () => http.get('/finance/commission/cs-profiles'),
-    saveCsProfile: (data: { userId: string; poolScope?: string; baseSalaryYuan?: number | null }) =>
-      http.put('/finance/commission/cs-profiles', data),
+    /**
+     * 存某个客服的档位：默认派单范围 + 底薪 + 可选「这个人单独一套提成」
+     * （老板 2026-09-30：「孙也照用，还是他单独一套？」→「我自己填写」）。
+     * `commissionConfig` 传 null / 空对象 = 回到本店那一套；结构见后端 `common/cs-commission.ts`。
+     */
+    saveCsProfile: (data: {
+      userId: string;
+      poolScope?: string;
+      baseSalaryYuan?: number | null;
+      commissionConfig?: Record<string, number | string> | null;
+    }) => http.put('/finance/commission/cs-profiles', data),
     /** 今日看板点开一行：这个客服今天发出的单 + 每张单的结果 */
     csTodayOrders: (userId?: string) =>
       http.get('/finance/commission/cs-today-orders', { params: { userId } }),
