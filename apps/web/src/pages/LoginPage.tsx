@@ -416,7 +416,7 @@ const LoginPage: React.FC = () => {
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
-        <div className="subtitle">陪玩管理系统 · 前端 v527</div>
+        <div className="subtitle">陪玩管理系统 · 前端 v827</div>
 
         {inviteToken ? (
           showInviteLogin ? (
