@@ -151,7 +151,25 @@ export class ChatController {
       body.participantId,
       body.orderInfo,
     );
-    return { code: 200, message: 'ok', data: { room: { id: room.id } } };
+    this.pushRoomOrderInfo(room);
+    return { code: 200, message: 'ok', data: { room: { id: room.id, orderInfo: room.orderInfo || null } } };
+  }
+
+  /**
+   * 会话里记着的「这一单」变了，立刻推给双方（老板 2026-09-30：「陪玩/管理端通过某个链接点沟通，
+   * 就要双方互相显示该订单，并且可以点进去」）。
+   * 不推的话，对方得等下一次刷新会话列表才看得到，正开着的聊天框顶上更是完全不变。
+   * 显式清掉（人员列表点聊天）时同样要推，对方那行字才会跟着消失。
+   */
+  private pushRoomOrderInfo(room: {
+    id: string;
+    participantA: string;
+    participantB: string;
+    orderInfo?: string | null;
+  }) {
+    const payload = { orderInfo: room.orderInfo || null };
+    this.chatGateway.notifyRoomUpdated(room.id, room.participantA, payload);
+    this.chatGateway.notifyRoomUpdated(room.id, room.participantB, payload);
   }
 
   @Patch('rooms/:id')
@@ -161,6 +179,8 @@ export class ChatController {
     @Body() body: { pinned?: boolean; archived?: boolean; orderInfo?: string },
   ) {
     const room = await this.chatService.updateRoom(id, body);
+    // 只有真的改了「这一单」才推，避免改个置顶也惊动双方。
+    if (body.orderInfo !== undefined) this.pushRoomOrderInfo(room as any);
     return { code: 200, message: 'ok', data: { room } };
   }
 
@@ -396,14 +416,20 @@ export class ChatController {
   }
 
   @Post('conversations')
-  async legacyCreateConversation(@Req() req: any, @Body() body: { participantId: string; orderInfo?: string }) {
+  async legacyCreateConversation(
+    @Req() req: any,
+    @Body() body: { participantId: string; orderInfo?: string | null },
+  ) {
     const room = await this.chatService.getOrCreateRoom(
       this.getStudioId(req),
       this.getUserId(req),
       body.participantId,
       body.orderInfo,
     );
-    return { code: 200, message: 'ok', data: { id: room.id } };
+    this.pushRoomOrderInfo(room);
+    // 顺带把房间里记着的「这一单」返回：前端从会话列表 / 通知点进来时不传订单，
+    // 拿这份就知道聊天框顶上该显示哪一单（服务端是唯一权威）。
+    return { code: 200, message: 'ok', data: { id: room.id, orderInfo: room.orderInfo || null } };
   }
 
   @Get('conversations/:id/messages')

@@ -94,6 +94,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         useChatStore.getState().receiveMessage(data.roomId, data.message);
       }
     },
+    onRoomUpdated: (data: any) => {
+      // 对方从订单点「沟通」（或从人员列表开了普通会话）→ 服务端把新的「这一单」推过来，
+      // 聊天框顶上那行字立刻出现 / 消失，不用等下一次刷新会话列表。
+      // 带 orderInfo: null 表示清掉，所以这里要判断字段在不在，而不是只看值真不真。
+      if (data?.roomId && Object.prototype.hasOwnProperty.call(data, 'orderInfo')) {
+        useChatStore.getState().setOrderInfo(data.roomId, data.orderInfo);
+      }
+    },
     onChatRead: (data: any) => {
       // 对方看到我发的消息了：把「对方读到哪一条」记下来，界面上的「未读」立刻变「已阅读」。
       if (data?.roomId && typeof data?.readSeq === 'number') {

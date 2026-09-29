@@ -75,6 +75,11 @@ interface ChatState {
   prependMessages: (convId: string, msgs: any[], hasMore: boolean) => void;
 
   openConversation: (participantId: string, participant: ParticipantInfo, orderInfo?: string | null) => Promise<void>;
+  /**
+   * 会话里那行「这一单」被改了（对方从订单点沟通，或从人员列表开了普通会话）。
+   * 服务端会实时推过来，这里更新本地，聊天框顶上立刻跟着出现 / 消失。
+   */
+  setOrderInfo: (convId: string, orderInfo?: string | null) => void;
   closeConversation: () => void;
   markRead: (convId: string) => void;
   /** 记录对方读到哪一条（服务端返回或 WebSocket 推来） */
@@ -297,26 +302,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string | null) => {
     let convId = participantId;
+    // 订单上下文的三种叫法（老板 2026-09-30：「通过某个链接点沟通，双方互相显示该订单；
+    // 通过人员列表点聊天，聊天框就不要显示订单信息」）：
+    //   undefined = 别动服务端记着的那一单（从会话列表 / 通知铃铛点进来，用房间上的值）；
+    //   null / '' = 明确清掉（人员列表、派单工作台的普通聊天）。
+    // 以前 undefined 也当成「清掉」，于是客服从会话列表点开一下就把陪玩推过来的那单抹了。
+    let serverOrderInfo: string | null | undefined;
     // 只有拿到真实 userId 才去服务端建/查会话；否则（例如从通知进入且 participant 缺失）
     // 直接用传入的 roomId，避免把 roomId 当 userId 再建出幽灵会话。
     if (participant?.userId) {
       try {
-        const { data } = await chatApi.createConversation(participant.userId, orderInfo ?? undefined);
+        const { data } = await chatApi.createConversation(
+          participant.userId,
+          orderInfo === undefined ? undefined : orderInfo || null,
+        );
         convId = data?.data?.id || participantId;
+        serverOrderInfo = data?.data?.orderInfo;
       } catch {}
     }
 
     set((s) => {
       const s2 = ensureConv(s, convId, participant);
+      const known = s2.conversations[convId];
+      const nextOrderInfo =
+        orderInfo === undefined
+          ? serverOrderInfo === undefined
+            ? known.orderInfo
+            : serverOrderInfo || undefined
+          : orderInfo || undefined;
       return {
         ...s2,
         activeConversationId: convId,
         conversations: {
           ...s2.conversations,
           [convId]: {
-            ...s2.conversations[convId],
+            ...known,
             participant,
-            orderInfo: orderInfo ?? undefined,
+            orderInfo: nextOrderInfo,
           },
         },
       };
@@ -362,6 +384,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [s.activeConversationId]: { ...conv, unreadCount: 0 },
         },
         totalUnread: Math.max(0, s.totalUnread - unread),
+      };
+    }),
+
+  setOrderInfo: (convId: string, orderInfo?: string | null) =>
+    set((s) => {
+      const s2 = ensureConv(s, convId);
+      const conv = s2.conversations[convId];
+      const next = orderInfo || undefined;
+      if ((conv.orderInfo || undefined) === next) return s2;
+      return {
+        ...s2,
+        conversations: { ...s2.conversations, [convId]: { ...conv, orderInfo: next } },
       };
     }),
 

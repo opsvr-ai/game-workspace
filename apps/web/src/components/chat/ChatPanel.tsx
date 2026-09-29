@@ -237,7 +237,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         role={participant?.role || ''}
         userId={participant?.userId}
         avatarUrl={participantAvatar}
-        orderInfo={orderInfo}
+        // 「这一单」以会话里记着的为准：服务端一改就实时推过来，两边看到的是同一单。
+        // props 只在本地还没有这个会话时兜底（正常流程下 store 里已经有值）。
+        orderInfo={conv ? conv.orderInfo : orderInfo}
         pinned={conv?.pinned}
         onClose={onClose}
         onCallClick={participant?.userId ? () => {

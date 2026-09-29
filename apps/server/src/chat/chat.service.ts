@@ -125,7 +125,7 @@ export class ChatService {
   // ─── Room Management ───
 
   /** Create or get existing ChatRoom between two users. studioId=null for cross-studio rooms. */
-  async getOrCreateRoom(studioId: string, userId: string, participantId: string, orderInfo?: string) {
+  async getOrCreateRoom(studioId: string, userId: string, participantId: string, orderInfo?: string | null) {
     // Normalize companionId to its underlying userId when callers pass a companion id.
     let normalizedParticipantId = participantId;
     const participantUser = await this.prisma.user.findUnique({
@@ -173,14 +173,25 @@ export class ChatService {
       where: { studioId: effectiveStudioId as any, participantA, participantB },
     });
 
-    // 订单信息是“当前这次会话”的上下文，不是永久属性：
-    // 打开订单沟通时带上，打开普通会话（人员列表/跨店聊天）时清掉，避免旧订单信息一直挂在聊天顶部。
+    // 订单信息是“当前这次会话”的上下文，不是永久属性（老板 2026-09-30：「陪玩/管理端通过某个
+    // 链接点沟通，就要双方互相显示该订单，并且可以点进去；如果通过抢单池左侧的人员列表点聊天，
+    // 那么聊天框就不要显示订单信息」）：
+    //   · 带了 orderInfo（从订单点沟通）→ 写上；
+    //   · 显式传 null / 空串（人员列表、派单工作台的普通聊天）→ 清掉；
+    //   · 参数压根没给（undefined：从会话列表、通知铃铛点进来）→ **保留原来的**。
+    // 最后一条以前是「也清掉」，结果客服从会话列表点开一下，陪玩刚推过来的那一单就被抹了。
+    const hasExplicitOrder = orderInfo !== undefined;
     const nextOrderInfo = orderInfo || null;
     if (!room) {
       room = await this.prisma.chatRoom.create({
-        data: { studioId: effectiveStudioId as any, participantA, participantB, orderInfo: nextOrderInfo },
+        data: {
+          studioId: effectiveStudioId as any,
+          participantA,
+          participantB,
+          orderInfo: hasExplicitOrder ? nextOrderInfo : null,
+        },
       });
-    } else if ((room.orderInfo || null) !== nextOrderInfo) {
+    } else if (hasExplicitOrder && (room.orderInfo || null) !== nextOrderInfo) {
       room = await this.prisma.chatRoom.update({
         where: { id: room.id },
         data: { orderInfo: nextOrderInfo },
@@ -307,7 +318,7 @@ export class ChatService {
     });
   }
 
-  async updateRoom(roomId: string, data: { pinned?: boolean; archived?: boolean; orderInfo?: string }) {
+  async updateRoom(roomId: string, data: { pinned?: boolean; archived?: boolean; orderInfo?: string | null }) {
     return this.prisma.chatRoom.update({
       where: { id: roomId },
       data: {

@@ -58,7 +58,7 @@ export const chatApi = {
   },
 
   /** Create or get existing room (Chat 3.0) */
-  createRoom(participantId: string, orderInfo?: string) {
+  createRoom(participantId: string, orderInfo?: string | null) {
     return http.post<{ data: { room: { id: string } } }>('/chat/rooms', { participantId, orderInfo });
   },
 
@@ -166,8 +166,18 @@ export const chatApi = {
     return http.get<{ data: { conversations: ConversationSummary[] } }>('/chat/conversations');
   },
 
+  /**
+   * 开一个会话。orderInfo 的三种叫法（老板 2026-09-30）：
+   *   · 传一段订单信息 = 从订单点「沟通」，把这个房间的「这一单」设成它；
+   *   · 传 null / 空串   = 明确清掉（人员列表、派单工作台的普通聊天）；
+   *   · 压根不传         = 别动服务端记着的那一单（从会话列表、通知铃铛点进来）。
+   * 返回里带上 orderInfo：前端据此知道这个房间现在挂着哪一单（服务端是唯一权威）。
+   */
   createConversation(participantId: string, orderInfo?: string | null) {
-    return http.post<{ data: { id: string } }>('/chat/conversations', { participantId, orderInfo });
+    return http.post<{ data: { id: string; orderInfo?: string | null } }>('/chat/conversations', {
+      participantId,
+      orderInfo,
+    });
   },
 
   getMessages(conversationId: string, before?: string, limit = 50) {
