@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
+import { describeTransfer, transferWho } from '../components/OrderTransferNote';
 import http from '../api/client';
 import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
@@ -129,6 +130,11 @@ const OrdersPage: React.FC = () => {
   // 「先线上」的单提前放给本店线下陪玩（点状态格的「先线上」小字，走二次确认）
   const [releaseOrder, setReleaseOrder] = useState<any>(null);
   const [releaseSubmitting, setReleaseSubmitting] = useState(false);
+  // 陪玩转让订单（老板 2026-09-29）
+  const [transferOrder, setTransferOrder] = useState<any>(null);
+  const [transferToId, setTransferToId] = useState<string>('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
   // 列宽按窗口宽度现算（老板 2026-09-29）：窗口宽出来的部分给客户信息列，操作列定宽
   const [tableWrapRef, tableAvailWidth] = useTableAvailWidth();
   const fittedColumns = fitOrderColumnWidths(tableAvailWidth);
@@ -151,6 +157,20 @@ const OrdersPage: React.FC = () => {
     r.status !== 'CANCELLED' &&
     !r.refundedAt &&
     orderChannelOf(r) !== 'offline';
+
+  /**
+   * 陪玩能不能转让这张单（老板 2026-09-29）。
+   *
+   * 「抢单超时自动回收」已经整条删除 —— 是谁抢的就是谁的；只有我抢到的、还没开始
+   * 服务的单能自己转给别人（加了很久客户没通过 / 客户不满意时）。转完我自己那份
+   * 接单记录还在，只是标成「已转让」。
+   */
+  const canTransfer = (r: any) =>
+    isCompanion &&
+    !!user?.companionId &&
+    r.companionId === user.companionId &&
+    (r.status === 'GRABBED' || r.status === 'CONFIRMED') &&
+    !(r.sessions?.length && r.sessions[0]?.startedAt);
 
   // 店长（看本店）/ 老板（看全部）能按派单人筛派单记录；客服、陪玩看不到这个筛选。
   const canFilterByCs = user?.role === 'ADMIN' || user?.role === 'OWNER';
@@ -465,8 +485,16 @@ const OrdersPage: React.FC = () => {
           }
         : null;
     const isCoCompanion = !!r.coCompanionId && r.companionId !== user?.companionId;
+    // 这张单现在挂的不是我（转让出去的单还留在转出方的接单记录里，老板 2026-09-29）：
+    // 「添加成功 / 添加失败」这些动作只能由当前持有人点，我这边一律当成「不用标」，
+    // 否则转出方会点到已经转给别人的单。
+    const notMyOrder = isCompanion && r.companionId !== user?.companionId;
+    // 「我转出去的」那一笔留痕：转出方的行要在「操作」列把「什么时候转给谁」写出来
+    // （主陪 / 副陪 那列只有 84px，名字一长标记就被省略号吃掉了）。
+    const myTransfer = (r.transfers || []).find((t: any) => t.fromCompanion?.id === user?.companionId);
+    const showTransferNote = notMyOrder && !!myTransfer;
     // 客户微信加了没有：added=已添加 / not_accepted=客户没同意 / pending=还没标 / none=这单不用标
-    const contactState = isCoCompanion
+    const contactState = isCoCompanion || notMyOrder
       ? 'none'
       : r.contactStatus === 'added'
         ? 'added'
@@ -533,6 +561,22 @@ const OrdersPage: React.FC = () => {
             </Badge>
           )}
         </span>
+        {showTransferNote && (
+          <span
+            style={{
+              flex: '1 1 auto',
+              minWidth: 0,
+              fontSize: 11,
+              color: '#C2410C',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={describeTransfer(myTransfer)}
+          >
+            已转让给 {transferWho(myTransfer.toCompanion)}（{new Date(myTransfer.createdAt).toLocaleString('zh-CN', { hour12: false })}）
+          </span>
+        )}
         <span style={actionSlot(60)}>
           {contactState === 'added' ? (
             <Tag color="green" style={{ margin: 0 }}>
@@ -606,11 +650,17 @@ const OrdersPage: React.FC = () => {
           ) : null}
         </span>
         <span style={actionSlot(36)}>
-          {canEditOrder(r) && (
+          {canEditOrder(r) ? (
             <Button size="small" style={{ width: 36 }} onClick={() => setEditingOrder(r)}>
               修改
             </Button>
-          )}
+          ) : canTransfer(r) ? (
+            // 陪玩的「转让」正好占这一格：这格在陪玩行本来是空的，放进来不撑宽操作列
+            // （老板 2026-09-29：谁抢的就是谁的，换手只能本人点这里）
+            <Button size="small" style={{ width: 36 }} onClick={() => openTransfer(r)}>
+              转让
+            </Button>
+          ) : null}
         </span>
         <span style={actionSlot(36)}>
           {hasOrderRow && (
@@ -663,6 +713,35 @@ const OrdersPage: React.FC = () => {
       message.error(extractErrorMessage(e, '操作失败'));
     } finally {
       setReleaseSubmitting(false);
+    }
+  };
+
+  const openTransfer = (r: any) => {
+    setTransferOrder(r);
+    setTransferToId('');
+    // 客户一直没通过是最常见的转让原因，先替陪玩填上，能改能清。
+    setTransferReason(r.contactStatus === 'not_accepted' ? '客户一直没通过' : '');
+  };
+
+  const submitTransfer = async () => {
+    if (!transferOrder) return;
+    if (!transferToId) {
+      message.warning('请选择要转让给谁');
+      return;
+    }
+    setTransferSubmitting(true);
+    try {
+      await http.post(`/orders/${transferOrder.id}/transfer`, {
+        toCompanionId: transferToId,
+        reason: transferReason.trim() || undefined,
+      });
+      message.success('已转让；这张单会留在你的接单记录里并标明转给了谁');
+      setTransferOrder(null);
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '转让失败'));
+    } finally {
+      setTransferSubmitting(false);
     }
   };
 
@@ -951,6 +1030,57 @@ const OrdersPage: React.FC = () => {
           </div>
         </Modal>
         <Modal
+          title="转让订单"
+          open={!!transferOrder}
+          onOk={submitTransfer}
+          confirmLoading={transferSubmitting}
+          onCancel={() => setTransferOrder(null)}
+          okText="确认转让"
+          cancelText="取消"
+          destroyOnClose
+        >
+          <div style={{ marginBottom: 12 }}>
+            <Text type="secondary">
+              转让后这张单归新陪玩接手；你自己的接单记录里仍然留着，会标明「什么时候转让给了谁」，
+              客户管理里也看得到。已经开始服务的单不能转让，请联系客服。
+            </Text>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <Text>
+              订单：{transferOrder?.orderCode || transferOrder?.id?.slice(0, 8)} · {transferOrder?.gameName} · ¥
+              {Number(transferOrder?.amount || 0).toFixed(0)}
+            </Text>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <Text>转让给：</Text>
+            <Select
+              value={transferToId || undefined}
+              style={{ width: '100%' }}
+              onChange={(v) => setTransferToId(v)}
+              placeholder="选择同工作室的陪玩"
+              showSearch
+              optionFilterProp="children"
+            >
+              {companions
+                .filter((c: any) => c.id !== user?.companionId)
+                .map((c: any) => (
+                  <Option key={c.id} value={c.id}>
+                    {c.user?.displayName || c.user?.username || c.id.slice(0, 6)}
+                  </Option>
+                ))}
+            </Select>
+          </div>
+          <div>
+            <Text>原因（可选，会写进转让记录）：</Text>
+            <Input.TextArea
+              rows={3}
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              placeholder="例如：客户一直没通过 / 客户不满意"
+            />
+          </div>
+        </Modal>
+        <Modal
           title="💰 收款去向"
           open={!!paymentOrder}
           onOk={savePayment}
@@ -1002,7 +1132,15 @@ const OrdersPage: React.FC = () => {
         customerPreFill={preFill || undefined}
       />
       <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
-      <OrderDetailModal order={detailOrder} open={!!detailOrder} onClose={() => setDetailOrder(null)} />
+      <OrderDetailModal
+        order={detailOrder}
+        open={!!detailOrder}
+        onClose={() => setDetailOrder(null)}
+        onTransfer={(o: any) => {
+          setDetailOrder(null);
+          openTransfer(o);
+        }}
+      />
       <Modal
         title="退款"
         open={!!refundOrder}

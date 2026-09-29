@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Modal, Descriptions, Image, Tag, Typography } from 'antd';
+import { Modal, Descriptions, Image, Tag, Typography, Button } from 'antd';
 import {
   orderStatusConfig,
   orderTypeConfig,
@@ -10,6 +10,7 @@ import {
 } from '../constants';
 import { canSeeCustomerSource, DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
 import { useAuthStore } from '../stores/authStore';
+import { TransferNote, transferList } from './OrderTransferNote';
 
 const { Text } = Typography;
 
@@ -17,6 +18,8 @@ interface Props {
   order: any | null;
   open: boolean;
   onClose: () => void;
+  /** 接单陪玩点「转让订单」时回调（老板 2026-09-29）。不传就不显示这个按钮。 */
+  onTransfer?: (order: any) => void;
 }
 
 const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-');
@@ -27,15 +30,24 @@ const fmtTime = (v?: string | null) => (v ? new Date(v).toLocaleString('zh-CN', 
  * 「广播 / 指定」这类订单按权限不给改，以前整行点不进去、右侧又没有按钮，
  * 客服想核一眼客户微信或备注只能去别处翻。现在整行点开就是这张只读卡。
  */
-const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
+const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer }) => {
   // 陪玩点整行也会开到这张卡（OrdersPage 的 onRow 是「能改的进编辑、不能改的进详情」），
   // 所以「客户昵称 / 客户来源 / 来源账号」这三行也要按角色藏：老板 2026-09-29「陪玩端 隐藏客户小红书信息」。
   // 昵称也是小红书昵称（建单时那个框写的就是「小红书昵称/抖音昵称等」），订单列表对陪玩本来就不显示，
   // 这里不一起藏掉的话，点开整行又能看见。
   // hook 必须放在下面的 `if (!order) return null` 之前。
   const role = useAuthStore((s) => s.user?.role);
+  const myCompanionId = useAuthStore((s) => s.user?.companionId);
   const showSource = canSeeCustomerSource(role);
   if (!order) return null;
+  // 转让入口（老板 2026-09-29）：只有「我抢到、还没开始服务」的单能自己转给别人，
+  // 和 OrdersPage 的 canTransfer、服务端 orders.transferOrder 是同一套口径。
+  const canTransfer =
+    !!onTransfer &&
+    !!myCompanionId &&
+    order.companionId === myCompanionId &&
+    (order.status === 'GRABBED' || order.status === 'CONFIRMED') &&
+    !(order.sessions?.length && order.sessions[0]?.startedAt);
   const cf = order.customFields || {};
   const isRound = cf.billingMode === 'round';
   const duration = isRound ? `${order.duration || cf.deltaCount || '?'}局` : `${order.duration || '?'}小时`;
@@ -48,7 +60,13 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
       title={`订单详情 · ${order.orderCode || order.id?.slice(0, 8)}`}
       open={open}
       onCancel={onClose}
-      footer={null}
+      footer={
+        canTransfer ? (
+          <Button type="primary" danger onClick={() => onTransfer!(order)}>
+            转让订单
+          </Button>
+        ) : null
+      }
       width={720}
       destroyOnClose
     >
@@ -127,6 +145,11 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose }) => {
         </Descriptions.Item>
         <Descriptions.Item label="发布时间">{fmtTime(order.createdAt)}</Descriptions.Item>
         <Descriptions.Item label="接单时间">{fmtTime(order.grabbedAt)}</Descriptions.Item>
+        {transferList(order.transfers).length > 0 && (
+          <Descriptions.Item label="转让记录" span={2}>
+            <TransferNote transfers={order.transfers} />
+          </Descriptions.Item>
+        )}
         <Descriptions.Item label="备注" span={2}>
           {cf.deltaNote || order.notes || '-'}
         </Descriptions.Item>

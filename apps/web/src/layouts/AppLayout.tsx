@@ -1044,6 +1044,23 @@ const AppLayout: React.FC = () => {
       showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
       playNotificationSound();
     },
+    onOrderTransferred: (data: any) => {
+      // 有人把单转给我（老板 2026-09-29）：弹一条提醒并刷新接单记录，
+      // 别让陪玩端着电脑还不知道自己名下来了单。
+      if (data?.toCompanionId && user?.companionId && data.toCompanionId !== user.companionId) return;
+      notification.info({
+        message: '🔁 有人把订单转让给你',
+        description: `${data?.fromName || '同事'}把「${data?.gameName || ''}」转给了你，去「接单记录」看`,
+        placement: 'bottomRight',
+        duration: 6,
+      });
+      try {
+        playNotificationSound();
+      } catch {
+        /* 声音播不出来不影响提醒 */
+      }
+      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+    },
     onPartnerAccepted: (data: any) => {
       notification.success({
         message: '✅ 搭档已同意',

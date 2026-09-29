@@ -184,8 +184,9 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'pool.offline_first_bridge_minutes': 3,
   'pool.immediate_disappear_minutes': 10,
   'pool.scheduled_disappear_minutes': 60,
-  'pool.grab_return_minutes': 180,
-  'pool.stale_cancel_hours': 24,
+  // 2026-09-29 老板要求：抢单超时自动回收（原来的 pool.grab_return_minutes / pool.stale_cancel_hours
+  // + orders/stale-grab-sweep.service.ts）整条删除 —— 「是谁抢的就是谁的」，卡住的单由陪玩自己
+  // 点「转让」给别人（见 orders.transferOrder），不再由系统背地里把单收走。
   // 绝密单的线上返款（分/小时）：设置页「派单与提成 → 绝密线上返款」写的就是它。
   'pool.bridge_return_jueju_cents': 1500,
   'service.stale_session_hours': 24,

@@ -224,6 +224,31 @@ export class OrdersController {
     return { code: 200, message: '已更新', data };
   }
 
+  /**
+   * 陪玩转让订单（老板 2026-09-29）。
+   *
+   * 「抢单超时自动回收」已整条删除 —— 是谁抢的就是谁的；换手只剩这条路：
+   * 接单陪玩自己把单转给同工作室的另一个人。转让留痕会写进 OrderTransfer，
+   * 转出方的接单记录里这张单不消失（标成「已于某时转让给某人」），客户管理同步显示。
+   */
+  @Post('orders/:id/transfer')
+  @Roles(UserRole.COMPANION)
+  async transfer(
+    @Param('id') id: string,
+    @Body('toCompanionId') toCompanionId: string,
+    @Body('reason') reason: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.transferOrder(
+      id,
+      req.user.companionId,
+      toCompanionId,
+      reason,
+      req.user.id,
+    );
+    return { code: 200, message: '已转让', data };
+  }
+
   /** 「先线上」的单：放给本店线下陪玩（老板 2026-09-29）。 */
   @Post('orders/:id/release-to-offline')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)

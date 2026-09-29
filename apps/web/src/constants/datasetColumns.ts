@@ -101,12 +101,13 @@ export const FIELD_WIDTH = {
   orderActions: 254,
   /**
    * 陪玩端订单管理（接单记录）的操作列：陪玩没有「修改 / 退款」
-   * （OrdersPage 的 canEditOrder 对陪玩恒为 false、hasOrderRow 也是 false），
-   * 一行最多「沟通 36 + 添加成功 / 已同意 60 + 添加失败 60」= 156px（间隔 4×2）+
-   * 单元格内边距 10px → 174。省下来的 80px 给了「备注」列，整张表 984px，
-   * 仍然落在 1320 窗口的 985px 里（不会因为多一列就长出横向滚动条）。
+   * （OrdersPage 的 canEditOrder 对陪玩恒为 false、hasOrderRow 也是 false）。
+   * 一行最多「沟通 36 + 添加成功 / 已同意 60 + 添加失败 60 + 转让 36」= 192px（间隔 4×3）+
+   * 单元格内边距 10px → 214。省下来的 40px 给了「备注」列。
+   * 老板 2026-09-29 加「转让」后比原来宽 40px（陪玩端整表 984 → 1024px），
+   * 这是「不加宽就得把备注 / 房间码列砍掉」的取舍 —— 陪玩端窗口拉宽一点即可。
    */
-  companionOrderActions: 174,
+  companionOrderActions: 214,
   /**
    * 陪玩端的「备注」列：客服发单时填的备注（`customFields.deltaNote`）。
    * 老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」——
@@ -166,7 +167,7 @@ export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
 /**
  * 陪玩端订单管理（接单记录）的列：比客服端多一列「备注」（插在「客户账号」后面）。
  * 「客户账号」用陪玩端的窄版（customerAccountsCompanion —— 陪玩只看得到房间码 / YY / KOOK）。
- * 合计 66+72+112+74+118+84+84+84+116+174 = **984px**，仍在 1320 窗口的 985px 里。
+ * 合计 66+72+112+74+118+84+84+84+116+214 = **1024px**（2026-09-29 加「转让」按钮后 +40px）。
  */
 export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',

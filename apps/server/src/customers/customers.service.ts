@@ -320,6 +320,17 @@ export class CustomersService {
             user: { select: { username: true, displayName: true } },
           },
         },
+        // 转让留痕（老板 2026-09-29）：客户管理里也要注明「已于某时转让给某人」。
+        transfers: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            createdAt: true,
+            reason: true,
+            fromCompanion: { select: { id: true, user: { select: { username: true, displayName: true } } } },
+            toCompanion: { select: { id: true, user: { select: { username: true, displayName: true } } } },
+          },
+        },
         sessions: {
           orderBy: { seq: 'asc' },
           select: {

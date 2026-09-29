@@ -9,6 +9,7 @@ import {
 } from '../constants/datasetColumns';
 import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { OutcomeSuffix } from './OrderOutcome';
+import { TransferMark } from './OrderTransferNote';
 
 const { Text } = Typography;
 
@@ -295,6 +296,9 @@ export function buildOrderColumns({
             <span style={{ color: o.companion ? undefined : '#94A3B8' }}>{name}</span>
             {co && <span style={CELL_SUB_TEXT}>+{co}</span>}
             {isBridged && <span style={{ ...CELL_SUB_TEXT, color: '#6D28D9' }}>· 桥接·{studio.name}</span>}
+            {/* 转让过的单：管理端（列宽够）在这里标「已转让」，悬停看是谁什么时候转给谁；
+                陪玩端这列只有 84px，标记会被省略号吃掉，改在「操作」列写全（见 OrdersPage）。 */}
+            {!isCompanion && <TransferMark transfers={o.transfers} />}
           </div>
         );
       },

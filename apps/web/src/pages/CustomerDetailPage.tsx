@@ -29,6 +29,7 @@ import { ordersApi } from '../api/orders';
 import { customerTrackingApi } from '../api/customerTracking';
 import { useAuthStore } from '../stores/authStore';
 import { canSeeCustomerSource } from '../constants/datasetColumns';
+import { TransferMark } from '../components/OrderTransferNote';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -358,7 +359,13 @@ const CustomerDetailPage: React.FC = () => {
       dataIndex: ['companion', 'user', 'username'],
       key: 'companion',
       width: 90,
-      render: (v: string) => v ?? <Text type="secondary">-</Text>,
+      render: (v: string, record: any) => (
+        <>
+          {v ?? <Text type="secondary">-</Text>}
+          {/* 客户管理里也要注明这单什么时候转让给了谁（老板 2026-09-29），悬停看全 */}
+          <TransferMark transfers={record.transfers} />
+        </>
+      ),
     },
     {
       title: '副陪',

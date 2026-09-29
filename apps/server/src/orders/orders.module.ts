@@ -10,7 +10,6 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { ScheduledOrderReminderService } from './scheduled-order-reminder.service';
 import { ServiceDurationReminderService } from './service-duration-reminder.service';
 import { StaleSessionSweepService } from './stale-session-sweep.service';
-import { StaleGrabSweepService } from './stale-grab-sweep.service';
 
 @Module({
   imports: [WsModule, StudiosModule, CompanionsModule],
@@ -23,7 +22,6 @@ import { StaleGrabSweepService } from './stale-grab-sweep.service';
     ScheduledOrderReminderService,
     ServiceDurationReminderService,
     StaleSessionSweepService,
-    StaleGrabSweepService,
   ],
   exports: [OrdersService, CompanionQuotaService],
 })

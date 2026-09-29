@@ -594,6 +594,11 @@ export class OrdersService implements OnModuleInit {
           { companionId: user.companionId },
           { coCompanionId: user.companionId },
         ];
+        // 转让出去的订单也要留在转出方的接单记录里（老板 2026-09-29：抢单超时
+        // 自动回收整条删掉，改由陪玩自己转让；转给谁、什么时候转的都得看得到）。
+        if (user.companionId) {
+          where.OR.push({ transfers: { some: { fromCompanionId: user.companionId } } });
+        }
         if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
       }
     } else if (user.role === 'CS') {
@@ -630,6 +635,20 @@ export class OrdersService implements OnModuleInit {
           },
         },
         coCompanion: { include: { user: { select: { username: true } } } },
+        // 转让留痕（老板 2026-09-29）：订单管理 / 接单记录 / 客户管理都要能写出
+        // 「已于某时由某人转让给某人」，所以列表里一并带上。
+        transfers: {
+          orderBy: { createdAt: 'desc' },
+          // 只要「谁转给谁 + 时间 + 原因」，别把两个陪玩实体整套塞进每一行
+          // （订单列表是高频接口，留痕每条多带 30 来个字段纯属浪费）。
+          select: {
+            id: true,
+            createdAt: true,
+            reason: true,
+            fromCompanion: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+            toCompanion: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+          },
+        },
         sessions: {
           orderBy: { seq: 'desc' },
           take: 1,
@@ -785,6 +804,113 @@ export class OrdersService implements OnModuleInit {
         outcomeByUserId: user?.id ?? null,
         outcomeAt: new Date(),
       },
+    });
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    return updated;
+  }
+
+  /**
+   * 陪玩把订单转让给别人（老板 2026-09-29）。
+   *
+   * 「抢单超时自动回收」已经整条删除 —— 是谁抢的就是谁的；换手只剩这一条路：
+   * 加了很久客户没通过、或者客户不满意，接单陪玩自己把归属调给同工作室的另一个人。
+   *
+   * 转让后：
+   *   - 订单 companionId / grabbedAt 换成新人（新人的「接单记录」里立刻出现）；
+   *   - OrderTransfer 留痕，转出方的「接单记录」里这张单不消失，标成「已于某时转让给某人」；
+   *   - 客户归属如果本来挂在这个人身上，一并转给新人（客户管理里看得到）；
+   *   - 联系状态重置（新人得重新加客户微信），副陪撞车时与转出方对调。
+   *
+   * 已经开始服务（有会话）的单不走这里，避免把工时归属搅乱 —— 那种让客服「归属调整」。
+   */
+  async transferOrder(
+    orderId: string,
+    fromCompanionId: string,
+    toCompanionId: string,
+    reason?: string,
+    actorUserId?: string,
+  ) {
+    if (!fromCompanionId) throw new ForbiddenException('只有接单陪玩本人能转让订单');
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        companion: {
+          select: {
+            id: true,
+            studioId: true,
+            userId: true,
+            user: { select: { username: true, displayName: true } },
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.companionId !== fromCompanionId) throw new ForbiddenException('这张单不在你名下，转让不了');
+    if (order.status !== 'GRABBED' && order.status !== 'CONFIRMED') {
+      throw new ForbiddenException('只有已抢单 / 已确认、还没开始服务的订单能转让');
+    }
+    if (!toCompanionId) throw new BadRequestException('请选择要转让给谁');
+    if (toCompanionId === fromCompanionId) throw new BadRequestException('不能转让给自己');
+
+    const startedCount = await this.prisma.orderSession.count({
+      where: { parentOrderId: orderId, startedAt: { not: null } },
+    });
+    if (startedCount > 0) throw new ForbiddenException('这张单已经开始服务了，要换人请联系客服');
+
+    const target = await this.prisma.companion.findUnique({
+      where: { id: toCompanionId },
+      select: { id: true, studioId: true, userId: true, isResigned: true },
+    });
+    if (!target) throw new NotFoundException('要转让的陪玩不存在');
+    if (target.isResigned) throw new ForbiddenException('该陪玩已离职，转让不了');
+    if (order.companion?.studioId && target.studioId !== order.companion.studioId) {
+      throw new ForbiddenException('只能转让给同一工作室的陪玩');
+    }
+
+    const now = new Date();
+    const note = (reason || '').trim() || null;
+    // 要转给的人正好是副陪时，两个人对调，别让同一张单的主副陪变成同一个人。
+    const nextCoCompanionId = order.coCompanionId === toCompanionId ? fromCompanionId : order.coCompanionId;
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.orderTransfer.create({
+        data: {
+          orderId,
+          fromCompanionId,
+          toCompanionId,
+          fromUserId: order.companion?.userId ?? actorUserId ?? null,
+          toUserId: target.userId ?? null,
+          reason: note,
+          createdAt: now,
+        },
+      }),
+      this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          companionId: toCompanionId,
+          coCompanionId: nextCoCompanionId,
+          grabbedAt: now,
+          contactStatus: null,
+          screenshotUrl: null,
+        },
+      }),
+      this.prisma.customer.updateMany({
+        where: { id: order.customerId, companionId: fromCompanionId },
+        data: { companionId: toCompanionId },
+      }),
+    ]);
+
+    this.wsGateway.pushOrder(toCompanionId, updated);
+    // 单独给新人一条「有人转让订单给你」的提醒（order:new 只刷新池子，不弹提示）。
+    this.wsGateway.pushToCompanion(toCompanionId, 'order:transferred', {
+      orderId: updated.id,
+      orderCode: updated.orderCode,
+      gameName: updated.gameName,
+      amount: updated.amount,
+      toCompanionId,
+      fromCompanionId,
+      fromName: order.companion?.user?.displayName || order.companion?.user?.username || '',
+      reason: note,
     });
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
