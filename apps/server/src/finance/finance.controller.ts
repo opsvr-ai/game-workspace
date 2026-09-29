@@ -78,16 +78,9 @@ export class FinanceController {
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async saveCommissionBridgeRule(
     @Req() req: any,
-    @Body() body: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number },
+    @Body() body: { bridgeTarget: number },
   ): Promise<any> {
-    const data = await this.commissions.saveBridgeRule(
-      {
-        bridgeTarget: body.bridgeTarget,
-        missCommissionRate: body.missCommissionRate,
-        missSalaryRate: body.missSalaryRate,
-      },
-      req.user,
-    );
+    const data = await this.commissions.saveBridgeRule({ bridgeTarget: body.bridgeTarget }, req.user);
     return { code: 200, message: 'ok', data };
   }
 

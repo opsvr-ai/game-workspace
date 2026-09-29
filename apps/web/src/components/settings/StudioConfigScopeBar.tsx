@@ -46,8 +46,6 @@ const KEY_LABELS: Record<string, string> = {
   'commission.cs_full_attendance_bonus_yuan': '客服全勤奖（元）',
   'commission.cs_early_leave_deduction_yuan': '客服早退扣款（元）',
   'commission.cs_daily_bridge_target': '客服每日桥接目标（单）',
-  'commission.cs_bridge_miss_commission_rate': '客服未达标 · 提成比例（%）',
-  'commission.cs_bridge_miss_salary_rate': '客服未达标 · 底薪比例（%）',
   'commission.admin_offline_rate_percent': '店长分成 · 线下（% 流水）',
   'commission.admin_online_rate_percent': '店长分成 · 线上（% 流水）',
   'bridge.secret_price_yuan': '机密桥接单价（元）',

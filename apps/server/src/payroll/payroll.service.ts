@@ -46,13 +46,9 @@ export class PayrollService {
   async generate(studioId: string, month: string) {
     const [start, end] = this.monthRange(month);
     const staff = await this.listStaff(studioId);
-    // 店长可自己填本店的桥接目标与未达标比例
-    const scoped = await resolveConfigsRaw(this.prisma, studioId, [
-      'commission.cs_daily_bridge_target',
-      'commission.cs_bridge_miss_salary_rate',
-    ]);
+    // 店长可自己填本店的桥接目标（只用于回显「本月桥接 N 单 / 目标 M」）
+    const scoped = await resolveConfigsRaw(this.prisma, studioId, ['commission.cs_daily_bridge_target']);
     const bridgeTarget = Number(scoped['commission.cs_daily_bridge_target'] ?? 10);
-    const missSalaryRate = Number(scoped['commission.cs_bridge_miss_salary_rate'] ?? 80);
     const bridgeCounts = await this.bridgeOrderCounts(studioId, start, end);
     // 客服档位（老板 2026-09-29）：按人填了底薪就用他的，没填就用「工资规则」里的
     const csProfiles = await this.prisma.csProfile.findMany({ where: { studioId } }).catch(() => []);
@@ -72,13 +68,10 @@ export class PayrollService {
       const monthDays = Math.round((end.getTime() - start.getTime()) / 86400000);
       const restDays = config.fullAttendanceDays ?? 4;
       const fullAttendance = Math.max(0, monthDays - restDays);
-      // 客服桥接达标：整月桥接单数未达目标，底薪按比例下调。
-      if (user.role === 'CS' && bridgeTarget > 0) {
-        const threshold = bridgeTarget * monthDays;
-        if ((bridgeCounts.get(user.id) || 0) < threshold) {
-          base = Number((base * missSalaryRate) / 100);
-        }
-      }
+      // 底薪不打折（老板 2026-09-30：「别这样了，扣底薪客服会不愿意的」）——
+      // 以前这里是「整月桥接单数没到「每日目标 × 月天数」就按比例下调底薪」，现在整条废掉：
+      // 未达标只影响桥接单价阶梯（在 commission.service 里算），底薪永远全额。
+      // bridgeCount / bridgeTarget 仍然回显给店长看「谁这个月跑了多少桥接单」。
       const attendanceDeduction = Math.max(0, absent - restDays) * config.absentDeduction + late * config.lateDeduction;
       // 派单提成：直接引用已确认（CONFIRMED）的提成明细，分 → 元，四舍五入到毛
       const ledgerAgg = await this.prisma.commissionLedger.aggregate({

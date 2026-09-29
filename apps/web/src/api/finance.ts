@@ -17,7 +17,8 @@ export const financeApi = {
     list: (month: string, studioId?: string) => http.get(`/finance/commission/${month}`, { params: { studioId } }),
     setLedgerStatus: (id: string, status: string) => http.patch(`/finance/commission/ledgers/${id}/status`, { status }),
     today: () => http.get('/finance/commission/today'),
-    saveBridgeRule: (data: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number }) =>
+    /** 只存「每日桥接目标」；两个「未达标惩罚比例」2026-09-30 已整条去掉 */
+    saveBridgeRule: (data: { bridgeTarget: number }) =>
       http.put('/finance/commission/bridge-rule', data),
     /** 客服档位：按人存的默认派单范围 + 底薪（老板 2026-09-29） */
     csProfiles: () => http.get('/finance/commission/cs-profiles'),

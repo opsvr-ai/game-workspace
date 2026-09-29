@@ -133,9 +133,8 @@ const CsSettingsPage: React.FC = () => {
         'commission.cs_include_renewal': config?.['commission.cs_include_renewal'] === true,
         'commission.cs_offline_floor_cents': Math.round(getCfg('commission.cs_offline_floor_cents', 200)),
         'commission.cs_offline_per_order_cap_cents': Math.round(getCfg('commission.cs_offline_per_order_cap_cents', 0)),
+        // 每日桥接目标只是看板上的进度统计，不扣底薪也不扣提成（老板 2026-09-30）
         'commission.cs_daily_bridge_target': getCfg('commission.cs_daily_bridge_target', 10),
-        'commission.cs_bridge_miss_commission_rate': getCfg('commission.cs_bridge_miss_commission_rate', 50),
-        'commission.cs_bridge_miss_salary_rate': getCfg('commission.cs_bridge_miss_salary_rate', 80),
         'commission.cs_bridge_min_threshold': getCfg('commission.cs_bridge_min_threshold', 130),
         'commission.cs_bridge_tier3_threshold': getCfg('commission.cs_bridge_tier3_threshold', 182),
         'commission.cs_bridge_tier5_threshold': getCfg('commission.cs_bridge_tier5_threshold', 260),
@@ -182,7 +181,8 @@ const CsSettingsPage: React.FC = () => {
       <div style={{ marginBottom: 12 }}>
         <Title level={4} style={{ margin: 0 }}>客服设置</Title>
         <Text type="secondary">
-          客服的提成与桥接达标规则在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
+          客服的提成在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
+          桥接提成按本月单价阶梯算（跑得越多单价越高），跑不够只是单价停在第一档，不扣底薪、不打折提成。
           输入框右侧蓝色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
         </Text>
       </div>
@@ -209,7 +209,7 @@ const CsSettingsPage: React.FC = () => {
             <Divider style={{ margin: '8px 0' }} />
             <Text strong style={{ color: '#1677ff' }}>桥接</Text>
             <Field label="桥接每单提成" unit="元/单" value={getCfg('commission.cs_bridge_per_order_yuan', 1)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_per_order_yuan', v)} hint="单陪算1单，双陪算2单" />
-            <Field label="桥接最低单数" unit="单/月" value={getCfg('commission.cs_bridge_min_threshold', 130)} step={5} onChange={(v) => setCfg('commission.cs_bridge_min_threshold', v)} hint="低于此数底薪减半" />
+            <Field label="桥接最低单数" unit="单/月" value={getCfg('commission.cs_bridge_min_threshold', 130)} step={5} onChange={(v) => setCfg('commission.cs_bridge_min_threshold', v)} hint="低于此数按上面的「桥接每单提成」单价算，不扣底薪" />
             <Field label="3元/单门槛" unit="单/月" value={getCfg('commission.cs_bridge_tier3_threshold', 182)} step={5} onChange={(v) => setCfg('commission.cs_bridge_tier3_threshold', v)} hint="达到后按 3 元/单" />
             <Field label="5元/单门槛" unit="单/月" value={getCfg('commission.cs_bridge_tier5_threshold', 260)} step={5} onChange={(v) => setCfg('commission.cs_bridge_tier5_threshold', v)} hint="达到后按 5 元/单" />
             <Field label="3元阶梯单价" unit="元/单" value={getCfg('commission.cs_bridge_tier3_yuan', 3)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_tier3_yuan', v)} />
@@ -262,10 +262,19 @@ const CsSettingsPage: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card size="small" title="🏇 桥接达标规则" style={{ marginBottom: 16 }}>
-            <Field label="每日桥接目标" unit="单" value={getCfg('commission.cs_daily_bridge_target', 10)} step={1} onChange={(v) => setCfg('commission.cs_daily_bridge_target', v)} hint="每人每天需达到的桥接单数" />
-            <Field label="未达标提成比例" unit="%" value={getCfg('commission.cs_bridge_miss_commission_rate', 50)} step={1} max={100} onChange={(v) => setCfg('commission.cs_bridge_miss_commission_rate', v)} hint="整月未达标时提成按此比例发" />
-            <Field label="未达标底薪比例" unit="%" value={getCfg('commission.cs_bridge_miss_salary_rate', 80)} step={1} max={100} onChange={(v) => setCfg('commission.cs_bridge_miss_salary_rate', v)} hint="整月未达标时底薪按此比例发" />
+          <Card size="small" title="🏇 每日桥接目标（只是进度统计）" style={{ marginBottom: 16 }}>
+            <Field
+              label="每日桥接目标"
+              unit="单"
+              value={getCfg('commission.cs_daily_bridge_target', 10)}
+              step={1}
+              onChange={(v) => setCfg('commission.cs_daily_bridge_target', v)}
+              hint="看板上标「今天够了没有」用；不扣底薪、不扣提成"
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              桥接提成只跟本月单价阶梯有关（上面那一栏的「桥接每单提成 / 3 元门槛 / 5 元门槛」）：
+              跑不够只是单价停在第一档。以前那两个「未达标扣提成 / 扣底薪」的比例已经整条去掉，谁都不会被倒扣。
+            </Text>
           </Card>
 
           <Card size="small" title="💰 客服工资、月休与考勤扣款">

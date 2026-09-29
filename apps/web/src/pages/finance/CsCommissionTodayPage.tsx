@@ -37,7 +37,12 @@ const { Text } = Typography;
  *  - 不成功要选原因（原因在「选项字典 → 反馈不成功的原因」里能改），原因排行在点开的明细里。
  *
  * 一屏看清每人：发单 / 派出 / 线下·桥接·线上各几单 / 成功·不成功·待反馈 / 成功率 /
- * 应发提成 / 罚后提成 / 底薪日发 / 今日应发 / 当月累计。老板、店长、客服都看得见。
+ * 应发提成 / 底薪日发 / 今日应发 / 当月累计。老板、店长、客服都看得见。
+ *
+ * 钱的口径（老板 2026-09-30）只有一套，和月底真正结算、工资生成完全一样：
+ *  - 底薪永远全额：桥接没跑到最低单数**不扣底薪**（老板：「别这样了，扣底薪客服会不愿意的」）；
+ *  - 桥接提成按**本月单价阶梯**：本月 < 最低单数 1 元/单、≥ 3 元门槛 3 元/单、≥ 5 元门槛 5 元/单；
+ *  - 不再有「未达标提成 × 50%」这种罚则（以前只有这一页这么算，月底并不这么算，客服照着看会以为少拿钱）。
  */
 
 /** 入池方式（老板 2026-09-29）：线下+线上流转入池 / 线上入池。 */
@@ -196,17 +201,32 @@ const CsCommissionTodayPage: React.FC = () => {
       ),
     },
     {
-      title: '桥接 / 目标',
-      width: 110,
+      // 桥接这块**按本月口径**显示（真正算钱的是本月单价阶梯）：
+      // 以前这一列写的是「今天达标没有」，钱却按月度阶梯算，客服会看错。
+      title: '桥接（本月）',
+      width: 168,
       render: (_: unknown, r: any) => (
         <div>
-          <Text type={r.bridgeMet ? 'success' : 'danger'} strong>
-            {r.bridgeOrders ?? 0} / {r.bridgeTarget ?? 0}
-          </Text>
+          <Text strong>本月 {r.monthBridgeUnits ?? 0} 单</Text>
           <div style={{ marginTop: 2 }}>
-            {r.bridgeMet ? <Tag color="green">达标</Tag> : <Tag color="red">未达标</Tag>}
+            <Tag color={r.bridgeMetMonth ? 'green' : 'default'}>{yuan(r.bridgeUnitYuan ?? 0)}/单</Tag>
+            {r.nextTierUnits == null ? (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                已到最高档
+              </Text>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                再 {Math.max(0, Number(r.nextTierUnits) - Number(r.monthBridgeUnits ?? 0))} 单 → {yuan(r.nextTierYuan ?? 0)}/单
+              </Text>
+            )}
           </div>
           <div style={{ fontSize: 11, color: '#cf1322' }}>提成 {yuan(r.bridgeCommission)}</div>
+          <div style={{ fontSize: 11 }} className="text-secondary">
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              今日 {r.bridgeOrders ?? 0}/{r.bridgeTarget ?? 0}
+              {r.bridgeMet ? '（够了）' : '（还没够）'}·仅统计
+            </Text>
+          </div>
         </div>
       ),
     },
@@ -244,16 +264,6 @@ const CsCommissionTodayPage: React.FC = () => {
       dataIndex: 'totalCommission',
       width: 84,
       render: (v: number) => yuan(v),
-    },
-    {
-      title: '罚后提成',
-      dataIndex: 'commissionAfter',
-      width: 84,
-      render: (v: number, r: any) => (
-        <Text strong style={{ color: r.bridgeMet ? '#cf1322' : '#fa541c' }}>
-          {yuan(v)}
-        </Text>
-      ),
     },
     {
       title: '底薪(日)',
@@ -381,25 +391,28 @@ const CsCommissionTodayPage: React.FC = () => {
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Text type="secondary">桥接达标</Text>
+            <Text type="secondary">桥接达标（本月）</Text>
             <div>
               <Text
                 strong
                 style={{
                   fontSize: 20,
                   color:
-                    (s?.bridgeMetCount ?? 0) === (s?.csCount ?? 0) && (s?.csCount ?? 0) > 0
+                    (s?.bridgeMetMonthCount ?? 0) === (s?.csCount ?? 0) && (s?.csCount ?? 0) > 0
                       ? '#52c41a'
-                      : '#cf1322',
+                      : '#fa8c16',
                 }}
               >
-                {s?.bridgeMetCount ?? 0}
+                {s?.bridgeMetMonthCount ?? 0}
               </Text>{' '}
               <Text type="secondary">/ {s?.csCount ?? 0} 人</Text>
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              目标：每人 {s?.bridgeTarget ?? 10} 单/日（未达标提成 {data?.config?.missCommissionRate ?? 50}%、底薪{' '}
-              {data?.config?.missSalaryRate ?? 80}%）；线上按
+              本月跑到 {data?.config?.bridgeLadder?.minUnits ?? 130} 单 → 单价升到{' '}
+              {yuan(data?.config?.bridgeLadder?.tier3Yuan ?? 3)}/单，{data?.config?.bridgeLadder?.tier5Units ?? 260} 单 →{' '}
+              {yuan(data?.config?.bridgeLadder?.tier5Yuan ?? 5)}/单。没跑到只是单价停在{' '}
+              {yuan(data?.config?.bridgeLadder?.baseUnitYuan ?? 1)}/单，不扣底薪、不扣提成；每天{' '}
+              {s?.bridgeTarget ?? 10} 单只是看板上的进度，线上按
               {data?.config?.onlineMode === 'PER_ORDER'
                 ? `每单 ¥${data?.config?.onlinePerOrderYuan ?? 1}`
                 : `流水 ${data?.config?.onlineRatePercent ?? 1}%`}
@@ -414,7 +427,7 @@ const CsCommissionTodayPage: React.FC = () => {
           <Card size="small">
             <Statistic title="今日应发合计（全体客服）" value={todayPayTotal} precision={1} prefix="¥" valueStyle={{ color: '#cf1322' }} />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              = 底薪按天折算 + 罚后提成；桥接没达标会按比例下调
+              = 底薪按天折算 + 提成（一套口径：桥接只按本月单价阶梯算，不扣底薪、不打折提成）
             </Text>
           </Card>
         </Col>

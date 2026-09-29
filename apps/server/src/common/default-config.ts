@@ -272,8 +272,8 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'commission.cs_full_attendance_bonus_yuan': 0,
   'commission.cs_early_leave_deduction_yuan': 0,
   'commission.cs_daily_bridge_target': 10,
-  'commission.cs_bridge_miss_commission_rate': 50,
-  'commission.cs_bridge_miss_salary_rate': 80,
+  // 2026-09-30 老板：「别这样了，扣底薪客服会不愿意的」—— 「未达标扣提成 / 扣底薪」两个比例整条删除，
+  // 桥接跑不够只影响单价阶梯（< 最低单数按 cs_bridge_per_order_yuan）。老库里留下的这两行没人再读。
   // 店长分成比例（% 流水，老板 2026-09-21：一单流水由 工作室/店长/客服/陪玩 四个人分）。
   // 默认 0 = 店长暂不参与分成（老口径不变），在「利润分成」页里填。
   'commission.admin_offline_rate_percent': 0,

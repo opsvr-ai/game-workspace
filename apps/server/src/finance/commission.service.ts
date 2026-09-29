@@ -187,7 +187,7 @@ export class CommissionService {
     }));
   }
 
-  /** 读取客服桥接达标规则（每日桥接目标 + 未达标惩罚比例）。 */
+  /** 没传 studioId 时兜底取第一个工作室（老板账号没有 studioId）。 */
   private async resolveStudioId(studioId: string): Promise<string> {
     if (studioId) return studioId;
     const first = await this.prisma.studio.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } });
@@ -543,7 +543,9 @@ export class CommissionService {
       const offlineCommissionYuan = centsToYuan(offlineCents);
       const commissionYuan = Number((offlineCommissionYuan + bridgeCommissionYuan + onlineCommissionYuan).toFixed(2));
 
-      const baseEffective = tier.baseFull ? userBaseSalary : userBaseSalary / 2;
+      // 底薪一律全额（老板 2026-09-30：「这个我建议别这样了，扣底薪客服会不愿意的」）。
+      // 桥接没跑到最低单数**不再动底薪** —— 未达标只体现在桥接单价阶梯（<最低单数按「桥接每单提成」）。
+      const baseEffective = userBaseSalary;
       const attendanceDeduction = Number(
         (
           Math.max(0, absent) * dailyBase +
@@ -759,18 +761,11 @@ export class CommissionService {
     const dateLabel = `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`;
     const { start, end } = currentBusinessDayRange();
     const salaryCfg = await this.csSalaryConfig(studioId);
-    const dayCfg = await resolveConfigsRaw(this.prisma, studioId, [
-      'commission.cs_daily_bridge_target',
-      'commission.cs_bridge_miss_commission_rate',
-      'commission.cs_bridge_miss_salary_rate',
-    ]);
+    // 「每日桥接目标」只是看板上的统计（今天跑到目标没有），**不扣底薪、不扣提成**
+    // （老板 2026-09-30：「这个我建议别这样了，扣底薪客服会不愿意的」）。
+    // 未达标的唯一后果是桥接单价停在第一档（<最低单数按「桥接每单提成」）。
+    const dayCfg = await resolveConfigsRaw(this.prisma, studioId, ['commission.cs_daily_bridge_target']);
     const bridgeTarget = Number((dayCfg as Record<string, unknown>)['commission.cs_daily_bridge_target'] ?? 10);
-    const missCommissionRate = Number(
-      (dayCfg as Record<string, unknown>)['commission.cs_bridge_miss_commission_rate'] ?? 50,
-    );
-    const missSalaryRate = Number(
-      (dayCfg as Record<string, unknown>)['commission.cs_bridge_miss_salary_rate'] ?? 80,
-    );
 
     const [orders, csUsers, profiles, monthBuilt] = await Promise.all([
       this.prisma.order.findMany({
@@ -895,16 +890,32 @@ export class CommissionService {
       }
     }
 
-    let bridgeMetCount = 0;
+    let bridgeMetMonthCount = 0;
     const csList = Array.from(csMap.values())
       .map((c) => {
         const totalCommissionYuan = round2(c.offlineCommission + c.bridgeCommission + c.onlineCommission);
+        // 今天的「达标」只是看板上的统计（今天跑到目标没有），和钱无关
         const bridgeMet = c.bridgeOrders >= bridgeTarget;
-        if (bridgeMet) bridgeMetCount += 1;
-        const commissionAfter = bridgeMet ? totalCommissionYuan : round2(totalCommissionYuan * (missCommissionRate / 100));
-        const salaryAfter = bridgeMet ? c.baseSalaryYuan : round2(c.baseSalaryYuan * (missSalaryRate / 100));
-        const salaryDaily = round2(salaryAfter / fullAttendance);
+        // 底薪不打折：今天的应发 = 底薪按天折算 + 提成（老板 2026-09-30）
+        const salaryDaily = round2(c.baseSalaryYuan / fullAttendance);
         const month = monthByUser.get(c.userId);
+        // 本月的桥接单价阶梯 —— **这才是真正决定桥接提成的地方**（<最低单数 1 元/单 → 3 元 → 5 元）
+        const monthBridgeUnits = Number((month as any)?.bridgeUnits ?? 0);
+        const bridgeUnitYuan = Number((month as any)?.bridgePerUnitYuan ?? salaryCfg.bridgePerOrderCents / 100);
+        const bridgeMetMonth = monthBridgeUnits >= salaryCfg.bridgeMin;
+        if (bridgeMetMonth) bridgeMetMonthCount += 1;
+        const nextTierUnits =
+          monthBridgeUnits < salaryCfg.bridgeTier3
+            ? salaryCfg.bridgeTier3
+            : monthBridgeUnits < salaryCfg.bridgeTier5
+              ? salaryCfg.bridgeTier5
+              : null;
+        const nextTierYuan =
+          monthBridgeUnits < salaryCfg.bridgeTier3
+            ? salaryCfg.bridgeTier3Yuan
+            : monthBridgeUnits < salaryCfg.bridgeTier5
+              ? salaryCfg.bridgeTier5Yuan
+              : null;
         const concluded = c.success + c.failed;
         return {
           ...c,
@@ -916,10 +927,13 @@ export class CommissionService {
           totalCommission: totalCommissionYuan,
           bridgeTarget,
           bridgeMet,
-          commissionAfter,
-          salaryAfter,
           salaryDaily,
-          todayPay: round2(salaryDaily + commissionAfter),
+          todayPay: round2(salaryDaily + totalCommissionYuan),
+          monthBridgeUnits,
+          bridgeUnitYuan,
+          bridgeMetMonth,
+          nextTierUnits,
+          nextTierYuan,
           successRate: concluded > 0 ? round2((c.success / concluded) * 100) : null,
           monthCommissionYuan: month ? round2(Number(month.commissionYuan || 0)) : 0,
           monthTotalYuan: month ? round2(Number(month.totalYuan || 0)) : 0,
@@ -940,8 +954,15 @@ export class CommissionService {
         offlineRatePercent: salaryCfg.ratePercent,
         baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,
-        missCommissionRate,
-        missSalaryRate,
+        // 桥接单价阶梯（真正算钱的地方）：看板据此写「差 X 单到 3 元/单」
+        bridgeLadder: {
+          baseUnitYuan: salaryCfg.bridgePerOrderCents / 100,
+          minUnits: salaryCfg.bridgeMin,
+          tier3Units: salaryCfg.bridgeTier3,
+          tier3Yuan: salaryCfg.bridgeTier3Yuan,
+          tier5Units: salaryCfg.bridgeTier5,
+          tier5Yuan: salaryCfg.bridgeTier5Yuan,
+        },
         fullAttendance,
         includeRenewal: salaryCfg.includeRenewal,
       },
@@ -965,7 +986,7 @@ export class CommissionService {
         totalCommission: round2(totalCommission),
         baseSalaryYuan: salaryCfg.baseSalary,
         bridgeTarget,
-        bridgeMetCount,
+        bridgeMetMonthCount,
         csCount: csList.length,
         failReasons: s.failReasons,
       },
@@ -1209,27 +1230,22 @@ export class CommissionService {
     });
     return this.listCsProfiles(resolved);
   }
-  /** 保存客服桥接达标规则（每日桥接单数目标 + 未达标惩罚）。按身份写：老板全局 / 店长本店。 */
+  /**
+   * 保存「每日桥接目标」。**只是看板上的统计**（今天跑到目标没有），不扣底薪也不扣提成
+   * —— 老板 2026-09-30：「这个我建议别这样了，扣底薪客服会不愿意的」。
+   * 按身份写：老板全局 / 店长本店。（老字段 missCommissionRate / missSalaryRate 已整条废掉，
+   * 传进来也忽略，免得旧页面缓存报错。）
+   */
   async saveBridgeRule(
-    dto: { bridgeTarget: number; missCommissionRate: number; missSalaryRate: number },
+    dto: { bridgeTarget: number },
     actor?: { role?: string | null; studioId?: string | null },
   ) {
     const bridgeTarget = Number(dto.bridgeTarget);
-    const missCommissionRate = Number(dto.missCommissionRate);
-    const missSalaryRate = Number(dto.missSalaryRate);
-    for (const [name, v] of [
-      ['桥接目标', bridgeTarget],
-      ['未达标提成比例', missCommissionRate],
-      ['未达标底薪比例', missSalaryRate],
-    ] as Array<[string, number]>) {
-      if (!Number.isFinite(v) || v < 0) throw new NotFoundException(`${name} 必须是大于等于 0 的数字`);
+    if (!Number.isFinite(bridgeTarget) || bridgeTarget < 0) {
+      throw new NotFoundException('桥接目标 必须是大于等于 0 的数字');
     }
-    await saveConfigsByRole(this.prisma, actor ?? {}, {
-      'commission.cs_daily_bridge_target': bridgeTarget,
-      'commission.cs_bridge_miss_commission_rate': missCommissionRate,
-      'commission.cs_bridge_miss_salary_rate': missSalaryRate,
-    });
-    return { bridgeTarget, missCommissionRate, missSalaryRate };
+    await saveConfigsByRole(this.prisma, actor ?? {}, { 'commission.cs_daily_bridge_target': bridgeTarget });
+    return { bridgeTarget };
   }
 
   /** 确保存在一个 CS 提成锚点规则（用于挂载月度提成明细）。 */
