@@ -3,6 +3,7 @@ import { Card, Table, Tag, Tabs, Typography, message } from 'antd';
 import { analyticsApi } from '../../api/analytics';
 import { useAuthStore } from '../../stores/authStore';
 import { visibleInterval } from '../../hooks/usePolling';
+import { ORDER_FIELD_LABELS } from '../../constants/orderFields';
 
 const { Title, Text } = Typography;
 
@@ -40,8 +41,8 @@ const AnalyticsPage: React.FC = () => {
   }, [role]);
 
   const customerColumns = [
-    { title: '客户微信', dataIndex: 'wechatId' },
-    { title: '所属陪玩', dataIndex: 'companionName' },
+    { title: ORDER_FIELD_LABELS.wechatId, dataIndex: 'wechatId' },
+    { title: ORDER_FIELD_LABELS.mainCompanion, dataIndex: 'companionName' },
     { title: '总消费', dataIndex: 'totalSpent', render: (v: number) => `¥${v}` },
     { title: '订单数', dataIndex: 'orderCount' },
     { title: '平均时长', dataIndex: 'avgDuration', render: (v: number) => `${v}h` },

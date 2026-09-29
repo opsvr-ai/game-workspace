@@ -30,39 +30,26 @@ import { customerTrackingApi } from '../api/customerTracking';
 import { useAuthStore } from '../stores/authStore';
 import { canSeeCustomerSource } from '../constants/datasetColumns';
 import { TransferMark } from '../components/OrderTransferNote';
+import { customerStatusConfig, orderStatusConfig, orderTypeConfig } from '../constants';
+import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 // ── Helpers ────────────────────────────────────────────────────
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: '活跃', color: 'green' },
-  FOLLOW_UP: { label: '待跟进', color: 'orange' },
-  LOST: { label: '流失', color: 'red' },
-  PENDING_DEVELOPMENT: { label: '待开发', color: 'default' },
-};
-
+/**
+ * 联系方式渠道（微信 / QQ / 电话）—— 和「来源」（小红书 / 抖音…）不是一回事，单独一份。
+ *
+ * 客户状态 / 订单类型 / 订单状态一律用全站唯一的一份（constants/customers.ts、constants/orders.ts）：
+ * 以前这一页自己写了「待跟进 / 续单 / 待接单」这些别名，和订单表里的「跟进 / 续费 / 待派单」
+ * 对不上（老板 2026-09-30「每个页面都显示的不一样，数据太乱」）。
+ */
 const platformLabels: Record<string, string> = {
   WECHAT: '微信',
   QQ: 'QQ',
   PHONE: '电话',
   OTHER: '其他',
-};
-
-const orderTypeLabels: Record<string, string> = {
-  NEW: '首单',
-  RENEW: '续单',
-  REPURCHASE: '复购',
-  TIP: '打赏',
-};
-
-const orderStatusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: '待接单', color: 'blue' },
-  GRABBED: { label: '已被抢', color: 'cyan' },
-  CONFIRMED: { label: '已确认', color: 'geekblue' },
-  DONE: { label: '已完成', color: 'green' },
-  CANCELLED: { label: '已取消', color: 'default' },
 };
 
 const formatDate = (d: string | null | undefined) => {
@@ -263,7 +250,7 @@ const CustomerDetailPage: React.FC = () => {
 
   // ── Derived values ─────────────────────────────────────────
 
-  const statusInfo = statusMap[customer?.status] ?? { label: customer?.status ?? '未知', color: 'default' };
+  const statusInfo = customerStatusConfig[customer?.status] ?? { label: customer?.status ?? '未知', color: 'default' };
   // `platform` 对陪玩只放行真正的联系方式平台（微信 / QQ / 电话 / 其他）；
   // 小红书 / 抖音 / 快手 这类来源值统一显示 '-'（客服 / 店长 / 老板照常）。
   const rawPlatform = customer?.platform;
@@ -355,7 +342,7 @@ const CustomerDetailPage: React.FC = () => {
       render: (v: string) => v || '-',
     },
     {
-      title: '主陪',
+      title: ORDER_FIELD_LABELS.mainCompanion,
       dataIndex: ['companion', 'user', 'username'],
       key: 'companion',
       width: 90,
@@ -368,7 +355,7 @@ const CustomerDetailPage: React.FC = () => {
       ),
     },
     {
-      title: '副陪',
+      title: ORDER_FIELD_LABELS.coCompanion,
       dataIndex: ['coCompanion', 'user', 'username'],
       key: 'coCompanion',
       width: 90,
@@ -376,7 +363,7 @@ const CustomerDetailPage: React.FC = () => {
         v ? <Text style={{ color: '#722ed1' }}>{v}</Text> : <Text type="secondary">-</Text>,
     },
     {
-      title: '模式',
+      title: ORDER_FIELD_LABELS.deltaMission,
       dataIndex: ['customFields', 'deltaMission'],
       key: 'mode',
       width: 80,
@@ -410,19 +397,19 @@ const CustomerDetailPage: React.FC = () => {
       render: (v: number) => <span style={{ color: '#FF4757', fontWeight: 600 }}>¥{v.toFixed(1)}</span>,
     },
     {
-      title: '类型',
+      title: ORDER_FIELD_LABELS.orderType,
       dataIndex: 'type',
       key: 'type',
       width: 80,
-      render: (v: string) => <Tag>{orderTypeLabels[v] ?? v}</Tag>,
+      render: (v: string) => <Tag>{orderTypeConfig[v]?.label ?? v}</Tag>,
     },
     {
-      title: '状态',
+      title: ORDER_FIELD_LABELS.status,
       dataIndex: 'status',
       key: 'status',
       width: 90,
       render: (v: string) => {
-        const s = orderStatusLabels[v] ?? { label: v, color: 'default' };
+        const s = orderStatusConfig[v] ?? { label: v, color: 'default' };
         return <Tag color={s.color}>{s.label}</Tag>;
       },
     },
@@ -504,7 +491,7 @@ const CustomerDetailPage: React.FC = () => {
             <Descriptions.Item label="客户状态">
               <Tag color={statusInfo.color}>{statusInfo.label}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="归属陪玩">
+            <Descriptions.Item label={ORDER_FIELD_LABELS.mainCompanion}>
               {customer.companion?.user?.username ?? <Text type="secondary">未分配</Text>}
             </Descriptions.Item>
             <Descriptions.Item label="最后服务日期">

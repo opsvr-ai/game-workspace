@@ -55,11 +55,6 @@ export const FIELD_WIDTH = {
   game: 112,
   /** 「金额 / 打单」单行：¥金额 + 立即打（预约是蓝字） */
   amount: 74,
-  /** 「客户微信 / 编号」单行（**陪玩端专用**）：陪玩端看到的客户微信 + 客户编号。
-   *  管理端 2026-09-30 起不再用这一列 —— 「客户账号」按发布订单表单（CreateOrderModal）的口径
-   *  拆成 来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 五列（见下面五个字段），
-   *  客户微信也挪进了「客户联系方式」。陪玩端一个字没动，所以这个键保留。 */
-  customerWechat: 118,
   /** 「来源」单行（管理端）：客户是从哪个平台来的（小红书 / 抖音 / 快手…）。
    *  老板 2026-09-30：「你把客户账号拆分成发布订单时细分的名称不行么？比如来源：小红书
    *  引流账号： 客户昵称 客户账号id 客户联系方式，把前边的微信 挪过去」——
@@ -81,11 +76,6 @@ export const FIELD_WIDTH = {
    *  微信原来单独一列（「客户微信 / 编号」），老板 2026-09-30 让挪到这一格里来。
    *  实测最长「gqs980190843 · 房间OLJ9896」= 167px。 */
   customerContact: 132,
-  /** 「客户账号」单行（**陪玩端专用**）：陪玩看不到来源 / 昵称 / 账号ID（见 canSeeCustomerSource），
-   *  这一格只剩房间码 + YY + KOOK（实测最长 70px），84px 绰绰有余，
-   *  也让陪玩端的接单记录仍然很窄（1024 → 998px，见 ORDER_TABLE_KEYS_COMPANION）、
-   *  不给陪玩加横向滚动。 */
-  customerAccountsCompanion: 84,
   /**
    * 「主陪 / 副陪」单行：陪玩名（+副陪、桥接工作室）。
    * 老板 2026-09-30：「主陪跟发布中间不是有这么大的空间么？你把他们距离缩小」——
@@ -209,35 +199,34 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
   return keys.reduce((total, key) => total + FIELD_WIDTH[key], 0);
 }
 
-/** 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
- *  2026-09-30 老板让把「客户账号」按发布订单表单的口径拆成五列
- *  （来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式，客户微信从「客户微信 / 编号」挪进
- *  「客户联系方式」），所以管理端有 12 个数据列；合计
- *  66+46+112+74+50+116+96+88+132+66+116+254 = **1216px**。
- *  窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（按 ORDER_COLUMN_FIT_ORDER
- *  先补给客户那五列，不再堆在「退款」右边，也不会把「主陪 / 副陪」撑出一截空白）。 */
+/**
+ * 订单管理表的列（管理端，顺序即表头顺序），scroll.x 直接用它算。
+ * 顺序 = constants/orderFields.ts 的字段口径（订单 → 状态 → 游戏 / 服务 → 金额 / 打单 →
+ * 来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 → 备注 → 主陪 / 副陪 → 发布 → 操作）。
+ * 管理端 13 列；合计 66+46+112+74+50+116+96+88+132+84+66+116+254 = **1300px**。
+ * 窗口比这宽时多出来的宽度怎么分，见下面的 fitOrderColumnWidths（按 ORDER_COLUMN_FIT_ORDER
+ * 先补给客户那五列，不再堆在「退款」右边，也不会把「主陪 / 副陪」撑出一截空白）。 */
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
-  'studio', 'createdAt', 'orderActions',
+  'orderNote', 'studio', 'createdAt', 'orderActions',
 ];
 
 /**
- * 陪玩端订单管理（接单记录）的列：比客服端多一列「备注」（插在「客户账号」后面）。
- * 「客户账号」用陪玩端的窄版（customerAccountsCompanion —— 陪玩只看得到房间码 / YY / KOOK）。
- * 合计 66+46+112+74+118+84+84+84+116+214 = **998px**（2026-09-29 加「转让」按钮后 +40px，
- * 2026-09-30 状态列改成 3 个字后 −26px）——
- * 陪玩端内容一个字都没动（「主陪 / 副陪」用 studioCompanion 84px，不受管理端收窄影响；
- * 「状态」列和管理端共用同一个字段，跟着收窄了 26px，但陪玩端状态格里只有 2~3 个字，照样放得下）。
+ * 陪玩端订单管理（接单记录）的列：**和管理端同一份列、同一个标签**，只是把
+ * 「来源 / 引流账号 / 客户昵称 / 客户账号ID」四列按 orderFields.ts 的 COMPANION_HIDDEN_FIELDS 去掉
+ * （老板 2026-09-29「陪玩端 隐藏 客户小红书信息」；2026-09-30「只是有些数据不展示给陪玩端而已」）——
+ * 不再是另写一套「客户微信 / 编号 + 客户账号」。
+ * 合计 66+46+112+74+132+84+84+116+214 = **928px**（比改造前还窄 70px，陪玩端更不用横向拖）。
  */
 export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
-  'customerWechat', 'customerAccountsCompanion', 'orderNote', 'studioCompanion', 'createdAt', 'companionOrderActions',
+  'customerContact', 'orderNote', 'studioCompanion', 'createdAt', 'companionOrderActions',
 ];
 
 /**
  * 订单管理表的基准宽度之和 —— 也是这张表 scroll.x 的下限
- * （66+46+112+74+50+116+96+88+132+66+116+254 = 1216px）。
+ * （66+46+112+74+50+116+96+88+132+84+66+116+254 = 1300px）。
  */
 export const ORDER_TABLE_BASE_WIDTH = sumWidths(ORDER_TABLE_KEYS);
 
@@ -261,6 +250,7 @@ export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
   customerNickname: 130, // 最长 123（「绝密航天毁一生 · 219」，含客户编号）
   customerAccountId: 108, // 最长 100（「308798116_Peng」）
   customerContact: 180, // 最长 167（「gqs980190843 · 房间OLJ9896」，微信 + 房间码）
+  orderNote: 140, // 备注一行最长 133（线上 118 单实测），够放完整一行
   studio: 116, // 最长 103（陪玩名 + 副陪 + 桥接工作室）
   createdAt: 118, // 基础 116 就够（发布人 +「MM-DD HH:mm」），留 2px 余量
 };
@@ -280,6 +270,7 @@ export const ORDER_COLUMN_FIT_ORDER: string[] = [
   'customerNickname',
   'customerAccountId',
   'customerSource',
+  'orderNote',
   'studio',
   'createdAt',
   'game',

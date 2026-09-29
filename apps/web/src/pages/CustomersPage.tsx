@@ -65,6 +65,7 @@ import {
   canSeeCustomerSource,
   sumWidths,
 } from '../constants/datasetColumns';
+import { ORDER_FIELD_LABELS, orderFieldText } from '../constants/orderFields';
 import TableSkeleton from '../components/TableSkeleton';
 import { visibleInterval } from '../hooks/usePolling';
 
@@ -481,21 +482,23 @@ const CustomersPage: React.FC = () => {
       },
     },
     {
-      // 原来「来源账号」单独占一列 150px（大多是空的），现在和来源并成一行
-      title: '来源 / 账号',
+      // 「来源 / 引流账号」：字段名和取值都跟订单管理表、订单详情弹窗、抢单池那一行同一份口径
+      // （constants/orderFields.ts）—— 以前这个表头写「来源 / 账号」，订单表里写「引流账号」，
+      // 同一个数据两个名字（老板 2026-09-30「每个页面都显示的不一样」）。
+      // 来源平台（小红书 / 抖音…）和引流账号都不给陪玩看（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）。
+      title: `${ORDER_FIELD_LABELS.customerSource} / ${ORDER_FIELD_LABELS.customerSourceAccount}`,
       key: 'source',
       width: FIELD_WIDTH.sourceTime,
       render: (_: any, r: any) => {
-        // 来源平台（小红书 / 抖音…）和来源账号都不给陪玩看（老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」）：
-        // 以前只是把账号抹掉、留着「小红书」三个字，陪玩还是知道这单从哪来的。
         if (!canSeeCustomerSource(role)) return <Text type="secondary">-</Text>;
-        const cf = r.orders?.[0]?.customFields || {};
-        const acc = cf.customerSourceAccount;
-        const text = [cf.customerSource || '', acc || ''].filter(Boolean).join(' ');
-        if (!text) return <Text type="secondary">-</Text>;
-        const deprecated = !!acc && inactiveAccounts.has(acc);
+        const latest = r.orders?.[0] || {};
+        const source = orderFieldText(latest, 'customerSource');
+        const account = orderFieldText(latest, 'customerSourceAccount');
+        if (!source && !account) return <Text type="secondary">-</Text>;
+        const deprecated = !!account && inactiveAccounts.has(account);
+        const text = [source, account].filter(Boolean).join(' · ');
         return (
-          <div style={CELL_ONE_LINE} title={text + (deprecated ? '（已弃用）' : '')}>
+          <div style={CELL_ONE_LINE} title={text + (deprecated ? '（该来源账号已弃用）' : '')}>
             <span>{text}</span>
             {deprecated && <span style={{ ...CELL_SUB_TEXT, color: '#94A3B8' }}>已弃用</span>}
           </div>
@@ -516,7 +519,7 @@ const CustomersPage: React.FC = () => {
     },
     {
       // 原来「所用微信」和「陪玩」各占一列（100 + 110px），两条都是短信息，现在并成一行
-      title: '陪玩 / 微信',
+      title: `${ORDER_FIELD_LABELS.mainCompanion} / ${ORDER_FIELD_LABELS.workWechat}`,
       key: 'companion',
       width: FIELD_WIDTH.companionWechat,
       render: (_: any, r: Customer) => {

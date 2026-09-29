@@ -8,10 +8,11 @@ import { financeApi } from '../api/finance';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
+import { orderTypeConfig } from '../constants/orders';
 
 const { Option } = Select;
 
-const orderTypeConfig: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购' };
+const ORDER_TYPES = Object.entries(orderTypeConfig).filter(([k]) => k !== 'TIP');
 const gameList = ['王者荣耀', '三角洲行动', '英雄联盟', '永劫无间', '无畏契约', 'CS2', '绝地求生', '金铲铲', '三角洲手游', '和平精英'];
 
 interface Props {
@@ -245,9 +246,9 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       >
         <Form.Item name="type" label="订单类型" initialValue="NEW" rules={[{ required: true }]}>
           <Select>
-            {Object.entries(orderTypeConfig).map(([k, v]) => (
+            {ORDER_TYPES.map(([k, cfg]) => (
               <Option key={k} value={k}>
-                {v}
+                {cfg.label}
               </Option>
             ))}
           </Select>
@@ -362,7 +363,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             </Form.Item>
           </>
         )}
-        <Form.Item label="客户来源" required>
+        <Form.Item label="来源 / 引流账号" required>
           <Input.Group compact>
             <Form.Item name="customerSource" noStyle rules={[{ required: true, message: '请选择客户来源' }]}>
               <Select placeholder="来源" style={{ width: '30%' }}>
@@ -388,7 +389,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             <Form.Item name="customerSourceAccount" noStyle>
               <Select
                 style={{ width: '70%' }}
-                placeholder="选择引流账号"
+                placeholder="引流账号"
                 showSearch
                 optionFilterProp="label"
                 allowClear
@@ -451,10 +452,10 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         {directAddMode && (
           <Form.Item
             name="workWechatId"
-            label="工作微信（用哪个微信添加客户）"
+            label="工作微信"
             rules={[{ required: true, message: '请选择添加客户用的工作微信' }]}
           >
-            <Select placeholder="选择工作微信" allowClear>
+            <Select placeholder="用哪个微信添加客户" allowClear>
               {workWechats
                 .filter((w: any) => w.type === 'STUDIO')
                 .map((w: any) => (
@@ -465,7 +466,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             </Select>
           </Form.Item>
         )}
-        <Form.Item label="客户微信二维码（没有微信文字时上传）">
+        <Form.Item label="客户微信二维码">
           <PasteImageBox onFile={uploadCustomerWechatQr}>
             <Upload beforeUpload={uploadCustomerWechatQr} maxCount={1} accept="image/*">
               <Button loading={uploading}>{customerWechatQr ? '重新上传二维码' : '上传客户微信二维码'}</Button>

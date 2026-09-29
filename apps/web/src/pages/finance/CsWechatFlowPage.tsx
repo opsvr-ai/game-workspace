@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin } from 'antd';
 import { ordersApi } from '../../api/orders';
 import PageHeader from '../../components/PageHeader';
+import { ORDER_FIELD_LABELS } from '../../constants/orderFields';
 
 const { Text } = Typography;
 
@@ -27,7 +28,7 @@ const CsWechatFlowPage: React.FC = () => {
   const columns = [
     { title: '订单号', dataIndex: 'orderCode', width: 80 },
     { title: '游戏', dataIndex: 'gameName', width: 110 },
-    { title: '客户微信', dataIndex: 'customerWechat', render: (v: string) => v || '-' },
+    { title: ORDER_FIELD_LABELS.wechatId, dataIndex: 'customerWechat', render: (v: string) => v || '-' },
     { title: '客服', dataIndex: 'csName', render: (v: string) => v || '-' },
     { title: '陪玩', dataIndex: 'companionName', render: (v: string) => v || '-' },
     { title: '去向', dataIndex: 'destination', width: 100 },

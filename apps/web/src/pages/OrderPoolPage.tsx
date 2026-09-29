@@ -18,10 +18,11 @@ import CardSkeleton from '../components/CardSkeleton';
 import TierBadge from '../components/TierBadge';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 
-import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
+import { orderStatusConfig, orderTypeConfig, serviceTypeConfig } from '../constants/orders';
 import { personnelGroupRank, isPersonnelOnline, displayStatus, statusDotColor } from '../constants/companions';
 import { PERSONNEL_COLUMN_WIDTH, fixedColumnFlex, fixedColumnStyle } from '../constants/layout';
-import { buildOrderInfoFields, fmtClock } from '../utils/orderPool';
+import { buildOrderPoolFields } from '../utils/orderPool';
+import OrderFieldLine from '../components/OrderFieldLine';
 import {
   DATA_FONT_SIZE,
   DATA_ROW_PADDING,
@@ -31,15 +32,6 @@ import {
 import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
-
-/** 已被抢走的单在灰色记录里显示的进度文案（老板 2026-09-21） */
-const TAKEN_STATUS_LABEL: Record<string, string> = {
-  GRABBED: '已被抢',
-  CLAIMED: '客服处理中',
-  CONFIRMED: '服务中',
-  DONE: '已完成',
-  CANCELLED: '已取消',
-};
 
 const OrderPoolPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -354,8 +346,9 @@ const OrderPoolPage: React.FC = () => {
   const renderPoolCard = (order: any, idx: number) => {
     // 已被抢走的单：整行灰掉、不能点、右侧只说明「被谁抢走了 / 什么时候」。
     const taken = !!order._taken;
-    const fields = buildOrderInfoFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
+    const fields = buildOrderPoolFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
       taken,
+      isCompanion,
     });
 
     return (
@@ -374,25 +367,19 @@ const OrderPoolPage: React.FC = () => {
           color: taken ? '#9AA3AF' : '#1f2329',
         }}
       >
-        {/* 订单信息太长时只让这一块横向滚动，抢单按钮永远钉在最右侧，不被挤出屏幕 */}
+        {/* 订单字段：标签口径跟订单管理表 / 订单详情 / 客户管理是同一份（constants/orderFields.ts）。
+            一行放不下就换行，抢单按钮永远钉在最右侧，不被挤出屏幕。 */}
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
-            gap: 10,
+            gap: '4px 0',
             flex: '1 1 auto',
             minWidth: 0,
-            overflowX: 'auto',
-            whiteSpace: 'nowrap',
-            scrollbarWidth: 'thin',
           }}
         >
-          {fields.map((t, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
-              <span>{t}</span>
-            </React.Fragment>
-          ))}
+          <OrderFieldLine items={fields} wrap />
           {order.customFields?.csCultivated === true && (
             <Tag color="cyan" style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE }}>
               ✅ 客服已加过微信，请知悉
@@ -413,10 +400,12 @@ const OrderPoolPage: React.FC = () => {
             >
               {order._takenByMe ? '✅ 你已抢到这单' : `已被 ${order._takenByName || '其他陪玩'} 抢走`}
             </Tag>
-            {/* 「已被 XX 抢走」已经写明白了，这里只在后面还有进展（服务中/已完成）时才补一句 */}
+            {/* 「已被 XX 抢走」已经写明白了，这里只在后面还有进展（进行中 / 已完成）时才补一句。
+                状态文字跟订单管理表是同一份（constants/orders.ts 的 orderStatusConfig）——
+                以前这里另写了一套（客服处理中 / 服务中），跟表里对不上。 */}
             {order.status !== 'GRABBED' && (
               <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
-                {TAKEN_STATUS_LABEL[order.status] || order.status}
+                {orderStatusConfig[order.status]?.label || order.status}
               </Text>
             )}
           </Space>
@@ -444,10 +433,9 @@ const OrderPoolPage: React.FC = () => {
             </Button>
           </Space>
         ) : (
+          // 「发布」（发布人 + 时间）和「状态」左边那一行字段里已经有了，右边只留操作按钮。
+          // 以前这里还各写一份（「发布:xxx」和「待派单」），同一份数据在两处长得不一样。
           <Space size={8}>
-            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
-              发布:{order.csUser?.username || order.customFields?.createdBy || '未知'}
-            </Text>
             {canEditOrder(order) && (
               <Button
                 size="small"
@@ -457,7 +445,6 @@ const OrderPoolPage: React.FC = () => {
                 修改
               </Button>
             )}
-            <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>待派单</Text>
           </Space>
         )}
         </div>

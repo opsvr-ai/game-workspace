@@ -5,19 +5,10 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { statsApi } from '../api/stats';
 import DueFollowUpBanner from '../components/DueFollowUpBanner';
+import { orderStatusConfig } from '../constants/orders';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-
-const orderStatusConfig: Record<string, { color: string; label: string }> = {
-  PENDING: { color: 'orange', label: '待抢单' },
-  GRABBED: { color: 'blue', label: '已抢' },
-  CONFIRMED: { color: 'cyan', label: '已确认' },
-  DONE: { color: 'green', label: '已完成' },
-  CANCELLED: { color: 'red', label: '已取消' },
-  // 状态文案统一 3 个字（老板 2026-09-30），跟 constants/orders.ts 保持一致
-  CLAIMED: { color: 'purple', label: '已认领' },
-};
 
 const paidToConfig: Record<string, string> = {
   CS_WECHAT: '客服工作微信',

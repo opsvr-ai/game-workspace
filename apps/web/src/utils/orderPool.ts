@@ -1,4 +1,4 @@
-import { orderTypeConfig, serviceTypeConfig } from '../constants/orders';
+import { buildOrderFieldEntries, orderFieldLabel, type OrderFieldEntry } from '../constants/orderFields';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -84,47 +84,52 @@ export function orderMatchesSearch(order: any, keyword: string): boolean {
   return tokens.every((t) => haystack.includes(t));
 }
 
-export function buildOrderInfoFields(
+/**
+ * 抢单池 / 派单工作台那一行的字段（标签 + 值）。
+ *
+ * 老板 2026-09-30：「从发布订单→进入抢单池/指定→订单管理→客户管理 用的都是同一条数据，
+ * 你把所有的显示的标签都用一样的不行么？只是有些数据不展示给陪玩端而已」——
+ * 以前这里返回的是一串**没有字段名**的纯文本（游戏 / 类型 / 服务 / 任务 / 备注 / 时长 / 单双 /
+ * 金额 / 立即打 / 时间 / 已等待 / 距离消失，用灰色 `|` 隔开），同一个数据在订单管理表里有名字
+ * （表头），到了抢单池就没名字了。现在直接走 constants/orderFields.ts 的唯一一份标签口径
+ * （订单 / 状态 / 游戏 / 服务 / 金额 / 打单 / 来源 / 引流账号 / 客户昵称 / 客户账号ID /
+ * 客户联系方式 / 备注 / 主陪 / 副陪 / 发布），陪玩端按 COMPANION_HIDDEN_FIELDS 少几项。
+ */
+export function buildOrderPoolFields(
   order: any,
   now: number,
   disappearMinutes: number,
   scheduledDisappearMinutes: number,
-  opts: { taken?: boolean } = {},
-): string[] {
-  const type = orderTypeConfig[order.type]?.label || order.type || '首单';
-  const svc = serviceTypeConfig[order.customFields?.serviceType]?.label || '陪玩';
-  const mission = order.customFields?.deltaMission || '\u00A0';
-  const note = order.customFields?.deltaNote?.trim?.() || '';
-  const isRound = order.customFields?.billingMode === 'round';
-  const dur = isRound
-    ? `${order.duration || order.customFields?.deltaCount || '?'}局`
-    : `${order.duration || '?'}h`;
-  const sd = order.coCompanionId || order.customFields?.deltaCount === '双' ? '双陪' : '单陪';
+  opts: { taken?: boolean; isCompanion?: boolean } = {},
+): OrderFieldEntry[] {
+  const cf = order.customFields || {};
+  const entries = buildOrderFieldEntries(order, { isCompanion: opts.isCompanion === true });
+  // 预约单：发布订单表单里「预约时间」紧跟在「打单时间」后面，这里也补在「金额 / 打单」后面
+  if (cf.urgency === 'later' && cf.scheduledTimeText) {
+    const at = entries.findIndex((e) => e.key === 'amount');
+    entries.splice(at < 0 ? entries.length : at + 1, 0, {
+      key: 'scheduledTime',
+      label: orderFieldLabel('scheduledTime'),
+      text: cf.scheduledTimeText,
+    });
+  }
   const wait = now - new Date(order.createdAt).getTime();
-  const scheduledTime =
-    order.customFields?.urgency === 'later'
-      ? order.customFields?.scheduledTimeText || '\u00A0'
-      : '\u00A0';
-  const disappearMins =
-    order.customFields?.urgency === 'later' ? scheduledDisappearMinutes : disappearMinutes;
-  const disappearIn = disappearMins * 60 * 1000 - wait;
-  const disappearText = disappearIn > 0 ? fmtSpan(disappearIn) : '0秒';
-
-  return [
-    order.gameName,
-    type,
-    svc,
-    mission,
-    ...(note ? [`备注:${note.length > 14 ? `${note.slice(0, 14)}…` : note}`] : []),
-    dur,
-    sd,
-    `${Number(order.amount || 0).toFixed(0)}元`,
-    order.customFields?.urgency === 'later' ? '预约' : '立即打',
-    scheduledTime,
-    fmtClock(order.createdAt),
+  if (opts.taken) {
     // 已经被抢走的单（灰色记录）：不再有「等多久 / 还差多久消失」，改成什么时候被抢的。
-    ...(opts.taken
-      ? [`抢单 ${fmtClock(order._takenAt || order.grabbedAt || order.updatedAt || order.createdAt)}`]
-      : [`已等待 ${fmtSpan(wait)}`, `距离消失 ${disappearText}`]),
-  ];
+    entries.push({
+      key: 'takenAt',
+      label: orderFieldLabel('takenAt'),
+      text: fmtClock(order._takenAt || order.grabbedAt || order.updatedAt || order.createdAt),
+    });
+    return entries;
+  }
+  const disappearMins = cf.urgency === 'later' ? scheduledDisappearMinutes : disappearMinutes;
+  const disappearIn = disappearMins * 60 * 1000 - wait;
+  entries.push({ key: 'waited', label: orderFieldLabel('waited'), text: fmtSpan(wait) });
+  entries.push({
+    key: 'disappearIn',
+    label: orderFieldLabel('disappearIn'),
+    text: disappearIn > 0 ? fmtSpan(disappearIn) : '0秒',
+  });
+  return entries;
 }

@@ -35,6 +35,7 @@ import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 import ChatModal from '../components/ChatModal';
 import { orderStatusConfig } from '../constants';
+import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
 import {
@@ -854,7 +855,7 @@ const OrdersPage: React.FC = () => {
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <Input.Search
-            placeholder="搜客户微信 / 小红书 / 昵称 / 编号 / 游戏名（空格分隔多个词）"
+            placeholder={ORDER_SEARCH_PLACEHOLDER}
             allowClear
             value={orderSearch}
             onChange={(e) => setOrderSearch(e.target.value)}
@@ -862,7 +863,7 @@ const OrdersPage: React.FC = () => {
             size="small"
           />
           <Select
-            placeholder="订单类型"
+            placeholder={ORDER_FIELD_LABELS.orderType}
             allowClear
             value={typeFilter || undefined}
             onChange={(v) => setTypeFilter(v || '')}

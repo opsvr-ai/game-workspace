@@ -2,6 +2,7 @@
 import React from 'react';
 import { Image } from 'antd';
 import type { Message } from '../../stores/chatStore';
+import { orderStatusConfig } from '../../constants/orders';
 import ReplyPreview from './ReplyPreview';
 import MessageReactions from './MessageReactions';
 
@@ -258,13 +259,8 @@ const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ conten
   } catch {
     return <span>{content}</span>;
   }
-  const statusLabel: Record<string, string> = {
-    PENDING: '待接单',
-    GRABBED: '已被抢',
-    CONFIRMED: '已确认',
-    DONE: '已完成',
-    CANCELLED: '已取消',
-  };
+  // 状态文案用全站唯一的一份（constants/orders.ts）——以前这里自己写了
+  // 「待接单 / 已确认」，和订单管理表里的「待派单 / 进行中」对不上（老板 2026-09-30）。
   return (
     <div>
       <div style={{ fontSize: 12, opacity: 0.7 }}>📋 订单 #{order.orderId?.slice(-8)}</div>
@@ -275,7 +271,7 @@ const OrderCardContent: React.FC<{ content: string; isMe: boolean }> = ({ conten
       </div>
       <div style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>
         <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.08)' }}>
-          {statusLabel[order.status] || order.status}
+          {orderStatusConfig[order.status]?.label || order.status}
         </span>
       </div>
     </div>

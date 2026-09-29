@@ -1,14 +1,29 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
 import { Modal, Descriptions, Image, Tag, Typography, Button } from 'antd';
+import { billingModeConfig } from '../constants';
 import {
-  orderStatusConfig,
-  orderTypeConfig,
-  serviceTypeConfig,
-  urgencyConfig,
-  billingModeConfig,
-} from '../constants';
-import { canSeeCustomerSource, DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
+  canSeeCustomerSource,
+  CELL_SUB_TEXT,
+  DATA_FONT_SIZE,
+  DATA_SUB_FONT_SIZE,
+  DETAIL_LABEL_WIDTH,
+} from '../constants/datasetColumns';
+import {
+  ORDER_FIELD_LABELS,
+  ORDER_STATUS_TEXT_COLOR,
+  orderAmountText,
+  orderBillingModeText,
+  orderCompanionText,
+  orderCustomerContact,
+  orderDeltaCountText,
+  orderDurationText,
+  orderGameText,
+  orderServiceTypeText,
+  orderStatusLabel,
+  orderTypeLabel,
+  orderUrgencyText,
+} from '../constants/orderFields';
 import { useAuthStore } from '../stores/authStore';
 import { TransferNote, transferList } from './OrderTransferNote';
 
@@ -49,9 +64,8 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
     (order.status === 'GRABBED' || order.status === 'CONFIRMED') &&
     !(order.sessions?.length && order.sessions[0]?.startedAt);
   const cf = order.customFields || {};
-  const isRound = cf.billingMode === 'round';
-  const duration = isRound ? `${order.duration || cf.deltaCount || '?'}局` : `${order.duration || '?'}小时`;
-  const isDouble = !!order.coCompanionId || cf.deltaCount === '双';
+  // 联系方式整行取同一个函数，保证跟抢单池那一行、订单管理表显示的是同一段文字
+  const contactText = orderCustomerContact(order);
   const companionStudio = order.companion?.studio;
   const isBridged = !!companionStudio?.id && !!order.studioId && order.studioId !== companionStudio.id;
 
@@ -70,6 +84,9 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
       width={720}
       destroyOnClose
     >
+      {/* 标签一律取 constants/orderFields.ts 的唯一一份口径（老板 2026-09-30：同一个数据在所有页面
+          用同一套字段名，陪玩端只是少显示几个字段）—— 和订单管理表的表头、抢单池那一行、
+          客户管理 / 客户详情是同一套字。 */}
       <Descriptions
         column={2}
         size="small"
@@ -77,41 +94,73 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
         style={{ fontSize: DATA_FONT_SIZE }}
         labelStyle={{ width: DETAIL_LABEL_WIDTH }}
       >
-        <Descriptions.Item label="状态">
-          <Tag color={orderStatusConfig[order.status]?.color || 'default'} style={{ margin: 0 }}>
-            {orderStatusConfig[order.status]?.label || order.status}
-          </Tag>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.orderCode}>
+          <Text strong>{order.orderCode || order.id?.slice(0, 8)}</Text>
+          <span style={CELL_SUB_TEXT}>· {orderTypeLabel(order)}</span>
         </Descriptions.Item>
-        <Descriptions.Item label="类型">
-          <Tag color={orderTypeConfig[order.type]?.color || 'blue'} style={{ margin: 0 }}>
-            {orderTypeConfig[order.type]?.label || order.type || '首单'}
-          </Tag>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.status}>
+          <span style={{ color: ORDER_STATUS_TEXT_COLOR[order.status] || '#475569' }}>{orderStatusLabel(order)}</span>
         </Descriptions.Item>
-        <Descriptions.Item label="游戏">{order.gameName || '-'}</Descriptions.Item>
-        <Descriptions.Item label="服务">
-          {serviceTypeConfig[cf.serviceType || order.serviceType]?.label || '陪玩'}
+        <Descriptions.Item label={ORDER_FIELD_LABELS.game}>{orderGameText(order)}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.amount}>
+          <Text strong>{orderAmountText(order)}</Text>
+          <span style={{ ...CELL_SUB_TEXT, color: cf.urgency === 'later' ? '#1D4ED8' : '#94A3B8' }}>
+            {orderUrgencyText(order)}
+          </span>
         </Descriptions.Item>
-        <Descriptions.Item label="单/双">{isDouble ? '双陪' : '单陪'}</Descriptions.Item>
-        <Descriptions.Item label="任务">{cf.deltaMission || '-'}</Descriptions.Item>
-        <Descriptions.Item label="时长">{duration}</Descriptions.Item>
-        <Descriptions.Item label="计费">
-          {billingModeConfig[cf.billingMode]?.label || (isRound ? '按局' : '按小时')}
+        <Descriptions.Item label={ORDER_FIELD_LABELS.serviceType}>
+          {orderServiceTypeText(order)}
         </Descriptions.Item>
-        <Descriptions.Item label="金额">
-          <Text strong>¥{Number(order.amount || 0).toFixed(2)}</Text>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.deltaMission}>{cf.deltaMission || '-'}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.deltaCount}>{orderDeltaCountText(order)}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.duration}>{orderDurationText(order)}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.billingMode}>
+          {orderBillingModeText(order)}
         </Descriptions.Item>
-        <Descriptions.Item label="打单时间">
-          <Tag color={urgencyConfig[cf.urgency]?.color || 'green'} style={{ margin: 0 }}>
-            {urgencyConfig[cf.urgency]?.label || '立即'}
-          </Tag>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.urgency}>
+          {orderUrgencyText(order)}
           {cf.urgency === 'later' && cf.scheduledTimeText ? (
             <Text type="secondary" style={{ marginLeft: 6, fontSize: DATA_SUB_FONT_SIZE }}>
               {cf.scheduledTimeText}
             </Text>
           ) : null}
         </Descriptions.Item>
-        <Descriptions.Item label="主陪">{order.companion?.user?.username || '-'}</Descriptions.Item>
-        <Descriptions.Item label="接单工作室">
+        {showSource && (
+          <>
+            <Descriptions.Item label={ORDER_FIELD_LABELS.customerSource}>
+              {cf.customerSource || order.customer?.platform || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label={ORDER_FIELD_LABELS.customerSourceAccount}>
+              {cf.customerSourceAccount || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label={ORDER_FIELD_LABELS.customerNickname}>
+              {cf.customerNickname || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label={ORDER_FIELD_LABELS.customerAccountId}>
+              {cf.customerAccountId || '-'}
+            </Descriptions.Item>
+          </>
+        )}
+        <Descriptions.Item label={ORDER_FIELD_LABELS.customerContact} span={2}>
+          {contactText ? (
+            <Text copyable={{ text: contactText }} style={{ color: '#1677ff' }}>
+              {contactText}
+            </Text>
+          ) : (
+            '-'
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.customerWechatQr}>
+          {cf.customerWechatQr ? (
+            <Image src={cf.customerWechatQr} width={96} style={{ borderRadius: 4 }} preview={{ mask: '二维码' }} />
+          ) : (
+            '-'
+          )}
+        </Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.companion}>
+          {orderCompanionText(order) || '-'}
+        </Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.companionStudio}>
           {companionStudio?.name ? (
             <Tag color={isBridged ? 'purple' : 'default'} style={{ margin: 0 }}>
               {isBridged ? `桥接·${companionStudio.name}` : companionStudio.name}
@@ -120,37 +169,15 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
             '-'
           )}
         </Descriptions.Item>
-        <Descriptions.Item label="副陪">{order.coCompanion?.user?.username || '-'}</Descriptions.Item>
-        <Descriptions.Item label="发布人">{order.csUser?.username || '-'}</Descriptions.Item>
-        <Descriptions.Item label="客户微信">{cf.customerWechat || order.customer?.wechatId || '-'}</Descriptions.Item>
-        {showSource && (
-          <>
-            <Descriptions.Item label="客户昵称">{cf.customerNickname || '-'}</Descriptions.Item>
-            <Descriptions.Item label="客户来源">{cf.customerSource || order.customer?.platform || '-'}</Descriptions.Item>
-            <Descriptions.Item label="来源账号">{cf.customerSourceAccount || cf.customerAccountId || '-'}</Descriptions.Item>
-          </>
-        )}
-        <Descriptions.Item label="房间码">{cf.customerRoomCode || '-'}</Descriptions.Item>
-        <Descriptions.Item label="YY / KOOK">
-          {[cf.customerYy ? 'YY:' + cf.customerYy : '', cf.customerPlatformAccount ? 'KOOK:' + cf.customerPlatformAccount : '']
-            .filter(Boolean)
-            .join(' ') || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="客户二维码">
-          {cf.customerWechatQr ? (
-            <Image src={cf.customerWechatQr} width={96} style={{ borderRadius: 4 }} preview={{ mask: '二维码' }} />
-          ) : (
-            '-'
-          )}
-        </Descriptions.Item>
-        <Descriptions.Item label="发布时间">{fmtTime(order.createdAt)}</Descriptions.Item>
-        <Descriptions.Item label="接单时间">{fmtTime(order.grabbedAt)}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.csUser}>{order.csUser?.username || '-'}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.createdAt}>{fmtTime(order.createdAt)}</Descriptions.Item>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.grabbedAt}>{fmtTime(order.grabbedAt)}</Descriptions.Item>
         {transferList(order.transfers).length > 0 && (
-          <Descriptions.Item label="转让记录" span={2}>
+          <Descriptions.Item label={ORDER_FIELD_LABELS.transfers} span={2}>
             <TransferNote transfers={order.transfers} />
           </Descriptions.Item>
         )}
-        <Descriptions.Item label="备注" span={2}>
+        <Descriptions.Item label={ORDER_FIELD_LABELS.orderNote} span={2}>
           {cf.deltaNote || order.notes || '-'}
         </Descriptions.Item>
       </Descriptions>

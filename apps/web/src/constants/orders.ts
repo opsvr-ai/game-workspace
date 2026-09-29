@@ -5,9 +5,13 @@
  * admin/DispatchPage、cs/DispatchPage 等文件中各自定义，现在统一为单一来源。
  */
 
+// 老板 2026-09-30：「从发布订单→进入抢单池/指定→订单管理→客户管理 用的都是同一条数据，
+// 你把所有的显示的标签都用一样的不行么？」—— RENEW 以前这里写「续费」，
+// 发布订单表单（CreateOrderModal）、陪玩端「续单」按钮、业绩里的「续单率」都写「续单」，
+// 同一个东西两个名字。统一成「续单」。
 export const orderTypeConfig: Record<string, { color: string; label: string }> = {
   NEW: { color: 'blue', label: '首单' },
-  RENEW: { color: 'cyan', label: '续费' },
+  RENEW: { color: 'cyan', label: '续单' },
   REPURCHASE: { color: 'purple', label: '复购' },
   TIP: { color: 'orange', label: '打赏' },
 };
@@ -40,9 +44,12 @@ export const urgencyConfig: Record<string, { color: string; label: string }> = {
   later: { color: 'purple', label: '📅预约' },
 };
 
+// 老板 2026-09-30：这里的 key 以前写的是 `hourly`，可发布订单表单存进去的是 `hour` / `round`，
+// 所以「计费方式」在订单详情里一直取不到值、只能靠兜底文字。改成跟表单同一个 key，
+// 文案也跟表单同一份（按小时 / 按局数）—— 同一个数据在所有页面同一个名字。
 export const billingModeConfig: Record<string, { color: string; label: string }> = {
-  hourly: { color: 'blue', label: '按小时' },
-  round: { color: 'default', label: '按局' },
+  hour: { color: 'blue', label: '按小时' },
+  round: { color: 'default', label: '按局数' },
 };
 
 export const settlementTypeOptions = [

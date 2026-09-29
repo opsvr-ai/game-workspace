@@ -350,7 +350,7 @@ const CsFollowupPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         <Input
           allowClear
           prefix={<SearchOutlined />}
-          placeholder="搜索客户微信/昵称/编号/来源/跟进内容..."
+          placeholder="搜 来源 / 引流账号 / 客户昵称 / 客户账号ID / 微信号 / 跟进内容（空格分隔）"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ maxWidth: 300 }}

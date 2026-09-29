@@ -54,7 +54,14 @@ import {
   fixedColumnStyle,
 } from '../../constants';
 import { currentBusinessDayStart } from '../../utils/businessDay';
-import { buildOrderInfoFields, orderMatchesSearch } from '../../utils/orderPool';
+import { buildOrderPoolFields, orderMatchesSearch } from '../../utils/orderPool';
+import OrderFieldLine from '../../components/OrderFieldLine';
+import {
+  ORDER_DETAIL_FIELD_ORDER,
+  ORDER_FIELD_LABELS,
+  ORDER_SEARCH_PLACEHOLDER,
+  buildOrderFieldEntries,
+} from '../../constants/orderFields';
 import { encodeOrderInfo, orderInfoTextOf } from '../../utils/chatOrder';
 import { visibleInterval } from '../../hooks/usePolling';
 
@@ -826,7 +833,7 @@ const CSDispatchView: React.FC = () => {
               {/* Filter bar */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                 <Input.Search
-                  placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
+                  placeholder={ORDER_SEARCH_PLACEHOLDER}
                   value={poolSearch}
                   onChange={(e) => setPoolSearch(e.target.value)}
                   allowClear
@@ -862,7 +869,9 @@ const CSDispatchView: React.FC = () => {
                   grid={{ gutter: [0, 8], column: 1 }}
                   dataSource={filteredOrders}
                   renderItem={(order, idx) => {
-                    const fields = buildOrderInfoFields(order, now, disappearMinutes, scheduledDisappearMinutes);
+                    const fields = buildOrderPoolFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
+                      isCompanion: user?.role === 'COMPANION',
+                    });
 
                     return (
                       <List.Item style={{ marginBottom: 0 }}>
@@ -879,25 +888,10 @@ const CSDispatchView: React.FC = () => {
                             color: '#1f2329',
                           }}
                         >
-                          {/* 字段区自己换行，不要靠 nowrap 把行撑宽（撑宽会把整列挤到下一行） */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              alignItems: 'center',
-                              gap: '4px 10px',
-                              flex: '1 1 auto',
-                              minWidth: 0,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {fields.map((t, i) => (
-                              <React.Fragment key={i}>
-                                {i > 0 && <span style={{ color: '#c9cdd4' }}>|</span>}
-                                <span>{t}</span>
-                              </React.Fragment>
-                            ))}
-                          </div>
+                          {/* 字段区：标签口径跟订单管理表 / 订单详情 / 客户管理是同一份
+                              （constants/orderFields.ts）；一行放不下就换行，
+                              不要靠 nowrap 把行撑宽（撑宽会把整列挤到下一行） */}
+                          <OrderFieldLine items={fields} wrap style={{ flex: '1 1 auto' }} />
                           <div style={{ flexShrink: 0 }}>
                           {user?.role === 'COMPANION' ? (
                             <Space size={8}>
@@ -1130,87 +1124,44 @@ const CSDispatchView: React.FC = () => {
         width={480}
       >
         {grabbedOrder && (
-          <div style={{ fontSize: 14, lineHeight: 2 }}>
-            <div>
-              📋 {grabbedOrder.gameName}
-              <Tag color="blue" style={{ marginLeft: 8 }}>
-                {grabbedOrder.type}
-              </Tag>
-              <Tag color="green">¥{Number(grabbedOrder.amount).toFixed(0)}</Tag>
-              {grabbedOrder.duration ? <Tag>{grabbedOrder.duration}h</Tag> : null}
-            </div>
-            {grabbedOrder.customFields?.customerSource && (
-              <div>📡 来源：{grabbedOrder.customFields.customerSource}</div>
-            )}
-            {grabbedOrder.customFields?.urgency === 'later' ? (
-              <Tag color="purple">📅预约</Tag>
-            ) : (
-              <Tag color="green">⚡立即打</Tag>
-            )}
-            {grabbedOrder.customFields?.deltaMode && (
-              <div>
-                🎯 模式：{grabbedOrder.customFields.deltaMode} {grabbedOrder.customFields.deltaMission || ''}{' '}
-                {grabbedOrder.customFields.deltaCount || ''}
-              </div>
-            )}
-            {grabbedOrder.customFields?.billingMode && (
-              <div>💰 计费：{grabbedOrder.customFields.billingMode === 'round' ? '按局' : '按小时'}</div>
-            )}
-            {grabbedOrder.customFields?.deltaNote && (
-              <div style={{ color: '#F59E0B' }}>📝 {grabbedOrder.customFields.deltaNote}</div>
-            )}
-            <Divider style={{ margin: '8px 0' }} />
-            <div>
-              <strong>📞 联系方式（可复制）：</strong>
-            </div>
-            {grabbedOrder.customFields?.customerWechat && (
-              <div>
-                微信：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerWechat}
-                </Text>
-              </div>
+          <div style={{ fontSize: DATA_FONT_SIZE }}>
+            {/* 字段名一律取 constants/orderFields.ts 的唯一一份口径（老板 2026-09-30）——
+                跟订单管理表头、订单详情弹窗、抢单池那一行是同一套字。
+                陪玩端照旧少显示「来源 / 引流账号 / 客户昵称 / 客户账号ID」那几项。 */}
+            <OrderFieldLine
+              items={buildOrderFieldEntries(grabbedOrder, {
+                keys: ORDER_DETAIL_FIELD_ORDER,
+                isCompanion: user?.role === 'COMPANION',
+              })}
+              wrap
+            />
+            <Divider style={{ margin: '10px 0' }} />
+            {(grabbedOrder.customFields?.customerWechat ||
+              grabbedOrder.customFields?.customerYy ||
+              grabbedOrder.customFields?.customerPlatformAccount ||
+              grabbedOrder.customFields?.customerRoomCode) && (
+              <>
+                <div style={{ marginBottom: 6 }}>
+                  <Text strong>{ORDER_FIELD_LABELS.customerContact}（点一下可复制）：</Text>
+                </div>
+                <OrderFieldLine
+                  items={buildOrderFieldEntries(grabbedOrder, {
+                    keys: ['wechatId', 'yy', 'kook', 'roomCode'],
+                  }).map((e) => ({ ...e, copyable: true }))}
+                  wrap
+                />
+              </>
             )}
             {grabbedOrder.customFields?.customerWechatQr && (
-              <div>
-                微信二维码（扫码添加）：
+              <div style={{ marginTop: 6 }}>
+                <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>
+                  {ORDER_FIELD_LABELS.customerWechatQr}
+                </div>
                 <img
                   src={grabbedOrder.customFields.customerWechatQr}
-                  alt="客户微信二维码"
+                  alt={ORDER_FIELD_LABELS.customerWechatQr}
                   style={{ maxWidth: 180, borderRadius: 8, display: 'block', marginTop: 4 }}
                 />
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerRoomCode && (
-              <div>
-                房间码：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerRoomCode}
-                </Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerPlatformAccount && (
-              <div>
-                平台账号/YY/KOOK：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerPlatformAccount}
-                </Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerYy && (
-              <div>
-                YY：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerYy}
-                </Text>
-              </div>
-            )}
-            {grabbedOrder.customFields?.customerSourceAccount && (
-              <div>
-                来源账号：
-                <Text copyable style={{ color: '#1677ff' }}>
-                  {grabbedOrder.customFields.customerSourceAccount}
-                </Text>
               </div>
             )}
           </div>

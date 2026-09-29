@@ -5,6 +5,7 @@ import { companionsApi } from '../api/companions';
 import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 import { orderMatchesSearch } from '../utils/orderPool';
+import { ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -130,7 +131,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
         >
           <div style={{ fontWeight: 600 }}>订单池流转失败明细</div>
           <Input.Search
-            placeholder="搜客户微信 / 小红书 / 昵称 / 游戏名"
+            placeholder={ORDER_SEARCH_PLACEHOLDER}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             allowClear

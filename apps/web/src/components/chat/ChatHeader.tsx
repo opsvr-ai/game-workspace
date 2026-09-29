@@ -89,7 +89,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
             <span
               role="button"
               onClick={() => navigate(ordersPathWithOrder(myRole, orderRef.orderId!))}
-              title="点这里打开这一单：客户微信 / 来源账号 / 昵称 / 账号ID / 联系方式都在订单详情里"
+              title="点这里打开这一单：来源 / 引流账号 / 客户昵称 / 客户账号ID / 客户联系方式 / 备注 都在订单详情里"
               style={{
                 fontSize: 12,
                 marginTop: 1,

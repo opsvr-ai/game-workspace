@@ -30,10 +30,22 @@ import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { useAuthStore } from '../stores/authStore';
 import http from '../api/client';
-import { companionStatusConfig } from '../constants';
+import {
+  companionStatusConfig,
+  orderTypeConfig,
+  serviceTypeConfig,
+  dispatchTypeConfig,
+  urgencyConfig,
+  billingModeConfig,
+} from '../constants';
+import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 import EmptyState from '../components/EmptyState';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
+
+/** 通知过滤设置里的开关标签，一律取 constants/orders.ts 的唯一一份（跟发布订单表单同一套字）。 */
+const configItems = (cfg: Record<string, { label: string; color: string }>) =>
+  Object.entries(cfg).map(([k, c]) => ({ k, l: c.label, c: c.color }));
 
 const { Text, Title } = Typography;
 
@@ -828,73 +840,40 @@ const CompanionPage: React.FC = () => {
         </div>
         <Row gutter={[8, 14]}>
           {[
+            { key: 'orderTypes', title: ORDER_FIELD_LABELS.orderType, items: configItems(orderTypeConfig) },
+            { key: 'serviceTypes', title: ORDER_FIELD_LABELS.serviceType, items: configItems(serviceTypeConfig) },
             {
-              title: '订单类型',
-              key: 'orderTypes',
-              items: [
-                { k: 'NEW', l: '首单', c: '#2563EB' },
-                { k: 'RENEW', l: '续费', c: '#3B82F6' },
-                { k: 'REPURCHASE', l: '复购', c: '#7C3AED' },
-                { k: 'TIP', l: '打赏', c: '#FF9100' },
-              ],
-            },
-            {
-              title: '服务类型',
-              key: 'serviceTypes',
-              items: [
-                { k: 'PLAY_WITH', l: '陪玩', c: '#2563EB' },
-                { k: 'ESCORT', l: '护航', c: '#FF9100' },
-                { k: 'DO_TASK', l: '任务', c: '#7C3AED' },
-              ],
-            },
-            {
-              title: '派单方式',
+              // 派单方式：广播这一项老版本没有开关，行为保持不变，先不列出来
               key: 'dispatchTypes',
-              items: [
-                { k: 'POOL', l: '抢单池', c: '#2563EB' },
-                { k: 'DIRECT', l: '直接派', c: '#16A34A' },
-              ],
+              title: '派单方式',
+              items: configItems(dispatchTypeConfig).filter((i) => i.k !== 'BROADCAST'),
             },
+            { key: 'urgency', title: ORDER_FIELD_LABELS.urgency, items: configItems(urgencyConfig) },
+            { key: 'billingMode', title: ORDER_FIELD_LABELS.billingMode, items: configItems(billingModeConfig) },
             {
-              title: '打单时间',
-              key: 'urgency',
-              items: [
-                { k: 'now', l: '⚡立即', c: '#16A34A' },
-                { k: 'later', l: '预约', c: '#7C3AED' },
-              ],
-            },
-            {
-              title: '计费方式',
-              key: 'billingMode',
-              items: [
-                { k: 'hour', l: '按小时', c: '#2563EB' },
-                { k: 'round', l: '按局', c: '#16A34A' },
-              ],
-            },
-            {
-              title: '陪陪数量',
               key: 'deltaCount',
+              title: ORDER_FIELD_LABELS.deltaCount,
               items: [
-                { k: '单', l: '单', c: '#2563EB' },
-                { k: '双', l: '双', c: '#7C3AED' },
+                { k: '单', l: '单陪', c: 'blue' },
+                { k: '双', l: '双陪', c: 'purple' },
               ],
             },
             {
-              title: '任务类型',
               key: 'deltaMission',
+              title: ORDER_FIELD_LABELS.deltaMission,
               items: [
-                { k: '机密', l: '机密', c: '#FF9100' },
-                { k: '绝密', l: '绝密', c: '#7C3AED' },
+                { k: '机密', l: '机密', c: 'orange' },
+                { k: '绝密', l: '绝密', c: 'purple' },
               ],
             },
             {
-              title: '客户来源',
               key: 'customerSource',
+              title: ORDER_FIELD_LABELS.customerSource,
               items: [
-                { k: '小红书', l: '小红书', c: '#FF4D4F' },
-                { k: '抖音', l: '抖音', c: '#2563EB' },
-                { k: '快手', l: '快手', c: '#FF9100' },
-                { k: '转介绍', l: '转介绍', c: '#16A34A' },
+                { k: '小红书', l: '小红书', c: 'red' },
+                { k: '抖音', l: '抖音', c: 'blue' },
+                { k: '快手', l: '快手', c: 'orange' },
+                { k: '转介绍', l: '转介绍', c: 'green' },
               ],
             },
           ].map((sec: any) => (

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Typography, message } from 'antd';
 import { configApi } from '../api/config';
+import { ORDER_FIELD_LABELS, orderTypeLabel } from '../constants/orderFields';
 
 const { Text, Title } = Typography;
 
@@ -78,7 +79,7 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               {urgentOrder.duration ? ` · ${urgentOrder.duration}h` : ''}
             </div>
             <div style={{ fontSize: 13, color: '#64748B' }}>
-              {urgentOrder.type === 'NEW' ? '首单' : urgentOrder.type === 'RENEW' ? '续单' : urgentOrder.type === 'REPURCHASE' ? '复购' : '订单'}
+              {orderTypeLabel(urgentOrder)}
               {urgentOrder.customFields?.deltaMission ? ` · ${urgentOrder.customFields.deltaMission}` : ''}
               {urgentOrder.customFields?.urgency === 'later' ? ' · 预约（不占名额）' : ' · 立即打（占 1 个名额）'}
             </div>
@@ -95,7 +96,7 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
                   overflow: 'hidden',
                 }}
               >
-                📝 {urgentOrder.customFields.deltaNote}
+                {ORDER_FIELD_LABELS.orderNote}：{urgentOrder.customFields.deltaNote}
               </div>
             )}
           </div>
