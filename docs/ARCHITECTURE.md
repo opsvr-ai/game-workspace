@@ -10,9 +10,15 @@
 - **客户画像+AI**: 19字段画像, 首单/复购检测, 活跃状态判定, AI分析+话术生成
 - **双陪搭档**: 呼叫/接受搭档 WebSocket 通知
 - **流量池+离职+授权+工作微信**: 渠道管理, 离职清退, 租客授权, 微信绑定
-- **客服派单范围 + 结果反馈 + 提成看板**（2026-09-29）: 每张单「先给谁抢」（先本店线下 / 先桥接+线上，
-  `Order.poolScope`）、线上 / 桥接单的接单方反馈（`Order.outcome`，线下点「开始首单」即成功）、
-  成功口径唯一实现 `common/order-outcome.ts`、按人客服档位 `CsProfile`、重做的今日看板
+- **客服派单范围 + 结果反馈 + 提成看板**（2026-09-29）: 每张单入池方式（`Order.poolScope`：线下+线上流转 /
+  线上入池）、线上 / 桥接单的接单方反馈（`Order.outcome`，线下点「开始首单」即成功）、
+  成功口径唯一实现 `common/order-outcome.ts`（含 `orderUnits` 单量、`orderGrossYuan` 流水、
+  `outsideViewerVisible` 别家可见时机）、按人客服档位 `CsProfile`、重做的今日看板
+- **入池方式两条链 + 线下转桥接 / 线上统计**（2026-09-29）: 「线下+线上流转入池」本店线下先抢
+  `pool.offline_first_bridge_minutes`（默认 3 分钟）再轮到桥接 / 线上；「线上入池」桥接先、线上按
+  `pool.online_delay_seconds` 稍后；客服提成桥接按单量、线上按流水比例（`commission.cs_online_rate_percent`）；
+  新页「线下转桥接/线上统计」（`GET /orders/escalated-pool` + `EscalatedPoolPanel`）标注去向 / 结算模式
+  （首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里，并给按月汇总
 
 ---
 

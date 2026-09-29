@@ -6,6 +6,20 @@
 
 ## Recent Updates (v3.2.0)
 
+- **入池方式改成「线下+线上流转入池」/「线上入池」+ 线下转桥接 / 线上统计（2026-09-29）:** 老板口径是
+  「把入池分成『线下+线上流转入池』+『线上入池』……线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部；
+  线上入池的优先桥接工作室，几分钟后进线上俱乐部，都没人接就直接显示失败……重新派单的时候客服可以再次自行选择
+  哪个方式入池」。现在：**① 发单弹窗**入池只有两个选择 ——「线下 + 线上流转入池」（老逻辑，默认）/「线上入池」，
+  默认值取「客服设置 → 客服档位」那一栏；**② 线下+线上流转入池**本店线下先抢
+  `pool.offline_first_bridge_minutes`（默认 3 分钟），这段时间桥接 / 线上都看不见，过了两边同时可见；
+  **③ 线上入池**桥接一发布就看到、线上按 `pool.online_delay_seconds` 稍后看到，都没人接就进「流转失败明细」，
+  可重新发布；**④ 重新派单**`POST /api/orders/:id/redispatch` 支持带 `poolScope` 重选入池方式；
+  **⑤ 新页「线下转桥接/线上统计」**（派单管理，`GET /api/orders/escalated-pool`）逐条列出本店「线下+线上流转入池」
+  被桥接工作室 / 线上俱乐部接走的单，标注去向、结算模式（首单不结 / 抽成）、机密 / 绝密、单量、应收、应返还、
+  工作室净得、钱在哪里、结果，顶部按月汇总；**⑥ 客服提成**桥接按单量计提、线上俱乐部**改按流水比例**
+  （`commission.cs_online_rate_percent`，默认 1%），单量统一由 `orderUnits()` 判定（选了「双陪」也算 2 单）；
+  绝密首单返还 15 元/人/小时（双陪 ×2）、机密首单不结不返还。
+
 - **客服派单「先给谁抢」+ 线上 / 桥接单「成不成」反馈 + 客服提成看板重做（2026-09-29）:** 老板要的是
   「并不是订单派出去了，被抢走了就计算了……点开始首单就可以判定这个客户真消费没；线上不好判定，需要接单者
   给我反馈，比如派给桥接俱乐部一个订单，对方对陪玩不满意，那么这单就不成功」。现在：
@@ -647,8 +661,10 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
-| `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「先给谁抢 = 先桥接 + 线上」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
+| `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上入池」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
+| `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`。每条带去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总。 |
+| `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
 | `POST` | `/api/orders/:id/confirm` | JWT | COMPANION | Confirm a grabbed order (start service). |
 | `POST` | `/api/orders/:id/complete` | JWT | CS, ADMIN, COMPANION | Mark order as completed. |
