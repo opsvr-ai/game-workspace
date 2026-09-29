@@ -6,6 +6,13 @@
 
 ## Recent Updates (v3.2.0)
 
+- **抢单超时自动回收删除 + 陪玩可自行「转让订单」（2026-09-29 第三次口径）:** 老板拍板「把这个功能删除掉，
+  是谁抢的就是谁的」，于是 `stale-grab-sweep` 服务、`pool.grab_return_minutes`（180 分钟）、
+  `pool.stale_cancel_hours` 全删；换手改成陪玩自己在接单记录操作列点**「转让」**（或订单详情弹窗底部），
+  选同工作室陪玩 + 填原因。转让写新表 `OrderTransfer`，`POST /api/orders/:id/transfer`；
+  **转出方的接单记录里这张单不消失**，标成「已转让给 XXX（时间）」，客户管理里同样显示转让时间与对象。
+  已经开始服务的单不能转让（走客服「归属调整」）。
+
 - **入池方式改成「线下+线上流转入池」/「线上入池」+ 线下转桥接 / 线上统计（2026-09-29）:** 老板口径是
   「把入池分成『线下+线上流转入池』+『线上入池』……线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部；
   线上入池的优先桥接工作室，几分钟后进线上俱乐部，都没人接就直接显示失败……重新派单的时候客服可以再次自行选择
@@ -666,6 +673,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
 | `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上入池」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
+| `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
 | `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
 | `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |

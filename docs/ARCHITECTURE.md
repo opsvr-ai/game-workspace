@@ -5,6 +5,11 @@
 
 ## 新增功能
 
+- **抢单超时自动回收删除 + 转让订单（2026-09-29）**: `stale-grab-sweep` 服务与 `pool.grab_return_minutes`
+  / `pool.stale_cancel_hours` 全删（「是谁抢的就是谁的」）；新表 `OrderTransfer` + `POST /orders/:id/transfer`
+  让持单陪玩把单转给同工作室的另一个人（一个事务里换 `companionId`/`grabbedAt`、落留痕、转客户归属、清零联系进度），
+  转出方的接单记录靠 `transfers.some(fromCompanionId = 我)` 保留，并标注「已于某时转让给某人」
+
 - **统一数据看板**: 昨日/全月流水, 31天趋势图, 订单类型饼图, 陪玩收入排行+明细下钻
 - **陪玩钱包+结算**: 押金/余额/冻结/可支取 + 支取申请审核 + 阶梯分成月底结算
 - **客户画像+AI**: 19字段画像, 首单/复购检测, 活跃状态判定, AI分析+话术生成
@@ -702,5 +707,9 @@ sequenceDiagram
 - `GET/PUT /api/finance/commission/cs-profiles` — 客服档位（默认派单范围 + 底薪；读放开到 CS，写限 ADMIN/OWNER）
 - `GET /api/finance/commission/cs-today-orders` — 今日看板点开一行：这个客服今天发出的单 + 每张单的结果（客服只看自己）
 - `POST /api/orders/:id/release-to-offline` — 「先桥接+线上」的单提前放给本店线下（CS/ADMIN/OWNER）
+- `POST /api/orders/:id/transfer` — 陪玩把单转让给同工作室的另一个人（**只有 COMPANION 且只有当前持单人**）：
+  事务里 `Order.companionId`/`grabbedAt` 换成新人 + 写 `OrderTransfer` 留痕 + `Customer.companionId` 跟着转 +
+  `contactStatus`/`screenshotUrl` 清零；转出方的 `GET /orders?scope=taken` 仍返回该单（带 `transfers`）；
+  已经开始服务（有 `startedAt` 会话）的单拒绝，提示走客服「归属调整」
 - `POST /api/orders/:id/outcome` — 线上 / 桥接单的结果反馈（`SUCCESS`/`FAILED`+原因+备注，CS/ADMIN/OWNER）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

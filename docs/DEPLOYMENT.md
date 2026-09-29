@@ -228,6 +228,25 @@ ssh ubuntu@1.117.229.36 'pm2 restart chunlv-server --update-env'
 建表语句本身按本项目的老路子是**手工在库里执行**（`apps/server/prisma/migrations/<时间戳>_xxx/migration.sql`
 里的 SQL 用 `psql` 跑一遍；线上 `_prisma_migrations` 没有登记，不用 `migrate deploy`）。
 
+### 3.4.2 2026-09-29 那次改表（`OrderTransfer`）要在库上手工跑一遍
+
+「抢单超时自动回收删除 + 转让订单」加了新表 `OrderTransfer`。云服务器上仍然按老路子：
+
+```bash
+# 1) 在服务器上把 migration.sql 跑进库（线上没有 _prisma_migrations，不用 migrate deploy）
+scp apps/server/prisma/migrations/20260929233000_add_order_transfer/migration.sql \
+    ubuntu@1.117.229.36:/home/ubuntu/_ops.sql
+ssh ubuntu@1.117.229.36 "sudo docker cp /home/ubuntu/_ops.sql chunlv-postgres:/tmp/_ops.sql && \
+  sudo docker exec chunlv-postgres psql -U postgres -d chunlv -v ON_ERROR_STOP=1 -f /tmp/_ops.sql"
+
+# 2) 按 3.4.1 重新生成 Prisma Client 并重启（脚本 _deploy_server_cloud.py 会自动做这两步）
+python scripts/_deploy_server_cloud.py
+```
+
+自检：`select to_regclass('public."OrderTransfer"')` 应返回 `"OrderTransfer"`；
+陪玩端点一次「转让」应返回 201/200 并在库里看到一行 `OrderTransfer`。
+
+
 > 交付前自检：拿一个新模型跑一次 `GET` 接口。如果报 `undefined (reading 'xxx')`，
 > 十有八九就是这一步忘了做。
 
