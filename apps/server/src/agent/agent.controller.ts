@@ -183,9 +183,17 @@ export class AgentController {
 
   @Post('cs-heartbeat')
   @UseGuards(AuthGuard('jwt'))
-  async csHeartbeat(@Req() req: any, @Body() body: { agentVersion?: string }): Promise<ApiResponse<unknown>> {
+  async csHeartbeat(
+    @Req() req: any,
+    @Body() body: { agentVersion?: string; clientKind?: string },
+  ): Promise<ApiResponse<unknown>> {
     if (!req.user?.id) return { code: 401, message: '未登录', data: null };
-    await this.agentService.reportCsVersion(req.user.id, body?.agentVersion || '0.0.0');
+    // 记下这台电脑的 IP：客服端老版本不会上报机器指纹，管理端至少要知道「人在哪台机器」，
+    // 排查时不用再问「你电脑 IP 是多少」。
+    await this.agentService.reportCsVersion(req.user.id, body?.agentVersion || '0.0.0', {
+      ip: req.ip,
+      clientKind: body?.clientKind,
+    });
     return { code: 200, message: 'ok', data: null };
   }
 

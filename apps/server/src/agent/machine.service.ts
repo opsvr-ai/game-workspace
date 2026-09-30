@@ -64,13 +64,15 @@ export class MachineService {
     let before = await this.readMachine(machineId);
     // 只有「运维脚本」上报才做归并；客户端自己的心跳永远以自己的 machineId 为准，
     // 否则一台机器换过网卡之后两个 id 会互相抢写。
-    if (!isClientSource(source)) {
+    const fromScript = !isClientSource(source);
+    if (fromScript) {
       const canonical = await this.pickCanonicalMachine(hostname, primaryIp);
       if (canonical?.machineId && canonical.machineId !== machineId) {
         this.logger.warn(
           `运维脚本（${source}）算出的 machineId ${machineId} 与客户端台账 ${canonical.machineId} 不一致`
             + `（同一台机器：主机名 ${hostname} + 主 IP ${primaryIp}），写回客户端那一行`,
         );
+        await this.dropStrayScriptRow(machineId, String(canonical.machineId), hostname);
         machineId = String(canonical.machineId);
         before = canonical;
       }
@@ -78,15 +80,21 @@ export class MachineService {
     const record: any = {
       machineId,
       clientType: clean(payload?.clientType, 16) || before?.clientType || 'UNKNOWN',
-      hostname: clean(payload?.hostname, 120) || before?.hostname || '',
+      // 机器指纹（主机名 / IP / MAC / 网卡列表 / 系统 / 版本）以**客户端心跳**为准：
+      // 运维脚本取的是「第一块 Up 的网卡」，客户端取的是「第一块非虚拟网卡」，
+      // 两者在带虚拟网卡的机器上不一样（2026-09-30 实拍：脚本报 192.168.81.1，
+      // 客户端报 192.168.0.140）。脚本只负责把账号口令这类信息带回来。
+      hostname: fromScript && before?.hostname ? before.hostname : clean(payload?.hostname, 120) || before?.hostname || '',
       windowsUser: clean(payload?.windowsUser, 120) || before?.windowsUser || '',
       loginUser: clean(payload?.loginUser, 60) || before?.loginUser || '',
       loginRole: clean(payload?.loginRole, 20) || before?.loginRole || '',
-      ips: Array.isArray(payload?.ips) ? payload.ips.map((v: unknown) => clean(v, 64)).slice(0, 12) : before?.ips || [],
-      primaryIp: clean(payload?.primaryIp, 64) || before?.primaryIp || '',
-      mac: clean(payload?.mac, 64) || before?.mac || '',
-      os: clean(payload?.os, 160) || before?.os || '',
-      appVersion: clean(payload?.appVersion, 60) || before?.appVersion || '',
+      ips: fromScript && before?.ips?.length
+        ? before.ips
+        : Array.isArray(payload?.ips) ? payload.ips.map((v: unknown) => clean(v, 64)).slice(0, 12) : before?.ips || [],
+      primaryIp: fromScript && before?.primaryIp ? before.primaryIp : clean(payload?.primaryIp, 64) || before?.primaryIp || '',
+      mac: fromScript && before?.mac ? before.mac : clean(payload?.mac, 64) || before?.mac || '',
+      os: fromScript && before?.os ? before.os : clean(payload?.os, 160) || before?.os || '',
+      appVersion: fromScript && before?.appVersion ? before.appVersion : clean(payload?.appVersion, 60) || before?.appVersion || '',
       agentBuild: clean(payload?.agentBuild, 60) || before?.agentBuild || '',
       remoteReady: payload?.remoteReady === undefined ? !!before?.remoteReady : !!payload?.remoteReady,
       remoteAccount: clean(payload?.remoteAccount, 60) || before?.remoteAccount || '',
@@ -121,8 +129,14 @@ export class MachineService {
    * 于是台账里多出一行 —— 「开通远程管理」回传的账号口令落在多出来的那一行上，
    * 客户端那一行永远显示「未开通」，管理端还会看到同一台机器两条记录。
    *
-   * 认领规则：**主机名 + 主 IP 都对得上**才算同一台机器（不能只按主机名 ——
-   * 局域网里有 4 台机器都叫 `User-20240831VS`，IP 各不相同）；
+   * 认领规则（两道，越靠前越可信）：
+   *   ① **主机名 + 主 IP 都对得上**（不能只按主机名 —— 局域网里有 4 台机器都叫
+   *      `User-20240831VS`，IP 各不相同）；
+   *   ② 主机名一样、而且**这台机器名下只有一条客户端心跳写过的行** —— 也认它。
+   *      2026-09-30 实拍：`PC-20260409CDBJ` 带 VMware 虚拟网卡，客户端报 192.168.0.140、
+   *      脚本报 192.168.81.1，①永远对不上，台账里就一直挂着两条记录、
+   *      「开通远程管理」的口令落在脚本那一行、客户端那一行显示未开通。
+   *      只有唯一一条客户端行时才认，所以「4 台同名机器」那种仍然各归各的。
    * 有「客户端心跳写过的那一行」就优先认它（`lastSource` 是 `cs-client` / `companion-client`），
    * 没有才退而用已有那一行（全新机器连脚本一起装的情况）。
    */
@@ -130,12 +144,40 @@ export class MachineService {
     if (!hostname || !primaryIp) return null;
     const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } });
     const host = hostname.toLowerCase();
-    const same = rows
+    const sameHost = rows
       .map((row) => (row.value as any) || {})
-      .filter((value: any) => String(value.hostname || '').toLowerCase() === host
-        && String(value.primaryIp || '') === primaryIp);
-    if (!same.length) return null;
-    return same.find((value: any) => isClientSource(value.lastSource)) || same[0];
+      .filter((value: any) => String(value.hostname || '').toLowerCase() === host);
+    if (!sameHost.length) return null;
+    // 只认「客户端心跳明确写过 source」的行（scripts 走的是 enable-remote / diag 之类）。
+    const clientRows = sameHost.filter((value: any) => /-client$/.test(String(value.lastSource || '')));
+    // 这台机器名下只有一条客户端行：主机名对上就认它（IP 可能因为虚拟网卡不一样）
+    if (clientRows.length === 1) return clientRows[0];
+    const sameIp = sameHost.filter((value: any) => String(value.primaryIp || '') === primaryIp);
+    const ipClient = sameIp.find((value: any) => isClientSource(value.lastSource));
+    if (ipClient) return ipClient;
+    // 同名机器不止一台：只能靠 IP 认，IP 也对不上就别猜（宁可在台账里多一行）
+    if (clientRows.length > 1) return null;
+    return sameIp[0] ?? null;
+  }
+
+  /**
+   * 运维脚本自己算出来的那一行（例如 `…-005056c00008`，VMware 网卡那份）如果只是同一台
+   * 机器名下、没有任何客户端心跳写过的痕迹，就顺手删掉 —— 否则「机器管理」里同一台电脑
+   * 永远挂着两条记录，一条「已开通远程管理」、另一条写着「未开通」。
+   */
+  private async dropStrayScriptRow(strayId: string, canonicalId: string, hostname: string): Promise<void> {
+    if (!strayId || strayId === canonicalId) return;
+    const stray = await this.readMachine(strayId);
+    if (!stray) return;
+    if (String(stray.hostname || '').toLowerCase() !== String(hostname || '').toLowerCase()) return;
+    // 有客户端心跳或版本号 = 那是真客户端注册的行，不能删
+    if (isClientSource(stray.lastSource) || stray.appVersion) return;
+    try {
+      await this.prisma.systemConfig.delete({ where: { key: `client.machine.${strayId}` } });
+      this.logger.warn(`已清掉运维脚本留下的重复台账行 ${strayId}（同一台机器 ${hostname}，客户端那一行是 ${canonicalId}）`);
+    } catch {
+      // 删不掉不影响这次上报：下一轮心跳还会再试
+    }
   }
 
   /**

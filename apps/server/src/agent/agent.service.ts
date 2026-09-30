@@ -317,18 +317,51 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     return { version: (cfg?.value as string) ?? '0' };
   }
 
-  async reportCsVersion(userId: string, version: string) {
+  /**
+   * 这条心跳到底是「客服端」还是「陪玩端」报的。
+   *
+   * 老板 2026-09-30 问「还谁不是全自动的」时，管理端「客服端版本」页给出的答案是
+   * 「黄浩 未更新 / hanlei1 未更新」—— 假警报。根因：老板、店长用的是**陪玩端**
+   * （只有陪玩账号走 WebSocket，他们这个窗口照样会报 cs-heartbeat，报的是陪玩端的
+   * 版本号），而那一页对谁都照单全收。于是「客服端停在老版本」就被这种噪音淹没了。
+   *
+   * 判据：客户端显式上报 clientKind（新版本才有）优先；没有就回退看这台电脑在机器台账
+   * 里登记的是不是陪玩端（同一台电脑 + 同一个登录账号）。
+   */
+  private async resolveCsClientKind(userId: string, reported?: string): Promise<'cs' | 'companion'> {
+    const explicit = String(reported || '').trim().toLowerCase();
+    if (explicit === 'cs' || explicit === 'companion') return explicit;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+    if (!user?.username) return 'cs';
+    const rows = await this.prisma.systemConfig.findMany({
+      where: { key: { startsWith: 'client.machine.' } },
+      select: { value: true },
+    });
+    const runningCompanion = rows.some((row) => {
+      const m: any = (row.value as any) || {};
+      return String(m.loginUser || '') === user.username
+        && String(m.clientType || '').toUpperCase() === 'COMPANION';
+    });
+    return runningCompanion ? 'companion' : 'cs';
+  }
+
+  async reportCsVersion(userId: string, version: string, meta: { ip?: string; clientKind?: string } = {}) {
     // 客服端心跳也算一次「见到他」，人员列表据此判断在线。
     presence.markSeen(userId);
+    const kind = await this.resolveCsClientKind(userId, meta.clientKind);
+    const value = {
+      version,
+      lastSeen: new Date().toISOString(),
+      ip: String(meta.ip || ''),
+      kind,
+    };
     return this.prisma.systemConfig.upsert({
       where: { key: `cs.client.version.${userId}` },
-      create: {
-        key: `cs.client.version.${userId}`,
-        value: { version, lastSeen: new Date().toISOString() },
-      },
-      update: {
-        value: { version, lastSeen: new Date().toISOString() },
-      },
+      create: { key: `cs.client.version.${userId}`, value },
+      update: { value },
     });
   }
 
@@ -340,21 +373,29 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
       where: { role: { in: ['CS', 'ADMIN', 'OWNER'] } },
       select: { id: true, username: true, role: true },
     });
-    const recordMap = new Map<string, { version?: string; lastSeen?: string }>();
+    const recordMap = new Map<string, { version?: string; lastSeen?: string; ip?: string; kind?: string }>();
     for (const r of records) {
       const userId = r.key.replace('cs.client.version.', '');
       recordMap.set(userId, (r.value as any) || {});
     }
-    const latestVersion = (await this.getCsLatestVersion()).version;
+    const [csLatest, companionLatest] = await Promise.all([
+      this.getCsLatestVersion(),
+      this.getLatestVersion(),
+    ]);
     return users.map((u) => {
       const value = recordMap.get(u.id) || {};
       const version = value.version || null;
+      // 老版本客户端没上报过身份：这种行按「客服端」显示，但沿用下面的口径判断新旧。
+      const kind = value.kind === 'companion' ? 'companion' : 'cs';
+      const latestVersion = kind === 'companion' ? companionLatest.version : csLatest.version;
       return {
         userId: u.id,
         username: u.username,
         role: u.role,
+        clientKind: kind,
         version: version || '未登录',
         lastSeen: value.lastSeen || null,
+        ip: value.ip || '',
         isLatest: version === latestVersion,
       };
     });

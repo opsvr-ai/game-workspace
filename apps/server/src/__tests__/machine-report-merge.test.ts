@@ -153,4 +153,85 @@ describe('MachineService.reportMachine 台账归并', () => {
     expect(res.machineId).toBe('pc-20230107afuw-0ae0afa217ff');
     expect(mockPrisma.systemConfig.findMany).not.toHaveBeenCalled();
   });
+
+  it('客户端与脚本算出的 IP 不一致（带 VMware 网卡）：主机名唯一时仍认客户端那一行，并删掉脚本多出来的那行', async () => {
+    // 实拍 PC-20260409CDBJ：客户端报 192.168.0.140，脚本报 192.168.81.1（VMware 网卡）
+    const virtualKey = 'client.machine.pc-20260409cdbj-005056c00008';
+    const realKey = 'client.machine.pc-20260409cdbj-00e04c405d73';
+    const realRow = {
+      key: realKey,
+      value: {
+        machineId: 'pc-20260409cdbj-00e04c405d73',
+        hostname: 'PC-20260409CDBJ',
+        primaryIp: '192.168.0.140',
+        clientType: 'COMPANION',
+        appVersion: '1.0.20260932',
+        lastSource: 'companion-client',
+      },
+    };
+    const virtualRow = {
+      key: virtualKey,
+      value: {
+        machineId: 'pc-20260409cdbj-005056c00008',
+        hostname: 'PC-20260409CDBJ',
+        primaryIp: '192.168.81.1',
+        clientType: 'COMPANION',
+        lastSource: 'enable-remote',
+      },
+    };
+    mockPrisma.systemConfig.findUnique.mockImplementation(async ({ where }: any) =>
+      where.key === virtualKey ? (virtualRow as any) : where.key === realKey ? (realRow as any) : null,
+    );
+    mockPrisma.systemConfig.findMany.mockResolvedValue([realRow, virtualRow] as any);
+
+    const res = await service.reportMachine({
+      machineId: 'pc-20260409cdbj-005056c00008',
+      hostname: 'PC-20260409CDBJ',
+      primaryIp: '192.168.81.1',
+      clientType: 'COMPANION',
+      remoteReady: true,
+      remoteAccount: 'chunlvops',
+      remotePassword: 'Chunlv!abc',
+      source: 'enable-remote',
+    });
+
+    expect(res.machineId).toBe('pc-20260409cdbj-00e04c405d73');
+    expect(upsertArg().where.key).toBe(realKey);
+    expect(upsertArg().update.value.remoteReady).toBe(true);
+    // 脚本算出来的网卡指纹不许覆盖客户端真实的 IP
+    expect(upsertArg().update.value.primaryIp).toBe('192.168.0.140');
+    expect(mockPrisma.systemConfig.delete).toHaveBeenCalledTimes(1);
+    expect((mockPrisma.systemConfig.delete as any).mock.calls[0][0].where.key).toBe(virtualKey);
+  });
+
+  it('主机名一样但不止一条客户端行：不认领（各归各的）', async () => {
+    mockPrisma.systemConfig.findUnique.mockResolvedValue(null as any);
+    mockPrisma.systemConfig.findMany.mockResolvedValue([
+      {
+        key: 'client.machine.pc-a-111111111111',
+        value: {
+          machineId: 'pc-a-111111111111', hostname: 'PC-A', primaryIp: '192.168.0.10',
+          clientType: 'COMPANION', appVersion: '1.0.20260932', lastSource: 'companion-client',
+        },
+      },
+      {
+        key: 'client.machine.pc-a-222222222222',
+        value: {
+          machineId: 'pc-a-222222222222', hostname: 'PC-A', primaryIp: '192.168.0.11',
+          clientType: 'COMPANION', appVersion: '1.0.20260932', lastSource: 'companion-client',
+        },
+      },
+    ] as any);
+
+    const res = await service.reportMachine({
+      machineId: 'pc-a-333333333333',
+      hostname: 'PC-A',
+      primaryIp: '192.168.0.12',
+      clientType: 'COMPANION',
+      source: 'enable-remote',
+    });
+
+    expect(res.machineId).toBe('pc-a-333333333333');
+    expect(mockPrisma.systemConfig.delete).not.toHaveBeenCalled();
+  });
 });

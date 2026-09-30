@@ -571,7 +571,12 @@ const AgentVersionPage: React.FC = () => {
         />
       </Card>
 
-      <Card title="客服端版本" style={{ marginTop: 16 }} extra={<Text type="secondary">共 {csVersionStatus.length} 条记录</Text>}>
+      {/*
+        「客服端版本」以前对谁都照单全收，于是老板 / 店长用陪玩端窗口登录时上报的陪玩端版本
+        也被当成「客服端」摆在这里 —— 「黄浩 未更新」这种假警报就是这么来的（他那台电脑上
+        根本没装客服端）。服务端现在会区分 clientKind，这里也明着标出来。
+      */}
+      <Card title="客户端版本上报（客服端 / 陪玩端）" style={{ marginTop: 16 }} extra={<Text type="secondary">共 {csVersionStatus.length} 条记录</Text>}>
         <Table
           rowKey="userId"
           dataSource={csVersionStatus}
@@ -582,6 +587,14 @@ const AgentVersionPage: React.FC = () => {
             { title: '账号', dataIndex: 'username' },
             { title: '角色', dataIndex: 'role', render: (v: string) => v === 'CS' ? '客服' : v === 'ADMIN' ? '店长' : v },
             {
+              title: '哪个客户端',
+              dataIndex: 'clientKind',
+              render: (v: string) =>
+                v === 'companion'
+                  ? <Tag>陪玩端</Tag>
+                  : <Tag color="blue">客服端</Tag>,
+            },
+            {
               title: '版本状态',
               key: 'isLatest',
               render: (_: unknown, r: any) =>
@@ -591,9 +604,24 @@ const AgentVersionPage: React.FC = () => {
                     ? <Tag color="green">最新</Tag>
                     : <Tag color="orange">未更新</Tag>,
             },
+            {
+              title: '版本',
+              dataIndex: 'version',
+              render: (v: string) => v || '-',
+            },
+            {
+              title: '电脑 IP',
+              dataIndex: 'ip',
+              render: (v: string) => v || '-',
+            },
             { title: '最后上报', dataIndex: 'lastSeen', render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
           ]}
         />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          标「陪玩端」的是用陪玩端窗口登录的账号（老板 / 店长自己也会），报的是陪玩端版本，不代表这台电脑装了客服端。
+          客服端在 1.0.20260935 之后自己带看门狗、静默自动更新，不会再停在老版本；更早的老版本要人工点一次
+          「修复客服端」，之后也是全自动。
+        </Text>
       </Card>
 
       {/* Download installer modal */}

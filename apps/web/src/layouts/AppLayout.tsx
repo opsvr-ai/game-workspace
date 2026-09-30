@@ -665,9 +665,13 @@ const AppLayout: React.FC = () => {
     if (user.role === 'COMPANION') return; // 陪玩端走 /agent/heartbeat + WebSocket，不报 cs-heartbeat
     const api = (window as any).electronAPI;
     if (!api?.getAppVersion) return;
+    // 这台电脑跑的是哪个客户端：客服端没有 setRole / onStatusChanged 这些陪玩端专属接口。
+    // 不分开的话，老板 / 店长用陪玩端登录时也会报一条「客服端版本」，
+    // 管理端看起来就是「黄浩 未更新」这种假警报（那台机器上根本没装客服端）。
+    const clientKind = api.setRole ? 'companion' : 'cs';
     const report = () => {
       api.getAppVersion().then((v: string) => {
-        http.post('/agent/cs-heartbeat', { agentVersion: v }).catch(() => {});
+        http.post('/agent/cs-heartbeat', { agentVersion: v, clientKind }).catch(() => {});
       }).catch(() => {});
     };
     report();
