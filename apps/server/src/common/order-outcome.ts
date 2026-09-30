@@ -116,7 +116,7 @@ export function outcomeOf(order: OutcomeLike, studioId: string): OutcomeDecision
 /**
  * 「先给谁」：ONLINE_FIRST 的单，本店线下陪玩什么时候才看得见。
  * 客服/店长手动放给线下 → 立即；没人管 → 发单后 `releaseMinutes` 分钟自动放行。
- * 返回 null 表示这张单不是「先线上」，本店线下一直可见（老口径）。
+ * 返回 null 表示这张单不是「线上→线下流转」，本店线下一直可见（老口径）。
  */
 export function offlineVisibleAt(
   order: { poolScope?: string | null; createdAt?: Date | string | null; releasedToOfflineAt?: Date | string | null },
@@ -147,12 +147,13 @@ export function normalizePoolScope(v: unknown): PoolScope {
 /**
  * 「别家」（桥接工作室 / 线上俱乐部）什么时候才看得见这张单。
  *
- * 老板 2026-09-29 定的两条链：
- *  - **线下+线上流转入池**（poolScope 不是 ONLINE_FIRST）：本店线下先抢
+ * 老板 2026-10-01 改成的两条链：
+ *  - **线下→线上流转**（poolScope 不是 ONLINE_FIRST）：本店线下先抢
  *    `offlineFirstBridgeMs`，没人接才轮到桥接 / 线上 —— 桥接和线上用**同一个下限**，
  *    桥接没人接线上马上能接（老板原话：「桥接没人接直接到线上俱乐部」）。
- *  - **线上入池**（ONLINE_FIRST）：桥接一发布就能看到（`bridgeDelayMs`），
- *    线上俱乐部按 `onlineDelayMs` 稍后看到。
+ *  - **线上→线下流转**（ONLINE_FIRST）：桥接工作室 + 线上俱乐部**秒看到**
+ *    （对外没有等待时间），没人接的话
+ *    由 `pool.online_first_release_minutes` 把它放给本店线下。
  *
  * @param isRentalViewer 看的人是不是线上俱乐部（租赁店）
  */
@@ -166,10 +167,13 @@ export function outsideViewerVisible(
   },
   now: number = Date.now(),
 ): boolean {
-  const modeA = order.poolScope !== PoolScope.ONLINE_FIRST;
-  const base = opts.isRentalViewer ? opts.onlineDelayMs : opts.bridgeDelayMs;
-  const delay = modeA ? Math.max(base, opts.offlineFirstBridgeMs) : base;
   const created = order.createdAt ? new Date(order.createdAt).getTime() : 0;
+  // 线上→线下流转（老板 2026-10-01）：桥接工作室 + 线上俱乐部秒看到，
+  // 对外没有任何等待时间；5 分钟没人接会由 offlineVisibleAt 那边放给本店线下。
+  if (order.poolScope === PoolScope.ONLINE_FIRST) return true;
+  // 线下→线上流转：本店线下先抢，桥接 / 线上用同一个下限。
+  const base = opts.isRentalViewer ? opts.onlineDelayMs : opts.bridgeDelayMs;
+  const delay = Math.max(base, opts.offlineFirstBridgeMs);
   return now - created >= delay;
 }
 

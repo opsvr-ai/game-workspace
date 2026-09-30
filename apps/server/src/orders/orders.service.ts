@@ -178,7 +178,8 @@ export class OrdersService implements OnModuleInit {
         coAmount: (dto as any).coAmount ?? null,
         status: dto.dispatchType === 'DIRECT' && dto.companionId ? 'GRABBED' : 'PENDING',
         contactStatus: (dto as any).directAdd === true ? 'pending' : undefined,
-        // 先给谁抢（老板 2026-09-29）：空 = 先本店线下（老行为）；ONLINE_FIRST = 先桥接 + 线上俱乐部
+        // 先给谁抢（老板 2026-10-01）：空 = 线下→线上流转（本店线下先抢）；
+        // ONLINE_FIRST = 线上→线下流转（桥接 + 线上秒看到，没人接再放给本店线下）
         poolScope: normalizePoolScope((dto as any).poolScope) === PoolScope.ONLINE_FIRST ? PoolScope.ONLINE_FIRST : null,
         amount: dto.amount,
         gameName: dto.gameName,
@@ -262,7 +263,7 @@ export class OrdersService implements OnModuleInit {
       _creatorRole: popupCreator?.role || 'CS',
       _popupSeconds: popupSeconds,
     };
-    // 「先线上」的单（老板 2026-09-29）：本店线下陪玩先看不见，弹窗 / 通知都只往桥接 + 线上那边发，
+    // 「线上→线下流转」的单（老板 2026-10-01）：本店线下陪玩先看不见，弹窗 / 通知都只往桥接 + 线上那边发，
     // 否则本店陪玩会收到一个自己抢不到的单的弹窗（点进去还提示没权限）。
     const onlineFirst = newOrder.poolScope === PoolScope.ONLINE_FIRST;
 
@@ -270,7 +271,7 @@ export class OrdersService implements OnModuleInit {
     // （空闲 + 娱乐中一定弹；接单中默认不打扰，陪玩可在「陪玩端 → 设置」自行打开）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
       if (onlineFirst) {
-        // 本店不弹；桥接 / 线上那边立即弹（这张单本来就是先给他们的，没有「本店先手」一说）
+        // 本店不弹；桥接 / 线上那边立即弹（“秒看到”就是这一步：立即 = 延时 0）
         void this.wsGateway.broadcastUrgentToBridgedStudios(
           studioId,
           newOrder.id,
@@ -362,7 +363,7 @@ export class OrdersService implements OnModuleInit {
       });
     } else if (studioId) {
       if (onlineFirst) {
-        // 先线上的单：本店陪玩在这张单被放给线下之前根本看不到，不给本店发通知
+        // 线上→线下流转的单：本店陪玩在这张单被放给线下之前根本看不到，不给本店发通知
       } else if (isUrgent) {
         this.wsGateway.broadcastToBridgedStudios(studioId, 'order:new', {
           ...newOrder,
@@ -418,9 +419,9 @@ export class OrdersService implements OnModuleInit {
     const middleDelay = Number(poolCfg['pool.middle_delay_seconds'] ?? 60) * 1000;
     const lowDelay = Number(poolCfg['pool.low_delay_seconds'] ?? 120) * 1000;
     const onlineDelay = Number(poolCfg['pool.online_delay_seconds'] ?? 180) * 1000;
-    // 「先线上」的单没人管时，多久自动放给本店线下陪玩（分钟）
+    // 「线上→线下流转」的单没人管时，多久自动放给本店线下陪玩（分钟）
     const onlineFirstReleaseMinutes = Number(poolCfg['pool.online_first_release_minutes'] ?? 5);
-    // 「线下+线上流转入池」的单：本店线下先抢这么久，没人接才轮到桥接 / 线上俱乐部（分钟）
+    // 「线下→线上流转」的单：本店线下先抢这么久，没人接才轮到桥接 / 线上俱乐部（分钟）
     const offlineFirstBridgeMinutes = Number(poolCfg['pool.offline_first_bridge_minutes'] ?? 3);
     const offlineFirstBridgeDelay = Math.max(0, offlineFirstBridgeMinutes) * 60_000;
     const studioType = studio?.type ?? 'DIRECT';
@@ -455,9 +456,9 @@ export class OrdersService implements OnModuleInit {
       if (cf.poolHandled) return false;
       // 超时未处理的订单只进入客服/管理端的“流转失败明细”，不再出现在陪玩订单池。
       if (cf.poolExpired) return false;
-      // 「先线上」的单（老板 2026-09-29）：本店线下陪玩先看不见，客服/店长手动放了、
+      // 「线上→线下流转」的单（老板 2026-10-01）：本店线下陪玩先看不见，客服/店长手动放了、
       // 或过了自动放行时间才出现；一旦放行立即可见，不再排段位。
-      // （客服 / 店长的派单工作台一直看得见，只是这一列会带「先线上」的标记。）
+      // （客服 / 店长的派单工作台一直看得见，只是这一列会带「线上→线下」的标记。）
       const onlineFirstOrder = o.poolScope === PoolScope.ONLINE_FIRST;
       const ownOfflineOrder = !!studioId && o.studioId === studioId && studioType !== 'RENTAL';
       if (onlineFirstOrder && ownOfflineOrder) {
@@ -476,8 +477,8 @@ export class OrdersService implements OnModuleInit {
             : tier === 'TOP' ? priorityDelay : tier === 'MIDDLE' ? middleDelay : lowDelay;
       } else {
         // 别家看本店的单：桥接工作室 / 线上俱乐部。
-        // 「线上入池」= 桥接一发布就能看到，线上俱乐部按线上等待时间；
-        // 「线下+线上流转入池」= 本店线下先抢 offlineFirstBridgeDelay 分钟，没人接才轮到桥接 / 线上
+        // 「线上→线下流转」= 桥接工作室 + 线上俱乐部秒看到（等待时间 0），没人接再放给本店线下；
+        // 「线下→线上流转」= 本店线下先抢 offlineFirstBridgeDelay 分钟，没人接才轮到桥接 / 线上
         //（老板 2026-09-29：「线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部」——
         //  所以这里桥接和线上用同一个下限，桥接没人接线上马上能接）。
         return outsideViewerVisible(
@@ -732,7 +733,7 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 「先线上」的单：客服 / 店长点一下放给本店线下陪玩（老板 2026-09-29：
+   * 「线上→线下流转」的单：客服 / 店长点一下放给本店线下陪玩（老板 2026-10-01：
    * 「孙或店长点一下『也放给线下陪玩』」）。没人点也会在
    * `pool.online_first_release_minutes` 分钟后自动放行（判定在 findPool 里，纯读时计算）。
    */
@@ -744,7 +745,7 @@ export class OrdersService implements OnModuleInit {
       if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
     }
     if (order.poolScope !== PoolScope.ONLINE_FIRST) {
-      throw new ForbiddenException('这张单本来就是先给本店线下的，不用放');
+      throw new ForbiddenException('这张单本来就是线下→线上流转（本店线下先抢），不用放');
     }
     if (order.releasedToOfflineAt) return order; // 已经放过，重复点不报错
     const updated = await this.prisma.order.update({
@@ -1318,8 +1319,8 @@ export class OrdersService implements OnModuleInit {
         where: { id: orderId },
         data: {
           contactStatus: null,
-          // 重新派单时客服可以再选一次入池方式（老板 2026-09-29）：
-          // 「线下+线上流转入池」/「线上入池」。不传就沿用原来那张单的方式。
+          // 重新派单时客服可以再选一次入池方式（老板 2026-10-01）：
+          // 「线下→线上流转」/「线上→线下流转」。不传就沿用原来那张单的方式。
           ...(body && body.poolScope !== undefined
             ? {
                 poolScope:
@@ -1462,12 +1463,12 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 「线下+线上流转入池」的单，线下没人接、被桥接工作室 / 线上俱乐部接走 —— 统计 + 标注
+   * 「线下→线上流转」的单，线下没人接、被桥接工作室 / 线上俱乐部接走 —— 统计 + 标注
    * （老板 2026-09-29：「选择线下+线上入池的时候，线下没人接，被桥接工作室或者线上俱乐部接走
    * 你要做好统计，并做好标注，记录好机密还是绝密、应收多少，钱在哪里等信息并做好汇总」）。
    *
    * 口径：
-   *  - 只统计**本店**发的、入池方式 =「线下+线上流转入池」的单（poolScope 不是 ONLINE_FIRST）；
+   *  - 只统计**本店**发的、入池方式 =「线下→线上流转」的单（poolScope 不是 ONLINE_FIRST）；
    *  - 只统计**已经被人抢走**、而且抢的人不是本店线下（桥接工作室 / 线上俱乐部）的单；
    *  - **桥接工作室** = 「首单不结」模式：机密 35 元/人/时、绝密 30 元/人/时是工作室净得的；
    *  - **线上俱乐部** = 「抽成」模式：工作室拿 100 − 陪玩分成（revenue.club_companion_share）；
@@ -1516,7 +1517,7 @@ export class OrdersService implements OnModuleInit {
         companionId: { not: null },
         status: { not: 'CANCELLED' },
         AND: [
-          // 「线下+线上流转入池」= poolScope 不是 ONLINE_FIRST（含历史 null）。
+          // 「线下→线上流转」= poolScope 不是 ONLINE_FIRST（含历史 null）。
           // 注意：这里必须显式写 `null OR <>`，不能用 `NOT: { poolScope: ... }` ——
           // SQL 里 `NOT (poolScope = 'x')` 对 NULL 求值还是 NULL，会把所有老单（poolScope 为 null）全过滤掉。
           { OR: [{ poolScope: null }, { poolScope: { not: PoolScope.ONLINE_FIRST } }] },

@@ -156,7 +156,7 @@ export class OrderDispatchService {
     // Prevent self-grabbing
     const comp = await this.prisma.companion.findUnique({ where: { id: companionId }, select: { userId: true, studioId: true } });
     if (comp && comp.userId === order.csUserId) throw new ForbiddenException('不能抢自己发布的订单');
-    // 「先线上」的单：本店线下陪玩在放行之前抢不了（服务端兜底，池子里本来就不显示）
+    // 「线上→线下流转」的单：本店线下陪玩在放行之前抢不了（服务端兜底，池子里本来就不显示）
     if (order.poolScope === PoolScope.ONLINE_FIRST && comp?.studioId === order.studioId) {
       const cfg = await resolveConfigsRaw(this.prisma, order.studioId, ['pool.online_first_release_minutes']);
       const minutes = Number((cfg as Record<string, unknown>)['pool.online_first_release_minutes'] ?? 5);

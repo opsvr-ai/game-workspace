@@ -105,7 +105,7 @@ export class OrdersController {
   }
 
   /**
-   * 「线下+线上流转入池」的单，线下没人接被桥接工作室 / 线上俱乐部接走的统计 + 标注（老板 2026-09-29）。
+   * 「线下→线上流转」的单，线下没人接被桥接工作室 / 线上俱乐部接走的统计 + 标注（老板 2026-09-29）。
    */
   @Get('orders/escalated-pool')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
@@ -249,7 +249,7 @@ export class OrdersController {
     return { code: 200, message: '已转让', data };
   }
 
-  /** 「先线上」的单：放给本店线下陪玩（老板 2026-09-29）。 */
+  /** 「线上→线下流转」的单：放给本店线下陪玩（老板 2026-10-01）。 */
   @Post('orders/:id/release-to-offline')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async releaseToOffline(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {

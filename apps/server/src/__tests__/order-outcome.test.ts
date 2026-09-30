@@ -105,16 +105,16 @@ describe('桥接 / 线上单：只有接单方反馈「成功」才算成功', (
   });
 });
 
-describe('「先线上」的单：本店线下陪玩什么时候才看得见', () => {
+describe('「线上→线下流转」的单：本店线下陪玩什么时候才看得见', () => {
   const created = new Date('2026-09-29T12:00:00Z');
 
-  it('不是「先线上」→ 一直可见', () => {
+  it('不是「线上→线下流转」→ 一直可见（线下→线上流转本来就是本店线下先看）', () => {
     const order = { poolScope: null, createdAt: created };
     expect(offlineVisibleAt(order, 5)).toBeNull();
     expect(visibleToOwnOffline(order, 5, created.getTime())).toBe(true);
   });
 
-  it('「先线上」：自动放行时间之前看不见，到点就看得到', () => {
+  it('「线上→线下流转」：自动放行时间之前看不见，到点就看得到', () => {
     const order = { poolScope: 'ONLINE_FIRST', createdAt: created };
     const before = created.getTime() + 4 * 60_000;
     const after = created.getTime() + 6 * 60_000;
@@ -132,7 +132,7 @@ describe('「先线上」的单：本店线下陪玩什么时候才看得见', (
     expect(visibleToOwnOffline(order, 0, created.getTime())).toBe(true);
   });
 
-  it('只有 ONLINE_FIRST 会被当成「先线上」，别的值一律按老口径', () => {
+  it('只有 ONLINE_FIRST 会被当成「线上→线下流转」，别的值一律按老口径', () => {
     expect(normalizePoolScope('ONLINE_FIRST')).toBe('ONLINE_FIRST');
     expect(normalizePoolScope('WHATEVER')).toBe('OFFLINE_FIRST');
     expect(normalizePoolScope(undefined)).toBe('OFFLINE_FIRST');
@@ -177,24 +177,29 @@ describe('别家（桥接 / 线上）什么时候才看得见本店的单', () =
     isRentalViewer: false,
   };
 
-  it('线下+线上流转入池：本店线下先抢 3 分钟，桥接 30 秒也看不见', () => {
+  it('线下→线上流转：本店线下先抢 3 分钟，桥接 30 秒也看不见', () => {
     const order = { poolScope: null, createdAt: created };
     expect(outsideViewerVisible(order, base, created.getTime() + 60_000)).toBe(false);
     expect(outsideViewerVisible(order, base, created.getTime() + 181_000)).toBe(true);
   });
 
-  it('线下+线上流转入池：线上俱乐部和桥接同一个下限（桥接没人接线上马上能接）', () => {
+  it('线下→线上流转：线上俱乐部和桥接同一个下限（桥接没人接线上马上能接）', () => {
     const order = { poolScope: 'OFFLINE_FIRST', createdAt: created };
     const rental = { ...base, isRentalViewer: true };
     expect(outsideViewerVisible(order, rental, created.getTime() + 181_000)).toBe(true);
     expect(outsideViewerVisible(order, rental, created.getTime() + 60_000)).toBe(false);
   });
 
-  it('线上入池：桥接一发布就看到，线上按自己的等待时间', () => {
+  it('线上→线下流转：桥接工作室 + 线上俱乐部秒看到（对外没有等待时间）', () => {
     const order = { poolScope: 'ONLINE_FIRST', createdAt: created };
-    expect(outsideViewerVisible(order, base, created.getTime() + 31_000)).toBe(true);
+    expect(outsideViewerVisible(order, base, created.getTime())).toBe(true);
     const rental = { ...base, isRentalViewer: true };
-    expect(outsideViewerVisible(order, rental, created.getTime() + 60_000)).toBe(false);
-    expect(outsideViewerVisible(order, rental, created.getTime() + 181_000)).toBe(true);
+    expect(outsideViewerVisible(order, rental, created.getTime())).toBe(true);
+  });
+
+  it('线上→线下流转：5 分钟内本店线下看不见，到点自动放给线下', () => {
+    const order = { poolScope: 'ONLINE_FIRST', createdAt: created };
+    expect(visibleToOwnOffline(order, 5, created.getTime() + 4 * 60_000)).toBe(false);
+    expect(visibleToOwnOffline(order, 5, created.getTime() + 5 * 60_000)).toBe(true);
   });
 });

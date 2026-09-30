@@ -45,10 +45,10 @@ const { Text } = Typography;
  *  - 不再有「未达标提成 × 50%」这种罚则（以前只有这一页这么算，月底并不这么算，客服照着看会以为少拿钱）。
  */
 
-/** 入池方式（老板 2026-09-29）：线下+线上流转入池 / 线上入池。 */
+/** 入池方式（老板 2026-10-01）：线下→线上流转 / 线上→线下流转。 */
 const POOL_SCOPE: Record<string, { label: string; color: string }> = {
-  OFFLINE_FIRST: { label: '线下+线上流转', color: 'blue' },
-  ONLINE_FIRST: { label: '线上入池', color: 'purple' },
+  OFFLINE_FIRST: { label: '线下→线上流转', color: 'blue' },
+  ONLINE_FIRST: { label: '线上→线下流转', color: 'purple' },
 };
 
 const CHANNEL: Record<string, { label: string; color: string }> = {

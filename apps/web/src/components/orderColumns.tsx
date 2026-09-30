@@ -47,7 +47,7 @@ export interface OrderColumnOptions {
    * 不传就是只读小字（陪玩端根本不会传这个）。
    */
   onOutcomeClick?: (order: any) => void;
-  /** 客服点「先线上」小字，把这单提前放给本店线下陪玩（订单管理传）。 */
+  /** 客服点小字，把「线上→线下流转」的单提前放给本店线下陪玩（订单管理传）。 */
   onReleaseToOffline?: (order: any) => void;
 }
 
@@ -140,13 +140,13 @@ export function buildOrderColumns({
                 onClick={!o.releasedToOfflineAt && onReleaseToOffline ? () => onReleaseToOffline(o) : undefined}
                 title={
                   o.releasedToOfflineAt
-                    ? '「线上入池」的单，已经放给本店线下陪玩了'
+                    ? '「线上→线下流转」的单，已经放给本店线下陪玩了'
                     : onReleaseToOffline
-                      ? '「线上入池」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见 —— 点这里可以现在就放给线下'
-                      : '「线上入池」的单：先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见'
+                      ? '「线上→线下流转」的单：桥接工作室 + 线上俱乐部秒看到，本店线下陪玩暂时看不见 —— 点这里可以现在就放给线下'
+                      : '「线上→线下流转」的单：桥接工作室 + 线上俱乐部秒看到，本店线下陪玩暂时看不见'
                 }
               >
-                · {o.releasedToOfflineAt ? '已放给线下' : '线上入池'}
+                · {o.releasedToOfflineAt ? '已放给线下' : '线上→线下'}
               </span>
             )}
             {/* 线上 / 桥接单的结果（成功 / 不成功 / 待反馈）；线下单不显示 */}

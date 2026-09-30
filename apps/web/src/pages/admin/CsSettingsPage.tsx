@@ -300,8 +300,8 @@ const CsSettingsPage: React.FC = () => {
         }
       >
         <Text type="secondary">
-          默认入池方式决定这个客服新建单时怎么派：线下+线上流转入池（本店线下先抢，几分钟没人接才轮到桥接 / 线上）/
-          线上入池（优先桥接工作室，本店线下先看不见，要客服放出去或等 5 分钟自动放开）。底薪留空 = 用「工资规则」里的统一底薪（当前 ¥
+          默认入池方式决定这个客服新建单时怎么派：线下→线上流转（本店线下先抢，几分钟没人接才轮到桥接 / 线上）/
+          线上→线下流转（桥接工作室 + 线上俱乐部秒看到，几分钟没人接才自动放到本店线下）。底薪留空 = 用「工资规则」里的统一底薪（当前 ¥
           {Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}/月）。
           点「单独一套」能给某个人单独定提成（线下比例 / 保底、桥接单价与阶梯、线上口径与单价），
           **留空的项还是用本店那一套**；想让他回到本店一套，点弹窗里的「清空」。
@@ -330,8 +330,8 @@ const CsSettingsPage: React.FC = () => {
                   value={v || 'OFFLINE_FIRST'}
                   onChange={(next) => patchProfile(r.userId, { poolScope: next })}
                   options={[
-                    { value: 'OFFLINE_FIRST', label: '线下 + 线上流转入池' },
-                    { value: 'ONLINE_FIRST', label: '线上入池' },
+                    { value: 'OFFLINE_FIRST', label: '线下→线上流转' },
+                    { value: 'ONLINE_FIRST', label: '线上→线下流转' },
                   ]}
                 />
               ),

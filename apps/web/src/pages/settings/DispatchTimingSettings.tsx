@@ -37,22 +37,22 @@ const DispatchTimingSettings: React.FC = () => {
         <Form.Item name="pool.scheduled_disappear_minutes" label="预约订单消失时间（分钟）"><InputNumber min={0} /></Form.Item>
         <Form.Item
           name="pool.online_first_release_minutes"
-          label="「线上入池」的单多久自动放给本店线下（分钟）"
+          label="「线上→线下流转」线上先看多久、没人接才放给本店线下（分钟）"
         >
           <InputNumber min={1} />
         </Form.Item>
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          「线上入池」的单：本店线下陪玩先看不见，过了这个时间还没被桥接 / 线上抢走，就自动放进本店线下陪玩的池子
+          「线上→线下流转」的单：桥接工作室 + 线上俱乐部秒看到，没人接的话过了这个时间就自动放进本店线下陪玩的池子
           （客服也可以随时手动放给线下）。
         </Typography.Text>
         <Form.Item
           name="pool.offline_first_bridge_minutes"
-          label="「线下+线上流转」的单，本店线下先抢多久才轮到桥接 / 线上（分钟）"
+          label="「线下→线上流转」本店线下先抢多久、才轮到桥接 / 线上（分钟）"
         >
           <InputNumber min={0} />
         </Form.Item>
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          「线下+线上流转入池」的单：本店线下陪玩先抢这么多分钟，没人接才轮到桥接工作室 / 线上俱乐部
+          「线下→线上流转」的单：本店线下陪玩先抢这么多分钟，没人接才轮到桥接工作室 / 线上俱乐部
           （过了这个时间两边同时看得到，桥接没人接线上马上能接）。
         </Typography.Text>
         <Button type="primary" loading={saving} onClick={save}>保存等待时间</Button>

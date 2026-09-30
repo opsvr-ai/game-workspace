@@ -69,7 +69,7 @@ export class OrderWorkflowService {
         throw new ForbiddenException('无权抢其他工作室的订单');
       }
     }
-    // 「先线上」的单：本店线下陪玩在客服放行（或过了自动放行时间）之前抢不了。
+    // 「线上→线下流转」的单：本店线下陪玩在客服放行（或过了自动放行时间）之前抢不了。
     // 池子里本来就不给他看，这里是服务端兜底 —— 别让人拿旧页面 / 直连接口绕过。
     if (order.poolScope === PoolScope.ONLINE_FIRST && companion.studioId === order.studioId) {
       const cfg = await resolveConfigsRaw(this.prisma, order.studioId, ['pool.online_first_release_minutes']);

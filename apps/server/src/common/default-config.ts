@@ -174,13 +174,13 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'pool.middle_delay_seconds': 60,
   'pool.low_delay_seconds': 120,
   'pool.online_delay_seconds': 180,
-  // 「先线上」的单（孙可馨那种）先给桥接 + 线上俱乐部，本店线下陪玩先看不见；
-  // 过了这么多分钟还没人接，自动放给本店线下陪玩（老板 2026-09-29）。
+  // 「线上→线下流转」的单（孙可馨那种）桥接工作室 + 线上俱乐部秒看到，本店线下陪玩先看不见；
+  // 过了这么多分钟还没人接，自动放给本店线下陪玩（老板 2026-10-01）。
   // 客服/店长随时可以手动「放给线下」，不用等这个时间。
   'pool.online_first_release_minutes': 5,
-  // 「线下+线上流转入池」的单（邵泽慧那种）：本店线下先抢这么多分钟，没人接才轮到桥接 + 线上俱乐部
+  // 「线下→线上流转」的单（邵泽慧那种）：本店线下先抢这么多分钟，没人接才轮到桥接 + 线上俱乐部
   // （老板 2026-09-29：「线下没人接，几分钟后到桥接，桥接没人接直接到线上俱乐部」）。
-  // 「线上入池」的单不吃这个值，桥接一发布就能看到。
+  // 「线上→线下流转」的单不吃这个值，桥接 + 线上秒看到。
   'pool.offline_first_bridge_minutes': 3,
   'pool.immediate_disappear_minutes': 10,
   'pool.scheduled_disappear_minutes': 60,

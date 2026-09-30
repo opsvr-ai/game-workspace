@@ -131,7 +131,7 @@ const OrdersPage: React.FC = () => {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   // 线上 / 桥接单的结果反馈（老板 2026-09-29）：客服 / 店长点状态格或操作列的「记结果」都能打开
   const [outcomeOrder, setOutcomeOrder] = useState<any>(null);
-  // 「先线上」的单提前放给本店线下陪玩（点状态格的「先线上」小字，走二次确认）
+  // 「线上→线下流转」的单提前放给本店线下陪玩（点状态格小字，走二次确认）
   const [releaseOrder, setReleaseOrder] = useState<any>(null);
   const [releaseSubmitting, setReleaseSubmitting] = useState(false);
   // 陪玩转让订单（老板 2026-09-29）
@@ -804,7 +804,7 @@ const OrdersPage: React.FC = () => {
       isCompanion,
       inactiveAccounts,
       widths: isCompanion ? undefined : fittedColumns.widths,
-      // 客服 / 店长能点状态格记结果、点「先线上」把单放给线下；陪玩端不给这两个入口
+      // 客服 / 店长能点状态格记结果、点小字把线上→线下的单放给线下；陪玩端不给这两个入口
       onOutcomeClick: isCompanion ? undefined : (o: any) => setOutcomeOrder(o),
       onReleaseToOffline: isCompanion ? undefined : (o: any) => setReleaseOrder(o),
     }),
@@ -1202,7 +1202,7 @@ const OrdersPage: React.FC = () => {
       >
         <div style={{ marginTop: 8 }}>
           <Text>
-            这单是「先线上」的：本来要先给桥接工作室 + 线上俱乐部，本店线下陪玩暂时看不见。现在就放给本店线下陪玩？
+            这单是「线上→线下流转」的：本来要先给桥接工作室 + 线上俱乐部（秒看到），本店线下陪玩暂时看不见。现在就放给本店线下陪玩？
           </Text>
           <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
             放出去之后，本店线下陪玩马上能在订单池里抢到这单。

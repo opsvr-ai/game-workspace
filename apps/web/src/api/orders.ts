@@ -47,7 +47,7 @@ export const ordersApi = {
     customerPaymentAccountName?: string;
   }) => http.post(`/orders/${id}/claim`, data),
   release: (id: string, urgency?: string) => http.post(`/orders/${id}/release`, { urgency }),
-  /** 「先线上」的单：放给本店线下陪玩（老板 2026-09-29） */
+  /** 「线上→线下流转」的单：放给本店线下陪玩（老板 2026-10-01） */
   releaseToOffline: (id: string) => http.post(`/orders/${id}/release-to-offline`),
   /** 线上 / 桥接单的结果反馈：成功 / 不成功（不成功要带原因） */
   recordOutcome: (id: string, data: { outcome: 'SUCCESS' | 'FAILED'; reason?: string; note?: string }) =>

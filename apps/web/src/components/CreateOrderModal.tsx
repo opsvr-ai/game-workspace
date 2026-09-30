@@ -316,11 +316,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                     name="poolScope"
                     label="入池方式"
                     initialValue="OFFLINE_FIRST"
-                    extra="线下+线上流转入池：本店线下先抢，几分钟没人接轮到桥接工作室，桥接没人接直接到线上俱乐部。线上入池：优先桥接工作室，几分钟没人接进线上俱乐部；桥接和线上都没人接就算派单失败，可重新派单换方式。"
+                    extra="线下→线上流转：本店线下先抢，几分钟没人接轮到桥接工作室 + 线上俱乐部。线上→线下流转：桥接工作室 + 线上俱乐部秒看到，几分钟没人接自动放到本店线下（客服也可以随时手动放给线下）。"
                   >
                     <Select>
-                      <Option value="OFFLINE_FIRST">线下 + 线上流转入池</Option>
-                      <Option value="ONLINE_FIRST">线上入池</Option>
+                      <Option value="OFFLINE_FIRST">线下→线上流转</Option>
+                      <Option value="ONLINE_FIRST">线上→线下流转</Option>
                     </Select>
                   </Form.Item>
                 ) : null

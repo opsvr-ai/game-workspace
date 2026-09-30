@@ -33,10 +33,11 @@ export enum OrderSource {
 }
 
 /**
- * 这张单先给谁抢（老板 2026-09-29）：
- * - OFFLINE_FIRST：先给本店线下陪玩（老行为，默认）；
- * - ONLINE_FIRST：先给桥接工作室 + 线上俱乐部，本店线下陪玩先看不见，
- *   由发单客服/店长点「放给线下」或过了自动放行时间才放给本店。
+ * 这张单先给谁抢（老板 2026-10-01 定的两条链）：
+ * - OFFLINE_FIRST「线下→线上流转」：本店线下陪玩先抢
+ *   `pool.offline_first_bridge_minutes` 分钟，没人接才轮到桥接工作室 + 线上俱乐部（默认）；
+ * - ONLINE_FIRST「线上→线下流转」：桥接工作室 + 线上俱乐部**秒看到**，
+ *   `pool.online_first_release_minutes` 分钟没人接再放到本店线下。
  */
 export enum PoolScope {
   OFFLINE_FIRST = 'OFFLINE_FIRST',
