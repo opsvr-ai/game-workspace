@@ -48,8 +48,14 @@ export class ChatGateway {
 
   private readonly logger = new Logger(ChatGateway.name);
 
-  /** Map userId → socketId for direct message delivery */
-  private readonly userSockets = new Map<string, string>();
+  /**
+   * 一个用户会有不止一条 /chat 连接（客服端主窗口 + 聊天弹窗 + 浏览器页面都可能各开一条）。
+   * 以前这里是 `userId → socketId` 的单值 Map：任何一条连接断开就把整个用户从表里删掉，
+   * 剩下的连接从此再也收不到实时消息（老板 2026-09-30 报「孙可馨给黄浩发消息，黄浩收不到、
+   * 消息还有延迟」就是这个）。现在只用来数「还剩几条连接」，投递一律走 socket.io 的
+   * `user:<id>` 房间（连接时已经 join），一条不剩才算真的掉线。
+   */
+  private readonly userSockets = new Map<string, Set<string>>();
 
   /** Map socketId → user data */
   private readonly socketUsers = new Map<string, ConnectedUser>();
@@ -69,7 +75,8 @@ export class ChatGateway {
         return;
       }
       (socket as unknown as Socket).data.user = user;
-      this.userSockets.set(user.userId, socket.id);
+      if (!this.userSockets.has(user.userId)) this.userSockets.set(user.userId, new Set());
+      this.userSockets.get(user.userId)!.add(socket.id);
       this.socketUsers.set(socket.id, user);
       void socket.join(`user:${user.userId}`);
       void this.chatService.ensureUserInStudioGroup(user.userId, user.studioId || '');
@@ -81,7 +88,12 @@ export class ChatGateway {
       socket.on('disconnect', () => {
         const user = this.socketUsers.get(socket.id);
         if (user) {
-          this.userSockets.delete(user.userId);
+          // 只摘掉自己这条连接；还有别的窗口连着就不能把人当成掉线。
+          const sockets = this.userSockets.get(user.userId);
+          if (sockets) {
+            sockets.delete(socket.id);
+            if (sockets.size === 0) this.userSockets.delete(user.userId);
+          }
           this.socketUsers.delete(socket.id);
           this.logger.log(`Chat WS disconnected: ${user.username}`);
         }
@@ -153,32 +165,21 @@ export class ChatGateway {
       };
     },
   ): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit('message:new', payload);
+    // 推给这个人的所有连接（有几条发几条），而不是「最后登录的那一条」。
+    this.server.to(`user:${userId}`).emit('message:new', payload);
 
-      // Store in Redis offline queue as backup
-      this.redis
-        .lpush(`chat:offline:${userId}:${payload.roomId}`, JSON.stringify(payload))
-        .then(() => {
-          this.redis.expire(`chat:offline:${userId}:${payload.roomId}`, 86400); // TTL 24h
-        })
-        .catch(() => {});
-    } else {
-      // User offline — store in Redis queue for later delivery
-      this.redis
-        .lpush(`chat:offline:${userId}:${payload.roomId}`, JSON.stringify(payload))
-        .then(() => {
-          this.redis.expire(`chat:offline:${userId}:${payload.roomId}`, 86400);
-        })
-        .catch(() => {});
-    }
+    // 同时进 Redis 离线队列兜底：一条连接都没有时，重连后靠 deliverOfflineMessages 补上。
+    this.redis
+      .lpush(`chat:offline:${userId}:${payload.roomId}`, JSON.stringify(payload))
+      .then(() => {
+        this.redis.expire(`chat:offline:${userId}:${payload.roomId}`, 86400); // TTL 24h
+      })
+      .catch(() => {});
   }
 
   /** Deliver missed offline messages to a reconnected user */
   async deliverOfflineMessages(userId: string, roomIds: string[]): Promise<void> {
-    const socketId = this.userSockets.get(userId);
-    if (!socketId) return;
+    if (!this.userSockets.has(userId)) return;
 
     for (const roomId of roomIds) {
       const key = `chat:offline:${userId}:${roomId}`;
@@ -186,7 +187,7 @@ export class ChatGateway {
       for (const raw of messages) {
         try {
           const payload = JSON.parse(raw);
-          this.server.to(socketId).emit('message:new', payload);
+          this.server.to(`user:${userId}`).emit('message:new', payload);
         } catch {
           /* skip malformed */
         }
@@ -197,18 +198,12 @@ export class ChatGateway {
 
   /** Notify a user that a room's metadata changed */
   notifyRoomUpdated(roomId: string, userId: string, data: Record<string, unknown>): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit('room:updated', { roomId, ...data });
-    }
+    this.server.to(`user:${userId}`).emit('room:updated', { roomId, ...data });
   }
 
   /** Notify a user that a message was updated (recall/edit) */
   notifyMessageUpdated(roomId: string, userId: string, message: Record<string, unknown>): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit('message:updated', { roomId, message });
-    }
+    this.server.to(`user:${userId}`).emit('message:updated', { roomId, message });
   }
 
   /**
@@ -216,17 +211,12 @@ export class ChatGateway {
    * 只推给发消息那一方，前端在「我发的消息」下面标「已阅读 / 未读」。
    */
   notifyRead(userId: string, payload: { roomId: string; readerId: string; readSeq: number }): void {
-    const socketId = this.userSockets.get(userId);
-    if (!socketId) return;
-    this.server.to(socketId).emit('chat:read', payload);
+    this.server.to(`user:${userId}`).emit('chat:read', payload);
   }
 
   /** Trigger sync on client (gap detected) */
   requestSync(userId: string, reason: string): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit('sync:required', { reason });
-    }
+    this.server.to(`user:${userId}`).emit('sync:required', { reason });
   }
 
   // ─── Helpers ───

@@ -210,6 +210,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **客服/陪玩之间「消息收不到、要等一两分钟才出来」（老板 2026-09-30：孙可馨给黄浩发消息，黄浩收不到，
+  两边互相收不到，而且消息有延迟）。** 根因不在数据库 —— 消息其实都落库了（`ChatMessageV3` 序号连续到 190+、
+  双方 `aReadSeq/bReadSeq` 都对得上），坏在**实时投递**：`ChatGateway` 用 `userId → socketId` 的**单值 Map**
+  记「这个人的连接」，可现实中一个人会同时开好几条 `/chat` 连接（客服端主窗口 + 聊天弹窗 + 浏览器页面；
+  线上日志实测 `hanlei1` 一次连了 3 条、黄浩 4 条）。后连的那条把先连的那条**顶掉**，而任意一条断开时
+  又**无条件** `userSockets.delete(userId)` —— 于是只要有一个窗口关掉，这个人就彻底从表里消失，之后所有
+  `message:new` / `chat:read` / `room:updated` 全被静默丢掉，只能靠前端每 2 分钟一次的兜底对账
+  （`useChatSync`）把消息补出来，看起来就是「收不到 + 有延迟」。已改成：投递一律走 socket.io 房间
+  `user:<id>`（连接时本来就 join 了），房间里有几条连接就发几条；`userSockets` 退化成「还剩几条连接」的计数，
+  断开时只摘掉自己那条、一条不剩才算掉线。`ws/ws.gateway.ts` 里同一套写法（`notifyNewMessage` / `userSockets`）
+  一并修掉。回归测试 `src/__tests__/chat.read-receipt.test.ts`（「同一个人开多条连接：断开一条后，
+  另一条照样收得到消息」）；并在线上用两条真实 `/chat` 连接验证通过（断开一条后另一条仍收到 `chat:read`）。
+
 - **同一台机器在「机器管理」里出现两条记录、点了「开通远程管理」还是显示未开通（老板 2026-09-30）。**
   根因：客户端和运维脚本各算一套 machineId —— 客户端按 `os.networkInterfaces()` 的枚举顺序取
   第一块非虚拟网卡的 MAC，脚本按 `Get-NetAdapter | Where Status -eq 'Up' | Select -First 1` 取 MAC，

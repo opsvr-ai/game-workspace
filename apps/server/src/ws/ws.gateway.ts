@@ -62,8 +62,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private pendingOfflineTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** 置离线宽限期缓存（避免每次断开都查一次配置） */
   private offlineGraceCache: { seconds: number; at: number } | null = null;
-  /** userId -> socketId */
-  private userSockets = new Map<string, string>();
+  /** userId -> 该用户当前所有的连接 id（一个人可能同时开着网页 + 客户端 + 弹窗） */
+  private userSockets = new Map<string, Set<string>>();
 
   constructor(
     private readonly jwt: JwtService,
@@ -274,7 +274,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       void client.join(`user:${user.id}`);
-      this.userSockets.set(user.id, client.id);
+      if (!this.userSockets.has(user.id)) this.userSockets.set(user.id, new Set());
+      this.userSockets.get(user.id)!.add(client.id);
       if (user.studioId) {
         void client.join(`studio:${user.studioId}`);
         // Join all bridged studio rooms for cross-studio real-time events
@@ -379,7 +380,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!presence.hasSocket(user.id)) {
       this.scheduleCallEndOnDisconnect(user);
     }
-    this.userSockets.delete(user.id);
+    // 只摘掉自己这条连接；这个人还有别的窗口连着就不能当成掉线（以前会把整条记录删掉，
+    // 剩下的连接从此收不到点对点推送）。
+    const mySockets = this.userSockets.get(user.id);
+    if (mySockets) {
+      mySockets.delete(client.id);
+      if (mySockets.size === 0) this.userSockets.delete(user.id);
+    }
     if (!user.companionId) {
       // 客服 / 店长 / 老板 的断开以前一条日志都没有，只能靠人员列表「离线」反推。
       logger.info('Socket disconnected', {
@@ -1325,10 +1332,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       message: { id: string; senderId: string; text: string; createdAt: string };
     },
   ): void {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit('chat:message', payload);
-    }
+    this.server.to(`user:${userId}`).emit('chat:message', payload);
   }
 
   notifyChatMessage(

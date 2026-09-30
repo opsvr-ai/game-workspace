@@ -126,13 +126,73 @@ describe("消息已读回执", () => {
     (gateway as any).server = {
       to: (target: string) => ({ emit: (event: string, data: any) => emits.push({ target, event, data }) }),
     };
-    (gateway as any).userSockets.set("user-a", "sock-a");
 
     gateway.notifyRead("user-a", { roomId: "room-1", readerId: "user-b", readSeq: 12 });
 
+    // 推给「这个人的房间」，不是某一条具体连接：一个人开着好几个窗口时，
+    // 谁都能收到，也不会因为其中一条断开就全都收不到（老板 2026-09-30 报的问题）。
     expect(emits).toEqual([
-      { target: "sock-a", event: "chat:read", data: { roomId: "room-1", readerId: "user-b", readSeq: 12 } },
+      { target: "user:user-a", event: "chat:read", data: { roomId: "room-1", readerId: "user-b", readSeq: 12 } },
     ]);
+  });
+
+  it("同一个人开多条连接：断开一条后，另一条照样收得到消息", () => {
+    const emits: Array<{ target: string; event: string; data: any }> = [];
+    const gateway = new ChatGateway(
+      { lpush: vi.fn().mockResolvedValue(1), expire: vi.fn().mockResolvedValue(1) } as never,
+      { verify: vi.fn().mockReturnValue({ sub: "user-h", username: "黄浩", role: "ADMIN", studioId: "st-1" }) } as never,
+      { ensureUserInStudioGroup: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    // extractUser 要求配了 JWT_SECRET 才认令牌（这里只验「多条连接」的记账逻辑）
+    process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+
+    let middleware: any;
+    const connectionHandlers: Array<(s: any) => void> = [];
+    const fakeServer: any = {
+      use: (fn: any) => { middleware = fn; },
+      on: (ev: string, fn: any) => { if (ev === "connection") connectionHandlers.push(fn); },
+      to: (target: string) => ({ emit: (event: string, data: any) => emits.push({ target, event, data }) }),
+    };
+    (gateway as any).server = fakeServer; // 线上由 Nest 注入，测试里手动挂上
+    gateway.afterInit(fakeServer);
+
+    const makeSocket = (id: string) => {
+      const handlers: Record<string, () => void> = {};
+      return {
+        id,
+        handshake: { auth: { token: "tok" }, query: {} },
+        data: {} as any,
+        join: vi.fn(),
+        on: (ev: string, fn: () => void) => { handlers[ev] = fn; },
+        handlers,
+      } as any;
+    };
+
+    // 客服端同时开了两个窗口 → 同一个 userId 两条 /chat 连接
+    const s1 = makeSocket("sock-1");
+    const s2 = makeSocket("sock-2");
+    for (const s of [s1, s2]) {
+      middleware(s, () => {});
+      connectionHandlers.forEach((h) => h(s));
+    }
+    expect((gateway as any).userSockets.get("user-h").size).toBe(2);
+
+    // 关掉其中一个窗口
+    s1.handlers.disconnect();
+
+    // 人还在线（还有一条连接），不能被当成掉线
+    expect((gateway as any).userSockets.get("user-h").size).toBe(1);
+
+    gateway.notifyNewMessage("user-h", { roomId: "room-1", message: { id: "m1" } });
+    expect(emits.some((e) => e.target === "user:user-h" && e.event === "message:new")).toBe(true);
+
+    gateway.notifyRead("user-h", { roomId: "room-1", readerId: "user-b", readSeq: 3 });
+    expect(emits.some((e) => e.target === "user:user-h" && e.event === "chat:read")).toBe(true);
+
+    // 最后一条也断了，才算真离线
+    s2.handlers.disconnect();
+    expect((gateway as any).userSockets.has("user-h")).toBe(false);
   });
 
   it("对方不在线时不报错（离线靠上线后重新拉消息）", () => {
