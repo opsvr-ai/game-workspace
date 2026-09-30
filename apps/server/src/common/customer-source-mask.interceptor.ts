@@ -11,7 +11,7 @@ import { canSeeCustomerSource, stripCustomerSourceDeep, type StripSourceOptions 
  * 不用每个方法各写一次，也堵住「以后新加接口忘了过滤」。
  *
  * 客服 / 店长 / 老板照常：来源账号那点「客服只看自己发的单」的差异，
- * 仍旧由 service 里的 `canSeeSourceAccount` 管，这里不碰。
+ * （2026-09-30 起这条口径只剩「陪玩端看不到」，管理端一律显示完整 —— 见 order-privacy.ts。）
  */
 /** 两个拦截器只差一个「要不要连 `customer.platform` 一起清」，这里统一收一下。 */
 abstract class BaseCustomerSourceMaskInterceptor implements NestInterceptor {

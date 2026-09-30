@@ -8,7 +8,7 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
-import { canSeeSourceAccount, maskCustomerWechat } from '../common/order-privacy';
+import { maskCustomerWechat } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
@@ -657,16 +657,11 @@ export class OrdersService implements OnModuleInit {
       },
       orderBy: { createdAt: 'desc' },
     });
-    // 隐私：副陪（搭档）看不到主陪的客户微信；来源账号按 canSeeSourceAccount 的口径过滤
-    // （陪玩看不到、客服只看自己发布的单、店长/老板看全局 —— 老板 2026-09-28 定的）。
-    return orders.map((o) => {
-      const masked = maskCustomerWechat(o, user);
-      const cf = masked.customFields as any;
-      if (!canSeeSourceAccount(user, o) && cf?.customerSourceAccount) {
-        return { ...masked, customFields: { ...cf, customerSourceAccount: '***' } };
-      }
-      return masked;
-    });
+    // 隐私：副陪（搭档）看不到主陪的客户微信。
+    // 引流账号（来源账号）**不再按角色抹成 `***`**（老板 2026-09-30「管理端的 订单管理
+    // 引流账号 怎么是 *？」）：陪玩端那一列本来就被 CustomerSourceMaskInterceptor 整列摘掉了，
+    // 管理端（客服 / 店长 / 老板）一律显示完整账号 —— 和「客户管理」那一格同一口径。
+    return orders.map((o) => maskCustomerWechat(o, user));
   }
 
   async grab(orderId: string, companionId: string) {

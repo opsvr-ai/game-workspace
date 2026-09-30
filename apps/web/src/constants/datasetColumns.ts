@@ -64,7 +64,7 @@ export const FIELD_WIDTH = {
   customerSource: 50,
   /** 「引流账号」单行（管理端）：发笔记的那个小红书 / 抖音号（trafficAccount.nickname）。
    *  实测最长「总掉萌萌泪 旧 新 鱼鱼鱼🐟」= 157px；再长就省略号 + 鼠标悬停看全。
-   *  别人的单对客服是 `***`（服务端 canSeeSourceAccount 过滤），已弃用的账号后面跟小灰字「已弃用」。 */
+   *  管理端一律显示完整（抹成 `***` 的规则 2026-09-30 删了），已弃用的账号后面跟小灰字「已弃用」。 */
   customerSourceAccount: 116,
   /** 「客户昵称」单行（管理端）：客户昵称 + 灰字客户编号（编号只有 1~3 位，单独占一列太浪费）。
    *  实测最长「绝密航天毁一生 · 219」= 123px。 */
@@ -440,7 +440,7 @@ export const CELL_MAIN_TEXT: React.CSSProperties = {
  * 客户来源（小红书 / 抖音 / 快手…）和来源账号，对**陪玩端一律不显示**。
  *
  * 老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」。服务端
- * `common/order-privacy.ts` 的 `canSeeSourceAccount()` 已经把来源账号抹成 `***`，
+ * `common/order-privacy.ts` 的 `stripCustomerSourceDeep`（拦截器）对陪玩端**整列摘掉**，
  * 前端这里把「小红书」这三个字本身、以及详情弹窗里的「客户来源 / 来源账号」两行也一起藏掉 ——
  * 只抹账号、留着平台名，陪玩还是能看到「这一单是从小红书来的」。
  *

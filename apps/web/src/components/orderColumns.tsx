@@ -228,7 +228,8 @@ export function buildOrderColumns({
         title: ORDER_FIELD_LABELS.customerSourceAccount,
         key: 'customerSourceAccount',
         width: W('customerSourceAccount', FIELD_WIDTH.customerSourceAccount),
-        // 别人的单，服务端（common/order-privacy.ts 的 canSeeSourceAccount）把来源账号抹成 `***`；
+        // 引流账号管理端一律显示完整 —— 老板 2026-09-30「订单管理的引流账号怎么是 *？」，
+        // 那条「客服只看自己发的单、别人的抹成 `***`」的规则整条删了（和「客户管理」同口径）；
         // 已弃用的账号后面跟一个小灰字「已弃用」
         render: (_: unknown, o: any) => {
           const account = o.customFields?.customerSourceAccount || '';
