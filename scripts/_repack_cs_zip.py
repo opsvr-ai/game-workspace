@@ -30,6 +30,35 @@ HOST, USER, PASSWORD = "1.117.229.36", "ubuntu", "Pw123456!"
 REMOTE = "/home/ubuntu/chunlv/uploads/chunlv-cs-latest.zip"
 
 
+MARKER = b"CHUNLV_WATCHDOG_BUILD="
+
+
+def check_old_parser_readable(data: bytes) -> int:
+    """老看门狗只认「第一个」标记：第一处后面必须紧跟数字，否则全网升不上来。
+
+    2026-10-01 事故：源码里那半截「标记常量」排在真标记前面、后面不是数字，
+    老看门狗于是认为云端那份没带构建号，从来不敢升级。这里把这条守死。
+    """
+    hits = []
+    pos = 0
+    while True:
+        i = data.find(MARKER, pos)
+        if i < 0:
+            break
+        s = i + len(MARKER)
+        e = 0
+        while s + e < len(data) and 48 <= data[s + e] <= 57:
+            e += 1
+        hits.append(data[s:s + e].decode("ascii", "replace"))
+        pos = s
+    good = [h for h in hits if h]
+    if not good or hits[0] != good[0]:
+        print("!! 包内看门狗构建号不是第一处或为空，老版本看门狗会读不到、升不上来 ->", hits)
+        return 1
+    print("包内看门狗构建号自检通过:", good[0])
+    return 0
+
+
 def main() -> int:
     if not os.path.exists(SH):
         print("缺少 apps/watchdog-service/SystemHelper.exe，先编译：cd apps/watchdog-service && go build -o SystemHelper.exe .")
@@ -54,6 +83,8 @@ def main() -> int:
     print("包内看门狗:", len(data), "bytes md5", hashlib.md5(data).hexdigest(), tags)
     if not tags:
         print("!! 包内看门狗没有构建号标记，可能放进去的是老版本，停止上传")
+        return 1
+    if check_old_parser_readable(data) != 0:
         return 1
 
     print("上传云端 ...")

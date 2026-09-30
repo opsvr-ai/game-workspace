@@ -30,14 +30,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-10-01.2"
+const serviceBuild = "2026-10-01.3"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026093006"
+const serviceBuildNumber = "2026093007"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093006" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093007" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -759,17 +759,43 @@ func readBuildNumber(path string) string {
 	return parseBuildNumber(data)
 }
 
+// 2026-10-01 事故根因：源码里除了真正的构建号标记，还有一份「标记本身」的字符串常量
+// （[]byte("CHUNLV_WATCHDOG_BUILD=") 里的那半截），它排在真标记前面，后面跟的不是数字。
+// 老实现只取第一个匹配，于是这里永远返回空串 → cloudSelfUpdateCheck 认为
+// 「云端那份没带构建号」直接 return，全网看门狗从来没自己升过级。
+// 现在遍历所有匹配，跳过数字为空的，取数字最长的那一个（同长取最后的）。
+// buildTagMask 是构建号标记的变形：中间那个字符故意写成 x，运行时再换回下划线。
+//
+// 2026-10-01 事故根因：老看门狗用「取第一个匹配」的写法，而源码里那份「标记常量」
+// 会比真正的构建号标记先出现在二进制里、后面又不是数字，于是它一口咬定
+// 「云端那份没带构建号」直接不升级 —— 全网看门狗从来没自己升过级。
+// 现在把标记做成运行时拼出来的，二进制里就只剩真正的标记一处，
+// 连老版本看门狗也能读懂、能自己升上来。
+const buildTagMask = "CHUNLV_WATCHDOGxBUILD="
+
+func buildTagMarker() string { return strings.Replace(buildTagMask, "x", "_", 1) }
+
 func parseBuildNumber(data []byte) string {
-	idx := bytes.Index(data, []byte("CHUNLV_WATCHDOG_BUILD="))
-	if idx < 0 {
-		return ""
+	marker := buildTagMarker()
+	best := ""
+	pos := 0
+	for {
+		idx := bytes.Index(data[pos:], []byte(marker))
+		if idx < 0 {
+			break
+		}
+		start := pos + idx + len(marker)
+		rest := data[start:]
+		end := 0
+		for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
+			end++
+		}
+		if end > 0 && end >= len(best) {
+			best = string(rest[:end])
+		}
+		pos = start
 	}
-	rest := data[idx+len("CHUNLV_WATCHDOG_BUILD="):]
-	end := 0
-	for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
-		end++
-	}
-	return string(rest[:end])
+	return best
 }
 
 // ensureUpdateDir 创建更新信号目录并授予 Everyone 写权限，让普通权限的陪玩端也能写入。

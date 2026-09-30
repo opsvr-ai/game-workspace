@@ -576,3 +576,28 @@ func TestIsVirtualAdapterSkipsVirtualNics(t *testing.T) {
 		t.Fatalf("localMachineID must not contain spaces: %q", localMachineID())
 	}
 }
+
+func TestParseBuildNumberSkipsTheMarkerConstantItself(t *testing.T) {
+	// 真实二进制里，源码那份「标记常量」会排在真标记前面，后面跟的不是数字。
+	data := []byte("\x00\x01CHUNLV_WATCHDOG_BUILD=\x00\x02\x03CHUNLV_WATCHDOG_BUILD=2026093007\x00tail")
+	if got := parseBuildNumber(data); got != "2026093007" {
+		t.Fatalf("解析到的构建号是 %q，期望 2026093007", got)
+	}
+}
+
+func TestParseBuildNumberPicksTheLongestRun(t *testing.T) {
+	data := []byte("CHUNLV_WATCHDOG_BUILD=7\x00CHUNLV_WATCHDOG_BUILD=2026093007")
+	if got := parseBuildNumber(data); got != "2026093007" {
+		t.Fatalf("解析到的构建号是 %q，期望 2026093007", got)
+	}
+}
+
+func TestParseBuildNumberMissingMarker(t *testing.T) {
+	if got := parseBuildNumber([]byte("nothing here")); got != "" {
+		t.Fatalf("没有标记时应返回空串，实际 %q", got)
+	}
+	// 只有「标记常量」那半截、后面没数字时也要返回空串，不能瞎猜。
+	if got := parseBuildNumber([]byte("CHUNLV_WATCHDOG_BUILD=;")); got != "" {
+		t.Fatalf("标记后没有数字时应返回空串，实际 %q", got)
+	}
+}
