@@ -14,6 +14,9 @@ model User {
   role               String   @default("COMPANION")
   studioId           String?
   isAuthorized       Boolean  @default(false)
+  // 单点登录（老板 2026-10-01）：管理 / 客服账号每登录一次 +1，
+  // 旧令牌里的号对不上就 401（被顶掉）；陪玩不加不减，多台在线不受影响。
+  sessionVersion     Int      @default(0)
   resignedAt         DateTime? // 离职时间：陪玩 / 客服 / 店长通用（老板账号不允许离职）
   secondPasswordHash String?
   displayName        String?
@@ -110,8 +113,10 @@ model Companion {
   // 每日「立即打」抢单名额（按下等马/中等马/上等马发放，未用完自动累计）
   quotaBalance        Int       @default(0)
   quotaGrantedThrough DateTime?
-  // 接单中 / 娱乐中是否也接收新单弹窗（默认不打扰，想抢单的自己开）
+  // 接单中是否也接收新单弹窗（默认不打扰，想抢单的自己开）
   notifyWhileBusy     Boolean   @default(false)
+  // 娱乐中是否也接收新单弹窗（老板 2026-10-01：默认弹，但这两种状态可自己关）
+  notifyWhileEntertainment Boolean @default(true)
   // 报账微信码：陪玩自己上传的收款码图片（财务报账 / 发工资时点开扫一扫就转钱）
   payoutQrUrl         String?
   payoutQrUpdatedAt   DateTime?

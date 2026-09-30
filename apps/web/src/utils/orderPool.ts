@@ -1,4 +1,9 @@
-import { buildOrderFieldEntries, orderFieldLabel, type OrderFieldEntry } from '../constants/orderFields';
+import {
+  buildOrderFieldEntries,
+  orderFieldLabel,
+  COMPANION_POOL_HIDDEN_FIELDS,
+  type OrderFieldEntry,
+} from '../constants/orderFields';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -100,10 +105,21 @@ export function buildOrderPoolFields(
   now: number,
   disappearMinutes: number,
   scheduledDisappearMinutes: number,
-  opts: { taken?: boolean; isCompanion?: boolean } = {},
+  opts: { taken?: boolean; isCompanion?: boolean; companionId?: string } = {},
 ): OrderFieldEntry[] {
   const cf = order.customFields || {};
-  const entries = buildOrderFieldEntries(order, { isCompanion: opts.isCompanion === true });
+  const isCompanion = opts.isCompanion === true;
+  // 抢单池里陪玩端**看不到客户的联系方式**（老板 2026-10-01：「还没抢就显示微信 那还抢什么？」），
+  // 除非这单本来就是他的（客服指定给他 / 他自己已经抢到）—— 那时候服务要用，必须给。
+  const mine =
+    isCompanion &&
+    (order?._takenByMe === true ||
+      (!!opts.companionId &&
+        (order?.companionId === opts.companionId || order?.coCompanionId === opts.companionId)));
+  const entries = buildOrderFieldEntries(order, {
+    isCompanion,
+    hidden: isCompanion && !mine ? COMPANION_POOL_HIDDEN_FIELDS : undefined,
+  });
   // 预约单：发布订单表单里「预约时间」紧跟在「打单时间」后面，这里也补在「金额 / 打单」后面
   if (cf.urgency === 'later' && cf.scheduledTimeText) {
     const at = entries.findIndex((e) => e.key === 'amount');

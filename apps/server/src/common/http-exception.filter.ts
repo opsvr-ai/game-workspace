@@ -58,9 +58,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const statusCode = exception.getStatus();
+      // 自定义的 reason（例如被顶号 SESSION_REPLACED）原样透给前端：
+      // 只认「字符串型 reason」，code 还是 HTTP 状态码，不动既有返回。
+      const raw = (exception.getResponse?.() as any) || {};
+      const reason = typeof raw?.reason === 'string' ? raw.reason : undefined;
       reply.status(statusCode).send({
         code: statusCode,
         message: exception.message,
+        ...(reason ? { reason } : {}),
       });
       return;
     }

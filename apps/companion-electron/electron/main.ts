@@ -534,22 +534,55 @@ function escapeHtml(v: unknown): string {
   });
 }
 
-function broadcastPopupHtml(payload: { title?: string; body?: string; icon?: string; seconds?: number }): string {
+function broadcastPopupHtml(payload: {
+  title?: string;
+  body?: string;
+  icon?: string;
+  seconds?: number;
+  orderId?: string;
+  hint?: string;
+}): string {
   const title = escapeHtml(payload?.title || '群聊广播');
   const body = escapeHtml(payload?.body || '');
   const icon = escapeHtml(payload?.icon || '📢');
   const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
+  const orderId = String(payload?.orderId || '');
+  const hint = escapeHtml(payload?.hint || '');
+  // 只有带订单号的横幅才「可点」（点了跳抢单池）；群聊广播仍然纯展示。
+  const clickable = orderId.length > 0 && hint.length > 0;
+  const bodyMax = hint ? 40 : 66;
+  const clickCss = clickable ? '.card{cursor:pointer}' : '';
+  const hintHtml = hint ? `<div class="hint">${hint}</div>` : '';
+  const script = clickable
+    ? `<script>
+(function(){
+  var api = window.electronAPI; if (!api || !api.orderBannerHover) return;
+  var over = false;
+  document.addEventListener('mousemove', function(e){
+    var t = e.target;
+    var hit = !!(t && t.closest && t.closest('.card'));
+    if (hit !== over) { over = hit; try { api.orderBannerHover(hit); } catch(_){} }
+  });
+  document.addEventListener('click', function(){
+    try { api.orderBannerClick(${JSON.stringify(orderId)}); } catch(_){}
+  });
+})();
+</script>`
+    : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:transparent;font-family:"Microsoft YaHei",sans-serif;overflow:hidden}
 .card{position:relative;display:flex;gap:12px;align-items:flex-start;height:calc(100vh - 8px);margin:4px;padding:14px 16px 16px;background:linear-gradient(135deg,#1E293B,#0F172A);border:1px solid #FF4757;border-left:5px solid #FF4757;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);color:#F8FAFC;overflow:hidden}
 .icon{font-size:22px;line-height:1.2}
 .t{font-size:14px;font-weight:700;color:#fff}
-.b{margin-top:6px;font-size:13px;line-height:1.6;color:#E2E8F0;word-break:break-word;max-height:66px;overflow:hidden}
+.b{margin-top:6px;font-size:13px;line-height:1.6;color:#E2E8F0;word-break:break-word;max-height:${bodyMax}px;overflow:hidden}
+.hint{margin-top:8px;font-size:12px;font-weight:600;color:#FFD166}
 .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:#FF4757;transform-origin:left;animation:drain ${seconds}s linear forwards}
+${clickCss}
 @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style></head><body>
-<div class="card"><div class="icon">${icon}</div><div style="min-width:0;flex:1"><div class="t">${title}</div><div class="b">${body}</div></div><div class="bar"></div></div>
+<div class="card"><div class="icon">${icon}</div><div style="min-width:0;flex:1"><div class="t">${title}</div><div class="b">${body}</div>${hintHtml}</div><div class="bar"></div></div>
+${script}
 </body></html>`;
 }
 
@@ -560,7 +593,14 @@ const broadcastWindows: BrowserWindow[] = [];
  * 陪玩在打游戏或最小化了客户端时，也能在屏幕右下角看到。
  * 新单提醒会带上自己的停留时长（服务端 _popupSeconds，默认 20 秒），比群聊广播停久一点。
  */
-function showBroadcastPopup(payload: { title?: string; body?: string; seconds?: number; icon?: string }): void {
+function showBroadcastPopup(payload: {
+  title?: string;
+  body?: string;
+  seconds?: number;
+  icon?: string;
+  orderId?: string;
+  hint?: string;
+}): void {
   const W = 480;
   const H = 150;
   const GAP = 10;
@@ -592,11 +632,17 @@ function showBroadcastPopup(payload: { title?: string; body?: string; seconds?: 
     show: false,
     alwaysOnTop: true,
     backgroundColor: '#00000000',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    // 挂上 preload：横幅里那小块要能把「鼠标在卡片上/点了一下」告诉主进程。
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, '../preload-dist/preload.js'),
+    },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  // 鼠标穿透：不挡住陪玩点游戏/点微信
+  // 默认鼠标穿透：不挡住陪玩点游戏/点微信；
+  // 只有鼠标移到卡片上时，横幅里那段脚本会叫我们把穿透关掉（见 order-banner:hover）。
   win.setIgnoreMouseEvents(true, { forward: true });
   broadcastWindows.push(win);
   win.on('closed', () => {
@@ -810,6 +856,28 @@ function setupIPC(): void {
   // 群聊广播：主进程直接画一个 Windows 置顶窗口（5 秒后自动消失）。
   // 普通系统通知在没装过开机快捷方式的机器上不一定弹得出来，所以这里自己画，
   // 保证"客服喊话陪玩必须看到"。
+  // 新单横幅：鼠标在卡片上才「可点」（其余时候穿透，不挡玩游戏）。
+  ipcMain.on('order-banner:hover', (event, over: boolean) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) {
+      try {
+        win.setIgnoreMouseEvents(!over, { forward: true });
+      } catch { /* 窗口正在关掉 */ }
+    }
+  });
+  // 点横幅 = 把客户端拉到最前 + 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
+  ipcMain.on('order-banner:click', (_event, orderId: string) => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('order-pool-focus', { orderId: String(orderId || '') });
+      }
+    } catch (err: any) {
+      logger.warn('Order banner click failed', { error: err?.message || err });
+    }
+  });
   ipcMain.handle('broadcast:popup', (event, payload: { title?: string; body?: string }) => {
     if (!isTrustedSender(event)) return { ok: false, reason: 'untrusted-origin' };
     try {
@@ -1057,12 +1125,11 @@ app.whenReady().then(() => {
   onWsEvent('order:urgent', (data: any) => {
     if (currentRole !== 'COMPANION') return;
     try {
+      // 老板 2026-10-01：新单统一只弹 Windows 横幅（窗口在前面也照弹，
+      // 软件里那张右下角卡片不再弹）；顺手闪一下任务栏也不误事。
       const facing =
         !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused();
-      if (facing) {
-        mainWindow!.flashFrame(true);
-        return;
-      }
+      if (facing) mainWindow!.flashFrame(true);
       const title = data?._direct
         ? '🎯 客服指定给你接单'
         : data?._bridged
@@ -1075,7 +1142,10 @@ app.whenReady().then(() => {
         title,
         body,
         icon: '⚡',
-        seconds: Number(data?._popupSeconds) > 0 ? Number(data._popupSeconds) : 20,
+        seconds: Number(data?._popupSeconds) > 0 ? Number(data._popupSeconds) : 15,
+        // 带上订单号 + 提示：横幅就可点，点了跳到抢单池并标出这一单（再点一下「抢单」）。
+        orderId: data?.id || data?.orderId,
+        hint: '点这里 → 去抢单池看这单（再点一下「抢单」）',
       });
     } catch (err: any) {
       logger.warn('Urgent order popup failed', { error: err?.message || err });

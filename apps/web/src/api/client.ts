@@ -79,7 +79,7 @@ const processQueue = (error: unknown, token: string | null) => {
 
 // 登录态彻底失效时回到登录页；Electron 客户端会重新挂载 LoginPage，
 // 如果保存过账号密码就会自动重新登录，避免机器开着却一直显示离线。
-const redirectToLogin = () => {
+export const redirectToLogin = () => {
   if (typeof window === 'undefined') return;
   if (window.location.pathname.startsWith('/login')) return;
   window.location.href = '/login';
@@ -100,6 +100,40 @@ export const clearStoredSession = () => {
     ea?.storeSet?.('token', '');
     ea?.storeSet?.('refreshToken', '');
   } catch { /* 浏览器里没有这套 IPC */ }
+};
+
+/**
+ * 「被顶号」标记（老板 2026-10-01：客服/管理顶号、陪玩不顶）。
+ *
+ * 同一个客服账号在另一台电脑登录后，这台机器的令牌立刻失效。如果登录页还按老习惯
+ * 拿「记住的账号密码」自动登录，就会把刚登上去的那台反过来顶掉，两边来回顶、谁都用不了。
+ * 所以被顶掉时记一个标记：登录页看到标记就不再自动登录，只提示「已在别处登录」，
+ * 等人手动点登录（那时才是真要用这台机器）。
+ */
+const SESSION_REPLACED_KEY = 'chunlv.sessionReplaced';
+
+export const markSessionReplaced = (info?: { username?: string }) => {
+  try {
+    localStorage.setItem(
+      SESSION_REPLACED_KEY,
+      JSON.stringify({ at: Date.now(), username: info?.username || '' }),
+    );
+  } catch { /* 隐私模式下写不了就当没记 */ }
+};
+
+export const readSessionReplaced = (): { at: number; username: string } | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_REPLACED_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return { at: Number(parsed?.at) || 0, username: String(parsed?.username || '') };
+  } catch {
+    return null;
+  }
+};
+
+export const clearSessionReplaced = () => {
+  try { localStorage.removeItem(SESSION_REPLACED_KEY); } catch { /* 同上 */ }
 };
 
 http.interceptors.response.use(
@@ -123,6 +157,15 @@ http.interceptors.response.use(
     const originalRequest = error.config as AxiosError['config'] & {
       _retry?: boolean;
     };
+
+    // 被别的电脑顶号（客服 / 管理）：令牌已经作废，不是「网络抖一下」。
+    // 立刻清干净回登录页，并记下标记（登录页据此不再自动登录，避免两边互顶）。
+    if ((error.response as any)?.data?.reason === 'SESSION_REPLACED') {
+      markSessionReplaced();
+      clearStoredSession();
+      redirectToLogin();
+      return Promise.reject(error);
+    }
 
     // Skip retry for /auth/refresh itself — prevents infinite loop when JWT secrets mismatch
     if (originalRequest.url?.includes('/auth/refresh')) {

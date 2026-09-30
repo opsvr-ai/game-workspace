@@ -157,6 +157,27 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /**
+   * 把某个用户现有的所有连接踢掉（老板 2026-10-01）：管理 / 客服账号被顶号时，
+   * 旧的那台要立刻断开 —— 否则它虽然接不了接口，却还能继续收实时消息和抢单弹窗。
+   */
+  kickUser(userId: string): number {
+    const ids = this.userSockets.get(userId);
+    if (!ids?.size) return 0;
+    let kicked = 0;
+    for (const sid of Array.from(ids)) {
+      const socket = this.server?.sockets?.sockets?.get(sid);
+      if (!socket) continue;
+      try {
+        socket.emit('auth:replaced', { message: '该账号已在别的电脑上登录' });
+        socket.disconnect(true);
+        kicked += 1;
+      } catch { /* 单条连接失败不影响别的 */ }
+    }
+    this.userSockets.delete(userId);
+    return kicked;
+  }
+
   async handleConnection(client: Socket): Promise<void> {
     try {
       const token = (client.handshake.auth?.token || client.handshake.query?.token) as string | undefined;
@@ -231,6 +252,26 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           tokenKind: staleToken.kind,
           expiredAt: staleToken.expiredAt.toISOString(),
         });
+      }
+
+      // 单点登录（老板 2026-10-01）：管理 / 客服账号的令牌里带着 sessionVersion，
+      // 对不上 DB 里当前的号码 = 已经在别处登录过，这条连接直接拒掉。
+      // 陪玩的 sv 从不变化（不顶号），老令牌没有 sv 也不判，
+      // 避免发布当刻把正在接单的陪玩掉下线。
+      if (typeof (payload as any).sv === 'number') {
+        const svRow = await this.prisma.user
+          .findUnique({ where: { id: payload.sub }, select: { sessionVersion: true } })
+          .catch(() => null);
+        if (!svRow || (payload as any).sv !== svRow.sessionVersion) {
+          logger.info('Socket rejected: session replaced', {
+            userId: payload.sub,
+            username: payload.username,
+            role: payload.role,
+          });
+          client.emit('auth:replaced', { message: '该账号已在别的电脑上登录' });
+          setTimeout(() => client.disconnect(true), 200);
+          return;
+        }
       }
 
       const user: ConnectedUser = {
@@ -750,10 +791,13 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * 「新单弹窗」该推给谁 —— **全站唯一一份规则**，本店广播和桥接推送都用它。
    *
-   * 老板 2026-09-22：**空闲 + 娱乐中一律弹**（娱乐中的也要能抢单）；
-   * 只有**接单中**（正在给别人打单）默认不打扰 —— 陪玩自己在「陪玩端 → 设置」打开
-   * 「打单中也接收新单弹窗」（`Companion.notifyWhileBusy`）才推给他。
-   * 以前娱乐中的人也非得先开这个开关才收得到，跟老板口径不一致（娱乐中默认收不到）。
+   * 老板 2026-10-01 定的口径：
+   *  - **空闲 / 挂机（休息）一律弹**，不受开关影响；
+   *  - **娱乐中 / 接单中可以自己关**（娱乐中默认弹 `notifyWhileEntertainment`，
+   *    接单中默认不打扰 `notifyWhileBusy`）。
+   *
+   * 沿革：老板 2026-09-22 定的是「空闲 + 娱乐中一律弹，只有接单中默认不打扰」；
+   * 2026-10-01 又把「挂机（休息）」加进来，并把「娱乐中」也改成可自己关。
    */
   private urgentRecipientWhere(studioId: string) {
     return {
@@ -762,7 +806,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       isResigned: false,
       OR: [
         { status: 'AVAILABLE' },
-        { status: 'ENTERTAINMENT' },
+        // 挂机 / 休息：老板 2026-10-01「空闲+挂机状态也照样弹」
+        { status: 'RESTING' },
+        { status: 'ENTERTAINMENT', notifyWhileEntertainment: true },
         { status: 'BUSY', notifyWhileBusy: true },
       ],
     };

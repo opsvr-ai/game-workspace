@@ -55,6 +55,23 @@ export class AuthService {
       throw new ForbiddenException('账号尚未通过审核，请联系管理员');
     }
 
+    // 单点登录（老板 2026-10-01）：管理 / 客服每登录一次就把 sessionVersion +1，
+    // 旧电脑上那张令牌的号码立刻对不上 → 下一次请求 401（前端提示「已在别处登录」并回登录页）。
+    // 陪玩不 +1：多台在线不受影响。
+    let sessionVersion = user.sessionVersion;
+    if (MANAGED_ROLES.includes(user.role as UserRole)) {
+      const bumped = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { sessionVersion: { increment: 1 } },
+        select: { sessionVersion: true },
+      });
+      sessionVersion = bumped.sessionVersion;
+      // 已经连着的旧连接也要断掉，否则被顶掉的那台还能收实时消息 / 弹窗。
+      try {
+        this.wsGateway.kickUser(user.id);
+      } catch { /* 跳号才会走这里，不能影响登录 */ }
+    }
+
     const payload: JwtPayload = {
       sub: user.id,
       username: user.username,
@@ -62,6 +79,7 @@ export class AuthService {
       studioId: user.studioId,
       companionId: user.companion?.id,
       isAuthorized: user.isAuthorized,
+      sv: sessionVersion,
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -129,6 +147,15 @@ export class AuthService {
       throw new ForbiddenException(RESIGNED_LOGIN_MESSAGE);
     }
 
+    // 单点登录（老板 2026-10-01）：refreshToken 里带着登录时的号码，
+    // 对不上就是已经被别的电脑顶掉了 —— 不能再续，也不能反过来把新的那台顶掉。
+    if (typeof payload.sv === 'number' && payload.sv !== user.sessionVersion) {
+      throw new UnauthorizedException({
+        message: '该账号已在别的电脑上登录，请重新登录',
+        reason: 'SESSION_REPLACED',
+      });
+    }
+
     if (user.role === UserRole.COMPANION && user.companion?.reviewStatus === 'APPROVED' && !user.isAuthorized) {
       await this.prisma.user.update({ where: { id: user.id }, data: { isAuthorized: true } });
       user.isAuthorized = true;
@@ -146,6 +173,8 @@ export class AuthService {
       studioId: user.studioId,
       companionId: user.companion?.id,
       isAuthorized: user.isAuthorized,
+      // 续期不会 +1，只把当前号码带下去，否则自己把自己顶掉。
+      sv: user.sessionVersion,
     };
 
     const accessToken = this.jwtService.sign(newPayload, {
@@ -350,4 +379,13 @@ export interface JwtPayload {
   studioId: string | null;
   companionId?: string;
   isAuthorized?: boolean;
+  /** 单点登录号码（老板 2026-10-01）：对不上 User.sessionVersion 就是被顶掉了。老令牌没有这个字段。 */
+  sv?: number;
 }
+
+/**
+ * 哪些角色要「单点登录」（新登录把旧的顶掉）。
+ * 老板 2026-10-01：管理 / 客服顶号；**陪玩不顶** —— 陪玩在打单，
+ * 被别的机器登一下就掉线会直接打断接单（老板定的规矩）。
+ */
+const MANAGED_ROLES: UserRole[] = [UserRole.OWNER, UserRole.ADMIN, UserRole.CS];

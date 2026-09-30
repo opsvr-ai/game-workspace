@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin } from 'antd';
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined, EditOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
@@ -39,6 +39,9 @@ const OrderPoolPage: React.FC = () => {
 
   const isCompanion = role === 'COMPANION';
   const navigate = useNavigate();
+  const location = useLocation();
+  // 点 Windows 新单横幅跳过来时，被点的那一单标黄 + 滚到屏幕中间（老板 2026-10-01）。
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<any[]>([]);
   const [poolStatus, setPoolStatus] = useState<any>(null);
@@ -213,6 +216,39 @@ const OrderPoolPage: React.FC = () => {
     return () => window.removeEventListener('chunlv:order-pool-updated', refreshPool);
   }, [fetchData]);
 
+  // 被点的那一单：横幅里点一下或而跳过来（路由带 state），都把它标黄。
+  useEffect(() => {
+    if (!isCompanion) return;
+    const onFocus = (e: Event) => {
+      const orderId = String((e as CustomEvent)?.detail?.orderId || '');
+      if (orderId) setHighlightId(orderId);
+    };
+    window.addEventListener('chunlv:order-focus', onFocus);
+    const fromRoute = String((location.state as any)?.highlightOrderId || '');
+    if (fromRoute) setHighlightId(fromRoute);
+    return () => window.removeEventListener('chunlv:order-focus', onFocus);
+  }, [isCompanion, location.state]);
+
+  // 标黄一段时间后自己跦掉；刚进页面时订单还在拉，等它出现了再滚到中间。
+  useEffect(() => {
+    if (!highlightId) return;
+    let tries = 0;
+    const scroller = setInterval(() => {
+      const el = document.querySelector(`[data-order-id="${highlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        clearInterval(scroller);
+      } else if (++tries > 20) {
+        clearInterval(scroller);
+      }
+    }, 300);
+    const clear = setTimeout(() => setHighlightId(null), 15000);
+    return () => {
+      clearInterval(scroller);
+      clearTimeout(clear);
+    };
+  }, [highlightId]);
+
   const handleGrab = async (orderId: string) => {
     setGrabbing(orderId);
     try {
@@ -351,23 +387,29 @@ const OrderPoolPage: React.FC = () => {
   const renderPoolCard = (order: any, idx: number) => {
     // 已被抢走的单：整行灰掉、不能点、右侧只说明「被谁抢走了 / 什么时候」。
     const taken = !!order._taken;
+    // 横幅里点过来的那一单：整行标黄一会儿，一眼就能找到。
+    const highlighted = highlightId === String(order.id);
     const fields = buildOrderPoolFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
       taken,
       isCompanion,
+      companionId: user?.companionId,
     });
 
     return (
       <div
         key={order.id}
+        data-order-id={order.id}
         className="order-pool-row"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           padding: DATA_ROW_PADDING,
-          background: taken ? '#FAFAFA' : '#fff',
+          background: highlighted ? '#FFF7E6' : taken ? '#FAFAFA' : '#fff',
           borderBottom: '1px solid #f0f0f0',
-          borderLeft: taken ? '3px solid #E2E8F0' : '3px solid transparent',
+          borderLeft: highlighted ? '3px solid #FA8C16' : taken ? '3px solid #E2E8F0' : '3px solid transparent',
+          boxShadow: highlighted ? 'inset 0 0 0 1px #FFD591' : undefined,
+          transition: 'background .3s ease',
           fontSize: DATA_FONT_SIZE,
           color: taken ? '#9AA3AF' : '#1f2329',
         }}

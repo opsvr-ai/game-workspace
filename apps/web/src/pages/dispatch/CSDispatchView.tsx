@@ -877,6 +877,7 @@ const CSDispatchView: React.FC = () => {
                   renderItem={(order, idx) => {
                     const fields = buildOrderPoolFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
                       isCompanion: user?.role === 'COMPANION',
+                      companionId: user?.companionId,
                     });
 
                     return (

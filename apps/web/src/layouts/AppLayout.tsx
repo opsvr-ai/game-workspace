@@ -381,6 +381,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           children: [
             { key: '/cs/employees', label: '人员管理' },
             { key: '/cs/work-wechats?type=COMPANION', label: '陪玩工作微信' },
+            { key: '/admin/battle-screenshots', label: '战绩图查看' },
           ],
         },
         {
@@ -1011,6 +1012,26 @@ const AppLayout: React.FC = () => {
   const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
   const [partnerInviteModalOpen, setPartnerInviteModalOpen] = React.useState(false);
 
+  // 点 Windows 新单横幅 → 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
+  // 不直接抢：正在打游戏的人万一误点了，会把不该报的单抢到手里。
+  React.useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.onOrderPoolFocus) return;
+    const off = api.onOrderPoolFocus((p: any) => {
+      const orderId = String(p?.orderId || '');
+      const path = rolePage(user?.role, 'pool') || '/companion/pool';
+      window.dispatchEvent(new CustomEvent('chunlv:order-focus', { detail: { orderId } }));
+      navigate(path, { state: { highlightOrderId: orderId } });
+    });
+    return () => {
+      try {
+        off?.();
+      } catch {
+        /* 已经卸载了 */
+      }
+    };
+  }, [navigate, user?.role]);
+
   const addPartnerInvite = React.useCallback((invite: any) => {
     setPartnerInvites((prev) => {
       const exists = prev.some((p) => p.sessionId === invite.sessionId);
@@ -1256,7 +1277,9 @@ const AppLayout: React.FC = () => {
     },
     onOrderUrgent: (data: any) => {
       if (user?.role === 'COMPANION') {
-        setUrgentOrder(data);
+        // 老板 2026-10-01：新单只弹 Windows 桌面横幅（15 秒），软件里那张右下角卡片不再弹。
+        // 横幅只在陪玩客户端里有；浏览器里打开时没有横幅，保留卡片兑底，免得什么都看不见。
+        if (!(window as any).electronAPI?.orderBannerClick) setUrgentOrder(data);
         window.dispatchEvent(new Event('chunlv:order-pool-updated'));
         // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗提示」：
         // 以前只有窗口里那张右下角卡片，窗口被游戏挡住 / 缩到托盘时看不到也听不到，

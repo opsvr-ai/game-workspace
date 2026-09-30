@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import http from '../api/client';
+import http, { markSessionReplaced, clearStoredSession, redirectToLogin } from '../api/client';
 
 interface UseSocketOptions {
   namespace?: string;
@@ -129,6 +129,13 @@ export function useSocket(opts: UseSocketOptions = {}) {
     });
     socket.on('auth:failed' as any, () => {
       void relogin();
+    });
+    // 被别的电脑顶号（客服 / 管理）：服务端主动告诉我们「你已被顶下去」。
+    // 不要再拿 refreshToken 去换新令牌（那样会把对面反过来顶掉），直接回登录页。
+    socket.on('auth:replaced' as any, () => {
+      markSessionReplaced();
+      clearStoredSession();
+      redirectToLogin();
     });
 
     socket.on('connect', () => {

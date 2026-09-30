@@ -4,6 +4,8 @@ import { Card, Button, Tabs, Typography, Space, Tag, message, Empty, Spin, Input
 import { DownloadOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import PageHeader from '../components/PageHeader';
+import { useAuthStore } from '../stores/authStore';
+import { UserRole } from '@chunlv/shared';
 
 const { Text } = Typography;
 
@@ -14,6 +16,10 @@ const STATUS: Record<string, { color: string; label: string }> = {
 };
 
 const BattleScreenshotReviewPage: React.FC = () => {
+  const role = useAuthStore((s) => s.user?.role);
+  // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——客服看得到这一页（只读），
+  // 「采纳并加分 / 驳回」会改陪玩的综合评分，仍然只有店长 / 老板能点。
+  const canReview = role === UserRole.ADMIN || role === UserRole.OWNER;
   const [items, setItems] = useState<BattleScreenshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('PENDING');
@@ -97,7 +103,14 @@ const BattleScreenshotReviewPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="🖼 战绩图审核" subtitle="采纳后自动给该陪玩综合评分加分（作为小红书素材）" />
+      <PageHeader
+        title={canReview ? '🖼 战绩图审核' : '🖼 战绩图查看'}
+        subtitle={
+          canReview
+            ? '采纳后自动给该陪玩综合评分加分（作为小红书素材）'
+            : '查看陪玩上传的战绩图（点「下载图片包」存到文件夹里看）；采纳 / 驳回由店长操作'
+        }
+      />
       <Card size="small">
         <Tabs
           activeKey={status}
@@ -162,7 +175,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
                   </Button>
                 </div>
                 {it.note && <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>备注：{it.note}</Text>}
-                {it.status === 'PENDING' && (
+                {it.status === 'PENDING' && canReview && (
                   <Space style={{ marginTop: 10 }}>
                     <Button type="primary" onClick={() => review(it.id, 'approve')}>采纳并加分</Button>
                     <Button danger onClick={() => setRejecting(it)}>驳回</Button>

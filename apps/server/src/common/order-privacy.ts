@@ -144,3 +144,51 @@ export function stripCustomerSourceDeep<T>(payload: T, opts: StripSourceOptions 
   }
   return out;
 }
+
+/**
+ * 抢单池里**陪玩端一定看不到客户联系方式**（老板 2026-10-01：「订单池怎么还没抢的订单也能看到
+ * 客户微信等信息？被抢过的怎么也显示？还没抢就显示微信 那还抢什么？」）。
+ *
+ * 以前这套系统只在「来源 / 引流账号 / 客户昵称 / 客户账号ID」四列上做了陪玩端隐藏，
+ * 唯独把「客户联系方式」（微信号 / YY / KOOK / 房间码）漏在外边 —— 2026-09-30
+ * 把订单 / 客户数据收成「唯一一份字段口径」时，抢单池那一行也跟着走同一份口径，
+ * 于是顺着把微信显示出来了。这里把它按**同一份口径**补齐：
+ *  - 陪玩端：没抢到的单、被别人抢走的单，联系方式一律看不到（抢到手自然有，走订单详情 / 抢单成功浮窗）；
+ *  - 客服 / 店长 / 老板：一个字都不动，照常看全。
+ *
+ * 只删「联系方式」这几个键，**不动**来源 / 金额 / 游戏这些 —— 抢单池要靠它们挑单。
+ */
+const POOL_CONTACT_CUSTOM_KEYS = [
+  "customerWechat",
+  "customerWechatQr",
+  "customerYy",
+  "customerPlatformAccount",
+  "customerRoomCode",
+];
+
+/** 把一个订单上的客户联系方式抹掉（删键，不是抹成 `***`）；返回新对象，不改传进来的那个。 */
+export function stripPoolCustomerContact<T>(order: T): T {
+  if (!order || typeof order !== "object") return order;
+  const src = order as any;
+  let out: any = src;
+
+  const cf = src.customFields;
+  if (cf && typeof cf === "object") {
+    const next: any = { ...cf };
+    let dirty = false;
+    for (const key of POOL_CONTACT_CUSTOM_KEYS) {
+      if (key in next) {
+        delete next[key];
+        dirty = true;
+      }
+    }
+    if (dirty) out = { ...out, customFields: next };
+  }
+
+  // 老单的微信存在 customer.wechatId 上（前端兜底也会读它），一并清掉；
+  // 客户编号（customerCode）留着，抢单池要靠它跟客户管理对号。
+  if (src.customer && typeof src.customer === "object" && src.customer.wechatId) {
+    out = { ...out, customer: { ...src.customer, wechatId: "" } };
+  }
+  return out;
+}

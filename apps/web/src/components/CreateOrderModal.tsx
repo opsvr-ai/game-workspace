@@ -300,9 +300,10 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         </Form.Item>
         {!directAddMode && !editingOrder && (
           <>
-            <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.POOL} rules={[{ required: true }]}>
+            {/* 老板 2026-10-01：发布订单里去掉「入池」（代码留着），
+                默认选「广播」。入池只剩管理端「直添客户」走它自己的隐式路径。 */}
+            <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.BROADCAST} rules={[{ required: true }]}>
               <Select>
-                <Option value={DispatchType.POOL}>入池</Option>
                 <Option value={DispatchType.BROADCAST}>广播</Option>
                 <Option value={DispatchType.DIRECT}>指定</Option>
               </Select>
@@ -322,10 +323,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 ) : null
               }
             </Form.Item>
-            {/* 入池的单：入池方式（老板 2026-09-29）。默认值自动带发单客服自己的档位。 */}
+            {/* 入池方式（老板 2026-09-29）：广播单用得到（线上→线下流转），
+                “入池”方式只剩管理端直添客户那条隐式路径。默认值自动带发单客服自己的档位。 */}
             <Form.Item noStyle shouldUpdate={(prev, cur) => prev.dispatchType !== cur.dispatchType}>
               {({ getFieldValue }) =>
-                getFieldValue('dispatchType') === DispatchType.POOL ? (
+                getFieldValue('dispatchType') !== DispatchType.DIRECT ? (
                   <Form.Item
                     name="poolScope"
                     label="入池方式"

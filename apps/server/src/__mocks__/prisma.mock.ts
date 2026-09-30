@@ -7,7 +7,14 @@ export function createMockPrisma() {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
-      update: vi.fn(),
+      // 单点登录（2026-10-01）：login() 会 `update({ data: { sessionVersion: { increment: 1 } } })`
+      // 并读回新的号码写进令牌。默认给一个能读的返回值，
+      // 免得所有走登录的用例都卡在这里（真实 Prisma 一定会返回这一行）。
+      update: vi.fn().mockImplementation(async (args: any) => ({
+        ...(args?.data || {}),
+        id: args?.where?.id || 'user-001',
+        sessionVersion: 1,
+      })),
       delete: vi.fn(),
       count: vi.fn(),
     },

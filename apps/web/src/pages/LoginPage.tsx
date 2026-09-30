@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox } from 'antd';
+import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox, Alert } from 'antd';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
-import http from '../api/client';
+import http, { readSessionReplaced, clearSessionReplaced } from '../api/client';
 import { reportClientError, diagnoseUploadPath } from '../api/diagnostics';
 import { compressImage } from '../utils/imageCompress';
 import { restoreClientSession } from '../utils/sessionRestore';
@@ -54,6 +54,9 @@ const LoginPage: React.FC = () => {
   const [forgotConfirm, setForgotConfirm] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [webVersion, setWebVersion] = useState(FALLBACK_WEB_VERSION);
+  // 被顶号提示：客服/管理账号在别的电脑登录后，这台会被踢到登录页。
+  // 这时候不能自动登录（不然又把对面顶下去、两边互顶），只提示一句等人手动登。
+  const [kickedOut, setKickedOut] = useState<{ at: number; username: string } | null>(null);
 
   // 客户端启动后自动恢复登录：
   // ① 先用主进程里还没过期的令牌直接恢复（不需要密码）；
@@ -61,6 +64,13 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     const api = (window as any).electronAPI;
     if (!api || didAutoLogin.current) return;
+    // 刚被别的电脑顶下来：只提示，不自动登录。
+    const replaced = readSessionReplaced();
+    if (replaced) {
+      didAutoLogin.current = true;
+      setKickedOut(replaced);
+      return;
+    }
     restoreClientSession()
       .then(async (restored) => {
         if (restored && !didAutoLogin.current) {
@@ -174,6 +184,9 @@ const LoginPage: React.FC = () => {
       message.warning('请输入姓名和密码');
       return;
     }
+    // 手动登录 = 真要用这台机器，清掉「被顶号」标记。
+    clearSessionReplaced();
+    setKickedOut(null);
     setLoading(true);
     try {
       const user = await login({ username: uname, password: pwd });
@@ -439,6 +452,27 @@ const LoginPage: React.FC = () => {
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
         <div className="subtitle">陪玩管理系统 · 前端 {webVersion}</div>
+
+        {/* 被别的电脑顶号（客服 / 管理）：不自动登录，只提示，等人手动登。 */}
+        {kickedOut && (
+          <Alert
+            type="warning"
+            showIcon
+            closable
+            onClose={() => setKickedOut(null)}
+            style={{ marginBottom: 14, textAlign: 'left' }}
+            message={"该账号已在别的电脑上登录"}
+            description={
+              <>
+                {kickedOut.username ? `账号「${kickedOut.username}」` : '这个账号'}
+                刚刚在另一台电脑登录，这台电脑已被踢下线。
+                <br />
+                为了不让两台电脑互相顶号，这里不再自动登录；
+                真要用这台电脑，直接输密码点「登录」就行。
+              </>
+            }
+          />
+        )}
 
         {inviteToken ? (
           showInviteLogin ? (

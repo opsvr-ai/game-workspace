@@ -14,6 +14,7 @@ import {
   Logger,
   Res,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -147,14 +148,21 @@ export class BattleScreenshotsController {
     return { code: 200, message: body.action === 'approve' ? '已采纳并加分' : '已驳回', data };
   }
 
+  // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——战绩图这页本身不显示图片，
+  // 真正「看到」战绩图就是点这个「下载图片包」。所以客服（CS）也要能下；采纳 / 驳回（改分）仍然只有店长 / 老板能动。
   @Get(':id/download')
-  @Roles(UserRole.ADMIN, UserRole.OWNER)
-  async download(@Param('id') id: string, @Res() res: Response): Promise<void> {
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async download(@Param('id') id: string, @Req() req: any, @Res() res: Response): Promise<void> {
     const item = await this.prisma.battleScreenshot.findUnique({
       where: { id },
       include: { companion: { include: { user: { select: { username: true, displayName: true } } } } },
     });
     if (!item) throw new NotFoundException('记录不存在');
+    // 列表本来就按工作室过滤（list 走 listAll(req.user.studioId)），下载这里以前没校验，
+    // 拿别人的 id 能下到别家的战绩图。这里补齐同样的口径。
+    if (req.user?.role !== UserRole.OWNER && req.user?.studioId && item.studioId !== req.user.studioId) {
+      throw new ForbiddenException('无权查看其他工作室的战绩图');
+    }
 
     const tmpDir = join(os.tmpdir(), `battle-${id}`);
     try {

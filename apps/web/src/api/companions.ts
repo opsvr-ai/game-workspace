@@ -18,7 +18,7 @@ export const companionsApi = {
     http.get('/companions/me/reportable-sessions', { params }),
   dormantCustomers: () => http.get('/companions/me/dormant-customers'),
   notifyPrefs: () => http.get('/companions/me/notify-prefs'),
-  setNotifyPrefs: (data: { notifyWhileBusy?: boolean }) =>
+  setNotifyPrefs: (data: { notifyWhileBusy?: boolean; notifyWhileEntertainment?: boolean }) =>
     http.put('/companions/me/notify-prefs', data),
   wallet: () => http.get('/companions/me/wallet'),
   /** 我的报账微信码（陪玩自己上传的收款码） */

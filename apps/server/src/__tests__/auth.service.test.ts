@@ -20,6 +20,8 @@ function mockWsGateway() {
   return {
     notifyUser: vi.fn(),
     broadcastToStudio: vi.fn(),
+    // 单点登录：登录时要把旧的那台连接踢掉
+    kickUser: vi.fn(),
   } as any;
 }
 
@@ -32,6 +34,7 @@ function createUser(overrides: Record<string, any> = {}) {
     studioId: 'studio-001',
     isAuthorized: true,
     secondPasswordHash: bcrypt.hashSync('second-password', 4),
+    sessionVersion: 0,
     companion: null,
     ...overrides,
   };
@@ -95,6 +98,35 @@ describe('AuthService', () => {
         },
       });
       expect(jwtService.sign).toHaveBeenCalledTimes(2);
+    });
+
+    it('客服 / 管理登录会把 sessionVersion +1 并踢掉旧的那台（顶号）', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(createUser({ role: 'CS' }));
+
+      await service.login({ username: 'cs_user', password: 'correct-password' });
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-001' },
+        data: { sessionVersion: { increment: 1 } },
+        select: { sessionVersion: true },
+      });
+      expect(wsGateway.kickUser).toHaveBeenCalledWith('user-001');
+      // 新令牌带着新的号码（模拟里 update 返回 1）
+      expect(jwtService.sign.mock.calls[0][0].sv).toBe(1);
+    });
+
+    it('陪玩登录不顶号（多台在线不受影响）', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(
+        createUser({
+          role: 'COMPANION',
+          companion: { id: 'comp-1', reviewStatus: 'APPROVED', isResigned: false },
+        }),
+      );
+
+      await service.login({ username: 'p1', password: 'correct-password' });
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(wsGateway.kickUser).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for wrong password', async () => {
@@ -222,6 +254,39 @@ describe('AuthService', () => {
       await expect(service.refresh('expired-token')).rejects.toThrow(
         'refreshToken 无效或已过期',
       );
+    });
+
+    it('被别的电脑顶掉的令牌不能续期（否则两台互相顶）', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-001',
+        username: 'cs_user',
+        role: 'CS',
+        studioId: 'studio-001',
+        sv: 1,
+      });
+      // DB 里已经是 2 = 又在别的电脑登了一次
+      mockPrisma.user.findUnique.mockResolvedValue(createUser({ role: 'CS', sessionVersion: 2 }));
+
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(UnauthorizedException);
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(
+        '该账号已在别的电脑上登录，请重新登录',
+      );
+    });
+
+    it('号码对得上就能续期，且续期不会 +1（不能自己把自己顶掉）', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-001',
+        username: 'cs_user',
+        role: 'CS',
+        studioId: 'studio-001',
+        sv: 2,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue(createUser({ role: 'CS', sessionVersion: 2 }));
+
+      await service.refresh('valid-refresh-token');
+
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      expect(jwtService.sign.mock.calls[0][0].sv).toBe(2);
     });
 
     it('should throw ForbiddenException for unauthorized role on refresh', async () => {

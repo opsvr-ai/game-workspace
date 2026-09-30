@@ -8,7 +8,7 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
-import { maskCustomerWechat } from '../common/order-privacy';
+import { maskCustomerWechat, stripPoolCustomerContact } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
@@ -250,13 +250,9 @@ export class OrdersService implements OnModuleInit {
       where: { id: dto.csUserId },
       select: { username: true, role: true },
     });
-    // 弹窗停留时长（设置里可配，默认 20 秒）随单下发，
-    // 让网页里的卡片和陪玩端置顶小窗用同一个数（老板 2026-09-22 要求弹窗别一闪而过）。
-    const popupCfg = await resolveConfigsRaw(this.prisma, studioId ?? null, [
-      'pool.popup_seconds',
-    ]).catch(() => ({}) as Record<string, unknown>);
-    const popupSecondsRaw = Number((popupCfg as Record<string, unknown>)['pool.popup_seconds']);
-    const popupSeconds = Number.isFinite(popupSecondsRaw) && popupSecondsRaw > 0 ? popupSecondsRaw : 20;
+    // 弹窗停留时长（设置里可配，默认 15 秒 —— 老板 2026-10-01「15 秒消失」）随单下发，
+    // 让陪玩端桌面横幅用同一个数。
+    const popupSeconds = await this.getPopupSeconds(studioId ?? null);
     const popupPayload = {
       ...newOrder,
       _createdBy: popupCreator?.username || '未知',
@@ -267,6 +263,11 @@ export class OrdersService implements OnModuleInit {
     // 否则本店陪玩会收到一个自己抢不到的单的弹窗（点进去还提示没权限）。
     const onlineFirst = newOrder.poolScope === PoolScope.ONLINE_FIRST;
 
+    // 广播出去的是「还没人接的单」，弹窗 payload 里不能带客户联系方式
+    // （老板 2026-10-01：「还没抢就显示微信 那还抢什么？」）—— 陪玩点了横幅是回抢单池再抢，
+    // 抢到手之后才走订单详情拿微信。指定单（DIRECT）是他自己的单，不动。
+    const broadcastPopupPayload = stripPoolCustomerContact(popupPayload) as typeof popupPayload;
+
     // BROADCAST: 右下角弹窗给本店在线陪玩
     // （空闲 + 娱乐中一定弹；接单中默认不打扰，陪玩可在「陪玩端 → 设置」自行打开）
     if (dto.dispatchType === 'BROADCAST' && studioId) {
@@ -275,12 +276,12 @@ export class OrdersService implements OnModuleInit {
         void this.wsGateway.broadcastUrgentToBridgedStudios(
           studioId,
           newOrder.id,
-          { ...popupPayload, _broadcast: true, _bridged: true },
+          { ...broadcastPopupPayload, _broadcast: true, _bridged: true },
           0,
         );
       } else {
       await this.wsGateway.broadcastNewOrder(studioId, {
-        ...popupPayload,
+        ...broadcastPopupPayload,
         _broadcast: true,
       });
       // 桥接工作室那边也弹一次，但要等「桥接工作室等待」到了才弹，
@@ -288,7 +289,7 @@ export class OrdersService implements OnModuleInit {
       void this.wsGateway.broadcastUrgentToBridgedStudios(
         studioId,
         newOrder.id,
-        { ...popupPayload, _broadcast: true, _bridged: true },
+        { ...broadcastPopupPayload, _broadcast: true, _bridged: true },
         await this.getBridgeDelayMs(studioId),
       );
       }
@@ -502,7 +503,13 @@ export class OrdersService implements OnModuleInit {
     if (!companionId) return available;
 
     const taken = await this.findTakenPoolOrders(companionId, studioId);
-    return [...available, ...taken];
+    // 陪玩端**看不到别人单的客户联系方式**（老板 2026-10-01：「还没抢就显示微信 那还抢什么？」）。
+    // 客服指定给自己的单、以及自己已经抢到的单照常看得见 —— 抢单池那一行只是给人挑单用的。
+    return [...available, ...taken].map((o) =>
+      o.companionId === companionId || o.coCompanionId === companionId
+        ? o
+        : stripPoolCustomerContact(o),
+    );
   }
 
   /**
@@ -753,7 +760,38 @@ export class OrdersService implements OnModuleInit {
       data: { releasedToOfflineAt: new Date() },
     });
     this.wsGateway.broadcastToStudio(updated.studioId, 'order:pool_updated', updated);
+    // 老板 2026-10-01：放给线下时本店每个陪玩都要弹一次（原来只是悄悄进池子）。
+    void this.broadcastReleasedToOffline(updated).catch(() => null);
     return updated;
+  }
+
+  /** 弹窗停留时长（秒）：设置里没填就 15。 */
+  async getPopupSeconds(studioId: string | null): Promise<number> {
+    const cfg = await resolveConfigsRaw(this.prisma, studioId, ['pool.popup_seconds']).catch(
+      () => ({}) as Record<string, unknown>,
+    );
+    const raw = Number((cfg as Record<string, unknown>)['pool.popup_seconds']);
+    return Number.isFinite(raw) && raw > 0 ? raw : 15;
+  }
+
+  /**
+   * 「线上→线下流转」的单放给本店线下时，给本店每个陪玩弹一次（老板 2026-10-01）。
+   * 收件人规则跟广播一致（空闲 / 挂机一定弹，娱乐中 / 接单中看本人开关）。
+   */
+  async broadcastReleasedToOffline(order: any): Promise<void> {
+    if (!order?.studioId) return;
+    const popupCreator = await this.prisma.user
+      .findUnique({ where: { id: order.csUserId }, select: { username: true, role: true } })
+      .catch(() => null);
+    const popupSeconds = await this.getPopupSeconds(order.studioId);
+    await this.wsGateway.broadcastNewOrder(order.studioId, {
+      ...stripPoolCustomerContact(order),
+      _createdBy: popupCreator?.username || '未知',
+      _creatorRole: popupCreator?.role || 'CS',
+      _popupSeconds: popupSeconds,
+      _broadcast: true,
+      _releasedToOffline: true,
+    });
   }
 
   /**

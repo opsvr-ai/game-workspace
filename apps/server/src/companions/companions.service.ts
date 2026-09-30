@@ -438,18 +438,29 @@ export class CompanionsService {
     };
   }
 
-  /** 陪玩端通知偏好：打单 / 娱乐中是否也弹新单（默认不打扰） */
+  /**
+   * 陪玩端通知偏好（老板 2026-10-01）：**只有「接单中 / 娱乐中」这两种状态能自己关**
+   * （娱乐中默认弹、接单中默认不弹）；空闲 / 挂机（休息）不受这里影响、一律弹。
+   */
   async getNotifyPrefs(companionId: string) {
     const c = await this.prisma.companion.findUnique({
       where: { id: companionId },
-      select: { notifyWhileBusy: true },
+      select: { notifyWhileBusy: true, notifyWhileEntertainment: true },
     });
-    return { notifyWhileBusy: c?.notifyWhileBusy ?? false };
+    return {
+      notifyWhileBusy: c?.notifyWhileBusy ?? false,
+      notifyWhileEntertainment: c?.notifyWhileEntertainment ?? true,
+    };
   }
 
-  async setNotifyPrefs(companionId: string, prefs: { notifyWhileBusy?: boolean }) {
+  async setNotifyPrefs(
+    companionId: string,
+    prefs: { notifyWhileBusy?: boolean; notifyWhileEntertainment?: boolean },
+  ) {
     const data: any = {};
     if (typeof prefs.notifyWhileBusy === 'boolean') data.notifyWhileBusy = prefs.notifyWhileBusy;
+    if (typeof prefs.notifyWhileEntertainment === 'boolean')
+      data.notifyWhileEntertainment = prefs.notifyWhileEntertainment;
     if (Object.keys(data).length === 0) return this.getNotifyPrefs(companionId);
     await this.prisma.companion.update({ where: { id: companionId }, data });
     return this.getNotifyPrefs(companionId);

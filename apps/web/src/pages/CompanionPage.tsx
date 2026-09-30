@@ -185,6 +185,8 @@ const CompanionPage: React.FC = () => {
   const [bootGuideVisible, setBootGuideVisible] = useState(false);
   // No-customer proof modal (TASK-08)
   const [notifyWhileBusy, setNotifyWhileBusy] = useState(false);
+  // 老板 2026-10-01：接单中 / 娱乐中才能自己关弹窗；空闲 / 挂机（休息）一律弹，不受这里影响。
+  const [notifyWhileEntertainment, setNotifyWhileEntertainment] = useState(true);
   // Customer follow-up tracking
   const [myCustomers, setMyCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
@@ -207,7 +209,10 @@ const CompanionPage: React.FC = () => {
   useEffect(() => {
     companionsApi
       .notifyPrefs()
-      .then(({ data }: any) => setNotifyWhileBusy(!!data?.data?.notifyWhileBusy))
+      .then(({ data }: any) => {
+        setNotifyWhileBusy(!!data?.data?.notifyWhileBusy);
+        setNotifyWhileEntertainment(data?.data?.notifyWhileEntertainment !== false);
+      })
       .catch(() => {});
   }, []);
 
@@ -796,8 +801,27 @@ const CompanionPage: React.FC = () => {
           />
         </div>
         <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
-          空闲、娱乐中一定会弹（娱乐中也能抢单）；这个开关只管「正在给别人打单」的时候 ——
-          默认关闭免得打扰，想多抢单可以打开。
+          空闲、挂机（休息）一定会弹，不受下面两个开关影响；下面两个开关只管「正在打单」和
+          「娱乐中」的时候 —— 想图清净就关上，想多抢单就打开。
+        </Typography.Text>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, gap: 12 }}>
+          <Typography.Text strong>娱乐中也接收新单弹窗</Typography.Text>
+          <Switch
+            checked={notifyWhileEntertainment}
+            onChange={async (v) => {
+              setNotifyWhileEntertainment(v);
+              try {
+                await companionsApi.setNotifyPrefs({ notifyWhileEntertainment: v });
+                message.success(v ? '已打开：娱乐中也会弹新单' : '已关闭：娱乐中不打扰');
+              } catch {
+                setNotifyWhileEntertainment(!v);
+                message.error('保存失败，请重试');
+              }
+            }}
+          />
+        </div>
+        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 14 }}>
+          娱乐中也能抢单（弹窗里带订单号，点一下跳到抢单池）；不想被打扰就关上。
         </Typography.Text>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
           <Typography.Text strong>提示音</Typography.Text>

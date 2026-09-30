@@ -155,7 +155,7 @@ export class CompanionsController {
     return { data: { companionId, messages } };
   }
 
-  /** 陪玩端偏好：打单中 / 娱乐中是否也接收新单弹窗（默认关闭，不打扰） */
+  /** 陪玩端偏好：接单中 / 娱乐中是否也接收新单弹窗（老板 2026-10-01：娱乐中默认开） */
   @Get('companions/me/notify-prefs')
   @Roles(UserRole.COMPANION)
   async getNotifyPrefs(@Req() req: any): Promise<ApiResponse<unknown>> {
@@ -167,7 +167,7 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async setNotifyPrefs(
     @Req() req: any,
-    @Body() body: { notifyWhileBusy?: boolean },
+    @Body() body: { notifyWhileBusy?: boolean; notifyWhileEntertainment?: boolean },
   ): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.setNotifyPrefs(req.user.companionId, body || {});
     return { code: 200, message: 'ok', data };

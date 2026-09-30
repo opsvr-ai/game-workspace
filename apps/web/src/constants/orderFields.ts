@@ -84,8 +84,35 @@ export const COMPANION_HIDDEN_FIELDS: ReadonlySet<string> = new Set([
   'customerAccountId',
 ]);
 
-export const fieldVisibleTo = (key: string, isCompanion: boolean): boolean =>
-  !(isCompanion && COMPANION_HIDDEN_FIELDS.has(key));
+/**
+ * **抢单池**里陪玩端一定看不到的字段（老板 2026-10-01）。
+ *
+ * 老板：「订单池怎么还没抢的订单也能看到客户微信等信息？被抢过的怎么也显示？还没抢就显示微信
+ * 那还抢什么？」—— 客户联系方式（微信号 / YY / KOOK / 房间码）以前漏在陪玩端的隐藏清单外边，
+ * 2026-09-30 把订单数据收成「唯一一份字段口径」之后，抢单池那一行也跟着走同一份口径，
+ * 微信就顺着显示出来了。
+ *
+ * 这里是**抢单池专用**的隐藏清单，比 COMPANION_HIDDEN_FIELDS 多藏「客户联系方式 + 二维码」：
+ *  - 抢单池里**不是自己的单**（还没抢到的、被别人抢走的）：联系方式一个字都不显示，抢到手才有；
+ *  - 客服指定给自己的单、自己已经抢到的单：照常显示（服务要用，不能藏）；
+ *  - 客服 / 店长 / 老板：不受影响（他们不看这个清单）。
+ * 订单管理（接单记录）/ 抢单成功浮窗走的是原来那份 COMPANION_HIDDEN_FIELDS，联系方式照常给。
+ */
+export const COMPANION_POOL_HIDDEN_FIELDS: ReadonlySet<string> = new Set([
+  ...COMPANION_HIDDEN_FIELDS,
+  'customerContact',
+  'wechatId',
+  'yy',
+  'kook',
+  'roomCode',
+  'customerWechatQr',
+]);
+
+export const fieldVisibleTo = (
+  key: string,
+  isCompanion: boolean,
+  hidden: ReadonlySet<string> = COMPANION_HIDDEN_FIELDS,
+): boolean => !(isCompanion && hidden.has(key));
 
 /**
  * 状态在表格单元格 / 详情弹窗里的文字颜色（老板 2026-09-28「别花里胡哨」之后不再用彩色标签块，
@@ -275,13 +302,13 @@ export interface OrderFieldEntry {
 /** 按口径把一条订单摊成「标签 + 值」若干项；没有值的字段直接跳过（陪玩端跳过来源那几列）。 */
 export function buildOrderFieldEntries(
   order: any,
-  opts: { isCompanion?: boolean; keys?: string[] } = {},
+  opts: { isCompanion?: boolean; keys?: string[]; hidden?: ReadonlySet<string> } = {},
 ): OrderFieldEntry[] {
   const isCompanion = opts.isCompanion === true;
   const keys = opts.keys ?? ORDER_CARD_FIELD_ORDER;
   const out: OrderFieldEntry[] = [];
   for (const key of keys) {
-    if (!fieldVisibleTo(key, isCompanion)) continue;
+    if (!fieldVisibleTo(key, isCompanion, opts.hidden)) continue;
     const text = ORDER_FIELD_TEXT[key]?.(order);
     if (text === null || text === undefined || text === '') continue;
     out.push({ key, label: orderFieldLabel(key), text: String(text) });
