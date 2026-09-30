@@ -11,6 +11,42 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **所有客户端电脑（客服端 + 陪玩端 + 以后新招的人）都能被远程查看 / 一键诊断（老板 2026-09-30）。**
+  老板：「只有陪玩电脑能被我们远程管理，客服电脑（邵泽慧、孙可馨那两台）我们完全看不见……要不要给客服端
+  也加上能被远程查看 / 一键诊断？」→「要　所有人的都要」。做的是一条**不依赖中继机、也不需要在被控机器上
+  开端口**的通道：客户端主动往服务器报，服务端把任务排进队列，客户端下一轮心跳领走、执行、把报告传回来。
+  - **服务端新增「机器台账 + 远程任务队列」**（`agent/machine.service.ts` / `machine.controller.ts`）。
+    存储复用已有的 `SystemConfig(key/value jsonb)`，**不新增表、不动 schema** —— 避免为了这个功能再跑一次
+    线上数据库迁移（迁移出错会打断正在接单的陪玩）。新增接口：`POST /api/agent/machine-report`（客户端上报
+    自己是谁）、`GET /api/agent/machine-tasks`（领任务）、`POST /api/agent/machine-task-result`（交结果）、
+    `GET /api/agent/machines`（管理端看台账）、`POST /api/agent/machines/:id/diag|enable-remote|shell`
+    （派诊断 / 开通远程管理 / 下发指令）、`GET /api/agent/machine-tasks/:id/report`（看报告），外加
+    `GET /api/agent/client-diag.ps1`、`GET /api/agent/enable-remote.ps1`（脚本正文，手工下载用）。
+    报告落 `onboard-reports/diag/<主机名>-<时间>-task-<类型>.log`（和 uploads 同级，公网下不到）。
+  - **诊断脚本放服务端下发**（`agent/client-diag.ts`），12 个大项：机器/系统、磁盘、网络、到服务器的
+    ping+TCP+接口自测、客户端进程与服务、安装目录与注册表里的版本、客户端日志尾部、系统/应用事件日志最近
+    24 小时报错、蓝屏与异常关机（41 / 1001 / 6008 + Minidump）、远程管理账号状态、代理 VPN 加速器迹象、
+    当前网络连接。**改脚本只要部署一次服务端，不用重发两个安装包**，以后想加检查项随时加。
+  - **两个客户端都接上**（`apps/cs-electron/machine-agent.js`、
+    `apps/companion-electron/electron/machine-agent.js`，两份实现同源）：每 5 分钟上报机器信息
+    （计算机名 / 网卡 MAC / IP / Windows 账号 / 客户端版本 / 登录账号），每 60 秒领一次远程任务，
+    任务超时会被服务端标失败而不是一直卡在「执行中」。客服端 `1.0.20260933`、陪玩端 `1.0.20260932` 均已发布
+    （复核过线上版本号与包可下载）。
+  - **「一键开通远程管理」脚本**（`agent/client-remote.ts` + `scripts/开通远程管理.bat` / `.ps1`）：建或修
+    `chunlvops`（管理员组 + 密码永不过期）、打开 `LocalAccountTokenFilterPolicy` 与文件共享 / 远程服务 / WMI
+    防火墙，**每台机器生成一个独立高强度口令**并把账号口令回传台账（另外在 `C:\ProgramData\chunlv\remote-account.txt`
+    本机留档一份），以后不用再问任何人要密码。**两个安装包都内嵌了这一步**
+    （`apps/cs-electron/build/installer.nsh`、`apps/companion-electron/build/installer.nsh`），
+    新装的机器装完就是可远程维护的。
+  - **管理端新页「机器管理」**（设置中心 → 客户端与设备 → 机器管理，ADMIN / OWNER）：一台机器一行 ——
+    在线状态、类型（客服端 / 陪玩端）、使用人、IP / MAC、客户端版本、远程管理开没开（口令可直接复制）、
+    最后上报时间；每行「一键诊断」「查看记录」「开通远程管理」，抽屉里「下发指令」（PowerShell，输出回传）
+    并列出这台机器的历史任务与报告全文。还没上报过机器信息的旧版本客户端标「旧版客户端」，等它自动升级
+    到新版就能诊断。
+  - **端到端自验（不是只看接口通不通）**：模拟一台客服电脑走完整链路 —— 上报 → 老板派「一键诊断」→
+    客户端领任务 → **在本机真跑那份下发的脚本** → 回传 168 行报告 → 管理端把报告读回来；随后把自测产生的
+    台账行、任务记录、报告文件全部清理干净（线上 `client.machine.*` / `client.task.*` 已回读确认为 0 条）；
+    再用真 Electron 拉起客服端，确认它自己把机器信息报进了台账；管理端页面用真浏览器登录截图复核。
 - **客服端「打开是一片深蓝、像蓝屏」不再是哑巴窗口（老板 2026-09-30，客服端 `1.0.20260932`）。**
   老板发了张照片问「192.168.1.4 邵泽慧的怎么蓝屏了」。照片里那片深蓝 `#0B1024` 正是客服端窗口自己的
   `backgroundColor`（`cs-electron/main.js`）——**不是 Windows 蓝屏死机**，是页面一个字都没渲染出来，

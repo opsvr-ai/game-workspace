@@ -234,6 +234,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           children: [
             { key: '/admin/managed-pcs', label: '电脑管理' },
             { key: '/admin/pc-control', label: '远程控制' },
+            { key: '/admin/machines', label: '机器管理' },
             { key: '/admin/agent-version', label: '客户端版本' },
             { key: '/admin/blacklist', label: '进程黑名单' },
             { key: '/admin/whitelist', label: '进程白名单' },
@@ -343,6 +344,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           children: [
             { key: '/admin/managed-pcs', label: '电脑管理' },
             { key: '/admin/pc-control', label: '远程控制' },
+            { key: '/admin/machines', label: '机器管理' },
             { key: '/admin/agent-version', label: '客户端版本' },
             { key: '/admin/blacklist', label: '进程黑名单' },
             { key: '/admin/whitelist', label: '进程白名单' },

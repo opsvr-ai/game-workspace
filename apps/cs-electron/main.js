@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, session, ipcMain, safeStorage, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { createMachineAgent } = require('./machine-agent');
 
 // 低配电脑无独显/驱动老旧时，关闭硬件加速避免黑屏
 app.disableHardwareAcceleration();
@@ -453,6 +454,24 @@ function createTray() {
   tray.on('double-click', () => showWindow());
 }
 
+// ── 机器台账 / 远程一键诊断（2026-09-30）─────────────────────────────────
+// 老板：客服电脑以前我们完全看不见，机器一出问题只能等人到电脑跟前。
+// 这里让客服端每 5 分钟把机器信息报给服务器台账，并每 60 秒领一次远程任务
+// （一键诊断 / 下发的指令 / 一键开通远程管理），执行完把报告传回去。
+// 全部由客户端主动往外连，客服在什么网络都一样能用，不用开端口、不用中继机。
+const machineAgent = createMachineAgent({
+  app,
+  clientType: 'CS',
+  getServerUrl,
+  // 页面登录后会把账号口令存到 credentials.json（safeStorage 加密），
+  // 只有本机本用户能解开 —— 拿它当「这台电脑现在是哪个人在用」。
+  getLoginUser: () => {
+    const creds = loadCredentials();
+    return creds && creds.username ? { username: creds.username, role: 'CS' } : null;
+  },
+  log: logLine,
+});
+
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     const allowed = ['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'];
@@ -488,6 +507,8 @@ app.whenReady().then(() => {
   });
   createWindow();
   createTray();
+
+  machineAgent.start();
   // 每次启动顺手校正桌面图标：更新/改名后老机器的图标会变白、点不开。
   ensureDesktopShortcut();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。

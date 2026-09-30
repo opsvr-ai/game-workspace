@@ -4,6 +4,7 @@ directories:
   output: release
 files:
   - main.js
+  - machine-agent.js
   - preload.js
   - package.json
 extraResources:
@@ -27,3 +28,4 @@ nsis:
   shortcutName: 客服管理
   installerIcon: public/donkey.ico
   uninstallerIcon: public/donkey.ico
+  include: build/installer.nsh

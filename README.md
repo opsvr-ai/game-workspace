@@ -6,6 +6,15 @@
 
 ## Recent Updates (v3.2.0)
 
+- **所有客户端电脑（客服端 + 陪玩端）都能远程查看 / 一键诊断（2026-09-30）:** 老板「只有陪玩电脑能被我们
+  远程管理，客服电脑（邵泽慧、孙可馨那两台）我们完全看不见」→「要　所有人的都要」。这条路不依赖中继机、
+  也不需要在被控机器上开端口：客户端每 5 分钟主动上报机器信息（计算机名 / MAC / IP / Windows 账号 / 版本 /
+  登录账号），每 60 秒领一次远程任务。管理端多了「机器管理」页（设置中心 → 客户端与设备）：所有机器一台一行，
+  **一键诊断**（12 大项：系统、磁盘、网络、到服务器的连通性、客户端进程与服务、安装目录与版本、客户端日志、
+  系统事件日志 24h 报错、蓝屏与 Minidump、远程账号状态、代理 VPN 迹象、网络连接）、**开通远程管理**、
+  **下发指令**，报告全文在页面上直接看。诊断脚本放服务端下发（改脚本不用重发安装包）。客服端 `1.0.20260933`、
+  陪玩端 `1.0.20260932` 已发布；两个安装包都内嵌了「装完就开通远程管理」（建 `chunlvops`、密码永不过期、
+  每台机器一个独立口令并回传台账）。服务端存储复用 `SystemConfig`，**没动数据库 schema**。
 - **「客服端打开一片深蓝」不再是哑巴窗口（2026-09-30）:** 老板拍照问「邵泽慧那台怎么蓝屏了」，那片深蓝就是
   客服端窗口自己的底色（`backgroundColor: '#0B1024'`）—— 不是电脑蓝屏，是**页面没加载出来**；她的客户端停在
   `1.0.20260849`（线上已 `1.0.20260931`），最后一次上报是 09-30 凌晨 3:07，之后一直连不上服务器。现在客服端
@@ -1010,6 +1019,17 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/agent/onboard-report` | `x-onboard-token` header | -- | A freshly onboarded PC reports hostname / IP / MAC / client version and the remote-support account it just generated. Sent by `install-companion.ps1` (new PC) and by `scripts/repair-companion.ps1` (step 1 of the repair flow, so a machine that never ran the installer becomes remotely reachable too). Appended to `onboard-reports/machines.jsonl` (repo root, not web-served). |
 | `POST` | `/api/agent/client-error` | None | `{phase,url,status,message,detail}` | 前端上报「请求根本没到服务器」的网络层故障（注册失败、断网 / 被杀毒软件拦截等）。Appended to `client-errors/client-errors-<date>.jsonl` (repo root, not web-served). |
 | `POST` | `/api/agent/diag-report` | `x-onboard-token` header | `{hostname,source,lines}` | 看门狗 / 一键修复脚本回传现场诊断（主机名、安装目录、exe 大小与 PE 头、桌面快捷方式指向、服务状态、日志尾部……），落到 `onboard-reports/diag/<主机名>-<时间>-<来源>.log`（仓库根，公网下不到）。 |
+| `POST` | `/api/agent/machine-report` | `x-onboard-token` header | `{machineId,clientType,hostname,ips,mac,windowsUser,loginUser,appVersion,...}` | 客户端（客服端 / 陪玩端主进程）每 5 分钟上报「我是谁」。落 `SystemConfig.client.machine.<machineId>`（复用现有表，无需迁移）。 |
+| `GET` | `/api/agent/machine-tasks` | `x-onboard-token` header | `machineId`, `limit` | 客户端领远程任务（诊断 / 指令 / 开通远程管理）；领走即置 `running`，避免重复执行；超 15 分钟没回来会被标失败。 |
+| `POST` | `/api/agent/machine-task-result` | `x-onboard-token` header | `{taskId,machineId,status,exitCode,lines}` | 客户端交结果；报告落 `onboard-reports/diag/<主机名>-<时间>-task-<类型>.log`（公网下不到）。 |
+| `GET` | `/api/agent/machines` | JWT (ADMIN/OWNER) | -- | 机器台账（三路合并：会上报的新版客户端 + 客服端旧版账号行 + 手工登记的陪玩电脑），带在线/远程管理状态与待办任务数。 |
+| `POST` | `/api/agent/machines/:machineId/diag` | JWT (ADMIN/OWNER) | -- | 派「一键诊断」。 |
+| `POST` | `/api/agent/machines/:machineId/enable-remote` | JWT (ADMIN/OWNER) | -- | 派「一键开通远程管理」（建 `chunlvops` + 开远程通道 + 口令回传台账）。 |
+| `POST` | `/api/agent/machines/:machineId/shell` | JWT (ADMIN/OWNER) | `{command}` | 在目标机器上以 PowerShell 执行指令，输出回传（排查用）。 |
+| `GET` | `/api/agent/machines/:machineId/tasks` | JWT (ADMIN/OWNER) | `limit` | 这台机器的远程任务历史。 |
+| `GET` | `/api/agent/machine-tasks/:taskId/report` | JWT (ADMIN/OWNER) | -- | 读某趟诊断 / 指令的报告全文。 |
+| `GET` | `/api/agent/client-diag.ps1` | None | -- | 一键诊断脚本正文（手工下载；`scripts/客户端诊断.bat` 也是取这个）。 |
+| `GET` | `/api/agent/enable-remote.ps1` | None | -- | 一键开通远程管理脚本正文（手工下载）。 |
 | `GET` | `/api/agent/update/queue` | JWT (ADMIN/OWNER/CS) | -- | 更新队列状态：谁在下载、下载了多久、几台在排队。发布时用来盯「铺开到哪台了」。 |
 
 ### Health

@@ -60,6 +60,7 @@ import BillingOverview from './pages/BillingOverview';
 import CompanionsPage from './pages/CompanionsPage';
 import CompanionPoolPage from './pages/OrderPoolPage';
 import ManagedPcPage from './pages/admin/ManagedPcPage';
+import MachinesPage from './pages/admin/MachinesPage';
 import PcControlPage from './pages/admin/PcControlPage';
 import AnalyticsPage from './pages/admin/AnalyticsPage';
 import PayrollPage from './pages/admin/PayrollPage';
@@ -483,6 +484,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <PcControlPage />
+          </Suspense>
+        ),
+      },
+      {
+                path: 'admin/machines',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <MachinesPage />
           </Suspense>
         ),
       },

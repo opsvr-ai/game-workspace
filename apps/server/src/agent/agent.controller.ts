@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
 import { AgentService } from './agent.service';
+import { ONBOARD_REPORT_TOKEN } from './agent-token';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
 import { streamFileThrottled } from '../common/throttled-file';
@@ -40,11 +41,7 @@ function resolveServerUrl(req: any): string {
   return `${req.protocol}://${selected}:3001`;
 }
 
-/**
- * 新电脑自动装机上报用的共享令牌。
- * 脚本里会带上它；只用于挡住误报/乱报，不是强认证（装机脚本本身是公开下载的）。
- */
-const ONBOARD_REPORT_TOKEN = 'c4f1a2e7d9b8435fa6e10c7d2b9f8e34';
+// 共享令牌已挪到 agent-token.ts（机器台账那边也要用同一把）。
 
 /** 版本号比较：1.0.20260924 > 1.0.20260923。 */
 function compareVersionStrings(a: string, b: string): number {

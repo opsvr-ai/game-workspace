@@ -13,6 +13,10 @@ import { createTray, updateTrayTooltip } from './tray';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
 
+// 机器台账 / 远程一键诊断：把这块电脑报给服务端，并领远程任务回来执行。
+// 说明见 electron/machine-agent.js（和客服端同一套实现）。
+const { createMachineAgent } = require('./machine-agent');
+
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let currentRole = 'COMPANION';
@@ -848,6 +852,17 @@ function setupApplicationMenu(): void {
 }
 
 // ── Lifecycle ──
+const machineAgent = createMachineAgent({
+  app,
+  clientType: 'COMPANION',
+  getServerUrl,
+  getLoginUser: () => {
+    const username = (store.get('currentUsername') as string) || '';
+    return username ? { username, role: 'COMPANION' } : null;
+  },
+  log: (msg: string) => logger.info(`[machine-agent] ${msg}`),
+});
+
 app.whenReady().then(() => {
   // Windows 通知需要 AppUserModelID，否则右下角系统通知弹不出来（搭档邀请、订单提醒等）。
   app.setAppUserModelId('com.chunlv.companion');
@@ -859,6 +874,9 @@ app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true });
   cleanupStaleCaptures();
   setupIPC();
+
+  // 每 5 分钟上报机器信息 + 每 60 秒领一次远程任务（一键诊断 / 指令 / 开通远程管理）
+  machineAgent.start();
 
   // 开机/联网后补传未上传的截图（token 存在时）
   if (store.get('token')) {
