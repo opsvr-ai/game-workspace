@@ -21,7 +21,7 @@
   `outsideViewerVisible` 别家可见时机）、按人客服档位 `CsProfile`、重做的今日看板
 - **入池方式两条链 + 线下转桥接 / 线上统计**（2026-10-01 改口径）: 「线下→线上流转」本店线下先抢
   `pool.offline_first_bridge_minutes`（默认 3 分钟）再轮到桥接 / 线上；「线上→线下流转」桥接 + 线上俱乐部**秒看到**，
-  没人接再按 `pool.online_first_release_minutes`（默认 5 分钟）放给本店线下；客服提成桥接按单量、线上按流水比例（`commission.cs_online_rate_percent`）；
+  没人接再按 `pool.online_first_release_minutes`（默认 5 分钟）放给本店线下（到点自动放的那一刻会**给本店每个陪玩弹一次**，见 `OnlineFirstReleaseService`）；客服提成桥接按单量、线上按流水比例（`commission.cs_online_rate_percent`）；
   新页「线下转桥接/线上统计」（`GET /orders/escalated-pool` + `EscalatedPoolPanel`）标注去向 / 结算模式
   （首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里，并给按月汇总；
   这页可按月 + 按客服（`csUserId`，CS 角色服务端强制成自己）筛选，前端一键导出 CSV（逐单明细 + 汇总）；
@@ -393,7 +393,9 @@ sequenceDiagram
 **订单推送补充（订单池里程碑 / 广播）:**
 
 - 订单池的可见范围按里程碑逐级放开：本店上等马 → 桥接工作室 → 本店中等马 → …，「桥接工作室等待」由 `pool.bridge_delay_seconds` 控制（当前线上 300 秒）。
-- 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线陪玩推 `order:urgent`（右下角弹窗）；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。收件人条件全站只有一份（`WsGateway.urgentRecipientWhere`）：`AVAILABLE`（空闲）与 `ENTERTAINMENT`（娱乐中）一定推，`BUSY`（接单中）只有本人打开 `Companion.notifyWhileBusy` 才推 —— 本店广播与桥接推送共用，避免两个店两套口径。
+- 「广播」发单（`dispatchType=BROADCAST`，落库仍为 `POOL` 以保持可抢）：创建时立刻向本店在线陪玩推 `order:urgent`；到「桥接工作室等待」时间后，`WsGateway.broadcastUrgentToBridgedStudios()` 再向桥接工作室推一次同一条 `order:urgent`（带 `_bridged: true`，弹窗标题区分）。延时推送前会复查订单仍为 `PENDING` 且无人抢单/无人认领。收件人条件全站只有一份（`WsGateway.urgentRecipientWhere`，老板 2026-10-01 口径）：**`AVAILABLE`（空闲）与 `RESTING`（挂机 / 休息）一定推**，**`ENTERTAINMENT`（娱乐中）默认推、本人可关 `Companion.notifyWhileEntertainment`**，`BUSY`（接单中）只有本人打开 `Companion.notifyWhileBusy` 才推 —— 本店广播、桥接推送与「到点放给线下」全部共用这一份。
+- 「线上→线下流转」的单到点放给本店线下时要**弹窗**（老板 2026-10-01）：`findPool` 里那个「到点可见」是纯读时计算，没有一个可以发弹窗的「到点」时刻，所以新增 `OnlineFirstReleaseService`（`orders.module.ts` 注册）：每 30 秒扫 `poolScope=ONLINE_FIRST & status=PENDING & companionId=null & releasedToOfflineAt=null`，到 `pool.online_first_release_minutes`（默认 5）就 `updateMany` 写 `releasedToOfflineAt = createdAt + 分钟数`（不是 `now`，保证可见时机不变，且写字段本身就是去重），再调 `orders.service.broadcastReleasedToOffline()` 给本店推 `order:urgent`（带 `_releasedToOffline: true`）。
+- 新单到了客户端只弹 **Windows 桌面横幅**（老板 2026-10-01：「都只弹 windows 的弹窗，而且 15 秒消失，软件就别弹了」）：`apps/companion-electron/electron/main.ts` 的 `showBroadcastPopup()` 画置顶小窗（停留时长由 `pool.popup_seconds` 随单下发，现在默认 **15**），默认鼠标穿透（不挡玩游戏）；横幅内那段脚本在鼠标进入卡片时调 `order-banner:hover` 临时取消穿透→卡片可点，点了发 `order-banner:click`：主进程把主窗口拉到最前并发 `order-pool-focus`，页面侧（`AppLayout` → `OrderPoolPage`）跳到抢单池、把这一单标黄并滚到屏幕中间（`chunlv:order-focus` / 路由 state `highlightOrderId`）—— **点横幅不直接抢单**，避免游戏中误点。
 - 网关连接时会自动 join 桥接工作室的房间（`studio:${bridgedStudioId}`），用于订单池、状态等跨工作室实时广播。
 - **点对点推送一律走 `user:${userId}` 房间，不要用「userId → socketId」的映射表。** 一个人会同时开好几条连接
   （客服端主窗口 + 聊天弹窗 + 浏览器页面），单值映射表会被后连的顶掉、任何一条断开又会把整个人删掉，
@@ -416,6 +418,8 @@ sequenceDiagram
 ```
 老板创建陪玩(自动授权) → 陪玩输入账号密码 → Agent自动登录 → 在线
 ```
+
+**单点登录 / 顶号（2026-10-01）:** `User.sessionVersion` 是「该账号当前的登录号码」。`AuthService.login` 对 **OWNER / ADMIN / CS** 每登录一次就 `+1`，并把号码签进 JWT（payload `sv`），同时 `WsGateway.kickUser()` 把旧电脑上的连接先推 `auth:replaced` 再断开；`JwtStrategy` / `AuthService.refresh` / `WsGateway.handleConnection` 三处都比对号码，对不上就 401 + `reason: 'SESSION_REPLACED'`。前端收到这个 reason 就清会话回登录页、写一个「被顶号」标记，登录页据此**不再自动登录**（不然两台机器互顶），只提示「该账号已在别的电脑上登录」。**陪玩的 `sessionVersion` 永远不变**（多台在线不受影响），**老令牌没有 `sv` 也一律不判失效**（发布当刻不会把正在接单的人踢下线）。
 
 ## 8. Electron 客户端 内部架构
 

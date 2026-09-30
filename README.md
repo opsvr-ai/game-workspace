@@ -6,6 +6,31 @@
 
 ## Recent Updates (v3.2.0)
 
+- **单点登录：客服 / 管理「顶号」，陪玩不顶（2026-10-01）:** 老板原话「要」，并报了实例
+  「我在邵泽慧电脑登录 hanlei1，又在我这台登录 hanlei1，两遍都能登录」。新增 `User.sessionVersion`：
+  **OWNER / ADMIN / CS** 每登录一次 `+1` 并签进令牌（`sv`），`JwtStrategy` / `AuthService.refresh` 对不上就 401 + `reason: 'SESSION_REPLACED'`，
+  `WsGateway.kickUser()` 同步踢掉旧连接（先推 `auth:replaced`）；前端收到就清会话回登录页并记一个「被顶号」标记，
+  登录页看到标记**不再自动登录**（避免两台互相顶），只提示「该账号已在别的电脑上登录」。
+  **陪玩永远不 +1**（多台在线不受影响）；老令牌没有 `sv` 不判失效，发布当刻不会把接单中的人踢下线。
+  单测 `auth.service.test.ts` +4 项。
+
+- **新单只弹 Windows 桌面横幅（15 秒），点横幅 = 跳抢单池并高亮这一单（老板 2026-10-01）:** 老板原话
+  「都只弹 windows 的弹窗，而且 15 秒消失，软件就别弹了」+「跳转进池子再抢吧 万一谁打游戏 误点了呢？」。
+  陪玩端主进程收到 `order:urgent` 一律弹桌面横幅（窗口在前也弹，只额外闪一下任务栏）；鼠标移到卡片上时临时取消鼠标穿透（`order-banner:hover`）
+  所以能点，**点了不直接抢**，而是拉到最前 + 打开抢单池 + 这一单整行标黄 15 秒并滚到屏幕中间（`order-pool-focus`）。
+  软件窗口里那张右下角卡片不再弹（浏览器里保留兜底）；`pool.popup_seconds` 默认 20 → **15**。
+
+- **「线上→线下流转」到点自动放给线下时，线下每个陪玩都弹一次（老板 2026-10-01）:** 老板原话
+  「到了 5 分钟的时候 如果没人抢，那么线下的每个陪玩都弹 windows 窗…空闲+挂机状态也照样弹」。新增
+  `OnlineFirstReleaseService`（每 30 秒扫一次，到点写 `releasedToOfflineAt` = `createdAt + 分钟数` 并走
+  `broadcastReleasedToOffline()` 弹窗，写字段本身就是去重）；弹窗收件人规则（`urgentRecipientWhere`）改成
+  **空闲 / 挂机（RESTING）一律弹，娱乐中 / 接单中可自己关**（新列 `Companion.notifyWhileEntertainment`，默认开；
+  陪玩端设置里多一个开关）。单测新增 `online-first-release.test.ts` 5 项。
+
+- **发单弹窗去掉「入池」，派单方式只剩「广播 / 指定」、默认「广播」（老板 2026-10-01）:** 代码里
+  `DispatchType.POOL` 留着（管理端「直添客户」仍走它自己的隐式路径），只是不再列在发单弹窗里；
+  「入池方式」下拉改成广播 / 指定时都显示（广播 + 线上→线下流转 = 先给桥接 + 线上弹，5 分钟后线下弹）。
+
 - **发单选「任务类型」自动带价：机密 ¥35、绝密 ¥45（2026-10-01）:** 老板「选择机密时 金额默认 35；选择绝密时
   金额默认 45」。发单弹窗「任务类型」一选，下面的「金额」自动填上对应默认价（金额为空、或还是那两个默认价时
   才自动填，手动填过别的价不覆盖）。默认价放在 `apps/web/src/constants/orders.ts` 的 `deltaMissionDefaultPrice`。
@@ -885,7 +910,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/companions/me/today-sessions` | JWT | COMPANION | 当前营业日（12:00 换日）已完成场次。可选 `?day=YYYY-MM-DD`。 |
 | `GET` | `/api/companions/me/reportable-sessions` | JWT | COMPANION | 报账取数：默认当前营业日，`?day=` 补报某天，`?unreported=1` 取最近 14 天漏报（含 `reported` 标记）。 |
 | `GET` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 读取「打单/娱乐中也接新单弹窗」偏好。 |
-| `PUT` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 设置该偏好。Body: `{ notifyWhileBusy: boolean }`。 |
+| `PUT` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 设置该偏好。Body: `{ notifyWhileBusy?: boolean; notifyWhileEntertainment?: boolean }`（娱乐中默认弹；空闲 / 挂机不受开关影响，一律弹）。 |
 
 ### Expense Reports
 
