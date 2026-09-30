@@ -63,6 +63,13 @@ export const serviceTypeConfig: Record<string, { color: string; label: string }>
   DO_TASK: { color: 'purple', label: '做任务' },
 };
 
+// 老板 2026-10-01：「选择机密时 金额默认 35；选择绝密时 金额默认 45」——
+// 发单弹窗选「任务类型」时按这个把金额带出来（已经手动填过别的价就不覆盖）。
+export const deltaMissionDefaultPrice: Record<string, number> = {
+  机密: 35,
+  绝密: 45,
+};
+
 export const customerPaidToConfig: Record<string, { color: string; label: string }> = {
   CS_WECHAT: { color: 'purple', label: '客服工作微信' },
   COMPANION_WECHAT: { color: 'blue', label: '陪玩微信' },

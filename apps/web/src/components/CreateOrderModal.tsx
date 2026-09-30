@@ -8,7 +8,7 @@ import { financeApi } from '../api/finance';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
-import { orderTypeConfig } from '../constants/orders';
+import { orderTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
 
 const { Option } = Select;
 
@@ -270,7 +270,21 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
           </Select>
         </Form.Item>
         <Form.Item name="deltaMission" label="任务类型">
-          <Select placeholder="可选" allowClear>
+          <Select
+            placeholder="可选"
+            allowClear
+            onChange={(v: string) => {
+              // 老板 2026-10-01：选「机密」金额默认 35、选「绝密」默认 45。
+              // 只在金额为空、或还是那两个默认价时自动带出来；已经手动填过别的价就不覆盖。
+              const preset = deltaMissionDefaultPrice[v];
+              if (preset == null) return;
+              const cur = form.getFieldValue('amount');
+              const isDefault = Object.values(deltaMissionDefaultPrice).includes(Number(cur));
+              if (cur === undefined || cur === null || cur === '' || isDefault) {
+                form.setFieldsValue({ amount: preset });
+              }
+            }}
+          >
             <Option value="机密">机密</Option>
             <Option value="绝密">绝密</Option>
           </Select>
