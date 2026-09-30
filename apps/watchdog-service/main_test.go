@@ -19,6 +19,8 @@ func useTempSignalDir(t *testing.T) string {
 	pendingUpdateFile = filepath.Join(dir, "pending-update.json")
 	healthyFile = filepath.Join(dir, "client-healthy.json")
 	blockedFile = filepath.Join(dir, "blocked-versions.json")
+	// 本机身份记录也要落到临时目录：测试绝不能去动 C:\ProgramData\chunlv 里的真文件。
+	clientKindFile = filepath.Join(dir, "watchdog-client.txt")
 	// 测试里绝不去下整包、也绝不真去杀客户端。
 	atomic.StoreInt64(&repairLastTry, time.Now().UnixNano())
 	atomic.StoreInt64(&lastDiagMs, time.Now().UnixNano())
@@ -258,5 +260,94 @@ func TestIsSkippableDir(t *testing.T) {
 	}
 	if !strings.Contains(filepath.Join("a", "b.bak-1"), ".bak-") {
 		t.Fatal("sanity")
+	}
+}
+
+// 客服端上了看门狗之后，一台机器上可能同时留着陪玩端和客服端两份客户端
+// （客服机常见：以前装过陪玩端没删干净）。看门狗必须先认「本机身份」，
+// 否则客服机上的看门狗会去守陪玩端，甚至把客服端的更新包解压进陪玩端目录。
+func TestClientKindDecidesWhoIsWatched(t *testing.T) {
+	useTempSignalDir(t)
+
+	// 没写过身份的老机器：保持原样，先认陪玩端
+	if got := orderedClientExeNames()[0]; got != "陪玩管理.exe" {
+		t.Fatalf("default must watch the companion client first, got %s", got)
+	}
+	if got := orderedSearchPaths()[0]; !strings.Contains(got, "陪玩管理.exe") {
+		t.Fatalf("default path order must start with the companion, got %s", got)
+	}
+
+	// 客服机：先认客服端
+	writeClientKind(clientKindCs)
+	if got := orderedClientExeNames()[0]; got != csExeName {
+		t.Fatalf("cs machine must watch %s first, got %s", csExeName, got)
+	}
+	if got := orderedSearchPaths()[0]; !strings.Contains(got, csExeName) {
+		t.Fatalf("cs path order must start with the CS client, got %s", got)
+	}
+	// 兜底不能丢：身份写的是客服端、这台机器上却没装客服端时，还得能管回陪玩端
+	if len(orderedSearchPaths()) != len(companionSearchPaths)+len(csSearchPaths) {
+		t.Fatalf("both path lists must survive, got %d", len(orderedSearchPaths()))
+	}
+	if len(orderedClientExeNames()) != len(clientExeNames) {
+		t.Fatal("both exe names must survive")
+	}
+
+	// 陪玩机显式写身份
+	writeClientKind(clientKindCompanion)
+	if got := orderedClientExeNames()[0]; got != "陪玩管理.exe" {
+		t.Fatalf("companion machine must watch the companion client, got %s", got)
+	}
+}
+
+func TestClientKindFromInstallArgs(t *testing.T) {
+	useTempSignalDir(t)
+	old := os.Args
+	defer func() { os.Args = old }()
+	os.Args = []string{"SystemHelper.exe", "install", "--client=cs"}
+	writeClientKindFromArgs()
+	if readClientKind() != clientKindCs {
+		t.Fatalf("install --client=cs must be remembered, got %q", readClientKind())
+	}
+	os.Args = []string{"SystemHelper.exe", "install", "--client=陪玩端"}
+	writeClientKindFromArgs()
+	if readClientKind() != clientKindCs {
+		t.Fatal("nonsense values must not overwrite the recorded kind")
+	}
+}
+
+func TestIsCsClient(t *testing.T) {
+	for _, p := range []string{
+		`C:\Program Files\客服管理\客服管理.exe`,
+		`C:\Program Files\@chunlvcs-electron\客服管理.exe`,
+		`C:\Program Files\@chunlvcs-electron`,
+		`C:\Program Files\客服管理`,
+	} {
+		if !isCsClient(p) {
+			t.Fatalf("%s must be recognized as the CS client", p)
+		}
+	}
+	for _, p := range []string{
+		"",
+		`C:\Program Files\陪玩管理\陪玩管理.exe`,
+		`C:\Program Files\@chunlvcompanion-electron`,
+		`C:\Program Files\蠢驴电竞`,
+	} {
+		if isCsClient(p) {
+			t.Fatalf("%s must not be treated as the CS client", p)
+		}
+	}
+	// 两种客户端的更新包绝不能混：装错会把别人的客户端换上来
+	if cloudClientZipFor(csExeName) != cloudCsZipURL {
+		t.Fatal("cs client must pull the CS package")
+	}
+	if cloudClientZipFor("陪玩管理.exe") != cloudCompanionZipURL {
+		t.Fatal("companion client must pull the companion package")
+	}
+	if defaultClientDir(csExeName) != `C:\Program Files\客服管理` {
+		t.Fatalf("cs default dir wrong: %s", defaultClientDir(csExeName))
+	}
+	if localUpdateZipName(csExeName) == localUpdateZipName("陪玩管理.exe") {
+		t.Fatal("local package names must differ between the two clients")
 	}
 }

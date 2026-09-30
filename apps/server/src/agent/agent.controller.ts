@@ -289,6 +289,19 @@ export class AgentController {
     res.download(exePath, '陪玩管理-Setup.exe');
   }
 
+  // Public: 客服端自动更新专用 —— 返回 win-unpacked 的 zip。
+  // 客服端下载后交给 SystemHelper 服务（系统权限）解压换装，全程不弹 UAC；
+  // 老客服端不认识这个地址，会继续用下面的 download/cs。
+  @Get('download/cs-zip')
+  async downloadCsZip(@Res() res: Response): Promise<void> {
+    const zipPath = this.agentService.getLatestCsZipPath();
+    if (!fs.existsSync(zipPath)) {
+      res.status(404).json({ code: 404, message: '客服端更新包不存在，请先构建', data: null });
+      return;
+    }
+    await streamFileThrottled(zipPath, 'chunlv-cs-latest.zip', res);
+  }
+
   // Public: CS client downloads its own installer
   @Get('download/cs')
   async downloadCs(@Res() res: Response): Promise<void> {

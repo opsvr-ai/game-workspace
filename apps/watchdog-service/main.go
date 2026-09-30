@@ -28,16 +28,17 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-09-23.3"
+const serviceBuild = "2026-09-30.2"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026092303"
+const serviceBuildNumber = "2026093002"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092303" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093002" // 必须与 serviceBuildNumber 一致
 
-var searchPaths = []string{
+// 陪玩端的安装位置（老机器的习惯，别动顺序）。
+var companionSearchPaths = []string{
 	`C:\Program Files\陪玩管理\陪玩管理.exe`,
 	`C:\Program Files (x86)\陪玩管理\陪玩管理.exe`,
 	filepath.Join(os.Getenv("LOCALAPPDATA"), `Programs\陪玩管理\陪玩管理.exe`),
@@ -51,7 +52,80 @@ var searchPaths = []string{
 	filepath.Join(os.Getenv("ProgramFiles"), `@chunlvcompanion-electron\蠢驴电竞.exe`),
 }
 
-var clientExeNames = []string{"陪玩管理.exe", "蠢驴电竞.exe"}
+// 客服端（客服管理）的安装位置。老板 2026-09-30：客服电脑也要有看门狗，
+// 否则客服端一挂就没人拉起来，更新也装不上（得等人走到电脑跟前）。
+var csSearchPaths = []string{
+	`C:\Program Files\客服管理\客服管理.exe`,
+	`C:\Program Files (x86)\客服管理\客服管理.exe`,
+	`C:\Program Files\@chunlvcs-electron\客服管理.exe`,
+	`C:\Program Files (x86)\@chunlvcs-electron\客服管理.exe`,
+	filepath.Join(os.Getenv("LOCALAPPDATA"), `Programs\客服管理\客服管理.exe`),
+	filepath.Join(os.Getenv("ProgramFiles"), `客服管理\客服管理.exe`),
+	filepath.Join(os.Getenv("ProgramFiles"), `@chunlvcs-electron\客服管理.exe`),
+}
+
+// 本机身份：这台电脑的看门狗该守哪个客户端。装机时由安装包写死
+// （陪玩端 install --client=companion / 客服端 install --client=cs），
+// 因为一台电脑上可能同时留着两份客户端（客服机常见：以前装过陪玩端没删干净）。
+// 不认这份记录的话，客服机上的看门狗会去守那份陪玩端，客服端的更新信号
+// 甚至会被解压到陪玩端目录里 —— 直接把人家的客户端换掉。
+var clientKindFile = filepath.Join(updateSignalDir, "watchdog-client.txt")
+
+const clientKindCs = "cs"
+const clientKindCompanion = "companion"
+
+func readClientKind() string {
+	data, err := os.ReadFile(clientKindFile)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(string(data)))
+}
+
+func writeClientKind(kind string) {
+	if kind == "" {
+		return
+	}
+	_ = os.MkdirAll(updateSignalDir, 0755)
+	_ = os.WriteFile(clientKindFile, []byte(kind), 0644)
+}
+
+// writeClientKindFromArgs 从安装命令里读身份：SystemHelper.exe install --client=cs
+func writeClientKindFromArgs() {
+	for _, a := range os.Args[2:] {
+		if strings.HasPrefix(a, "--client=") {
+			kind := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(a, "--client=")))
+			if kind == clientKindCs || kind == clientKindCompanion {
+				writeClientKind(kind)
+				safeInfo("watchdog client kind set to " + kind)
+			}
+		}
+	}
+}
+
+// orderedClientExeNames / orderedSearchPaths：按本机身份排优先级，另一类放在后面兜底
+// （万一身份写的是客服端、这台机器上却没装客服端，还能退回陪玩端，不至于谁都不管）。
+func orderedClientExeNames() []string {
+	if readClientKind() == clientKindCs {
+		return []string{csExeName, "陪玩管理.exe", "蠢驴电竞.exe"}
+	}
+	return clientExeNames
+}
+
+func orderedSearchPaths() []string {
+	if readClientKind() == clientKindCs {
+		return append(append([]string{}, csSearchPaths...), companionSearchPaths...)
+	}
+	return append(append([]string{}, companionSearchPaths...), csSearchPaths...)
+}
+
+// 客服端（客服管理）的进程名。老板 2026-09-30：客服电脑也要有看门狗，
+// 否则客服端一挂就没人拉起来，更新也装不上（得等人走到电脑跟前）。
+const csExeName = "客服管理.exe"
+
+// 客户端进程名。顺序有意义：一台机器上同时装了陪玩端和客服端时优先认陪玩端
+// （保持老机器的行为不变）；客服电脑上只有客服管理.exe，自然就认它。
+var clientExeNames = []string{"陪玩管理.exe", "蠢驴电竞.exe", csExeName}
 
 func isClientExe(name string) bool {
 	for _, n := range clientExeNames {
@@ -63,15 +137,62 @@ func isClientExe(name string) bool {
 }
 
 // isClientDirName 判断某个安装目录是不是「我们的」客户端目录。
-// 只认名字里带 蠢驴 / 陪玩 / chunlv 的目录，避免把客户端解压到别的软件目录里。
+// 只认名字里带 蠢驴 / 陪玩 / 客服 / chunlv / cs-electron 的目录，
+// 避免把客户端解压到别的软件目录里。
 func isClientDirName(name string) bool {
 	lower := strings.ToLower(name)
-	for _, kw := range []string{"蠢驴", "陪玩", "chunlv"} {
+	for _, kw := range []string{"蠢驴", "陪玩", "chunlv", "客服", "cs-electron"} {
 		if strings.Contains(lower, strings.ToLower(kw)) {
 			return true
 		}
 	}
 	return false
+}
+
+// isCsDirName 判断目录名是不是客服端的安装目录。
+func isCsDirName(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.Contains(lower, "客服") || strings.Contains(lower, "cs-electron")
+}
+
+// isCsClient 判断这个「路径或目录」是不是客服端（传 exe 全路径或安装目录都行）。
+// 客服端老版本装成过 客服端.exe / @chunlvcs-electron，所以 exe 名和目录名一起认。
+func isCsClient(pathOrDir string) bool {
+	if pathOrDir == "" {
+		return false
+	}
+	base := filepath.Base(pathOrDir)
+	if strings.EqualFold(base, csExeName) {
+		return true
+	}
+	return isCsDirName(base)
+}
+
+// 云端整包地址：陪玩端和客服端各有自己的更新包，弄混会把别人的客户端装上来。
+const cloudCompanionZipURL = "http://1.117.229.36:3001/api/agent/download/latest"
+const cloudCsZipURL = "http://1.117.229.36:3001/api/agent/download/cs-zip"
+
+func cloudClientZipFor(pathOrDir string) string {
+	if isCsClient(pathOrDir) {
+		return cloudCsZipURL
+	}
+	return cloudCompanionZipURL
+}
+
+// 本机已下好的更新包文件名也要分开：一台机器上万一先后装过两种客户端，
+// 拿旧的陪玩端 zip 去更新客服端会把目录换成一个陪玩端。
+func localUpdateZipName(pathOrDir string) string {
+	if isCsClient(pathOrDir) {
+		return "update-cs.zip"
+	}
+	return "update.zip"
+}
+
+func defaultClientDir(pathOrDir string) string {
+	if isCsClient(pathOrDir) {
+		return `C:\Program Files\客服管理`
+	}
+	return `C:\Program Files\陪玩管理`
 }
 
 // isSkippableDir 判断目录是不是我们自己的「临时/备份」目录，找客户端时必须跳过去。
@@ -127,7 +248,7 @@ var updateSignalFile = `C:\ProgramData\chunlv\update.json`
 // 客户端 exe 被弄丢、而本机又没留下更新包时（新装的机器、从没更新过的机器），
 // 直接从云服务器取一份完整客户端包来补齐。以前这种情况直接放弃，
 // 结果就是那台电脑再也拉不起客户端 —— 用户看到的是「客户端打不开、进不去系统」。
-var cloudClientZipURL = "http://1.117.229.36:3001/api/agent/download/latest"
+// 具体地址看 cloudClientZipFor：陪玩端 / 客服端各有自己的整包。
 
 // 看门狗自己的故障现场也回传云端（onboard-reports/diag/），
 // 这样客户端压根起不来的机器也能远程看状态，不用再让人去那台电脑上翻目录。
@@ -173,7 +294,7 @@ func findClient() string {
 		}
 		clientPath = ""
 	}
-	for _, p := range searchPaths {
+	for _, p := range orderedSearchPaths() {
 		exists := false
 		if _, err := os.Stat(p); err == nil {
 			exists = true
@@ -188,11 +309,13 @@ func findClient() string {
 		if err != nil {
 			continue
 		}
-		for _, e := range entries {
-			if !e.IsDir() || isSkippableDir(e.Name()) || !isClientDirName(e.Name()) {
-				continue
-			}
-			for _, exe := range []string{"陪玩管理.exe", "蠢驴电竞.exe"} {
+		// 外层先按 exe 名遍历（按本机身份排优先级），内层再找目录：
+		// 客服机认客服端、陪玩机认陪玩端，另一类只做兜底。
+		for _, exe := range orderedClientExeNames() {
+			for _, e := range entries {
+				if !e.IsDir() || isSkippableDir(e.Name()) || !isClientDirName(e.Name()) {
+					continue
+				}
 				c := filepath.Join(base, e.Name(), exe)
 				if _, err := os.Stat(c); err == nil {
 					clientPath = c
@@ -581,12 +704,12 @@ func resolveZip(url, localPath string) (string, error) {
 }
 
 // localZipOrCloud 优先用本机已经下好的整包（省流量、断网也能自愈），没有就回云端拉。
-func localZipOrCloud() string {
-	p := filepath.Join(updateSignalDir, "update.zip")
+func localZipOrCloud(pathOrDir string) string {
+	p := filepath.Join(updateSignalDir, localUpdateZipName(pathOrDir))
 	if fi, err := os.Stat(p); err == nil && fi.Size() > 10<<20 {
 		return p
 	}
-	return cloudClientZipURL
+	return cloudClientZipFor(pathOrDir)
 }
 
 // extractZipTo 把 zip 完整解压到 stagingDir。任何一步失败都直接报错：
@@ -649,14 +772,26 @@ func extractZipTo(zipPath, stagingDir string) error {
 // verifyStagingDir 确认解压出来的是「一份能跑的客户端」：入口 asar 在、客户端 exe 在。
 func verifyStagingDir(dir string) (string, error) {
 	asar := filepath.Join(dir, "resources", "app.asar")
-	if fi, err := os.Stat(asar); err != nil || fi.Size() < 1<<20 {
-		return "", fmt.Errorf("staged resources/app.asar missing or too small")
+	afi, aerr := os.Stat(asar)
+	if aerr != nil {
+		return "", fmt.Errorf("staged resources/app.asar missing")
 	}
 	for _, n := range clientExeNames {
 		p := filepath.Join(dir, n)
-		if fi, err := os.Stat(p); err == nil && fi.Size() > 10<<20 {
-			return p, nil
+		fi, err := os.Stat(p)
+		if err != nil || fi.Size() <= 10<<20 {
+			continue
 		}
+		// 陪玩端的 app.asar 里带着 socket.io，60 多 MB；客服端只有三个脚本，30 多 KB。
+		// 所以阈值按客户端类型给 —— 一刀切 1MB 会把客服端的更新包判成坏包（永远更新不了）。
+		minAsar := int64(1 << 20)
+		if isCsClient(p) {
+			minAsar = 8 << 10
+		}
+		if afi.Size() < minAsar {
+			return "", fmt.Errorf("staged resources/app.asar too small (%d bytes)", afi.Size())
+		}
+		return p, nil
 	}
 	return "", fmt.Errorf("staged install has no client exe")
 }
@@ -894,10 +1029,14 @@ func ensureShortcut(exePath string, force bool) {
 	}
 	atomic.StoreInt64(&lastShortcutMs, now)
 	exe := strings.ReplaceAll(exePath, "'", "''")
+	// 快捷方式名字跟着 exe 名走：陪玩端是「陪玩管理」，客服电脑上是「客服管理」。
+	// 以前写死「陪玩管理」，客服机上会被看门狗摆出一个打不开的陪玩管理图标。
+	shortcutName := strings.TrimSuffix(filepath.Base(exePath), filepath.Ext(exePath))
+	name := strings.ReplaceAll(shortcutName, "'", "''")
 	script := "$ErrorActionPreference='SilentlyContinue';" +
 		"$exe='" + exe + "';" +
 		"$dir=Split-Path -Parent $exe;" +
-		"$name='陪玩管理';" +
+		"$name='" + name + "';" +
 		"$pub=$env:PUBLIC; if(-not $pub){ $pub=[Environment]::GetEnvironmentVariable('PUBLIC','Machine') }; if(-not $pub){ $pub='C:\\Users\\Public' };" +
 		"$desktops=@((Join-Path $pub 'Desktop'));" +
 		"Get-ChildItem 'C:\\Users' -Directory -ErrorAction SilentlyContinue | ForEach-Object { $d=Join-Path $_.FullName 'Desktop'; if(Test-Path -LiteralPath $d){ $desktops+=$d } };" +
@@ -908,7 +1047,7 @@ func ensureShortcut(exePath string, force bool) {
 		" $s=$w.CreateShortcut($lnk); $s.TargetPath=$exe; $s.WorkingDirectory=$dir; $s.IconLocation=($exe+',0'); $s.Description=$name; $s.Save();" +
 		" Get-ChildItem -Path (Join-Path $d '*.lnk') -File -ErrorAction SilentlyContinue | ForEach-Object {" +
 		"  if($_.Name -match $name){ return }" +
-		"  if(-not ($_.Name -match '蠢驴|chunlv')){ return }" +
+		"  if(-not ($_.Name -match '蠢驴|chunlv|客服|陪玩')){ return }" +
 		"  $t=$w.CreateShortcut($_.FullName).TargetPath;" +
 		"  if(-not $t -or -not (Test-Path -LiteralPath $t) -or ($t -ine $exe)){ Remove-Item -LiteralPath $_.FullName -Force }" +
 		" }" +
@@ -945,7 +1084,7 @@ func serviceStateDiag(extra string) string {
 	fmt.Fprintf(&b, "watchdogBuild=%s (%s)\n", serviceBuild, serviceBuildNumber)
 	fmt.Fprintf(&b, "healthTrusted=%v\n", atomic.LoadInt32(&healthTrusted) == 1)
 	fmt.Fprintf(&b, "clientPath=%s\n", findClient())
-	for _, d := range []string{`C:\Program Files\陪玩管理`, `C:\Program Files\@chunlvcompanion-electron`, `C:\Program Files\蠢驴电竞`} {
+	for _, d := range []string{`C:\Program Files\陪玩管理`, `C:\Program Files\@chunlvcompanion-electron`, `C:\Program Files\蠢驴电竞`, `C:\Program Files\客服管理`, `C:\Program Files\@chunlvcs-electron`} {
 		if _, err := os.Stat(d); err != nil {
 			continue
 		}
@@ -1037,15 +1176,20 @@ func repairClientInstall(why, preferDir string) string {
 		}
 	}
 	if dir == "" {
-		dir = `C:\Program Files\陪玩管理`
+		hint := preferDir
+		if hint == "" {
+			hint = clientPath
+		}
+		dir = defaultClientDir(hint)
 	}
 	// 先试本机留下的整包（省流量、断网也能自愈），不行再从云端重下一次。
 	// 注意 localZipOrCloud 可能直接返回云端 URL —— 必须走 resolveZip 下载成文件，
 	// 不能把 URL 当路径丢给解压（2026-09-23 实测报错：open zip: open http://...:
 	// The filename, directory name, or volume label syntax is incorrect.，自愈等于没做）。
-	sources := []string{localZipOrCloud()}
-	if sources[0] != cloudClientZipURL {
-		sources = append(sources, cloudClientZipURL)
+	cloudURL := cloudClientZipFor(dir)
+	sources := []string{localZipOrCloud(dir)}
+	if sources[0] != cloudURL {
+		sources = append(sources, cloudURL)
 	}
 	for _, src := range sources {
 		zip := src
@@ -1119,7 +1263,7 @@ func checkForUpdate(installDir string) {
 	// 写死会把新版装到另一个目录，老目录那份坏客户端照样被 findClient 拉起来。
 	destDir := installDir
 	if destDir == "" {
-		destDir = `C:\Program Files\陪玩管理`
+		destDir = defaultClientDir(clientPath)
 	}
 	zip, err := resolveZip(req.URL, req.LocalPath)
 	if err != nil {
@@ -1544,6 +1688,9 @@ func main() {
 }
 
 func installService() error {
+	// 先记下「这台电脑的看门狗该守谁」：陪玩端 install --client=companion，
+	// 客服端 install --client=cs。不认参数时保持老行为（守陪玩端）。
+	writeClientKindFromArgs()
 	exePath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("cannot get exe path: %w", err)

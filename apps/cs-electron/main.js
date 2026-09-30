@@ -89,31 +89,116 @@ function downloadFile(url, dest) {
   });
 }
 
+// ── 自动更新（2026-09-30 老板：客服端以后全自动、不用点授权）──────────
+// 以前客服端自己下载 NSIS 安装包、再用 -Verb RunAs 去装，每次更新都要人点一下
+// UAC 授权 —— 客服不在电脑跟前，这台机器就永远停在老版本。
+// 现在改成跟陪玩端一样的路子：先下好整包 zip → 给看门狗（SystemHelper 服务，
+// 系统权限）写一个信号文件 → 自己退出 → 看门狗解压换装并把客户端拉起来。
+// 全程不弹 UAC，客服什么都不用做。
+const UPDATE_DIR = 'C:' + path.sep + 'ProgramData' + path.sep + 'chunlv';
+const UPDATE_SIGNAL = path.join(UPDATE_DIR, 'update.json');
+const UPDATE_ZIP = path.join(UPDATE_DIR, 'update-cs.zip');
+const HEALTH_FILE = path.join(UPDATE_DIR, 'client-healthy.json');
+const BLOCKED_FILE = path.join(UPDATE_DIR, 'blocked-versions.json');
+const WATCHDOG_EXE = 'C:' + path.sep + 'Program Files' + path.sep + 'SystemHelper' + path.sep + 'SystemHelper.exe';
+// 这个字符串只有「认得客服端」的看门狗里才有（旧看门狗只盯陪玩端）。把客服端交给
+// 旧看门狗会变成「关掉之后再也没人拉起来」，更新信号还会被解压到陪玩端目录里，
+// 所以必须先确认它认得客服端 —— 只看这个标记，不钉死具体构建号，
+// 以后看门狗再升级也不会把这条路堵死。
+const WATCHDOG_CLIENT_MARK = '客服管理.exe';
+
+function readBlockedVersions() {
+  try {
+    return JSON.parse(fs.readFileSync(BLOCKED_FILE, 'utf-8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+// 看门狗在不在，而且是不是认得客服端的新版（直接在它的 exe 字节里找内嵌标记）。
+function watchdogReady() {
+  try {
+    if (!fs.existsSync(WATCHDOG_EXE)) return false;
+    const buf = fs.readFileSync(WATCHDOG_EXE);
+    return buf.length > (1 << 20) && buf.includes(Buffer.from(WATCHDOG_CLIENT_MARK));
+  } catch {
+    return false;
+  }
+}
+
+// 看门狗更新完会等客户端自报「我起来了」（client-healthy.json）：
+// 等不到就整目录回滚到更新前那一版。所以只要主进程起来了就写，之后每分钟刷新一次。
+function writeHealthMarker() {
+  try {
+    fs.mkdirSync(UPDATE_DIR, { recursive: true });
+    fs.writeFileSync(
+      HEALTH_FILE,
+      JSON.stringify({ version: app.getVersion(), exePath: app.getPath('exe'), at: Date.now() }),
+      'utf-8',
+    );
+  } catch {
+    // 写不了就算了：只是少一层「装坏了自动回滚」的保护。
+  }
+}
+
+function signalUpdate(url, localPath, version) {
+  try {
+    fs.mkdirSync(UPDATE_DIR, { recursive: true });
+    fs.writeFileSync(UPDATE_SIGNAL, JSON.stringify({ url, localPath, version }), 'utf-8');
+  } catch {
+    // 写不进信号文件：这轮更新装不上，下轮再说，不影响客服正在用的窗口。
+  }
+}
+
+// 没装新看门狗的老机器退回老办法：装 NSIS 安装包（需要点一次 UAC），
+// 保证不会因为「装不了」而永远停在老版本。
+function runInstallerElevated(installerPath) {
+  const ps =
+    "Start-Process -FilePath '" + installerPath + "' -ArgumentList '/S' -Verb RunAs -Wait; " +
+    "Remove-Item '" + installerPath + "' -Force -ErrorAction SilentlyContinue";
+  const { spawn } = require('child_process');
+  spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
+    detached: true,
+    stdio: 'ignore',
+  }).unref();
+  // 这里故意不 app.quit()：安装包自己会先关掉客服端再换文件（装完也会自动打开）。
+  // 以前先退出，客服一点「取消」授权，这台机器的客服端就再也没人拉起来了。
+}
+
 function checkForUpdates() {
   try {
     const serverUrl = getServerUrl().replace(/\/$/, '');
-    fetch(`${serverUrl}/api/agent/cs-version`)
+    fetch(serverUrl + '/api/agent/cs-version')
       .then((res) => res.json())
       .then((json) => {
-        const latest = json?.data?.version;
-        const downloadUrl = json?.data?.downloadUrl;
-        if (!latest || !downloadUrl) return;
+        const latest = json && json.data && json.data.version;
+        const exeUrl = json && json.data && json.data.downloadUrl;
+        const zipUrl = json && json.data && json.data.zipUrl;
+        if (!latest || !exeUrl) return;
         // 只有服务器版本严格更新时才更新；本地已是最新/更新时不触发，
         // 避免字符串不等（===）导致反复下载安装并退出（闪退）。
         if (compareVersions(latest, app.getVersion()) <= 0) return;
-        const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${serverUrl}${downloadUrl}`;
-        const out = path.join(app.getPath('temp'), `Chunlv-CS-Setup-${latest}.exe`);
-        // 先在主进程把安装包完整下载下来，再退出安装；避免之前用后台 PowerShell
-        // 下载时应用一退出就把下载进程一起杀掉，导致永远装不上。
+        // 这个版本在这台机器上装坏过（看门狗已回滚 + 拉黑）：别再下了，否则死循环。
+        if (Object.prototype.hasOwnProperty.call(readBlockedVersions(), latest)) return;
+
+        const toFull = (u) => (u.indexOf('http') === 0 ? u : serverUrl + u);
+        // 静默路径：有「认得客服端」的新看门狗就走整包 zip，不需要授权。
+        const silent = !!(zipUrl && watchdogReady());
+        const fullUrl = toFull(silent ? zipUrl : exeUrl);
+        // 先在主进程把包完整下载下来，再退出安装；避免之前用后台 PowerShell 下载时
+        // 应用一退出就把下载进程一起杀掉，导致永远装不上。
+        const out = silent
+          ? UPDATE_ZIP
+          : path.join(app.getPath('temp'), 'Chunlv-CS-Setup-' + latest + '.exe');
         downloadFile(fullUrl, out)
           .then(() => {
-            const ps = `Start-Process -FilePath '${out}' -ArgumentList '/S' -Verb RunAs -Wait; Remove-Item '${out}' -Force -ErrorAction SilentlyContinue`;
-            const { spawn } = require('child_process');
-            spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], {
-              detached: true,
-              stdio: 'ignore',
-            }).unref();
-            app.quit();
+            if (silent) {
+              signalUpdate(fullUrl, out, latest);
+              // 交给看门狗（系统权限）解压换装并重启：不弹 UAC。
+              setTimeout(() => app.exit(0), 800);
+              return;
+            }
+            runInstallerElevated(out);
           })
           .catch(() => {
             // 下载失败时保持应用运行，避免闪退死循环。
@@ -509,6 +594,10 @@ app.whenReady().then(() => {
   createTray();
 
   machineAgent.start();
+  // 更新后「我还活着」的标记：看门狗拿它判断这次更新有没有把客户端装坏
+  // （等不到就整目录回滚到更新前那一版），所以起来就写、之后每分钟刷新时间戳。
+  writeHealthMarker();
+  setInterval(writeHealthMarker, 60 * 1000);
   // 每次启动顺手校正桌面图标：更新/改名后老机器的图标会变白、点不开。
   ensureDesktopShortcut();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。

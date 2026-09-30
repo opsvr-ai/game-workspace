@@ -70,7 +70,8 @@ def main() -> int:
 
     print(run("md5sum %s.new && mv -f %s.new %s && md5sum %s && ls -la %s" % (REMOTE, REMOTE, REMOTE, REMOTE, REMOTE)))
     print("本地 md5:", hashlib.md5(open(ZIP, "rb").read()).hexdigest())
-    print(run("curl -s -o /dev/null -w 'download/latest -> %{http_code} %{size_download}' http://127.0.0.1:3001/api/agent/download/latest"))
+    # 只取前 64KB 验「地址通、能下载」：整包 120 多兆，全下来得等好几分钟
+    print(run("curl -s -o /dev/null -w 'download/latest -> %{http_code} %{size_download}\\n' --max-time 30 -r 0-65535 http://127.0.0.1:3001/api/agent/download/latest"))
     c.close()
     return 0
 

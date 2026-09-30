@@ -297,13 +297,18 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getCsLatestVersion() {
-    const [versionCfg, urlCfg] = await Promise.all([
+    const [versionCfg, urlCfg, zipCfg] = await Promise.all([
       this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_version' } }),
       this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_download_url' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'cs.latest_zip_url' } }),
     ]);
     return {
       version: (versionCfg?.value as string) ?? '1.0.0',
+      // 老客服端只认这个（NSIS 安装包，装的时候要点一次 UAC），先留着别动，
+      // 免得还没升级的机器拿不到能跑的东西。
       downloadUrl: (urlCfg?.value as string) ?? '/api/agent/download/cs',
+      // 新客服端优先用这个整包：交给看门狗（系统权限）解压换装，全程不弹授权。
+      zipUrl: (zipCfg?.value as string) ?? '/api/agent/download/cs-zip',
     };
   }
 
@@ -405,6 +410,15 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     const projectRoot = path.resolve(process.cwd(), '../..');
     const zipPath = path.join(projectRoot, 'uploads/chunlv-latest.zip');
     return zipPath;
+  }
+
+  /**
+   * 客服端的「自动更新整包」（win-unpacked 的 zip）。
+   * 陪玩端早就走这条路（SystemHelper 解压换装、不弹 UAC），客服端 2026-09-30 起一样。
+   */
+  getLatestCsZipPath(): string {
+    const projectRoot = path.resolve(process.cwd(), '../..');
+    return path.join(projectRoot, 'uploads/chunlv-cs-latest.zip');
   }
 
   getLatestCsExePath(): string {

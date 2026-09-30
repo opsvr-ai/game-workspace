@@ -14,6 +14,10 @@ extraResources:
   # 找不到 donkey.ico，托盘就是个透明空图标（右下角看不见图标）。
   - from: public/donkey.ico
     to: donkey.ico
+  # 看门狗服务本体：装机时由 build/installer.nsh 装成 SystemHelper 服务，
+  # 之后的自动更新也靠它（系统权限）解压换装 —— 客服端「全自动、不弹授权」的关键。
+  - from: ../watchdog-service/SystemHelper.exe
+    to: SystemHelper.exe
 win:
   icon: public/donkey.ico
   target:

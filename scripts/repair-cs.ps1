@@ -455,6 +455,7 @@ W ('剩余客户端进程：' + @(Get-ClientProcs).Count)
 # ── 4/6 换装最新客服端 ───────────────────────────────────────────────────────
 Write-Host ''
 Write-Host '[4/6] 下载并安装最新客服端（约 77MB，请等一会儿）…' -ForegroundColor Cyan
+# 客服端 2026-09-30 起装机包里带 SystemHelper 看门狗，装完客户端就有看门狗了。
 $dir = Resolve-CsInstallDir
 $targetExe = Join-Path $dir $exeName
 $verBefore = Get-InstalledVersion
@@ -522,6 +523,58 @@ if (Test-Path -LiteralPath $targetExe) {
   $exeInfo = ('size=' + [math]::Round($fi.Length / 1MB) + 'MB mtime=' + $fi.LastWriteTime)
 }
 
+# ── 4b/6 看门狗服务（SystemHelper）────────────────────────────────────────────
+# 老板 2026-09-30：客服端以后要「全自动更新、不点授权」。靠的就是这个服务：
+#   ① 客服端被关掉 / 崩了，它负责拉起来；
+#   ② 有新版本时它（系统权限）下载解压换装，全程不弹 UAC —— 客服什么都不用做。
+# 老机器以前没这个服务，所以修复脚本要顺手装一遍；装不上也不影响客服端正常用。
+Write-Host ''
+Write-Host '[4b/6] 装好看门狗服务（以后自动更新不用点授权）…' -ForegroundColor Cyan
+$watchdogOk = $false
+try {
+  $shSrc = Join-Path $dir 'resources\SystemHelper.exe'
+  $shDir = Join-Path $env:ProgramFiles 'SystemHelper'
+  $shDst = Join-Path $shDir 'SystemHelper.exe'
+  if (Test-Path -LiteralPath $shSrc) {
+    $needCopy = $true
+    if (Test-Path -LiteralPath $shDst) {
+      if ((Get-Item -LiteralPath $shDst).Length -eq (Get-Item -LiteralPath $shSrc).Length) { $needCopy = $false }
+    }
+    if ($needCopy) {
+      New-Item -ItemType Directory -Path $shDir -Force | Out-Null
+      Copy-Item -LiteralPath $shSrc -Destination $shDst -Force
+      W ('已放置看门狗：' + $shDst)
+    } else {
+      W '看门狗文件已经是同一份，不用换'
+    }
+  } elseif (-not (Test-Path -LiteralPath $shDst)) {
+    W '客户端目录里没带 SystemHelper.exe，看门狗先跳过（下次装新版就带上了）'
+  }
+  if (Test-Path -LiteralPath $shDst) {
+    & sc.exe stop SystemHelper 2>$null | Out-Null
+    Start-Sleep -Seconds 2
+    # 先把老服务删掉再装：服务已存在时 `install` 会报「已存在」，删干净才不会
+    # 出现「文件是新的、服务登记的却是老路径」这种半吊子状态。
+    & sc.exe delete SystemHelper 2>$null | Out-Null
+    for ($k = 0; $k -lt 10; $k++) {
+      if (-not (Get-Service SystemHelper -ErrorAction SilentlyContinue)) { break }
+      Start-Sleep -Seconds 1
+    }
+    # --client=cs 必须带上：这台电脑的看门狗要守客服端（有的客服机以前装过陪玩端没删干净，
+    # 不写身份的话看门狗会去守陪玩端、更新包也会被解压进陪玩端目录）。
+    (& $shDst install --client=cs 2>&1) | ForEach-Object { W ('  安装看门狗：' + $_) }
+    & sc.exe start SystemHelper 2>$null | Out-Null
+    Start-Sleep -Seconds 3
+    $svc = Get-Service SystemHelper -ErrorAction SilentlyContinue
+    if ($svc) {
+      $watchdogOk = ($svc.Status -eq 'Running')
+      W ('看门狗状态：' + $svc.Status)
+    } else {
+      W '看门狗服务没装上（不影响客服端使用）'
+    }
+  }
+} catch { W ('看门狗处理失败（不影响客服端使用）：' + $_.Exception.Message) }
+
 # ── 5/6 桌面图标 ─────────────────────────────────────────────────────────────
 Write-Host ''
 Write-Host '[5/6] 修桌面图标…' -ForegroundColor Cyan
@@ -538,7 +591,7 @@ try {
 } catch { W ('远程管理通道没配上（不影响客服端使用）：' + $_.Exception.Message) }
 
 $ver = $(if ($verAfter) { $verAfter } else { $(if ($verLatest) { $verLatest } else { '' }) })
-Send-MachineReport $ver $dir ('repair-cs ok=' + $installOk + ' verBefore=' + $verBefore + ' verAfter=' + $verAfter + ' latest=' + $verLatest + ' exe=' + $exeInfo) | Out-Null
+Send-MachineReport $ver $dir ('repair-cs ok=' + $installOk + ' verBefore=' + $verBefore + ' verAfter=' + $verAfter + ' latest=' + $verLatest + ' exe=' + $exeInfo + ' watchdog=' + $watchdogOk) | Out-Null
 
 # 启动客服端：只有「有人登录的桌面会话」才自己拉起，
 # 免得在服务/远程会话里开出一份看不见的客户端跟真正那份打架。
