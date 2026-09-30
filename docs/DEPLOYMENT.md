@@ -751,6 +751,11 @@ http://1.117.229.36:3001/uploads/repair-companion.bat
    只带「账号有没有建好」、**不带密码**（诊断是明文落盘的）。局域网地址按「到云服务器的实际出口网卡」
    取（`Find-NetRoute`），免得 VMware / VirtualBox 的虚拟网卡抢答、把错地址当成这台机器的地址。
    已经配好的机器这一步几秒钟就过，不影响后面修复。
+  **2026-09-30 补的一个根因**：早期 `chunlv-allinone.nsi` / `setup-remote-access.nsi` 是用
+  `net user chunlvops <口令> /add` 建的账号，**没设「密码永不过期」**，账号跟着本机密码策略到期；一到期
+  Windows 就拒绝一切远程登录（RPC / WMI / 事件日志全挂），机器就永久失联、连现场都看不到（邵泽慧那台
+  `192.168.1.4` 就是这么来的）。所以：两个 `.nsi` 建完账号立刻 `Set-LocalUser -Name chunlvops -PasswordNeverExpires $true`；
+  上面这条「不动密码」的分支也**补上到期标志**（只改标志、不动口令，改了回传 `accountEvent=kept-expiry-fixed`）。
 2. 回传现场到云端（见 5.7.1）；
 3. 下载完整更新包（限速接口 `/api/agent/download/latest` 失败自动换直链 `/uploads/chunlv-latest.zip`）；
 4. 校验：.NET `ZipFile`（按 UTF-8 解中文名）→ `Expand-Archive` → `tar.exe` 三种解压方式依次试，
@@ -768,6 +773,17 @@ http://1.117.229.36:3001/uploads/repair-companion.bat
 跑完看 `C:\Program Files\SystemHelper\service.log` 最后几行，确认构建号与 `Adopted` / `repair done` 记录；
 管理端「陪玩电脑」页上这台机的版本应变成**当前线上最新号**（截至 2026-09-27 是 `1.0.20260931`）、心跳在 0~1 分钟内恢复。
 `repair-companion.ps1 -DiagOnly` 只回传现场、本机一个文件都不动（先看情况再决定时用）。
+
+**专门的蓝屏取证入口（2026-09-30 新增）：** `http://1.117.229.36:3001/uploads/bsod-report.bat`
+（源码 `scripts/report-bsod.ps1` + `scripts/取蓝屏报告.bat`，英文名副本 `bsod-report.bat`）。跑一次做两件事：
+① 取证 `BugCheck 1001` / `Kernel-Power 41` / `6008` / `4101` / `WHEA-Logger` / `C:\Windows\Minidump`
+（含从转储里抠出的驱动 / 模块名） / WER 内核报告的 `BugcheckCode` / 显卡驱动版本 / 反作弊与安全软件 /
+客户端与看门狗日志尾部 / 最近 24h 严重错误；② 把 `chunlvops` 修好（重设密码 + 永不过期）。回传
+`/api/agent/onboard-report` + `/api/agent/diag-report`，报告落 `onboard-reports/diag/<机器名>-<时间>-bsod-report.log`
+（公网下不到，只有管理员能看）。自检开关 `-NoRemoteFix` / `-NoUpload` / `-NoPause` 用于干跑。
+两个必须记住的坑（2026-09-30 实测踩过）：脚本文件**必须带 UTF-8 BOM**，否则 Windows PowerShell 5.1 按 GBK
+读中文会直接把脚本读成语法错；日志只读「真日志」（客户端 `logs\*.log` + 看门狗 `service.log`），
+别整目录递归 `*.log` —— Electron 的 `Local Storage` / `Session Storage` 里也有 `.log`，是 LevelDB 二进制。
 **「跑到一半被关掉」不会再让机器变半死：** 修复流程要换目录就必须先把看门狗服务停掉，所以停掉之后
 立刻装一层保险 -- 写一个标记文件（`C:\ProgramData\chunlv\repair-active.txt`）+ 起一个盯着它的小进程
 （`chunlv-watchdog-guard.ps1`）：标记一消失、或最多等 45 分钟，就确认看门狗在跑、不在就把它拉起来；

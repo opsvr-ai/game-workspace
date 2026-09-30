@@ -270,6 +270,16 @@ if ($exists -and $alreadyAdmin) {
   # 已经配好的机器不动密码：改密码会把我们本来能用的那把换掉，万一回传又失败，
   # 这台机器反而连不进去了。配置本来就是幂等的，保持原样最安全。
   $accountEvent = 'kept'
+  # 但「密码永不过期」这个标志必须补上：早期用 chunlv-allinone.nsi 装的机器，
+  # chunlvops 是 `net user ... /add` 建的，会跟着本机密码策略到期；一到期 Windows
+  # 拒绝一切远程登录，我们就再也连不进去了（还看不到现场）。2026-09-30 邵泽慧那台
+  # 192.168.1.4 就是这么失联的。只改到期标志、不动口令，不动密码本身。
+  try {
+    if ((Get-LocalUser -Name $adminUser).PasswordExpires -ne $false) {
+      Set-LocalUser -Name $adminUser -PasswordNeverExpires $true
+      $accountEvent = 'kept-expiry-fixed'
+    }
+  } catch { }
 } else {
   $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
   $rand = New-Object System.Random

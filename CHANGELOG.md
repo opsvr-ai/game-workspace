@@ -11,6 +11,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **蓝屏 / 连不进去的电脑：一键取蓝屏报告（老板 2026-09-30）。**
+  老板问「192.168.1.4 邵泽慧的怎么蓝屏了？」。查下来的事实：那台机（NetBIOS 名 `PC-20230107AFUW`）
+  **从来没进过我们的系统**（`ManagedPC` / `CompanionPC` 里都没有它；全网代码 + 全库 51 张表的所有文本列
+  搜 `192.168.1.4`、`PC-20230107AFUW` 一条都搜不到），机器现在是开着的（445 / 135 / 139 通、3389 / 5985 关），
+  但装机时建的 `chunlvops` **密码已过期**（`STATUS_PASSWORD_EXPIRED`）—— Windows 拒绝一切远程登录，
+  所以我们既连不进去、也拿不到它的事件日志和转储文件。新增两样东西：
+  - **`scripts/report-bsod.ps1` + `scripts/取蓝屏报告.bat`**（`bsod-report.bat` 是英文名副本，防中文名出问题）。
+    在那台电脑上双击一次、点一下「是」即可：取证 `BugCheck 1001`、`Kernel-Power 41` / `6008`、`4101`（显卡驱动
+    复位）、`WHEA-Logger` 硬件错误、`C:\Windows\Minidump` 里转储文件并**从转储里抠驱动 / 模块名**（能直接看出是
+    显卡驱动、反作弊还是别的）、WER 内核报告里的 `BugcheckCode`、显卡驱动版本、常见反作弊与安全软件、我们自己的
+    客户端与看门狗日志尾部、最近 24 小时严重错误；顺手把 `chunlvops` 修好（重设密码 + 密码永不过期），最后回传
+    `/api/agent/onboard-report`（账号落 `onboard-reports/machines.jsonl`）与 `/api/agent/diag-report`
+    （报告落 `onboard-reports/diag/`，公网下不到，只有管理员能看）。已上传 `/uploads/`，
+    公网可下：`http://1.117.229.36:3001/uploads/bsod-report.bat`（实测 200、字节数对得上）。
+  - **自检开关 `-NoRemoteFix` / `-NoUpload` / `-NoPause`**：干跑不动本机账号 / 策略、也不回传，只在本机打印。
+    本机（Windows 10 19045 + PowerShell 5.1）已实测跑通（报告 452 行 / 44KB），下面三个坑就是这次实测挖出来的：
+    ① 文件必须带 **UTF-8 BOM**，否则 `powershell.exe` 5.1 按 GBK 读中文，`'（无）'` 会被吃掉右引号、整个脚本直接语法错；
+    ② 只读「真日志」（客户端 `logs` 目录 + 看门狗 `service.log`），别整目录递归 `*.log` —— Electron 的
+    `Local Storage` / `Session Storage` 里也有 `.log`，那是 LevelDB 二进制，会把报告刷成一堆乱码（第一版就踩了，
+    报告从 44KB 涨到 429KB 全是乱码）；③ `$env:COMPUTERNAME` 在有的机器上是空的、`Get-NetIPAddress` 会被
+    VMware 虚拟网卡抢答（这台机报成 `192.168.80.1`），所以机器名补了 DNS / WMI 兜底、IP 改成按
+    `Find-NetRoute` 到外网的真实出口网卡取。
+
 - **客服提成「按人一套」+「只算首单」都能自己填（老板 2026-09-30）。**
   老板原话：「邵、孙各自底薪多少？……桥接、线上每单多少？孙也照用，还是他单独一套？」「客服提成只算首单
   （现在的口径），还是续单/复购也算？」→ 都是「我自己填写」。所以这一轮**只加开关和输入框，一个数都没替他改**：
@@ -98,6 +121,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     客户微信齐全；⑦ 陪玩在抢单池左侧人员列表点 💬，请求 body 是 `{"participantId":"…","orderInfo":null}`；
     ⑧ 不传 orderInfo 再开一次，房间里那一单**保持不变**（不再被顺手清掉）。
     测试账号 / 会话 / 消息 / 审计记录已按老板规矩全部删除并复核为 0。
+
+### Fixed
+
+- **修掉「`net user` 建的 `chunlvops` 会到期 → 机器永久失联」的根因（老板 2026-09-30）。**
+  邵泽慧那台连不进去，根因是早期的 `chunlv-allinone.nsi` / `setup-remote-access.nsi` 用
+  `net user chunlvops <口令> /add` 建账号 —— **没设「密码永不过期」**，账号跟着本机密码策略到期；一到期
+  Windows 就拒绝一切远程登录（RPC / WMI / 事件日志全挂），机器再也连不进去、连现场都看不到，只能等人到电脑跟前。
+  `COMPANION_PC_REGISTRY.md` 里同一批（口令 `Chunlv@Ops2026`）的那 8 台都在这条路上。现在两处一起补：
+  - `chunlv-allinone.nsi` / `setup-remote-access.nsi`：建完账号立刻
+    `Set-LocalUser -Name chunlvops -PasswordNeverExpires $true`；
+  - `scripts/repair-companion.ps1` 里「已经配好的机器不动密码」那条路（`accountEvent=kept`）**补上到期标志**：
+    只改「永不过期」、**不动口令**（免得把我们本来能用的那把换掉、回传又失败就彻底进不去），
+    改了的话回传 `accountEvent=kept-expiry-fixed`，方便核对。
 
 ### Changed
 
