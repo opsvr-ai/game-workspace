@@ -925,6 +925,14 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 **不依赖中继机**（老板 2026-09-06 定的：以后只开云服务器、不开中继器），也不需要在被控机器上开端口。
 客户端没在跑 → 任务挂在队列里，等客户端起来自动执行；超 15 分钟没回来会被标失败（不会一直显示「执行中」）。
 
+**台账的一行 = 一台机器。** 客户端和运维脚本算 machineId 的算法不一样（客户端按网卡枚举顺序取
+第一块非虚拟网卡的 MAC，脚本按 `Get-NetAdapter | Status -eq 'Up'` 的第一块），所以**脚本上报时
+按「主机名 + 主 IP」认领客户端那一行**（`machine.service.ts` 的 `pickCanonicalMachine`）——
+只按主机名不行，局域网里有 4 台机器都叫 `User-20240831VS`。2026-09-30 之前这一点没做，
+客服机 `PC-20230107AFUW` 就多出一行、`remoteReady` 也永远回填不到客户端那一行。
+另外运维脚本要改本机账号，**必须由看门狗拉起的客户端来跑**（服务是 LocalSystem，拉起的客户端就是
+管理员）；手工双击客户端不是管理员，脚本会报「没有管理员权限」并失败。
+
 **存储**：复用 `SystemConfig(key/value jsonb)`，**没有新增表、没有 schema 迁移** ——
 `client.machine.<machineId>` 是台账，`client.task.<taskId>` 是任务（只保留最近 400 条，旧的自动清）。
 报告正文落 `onboard-reports/diag/`（和 `uploads` 同级，公网下不到）。

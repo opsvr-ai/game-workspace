@@ -10,6 +10,16 @@ import { buildEnableRemoteScript, CLIENT_ENABLE_REMOTE_PS } from './client-remot
 import { ONBOARD_REPORT_TOKEN } from './agent-token';
 
 /**
+ * 这条台账是客户端自己的心跳写的，还是运维脚本写的？
+ * 客户端来源：`cs-client` / `companion-client` / `client`（旧记录可能为空）；
+ * 脚本来源：`enable-remote` / `repair-*` 之类（装机脚本、一键修复脚本）。
+ */
+function isClientSource(source: unknown): boolean {
+  const value = String(source ?? '').trim();
+  return !value || value === 'client' || /-client$/.test(value);
+}
+
+/**
  * 客户端机器台账 + 远程任务队列。
  *
  * 为什么要有这个（老板 2026-09-30）：
@@ -27,6 +37,7 @@ import { ONBOARD_REPORT_TOKEN } from './agent-token';
  *   client.task.<taskId>        → 一条远程任务（诊断 / 指令 / 开通远程管理）
  * 报告正文落到 onboard-reports/diag/ 下（和 uploads 同级，公网下不到）。
  */
+
 @Injectable()
 export class MachineService {
   private readonly logger = new Logger(MachineService.name);
@@ -45,9 +56,25 @@ export class MachineService {
   /** 客户端上报自己是谁。同一个 machineId 覆盖更新，不新增行。 */
   async reportMachine(payload: any): Promise<{ machineId: string; lastSeenAt: string }> {
     const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
-    const machineId = clean(payload?.machineId, 120) || clean(payload?.hostname, 120).toLowerCase();
+    const source = clean(payload?.source, 60) || 'client';
+    const hostname = clean(payload?.hostname, 120);
+    const primaryIp = clean(payload?.primaryIp, 64);
+    let machineId = clean(payload?.machineId, 120) || hostname.toLowerCase();
     const now = new Date();
-    const before = await this.readMachine(machineId);
+    let before = await this.readMachine(machineId);
+    // 只有「运维脚本」上报才做归并；客户端自己的心跳永远以自己的 machineId 为准，
+    // 否则一台机器换过网卡之后两个 id 会互相抢写。
+    if (!isClientSource(source)) {
+      const canonical = await this.pickCanonicalMachine(hostname, primaryIp);
+      if (canonical?.machineId && canonical.machineId !== machineId) {
+        this.logger.warn(
+          `运维脚本（${source}）算出的 machineId ${machineId} 与客户端台账 ${canonical.machineId} 不一致`
+            + `（同一台机器：主机名 ${hostname} + 主 IP ${primaryIp}），写回客户端那一行`,
+        );
+        machineId = String(canonical.machineId);
+        before = canonical;
+      }
+    }
     const record: any = {
       machineId,
       clientType: clean(payload?.clientType, 16) || before?.clientType || 'UNKNOWN',
@@ -82,6 +109,33 @@ export class MachineService {
     if (!machineId) return null;
     const row = await this.prisma.systemConfig.findUnique({ where: { key: `client.machine.${machineId}` } });
     return (row?.value as any) || null;
+  }
+
+  /**
+   * 同一台机器的「客户端台账行」是谁。
+   *
+   * 客户端和运维脚本（开通远程管理 / 一键修复）各算一个 machineId：
+   *   客户端按网卡枚举顺序取第一块非虚拟网卡的 MAC（`os.networkInterfaces()`），
+   *   脚本按「第一块 Up 的网卡」取 MAC（`Get-NetAdapter | Where Status -eq 'Up' | Select -First 1`）。
+   * 2026-09-30 实拍：客服机 PC-20230107AFUW 客户端算出 …-00ff25fe4260、脚本算出 …-0ae0afa217ff，
+   * 于是台账里多出一行 —— 「开通远程管理」回传的账号口令落在多出来的那一行上，
+   * 客户端那一行永远显示「未开通」，管理端还会看到同一台机器两条记录。
+   *
+   * 认领规则：**主机名 + 主 IP 都对得上**才算同一台机器（不能只按主机名 ——
+   * 局域网里有 4 台机器都叫 `User-20240831VS`，IP 各不相同）；
+   * 有「客户端心跳写过的那一行」就优先认它（`lastSource` 是 `cs-client` / `companion-client`），
+   * 没有才退而用已有那一行（全新机器连脚本一起装的情况）。
+   */
+  private async pickCanonicalMachine(hostname: string, primaryIp: string): Promise<any | null> {
+    if (!hostname || !primaryIp) return null;
+    const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } });
+    const host = hostname.toLowerCase();
+    const same = rows
+      .map((row) => (row.value as any) || {})
+      .filter((value: any) => String(value.hostname || '').toLowerCase() === host
+        && String(value.primaryIp || '') === primaryIp);
+    if (!same.length) return null;
+    return same.find((value: any) => isClientSource(value.lastSource)) || same[0];
   }
 
   /**
