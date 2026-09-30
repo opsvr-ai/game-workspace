@@ -587,6 +587,9 @@ graph TB
 - `GET /api/agent/update/queue` — 谁在下载 / 排队（发版时盯铺开进度）
 - `POST /api/agent/heartbeat` — 陪玩电脑心跳（带本机客户端版本、IP、MAC）
 - `POST /api/agent/diag-report` — 看门狗 / 一键修复脚本回传现场，落 `onboard-reports/diag/<主机名>-<时间>-<来源>.log`（公网下不到）
+- `POST /api/agent/machine-report` / `GET /api/agent/machine-tasks?as=system` / `POST /api/agent/machine-task-result` — 机器台账 + 远程任务队列（见 5.9 部署文档）。看门狗每分钟上报一次（带 `watchdogBuild` + `systemPoller`）并领任务，是**任务的首选执行者**（SYSTEM 权限，不依赖登录账号是不是管理员）
+
+**看门狗自己的升级（2026-10-01）:** 每 30 分钟探一次 `uploads/SystemHelper.exe` 的头信息，变了才下载（PE 头 + 最小 3MB 校验），构建号（编进二进制的 `CHUNLV_WATCHDOG_BUILD=<8 位>`）更新就原子换掉自己，再用一次性计划任务重启服务。跳过条件：`watchdog-no-selfupdate` 标记、有 `update.json` / `pending-update.json` 在、构建号标记读不出来。
 
 **客户端侧落盘:**
 - `C:\ProgramData\chunlv\client-healthy.json` — 客户端启动后每分钟写一次的健康标记（版本 / exe 路径 / 时间），看门狗据此判定「这次更新到底跑起来没有」

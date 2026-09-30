@@ -8,9 +8,15 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 )
 
 // useTempSignalDir 把看门狗那几个状态文件挪到临时目录，别去动本机 C:\ProgramData\chunlv。
+// 单测跑在开发机上，而这台机器本身就装着陪玩端（老板自己在用）：
+// 这里直接把「真去杀客户端进程」这条路关掉，免得跑一次单测就把人家的客户端打断。
+func init() { atomic.StoreInt32(&processKillDisabled, 1) }
+
 func useTempSignalDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -19,12 +25,69 @@ func useTempSignalDir(t *testing.T) string {
 	pendingUpdateFile = filepath.Join(dir, "pending-update.json")
 	healthyFile = filepath.Join(dir, "client-healthy.json")
 	blockedFile = filepath.Join(dir, "blocked-versions.json")
+	preferredClientFile = filepath.Join(dir, "preferred-client.json")
 	// 本机身份记录也要落到临时目录：测试绝不能去动 C:\ProgramData\chunlv 里的真文件。
 	clientKindFile = filepath.Join(dir, "watchdog-client.txt")
+	cloudStampFile = filepath.Join(dir, "watchdog-cloud.json")
+	cloudSkipFile = filepath.Join(dir, "watchdog-no-selfupdate")
+	cloudExeFile = filepath.Join(dir, "SystemHelper-cloud.exe")
+	// 云端自更新的限流时钟也从零开始：测试里绝不去碰真的云端地址。
+	atomic.StoreInt64(&lastCloudCheck, time.Now().UnixNano())
+	// 远程任务的限流时钟同理：单测绝不去碰真服务器、也绝不真去执行任务。
+	atomic.StoreInt64(&lastRemoteTick, time.Now().UnixNano())
+	cachedMachineID = ""
+	cachedMachineIDAt = 0
 	// 测试里绝不去下整包、也绝不真去杀客户端。
 	atomic.StoreInt64(&repairLastTry, time.Now().UnixNano())
 	atomic.StoreInt64(&lastDiagMs, time.Now().UnixNano())
 	return dir
+}
+
+// cloudSelfUpdateCheck 是「能自己把自己换掉」的入口，越权一点就成灾：
+// 这里钉死三条 —— 刚启动不乱来、本机被人工关掉要听话、正在装客户端更新时不许插队。
+// 三个分支都在下载之前就返回，所以这条测试不会碰网络、更不会碰真服务本体。
+func TestCloudSelfUpdateNeverFiresWithoutAClearGreenLight(t *testing.T) {
+	dir := useTempSignalDir(t)
+
+	// ① 刚启动（3 分钟内）：跳过。
+	cloudSelfUpdateCheck()
+	if _, err := os.Stat(cloudStampFile); err == nil {
+		t.Fatal("刚启动就问云端了，应该先等 cloudFirstCheckDelay")
+	}
+
+	// ② 到点了，但本机放着「关掉自更新」的文件：必须听话。
+	if err := os.WriteFile(cloudSkipFile, []byte("1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	atomic.StoreInt64(&lastCloudCheck, time.Now().Add(-2*cloudCheckInterval).UnixNano())
+	cloudSelfUpdateCheck()
+	if _, err := os.Stat(cloudExeFile); err == nil {
+		t.Fatal("有 watchdog-no-selfupdate 时不该去下载新的看门狗")
+	}
+
+	// ③ 正在给客户端装更新（update.json 还在）：不许插队重启服务。
+	_ = os.Remove(cloudSkipFile)
+	if err := os.WriteFile(updateSignalFile, []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	atomic.StoreInt64(&lastCloudCheck, time.Now().Add(-2*cloudCheckInterval).UnixNano())
+	cloudSelfUpdateCheck()
+	if _, err := os.Stat(cloudExeFile); err == nil {
+		t.Fatal("装客户端更新期间不该动看门狗")
+	}
+	_ = os.Remove(updateSignalFile)
+
+	// ④ 有一份更新还没验证完（pending-update.json）：同样不许插队。
+	if err := os.WriteFile(pendingUpdateFile, []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	atomic.StoreInt64(&lastCloudCheck, time.Now().Add(-2*cloudCheckInterval).UnixNano())
+	cloudSelfUpdateCheck()
+	if _, err := os.Stat(cloudExeFile); err == nil {
+		t.Fatal("更新还没验证完，不该动看门狗")
+	}
+	_ = os.Remove(pendingUpdateFile)
+	_ = dir
 }
 
 // writeFakePackage 造一个和真实更新包结构一致的 zip：win-unpacked/ 前缀 + 客户端 exe + resources/app.asar。
@@ -349,5 +412,167 @@ func TestIsCsClient(t *testing.T) {
 	}
 	if localUpdateZipName(csExeName) == localUpdateZipName("陪玩管理.exe") {
 		t.Fatal("local package names must differ between the two clients")
+	}
+}
+
+func TestAltInstallDirNaming(t *testing.T) {
+	parent := t.TempDir()
+	if got, want := altInstallDir(filepath.Join(parent, "陪玩管理"), "1.0.20260932"), filepath.Join(parent, "陪玩管理-v1.0.20260932"); got != want {
+		t.Fatalf("got %s want %s", got, want)
+	}
+	// 已经是并排装的那一份时，下一版必须还是同一层的兄弟目录，不能越套越深。
+	if got, want := altInstallDir(filepath.Join(parent, "陪玩管理-v1.0.20260932"), "1.0.20260933"), filepath.Join(parent, "陪玩管理-v1.0.20260933"); got != want {
+		t.Fatalf("side-by-side dir must not nest: got %s want %s", got, want)
+	}
+	// 版本号拿不到（老信号里可能没有）也得有个能用的目录名。
+	if got := altInstallDir(filepath.Join(parent, "客服管理"), ""); !strings.HasPrefix(got, filepath.Join(parent, "客服管理-v")) {
+		t.Fatalf("empty version should fall back to a timestamp: %s", got)
+	}
+	name := filepath.Base(altInstallDir(filepath.Join(parent, "陪玩管理"), "1.0.20260932"))
+	if !isClientDirName(name) {
+		t.Fatalf("%s must be recognized as one of our client dirs", name)
+	}
+	if isSkippableDir(name) {
+		t.Fatalf("%s must not be skipped by findClient", name)
+	}
+}
+
+// 2026-09-30：8 台陪玩机上「整个安装目录改名」永远被拒（Access is denied），
+// 老流程卡在「把旧目录改名让位」这一步反复失败 → 客户端永远停在老版本（60930/60931）。
+// 现在的兜底：装到旁边的「陪玩管理-v<版本>」目录 + preferred-client.json 指过去，
+// 旧目录一个字节都不动 —— 而且这一步天然可回滚（删指针即可）。
+func TestSideBySideInstallWhenInstallDirCannotBeMoved(t *testing.T) {
+	useTempSignalDir(t)
+	work := t.TempDir()
+	zipPath := filepath.Join(work, "update.zip")
+	writeFakePackage(t, zipPath)
+
+	root := t.TempDir()
+	destDir := filepath.Join(root, "陪玩管理")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	oldExe := filepath.Join(destDir, clientExeNames[0])
+	if err := os.WriteFile(oldExe, []byte("OLD"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 按住目录：一个不共享删除权限的目录句柄，正好复现那 8 台机器的现象
+	//（目录改名被拒，目录里的文件照样能读能写）。
+	hold, err := windows.CreateFile(
+		windows.StringToUTF16Ptr(destDir),
+		windows.GENERIC_READ,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
+		nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	if err != nil {
+		t.Fatalf("cannot open the install dir: %v", err)
+	}
+	defer windows.CloseHandle(hold)
+	if err := os.Rename(destDir, destDir+".probe"); err == nil {
+		_ = os.Rename(destDir+".probe", destDir)
+		t.Skip("this machine allows renaming a dir while a handle is open — cannot reproduce the lock")
+	}
+
+	exe, err := applyUpdateAtomic(destDir, zipPath, "9.9.9")
+	if err != nil {
+		t.Fatalf("applyUpdateAtomic must fall back to a side-by-side install: %v", err)
+	}
+	alt := filepath.Dir(exe)
+	if alt == destDir {
+		t.Fatalf("expected a side-by-side install, got the original dir %s", alt)
+	}
+	if !strings.HasPrefix(filepath.Base(alt), "陪玩管理-v") {
+		t.Fatalf("side-by-side dir name looks wrong: %s", alt)
+	}
+	if _, err := os.Stat(filepath.Join(alt, "resources", "app.asar")); err != nil {
+		t.Fatalf("side-by-side install is incomplete: %v", err)
+	}
+	if data, err := os.ReadFile(oldExe); err != nil || string(data) != "OLD" {
+		t.Fatalf("the locked install dir was modified: %v %q", err, string(data))
+	}
+	var pref preferredClient
+	if !readJSONFile(preferredClientFile, &pref) || pref.ExePath != exe {
+		t.Fatalf("preferred-client.json wrong: %+v", pref)
+	}
+	var p pendingUpdate
+	if !readJSONFile(pendingUpdateFile, &p) {
+		t.Fatal("pending-update.json not written")
+	}
+	if p.BackupDir != "" || p.PreviousDir != destDir || p.DestDir != alt {
+		t.Fatalf("pending record wrong: %+v", p)
+	}
+	clientPath = ""
+	if got := findClient(); got != exe {
+		t.Fatalf("findClient should return the side-by-side copy, got %q", got)
+	}
+	if !rollbackUpdate(&p, "test") {
+		t.Fatal("rollback of a side-by-side install should succeed")
+	}
+	if _, err := os.Stat(alt); err == nil {
+		t.Fatalf("rolled-back copy should be gone: %s", alt)
+	}
+	// 指针摘掉之后就该重新落到「默认那份安装目录」（这里是测试机的真实搜索路径，
+	// 所以只断言指针没了 —— 有指针就等于还认那份并排装的新客户端）。
+	if preferredClientExe() != "" {
+		t.Fatalf("preferred pointer must be cleared after rollback, got %s", preferredClientExe())
+	}
+	clientPath = ""
+}
+
+// 看门狗上报自己时，绝不能带 appVersion —— 服务端对「脚本来源」的上报会保留客户端报的
+// 版本号，看门狗跟着混一个进去就会把「这台机器的客户端版本」写坏（老板看的就是那个）。
+func TestWatchdogReportBodyKeepsClientVersionOut(t *testing.T) {
+	useTempSignalDir(t)
+	body := watchdogReportBody()
+	if _, ok := body["appVersion"]; ok {
+		t.Fatal("watchdog report must not carry appVersion")
+	}
+	if got := body["watchdogBuild"]; got != serviceBuildNumber {
+		t.Fatalf("watchdogBuild should be %s, got %v", serviceBuildNumber, got)
+	}
+	if got := body["systemPoller"]; got != true {
+		t.Fatalf("systemPoller must be true so the server lets the watchdog run tasks: %v", got)
+	}
+	if got := body["source"]; got != "watchdog" {
+		t.Fatalf("source should be watchdog, got %v", got)
+	}
+	id, _ := body["machineId"].(string)
+	if id == "" {
+		t.Fatal("machineId must not be empty")
+	}
+	if strings.ToLower(id) != id || strings.ContainsAny(id, " _:\\/") {
+		t.Fatalf("machineId should look like the client one (lowercase, no spaces): %q", id)
+	}
+}
+
+// 领任务是限流的：5 秒一轮的主循环叫它，一分钟内只允许真去领一次。
+func TestRemoteTaskTickIsRateLimited(t *testing.T) {
+	useTempSignalDir(t)
+	// useTempSignalDir 已经把 lastRemoteTick 设成「刚刚」，这一下必须是空转。
+	before := atomic.LoadInt64(&lastRemoteTick)
+	time.Sleep(5 * time.Millisecond)
+	remoteTaskTick()
+	if atomic.LoadInt64(&lastRemoteTick) != before {
+		t.Fatal("remoteTaskTick must not fire inside the rate-limit window")
+	}
+	if atomic.LoadInt32(&remoteTaskBusy) != 0 {
+		t.Fatal("rate-limited tick must not start a worker")
+	}
+}
+
+// 虚拟网卡不参与「这台机器是谁」的计算，否则算出来的编号跟客户端对不上，任务就派丢了。
+func TestIsVirtualAdapterSkipsVirtualNics(t *testing.T) {
+	for _, name := range []string{"VMware Network Adapter VMnet8", "Hyper-V Virtual Ethernet Adapter", "vEthernet (Default Switch)", "Docker Npcap Loopback Adapter", "VirtualBox Host-Only"} {
+		if !isVirtualAdapter(name) {
+			t.Fatalf("%q should be treated as virtual", name)
+		}
+	}
+	for _, name := range []string{"以太网", "Ethernet", "WLAN", "Realtek PCIe GbE Family Controller"} {
+		if isVirtualAdapter(name) {
+			t.Fatalf("%q should NOT be treated as virtual", name)
+		}
+	}
+	if strings.Contains(localMachineID(), " ") {
+		t.Fatalf("localMachineID must not contain spaces: %q", localMachineID())
 	}
 }

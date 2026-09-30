@@ -30,7 +30,8 @@ python scripts\_publish_cs_client.py <版本号>
 |------|------|
 | `_upload_sh_cloud.py` | 上传看门狗 `SystemHelper.exe` 到云端 `1.117.229.36:3001/uploads/` |
 | `_push_watchdog_all.py` | 批量给各台陪玩机下发新看门狗（逐台停服务→换文件→起服务→回读构建号） |
-| `_repack_client_zip.py` | 重打客户端 zip |
+| `_repack_client_zip.py` | 重打陪玩端客户端 zip（换看门狗之后必跑，只重打包不动版本号） |
+| `_repack_cs_zip.py` | 重打客服端客户端 zip（同上，客服端那份） |
 | `update-changelog.sh` | 从 git log 生成 CHANGELOG 片段 |
 
 > 注意：`AGENTS.md` / `docs/DEPLOYMENT.md` 里出现过的 `scripts/_set_autokill_on.py` 已经删除

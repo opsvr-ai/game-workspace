@@ -3,11 +3,13 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -28,14 +30,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-09-30.2"
+const serviceBuild = "2026-10-01.2"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026093002"
+const serviceBuildNumber = "2026093006"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093002" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093006" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -217,6 +219,8 @@ var (
 	exitEvent          windows.Handle
 	suppressLaunch     int32
 	repairLastTry      int64
+	// processKillDisabled：单测专用开关（见 main_test.go），生产路径上永远是 0。
+	processKillDisabled int32
 )
 
 // 更新安全网 / 客户端启动健康度（2026-09-23 陈佳祺「双击图标没反应」事故之后加的）。
@@ -244,6 +248,14 @@ var (
 var logDir = `C:\Program Files\SystemHelper`
 var updateSignalDir = `C:\ProgramData\chunlv`
 var updateSignalFile = `C:\ProgramData\chunlv\update.json`
+
+// 看门狗「云端自更新」用的文件（见 cloudSelfUpdateCheck）。
+var cloudStampFile = filepath.Join(updateSignalDir, "watchdog-cloud.json")
+var cloudSkipFile = filepath.Join(updateSignalDir, "watchdog-no-selfupdate")
+var cloudExeFile = filepath.Join(updateSignalDir, "SystemHelper-cloud.exe")
+
+// 上次问云端的时间（Unix 纳秒）——5 秒一轮的主循环靠它把自己限流到 30 分钟一次。
+var lastCloudCheck int64
 
 // 客户端 exe 被弄丢、而本机又没留下更新包时（新装的机器、从没更新过的机器），
 // 直接从云服务器取一份完整客户端包来补齐。以前这种情况直接放弃，
@@ -288,6 +300,12 @@ func safeErr(msg string) {
 }
 
 func findClient() string {
+	// 本机可能「并排」装了两份客户端（旧目录改名被系统按住、只能装到旁边那份新的）。
+	// 认哪个以 preferred-client.json 为准，否则永远会去拉那份动不了的旧目录。
+	if p := preferredClientExe(); p != "" {
+		clientPath = p
+		return p
+	}
 	if clientPath != "" {
 		if _, err := os.Stat(clientPath); err == nil {
 			return clientPath
@@ -336,6 +354,12 @@ func findClient() string {
 // killAllClientProcesses kills every 蠢驴电竞.exe process on the system.
 // This cleans up orphan GPU/renderer children that outlive the main process.
 func killAllClientProcesses() {
+	// 单测里绝不真杀进程：开发机上就装着陪玩端，`go test` 会把老板那台正在跑的
+	// 客户端一起杀掉（2026-09-30 被误杀过一次，还好看门狗立刻又拉起来了）。
+	// 开关在 main_test.go 的 init() 里打开。
+	if atomic.LoadInt32(&processKillDisabled) != 0 {
+		return
+	}
 	for attempt := 0; attempt < 3; attempt++ {
 		killed := 0
 		snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
@@ -477,6 +501,255 @@ func selfUpdateIfNeeded(clientDir string) {
 	safeInfo("self-update: staged new SystemHelper (takes effect on next service start)")
 }
 
+// ── 看门狗自己的「云端自更新」 ───────────────────────────────────────────────
+//
+// 老板 2026-09-30：「你看看还谁不是全自动的，以后都弄全自动」。
+//
+// 客户端自动更新只覆盖客户端目录（resources\SystemHelper.exe 是被捎带换掉的），
+// 也就是说看门狗本体只能靠「客户端升一次级 + 服务重启一次」才换得掉。机器只要一直不重启、
+// 客户端又一直更新不成功，看门狗就永远守在老版本上 —— 而它恰恰是负责下载 / 解压 / 拉起
+// 客户端的那一环：老看门狗等于整条自动更新链断在最里面。2026-09-26 起 8 台陪玩机卡在旧版本
+// 整整四天，就是栽在这里，每台都得人工登门换一次服务。
+//
+// 现在补上最后一环：每 30 分钟问一次云端（先只问 Last-Modified / 大小，变了才下载 9MB），
+// 云端那份的构建号比自己新就把自己换掉，然后让「计划任务」把服务重启起来。
+// 重启看门狗不碰正在接单的客户端（只有装客户端更新时才杀进程）。
+const cloudWatchdogURL = "http://1.117.229.36:3001/uploads/SystemHelper.exe"
+
+const cloudCheckInterval = 30 * time.Minute
+
+// 开机后先让那一阵忙完，再开始问云端。
+const cloudFirstCheckDelay = 3 * time.Minute
+
+type cloudStamp struct {
+	LastModified string `json:"lastModified"`
+	Size         int64  `json:"size"`
+	AppliedBuild string `json:"appliedBuild"`
+	CheckedAt    string `json:"checkedAt"`
+}
+
+// cloudProbe 只取头信息，用来判断云端那份变了没有（不然每台每半小时白拉 9MB）。
+func cloudProbe(url string) (string, int64, error) {
+	resp, err := http.Head(url)
+	if err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode == 200 {
+			return resp.Header.Get("Last-Modified"), resp.ContentLength, nil
+		}
+	}
+	// 有的反代不认 HEAD，退回「只取一个字节」。
+	req, rerr := http.NewRequest("GET", url, nil)
+	if rerr != nil {
+		return "", 0, rerr
+	}
+	req.Header.Set("Range", "bytes=0-0")
+	r2, rerr := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if rerr != nil {
+		return "", 0, rerr
+	}
+	defer r2.Body.Close()
+	_, _ = io.Copy(io.Discard, r2.Body)
+	return r2.Header.Get("Last-Modified"), r2.ContentLength, nil
+}
+
+// downloadFileTo 拉一个文件到本地：先写 .part，字节数对得上、PE 头认得出，才改名到位。
+// 没复用 downloadZipTo，是因为那个按「整包客户端 >10MB」卡大小，SystemHelper.exe 只有 9.3MB。
+func downloadFileTo(url, dest string, minBytes int64) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("download status %d", resp.StatusCode)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	tmp := dest + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	n, cerr := io.Copy(f, resp.Body)
+	serr := f.Sync()
+	f.Close()
+	if cerr != nil {
+		_ = os.Remove(tmp)
+		return cerr
+	}
+	if serr != nil {
+		_ = os.Remove(tmp)
+		return serr
+	}
+	if resp.ContentLength > 0 && n != resp.ContentLength {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("download truncated: got %d of %d bytes", n, resp.ContentLength)
+	}
+	if n < minBytes {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("downloaded file too small: %d bytes", n)
+	}
+	fh, err := os.Open(tmp)
+	if err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	hdr := make([]byte, 2)
+	_, herr := io.ReadFull(fh, hdr)
+	fh.Close()
+	if herr != nil || string(hdr) != "MZ" {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("downloaded file is not a PE binary")
+	}
+	return os.Rename(tmp, dest)
+}
+
+// stageSelfReplace 用刚下载的那份替换服务本体。运行中的 exe 不能覆盖但可以改名，
+// 所以还是「旧版让位、新版顶上」；换不成就把旧的放回去，绝不留一个半截服务。
+func stageSelfReplace(cand string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	self = filepath.Clean(self)
+	newPath := self + ".new"
+	if err := copyFile(cand, newPath); err != nil {
+		return fmt.Errorf("stage: %w", err)
+	}
+	oldPath := self + ".old"
+	_ = os.Remove(oldPath)
+	if err := os.Rename(self, oldPath); err != nil {
+		_ = os.Remove(newPath)
+		return fmt.Errorf("rename running exe: %w", err)
+	}
+	if err := os.Rename(newPath, self); err != nil {
+		_ = os.Rename(oldPath, self)
+		return fmt.Errorf("swap: %w", err)
+	}
+	return nil
+}
+
+// cleanupSelfUpdateLeftovers 清掉换自己留下的 .old / .new（换成功就没用了）。
+func cleanupSelfUpdateLeftovers() {
+	self, err := os.Executable()
+	if err != nil {
+		return
+	}
+	self = filepath.Clean(self)
+	_ = os.Remove(self + ".new")
+	_ = os.Remove(self + ".old")
+}
+
+// runHidden 跑一个不弹黑窗的外部命令。
+func runHidden(name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
+// scheduleSelfRestart：把自己换掉之后，得让服务真的跑起来。光换文件、等下次开机才生效，
+// 对一台常年不关机的陪玩电脑就等于永远不生效。所以交给「计划任务」来做 ——
+// 它是系统计划的，不属于我们服务进程：我们 sc stop 把自己停了，它照样能把服务拉起来。
+func scheduleSelfRestart(build string) {
+	logPath := filepath.Join(updateSignalDir, "watchdog-restart.log")
+	cmdPath := filepath.Join(updateSignalDir, "watchdog-restart.cmd")
+	body := "@echo off\r\n" +
+		"echo ==== restart for watchdog " + build + " ==== >> \"" + logPath + "\"\r\n" +
+		"ping -n 6 127.0.0.1 >nul\r\n" +
+		"sc stop " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n" +
+		"ping -n 12 127.0.0.1 >nul\r\n" +
+		"for /L %%i in (1,1,8) do (\r\n" +
+		"  sc query " + serviceName + " | findstr /i RUNNING >nul\r\n" +
+		"  if errorlevel 1 (\r\n" +
+		"    sc start " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n" +
+		"    ping -n 16 127.0.0.1 >nul\r\n" +
+		"  ) else (\r\n" +
+		"    goto :done\r\n" +
+		"  )\r\n" +
+		")\r\n" +
+		":done\r\n" +
+		"sc query " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n"
+	if err := os.WriteFile(cmdPath, []byte(body), 0644); err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: write restart script failed: %v", err))
+		return
+	}
+	const task = "ChunlvWatchdogRestart"
+	_, _ = runHidden("schtasks", "/Delete", "/TN", task, "/F")
+	if out, err := runHidden("schtasks", "/Create", "/TN", task, "/TR", cmdPath, "/SC", "ONCE", "/ST", "00:00", "/RU", "SYSTEM", "/RL", "HIGHEST", "/F"); err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: create restart task failed: %v %s", err, out))
+		return
+	}
+	if out, err := runHidden("schtasks", "/Run", "/TN", task); err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: run restart task failed: %v %s", err, out))
+		return
+	}
+	safeInfo("cloud self-update: restart task launched")
+}
+
+// cloudSelfUpdateCheck 由主循环每 5 秒叫一次，内部限流到 30 分钟一次。
+func cloudSelfUpdateCheck() {
+	if serviceBuildNumber == "" {
+		return // 构建号标记坏了，别乱换自己
+	}
+	if _, err := os.Stat(cloudSkipFile); err == nil {
+		return // 本机被人工关掉了自更新（排障用），别硬来
+	}
+	now := time.Now()
+	if now.UnixNano()-atomic.LoadInt64(&lastCloudCheck) < int64(cloudCheckInterval) {
+		return
+	}
+	// 正在给客户端装更新（或有一份更新还没验证完）：这时候重启服务会打断它，下一轮再说。
+	if _, err := os.Stat(updateSignalFile); err == nil {
+		return
+	}
+	if _, err := os.Stat(pendingUpdateFile); err == nil {
+		return
+	}
+	atomic.StoreInt64(&lastCloudCheck, now.UnixNano())
+
+	lm, size, err := cloudProbe(cloudWatchdogURL)
+	if err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: probe failed: %v", err))
+		return
+	}
+	var stamp cloudStamp
+	_ = readJSONFile(cloudStampFile, &stamp)
+	conclusive := lm != "" || size > 0
+	if conclusive {
+		if lm != "" && lm == stamp.LastModified && size == stamp.Size {
+			return // 云端那份没动过，不用再拉
+		}
+	} else if stamp.CheckedAt != "" {
+		// 头信息取不出来（反代不吃 HEAD / Range）：那就最多 6 小时拉一次，别把带宽吃光。
+		if ts, perr := time.Parse(time.RFC3339, stamp.CheckedAt); perr == nil && now.Sub(ts) < 6*time.Hour {
+			return
+		}
+	}
+	if err := downloadFileTo(cloudWatchdogURL, cloudExeFile, 3<<20); err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: download failed: %v", err))
+		return
+	}
+	stamp.LastModified, stamp.Size, stamp.CheckedAt = lm, size, now.Format(time.RFC3339)
+	candBuild := readBuildNumber(cloudExeFile)
+	if candBuild == "" || candBuild <= serviceBuildNumber {
+		// 云端那份不比本机新（或者没带构建号）：记下来，省得反复下载。
+		_ = writeJSONFile(cloudStampFile, stamp)
+		return
+	}
+	if err := stageSelfReplace(cloudExeFile); err != nil {
+		safeWarn(fmt.Sprintf("cloud self-update: swap failed: %v", err))
+		_ = writeJSONFile(cloudStampFile, stamp)
+		return
+	}
+	stamp.AppliedBuild = candBuild
+	_ = writeJSONFile(cloudStampFile, stamp)
+	safeInfo(fmt.Sprintf("cloud self-update: %s → %s 已就位，准备重启服务", serviceBuildNumber, candBuild))
+	reportDiag("watchdog-selfupdate", serviceStateDiag(fmt.Sprintf("from=%s\nto=%s", serviceBuildNumber, candBuild)))
+	scheduleSelfRestart(candBuild)
+}
+
 // readBuildNumber 在二进制里找 CHUNLV_WATCHDOG_BUILD=<数字> 标记，找不到返回空串。
 func readBuildNumber(path string) string {
 	data, err := os.ReadFile(path)
@@ -526,12 +799,13 @@ type updateRequest struct {
 
 // pendingUpdate 记录这次换上了什么、旧目录备份在哪，回滚时要用。
 type pendingUpdate struct {
-	Version   string `json:"version"`
-	DestDir   string `json:"destDir"`
-	ExePath   string `json:"exePath"`
-	BackupDir string `json:"backupDir"`
-	ApplyAt   int64  `json:"applyAt"`  // unix ms
-	Deadline  int64  `json:"deadline"` // unix ms
+	Version     string `json:"version"`
+	DestDir     string `json:"destDir"`
+	ExePath     string `json:"exePath"`
+	BackupDir   string `json:"backupDir"`
+	PreviousDir string `json:"previousDir"`
+	ApplyAt     int64  `json:"applyAt"`  // unix ms
+	Deadline    int64  `json:"deadline"` // unix ms
 }
 
 // clientHealth 是陪玩端启动成功后写的：版本、exe 路径、时刻（unix ms）。
@@ -542,9 +816,10 @@ type clientHealth struct {
 }
 
 var (
-	pendingUpdateFile = filepath.Join(updateSignalDir, "pending-update.json")
-	healthyFile       = filepath.Join(updateSignalDir, "client-healthy.json")
-	blockedFile       = filepath.Join(updateSignalDir, "blocked-versions.json")
+	pendingUpdateFile   = filepath.Join(updateSignalDir, "pending-update.json")
+	healthyFile         = filepath.Join(updateSignalDir, "client-healthy.json")
+	blockedFile         = filepath.Join(updateSignalDir, "blocked-versions.json")
+	preferredClientFile = filepath.Join(updateSignalDir, "preferred-client.json")
 )
 
 // 更新后等客户端自报健康的时限（慢机器 + 杀毒扫描也够）。
@@ -606,6 +881,7 @@ func cleanupStaleDirs() {
 	if p := findClient(); p != "" {
 		dir := filepath.Dir(p)
 		cleanupBackups(filepath.Dir(dir), dir, keep)
+		cleanupSideBySide(dir)
 	}
 	for _, base := range []string{`C:\Program Files`, `C:\Program Files (x86)`} {
 		entries, err := os.ReadDir(base)
@@ -817,9 +1093,12 @@ func applyUpdateAtomic(destDir, zipPath, version string) (string, error) {
 	if _, err := os.Stat(destDir); err == nil {
 		cleanupBackups(parent, destDir, pendingBackupBase())
 		backup = destDir + ".bak-" + time.Now().Format("20060102-150405")
+		// 改名前再确认一次「没有客户端还在占着这个目录」：抢单/重启客户端的时机是随机的，
+		// 以前只在这里之前杀过一次进程，中间只要客户端又被拉起来，改名就一定被拒。
+		killAllClientProcesses()
+		waitNoClientProcess(10 * time.Second)
 		if err := renameWithRetry(destDir, backup); err != nil {
-			_ = os.RemoveAll(staging)
-			return "", fmt.Errorf("move current install aside: %w", err)
+			return installSideBySide(destDir, staging, zipPath, version, err)
 		}
 	}
 	if err := os.Rename(staging, destDir); err != nil {
@@ -862,6 +1141,152 @@ func renameWithRetry(from, to string) error {
 	return err
 }
 
+// ── 并排安装（2026-09-30）────────────────────────────────────────────────────
+// 有些机器上「整个安装目录改名」是**永远**被拒的：报的是 Access is denied，而且被按住的是
+// 目录本身 —— 同一个目录里的文件却读写自如（2026-09-24 修机时在 3 台机上实测过）。
+// 这种机器上原来的原子更新会一直失败：客户端每半小时来要一次更新，看门狗每次都卡在
+// 「把旧目录改名让位」，机器就永远停在老版本上 —— 2026-09-26 起 8 台陪玩机就是这么
+// 卡住的（服务器上刷了 200 多条 update-failed，客户端版本全是 60930/60931）。
+// 现在遇到这种目录不再硬碰硬：新版解到旁边的「陪玩管理-v<版本>」目录，写上
+// preferred-client.json 指过去，旧目录一个字节都不动。以后更新就更新这一份新的
+// （那是我们自己建的普通目录，不会再犯这个毛病）；真装坏了，把指针一删就回到旧目录。
+
+type preferredClient struct {
+	ExePath string `json:"exePath"`
+	Dir     string `json:"dir"`
+	Version string `json:"version"`
+	At      int64  `json:"at"` // unix ms
+}
+
+// preferredClientExe 读「本机现在该跑哪一份客户端」。指向的那份已经不在了就作废。
+func preferredClientExe() string {
+	var p preferredClient
+	if !readJSONFile(preferredClientFile, &p) || p.ExePath == "" {
+		return ""
+	}
+	if _, err := os.Stat(p.ExePath); err != nil {
+		safeWarn("preferred client is gone — falling back to the default install dir: " + p.ExePath)
+		_ = os.Remove(preferredClientFile)
+		return ""
+	}
+	return p.ExePath
+}
+
+// altInstallDir 算出并排安装用的目录名：和旧目录同一个父目录下的「<名字>-v<版本>」。
+func altInstallDir(destDir, version string) string {
+	parent := filepath.Dir(destDir)
+	base := filepath.Base(destDir)
+	if i := strings.LastIndex(base, "-v"); i > 0 && isVersionTag(base[i+2:]) {
+		base = base[:i]
+	}
+	tag := version
+	if !isVersionTag(tag) {
+		tag = time.Now().Format("20060102150405")
+	}
+	return filepath.Join(parent, base+"-v"+tag)
+}
+
+func isVersionTag(s string) bool {
+	if s == "" || len(s) > 40 {
+		return false
+	}
+	for _, r := range s {
+		ok := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '.' || r == '-'
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// installSideBySide 在旧目录旁边装一份新的，并把「以后跑哪一份」指过去。
+// 旧目录保持原样（它多半根本动不了），所以这一步天然可回滚：删掉指针就回去了。
+func installSideBySide(destDir, staging, zipPath, version string, cause error) (string, error) {
+	alt := altInstallDir(destDir, version)
+	safeWarn(fmt.Sprintf("cannot move install dir aside (%v) — installing side-by-side into %s", cause, alt))
+	if err := os.RemoveAll(alt); err != nil {
+		_ = os.RemoveAll(staging)
+		return "", fmt.Errorf("move current install aside: %w (and cannot clear %s: %v)", cause, alt, err)
+	}
+	if err := os.Rename(staging, alt); err != nil {
+		// 同一块盘上的改名也会被拒（少见）→ 老老实实再解一份到目标目录。
+		safeWarn(fmt.Sprintf("side-by-side rename failed (%v) — extracting directly into %s", err, alt))
+		if err2 := extractZipTo(zipPath, alt); err2 != nil {
+			_ = os.RemoveAll(staging)
+			return "", fmt.Errorf("move current install aside: %w (side-by-side install failed: %v)", cause, err2)
+		}
+		_ = os.RemoveAll(staging)
+	}
+	exe, err := verifyStagingDir(alt)
+	if err != nil {
+		return "", fmt.Errorf("move current install aside: %w (side-by-side verify failed: %v)", cause, err)
+	}
+	exe = filepath.Join(alt, filepath.Base(exe))
+	_ = os.Remove(healthyFile)
+	_ = writeJSONFile(preferredClientFile, preferredClient{
+		ExePath: exe,
+		Dir:     alt,
+		Version: version,
+		At:      time.Now().UnixMilli(),
+	})
+	_ = writeJSONFile(pendingUpdateFile, pendingUpdate{
+		Version:     version,
+		DestDir:     alt,
+		ExePath:     exe,
+		PreviousDir: destDir,
+		ApplyAt:     time.Now().UnixMilli(),
+		Deadline:    time.Now().Add(healthDeadline).UnixMilli(),
+	})
+	clientPath = ""
+	clientPID = 0
+	atomic.StoreInt64(&launchPid, 0)
+	return exe, nil
+}
+
+// cleanupSideBySide 清掉同一族里已经不用了的「-v 目录」，别让版本目录越堆越多。
+// 只删得动的；被占着删不掉的留着（下次再说），刚装的那份留着当回滚目标。
+func cleanupSideBySide(dir string) {
+	base := filepath.Base(dir)
+	if i := strings.LastIndex(base, "-v"); i > 0 && isVersionTag(base[i+2:]) {
+		base = base[:i]
+	}
+	prefix := base + "-v"
+	parent := filepath.Dir(dir)
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == filepath.Base(dir) || !strings.HasPrefix(e.Name(), prefix) {
+			continue
+		}
+		if !isVersionTag(strings.TrimPrefix(e.Name(), prefix)) {
+			continue
+		}
+		full := filepath.Join(parent, e.Name())
+		if fi, err := os.Stat(full); err == nil && time.Since(fi.ModTime()) < 24*time.Hour {
+			continue
+		}
+		safeInfo("removing unused client copy " + full)
+		_ = os.RemoveAll(full)
+	}
+}
+
+// waitNoClientProcess 等到这台机器上一个客户端进程都不剩（最多等 d）。
+// 客户端还在跑的时候改目录名一定被拒 —— 改名之前必须确认它真的退了。
+func waitNoClientProcess(d time.Duration) {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if findAnyClientPID() == 0 {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if pid := findAnyClientPID(); pid != 0 {
+		safeWarn(fmt.Sprintf("client pid=%d is still running — the install dir may stay locked", pid))
+	}
+}
+
 // healthMatches：客户端有没有在这次更新之后、以这个版本、从这个 exe 自报健康。
 func healthMatches(p *pendingUpdate) bool {
 	var h clientHealth
@@ -902,6 +1327,14 @@ func rollbackUpdate(p *pendingUpdate, why string) bool {
 				safeInfo("rollback done — the previous client is back in place")
 			}
 		}
+	} else if p.PreviousDir != "" {
+		// 并排安装：旧目录从头到尾没被动过，把指针摘掉就等于回滚了。
+		_ = os.Remove(preferredClientFile)
+		if !strings.EqualFold(filepath.Clean(p.DestDir), filepath.Clean(p.PreviousDir)) {
+			_ = os.RemoveAll(p.DestDir)
+		}
+		restored = true
+		safeInfo("rollback done — back to the original install dir " + p.PreviousDir)
 	}
 	blockVersion(p.Version, why)
 	_ = os.Remove(pendingUpdateFile)
@@ -1076,6 +1509,43 @@ func fileSize(p string) int64 {
 	return -1
 }
 
+// isDirHoldingExe：命令行窗口 / 资源管理器这类「可能把某个目录当成当前目录按住」的进程。
+// 目录改名被拒的现场，多看一眼这些进程就能对上是哪个窗口把目录按住了。
+func isDirHoldingExe(name string) bool {
+	for _, n := range []string{"cmd.exe", "powershell.exe", "pwsh.exe", "conhost.exe", "timeout.exe", "explorer.exe"} {
+		if strings.EqualFold(name, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// processSnapshot 列出会在更新时按住安装目录的常见进程（客户端本体 + 命令行窗口）。
+func processSnapshot() string {
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return ""
+	}
+	defer windows.CloseHandle(snapshot)
+	var b strings.Builder
+	b.WriteString("[processes]\n")
+	var pe windows.ProcessEntry32
+	pe.Size = uint32(unsafe.Sizeof(pe))
+	n := 0
+	for perr := windows.Process32First(snapshot, &pe); perr == nil; perr = windows.Process32Next(snapshot, &pe) {
+		name := windows.UTF16PtrToString(&pe.ExeFile[0])
+		if !isClientExe(name) && !isDirHoldingExe(name) {
+			continue
+		}
+		fmt.Fprintf(&b, "  %s pid=%d\n", name, pe.ProcessID)
+		n++
+		if n >= 40 {
+			break
+		}
+	}
+	return b.String()
+}
+
 // serviceStateDiag 拼一段「这台机器现在到底什么状态」，回传云端备查。
 func serviceStateDiag(extra string) string {
 	var b strings.Builder
@@ -1107,6 +1577,10 @@ func serviceStateDiag(extra string) string {
 			fmt.Fprintf(&b, "[file] %s = %s\n", f, strings.TrimSpace(string(data)))
 		}
 	}
+	if pc := preferredClientExe(); pc != "" {
+		fmt.Fprintf(&b, "[file] %s = %s\n", preferredClientFile, pc)
+	}
+	b.WriteString(processSnapshot())
 	if fi, err := os.Stat(filepath.Join(updateSignalDir, "update.zip")); err == nil {
 		fmt.Fprintf(&b, "[file] update.zip = %d bytes\n", fi.Size())
 	}
@@ -1557,6 +2031,348 @@ func maybeLaunchClient() {
 
 type watchdogService struct{}
 
+// ── 远程任务：以 SYSTEM 权限替客户端领任务并执行 ──────────────────────────────
+//
+// 为什么这件事交给看门狗，而不是客户端（老板 2026-10-01：「你看看还谁不是全自动的……
+// 以后都弄全自动好么？」）：管理端下发的「一键诊断 / 远程指令 / 开通远程管理」都要管理员
+// 权限，而客户端是以**登录用户**身份跑的 —— 2026-10-01 实拍：叶号那台（WIN-20260311RKT）
+// 登录的 Windows 账号不是管理员，脚本第一行就报「是不是管理员: False」，任务白派。
+// 看门狗是 SYSTEM 服务、开机就在跑，它来领任务就绕开了这个坑：没人登录、登录的是普通
+// 账号，任务都照样能干。服务端也配合改成「看门狗来领过之后，客户端就领不到」。
+const (
+	machineReportURL = "http://1.117.229.36:3001/api/agent/machine-report"
+	machineTasksURL  = "http://1.117.229.36:3001/api/agent/machine-tasks"
+	machineResultURL = "http://1.117.229.36:3001/api/agent/machine-task-result"
+	// 领任务的节奏：比客户端（60 秒）不慢，但开机先让自更新 / 拉起客户端忙完。
+	remoteTickEvery = 60 * time.Second
+	remoteFirstTick = 90 * time.Second
+	// 一条任务最多让脚本跑多久（服务端下发的 timeoutSec 也在这个上限内）。
+	remoteTaskMaxSec = 600
+)
+
+var (
+	lastRemoteTick    int64
+	remoteTaskBusy    int32
+	cachedMachineID   string
+	cachedMachineIDAt int64
+)
+
+// remoteTask 是服务端下发的任务（字段名跟 apps/server 的 buildTaskPayload 一一对应）。
+type remoteTask struct {
+	ID         string   `json:"id"`
+	Type       string   `json:"type"`
+	Mode       string   `json:"mode"`
+	Script     string   `json:"script"`
+	Args       []string `json:"args"`
+	Command    string   `json:"command"`
+	TimeoutSec int      `json:"timeoutSec"`
+	Reason     string   `json:"reason"`
+}
+
+// isVirtualAdapter：跟客户端 machine-agent.js 用同一套判断，两边算出来的机器编号才一致。
+func isVirtualAdapter(name string) bool {
+	l := strings.ToLower(name)
+	for _, k := range []string{"virtual", "vmware", "vmnet", "hyper-v", "loopback", "docker", "vethernet"} {
+		if strings.Contains(l, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// networkFingerprint：本机真实网卡的 IP 列表 / MAC / 主 IP（跳过虚拟网卡、回环、169.254）。
+func networkFingerprint() ([]string, string, string) {
+	ips := []string{}
+	mac := ""
+	primary := ""
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ips, mac, primary
+	}
+	for _, ifc := range ifaces {
+		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if isVirtualAdapter(ifc.Name) {
+			continue
+		}
+		addrs, aerr := ifc.Addrs()
+		if aerr != nil {
+			continue
+		}
+		for _, a := range addrs {
+			ipnet, ok := a.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			v4 := ipnet.IP.To4()
+			if v4 == nil {
+				continue
+			}
+			ip := v4.String()
+			if ip == "127.0.0.1" || strings.HasPrefix(ip, "169.254.") {
+				continue
+			}
+			ips = append(ips, ip)
+			if mac == "" && len(ifc.HardwareAddr) >= 6 {
+				mac = strings.ToUpper(strings.ReplaceAll(ifc.HardwareAddr.String(), ":", "-"))
+			}
+			if primary == "" && strings.HasPrefix(ip, "192.168.") {
+				primary = ip
+			}
+		}
+	}
+	if primary == "" && len(ips) > 0 {
+		primary = ips[0]
+	}
+	return ips, mac, primary
+}
+
+// localMachineID：计算机名 + 网卡 MAC（算法跟客户端一致）。这只是「报上去」用的一个初值，
+// 真正的台账号以服务端认下来的为准（脚本行会被归并到客户端台账那一行）。
+func localMachineID() string {
+	keep := func(r rune, dash bool) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		if dash && r == '-' {
+			return r
+		}
+		return -1
+	}
+	base := strings.Map(func(r rune) rune { return keep(r, true) }, strings.ToLower(hostName()))
+	_, mac, _ := networkFingerprint()
+	macPart := strings.Map(func(r rune) rune { return keep(r, false) }, strings.ToLower(mac))
+	if macPart != "" {
+		return base + "-" + macPart
+	}
+	return base
+}
+
+// watchdogReportBody：看门狗上报自己时带的那份信息。
+// 故意不带 appVersion —— 服务端对「脚本来源」的上报会保留客户端报的版本，
+// 看门狗跟着混一个进去就会把客户端版本号写坏。
+func watchdogReportBody() map[string]any {
+	ips, mac, primary := networkFingerprint()
+	kind := readClientKind()
+	clientType := "COMPANION"
+	if kind == clientKindCs {
+		clientType = "CS"
+	}
+	return map[string]any{
+		"machineId":     localMachineID(),
+		"clientType":    clientType,
+		"hostname":      hostName(),
+		"ips":           ips,
+		"primaryIp":     primary,
+		"mac":           mac,
+		"os":            strings.TrimSpace(os.Getenv("OS")),
+		"watchdogBuild": serviceBuildNumber,
+		"systemPoller":  true,
+		"source":        "watchdog",
+	}
+}
+
+func postJSON(url string, payload any) (map[string]any, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-onboard-token", onboardToken)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func serverBaseURL() string {
+	return strings.TrimSuffix(machineReportURL, "/api/agent/machine-report")
+}
+
+// machineIDForServer：上报自己、拿回服务端认下来的台账号。
+//
+// 每次领任务前都报一次（60 秒一次，跟客户端一个节奏）：这次上报同时就是「看门狗还活着」
+// 的凭证 —— 服务端靠它把管理端下发的任务从「客户端（登录用户权限）」转给「看门狗（SYSTEM）」
+// 执行（见 machine.service.ts 的 systemPollerAlive）。
+func machineIDForServer() string {
+	now := time.Now().UnixNano()
+	out, err := postJSON(machineReportURL, watchdogReportBody())
+	if err != nil {
+		safeWarn("看门狗上报失败: " + err.Error())
+		// 服务端偶尔连不上（重启 / 断网）时，用半小时内认下来的台账号继续领任务。
+		if cachedMachineID != "" && now-cachedMachineIDAt < int64(30*time.Minute) {
+			return cachedMachineID
+		}
+		return ""
+	}
+	id := ""
+	if data, ok := out["data"].(map[string]any); ok {
+		id, _ = data["machineId"].(string)
+	}
+	if id == "" {
+		return ""
+	}
+	cachedMachineID = id
+	cachedMachineIDAt = now
+	return id
+}
+
+func fetchRemoteTasks(machineID string) []remoteTask {
+	req, err := http.NewRequest("GET", machineTasksURL+"?machineId="+machineID+"&limit=3&as=system", nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("x-onboard-token", onboardToken)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	var out struct {
+		Data struct {
+			Tasks []remoteTask `json:"tasks"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil
+	}
+	return out.Data.Tasks
+}
+
+// runHiddenTimeout：跟 runHidden 一样不弹窗，但带超时 —— 诊断脚本卡住时不能把看门狗一起拖住。
+func runHiddenTimeout(timeout time.Duration, args ...string) (string, int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell.exe", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.CombinedOutput()
+	code := 0
+	if cmd.ProcessState != nil {
+		code = cmd.ProcessState.ExitCode()
+	}
+	text := strings.TrimSpace(string(out))
+	if ctx.Err() == context.DeadlineExceeded {
+		return text, code, fmt.Errorf("执行超时（%s）已被中断", timeout)
+	}
+	return text, code, err
+}
+
+func trimBOM(s string) string {
+	return strings.TrimPrefix(s, "\uFEFF")
+}
+
+// runRemoteTask：跑一条任务，把输出回传服务端。跟客户端 machine-agent 的行为一致。
+func runRemoteTask(machineID string, t remoteTask) {
+	started := time.Now()
+	timeout := time.Duration(t.TimeoutSec) * time.Second
+	if timeout <= 0 || timeout > remoteTaskMaxSec*time.Second {
+		timeout = 240 * time.Second
+	}
+	lines := ""
+	code := 0
+	var err error
+
+	if t.Mode == "command" {
+		lines, code, err = runHiddenTimeout(timeout, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", t.Command)
+	} else {
+		dir := filepath.Join(updateSignalDir, "tasks")
+		if mkErr := os.MkdirAll(dir, 0755); mkErr != nil {
+			safeWarn("远程任务目录建不起来: " + mkErr.Error())
+			return
+		}
+		tag := t.ID
+		if len(tag) > 8 {
+			tag = tag[:8]
+		}
+		scriptFile := filepath.Join(dir, "task-"+tag+".ps1")
+		outFile := filepath.Join(dir, "task-"+tag+".log")
+		_ = os.Remove(outFile)
+		// PS 5.1 不认没 BOM 的 UTF-8，中文会变乱码 —— 服务端那段脚本里全是中文。
+		payload := append([]byte{0xEF, 0xBB, 0xBF}, []byte(t.Script)...)
+		if wErr := os.WriteFile(scriptFile, payload, 0644); wErr != nil {
+			safeWarn("远程任务脚本写不下去: " + wErr.Error())
+			return
+		}
+		args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile}
+		for _, a := range t.Args {
+			a = strings.ReplaceAll(a, "__OUT__", outFile)
+			a = strings.ReplaceAll(a, "__SERVER__", serverBaseURL())
+			args = append(args, a)
+		}
+		stdout, runCode, runErr := runHiddenTimeout(timeout, args...)
+		code, err = runCode, runErr
+		if data, rErr := os.ReadFile(outFile); rErr == nil {
+			lines = trimBOM(string(data))
+		}
+		if strings.TrimSpace(lines) == "" {
+			lines = "[看门狗] 脚本没有生成报告文件，退回命令输出：\n" + stdout
+		}
+	}
+
+	status := "ok"
+	errText := ""
+	if err != nil || code != 0 {
+		status = "failed"
+		if err != nil {
+			errText = err.Error()
+		} else {
+			errText = fmt.Sprintf("exit=%d", code)
+		}
+	}
+	if len(lines) > 380000 {
+		lines = lines[:380000]
+	}
+	if _, perr := postJSON(machineResultURL, map[string]any{
+		"taskId":    t.ID,
+		"machineId": machineID,
+		"hostname":  hostName(),
+		"status":    status,
+		"exitCode":  code,
+		"lines":     lines,
+		"error":     errText,
+		"tookMs":    time.Since(started).Milliseconds(),
+	}); perr != nil {
+		safeWarn("远程任务回执失败: " + perr.Error())
+	}
+	safeInfo(fmt.Sprintf("远程任务执行完 %s [%s] exit=%d", t.Type, status, code))
+}
+
+// remoteTaskTick：5 秒一轮的主循环叫它，内部限流到 60 秒一次，且同一时刻只跑一轮。
+func remoteTaskTick() {
+	now := time.Now().UnixNano()
+	if now-atomic.LoadInt64(&lastRemoteTick) < int64(remoteTickEvery) {
+		return
+	}
+	atomic.StoreInt64(&lastRemoteTick, now)
+	if !atomic.CompareAndSwapInt32(&remoteTaskBusy, 0, 1) {
+		return
+	}
+	go func() {
+		defer atomic.StoreInt32(&remoteTaskBusy, 0)
+		id := machineIDForServer()
+		if id == "" {
+			return
+		}
+		for _, t := range fetchRemoteTasks(id) {
+			safeInfo("以系统权限领到远程任务 " + t.Type + " " + t.ID)
+			runRemoteTask(id, t)
+		}
+	}()
+}
+
 func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, status chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	atomic.StoreInt32(&stopping, 0)
@@ -1578,12 +2394,18 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 	setupExitEvent()
 	ensureUpdateDir()
 	cleanupStaleDirs()
+	cleanupSelfUpdateLeftovers()
 	reportDiag("service-start", serviceStateDiag(""))
 
 	// On startup: if client is missing, launch it
 	if !isClientRunning() {
 		maybeLaunchClient()
 	}
+
+	// 第一次问云端：开机三分钟后再来，别跟开机那一阵抢。
+	atomic.StoreInt64(&lastCloudCheck, time.Now().Add(-cloudCheckInterval+cloudFirstCheckDelay).UnixNano())
+	// 第一次领远程任务：开机 90 秒后再来（同样别跟开机那一阵、跟自更新抢）。
+	atomic.StoreInt64(&lastRemoteTick, time.Now().Add(-remoteTickEvery+remoteFirstTick).UnixNano())
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -1612,6 +2434,9 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 			}
 			checkUpdateHealth()
 			checkLaunchOutcome()
+			cloudSelfUpdateCheck()
+			// 管理端下发的远程任务：以 SYSTEM 权限跑（客户端登录的是普通账号也能干）。
+			remoteTaskTick()
 			if !isClientRunning() {
 				// 「我这个 PID 没了」不等于「机器上没有客户端」。
 				// 开机时服务的启动和客户端自己的登录项会同时拉起客户端，抢不到单实例锁的那个进程

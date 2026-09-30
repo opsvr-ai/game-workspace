@@ -20,6 +20,19 @@ function isClientSource(source: unknown): boolean {
 }
 
 /**
+ * 这一行是不是「机器自己报的」（客户端心跳 / 看门狗）。
+ *
+ * 为什么要跟 `isClientSource` 分开（2026-10-01 踩过）：看门狗上报的 source 是 `watchdog`，
+ * 它上报时会**写进客户端那一行**（同一台机器只能有一行）—— 于是那一行的 `lastSource`
+ * 从 `companion-client` 变成了 `watchdog`。而运维脚本认领「客户端那一行」时用的是
+ * `/-client$/`，认不出来了，结果脚本那份又在台账里另起一行，
+ * 一台机器两条记录（PC-20260409CDBJ 现场）。看门狗报的也是这台机器自己，算数。
+ */
+function isMachineSelfSource(source: unknown): boolean {
+  return isClientSource(source) || String(source ?? '').trim() === 'watchdog';
+}
+
+/**
  * 客户端机器台账 + 远程任务队列。
  *
  * 为什么要有这个（老板 2026-09-30）：
@@ -46,6 +59,8 @@ export class MachineService {
   private static readonly ONLINE_WINDOW_MS = 5 * 60 * 1000;
   /** 任务派下去多久没回来算过期（客户端关机/断网了就永远不会回来）。 */
   private static readonly TASK_TIMEOUT_MS = 15 * 60 * 1000;
+  /** 看门狗（SYSTEM 服务）每分钟来一次；超过这么久没来就认为它不在了，任务退回给客户端。 */
+  private static readonly SYSTEM_POLL_WINDOW_MS = 3 * 60 * 1000;
   /** 台账里最多留多少条任务，超了就删最老的。 */
   private static readonly MAX_TASKS = 400;
 
@@ -99,6 +114,11 @@ export class MachineService {
       remoteReady: payload?.remoteReady === undefined ? !!before?.remoteReady : !!payload?.remoteReady,
       remoteAccount: clean(payload?.remoteAccount, 60) || before?.remoteAccount || '',
       remotePassword: clean(payload?.remotePassword, 120) || before?.remotePassword || '',
+      // 看门狗（SystemHelper）自己的构建号。客户端每 5 分钟报一次、看门狗每 1 分钟报一次，
+      // 台账里留着它，「这台机器的看门狗停在老版本」就不用人一台台去问。
+      watchdogBuild: clean(payload?.watchdogBuild, 40) || before?.watchdogBuild || '',
+      // 看门狗是 SYSTEM 服务，它每分钟来报一次；这个时间戳决定「任务交给谁执行」。
+      systemPollAt: payload?.systemPoller ? now.toISOString() : before?.systemPollAt || '',
       firstSeenAt: before?.firstSeenAt || now.toISOString(),
       lastSeenAt: now.toISOString(),
       lastSource: clean(payload?.source, 60) || 'client',
@@ -110,6 +130,13 @@ export class MachineService {
       update: { value: record },
     });
     this.logger.log(`机器上报: ${record.hostname}[${record.clientType}] ${record.primaryIp} v${record.appVersion}`);
+    // 客户端本人来报：顺手清掉运维脚本在这台机器名下留下的重复台账行（2026-10-01 现场：
+    // PC-20260409CDBJ 台账里挂着两条，一条是客户端/看门狗的、一条是「开通远程管理」脚本留下的）。
+    // 不 await —— 清理出问题绝不许影响客户端心跳。
+    if (!fromScript) void this.sweepScriptRows(record.hostname, machineId, record.ips).catch(() => {});
+    // 上报即自愈：远程管理没开、看门狗不是最新，就顺手派一条任务补上（老板 2026-10-01：
+    // 「以后都弄全自动」）。不 await —— 自愈出问题绝不许影响客户端心跳。
+    void this.autoHeal(record).catch(() => {});
     return { machineId, lastSeenAt: record.lastSeenAt };
   }
 
@@ -149,11 +176,11 @@ export class MachineService {
       .filter((value: any) => String(value.hostname || '').toLowerCase() === host);
     if (!sameHost.length) return null;
     // 只认「客户端心跳明确写过 source」的行（scripts 走的是 enable-remote / diag 之类）。
-    const clientRows = sameHost.filter((value: any) => /-client$/.test(String(value.lastSource || '')));
+    const clientRows = sameHost.filter((value: any) => isMachineSelfSource(value.lastSource));
     // 这台机器名下只有一条客户端行：主机名对上就认它（IP 可能因为虚拟网卡不一样）
     if (clientRows.length === 1) return clientRows[0];
     const sameIp = sameHost.filter((value: any) => String(value.primaryIp || '') === primaryIp);
-    const ipClient = sameIp.find((value: any) => isClientSource(value.lastSource));
+    const ipClient = sameIp.find((value: any) => isMachineSelfSource(value.lastSource));
     if (ipClient) return ipClient;
     // 同名机器不止一台：只能靠 IP 认，IP 也对不上就别猜（宁可在台账里多一行）
     if (clientRows.length > 1) return null;
@@ -165,18 +192,59 @@ export class MachineService {
    * 机器名下、没有任何客户端心跳写过的痕迹，就顺手删掉 —— 否则「机器管理」里同一台电脑
    * 永远挂着两条记录，一条「已开通远程管理」、另一条写着「未开通」。
    */
-  private async dropStrayScriptRow(strayId: string, canonicalId: string, hostname: string): Promise<void> {
+  private async dropStrayScriptRow(
+    strayId: string,
+    canonicalId: string,
+    hostname: string,
+    known?: any,
+  ): Promise<void> {
     if (!strayId || strayId === canonicalId) return;
-    const stray = await this.readMachine(strayId);
+    const stray = known ?? (await this.readMachine(strayId));
     if (!stray) return;
     if (String(stray.hostname || '').toLowerCase() !== String(hostname || '').toLowerCase()) return;
     // 有客户端心跳或版本号 = 那是真客户端注册的行，不能删
-    if (isClientSource(stray.lastSource) || stray.appVersion) return;
+    if (isMachineSelfSource(stray.lastSource) || stray.appVersion) return;
     try {
       await this.prisma.systemConfig.delete({ where: { key: `client.machine.${strayId}` } });
       this.logger.warn(`已清掉运维脚本留下的重复台账行 ${strayId}（同一台机器 ${hostname}，客户端那一行是 ${canonicalId}）`);
     } catch {
       // 删不掉不影响这次上报：下一轮心跳还会再试
+    }
+  }
+
+  /**
+   * 客户端本人上报时，把「运维脚本留下、但没有任何客户端心跳痕迹」的重复台账行清掉。
+   *
+   * 2026-10-01 现场：`PC-20260409CDBJ`（黄浩）台账里两条记录，一条是客户端/看门狗的、
+   * 另一条是「开通远程管理」脚本按「第一块 Up 的网卡」（VMware 虚拟网卡）算出来的 id。
+   * 只靠脚本下次运行去归并是不够的 —— 脚本是人点一次才跑一次；客户端每 5 分钟都来，
+   * 让它顺手把这类残留清掉，台账就不会一直挂着两条、管理端也不会一条「已开通」一条「未开通」。
+   *
+   * 三道闸都满足才删（宁可留一条，也不误删真客户端）：
+   *   ① 主机名一样、machineId 不是这次上报的这台；
+   *   ② 这一行没有被客户端/看门狗写过的痕迹，也没带回 appVersion；
+   *   ③ 这一行的 IP 和这台机器的 IP 有交集 —— 局域网里有 4 台机器都叫 `User-20240831VS`，
+   *      只有 IP 撞上才算同一台，光看主机名会误删别人的行。
+   */
+  private async sweepScriptRows(hostname: string, keepId: string, ips: unknown): Promise<void> {
+    const host = String(hostname || '').trim().toLowerCase();
+    const mine = new Set(
+      (Array.isArray(ips) ? ips : []).map((v) => String(v ?? '').trim()).filter(Boolean),
+    );
+    if (!host || !mine.size) return;
+    const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } });
+    for (const row of rows) {
+      const value: any = (row.value as any) || {};
+      const strayId = String(value.machineId || String(row.key).replace('client.machine.', ''));
+      if (!strayId || strayId === keepId) continue;
+      if (String(value.hostname || '').toLowerCase() !== host) continue;
+      if (isMachineSelfSource(value.lastSource) || value.appVersion) continue;
+      const theirs = [
+        ...(Array.isArray(value.ips) ? value.ips.map((v: unknown) => String(v ?? '').trim()) : []),
+        String(value.primaryIp || '').trim(),
+      ].filter(Boolean);
+      if (!theirs.some((ip) => mine.has(ip))) continue;
+      await this.dropStrayScriptRow(strayId, keepId, hostname, value);
     }
   }
 
@@ -187,12 +255,13 @@ export class MachineService {
    *   ③ ManagedPC 表      → 手工登记的陪玩电脑（可开关机，但不可诊断）
    */
   async listMachines() {
-    const [machineRows, tasks, csRows, csUsers, managedPcs] = await Promise.all([
+    const [machineRows, tasks, csRows, csUsers, managedPcs, watchdogCfg] = await Promise.all([
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.machine.' } } }),
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } }),
       this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'cs.client.version.' } } }),
       this.prisma.user.findMany({ select: { id: true, username: true, role: true, studioId: true } }),
       this.prisma.managedPC.findMany({ orderBy: { ip: 'asc' } }),
+      this.prisma.systemConfig.findUnique({ where: { key: 'watchdog.latest_build' } }),
     ]);
 
     const userById = new Map(csUsers.map((u) => [u.id, u]));
@@ -230,6 +299,7 @@ export class MachineService {
         mac: m.mac || '',
         os: m.os || '',
         appVersion: m.appVersion || '',
+        watchdogBuild: m.watchdogBuild || '',
         remoteReady: !!m.remoteReady,
         remoteAccount: m.remoteAccount || '',
         remotePassword: m.remotePassword || '',
@@ -264,6 +334,7 @@ export class MachineService {
         mac: '',
         os: '',
         appVersion: value.version || '',
+        watchdogBuild: '',
         remoteReady: false,
         remoteAccount: '',
         remotePassword: '',
@@ -292,6 +363,7 @@ export class MachineService {
         mac: pc.macAddress || '',
         os: '',
         appVersion: '',
+        watchdogBuild: '',
         remoteReady: false,
         remoteAccount: '',
         remotePassword: '',
@@ -320,6 +392,11 @@ export class MachineService {
 
     return {
       diagScriptVersion: CLIENT_DIAG_SCRIPT_VERSION,
+      watchdogLatestBuild: (() => {
+        const raw: any = watchdogCfg?.value;
+        const value = typeof raw === 'string' ? raw : raw?.value;
+        return String(value ?? '').trim();
+      })(),
       total: items.length,
       onlineCount: items.filter((i) => i.online).length,
       remoteReadyCount: items.filter((i) => i.remoteReady).length,
@@ -332,6 +409,63 @@ export class MachineService {
     const t = new Date(lastSeenAt).getTime();
     if (!Number.isFinite(t)) return false;
     return Date.now() - t < MachineService.ONLINE_WINDOW_MS;
+  }
+
+  /** 看门狗（SYSTEM 服务）最近有没有来领过任务。 */
+  private systemPollerAlive(machine: any): boolean {
+    const raw = String(machine?.systemPollAt || '');
+    if (!raw) return false;
+    const t = new Date(raw).getTime();
+    if (!Number.isFinite(t)) return false;
+    return Date.now() - t < MachineService.SYSTEM_POLL_WINDOW_MS;
+  }
+
+  /** 云端那份看门狗的构建号（发布脚本写进配置；没有就只按「远程管理开没开」判断）。 */
+  private async watchdogTargetBuild(): Promise<string> {
+    const row = await this.prisma.systemConfig.findUnique({ where: { key: 'watchdog.latest_build' } });
+    const raw: any = row?.value;
+    const value = typeof raw === 'string' ? raw : raw?.value;
+    return String(value ?? '').trim();
+  }
+
+  /**
+   * 上报即自愈（老板 2026-10-01：「你看看还谁不是全自动的……以后都弄全自动好么？」）。
+   *
+   * 客户端 / 看门狗一上报，就顺手判断这台机器缺什么：
+   *   ① 远程管理没开通（`remoteReady=false`）→ 补一条「开通远程管理」；
+   *   ② 看门狗构建号跟云端对不上（含「老看门狗压根不认识构建号」）→ 同一条任务里补上，
+   *      脚本会把看门狗换成云端最新那份。
+   * 这条任务由看门狗（SYSTEM 服务）执行，所以不需要人点、不需要人在电脑跟前、
+   * 也不需要登录账号是管理员。同一条任务 6 小时内只补一次，避免反复派。
+   */
+  private async autoHeal(record: any): Promise<void> {
+    const machineId = String(record?.machineId || '');
+    if (!machineId) return;
+    // 连类型都不知道的行（手工登记的陪玩电脑之类）别去碰。
+    if (String(record.clientType || '').toUpperCase() === 'UNKNOWN') return;
+    const target = await this.watchdogTargetBuild();
+    const build = String(record.watchdogBuild || '');
+    const needsRemote = !record.remoteReady;
+    const needsWatchdog = !!target && build !== target;
+    if (!needsRemote && !needsWatchdog) return;
+
+    const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });
+    const mine = rows
+      .map((r) => (r.value as any) || {})
+      .filter((t) => t && t.machineId === machineId && t.type === 'enable-remote');
+    if (mine.some((t) => t.status === 'pending' || t.status === 'running')) return;
+    // 冷却：远程管理这条走「每 6 小时体检一次」；看门狗这条 2 小时一次 —— 它一旦补上去，
+    // 看门狗下一分钟就会把新构建号报上来，条件自己就没了，不会一直补。
+    const cooldownMs = needsRemote ? 6 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+    const last = mine.map((t) => String(t.createdAt || '')).sort().pop() || '';
+    if (last && Date.now() - new Date(last).getTime() < cooldownMs) return;
+
+    await this.createTask({
+      machineId,
+      type: 'enable-remote',
+      reason: needsRemote ? '自动自愈：开通远程管理' : '自动自愈：看门狗换成云端最新那份',
+      actor: { username: 'system', id: '' },
+    });
   }
 
   // ── 任务队列 ────────────────────────────────────────────────────────────
@@ -383,11 +517,22 @@ export class MachineService {
     return task;
   }
 
-  /** 客户端来领任务：只领自己名下的 pending，领走即置 running，避免重复执行。 */
-  async takeTasks(machineId: string, limit = 3) {
+  /**
+   * 客户端 / 看门狗来领任务：只领自己名下的 pending，领走即置 running，避免重复执行。
+   *
+   * 谁有权执行：管理端下发的诊断 / 指令 / 开通远程管理都要管理员权限，而客户端是以
+   * **登录用户**身份跑的。2026-10-01 实拍：叶号那台（WIN-20260311RKT）登录的 Windows 账号
+   * 不是管理员，脚本第一行就是「是不是管理员: False」，任务白派。所以现在改成
+   * **看门狗（SYSTEM 服务）优先**：只要它近 3 分钟来领过任务，客户端就领不到 ——
+   * 没人登录、登录的是普通账号，任务照样以系统权限执行。
+   */
+  async takeTasks(machineId: string, limit = 3, as: 'system' | 'user' = 'user') {
     const wanted = Math.max(1, Math.min(5, Number(limit) || 3));
     const machine = await this.readMachine(machineId);
     if (!machine) return { tasks: [] as any[], serverTime: new Date().toISOString() };
+    if (as === 'user' && this.systemPollerAlive(machine)) {
+      return { tasks: [] as any[], serverTime: new Date().toISOString(), executedBy: 'system' };
+    }
     await this.expireStaleTasks();
     const rows = await this.prisma.systemConfig.findMany({ where: { key: { startsWith: 'client.task.' } } });
     const mine = rows

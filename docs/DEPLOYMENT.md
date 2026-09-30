@@ -922,6 +922,29 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 发完自查：`_publish_client.py` 会打印远端 md5 与版本号；再打开管理端「陪玩电脑」页，看版本号是不是新号
 （客户端 30 分钟才查一次版本，铺开是逐步的，别急着判定「没生效」）。
 
+**发布看门狗（`SystemHelper.exe`）只要四步**（2026-10-01 起不用再一台台去推）：
+
+1. 改 `apps/watchdog-service/main.go` 里 `serviceBuild` / `serviceBuildNumber` / `buildTagLiteral` 三处构建号；
+2. `cd apps/watchdog-service; go build -o SystemHelper.exe .`；
+3. `python scripts\_upload_sh_cloud.py`（上传 `uploads/SystemHelper.exe`），再把配置键
+   `watchdog.latest_build` 改成新构建号；
+4. **两个客户端整包也一起重打**：`python scripts\_repack_client_zip.py` + `python scripts\_repack_cs_zip.py`
+   —— 重装 / 从 zip 恢复的机器才会拿到新看门狗（两个脚本都只重打包，不动版本号，不会触发全网更新）。
+
+换到各台机器上靠三条路，按可靠性排：
+
+1. **上报即自愈（最稳）**：机器一上报，服务端发现它的看门狗构建号对不上就自动补一条「开通远程管理」，
+   脚本里含「顺手把看门狗换成云端最新」。只要登录账号是管理员就成（客服机 + 绝大多数陪玩机都是）。
+   也可以人工点一下管理端「机器管理 → 开通远程管理」立刻触发。
+2. **看门狗自己的云端自更新**：每 30 分钟问一次云端头信息，变了才下载，构建号更新就原子换自己 +
+   计划任务重启服务（`cloudSelfUpdateCheck`）。⚠️ 2026-10-01 实测：8 台停在 `2026093004` 的机器
+   超过 40 分钟没自己换上来（日志里连一条 cloud self-update 都没有）——**别只指望这一条**。
+3. `scripts\_push_watchdog_all.py`（走 SMB/atexec，需要运维账号口令）：只在机器上的看门狗老得
+   连构建号/自愈都认不出来时兜底。
+
+重启看门狗服务**不打断接单**（日志里会打 `Adopted running client pid=…`），但换完之后记得复查
+管理端「陪玩电脑」页那台的「看门狗版本」是不是新号。
+
 ### 5.9 远程机器台账与「一键诊断」（客服端 / 陪玩端通用）
 
 老板 2026-09-30：所有客户端电脑（客服端 + 陪玩端 + 以后新招的人）都要能被远程查看 / 一键诊断。
@@ -929,20 +952,39 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 
 ```
 客户端（主进程） ──每 5 分钟──▶ POST /api/agent/machine-report   → SystemConfig.client.machine.<machineId>
-客户端（主进程） ──每 60 秒──▶ GET  /api/agent/machine-tasks    ← 管理端点「一键诊断」排的任务
-客户端执行脚本 ──────────▶ POST /api/agent/machine-task-result → onboard-reports/diag/*.log
+看门狗（SYSTEM） ──每 60 秒──▶ POST /api/agent/machine-report   → 同上（带 watchdogBuild + systemPoller）
+看门狗（SYSTEM） ──每 60 秒──▶ GET  /api/agent/machine-tasks?as=system  ← 管理端排的任务
+看门狗 / 客户端执行脚本 ─────▶ POST /api/agent/machine-task-result → onboard-reports/diag/*.log
 ```
 
 **不依赖中继机**（老板 2026-09-06 定的：以后只开云服务器、不开中继器），也不需要在被控机器上开端口。
 客户端没在跑 → 任务挂在队列里，等客户端起来自动执行；超 15 分钟没回来会被标失败（不会一直显示「执行中」）。
+
+**任务由看门狗以 SYSTEM 权限执行（2026-10-01 起）。** 以前是客户端（登录用户身份）领任务，
+于是「登录账号不是管理员」就白派 —— 2026-10-01 实拍：叶号那台 `WIN-20260311RKT` 登录账号不是管理员，
+脚本第一行就是「是不是管理员: False」。现在看门狗（`SystemHelper`，LocalSystem 服务）也来领，
+服务端**优先给看门狗**（`takeTasks` / `systemPollerAlive`：看门狗近 3 分钟报过 → 客户端的 `as=user`
+请求就领不到）。好处：没人登录、登录的是普通账号、机器锁屏，任务照样能跑。
+看门狗没升级到的老机器上，客户端那条路还在（能跑就跑，跑不了等看门狗升级）。
+
+**看门狗自己也会跟云端升级。** 它每 30 分钟问一次 `/uploads/SystemHelper.exe` 的头信息，
+变了才下载，构建号更新就原子换掉自己 + 让服务重启（`cloudSelfUpdateCheck`，构建号写在二进制里的
+`CHUNLV_WATCHDOG_BUILD=…`）。所以**换看门狗不再需要人上门**；发新版只做两件事：
+`python scripts\_upload_sh_cloud.py` 传新二进制，再把配置键 `watchdog.latest_build` 改成新构建号
+（服务端据此判断「这台的看门狗是不是落后」，管理端「机器管理」也显示这个）。比「会自更新」更老的版本
+（认不出构建号）得靠派一条「开通远程管理」任务把它带上来 —— 那条脚本里含这一步。
 
 **台账的一行 = 一台机器。** 客户端和运维脚本算 machineId 的算法不一样（客户端按网卡枚举顺序取
 第一块非虚拟网卡的 MAC，脚本按 `Get-NetAdapter | Status -eq 'Up'` 的第一块），所以**脚本上报时
 按「主机名 + 主 IP」认领客户端那一行**（`machine.service.ts` 的 `pickCanonicalMachine`）——
 只按主机名不行，局域网里有 4 台机器都叫 `User-20240831VS`。2026-09-30 之前这一点没做，
 客服机 `PC-20230107AFUW` 就多出一行、`remoteReady` 也永远回填不到客户端那一行。
-另外运维脚本要改本机账号，**必须由看门狗拉起的客户端来跑**（服务是 LocalSystem，拉起的客户端就是
-管理员）；手工双击客户端不是管理员，脚本会报「没有管理员权限」并失败。
+**自愈是自动的：** 客户端 / 看门狗一上报，服务端（`machine.service.ts` 的 `autoHeal`）就顺手看这台机器
+缺什么 —— 远程管理没开通、或看门狗构建号跟云端对不上 —— 自动补一条「开通远程管理」任务
+（远程管理最多每 6 小时一次、看门狗最多每 2 小时一次），执行者就是看门狗。管理端任务表里这类任务
+「谁点的」显示紫色的「自动」。所以新招的人、新装的机器都不用任何人点。
+另：这条脚本**本机留过档就沿用原来的运维口令**（`C:\ProgramData\chunlv\remote-account.txt`），
+不会每次跑都换口令把管理端抄走的作废。
 
 **存储**：复用 `SystemConfig(key/value jsonb)`，**没有新增表、没有 schema 迁移** ——
 `client.machine.<machineId>` 是台账，`client.task.<taskId>` 是任务（只保留最近 400 条，旧的自动清）。

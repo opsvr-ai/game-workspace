@@ -154,6 +154,7 @@ scripts/_*
 !scripts/_upload_sh_cloud.py
 !scripts/_push_watchdog_all.py
 !scripts/_repack_client_zip.py
+!scripts/_repack_cs_zip.py
 
 # 仓库根目录遗留的「一次性修复脚本」（2026-09-22 清理：这些都是一次性的排障脚本，
 # 事情做完就没用了；正式装机入口是 陪玩端一键安装.bat / .ps1 + scripts/ 下的发版链路）

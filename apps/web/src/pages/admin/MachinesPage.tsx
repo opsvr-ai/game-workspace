@@ -39,7 +39,9 @@ function agoText(v?: string | null): string {
 
 const MachinesPage: React.FC = () => {
   const [items, setItems] = useState<MachineItem[]>([]);
-  const [stats, setStats] = useState({ total: 0, onlineCount: 0, remoteReadyCount: 0, diagScriptVersion: '' });
+  const [stats, setStats] = useState({
+    total: 0, onlineCount: 0, remoteReadyCount: 0, diagScriptVersion: '', watchdogLatestBuild: '',
+  });
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -66,6 +68,7 @@ const MachinesPage: React.FC = () => {
         onlineCount: d?.onlineCount ?? 0,
         remoteReadyCount: d?.remoteReadyCount ?? 0,
         diagScriptVersion: d?.diagScriptVersion ?? '',
+        watchdogLatestBuild: d?.watchdogLatestBuild ?? '',
       });
     } catch {
       message.error('加载机器列表失败');
@@ -229,10 +232,23 @@ const MachinesPage: React.FC = () => {
       ),
     },
     {
-      title: '客户端版本',
+      title: '版本',
       key: 'appVersion',
-      width: 140,
-      render: (_: unknown, r: MachineItem) => r.appVersion ? <Text code>{r.appVersion}</Text> : <Text type="secondary">未知</Text>,
+      width: 168,
+      render: (_: unknown, r: MachineItem) => (
+        <Space direction="vertical" size={0}>
+          <Text code>{r.appVersion || '未知'}</Text>
+          <Tooltip title="看门狗（SystemHelper）负责自动更新和远程任务；不是最新的会被自动补上">
+            <Text
+              type={r.watchdogBuild && stats.watchdogLatestBuild && r.watchdogBuild !== stats.watchdogLatestBuild ? 'danger' : 'secondary'}
+              style={{ fontSize: 12 }}
+            >
+              看门狗 {r.watchdogBuild || '未知'}
+              {r.watchdogBuild && stats.watchdogLatestBuild && r.watchdogBuild !== stats.watchdogLatestBuild ? '（待自动更新）' : ''}
+            </Text>
+          </Tooltip>
+        </Space>
+      ),
     },
     {
       title: '远程管理',
@@ -324,7 +340,7 @@ const MachinesPage: React.FC = () => {
       dataIndex: 'createdBy',
       key: 'createdBy',
       width: 100,
-      render: (v: string) => v || '—',
+      render: (v: string) => (v === 'system' ? <Tooltip title="没人点，客户端一上报发现缺东西就自动补的"><Tag color="purple">自动</Tag></Tooltip> : v || '—'),
     },
     {
       title: '概要',
@@ -333,7 +349,10 @@ const MachinesPage: React.FC = () => {
         t.status === 'failed' ? (
           <Text type="danger">{t.error || '执行失败'}</Text>
         ) : (
-          <Text type="secondary">{t.reportLines ? `${t.reportLines} 行报告` : '等待结果…'}</Text>
+          <Space direction="vertical" size={0}>
+            <Text type="secondary">{t.reportLines ? `${t.reportLines} 行报告` : '等待结果…'}</Text>
+            {t.reason ? <Text type="secondary" style={{ fontSize: 12 }}>{t.reason}</Text> : null}
+          </Space>
         ),
     },
     {
@@ -430,6 +449,7 @@ const MachinesPage: React.FC = () => {
               <Descriptions.Item label="IP">{active.primaryIp || '—'}</Descriptions.Item>
               <Descriptions.Item label="MAC">{active.mac || '—'}</Descriptions.Item>
               <Descriptions.Item label="客户端版本">{active.appVersion || '—'}</Descriptions.Item>
+              <Descriptions.Item label="看门狗版本">{active.watchdogBuild || '未知'}</Descriptions.Item>
               <Descriptions.Item label="系统">{active.os || '—'}</Descriptions.Item>
               <Descriptions.Item label="远程账号">{active.remoteAccount || '未开通'}</Descriptions.Item>
               <Descriptions.Item label="远程口令">

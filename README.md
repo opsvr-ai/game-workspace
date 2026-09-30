@@ -6,6 +6,19 @@
 
 ## Recent Updates (v3.2.0)
 
+- **「谁不是全自动」挖到底：看门狗自己会跟云端升级，管理端任务改由看门狗以系统权限执行（2026-10-01）:** 老板
+  「你看看还谁不是全自动的……以后都弄全自动好么？」两条真根因：①看门狗（`SystemHelper`）是「最后一段没自动的」——
+  它自己以前只能靠人跑到电脑跟前换；现在它每 30 分钟问一次云端（只有变了才下载），构建号更新就原子换掉自己并重启
+  （现场实测：`192.168.0.131`、`192.168.1.143` 自己从 `2026093004` 升到 `2026093006`，`192.168.0.140` 换完照旧接单）。
+  ②管理端下发的任务都要管理员权限，而客户端是以**登录的 Windows 账号**跑的 —— 叶号那台（`WIN-20260311RKT`）
+  登录账号不是管理员，脚本第一行就「是不是管理员: False」。现在**看门狗（SYSTEM 服务）替客户端领任务并执行**
+  （每分钟上报 + 领任务 `as=system`；服务端记住「系统权限通道是活的」就不再发给普通权限请求），
+  实测报告里 `执行身份=SYSTEM`。再加上**上报即自愈**：服务端发现某台机器远程管理没开通、或看门狗不是云端最新那份，
+  就自动补一条任务（远程管理每 6 小时、看门狗每 2 小时最多一次），执行者就是看门狗。顺手修掉「脚本每跑一次就换
+  运维口令、刚抄走的口令当场失效」的坑（本机留过档就沿用）。管理端「机器管理」多显示看门狗版本（落后标红）、
+  系统自动补的任务标「自动」。新增配置键 `watchdog.latest_build`，`GET /api/agent/machines` 多返回
+  `watchdogLatestBuild` / 每台的 `watchdogBuild`。看门狗 `2026-10-01.2` / `2026093006`
+  （md5 `5354eb907083b62b1ff8b93ef59d1d27`）已发云端。
 - **客服端「一片深蓝」的一键修复 + 真根因（2026-09-30）:** 老板「邵泽慧的我已经运行了.bat，还是蓝屏」。
   查清了：**不是电脑蓝屏**，是客服端窗口自己的深蓝底色（页面没渲染）—— 她那台客户端配置里的服务器地址被改成了
   `http://localhost:3001`（指向自己这台电脑），加上自动更新一直失败（`spawn EBUSY`），于是长期停在很老、连兜底页
@@ -1026,8 +1039,8 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/agent/onboard-report` | `x-onboard-token` header | -- | A freshly onboarded PC reports hostname / IP / MAC / client version and the remote-support account it just generated. Sent by `install-companion.ps1` (new PC) and by `scripts/repair-companion.ps1` (step 1 of the repair flow, so a machine that never ran the installer becomes remotely reachable too). Appended to `onboard-reports/machines.jsonl` (repo root, not web-served). |
 | `POST` | `/api/agent/client-error` | None | `{phase,url,status,message,detail}` | 前端上报「请求根本没到服务器」的网络层故障（注册失败、断网 / 被杀毒软件拦截等）。Appended to `client-errors/client-errors-<date>.jsonl` (repo root, not web-served). |
 | `POST` | `/api/agent/diag-report` | `x-onboard-token` header | `{hostname,source,lines}` | 看门狗 / 一键修复脚本回传现场诊断（主机名、安装目录、exe 大小与 PE 头、桌面快捷方式指向、服务状态、日志尾部……），落到 `onboard-reports/diag/<主机名>-<时间>-<来源>.log`（仓库根，公网下不到）。 |
-| `POST` | `/api/agent/machine-report` | `x-onboard-token` header | `{machineId,clientType,hostname,ips,mac,windowsUser,loginUser,appVersion,...}` | 客户端（客服端 / 陪玩端主进程）每 5 分钟上报「我是谁」。落 `SystemConfig.client.machine.<machineId>`（复用现有表，无需迁移）。 |
-| `GET` | `/api/agent/machine-tasks` | `x-onboard-token` header | `machineId`, `limit` | 客户端领远程任务（诊断 / 指令 / 开通远程管理）；领走即置 `running`，避免重复执行；超 15 分钟没回来会被标失败。 |
+| `POST` | `/api/agent/machine-report` | `x-onboard-token` header | `{machineId,clientType,hostname,ips,mac,windowsUser,loginUser,appVersion,watchdogBuild?,systemPoller?,...}` | 客户端（客服端 / 陪玩端主进程）每 5 分钟、看门狗每 60 秒上报「我是谁」。落 `SystemConfig.client.machine.<machineId>`（复用现有表，无需迁移）。带 `watchdogBuild` 记看门狗版本，带 `systemPoller` 标记「这台机器的系统权限通道是活的」。 |
+| `GET` | `/api/agent/machine-tasks` | `x-onboard-token` header | `machineId`, `limit`, `as=system\|user` | 领远程任务（诊断 / 指令 / 开通远程管理）；领走即置 `running`，避免重复执行；超 15 分钟没回来会被标失败。`as=system`（看门狗）是优先执行者：它近 3 分钟来领过，`as=user`（客户端，普通登录权限）就领不到 —— 任务一律以 SYSTEM 权限执行。 |
 | `POST` | `/api/agent/machine-task-result` | `x-onboard-token` header | `{taskId,machineId,status,exitCode,lines}` | 客户端交结果；报告落 `onboard-reports/diag/<主机名>-<时间>-task-<类型>.log`（公网下不到）。 |
 | `GET` | `/api/agent/machines` | JWT (ADMIN/OWNER) | -- | 机器台账（三路合并：会上报的新版客户端 + 客服端旧版账号行 + 手工登记的陪玩电脑），带在线/远程管理状态与待办任务数。 |
 | `POST` | `/api/agent/machines/:machineId/diag` | JWT (ADMIN/OWNER) | -- | 派「一键诊断」。 |

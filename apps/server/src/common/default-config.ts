@@ -338,6 +338,7 @@ export const OWNER_ONLY_KEYS = [
   // ── 服务器自己写的状态（不是给人填的） ──
   'excellence.low_tier_streak', // 末位淘汰连续天数：由服务端每天累加，全局只有一份
   'counter.global_code',        // 全局流水号
+  'watchdog.latest_build',      // 云端看门狗构建号：发布脚本写，客户端据此判断要不要换看门狗
 ] as const;
 
 /**
@@ -357,6 +358,7 @@ export const OWNER_ONLY_PREFIXES = [
   'counter.',            // 全局流水号：必须全站唯一，各店各算会撞号
   'invite.',             // 邀请码：老板发出去的入店凭据
   'cs.client.version.',  // 客服端各人的版本上报（服务器级状态，不是给人填的）
+  'watchdog.',           // 看门狗版本这类服务器级状态，不是给人填的
 ] as const;
 
 const OWNER_ONLY_KEY_SET = new Set<string>(OWNER_ONLY_KEYS);

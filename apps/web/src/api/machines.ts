@@ -16,6 +16,8 @@ export interface MachineItem {
   mac: string;
   os: string;
   appVersion: string;
+  /** 看门狗（SystemHelper）构建号：这台机器「自动更新 + 领远程任务」靠它 */
+  watchdogBuild: string;
   remoteReady: boolean;
   remoteAccount: string;
   remotePassword: string;
@@ -30,6 +32,8 @@ export interface MachineItem {
 
 export interface MachineListResult {
   diagScriptVersion: string;
+  /** 云端那份看门狗的构建号：跟某台机器的 watchdogBuild 不一样就说明它停在老版本 */
+  watchdogLatestBuild: string;
   total: number;
   onlineCount: number;
   remoteReadyCount: number;

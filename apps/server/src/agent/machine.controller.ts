@@ -38,9 +38,16 @@ export class MachineController {
 
   /** 客户端领任务：只有自己名下的、还挂着的任务，领走就置「执行中」。 */
   @Get('machine-tasks')
-  async machineTasks(@Req() req: any, @Query('machineId') machineId: string, @Query('limit') limit?: string): Promise<ApiResponse<unknown>> {
+  async machineTasks(
+    @Req() req: any,
+    @Query('machineId') machineId: string,
+    @Query('limit') limit?: string,
+    @Query('as') as?: string,
+  ): Promise<ApiResponse<unknown>> {
     if (!this.checkToken(req)) return { code: 403, message: 'forbidden', data: null };
-    const data = await this.machineService.takeTasks(String(machineId || ''), Number(limit) || 3);
+    // 看门狗（SYSTEM 服务）传 as=system：它来领过之后，客户端的普通权限请求就领不到任务了。
+    const who: 'system' | 'user' = String(as || '').toLowerCase() === 'system' ? 'system' : 'user';
+    const data = await this.machineService.takeTasks(String(machineId || ''), Number(limit) || 3, who);
     return { code: 200, message: 'ok', data };
   }
 

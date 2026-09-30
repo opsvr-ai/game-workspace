@@ -7,7 +7,7 @@
  *
  * 跟 client-diag.ts 一样用 String.raw 保存，不要出现模板字符串的插值符号和反引号。
  */
-export const CLIENT_ENABLE_REMOTE_VERSION = '2026-09-30.1';
+export const CLIENT_ENABLE_REMOTE_VERSION = '2026-10-01.1';
 
 export const CLIENT_ENABLE_REMOTE_PS = String.raw`# 蠢驴电竞 · 一键开通远程管理（客服端 / 陪玩端通用）
 # 作用：在这台电脑上开一个专属运维账号 + 打开远程管理通道，并把结果回传到服务器。
@@ -27,6 +27,16 @@ $account = 'chunlvops'
 $out = New-Object System.Collections.Generic.List[string]
 function W([string]$t) { $out.Add([string]$t); Write-Host $t }
 
+# 读一份 exe 里编着的看门狗构建号（看门狗把自己的构建号当字面量编进了二进制）。
+# 不认识构建号 = 那份看门狗老到不会自己升级，就得靠这条任务把它带上来。
+function Get-WatchdogBuild([string]$p) {
+  try {
+    $s = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($p))
+    if ($s -match 'CHUNLV_WATCHDOG_BUILD=(\d+)') { return $Matches[1] }
+  } catch { }
+  return ''
+}
+
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 W ('是不是管理员: ' + $isAdmin)
 if (-not $isAdmin) {
@@ -35,16 +45,32 @@ if (-not $isAdmin) {
   exit 1
 }
 
-# 1) 生成一个每台机器都不一样的高强度密码（不再用所有人同一个口令）
-$chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'.ToCharArray()
-$rand = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
-$buf = New-Object byte[] 1
-$pwChars = @()
-for ($i = 0; $i -lt 14; $i++) {
-  $rand.GetBytes($buf)
-  $pwChars += $chars[($buf[0] % $chars.Length)]
+# 1) 口令：本机已经留过档就沿用原来那一份，绝不每次跑都换。
+#    为什么（2026-10-01）：这条脚本现在会自动重跑（自愈），要是每次换一个口令，
+#    管理端刚抄走的口令就当场失效了。
+$pwDir = $env:ProgramData + '\chunlv'
+$pwRecord = $pwDir + '\remote-account.txt'
+$password = ''
+if (Test-Path -LiteralPath $pwRecord) {
+  try {
+    $rec = Get-Content -LiteralPath $pwRecord -Raw
+    if ($rec -match 'password=(\S+)') { $password = $Matches[1] }
+  } catch { }
 }
-$password = 'Chunlv!' + (-join $pwChars)
+if ($password) {
+  W ('沿用本机留档的口令: ' + $pwRecord)
+} else {
+  # 生成一个每台机器都不一样的高强度密码（不再用所有人同一个口令）
+  $chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'.ToCharArray()
+  $rand = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+  $buf = New-Object byte[] 1
+  $pwChars = @()
+  for ($i = 0; $i -lt 14; $i++) {
+    $rand.GetBytes($buf)
+    $pwChars += $chars[($buf[0] % $chars.Length)]
+  }
+  $password = 'Chunlv!' + (-join $pwChars)
+}
 
 # 2) 建账号 / 修账号
 $exist = Get-LocalUser -Name $account -ErrorAction SilentlyContinue
@@ -102,7 +128,66 @@ try {
   W ('口令已在本机留档: ' + $dir + '\remote-account.txt')
 } catch { W ('本机留档失败: ' + $_.Exception.Message) }
 
-# 6) 回传服务器（这样管理端不用问任何人就能拿到口令）
+# 6) 看门狗（SystemHelper）也顺手跟云端对齐。
+#    老板 2026-10-01：「你看看还谁不是全自动的……以后都弄全自动好么？」看门狗负责
+#    「自动更新 + 领远程任务」，它一旧，这两件事就都得靠人跑到电脑跟前。比它自己
+#    云端自更新更早的版本还不认识那套机制，只能靠这条任务把它带上来。
+#    以 SYSTEM 身份跑的时候（看门狗自己领的任务）不换自己 —— 它会自己跟云端升级，
+#    在这儿 sc stop 只会把自己打断。
+$wdPath = $env:ProgramFiles + '\SystemHelper\SystemHelper.exe'
+$wdBuild = ''
+if (Test-Path -LiteralPath $wdPath) { $wdBuild = Get-WatchdogBuild $wdPath }
+$cloudBuild = ''
+$cloudWd = Join-Path $env:TEMP 'SystemHelper.cloud.exe'
+if ($ServerUrl) {
+  try {
+    Invoke-WebRequest -Uri ($ServerUrl.TrimEnd('/') + '/uploads/SystemHelper.exe') -OutFile $cloudWd -UseBasicParsing -TimeoutSec 300
+    $cloudBuild = Get-WatchdogBuild $cloudWd
+  } catch { W ('取云端看门狗失败（不影响远程管理）: ' + $_.Exception.Message) }
+}
+$isSystem = $false
+try { $isSystem = ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq 'S-1-5-18') } catch { }
+W ('看门狗: 本机=' + $(if ($wdBuild) { $wdBuild } else { '未知' }) + ' 云端=' + $(if ($cloudBuild) { $cloudBuild } else { '未知' }) + ' 执行身份=' + $(if ($isSystem) { 'SYSTEM' } else { '用户' }))
+if ($cloudBuild -and (-not $isSystem) -and ((-not $wdBuild) -or ([string]$wdBuild).CompareTo([string]$cloudBuild) -lt 0)) {
+  $kind = 'companion'
+  if ($ClientType -and ($ClientType.ToUpper() -eq 'CS')) { $kind = 'cs' }
+  elseif (Test-Path -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt')) {
+    try { $k = (Get-Content -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt') -Raw).Trim(); if ($k) { $kind = $k } } catch { }
+  }
+  $wdDir = $env:ProgramFiles + '\SystemHelper'
+  if (-not (Test-Path -LiteralPath $wdDir)) { New-Item -ItemType Directory -Path $wdDir -Force | Out-Null }
+  if (-not (Get-WatchdogBuild $cloudWd)) {
+    W '  下载的那份看门狗认不出构建号，不敢换'
+  } elseif (-not (Test-Path -LiteralPath $wdPath)) {
+    Copy-Item -LiteralPath $cloudWd -Destination $wdPath -Force
+    & $wdPath install ('--client=' + $kind) 2>&1 | ForEach-Object { W ('  装看门狗: ' + $_) }
+    sc.exe start SystemHelper 2>&1 | Out-Null
+    Start-Sleep -Seconds 4
+    $wdBuild = Get-WatchdogBuild $wdPath
+    W ('  看门狗已装上: ' + $(if ($wdBuild) { $wdBuild } else { '未知' }))
+  } else {
+    try {
+      sc.exe stop SystemHelper 2>&1 | Out-Null
+      Start-Sleep -Seconds 2
+      Copy-Item -LiteralPath $cloudWd -Destination ($wdPath + '.new') -Force
+      if (Test-Path -LiteralPath ($wdPath + '.old')) { Remove-Item -LiteralPath ($wdPath + '.old') -Force }
+      Rename-Item -LiteralPath $wdPath -NewName 'SystemHelper.exe.old' -Force
+      Rename-Item -LiteralPath ($wdPath + '.new') -NewName 'SystemHelper.exe' -Force
+      Start-Sleep -Seconds 2
+      sc.exe start SystemHelper 2>&1 | Out-Null
+      Start-Sleep -Seconds 4
+      $wdBuild = Get-WatchdogBuild $wdPath
+      W ('  看门狗已换到: ' + $(if ($wdBuild) { $wdBuild } else { '未知' }))
+    } catch {
+      W ('  换看门狗失败（不影响远程管理）: ' + $_.Exception.Message)
+      sc.exe start SystemHelper 2>&1 | Out-Null
+    }
+  }
+} else {
+  W '看门狗不用动（已是最新或本机没有可换的那份）'
+}
+
+# 7) 回传服务器（这样管理端不用问任何人就能拿到口令）
 $hostName = $HostnameOverride
 if (-not $hostName) { $hostName = $env:COMPUTERNAME }
 if (-not $hostName) { $hostName = [Environment]::MachineName }
@@ -131,6 +216,7 @@ if ($ServerUrl -and (-not $PSBoundParameters.ContainsKey('NoUpload'))) {
       remoteReady = $true
       remoteAccount = $account
       remotePassword = $password
+      watchdogBuild = $wdBuild
       source = 'enable-remote'
     } | ConvertTo-Json -Depth 4
     Invoke-RestMethod -Uri ($ServerUrl.TrimEnd('/') + '/api/agent/machine-report') -Method Post -Body $body -ContentType 'application/json' -Headers @{ 'x-onboard-token' = '%%TOKEN%%' } -TimeoutSec 30 | Out-Null
