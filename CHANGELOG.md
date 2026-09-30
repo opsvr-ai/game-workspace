@@ -416,6 +416,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **入池方式改名为「线下→线上流转 / 线上→线下流转」，「线上→线下流转」改成桥接工作室 + 线上俱乐部秒看到
+  （老板 2026-10-01，线上网页 v845）。**
+  老板原话：「发订单时 入池方式 改成：线下→线上流转：订单按照原来逻辑 先线下看到后到桥接工作室+线上俱乐部；
+  线上→线下流转：反过来，先线上秒看到，5分钟后没人接后到线下工作室」。
+  两个选项的**成员名不变**（`PoolScope.OFFLINE_FIRST` / `ONLINE_FIRST`，迁移与历史数据都不用动），
+  只改标签、说明与「对外可见时机」：
+  - **线下→线上流转**（默认，`OFFLINE_FIRST`）：本店线下先抢 `pool.offline_first_bridge_minutes`
+    （默认 3 分钟），没人接才轮到桥接工作室 + 线上俱乐部（两边同时看见，桥接没人接线上马上能接）—— 行为同以前。
+  - **线上→线下流转**（`ONLINE_FIRST`）：改成桥接工作室 + 线上俱乐部**秒看到**
+    （`common/order-outcome.ts` 的 `outsideViewerVisible` 对 `ONLINE_FIRST` 直接返回 `true`，
+    不再按 `pool.bridge_delay_seconds` / `pool.online_delay_seconds` 分先后）；本店线下陪玩先看不见，
+    过了 `pool.online_first_release_minutes`（默认 5 分钟）自动放给本店线下，客服 / 店长也可随时手动「放给线下」。
+  - 「线下转桥接/线上统计」页（`GET /api/orders/escalated-pool`）口径不变：仍只统计「线下→线上流转」的单。
+  - 同步改名的界面：发单弹窗入池下拉 + 说明、客服设置「默认入池方式」、设置「派单等待时间」两个标签与说明、
+    订单管理状态格紫字（`线上→线下` / `已放给线下`）、提成看板 `POOL_SCOPE` 标签、放给线下的二次确认与报错文案。
+  - 服务端单测 `order-outcome.test.ts` 26 项通过（新增「线上→线下流转：桥接 + 线上俱乐部秒看到」「5 分钟内本店线下看不见、到点自动放给线下」）；
+    线上服务端已部署（pm2 重启、health 200），网页已升 `v845`（客服端 / 陪玩端是 Electron 壳加载同一网页，刷新即生效，不用重装）。
+
 - **客服端版本 `1.0.20260932`（2026-09-30）。** 只含上面那条「加载失败不再是一片深蓝」的兜底，
   已按流程 `_publish_cs_client.py` 发到 `/uploads/agent-cs-setup.exe` 与 `/uploads/客服管理-Setup.exe`，
   并把线上 `cs.latest_version` 推到 `1.0.20260932`（客服端自己每 30 分钟问一次、启动时错峰问）。

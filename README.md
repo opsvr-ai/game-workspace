@@ -6,6 +6,17 @@
 
 ## Recent Updates (v3.2.0)
 
+- **入池方式改名为「线下→线上流转 / 线上→线下流转」，「线上→线下流转」改成桥接 + 线上俱乐部秒看到（2026-10-01）:** 老板
+  「发订单时 入池方式 改成：线下→线上流转：订单按照原来逻辑 先线下看到后到桥接工作室+线上俱乐部；线上→线下流转：反过来，
+  先线上秒看到，5分钟后没人接后到线下工作室」。两个选项的**成员名没变**（`PoolScope.OFFLINE_FIRST` / `ONLINE_FIRST`），
+  只是标签、说明与行为口径变了：**① 线下→线上流转**（默认，`OFFLINE_FIRST`）—— 本店线下先抢
+  `pool.offline_first_bridge_minutes`（默认 3 分钟），没人接才轮到桥接工作室 + 线上俱乐部（两边同时看见）；
+  **② 线上→线下流转**（`ONLINE_FIRST`）—— 桥接工作室 + 线上俱乐部**秒看到**（`outsideViewerVisible` 直接返回 true，
+  不再按 `pool.bridge_delay_seconds` / `pool.online_delay_seconds` 分先后），本店线下先看不见，过了 `pool.online_first_release_minutes`（默认 5 分钟，
+  客服 / 店长也可随时手动放给线下）自动放给本店线下。「线下转桥接/线上统计」页仍只统计「线下→线上流转」的单（口径不变）。
+  发单弹窗 / 客服设置 / 派单等待时间 / 订单管理紫字（`线上→线下` / `已放给线下`）/ 提成看板标签 / 放给线下的报错文案全部同步改名。
+  服务端单测 `order-outcome.test.ts` 26 项通过；线上网页 v845 + 服务端已部署（刷新即生效，不用重装客户端）。
+
 - **「谁不是全自动」挖到底：看门狗自己会跟云端升级，管理端任务改由看门狗以系统权限执行（2026-10-01）:** 老板
   「你看看还谁不是全自动的……以后都弄全自动好么？」两条真根因：①看门狗（`SystemHelper`）是「最后一段没自动的」——
   它自己以前只能靠人跑到电脑跟前换；现在它每 30 分钟问一次云端（只有变了才下载），构建号更新就原子换掉自己并重启
@@ -824,11 +835,11 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
-| `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上入池」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
+| `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上→线下流转」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
 | `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
 | `POST` | `/api/orders/:id/chase-feedback` | JWT | CS, ADMIN, OWNER | 「催一下」：线上 / 桥接单还挂着「待反馈」时催接单工作室给个说法。单上记 `feedbackChasedAt` / `feedbackChaseCount`，并把 `order:feedback_chase` 推给接单工作室（客服 / 店长右下角提醒）。已反馈过 / 没人接 / 本店线下单会 403。 |
-| `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下+线上流转入池」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
+| `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下→线上流转」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
 | `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |
 | `POST` | `/api/orders/:id/assign` | JWT | CS, ADMIN | Directly assign order to a companion. Body: `{ companionId }`. |
 | `POST` | `/api/orders/:id/confirm` | JWT | COMPANION | Confirm a grabbed order (start service). |
