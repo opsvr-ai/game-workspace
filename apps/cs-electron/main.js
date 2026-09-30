@@ -225,6 +225,102 @@ function ensureDesktopShortcut() {
   );
 }
 
+// ── 页面加载失败时的兜底（2026-09-30）────────────────────────────────────────
+// 老板报「192.168.1.4 邵泽慧那台怎么蓝屏了」，发来的照片是客服端窗口整片深蓝 —— 那就是本窗口
+// 的 backgroundColor（#0B1024），页面一个字都没渲染出来。**不是 Windows 蓝屏死机**，是页面
+// 根本没加载成功（她那台老客户端 9/30 凌晨 3 点之后就再没连上服务器），而老客户端在这种情况下
+// 什么都不显示，客服、老板都看不懂，只能当成电脑坏了。现在补三件事：
+//   ① 每次加载失败/超时都写本地日志 + 回传服务器（落 client-errors/），以后有据可查；
+//   ② 窗口里直接显示人话（连不上服务器 + 原因 + 重试按钮），不再是深蓝空窗口；
+//   ③ 每 10 秒自动重试一次，托盘里也能点「重新加载页面」。
+function logLine(msg) {
+  try {
+    const file = path.join(app.getPath('userData'), 'cs-client.log');
+    if (fs.existsSync(file) && fs.statSync(file).size > 2 * 1024 * 1024) fs.unlinkSync(file);
+    fs.appendFileSync(file, '[' + new Date().toISOString() + '] ' + msg + '\n', 'utf8');
+  } catch {}
+  try { console.log(msg); } catch {}
+}
+
+function reportLoadFailure(desc, code) {
+  try {
+    const url = getServerUrl().replace(/\/$/, '') + '/api/agent/client-error';
+    const payload = {
+      ip: '', user: '', role: 'CS', appVersion: app.getVersion(),
+      page: 'cs-shell', url: getLoginUrl(), phase: 'cs-page-load',
+      status: code === 'timeout' ? null : (code == null ? null : code),
+      message: String(desc || ''), detail: 'attempts=' + loadAttempts + ' code=' + code, ua: '',
+    };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctl.signal })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+  } catch {}
+}
+
+// 兜底页：深蓝底 + 人话 + 重试按钮（点按钮走 IPC，不整页刷新，免得把重试次数清零）
+function buildLoadErrorHtml(detail) {
+  const serverUrl = getServerUrl().replace(/\/$/, '');
+  const loginUrl = serverUrl + '/login';
+  const html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">'
+    + '<title>客服端 · 连不上服务器</title><style>'
+    + 'body{margin:0;height:100vh;background:#0B1024;color:#e6e9f5;font-family:"Microsoft YaHei","微软雅黑",Arial,sans-serif;display:flex;align-items:center;justify-content:center}'
+    + '.box{max-width:640px;padding:0 28px;text-align:center}'
+    + '.icon{font-size:44px}h1{font-size:20px;margin:14px 0 10px;font-weight:600}'
+    + 'p{font-size:13px;line-height:1.9;color:#aeb6d4;margin:6px 0}'
+    + 'code{color:#8fb2ff;word-break:break-all}'
+    + 'button{margin-top:18px;padding:10px 26px;font-size:15px;border:0;border-radius:8px;background:#1677ff;color:#fff;cursor:pointer}'
+    + 'button:hover{background:#0958d9}'
+    + '.tip{margin-top:18px;font-size:12px;color:#7b83a3;line-height:1.9}'
+    + '</style></head><body><div class="box"><div class="icon">📡</div>'
+    + '<h1>连不上服务器，页面没打开</h1>'
+    + '<p>服务器地址：<code>' + loginUrl + '</code></p>'
+    + '<p>原因：' + (detail || '未知') + '</p>'
+    + '<p>已经重试 <b>' + loadAttempts + '</b> 次，每 10 秒会自动再试一次。</p>'
+    + '<button id="r">立即重新加载</button>'
+    + '<div class="tip">先确认这台电脑能上网、把 VPN / 代理（v2rayN、加速器之类）关掉再点重试。<br>'
+    + '一直不行就把这张页面拍给管理员，或在这台电脑上重装一次客服端：<br><code>' + serverUrl + '/uploads/客服管理-Setup.exe</code></div>'
+    + '<script>document.getElementById("r").onclick=function(){if(window.electronAPI&&window.electronAPI.reloadApp){window.electronAPI.reloadApp();}};</script>'
+    + '</div></body></html>';
+  return 'data:text/html;charset=utf-8;base64,' + Buffer.from(html, 'utf-8').toString('base64');
+}
+
+let loadAttempts = 0;
+let loadOk = false;
+// 本次加载是不是已经失败了。Chromium 失败时也会提交一张「错误页」并触发 did-finish-load，
+// 而 getURL() 还报着原来那个地址 —— 只看 URL 会把失败当成功，把重试次数和自动重试一起清掉。
+let loadFailed = false;
+let loadWatchdog = null;
+let autoRetryTimer = null;
+
+function loadAppPage(reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  loadOk = false;
+  loadFailed = false;
+  clearTimeout(loadWatchdog);
+  // 30 秒还没加载完就当成失败（服务器没响应时 Chromium 可能一直转圈、不报错）
+  loadWatchdog = setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || loadOk) return;
+    onLoadFailure('页面加载超时（服务器没响应）', 'timeout');
+  }, 30000);
+  logLine('load app page (' + reason + ') attempt=' + loadAttempts);
+  mainWindow.loadURL(getLoginUrl());
+}
+
+function onLoadFailure(desc, code) {
+  loadAttempts += 1;
+  loadFailed = true;
+  logLine('page load failed attempt=' + loadAttempts + ' code=' + code + ' desc=' + desc);
+  reportLoadFailure(desc, code);
+  clearTimeout(loadWatchdog);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadURL(buildLoadErrorHtml(desc + '（' + code + '）'));
+  }
+  clearTimeout(autoRetryTimer);
+  autoRetryTimer = setTimeout(() => loadAppPage('auto-retry'), 10000);
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -241,24 +337,29 @@ function createWindow() {
     },
   });
   const serverUrl = getServerUrl().replace(/\/$/, '');
-  clearSessionCache().then(() => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(getLoginUrl());
-    }
-  });
-  // 只在「登录页自己加载失败」时重试。
+  clearSessionCache().then(() => loadAppPage('startup'));
+  // 只在「登录页自己加载失败」时动手。
   // 以前是只要窗口里任何一次加载失败（子框架、偶发断网、资源加载超时……）
   // 就把整个窗口强行 loadURL 到登录页，客服正用着会突然掉到登录界面。
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
     if (!isMainFrame) return; // 子框架/资源失败不理会
     if (code === -3) return; // ERR_ABORTED：正常的中断，不算失败
+    if (String(failedUrl || '').startsWith('data:')) return; // 我们自己那张兜底页
     const loginPath = getLoginUrl().split('?')[0];
     if (!String(failedUrl || '').startsWith(loginPath)) return; // 不是登录页就别动
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
-        mainWindow.loadURL(getLoginUrl());
-      }
-    }, 2000);
+    onLoadFailure(desc || '加载失败', code);
+  });
+  // 真的加载成功才把重试计数清零（兜底页也是一次成功的加载，所以必须按 URL 判断）
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (loadFailed) return; // 这是失败后 Chromium 自己那张错误页，不是真加载成功
+    const url = mainWindow.webContents.getURL();
+    if (!url.startsWith(serverUrl)) return;
+    loadOk = true;
+    loadAttempts = 0;
+    clearTimeout(loadWatchdog);
+    clearTimeout(autoRetryTimer);
+    logLine('page loaded ok: ' + url.slice(0, 120));
   });
   // 点 ❌ 最小化到托盘，不退出
   mainWindow.on('close', (e) => {
@@ -330,6 +431,14 @@ function createTray() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => showWindow() },
+      {
+        label: '重新加载页面',
+        click: () => {
+          loadAttempts = 0;
+          showWindow();
+          loadAppPage('tray');
+        },
+      },
       { type: 'separator' },
       {
         label: '退出',
@@ -351,6 +460,12 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
   ipcMain.handle('app:getVersion', () => app.getVersion());
+  // 兜底页上的「立即重新加载」按钮走这里（不用整页刷新，重试次数不会被清零）
+  ipcMain.handle('app:reload', () => {
+    loadAttempts = 0;
+    loadAppPage('manual');
+    return true;
+  });
   ipcMain.handle('folder:open', (_e, path) => {
     if (typeof path !== 'string' || !path.trim()) return { success: false };
     return shell.openPath(path.trim()).then(() => ({ success: true })).catch((err) => ({ success: false, error: String(err) }));
