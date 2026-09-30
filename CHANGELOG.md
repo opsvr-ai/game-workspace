@@ -176,6 +176,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **修掉「邵泽慧那台跑完取蓝屏报告还是蓝屏」的真根因，补上客服端一直缺的「一键修复」通道（老板 2026-09-30）。**
+  **那不是 Windows 蓝屏死机**：她机器 2023 年之后再没崩过（蓝屏转储里 2026 年的一个都没有，`BugCheck 1001` 一条也没有），
+  照片里那片深蓝是**客服端窗口自己的底色**（`backgroundColor: '#0B1024'`）—— 页面一个字都没渲染出来；
+  标题栏还写着改名前的「蠢驴电竞-客服端」，说明跑的是早于 2026-08-26 改名（`192cacfe`）的老版本。两个原因叠在一起：
+  - **客户端配置里的服务器地址被改成了 `http://localhost:3001`** —— 指向它自己那台电脑，永远连不上云服务器。
+    同一台机器的陪玩端日志 `%APPDATA%\@chunlv\companion-electron\logs\companion-2026-09-30.log` 里
+    每 25 秒一条 `Checking for updates {"serverUrl":"http://localhost:3001"}` + `Update check failed {"error":"fetch failed"}`
+    + `WS connect error {"message":"timeout"}`，刷了几百条；09-28 的日志里地址还是对的（`http://1.117.229.36:3001`）。
+  - **自动更新一直没装上**：09-28 日志 `Installer downloaded, running silent install` 紧跟
+    `Update failed {"error":"spawn EBUSY"}` 反复出现，版本就停在 `1.0.20260849` —— 老版本连
+    「连不上服务器」的兜底页都没有，只剩一片深蓝。
+  - 她那台还**混装了陪玩端**（`C:\Program Files\@chunlvcompanion-electron`，看门狗 `SystemHelper` 每次开机都拉它），
+    桌面留着旧品牌图标，机器上开着 v2rayN 一类的代理。
+  - 现在补上**客服端专属一键修复**（`scripts/repair-cs.ps1` + `scripts/修复客服端.bat`；公网
+    `http://1.117.229.36:3001/uploads/修复客服端.bat` / `/uploads/repair-cs.bat` / `/uploads/repair-cs.ps1`）：
+    ① 把**所有**可能的配置位置（客服端 + 陪玩端 × 新名 + 老名 × exe 旁边 + `resources` + `%APPDATA%`）
+    里的 `serverUrl` 全部归位到云服务器（改前留 `.bak-<时间戳>`；**写成不带 BOM 的 UTF-8** ——
+    `Set-Content -Encoding UTF8` 会加 BOM，客户端 `JSON.parse` 会整份忽略，等于白改）；
+    ② 顺手把服务器地址加进 IE 代理的「不走代理」名单（只影响这一个地址）；
+    ③ 停客户端 → 静默安装最新客服端（装不上就先 `takeown` / `icacls` 放权再重试一次）；
+    ④ 修好公共桌面 + 各用户桌面图标，并清掉指向已删文件的老图标；⑤ 复用 `enable-remote.ps1` 配好远程管理通道；
+    ⑥ 把机器报回台账（`machineId` 算法与客户端 `machine-agent` 一致，免得同一台机器在「机器管理」里占两行）。
+    支持 `-DiagOnly`（只看不改、现场仍回传），已在 **Windows PowerShell 5.1** 上真机干跑通过；
+    装完不假设 electron-builder 对中文 `productName` 的目录回退行为，用 `Find-CsExe` 在多个候选目录里找新 exe。
+  - **遗留（下一步单独改）**：客服端**没有看门狗**（`SystemHelper` 只认陪玩端的 `陪玩管理.exe` / `蠢驴电竞.exe`），
+    且 CS 安装包是 `perMachine` + 自更新用 `-Verb RunAs` —— **必须用户点 UAC 才会更新**。
+    这两条是「客服端容易长期停在老版本」的结构性原因。
 - **修掉「`net user` 建的 `chunlvops` 会到期 → 机器永久失联」的根因（老板 2026-09-30）。**
   邵泽慧那台连不进去，根因是早期的 `chunlv-allinone.nsi` / `setup-remote-access.nsi` 用
   `net user chunlvops <口令> /add` 建账号 —— **没设「密码永不过期」**，账号跟着本机密码策略到期；一到期
