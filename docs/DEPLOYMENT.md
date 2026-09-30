@@ -926,7 +926,8 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 
 1. 改 `apps/watchdog-service/main.go` 里 `serviceBuild` / `serviceBuildNumber` / `buildTagLiteral` 三处构建号；
 2. `cd apps/watchdog-service; go build -o SystemHelper.exe .`；
-3. `python scripts\_upload_sh_cloud.py`（上传 `uploads/SystemHelper.exe`），再把配置键
+3. `python scripts\_upload_sh_cloud.py`（上传 `uploads/SystemHelper.exe`；脚本会先逐字节自检
+   「构建号标记只有一处、且紧跟数字」，不合格直接拒绝上传），再把配置键
    `watchdog.latest_build` 改成新构建号；
 4. **两个客户端整包也一起重打**：`python scripts\_repack_client_zip.py` + `python scripts\_repack_cs_zip.py`
    —— 重装 / 从 zip 恢复的机器才会拿到新看门狗（两个脚本都只重打包，不动版本号，不会触发全网更新）。
@@ -936,9 +937,13 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 1. **上报即自愈（最稳）**：机器一上报，服务端发现它的看门狗构建号对不上就自动补一条「开通远程管理」，
    脚本里含「顺手把看门狗换成云端最新」。只要登录账号是管理员就成（客服机 + 绝大多数陪玩机都是）。
    也可以人工点一下管理端「机器管理 → 开通远程管理」立刻触发。
-2. **看门狗自己的云端自更新**：每 30 分钟问一次云端头信息，变了才下载，构建号更新就原子换自己 +
-   计划任务重启服务（`cloudSelfUpdateCheck`）。⚠️ 2026-10-01 实测：8 台停在 `2026093004` 的机器
-   超过 40 分钟没自己换上来（日志里连一条 cloud self-update 都没有）——**别只指望这一条**。
+2. **看门狗自己的云端自更新（现在是最靠谱的一条）**：每 30 分钟问一次云端头信息，变了才下载，构建号更新就原子换自己 +
+   计划任务重启服务（`cloudSelfUpdateCheck`）。
+   ⚠️ 2026-10-01 真因：它**本来就没坏**，坏在 `parseBuildNumber` 只取第一处匹配 ——
+   而源码里那半截「标记常量」排在真标记前面、后面不是数字，于是永远读出空串、直接 return（连日志都不打）。
+   2026-10-01 已修正（并把新构建做成「老看门狗也能读懂」），实测 4 台自己升上来了。
+   **以后发布务必：`_upload_sh_cloud.py` 会自己拦** —— 上传前若发现新文件里「构建号标记」不是只有一处、
+   或第一处后面不是数字，直接拒绝上传（两个 `_repack_*_zip.py` 同样）。别绕过这道闸门。
 3. `scripts\_push_watchdog_all.py`（走 SMB/atexec，需要运维账号口令）：只在机器上的看门狗老得
    连构建号/自愈都认不出来时兜底。
 
