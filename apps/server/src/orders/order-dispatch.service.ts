@@ -164,8 +164,15 @@ export class OrderDispatchService {
         throw new ForbiddenException('这张单先给桥接工作室 / 线上俱乐部，暂时还抢不了；客服放给线下后就能抢');
       }
     }
-    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接。
-    await assertCustomerNotTakenByCurrentWechat(this.prisma, companionId, order.customerId);
+    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接；
+    // 没绑工作微信的按「同一个陪玩」兜底，见 customer-wechat-rule.ts。
+    // 同一个客户可以有好几张单（客服发了好几个矩阵账号），判重按**客户微信号**串起来，不看客户档案编号。
+    await assertCustomerNotTakenByCurrentWechat(
+      this.prisma,
+      companionId,
+      order.customerId,
+      ((order.customFields as any) || {}).customerWechat,
+    );
 
     // 每日「立即打」名额（取代原来的流水门槛，见 companion-quota.service.ts）
     const creator = await this.prisma.user.findUnique({ where: { id: order.csUserId }, select: { role: true } });

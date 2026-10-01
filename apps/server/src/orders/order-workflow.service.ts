@@ -54,8 +54,14 @@ export class OrderWorkflowService {
       throw new ForbiddenException('该订单已超时，仅客服可处理');
     }
 
-    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接。
-    await assertCustomerNotTakenByCurrentWechat(this.prisma, companionId, order.customerId);
+    // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接；
+    // 没绑工作微信的按「同一个陪玩」兜底，见 customer-wechat-rule.ts。
+    await assertCustomerNotTakenByCurrentWechat(
+      this.prisma,
+      companionId,
+      order.customerId,
+      ((order.customFields as any) || {}).customerWechat,
+    );
 
     // Cross-studio scope: companion can only grab from own or bridged studios
     const companion = await this.prisma.companion.findUnique({
