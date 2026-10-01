@@ -123,6 +123,8 @@ const AgentVersionPage: React.FC = () => {
   const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const companionDownloadUrl = `${downloadOrigin}/api/agent/download/exe`;
   const csDownloadUrl = `${downloadOrigin}/api/agent/download/cs`;
+  // 新电脑一条龙：建 Windows 运维账号 chunlvops + 静默装陪玩端 + 打开客户端（服务器 uploads 下的固定文件）
+  const setupPcUrl = `${downloadOrigin}/uploads/setup-pc.bat`;
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard
@@ -650,6 +652,27 @@ const AgentVersionPage: React.FC = () => {
                 复制链接
               </Button>
             </Space>
+          </div>
+          <Divider style={{ margin: 0 }} />
+          <div>
+            <Text strong>🖥️ 新电脑一键装机（自动建 Windows 账号 + 装客户端）</Text>
+            <div style={{ marginTop: 6 }}>
+              <Input value={setupPcUrl} readOnly />
+            </div>
+            <Space style={{ marginTop: 8 }}>
+              <Button type='primary' icon={<DownloadOutlined />} href={setupPcUrl}>
+                下载
+              </Button>
+              <Button icon={<CopyOutlined />} onClick={() => copyText(setupPcUrl, '装机链接')}>
+                复制链接
+              </Button>
+            </Space>
+            <div style={{ marginTop: 4 }}>
+              <Text type='secondary' style={{ fontSize: 12 }}>
+                对方下载双击就行：自动建 Windows 运维账号 chunlvops（随机口令、永不过期）+ 静默装最新客户端 + 打开客户端；
+                账号口令会回传到「机器管理」那页的台账，随时能查。
+              </Text>
+            </div>
           </div>
           <Divider style={{ margin: 0 }} />
           <div>
