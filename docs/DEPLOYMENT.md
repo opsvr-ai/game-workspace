@@ -1026,6 +1026,21 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 
 **上线后自查（每项都能在服务器上验证）：**
 
+**客户端自动更新是「全网排队、一次只放行一台」**（更新包 123MB，直链全速下发会把办公室那条网占满，
+所以走 `/api/agent/download/latest` 限速，一台大约 174 秒）。排队规则：客户端每 30 分钟自检一次，
+抢不到名额就在服务端登记成「排队中」；名额一空（别人下载完 / 10 分钟超时）服务端按排队先后叫号
+（`pumpUpdateQueue` → WS `pc:command {command:'update'}`），正在接单的自动跳过。
+**2026-10-01 晚补的两条防呆（都是「同一台机器每几分钟重下 123MB」的根因）：**
+
+- 客户端：`handleUpdateCommand` 先比版本（服务器叫号带的版本不比本机新就直接返回），
+  `performUpdate` 里**同一个版本 30 分钟内不重复下载**（`config.json` 的 `updateAttemptVersion/At`，
+  新版本真的装上后自动清掉）。
+- 服务端：同一台机器 **10 分钟内不再叫第二次号**（`agent.controller.ts` 的 `lastUpdatePushAt`）。
+
+自查命令：`curl -s http://127.0.0.1:3001/api/agent/update/queue`（看谁占着名额、几台在排队），
+`grep -a 'Update queue' ~/.pm2/logs/chunlv-server-out.log | tail`（看叫号），
+`grep -a 'download/latest' ~/.pm2/logs/chunlv-server-out.log | tail`（看整包下载次数与耗时）。
+
 ```bash
 # 1) 接口在不在（都应 200）
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3001/api/agent/client-diag.ps1

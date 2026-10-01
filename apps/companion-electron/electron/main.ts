@@ -1076,7 +1076,7 @@ app.whenReady().then(() => {
   });
 
   onWsEvent('pc:command', (data: any) => {
-    if (data.command === 'update') handleUpdateCommand(data.downloadUrl);
+    if (data.command === 'update') handleUpdateCommand(data.downloadUrl, data.version);
     else if (data.command === 'test_watchdog') app.exit(0);
     else if (data.command === 'collect_processes') {
       (async () => {

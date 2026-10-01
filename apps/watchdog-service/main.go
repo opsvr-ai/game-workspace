@@ -30,14 +30,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-10-01.3"
+const serviceBuild = "2026-10-01.4"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026093007"
+const serviceBuildNumber = "2026100101"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026093007" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100101" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -1576,6 +1576,8 @@ func processSnapshot() string {
 func serviceStateDiag(extra string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "host=%s\n", hostName())
+	// 同一台电脑换个网卡/换了身份就是另一条台账行，光看主机名分不清是谁（好几台克隆机同名）。
+	fmt.Fprintf(&b, "machineId=%s\n", cachedMachineID)
 	fmt.Fprintf(&b, "time=%s\n", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Fprintf(&b, "watchdogBuild=%s (%s)\n", serviceBuild, serviceBuildNumber)
 	fmt.Fprintf(&b, "healthTrusted=%v\n", atomic.LoadInt32(&healthTrusted) == 1)

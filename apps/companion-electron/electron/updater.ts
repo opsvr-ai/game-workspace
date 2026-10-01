@@ -25,6 +25,38 @@ function isVersionBlocked(version: string): boolean {
   if (!version) return false;
   return Object.prototype.hasOwnProperty.call(blockedVersions(), version);
 }
+// 「这一版我已经下好、交给看门狗了」——记在本地，防止同一个 123MB 的包被反复下一遍。
+// 2026-10-01 线上实况：一批机器的安装目录改不了名（Access is denied），看门狗只能把新版
+// 并排装到旁边的「-v<版本>」目录；只要哪一步没让新版本真正跑起来，客户端每次重启都会再下
+// 一遍 123MB，几台机器一天能刷出几十 GB，还把全网唯一的更新名额占死，别的机器永远「名额被占」。
+// 所以：同一个版本下过一次、30 分钟内本机版本还没变，就先不再下（等版本变了或过了 30 分钟再试）。
+const SAME_VERSION_RETRY_MS = 30 * 60 * 1000;
+
+function sameVersionTriedRecently(version: string): boolean {
+  if (!version) return false;
+  if (app.getVersion() === version) return false;
+  const tried = (store.get('updateAttemptVersion') as string) || '';
+  if (tried !== version) return false;
+  const at = Number(store.get('updateAttemptAt') || 0);
+  return Date.now() - at < SAME_VERSION_RETRY_MS;
+}
+
+function rememberUpdateAttempt(version: string): void {
+  if (!version) return;
+  store.set('updateAttemptVersion', version);
+  store.set('updateAttemptAt', Date.now());
+  store.set('updateAttemptFrom', app.getVersion());
+}
+
+/** 目标版本已经真的装上了 → 清掉「重试中」的记录，下一版不受影响。 */
+function clearUpdateAttemptIfApplied(): void {
+  const tried = (store.get('updateAttemptVersion') as string) || '';
+  if (tried && tried === app.getVersion()) {
+    store.set('updateAttemptVersion', '');
+    store.set('updateAttemptAt', 0);
+    store.set('updateAttemptFrom', '');
+  }
+}
 
 // version：告诉看门狗这次装的是哪一版 —— 装完等不到这一版自报健康，它就整目录回滚并拉黑它。
 function signalUpdate(downloadUrl: string, localPath?: string, version?: string): void {
@@ -133,6 +165,15 @@ async function waitUntilIdle(why: string): Promise<boolean> {
 }
 
 async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
+  // 同一个版本刚下过、本机版本却还是旧的（说明上一轮没真的装上去）→ 这一轮先别再下 123MB。
+  // 等版本变了或过了 SAME_VERSION_RETRY_MS 再来，把「反复重下」这条死循环掐死。
+  if (sameVersionTriedRecently(version)) {
+    logger.warn('Skip repeat download of the same version (previous attempt did not take effect)', {
+      version,
+      localVersion: app.getVersion(),
+    });
+    return;
+  }
   // 接单中不更新：更新最后要退出进程让看门狗重启，正在跑的单子会被打断
   // （计时、截图、客户在等）。后台「推送更新」和 WS 命令都会走到这里，
   // 所以这道闸必须在这里，而不是只靠启动时的更新检查。
@@ -173,6 +214,9 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     signalUpdate(downloadUrl, undefined, version);
     await releaseUpdateSlot(serverUrl, token);
   }
+  // 记下「这一版已经交出去了」：装成功后 clearUpdateAttemptIfApplied 会清掉，
+  // 装不成功就至少 30 分钟内不再重复下这一版。
+  rememberUpdateAttempt(version);
   stopUpdateSpin();
   updateTrayTooltip('陪玩管理');
   // 交给看门狗(SystemHelper，系统权限)解压重启，全程不弹 UAC
@@ -226,6 +270,9 @@ export async function checkForUpdates(): Promise<void> {
       logger.warn('Latest version is blocked on this machine, skip this round', { latestVersion });
       return;
     }
+
+    // 上一次「下了没装上」的记录：本机版本已经是那一版了就清掉，别影响后面的版本。
+    clearUpdateAttemptIfApplied();
 
     // Only update when the server version is strictly NEWER than local.
     // A plain !== here caused an endless update loop whenever the server
@@ -384,7 +431,7 @@ async function downloadAndInstallWithRedirects(
  * Triggered by WebSocket pc:command { command: 'update' }.
  * Same as startup check but skips version comparison (server already decided).
  */
-export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
+export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: string): Promise<void> {
   try {
     const serverUrl = getServerUrl();
     const url = downloadUrl
@@ -392,22 +439,33 @@ export async function handleUpdateCommand(downloadUrl?: string): Promise<void> {
         ? downloadUrl
         : `${serverUrl}${downloadUrl}`
       : `${serverUrl}/api/agent/download/latest`;
-    // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
-    const staggerMs = Math.floor(Math.random() * 60_000);
-    await new Promise((resolve) => setTimeout(resolve, staggerMs));
     // 远程推送也得先看清推的是哪一版：这台机器上装坏过、已经拉黑的版本不装。
-    let version = '';
-    try {
-      const res = await fetch(`${serverUrl}/api/agent/version`);
-      const json = (await res.json()) as any;
-      version = json?.data?.version || '';
-    } catch {
-      /* 版本号拿不到就照老样子装，看门狗那边还会再拦一道 */
+    let version = pushedVersion || '';
+    if (!version) {
+      try {
+        const res = await fetch(`${serverUrl}/api/agent/version`);
+        const json = (await res.json()) as any;
+        version = json?.data?.version || '';
+      } catch {
+        /* 版本号拿不到就照老样子装，看门狗那边还会再拦一道 */
+      }
     }
     if (isVersionBlocked(version)) {
       logger.warn('Pushed version is blocked on this machine, skip', { version });
       return;
     }
+    // 叫号可能带着旧版本号，或这台机器其实已经装上了 → 版本没变就别白下 123MB。
+    // 2026-10-01 线上就是这里漏了判断：全网叫号一轮，每台机器都把整包重下一遍。
+    if (version && compareVersions(version, app.getVersion()) <= 0) {
+      logger.info('Pushed update is not newer than the local version, skip', {
+        version,
+        localVersion: app.getVersion(),
+      });
+      return;
+    }
+    // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
+    const staggerMs = Math.floor(Math.random() * 60_000);
+    await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url, version });
     await performUpdate(url, version);
   } catch (err: any) {

@@ -14,6 +14,12 @@ import type { ApiResponse } from '@chunlv/shared';
 import * as fs from 'fs';
 import * as os from 'os';
 
+/** 同一台机器两次「去更新」叫号之间的最小间隔。 */
+const UPDATE_PUSH_COOLDOWN_MS = 10 * 60 * 1000;
+
+/** 谁刚被叫过号、什么时候叫的（进程内存，重启即清）。 */
+const lastUpdatePushAt = new Map<string, number>();
+
 /**
  * Resolve the server URL reachable from other machines on the LAN.
  * If the request host is localhost, fall back to the server's LAN IP.
@@ -79,6 +85,18 @@ export class AgentController {
       for (let i = 0; i < 50; i += 1) {
         const next = this.agentService.takeNextUpdateWaiter();
         if (!next) break;
+        // 刚叫过号的机器，10 分钟内不再叫第二遍。
+        // 2026-10-01 线上实测：一台机器被反复叫号时，每次都要把 123MB 整包重下一遍（限速约 3 分钟），
+        // 于是全网唯一的更新名额被它和自己的循环占用，队列里别的机器一直「名额被占、不更新」。
+        const pushedAt = lastUpdatePushAt.get(next.companionId) || 0;
+        if (Date.now() - pushedAt < UPDATE_PUSH_COOLDOWN_MS) {
+          logger.info('Update queue: recently notified, skip this round', {
+            companionId: next.companionId,
+            pushedAgoMs: Date.now() - pushedAt,
+          });
+          skipped.push(next);
+          continue;
+        }
         if (await this.agentService.isCompanionInService(next.companionId)) {
           skipped.push(next);
           continue;
@@ -99,7 +117,10 @@ export class AgentController {
           sent,
           version,
         });
-        if (sent) return;
+        if (sent) {
+          lastUpdatePushAt.set(next.companionId, Date.now());
+          return;
+        }
       }
     } catch (err: any) {
       logger.warn(`Update queue pump error: ${err?.message || err}`);

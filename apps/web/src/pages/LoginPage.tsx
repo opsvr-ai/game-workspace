@@ -16,7 +16,7 @@ const IconUser = React.createElement(UserOutlined);
 const IconLock = React.createElement(LockOutlined);
 // 客户端下载地址后面挂的版本号：只用来防浏览器把上一版安装包缓存住。
 // 发新版装机包时顺手改一下（不改的话，老用户点下载可能拿到缓存里的旧包）。
-const CLIENT_VERSION = '1.0.20261002';
+const CLIENT_VERSION = '1.0.20261003';
 
 /**
  * 触发一次客户端下载。
