@@ -1,4 +1,7 @@
-﻿$ErrorActionPreference = 'Continue'
+﻿$ErrorActionPreference = 'Continue'
+
+# 80 多 MB 的安装包：PS 5.1 默认会画进度条，下载能慢好几倍，装机的人等不起。
+$ProgressPreference = 'SilentlyContinue'
 
 # 新电脑的一条龙：建 Windows 运维账号 chunlvops（管理员组 + 密码永不过期）→ 静默装陪玩端 → 打开客户端。
 # 口令会写进本机留档；客户端装到最后一步自动跑的那次「开通远程管理」会沿用同一份，
@@ -17,18 +20,29 @@ Write-Host '[1/3] 建远程管理账号（口令自动生成）...'
 $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#'
 $rand = New-Object System.Random
 $password = -join (1..12 | ForEach-Object { $chars[$rand.Next($chars.Length)] })
-$secure = ConvertTo-SecureString $password -AsPlainText -Force
-
-if (Get-LocalUser -Name $account -ErrorAction SilentlyContinue) {
-    Set-LocalUser -Name $account -Password $secure -PasswordNeverExpires $true -AccountNeverExpires -ErrorAction SilentlyContinue
-    Enable-LocalUser -Name $account -ErrorAction SilentlyContinue
-} else {
-    New-LocalUser -Name $account -Password $secure -PasswordNeverExpires -AccountNeverExpires -Description 'Chunlv remote support account' -ErrorAction SilentlyContinue | Out-Null
-}
-if (-not (Get-LocalUser -Name $account -ErrorAction SilentlyContinue)) {
-    Write-Host '[!] 运维账号没建出来：这个窗口请截图发给管理员。' -ForegroundColor Red
-    return
-}
+# 2026-10-01 修：以前这几步都用 -ErrorAction SilentlyContinue，出错也照样往下走 ——
+# 后果是「口令其实没设上，但留档 / 窗口打印 / 台账里都写着一个新口令」，三处一致地错。
+# 现在改成出错就拦住：不写留档、不报台账，让人重来一次（别拿一个登不上的口令去做远程）。
+$pwErr = ''
+try {
+    $secure = ConvertTo-SecureString $password -AsPlainText -Force
+    if (-not $secure) { throw 'ConvertTo-SecureString 没返回结果' }
+    if (Get-LocalUser -Name $account -ErrorAction SilentlyContinue) {
+        Set-LocalUser -Name $account -Password $secure -PasswordNeverExpires $true -AccountNeverExpires -ErrorAction Stop
+        Enable-LocalUser -Name $account -ErrorAction Stop
+    } else {
+        New-LocalUser -Name $account -Password $secure -PasswordNeverExpires -AccountNeverExpires -Description 'Chunlv remote support account' -ErrorAction Stop | Out-Null
+    }
+    if (-not (Get-LocalUser -Name $account -ErrorAction SilentlyContinue)) { throw '账号建好之后又查不到了' }
+} catch {
+    $pwErr = $_
+}
+if ($pwErr) {
+    Write-Host ('[!] 运维账号没弄成：' + $pwErr.Exception.Message) -ForegroundColor Red
+    Write-Host '    这次不写口令留档、也不报台账，免得留档里的口令其实登不上。' -ForegroundColor Yellow
+    Write-Host '    请关掉这个窗口重新双击一次；还不行就把这个窗口截图发给管理员。' -ForegroundColor Yellow
+    return
+}
 $inAdmins = $false
 try { $inAdmins = @(Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -match $account } catch { }
 if (-not $inAdmins) { Add-LocalGroupMember -Group 'Administrators' -Member $account -ErrorAction SilentlyContinue }

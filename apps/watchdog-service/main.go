@@ -2327,7 +2327,8 @@ func runRemoteTask(machineID string, t remoteTask) {
 		outFile := filepath.Join(dir, "task-"+tag+".log")
 		_ = os.Remove(outFile)
 		// PS 5.1 不认没 BOM 的 UTF-8，中文会变乱码 —— 服务端那段脚本里全是中文。
-		payload := append([]byte{0xEF, 0xBB, 0xBF}, []byte(t.Script)...)
+		// 服务端现在自己也会带 BOM，所以先 trim 掉再补，免得出现两个 BOM。
+		payload := append([]byte{0xEF, 0xBB, 0xBF}, []byte(trimBOM(t.Script))...)
 		if wErr := os.WriteFile(scriptFile, payload, 0644); wErr != nil {
 			safeWarn("远程任务脚本写不下去: " + wErr.Error())
 			return

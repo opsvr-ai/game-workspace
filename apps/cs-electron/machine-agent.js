@@ -221,10 +221,11 @@ function createMachineAgent(options) {
     }
   }
 
-  /** 把服务端下发的脚本落到临时文件（PS 5.1 必须带 BOM，否则中文变乱码）。 */
+  /** 把服务端下发的脚本落到临时文件（PS 5.1 必须带 BOM，否则中文变乱码）。
+   *  服务端现在自己也会带 BOM，所以先去掉再补，免得出现两个 BOM。 */
   function writePs1(script, taskId) {
     const file = tmpFile('task-' + String(taskId).slice(0, 8) + '.ps1');
-    fs.writeFileSync(file, '\uFEFF' + String(script || ''), 'utf8');
+    fs.writeFileSync(file, '\uFEFF' + stripBom(String(script || '')), 'utf8');
     return file;
   }
 

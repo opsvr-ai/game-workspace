@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **发布（2026-10-01 晚）：陪玩端 `1.0.20261002`、网页 `v853`、服务端已部署。**
+  这一版只有上面 `### Fixed` 里那两处「链路级」的修（`.ps1` 下发带 BOM、装机包杀进程），
+  不涉及任何业务逻辑，**陪玩接单不受影响**，客户端 30 分钟自检一次、接单中会自己跳过。
+
 - **注册链接一条到底：注册提交成功就自动开始下载客户端（老板 2026-10-01 要的）。**
   老板原话：「我发给别人注册 + 自动下载安装登录软件的连接是什么？」「我要的是链接 不是安装包」——
   那条链接就是**固定的登录页** `http://1.117.229.36:3001/login`（点「注册新账号 →」，自己选工作室 + 角色），
@@ -324,6 +328,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `/api/agent/onboard-report` 接口保留 —— `scripts/repair-companion.ps1`（一键修复）第一步还在用它。
 
 ### Fixed
+
+- **修根：装机时「开通远程管理」从来没真正跑起来 —— 服务端下发的 `.ps1` 丢了 UTF-8 BOM，台账因此永远收不到新口令（2026-10-01 在老板这台机器上实测）。**
+  老板要验的是「发一条装机链接 → 后台台账有没有自动把账号口令收上来」，实测**收不上来**，挖到根因并修掉：
+  - **根因**：`GET /api/agent/enable-remote.ps1`（`GET /api/agent/client-diag.ps1` 同病）用
+    `res.type('text/plain; charset=utf-8').send(text)` 下发，落下来的文件**没有 BOM**；而装机包、
+    `scripts\开通远程管理.bat`、`scripts\客户端诊断.bat`、`scripts\repair-cs.ps1` 全是「下到临时文件 → `powershell -File` 执行」。
+    Windows PowerShell 5.1 见到没 BOM 的 UTF-8 会按 GBK 解码，脚本里的中文当场乱码，报
+    `The string is missing the terminator` 这类解析错误 —— **整份脚本一行都不执行**（实测 `EXITCODE=1`）。
+    客户端 / 看门狗那两条路径之所以没事，是因为它们自己写文件时补了 BOM（`machine-agent.js`、看门狗 `main.go`），
+    **只有「直接下载执行」这条没人管**。
+  - **服务端**（`machine.controller.ts`）：新增 `sendPs1()`，下发正文一律 `Buffer.from('\uFEFF' + text)`，
+    并显式写 `Content-Type` / `Content-Length`；两个脚本接口都改走它。实测线上两个接口首字节已是 `ef bb bf`。
+  - **BOM 只能有一个**：`companion-electron` / `cs-electron` 的 `writePs1()` 与看门狗的 `runRemoteTask()`
+    改成「先 trim 掉再补」，服务端已经带了也不会出现两个 BOM。
+  - **装机包兜底**：两个 `installer.nsh` 在 `Invoke-WebRequest -OutFile` 之后加一句「读出来 → 规范化 BOM → 写回
+    （UTF-8 with BOM）」，即便下到的是没 BOM 的版本也照样能跑。
+  - **自验证据（老板这台 `192.168.80.1` / `MS-IXRDGIIIMISW`）**：修之前台账 `remotePassword=Chunlv!iAkmCiRQEHnrUQ`，
+    跟本机留档 `C:\ProgramData\chunlv\remote-account.txt` 里的 `M#Xn6Nh9fEck` 不一致（这就是「台账没收到口令」的样子）；
+    修完重跑一次，脚本从头跑到尾并打印「已把账号信息回传服务器」，台账那一行变成 `remotePassword=M#Xn6Nh9fEck`、
+    `lastSource=enable-remote`；再用 `LogonUser` 验这个口令，交互登录（type 2）和网络登录（type 3）都成功，
+    错口令返回 1326。**整条链路（装机链接 → 建 Windows 账号 → 装客户端 → 自动开通远程管理 → 台账收到口令 → 管理端能看能连）
+    首次真正跑通。**
+  - 顺带把 `setup-pc.ps1` 建账号那几步的 `-ErrorAction SilentlyContinue` 去掉（出错就拦下、不写留档也不报台账），
+    免得再出现「留档 / 窗口打印 / 台账三处一致地写着一个登不上的口令」。
+
+- **装机包杀不掉旧客户端 → 看起来像「装了没生效」（2026-10-01 本机实测）。**
+  两个 `installer.nsh` 里杀进程写成 `taskkill /f /fi \"IMAGENAME eq 陪玩管理.exe\"` —— NSIS 里没有 `\"` 这种转义，
+  taskkill 收到的是带反斜杠的怪字符串，直接报 `ERROR: The search filter cannot be recognized`，
+  **旧客户端从来没被杀掉过**：它占着旧安装目录、又握着单实例锁，新装的那份根本起不来
+  （实测：4 个进程全跑在旧目录 `C:\Program Files\蠢驴电竞`，新目录已存在却一个进程都没有）。
+  现在改成按镜像名杀（`/im`，本机实测有效），也不再顺手杀 `electron.exe` / `node.exe`
+  （那会连带杀掉机器上无关的 Electron / node 程序）。装机包随 `1.0.20261002` 一起发布。
 
 - **「新电脑一键装机」那条链接修好（2026-10-01，老板指定发给对方的就是 `uploads/setup-pc.bat`）。**
   查下来那条 bat 还是 2026-09-04 的旧版，三个问题：

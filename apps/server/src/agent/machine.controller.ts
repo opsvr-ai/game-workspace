@@ -59,15 +59,30 @@ export class MachineController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 下发 .ps1 正文：**必须带 UTF-8 BOM**。
+   *
+   * 为什么（2026-10-01 实测踩到）：Windows PowerShell 5.1 见到没 BOM 的 UTF-8 会按 GBK 解码，
+   * 脚本里的中文当场乱码，报「字符串缺少终止符」这类解析错误，整份脚本一行都不执行。
+   * 装机包最后一步就是从本接口取脚本落盘执行，台账因此一直收不到新口令。
+   * 用 Buffer 发送，避免任何中间层重新编码时把 BOM 吃掉。
+   */
+  private sendPs1(res: Response, text: string): void {
+    const body = Buffer.from('\uFEFF' + String(text || ''), 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Length', String(body.length));
+    res.end(body);
+  }
+
   /** 诊断脚本正文：给「手工在这台机器上跑一次」用（双击 .bat 也行）。 */
   @Get('client-diag.ps1')
   async diagScript(@Res() res: Response): Promise<void> {
-    res.type('text/plain; charset=utf-8').send(this.machineService.getDiagScriptText());
+    this.sendPs1(res, this.machineService.getDiagScriptText());
   }
 
   @Get('enable-remote.ps1')
   async enableRemoteScript(@Res() res: Response): Promise<void> {
-    res.type('text/plain; charset=utf-8').send(this.machineService.getEnableRemoteScriptText());
+    this.sendPs1(res, this.machineService.getEnableRemoteScriptText());
   }
 
   // ── ② 管理端侧 ──────────────────────────────────────────────────────────
