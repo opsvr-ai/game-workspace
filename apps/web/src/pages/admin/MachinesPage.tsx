@@ -40,7 +40,7 @@ function agoText(v?: string | null): string {
 const MachinesPage: React.FC = () => {
   const [items, setItems] = useState<MachineItem[]>([]);
   const [stats, setStats] = useState({
-    total: 0, onlineCount: 0, remoteReadyCount: 0, diagScriptVersion: '', watchdogLatestBuild: '',
+    total: 0, onlineCount: 0, remoteReadyCount: 0, clientlessCount: 0, diagScriptVersion: '', watchdogLatestBuild: '',
   });
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -67,6 +67,7 @@ const MachinesPage: React.FC = () => {
         total: d?.total ?? 0,
         onlineCount: d?.onlineCount ?? 0,
         remoteReadyCount: d?.remoteReadyCount ?? 0,
+        clientlessCount: d?.clientlessCount ?? 0,
         diagScriptVersion: d?.diagScriptVersion ?? '',
         watchdogLatestBuild: d?.watchdogLatestBuild ?? '',
       });
@@ -187,6 +188,11 @@ const MachinesPage: React.FC = () => {
         .some((v) => String(v).toLowerCase().includes(k)),
     );
   }, [items, keyword]);
+
+  /** 真有客户端在上报的机器：统计和主表都只认这些。 */
+  const realMachines = useMemo(() => filtered.filter((i) => i.source === 'machine'), [filtered]);
+  /** 没有客户端在跑的行（旧客服端版本记录 / 手工登记的电脑）：开不了远程管理，单独一组。 */
+  const clientless = useMemo(() => filtered.filter((i) => i.source !== 'machine'), [filtered]);
 
   const columns = [
     {
@@ -310,6 +316,60 @@ const MachinesPage: React.FC = () => {
     },
   ];
 
+  /** 「没有客户端的记录」那组的列：只留看得懂的几项，一个按钮都不给（这些行点不动）。 */
+  const clientlessColumns = [
+    {
+      title: '记录',
+      key: 'label',
+      width: 360,
+      render: (_: unknown, r: MachineItem) => (
+        <Space direction="vertical" size={0} style={{ maxWidth: 340 }}>
+          <Space size={6} wrap={false}>
+            <Text strong ellipsis style={{ maxWidth: 200 }}>{r.label}</Text>
+            <Tag color="default">没有机器信息</Tag>
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12 }} ellipsis>{r.machineId}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '使用人',
+      key: 'loginUser',
+      width: 120,
+      render: (_: unknown, r: MachineItem) => r.loginUser || '—',
+    },
+    {
+      title: '版本',
+      key: 'appVersion',
+      width: 160,
+      render: (_: unknown, r: MachineItem) => <Text code>{r.appVersion || '未知'}</Text>,
+    },
+    {
+      title: '最后上报',
+      key: 'lastSeenAt',
+      width: 120,
+      render: (_: unknown, r: MachineItem) => (
+        <Tooltip title={r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleString('zh-CN') : ''}>
+          <span>{agoText(r.lastSeenAt)}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '为什么开不了',
+      key: 'why',
+      render: (_: unknown, r: MachineItem) =>
+        r.source === 'cs-user' ? (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            这条只登记了版本和在线时间，没有机器信息；这台电脑上的客户端把机器信息报一次，就会自动挪到上面的真机器里
+          </Text>
+        ) : (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            以前手工登记的电脑（那时还没装客户端）；装上客户端上报一次就会自动挪到上面的真机器里
+          </Text>
+        ),
+    },
+  ];
+
   const taskColumns = [
     {
       title: '时间',
@@ -370,9 +430,14 @@ const MachinesPage: React.FC = () => {
   return (
     <div>
       <Space style={{ marginBottom: 16 }} wrap>
-        <Statistic title="机器总数" value={stats.total} />
+        <Statistic title="真机器" value={stats.total} />
         <Statistic title="在线" value={stats.onlineCount} valueStyle={{ color: '#52c41a' }} />
         <Statistic title="已开通远程管理" value={stats.remoteReadyCount} />
+        {stats.clientlessCount > 0 && (
+          <Tooltip title="没有客户端把机器信息报上来的行（以前手工登记的电脑、或只会报个版本号的旧记录）—— 不算真机器、也开不了远程管理，在下面单独一组">
+            <Statistic title="开不了远程管理的记录" value={stats.clientlessCount} valueStyle={{ color: '#faad14' }} />
+          </Tooltip>
+        )}
         <Input
           allowClear
           prefix={<SearchOutlined />}
@@ -395,7 +460,9 @@ const MachinesPage: React.FC = () => {
             客户端每 5 分钟上报一次机器信息，点「一键诊断」后 1 分钟内它就会把详细报告传回来
             （系统信息 / 磁盘 / 网络 / 到服务器的连通性 / 客户端进程 / 安装目录 / 客户端日志 / 系统报错 / 蓝屏记录 /
             远程账号状态 / 代理 VPN 迹象 / 网络连接）。<br />
-            带「旧版客户端」标记的行还没上报机器信息，只能看版本和在线状态；等它的客户端自动升级到新版（客服端 1.0.20260933 / 陪玩端 1.0.20260932）就能诊断了。
+            上面三个统计数只算**真有客户端在上报机器信息的机器**。下面单独一组就是「没有客户端上报、开不了」的那些行：
+            以前手工登记的电脑，或只会报个版本号、不报机器信息的旧记录；它们开不了远程管理、也点不了「一键诊断」，
+            别当成「没开通的机器」。等那台电脑上的客户端把机器信息报一次，就会自动挪到上面的真机器里。
             {stats.diagScriptVersion ? `　当前诊断脚本版本：${stats.diagScriptVersion}` : ''}
           </span>
         }
@@ -406,9 +473,29 @@ const MachinesPage: React.FC = () => {
         size="small"
         loading={loading}
         columns={columns as any}
-        dataSource={filtered}
+        dataSource={realMachines}
         pagination={{ pageSize: 20, showSizeChanger: true }}
+        locale={{ emptyText: '没有匹配的机器' }}
       />
+
+      {clientless.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <Space align="baseline" wrap style={{ marginBottom: 8 }}>
+            <Text strong>开不了远程管理的记录（{clientless.length}）</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              这些行就是「没有客户端上报、开不了」的那些：没有机器信息，开不了远程管理、也点不了「一键诊断」。
+            </Text>
+          </Space>
+          <Table<MachineItem>
+            rowKey="machineId"
+            size="small"
+            loading={loading}
+            columns={clientlessColumns as any}
+            dataSource={clientless}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+          />
+        </div>
+      )}
 
       <Drawer
         width={860}

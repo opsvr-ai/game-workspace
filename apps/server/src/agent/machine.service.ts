@@ -349,6 +349,11 @@ export class MachineService {
     }
 
     for (const pc of managedPcs) {
+      // 手工登记的电脑：这个使用人已经有真机器在上报了（上面那一组）就别再列一条 ——
+      // 否则同一台电脑既在「真机器」里、又在「没有客户端」那组里出现两次，
+      // 看起来还是「很多人没开远程管理」（2026-10-01 老板报的正是这个观感）。
+      // 跟旧客服端版本行用的是同一条规则（seenLogins）。
+      if (pc.loginAccount && seenLogins.has(pc.loginAccount)) continue;
       items.push({
         machineId: `managedpc-${pc.id}`,
         source: 'managed-pc',
@@ -390,6 +395,10 @@ export class MachineService {
       return String(a.label).localeCompare(String(b.label));
     });
 
+    // 统计只算「真有客户端在上报的机器」（source === 'machine'）：旧的客服端版本记录、
+    // 手工登记的电脑都不是真机器，把它们算进总数会让老板以为「很多人没开远程管理」
+    // （2026-10-01 老板原话：「你一眼看到的就是『22 台真机器，21 台已开通』，不会再像『很多人没开』」）。
+    const realMachines = items.filter((i) => i.source === 'machine');
     return {
       diagScriptVersion: CLIENT_DIAG_SCRIPT_VERSION,
       watchdogLatestBuild: (() => {
@@ -397,9 +406,10 @@ export class MachineService {
         const value = typeof raw === 'string' ? raw : raw?.value;
         return String(value ?? '').trim();
       })(),
-      total: items.length,
-      onlineCount: items.filter((i) => i.online).length,
-      remoteReadyCount: items.filter((i) => i.remoteReady).length,
+      total: realMachines.length,
+      onlineCount: realMachines.filter((i) => i.online).length,
+      remoteReadyCount: realMachines.filter((i) => i.remoteReady).length,
+      clientlessCount: items.length - realMachines.length,
       items,
     };
   }

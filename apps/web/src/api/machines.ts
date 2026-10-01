@@ -34,9 +34,12 @@ export interface MachineListResult {
   diagScriptVersion: string;
   /** 云端那份看门狗的构建号：跟某台机器的 watchdogBuild 不一样就说明它停在老版本 */
   watchdogLatestBuild: string;
+  /** 下面三个数只算「真有客户端在上报的机器」，不含旧客服端版本记录 / 手工登记的电脑 */
   total: number;
   onlineCount: number;
   remoteReadyCount: number;
+  /** 没有客户端在上报的行（旧客服端版本记录 / 手工登记的电脑）：界面单独一组 */
+  clientlessCount: number;
   items: MachineItem[];
 }
 
