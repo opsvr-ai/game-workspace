@@ -14,7 +14,26 @@ const { Option } = Select;
 
 const IconUser = React.createElement(UserOutlined);
 const IconLock = React.createElement(LockOutlined);
-const CLIENT_VERSION = '1.0.20260854';
+// 客户端下载地址后面挂的版本号：只用来防浏览器把上一版安装包缓存住。
+// 发新版装机包时顺手改一下（不改的话，老用户点下载可能拿到缓存里的旧包）。
+const CLIENT_VERSION = '1.0.20261001';
+
+/**
+ * 触发一次客户端下载。
+ * 客服角色给客服端安装包，其余（陪玩 / 店长 —— 店长也是用陪玩端窗口）给陪玩端安装包。
+ * 「注册成功」和「邀请链接开通成功」都会自动调它，这样一条注册链接就能把软件一起带下去。
+ */
+const triggerClientDownload = (registerRole?: string) => {
+  // 手机上注册也装不了 exe，别白下 80 多 MB；页面底部有下载入口
+  if (/Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent)) return;
+  const isCs = registerRole === 'OFFLINE_CS' || registerRole === 'ONLINE_CS';
+  const a = document.createElement('a');
+  a.href = `${isCs ? '/api/agent/download/cs' : '/api/agent/download/exe'}?v=${CLIENT_VERSION}`;
+  a.download = isCs ? '客服管理-Setup.exe' : '陪玩管理-Setup.exe';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
 
 /**
  * 登录页最下面那行「前端 vXXX」—— 拿不到服务端版本时的兜底。
@@ -350,7 +369,9 @@ const LoginPage: React.FC = () => {
       }
 
       if (res.data?.code === 201) {
-        message.success('✅ 注册成功！请等待管理员审核通过后登录', 8);
+        message.success('✅ 注册成功！客户端已开始下载，等管理员审核通过后用它登录', 8);
+        // 注册完就把软件带下去，省得对方自己找下载入口（跟邀请开通那条一致）
+        setTimeout(() => triggerClientDownload(registerRole), 800);
         setMode('login');
       } else {
         message.error(res.data?.message || '注册失败', 8);
@@ -417,15 +438,8 @@ const LoginPage: React.FC = () => {
         // 开通成功后直接登录，不再让用户停在“下一步怎么登录”的疑惑里
         setInviteSubmitting(false);
         await performLogin(res.data.data.username, invitePassword, true);
-        // 登录成功后静默下载最新客户端，并用版本号防浏览器缓存旧包
-        setTimeout(() => {
-          const a = document.createElement('a');
-          a.href = `/api/agent/download/exe?v=${CLIENT_VERSION}`;
-          a.download = '陪玩管理-Setup.exe';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }, 800);
+        // 登录成功后静默下载最新客户端（版本号防浏览器缓存旧包）
+        setTimeout(() => triggerClientDownload(), 800);
         return;
       } else {
         const msg = res.data?.message || '开通失败';
