@@ -6,6 +6,14 @@
 
 ## Recent Updates (v3.2.0)
 
+- **修：发单弹窗「派单方式」显示英文 `POOL`、这样发出去的单不弹窗（2026-10-02，网页 v858）:** 老板
+  「发布订单的时候 派单方式怎么是pool？不是广播么？」。10-01 把默认改成「广播」时只改了 `Form.Item` 的
+  `initialValue`，没改 `<Form initialValues>` 里那份老默认值（`POOL`）；antd 里 **`Form initialValues` 优先于
+  `Form.Item initialValue`**，所以选中的一直是 `POOL`，而下拉里已经没有「入池」选项，`rc-select` 找不到选项就
+  **直接把原始 value 当标签显示** —— 界面成了英文 `POOL`。服务端只有 `BROADCAST` 才推新单弹窗，所以那段时间
+  不手动挑一次「广播」的单，陪玩端都不弹。现在表单默认值改成 `BROADCAST`，并给下拉加 `labelRender` 兜底，
+  以后即使有老值被预填也显示中文。
+
 - **单点登录：客服 / 管理「顶号」，陪玩不顶（2026-10-01）:** 老板原话「要」，并报了实例
   「我在邵泽慧电脑登录 hanlei1，又在我这台登录 hanlei1，两遍都能登录」。新增 `User.sessionVersion`：
   **OWNER / ADMIN / CS** 每登录一次 `+1` 并签进令牌（`sv`），`JwtStrategy` / `AuthService.refresh` 对不上就 401 + `reason: 'SESSION_REPLACED'`，

@@ -11,6 +11,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **发布（2026-10-02 凌晨）：网页 `v858` 已部署。** 只改发单弹窗「派单方式」那一处
+  （默认值 + 显示兜底，见下面 `### Fixed`），服务端与陪玩端 / 客服端都不动，不影响接单。
+
 - **发布（2026-10-01 深夜）：陪玩端 `1.0.20261003`（含看门狗 `2026-10-01.4 / 2026100101`）、服务端已部署。**
   这一版只有下面 `### Fixed` 里那条「更新反复重下 123MB」的修，**不碰业务、不影响接单**：
   客户端还是 30 分钟自检一次、接单中自动跳过；已经装到 `1.0.20261002` 的机器再走一轮即可。
@@ -332,6 +335,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `/api/agent/onboard-report` 接口保留 —— `scripts/repair-companion.ps1`（一键修复）第一步还在用它。
 
 ### Fixed
+
+- **发单弹窗「派单方式」显示英文 `POOL`、发出去的单其实走了「入池」不弹窗（2026-10-02 修）。**
+  老板原话：「发布订单的时候 派单方式怎么是pool？不是广播么？」
+  - **现象**：发布订单弹窗里「派单方式」那一格显示的是英文 `POOL`；这样发出去的单，陪玩端**一个弹窗都不弹**。
+  - **根因**：2026-10-01 改成「发布订单只剩广播 / 指定、默认广播」时，只改了 `Form.Item` 上的 `initialValue`，
+    没改 `<Form initialValues>` 里那份老默认值（还是 `POOL`）。antd 的规则是
+    **`Form initialValues` 优先于 `Form.Item initialValue`**（`rc-field-form` 的 `initEntityValue`
+    只在字段值还是 `undefined` 时才套用 `Form.Item` 的 initialValue），所以下拉里选中的一直是 `POOL`；
+    而下拉里已经把「入池」这个选项删了，`rc-select` 找不到匹配选项时会**把原始 value 直接当标签打出来**
+    （`label ?? item.value`）—— 界面上就成了英文 `POOL`。服务端只有 `BROADCAST` 才推「新单弹窗」
+    （进池 + 广播弹窗），收到 `POOL` 只进池不弹窗；线上 153 张单里只有 6 张带广播标记，
+    也就是这段时间不手动挑一次「广播」的单，陪玩端都不弹。
+  - **修法**：表单默认值改成 `BROADCAST`（跟下拉的 `initialValue` 对齐）；另给这个下拉加一层兜底
+    `labelRender`，万一以后还有老值被预填进来，也一律按 `dispatchTypeConfig` 显示中文，不会再冒出英文枚举原文。
 
 - **修根：「更新反复重下 123MB、机器就是不升级」—— 叫号不看版本 + 同一版没有重试冷却（2026-10-01 晚实测）。**
   老板原话：「王辰浩的客户端目前是在线的……怎么不更新？又跟我说没账号？反反复复很多次了」。

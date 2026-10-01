@@ -8,7 +8,7 @@ import { financeApi } from '../api/finance';
 import { DispatchType } from '@chunlv/shared';
 import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
-import { orderTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
+import { orderTypeConfig, dispatchTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
 
 const { Option } = Select;
 
@@ -236,7 +236,12 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
         initialValues={{
           type: 'NEW',
           gameName: '三角洲行动',
-          dispatchType: DispatchType.POOL,
+          // 老板 2026-10-01 起发单弹窗只剩「广播 / 指定」。这里以前写的是 POOL（入池），
+          // 而 Form 的 initialValues 优先级高于 Form.Item 的 initialValue ——
+          // 下面那个「派单方式」下拉的 initialValue={BROADCAST} 根本没生效，选中的一直是 POOL。
+          // 下拉里又已经把「入池」这个选项删了，rc-select 找不到对应选项时会把原始值直接打出来，
+          // 于是界面上显示成英文「POOL」，发出去的单也真的按「入池」走（陪玩端不弹窗）。
+          dispatchType: DispatchType.BROADCAST,
           urgency: 'now',
           billingMode: 'hour',
           duration: 1,
@@ -303,7 +308,11 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
             {/* 老板 2026-10-01：发布订单里去掉「入池」（代码留着），
                 默认选「广播」。入池只剩管理端「直添客户」走它自己的隐式路径。 */}
             <Form.Item name="dispatchType" label="派单方式" initialValue={DispatchType.BROADCAST} rules={[{ required: true }]}>
-              <Select>
+              <Select
+                // 兜底：万一还有老值（例如 POOL）被预填进来，这里也一律显示中文名，
+                // 不让下拉把英文枚举原文打给客服看（rc-select 找不到选项时会直接显示 value）。
+                labelRender={(item: any) => dispatchTypeConfig[String(item.value)]?.label ?? item.label ?? item.value}
+              >
                 <Option value={DispatchType.BROADCAST}>广播</Option>
                 <Option value={DispatchType.DIRECT}>指定</Option>
               </Select>
