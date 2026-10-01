@@ -909,6 +909,9 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 陪玩端有两条更新路径：**自动更新包**（`uploads/chunlv-latest.zip`，走限速接口
 `/api/agent/download/latest`，由看门狗整目录换新 + 校验 + 回滚，见 5.6.1）和**装机包**（`uploads/agent-setup.exe`，
 新电脑走 `/api/agent/download/exe`）。`_publish_client.py` 两个都发，漏发装机包会让新装的机器一上来就是旧版本。
+装机包里还内嵌了「装完就建 Windows 运维账号 `chunlvops` + 打开远程管理通道 + 口令回传「机器管理」台账」
+（`apps/companion-electron/build/installer.nsh` / `apps/cs-electron/build/installer.nsh` 的 `customInstall`），
+所以给新电脑只需要发这一个安装包（`/api/agent/download/exe`），不用再补跑 `setup-pc.bat`。
 陪玩端接单中不执行推送更新（`electron/updater.ts`），所以铺开是逐步的，别急着判定「没生效」。
 
 > ⚠️ **陪玩端也是同一套 `extraResources` 规矩：托盘图标 `public/donkey.png` 必须写在里面**

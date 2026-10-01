@@ -304,6 +304,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     测试账号 / 会话 / 消息 / 审计记录已按老板规矩全部删除并复核为 0。
 
 ### Fixed
+- **文档更正：装机包本身就是全自动的，「建 Windows 运维账号」不需要再额外跑 `setup-pc.bat`（2026-10-01）。**
+  老板问「不是全自动么？下载的安装包不能实现全自动？怎么注册 windows 账号还得单独运行这个 .bat？」——
+  之前 README / 用户手册把更早的 `setup-pc.bat`（`/uploads/setup-pc.*`）写成了必需步骤，还把装机包写成
+  「只装软件、不建账号」，是错的。实际链路：陪玩端 / 客服端安装包的 NSIS `customInstall` 装完就调
+  `/api/agent/enable-remote.ps1` —— 建 `chunlvops`（随机口令、永不过期、管理员组）+ 打开远程通道 +
+  把账号口令回传「机器管理」台账。2026-10-01 自验证据：线上 `/api/agent/download/exe` 与本地 `1.0.20261001`
+  装机包 **SHA256 完全一致**（`fe6b8d9d…b0b52f`，89,369,604 字节），该构建 `apps/companion-electron/build/installer.nsh`
+  的 `customInstall` 就带这一步；「机器管理」台账 23 台机器已有 22 台自动带上 `chunlvops`（唯一一台装的是老包，
+  在「机器管理」点一次「一键开通远程管理」即可）。文档已改写：装机包 = 唯一需要的链接，`setup-pc.bat` 降级为可选兜底。
 
 - **装机脚本打印出来的 Windows 远程口令「当场作废」（2026-10-01 修）。**
   `uploads/setup-pc.ps1`（发给新电脑的一条龙：建运维账号 chunlvops + 静默装陪玩端 + 打开客户端）
