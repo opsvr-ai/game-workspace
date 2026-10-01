@@ -1010,6 +1010,15 @@ cd ..\..; python scripts\_publish_client.py <版本号>                  # 更�
 就写 `$INSTDIR`，或者干脆写中文「安装目录」）—— 注释里带了 `${...}`，`makensis` 会报
 「warning 6000: unknown variable」并直接失败（2026-09-30 踩过一次）。
 
+**这两个脚本接口下发的正文必须带 UTF-8 BOM**（`machine.controller.ts` 里的 `sendPs1()` 用
+`Buffer.from('\uFEFF' + text)` 发送）。原因：脚本正文里全是中文，而「下载到临时文件 → `powershell -File` 执行」
+这条路（两个安装包的 `customInstall`、`scripts\开通远程管理.bat`、`scripts\客户端诊断.bat`、
+`scripts\repair-cs.ps1`）拿到的就是原样字节；Windows PowerShell 5.1 见到没 BOM 的 UTF-8 会按 GBK 解码，
+中文当场乱码 → 报 `The string is missing the terminator` → **整份脚本一行都不执行**
+（2026-10-01 实测：装机时「开通远程管理」从来没跑起来，台账因此一直收不到运维账号口令）。
+改这一处时记得同步看三处「自己补 BOM」的地方（`companion-electron` / `cs-electron` 的 `machine-agent.js`、
+看门狗 `main.go` 的 `runRemoteTask`）—— 它们必须**先 trim 再补**，否则会出现两个 BOM。
+
 **手工给存量机器开通 / 取证（管理员不用跑过去）：** 让那台电脑上的人双击
 
 - `http://1.117.229.36:3001/uploads/客户端诊断.bat`（跑完报告自动回传）
