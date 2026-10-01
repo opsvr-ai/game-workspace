@@ -16,27 +16,33 @@ export class StudiosService {
     });
   }
 
-  // 直接新增一个线上俱乐部（RENTAL 工作室）并自动桥接到当前工作室。
+  // 直接新增一个线上俱乐部（RENTAL 工作室）并自动桥接到指定工作室。
+  // 老板账号没有固定工作室，必须显式指定桥接目标；先校验再建，避免建到一半留下孤儿工作室。
   async createOnlineClub(ownerStudioId: string, name: string, displayName?: string) {
     if (!name || !name.trim()) throw new ForbiddenException('请填写线上俱乐部名称');
-    const onlineClub = await this.prisma.studio.create({
-      data: { name: name.trim(), type: 'RENTAL', displayName: displayName?.trim() || null, splitMode: 'FIXED' },
-    });
-    const [a, b] = [ownerStudioId, onlineClub.id].sort();
+    if (!ownerStudioId) throw new ForbiddenException('请先选择要桥接的工作室');
+    const target = await this.prisma.studio.findUnique({ where: { id: ownerStudioId }, select: { id: true } });
+    if (!target) throw new ForbiddenException('要桥接的工作室不存在');
     const allFunctions = ['ORDERS', 'POOL', 'CUSTOMERS', 'BILLING', 'KPI'];
-    await this.prisma.studioBridge.create({
-      data: {
-        studioAId: a,
-        studioBId: b,
-        proposedBy: ownerStudioId,
-        status: 'ACTIVE',
-        acceptedAt: new Date(),
-        permissions: {
-          create: allFunctions.map((f) => ({ function: f, acceptedA: true, acceptedB: true })),
+    return this.prisma.$transaction(async (tx) => {
+      const onlineClub = await tx.studio.create({
+        data: { name: name.trim(), type: 'RENTAL', displayName: displayName?.trim() || null, splitMode: 'FIXED' },
+      });
+      const [a, b] = [ownerStudioId, onlineClub.id].sort();
+      await tx.studioBridge.create({
+        data: {
+          studioAId: a,
+          studioBId: b,
+          proposedBy: ownerStudioId,
+          status: 'ACTIVE',
+          acceptedAt: new Date(),
+          permissions: {
+            create: allFunctions.map((f) => ({ function: f, acceptedA: true, acceptedB: true })),
+          },
         },
-      },
+      });
+      return onlineClub;
     });
-    return onlineClub;
   }
 
   async createInviteToken(token: string, ownerUserId: string) {

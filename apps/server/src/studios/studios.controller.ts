@@ -116,8 +116,10 @@ export class StudiosController {
   @Get('studios/online-clubs')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER, UserRole.ADMIN)
-  async listOnlineClubs(@Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.listOnlineClubs(req.user.studioId);
+  async listOnlineClubs(@Query('studioId') studioId: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    // 老板账号没有固定工作室，可以按工作室查看；店长只看自己那家
+    const target = req.user.role === UserRole.OWNER ? (studioId || req.user.studioId) : req.user.studioId;
+    const data = await this.studiosService.listOnlineClubs(target);
     return { code: 200, message: 'ok', data };
   }
 
@@ -137,8 +139,10 @@ export class StudiosController {
   @Post('studios/online-clubs')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.OWNER)
-  async createOnlineClub(@Body() body: { name: string; displayName?: string }, @Req() req: any): Promise<ApiResponse<unknown>> {
-    const data = await this.studiosService.createOnlineClub(req.user.studioId, body?.name, body?.displayName);
+  async createOnlineClub(@Body() body: { name: string; displayName?: string; studioId?: string }, @Req() req: any): Promise<ApiResponse<unknown>> {
+    // 老板账号 studioId 为空，建之前必须先选好桥接到哪家工作室
+    const target = req.user.role === UserRole.OWNER ? (body?.studioId || req.user.studioId) : req.user.studioId;
+    const data = await this.studiosService.createOnlineClub(target, body?.name, body?.displayName);
     return { code: 200, message: '线上俱乐部已添加并自动桥接', data };
   }
 

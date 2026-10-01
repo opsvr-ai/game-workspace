@@ -10,6 +10,7 @@ import {
   Tag,
   Segmented,
   Radio,
+  Select,
   message,
   Popconfirm,
 } from 'antd';
@@ -63,6 +64,9 @@ const StudiosPage: React.FC = () => {
   const [onlineClubs, setOnlineClubs] = useState<any[]>([]);
   const [clubName, setClubName] = useState('');
   const [addingClub, setAddingClub] = useState(false);
+  // 老板账号没有固定工作室，添加线上俱乐部前要先选桥接到哪家线下工作室
+  const isOwner = useAuthStore((s) => s.user?.role) === 'OWNER';
+  const [bridgeStudioId, setBridgeStudioId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm] = Form.useForm();
   const [createSubmitting, setCreateSubmitting] = useState(false);
@@ -141,26 +145,39 @@ const StudiosPage: React.FC = () => {
   }, [fetchStudios]);
 
   const fetchOnlineClubs = useCallback(async () => {
+    // 老板必须先在页面上选好桥接目标，否则后端不知道挂到哪家工作室
+    if (isOwner && !bridgeStudioId) { setOnlineClubs([]); return; }
     try {
-      const { data } = await studiosApi.listOnlineClubs();
+      const { data } = await studiosApi.listOnlineClubs(isOwner ? bridgeStudioId : undefined);
       setOnlineClubs(data?.data ?? []);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isOwner, bridgeStudioId]);
 
   useEffect(() => {
     fetchOnlineClubs();
   }, [fetchOnlineClubs]);
+
+  // 老板默认选中第一家线下工作室，避免每次都要手动挑
+  useEffect(() => {
+    if (!isOwner || bridgeStudioId || studios.length === 0) return;
+    const firstDirect = studios.find((s) => s.type === 'DIRECT');
+    if (firstDirect) setBridgeStudioId(firstDirect.id);
+  }, [isOwner, bridgeStudioId, studios]);
 
   const addOnlineClub = async () => {
     if (!clubName.trim()) {
       message.warning('请输入线上俱乐部名称');
       return;
     }
+    if (isOwner && !bridgeStudioId) {
+      message.warning('请先选择要桥接的工作室');
+      return;
+    }
     setAddingClub(true);
     try {
-      await studiosApi.createOnlineClub(clubName.trim());
+      await studiosApi.createOnlineClub(clubName.trim(), undefined, isOwner ? bridgeStudioId : undefined);
       message.success('线上俱乐部已添加并自动桥接');
       setClubName('');
       fetchOnlineClubs();
@@ -237,7 +254,16 @@ const StudiosPage: React.FC = () => {
     <div>
       <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0' }}>
         <Text strong style={{ fontSize: 14 }}>🌐 线上俱乐部桥接</Text>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          {isOwner && (
+            <Select
+              placeholder='桥接到哪家工作室'
+              value={bridgeStudioId || undefined}
+              onChange={setBridgeStudioId}
+              options={studios.filter((s) => s.type === 'DIRECT').map((s) => ({ label: s.name, value: s.id }))}
+              style={{ minWidth: 200 }}
+            />
+          )}
           <Input
             placeholder="线上俱乐部名称（自动创建并桥接为最后一级兜底）"
             value={clubName}
