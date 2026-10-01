@@ -312,6 +312,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     ⑧ 不传 orderInfo 再开一次，房间里那一单**保持不变**（不再被顺手清掉）。
     测试账号 / 会话 / 消息 / 审计记录已按老板规矩全部删除并复核为 0。
 
+### Removed
+
+- **删掉旧的那条装机入口「陪玩端一键安装.bat / .ps1」（老板 2026-10-01：「过时的还留着干啥 删除算了」）。**
+  它和 `setup-pc.bat` 干的是同一件事，但少了「口令留档」这一步 —— 客户端装到最后自动跑的那次
+  「开通远程管理」会另生成一个口令把账号重置掉，于是窗口上打印给对方的密码过后就失效了
+  （2026-10-01 只在 `setup-pc.ps1` 里修过，这条一直没修）。老板已指定发放链接就是
+  `http://1.117.229.36:3001/uploads/setup-pc.bat`，留着两条只会再选错，所以整条删掉：
+  仓库根目录 `陪玩端一键安装.bat` / `陪玩端一键安装.ps1`，以及服务器
+  `uploads/install-companion.bat` / `uploads/install-companion.ps1`（两份内容一直是一致的）。
+  `/api/agent/onboard-report` 接口保留 —— `scripts/repair-companion.ps1`（一键修复）第一步还在用它。
+
 ### Fixed
 
 - **「新电脑一键装机」那条链接修好（2026-10-01，老板指定发给对方的就是 `uploads/setup-pc.bat`）。**

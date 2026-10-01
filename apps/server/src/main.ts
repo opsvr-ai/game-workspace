@@ -97,7 +97,16 @@ async function bootstrap() {
     const indexHtml = join(webDistPath, 'index.html');
     if (existsSync(indexHtml)) {
       expressApp.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
-        if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+        // /uploads 也要排掉：那底下的文件是「有就发、没有就该 404」。
+        // 2026-10-01 踩到：删掉一条过时的装机脚本后，旧地址不是 404，而是被这里兜底成了网页 ——
+        // 浏览器会下到一个「后缀是 .bat、内容其实是 HTML」的文件，装机脚本还会把它当脚本跑。
+        if (
+          req.path.startsWith('/api') ||
+          req.path.startsWith('/socket.io') ||
+          req.path.startsWith('/uploads')
+        ) {
+          return next();
+        }
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         // 关键：sendFile 会自带 ETag，即使全局关了 etag 也会对 If-None-Match 回 304，
         // 导致 Electron 客户端永远拿旧 index.html。这里显式关闭 etag/lastModified。

@@ -78,3 +78,6 @@ Write-Host ('  口令: ' + $password)
 Write-Host '  口令也写在这台电脑的 C:\ProgramData\chunlv\remote-account.txt；'
 Write-Host '  后台「设置中心 → 客户端与设备 → 机器管理」里看到的是同一份。'
 Write-Host ''
+
+# 下面这行是给 setup-pc.bat 用的：它靠这行确认「脚本整份都下下来了」（下到 wifi 登录页那种网页时不会有这行）。
+# CHUNLV_SETUP_PC_END
