@@ -166,6 +166,16 @@ export function createMockPrisma() {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       delete: vi.fn(),
     },
+    // 陪玩自己提交工作微信 + 管理端审核（老板 2026-10-02）
+    workWechatRequest: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      count: vi.fn().mockResolvedValue(0),
+    },
     $queryRaw: vi.fn(),
     $transaction: vi.fn((fn: (...a: unknown[]) => unknown) => fn(mock)),
   };

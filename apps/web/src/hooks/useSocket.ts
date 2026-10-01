@@ -45,6 +45,10 @@ interface UseSocketOptions {
   onRevenueDiff?: (data: any) => void;
   onReviewAlert?: (data: any) => void;
   onCsAccountAnomaly?: (data: any) => void;
+  /** 陪玩提交了工作微信，等管理端审核（老板 2026-10-02） */
+  onWorkWechatRequest?: (data: any) => void;
+  /** 自己的工作微信申请被审核（通过 / 驳回），陪玩端刷新卡片 */
+  onWorkWechatUpdated?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -308,6 +312,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('cs:account_anomaly', (data: any) => {
       optsRef.current.onCsAccountAnomaly?.(data);
+    });
+
+    socket.on('work-wechat:request', (data: any) => {
+      optsRef.current.onWorkWechatRequest?.(data);
+    });
+
+    socket.on('work-wechat:updated', (data: any) => {
+      optsRef.current.onWorkWechatUpdated?.(data);
     });
 
     // 页面级 useSocket 可能在 accessToken 已过期后才挂载（例如陪玩先登录，

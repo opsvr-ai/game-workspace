@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space } from 'antd';
+import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import PageHeader from '../components/PageHeader';
@@ -26,6 +26,12 @@ const WorkWechatPage: React.FC = () => {
   const [boundNames, setBoundNames] = useState<Record<string, string>>({});
   const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
   const [nicknameDraft, setNicknameDraft] = useState('');
+  // 陪玩自己提交的工作微信申请（老板 2026-10-02）：管理端在这里审核
+  const [requests, setRequests] = useState<any[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -49,6 +55,18 @@ const WorkWechatPage: React.FC = () => {
     }
   }, [typeFilter]);
 
+  const fetchRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const { data } = await http.get('/companions/work-wechat-requests');
+      setRequests(data?.data || []);
+    } catch {
+      /* 非关键：拉不到就只显示空表 */
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
   const fetchCsUsers = useCallback(async () => {
     try {
       const { data } = await http.get('/users/cs');
@@ -62,7 +80,43 @@ const WorkWechatPage: React.FC = () => {
     fetch();
     fetchCompanions();
     fetchCsUsers();
-  }, [fetch, fetchCompanions, fetchCsUsers]);
+    fetchRequests();
+  }, [fetch, fetchCompanions, fetchCsUsers, fetchRequests]);
+
+  // 管理端可能一直开着这一页：30 秒对一次（有陪玩新提交就自己冒出来）
+  useEffect(() => {
+    const timer = setInterval(fetchRequests, 30000);
+    return () => clearInterval(timer);
+  }, [fetchRequests]);
+
+  const handleApproveRequest = async (id: string) => {
+    try {
+      await http.put(`/companions/work-wechat-requests/${id}/approve`);
+      message.success('已通过，这个号从现在起生效');
+      fetchRequests();
+      fetch();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '审核失败');
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!rejectId) return;
+    setRejecting(true);
+    try {
+      await http.put(`/companions/work-wechat-requests/${rejectId}/reject`, {
+        reason: rejectReason.trim() || undefined,
+      });
+      message.success('已驳回');
+      setRejectId(null);
+      setRejectReason('');
+      fetchRequests();
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || '驳回失败');
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const handleAdd = async () => {
     const v = newWechatId.trim();
@@ -155,6 +209,8 @@ const WorkWechatPage: React.FC = () => {
     }
   };
 
+  const pendingRequestCount = requests.filter((r: any) => r.status === 'PENDING').length;
+
   return (
     <div>
       <PageHeader
@@ -191,6 +247,112 @@ const WorkWechatPage: React.FC = () => {
             添加
           </Button>
         </div>
+      )}
+
+      {typeFilter !== 'STUDIO' && (
+        <Card
+          size="small"
+          style={{
+            marginBottom: 16,
+            border: pendingRequestCount > 0 ? '1px solid #ffccc7' : undefined,
+            background: pendingRequestCount > 0 ? '#fff7e6' : undefined,
+          }}
+          title={
+            <Space size={8}>
+              <span>📥 陪玩自己提交的微信号（管理端审核）</span>
+              {pendingRequestCount > 0 ? (
+                <Tag color="red">{pendingRequestCount} 条待审核</Tag>
+              ) : (
+                <Tag>暂无待审核</Tag>
+              )}
+            </Space>
+          }
+        >
+          <Table
+            size="small"
+            rowKey="id"
+            loading={requestsLoading}
+            dataSource={requests}
+            pagination={{ pageSize: 5, hideOnSinglePage: true }}
+            locale={{ emptyText: '还没有陪玩提交过' }}
+            columns={[
+              {
+                title: '陪玩',
+                key: 'companion',
+                width: 150,
+                render: (_: any, r: any) => (
+                  <Text>
+                    {r.companion?.user?.displayName || r.companion?.user?.username || '-'}
+                  </Text>
+                ),
+              },
+              {
+                title: '提交的微信号',
+                dataIndex: 'wechatId',
+                key: 'wechatId',
+                render: (v: string) => <Text strong>📱 {v}</Text>,
+              },
+              {
+                title: '状态',
+                key: 'status',
+                width: 170,
+                render: (_: any, r: any) =>
+                  r.status === 'PENDING' ? (
+                    <Tag color="orange">待审核</Tag>
+                  ) : r.status === 'APPROVED' ? (
+                    <Tag color="green">已通过</Tag>
+                  ) : (
+                    <Tag>已驳回{r.rejectReason ? `：${r.rejectReason}` : ''}</Tag>
+                  ),
+              },
+              {
+                title: '提交时间',
+                dataIndex: 'createdAt',
+                key: 'createdAt',
+                width: 160,
+                render: (v: string) =>
+                  v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-',
+              },
+              {
+                title: '操作',
+                key: 'op',
+                width: 150,
+                render: (_: any, r: any) =>
+                  r.status === 'PENDING' ? (
+                    <Space size={4}>
+                      <Popconfirm
+                        title={`通过「${r.wechatId}」？通过后立刻生效`}
+                        onConfirm={() => handleApproveRequest(r.id)}
+                        okText="通过"
+                        cancelText="取消"
+                      >
+                        <Button type="link" size="small">
+                          通过
+                        </Button>
+                      </Popconfirm>
+                      <Button
+                        type="link"
+                        size="small"
+                        danger
+                        onClick={() => {
+                          setRejectId(r.id);
+                          setRejectReason('');
+                        }}
+                      >
+                        驳回
+                      </Button>
+                    </Space>
+                  ) : (
+                    <Text type="secondary">—</Text>
+                  ),
+              },
+            ]}
+          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            陪玩提交的只是申请：只有点「通过」才会把这个号绑给他（他原来绑的号自动退下来）。
+            审核通过之前，抢单判重用的还是他现在生效的那个号。
+          </Text>
+        </Card>
       )}
 
       <Table
@@ -349,6 +511,31 @@ const WorkWechatPage: React.FC = () => {
           },
         ]}
       />
+
+      <Modal
+        open={!!rejectId}
+        title="驳回这条微信号申请"
+        onCancel={() => {
+          setRejectId(null);
+          setRejectReason('');
+        }}
+        onOk={handleRejectRequest}
+        okText="驳回"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        confirmLoading={rejecting}
+      >
+        <Text type="secondary">驳回后陪玩能看到原因；他现在生效的号不受影响。</Text>
+        <Input.TextArea
+          rows={3}
+          style={{ marginTop: 8 }}
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="写一下原因（可不填）"
+          maxLength={200}
+          showCount
+        />
+      </Modal>
     </div>
   );
 };

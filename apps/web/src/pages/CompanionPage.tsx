@@ -40,6 +40,7 @@ import {
 } from '../constants';
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 import EmptyState from '../components/EmptyState';
+import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
 
@@ -346,6 +347,9 @@ const CompanionPage: React.FC = () => {
           </Col>
         </Row>
       </Card>
+
+      {/* 我的工作微信：陪玩自己填 / 换，管理端审核通过才生效（老板 2026-10-02） */}
+      <MyWorkWechatCard />
 
       {data.tierInfo?.mode === 'TIERED' && (
         <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>

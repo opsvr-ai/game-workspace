@@ -5,6 +5,14 @@
 
 ## 新增功能
 
+- **陪玩自己提交工作微信 + 管理端审核（2026-10-02）**: 新表 `WorkWechatRequest`（`PENDING|APPROVED|REJECTED`）只存「申请」；
+  真正生效 / 界面显示 / 抢单判重用的仍是 `WorkWechat` —— 只有管理端点通过才会去改它（回滚友好：换了号没过审也不影响在用号）。
+  陪玩端 `GET|POST /companions/me/work-wechat`；管理端 `GET /companions/work-wechat-requests` +
+  `PUT .../:id/approve|reject`。审核通过在一个事务里：先把该陪玩原绑的号置 `AVAILABLE`，再把新号 `type=COMPANION, status=BOUND`
+  绑上去（没有这条 `WorkWechat` 就新建），同一人的其它待审申请一并置 `REJECTED`。
+  提交与通过都走 `assertWechatUsable()`（别人的号 / 客服在用的号 / `type=STUDIO` 的号一律拒绝）。
+  WS：`work-wechat:request`（→ 本店老板/店长/客服的 `user:${id}`）、`work-wechat:updated`（→ 陪玩 `companion:${id}`）。
+
 - **抢单超时自动回收删除 + 转让订单（2026-09-29）**: `stale-grab-sweep` 服务与 `pool.grab_return_minutes`
   / `pool.stale_cancel_hours` 全删（「是谁抢的就是谁的」）；新表 `OrderTransfer` + `POST /orders/:id/transfer`
   让持单陪玩把单转给同工作室的另一个人（一个事务里换 `companionId`/`grabbedAt`、落留痕、转客户归属、清零联系进度），
@@ -197,6 +205,8 @@ erDiagram
     Studio ||--o{ ExpenseReport : "has"
     Companion ||--o{ Order : "serves"
     Companion ||--o| CompanionPC : "controls"
+    Companion ||--o{ WorkWechat : "工作微信（审核通过后绑定）"
+    Companion ||--o{ WorkWechatRequest : "提交工作微信申请"
     Companion ||--o{ CompanionTimeLog : "records"
     Companion ||--o{ Transaction : "submits"
     Companion ||--o{ Customer : "manages"
@@ -401,6 +411,11 @@ sequenceDiagram
   （客服端主窗口 + 聊天弹窗 + 浏览器页面），单值映射表会被后连的顶掉、任何一条断开又会把整个人删掉，
   剩下活着的连接就再也收不到消息（2026-09-30 修过一次：`ChatGateway` 的 `message:new` / `chat:read` /
   `room:updated` 和 `WsGateway.notifyNewMessage`）。`userSockets` 只用来数「还剩几条连接」。
+
+- **工作微信审核事件（老板 2026-10-02）**：陪玩提交后，服务端用 `WsGateway.notifyUser()` 逐个推给本店
+  老板 / 店长 / 客服的 `user:${id}` 房间（`work-wechat:request`，前端 `useSocket.onWorkWechatRequest` → 弹提醒 + 进通知中心）；
+  管理端审核完用 `notifyCompanion()` 推 `work-wechat:updated`（`useSocket.onWorkWechatUpdated`）。
+  陪玩端「我的工作微信」卡片另外每 30 秒 + 切回窗口时对一次，审核通过后不用刷新页面也能看到新号。
 
 **在线状态口径（2026-09-26 起统一在服务端判定）:**
 

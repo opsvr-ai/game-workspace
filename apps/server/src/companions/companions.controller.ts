@@ -333,6 +333,98 @@ export class CompanionsController {
     return { code: 200, message: '已删除', data: null };
   }
 
+  // ── 陪玩自己提交工作微信 + 管理端审核（老板 2026-10-02）──
+  //
+  // 老板原话：「让陪玩自己填写自己的微信号，但是需要管理端审核，
+  //   以后想换可以换，但是管理端审核过了以后才显示新的。」
+  // 陪玩提交只是申请；真正生效的仍是管理端审核通过后写进 WorkWechat 的那一条。
+
+  /** 陪玩看自己的工作微信（生效的 + 审核中的） */
+  @Get('companions/me/work-wechat')
+  @Roles(UserRole.COMPANION)
+  async getMyWorkWechat(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getMyWorkWechat(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 陪玩提交 / 修改自己的工作微信（进待审核，不直接生效） */
+  @Post('companions/me/work-wechat')
+  @Roles(UserRole.COMPANION)
+  async submitMyWorkWechat(
+    @Req() req: any,
+    @Body() dto: { wechatId?: string },
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.submitMyWorkWechat(req.user.companionId, dto?.wechatId);
+    try {
+      const studioId = await this.sid(req);
+      const reviewers = await this.prisma.user.findMany({
+        where: {
+          isAuthorized: true,
+          role: { in: [UserRole.OWNER, UserRole.ADMIN, UserRole.CS] },
+          OR: [{ studioId }, { role: UserRole.OWNER, studioId: null }],
+        },
+        select: { id: true },
+      });
+      for (const reviewer of reviewers) {
+        this.wsGateway.notifyUser(reviewer.id, 'work-wechat:request', {
+          companionId: req.user.companionId,
+          wechatId: data.wechatId,
+        });
+      }
+    } catch (e) {
+      // 通知失败不影响提交本身
+      logger.warn?.('notify work-wechat:request failed', e as any);
+    }
+    return { code: 200, message: '已提交，等管理端审核', data };
+  }
+
+  /** 管理端：陪玩提交的微信号申请列表 */
+  @Get('companions/work-wechat-requests')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listWorkWechatRequests(
+    @Req() req: any,
+    @Query('status') status?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.listWorkWechatRequests(await this.sid(req), status);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 管理端审核通过：把这个微信号绑给陪玩（此后才生效） */
+  @Put('companions/work-wechat-requests/:id/approve')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async approveWorkWechatRequest(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.approveWorkWechatRequest(id, req.user?.id);
+    try {
+      this.wsGateway.notifyCompanion(data.companionId, 'work-wechat:updated', {
+        wechatId: data.wechatId,
+        status: 'APPROVED',
+      });
+    } catch {
+      /* 通知失败不影响审核 */
+    }
+    return { code: 200, message: '已通过', data };
+  }
+
+  /** 管理端驳回：当前生效的号不变 */
+  @Put('companions/work-wechat-requests/:id/reject')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async rejectWorkWechatRequest(
+    @Param('id') id: string,
+    @Body() dto: { reason?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.rejectWorkWechatRequest(id, dto?.reason, req.user?.id);
+    try {
+      this.wsGateway.notifyCompanion(data.companionId, 'work-wechat:updated', {
+        status: 'REJECTED',
+        reason: dto?.reason || null,
+      });
+    } catch {
+      /* 通知失败不影响审核 */
+    }
+    return { code: 200, message: '已驳回', data };
+  }
+
   // ── Resignation (MUST be before :id routes) ──
 
   @Post('companions/:id/resign')

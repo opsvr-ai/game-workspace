@@ -1036,6 +1036,32 @@ export class CompanionsService {
     return this.wechatService.deleteWorkWechat(id, user);
   }
 
+  // ── 陪玩自己提交工作微信 + 管理端审核（老板 2026-10-02）──
+
+  async getMyWorkWechat(companionId: string) {
+    return this.wechatService.getMyWorkWechat(companionId);
+  }
+
+  async submitMyWorkWechat(companionId: string, wechatId?: string | null) {
+    return this.wechatService.submitMyWorkWechat(companionId, wechatId);
+  }
+
+  async listWorkWechatRequests(studioId: string, status?: string) {
+    return this.wechatService.listWorkWechatRequests(studioId, status);
+  }
+
+  async countPendingWorkWechatRequests(studioId: string) {
+    return this.wechatService.countPendingWorkWechatRequests(studioId);
+  }
+
+  async approveWorkWechatRequest(id: string, reviewerId?: string) {
+    return this.wechatService.approveWorkWechatRequest(id, reviewerId);
+  }
+
+  async rejectWorkWechatRequest(id: string, reason?: string, reviewerId?: string) {
+    return this.wechatService.rejectWorkWechatRequest(id, reason, reviewerId);
+  }
+
   // ── Attendance ──
 
   async ensureAttendance(companionId: string) {

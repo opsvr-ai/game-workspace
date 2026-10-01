@@ -544,9 +544,9 @@ const decorateMenu = (
 /** 通知里的「查看 ›」跳哪：同一模块四个角色的路由都不一样，按角色查一次 */
 const ROLE_PAGES: Record<string, Record<string, string>> = {
   COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion' },
-  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees' },
-  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION' },
-  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review' },
+  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION' },
+  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION' },
+  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION' },
 };
 
 const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
@@ -1336,6 +1336,20 @@ const AppLayout: React.FC = () => {
       const text = data.message || '注册申请未通过审核';
       message.warning(text, 6);
       recordNotice({ kind: 'audit', icon: '⛔', title: '注册申请未通过审核', desc: text });
+    },
+    onWorkWechatRequest: (data: any) => {
+      // 陪玩自己填了工作微信，等管理端审核（老板 2026-10-02）
+      const text = data?.wechatId
+        ? `有陪玩提交了工作微信「${data.wechatId}」，待审核`
+        : '有陪玩提交了工作微信，待审核';
+      message.info(text, 8);
+      recordNotice({
+        kind: 'audit',
+        icon: '📱',
+        title: '待审核：陪玩提交的工作微信',
+        desc: text,
+        href: rolePage(user?.role, 'work-wechats'),
+      });
     },
     onBridgeResponded: (data: any) => {
       const text = data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请');

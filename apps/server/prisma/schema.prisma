@@ -150,6 +150,8 @@ model Companion {
   customerTracks          CustomerTrack[]
   customerDeleteRequests  CustomerDeleteRequest[]
   deposits                CustomerDeposit[]
+  // 陪玩自己提交的工作微信申请（管理端审核，老板 2026-10-02）
+  wechatRequests          WorkWechatRequest[]
 
   @@index([studioId])
   @@index([status])
@@ -590,6 +592,28 @@ model WorkWechat {
   createdAt   DateTime @default(now())
 
   companion Companion? @relation(fields: [companionId], references: [id])
+}
+
+// 陪玩自己提交的工作微信申请（老板 2026-10-02）：
+// 「让陪玩自己填写自己的微信号，但是需要管理端审核，以后想换可以换，
+//  但是管理端审核过了以后才显示新的。」
+// 提交只是「申请」；真正生效的仍是 WorkWechat 上绑定的那一条，
+// 管理端审核通过才会把 WorkWechat 改成这个号。
+model WorkWechatRequest {
+  id           String    @id @default(uuid())
+  studioId     String
+  companionId  String
+  wechatId     String // 陪玩自己填的微信号
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectReason String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  companion Companion @relation(fields: [companionId], references: [id])
+
+  @@index([studioId, status])
+  @@index([companionId, status])
 }
 
 model WorkWechatBalanceLog {

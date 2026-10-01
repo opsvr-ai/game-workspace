@@ -6,6 +6,14 @@
 
 ## Recent Updates (v3.2.0)
 
+- **陪玩自己填 / 换工作微信，管理端审核通过了才生效（2026-10-02，服务端 + 网页 v860）:** 老板
+  「让陪玩自己填写自己的微信号，但是需要管理端审核，以后想换可以换，但是管理端审核过了以后才显示新的」。
+  陪玩端主页加「📱 我的工作微信」卡片（显示生效的号 / 审核中 / 被驳回原因，填号提交审核）；
+  管理端「工作微信 → 陪玩工作微信」页加「陪玩自己提交的微信号（管理端审核）」表，可逐条通过 / 驳回。
+  **提交只是申请** —— 只有审核通过才会改 `WorkWechat`（他原来绑的号自动退下来），
+  通过前抢单判重用的还是旧号；提交/通过都会校验号是否已绑给别人或被客服占用。新表 `WorkWechatRequest`，
+  新 WS 事件 `work-wechat:request` / `work-wechat:updated`，18 条新用例。
+
 - **修：同一个客户能被同一个陪玩连抢（2026-10-02，服务端）:** 老板「邵泽慧发布3条订单，都是同一个客户的微信，
   为什么胡程硕能抢三次？」+「同一个客户咨询了我好几个小红书矩阵并留下微信号，发布订单的时候完全可以发 3 单，
   只要被不同的陪玩（工作微信不同）接走」。两处根因：① 判重按**客户档案编号**找历史单，而客服每发一张单会新建
@@ -994,6 +1002,11 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/companions/work-wechats` | JWT | ADMIN, OWNER | Add work wechat. |
 | `PUT` | `/api/companions/work-wechats/:id/bind` | JWT | ADMIN, OWNER | Bind to companion. |
 | `PUT` | `/api/companions/work-wechats/:id/unbind` | JWT | ADMIN, OWNER | Unbind wechat. |
+| `GET` | `/api/companions/me/work-wechat` | JWT | COMPANION | My effective work wechat + pending/rejected request. |
+| `POST` | `/api/companions/me/work-wechat` | JWT | COMPANION | Submit (or change) my work wechat — pending admin review. |
+| `GET` | `/api/companions/work-wechat-requests` | JWT | OWNER, ADMIN, CS | Companion-submitted wechats awaiting review. |
+| `PUT` | `/api/companions/work-wechat-requests/:id/approve` | JWT | OWNER, ADMIN, CS | Approve — binds the submitted wechat. |
+| `PUT` | `/api/companions/work-wechat-requests/:id/reject` | JWT | OWNER, ADMIN, CS | Reject (optional reason); effective wechat unchanged. |
 | `GET` | `/api/companions/chat-history/:companionId` | JWT | -- | Get full chat history with a companion. |
 | `GET` | `/api/companions/chat-pending` | JWT | -- | Get pending chat messages for current studio. |
 | `POST` | `/api/companions/chat-notify` | JWT | COMPANION, CS, ADMIN, OWNER | Send chat notification from companion. |
