@@ -1102,10 +1102,12 @@ Every endpoint returns a standard JSON envelope:
 | `http://1.117.229.36:3001/api/agent/download/exe` | **陪玩端装机包（推荐，也是唯一需要的那一份）**：对方双击 → 只弹一次 Windows 授权窗口点「是」→ 自动建运维账号 `chunlvops`（随机口令、密码永不过期、加进管理员组）→ 打开远程管理通道 → 装客户端 + 看门狗服务 + 桌面快捷方式 → 自动打开客户端 → 把主机名 / IP / MAC / 账号 / 口令回传到「机器管理」台账。中间不需要人再做任何事。 |
 | `http://1.117.229.36:3001/api/agent/download/cs` | 客服端装机包，同样内置「装完就建账号 + 回传台账」这一步。 |
 
-`http://1.117.229.36:3001/uploads/setup-pc.bat`（正文 `setup-pc.ps1`）是**更早的一条龙脚本，现在只是可选兜底** ——
-做的事跟装机包基本重合。以前这里写「必须跑它才建 Windows 账号」是错的：建账号这一步装机包自己就会做
-（`apps/companion-electron/build/installer.nsh` 的 `customInstall` 装完调 `/api/agent/enable-remote.ps1`；
-客服端 `apps/cs-electron/build/installer.nsh` 同样有）。
+`http://1.117.229.36:3001/uploads/setup-pc.bat`（正文 `setup-pc.ps1`）是**老板 2026-10-01 指定的发放链接**：
+一条链接把新电脑装完 —— 对方双击（自己弹一次授权）→ 建 Windows 运维账号 `chunlvops`（随机口令）→
+静默下载安装陪玩端（就是上面那个装机包）→ 自动打开客户端；口令同时写进那台机器的
+`C:\ProgramData\chunlv\remote-account.txt`，并由装机包最后一步（`customInstall` → `/api/agent/enable-remote.ps1`）
+打开远程管理通道、把账号口令回传到「机器管理」台账。后台也能直接复制这条链接：
+设置中心 → 客户端与设备 → 客户端版本 →「下载安装包」弹窗**最上面那个绿框**。
 
 > 装过老安装包、台账里还没有运维账号的机器：安装包不会重跑那一步，在「机器管理」里点一下「一键开通远程管理」即可补上；
 > 之后每次重装 / 新装都会自动带上。口令还会同时写进那台机器的 `C:\ProgramData\chunlv\remote-account.txt`，台账和本机永远是同一份。

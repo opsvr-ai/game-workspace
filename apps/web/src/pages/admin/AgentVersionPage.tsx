@@ -123,6 +123,8 @@ const AgentVersionPage: React.FC = () => {
   const downloadOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const companionDownloadUrl = `${downloadOrigin}/api/agent/download/exe`;
   const csDownloadUrl = `${downloadOrigin}/api/agent/download/cs`;
+  // 发给对方的那条「新电脑一键装机」链接：服务器 uploads/ 下的固定文件（bat 每次现去取 ps1，所以改一个文件 = 改所有新装机）
+  const setupPcUrl = `${downloadOrigin}/uploads/setup-pc.bat`;
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard
@@ -637,6 +639,24 @@ const AgentVersionPage: React.FC = () => {
         width={560}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: 12 }}>
+            <Text strong>🖥️ 新电脑一键装机（发给对方的就是这一条链接）</Text>
+            <div style={{ marginTop: 6 }}>
+              <Input value={setupPcUrl} readOnly />
+            </div>
+            <Space style={{ marginTop: 8 }}>
+              <Button type="primary" icon={<CopyOutlined />} onClick={() => copyText(setupPcUrl, '一键装机链接')}>
+                复制链接
+              </Button>
+            </Space>
+            <div style={{ marginTop: 6 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                对方双击它 → 自动建 Windows 运维账号（随机口令）+ 装好客户端 + 自动打开；
+                账号和口令会自动回传到「客户端与设备 → 机器管理」，不用问他。
+              </Text>
+            </div>
+          </div>
+          <Divider style={{ margin: 0 }} />
           <div>
             <Text strong>🎮 陪玩端（陪玩管理）</Text>
             <div style={{ marginTop: 6 }}>
@@ -667,7 +687,7 @@ const AgentVersionPage: React.FC = () => {
             </Space>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            把「复制链接」得到的地址发给对方，对方浏览器打开即可下载安装。当前地址指向本服务器（局域网），外地工作室需等公网服务器上线后再用公网地址。
+            把「复制链接」得到的地址发给对方，对方浏览器打开即可下载安装（服务端已经是公网地址，外地工作室直接用这个就行）。
           </Text>
         </Space>
       </Modal>
