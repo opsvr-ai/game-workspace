@@ -758,6 +758,23 @@ const OrderPoolPage: React.FC = () => {
             </Card>
           )}
 
+          {/* 陪玩：没绑工作微信 → 抢不了单（老板 2026-10-02 方案 B），提前提醒，不要等点了才报错 */}
+          {isCompanion && poolStatus && poolStatus.hasWorkWechat === false && (
+            <Card
+              size="small"
+              style={{ marginTop: 12, background: '#fff2f0', borderColor: '#ffccc7' }}
+            >
+              <Text strong style={{ color: '#cf1322', fontSize: DATA_FONT_SIZE }}>
+                ⚠️ 你还没绑定工作微信，现在抢不了单
+              </Text>
+              <div style={{ marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+                  请让店长 / 客服到「工作微信 → 陪玩工作微信」帮你绑定你自己的号，绑好后立刻就能抢。
+                </Text>
+              </div>
+            </Card>
+          )}
+
           {/* 陪玩：今日「立即打」名额（含没抢完累计下来的） */}
           {isCompanion && poolStatus && (
             <Card

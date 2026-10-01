@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
 import {
   wechatTookCustomerMessage,
-  companionTookCustomerMessage,
+  noWorkWechatMessage,
   assertCustomerNotTakenByCurrentWechat,
 } from '../orders/customer-wechat-rule';
 import { createMockPrisma } from '../__mocks__/prisma.mock';
@@ -11,9 +11,11 @@ import { createMockPrisma } from '../__mocks__/prisma.mock';
 /**
  * 老板 2026-09-29 定口径：「每个陪玩绑定一个微信，说白了就是同一个微信不能抢同一个客户……
  *   他如果还是用这个微信去抢单就要提示，如果陪玩更换了新的工作微信，那么可以继续抢。」
- * 老板 2026-10-02 补充（胡程硕把同一个客户的两张单都抢走的现场）：「同一个客户咨询了我好几个小红书矩阵
- *   并留下微信号，发布订单的时候完全可以发 3 单，只要被不同的陪玩（工作微信不同）接走。」
- *   —— 所以「同一个客户」按**微信号**算，不按客户档案编号（同一个微信号可能有好几条档案）。
+ * 老板 2026-10-02 补：「同一个客户咨询了我好几个小红书矩阵并留下微信号，发布订单的时候完全可以发 3 单，
+ *   只要被不同的陪玩（工作微信不同）接走。」—— 所以「同一个客户」按**微信号**算，不按客户档案编号。
+ * 老板 2026-10-02 定方案 B：「保持只按微信 —— 那就得去「工作微信 → 陪玩工作微信」把每个人的号绑上，
+ *   绑一个生效一个」+「抢单时如果不绑定工作微信，提示抢不了，提示去绑定工作微信」
+ *   —— 所以**没绑工作微信就直接拦**，不再按人兜底。
  */
 describe('同一个微信不能抢同一个客户', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -26,6 +28,31 @@ describe('同一个微信不能抢同一个客户', () => {
     (prisma.customer.findUnique as any).mockResolvedValue({ wechatId });
     (prisma.customer.findMany as any).mockResolvedValue(sameCustomers);
   };
+
+  it('没绑工作微信 → 抢不了，提示去「工作微信 → 陪玩工作微信」绑定', async () => {
+    const prisma = createMockPrisma();
+    prisma.workWechat.findUnique.mockResolvedValue(null);
+    mockCustomer(prisma, 'wx-customer');
+
+    await expect(
+      assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-1', 'customer-1'),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-1', 'customer-1'),
+    ).rejects.toThrow(noWorkWechatMessage());
+    // 没微信就没得判，不查历史单
+    expect(prisma.order.findMany).not.toHaveBeenCalled();
+  });
+
+  it('工作微信绑的是空串 → 一样拦下来', async () => {
+    const prisma = createMockPrisma();
+    prisma.workWechat.findUnique.mockResolvedValue({ wechatId: '   ' });
+    mockCustomer(prisma, 'wx-customer');
+
+    await expect(
+      assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-1', 'customer-1'),
+    ).rejects.toThrow(noWorkWechatMessage());
+  });
 
   it('这个微信号接过这个客户 → 拦下来，提示里带上微信号', async () => {
     const prisma = createMockPrisma();
@@ -87,24 +114,13 @@ describe('同一个微信不能抢同一个客户', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('历史单上没写工作微信 + 就是他自己接的 → 按人拦（线上没人绑微信时的兜底）', async () => {
+  it('老单上没写工作微信（那会儿还没绑）→ 不参与判重，放行', async () => {
     const prisma = createMockPrisma();
-    prisma.workWechat.findUnique.mockResolvedValue(null);
+    prisma.workWechat.findUnique.mockResolvedValue({ wechatId: 'wx-mine' });
     prisma.order.findMany.mockResolvedValue([
       { companionId: 'companion-1', customFields: null },
       { companionId: 'companion-1', customFields: { csWorkWechatName: '客服的微信' } },
     ]);
-    mockCustomer(prisma, 'wx-customer');
-
-    await expect(
-      assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-1', 'customer-1'),
-    ).rejects.toThrow(companionTookCustomerMessage());
-  });
-
-  it('历史单上没写工作微信 + 是别人接的 → 放行（同一个客户还是要能被不同陪玩接走）', async () => {
-    const prisma = createMockPrisma();
-    prisma.workWechat.findUnique.mockResolvedValue(null);
-    prisma.order.findMany.mockResolvedValue([{ companionId: 'companion-9', customFields: null }]);
     mockCustomer(prisma, 'wx-customer');
 
     await expect(
@@ -114,24 +130,13 @@ describe('同一个微信不能抢同一个客户', () => {
 
   it('客户档案上没写微信号时，退回用订单上客服填的客户微信比', async () => {
     const prisma = createMockPrisma();
-    prisma.workWechat.findUnique.mockResolvedValue(null);
-    prisma.order.findMany.mockResolvedValue([{ companionId: 'companion-1', customFields: null }]);
+    prisma.workWechat.findUnique.mockResolvedValue({ wechatId: 'wx-mine' });
+    prisma.order.findMany.mockResolvedValue([{ companionId: 'companion-1', customFields: { workWechatName: 'wx-mine' } }]);
     mockCustomer(prisma, '', [{ id: 'customer-9' }]);
 
     await expect(
       assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-1', 'customer-1', '18700682660'),
-    ).rejects.toThrow(companionTookCustomerMessage());
-  });
-
-  it('没绑工作微信时不会误拦：没接过的人照抢', async () => {
-    const prisma = createMockPrisma();
-    prisma.workWechat.findUnique.mockResolvedValue(null);
-    prisma.order.findMany.mockResolvedValue([]);
-    mockCustomer(prisma, 'wx-customer', [{ id: 'customer-1' }]);
-
-    await expect(
-      assertCustomerNotTakenByCurrentWechat(prisma as any, 'companion-3', 'customer-1'),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow(wechatTookCustomerMessage('wx-mine'));
   });
 
   it('没陪玩 / 没客户 → 不查库、直接放行', async () => {

@@ -165,7 +165,7 @@ export class OrderDispatchService {
       }
     }
     // 同一个工作微信不能抢同一个客户：这个微信号接过这个客户就拦，换了新微信可以再接；
-    // 没绑工作微信的按「同一个陪玩」兜底，见 customer-wechat-rule.ts。
+    // 没绑工作微信的直接拦（提示去绑定），见 customer-wechat-rule.ts。
     // 同一个客户可以有好几张单（客服发了好几个矩阵账号），判重按**客户微信号**串起来，不看客户档案编号。
     await assertCustomerNotTakenByCurrentWechat(
       this.prisma,

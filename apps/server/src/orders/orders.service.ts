@@ -2247,12 +2247,21 @@ export class OrdersService implements OnModuleInit {
    */
   async getPoolStatus(companionId: string) {
     const quota = await this.quota.status(companionId);
+    // 没绑工作微信 = 抢不了单（老板 2026-10-02 方案 B）：这里把绑定状态一并下发，让订单池提前提醒。
+    const boundWechat = companionId
+      ? await this.prisma.workWechat
+          .findUnique({ where: { companionId }, select: { wechatId: true } })
+          .catch(() => null)
+      : null;
+    const workWechatId = String(boundWechat?.wechatId || '').trim();
     return {
       tier: quota.tier,
       dailyLimit: quota.dailyLimit,
       balance: quota.balance,
       usedToday: quota.usedToday,
       remaining: quota.remaining,
+      hasWorkWechat: !!workWechatId,
+      workWechatId,
     };
   }
 
