@@ -2294,6 +2294,19 @@ export class OrdersService implements OnModuleInit {
         csUser: { select: { id: true, username: true, avatar: true, displayName: true, role: true } },
         companion: { include: { user: { select: { username: true, avatar: true, displayName: true } } } },
         coCompanion: { include: { user: { select: { username: true } } } },
+        // 转让留痕（老板 2026-10-03「400 订单转给王甲振，怎么没看到转让记录」）：
+        // findAll 一直带着 transfers，详情这里却漏了 —— 从「订单详情」按 id 取回来的单
+        // 看不到「谁什么时候转给谁」。补齐，口径与 findAll 完全一致。
+        transfers: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            createdAt: true,
+            reason: true,
+            fromCompanion: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+            toCompanion: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+          },
+        },
       },
     });
     if (!order) return null;
@@ -2443,6 +2456,24 @@ export class OrdersService implements OnModuleInit {
     return session;
   }
 
+  /**
+   * 服务端自己把陪玩切到「接单中」时，必须同步推一次黑名单（老板 2026-10-03）。
+   *
+   * 「接单中」只能由服务端自动进入（开始服务 / 接受搭档邀请），陪玩本人点不出来
+   * —— ws.gateway 收到手动 BUSY 直接丢弃。所以客户端根本不知道自己的状态变了：
+   * 它会一直停在「空闲」，把「空闲才杀」的那条黑名单继续挂着。徐泽宁接受搭档邀请后
+   * 人已经算接单中，客户端却还在杀他刚启动的三角洲，看起来就是「接受了邀请，
+   * 却一直不让启动游戏」。
+   *
+   * 顺序不能反：先落库、再推 —— pushCurrentBlacklist 是照库里的状态组黑名单的。
+   */
+  private async markCompanionsBusy(ids: Array<string | null | undefined>) {
+    for (const id of Array.from(new Set(ids.filter(Boolean) as string[]))) {
+      await this.prisma.companion.update({ where: { id }, data: { status: 'BUSY' } }).catch(() => {});
+      await this.wsGateway.refreshCompanionBlacklist(id).catch(() => {});
+    }
+  }
+
   /** 搭档接受双陪邀请：确认后开始计时，并通知主陪 */
   async acceptPartnerInvite(sessionId: string, partnerId: string) {
     const session = await this.prisma.orderSession.findUnique({
@@ -2491,9 +2522,7 @@ export class OrdersService implements OnModuleInit {
       data: { startedAt: new Date(), coCompanionId: session.coCompanionId || partnerId },
     });
 
-    if (session.companionId) {
-      await this.prisma.companion.update({ where: { id: session.companionId }, data: { status: 'BUSY' } }).catch(() => {});
-    }
+    await this.markCompanionsBusy([session.companionId]);
     // 搭档若在娱乐中接单：先结束娱乐计费并返回本次消费金额。
     let entertainmentFee: number | null = null;
     const partner = await this.prisma.companion.findUnique({
@@ -2532,7 +2561,7 @@ export class OrdersService implements OnModuleInit {
         });
       }
     }
-    await this.prisma.companion.update({ where: { id: partnerId }, data: { status: 'BUSY' } }).catch(() => {});
+    await this.markCompanionsBusy([partnerId]);
 
     if (session.companionId) {
       this.wsGateway.pushToCompanion(session.companionId, 'order:partner_accepted', {
@@ -2718,12 +2747,7 @@ export class OrdersService implements OnModuleInit {
             .catch(() => {});
         }
       }
-      if (s.companionId) {
-        await this.prisma.companion.update({ where: { id: s.companionId }, data: { status: 'BUSY' } }).catch(() => {});
-      }
-      if (s.coCompanionId) {
-        await this.prisma.companion.update({ where: { id: s.coCompanionId }, data: { status: 'BUSY' } }).catch(() => {});
-      }
+      await this.markCompanionsBusy([s.companionId, s.coCompanionId]);
       if (isHandoff && s.companionId) {
         this.wsGateway.pushToCompanion(s.companionId, 'order:service_handoff', {
           sessionId: id,

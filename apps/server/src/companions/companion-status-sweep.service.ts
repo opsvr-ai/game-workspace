@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompanionsService } from './companions.service';
+import { WsGateway } from '../ws/ws.gateway';
 
 /**
  * 定时清理「假在线」：客户端掉线/睡眠后如果没有及时上报断开，
@@ -12,6 +13,7 @@ export class CompanionStatusSweepService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly companionsService: CompanionsService,
+    private readonly wsGateway: WsGateway,
   ) {}
 
   onModuleInit(): void {
@@ -50,6 +52,9 @@ export class CompanionStatusSweepService implements OnModuleInit {
         where: { id: c.id },
         data: { status: nextStatus },
       });
+      // 改了状态就得推黑名单 —— 客户端只认 blacklist:update 里的 status（老板 2026-10-03：
+      // 服务端自己动状态却不通知，「接单中」的客户端于是继续按旧状态挂/摘杀进程的名单）。
+      await this.wsGateway.refreshCompanionBlacklist(c.id).catch(() => {});
     }
   }
 }
