@@ -499,14 +499,26 @@ export class ChatService {
 
     // 对方读到哪一条了：前端据此在「我发的消息」下面标「已阅读 / 未读」。
     // 群聊没有单条已读的概念，这里只处理 1v1。
+    // myReadSeq = 我自己进这个会话之前读到哪一条（未读起点）：前端拿它画
+    // 「以下为新消息」分隔线和顶部「N 条未读」跳转条（老板 2026-10-02）。
     let peerReadSeq: number | undefined;
+    let myReadSeq: number | undefined;
     if (viewerId) {
       const room = await this.prisma.chatRoom.findUnique({
         where: { id: roomId },
         select: { participantA: true, participantB: true, isGroup: true, aReadSeq: true, bReadSeq: true },
       });
-      if (room && !room.isGroup) {
-        peerReadSeq = room.participantA === viewerId ? room.bReadSeq : room.aReadSeq;
+      if (room) {
+        if (room.isGroup) {
+          const member = await this.prisma.chatRoomMember.findUnique({
+            where: { roomId_userId: { roomId, userId: viewerId } },
+            select: { readSeq: true },
+          });
+          myReadSeq = member?.readSeq ?? 0;
+        } else {
+          myReadSeq = room.participantA === viewerId ? room.aReadSeq : room.bReadSeq;
+          peerReadSeq = room.participantA === viewerId ? room.bReadSeq : room.aReadSeq;
+        }
       }
     }
 
@@ -514,6 +526,7 @@ export class ChatService {
       messages: result.map((m) => this.serializeMessage(m)),
       hasMore,
       peerReadSeq,
+      myReadSeq,
     };
   }
 

@@ -51,6 +51,13 @@ export interface ConversationState {
    * 用来在「我发的消息」下面标「已阅读 / 未读」。
    */
   peerReadSeq?: number;
+  /**
+   * 这一次**打开会话时**我自己读到哪一条（服务端 `myReadSeq` 的快照）。
+   * 比它大的就是这次的未读：前端据此画「以下为新消息」分隔线，
+   * 并在聊天框顶部挂一个「N 条未读」按钮，点一下跳到第一条未读（老板 2026-10-02）。
+   * 每次打开会话重新取；打开时会立刻把会话标为已读，所以这个值必须单独留一份。
+   */
+  openedReadSeq?: number;
 }
 
 interface ChatState {
@@ -84,6 +91,8 @@ interface ChatState {
   markRead: (convId: string) => void;
   /** 记录对方读到哪一条（服务端返回或 WebSocket 推来） */
   setPeerReadSeq: (convId: string, seq: number) => void;
+  /** 记录「打开这个会话时我读到哪一条」（未读起点，用于跳未读） */
+  setOpenedReadSeq: (convId: string, seq: number) => void;
   setMyUserId: (id: string) => void;
   setSyncing: (v: boolean) => void;
   reset: () => void;
@@ -245,6 +254,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           groupName: (item as any).groupName,
           groupAvatar: (item as any).groupAvatar,
           lastKnownSeq: existing?.lastKnownSeq,
+          // 会话列表刷新会整个重建这个对象，进会话时记下的未读起点要带过去，
+          // 否则「跳未读」的按钮会在列表轮询后突然消失。
+          openedReadSeq: existing?.openedReadSeq,
         };
 
         if (!orderSet.has(item.id)) {
@@ -364,6 +376,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // 对方读到哪一条：用来渲染「已阅读 / 未读」
       const peerReadSeq = data?.data?.peerReadSeq;
       if (typeof peerReadSeq === 'number') get().setPeerReadSeq(convId, peerReadSeq);
+      // 我自己进来之前读到哪一条：这是这次未读的起点（下面是 markRead，之后再取就没了）
+      const myReadSeq = data?.data?.myReadSeq;
+      if (typeof myReadSeq === 'number') get().setOpenedReadSeq(convId, myReadSeq);
     } catch {}
 
     // Mark read
@@ -406,6 +421,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if ((conv.peerReadSeq ?? -1) >= seq) return s;
       return {
         conversations: { ...s.conversations, [convId]: { ...conv, peerReadSeq: seq } },
+      };
+    }),
+
+  setOpenedReadSeq: (convId: string, seq: number) =>
+    set((s) => {
+      const conv = s.conversations[convId];
+      if (!conv || !Number.isFinite(seq)) return s;
+      return {
+        conversations: { ...s.conversations, [convId]: { ...conv, openedReadSeq: seq } },
       };
     }),
 

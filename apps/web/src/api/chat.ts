@@ -182,7 +182,8 @@ export const chatApi = {
 
   getMessages(conversationId: string, before?: string, limit = 50) {
     // peerReadSeq = 对方读到哪一条（用于「已阅读 / 未读」回执）
-    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean; peerReadSeq?: number } }>(
+    // myReadSeq   = 我自己进来之前读到哪一条（未读起点，用于「跳未读」）
+    return http.get<{ data: { messages: ServerMessage[]; hasMore: boolean; peerReadSeq?: number; myReadSeq?: number } }>(
       `/chat/conversations/${conversationId}/messages`,
       { params: { before, limit } },
     );

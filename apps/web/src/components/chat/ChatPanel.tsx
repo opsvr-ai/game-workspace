@@ -251,6 +251,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         onBroadcast={canBroadcast ? () => setBroadcastOpen(true) : undefined}
       />
       <MessageList
+        conversationId={roomId}
+        unreadFromSeq={conv?.openedReadSeq}
         messages={messages}
         myUserId={user?.id || null}
         participantName={participantName}

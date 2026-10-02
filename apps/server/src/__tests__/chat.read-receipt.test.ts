@@ -90,16 +90,18 @@ describe("消息已读回执", () => {
     };
     const service = serviceWith(prisma);
 
-    // user-a 看会话：对方（user-b）读到 88
+    // user-a 看会话：对方（user-b）读到 88，我自己读到 3
     const asA = await service.getRoomMessages("room-1", undefined, undefined, 50, "user-a");
     expect(asA.peerReadSeq).toBe(88);
+    expect(asA.myReadSeq).toBe(3);
 
-    // user-b 看会话：对方（user-a）读到 3
+    // user-b 看会话：对方（user-a）读到 3，我自己读到 88
     const asB = await service.getRoomMessages("room-1", undefined, undefined, 50, "user-b");
     expect(asB.peerReadSeq).toBe(3);
+    expect(asB.myReadSeq).toBe(88);
   });
 
-  it("群聊不给 peerReadSeq（没有单条已读概念）", async () => {
+  it("群聊不给 peerReadSeq（没有单条已读概念），但带上自己读到哪一条（顶部「跳未读」要用）", async () => {
     const prisma = {
       chatMessageV3: { findMany: vi.fn().mockResolvedValue([]) },
       chatRoom: {
@@ -111,9 +113,30 @@ describe("消息已读回执", () => {
           bReadSeq: 88,
         }),
       },
+      // 群聊的「我读到哪」记在成员表上（markRead 写的就是它）
+      chatRoomMember: { findUnique: vi.fn().mockResolvedValue({ readSeq: 5 }) },
     };
     const result = await serviceWith(prisma).getRoomMessages("room-g", undefined, undefined, 50, "user-a");
     expect(result.peerReadSeq).toBeUndefined();
+    expect(result.myReadSeq).toBe(5);
+  });
+
+  it("群聊还没进过（成员表没记录）时，我读到 0 —— 整段都算未读", async () => {
+    const prisma = {
+      chatMessageV3: { findMany: vi.fn().mockResolvedValue([]) },
+      chatRoom: {
+        findUnique: vi.fn().mockResolvedValue({
+          participantA: "user-a",
+          participantB: "user-b",
+          isGroup: true,
+          aReadSeq: 0,
+          bReadSeq: 0,
+        }),
+      },
+      chatRoomMember: { findUnique: vi.fn().mockResolvedValue(null) },
+    };
+    const result = await serviceWith(prisma).getRoomMessages("room-g", undefined, undefined, 50, "user-z");
+    expect(result.myReadSeq).toBe(0);
   });
 
   it("对方一读就推 chat:read 给发消息的人", () => {
