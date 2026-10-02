@@ -59,6 +59,18 @@ export const ordersApi = {
   acceptPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-accept`),
   rejectPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-reject`),
   broadcastPartnerInvite: (sessionId: string) => http.post(`/sessions/${sessionId}/partner-broadcast`),
+  /**
+   * 转让订单（老板 2026-10-03：要对方同意才过得来）。
+   * 这里只是「发出申请」，被转让方在陪玩端点「同意」之后才真正换手。
+   */
+  requestTransfer: (id: string, data: { toCompanionId: string; reason?: string }) =>
+    http.post(`/orders/${id}/transfer`, data),
+  /** 我这个陪玩名下待处理的转让申请：incoming（要我同意）/ outgoing（我发起的，能撤回） */
+  myTransferRequests: () => http.get('/orders/transfer-requests/mine'),
+  acceptTransfer: (requestId: string) => http.post(`/orders/transfer-requests/${requestId}/accept`),
+  rejectTransfer: (requestId: string, reason?: string) =>
+    http.post(`/orders/transfer-requests/${requestId}/reject`, { reason }),
+  cancelTransfer: (requestId: string) => http.post(`/orders/transfer-requests/${requestId}/cancel`),
   startSession: (sessionId: string, claims?: { claimedMode?: string; claimedPrice?: number; duration?: number; transferScreenshotUrl?: string; useDeposit?: boolean }) =>
     http.put(`/sessions/${sessionId}/start`, claims || {}),
   pauseSession: (sessionId: string) => http.put(`/sessions/${sessionId}/pause`),

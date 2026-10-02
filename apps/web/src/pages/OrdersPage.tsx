@@ -135,11 +135,14 @@ const OrdersPage: React.FC = () => {
   // 「线上→线下流转」的单提前放给本店线下陪玩（点状态格小字，走二次确认）
   const [releaseOrder, setReleaseOrder] = useState<any>(null);
   const [releaseSubmitting, setReleaseSubmitting] = useState(false);
-  // 陪玩转让订单（老板 2026-09-29）
+  // 陪玩转让订单（老板 2026-09-29）；2026-10-03 起改成「发申请」，要对方同意才换手
   const [transferOrder, setTransferOrder] = useState<any>(null);
   const [transferToId, setTransferToId] = useState<string>('');
   const [transferReason, setTransferReason] = useState('');
   const [transferSubmitting, setTransferSubmitting] = useState(false);
+  // 我发起的、还没被同意的转让申请（按订单 id 索引）：这些单的「转让」按钮换成「撤回」，
+  // 鼠标停上去看「在等谁同意」（老板 2026-10-03：「需要被转让方同意才能过来」）。
+  const [outTransferMap, setOutTransferMap] = useState<Record<string, any>>({});
   // 列宽按窗口宽度现算（老板 2026-09-29）：窗口宽出来的部分给客户信息列，操作列定宽
   const [tableWrapRef, tableAvailWidth] = useTableAvailWidth();
   const fittedColumns = fitOrderColumnWidths(tableAvailWidth);
@@ -258,6 +261,27 @@ const OrdersPage: React.FC = () => {
     window.addEventListener('chunlv:order-pool-updated', refreshOrders);
     return () => window.removeEventListener('chunlv:order-pool-updated', refreshOrders);
   }, [fetch]);
+
+  // 我发起的转让申请：刷新 / 重连后把「等待对方同意」的状态补回来（WS 只在发生时推一次）。
+  useEffect(() => {
+    if (!isCompanion || !user?.companionId) return;
+    const load = () => {
+      ordersApi
+        .myTransferRequests()
+        .then(({ data }: any) => {
+          const list = data?.data?.outgoing || [];
+          const map: Record<string, any> = {};
+          list.forEach((r: any) => {
+            map[r.orderId] = r;
+          });
+          setOutTransferMap(map);
+        })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener('chunlv:transfer-updated', load);
+    return () => window.removeEventListener('chunlv:transfer-updated', load);
+  }, [isCompanion, user?.companionId]);
 
   // Companion-only action buttons
   const renderCompanionActions = (r: any) => {
@@ -675,6 +699,16 @@ const OrdersPage: React.FC = () => {
             <Button size="small" style={{ width: 36 }} onClick={() => setEditingOrder(r)}>
               修改
             </Button>
+          ) : outTransferMap[r.id] ? (
+            // 已经发出转让申请、在等对方同意（老板 2026-10-03）：这一格换成「撤回」，
+            // 鼠标停上去看「在等谁同意」，免得陪玩以为点了转让就转过去了。
+            <Tooltip
+              title={`已发出转让申请，等 ${outTransferMap[r.id].toName || '对方'} 点「同意」才转过去；点这里撤回`}
+            >
+              <Button size="small" danger style={{ width: 36 }} onClick={() => cancelTransfer(r)}>
+                撤回
+              </Button>
+            </Tooltip>
           ) : canTransfer(r) ? (
             // 陪玩的「转让」正好占这一格：这格在陪玩行本来是空的，放进来不撑宽操作列
             // （老板 2026-09-29：谁抢的就是谁的，换手只能本人点这里）
@@ -752,17 +786,32 @@ const OrdersPage: React.FC = () => {
     }
     setTransferSubmitting(true);
     try {
-      await http.post(`/orders/${transferOrder.id}/transfer`, {
+      const { data } = await ordersApi.requestTransfer(transferOrder.id, {
         toCompanionId: transferToId,
         reason: transferReason.trim() || undefined,
       });
-      message.success('已转让；这张单会留在你的接单记录里并标明转给了谁');
+      const toName = data?.data?.toName || '对方';
+      message.success(`已发出转让申请，等 ${toName} 点「同意」之后才真正转过去`);
       setTransferOrder(null);
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
       fetch();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '转让失败'));
     } finally {
       setTransferSubmitting(false);
+    }
+  };
+
+  /** 撤回还没被同意的转让申请（老板 2026-10-03）。 */
+  const cancelTransfer = async (r: any) => {
+    const req = outTransferMap[r.id];
+    if (!req) return;
+    try {
+      await ordersApi.cancelTransfer(req.requestId);
+      message.success('已撤回转让申请，这张单还是你的');
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '撤回失败'));
     }
   };
 
@@ -1057,14 +1106,15 @@ const OrdersPage: React.FC = () => {
           onOk={submitTransfer}
           confirmLoading={transferSubmitting}
           onCancel={() => setTransferOrder(null)}
-          okText="确认转让"
+          okText="发出转让申请"
           cancelText="取消"
           destroyOnClose
         >
           <div style={{ marginBottom: 12 }}>
             <Text type="secondary">
-              转让后这张单归新陪玩接手；你自己的接单记录里仍然留着，会标明「什么时候转让给了谁」，
-              客户管理里也看得到。已经开始服务的单不能转让，请联系客服。
+              发出申请后要等对方点「同意」才算转过去（老板 2026-10-03：不过对方这关不算数）；他同意后
+              这张单归他接手，你的接单记录里仍然留着并标明「什么时候转让给了谁」，客户管理里也看得到。
+              已经开始服务的单不能转让，请联系客服；对方 30 分钟没确认会自动作废。
             </Text>
           </div>
           <div style={{ marginBottom: 12 }}>

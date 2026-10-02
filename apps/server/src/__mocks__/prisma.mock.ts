@@ -33,6 +33,7 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       delete: vi.fn(),
     },
     orderSession: {
@@ -176,8 +177,28 @@ export function createMockPrisma() {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn().mockResolvedValue(0),
     },
+    // 订单转让（留痕 + 申请，老板 2026-10-03：转让要经被转让方同意）
+    orderTransfer: {
+      create: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    orderTransferRequest: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      count: vi.fn().mockResolvedValue(0),
+    },
     $queryRaw: vi.fn(),
-    $transaction: vi.fn((fn: (...a: unknown[]) => unknown) => fn(mock)),
+    // 两种用法都要支持：回调式 `$transaction(async (tx) => ...)` 和数组式 `$transaction([op1, op2])`
+    // （订单转让走的是数组式，两个 op 在同一事务里换手 + 落留痕）。
+    $transaction: vi.fn((arg: any) => {
+      if (typeof arg === 'function') return arg(mock);
+      if (Array.isArray(arg)) return Promise.all(arg);
+      return arg;
+    }),
   };
   return mock;
 }

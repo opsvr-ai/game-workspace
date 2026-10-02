@@ -1011,6 +1011,11 @@ const AppLayout: React.FC = () => {
   const [partnerInvites, setPartnerInvites] = React.useState<any[]>([]);
   const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
   const [partnerInviteModalOpen, setPartnerInviteModalOpen] = React.useState(false);
+  // 待我确认的订单转让申请（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）：
+  // 和搭档邀请一样，自动弹窗 + 右上角铃铛各留一份，弹窗错过了还能从铃铛里点同意 / 拒绝。
+  const [transferReqs, setTransferReqs] = React.useState<any[]>([]);
+  const [transferReqOpen, setTransferReqOpen] = React.useState(false);
+  const [transferReqModalOpen, setTransferReqModalOpen] = React.useState(false);
 
   // 点 Windows 新单横幅 → 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
   // 不直接抢：正在打游戏的人万一误点了，会把不该报的单抢到手里。
@@ -1043,6 +1048,81 @@ const AppLayout: React.FC = () => {
   const removePartnerInvite = React.useCallback((sessionId: string) => {
     setPartnerInvites((prev) => prev.filter((p) => p.sessionId !== sessionId));
   }, []);
+
+  const addTransferReq = React.useCallback((req: any) => {
+    setTransferReqs((prev) => {
+      const key = req?.requestId || req?.id;
+      if (!key || prev.some((p) => (p.requestId || p.id) === key)) return prev;
+      return [...prev, req];
+    });
+  }, []);
+
+  const removeTransferReq = React.useCallback((requestId: string) => {
+    setTransferReqs((prev) => prev.filter((p) => (p.requestId || p.id) !== requestId));
+  }, []);
+
+  const acceptTransferReq = React.useCallback(
+    async (req: any) => {
+      const requestId = req?.requestId || req?.id;
+      if (!requestId) return;
+      try {
+        await ordersApi.acceptTransfer(requestId);
+        message.success('已同意转让，这张单现在归你了');
+        removeTransferReq(requestId);
+        window.dispatchEvent(new Event('chunlv:transfer-updated'));
+        window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || '同意失败');
+      }
+    },
+    [removeTransferReq],
+  );
+
+  const rejectTransferReq = React.useCallback(
+    async (req: any) => {
+      const requestId = req?.requestId || req?.id;
+      if (!requestId) return;
+      try {
+        await ordersApi.rejectTransfer(requestId);
+        message.success('已拒绝，这张单还在对方名下');
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || '拒绝失败');
+      }
+      removeTransferReq(requestId);
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+    },
+    [removeTransferReq],
+  );
+
+  // 转让申请有 30 分钟有效期：过期自己从铃铛里消失。
+  useEffect(() => {
+    const t = setInterval(() => {
+      setTransferReqs((prev) => {
+        const now = Date.now();
+        const next = prev.filter((p) => !p.expiresAt || p.expiresAt > now);
+        return next.length === prev.length ? prev : next;
+      });
+    }, 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  // 刷新 / 断线重连后把还没处理的转让申请补回来（WS 只在发生时推一次）。
+  useEffect(() => {
+    if (!user?.companionId) return;
+    const load = () => {
+      ordersApi
+        .myTransferRequests()
+        .then((res: any) => {
+          const incoming = res?.data?.data?.incoming || [];
+          setTransferReqs(incoming.filter((r: any) => r.valid !== false));
+        })
+        .catch(() => {});
+    };
+    load();
+    const onUpdated = () => load();
+    window.addEventListener('chunlv:transfer-updated', onUpdated);
+    return () => window.removeEventListener('chunlv:transfer-updated', onUpdated);
+  }, [user?.companionId]);
 
   // 自动清理已过期的搭档邀请，避免铃铛里残留。
   useEffect(() => {
@@ -1116,6 +1196,69 @@ const AppLayout: React.FC = () => {
         /* 声音播不出来不影响提醒 */
       }
       window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+    },
+    onTransferRequested: (data: any) => {
+      // 有人想把单转给我：先问我要不要（老板 2026-10-03，转让必须经被转让方同意）。
+      if (!user?.companionId || !data?.requestId) return;
+      const fromName = data.fromName || '同事';
+      const expiresAt = Date.now() + (Number(data.expiresInSec) || 1800) * 1000;
+      addTransferReq({ ...data, fromName, expiresAt });
+      setTransferReqModalOpen(true);
+      const desc = `${data.orderCode || ''} ${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)}${
+        data.reason ? ` · ${data.reason}` : ''
+      }`;
+      recordNotice({
+        kind: 'invite',
+        icon: '🔁',
+        title: `🔁 ${fromName} 想把订单转给你`,
+        desc,
+        dedupeKey: `transfer-req:${data.requestId}`,
+        dedupeMs: 60_000,
+      });
+      showSystemNotification('蠢驴电竞 · 订单转让', `${fromName} 想把「${data.gameName || '订单'}」转给你，去陪玩端点同意`);
+      playNotificationSound();
+    },
+    onTransferAccepted: (data: any) => {
+      notifyNotice({
+        kind: 'order',
+        icon: '✅',
+        title: '✅ 转让已被同意',
+        desc: `${data?.toName || '对方'} 同意了，这张单已经转到他名下`,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'success',
+        duration: 5,
+      });
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+    },
+    onTransferRejected: (data: any) => {
+      notifyNotice({
+        kind: 'order',
+        icon: '🙅',
+        title: '🙅 转让被拒绝',
+        desc: `${data?.byName || '对方'} 没接这张单${data?.reason ? `（${data.reason}）` : ''}，单还在你名下`,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'warning',
+        duration: 6,
+      });
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+    },
+    onTransferCancelled: (data: any) => {
+      // 两条路都走这里：对方撤回了申请，或我重新发起把旧申请顶掉了。
+      if (data?.requestId) removeTransferReq(data.requestId);
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+    },
+    onTransferExpired: (data: any) => {
+      if (data?.requestId) removeTransferReq(data.requestId);
+      notifyNotice({
+        kind: 'order',
+        icon: '⏰',
+        title: '⏰ 转让申请已作废',
+        desc: data?.message || '这条转让申请长时间没人确认，已自动作废',
+        toast: 'info',
+        duration: 5,
+      });
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
     },
     onFeedbackChase: (data: any) => {
       // 发单那边的客服在催这一单的结果（老板 2026-09-30：「待反馈……看得见、催得动」）。
@@ -1977,6 +2120,68 @@ const AppLayout: React.FC = () => {
                   </Badge>
                 </Popover>
               )}
+              {user?.role === 'COMPANION' && (
+                <Popover
+                  open={transferReqOpen}
+                  onOpenChange={setTransferReqOpen}
+                  trigger="click"
+                  placement="bottomRight"
+                  title="待我确认的转让"
+                  content={
+                    <div style={{ width: 320 }}>
+                      {transferReqs.length === 0 ? (
+                        <Text type="secondary">暂无待确认的转让</Text>
+                      ) : (
+                        transferReqs.map((p) => (
+                          <div key={p.requestId || p.id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                            <div>
+                              <Text strong>🔁 {p.fromName} 想把订单转给你</Text>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#666' }}>
+                              {p.orderCode ? `${p.orderCode} · ` : ''}
+                              {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)}
+                              {p.reason ? ` · ${p.reason}` : ''}
+                            </div>
+                            <div style={{ margin: '6px 0' }}>
+                              <InviteCountdown
+                                seconds={Math.max(0, Math.ceil(((p.expiresAt || 0) - Date.now()) / 1000))}
+                              />
+                            </div>
+                            <Space size={8}>
+                              <Button
+                                size="small"
+                                type="primary"
+                                onClick={async () => {
+                                  await acceptTransferReq(p);
+                                  setTransferReqOpen(false);
+                                }}
+                              >
+                                同意
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={async () => {
+                                  await rejectTransferReq(p);
+                                }}
+                              >
+                                拒绝
+                              </Button>
+                            </Space>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  }
+                >
+                  <Badge count={transferReqs.length} overflowCount={99} size="default" offset={[-2, 8]}>
+                    <Button
+                      type="text"
+                      icon={<span style={{ fontSize: 18 }}>🔁</span>}
+                      style={{ color: transferReqs.length > 0 ? '#C2410C' : commander.textSecondary }}
+                    />
+                  </Badge>
+                </Popover>
+              )}
               {user && (
                 <>
                   <div
@@ -2197,6 +2402,61 @@ const AppLayout: React.FC = () => {
               </div>
             );
           })()}
+      </Modal>
+
+      {/* 有人想把单转给我：不点同意就不算转过来（老板 2026-10-03：「需要被转让方同意才能过来」） */}
+      <Modal
+        open={transferReqModalOpen && transferReqs.length > 0}
+        title="🔁 订单转让"
+        footer={null}
+        closable={false}
+        maskClosable={false}
+        width={380}
+        onCancel={() => setTransferReqModalOpen(false)}
+      >
+        {transferReqs[0] && (
+          <div>
+            <div>
+              <Text strong>{transferReqs[0].fromName} 想把这张单转给你</Text>
+            </div>
+            <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
+              {transferReqs[0].orderCode ? `${transferReqs[0].orderCode} · ` : ''}
+              {transferReqs[0].gameName || '订单'} · ¥{Number(transferReqs[0].amount || 0).toFixed(1)}
+            </div>
+            {transferReqs[0].reason && (
+              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>原因：{transferReqs[0].reason}</div>
+            )}
+            <div style={{ margin: '10px 0' }}>
+              <InviteCountdown
+                seconds={Math.max(0, Math.ceil(((transferReqs[0].expiresAt || 0) - Date.now()) / 1000))}
+              />
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              同意后这张单就归你（客户的微信要重新加）；不同意就一直留在对方名下，不影响你现在的单。
+            </Text>
+            <div style={{ marginTop: 12 }}>
+              <Space>
+                <Button
+                  type="primary"
+                  onClick={async () => {
+                    await acceptTransferReq(transferReqs[0]);
+                    setTransferReqModalOpen(false);
+                  }}
+                >
+                  同意接手
+                </Button>
+                <Button
+                  onClick={async () => {
+                    await rejectTransferReq(transferReqs[0]);
+                    setTransferReqModalOpen(false);
+                  }}
+                >
+                  拒绝
+                </Button>
+              </Space>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Urgent order popup + solo grab success */}

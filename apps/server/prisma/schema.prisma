@@ -357,6 +357,31 @@ model OrderTransfer {
   @@index([toCompanionId])
 }
 
+/// 订单转让申请（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）。
+///
+/// 转让不再是「点一下就换手」：持单陪玩先发起申请（PENDING），被转让方在自己的陪玩端
+/// 看到弹窗 / 铃铛，**同意后**才真正换手（那时才写 OrderTransfer 留痕，见 OrdersService.acceptTransferRequest）；
+/// 拒绝 / 撤回 / 超时则作废，订单不动。
+///
+/// 这张表只放「申请」，OrderTransfer 仍然是唯一的转让留痕表 —— 所以接单记录、客户管理、
+/// 订单管理「转让记录」列的读取口径完全不用改。
+model OrderTransferRequest {
+  id              String    @id @default(uuid())
+  orderId         String
+  fromCompanionId String
+  toCompanionId   String
+  reason          String?
+  /// PENDING（等对方同意）| PROCESSING（正在换手，短暂中间态）| ACCEPTED | REJECTED | CANCELLED | EXPIRED
+  status          String    @default("PENDING")
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+
+  @@index([orderId])
+  @@index([toCompanionId, status])
+  @@index([fromCompanionId, status])
+  @@index([status, createdAt])
+}
+
 model Customer {
   id                  String    @id @default(uuid())
   studioId            String

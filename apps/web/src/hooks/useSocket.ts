@@ -11,6 +11,14 @@ interface UseSocketOptions {
   onOrderUrgent?: (data: any) => void;
   /** 有人把订单转让给我（老板 2026-09-29：是谁抢的就是谁的，换手只能靠转让） */
   onOrderTransferred?: (data: any) => void;
+  /** 有人想把订单转让给我，要我同意（老板 2026-10-03：转让要经被转让方同意） */
+  onTransferRequested?: (data: any) => void;
+  /** 我发起的转让，对方同意了（这时单才真正到他名下） */
+  onTransferAccepted?: (data: any) => void;
+  /** 我发起的转让，对方拒绝 / 撤回 / 超时作废 */
+  onTransferRejected?: (data: any) => void;
+  onTransferCancelled?: (data: any) => void;
+  onTransferExpired?: (data: any) => void;
   /** 接单工作室被催结果（老板 2026-09-30：待反馈的单，发单客服可以「催一下」） */
   onFeedbackChase?: (data: any) => void;
   onScheduledReminder?: (data: any) => void;
@@ -248,6 +256,26 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:transferred', (data: any) => {
       optsRef.current.onOrderTransferred?.(data);
+    });
+
+    socket.on('order:transfer_requested', (data: any) => {
+      optsRef.current.onTransferRequested?.(data);
+    });
+
+    socket.on('order:transfer_accepted', (data: any) => {
+      optsRef.current.onTransferAccepted?.(data);
+    });
+
+    socket.on('order:transfer_rejected', (data: any) => {
+      optsRef.current.onTransferRejected?.(data);
+    });
+
+    socket.on('order:transfer_cancelled', (data: any) => {
+      optsRef.current.onTransferCancelled?.(data);
+    });
+
+    socket.on('order:transfer_expired', (data: any) => {
+      optsRef.current.onTransferExpired?.(data);
     });
 
     socket.on('order:feedback_chase', (data: any) => {

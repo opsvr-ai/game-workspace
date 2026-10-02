@@ -225,11 +225,12 @@ export class OrdersController {
   }
 
   /**
-   * 陪玩转让订单（老板 2026-09-29）。
+   * 陪玩发起转让申请（老板 2026-09-29 引入转让、2026-10-03 改成「要对方同意」）。
    *
    * 「抢单超时自动回收」已整条删除 —— 是谁抢的就是谁的；换手只剩这条路：
-   * 接单陪玩自己把单转给同工作室的另一个人。转让留痕会写进 OrderTransfer，
-   * 转出方的接单记录里这张单不消失（标成「已于某时转让给某人」），客户管理同步显示。
+   * 接单陪玩自己把单转给同工作室的另一个人。但**不是点一下就换手**：这里只发一条申请，
+   * 被转让方在陪玩端点「同意」才真正换手（那时才写 OrderTransfer 留痕，转出方的接单记录
+   * 里这张单不消失、标成「已于某时转让给某人」，客户管理同步显示）。
    */
   @Post('orders/:id/transfer')
   @Roles(UserRole.COMPANION)
@@ -239,14 +240,44 @@ export class OrdersController {
     @Body('reason') reason: string,
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.ordersService.transferOrder(
-      id,
-      req.user.companionId,
-      toCompanionId,
-      reason,
-      req.user.id,
-    );
-    return { code: 200, message: '已转让', data };
+    const data = await this.ordersService.requestTransfer(id, req.user.companionId, toCompanionId, reason);
+    return { code: 200, message: '已发出转让申请，等对方同意', data };
+  }
+
+  /** 我这个陪玩名下待处理的转让申请：incoming（要我同意）/ outgoing（我发起的，能撤回）。 */
+  @Get('orders/transfer-requests/mine')
+  @Roles(UserRole.COMPANION)
+  async myTransferRequests(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listMyTransferRequests(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 被转让方同意：这时才真正换手。 */
+  @Post('orders/transfer-requests/:id/accept')
+  @Roles(UserRole.COMPANION)
+  async acceptTransferRequest(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.acceptTransferRequest(id, req.user.companionId);
+    return { code: 200, message: '已同意转让', data };
+  }
+
+  /** 被转让方拒绝：申请作废，订单不动。 */
+  @Post('orders/transfer-requests/:id/reject')
+  @Roles(UserRole.COMPANION)
+  async rejectTransferRequest(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.rejectTransferRequest(id, req.user.companionId, reason);
+    return { code: 200, message: '已拒绝转让', data };
+  }
+
+  /** 发起人撤回还没被确认的转让申请。 */
+  @Post('orders/transfer-requests/:id/cancel')
+  @Roles(UserRole.COMPANION)
+  async cancelTransferRequest(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.cancelTransferRequest(id, req.user.companionId);
+    return { code: 200, message: '已撤回转让申请', data };
   }
 
   /** 「线上→线下流转」的单：放给本店线下陪玩（老板 2026-10-01）。 */
