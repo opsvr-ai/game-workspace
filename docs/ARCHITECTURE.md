@@ -23,7 +23,10 @@
   `findAll`（列表）带 `transfers`，`findOne`（`GET /api/orders/:id`，订单详情 / 客户管理跳单）没带 ——
   于是「谁什么时候转给谁」只在列表和客户管理看得到，详情页看不到。现在 `findOne` 用与 `findAll` 相同的
   `select` 补上 `transfers`；网页侧 `CreateOrderModal`（老板在订单管理点整行进的是编辑弹窗）顶部渲染
-  `TransferNote`。WS / 表结构都没动。
+  `TransferNote`。网页侧另外在「订单管理」列表给转让留痕**单独开了一列**（管理端专属，定宽 64px、不参与补宽、
+  陪玩端不插）：`orderColumns.tsx` 在「主陪 · 副陪」之后插 `key: 'transfer'`，红字「已转让（N）」+ Tooltip
+  列「什么时候谁转给谁」；`datasetColumns.ts` 的 `FIELD_WIDTH.transfer = 64`、`ORDER_TABLE_KEYS` 里排在
+  `studio` 与 `createdAt` 之间（基准宽 1300 → 1364px），`ORDER_COLUMN_MAX_WIDTH` 故意不含它（宽度恒定）。WS / 表结构都没动。
 
 - **更新铺开 + 黑名单杀进程的两处客户端加固（2026-10-03，陪玩端 `1.0.20261006` + 服务端 `AgentService`）**：
   ① **更新名额预约**：`AgentController.pumpUpdateQueue()` 叫号成功后调 `AgentService.reserveUpdateSlot()`，把名额临时
