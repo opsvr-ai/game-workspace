@@ -5,6 +5,17 @@
 
 ## 新增功能
 
+- **「杀进程」按人特批（2026-10-02）**: 判定从「只看本店开关」扩成两层合成 —— `common/blacklist-switch.ts` 新增
+  `resolveCompanionBlacklistEnabled(prisma, studioId, companionId)` 与 `resolveCompanionOverrides()`：
+  `StudioConfig.blacklist.companion_overrides`（`{ [companionId]: true|false }`）里**没有**这个陪玩时就回到原来的
+  本店开关 `blacklist.enabled`（老行为一个字节不变），有就按本人值（本店关着也能单独开、本店开着也能单独关）。
+  接入点三处：`ProcessBlacklistService.getEffectiveBlacklist`（REST 兜底名单）、
+  `WsGateway.sendBlacklistUpdate`（唯一的 WS 出口，配 `isCompanionBlacklistEnabled()` + 5 秒 `companionOverridesCache`）、
+  管理端 `GET|PUT /processes/blacklist/companion-switches`（PUT 之后 `invalidateBlacklistSwitchCache()` +
+  `pushCurrentBlacklist(companionId, studioId)`，只重推这一个人）。特批表是**分店**键（`StudioConfig`，默认空对象）：
+  老板 / 店长可写（老板可指定 studioId，店长 / 客服强制本店），客服只读；`settings.controller` 里
+  「改完当场重推」的判定把 `blacklist.companion_overrides` 与 `blacklist.enabled` 一起算。
+
 - **「无人接」判定收口到一处、并排除客服已接手的单（2026-10-02）**: 状态列的红字「无人接」原来在两处各写一遍
   （`apps/web/src/components/orderColumns.tsx` 的行内条件 + `apps/web/src/constants/orderFields.ts` 的
   `isOrderStuck()`），口径是 `customFields.poolExpired === true && !companionId` —— 这是**抢单池**的结论，
