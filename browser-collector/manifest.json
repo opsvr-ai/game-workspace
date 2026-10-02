@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "陪玩对标笔记采集器",
+  "version": "1.0.0",
+  "description": "在小红书笔记页手动采集对标笔记，不自动登录、不自动发布。",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["*://*.xiaohongshu.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "采集当前笔记"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.xiaohongshu.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
