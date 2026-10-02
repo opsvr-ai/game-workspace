@@ -5,6 +5,17 @@
 
 ## 新增功能
 
+- **采集插件「装不上」的排查结论 + 界面兜底（2026-10-03，网页 v874）**: 老板报「邵泽慧那台选完文件夹什么都没有」。
+  排查路径与结论（**只读**，临时配置目录，不动用户浏览器配置、不动业务数据）：① 包没问题 ——
+  `/uploads/xhs-note-collector.zip` 解压 4 文件、`manifest.json` 在根，本机 Chromium `--load-extension` 装得上；
+  ② 她那台 360 极速浏览器 X 的真实内核 = **Chromium 132**（用 `--remote-debugging-port` 的 `/json/version` 读出来，
+  360 会把 `chrome.dll` 的文件版本号改写成自家 23.1.1298.64，别拿文件版本号当内核号）；
+  ③ 她的 360 配置里 10 条插件记录全是商店 / 内置插件，`extensions.settings` 无桌面路径 —— 自装插件从未登记成功；
+  ④ 对照实验：同一份插件用 Chrome 124 与 360 极速 X 各装一次（非 headless，headless=new 会吞掉 `--load-extension`），
+  两个都登记成功（`path` = 桌面文件夹）→ 问题在界面那一步，不在内核 / 不在包。
+  界面侧改动只在前端 `CollectorPluginHint.tsx`：`BrowserHint` 新增可选 `blocker`，360 极速 / 360 安全 / 火狐给黄色
+  `Alert`（点哪个按钮、文件夹选哪一层、还不行换 Chrome 的三步），Chrome / Edge / QQ / 搜狗 / 2345 / 猎豹 / 傲游不变。
+
 - **「杀进程」按人特批（2026-10-02）**: 判定从「只看本店开关」扩成两层合成 —— `common/blacklist-switch.ts` 新增
   `resolveCompanionBlacklistEnabled(prisma, studioId, companionId)` 与 `resolveCompanionOverrides()`：
   `StudioConfig.blacklist.companion_overrides`（`{ [companionId]: true|false }`）里**没有**这个陪玩时就回到原来的
