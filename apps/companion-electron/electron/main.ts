@@ -290,19 +290,27 @@ function reportAutoKill(processName: string, success: boolean, resultText?: stri
  * 全屏打游戏时更是直接被系统吞掉。改成陪玩端已有的右下角置顶小窗
  * （跟群聊广播、新单提醒同一套，全屏游戏里也压在最上层），保证「看得见」。
  *
- * 老板又报「徐泽宁右下角一直弹提示」：那台机器上的游戏被 ACE / 启动器反复拉起来，
- * 老版本（1.0.20261003）每 10 秒弹一次，根本没有去重。
- * 现在杀进程本身改成「进程启动事件 → 立刻杀」（见下面的进程启动监听），
- * 提示再叠一道 5 分钟冷却：同一个进程只提示一次，不至于刷屏。
+ * 老板再报「右下角还是一直弹提示」：老版本（1.0.20261003）每 10 秒弹一次，完全没去重；
+ * 上一版改成按「进程名」去重也不对 —— 进程名从头到尾都没变，怎么限流都会重复弹。
+ * 现在按「进程实例」（PID）去重：一个实例只杀一次、只提示一次；
+ * 进程被启动器重新拉起来（新 PID）才算新的一次，这时才再杀、再提示。
+ *
+ * 老板要的「杀进程倒计时提示」也在这里：每次真要动手前，先在右下角弹一个
+ * 5 秒倒计时小窗（进度条走完就杀）；杀成功不再补弹第二个窗，
+ * 所以「一次启动」＝「一次杀 + 一次提示」。
  */
+/** 提示冷却：同一进程名的提示别挤在一起（启动器一秒拉起好几次时兜底）。 */
 const killNoticeAt = new Map<string, number>();
-const KILL_NOTICE_COOLDOWN_MS = 5 * 60 * 1000;
+const KILL_NOTICE_COOLDOWN_MS = 60 * 1000;
+/** 处理过的进程实例：processName -> 处理过的 PID 集合（按实例去重的关键）。 */
+const handledPids = new Map<string, Set<number>>();
+/** 正有一个实例在倒计时/执行中的进程名，别让事件和兜底扫描同时安排两次。 */
+const handlingNames = new Set<string>();
+/** 杀之前的倒计时秒数（右下角进度条正好走完）。 */
+const KILL_COUNTDOWN_SECONDS = 5;
 /** 杀进程上报也要限流：启动器「杀了又拉起」时一秒能刷出好几条日志。 */
 const killReportAt = new Map<string, number>();
 const KILL_REPORT_COOLDOWN_MS = 30 * 1000;
-/** 同一瞬间（事件 + 兜底扫描）别把同一个进程杀两遍。 */
-const killActionAt = new Map<string, number>();
-const KILL_ACTION_COOLDOWN_MS = 2 * 1000;
 /** 兜底扫描间隔：监听器好用就 60 秒，起不来就退回 3 秒快扫（见 scheduleProcessWatcherRestart）。 */
 let blacklistSweepIntervalMs = 60_000;
 /** 守卫还在跑上一轮（tasklist / taskkill 没回来）时，别叠加下一轮。 */
@@ -314,20 +322,9 @@ let processWatcherFailures = 0;
 let processWatcherRestart: ReturnType<typeof setTimeout> | null = null;
 let processWatcherOut = '';
 
-function notifyKillResult(processName: string, ok: boolean, detail?: string): void {
-  const now = Date.now();
-  if (now - (killNoticeAt.get(processName) || 0) < KILL_NOTICE_COOLDOWN_MS) return;
-  killNoticeAt.set(processName, now);
-  const body = ok
-    ? `已结束黑名单进程：${processName}`
-    : `没能结束黑名单进程：${processName}${detail ? `（${detail}）` : ''}`;
+function popupNotice(title: string, body: string, icon: string, hint?: string, seconds = 8): void {
   try {
-    showBroadcastPopup({
-      title: ok ? '黑名单已执行' : '黑名单执行失败',
-      body,
-      icon: ok ? '🛡️' : '⚠️',
-      seconds: 8,
-    });
+    showBroadcastPopup({ title, body, icon, hint, seconds });
   } catch (err) {
     // 弹窗失败也别让陪玩两头都看不到：退回系统通知。
     logger.warn('Kill notice popup failed, fallback to system notification', {
@@ -339,9 +336,22 @@ function notifyKillResult(processName: string, ok: boolean, detail?: string): vo
   }
 }
 
+/** 这个进程名现在该不该弹提示（按进程名限流，见 KILL_NOTICE_COOLDOWN_MS）。 */
+function shouldNotice(processName: string): boolean {
+  const now = Date.now();
+  if (now - (killNoticeAt.get(processName) || 0) < KILL_NOTICE_COOLDOWN_MS) return false;
+  killNoticeAt.set(processName, now);
+  return true;
+}
+
 function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
   activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
   activeWhitelist = (whitelist || []).map((w) => w.processName).filter(Boolean);
+  // 名单变了：只清掉「已经不在黑名单里」的实例记录，名单没变就别重置，
+  // 否则服务端重推一次 blacklist:update，同一次启动就会被再杀一遍、再弹一次。
+  for (const name of Array.from(handledPids.keys())) {
+    if (!activeBlacklist.includes(name)) handledPids.delete(name);
+  }
   // 以前这里不留任何痕迹，游戏被杀了也查不出是谁干的，这里补上。
   logger.info('Blacklist guard updated', {
     blacklist: activeBlacklist,
@@ -364,12 +374,21 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
   void runBlacklistGuard();
 }
 
-/** 这个进程现在在不在跑。不在跑就别去 taskkill —— 否则会一次次把「进程不存在」当成杀失败上报。 */
-function isProcessRunning(image: string): Promise<boolean> {
+/**
+ * 这个进程现在有哪些 PID 在跑。
+ * 黑名单里存的是进程名，但「去重」必须按实例（PID）来 —— 进程名从头到尾不变，
+ * 只按进程名限流就会出现老板报的「一直弹」。
+ */
+function listRunningPids(image: string): Promise<number[]> {
   return new Promise((resolve) => {
     execFile('tasklist', ['/FI', `IMAGENAME eq ${image}`, '/NH', '/FO', 'CSV'], (err, stdout) => {
-      if (err) return resolve(false);
-      resolve(String(stdout || '').toLowerCase().includes(image.toLowerCase()));
+      if (err) return resolve([]);
+      const pids: number[] = [];
+      for (const line of String(stdout || '').split(/\r?\n/)) {
+        const m = line.match(/^"([^"]+)","(\d+)"/);
+        if (m && m[1].toLowerCase() === image.toLowerCase()) pids.push(Number(m[2]));
+      }
+      resolve(pids);
     });
   });
 }
@@ -388,24 +407,59 @@ function guardArmed(): boolean {
   return store.get('lastStatus') === 'AVAILABLE';
 }
 
-/** 真去杀一个黑名单进程：杀完提示一次 + 上报一次（都有冷却，见上面的常量）。 */
-async function killBlacklistedProcess(name: string): Promise<void> {
-  const now = Date.now();
-  if (now - (killActionAt.get(name) || 0) < KILL_ACTION_COOLDOWN_MS) return;
-  killActionAt.set(name, now);
+/**
+ * 黑名单进程被发现了（进程启动事件，或兜底扫描扫到）。
+ *
+ * 「启动一次杀一次、一次提示」都在这里：
+ *   1) 先看这台机器上这个进程有哪些 PID，只处理「没见过的新实例」，处理过的直接跳过；
+ *   2) 真要动手前先弹 5 秒倒计时（老板要的“倒计时提示”），到点再杀；
+ *   3) 杀成功不再补弹第二个窗，所以一次启动就只有这一次提示。
+ */
+async function handleBlacklistedProcess(name: string): Promise<void> {
+  // 事件和兜底扫描可能同时到：同一个进程名只让一个流程在跑。
+  if (handlingNames.has(name)) return;
   const image = toImageName(name);
-  // 事件是「刚启动」那一刻送来的，我们动手前它可能已经自己退了：
-  // 先确认真的还在，免得把「进程不存在」当成杀失败上报、还弹一个失败提示。
-  if (!(await isProcessRunning(image))) return;
-  logger.warn('Killing blacklisted process', { processName: name, reason: 'process start detected' });
-  await new Promise<void>((resolve) => {
-    execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
-      if (err) logger.warn('Kill blacklisted process failed', { processName: name, error: err.message });
-      notifyKillResult(name, !err, err?.message);
-      reportAutoKill(name, !err, err?.message);
-      resolve();
+  const running = await listRunningPids(image);
+  if (running.length === 0) return;
+  const handled = handledPids.get(name) || new Set<number>();
+  const fresh = running.filter((pid) => !handled.has(pid));
+  if (fresh.length === 0) return; // 这批实例处理过了：不重复杀、不重复弹
+  for (const pid of fresh) handled.add(pid);
+  handledPids.set(name, handled);
+  handlingNames.add(name);
+  try {
+    // 提示按进程名限流：启动器一秒拉起好几次时只弹第一条，但每一条都照杀。
+    const notice = shouldNotice(name);
+    if (notice) {
+      logger.info('Blacklist countdown started', { processName: name, pids: Array.from(fresh) });
+      popupNotice(
+        '黑名单进程即将结束',
+        `检测到「${name}」，${KILL_COUNTDOWN_SECONDS} 秒后自动结束。`,
+        '🛡️',
+        '倒计时走完会自动结束，无需手动操作',
+        KILL_COUNTDOWN_SECONDS,
+      );
+      await new Promise((r) => setTimeout(r, KILL_COUNTDOWN_SECONDS * 1000));
+    }
+    // 倒计时这几秒里它可能自己退了：退过就不再动手，也不弹失败提示。
+    if ((await listRunningPids(image)).length === 0) return;
+    logger.warn('Killing blacklisted process', {
+      processName: name,
+      pids: Array.from(fresh),
+      reason: 'process start detected',
     });
-  });
+    await new Promise<void>((resolve) => {
+      execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
+        if (err) logger.warn('Kill blacklisted process failed', { processName: name, error: err.message });
+        reportAutoKill(name, !err, err?.message);
+        // 成功时倒计时小窗已经把话说清楚了；只有失败才补一条，别弹两次。
+        if (err) popupNotice('黑名单执行失败', `没能结束「${name}」（${err.message}）`, '⚠️');
+        resolve();
+      });
+    });
+  } finally {
+    handlingNames.delete(name);
+  }
 }
 
 /** 兜底扫描：只有登录成功且明确处于「空闲」时才动手（启动事件没抓到的靠它补）。 */
@@ -416,8 +470,7 @@ async function runBlacklistGuard(): Promise<void> {
   try {
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
-      if (!(await isProcessRunning(toImageName(name)))) continue;
-      await killBlacklistedProcess(name);
+      await handleBlacklistedProcess(name);
     }
   } finally {
     blacklistGuardRunning = false;
@@ -500,7 +553,7 @@ function handleProcessWatcherLine(line: string): void {
     const hit = activeBlacklist.find((b) => toImageName(b).toLowerCase() === name.toLowerCase());
     if (!hit) return;
     logger.info('Blacklisted process start detected', { processName: name });
-    void killBlacklistedProcess(hit);
+    void handleBlacklistedProcess(hit);
     return;
   }
   if (line.startsWith('ERR ')) {
@@ -552,11 +605,20 @@ function ensureProcessWatcher(): void {
   if (processWatcher || processWatcherRestart) return;
   let child: ReturnType<typeof spawn>;
   try {
-    // -EncodedCommand 走 base64(UTF-16LE)：脚本里的引号、中文都不会被命令行转义搞坏。
-    const encoded = Buffer.from(PROCESS_WATCH_SCRIPT, 'utf16le').toString('base64');
+    // 以前这里用 -EncodedCommand（base64）传脚本，结果在装了安全软件（360 等）的机器上
+    // 会被直接拦掉：powershell 立刻退出、退出码 0xFFFFFFFF、一个字都不输出
+    // —— 老板 2026-10-03 报「王甲振那台一直不按新逻辑走」就是它（详见 CHANGELOG）。
+    // 改成把脚本落地成 .ps1 再用 -File 跑，同一份脚本在所有机器上都能起来。
+    const scriptPath = path.join(app.getPath('userData'), 'process-watch.ps1');
+    try {
+      // 加 BOM：PowerShell 5.1 没 BOM 时会按 GBK 读，脚本里的中文/特殊字符会乱掉。
+      fs.writeFileSync(scriptPath, `\uFEFF${PROCESS_WATCH_SCRIPT}`, 'utf8');
+    } catch (werr: any) {
+      logger.warn('Failed to write process watcher script', { error: werr?.message || werr });
+    }
     child = spawn(
       'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     );
   } catch (err: any) {
