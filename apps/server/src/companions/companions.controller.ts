@@ -385,7 +385,11 @@ export class CompanionsController {
     @Req() req: any,
     @Query('status') status?: string,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.listWorkWechatRequests(await this.sid(req), status);
+    // 全站老板（OWNER，账号上没挂 studioId）看**所有**工作室的提交；店长 / 客服看自己店
+    const allStudios = req.user?.role === UserRole.OWNER;
+    const data = await this.companionsService.listWorkWechatRequests(await this.sid(req), status, {
+      allStudios,
+    });
     return { code: 200, message: 'ok', data };
   }
 

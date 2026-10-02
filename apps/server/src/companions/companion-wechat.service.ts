@@ -209,21 +209,42 @@ export class CompanionWechatService {
     }
   }
 
-  /** 管理端：列出陪玩提交的微信号申请（默认全部，可按状态筛） */
-  async listWorkWechatRequests(studioId: string, status?: string) {
+  /**
+   * 管理端：列出陪玩提交的微信号申请（默认本店，可按状态筛）。
+   *
+   * `allStudios`：老板（OWNER）是全站老板、账号上没有 studioId，默认那条 `sid()` 只会退化成
+   * 「第一个工作室」，他就只能看到一家的申请 —— 三个店的提交要各自店长去审。所以老板这里
+   * 不按工作室过滤，并且每条附上工作室名字，跨店看的时候能分清是哪家。
+   */
+  async listWorkWechatRequests(
+    studioId: string,
+    status?: string,
+    opts: { allStudios?: boolean } = {},
+  ) {
     const where: any = {};
-    if (studioId) where.studioId = studioId;
+    if (!opts.allStudios && studioId) where.studioId = studioId;
     if (status) where.status = status;
-    return this.prisma.workWechatRequest.findMany({
-      where,
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      take: 200,
-      include: {
-        companion: {
-          include: { user: { select: { username: true, displayName: true, avatar: true } } },
+    const rows =
+      (await this.prisma.workWechatRequest.findMany({
+        where,
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        take: 200,
+        include: {
+          companion: {
+            include: { user: { select: { username: true, displayName: true, avatar: true } } },
+          },
         },
-      },
-    });
+      })) || [];
+
+    // 附上工作室名字（老板跨店看的时候要能分清是哪家）
+    const ids = [...new Set(rows.map((r: any) => r.studioId).filter(Boolean))];
+    if (!ids.length) return rows;
+    const studios =
+      (await this.prisma.studio
+        .findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+        .catch(() => [] as Array<{ id: string; name: string }>)) || [];
+    const nameOf = new Map(studios.map((s: any) => [s.id, s.name]));
+    return rows.map((r: any) => ({ ...r, studioName: nameOf.get(r.studioId) || null }));
   }
 
   /** 管理端：待审核数量（界面上的红标） */

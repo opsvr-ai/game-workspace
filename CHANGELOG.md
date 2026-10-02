@@ -11,6 +11,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **发布（2026-10-02）：网页 `v861` 已部署。** 陪玩工作微信审核表对**老板**放开「全站可见」（多一列
+  「工作室」，一眼分清是哪家），店长 / 客服仍只看自己店；服务端同步改（无表结构变化）。
+
 - **发布（2026-10-02）：服务端 + 网页 `v860` 已部署（陪玩自己填工作微信 + 管理端审核）。**
   新表 `WorkWechatRequest` 已在线上建好，客户端不动、不影响正在接单的陪玩。
 
@@ -24,6 +27,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     有新的提交会弹一条提醒并进通知中心。原来的「添加微信号 / 绑定陪玩」保留，也能照旧手动绑。
   - **通过才生效**：只有点「通过」才会把这个号写进 `WorkWechat` 并绑给他（他原来绑的号自动退下来）。
     提交 / 通过时都会校验：号已经绑给别的陪玩、或被客服占用、或是「客服工作微信」类型 —— 一律拦下并提示。
+  - **谁能审**：三个审核接口都是 `@Roles(OWNER, ADMIN, CS)` —— **老板 / 店长 / 客服都能审**，
+    左边栏三个角色也都有「工作微信 → 陪玩工作微信」入口。**店长 / 客服只看自己店的提交**；
+    **老板（全站，账号上没挂 studioId）看所有店的提交**，审核表里多一列「工作室」分清是哪一家
+    （2026-10-02 发现：老板账号 studioId 为空时 `sid()` 只会退化成「第一个工作室」，三家店得各自的店长去审，
+    已改成老板不过滤工作室）。
   - **新接口**：`GET|POST /companions/me/work-wechat`（陪玩自己）、`GET /companions/work-wechat-requests`、
     `PUT /companions/work-wechat-requests/:id/approve|reject`（管理端）。
   - **新 WS 事件**：`work-wechat:request`（提交后通知本店管理端）、`work-wechat:updated`（审核结果通知陪玩）。

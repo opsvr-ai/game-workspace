@@ -276,6 +276,18 @@ const WorkWechatPage: React.FC = () => {
             pagination={{ pageSize: 5, hideOnSinglePage: true }}
             locale={{ emptyText: '还没有陪玩提交过' }}
             columns={[
+              // 全站老板跨店看：多一列「工作室」，一眼分清是哪家的提交
+              ...(role === 'OWNER'
+                ? ([
+                    {
+                      title: '工作室',
+                      dataIndex: 'studioName',
+                      key: 'studioName',
+                      width: 170,
+                      render: (v: string) => <Text>{v || '-'}</Text>,
+                    },
+                  ] as any)
+                : []),
               {
                 title: '陪玩',
                 key: 'companion',

@@ -234,6 +234,31 @@ describe('陪玩提交工作微信 + 管理端审核', () => {
     expect(where).toEqual({ studioId: 'studio-1', status: 'PENDING' });
   });
 
+  it('老板（全站）看所有工作室的提交，并带上工作室名字', async () => {
+    (prisma.workWechatRequest.findMany as any).mockResolvedValue([
+      { id: 'a', studioId: 'st-1' },
+      { id: 'b', studioId: 'st-2' },
+    ]);
+    (prisma.studio.findMany as any).mockResolvedValue([
+      { id: 'st-1', name: '蠢驴电竞' },
+      { id: 'st-2', name: '光耀电竞' },
+    ]);
+
+    const rows: any = await svc.listWorkWechatRequests('st-first', undefined, { allStudios: true });
+    // 老板不带工作室过滤
+    expect((prisma.workWechatRequest.findMany as any).mock.calls[0][0].where).toEqual({});
+    expect(rows.map((r: any) => r.studioName)).toEqual(['蠢驴电竞', '光耀电竞']);
+  });
+
+  it('店长 / 客服只看自己店（带工作室过滤）', async () => {
+    (prisma.workWechatRequest.findMany as any).mockResolvedValue([]);
+    await svc.listWorkWechatRequests('st-1', 'PENDING', { allStudios: false });
+    expect((prisma.workWechatRequest.findMany as any).mock.calls[0][0].where).toEqual({
+      studioId: 'st-1',
+      status: 'PENDING',
+    });
+  });
+
   it('待审核计数', async () => {
     (prisma.workWechatRequest.count as any).mockResolvedValue(3);
     const n = await svc.countPendingWorkWechatRequests('studio-1');

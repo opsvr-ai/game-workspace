@@ -1046,8 +1046,8 @@ export class CompanionsService {
     return this.wechatService.submitMyWorkWechat(companionId, wechatId);
   }
 
-  async listWorkWechatRequests(studioId: string, status?: string) {
-    return this.wechatService.listWorkWechatRequests(studioId, status);
+  async listWorkWechatRequests(studioId: string, status?: string, opts?: { allStudios?: boolean }) {
+    return this.wechatService.listWorkWechatRequests(studioId, status, opts);
   }
 
   async countPendingWorkWechatRequests(studioId: string) {
