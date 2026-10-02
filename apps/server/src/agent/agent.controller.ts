@@ -119,8 +119,13 @@ export class AgentController {
         });
         if (sent) {
           lastUpdatePushAt.set(next.companionId, Date.now());
+          // 先把名额留给它：被叫到的机器要错峰几秒才来申请，这几十秒里名额经常被别的机器抢走，
+          // 抢不到它就整轮放弃、排队位置也丢了（老板 2026-10-03 报的「徐泽宁一直不升级」）。
+          this.agentService.reserveUpdateSlot(next.companionId);
           return;
         }
+        // 推不出去（离线 / WS 没连上）：放回队列，别把它的排队位置吃掉。
+        skipped.push(next);
       }
     } catch (err: any) {
       logger.warn(`Update queue pump error: ${err?.message || err}`);

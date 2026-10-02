@@ -13,8 +13,20 @@ const execFileAsync = promisify(execFile);
 const logger = new Logger('AgentService');
 
 // 串行更新锁：同一时间只允许一个客户端下载更新包，避免多台机器同时抢带宽导致谁都下不动。
-let updateSlot: { companionId: string; startedAt: number } = { companionId: '', startedAt: 0 };
+let updateSlot: { companionId: string; startedAt: number; reserved: boolean } = {
+  companionId: '',
+  startedAt: 0,
+  reserved: false,
+};
 const UPDATE_SLOT_TIMEOUT = 10 * 60 * 1000; // 10 分钟超时，避免某台卡死长期占住名额
+/**
+ * 叫号时先把名额「预约」给被叫到的那台机器：
+ * 以前叫号只是推个消息过去，被叫的机器还要错峰 0-60 秒才开始申请名额，
+ * 这几十秒里名额经常被别的机器抢走 —— 被叫的机器一句「Update slot busy」就放弃，
+ * 排队位置也丢了（老板 2026-10-03 报「徐泽宁一直不升级、秦伟杰早就升了」就是这个）。
+ * 预约超时短一点：客户端没来领就赶紧让给下一位。
+ */
+const RESERVE_TTL_MS = 3 * 60 * 1000;
 /** 一直在排队、等了这么久的机器可以直接把名额接过去（防止老版本永远轮不到）。 */
 const WAIT_PRIORITY_MS = 5 * 60 * 1000;
 /** 但当前那台至少先让它下载 3 分钟，别刚下到一半就被打断。 */
@@ -47,10 +59,14 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     // 1) 名额被占住却没人释放（客户端下到一半断网/崩了）→ 兜底腾位；
     // 2) 名额空着却还有人在排队 → 继续叫号，别让队列停在那儿等人 30 分钟后自己来问。
     this.updateSlotTimer = setInterval(() => {
+      if (updateSlot.companionId && this.slotBusy()) return; // 有人在下载：别打扰
       if (updateSlot.companionId) {
-        if (Date.now() - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) return; // 有人在下载：别打扰
-        logger.warn(`Update slot timed out, releasing ${updateSlot.companionId}`);
-        updateSlot = { companionId: '', startedAt: 0 };
+        logger.warn(
+          updateSlot.reserved
+            ? `Reserved update slot not claimed, releasing ${updateSlot.companionId}`
+            : `Update slot timed out, releasing ${updateSlot.companionId}`,
+        );
+        updateSlot = { companionId: '', startedAt: 0, reserved: false };
       }
       this.pumpUpdateQueue();
     }, 60_000);
@@ -137,11 +153,33 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
     return companions.map((c) => c.id);
   }
 
+  /** 名额还在有效期内占着吗（预约的名额超时更短）。 */
+  private slotBusy(): boolean {
+    if (!updateSlot.companionId) return false;
+    const ttl = updateSlot.reserved ? RESERVE_TTL_MS : UPDATE_SLOT_TIMEOUT;
+    return Date.now() - updateSlot.startedAt < ttl;
+  }
+
+  /**
+   * 叫号前先把名额留给被叫到的那台机器，别让它在错峰的那几十秒里被别人抢走。
+   * 三分钟内没来申请就当它没收到，定时器会把名额放回队列。
+   */
+  reserveUpdateSlot(companionId: string): void {
+    if (!companionId) return;
+    updateSlot = { companionId, startedAt: Date.now(), reserved: true };
+    updateWaiters.delete(companionId);
+    logger.log(`Update slot reserved for ${companionId}`);
+  }
+
   /** 申请更新下载名额：同一时间只放行一台；超时未释放则自动让给下一台。 */
   acquireUpdateSlot(companionId: string): { granted: boolean; waitingFor?: string } {
     const now = Date.now();
-    if (updateSlot.companionId && now - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) {
-      if (updateSlot.companionId === companionId) return { granted: true };
+    if (this.slotBusy()) {
+      if (updateSlot.companionId === companionId) {
+        // 自己预约/持有的名额：从「真的开始下载」这一刻重新计时。
+        updateSlot = { companionId, startedAt: now, reserved: false };
+        return { granted: true };
+      }
 
       // 排队记账：每 5 分钟来申请一次却一直抢不到的机器（新装的机房电脑常常这样），
       // 等够 WAIT_PRIORITY_MS 就把名额让给它，避免老版本永远挂着不更新。
@@ -149,15 +187,16 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
       updateWaiters.set(companionId, waiter);
       const waitedMs = now - waiter.firstAskedAt;
       const heldMs = now - updateSlot.startedAt;
-      if (waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
+      // 预约不占着名额：客户端要是没来领，别拦着排队的机器等满 5 分钟。
+      if (!updateSlot.reserved && waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
         logger.warn(`Update slot preempted for waiter ${companionId} (waited ${Math.round(waitedMs / 1000)}s)`);
-        updateSlot = { companionId, startedAt: now };
+        updateSlot = { companionId, startedAt: now, reserved: false };
         updateWaiters.delete(companionId);
         return { granted: true };
       }
       return { granted: false, waitingFor: updateSlot.companionId };
     }
-    updateSlot = { companionId, startedAt: now };
+    updateSlot = { companionId, startedAt: now, reserved: false };
     updateWaiters.delete(companionId);
     return { granted: true };
   }
@@ -165,7 +204,7 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   /** 下载完成（或放弃）后释放名额。 */
   releaseUpdateSlot(companionId: string): void {
     if (updateSlot.companionId === companionId) {
-      updateSlot = { companionId: '', startedAt: 0 };
+      updateSlot = { companionId: '', startedAt: 0, reserved: false };
     }
     updateWaiters.delete(companionId);
     // 名额空了：立刻叫下一位，别让它干等到下一次 30 分钟轮询。
@@ -204,7 +243,7 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   /** 名额一空就叫号（交给 controller，它才拿得到 WS 网关）。 */
   pumpUpdateQueue(): void {
     if (!this.updateNotifier) return;
-    if (updateSlot.companionId && Date.now() - updateSlot.startedAt < UPDATE_SLOT_TIMEOUT) return;
+    if (this.slotBusy()) return;
     void this.updateNotifier().catch((err) =>
       logger.warn(`Update queue pump failed: ${err?.message || err}`),
     );

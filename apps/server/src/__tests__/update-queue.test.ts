@@ -111,6 +111,39 @@ describe('更新名额叫号（发布铺开速度）', () => {
     expect(service.getUpdateSlot().companionId).toBe('waiter');
   });
 
+  it('叫号时预约名额：被叫到的那台一来就能拿到，别人抢不走', () => {
+    service.acquireUpdateSlot('holder');
+    vi.setSystemTime(T0 + 30_000);
+    service.acquireUpdateSlot('other');
+    service.releaseUpdateSlot('holder');
+
+    // 服务端叫号时先把名额留给被叫到的那台：错峰那几秒里不会被别人抢走
+    service.reserveUpdateSlot('other');
+    vi.setSystemTime(T0 + 40_000);
+    expect(service.acquireUpdateSlot('other').granted).toBe(true);
+    expect(service.getUpdateSlot().companionId).toBe('other');
+
+    // 真正开始下载后重新计时，别人还是得排队
+    vi.setSystemTime(T0 + 60_000);
+    expect(service.acquireUpdateSlot('third').granted).toBe(false);
+  });
+
+  it('预约的名额没人来领（客户端离线）3 分钟后放回，不堵着队列', async () => {
+    service.reserveUpdateSlot('ghost');
+    service.onModuleInit();
+    try {
+      vi.advanceTimersByTime(2 * 60_000);
+      await Promise.resolve();
+      expect(service.getUpdateSlot().companionId).toBe('ghost');
+
+      vi.advanceTimersByTime(61_000); // 超过 RESERVE_TTL_MS 3 分钟
+      await Promise.resolve();
+      expect(service.getUpdateSlot().companionId).toBe('');
+    } finally {
+      service.onModuleDestroy();
+    }
+  });
+
   it('名额超时未释放由定时器兜底腾位（客户端下到一半断网/崩了）', async () => {
     const notify = vi.fn().mockResolvedValue(undefined);
     service.acquireUpdateSlot('holder');

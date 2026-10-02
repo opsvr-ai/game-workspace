@@ -147,6 +147,46 @@ async function releaseUpdateSlot(serverUrl: string, token: string): Promise<void
   }
 }
 
+/** 名额被人占着时的重试节奏：宁可在这儿多问几轮，也别像以前那样一句 busy 就整轮放弃。 */
+const UPDATE_SLOT_RETRY_MIN_MS = 15_000;
+const UPDATE_SLOT_RETRY_JITTER_MS = 15_000;
+/** 一轮最多为名额等这么久（等不到就交给下一次检查，别把机器的更新卡死在这儿）。 */
+const UPDATE_SLOT_WAIT_MAX_MS = 30 * 60 * 1000;
+
+/**
+ * 申请更新名额，拿不到就带抖动重试。
+ *
+ * 老板 2026-10-03 报「徐泽宁的客户端一直不自动升级，秦伟杰早就升了」：
+ * 那台机器的日志里就是一句「Update slot busy, skip this round and retry later」——
+ * 全网只有一个下载名额（怕多台同时下载把办公室那条网占满、别人接口像掉线），
+ * 被叫到号的机器一旦晚了一步没抢到，旧代码直接 return，要等下一次 30 分钟轮询；
+ * 排队位置也被服务端吃掉了，于是永远轮不上。
+ * 现在改成：拿不到就几十秒后再问一次，直到拿到或这一轮等够 30 分钟。
+ */
+async function acquireUpdateSlotWithRetry(serverUrl: string, token: string): Promise<boolean> {
+  const deadline = Date.now() + UPDATE_SLOT_WAIT_MAX_MS;
+  let attempts = 0;
+  for (;;) {
+    attempts += 1;
+    if (await acquireUpdateSlot(serverUrl, token)) {
+      if (attempts > 1) logger.info('Update slot acquired after retry', { attempts });
+      return true;
+    }
+    // 排队等名额的这段时间里陪玩可能接了单：那就别再等了，这单结束后的下一轮再说。
+    if (companionBusy()) {
+      logger.info('Companion became busy while waiting for update slot, give up this round');
+      return false;
+    }
+    if (Date.now() >= deadline) {
+      logger.warn('Update slot still busy after retrying, give up this round', { attempts });
+      return false;
+    }
+    const waitMs = UPDATE_SLOT_RETRY_MIN_MS + Math.floor(Math.random() * UPDATE_SLOT_RETRY_JITTER_MS);
+    logger.info('Update slot busy, retry later', { attempts, waitMs });
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
 /** 陪玩正在接单/服务中。 */
 function companionBusy(): boolean {
   return store.get('lastStatus') === 'BUSY';
@@ -186,7 +226,7 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
   const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
   // 新机器刚装完还没登录，store 里没有令牌。以前这里直接 return false，于是永远打印一句
   // 「Update slot busy」，客户端版本卡死在装机包那一版。现在没令牌也去申请名额（服务端按机器记账）。
-  if (!(await acquireUpdateSlot(serverUrl, token))) {
+  if (!(await acquireUpdateSlotWithRetry(serverUrl, token))) {
     logger.info('Update slot busy, skip this round and retry later', { hasToken: !!token });
     return;
   }
@@ -247,8 +287,9 @@ export async function checkForUpdates(): Promise<void> {
   if (updateCheckRunning) return;
   updateCheckRunning = true;
   try {
-    // 开机自动检查时随机错峰，避免所有客户端同时拉版本和安装包。
-    await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 120_000)));
+    // 开机自动检查时随机错峰几秒即可：真正的并发由服务端的「更新名额」串行挡住，
+    // 以前这里错峰最多 2 分钟，加上后面「名额被占就放弃」，开机根本等不到更新。
+    await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 10_000)));
     const serverUrl = getServerUrl();
     const localVersion = app.getVersion();
 
@@ -463,8 +504,9 @@ export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: 
       });
       return;
     }
-    // 远程推送时错峰 0-60 秒，避免几十台电脑同时下载安装包把局域网打满。
-    const staggerMs = Math.floor(Math.random() * 60_000);
+    // 远程推送的机器，服务端已经把这个名额预约给它了（见 reserveUpdateSlot），
+    // 所以只需要错开几秒，别再像以前那样错峰 0-60 秒 —— 那几十秒正好容易被别人抢走名额。
+    const staggerMs = Math.floor(Math.random() * 5_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url, version });
     await performUpdate(url, version);

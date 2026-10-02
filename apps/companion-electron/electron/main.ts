@@ -2,7 +2,7 @@
 import { app, BrowserWindow, Menu, ipcMain, safeStorage, powerMonitor, Notification, shell, session, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { execFile, execFileSync } from 'child_process';
+import { execFile, execFileSync, spawn } from 'child_process';
 
 import { store } from './store';
 import { getServerUrl } from './config';
@@ -105,11 +105,13 @@ function getLoginUrl(): string {
   return `${base}?v=${app.getVersion()}&t=${Date.now()}`;
 }
 
-/** 陪玩接单中不自动更新，避免更新时退出进程打断服务计时/截图。 */
+/**
+ * 陪玩接单中不自动更新，避免更新时退出进程打断服务计时/截图。
+ * 但别再像以前那样「接单中直接跳过整轮检查」：开机时正好在接单的话，这一轮就不查了，
+ * 得再等 30 分钟（老板 2026-10-03 要「每次开机都能更新成功」）。
+ * 现在照样发起检查，performUpdate 里的 waitUntilIdle 会等这单结束再动手。
+ */
 function maybeCheckUpdates(): void {
-  if (currentRole === 'COMPANION' && store.get('lastStatus') === 'BUSY') {
-    return;
-  }
   void checkForUpdates();
 }
 
@@ -258,11 +260,18 @@ let activeWhitelist: string[] = [];
  * 以前杀完不留痕迹，出现“游戏怎么突然掉了”时根本查不到原因。
  */
 function reportAutoKill(processName: string, success: boolean, resultText?: string): void {
+  // 启动器「杀了就立刻拉起」时，事件监听会一秒内连着命中好几次，这里按进程名限流。
+  const now = Date.now();
+  if (now - (killReportAt.get(processName) || 0) < KILL_REPORT_COOLDOWN_MS) return;
+  killReportAt.set(processName, now);
   void (async () => {
     try {
       const token = await refreshAccessToken();
       if (!token) return;
-      await fetch(`${getServerUrl()}/api/process-blacklist/kill-report`, {
+      // 路径必须是 /api/processes/kill-report：服务端那个控制器是 @Controller('processes')，
+      // 这里以前写成 /api/process-blacklist/kill-report（404），于是杀进程日志一条都没记上
+      // —— 老板 2026-10-03 报「杀了查不出来」就是这个。web 端一直用的是 /processes/reports，是对的。
+      await fetch(`${getServerUrl()}/api/processes/kill-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ processName, pid: 0, success, resultText, triggeredBy: 'AUTO_IDLE' }),
@@ -281,11 +290,29 @@ function reportAutoKill(processName: string, success: boolean, resultText?: stri
  * 全屏打游戏时更是直接被系统吞掉。改成陪玩端已有的右下角置顶小窗
  * （跟群聊广播、新单提醒同一套，全屏游戏里也压在最上层），保证「看得见」。
  *
- * 进程被游戏自己拉起来一次就杀一次（10 秒一轮），所以同一个进程 3 分钟内只提示一次，
- * 免得右下角一直闪。
+ * 老板又报「徐泽宁右下角一直弹提示」：那台机器上的游戏被 ACE / 启动器反复拉起来，
+ * 老版本（1.0.20261003）每 10 秒弹一次，根本没有去重。
+ * 现在杀进程本身改成「进程启动事件 → 立刻杀」（见下面的进程启动监听），
+ * 提示再叠一道 5 分钟冷却：同一个进程只提示一次，不至于刷屏。
  */
 const killNoticeAt = new Map<string, number>();
-const KILL_NOTICE_COOLDOWN_MS = 3 * 60 * 1000;
+const KILL_NOTICE_COOLDOWN_MS = 5 * 60 * 1000;
+/** 杀进程上报也要限流：启动器「杀了又拉起」时一秒能刷出好几条日志。 */
+const killReportAt = new Map<string, number>();
+const KILL_REPORT_COOLDOWN_MS = 30 * 1000;
+/** 同一瞬间（事件 + 兜底扫描）别把同一个进程杀两遍。 */
+const killActionAt = new Map<string, number>();
+const KILL_ACTION_COOLDOWN_MS = 2 * 1000;
+/** 兜底扫描间隔：监听器好用就 60 秒，起不来就退回 3 秒快扫（见 scheduleProcessWatcherRestart）。 */
+let blacklistSweepIntervalMs = 60_000;
+/** 守卫还在跑上一轮（tasklist / taskkill 没回来）时，别叠加下一轮。 */
+let blacklistGuardRunning = false;
+/** 进程启动监听器（常驻 PowerShell 子进程）的状态。 */
+let processWatcher: ReturnType<typeof spawn> | null = null;
+let processWatcherReady = false;
+let processWatcherFailures = 0;
+let processWatcherRestart: ReturnType<typeof setTimeout> | null = null;
+let processWatcherOut = '';
 
 function notifyKillResult(processName: string, ok: boolean, detail?: string): void {
   const now = Date.now();
@@ -315,7 +342,6 @@ function notifyKillResult(processName: string, ok: boolean, detail?: string): vo
 function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
   activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
   activeWhitelist = (whitelist || []).map((w) => w.processName).filter(Boolean);
-  if (blacklistGuardTimer) clearInterval(blacklistGuardTimer);
   // 以前这里不留任何痕迹，游戏被杀了也查不出是谁干的，这里补上。
   logger.info('Blacklist guard updated', {
     blacklist: activeBlacklist,
@@ -323,25 +349,251 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
     lastStatus: store.get('lastStatus') || '',
     armed: activeBlacklist.length > 0 && store.get('lastStatus') === 'AVAILABLE',
   });
-  if (activeBlacklist.length === 0) return;
-  blacklistGuardTimer = setInterval(() => {
-    // 只有登录成功且明确处于「空闲」时才执行黑名单杀进程。
-    if (!store.get('token')) return;
-    // 状态未知（比如刚装好还没选过状态）时一律不动手，
-    // 避免把正在玩游戏的人当成空闲直接踢下线。
-    const lastStatus = store.get('lastStatus');
-    if (lastStatus !== 'AVAILABLE') return;
+  if (activeBlacklist.length === 0) {
+    stopProcessWatcher();
+    if (blacklistGuardTimer) {
+      clearInterval(blacklistGuardTimer);
+      blacklistGuardTimer = null;
+    }
+    return;
+  }
+  // 主力：常驻监听进程启动事件；兜底：低频扫描（监听器起不来时自动变成 3 秒快扫）。
+  ensureProcessWatcher();
+  setBlacklistSweepInterval(blacklistSweepIntervalMs);
+  // 名单刚变（比如刚从接单切成空闲）时立刻扫一次，已经在跑的游戏不用等下一个周期。
+  void runBlacklistGuard();
+}
+
+/** 这个进程现在在不在跑。不在跑就别去 taskkill —— 否则会一次次把「进程不存在」当成杀失败上报。 */
+function isProcessRunning(image: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile('tasklist', ['/FI', `IMAGENAME eq ${image}`, '/NH', '/FO', 'CSV'], (err, stdout) => {
+      if (err) return resolve(false);
+      resolve(String(stdout || '').toLowerCase().includes(image.toLowerCase()));
+    });
+  });
+}
+
+/** 黑名单里存的是进程名，统一补成 xxx.exe 再比对。 */
+function toImageName(name: string): string {
+  const trimmed = (name || '').trim();
+  return trimmed.toLowerCase().endsWith('.exe') ? trimmed : `${trimmed}.exe`;
+}
+
+/** 只有登录成功、且明确处于「空闲」时才动手；接单/娱乐/休息中一律不碰。 */
+function guardArmed(): boolean {
+  if (!store.get('token')) return false;
+  // 状态未知（比如刚装好还没选过状态）时一律不动手，
+  // 避免把正在玩游戏的人当成空闲直接踢下线。
+  return store.get('lastStatus') === 'AVAILABLE';
+}
+
+/** 真去杀一个黑名单进程：杀完提示一次 + 上报一次（都有冷却，见上面的常量）。 */
+async function killBlacklistedProcess(name: string): Promise<void> {
+  const now = Date.now();
+  if (now - (killActionAt.get(name) || 0) < KILL_ACTION_COOLDOWN_MS) return;
+  killActionAt.set(name, now);
+  const image = toImageName(name);
+  // 事件是「刚启动」那一刻送来的，我们动手前它可能已经自己退了：
+  // 先确认真的还在，免得把「进程不存在」当成杀失败上报、还弹一个失败提示。
+  if (!(await isProcessRunning(image))) return;
+  logger.warn('Killing blacklisted process', { processName: name, reason: 'process start detected' });
+  await new Promise<void>((resolve) => {
+    execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
+      if (err) logger.warn('Kill blacklisted process failed', { processName: name, error: err.message });
+      notifyKillResult(name, !err, err?.message);
+      reportAutoKill(name, !err, err?.message);
+      resolve();
+    });
+  });
+}
+
+/** 兜底扫描：只有登录成功且明确处于「空闲」时才动手（启动事件没抓到的靠它补）。 */
+async function runBlacklistGuard(): Promise<void> {
+  if (!guardArmed()) return;
+  if (blacklistGuardRunning) return;
+  blacklistGuardRunning = true;
+  try {
     for (const name of activeBlacklist) {
       if (activeWhitelist.includes(name)) continue;
-      const image = name.toLowerCase().endsWith('.exe') ? name : `${name}.exe`;
-      logger.warn('Killing blacklisted process', { processName: name, reason: 'status AVAILABLE' });
-      execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
-        if (err) logger.warn('Kill blacklisted process failed', { processName: name, error: err.message });
-        notifyKillResult(name, !err, err?.message);
-        reportAutoKill(name, !err, err?.message);
-      });
+      if (!(await isProcessRunning(toImageName(name)))) continue;
+      await killBlacklistedProcess(name);
     }
-  }, 10000);
+  } finally {
+    blacklistGuardRunning = false;
+  }
+}
+
+/** 换兜底扫描的频率（监听器起来/挂掉时都要换）。 */
+function setBlacklistSweepInterval(ms: number): void {
+  if (blacklistGuardTimer && blacklistSweepIntervalMs === ms) return;
+  blacklistSweepIntervalMs = ms;
+  if (blacklistGuardTimer) clearInterval(blacklistGuardTimer);
+  blacklistGuardTimer = setInterval(() => {
+    void runBlacklistGuard();
+  }, ms);
+}
+
+/**
+ * 进程启动监听：老板 2026-10-03「不要每 10 秒杀一次，检测到启动了再杀」。
+ *
+ * 以前每 10 秒 tasklist 全表扫一遍：游戏被启动器重新拉起来后最多能跑 10 秒
+ * （人都进到登录界面了），而且这一轮杀完下一轮又扫到，提示也跟着刷。
+ * 现在改成一个常驻 PowerShell 子进程订阅 WMI 的进程创建事件，事件一到就 taskkill：
+ *   1) Win32_ProcessStartTrace —— 内核事件，谁启动的进程都能立刻看到（要管理员权限）；
+ *   2) 拿不到就退到 __InstanceCreationEvent(WITHIN 1) —— 同样是 WMI 在 C++ 那边等，
+ *      不用我们自己反复起进程；
+ *   3) 两个都订阅不上（普通用户权限受限最常见）才退回 3 秒一次的 tasklist 快扫。
+ */
+const PROCESS_WATCH_SCRIPT = `
+$ErrorActionPreference = 'Continue'
+$mode = ''
+try {
+  Register-WmiEvent -Class Win32_ProcessStartTrace -SourceIdentifier chunlvProcStart -ErrorAction Stop | Out-Null
+  $mode = 'TRACE'
+} catch {
+  Write-Output ('ERR trace-subscribe-failed: ' + $_.Exception.Message)
+}
+if (-not $mode) {
+  try {
+    $q = "SELECT * FROM __InstanceCreationEvent WITHIN 1 WHERE TargetInstance ISA 'Win32_Process'"
+    Register-WmiEvent -Query $q -SourceIdentifier chunlvProcStart -ErrorAction Stop | Out-Null
+    $mode = 'POLL1S'
+  } catch {
+    Write-Output ('ERR poll-subscribe-failed: ' + $_.Exception.Message)
+  }
+}
+if (-not $mode) { exit 3 }
+Write-Output ('READY ' + $mode)
+[Console]::Out.Flush()
+while ($true) {
+  $ev = $null
+  try { $ev = Wait-Event -SourceIdentifier chunlvProcStart -Timeout 60 -ErrorAction Stop } catch {
+    Write-Output ('ERR wait-failed: ' + $_.Exception.Message)
+    exit 4
+  }
+  if ($null -eq $ev) { Write-Output 'PING'; [Console]::Out.Flush(); continue }
+  foreach ($e in @($ev)) {
+    $n = ''
+    try { $n = $e.SourceEventArgs.NewEvent.ProcessName } catch {}
+    if (-not $n) { try { $n = $e.SourceEventArgs.NewEvent.TargetInstance.Name } catch {} }
+    if ($n) { Write-Output ('START ' + $n) }
+    Remove-Event -EventIdentifier $e.EventIdentifier -ErrorAction SilentlyContinue
+  }
+  [Console]::Out.Flush()
+}
+`;
+
+/** 监听器吐出来的一行：READY/START/PING/ERR。 */
+function handleProcessWatcherLine(line: string): void {
+  if (line.startsWith('READY ')) {
+    processWatcherReady = true;
+    processWatcherFailures = 0;
+    setBlacklistSweepInterval(60_000);
+    logger.info('Process-start watcher ready', { mode: line.slice(6).trim(), blacklist: activeBlacklist });
+    return;
+  }
+  if (line.startsWith('START ')) {
+    const name = line.slice(6).trim();
+    if (!name || !guardArmed()) return;
+    if (activeWhitelist.some((w) => w.toLowerCase() === name.toLowerCase())) return;
+    const hit = activeBlacklist.find((b) => toImageName(b).toLowerCase() === name.toLowerCase());
+    if (!hit) return;
+    logger.info('Blacklisted process start detected', { processName: name });
+    void killBlacklistedProcess(hit);
+    return;
+  }
+  if (line.startsWith('ERR ')) {
+    logger.warn('Process-start watcher reported error', { line: line.slice(0, 300) });
+    return;
+  }
+  if (line && line !== 'PING') logger.info('Process-start watcher line', { line: line.slice(0, 200) });
+}
+
+/** 关掉监听器（黑名单清空了、或者客户端要退出）。 */
+function stopProcessWatcher(): void {
+  if (processWatcherRestart) {
+    clearTimeout(processWatcherRestart);
+    processWatcherRestart = null;
+  }
+  const child = processWatcher;
+  processWatcher = null;
+  processWatcherReady = false;
+  processWatcherOut = '';
+  if (child) {
+    try { child.kill(); } catch { /* ignore */ }
+    logger.info('Process-start watcher stopped');
+  }
+}
+
+/** 监听器挂了：退避重启；连着起不来就先退到 3 秒快扫，保证「还能杀」。 */
+function scheduleProcessWatcherRestart(): void {
+  if (processWatcherRestart) return;
+  if (activeBlacklist.length === 0) return;
+  processWatcherFailures += 1;
+  // 连着 3 次起不来（多半是普通用户权限订阅不了 WMI）：别每 5 秒重试一次，
+  // 先退到 3 秒快扫，监听器 10 分钟后再试一次。
+  const degraded = processWatcherFailures >= 3;
+  if (degraded) setBlacklistSweepInterval(3_000);
+  const delay = degraded ? 10 * 60 * 1000 : Math.min(5_000 * processWatcherFailures, 60_000);
+  logger.warn('Process-start watcher restart scheduled', { delayMs: delay, failures: processWatcherFailures });
+  processWatcherRestart = setTimeout(() => {
+    processWatcherRestart = null;
+    ensureProcessWatcher();
+  }, delay);
+}
+
+/** 起监听器（已经在跑就什么都不做）。 */
+function ensureProcessWatcher(): void {
+  if (activeBlacklist.length === 0) {
+    stopProcessWatcher();
+    return;
+  }
+  if (processWatcher || processWatcherRestart) return;
+  let child: ReturnType<typeof spawn>;
+  try {
+    // -EncodedCommand 走 base64(UTF-16LE)：脚本里的引号、中文都不会被命令行转义搞坏。
+    const encoded = Buffer.from(PROCESS_WATCH_SCRIPT, 'utf16le').toString('base64');
+    child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (err: any) {
+    logger.warn('Failed to start process-start watcher', { error: err?.message || err });
+    scheduleProcessWatcherRestart();
+    return;
+  }
+  processWatcher = child;
+  processWatcherReady = false;
+  child.stdout?.setEncoding('utf8');
+  child.stdout?.on('data', (chunk: string) => {
+    processWatcherOut += chunk;
+    let idx = processWatcherOut.indexOf('\n');
+    while (idx >= 0) {
+      const raw = processWatcherOut.slice(0, idx);
+      processWatcherOut = processWatcherOut.slice(idx + 1);
+      const line = raw.replace(/\r$/, '').trim();
+      if (line) handleProcessWatcherLine(line);
+      idx = processWatcherOut.indexOf('\n');
+    }
+    // 万一脚本一直不换行，别让缓冲无限涨。
+    if (processWatcherOut.length > 8192) processWatcherOut = '';
+  });
+  child.stderr?.on('data', (chunk: any) => {
+    const text = String(chunk || '').trim();
+    if (text) logger.warn('Process-start watcher stderr', { text: text.slice(0, 300) });
+  });
+  child.on('error', (err) => {
+    logger.warn('Process-start watcher error', { error: err?.message });
+  });
+  child.on('exit', (code) => {
+    processWatcher = null;
+    processWatcherReady = false;
+    logger.warn('Process-start watcher exited', { code, blacklistCount: activeBlacklist.length });
+    scheduleProcessWatcherRestart();
+  });
+  logger.info('Process-start watcher starting', { blacklist: activeBlacklist });
 }
 
 /** 用 7 天有效期的 refreshToken 换一个新的 accessToken，避免采集上传时 token 已过期。 */
@@ -1213,11 +1465,13 @@ app.whenReady().then(() => {
   setInterval(() => {
     void checkFrontendVersion();
   }, 5 * 60 * 1000);
-  // 登录或未登录都每 30 分钟检查一次更新（原来是 5 分钟，一天 288 次没有必要；
+  // 登录或未登录都每 15 分钟检查一次更新（原来是 5 分钟，一天 288 次没有必要；
   // 紧急更新仍然可以用后台「推送更新」立即下发）。
+  // 15 分钟是为了「开机没赶上、之后也要能补上」：更新名额全网只有一个（约 3 分钟一台），
+  // 机器多的时候一轮铺完要个把小时，间隔太长会让排在后面的机器等太久。
   setInterval(() => {
     maybeCheckUpdates();
-  }, 30 * 60 * 1000);
+  }, 15 * 60 * 1000);
 });
 
 app.on('window-all-closed', () => {});
