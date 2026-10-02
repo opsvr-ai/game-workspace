@@ -5,6 +5,14 @@
 
 ## 新增功能
 
+- **客户来源只给发单工作室的管理端看（2026-10-02）**: 「来源平台 / 引流账号 / 客户昵称 / 客户账号ID」这一组
+  字段的可见性从「按角色」改成「按**归属工作室**」—— `common/order-privacy.ts` 的 `canSeeCustomerSource(user, item?)`
+  只有 `user.studioId === item.studioId`（或全站老板 `OWNER` 且无 `studioId`）才放行，陪玩一律 `false`。
+  管理端接口响应走 `stripCustomerSourceForViewer()`：**逐条**按对象自己的 `studioId` 判（没有 `studioId` 的嵌套对象
+  继承外层结论），订单 / 客户档案列表里混着自家和桥接工作室的单也能分对；WS 推送（新单 / 叫号 / 广播 / 房间广播）走
+  `stripCustomerSourceDeep()`（谁都别想看到）。前端 `constants/datasetColumns.ts` 同一口径逐行判，别家的单这 4 列显示 `-`。
+  联系方式（微信 / 二维码 / 房间码 / YY / KOOK）不受影响。
+
 - **陪玩自己提交工作微信 + 管理端审核（2026-10-02）**: 新表 `WorkWechatRequest`（`PENDING|APPROVED|REJECTED`）只存「申请」；
   真正生效 / 界面显示 / 抢单判重用的仍是 `WorkWechat` —— 只有管理端点通过才会去改它（回滚友好：换了号没过审也不影响在用号）。
   陪玩端 `GET|POST /companions/me/work-wechat`；管理端 `GET /companions/work-wechat-requests` +

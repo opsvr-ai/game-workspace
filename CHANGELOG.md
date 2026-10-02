@@ -11,6 +11,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **发布（2026-10-02）：服务端 + 网页 `v862` 已部署。** 客户来源那一组字段（来源平台 / 引流账号 /
+  客户昵称 / 客户账号ID）从「按角色判」改成「**按发单工作室判**」—— 只有**发单工作室**的管理端能看到，
+  桥接工作室 / 线上俱乐部 / 别的店 / 所有陪玩一律看不到（联系方式照常）。客户端不动、不影响接单。
+  详见下面 `### Fixed`。
+
 - **发布（2026-10-02）：网页 `v861` 已部署。** 陪玩工作微信审核表对**老板**放开「全站可见」（多一列
   「工作室」，一眼分清是哪家），店长 / 客服仍只看自己店；服务端同步改（无表结构变化）。
 
@@ -367,6 +372,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `/api/agent/onboard-report` 接口保留 —— `scripts/repair-companion.ps1`（一键修复）第一步还在用它。
 
 ### Fixed
+
+- **修：桥接工作室的管理端能看到别家客户的来源（黄浩没抢单就能看到孙可馨发的单的小红书信息，2026-10-02）。**
+  老板原话：「蠢驴电竞的客服孙可馨发单，为什么桥接工作室的黄浩那边没抢单就能显示客户的小红书信息？
+  就算黄浩能抢到也只能看到客户的微信房间码之类的，跟蠢驴电竞线下陪玩端看的是一样的，
+  **除了发单工作室的管理端能看到其他人一律看不到**。」
+  - **根因**：2026-09-29 那条「陪玩端隐藏客户来源」只按**角色**判 —— 只要不是陪玩（客服 / 店长 / 老板）
+    就看得见。桥接工作室（光耀电竞 / 蠢驴电竞线上俱乐部）的店长 / 客服连接时会 join 发单工作室的
+    `studio:` 房间、订单管理里也混着别家的单，于是**角色是 ADMIN / CS 的黄浩就拿到了孙可馨发的单的来源**。
+  - **新口径（按发单工作室判）**：客户来源那一组字段 —— **来源平台 / 引流账号 / 客户昵称 / 客户账号ID**
+    （服务端 `SOURCE_KEYS`，前端 `COMPANION_HIDDEN_FIELDS`）—— 只有**发单工作室**（数据自己的 `studioId`）
+    的客服 / 店长 / 老板能看到；**全站老板**（不挂工作室的 OWNER）看全部；**接单方一律看不到**：
+    桥接工作室的店长 / 客服、线上俱乐部、别的店，以及**所有陪玩**。
+  - **接单方保留联系方式**：微信号 / 微信二维码 / 房间码 / YY / KOOK 照常显示（抢到手就能看），
+    跟蠢驴电竞线下陪玩端看到的完全一样。
+  - **服务端**：`common/order-privacy.ts` 的 `canSeeCustomerSource(user, item?)` 从「按角色」改成
+    「按归属工作室 + 全站老板」；新增 `stripCustomerSourceForViewer()`（**逐条**按对象自己的 `studioId` 判，
+    没有 `studioId` 的嵌套对象跟外层结论走），管理端接口拦截器 `customer-source-mask.interceptor.ts` 改用它；
+    WS 推送（`pushOrder` / `pushToCompanion` / `notifyCompanion` / `broadcastNewOrder` /
+    `broadcastToQualifiedIdleCompanions` / `broadcastToBridgedIdleCompanions*`，以及 `broadcastToStudio` /
+    `broadcastToBridgedStudios`）一律走 `stripCustomerSourceDeep`（谁都别想看到）。
+  - **前端**：`constants/datasetColumns.ts` 的 `canSeeCustomerSource(item, user)` 同样改成按工作室判；
+    订单列表 / 订单详情弹窗 / 客户管理 / 客户详情页按**逐行**结论显示，别家的单这 4 列显示 `-`。
+  - **测试**：`order-privacy.test.ts` 重写 `canSeeCustomerSource`（本店可见 / 桥接店不可见 / 陪玩不可见 /
+    全站老板可见 / 拿不到归属从严）+ 新增 `stripCustomerSourceForViewer` 一组；新文件
+    `customer-source-privacy.test.ts` 覆盖拦截器（订单 / 客户档案两份）+ WS 推送共 11 条。
+  - **线上实测**（插一张临时单 → 真令牌 GET → 删干净，残留 0）：黄浩（光耀电竞店长，接单方）四项全部 `None`、
+    `customerWechat` / `customerRoomCode` 保留；孙可馨（蠢驴电竞客服，发单方）四项全部看得到；光耀电竞陪玩四项都看不到。
 
 - **修：同一个客户能被同一个陪玩连抢（胡程硕把同一个微信号的两张单都抢走了，2026-10-02）。**
   老板原话：「刚才邵泽慧发布3条订单，都是同一个客户的微信，为什么胡程硕能抢三次？」随后补口径：
