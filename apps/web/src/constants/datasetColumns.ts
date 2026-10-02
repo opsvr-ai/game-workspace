@@ -91,6 +91,16 @@ export const FIELD_WIDTH = {
    *  管理端收窄不影响陪玩端（见 orderColumns.tsx 里的 isCompanion 分支）。 */
   studioCompanion: 84,
   /**
+   * 「转让记录」单行（**只在管理端出现**）：整单转让过就标红「已转让」（转过多次带笔数），
+   * 鼠标停上去看「什么时候谁转给谁」；没转让过的行留空。
+   *
+   * 老板 2026-10-03：「这种转让的 能不能放在明面上一眼能看到，你这还得点订单进去才能看到」——
+   * 这个标记以前是塞在「主陪 / 副陪」格子里那 66px 里（名字 + 副陪 + 桥接工作室一长就被省略号吃掉），
+   * 窗口不够宽时那一列根本不补宽，等于看不见。现在单独给一列、**定宽不参与补宽**，窗口再窄也看得到。
+   * 「已转让」3 个字 11px ≈ 33px + 左右各 5px 内边距 = 44px；表头「转让记录」4 个字 12px = 48px + 10px → 64px。
+   */
+  transfer: 64,
+  /**
    * 「发布」单行：发布人 + 发布时间。（2026-09-30 曾试过收 4px，结果线上 31 行的
    * 「邵泽慧 09-29 23:10」被吃掉分钟变成「…23:…」，所以回到 116px —— 正好放得下。）
    */
@@ -203,7 +213,7 @@ export function sumWidths(keys: Array<keyof typeof FIELD_WIDTH>): number {
 export const ORDER_TABLE_KEYS: Array<keyof typeof FIELD_WIDTH> = [
   'orderCode', 'orderStatus', 'game', 'amount',
   'customerSource', 'customerSourceAccount', 'customerNickname', 'customerAccountId', 'customerContact',
-  'orderNote', 'studio', 'createdAt', 'orderActions',
+  'orderNote', 'studio', 'transfer', 'createdAt', 'orderActions',
 ];
 
 /**
@@ -220,7 +230,7 @@ export const ORDER_TABLE_KEYS_COMPANION: Array<keyof typeof FIELD_WIDTH> = [
 
 /**
  * 订单管理表的基准宽度之和 —— 也是这张表 scroll.x 的下限
- * （66+46+112+74+50+116+96+88+132+84+66+116+254 = 1300px）。
+ * （66+46+112+74+50+116+96+88+132+84+66+64+116+254 = 1364px）。
  */
 export const ORDER_TABLE_BASE_WIDTH = sumWidths(ORDER_TABLE_KEYS);
 
@@ -247,6 +257,8 @@ export const ORDER_COLUMN_MAX_WIDTH: Record<string, number> = {
   orderNote: 140, // 备注一行最长 133（线上 118 单实测），够放完整一行
   studio: 116, // 最长 103（陪玩名 + 副陪 + 桥接工作室）
   createdAt: 118, // 基础 116 就够（发布人 +「MM-DD HH:mm」），留 2px 余量
+  // 这里**故意没有 transfer**：转让列按基础宽度 64px 固定走（老板 2026-10-03 要「一眼能看到」，
+  // 「已转让」三个字只要 44px，宽度必须恒定、不随窗口变，免得窗口一窄它就被省略号吃掉）。
 };
 
 /**

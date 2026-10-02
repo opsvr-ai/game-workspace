@@ -18,7 +18,7 @@ import {
   orderUrgencyText,
 } from '../constants/orderFields';
 import { OutcomeSuffix, outcomeSuffixText } from './OrderOutcome';
-import { TransferMark } from './OrderTransferNote';
+import { describeTransfer, transferList } from './OrderTransferNote';
 
 const { Text } = Typography;
 
@@ -374,13 +374,46 @@ export function buildOrderColumns({
             <span style={{ color: o.companion ? undefined : '#94A3B8' }}>{name}</span>
             {co && <span style={CELL_SUB_TEXT}>+{co}</span>}
             {isBridged && <span style={{ ...CELL_SUB_TEXT, color: '#6D28D9' }}>· 桥接·{studio.name}</span>}
-            {/* 转让过的单：管理端（列宽够）在这里标「已转让」，悬停看是谁什么时候转给谁；
-                陪玩端这列只有 84px，标记会被省略号吃掉，改在「操作」列写全（见 OrdersPage）。 */}
-            {!isCompanion && <TransferMark transfers={o.transfers} />}
           </div>
         );
       },
     },
+    // 「转让记录」（老板 2026-10-03：「这种转让的能不能放在明面上一眼能看到，还得点订单进去才能看到」）：
+    // 以前那个小标记塞在「主陪 / 副陪」格子里（管理端只有 66px），名字 + 副陪一长就被省略号吃掉，
+    // 窗口不够宽时那一列还不补宽 —— 等于看不见。现在单独一列、**定宽不参与补宽**，转过的单
+    // 一眼就是一个红字「已转让」，鼠标停上去看「什么时候谁转给谁」。
+    // 陪玩端不插这一列（接单记录那张表多 64px 会撑出横向滚动；陪玩端转出的那一笔写在
+    // 「操作」列，见 OrdersPage 的 showTransferNote）。
+    ...(isCompanion
+      ? []
+      : [
+          {
+            title: ORDER_FIELD_LABELS.transfers,
+            key: 'transfer',
+            width: W('transfer', FIELD_WIDTH.transfer),
+            render: (_: unknown, o: any) => {
+              const list = transferList(o.transfers);
+              if (list.length === 0) return null;
+              return (
+                <Tooltip
+                  title={
+                    <div>
+                      {list.map((t, i) => (
+                        <div key={t.id || i}>{describeTransfer(t)}</div>
+                      ))}
+                    </div>
+                  }
+                >
+                  <div style={CELL_ONE_LINE}>
+                    <span style={{ color: '#C2410C', cursor: 'help' }}>
+                      已转让{list.length > 1 ? `（${list.length}）` : ''}
+                    </span>
+                  </div>
+                </Tooltip>
+              );
+            },
+          },
+        ]),
     {
       title: ORDER_FIELD_LABELS.createdAt,
       key: 'createdAt',
