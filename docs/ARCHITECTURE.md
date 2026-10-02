@@ -5,6 +5,26 @@
 
 ## 新增功能
 
+- **「服务端改状态必须推黑名单」这条链路补齐了（2026-10-03，服务端 `OrdersService` / `CompanionStatusSweepService`）**：
+  老板报「徐泽宁接受搭档邀请后一直不让启动游戏」。黑名单是**按状态**下发的（`CompanionStatusBlacklist` 里
+  蠢驴电竞配的是 `AVAILABLE → DeltaForceClient-Win64-Shipping`），陪玩端守卫的开关条件只有一个：
+  `store.get('lastStatus') === 'AVAILABLE'`，而这个 `lastStatus` **只由 `blacklist:update` 写入**。
+  问题在于「接单中（BUSY）」是服务端内部自动进入的状态（`acceptPartnerInvite` / `startSession`），
+  `WsGateway.pushCurrentBlacklist` 是唯一的下发口，可这几条路径谁都没调 —— 客户端于是永远停在「空闲」，
+  把空闲名单挂着，刚启动的游戏立刻被 `taskkill`。
+  修法：`OrdersService.markCompanionsBusy(ids)`（**先 `companion.update` 落库，再逐个
+  `wsGateway.refreshCompanionBlacklist(id)`** —— 顺序不能反，`pushCurrentBlacklist` 是照库里的状态组名单的），
+  `acceptPartnerInvite`（主陪 + 搭档）与 `startSession`（主陪 + 副陪）都改走它；
+  `CompanionStatusSweepService` 把脏 BUSY 清回 `AVAILABLE` / `OFFLINE` 时也补推一次（同一根因的镜像方向）。
+  配套用例：`apps/server/src/__tests__/orders.partner-busy-blacklist.test.ts`。
+
+- **订单转账留痕的读取口径对齐（2026-10-03，服务端 `OrdersService.findOne` + 网页编辑弹窗）**：
+  `OrderTransfer` 的写入只有一条路（`OrdersService.transferOrder`，同时刷新 `grabbedAt`），读却有两条：
+  `findAll`（列表）带 `transfers`，`findOne`（`GET /api/orders/:id`，订单详情 / 客户管理跳单）没带 ——
+  于是「谁什么时候转给谁」只在列表和客户管理看得到，详情页看不到。现在 `findOne` 用与 `findAll` 相同的
+  `select` 补上 `transfers`；网页侧 `CreateOrderModal`（老板在订单管理点整行进的是编辑弹窗）顶部渲染
+  `TransferNote`。WS / 表结构都没动。
+
 - **更新铺开 + 黑名单杀进程的两处客户端加固（2026-10-03，陪玩端 `1.0.20261006` + 服务端 `AgentService`）**：
   ① **更新名额预约**：`AgentController.pumpUpdateQueue()` 叫号成功后调 `AgentService.reserveUpdateSlot()`，把名额临时
   留给被叫到的机器（`RESERVE_TTL_MS = 3 分钟`，不来领就由 60 秒定时器放回），客户端 `acquireUpdateSlotWithRetry()`
