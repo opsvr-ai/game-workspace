@@ -5,6 +5,16 @@
 
 ## 新增功能
 
+- **更新铺开 + 黑名单杀进程的两处客户端加固（2026-10-03，陪玩端 `1.0.20261006` + 服务端 `AgentService`）**：
+  ① **更新名额预约**：`AgentController.pumpUpdateQueue()` 叫号成功后调 `AgentService.reserveUpdateSlot()`，把名额临时
+  留给被叫到的机器（`RESERVE_TTL_MS = 3 分钟`，不来领就由 60 秒定时器放回），客户端 `acquireUpdateSlotWithRetry()`
+  拿不到名额就带抖动重试（15-30 秒，最多 30 分钟）；`sent === false`（离线 / WS 没连上）的机器 `requeueUpdateWaiter()`
+  放回队列。老版本客户端也吃到这个改动（`acquireUpdateSlot` 语义不变，同一个 id 仍直接放行）。
+  ② **进程启动监听**：陪玩端不再是「每 10 秒 tasklist 全表扫」，而是常驻 PowerShell 子进程跑
+  `Register-WmiEvent -Class Win32_ProcessStartTrace`（降级链：`__InstanceCreationEvent(WITHIN 1)` → 3 秒快扫），
+  事件回调里匹配黑名单 → `taskkill /F /IM x /T`；兜底扫描 60 秒一次，用来补「开机时就已经开着」的进程。
+  WS 事件 / IPC 没变，只是检测方式与提示频率（同进程 5 分钟一次）变了。
+
 - **黑名单「按人特批」的三处修正（2026-10-03，服务端 + 陪玩端 `1.0.20261004`）**：老板「单独给三个人开了黑名单，
   只有一个人被杀掉」。① `WsGateway.pushCurrentBlacklist` / `sendBlacklistUpdate` 改成**始终下发服务端真实状态**
   （原来 `authoritative ? status : undefined`）：陪玩端守卫是 `store.get('lastStatus') === 'AVAILABLE'` 才动手，
