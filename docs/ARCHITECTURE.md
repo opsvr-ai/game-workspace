@@ -5,6 +5,14 @@
 
 ## 新增功能
 
+- **「无人接」判定收口到一处、并排除客服已接手的单（2026-10-02）**: 状态列的红字「无人接」原来在两处各写一遍
+  （`apps/web/src/components/orderColumns.tsx` 的行内条件 + `apps/web/src/constants/orderFields.ts` 的
+  `isOrderStuck()`），口径是 `customFields.poolExpired === true && !companionId` —— 这是**抢单池**的结论，
+  但这一列在订单管理 / 订单池流转失败明细 / 管理端直添客户流转明细三张表共用，于是「超时退回、客服已接手跟进」
+  的单（`contactStatus` 有值）在流转明细里也被标成「无人接」。现在只保留 `isOrderStuck()` 一份判定，
+  并加上「客服已接手不算」：`cf.directAdd === true || order.contactStatus` 成立时按订单自身状态走
+  （`PENDING` → 待派单）。`orderStatusLabel()`（订单详情 / 导出 CSV）跟着同一份判定。
+
 - **聊天框「打开即到底 + 跳未读」（2026-10-02）**: 消息列表（`apps/web/src/components/chat/MessageList.tsx`）
   是虚拟列表（`@tanstack/react-virtual`），高度先估算后回填，所以「打开贴底」必须跟着 `virtualizer.getTotalSize()`
   持续纠正 —— 只在挂载时滚一次会停在半截。会话消息接口（`GET /api/chat/rooms/:id/messages` /
