@@ -12,6 +12,7 @@ import {
   ORDER_FIELD_LABELS,
   ORDER_STATUS_TEXT_COLOR,
   fieldVisibleTo,
+  isOrderStuck,
   orderAmountText,
   orderCustomerWechat,
   orderUrgencyText,
@@ -119,11 +120,10 @@ export function buildOrderColumns({
       render: (_: unknown, o: any) => {
         const label = orderStatusConfig[o.status]?.label || o.status;
         // 池子里超时没人抢、已退回流转失败明细的单：状态本身看不出来，直接写成红字「无人接」（3 个字）。
-        // 「直添客户」的单（directAdd）从来没进过抢单池，别给它按上「无人接」——按它自己的状态走
-        // （待派单：客户还在客服这儿养着，谈好了客服直接派给陪玩）。
-        const stuck =
-          o.customFields?.poolExpired === true && !o.companionId && o.customFields?.directAdd !== true;
-        if (stuck) {
+        // 判定只有一份（constants/orderFields.ts 的 isOrderStuck）：客服已经接手的单
+        // （直添登记 directAdd / 记过添加情况 contactStatus）不算「无人接」，按它自己的状态走
+        // —— 老板 2026-10-02：「客服只是记录 又没派单出去，怎么就成了无人接」。
+        if (isOrderStuck(o)) {
           return (
             <div style={CELL_ONE_LINE}>
               <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">

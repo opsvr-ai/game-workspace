@@ -132,9 +132,23 @@ export const ORDER_STATUS_TEXT_COLOR: Record<string, string> = {
 
 export const orderTypeLabel = (o: any): string => orderTypeConfig[o?.type]?.label || o?.type || '首单';
 
-/** 池子里超时没人抢、已经退回「流转失败明细」的单：状态直接写「无人接」。 */
-export const isOrderStuck = (o: any): boolean =>
-  o?.customFields?.poolExpired === true && !o?.companionId;
+/**
+ * 池子里超时没人抢、已经退回「流转失败明细」的单：状态直接写「无人接」。
+ *
+ * 老板 2026-10-02：「管理端直添客户流转明细 最前边怎么显示无人接？客服只是记录 又没派单出去
+ * 更不是没人接，怎么就成了无人接」—— 「无人接」是**抢单池**的结论（单子放出去了、没人接）。
+ * 只要客服已经接手这张单，它就不再是「没人接」，状态按订单自己的状态走（PENDING → 待派单）：
+ *  - `directAdd`：「管理端直添客户」登记进来的单，从来没进过抢单池；
+ *  - `contactStatus`：客服在跟进台账 / 订单管理里记过添加情况（待添加 / 已添加 / 客户已同意 /
+ *    添加失败 / 已派单）—— 客服那一列「添加情况」照旧单独显示走到哪一步，两个格互不打架。
+ */
+export const isOrderStuck = (o: any): boolean => {
+  const cf = o?.customFields || {};
+  if (cf.poolExpired !== true || o?.companionId) return false;
+  if (cf.directAdd === true) return false;
+  if (o?.contactStatus) return false;
+  return true;
+};
 
 export const orderStatusLabel = (o: any): string => {
   if (isOrderStuck(o)) return '无人接';
