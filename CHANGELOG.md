@@ -444,6 +444,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Removed
 
+- **删掉数据库里那条早就废弃的旧键 `SystemConfig.blacklist.auto_kill`（老板 2026-10-02：「删」）。**
+  它是 2026-09-24 按老板要求整条移除的「全站杀进程总开关」留下的**孤儿行**：代码里已经没有任何地方读它
+  （`apps/server/src/common/blacklist-switch.ts` 现在只读本店开关 + 按人特批；`GET /config` 也只会返回
+  `DEFAULT_CONFIGS` 里的键，所以页面上从来就看不到它），但行还躺在库里（值 `false`）。老板点名要清掉，直接删：
+  删前留底 `blacklist.auto_kill=false`、`SystemConfig` 共 250 行 → 删掉 1 行 → 回读 `blacklist*` 一条不剩、
+  共 249 行；删完复测「按人开关」接口与 `GET /config` 都照常 200。**不需要重启服务端、不需要发版**（本来就没人在读它）。
+
 - **删掉旧的那条装机入口「陪玩端一键安装.bat / .ps1」（老板 2026-10-01：「过时的还留着干啥 删除算了」）。**
   它和 `setup-pc.bat` 干的是同一件事，但少了「口令留档」这一步 —— 客户端装到最后自动跑的那次
   「开通远程管理」会另生成一个口令把账号重置掉，于是窗口上打印给对方的密码过后就失效了
