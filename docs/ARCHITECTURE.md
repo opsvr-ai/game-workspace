@@ -18,6 +18,23 @@
   `CompanionStatusSweepService` 把脏 BUSY 清回 `AVAILABLE` / `OFFLINE` 时也补推一次（同一根因的镜像方向）。
   配套用例：`apps/server/src/__tests__/orders.partner-busy-blacklist.test.ts`。
 
+- **转让订单要经被转让方同意（2026-10-03，老板：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）**：
+  新表 `OrderTransferRequest`（`PENDING | PROCESSING | ACCEPTED | REJECTED | CANCELLED | EXPIRED`，无外键，
+  只有 `orderId`/`fromCompanionId`/`toCompanionId`/`reason`/`status`/`createdAt`/`resolvedAt` + 4 个索引）。
+  `OrdersService.requestTransfer()` 只做校验 + 落 `PENDING` + 推 `order:transfer_requested`（订单不动、不写留痕），
+  同一张单的旧 `PENDING` 会被顶成 `CANCELLED` 并通知旧对象；`acceptTransferRequest()` 先原子占位
+  （`updateMany where status=PENDING → PROCESSING`，拿不到就拒）再调 `applyTransfer()` —— 也就是原来那套换手事务
+  （写 `OrderTransfer` + 换 `companionId`/`grabbedAt` + 转客户归属 + 清联系进度 + 主副陪对调），失败把申请退回 `PENDING`；
+  `rejectTransferRequest()` / `cancelTransferRequest()` 只改状态 + 推事件；`listMyTransferRequests()` 返回
+  `{ incoming, outgoing }`（带 orderCode/gameName/amount/expiresAt，`incoming` 还带 `valid` —— 单已经不在发起人名下
+  就为 false）。超时由 `OrdersService.onModuleInit` 里 30 秒一次的 `cleanupExpiredTransferRequests()` 置 `EXPIRED`
+  （TTL 30 分钟）。接口：`POST /orders/:id/transfer`（改为发申请）、`GET /orders/transfer-requests/mine`、
+  `POST /orders/transfer-requests/:id/{accept,reject,cancel}`，全 `@Roles(COMPANION)`。WS 事件：
+  `order:transfer_requested`（→ 被转让方）、`order:transfer_accepted` / `order:transfer_rejected` / `order:transfer_expired`
+  （→ 发起方）、`order:transfer_cancelled`（→ 被转让方）；同意后仍走老的 `order:transferred` + `pushOrder`。
+  网页侧 `AppLayout` 拿 `onTransferRequested` 弹窗 + 顶栏 🔁 角标（`useSocket` 加了 5 个事件），
+  `OrdersPage` 等待期间把「转让」换成「撤回」。订单列表「转让记录」列不受影响（`OrderTransfer` 仍是唯一留痕表）。
+
 - **订单转账留痕的读取口径对齐（2026-10-03，服务端 `OrdersService.findOne` + 网页编辑弹窗）**：
   `OrderTransfer` 的写入只有一条路（`OrdersService.transferOrder`，同时刷新 `grabbedAt`），读却有两条：
   `findAll`（列表）带 `transfers`，`findOne`（`GET /api/orders/:id`，订单详情 / 客户管理跳单）没带 ——

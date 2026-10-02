@@ -54,6 +54,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **转让订单改成「要对方同意」（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）**：
+  以前 `POST /orders/:id/transfer` 点一下就换手（同一个事务里换 `companionId`/`grabbedAt`、写 `OrderTransfer` 留痕、
+  客户归属跟着转），被转让方根本不知道这回事 —— 单可能被塞给一个正在打游戏的人。现在拆成两步：
+  持单陪玩先发起一条 `OrderTransferRequest(PENDING)`（只推 `order:transfer_requested` 给被转让方，
+  **订单一个字段都不动、不写留痕**），被转让方在陪玩端弹窗 / 顶栏 🔁 铃铛里点「同意接手」才跑老的换手逻辑，
+  并把申请置 `ACCEPTED`。拒绝 / 发起人撤回 / 30 分钟没人响应（`EXPIRED`）一律作废，订单原样不动。
+  新增四个陪玩端接口：`GET /orders/transfer-requests/mine`（incoming / outgoing）、
+  `POST /orders/transfer-requests/:id/accept|reject|cancel`；同意是原子的（申请先置 `PROCESSING` 当锁、失败退回
+  `PENDING`），别人拿着编号也点不动（403）；转出方那一行的「转让」在等待期间变成「撤回」。
+  新表 `OrderTransferRequest` 只放申请，`OrderTransfer` 仍是唯一留痕表 —— 接单记录、客户管理、订单管理
+  「转让记录」列的读取口径全都不用改。配套用例 `apps/server/src/__tests__/orders.transfer-request.test.ts`。
+
 - **陪玩端 `1.0.20261006` 已发布（自动更新，不强制推送，不打断正在接单的机器）**：上面三条 + 杀进程提示
   改走右下角置顶小窗（系统通知在「专注助手」开着 / 全屏游戏时会被吞掉）。
 - **服务端更新队列加「预约 + 放回」**：`/api/agent/update/acquire` 的语义不变，老版本客户端也吃到这个改动。
