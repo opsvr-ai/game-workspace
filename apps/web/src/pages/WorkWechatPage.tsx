@@ -1,11 +1,12 @@
 // craftsman-ignore: TS001,TS002
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal } from 'antd';
+import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal, Tooltip } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
+import { CELL_ONE_LINE } from '../constants/datasetColumns';
 
 const { Text } = Typography;
 
@@ -211,6 +212,25 @@ const WorkWechatPage: React.FC = () => {
 
   const pendingRequestCount = requests.filter((r: any) => r.status === 'PENDING').length;
 
+  /**
+   * 这一张表的行 = 「陪玩自己提交、还在等审核的号」+「已经生效的工作微信」（老板 2026-10-02 合并）。
+   *
+   * 原来这两拨各占一张表（上面一张审核卡片、下面一张工作微信表），老板说「现在是上下两部分，
+   * 合并成一整块，要不然很乱」。现在同一张表：待审核的排在最上面（橙色行 + 通过 / 驳回），
+   * 审核通过的那一瞬间它就变成下面那种正常行（那个号已经绑给他了），不用在两张表之间来回看。
+   * 已通过 / 已驳回的申请不再单列一行 —— 通过的号本身就在这张表里，被驳回的原因陪玩那边能看到。
+   */
+  const tableRows = useMemo(() => {
+    const reqRows =
+      typeFilter === 'STUDIO'
+        ? []
+        : requests
+            .filter((r: any) => r.status === 'PENDING')
+            .map((r: any) => ({ ...r, _request: true, _rowKey: `req:${r.id}` }));
+    const wxRows = wechats.map((w: any) => ({ ...w, _request: false, _rowKey: `wx:${w.id}` }));
+    return [...reqRows, ...wxRows];
+  }, [requests, wechats, typeFilter]);
+
   return (
     <div>
       <PageHeader
@@ -223,117 +243,231 @@ const WorkWechatPage: React.FC = () => {
         }
       />
 
-      {!isCs && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <Input
-            placeholder="输入微信号"
-            value={newWechatId}
-            onChange={(e) => setNewWechatId(e.target.value)}
-            onPressEnter={handleAdd}
-            style={{ width: 200 }}
-          />
-          {!typeFilter && (
-            <Select
-              value={newType}
-              onChange={setNewType}
-              style={{ width: 150 }}
-              options={[
-                { label: '陪玩微信', value: 'COMPANION' },
-                { label: '工作室/客服微信', value: 'STUDIO' },
-              ]}
-            />
-          )}
-          <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
-            添加
-          </Button>
-        </div>
-      )}
+      <Card size="small">
+        {/* 一块：上面这一行是「加号」、下面就是这张表 —— 陪玩自己提交、等审核的那几行直接排在
+            这张表最上面，不再单开一张卡片（老板 2026-10-02：「现在是上下两部分，合并成一整块，
+            要不然很乱」）。审核通过的那一瞬间，上面那行就变成下面那种「已绑定」的行。 */}
+        {(!isCs || (typeFilter !== 'STUDIO' && pendingRequestCount > 0)) && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              marginBottom: 12,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
+            {!isCs && (
+              <Input
+                placeholder="输入微信号"
+                value={newWechatId}
+                onChange={(e) => setNewWechatId(e.target.value)}
+                onPressEnter={handleAdd}
+                style={{ width: 200 }}
+              />
+            )}
+            {!isCs && !typeFilter && (
+              <Select
+                value={newType}
+                onChange={setNewType}
+                style={{ width: 150 }}
+                options={[
+                  { label: '陪玩微信', value: 'COMPANION' },
+                  { label: '工作室/客服微信', value: 'STUDIO' },
+                ]}
+              />
+            )}
+            {!isCs && (
+              <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
+                添加
+              </Button>
+            )}
+            {typeFilter !== 'STUDIO' && pendingRequestCount > 0 && (
+              <Tag color="red">{pendingRequestCount} 条陪玩提交待审核（在下面表的最上面几行）</Tag>
+            )}
+          </div>
+        )}
 
-      {typeFilter !== 'STUDIO' && (
-        <Card
-          size="small"
-          style={{
-            marginBottom: 16,
-            border: pendingRequestCount > 0 ? '1px solid #ffccc7' : undefined,
-            background: pendingRequestCount > 0 ? '#fff7e6' : undefined,
-          }}
-          title={
-            <Space size={8}>
-              <span>📥 陪玩自己提交的微信号（管理端审核）</span>
-              {pendingRequestCount > 0 ? (
-                <Tag color="red">{pendingRequestCount} 条待审核</Tag>
-              ) : (
-                <Tag>暂无待审核</Tag>
-              )}
-            </Space>
-          }
-        >
-          <Table
-            size="small"
-            rowKey="id"
-            loading={requestsLoading}
-            dataSource={requests}
-            pagination={{ pageSize: 5, hideOnSinglePage: true }}
-            locale={{ emptyText: '还没有陪玩提交过' }}
-            columns={[
-              // 全站老板跨店看：多一列「工作室」，一眼分清是哪家的提交
-              ...(role === 'OWNER'
-                ? ([
-                    {
-                      title: '工作室',
-                      dataIndex: 'studioName',
-                      key: 'studioName',
-                      width: 170,
-                      render: (v: string) => <Text>{v || '-'}</Text>,
-                    },
-                  ] as any)
-                : []),
-              {
-                title: '陪玩',
-                key: 'companion',
-                width: 150,
-                render: (_: any, r: any) => (
-                  <Text>
-                    {r.companion?.user?.displayName || r.companion?.user?.username || '-'}
-                  </Text>
-                ),
+        <Table
+          dataSource={tableRows}
+          rowKey={(r: any) => r._rowKey}
+          loading={loading || requestsLoading}
+          pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个` }}
+          onRow={(r: any) => (r._request ? { style: { background: '#FFF7E6' } } : {})}
+          columns={[
+            {
+              title: '类型',
+              key: 'type',
+              width: 120,
+              render: (_: any, r: any) =>
+                r.type === 'STUDIO' ? <Tag color="purple">工作室/客服</Tag> : <Tag color="blue">陪玩</Tag>,
+            },
+            {
+              title: '微信号',
+              dataIndex: 'wechatId',
+              key: 'wechatId',
+              render: (v: string) => <Text strong>📱 {v}</Text>,
+            },
+            {
+              title: '昵称',
+              dataIndex: 'nickname',
+              key: 'nickname',
+              width: 220,
+              render: (v: string, r: any) => {
+                // 等审核的那一行还没生效（号都还没绑给他），没有昵称可填，别显示「未设置 / 设置」
+                if (r._request) return <Text type="secondary">-</Text>;
+                if (editingNicknameId === r.id) {
+                  return (
+                    <Input
+                      autoFocus
+                      size="small"
+                      value={nicknameDraft}
+                      onChange={(e) => setNicknameDraft(e.target.value)}
+                      onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+                      onBlur={() => saveNickname(r.id)}
+                      placeholder="输入昵称"
+                      style={{ width: 180 }}
+                    />
+                  );
+                }
+                return (
+                  <Space size={4}>
+                    <Text>{v || <Text type="secondary">未设置</Text>}</Text>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => {
+                        setEditingNicknameId(r.id);
+                        setNicknameDraft(v || '');
+                      }}
+                    >
+                      {v ? '改' : '设置'}
+                    </Button>
+                  </Space>
+                );
               },
-              {
-                title: '提交的微信号',
-                dataIndex: 'wechatId',
-                key: 'wechatId',
-                render: (v: string) => <Text strong>📱 {v}</Text>,
+            },
+            {
+              title: '状态',
+              key: 'status',
+              width: 100,
+              render: (_: any, r: any) => {
+                if (r._request) {
+                  const who =
+                    r.companion?.user?.displayName || r.companion?.user?.username || '陪玩';
+                  const at = r.createdAt
+                    ? new Date(r.createdAt).toLocaleString('zh-CN', { hour12: false })
+                    : '';
+                  return (
+                    <Tooltip title={`${who} 提交于 ${at}；通过后这个号立刻生效并绑给他`}>
+                      <Tag color="orange">待审核</Tag>
+                    </Tooltip>
+                  );
+                }
+                return r.status === 'BOUND' ? (
+                  <Tag color="blue">已绑定</Tag>
+                ) : (
+                  <Tag color="green">可用</Tag>
+                );
               },
-              {
-                title: '状态',
-                key: 'status',
-                width: 170,
-                render: (_: any, r: any) =>
-                  r.status === 'PENDING' ? (
-                    <Tag color="orange">待审核</Tag>
-                  ) : r.status === 'APPROVED' ? (
-                    <Tag color="green">已通过</Tag>
-                  ) : (
-                    <Tag>已驳回{r.rejectReason ? `：${r.rejectReason}` : ''}</Tag>
-                  ),
+            },
+            {
+              title: '绑定对象',
+              key: 'binding',
+              width: 180,
+              render: (_: any, r: any) => {
+                // 等审核的提交：这里先写清「通过以后会绑给谁」，一眼知道该不该通过
+                if (r._request) {
+                  const who =
+                    r.companion?.user?.displayName || r.companion?.user?.username || '（陪玩已删除）';
+                  const studio = role === 'OWNER' && r.studioName ? ` · ${r.studioName}` : '';
+                  return (
+                    <div style={CELL_ONE_LINE} title={`${who} 提交的号 · 通过后绑给他`}>
+                      <Text>{who}</Text>
+                      <span style={{ fontSize: 11, color: '#94A3B8' }}> · 提交人{studio}</span>
+                    </div>
+                  );
+                }
+                if (bindingId === r.id) {
+                  if (r.type === 'STUDIO') {
+                    return (
+                      <Select
+                        autoFocus
+                        size="small"
+                        showSearch
+                        placeholder="选择客服"
+                        style={{ width: 150 }}
+                        onChange={(csUserId) => handleBindCs(r.id, csUserId)}
+                        options={csUsers.map((u: any) => ({
+                          label: u.displayName || u.username,
+                          value: u.id,
+                        }))}
+                      />
+                    );
+                  }
+                  return (
+                    <Select
+                      autoFocus
+                      size="small"
+                      showSearch
+                      placeholder="选择陪玩"
+                      style={{ width: 150 }}
+                      onChange={(companionId) => handleBind(r.id, companionId)}
+                      options={companions
+                        .filter((c: any) => c.status !== 'OFFLINE')
+                        .map((c: any) => ({
+                          label: c.user?.displayName || c.user?.username || c.id,
+                          value: c.id,
+                        }))}
+                    />
+                  );
+                }
+                if (r.type === 'STUDIO') {
+                  const cs = csUsers.find((u: any) => u.id === r.csUserId);
+                  if (cs || boundNames[r.id]) {
+                    return (
+                      <Space size={4}>
+                        <Text>{cs?.username || boundNames[r.id]}</Text>
+                        <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
+                          解绑
+                        </Button>
+                      </Space>
+                    );
+                  }
+                  return (
+                    <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
+                      绑定客服
+                    </Button>
+                  );
+                }
+                if (r.companion?.user?.username || boundNames[r.id]) {
+                  return (
+                    <Space size={4}>
+                      <Text>{r.companion?.user?.username || boundNames[r.id]}</Text>
+                      <Button type="link" size="small" onClick={() => handleUnbind(r.id)}>
+                        解绑
+                      </Button>
+                    </Space>
+                  );
+                }
+                return (
+                  <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
+                    绑定陪玩
+                  </Button>
+                );
               },
-              {
-                title: '提交时间',
-                dataIndex: 'createdAt',
-                key: 'createdAt',
-                width: 160,
-                render: (v: string) =>
-                  v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-',
-              },
-              {
-                title: '操作',
-                key: 'op',
-                width: 150,
-                render: (_: any, r: any) =>
-                  r.status === 'PENDING' ? (
+            },
+            {
+              title: '操作',
+              key: 'actions',
+              width: 150,
+              render: (_: any, r: any) => {
+                // 等审核的提交：这一格是「通过 / 驳回」（原来在上面的审核卡片里，合并到这一张表）
+                if (r._request) {
+                  return (
                     <Space size={4}>
                       <Popconfirm
-                        title={`通过「${r.wechatId}」？通过后立刻生效`}
+                        title={`通过「${r.wechatId}」？通过后立刻生效并绑给他`}
                         onConfirm={() => handleApproveRequest(r.id)}
                         okText="通过"
                         cancelText="取消"
@@ -354,175 +488,33 @@ const WorkWechatPage: React.FC = () => {
                         驳回
                       </Button>
                     </Space>
-                  ) : (
-                    <Text type="secondary">—</Text>
-                  ),
-              },
-            ]}
-          />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            陪玩提交的只是申请：只有点「通过」才会把这个号绑给他（他原来绑的号自动退下来）。
-            审核通过之前，抢单判重用的还是他现在生效的那个号。
-          </Text>
-        </Card>
-      )}
-
-      <Table
-        dataSource={wechats}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个` }}
-        columns={[
-          {
-            title: '类型',
-            key: 'type',
-            width: 120,
-            render: (_: any, r: any) =>
-              r.type === 'STUDIO' ? <Tag color="purple">工作室/客服</Tag> : <Tag color="blue">陪玩</Tag>,
-          },
-          {
-            title: '微信号',
-            dataIndex: 'wechatId',
-            key: 'wechatId',
-            render: (v: string) => <Text strong>📱 {v}</Text>,
-          },
-          {
-            title: '昵称',
-            dataIndex: 'nickname',
-            key: 'nickname',
-            width: 220,
-            render: (v: string, r: any) => {
-              if (editingNicknameId === r.id) {
+                  );
+                }
                 return (
-                  <Input
-                    autoFocus
-                    size="small"
-                    value={nicknameDraft}
-                    onChange={(e) => setNicknameDraft(e.target.value)}
-                    onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
-                    onBlur={() => saveNickname(r.id)}
-                    placeholder="输入昵称"
-                    style={{ width: 180 }}
-                  />
-                );
-              }
-              return (
-                <Space size={4}>
-                  <Text>{v || <Text type="secondary">未设置</Text>}</Text>
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => {
-                      setEditingNicknameId(r.id);
-                      setNicknameDraft(v || '');
-                    }}
+                  <Popconfirm
+                    title="确定删除该工作微信？"
+                    onConfirm={() => handleDelete(r.id)}
+                    okText="确定"
+                    cancelText="取消"
                   >
-                    {v ? '改' : '设置'}
-                  </Button>
-                </Space>
-              );
-            },
-          },
-          {
-            title: '状态',
-            key: 'status',
-            width: 100,
-            render: (_: any, r: any) =>
-              r.status === 'BOUND' ? <Tag color="blue">已绑定</Tag> : <Tag color="green">可用</Tag>,
-          },
-          {
-            title: '绑定对象',
-            key: 'binding',
-            width: 180,
-            render: (_: any, r: any) => {
-              if (bindingId === r.id) {
-                if (r.type === 'STUDIO') {
-                  return (
-                    <Select
-                      autoFocus
-                      size="small"
-                      showSearch
-                      placeholder="选择客服"
-                      style={{ width: 150 }}
-                      onChange={(csUserId) => handleBindCs(r.id, csUserId)}
-                      options={csUsers.map((u: any) => ({
-                        label: u.displayName || u.username,
-                        value: u.id,
-                      }))}
-                    />
-                  );
-                }
-                return (
-                  <Select
-                    autoFocus
-                    size="small"
-                    showSearch
-                    placeholder="选择陪玩"
-                    style={{ width: 150 }}
-                    onChange={(companionId) => handleBind(r.id, companionId)}
-                    options={companions
-                      .filter((c: any) => c.status !== 'OFFLINE')
-                      .map((c: any) => ({
-                        label: c.user?.displayName || c.user?.username || c.id,
-                        value: c.id,
-                      }))}
-                  />
-                );
-              }
-              if (r.type === 'STUDIO') {
-                const cs = csUsers.find((u: any) => u.id === r.csUserId);
-                if (cs || boundNames[r.id]) {
-                  return (
-                    <Space size={4}>
-                      <Text>{cs?.username || boundNames[r.id]}</Text>
-                      <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
-                        解绑
-                      </Button>
-                    </Space>
-                  );
-                }
-                return (
-                  <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
-                    绑定客服
-                  </Button>
-                );
-              }
-              if (r.companion?.user?.username || boundNames[r.id]) {
-                return (
-                  <Space size={4}>
-                    <Text>{r.companion?.user?.username || boundNames[r.id]}</Text>
-                    <Button type="link" size="small" onClick={() => handleUnbind(r.id)}>
-                      解绑
+                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                      删除
                     </Button>
-                  </Space>
+                  </Popconfirm>
                 );
-              }
-              return (
-                <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
-                  绑定陪玩
-                </Button>
-              );
+              },
             },
-          },
-          {
-            title: '操作',
-            key: 'actions',
-            width: 80,
-            render: (_: any, r: any) => (
-              <Popconfirm
-                title="确定删除该工作微信？"
-                onConfirm={() => handleDelete(r.id)}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-                  删除
-                </Button>
-              </Popconfirm>
-            ),
-          },
-        ]}
-      />
+          ]}
+        />
+
+        {/* 这一句只在「陪玩工作微信」这一页说 —— 客服工作微信页没有陪玩提交这回事 */}
+        {typeFilter !== 'STUDIO' && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            陪玩自己在客户端提交的号会直接出现在这张表最上面（橙色「待审核」那几行）：只有点「通过」才会把这个号
+            绑给他（他原来绑的号自动退下来）；审核通过之前，抢单判重用的还是他现在生效的那个号。
+          </Text>
+        )}
+      </Card>
 
       <Modal
         open={!!rejectId}
