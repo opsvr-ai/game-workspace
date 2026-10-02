@@ -32,8 +32,10 @@
   `POST /orders/transfer-requests/:id/{accept,reject,cancel}`，全 `@Roles(COMPANION)`。WS 事件：
   `order:transfer_requested`（→ 被转让方）、`order:transfer_accepted` / `order:transfer_rejected` / `order:transfer_expired`
   （→ 发起方）、`order:transfer_cancelled`（→ 被转让方）；同意后仍走老的 `order:transferred` + `pushOrder`。
-  网页侧 `AppLayout` 拿 `onTransferRequested` 弹窗 + 顶栏 🔁 角标（`useSocket` 加了 5 个事件），
-  `OrdersPage` 等待期间把「转让」换成「撤回」。订单列表「转让记录」列不受影响（`OrderTransfer` 仍是唯一留痕表）。
+  网页侧 `AppLayout` 拿 `onTransferRequested` 挂顶栏 🔁 角标（`useSocket` 加了 5 个事件；**自动弹窗按老板 2026-10-03 的话去掉，
+  改在订单列表那一行点**），`OrdersPage` 等待期间把「转让」换成「撤回」、**被转让方那一行直接长出「接手 / 拒绝」**
+  （数据来自 `findAll` 新挂的 `pendingTransferForMe`：把「转给我、还没处理、最近 30 分钟」的申请也一起捞进列表）。
+  订单列表「转让记录」列不受影响（`OrderTransfer` 仍是唯一留痕表）。
 
 - **订单转账留痕的读取口径对齐（2026-10-03，服务端 `OrdersService.findOne` + 网页编辑弹窗）**：
   `OrderTransfer` 的写入只有一条路（`OrdersService.transferOrder`，同时刷新 `grabbedAt`），读却有两条：

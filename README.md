@@ -21,8 +21,9 @@
 
 - **转让订单改成「要对方同意」（2026-10-03，服务端 + 网页 `v877`）:** 老板「想转让的订单，需要被转让方同意才能过来，
   要不然乱套了」—— 以前点一下「转让」就换手（换 `companionId`、写留痕、客户归属跟着转），被转让方根本不知道，
-  单可能被塞给一个正在打游戏的人。现在拆两步：持单陪玩先**发起申请**（订单一个字段都不动），被转让方在陪玩端
-  自动弹窗 / 顶栏 🔁 铃铛里点「同意接手」才真正转过去；拒绝 / 撤回 / 30 分钟没人理都作废，单还在发起人名下。
+  单可能被塞给一个正在打游戏的人。现在拆两步：持单陪玩先**发起申请**（订单一个字段都不动），被转让方的
+  「接单记录」那一行点「接手」才真正转过去（顶栏 🔁 铃铛里也留一份；老板 2026-10-03 接着说「放在订单列表那一行
+  点转让或者点接受不行么」，所以自动弹窗去掉了、改成列表里点）。拒绝 / 撤回 / 30 分钟没人理都作废，单还在发起人名下。
   等待期间发起方那一行显示「撤回」。新表 `OrderTransferRequest` 只放申请，留痕表 `OrderTransfer` 不动 ——
   接单记录、客户管理、「转让记录」列口径全不变。
 
@@ -239,7 +240,7 @@
   今日看板、实时估算、月度对账四处共用同一份（`onlineModeOf` / `onlineCommissionOf`），看板上会写明现在按
   哪一种算；底薪 / 全勤奖 / 迟到缺勤早退扣款仍在「工资规则」。
 - **右上角铃铛只放通知，聊天搬到左侧「消息」面板（2026-09-30，v836）:** 老板「铃铛那里去除聊天的信息，
-  只保留其他的通知」。铃铛点开只有通知 —— 新订单 / 指定接单、订单转让、服务结束、搭档邀请、账目异常、
+  只保留其他的通知」。铃铛点开只有通知 —— 新订单 / 指定接单、转让申请（去「接单记录」那一行点「接手」）、订单转让、服务结束、搭档邀请、账目异常、
   支取审批、注册审核、工作抽查异常、预约单超时…… 未读在铃铛上出角标（聊天未读不再计入），带「查看 ›」的
   点一下直接跳对应页面，顶部可「全部已读 / 清空」，通知按人存在本机。聊天（私聊 + 群聊）统一放左侧
   「消息」面板（私聊列表从铃铛搬过来，未读角标照旧），提示音 + Windows 通知 + 导航聊天角标都不变。
@@ -990,7 +991,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
 | `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上→线下流转」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
-| `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
+| `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。2026-10-03 起**只发出申请**（`OrderTransferRequest`，TTL 30 分钟），**被转让方的接单记录里会先出现这张单**、行上带 `pendingTransferForMe`，他在那一行点「接手」才真正换手（顶栏 🔁 铃铛也留一份，不再自动弹窗）；转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
 | `POST` | `/api/orders/:id/chase-feedback` | JWT | CS, ADMIN, OWNER | 「催一下」：线上 / 桥接单还挂着「待反馈」时催接单工作室给个说法。单上记 `feedbackChasedAt` / `feedbackChaseCount`，并把 `order:feedback_chase` 推给接单工作室（客服 / 店长右下角提醒）。已反馈过 / 没人接 / 本店线下单会 403。 |
 | `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下→线上流转」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
