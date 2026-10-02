@@ -490,7 +490,7 @@ const CustomersPage: React.FC = () => {
       key: 'source',
       width: FIELD_WIDTH.sourceTime,
       render: (_: any, r: any) => {
-        if (!canSeeCustomerSource(role)) return <Text type="secondary">-</Text>;
+        if (!canSeeCustomerSource(r, user)) return <Text type="secondary">-</Text>;
         const latest = r.orders?.[0] || {};
         const source = orderFieldText(latest, 'customerSource');
         const account = orderFieldText(latest, 'customerSourceAccount');

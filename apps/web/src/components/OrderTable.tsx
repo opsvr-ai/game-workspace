@@ -6,6 +6,7 @@ import {
   CELL_ONE_LINE,
   FIELD_WIDTH,
   TABLE_STYLE,
+  canSeeCustomerSource,
 } from '../constants/datasetColumns';
 import { buildOrderColumns } from './orderColumns';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
@@ -70,8 +71,8 @@ const OrderTable: React.FC<OrderTableProps> = ({
   actionsWidth,
   rowStyle,
 }) => {
-  const role = useAuthStore((s) => s.user?.role);
-  const isCompanion = role === 'COMPANION';
+  const user = useAuthStore((s) => s.user);
+  const isCompanion = user?.role === 'COMPANION';
   const [inactiveAccounts, setInactiveAccounts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -86,7 +87,11 @@ const OrderTable: React.FC<OrderTableProps> = ({
     };
   }, []);
 
-  const columns: any[] = buildOrderColumns({ isCompanion, inactiveAccounts }).filter(
+  const columns: any[] = buildOrderColumns({
+    isCompanion,
+    canSeeSourceFor: (o: any) => canSeeCustomerSource(o, user),
+    inactiveAccounts,
+  }).filter(
     (c) => !(hideStudio && c.key === 'companion'),
   );
   // 这一页特有的列（跟进台账的「客服工作微信 / 添加情况 / 最后跟进 / 下次跟进」）插在

@@ -3,6 +3,8 @@
 export interface PrivacyUser {
   id: string;
   role: string;
+  /** 所属工作室（全站老板为空）。判「这一单 / 这个客户是不是他家的」就看它。 */
+  studioId?: string | null;
   companionId?: string;
 }
 
@@ -26,37 +28,61 @@ export function maskCustomerWechatList(orders: any[], user?: PrivacyUser | null)
 }
 
 /**
- * 来源账号（发笔记的那个小红书 / 抖音号）：**只有陪玩端看不到，管理端一律显示完整**。
- *
- * 老板 2026-09-30：「管理端的 订单管理 引流账号 怎么是 `*`？」——
- * 这一格本来是 2026-09-28 按「客服只显示自己的就可以了」抹成 `***` 的（`canSeeSourceAccount`），
- * 可同样是客服，「客户管理」里那一格一直显示的是完整账号（那边只按 `canSeeCustomerSource`
- * 对陪玩端隐藏）—— 同一个数据两个页面显示不一样，正是老板最烦的「每个页面显示的不一样」。
- * 老板 2026-09-30 的定调是「所有页面显示一致，只有陪玩端不展示」，所以这条抹号规则整条删掉：
- *  - 陪玩端：照样看不到（由 `canSeeCustomerSource` + `stripCustomerSourceDeep` 拦截器把
- *    来源 / 来源账号**整列摘掉**，连「小红书」三个字都不给看）；
- *  - 客服 / 店长 / 老板：一律看完整的引流账号。
- *
- * 删掉的只有「管理端抹成 `***`」这一步，陪玩端那边一个都没放开。
+ * 沿革（别再把口径改回去）：
+ *  - 2026-09-28：按「客服只显示自己发的单」把引流量号抹成 `***`（`canSeeSourceAccount`）；
+ *  - 2026-09-30：老板「管理端的 订单管理 引流账号 怎么是 `*`？」+「所有页面显示一致」→
+ *    抹号那条整条删掉，改成「只有陪玩端看不到」；
+ *  - 2026-10-02：老板发现**桥接工作室的店长 / 客服**（角色不是陪玩）也能看到别家客户的来源，
+ *    于是这条线从「按角色」改成「按**发单工作室**」—— 见下面 `canSeeCustomerSource`。
  */
+
 
 /**
- * 客户来源（小红书 / 抖音 / 快手…）可见性 —— **陪玩端一律看不到**，客服 / 店长 / 老板照常。
+ * 客户来源（来源平台 / 引流账号 / 客户昵称 / 客户账号ID）能不能给这个人看。
  *
- * 老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」。
+ * 老板 2026-10-02：「蠢驴电竞的客服孙可馨发单，为什么桥接工作室的黄浩那边没抢单就能显示
+ * 客户的小红书信息？就算黄浩能抢到也只能看到客户的微信房间码之类的，跟蠢驴电竞线下陪玩端
+ * 看的是一样的，**除了发单工作室的管理端能看到其他人一律看不到**。」
  *
- * 这是现在唯一的口径：陪玩端看不到，客服 / 店长 / 老板照常
- * （以前那条「客服只看自己发的单」的抹号规则 2026-09-30 删了，见上面那段）。
- * 这里只管「这个角色能不能看到客户的来源」，口径更狠也更简单 —— 只抹账号、留着「小红书」
- * 三个字，陪玩照样知道这单是从小红书来的，所以来源平台本身也得藏。
+ * 现在唯一的口径：
+ *  - 只有**发单工作室**（订单 / 客户档案归属的 `studioId`）的客服 / 店长 / 老板能看到；
+ *  - **全站老板**（不挂工作室的 OWNER）看全部；
+ *  - 接单方一律看不到：桥接工作室的店长 / 客服、线上俱乐部、别的店，以及**所有陪玩**。
+ *
+ * 沿革：2026-09-29 这条线只按**角色**判（只要不是陪玩就看得见），于是桥接工作室的店长 / 客服
+ * （角色是 ADMIN / CS）在抢单池 / 订单管理里就拿到了别家客户的来源 —— 就是老板 2026-10-02 报的这个洞。
+ * 改成按**工作室归属**判之后，「陪玩端永远看不到」那条单独留着。
+ *
+ * @param item 这条数据本身（订单 / 客户档案），或者它的 `studioId`。
  */
-export function canSeeCustomerSource(user?: PrivacyUser | null): boolean {
+export function canSeeCustomerSource(
+  user?: PrivacyUser | null,
+  item?: { studioId?: string | null } | string | null,
+): boolean {
   if (!user) return false;
-  return user.role !== 'COMPANION';
+  // 全站老板（不挂工作室）：看所有工作室
+  if (user.role === 'OWNER' && !user.studioId) return true;
+  // 陪玩端一律看不到（本店的单也不给看）
+  if (user.role === 'COMPANION') return false;
+  const studioId = typeof item === 'string' ? item : item?.studioId;
+  // 拿不到归属（老数据 / 调用没带）→ 从严，不给看
+  if (!studioId) return false;
+  return !!user.studioId && user.studioId === studioId;
 }
 
-/** 订单里跟「客户来源」有关的键：来源平台 + 来源账号。 */
-const SOURCE_KEYS = ['customerSource', 'customerSourceAccount'];
+/**
+ * 订单里跟「客户来源」有关的一整组键：来源平台（小红书 / 抖音…）、引流账号、客户昵称
+ * （小红书昵称）、客户账号ID。
+ *
+ * 这一组正好就是陪玩端一直看不到的那几项（前端 `COMPANION_HIDDEN_FIELDS`），
+ * 也是 2026-10-02 起「**只有发单工作室的管理端**能看、接单方一律看不到」的那几项。
+ */
+const SOURCE_KEYS = [
+  'customerSource',
+  'customerSourceAccount',
+  'customerNickname',
+  'customerAccountId',
+];
 
 export interface StripSourceOptions {
   /**
@@ -72,7 +98,8 @@ export interface StripSourceOptions {
 const CONTACT_PLATFORMS = new Set(['WECHAT', 'QQ', 'PHONE', 'OTHER']);
 
 /**
- * 把一个订单对象上的客户来源摘干净（**删键**，不是抹成 `***`）。
+ * 把一个订单对象上的客户来源摘干净（**删键**，不是抹成 `***`）：
+ * `customFields` 里的 `SOURCE_KEYS` 那四项 + `customer.platform`。
  *
  * `customer.platform` 一起清空：老单没有 `customFields.customerSource`，订单列表
  * 那一格的兜底就是它（`cf.customerSource || o.customer?.platform`），而 updateOrderInfo
@@ -126,8 +153,9 @@ export function stripCustomerSource<T>(order: T, opts: StripSourceOptions = {}):
  *
  * `opts` 一层层传下去（数组 / 嵌套对象都带同一个开关）。
  *
- * 挂在 OrdersController / CustomersController 的拦截器上，所以陪玩端**每个**接口都自动生效，
- * 不用每个方法各写一遍，也不会「新加个接口忘了过滤」。
+ * 这是「谁都别想看到」的版本：推给陪玩端 / 桥接工作室的 ws 推送走它。
+ * 管理端接口（OrdersController / CustomersController）走的是 `stripCustomerSourceForViewer`
+ * —— 那个会按每条数据自己的工作室归属判，本店管理端照常看得到。
  */
 export function stripCustomerSourceDeep<T>(payload: T, opts: StripSourceOptions = {}): T {
   if (Array.isArray(payload)) {
@@ -189,6 +217,52 @@ export function stripPoolCustomerContact<T>(order: T): T {
   // 客户编号（customerCode）留着，抢单池要靠它跟客户管理对号。
   if (src.customer && typeof src.customer === "object" && src.customer.wechatId) {
     out = { ...out, customer: { ...src.customer, wechatId: "" } };
+  }
+  return out;
+}
+
+/**
+ * 按「这条数据属于哪个工作室」**逐条**判断后摘掉客户来源 —— 管理端接口响应用这个。
+ *
+ * `stripCustomerSourceDeep` 是「谁都别想看到」的版本（推给陪玩端 / 桥接工作室的推送用）；
+ * 这个版本顺着对象自己的 `studioId` 判：
+ *  - 带 `studioId` 的对象（订单 / 客户档案）→ `canSeeCustomerSource(user, studioId)` 说了算；
+ *  - 不带 `studioId` 的（`{ code, data }` 这种包一层的、订单里嵌的 `customer`）→ 跟外层结论走，
+ *    免得出现「订单本身能看，里面那个 `customer.platform` 却被清空」。
+ *
+ * 客服的订单管理、抢单池这些列表里混着自家和桥接工作室的单，只有逐条判才对。
+ */
+export function stripCustomerSourceForViewer<T>(
+  payload: T,
+  user?: PrivacyUser | null,
+  opts: StripSourceOptions = {},
+): T {
+  return walkCustomerSource(payload, user, opts, undefined) as T;
+}
+
+function walkCustomerSource(
+  value: any,
+  user: PrivacyUser | null | undefined,
+  opts: StripSourceOptions,
+  inherited?: boolean,
+): any {
+  if (Array.isArray(value)) {
+    return value.map((item) => walkCustomerSource(item, user, opts, inherited));
+  }
+  if (!value || typeof value !== 'object' || value instanceof Date) return value;
+
+  const studioId = (value as any).studioId;
+  const visible =
+    typeof studioId === 'string' && studioId ? canSeeCustomerSource(user, studioId) : inherited;
+
+  let out: any = value;
+  if (visible === false) out = stripCustomerSource(value, opts);
+
+  for (const [key, child] of Object.entries(out)) {
+    if (child && typeof child === 'object') {
+      const next = walkCustomerSource(child, user, opts, visible);
+      if (next !== child) out = { ...out, [key]: next };
+    }
   }
   return out;
 }

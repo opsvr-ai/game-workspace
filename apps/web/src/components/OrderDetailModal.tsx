@@ -51,9 +51,10 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
   // 昵称也是小红书昵称（建单时那个框写的就是「小红书昵称/抖音昵称等」），订单列表对陪玩本来就不显示，
   // 这里不一起藏掉的话，点开整行又能看见。
   // hook 必须放在下面的 `if (!order) return null` 之前。
-  const role = useAuthStore((s) => s.user?.role);
-  const myCompanionId = useAuthStore((s) => s.user?.companionId);
-  const showSource = canSeeCustomerSource(role);
+  const user = useAuthStore((s) => s.user);
+  const myCompanionId = user?.companionId;
+  // 老板 2026-10-02：来源那几行只有**发单工作室**的管理端能看到
+  const showSource = canSeeCustomerSource(order, user);
   if (!order) return null;
   // 转让入口（老板 2026-09-29）：只有「我抢到、还没开始服务」的单能自己转给别人，
   // 和 OrdersPage 的 canTransfer、服务端 orders.transferOrder 是同一套口径。

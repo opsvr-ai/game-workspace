@@ -34,6 +34,13 @@ const { Text } = Typography;
 export interface OrderColumnOptions {
   /** 陪玩视角：客户昵称 / 来源账号 / 客户ID 不展示（和订单池口径一致） */
   isCompanion: boolean;
+  /**
+   * 这一行能不能看客户的来源信息（来源 / 引流账号 / 客户昵称 / 客户账号ID）。
+   *
+   * 老板 2026-10-02：只有**发单工作室**的管理端能看 —— 客服的订单管理里混着桥接工作室的单，
+   * 所以是**逐行**判（页面传 `canSeeCustomerSource(o, user)`）。不传就按老口径：陪玩端不看。
+   */
+  canSeeSourceFor?: (order: any) => boolean;
   /** 已弃用的来源账号（后面跟灰字「已弃用」） */
   inactiveAccounts?: Set<string>;
   /**
@@ -53,11 +60,14 @@ export interface OrderColumnOptions {
 
 export function buildOrderColumns({
   isCompanion,
+  canSeeSourceFor,
   inactiveAccounts,
   widths,
   onOutcomeClick,
   onReleaseToOffline,
 }: OrderColumnOptions): any[] {
+  // 来源那四列逐行判（老板 2026-10-02）：不是发单工作室的行，一个字都不显示
+  const sourceHiddenFor = (o: any) => (canSeeSourceFor ? !canSeeSourceFor(o) : false);
   // 列宽统一走这里取：传了 widths（订单管理表）就用算出来的宽度，没传就用基准宽度
   const W = (key: string, fallback: number) => widths?.[key] ?? fallback;
   // 客户来源那几个字段陪玩端看不看得到，口径收在 constants/orderFields.ts 的
@@ -215,6 +225,7 @@ export function buildOrderColumns({
         key: 'customerSource',
         width: W('customerSource', FIELD_WIDTH.customerSource),
         render: (_: unknown, o: any) => {
+          if (sourceHiddenFor(o)) return <Text type="secondary">-</Text>;
           const platform = o.customFields?.customerSource || o.customer?.platform;
           if (!platform) return <Text type="secondary">-</Text>;
           return (
@@ -232,6 +243,7 @@ export function buildOrderColumns({
         // 那条「客服只看自己发的单、别人的抹成 `***`」的规则整条删了（和「客户管理」同口径）；
         // 已弃用的账号后面跟一个小灰字「已弃用」
         render: (_: unknown, o: any) => {
+          if (sourceHiddenFor(o)) return <Text type="secondary">-</Text>;
           const account = o.customFields?.customerSourceAccount || '';
           const deprecated = !!account && (inactiveAccounts ?? new Set()).has(account);
           if (!account) return <Text type="secondary">-</Text>;
@@ -256,6 +268,7 @@ export function buildOrderColumns({
         width: W('customerNickname', FIELD_WIDTH.customerNickname),
         // 客户编号（1~3 位）单独占一列太浪费，跟在昵称后面当小灰字
         render: (_: unknown, o: any) => {
+          if (sourceHiddenFor(o)) return <Text type="secondary">-</Text>;
           const nickname = o.customFields?.customerNickname || '';
           const code = o.customer?.customerCode;
           if (!nickname && !code) return <Text type="secondary">-</Text>;
@@ -275,6 +288,7 @@ export function buildOrderColumns({
         key: 'customerAccountId',
         width: W('customerAccountId', FIELD_WIDTH.customerAccountId),
         render: (_: unknown, o: any) => {
+          if (sourceHiddenFor(o)) return <Text type="secondary">-</Text>;
           const accountId = o.customFields?.customerAccountId || '';
           if (!accountId) return <Text type="secondary">-</Text>;
           return (

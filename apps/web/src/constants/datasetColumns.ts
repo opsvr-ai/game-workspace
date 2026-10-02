@@ -439,14 +439,30 @@ export const CELL_MAIN_TEXT: React.CSSProperties = {
 /**
  * 客户来源（小红书 / 抖音 / 快手…）和来源账号，对**陪玩端一律不显示**。
  *
- * 老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」。服务端
- * `common/order-privacy.ts` 的 `stripCustomerSourceDeep`（拦截器）对陪玩端**整列摘掉**，
- * 前端这里把「小红书」这三个字本身、以及详情弹窗里的「客户来源 / 来源账号」两行也一起藏掉 ——
- * 只抹账号、留着平台名，陪玩还是能看到「这一单是从小红书来的」。
+ * 老板 2026-09-29：「陪玩端 隐藏 客户小红书信息」；老板 2026-10-02：「蠢驴电竞的客服发单，
+ * 为什么桥接工作室的黄浩那边没抢单就能显示客户的小红书信息？……除了发单工作室的管理端能看到
+ * 其他人一律看不到」。
  *
- * 客服 / 店长 / 老板都是管理端，照常显示。
+ * 现在唯一的口径：**只有发单工作室**（这条数据自己的 `studioId`）的客服 / 店长 / 老板能看到；
+ * 全站老板（不挂工作室）看全部；接单方（桥接工作室的店长 / 客服、别的店、所有陪玩）一律看不到。
+ *
+ * 服务端同一条口径在 `apps/server/src/common/order-privacy.ts`（`canSeeCustomerSource` +
+ * `stripCustomerSourceForViewer`）—— 那边是把字段**真的摘掉**，这边只是少显示几列，
+ * 两边必须一起改，别只改一边。
  */
-export const canSeeCustomerSource = (role?: string | null): boolean => role !== 'COMPANION';
+export const canSeeCustomerSource = (
+  item?: { studioId?: string | null } | null,
+  user?: { role?: string | null; studioId?: string | null } | null,
+): boolean => {
+  const role = user?.role;
+  if (!role) return false;
+  // 陪玩端一律看不到（本店的单也不给看）
+  if (role === 'COMPANION') return false;
+  // 全站老板（不挂工作室）看全部
+  if (role === 'OWNER' && !user?.studioId) return true;
+  // 其余：只有发单工作室的人能看（拿不到归属 → 从严不给看）
+  return !!item?.studioId && item.studioId === user?.studioId;
+};
 
 /** 同上（兼容老名字）：单元格里的一行小字，超长省略号 */
 export const CELL_LINE_STYLE: React.CSSProperties = {

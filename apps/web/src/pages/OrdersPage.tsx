@@ -44,6 +44,7 @@ import {
   ORDER_TABLE_KEYS,
   ORDER_TABLE_KEYS_COMPANION,
   TABLE_STYLE,
+  canSeeCustomerSource,
   fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
@@ -802,6 +803,7 @@ const OrdersPage: React.FC = () => {
     // 陪玩端不传，维持固定的窄版列宽（见 orderColumns.tsx 的 OrderColumnOptions.widths）
     ...buildOrderColumns({
       isCompanion,
+      canSeeSourceFor: (o: any) => canSeeCustomerSource(o, user),
       inactiveAccounts,
       widths: isCompanion ? undefined : fittedColumns.widths,
       // 客服 / 店长能点状态格记结果、点小字把线上→线下的单放给线下；陪玩端不给这两个入口

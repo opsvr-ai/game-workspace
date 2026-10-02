@@ -82,10 +82,11 @@ const journeyColor = (type: string) => {
 const CustomerDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  // 陪玩端隐藏「客户来源」（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」）。
+  // 客户来源只有**发单工作室**的管理端能看到（老板 2026-09-29 起只对陪玩端隐藏，
+  // 2026-10-02 起扩到「除了发单工作室的管理端，其他人一律看不到」）。
   // 订单流程会把客户来源（小红书 / 抖音…）同步进 `customer.platform`，所以这一格
   // 不能无条件显示，否则点开客户又能看见「小红书」三个字。
-  const role = useAuthStore((s) => s.user?.role);
+  const user = useAuthStore((s) => s.user);
 
   // Data states
   const [customer, setCustomer] = useState<any>(null);
@@ -255,7 +256,7 @@ const CustomerDetailPage: React.FC = () => {
   // 小红书 / 抖音 / 快手 这类来源值统一显示 '-'（客服 / 店长 / 老板照常）。
   const rawPlatform = customer?.platform;
   const platformLabel =
-    canSeeCustomerSource(role) || !!platformLabels[rawPlatform]
+    canSeeCustomerSource(customer, user) || !!platformLabels[rawPlatform]
       ? platformLabels[rawPlatform] ?? rawPlatform ?? '-'
       : '-';
   const orderCount = orders.length;

@@ -765,19 +765,33 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   pushToCompanion(companionId: string, event: string, data: unknown): void {
-    this.server.to(`companion:${companionId}`).emit(event, data);
+    this.server.to(`companion:${companionId}`).emit(event, stripCustomerSourceDeep(data));
+  }
+
+  /**
+   * 发给**工作室房间**的事件一律先摘掉「客户来源」那一组字段
+   * （来源平台 / 引流账号 / 客户昵称 / 客户账号ID —— 老板 2026-10-02：只有发单工作室的管理端能看）。
+   *
+   * 为什么工作室房间也要摘：房间成员不只是发单工作室自己的人 —— 桥接工作室的用户连上来时
+   * 会把 `studio:<对方工作室>` 也 join 上（见 onConnection），所以房间里混着接单方。
+   * 这些事件在前端只是「刷新一下」的信号（详情都按各自身份重新拉，见 CustomerSourceMaskInterceptor），
+   * 所以摘掉不影响功能，只是别让数据在推送里裸奔。
+   */
+  private stripSource<T>(data: T): T {
+    return stripCustomerSourceDeep(data);
   }
 
   broadcastToStudio(studioId: string, event: string, data: unknown): void {
-    this.server.to(`studio:${studioId}`).emit(event, data);
+    this.server.to(`studio:${studioId}`).emit(event, this.stripSource(data));
   }
 
   async broadcastToBridgedStudios(studioId: string, event: string, data: unknown): Promise<void> {
-    this.server.to(`studio:${studioId}`).emit(event, data);
+    const safe = this.stripSource(data);
+    this.server.to(`studio:${studioId}`).emit(event, safe);
     try {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
       for (const bridgedId of bridgedIds) {
-        this.server.to(`studio:${bridgedId}`).emit(event, data);
+        this.server.to(`studio:${bridgedId}`).emit(event, safe);
       }
     } catch (err) {
       logger.error('broadcastToBridgedStudios failed for bridged studios', {
@@ -828,6 +842,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       let sent = 0;
       const notConnected: string[] = [];
+      // 陪玩端一律看不到客户来源那一组字段（老板 2026-09-29 / 2026-10-02）
+      const safe = stripCustomerSourceDeep(data);
       // 谁被命中、各是什么状态：以后问「娱乐中的到底弹没弹」，直接看日志。
       const byStatus: Record<string, number> = {};
       for (const c of companions) {
@@ -836,7 +852,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (!this.companionSockets.get(c.id)?.size) {
           notConnected.push(c.user?.username || c.id);
         }
-        this.server.to(`companion:${c.id}`).emit('order:urgent', data);
+        this.server.to(`companion:${c.id}`).emit('order:urgent', safe);
         sent += 1;
       }
       // 老板 2026-09-22 报「邵泽慧发广播单，所有人都没弹窗」：这条路径以前一句日志都没有，
@@ -869,10 +885,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         where: { studioId, status: 'AVAILABLE' },
         select: { id: true },
       });
+      const safe = stripCustomerSourceDeep(data);
       let sent = 0;
       for (const c of idle) {
         if (await this.excellence.isExcellent(c.id)) {
-          this.server.to(`companion:${c.id}`).emit(event, data);
+          this.server.to(`companion:${c.id}`).emit(event, safe);
           sent += 1;
         }
       }
@@ -891,6 +908,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async broadcastToBridgedIdleCompanions(studioId: string, event: string, data: unknown): Promise<number> {
     try {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
+      const safe = stripCustomerSourceDeep(data);
       let sent = 0;
       for (const bid of bridgedIds) {
         const idle = await this.prisma.companion.findMany({
@@ -898,7 +916,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           select: { id: true },
         });
         for (const c of idle) {
-          this.server.to(`companion:${c.id}`).emit(event, data);
+          this.server.to(`companion:${c.id}`).emit(event, safe);
           sent += 1;
         }
       }
@@ -923,6 +941,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         where: { id: { in: bridgedIds }, type: studioType },
         select: { id: true },
       });
+      const safe = stripCustomerSourceDeep(data);
       let sent = 0;
       for (const st of studios) {
         const idle = await this.prisma.companion.findMany({
@@ -930,7 +949,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           select: { id: true },
         });
         for (const c of idle) {
-          this.server.to(`companion:${c.id}`).emit(event, data);
+          this.server.to(`companion:${c.id}`).emit(event, safe);
           sent += 1;
         }
       }
@@ -989,7 +1008,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   notifyCompanion(companionId: string, event: string, data: unknown): void {
-    this.server.to(`companion:${companionId}`).emit(event, data);
+    this.server.to(`companion:${companionId}`).emit(event, stripCustomerSourceDeep(data));
   }
 
   // 前端有些入口会把 companionId 当成 userId 传过来（例如陪玩端订单池）。
