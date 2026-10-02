@@ -11,6 +11,7 @@ import { trafficAccountApi, TrafficAccountItem, TrafficNoteItem } from '../../ap
 import { employeesApi } from '../../api/employees';
 import { configApi } from '../../api/config';
 import { contentCheckApi } from '../../api/contentCheck';
+import CollectorPluginHint from '../../components/CollectorPluginHint';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
@@ -1223,10 +1224,12 @@ const TrafficAccountPage: React.FC = () => {
           )}
 
           <Divider orientation="left" plain style={{ margin: '8px 0' }}>对标笔记导入</Divider>
+          {/* 没有插件就没法采对标笔记：下载地址 + 装法就放在这个框上面（老板 2026-10-02） */}
+          <CollectorPluginHint />
           <Input.TextArea
             value={planBenchmarkJson}
             onChange={(e) => setPlanBenchmarkJson(e.target.value)}
-            placeholder="把浏览器扩展里复制的对标笔记 JSON 原样粘贴到这里。不贴也可以，系统会用安全模板生成。"
+            placeholder="把「陪玩对标笔记采集器」里复制的对标笔记 JSON 原样粘贴到这里。不贴也可以，系统会用安全模板生成。"
             autoSize={{ minRows: 4, maxRows: 9 }}
           />
 

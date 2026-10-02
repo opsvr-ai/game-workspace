@@ -4,6 +4,7 @@ import {
 } from 'antd';
 import { CheckCircleOutlined, CopyOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { contentCheckApi, ContentCheckResult, WeeklyPlanResult } from '../api/contentCheck';
+import CollectorPluginHint from '../components/CollectorPluginHint';
 
 const { Title, Text } = Typography;
 
@@ -500,10 +501,12 @@ const ContentCheckPage: React.FC = () => {
           </Space>
         }
       >
+        {/* 这个 JSON 是「陪玩对标笔记采集器」采出来的，没有插件就没法采：下载地址 + 装法放这儿 */}
+        <CollectorPluginHint compact />
         <Input.TextArea
           value={benchmarkJson}
           onChange={(e) => setBenchmarkJson(e.target.value)}
-          placeholder="把浏览器扩展里复制的 JSON 原样粘贴到这里"
+          placeholder="把「陪玩对标笔记采集器」里复制的对标笔记 JSON 原样粘贴到这里"
           autoSize={{ minRows: 6, maxRows: 14 }}
         />
         {benchmarkLoading && (
