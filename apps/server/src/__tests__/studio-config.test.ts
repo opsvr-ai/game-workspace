@@ -173,6 +173,8 @@ describe('配置归谁改：默认归分店，只有「安全与稳定」归老�
       'anomaly.spend_drop_percent',
       // 杀进程只剩这一个开关，是**本店**的：店长自己拨自己店的（2026-09-24 去掉全站总闸）
       'blacklist.enabled',
+      // 「按人特批」也是本店的：店长 / 老板在界面上给个别人单独开 / 关（2026-10-02）
+      'blacklist.companion_overrides',
     ]) {
       expect(isStudioScopedKey(key)).toBe(true);
       expect(isOwnerOnlyKey(key)).toBe(false);

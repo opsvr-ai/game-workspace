@@ -79,6 +79,19 @@ describe('杀进程开关：改完当场重推名单', () => {
     expect(ws.pushCurrentBlacklist).toHaveBeenCalled();
   });
 
+  it('改「按人特批」表 → 也要当场重推（跟本店开关同一个口径）', async () => {
+    const { controller, ws } = setup();
+
+    const res: any = await controller.updateConfig(
+      { 'blacklist.companion_overrides': { c1: true } },
+      { user: { role: 'ADMIN', studioId: 's1' } },
+    );
+
+    expect(res.data.saved).toContain('blacklist.companion_overrides');
+    expect(ws.invalidateBlacklistSwitchCache).toHaveBeenCalled();
+    expect(ws.pushCurrentBlacklist).toHaveBeenCalledWith('c1', 's1', false);
+  });
+
   it('只改别的配置项 → 不动杀进程名单（否则等于每次保存都惊动所有陪玩）', async () => {
     const { controller, ws } = setup();
 

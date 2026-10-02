@@ -24,6 +24,7 @@ import { BlacklistIngestService } from './blacklist-ingest.service';
 import { isLanOrigin } from '../common/http-auth';
 import { stripCustomerSourceDeep } from '../common/order-privacy';
 import {
+  resolveCompanionOverrides,
   resolveStudioBlacklistEnabled,
 } from '../common/blacklist-switch';
 
@@ -1203,6 +1204,39 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 开关刚改完时调用，避免还把旧值缓存最长 5 秒。 */
   invalidateBlacklistSwitchCache(): void {
     this.studioBlacklistCache.clear();
+    this.companionOverridesCache.clear();
+  }
+
+  /**
+   * 「按人特批」表（见 common/blacklist-switch.ts）：键 = 陪玩 id，值 = 单独开 / 单独关。
+   * 跟本店开关同一个 5 秒口径；一次工作室广播会给每个人各查一次，缓存一下避免把库打满。
+   */
+  private companionOverridesCache = new Map<string, { at: number; value: Record<string, boolean> }>();
+
+  async getCompanionBlacklistOverrides(studioId: string): Promise<Record<string, boolean>> {
+    const now = Date.now();
+    const cached = this.companionOverridesCache.get(studioId);
+    if (cached && now - cached.at < 5000) return cached.value;
+    const value = await resolveCompanionOverrides(this.prisma as never, studioId);
+    this.companionOverridesCache.set(studioId, { at: now, value });
+    return value;
+  }
+
+  /**
+   * **这个陪玩**到底动不动手：本店开关 + 按人特批合成。
+   * 没被特批的人 = 跟随本店开关（老行为，一个字节都不变）。
+   */
+  async isCompanionBlacklistEnabled(
+    companionId: string | null | undefined,
+    studioId: string | null | undefined,
+  ): Promise<boolean> {
+    // 分不出是哪家店 = 不生效：说不清就绝不动手。
+    if (!studioId) return false;
+    const overrides = await this.getCompanionBlacklistOverrides(studioId);
+    if (companionId && Object.prototype.hasOwnProperty.call(overrides, companionId)) {
+      return overrides[companionId] === true;
+    }
+    return this.isStudioBlacklistEnabled(studioId);
   }
 
   async sendBlacklistUpdate(
@@ -1214,15 +1248,15 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     authoritative = false,
     studioId?: string | null,
   ): Promise<void> {
-    // 只看本店这一个开关：关着就下发空名单，客户端收到空名单会当场停掉杀进程
+    // 本店开关 + 按人特批合成：不生效就下发空名单，客户端收到空名单会当场停掉杀进程
     // （连没升级的老客户端同样有效）。
-    const studioEnabled = await this.isStudioBlacklistEnabled(studioId);
-    const effective = studioEnabled ? blacklist : [];
+    const killEnabled = await this.isCompanionBlacklistEnabled(companionId, studioId);
+    const effective = killEnabled ? blacklist : [];
     logger.info('SEND blacklist:update', {
       companionId,
       blacklistCount: effective.length,
       suppressed: effective.length === 0 && blacklist.length > 0,
-      studioEnabled,
+      killEnabled,
       whitelistCount: whitelist.length,
       version,
       status,

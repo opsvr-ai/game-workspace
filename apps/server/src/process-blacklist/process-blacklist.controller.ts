@@ -47,6 +47,60 @@ export class ProcessBlacklistController {
     return { code: 200, data: { blacklist, whitelist, version: Date.now() } };
   }
 
+  // ── 按人特批：本店开关之外，单独给某个人开 / 关（老板 2026-10-02）──
+  //
+  // 注意：静态路径必须排在 `blacklist/:id` 这类动态路由**前面**，
+  // 否则 Nest 会把「companion-switches」当成一个黑名单条目的 id。
+
+  @Get('blacklist/companion-switches')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async listCompanionSwitches(@Req() req: any, @Query('studioId') studioIdParam?: string) {
+    const studioId = await this.targetStudioId(req, studioIdParam);
+    if (!studioId) return { code: 400, message: '没有可用的工作室', data: null };
+    const data = await this.service.getCompanionSwitches(studioId);
+    return { code: 200, data: { studioId, ...data } };
+  }
+
+  @Put('blacklist/companion-switches')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async setCompanionSwitch(
+    @Req() req: any,
+    @Body() dto: { studioId?: string; companionId?: string; enabled?: boolean | null },
+  ) {
+    if (!dto?.companionId) return { code: 400, message: '缺少参数', data: null };
+    const studioId = await this.targetStudioId(req, dto.studioId);
+    if (!studioId) return { code: 400, message: '没有可用的工作室', data: null };
+    // 只有明确的 true / false 才算特批，其它（含不传）都当「恢复跟随本店」。
+    const enabled = dto.enabled === true ? true : dto.enabled === false ? false : null;
+    const overrides = await this.service.setCompanionSwitch(studioId, dto.companionId, enabled);
+    // 一改就当场把这个人手里的名单重推一次：客户端只认推送，
+    // 不推的话要等下一次状态变化才生效（跟本店开关同一个口径）。
+    this.wsGateway.invalidateBlacklistSwitchCache();
+    await this.wsGateway.pushCurrentBlacklist(dto.companionId, studioId, false);
+    logger.info('Companion blacklist switch changed', {
+      operatorId: req.user.id,
+      studioId,
+      companionId: dto.companionId,
+      enabled,
+    });
+    return {
+      code: 200,
+      data: { studioId, companionId: dto.companionId, enabled, overrides },
+      message:
+        enabled === null
+          ? '已恢复「跟随本店」'
+          : enabled
+            ? '已设置：这个人会按名单结束进程'
+            : '已设置：这个人不会被结束进程',
+    };
+  }
+
+  /** 只有老板能指定别家店；店长 / 客服一律按自己店算（传了别人的店也不认）。 */
+  private async targetStudioId(req: any, studioIdParam?: string): Promise<string> {
+    if (req?.user?.role === UserRole.OWNER && studioIdParam) return studioIdParam;
+    return this.sid(req);
+  }
+
   // ── Blacklist CRUD (ADMIN, OWNER) ──
 
   @Get('blacklist')

@@ -13,6 +13,18 @@ export const blacklistApi = {
   push: (data: { companionIds?: string[]; targetAll?: boolean }) =>
     http.post('/processes/blacklist/push', data),
 
+  // ── 按人特批（本店开关之外，单独给某个人开 / 关）──
+  // enabled 传 true / false = 单独开 / 单独关；传 null = 恢复「跟随本店」。
+  // studioId 只有老板用得上（老板没挂工作室）；店长 / 客服不传，后端按本店算。
+  getCompanionSwitches: (studioId?: string) =>
+    http.get('/processes/blacklist/companion-switches', { params: studioId ? { studioId } : {} }),
+  setCompanionSwitch: (companionId: string, enabled: boolean | null, studioId?: string) =>
+    http.put('/processes/blacklist/companion-switches', {
+      companionId,
+      enabled,
+      ...(studioId ? { studioId } : {}),
+    }),
+
   // ── Companion Overrides ──
   getOverrides: (companionId: string) =>
     http.get(`/processes/blacklist/companions/${companionId}/overrides`),

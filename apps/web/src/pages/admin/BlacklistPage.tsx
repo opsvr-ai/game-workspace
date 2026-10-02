@@ -6,6 +6,7 @@ import { blacklistApi } from '../../api/blacklist';
 import { companionStatusConfig } from '../../constants';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
+import { studiosApi } from '../../api/studios';
 
 const { Text } = Typography;
 
@@ -18,7 +19,10 @@ interface PendingEntry {
 }
 
 const BlacklistPage: React.FC = () => {
-  const isOwner = useAuthStore((s) => s.user?.role) === 'OWNER';
+  const role = useAuthStore((s) => s.user?.role);
+  const isOwner = role === 'OWNER';
+  // 「按人特批」跟本店开关同一拨人：老板 / 店长能改，客服只能看。
+  const canWriteSwitches = role === 'OWNER' || role === 'ADMIN';
   // 各状态黑名单
   const [entries, setEntries] = useState<any[]>([]);
   // 「本店黑名单是否生效」开关：店长自己拨，且是**唯一**的杀进程开关
@@ -26,6 +30,16 @@ const BlacklistPage: React.FC = () => {
   const [studioEnabled, setStudioEnabled] = useState(false);
   const [studioEnabledLoading, setStudioEnabledLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 「按人单独设置」：本店开关之外，单独给几个人开 / 关（老板 2026-10-02）
+  const [studios, setStudios] = useState<any[]>([]);
+  const [switchStudioId, setSwitchStudioId] = useState<string | undefined>();
+  const [switches, setSwitches] = useState<{ studioEnabled: boolean; overrides: Record<string, boolean> }>({
+    studioEnabled: false,
+    overrides: {},
+  });
+  const [switchesLoading, setSwitchesLoading] = useState(false);
+  const [switchSavingId, setSwitchSavingId] = useState<string | null>(null);
 
   // 采集
   const [companions, setCompanions] = useState<any[]>([]);
@@ -108,6 +122,75 @@ const BlacklistPage: React.FC = () => {
   /** 本店开关开着，客户端才会真的杀进程（老板 2026-09-24：只剩这一道闸）。 */
   const killEffective = studioEnabled;
 
+  /** 读本店开关 + 「按人特批」表；老板要带工作室 id（老板账号没挂工作室）。 */
+  const loadCompanionSwitches = useCallback(async (studioId?: string) => {
+    setSwitchesLoading(true);
+    try {
+      const { data } = await blacklistApi.getCompanionSwitches(studioId);
+      const d = data?.data ?? {};
+      setSwitches({
+        studioEnabled: d.studioEnabled === true,
+        overrides: (d.overrides ?? {}) as Record<string, boolean>,
+      });
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '加载「按人单独设置」失败');
+    } finally {
+      setSwitchesLoading(false);
+    }
+  }, []);
+
+  /** 改一个人：follow = 跟随本店（删掉特批）、on = 单独开、off = 单独关。 */
+  const saveCompanionSwitch = async (companionId: string, mode: 'follow' | 'on' | 'off') => {
+    if (isOwner && !switchStudioId) {
+      message.warning('请先选择工作室');
+      return;
+    }
+    const enabled = mode === 'follow' ? null : mode === 'on';
+    setSwitchSavingId(companionId);
+    try {
+      const { data } = await blacklistApi.setCompanionSwitch(
+        companionId,
+        enabled,
+        isOwner ? switchStudioId : undefined,
+      );
+      const overrides = (data?.data?.overrides ?? {}) as Record<string, boolean>;
+      setSwitches((prev) => ({ ...prev, overrides }));
+      message.success(
+        mode === 'follow'
+          ? '已恢复「跟随本店」'
+          : mode === 'on'
+            ? '已单独打开：这个人会按名单结束进程'
+            : '已单独关闭：这个人不会被结束进程',
+      );
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || '保存失败');
+    } finally {
+      setSwitchSavingId(null);
+    }
+  };
+
+  /** 这个人的特批状态（没特批过 = 跟随本店）。 */
+  const overrideMode = (companionId: string): 'follow' | 'on' | 'off' =>
+    Object.prototype.hasOwnProperty.call(switches.overrides, companionId)
+      ? switches.overrides[companionId]
+        ? 'on'
+        : 'off'
+      : 'follow';
+
+  /** 这个人最终到底动不动手（跟随本店时看本店开关）。 */
+  const isKillFor = (companionId: string): boolean => {
+    const mode = overrideMode(companionId);
+    return mode === 'follow' ? switches.studioEnabled : mode === 'on';
+  };
+
+  const switchCompanions: any[] =
+    isOwner && switchStudioId
+      ? companions.filter((c: any) => c.studioId === switchStudioId)
+      : companions;
+  const studioNameById = new Map(studios.map((s: any) => [s.id, s.displayName || s.name]));
+  const switchOnCount = Object.values(switches.overrides).filter(Boolean).length;
+  const switchOffCount = Object.values(switches.overrides).filter((v) => !v).length;
+
   useEffect(() => {
     fetchAll();
     loadSwitches();
@@ -116,6 +199,26 @@ const BlacklistPage: React.FC = () => {
       .then(({ data }: any) => setCompanions(data.data ?? []))
       .catch(() => {});
   }, [fetchAll, loadSwitches]);
+
+  // 「按人单独设置」：店长 / 客服直接读本店；老板先选工作室再读（老板账号没挂工作室）。
+  useEffect(() => {
+    if (!isOwner) {
+      void loadCompanionSwitches();
+      return;
+    }
+    studiosApi
+      .list()
+      .then(({ data }: any) => {
+        const list = data?.data ?? [];
+        setStudios(list);
+        const first = list[0]?.id;
+        if (first) {
+          setSwitchStudioId(first);
+          void loadCompanionSwitches(first);
+        }
+      })
+      .catch(() => {});
+  }, [isOwner, loadCompanionSwitches]);
 
   const collectApps = async () => {
     if (!collectedCompanionId || collecting) return;
@@ -332,6 +435,119 @@ const BlacklistPage: React.FC = () => {
           </Space>
         </Card>
       )}
+
+      <Card size="small" style={{ marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <Text strong style={{ fontSize: 13 }}>
+              按人单独设置（哪些人的电脑会真的结束进程）
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              默认「跟随本店」。本店开关关着时，标成「单独开」的人照样会按名单结束进程；
+              本店开着时，标成「单独关」的人不会被动。只影响本店，别家不受影响。
+            </Text>
+            {isOwner && (
+              <div style={{ marginTop: 8 }}>
+                <Space>
+                  <Text style={{ fontSize: 12 }}>工作室：</Text>
+                  <Select
+                    size="small"
+                    style={{ width: 240 }}
+                    value={switchStudioId}
+                    onChange={(v) => {
+                      setSwitchStudioId(v);
+                      void loadCompanionSwitches(v);
+                    }}
+                    options={studios.map((s: any) => ({ label: s.displayName || s.name, value: s.id }))}
+                  />
+                </Space>
+              </div>
+            )}
+          </div>
+          <Space size={8} wrap>
+            <Tag color={switches.studioEnabled ? 'red' : 'default'}>
+              本店开关：{switches.studioEnabled ? '已开' : '关'}
+            </Tag>
+            <Tag color={switchOnCount > 0 ? 'blue' : 'default'}>单独开 {switchOnCount} 人</Tag>
+            <Tag>单独关 {switchOffCount} 人</Tag>
+            <Button
+              size="small"
+              icon={createElement(ReloadOutlined)}
+              loading={switchesLoading}
+              onClick={() => loadCompanionSwitches(isOwner ? switchStudioId : undefined)}
+            >
+              刷新
+            </Button>
+          </Space>
+        </div>
+
+        <Table
+          size="small"
+          rowKey="id"
+          style={{ marginTop: 10 }}
+          dataSource={switchCompanions}
+          loading={switchesLoading}
+          pagination={{ pageSize: 10, size: 'small', showSizeChanger: false }}
+          locale={{ emptyText: '本店还没有陪玩' }}
+          columns={[
+            {
+              title: '陪玩',
+              render: (_: unknown, c: any) => (
+                <span>
+                  <Text>{c.user?.displayName || c.user?.username || c.id}</Text>
+                  {isOwner && (
+                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                      {studioNameById.get(c.studioId) || ''}
+                    </Text>
+                  )}
+                </span>
+              ),
+            },
+            {
+              title: '设置',
+              width: 150,
+              render: (_: unknown, c: any) => (
+                <Select
+                  size="small"
+                  style={{ width: 130 }}
+                  value={overrideMode(c.id)}
+                  disabled={!canWriteSwitches}
+                  loading={switchSavingId === c.id}
+                  onChange={(v) => saveCompanionSwitch(c.id, v as 'follow' | 'on' | 'off')}
+                  options={[
+                    { value: 'follow', label: '跟随本店' },
+                    { value: 'on', label: '单独开' },
+                    { value: 'off', label: '单独关' },
+                  ]}
+                />
+              ),
+            },
+            {
+              title: '当前实际',
+              width: 200,
+              render: (_: unknown, c: any) =>
+                isKillFor(c.id) ? (
+                  <Text type="danger" style={{ fontSize: 12 }}>
+                    会结束名单里的进程
+                  </Text>
+                ) : (
+                  <Text type="success" style={{ fontSize: 12 }}>
+                    不结束任何进程
+                  </Text>
+                ),
+            },
+          ]}
+        />
+      </Card>
 
       <Card size="small" style={{ marginBottom: 12, background: '#fafafa' }}>
         <Text strong style={{ fontSize: 13 }}>

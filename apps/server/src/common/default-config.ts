@@ -89,6 +89,11 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 打开 = 本店名单照常下发，本店陪玩会按状态结束名单里的进程。各店互不影响。
   // 默认 false = 跟以前的线上现状一致（名单只记录不杀），避免没人拨过就突然开始踢人。
   'blacklist.enabled': false,
+  // **按人**特批（老板 2026-10-02：「我具体给几个人打开测试一下，其他人是关闭的」）。
+  // 键 = 陪玩 Companion.id；值 = true（这个人单独生效）/ false（这个人单独不生效）。
+  // **没写进来的陪玩一律跟随本店开关** —— 所以老数据、没特批过的人行为一个字节都不变。
+  // 用法：本店开关关着，只把要试的那几个人单独打开；空对象 = 所有人都跟随本店。
+  'blacklist.companion_overrides': {},
   'agent.latest_version': '1.0.0',
   'agent.latest_download_url': '/uploads/chunlv-latest.zip',
   'ai.provider': 'doubao',

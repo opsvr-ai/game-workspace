@@ -24,6 +24,8 @@ function setup(
     studioEnabled?: string[];
     /** 哪几家店显式拨成「不生效」。 */
     studioDisabled?: string[];
+    /** 按人特批：studioId -> { 陪玩id: 单独开 / 单独关 }（老板 2026-10-02）。 */
+    companionOverrides?: Record<string, Record<string, boolean>>;
   } = {},
 ) {
   const enabled = new Set(opts.studioEnabled ?? []);
@@ -39,9 +41,12 @@ function setup(
     studioConfig: {
       findMany: vi.fn((args: any) => {
         const studioId = args?.where?.studioId;
-        if (enabled.has(studioId)) return Promise.resolve([{ key: "blacklist.enabled", value: true }]);
-        if (disabled.has(studioId)) return Promise.resolve([{ key: "blacklist.enabled", value: false }]);
-        return Promise.resolve([]);
+        const rows: Array<{ key: string; value: any }> = [];
+        if (enabled.has(studioId)) rows.push({ key: "blacklist.enabled", value: true });
+        if (disabled.has(studioId)) rows.push({ key: "blacklist.enabled", value: false });
+        const overrides = opts.companionOverrides?.[studioId];
+        if (overrides) rows.push({ key: "blacklist.companion_overrides", value: overrides });
+        return Promise.resolve(rows);
       }),
     },
   };
@@ -160,5 +165,67 @@ describe("黑名单下发：不能按猜出来的状态杀进程", () => {
     await gw.isStudioBlacklistEnabled("studio-1");
 
     expect(prisma.studioConfig.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("按人特批：本店开关关着，只把一个人单独打开 → 他下发真名单，别人还是空名单", async () => {
+    const { gw, emitted } = setup({ companionOverrides: { "studio-1": { "companion-1": true } } });
+
+    await gw.pushCurrentBlacklist("companion-1", "studio-1", true);
+    await gw.pushCurrentBlacklist("companion-2", "studio-1", true);
+
+    expect(emitted[0].data.blacklist.map((b: any) => b.processName)).toEqual([
+      "DeltaForceClient-Win64-Shipping",
+    ]);
+    expect(emitted[1].data.blacklist).toEqual([]);
+  });
+
+  it("按人特批：本店开关开着，把一个人单独关掉 → 只有他不下发", async () => {
+    const { gw, emitted } = setup({
+      studioEnabled: ["studio-1"],
+      companionOverrides: { "studio-1": { "companion-2": false } },
+    });
+
+    await gw.pushCurrentBlacklist("companion-1", "studio-1", true);
+    await gw.pushCurrentBlacklist("companion-2", "studio-1", true);
+
+    expect(emitted[0].data.blacklist).toHaveLength(1);
+    expect(emitted[1].data.blacklist).toEqual([]);
+  });
+
+  it("按人特批：没被特批的人一个字节都不变（还是跟随本店）", async () => {
+    const { gw, emitted } = setup({
+      studioEnabled: ["studio-1"],
+      companionOverrides: { "studio-1": { "companion-9": true } },
+    });
+
+    await gw.pushCurrentBlacklist("companion-1", "studio-1", true);
+
+    expect(emitted[0].data.blacklist).toHaveLength(1);
+  });
+
+  it("按人特批：分不出是哪家店时，特批了也绝不动手", async () => {
+    const { gw, emitted } = setup({ companionOverrides: { "studio-1": { "companion-1": true } } });
+
+    await gw.sendBlacklistUpdate(
+      "companion-1",
+      [{ processName: "DeltaForceClient-Win64-Shipping", processPath: null }],
+      [],
+      1,
+      "AVAILABLE",
+      true,
+      undefined,
+    );
+
+    expect(emitted[0].data.blacklist).toEqual([]);
+  });
+
+  it("按人特批：特批表也吃 5 秒缓存，工作室广播不会把库打满", async () => {
+    const { gw, prisma } = setup({ companionOverrides: { "studio-1": { "companion-1": true } } });
+
+    await gw.pushCurrentBlacklist("companion-1", "studio-1");
+    await gw.pushCurrentBlacklist("companion-2", "studio-1");
+
+    // 第一次推送查 2 次（本店开关 + 特批表），第二次全命中缓存
+    expect(prisma.studioConfig.findMany).toHaveBeenCalledTimes(2);
   });
 });

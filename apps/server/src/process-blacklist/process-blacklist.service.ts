@@ -1,7 +1,12 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BUILTIN_WHITELIST } from './constants';
-import { isKillEffective } from '../common/blacklist-switch';
+import {
+  resolveCompanionBlacklistEnabled,
+  resolveCompanionOverrides,
+  resolveStudioBlacklistEnabled,
+} from '../common/blacklist-switch';
+import { saveStudioConfigs } from '../common/studio-config';
 
 @Injectable()
 export class ProcessBlacklistService {
@@ -73,9 +78,11 @@ export class ProcessBlacklistService {
     });
     if (!companion) throw new NotFoundException('陪玩不存在');
 
-    // 本店「黑名单是否生效」开关关着就返回空名单（这是唯一的杀进程开关）：
+    // 本店开关 + 按人特批合成后的结果：不生效就返回空名单。
     // 客户端走 REST 兜底拉名单时同样不许杀进程，否则 WebSocket 一断就绕过了开关。
-    if (!(await isKillEffective(this.prisma as never, companion.studioId))) return [];
+    if (!(await resolveCompanionBlacklistEnabled(this.prisma as never, companion.studioId, companionId))) {
+      return [];
+    }
 
     // 只使用「状态黑名单」：陪玩处于哪个状态，就套用该状态下的黑名单
     const statusEntries = await this.prisma.companionStatusBlacklist.findMany({
@@ -84,6 +91,58 @@ export class ProcessBlacklistService {
     });
 
     return statusEntries.map((s) => ({ processName: s.processName, processPath: null }));
+  }
+
+  // ── 按人特批：本店开关之外，单独给某个人开 / 关（老板 2026-10-02）──
+
+  /** 读本店开关 + 本店的「按人特批」表（管理端「按人单独设置」用）。 */
+  async getCompanionSwitches(studioId: string): Promise<{
+    studioEnabled: boolean;
+    overrides: Record<string, boolean>;
+  }> {
+    const [studioEnabled, overrides] = await Promise.all([
+      resolveStudioBlacklistEnabled(this.prisma as never, studioId),
+      resolveCompanionOverrides(this.prisma as never, studioId),
+    ]);
+    return { studioEnabled, overrides };
+  }
+
+  /**
+   * 改一个人的特批：`enabled` 传 true / false = 单独开 / 单独关，
+   * 传 null = 删掉特批、恢复「跟随本店」。返回改完之后本店的整张特批表。
+   *
+   * 只认**本店**的陪玩（别人店的 id 直接报错）；顺手把已经删号 / 离职的人从表里剔掉，
+   * 免得特批表越攒越脏。
+   */
+  async setCompanionSwitch(
+    studioId: string,
+    companionId: string,
+    enabled: boolean | null,
+  ): Promise<Record<string, boolean>> {
+    const companion = await this.prisma.companion.findUnique({
+      where: { id: companionId },
+      select: { id: true, studioId: true },
+    });
+    if (!companion || companion.studioId !== studioId) throw new NotFoundException('该陪玩不在本店');
+
+    const next = { ...(await resolveCompanionOverrides(this.prisma as never, studioId)) };
+    if (enabled === null) delete next[companionId];
+    else next[companionId] = enabled === true;
+
+    const ids = Object.keys(next);
+    if (ids.length) {
+      const alive = await this.prisma.companion.findMany({
+        where: { id: { in: ids }, studioId },
+        select: { id: true },
+      });
+      const aliveIds = new Set(alive.map((c) => c.id));
+      for (const id of ids) if (!aliveIds.has(id)) delete next[id];
+    }
+
+    await saveStudioConfigs(this.prisma as never, studioId, {
+      'blacklist.companion_overrides': next,
+    });
+    return next;
   }
 
   // ── Whitelist ──

@@ -211,11 +211,14 @@ export class SettingsController {
     //   混进来的「老板专属键」（AI 密钥、客户端版本、流水号…）不报错也不静默，
     //   跳过并列在 `data.skipped` 里，界面照着提示「这些要找老板改」。
     const result = await saveConfigsByRole(this.prisma, req?.user ?? {}, body);
-    // 「本店黑名单是否生效」开关一改就当场重推名单
-    // （老板 2026-09-24 已经把全站总开关 `blacklist.auto_kill` 整条去掉，这是唯一的杀进程开关）。
+    // 「本店黑名单是否生效」开关（或「按人特批」表）一改就当场重推名单
+    // （老板 2026-09-24 已经把全站总开关 `blacklist.auto_kill` 整条去掉，只剩本店开关这一道闸；
+    //  2026-10-02 又在它之外加了「按人特批」，同样是改完就推）。
     // 只看**真的写进去**的键（`result.saved`）：店长一次保存里混进老板专属键时，
     // 那个键并没有改动，也就没什么要重推的（以前用 skipped.length===0 判断，会漏掉这种情况）。
-    const killSwitched = result.saved.some((key) => key === 'blacklist.enabled');
+    const killSwitched = result.saved.some(
+      (key) => key === 'blacklist.enabled' || key === 'blacklist.companion_overrides',
+    );
     if (killSwitched) {
       // 老板改的是全站默认值 → 各店都可能跟着变，全部重推；店长只影响自己店 → 只推本店，不打扰别家。
       const isOwner = req?.user?.role === 'OWNER';

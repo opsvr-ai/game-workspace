@@ -198,6 +198,37 @@ describe('ProcessBlacklistService', () => {
       expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
     });
 
+    it('本店关着，但这个人被单独打开：照样返回本店状态名单（按人特批）', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.enabled', value: false },
+        { key: 'blacklist.companion_overrides', value: { c1: true } },
+      ]);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([
+        { processName: 'game.exe', processPath: null },
+      ]);
+    });
+
+    it('本店开着，但这个人被单独关掉：返回空名单（按人特批）', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.enabled', value: true },
+        { key: 'blacklist.companion_overrides', value: { c1: false } },
+      ]);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
+    });
+
+    it('没被特批的人跟随本店开关（老行为一个字节都不变）', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.enabled', value: true },
+        { key: 'blacklist.companion_overrides', value: { other: false } },
+      ]);
+
+      expect(await service.getEffectiveBlacklist('c1')).toEqual([
+        { processName: 'game.exe', processPath: null },
+      ]);
+    });
+
     it('别家店拨开不影响本店：本店没拨过照样返回空名单', async () => {
       mockPrisma.studioConfig.findMany.mockImplementation((args: any) =>
         Promise.resolve(
@@ -206,6 +237,73 @@ describe('ProcessBlacklistService', () => {
       );
 
       expect(await service.getEffectiveBlacklist('c1')).toEqual([]);
+    });
+  });
+
+  // =========================================================================
+  // 按人特批表的读写（本店开关之外，单独给某个人开 / 关）
+  // =========================================================================
+  describe('按人特批表', () => {
+    it('getCompanionSwitches：返回本店开关 + 本店特批表', async () => {
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.enabled', value: true },
+        { key: 'blacklist.companion_overrides', value: { c1: true, c2: false } },
+      ]);
+
+      expect(await service.getCompanionSwitches('s1')).toEqual({
+        studioEnabled: true,
+        overrides: { c1: true, c2: false },
+      });
+    });
+
+    it('setCompanionSwitch：单独打开一个人 → 写进本店特批表', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ id: 'c1', studioId: 's1' });
+      mockPrisma.studioConfig.findMany.mockResolvedValue([]);
+      mockPrisma.companion.findMany.mockResolvedValue([{ id: 'c1' }]);
+
+      const overrides = await service.setCompanionSwitch('s1', 'c1', true);
+
+      expect(overrides).toEqual({ c1: true });
+      expect(mockPrisma.studioConfig.upsert).toHaveBeenCalledWith({
+        where: { studioId_key: { studioId: 's1', key: 'blacklist.companion_overrides' } },
+        create: { studioId: 's1', key: 'blacklist.companion_overrides', value: { c1: true } },
+        update: { value: { c1: true } },
+      });
+    });
+
+    it('setCompanionSwitch：传 null = 恢复「跟随本店」（从表里删掉）', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ id: 'c1', studioId: 's1' });
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.companion_overrides', value: { c1: true, c2: false } },
+      ]);
+      mockPrisma.companion.findMany.mockResolvedValue([{ id: 'c2' }]);
+
+      const overrides = await service.setCompanionSwitch('s1', 'c1', null);
+
+      expect(overrides).toEqual({ c2: false });
+      expect(mockPrisma.studioConfig.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { value: { c2: false } },
+        }),
+      );
+    });
+
+    it('setCompanionSwitch：已经删号 / 离职的人会被顺手剔出去', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ id: 'c1', studioId: 's1' });
+      mockPrisma.studioConfig.findMany.mockResolvedValue([
+        { key: 'blacklist.companion_overrides', value: { gone: true } },
+      ]);
+      mockPrisma.companion.findMany.mockResolvedValue([{ id: 'c1' }]);
+
+      const overrides = await service.setCompanionSwitch('s1', 'c1', true);
+
+      expect(overrides).toEqual({ c1: true });
+    });
+
+    it('setCompanionSwitch：别人店的陪玩不许改', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({ id: 'c9', studioId: 'other' });
+
+      await expect(service.setCompanionSwitch('s1', 'c9', true)).rejects.toThrow('该陪玩不在本店');
     });
   });
 });
