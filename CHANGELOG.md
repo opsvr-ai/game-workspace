@@ -487,7 +487,43 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **修：「管理端直添客户流转明细」把客服在跟的客户显示成红字「无人接」（老板 2026-10-02）。**
+- **修：「按人特批杀进程」在半数机器上不生效 —— 服务端现在把真实状态一起下发（老板 2026-10-03：「我单独给秦伟杰 王昊 徐泽宁
+  开了黑名单，为什么只有秦伟杰杀掉了，其他两人没反应？」）。** 查清了：**名单推送链路本身是好的**，
+  三台客户端的日志里都收到了 `blacklist:["DeltaForceClient-Win64-Shipping"]`，也确实只有那三个人领到（`killEnabled:true`）。
+  - **根因在「状态」，不在「名单」。** 陪玩端主进程的守卫写的是 `if (store.get('lastStatus') !== 'AVAILABLE') return;`，
+    而 `lastStatus` 这个**本地**值只有陪玩本人在客户端点过状态（或解锁屏幕）之后才写。实测三台：
+    秦伟杰 `lastStatus="AVAILABLE"` → `armed:true` → 从 16:24 起每 10 秒杀一次（日志里 125 条）；
+    徐泽宁 / 王昊 `lastStatus=""`（重启 / 重装后从没点过状态）→ `armed:false` → 守卫一行都不动。
+    也就是说：**管理端看到的「空闲」是服务端的 `Companion.status`，客户端认的却是自己本地那份**，两边各说各话，
+    开关在这台机器上就等于没开。
+  - **修法（服务端一处，全客户端立刻生效，不用等升级）**：`WsGateway.pushCurrentBlacklist` 以前传的是
+    `authoritative ? status : undefined` —— 只在「陪玩本人 / 管理端明确切状态」时才下发状态。
+    现在**不管权不权威都把服务端真实状态一起发**。客户端原有的保护一个字没动：
+    **本地明确选了娱乐中 / 休息的，仍然拒绝服务端补推的空闲**（`localOffDuty && data.status === 'AVAILABLE'` 不覆盖）；
+    只有本地**没记过状态**的机器才跟着服务端走。
+  - **影响面已核对**：全库只有蠢驴电竞配了名单（`blacklist.enabled` 哪家都没拨、只有那 3 条 `companion_overrides`
+    + 1 条 `AVAILABLE / DeltaForceClient-Win64-Shipping`），所以这次只会影响老板点名的那 3 个人，别的店一个字节不变。
+  - **线上实测**：部署后徐泽宁那台 `16:35:37 Blacklist guard updated {"lastStatus":"AVAILABLE","armed":true}`
+    → 16:36:17 起开杀 → 复核时三角洲进程已不在；秦伟杰自己切到了「娱乐中」（`lastStatus=ENTERTAINMENT`）
+    → 名单为空、不再杀（符合预期）。王昊那台 16:30 就离线了，等他上线会自动跟上。
+  - 顺带补了诊断：杀失败时写一条 `Kill blacklisted process failed` 带 taskkill 的报错（以前只有成功才写日志，失败查不出来）。
+
+- **修：杀黑名单进程时右下角没提示（老板 2026-10-03：「杀的时候右下角怎么没提示？？？」）。**
+  原来用的是 Electron 的 `new Notification(...)` —— 走 Windows 通知中心，「专注助手」/ 通知总开关一关、
+  或者全屏打游戏时，系统直接吞掉，所以「杀了没动静」。现在改走陪玩端**已有的右下角置顶小窗**
+  （跟群聊广播、新单提醒同一套 `showBroadcastPopup`，`alwaysOnTop: screen-saver`，全屏游戏里也压在最上层）：
+  杀成功弹「黑名单已执行 · 已结束黑名单进程：xxx」，失败弹「黑名单执行失败 · 没能结束…（原因）」，
+  弹窗本身失败再退回系统通知兜底。进程被游戏自己拉起来一次就杀一次（10 秒一轮），所以
+  **同一个进程 3 分钟内只提示一次**，不会刷屏。客户端版本 `1.0.20261004`（不强制推送，每 30 分钟自查，接单中自动跳过）。
+
+- **修：已离职的人还留在各种下拉 / 名单里（老板 2026-10-03：「为什么秦硕还在名单里边？？？」）。**
+  `GET /companions`（`CompanionsService.findAll`）以前**不过滤离职**，而「进程黑名单 · 按人单独设置」
+  「进程白名单」「PC 管控」「改单」「考勤筛选」「新建订单」这些页面全都在用它 —— 只要有人离职就会一直挂在这些下拉里
+  （秦硕 `Companion.isResigned=true` + `User.resignedAt` 有值，两边都中）。现在跟人员列表 `listPersonnel` 统一口径：
+  **默认不返回已离职的人**（`where.user = { resignedAt: null }` + `where.isResigned = false`），
+  确实要看离职人员的显式传 `includeResigned=true`（考勤 / 历史报表留口子）。线上复核：`GET /companions`
+  从 23 人降到 21 人，**秦硕、许杰都不在列表里了**。
+把客服在跟的客户显示成红字「无人接」（老板 2026-10-02）。**
   老板原话：「管理端直添客户流转明细 最前边怎么显示无人接？客服只是记录 又没派单出去 更不是没人接，
   怎么就成了无人接」。
   - **根因**：红字「无人接」的判定是 `customFields.poolExpired === true && !companionId` —— 这是

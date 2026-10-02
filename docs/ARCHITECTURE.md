@@ -5,6 +5,17 @@
 
 ## 新增功能
 
+- **黑名单「按人特批」的三处修正（2026-10-03，服务端 + 陪玩端 `1.0.20261004`）**：老板「单独给三个人开了黑名单，
+  只有一个人被杀掉」。① `WsGateway.pushCurrentBlacklist` / `sendBlacklistUpdate` 改成**始终下发服务端真实状态**
+  （原来 `authoritative ? status : undefined`）：陪玩端守卫是 `store.get('lastStatus') === 'AVAILABLE'` 才动手，
+  而 `lastStatus` 只在陪玩本人点过状态 / 解锁屏幕时才写，本地没记过状态的机器会一直 `armed:false`，老板的「按人开关」
+  在那台机器上等于没开。客户端侧原有的 `localOffDuty && data.status === 'AVAILABLE'` 保护不变 ——
+  **本地明确选了娱乐中 / 休息的仍然拒绝服务端补推的空闲**，只有「本地没状态」的机器才跟服务端走。
+  ② `CompanionsService.findAll`（`GET /companions`）默认加 `where.user = { resignedAt: null }` + `where.isResigned = false`，
+  与 `listPersonnel` 同口径，需要离职人员的显式传 `includeResigned=true`。
+  ③ 陪玩端杀进程提示从 `new Notification`（系统通知，专注助手 / 全屏游戏会吞）换成 `showBroadcastPopup`
+  （右下角置顶小窗，`screen-saver` 层级），同一进程 3 分钟冷却一次；杀失败另记一条带 taskkill 报错的日志。
+
 - **采集插件「装不上」的排查结论 + 界面兜底（2026-10-03，网页 v874）**: 老板报「邵泽慧那台选完文件夹什么都没有」。
   排查路径与结论（**只读**，临时配置目录，不动用户浏览器配置、不动业务数据）：① 包没问题 ——
   `/uploads/xhs-note-collector.zip` 解压 4 文件、`manifest.json` 在根，本机 Chromium `--load-extension` 装得上；
