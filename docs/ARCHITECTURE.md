@@ -5,6 +5,13 @@
 
 ## 新增功能
 
+- **聊天框「打开即到底 + 跳未读」（2026-10-02）**: 消息列表（`apps/web/src/components/chat/MessageList.tsx`）
+  是虚拟列表（`@tanstack/react-virtual`），高度先估算后回填，所以「打开贴底」必须跟着 `virtualizer.getTotalSize()`
+  持续纠正 —— 只在挂载时滚一次会停在半截。会话消息接口（`GET /api/chat/rooms/:id/messages` /
+  `GET /api/chat/conversations/:id/messages`）新增返回 `myReadSeq`（1v1 = `aReadSeq` / `bReadSeq`，
+  群聊 = `ChatRoomMember.readSeq`），前端据此定位未读起点：消息流里画「以下为新消息」分界线 +
+  聊天框顶部「N 条未读」跳转条；换会话靠 `conversationId` 触发整份重置（组件不重建）。
+
 - **客户来源只给发单工作室的管理端看（2026-10-02）**: 「来源平台 / 引流账号 / 客户昵称 / 客户账号ID」这一组
   字段的可见性从「按角色」改成「按**归属工作室**」—— `common/order-privacy.ts` 的 `canSeeCustomerSource(user, item?)`
   只有 `user.studioId === item.studioId`（或全站老板 `OWNER` 且无 `studioId`）才放行，陪玩一律 `false`。
