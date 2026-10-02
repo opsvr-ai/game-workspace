@@ -1293,10 +1293,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * 推送当前状态对应的黑名单，覆盖离线/未登录后补连接的情况。
    *
-   * authoritative 只在「陪玩本人或管理端明确切换了状态」时为 true；
-   * 连接/心跳这类只是按「在线 = 空闲」补推的场景必须传 false，
-   * 此时不下发 status，让客户端保留自己选的状态（娱乐中/休息），
-   * 避免把正在玩游戏的人当成空闲而误杀游戏进程。
+   * authoritative 只在「陪玩本人或管理端明确切换了状态」时为 true，
+   * 客户端拿它区分「是本人点的」还是「服务端顺手补推的」。
+   *
+   * 不管 authoritative 是真是假，status 都照发：客户端只在**本地已经明确选了**
+   * 娱乐中 / 休息时才拒绝服务端的空闲（见 companion-electron main.ts 的 blacklist:update），
+   * 本地状态是空的（重装 / 重启后没点过状态）就以服务端为准 ——
+   * 不然「老板在后台单独给某个人开了黑名单」在这台机器上会一直不生效
+   * （老板 2026-10-03 报的「三个人只杀了一个」）。
    */
   async pushCurrentBlacklist(companionId: string, studioId: string | null, authoritative = false): Promise<void> {
     if (!studioId) return;
@@ -1321,7 +1325,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         blacklist,
         whitelist.map((w) => ({ processName: w.processName, isSystem: false })),
         Date.now(),
-        authoritative ? status : undefined,
+        status,
         authoritative,
         studioId,
       );

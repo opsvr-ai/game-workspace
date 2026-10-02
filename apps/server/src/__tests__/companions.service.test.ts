@@ -79,6 +79,29 @@ describe('CompanionsService', () => {
   });
 
   describe('findAll', () => {
+    it('默认把已离职的人过滤掉（老板 2026-10-03：秦硕离职了还留在名单里）', async () => {
+      const user = { id: 'u1', username: 'admin', role: 'ADMIN' as const, studioId: 'studio-1' };
+      mockPrisma.companion.findMany.mockResolvedValue([]);
+
+      await service.findAll(user);
+
+      const arg = mockPrisma.companion.findMany.mock.calls.at(-1)![0] as any;
+      expect(arg.where.isResigned).toBe(false);
+      expect(arg.where.user).toEqual({ resignedAt: null });
+    });
+
+    it('includeResigned=true 时不加离职过滤，历史考勤 / 报表要用', async () => {
+      const user = { id: 'u1', username: 'admin', role: 'ADMIN' as const, studioId: 'studio-1' };
+      mockPrisma.companion.findMany.mockResolvedValue([]);
+
+      await service.findAll(user, false, true);
+
+      const arg = mockPrisma.companion.findMany.mock.calls.at(-1)![0] as any;
+      expect(arg.where.isResigned).toBeUndefined();
+      expect(arg.where.user).toBeUndefined();
+      expect(arg.where.studioId).toBe('studio-1');
+    });
+
     it('returns companions with PC status', async () => {
       const user = {
         id: 'u1',
@@ -101,7 +124,7 @@ describe('CompanionsService', () => {
       const result = await service.findAll(user);
 
       expect(mockPrisma.companion.findMany).toHaveBeenCalledWith({
-        where: { studioId: 'studio-1' },
+        where: { studioId: 'studio-1', isResigned: false, user: { resignedAt: null } },
         include: {
           user: { select: { id: true, username: true, avatar: true, displayName: true } },
           pc: { select: { currentMode: true, isThrottled: true, lastHeartbeat: true } },

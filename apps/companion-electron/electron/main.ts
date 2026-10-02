@@ -273,6 +273,45 @@ function reportAutoKill(processName: string, success: boolean, resultText?: stri
   })();
 }
 
+/**
+ * 黑名单杀进程的提示。
+ *
+ * 老板 2026-10-03 报「杀的时候右下角怎么没提示」：以前这里走 Electron 系统通知
+ * （new Notification），Windows 的「专注助手」/ 通知总开关一关就什么都看不见，
+ * 全屏打游戏时更是直接被系统吞掉。改成陪玩端已有的右下角置顶小窗
+ * （跟群聊广播、新单提醒同一套，全屏游戏里也压在最上层），保证「看得见」。
+ *
+ * 进程被游戏自己拉起来一次就杀一次（10 秒一轮），所以同一个进程 3 分钟内只提示一次，
+ * 免得右下角一直闪。
+ */
+const killNoticeAt = new Map<string, number>();
+const KILL_NOTICE_COOLDOWN_MS = 3 * 60 * 1000;
+
+function notifyKillResult(processName: string, ok: boolean, detail?: string): void {
+  const now = Date.now();
+  if (now - (killNoticeAt.get(processName) || 0) < KILL_NOTICE_COOLDOWN_MS) return;
+  killNoticeAt.set(processName, now);
+  const body = ok
+    ? `已结束黑名单进程：${processName}`
+    : `没能结束黑名单进程：${processName}${detail ? `（${detail}）` : ''}`;
+  try {
+    showBroadcastPopup({
+      title: ok ? '黑名单已执行' : '黑名单执行失败',
+      body,
+      icon: ok ? '🛡️' : '⚠️',
+      seconds: 8,
+    });
+  } catch (err) {
+    // 弹窗失败也别让陪玩两头都看不到：退回系统通知。
+    logger.warn('Kill notice popup failed, fallback to system notification', {
+      error: (err as Error)?.message,
+    });
+    try {
+      new Notification({ title: '陪玩管理', body }).show();
+    } catch {}
+  }
+}
+
 function startBlacklistGuard(blacklist: Array<{ processName: string; processPath?: string | null }>, whitelist: Array<{ processName: string }>) {
   activeBlacklist = (blacklist || []).map((b) => b.processName).filter(Boolean);
   activeWhitelist = (whitelist || []).map((w) => w.processName).filter(Boolean);
@@ -296,8 +335,9 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
       if (activeWhitelist.includes(name)) continue;
       const image = name.toLowerCase().endsWith('.exe') ? name : `${name}.exe`;
       logger.warn('Killing blacklisted process', { processName: name, reason: 'status AVAILABLE' });
-      new Notification({ title: '陪玩管理', body: `正在结束黑名单进程：${name}` }).show();
       execFile('taskkill', ['/F', '/IM', image, '/T'], (err) => {
+        if (err) logger.warn('Kill blacklisted process failed', { processName: name, error: err.message });
+        notifyKillResult(name, !err, err?.message);
         reportAutoKill(name, !err, err?.message);
       });
     }

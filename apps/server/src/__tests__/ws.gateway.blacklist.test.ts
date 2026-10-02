@@ -68,14 +68,17 @@ function setup(
 }
 
 describe("黑名单下发：不能按猜出来的状态杀进程", () => {
-  it("按连接补推（非权威）时不下发 status，客户端保留自己选的状态", async () => {
+  it("按连接补推（非权威）时也带上服务端状态：本地没选过状态的机器才跟得上开关", async () => {
     const { gw, emitted } = setup({ studioEnabled: ["studio-1"] });
 
     await gw.pushCurrentBlacklist("companion-1", "studio-1");
 
     expect(emitted).toHaveLength(1);
     expect(emitted[0].room).toBe("companion:companion-1");
-    expect(emitted[0].data.status).toBeUndefined();
+    // 状态照发，但 authoritative 仍是 false：客户端只在本地**明确选过**娱乐中/休息时
+    // 才拒绝这个空闲，本地没记录（重装 / 重启后没点过状态）就以服务端为准。
+    // 老板 2026-10-03 报的「三个人只杀了一个」就是因为这里不下发状态。
+    expect(emitted[0].data.status).toBe("AVAILABLE");
     expect(emitted[0].data.authoritative).toBe(false);
   });
 

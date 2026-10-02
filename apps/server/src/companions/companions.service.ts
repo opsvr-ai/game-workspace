@@ -191,8 +191,16 @@ export class CompanionsService {
     }));
   }
 
-  async findAll(user: any, includeBridged = false) {
+  async findAll(user: any, includeBridged = false, includeResigned = false) {
     const where: any = {};
+    if (!includeResigned) {
+      // 跟人员列表（listPersonnel）同一个口径：默认**不返回已离职的人**。
+      // 以前这里不过滤，离职的人会一直留在「进程黑名单 / 白名单 / 改单 / 考勤筛选」
+      // 这些下拉里（老板 2026-10-03 又报了一次「秦硕都离职了怎么还在名单里」）。
+      // 确实要看离职人员的，显式传 includeResigned=true。
+      where.user = { resignedAt: null };
+      where.isResigned = false;
+    }
     if (user.role !== 'OWNER') {
       if (includeBridged && user.studioId) {
         const bridgedIds = await this.bridgeService.getBridgedStudioIds(user.studioId);
