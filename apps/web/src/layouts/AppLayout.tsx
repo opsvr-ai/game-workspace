@@ -1012,10 +1012,11 @@ const AppLayout: React.FC = () => {
   const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
   const [partnerInviteModalOpen, setPartnerInviteModalOpen] = React.useState(false);
   // 待我确认的订单转让申请（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）：
-  // 和搭档邀请一样，自动弹窗 + 右上角铃铛各留一份，弹窗错过了还能从铃铛里点同意 / 拒绝。
+  // 主入口是**订单列表里那一行的「接手 / 拒绝」**（老板 2026-10-03 否掉了自动弹窗：
+  // 「放在订单列表那一行点转让或者点接受不行么」）；顶栏这个铃铛只是再留一份，
+  // 方便在别的页面也能一眼看到有几单在等我确认。
   const [transferReqs, setTransferReqs] = React.useState<any[]>([]);
   const [transferReqOpen, setTransferReqOpen] = React.useState(false);
-  const [transferReqModalOpen, setTransferReqModalOpen] = React.useState(false);
 
   // 点 Windows 新单横幅 → 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
   // 不直接抢：正在打游戏的人万一误点了，会把不该报的单抢到手里。
@@ -1203,7 +1204,6 @@ const AppLayout: React.FC = () => {
       const fromName = data.fromName || '同事';
       const expiresAt = Date.now() + (Number(data.expiresInSec) || 1800) * 1000;
       addTransferReq({ ...data, fromName, expiresAt });
-      setTransferReqModalOpen(true);
       const desc = `${data.orderCode || ''} ${data.gameName || ''} · ¥${Number(data.amount || 0).toFixed(1)}${
         data.reason ? ` · ${data.reason}` : ''
       }`;
@@ -1215,7 +1215,10 @@ const AppLayout: React.FC = () => {
         dedupeKey: `transfer-req:${data.requestId}`,
         dedupeMs: 60_000,
       });
-      showSystemNotification('蠢驴电竞 · 订单转让', `${fromName} 想把「${data.gameName || '订单'}」转给你，去陪玩端点同意`);
+      showSystemNotification(
+        '蠢驴电竞 · 订单转让',
+        `${fromName} 想把「${data.gameName || '订单'}」转给你，去「接单记录」那一行点接手`,
+      );
       playNotificationSound();
     },
     onTransferAccepted: (data: any) => {
@@ -2402,61 +2405,6 @@ const AppLayout: React.FC = () => {
               </div>
             );
           })()}
-      </Modal>
-
-      {/* 有人想把单转给我：不点同意就不算转过来（老板 2026-10-03：「需要被转让方同意才能过来」） */}
-      <Modal
-        open={transferReqModalOpen && transferReqs.length > 0}
-        title="🔁 订单转让"
-        footer={null}
-        closable={false}
-        maskClosable={false}
-        width={380}
-        onCancel={() => setTransferReqModalOpen(false)}
-      >
-        {transferReqs[0] && (
-          <div>
-            <div>
-              <Text strong>{transferReqs[0].fromName} 想把这张单转给你</Text>
-            </div>
-            <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
-              {transferReqs[0].orderCode ? `${transferReqs[0].orderCode} · ` : ''}
-              {transferReqs[0].gameName || '订单'} · ¥{Number(transferReqs[0].amount || 0).toFixed(1)}
-            </div>
-            {transferReqs[0].reason && (
-              <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>原因：{transferReqs[0].reason}</div>
-            )}
-            <div style={{ margin: '10px 0' }}>
-              <InviteCountdown
-                seconds={Math.max(0, Math.ceil(((transferReqs[0].expiresAt || 0) - Date.now()) / 1000))}
-              />
-            </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              同意后这张单就归你（客户的微信要重新加）；不同意就一直留在对方名下，不影响你现在的单。
-            </Text>
-            <div style={{ marginTop: 12 }}>
-              <Space>
-                <Button
-                  type="primary"
-                  onClick={async () => {
-                    await acceptTransferReq(transferReqs[0]);
-                    setTransferReqModalOpen(false);
-                  }}
-                >
-                  同意接手
-                </Button>
-                <Button
-                  onClick={async () => {
-                    await rejectTransferReq(transferReqs[0]);
-                    setTransferReqModalOpen(false);
-                  }}
-                >
-                  拒绝
-                </Button>
-              </Space>
-            </div>
-          </div>
-        )}
       </Modal>
 
       {/* Urgent order popup + solo grab success */}

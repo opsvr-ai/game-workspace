@@ -628,6 +628,15 @@ export class OrdersService implements OnModuleInit {
    */
   async findAll(user: any, status?: string, scope?: string) {
     const where: any = {};
+    // 别人正想转给我、还没点同意的单（老板 2026-10-03）：它们现在还不挂在我名下，
+    // 但老板要的是「在订单列表那一行点接手」——所以先查出来，等下一并按 id 捞进本次查询。
+    let pendingIncoming: Array<{
+      id: string;
+      orderId: string;
+      fromCompanionId: string;
+      reason: string | null;
+      createdAt: Date;
+    }> = [];
     if (status) where.status = status;
     // Role-based filtering (showAll only bypasses for OWNER — security fix C4)
     if (user.role === 'COMPANION') {
@@ -647,6 +656,25 @@ export class OrdersService implements OnModuleInit {
         // 自动回收整条删掉，改由陪玩自己转让；转给谁、什么时候转的都得看得到）。
         if (user.companionId) {
           where.OR.push({ transfers: { some: { fromCompanionId: user.companionId } } });
+          // 别人要转给我的单也进「我接的单」：那一行会长出「接手 / 拒绝」
+          // （老板 2026-10-03：「放在订单列表那一行点转让或者点接受不行么」）。
+          // 以前只靠顶栏铃铛 / 弹窗提醒，单子压根不在列表里，陪玩想点都没地方点。
+          pendingIncoming = await this.prisma.orderTransferRequest.findMany({
+            // 只看还没过期的：过期的申请不能再把单子拉进我的列表
+            // （实测过：只看 status 的话，超时那条会把一张跟我无关的单留在列表里，
+            //  只是按钮不显示 —— 列表里多一行莫名其妙的东西同样是错）。
+            where: {
+              toCompanionId: user.companionId,
+              status: 'PENDING',
+              createdAt: { gt: new Date(Date.now() - TRANSFER_REQUEST_TTL_SEC * 1000) },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            select: { id: true, orderId: true, fromCompanionId: true, reason: true, createdAt: true },
+          });
+          if (pendingIncoming.length) {
+            where.OR.push({ id: { in: pendingIncoming.map((r) => r.orderId) } });
+          }
         }
         if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
       }
@@ -706,11 +734,44 @@ export class OrdersService implements OnModuleInit {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // 逐行挂上「别人要转给我、等我点接手」的申请（老板 2026-10-03），并丢掉已经不成立的：
+    // 单已经不在对方名下、状态不再是已抢单/已确认、申请已过期 —— 这些一律不下发，
+    // 免得陪玩在列表里看到一个点了会报错的「接手」。
+    const pendingTransferMap = new Map<string, any>();
+    if (pendingIncoming.length) {
+      const byId = new Map(orders.map((o) => [o.id, o]));
+      const fromIds = Array.from(new Set(pendingIncoming.map((r) => r.fromCompanionId)));
+      const fromCompanions = await this.prisma.companion.findMany({
+        where: { id: { in: fromIds } },
+        select: { id: true, user: { select: { username: true, displayName: true } } },
+      });
+      const fromNameMap = new Map(
+        fromCompanions.map((c) => [c.id, c.user?.displayName || c.user?.username || '']),
+      );
+      const nowMs = Date.now();
+      for (const r of pendingIncoming) {
+        const o: any = byId.get(r.orderId);
+        if (!o) continue;
+        if (o.companionId !== r.fromCompanionId) continue;
+        if (o.status !== 'GRABBED' && o.status !== 'CONFIRMED') continue;
+        const expiresAt = new Date(r.createdAt).getTime() + TRANSFER_REQUEST_TTL_SEC * 1000;
+        if (expiresAt <= nowMs) continue;
+        pendingTransferMap.set(r.orderId, {
+          requestId: r.id,
+          fromCompanionId: r.fromCompanionId,
+          fromName: fromNameMap.get(r.fromCompanionId) || '',
+          reason: r.reason || '',
+          expiresAt,
+        });
+      }
+    }
     // 隐私：副陪（搭档）看不到主陪的客户微信。
     // 引流账号（来源账号）**不再按角色抹成 `***`**（老板 2026-09-30「管理端的 订单管理
     // 引流账号 怎么是 *？」）：陪玩端那一列本来就被 CustomerSourceMaskInterceptor 整列摘掉了，
     // 管理端（客服 / 店长 / 老板）一律显示完整账号 —— 和「客户管理」那一格同一口径。
-    return orders.map((o) => maskCustomerWechat(o, user));
+    return orders.map((o) =>
+      maskCustomerWechat({ ...o, pendingTransferForMe: pendingTransferMap.get(o.id) || null }, user),
+    );
   }
 
   async grab(orderId: string, companionId: string) {

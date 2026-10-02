@@ -143,6 +143,8 @@ const OrdersPage: React.FC = () => {
   // 我发起的、还没被同意的转让申请（按订单 id 索引）：这些单的「转让」按钮换成「撤回」，
   // 鼠标停上去看「在等谁同意」（老板 2026-10-03：「需要被转让方同意才能过来」）。
   const [outTransferMap, setOutTransferMap] = useState<Record<string, any>>({});
+  // 正在处理的那条「别人转给我」的申请：点「接手 / 拒绝」时给按钮转圈，防连点。
+  const [transferRespondId, setTransferRespondId] = useState<string>('');
   // 列宽按窗口宽度现算（老板 2026-09-29）：窗口宽出来的部分给客户信息列，操作列定宽
   const [tableWrapRef, tableAvailWidth] = useTableAvailWidth();
   const fittedColumns = fitOrderColumnWidths(tableAvailWidth);
@@ -259,7 +261,13 @@ const OrdersPage: React.FC = () => {
   useEffect(() => {
     const refreshOrders = () => fetch();
     window.addEventListener('chunlv:order-pool-updated', refreshOrders);
-    return () => window.removeEventListener('chunlv:order-pool-updated', refreshOrders);
+    // 有人把单转给我 / 我点了接手 / 对方撤回：列表也要跟着变 ——
+    // 待我确认的那一行就是靠这个刷出来的（老板 2026-10-03）。
+    window.addEventListener('chunlv:transfer-updated', refreshOrders);
+    return () => {
+      window.removeEventListener('chunlv:order-pool-updated', refreshOrders);
+      window.removeEventListener('chunlv:transfer-updated', refreshOrders);
+    };
   }, [fetch]);
 
   // 我发起的转让申请：刷新 / 重连后把「等待对方同意」的状态补回来（WS 只在发生时推一次）。
@@ -543,6 +551,9 @@ const OrdersPage: React.FC = () => {
     // （主陪 / 副陪 那列只有 84px，名字一长标记就被省略号吃掉了）。
     const myTransfer = (r.transfers || []).find((t: any) => t.fromCompanion?.id === user?.companionId);
     const showTransferNote = notMyOrder && !!myTransfer;
+    // 别人要转给我、等我点同意的单（老板 2026-10-03）：这一行直接长出「接手 / 拒绝」，
+    // 不再只靠顶栏铃铛 —— 单子本身就是从列表里点过来的。
+    const incomingTransfer = isCompanion ? r.pendingTransferForMe || null : null;
     // 客户微信加了没有：added=已添加 / not_accepted=客户没同意 / pending=还没标 / none=这单不用标
     const contactState = isCoCompanion || notMyOrder
       ? 'none'
@@ -622,6 +633,24 @@ const OrdersPage: React.FC = () => {
             已转让给 {transferWho(myTransfer.toCompanion)}（{new Date(myTransfer.createdAt).toLocaleString('zh-CN', { hour12: false })}）
           </span>
         )}
+        {incomingTransfer && (
+          <span
+            style={{
+              flex: '1 1 auto',
+              minWidth: 0,
+              fontSize: 11,
+              color: '#C2410C',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={`${incomingTransfer.fromName || '同事'} 想把这张单转给你${
+              incomingTransfer.reason ? `（原因：${incomingTransfer.reason}）` : ''
+            }；点「接手」之后才算转过来`}
+          >
+            🔁 {incomingTransfer.fromName || '同事'} 想转给你
+          </span>
+        )}
         <span style={actionSlot(60)}>
           {contactState === 'added' ? (
             <Tag color="green" style={{ margin: 0 }}>
@@ -695,7 +724,19 @@ const OrdersPage: React.FC = () => {
           ) : null}
         </span>
         <span style={actionSlot(36)}>
-          {canEditOrder(r) ? (
+          {incomingTransfer ? (
+            // 「接手」占的正是平时放「转让」的那一格：待我确认的单本来就没别的动作，
+            // 位置固定、操作列不变宽。
+            <Button
+              size="small"
+              type="primary"
+              style={{ width: 36, background: '#16A34A', borderColor: '#16A34A' }}
+              loading={transferRespondId === incomingTransfer.requestId}
+              onClick={() => respondIncomingTransfer(incomingTransfer, true)}
+            >
+              接手
+            </Button>
+          ) : canEditOrder(r) ? (
             <Button size="small" style={{ width: 36 }} onClick={() => setEditingOrder(r)}>
               修改
             </Button>
@@ -718,18 +759,31 @@ const OrdersPage: React.FC = () => {
           ) : null}
         </span>
         <span style={actionSlot(36)}>
-          {hasOrderRow && (
+          {incomingTransfer ? (
+            // 「拒绝」占的是陪玩行本来就空着的「退款」那一格（退款只有客服 / 店长有）。
             <Button
               size="small"
               danger
               style={{ width: 36 }}
-              onClick={() => {
-                setRefundOrder(r);
-                setRefundReason('');
-              }}
+              loading={transferRespondId === incomingTransfer.requestId}
+              onClick={() => respondIncomingTransfer(incomingTransfer, false)}
             >
-              退款
+              拒绝
             </Button>
+          ) : (
+            hasOrderRow && (
+              <Button
+                size="small"
+                danger
+                style={{ width: 36 }}
+                onClick={() => {
+                  setRefundOrder(r);
+                  setRefundReason('');
+                }}
+              >
+                退款
+              </Button>
+            )
           )}
         </span>
       </div>
@@ -812,6 +866,30 @@ const OrdersPage: React.FC = () => {
       window.dispatchEvent(new Event('chunlv:transfer-updated'));
     } catch (e: any) {
       message.error(extractErrorMessage(e, '撤回失败'));
+    }
+  };
+
+  /**
+   * 别人转给我的单，直接在订单列表那一行点「接手」/「拒绝」（老板 2026-10-03：
+   * 「放在订单列表那一行点转让或者点接受不行么」）。
+   * 这两张单现在还不挂在我名下，所以服务端把它们一起放进「我接的单」里，
+   * 每行带一个 pendingTransferForMe；点完刷新列表，行上的按钮就消失了。
+   */
+  const respondIncomingTransfer = async (req: any, accept: boolean) => {
+    const requestId = req?.requestId;
+    if (!requestId) return;
+    setTransferRespondId(requestId);
+    try {
+      if (accept) await ordersApi.acceptTransfer(requestId);
+      else await ordersApi.rejectTransfer(requestId);
+      message.success(accept ? '已接手，这张单现在归你了' : '已拒绝，这张单还在对方名下');
+      window.dispatchEvent(new Event('chunlv:transfer-updated'));
+      window.dispatchEvent(new Event('chunlv:order-pool-updated'));
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, accept ? '接手失败' : '拒绝失败'));
+    } finally {
+      setTransferRespondId('');
     }
   };
 
