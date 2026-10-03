@@ -10,6 +10,13 @@ export interface ExcellenceResult {
   rankScore: number;
   revenueScore: number;
   bonusScore: number;
+  /** 另外三项的得分：以前不返回，客户端只能自己瞎猜（乘 0.2 / 0.1），跟真分对不上。 */
+  renewScore: number;
+  repurchaseScore: number;
+  firstSuccessScore: number;
+  /** 上等马线 / 中等马线：给「评分说明」页面显示用，和算段位用的是同一份配置。 */
+  excellentThreshold: number;
+  middleTierThreshold: number;
   renewRate: number;
   repurchaseRate: number;
   newRate: number;
@@ -99,10 +106,14 @@ export class ExcellenceService implements OnModuleInit {
     const result = new Map<string, ExcellenceResult>();
     if (companionIds.length === 0) return result;
 
-    const scoreByTiers = (value: number, tiers: Array<{ min: number; score: number }>) => {
+    // 打分口径（老板 2026-10-04）：「满足条件就加上这个分」。
+    // 每一项是若干条「达到 X 就加 Y 分」的规则，够到几条就把这几条的分数**相加**。
+    // 以前是「取达到的最高那一档的分」（阶梯取最高），老板觉得绕，改成直接累加；
+    // 条数、门槛、分数都由「评分与名额」页面自己配。
+    const scoreByRules = (value: number, rules: Array<{ min: number; score: number }>) => {
       let score = 0;
-      for (const t of tiers) {
-        if (value >= t.min) score = t.score;
+      for (const r of rules) {
+        if (value >= r.min) score += r.score;
       }
       return score;
     };
@@ -179,6 +190,11 @@ export class ExcellenceService implements OnModuleInit {
       if (row.type === 'RENEW') s.renew = row._count.id;
       if (row.type === 'REPURCHASE') s.repurchase = row._count.id;
     }
+    // 一单都没成交过的人也要有一份结果（哪怕全是 0）：否则调用方只能 ?? 兜底，
+    // 「评分说明」里连上等马线都拿不到真实配置（老板 2026-10-04 顺手修）。
+    for (const cid of companionIds) {
+      if (!m.has(cid)) m.set(cid, { count: 0, renew: 0, repurchase: 0 });
+    }
 
     // 月流水：按营业月统计（当月 1 日 12:00 至次月 1 日 12:00，不含）
     const now = new Date();
@@ -234,10 +250,10 @@ export class ExcellenceService implements OnModuleInit {
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;
-      const revenueScore = scoreByTiers(revenue, metrics.revenueTiers);
-      const renewScore = scoreByTiers(renewRate, metrics.renewTiers);
-      const repurchaseScore = scoreByTiers(repurchaseRate, metrics.repurchaseTiers);
-      const firstSuccessScore = scoreByTiers(firstSuccessRate, metrics.firstSuccessTiers);
+      const revenueScore = scoreByRules(revenue, metrics.revenueTiers);
+      const renewScore = scoreByRules(renewRate, metrics.renewTiers);
+      const repurchaseScore = scoreByRules(repurchaseRate, metrics.repurchaseTiers);
+      const firstSuccessScore = scoreByRules(firstSuccessRate, metrics.firstSuccessTiers);
       const bonus = bonusMap.get(cid) || 0;
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
       const tier = rankScore >= metrics.excellentThreshold
@@ -251,6 +267,11 @@ export class ExcellenceService implements OnModuleInit {
         rankScore,
         revenueScore: Math.round(revenueScore),
         bonusScore: bonus,
+        renewScore: Math.round(renewScore),
+        repurchaseScore: Math.round(repurchaseScore),
+        firstSuccessScore: Math.round(firstSuccessScore),
+        excellentThreshold: metrics.excellentThreshold,
+        middleTierThreshold: metrics.middleTierThreshold,
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
         newRate: Math.round(firstSuccessRate),
@@ -273,6 +294,12 @@ export class ExcellenceService implements OnModuleInit {
       rankScore: 0,
       revenueScore: 0,
       bonusScore: 0,
+      renewScore: 0,
+      repurchaseScore: 0,
+      firstSuccessScore: 0,
+      // 兜底值只求不崩；正常路径（上面已经给每个人补了结果）拿到的都是真实配置。
+      excellentThreshold: 50,
+      middleTierThreshold: 25,
       renewRate: 0,
       repurchaseRate: 0,
       newRate: 0,

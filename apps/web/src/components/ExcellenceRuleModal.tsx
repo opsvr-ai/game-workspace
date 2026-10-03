@@ -16,6 +16,11 @@ interface Excellence {
   rankScore?: number;
   revenueScore?: number;
   bonusScore?: number;
+  renewScore?: number;
+  repurchaseScore?: number;
+  firstSuccessScore?: number;
+  excellentThreshold?: number;
+  middleTierThreshold?: number;
   renewRate?: number;
   repurchaseRate?: number;
   newRate?: number;
@@ -43,10 +48,14 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
       .finally(() => setLoading(false));
   }, [open]);
 
-  const renewScore = Math.round((data?.renewRate ?? 0) * 0.2);
-  const repurchaseScore = Math.round((data?.repurchaseRate ?? 0) * 0.2);
-  const newScore = Math.round((data?.newRate ?? 0) * 0.1);
+  // 得分和段位线一律用服务端返回的真值：以前这里自己按 0.2 / 0.1 猜，
+  // 跟管理端实际配置的分档对不上（老板 2026-10-04 顺手修）。
+  const renewScore = data?.renewScore ?? 0;
+  const repurchaseScore = data?.repurchaseScore ?? 0;
+  const newScore = data?.firstSuccessScore ?? 0;
   const tier = TIER[data?.tier || 'MIDDLE'];
+  const excellentThreshold = data?.excellentThreshold ?? 50;
+  const middleTierThreshold = data?.middleTierThreshold ?? 25;
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={640} title="🏆 综合评分说明">
@@ -67,34 +76,34 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               }
               description={data.tier === 'TOP'
                 ? '已达上等马，享受全部抢单权益'
-                : `还差 ${Math.max(0, 50 - (data.rankScore ?? 0))} 分达到上等马（50 分）`}
+                : `还差 ${Math.max(0, excellentThreshold - (data.rankScore ?? 0))} 分达到上等马（${excellentThreshold} 分）`}
             />
           )}
 
-          <Title level={5} style={{ marginTop: 0 }}>评分怎么算（满分 100，可被战绩图加分突破）</Title>
+          <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一条「达到就加分」）</Title>
           <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="月流水（满分 50）">
-              {data?.revenueScore ?? 0} 分（月流水 ¥{(data?.revenueScore ?? 0) * 200} / 10000）
+            <Descriptions.Item label="月流水">
+              {data?.revenueScore ?? 0} 分
             </Descriptions.Item>
-            <Descriptions.Item label="续单率（满分 20）">
-              {renewScore} 分（续单率 {data?.renewRate ?? 0}%）
+            <Descriptions.Item label={`续单率 ${data?.renewRate ?? 0}%`}>
+              {renewScore} 分
             </Descriptions.Item>
-            <Descriptions.Item label="复购率（满分 20）">
-              {repurchaseScore} 分（复购率 {data?.repurchaseRate ?? 0}%）
+            <Descriptions.Item label={`复购率 ${data?.repurchaseRate ?? 0}%`}>
+              {repurchaseScore} 分
             </Descriptions.Item>
-            <Descriptions.Item label="首单成功率（满分 10）">
-              {newScore} 分（成功率 {data?.newRate ?? 0}%）
+            <Descriptions.Item label={`首单成功率 ${data?.newRate ?? 0}%`}>
+              {newScore} 分
             </Descriptions.Item>
-            <Descriptions.Item label="战绩图加分（无上限）">
+            <Descriptions.Item label="战绩图加分">
               +{data?.bonusScore ?? 0} 分（每采纳一组 +1 分）
             </Descriptions.Item>
           </Descriptions>
 
           <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马权益</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
-            <li><TierHorseIcon tier="TOP" /> 上等马（≥ 50 分）：享受下面全部权益。</li>
-            <li>🐎 中等马（25~49 分）：一般权益。</li>
-            <li>🐴 下等马（&lt; 25 分）：需加油提升。</li>
+            <li><TierHorseIcon tier="TOP" /> 上等马（≥ {excellentThreshold} 分）：享受下面全部权益。</li>
+            <li>🐎 中等马（{middleTierThreshold}~{Math.max(middleTierThreshold, excellentThreshold - 1)} 分）：一般权益。</li>
+            <li>🐴 下等马（&lt; {middleTierThreshold} 分）：需加油提升。</li>
           </ul>
           <Title level={5} style={{ marginTop: 16 }}>上等马好处</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
@@ -104,7 +113,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
             <li>客服派单时，快结束的陪玩列表里你排前面。</li>
           </ul>
 
-          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description="综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。各项按「档位」给分（达到哪一档拿哪一档的分）；综合分达到 50 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。" />
+          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项都是「达到多少就加多少分」，满足的条件越多加得越多；综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
         </div>
       )}
     </Modal>
