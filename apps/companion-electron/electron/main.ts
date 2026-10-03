@@ -1328,6 +1328,25 @@ const IDLE_REST_CHECK_MS = 60 * 1000;
 let idleRestInFlight = false;
 let idleRestSettled = false;
 
+// 休眠 / 睡眠期间，系统的「无操作时长」里含着睡前攒的那一段（Windows 的 tick 两种情况都可能），
+// 不扣掉的话一唤醒就会被判成「已经 1 小时没操作」，20 秒后又自动休眠一次 —— 人回来了却刚醒又睡。
+// 这里记一个基线：唤醒那一刻的空闲值，之后一律按「相对唤醒过了多久」算；有新的鼠标 / 键盘输入就作废。
+let idleBaselineMs = 0;
+
+/**
+ * 当前的「无操作时长」：扣掉睡眠 / 休眠前攒的那一段（见 idleBaselineMs）。
+ * 已经有新输入时基线作废，从这一刻重新开始攒。
+ */
+function currentIdleMs(): number {
+  const rawIdleMs = powerMonitor.getSystemIdleTime() * 1000;
+  if (idleBaselineMs <= 0) return rawIdleMs;
+  if (rawIdleMs < idleBaselineMs) {
+    idleBaselineMs = 0;
+    return rawIdleMs;
+  }
+  return rawIdleMs - idleBaselineMs;
+}
+
 /** 只有「空闲 / 娱乐」会因长时间无操作自动休息；接单中、已休息、离线一律不动。 */
 function isIdleRestableStatus(status: unknown): boolean {
   return status === 'AVAILABLE' || status === 'ENTERTAINMENT';
@@ -1339,7 +1358,7 @@ async function idleRestTick(): Promise<void> {
   if (!store.get('token')) return;
   if (!isIdleRestableStatus(store.get('lastStatus'))) return;
 
-  const idleMs = powerMonitor.getSystemIdleTime() * 1000;
+  const idleMs = currentIdleMs();
   if (idleMs < IDLE_REST_AFTER_MS) {
     // 有输入了：这一轮结束，下次再攒满 1 小时还能触发。
     idleRestSettled = false;
@@ -1362,7 +1381,7 @@ async function idleRestTick(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, IDLE_REST_GRACE_MS));
 
     // 倒计时里摸过鼠标/键盘，或状态变了 → 取消这次自动休息。
-    if (powerMonitor.getSystemIdleTime() * 1000 < IDLE_REST_AFTER_MS) {
+    if (currentIdleMs() < IDLE_REST_AFTER_MS) {
       logger.info('Idle auto-rest cancelled: user is back');
       return;
     }
@@ -1395,6 +1414,66 @@ async function idleRestTick(): Promise<void> {
 function startIdleRestWatcher(): void {
   setTimeout(() => { void idleRestTick(); }, 30 * 1000);
   setInterval(() => { void idleRestTick(); }, IDLE_REST_CHECK_MS);
+}
+
+/**
+ * 休眠唤醒后自动回到「空闲」（老板 2026-10-04）。
+ *
+ * 老板把「休息」定义成「整机休眠」，手动点休息和「1 小时无操作」都是同一条路：
+ * 状态变休息 → 整机休眠 → 按电源键唤醒。所以唤醒就等于人回来了，
+ * 本地状态只要还停在「休息」就自动切回「空闲」，不用再点一下。
+ *
+ * 顺序：本地先切（黑名单守卫 / 托盘立刻按空闲口径走），再上报服务端
+ * （服务端会清掉休息计时、推权威黑名单、广播状态给管理端）。
+ * 失败重试几次：唤醒后网卡要重新上线，头一两次请求常常连不上。
+ */
+async function handleSystemResume(): Promise<void> {
+  logger.info('System resumed');
+  // 先重置「无操作」基线：不重置的话唤醒后 1 分钟内就会再自动休眠一次。
+  idleBaselineMs = powerMonitor.getSystemIdleTime() * 1000;
+  idleRestSettled = false;
+  const wasResting = currentRole === 'COMPANION' && store.get('lastStatus') === 'RESTING';
+  if (wasResting) {
+    store.set('lastStatus', 'AVAILABLE');
+    try { emitStatus('AVAILABLE'); } catch { /* WS 没连上不影响 */ }
+    try { handleStatusChanged('AVAILABLE'); } catch { /* 锁屏窗口可能已销毁 */ }
+    await reportResumedAvailable();
+  }
+  if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
+    mainWindow.reload();
+  }
+}
+
+/** 唤醒后把「空闲」上报服务端（带重试；服务端明确拒绝就放弃，不反复打接口）。 */
+async function reportResumedAvailable(): Promise<void> {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    // 唤醒后网卡要重新上线（Wi-Fi 尤其慢），等几秒再打第一个请求。
+    await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 2500 : 3000));
+    try {
+      const token = await refreshAccessToken();
+      if (!token) continue;
+      const res = await fetch(`${getServerUrl()}/api/companions/me/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'AVAILABLE' }),
+      });
+      if (res.ok) {
+        logger.info('Resume auto-available: server confirmed AVAILABLE');
+        return;
+      }
+      // 400 / 403：服务端明确拒绝（比如还在接单、账号已不是陪玩），重试也没用。
+      if (res.status === 400 || res.status === 403) {
+        logger.warn('Resume auto-available rejected by server', { httpStatus: res.status });
+        return;
+      }
+    } catch (err: any) {
+      logger.warn('Resume auto-available attempt failed', {
+        attempt,
+        error: err?.message || String(err),
+      });
+    }
+  }
+  logger.warn('Resume auto-available: gave up after retries');
 }
 
 // ── Lifecycle ──
@@ -1509,12 +1588,12 @@ app.whenReady().then(() => {
     }, 3000);
   });
 
-  // 系统唤醒后重新加载页面，避免唤醒后白屏
+  // 系统唤醒（睡眠 / 休眠恢复）：
+  // ① 「休息」= 整机休眠（老板 2026-10-04），人一回来就应该是「空闲」——
+  //    不用自己再点一下「空闲」（老板 2026-10-04 原话：「回来之后是空闲才对」）。
+  // ② 重新加载页面，避免唤醒后白屏。
   powerMonitor.on('resume', () => {
-    logger.info('System resumed, reloading renderer');
-    if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
-      mainWindow.reload();
-    }
+    void handleSystemResume();
   });
 
   companionTray = createTray({
