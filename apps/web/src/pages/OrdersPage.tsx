@@ -37,6 +37,7 @@ import ChatModal from '../components/ChatModal';
 import { orderStatusConfig } from '../constants';
 import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
+import SupplementReviewButton from '../components/SupplementReviewButton';
 import TableSkeleton from '../components/TableSkeleton';
 import { PartnerInviteCards } from '../components/PartnerInviteCards';
 import {
@@ -1016,6 +1017,7 @@ const OrdersPage: React.FC = () => {
           }
           extra={
             <div style={{ display: 'flex', gap: 8 }}>
+              {!isCompanion && <SupplementReviewButton />}
               <Select
                 placeholder="全部状态"
                 allowClear

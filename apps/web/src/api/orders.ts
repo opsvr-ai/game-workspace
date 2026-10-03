@@ -90,4 +90,12 @@ export const ordersApi = {
     customerPaymentAccountId?: string;
     customerPaymentAccountName?: string;
   }) => http.put(`/orders/${orderId}/payment`, data),
+  /** 补单申请：scope=pending 待审 / due 到期要核查客户后来通过没（老板 2026-10-04） */
+  listSupplements: (scope?: 'pending' | 'due' | 'all') =>
+    http.get('/orders/supplements', { params: scope ? { scope } : {} }),
+  supplementSummary: () => http.get('/orders/supplements/summary'),
+  decideSupplement: (id: string, decision: 'APPROVE' | 'REJECT', note?: string) =>
+    http.post(`/orders/supplements/${id}/decide`, { decision, note }),
+  reviewSupplement: (id: string, result: 'ACCEPTED' | 'STILL_NOT') =>
+    http.post(`/orders/supplements/${id}/review`, { result }),
 };

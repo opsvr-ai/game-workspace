@@ -224,6 +224,46 @@ export class OrdersController {
     return { code: 200, message: '已更新', data };
   }
 
+  /** 补单申请：scope=pending 待审 / due 到期要核查；不传看全部（客服 / 店长 / 老板）。 */
+  @Get('orders/supplements')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async listSupplements(@Query('scope') scope: string, @Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.listSupplements(req.user, (scope || 'all') as any);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 管理端红点：待审几条、到期要核查几条。 */
+  @Get('orders/supplements/summary')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async supplementSummary(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.supplementSummary(req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 审核补单：decision=APPROVE 同意（次数 +1）/ REJECT 驳回。 */
+  @Post('orders/supplements/:id/decide')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async decideSupplement(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.decideSupplement(id, body?.decision, body?.note, req.user);
+    return { code: 200, message: '已处理', data };
+  }
+
+  /** 到期核查：result=ACCEPTED 客户其实通过了（系统改成「已添加」）/ STILL_NOT 仍未通过。 */
+  @Post('orders/supplements/:id/review')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async reviewSupplement(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.reviewSupplement(id, body?.result, req.user);
+    return { code: 200, message: '已记录', data };
+  }
+
   /**
    * 陪玩发起转让申请（老板 2026-09-29 引入转让、2026-10-03 改成「要对方同意」）。
    *

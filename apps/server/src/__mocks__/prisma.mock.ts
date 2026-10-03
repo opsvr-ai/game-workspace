@@ -179,6 +179,24 @@ export function createMockPrisma() {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn().mockResolvedValue(0),
     },
+    // 每日抢单名额台账（老板 2026-10-04：抢单即扣、点开能看到每天加/用多少）
+    companionQuotaLog: {
+      // 真实 Prisma 一定返回创建后的行；这里给个默认值，
+      // 免得 `.catch()` 链在 mock 返回值 undefined 上炸掉。
+      create: vi.fn().mockResolvedValue({ id: 'quota-log-1' }),
+      findMany: vi.fn().mockResolvedValue([]),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    // 补单申请 + 到期核查（老板 2026-10-04）
+    supplementRequest: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      count: vi.fn().mockResolvedValue(0),
+    },
     // 订单转让（留痕 + 申请，老板 2026-10-03：转让要经被转让方同意）
     orderTransfer: {
       create: vi.fn(),

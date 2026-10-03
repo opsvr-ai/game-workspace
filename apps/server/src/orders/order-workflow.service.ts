@@ -91,20 +91,22 @@ export class OrderWorkflowService {
       throw new ForbiddenException('不能抢自己发布的订单');
     }
 
-    // 每日「立即打」名额：老板 2026-09-20 拍板，用名额取代原来的「流水门槛」。
-    // 预约单、客服指定单、陪玩自己发的单都不占名额。
+    // 每日抢单名额（老板 2026-10-04 口径）：抢单那一刻就扣，失败由管理端补单返还。
+    // 陪玩自己发的单不占；客服指定单不占；线下工作室的预约单也占，线上俱乐部不占。
     const creator = await this.prisma.user.findUnique({
       where: { id: order.csUserId },
       select: { role: true },
     });
     const isPeerOrder = creator?.role === 'COMPANION';
     const isImmediate = (order.customFields as any)?.urgency !== 'later';
-    const countsQuota = isImmediate && !isPeerOrder;
+    const studioType = await this.quota.studioTypeOf(order.studioId);
+    const countsQuota = this.quota.countsOrder({ isPeerOrder, isImmediate, studioType });
+    const quotaRef = { refId: orderId, note: `抢单扣名额 · 订单 ${order.orderCode || orderId}` };
     // 先扣名额，抢单失败再退回去（并发安全）
-    const reserved = countsQuota ? await this.quota.reserve(companionId) : null;
+    const reserved = countsQuota ? await this.quota.reserve(companionId, 1, quotaRef) : null;
     if (reserved && !reserved.ok) {
       throw new ForbiddenException(
-        `今天的「立即打」名额用完了（${reserved.tier} 每天 ${reserved.dailyLimit} 个），可以抢预约单或等明天`,
+        `今天的抢单名额用完了（${reserved.tier} ${reserved.dailyLimit} 个/天，没用完的会累计）；可以等明天，或让客服直接指定派单`,
       );
     }
 
@@ -115,7 +117,7 @@ export class OrderWorkflowService {
     });
 
     if (updatedOrder.count === 0) {
-      if (reserved) await this.quota.refund(companionId);
+      if (reserved) await this.quota.refund(companionId, 1, quotaRef);
       throw new ForbiddenException('该订单已被其他陪玩抢先抢走');
     }
 

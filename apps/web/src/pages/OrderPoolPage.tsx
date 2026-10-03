@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin, Modal } from 'antd';
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined, EditOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
@@ -45,6 +45,8 @@ const OrderPoolPage: React.FC = () => {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [poolStatus, setPoolStatus] = useState<any>(null);
+  // 「今日名额」点开看每天加了多少、用了多少（老板 2026-10-04）
+  const [quotaDetailOpen, setQuotaDetailOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [grabbing, setGrabbing] = useState<string | null>(null);
 
@@ -371,10 +373,27 @@ const OrderPoolPage: React.FC = () => {
     );
   }
 
-  // 每日「立即打」名额（老板 2026-09-20：取代原来的流水门槛）
+  // 每日抢单名额（老板 2026-09-20 起取代「流水门槛」；2026-10-04 改成抢单即扣、没用完累计）
   const quotaRemaining = Number(poolStatus?.remaining ?? 0);
   const quotaLimit = Number(poolStatus?.dailyLimit ?? 0);
   const quotaUsedToday = Number(poolStatus?.usedToday ?? 0);
+  const quotaDays: any[] = Array.isArray(poolStatus?.days) ? poolStatus.days : [];
+  const quotaLogs: any[] = Array.isArray(poolStatus?.recentLogs) ? poolStatus.recentLogs : [];
+  const quotaReasonLabel: Record<string, string> = {
+    GRANT: '每日发放',
+    GRAB: '抢单扣减',
+    REFUND: '抢单失败退回',
+    SUPPLEMENT: '管理端补单返还',
+    ADJUST: '人工调整',
+  };
+  const todayBusinessKey = (() => {
+    const d = new Date();
+    if (d.getHours() < 12) d.setDate(d.getDate() - 1);
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
+  })();
+  const fmtDay = (k: string) => (k === todayBusinessKey ? `${k}（今天）` : k);
 
   const canEditOrder = (order: any) => {
     if (!role || role === 'COMPANION' || order.dispatchType !== 'POOL') return false;
@@ -775,7 +794,7 @@ const OrderPoolPage: React.FC = () => {
             </Card>
           )}
 
-          {/* 陪玩：今日「立即打」名额（含没抢完累计下来的） */}
+          {/* 陪玩：今日抢单名额（抢单即扣；没用完的累计到明天） */}
           {isCompanion && poolStatus && (
             <Card
               size="small"
@@ -787,20 +806,92 @@ const OrderPoolPage: React.FC = () => {
               <Row align="middle" justify="space-between">
                 <Col>
                   <Text strong style={{ fontSize: DATA_FONT_SIZE }}>
-                    今日名额 {quotaUsedToday}/{quotaLimit} 已用 ｜ 可用（含累计结余）{quotaRemaining} 个
+                    今日抢单名额：已用 {quotaUsedToday} 个 ｜ 当前可用（含累计结余）{quotaRemaining} 个
                   </Text>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+                      每天按段位发 {quotaLimit} 个，没用完的自动攒着；
+                      <a onClick={() => setQuotaDetailOpen(true)} style={{ marginLeft: 4 }}>
+                        点开看每天加/用明细
+                      </a>
+                    </Text>
+                  </div>
                 </Col>
                 <Col>
                   <Tag
                     color={quotaRemaining > 0 ? 'success' : 'warning'}
                     style={{ fontSize: DATA_TAG_FONT_SIZE, padding: '2px 10px' }}
                   >
-                    {quotaRemaining > 0 ? `✅ 还能抢 ${quotaRemaining} 个立即打` : '名额用完了，明天自动补'}
+                    {quotaRemaining > 0 ? `✅ 还能抢 ${quotaRemaining} 个` : '名额用完了，明天自动补'}
                   </Tag>
                 </Col>
               </Row>
             </Card>
           )}
+
+          <Modal
+            open={quotaDetailOpen}
+            title="🎟️ 我的抢单名额明细"
+            footer={null}
+            onCancel={() => setQuotaDetailOpen(false)}
+            width={560}
+          >
+            <Text style={{ fontSize: DATA_FONT_SIZE }}>
+              段位 {poolStatus?.tier || '—'} ｜ 每天发 {quotaLimit} 个 ｜ 今天已用 {quotaUsedToday} 个 ｜
+              当前可用 <Text strong>{quotaRemaining}</Text> 个
+            </Text>
+            <div>
+              <Text type="secondary" style={{ fontSize: DATA_SUB_FONT_SIZE }}>
+                抢单那一刻就扣 1 个名额；陪玩自己发的单、客服直接指定的单不占名额；
+                线下工作室的预约单也算 1 个。客户没通过 → 让管理端点「同意补单」，名额就还你 1 个。
+              </Text>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Text strong style={{ fontSize: DATA_FONT_SIZE }}>
+                最近 14 天（+ 加 / − 用）
+              </Text>
+              <List
+                size="small"
+                dataSource={quotaDays}
+                locale={{ emptyText: '还没有记录' }}
+                renderItem={(d: any) => (
+                  <List.Item>
+                    <span style={{ fontSize: DATA_FONT_SIZE }}>{fmtDay(String(d.dayKey))}</span>
+                    <span style={{ fontSize: DATA_FONT_SIZE }}>
+                      <Text type="success">+{d.granted}</Text>
+                      {'  '}
+                      <Text type="danger">−{d.used}</Text>
+                      {'  '}
+                      <Text type="secondary">结余 {d.net}</Text>
+                    </span>
+                  </List.Item>
+                )}
+              />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Text strong style={{ fontSize: DATA_FONT_SIZE }}>
+                最近明细
+              </Text>
+              <List
+                size="small"
+                dataSource={quotaLogs}
+                locale={{ emptyText: '还没有记录' }}
+                renderItem={(l: any) => (
+                  <List.Item>
+                    <span style={{ fontSize: DATA_FONT_SIZE }}>
+                      {String(l.createdAt || '').slice(5, 16).replace('T', ' ')}
+                      {'  '}
+                      {quotaReasonLabel[l.reason] || l.reason}
+                      {l.note ? <Text type="secondary">（{l.note}）</Text> : null}
+                    </span>
+                    <Text type={Number(l.delta) >= 0 ? 'success' : 'danger'} style={{ fontSize: DATA_FONT_SIZE }}>
+                      {Number(l.delta) >= 0 ? `+${l.delta}` : l.delta}
+                    </Text>
+                  </List.Item>
+                )}
+              />
+            </div>
+          </Modal>
         </Col>
       </Row>
 

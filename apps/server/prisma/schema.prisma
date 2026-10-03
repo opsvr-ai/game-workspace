@@ -1473,3 +1473,45 @@ model XhsSystemEvent {
   @@index([accountId, createdAt])
   @@index([type])
 }
+
+/// 陪玩「每日抢单名额」流水台账（老板 2026-10-04：「点开也可以看到每天消耗多少 增加多少」）。
+/// 一行 = 一次名额变动：GRANT 每日发放 / GRAB 抢单扣减 / SUPPLEMENT 补单返还 / REFUND 抢失败退回 / ADJUST 人工调整。
+model CompanionQuotaLog {
+  id          String   @id @default(uuid())
+  companionId String
+  studioId    String?
+  delta       Int // 正数=增加，负数=扣减
+  reason      String // GRANT | GRAB | SUPPLEMENT | REFUND | ADJUST
+  refId       String? // 关联订单 / 补单申请 id
+  note        String?
+  dayKey      String // 所属营业日 YYYY-MM-DD（按每日 12:00 结算口径）
+  createdAt   DateTime @default(now())
+
+  @@index([companionId, createdAt])
+  @@index([studioId, dayKey])
+}
+
+/// 补单申请（老板 2026-10-04）：
+/// 陪玩点「添加失败」→ 自动生成一条 PENDING（要求管理端补单）→ 管理端同意则他的次数 +1；
+/// 同时记下 reviewDueAt，到期提醒管理端去核查「这个客户后来到底通过了没有」，别把客户浪费掉。
+model SupplementRequest {
+  id               String    @id @default(uuid())
+  orderId          String    @unique
+  companionId      String
+  studioId         String?
+  reason           String? // 陪玩选的失败原因
+  evidenceUrl      String? // 陪玩上传的失败截图
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  decidedByUserId  String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  reviewDueAt      DateTime? // 同意后到点要核查
+  reviewStatus     String? // PENDING | ACCEPTED | STILL_NOT
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  createdAt        DateTime  @default(now())
+
+  @@index([studioId, status])
+  @@index([companionId, createdAt])
+  @@index([status, reviewDueAt])
+}

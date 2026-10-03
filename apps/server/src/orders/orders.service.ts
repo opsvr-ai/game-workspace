@@ -5,7 +5,7 @@ import { WsGateway } from '../ws/ws.gateway';
 import { BridgeService } from '../studios/bridge.service';
 import { OrderWorkflowService } from './order-workflow.service';
 import { OrderDispatchService } from './order-dispatch.service';
-import { CompanionQuotaService } from './companion-quota.service';
+import { CompanionQuotaService, QUOTA_REASON } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
 import { maskCustomerWechat, maskPartnerContactView, stripPoolCustomerContact } from '../common/order-privacy';
@@ -36,6 +36,9 @@ const TRANSFER_REQUEST_TTL_SEC = 30 * 60;
 
 /** 「桥接工作室等待」默认值（秒）：库里没配置时用它。 */
 const DEFAULT_BRIDGE_DELAY_SECONDS = 30;
+
+/** 同意补单后，隔多久提醒管理端去核查「这个客户后来到底通过了没有」（小时）。 */
+const SUPPLEMENT_REVIEW_HOURS = 24;
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -858,8 +861,258 @@ export class OrdersService implements OnModuleInit {
         },
       });
     }
+    // 陪玩点「添加失败」→ 自动生成一条补单申请，等管理端审核（老板 2026-10-04）。
+    if (body.contactStatus === 'not_accepted') {
+      await this.upsertSupplementRequest(updated, body).catch(() => null);
+    }
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     return updated;
+  }
+
+  /** 管理端能看到的工作室范围；老板不限（返回 null = 不过滤）。 */
+  private async supplementScopeIds(user: any): Promise<string[] | null> {
+    if (user?.role === 'OWNER' || !user?.studioId) return null;
+    return this.bridgeService.getVisibleStudioIds(user.studioId);
+  }
+
+  /** 陪玩点「添加失败」时建档：同一张单只留一条；被驳回后重新提交会回到待审。 */
+  private async upsertSupplementRequest(order: any, body: any): Promise<void> {
+    if (!order?.companionId) return;
+    const reason = String(body?.failReason || body?.reason || '').trim() || null;
+    const evidenceUrl = String(body?.screenshotUrl || body?.evidenceUrl || '').trim() || null;
+    const existing = await this.prisma.supplementRequest.findUnique({ where: { orderId: order.id } });
+    if (existing) {
+      // 已经补过的单不再重复开，避免同一张单被反复要名额
+      if (existing.status === 'APPROVED') return;
+      await this.prisma.supplementRequest.update({
+        where: { orderId: order.id },
+        data: {
+          companionId: order.companionId,
+          studioId: order.studioId ?? existing.studioId,
+          reason,
+          evidenceUrl,
+          status: 'PENDING',
+          decidedByUserId: null,
+          decidedAt: null,
+          decisionNote: null,
+          reviewDueAt: null,
+          reviewStatus: null,
+          reviewedAt: null,
+          reviewedByUserId: null,
+        },
+      });
+      return;
+    }
+    await this.prisma.supplementRequest.create({
+      data: {
+        orderId: order.id,
+        companionId: order.companionId,
+        studioId: order.studioId ?? null,
+        reason,
+        evidenceUrl,
+        status: 'PENDING',
+      },
+    });
+  }
+
+  /**
+   * 补单申请列表（客服 / 店长 / 老板）。
+   * scope = 'pending' 只看待审；'due' 只看「已同意、到期要核查客户后来通过没」；不传看全部。
+   */
+  async listSupplements(user: any, scope?: 'pending' | 'due' | 'all') {
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能看补单申请');
+    }
+    const visibleIds = await this.supplementScopeIds(user);
+    const where: any = {};
+    if (visibleIds) where.studioId = { in: visibleIds };
+    if (scope === 'pending') {
+      where.status = 'PENDING';
+    } else if (scope === 'due') {
+      where.status = 'APPROVED';
+      where.reviewStatus = { in: ['PENDING', 'STILL_NOT'] };
+      where.reviewDueAt = { lte: new Date() };
+    } else {
+      where.status = { in: ['PENDING', 'APPROVED', 'REJECTED'] };
+    }
+    const rows = await this.prisma.supplementRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    if (!rows.length) return [];
+    const orderIds = rows.map((r) => r.orderId);
+    const companionIds = [...new Set(rows.map((r) => r.companionId))];
+    const [orders, companions] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { id: { in: orderIds } },
+        select: {
+          id: true,
+          orderCode: true,
+          type: true,
+          status: true,
+          amount: true,
+          gameName: true,
+          contactStatus: true,
+          customerId: true,
+          customFields: true,
+        },
+      }),
+      this.prisma.companion.findMany({
+        where: { id: { in: companionIds } },
+        select: { id: true, user: { select: { username: true, displayName: true } } },
+      }),
+    ]);
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
+    const nameMap = new Map(
+      companions.map((c) => [c.id, c.user?.displayName || c.user?.username || null]),
+    );
+    return rows.map((r) => {
+      const order = orderMap.get(r.orderId) ?? null;
+      const cf = (order?.customFields as any) || {};
+      return {
+        ...r,
+        companionName: nameMap.get(r.companionId) ?? null,
+        order: order
+          ? {
+              id: order.id,
+              orderCode: order.orderCode,
+              type: order.type,
+              status: order.status,
+              amount: order.amount,
+              gameName: order.gameName,
+              contactStatus: order.contactStatus,
+              customerId: order.customerId,
+              customerWechat: cf.customerWechat ?? null,
+              customerSource: cf.customerSource ?? null,
+            }
+          : null,
+      };
+    });
+  }
+
+  /** 管理端顶部红点用的数量：待审几条、到期要核查几条。 */
+  async supplementSummary(user: any) {
+    const visibleIds = await this.supplementScopeIds(user);
+    const base = visibleIds ? { studioId: { in: visibleIds } } : {};
+    const [pending, due] = await Promise.all([
+      this.prisma.supplementRequest.count({ where: { ...base, status: 'PENDING' } }),
+      this.prisma.supplementRequest.count({
+        where: {
+          ...base,
+          status: 'APPROVED',
+          reviewStatus: { in: ['PENDING', 'STILL_NOT'] },
+          reviewDueAt: { lte: new Date() },
+        },
+      }),
+    ]);
+    return { pending, due };
+  }
+
+  /**
+   * 审核补单（老板 2026-10-04）：同意 = 陪玩次数 +1（写台账），
+   * 并排一次「客户后来通过没」的核查，别把这个客户浪费掉；驳回只留痕。
+   */
+  async decideSupplement(id: string, decision: string, note: string | undefined, user: any) {
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能审核补单');
+    }
+    const req = await this.prisma.supplementRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException('补单申请不存在');
+    const visibleIds = await this.supplementScopeIds(user);
+    if (visibleIds && req.studioId && !visibleIds.includes(req.studioId)) {
+      throw new ForbiddenException('无权操作其他工作室的补单申请');
+    }
+    if (req.status !== 'PENDING') throw new ForbiddenException('这条补单申请已经处理过了');
+    const approve = String(decision || '').toUpperCase() === 'APPROVE';
+    const reviewDueAt = new Date(Date.now() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
+    const updated = await this.prisma.supplementRequest.update({
+      where: { id },
+      data: {
+        status: approve ? 'APPROVED' : 'REJECTED',
+        decidedByUserId: user?.id ?? null,
+        decidedAt: new Date(),
+        decisionNote: (note || '').trim() || null,
+        ...(approve ? { reviewDueAt, reviewStatus: 'PENDING' } : {}),
+      },
+    });
+    if (approve) {
+      await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
+        refId: req.orderId,
+        note: '管理端同意补单，返还 1 个名额',
+      });
+      const order = await this.prisma.order.findUnique({
+        where: { id: req.orderId },
+        select: { customFields: true },
+      });
+      const cf = (order?.customFields as any) || {};
+      await this.prisma.order
+        .update({
+          where: { id: req.orderId },
+          data: {
+            customFields: {
+              ...cf,
+              supplementApproved: true,
+              supplementApprovedAt: new Date().toISOString(),
+            },
+          },
+        })
+        .catch(() => null);
+      const companion = await this.prisma.companion
+        .findUnique({ where: { id: req.companionId }, select: { userId: true } })
+        .catch(() => null);
+      if (companion?.userId) {
+        this.wsGateway.notifyUser(companion.userId, 'order:supplement', {
+          orderId: req.orderId,
+          message: '管理端已同意补单，你的抢单次数 +1',
+        });
+      }
+    }
+    return updated;
+  }
+
+  /** 到期核查：客户后来其实通过了 → 系统把这张单改成「已添加」，别把客户浪费掉。 */
+  async reviewSupplement(id: string, result: string, user: any) {
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能核查补单');
+    }
+    const req = await this.prisma.supplementRequest.findUnique({ where: { id } });
+    if (!req) throw new NotFoundException('补单申请不存在');
+    const visibleIds = await this.supplementScopeIds(user);
+    if (visibleIds && req.studioId && !visibleIds.includes(req.studioId)) {
+      throw new ForbiddenException('无权操作其他工作室的补单申请');
+    }
+    const accept = String(result || '').toUpperCase() === 'ACCEPTED';
+    if (accept) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: req.orderId },
+        select: { id: true, customerId: true, companionId: true },
+      });
+      if (order) {
+        await this.prisma.order.update({ where: { id: order.id }, data: { contactStatus: 'added' } });
+        if (order.customerId) {
+          const customer = await this.prisma.customer
+            .findUnique({ where: { id: order.customerId }, select: { companionId: true } })
+            .catch(() => null);
+          await this.prisma.customer
+            .update({
+              where: { id: order.customerId },
+              data: { companionId: customer?.companionId || order.companionId },
+            })
+            .catch(() => null);
+        }
+      }
+    }
+    return this.prisma.supplementRequest.update({
+      where: { id },
+      data: {
+        reviewStatus: accept ? 'ACCEPTED' : 'STILL_NOT',
+        reviewedAt: new Date(),
+        reviewedByUserId: user?.id ?? null,
+        // 还是没通过：隔 3 天再提醒一次，直到有人确认通过为止
+        ...(accept ? {} : { reviewDueAt: new Date(Date.now() + 3 * 24 * 3600 * 1000) }),
+      },
+    });
   }
 
   /**
@@ -2652,6 +2905,9 @@ export class OrdersService implements OnModuleInit {
       balance: quota.balance,
       usedToday: quota.usedToday,
       remaining: quota.remaining,
+      todayGranted: (quota as any).todayGranted ?? 0,
+      days: (quota as any).days ?? [],
+      recentLogs: (quota as any).recentLogs ?? [],
       hasWorkWechat: !!workWechatId,
       workWechatId,
     };
