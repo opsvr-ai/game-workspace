@@ -1320,11 +1320,15 @@ function setupApplicationMenu(): void {
 
 // ── 无操作自动休息（老板 2026-10-04）─────────────────────────────────
 // 老板把「休息」定义成「整机休眠」。以前只有手动点休息才休眠，结果出去吃饭 / 睡觉的机器
-// 一直亮着空转。现在客户端本地盯着「鼠标键盘多久没动」：满 1 小时先弹一条右下角提示，
-// 倒计时结束后如果还是没人动电脑，就自动上报「休息」并休眠。动一下鼠标/键盘即可取消。
+// 一直亮着空转。现在客户端本地盯着「鼠标键盘多久没动」：每 65 分钟看一次，看到「60 多分钟没动」
+// 先弹一条右下角提示，倒计时结束后如果还是没人动电脑，就自动上报「休息」并休眠。
+// 动一下鼠标/键盘即可取消。
 const IDLE_REST_AFTER_MS = 60 * 60 * 1000;
 const IDLE_REST_GRACE_MS = 20 * 1000;
-const IDLE_REST_CHECK_MS = 60 * 1000;
+// 老板 2026-10-04：「不用检测这么频繁，60 多分钟检查一次就行，确定他 60 多分钟鼠标键盘都没动，
+// 就证明他走了」—— 原来每分钟问一次系统实在太勤。现在 65 分钟看一次：这一次看到「已经 60 多分钟没动」
+// 就直接按人走了处理（下面还有 20 秒可取消的倒计时兜底）。
+const IDLE_REST_CHECK_MS = 65 * 60 * 1000;
 let idleRestInFlight = false;
 let idleRestSettled = false;
 
@@ -1369,9 +1373,10 @@ async function idleRestTick(): Promise<void> {
   idleRestInFlight = true;
   try {
     const graceSec = Math.round(IDLE_REST_GRACE_MS / 1000);
+    const idleMinutes = Math.max(1, Math.round(idleMs / 60000));
     try {
       showBroadcastPopup({
-        title: '😴 已经 1 小时没操作',
+        title: `😴 已经 ${idleMinutes} 分钟没操作`,
         body: `${graceSec} 秒后自动进入休息并休眠电脑 · 动一下鼠标就能取消`,
         icon: '😴',
         seconds: graceSec,
