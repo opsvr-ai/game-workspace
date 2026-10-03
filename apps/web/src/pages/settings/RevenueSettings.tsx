@@ -60,7 +60,7 @@ const RevenueSettings: React.FC = () => {
               onClick={() =>
                 saveKeys(
                   {
-                    'revenue.free_threshold': config?.['revenue.free_threshold'],
+                    'entertainment.revenue_threshold': config?.['entertainment.revenue_threshold'],
                     'revenue.low_warning': config?.['revenue.low_warning'],
                     'billing.report_diff_warning_yuan': config?.['billing.report_diff_warning_yuan'],
                     'entertainment.hourly_rate': config?.['entertainment.hourly_rate'],
@@ -76,15 +76,15 @@ const RevenueSettings: React.FC = () => {
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
-            <Label>免手续费流水阈值</Label>
+            <Label>娱乐免单线</Label>
             <InputNumber
-              min={0} step={10}
+              min={0} step={50}
               suffix="元"
-              value={config?.['revenue.free_threshold'] ?? 300}
-              onChange={(v) => update('revenue.free_threshold', v ?? 300)}
+              value={config?.['entertainment.revenue_threshold'] ?? 0}
+              onChange={(v) => update('entertainment.revenue_threshold', v ?? 0)}
               style={{ width: 200 }}
             />
-            <Text type="secondary" style={{ marginLeft: 8 }}>当日流水达到此金额后免手续费</Text>
+            <Text type="secondary" style={{ marginLeft: 8 }}>当日流水达到此金额后，娱乐时长不再扣费（0 = 不免单）</Text>
           </div>
           <div>
             <Label>低流水预警</Label>

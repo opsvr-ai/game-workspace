@@ -28,7 +28,6 @@ const { Text } = Typography;
 const KEY_LABELS: Record<string, string> = {
   'revenue.share_tiers': '线下分成阶梯（工作室 / 陪玩）',
   'revenue.club_companion_share': '线上俱乐部固定分成（陪玩）',
-  'revenue.free_threshold': '免单线（当日流水达标免娱乐费）',
   'revenue.low_warning': '低流水预警线',
   'commission.cs_offline_rate_percent': '客服提成 · 线下比例（%）',
   'commission.cs_offline_floor_cents': '客服提成 · 线下每单保底（分）',

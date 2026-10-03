@@ -146,7 +146,6 @@ const StudioSettings: React.FC = () => {
               setSavingEntertainment(true);
               await saveKeys({
                 'entertainment.deposit_threshold': config?.['entertainment.deposit_threshold'],
-                'entertainment.revenue_threshold': config?.['entertainment.revenue_threshold'],
               }, '娱乐模式门槛');
               setSavingEntertainment(false);
             }}>保存</Button>
@@ -158,12 +157,6 @@ const StudioSettings: React.FC = () => {
             <InputNumber min={0} step={50} suffix="元" value={config?.['entertainment.deposit_threshold'] ?? 500}
               onChange={(v) => update('entertainment.deposit_threshold', v ?? 500)} style={{ width: 200 }} />
             <Text type="secondary" style={{ marginLeft: 8 }}>押金低于此金额无法切换娱乐模式</Text>
-          </div>
-          <div>
-            <Label>日流水门槛</Label>
-            <InputNumber min={0} step={50} suffix="元" value={config?.['entertainment.revenue_threshold'] ?? 200}
-              onChange={(v) => update('entertainment.revenue_threshold', v ?? 200)} style={{ width: 200 }} />
-            <Text type="secondary" style={{ marginLeft: 8 }}>当天流水低于此金额无法切换娱乐模式</Text>
           </div>
         </Space>
       </Card>
