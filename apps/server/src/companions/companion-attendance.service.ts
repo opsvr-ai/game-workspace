@@ -150,8 +150,11 @@ export class CompanionAttendanceService {
     });
     if (!record) return null;
 
-    const { workEnd } = await this.timesOf(role as AttendanceRole, studioId);
-    const isEarlyLeave = now < this.atTime(today, workEnd);
+    const { workStart, workEnd } = await this.timesOf(role as AttendanceRole, studioId);
+    // 只在「本次班内」判早退：还没到上班时间（比如半夜客户端断一下）或已经过了下班时间，
+    // 都不算早退，避免夜班 / 半夜断开被记成早退。
+    const inShift = now >= this.atTime(today, workStart) && now < this.atTime(today, workEnd);
+    const isEarlyLeave = inShift;
     const status =
       record.status === 'PRESENT' || record.status === 'LATE'
         ? isEarlyLeave

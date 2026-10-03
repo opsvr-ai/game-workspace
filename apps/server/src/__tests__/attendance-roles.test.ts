@@ -158,6 +158,17 @@ describe("考勤：手动登记优先，自动打卡不覆盖", () => {
     expect(row.status).toBe("PRESENT");
   });
 
+  it("半夜断开（还没到上班时间）不记早退", async () => {
+    at("2026-10-04T03:15:00");
+    const { svc } = setup(
+      { "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" },
+      { staffExisting: { id: "sa1", status: "PRESENT" } },
+    );
+    const row: any = await svc.finalizeStaffAttendance("u1", "CS");
+    expect(row.status).toBe("PRESENT");
+    expect(row.logoutAt).toBeInstanceOf(Date);
+  });
+
   it("下班卡：手动登记的缺勤不被改成早退", async () => {
     at("2026-10-04T17:00:00");
     const { svc } = setup(
