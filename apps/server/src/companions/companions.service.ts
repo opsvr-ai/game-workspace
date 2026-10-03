@@ -1147,8 +1147,12 @@ export class CompanionsService {
     ]);
     const wechatAddRate = monthlyAll > 0 ? Math.round((addedCount / monthlyAll) * 100) : 0;
     const conversionRate = startedCount > 0 ? Math.round((convertedCount / startedCount) * 100) : 0;
-    const renewRate = statsMap.RENEW?.ratio || 0;
-    const repurchaseRate = statsMap.REPURCHASE?.ratio || 0;
+    // 续单率 / 复购率跟评分系统用同一份口径（按客户算 + 最近 30 天）。
+    // 这里原来按「订单类型」算，而线上几乎没人点「续单 / 复购」按钮（全库 0 条续单、1 条复购），
+    // 结果陪玩端会出现「评分说明写 85%、看板写 0%」两套数（老板 2026-10-04 定稿口径时一起收口）。
+    const scoreNow = await this.excellence.computeOne(companionId).catch(() => null);
+    const renewRate = scoreNow?.renewRate ?? 0;
+    const repurchaseRate = scoreNow?.repurchaseRate ?? 0;
 
     return {
       todayRevenue: roundToJiao(todayRevenue),

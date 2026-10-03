@@ -386,7 +386,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                   { title: '首单成功率', dataIndex: 'newRate', width: 100, render: (v: number) => <span style={{ color: v < 50 ? '#cf1322' : '#3f8600', fontWeight: 600 }}>{pct(v)}</span> },
                   { title: '续单率', dataIndex: 'renewRate', width: 84, render: (v: number) => pct(v) },
                   { title: '复购率', dataIndex: 'repurchaseRate', width: 84, render: (v: number) => pct(v) },
-                  { title: '成单', dataIndex: 'orders', width: 64 },
+                  { title: '成单(30天)', dataIndex: 'orders', width: 84 },
                   { title: '本月流水', dataIndex: 'month', width: 96, render: (v: number) => yuan(v) },
                   { title: '客户', dataIndex: 'customers', width: 64, render: (v: number) => `${v} 个` },
                 ]}
