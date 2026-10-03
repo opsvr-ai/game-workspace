@@ -1398,6 +1398,16 @@ export class CompanionsService {
     return this.attendanceService.getStaffAttendance(filters);
   }
 
+  /** 今日考勤汇总（运营看板用：谁迟到、谁早退、谁没打卡）。 */
+  async getAttendanceToday(studioId: string | null) {
+    return this.attendanceService.summarizeToday(studioId);
+  }
+
+  /** 我（陪玩）今天的考勤（陪玩端首页用）。 */
+  async getMyAttendanceToday(companionId: string) {
+    return this.attendanceService.myToday(companionId);
+  }
+
   // ── Status Blacklist CRUD ──
   async getStatusBlacklist(studioId: string, status: string) {
     return this.prisma.companionStatusBlacklist.findMany({

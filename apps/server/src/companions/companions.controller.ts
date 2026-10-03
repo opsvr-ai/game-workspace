@@ -321,6 +321,25 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  /** 今日考勤汇总（运营看板用）：谁迟到、谁早退、谁没打卡。老板看全站，店长/客服看本店。 */
+  @Get('companions/attendance-today')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async getAttendanceToday(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const isOwner = req.user?.role === UserRole.OWNER;
+    const data = await this.companionsService.getAttendanceToday(
+      isOwner ? null : (req.user?.studioId as string) || null,
+    );
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 我（陪玩）今天的考勤 —— 陪玩端首页那个小徽章。 */
+  @Get('companions/me/attendance-today')
+  @Roles(UserRole.COMPANION)
+  async getMyAttendanceToday(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.getMyAttendanceToday(req.user.companionId);
+    return { code: 200, message: 'ok', data };
+  }
+
   // ── Work WeChat Management (MUST be before :id routes) ──
 
   @Get('companions/work-wechats')

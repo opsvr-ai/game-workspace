@@ -38,6 +38,17 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   RESTING: { label: '休息', color: '#faad14', bg: '#FFF7E6' },
   OFFLINE: { label: '离线', color: '#94a3b8', bg: '#F1F5F9' },
 };
+const ATT_ROLE_LABEL: Record<string, string> = { COMPANION: '陪玩', CS: '客服', ADMIN: '店长' };
+const ATT_STATUS: Record<string, { label: string; color: string }> = {
+  PRESENT: { label: '正常', color: 'green' },
+  LATE: { label: '迟到', color: 'red' },
+  EARLY_LEAVE: { label: '早退', color: 'orange' },
+  LATE_EARLY: { label: '迟到+早退', color: 'red' },
+  ABSENT: { label: '未打卡', color: 'default' },
+  NOT_STARTED: { label: '未到点', color: 'default' },
+};
+const ATT_RANK: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
+
 const TIER_META: Record<string, { label: string; color: string }> = {
   TOP: { label: '上等马', color: '#d4a017' },
   MIDDLE: { label: '中等马', color: '#1677ff' },
@@ -93,10 +104,12 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const [cust, setCust] = useState<any>(null);
   const [csStats, setCsStats] = useState<any>(null);
   const [rankMode, setRankMode] = useState<'score' | 'revenue' | 'customer'>('score');
+  // 今日考勤：谁迟到、谁早退、谁没打卡（老板 2026-10-04）
+  const [attendance, setAttendance] = useState<any>(null);
 
   const load = useCallback(async () => {
     const today = dayjs().format('YYYY-MM-DD');
-    const [d, o, t, l, p, c, s] = await Promise.all([
+    const [d, o, t, l, p, c, s, att] = await Promise.all([
       safeGet('/dashboard'),
       safeGet('/dashboard/revenue-overview'),
       safeGet('/dashboard/trend', { days: 14 }),
@@ -104,6 +117,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       safeGet('/personnel'),
       safeGet('/customers/board'),
       safeGet('/stats/daily', { date: today, dateFrom: today, dateTo: today }),
+      safeGet('/companions/attendance-today'),
     ]);
     setDash(d);
     setOverview(o);
@@ -112,6 +126,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
     setPersonnel(Array.isArray(p) ? p : []);
     setCust(c);
     setCsStats(s);
+    setAttendance(att);
     setLoading(false);
   }, []);
 
@@ -176,6 +191,11 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const typeBreak = overview?.typeBreakdown || {};
   const TYPE_COLORS: Record<string, string> = { NEW: '#1677ff', RENEW: '#52c41a', REPURCHASE: '#faad14', TIP: '#eb2f96' };
   const TYPE_LABELS: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购', TIP: '打赏' };
+
+  const attRows: any[] = Object.entries(attendance?.roles || {}).flatMap(([role, r]: any) =>
+    (r?.rows || []).map((row: any) => ({ ...row, roleKey: role })),
+  );
+  attRows.sort((a, b) => (ATT_RANK[a.status] ?? 9) - (ATT_RANK[b.status] ?? 9) || String(a.name).localeCompare(String(b.name)));
 
   const custTop = [...(cust?.rows || [])]
     .sort((a: any, b: any) => (Number(b.spent) || 0) - (Number(a.spent) || 0))
@@ -390,6 +410,40 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+
+      {/* ── 今日考勤（迟到 / 早退 / 未打卡） ── */}
+      {attRows.length ? (
+        <Card size="small" title="🕘 今日考勤（迟到 / 早退 / 未打卡）" style={{ marginBottom: 14 }}>
+          <Space size={18} wrap style={{ marginBottom: 8 }}>
+            {Object.entries(attendance?.roles || {}).map(([role, r]: any) => (
+              <Text key={role} style={{ fontSize: 12 }}>
+                <b>{ATT_ROLE_LABEL[role] || role}</b>
+                （{r.workStart}–{r.workEnd}）：迟到{' '}
+                <Text style={{ color: r.counts.late ? '#CF1322' : '#94A3B8', fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
+                <Text style={{ color: r.counts.earlyLeave ? '#FA8C16' : '#94A3B8', fontWeight: 600 }}>{r.counts.earlyLeave}</Text> · 未打卡{' '}
+                <Text style={{ color: r.counts.absent ? '#CF1322' : '#94A3B8', fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
+              </Text>
+            ))}
+          </Space>
+          <Table
+            size="small"
+            rowKey={(r: any) => `${r.roleKey}-${r.id}`}
+            pagination={false}
+            scroll={{ y: 240 }}
+            dataSource={attRows}
+            columns={[
+              { title: '姓名', dataIndex: 'name', width: 130, render: (v: string, r: any) => <Space size={4}><span>{v}</span>{r.onDuty ? <Tag color="blue" style={{ fontSize: 10, marginInlineEnd: 0 }}>在班</Tag> : null}</Space> },
+              { title: '职位', dataIndex: 'roleKey', width: 70, render: (v: string) => ATT_ROLE_LABEL[v] || v },
+              { title: '上班', dataIndex: 'loginAt', width: 80, render: (v: string) => (v ? dayjs(v).format('HH:mm') : '—') },
+              { title: '下班', dataIndex: 'logoutAt', width: 80, render: (v: string) => (v ? dayjs(v).format('HH:mm') : '—') },
+              {
+                title: '状态', dataIndex: 'status', width: 100,
+                render: (v: string) => <Tag color={ATT_STATUS[v]?.color}>{ATT_STATUS[v]?.label || v}</Tag>,
+              },
+            ]}
+          />
+        </Card>
+      ) : null}
 
       {/* ── 客服今日发单 ── */}
       {csStats?.csList?.length ? (

@@ -36,6 +36,13 @@
 
 ## Recent Updates (v3.3.0)
 
+- **运营看板加「今日考勤」，陪玩端首页换成进度条看板（2026-10-04，服务端 + 网页 `v912`）:** 老板「谁迟到了 谁早退了……
+  全部放首页我去看多好」。运营看板（老板 / 店长 / 客服首页）新增「🕘 今日考勤」：按职位（陪玩 / 客服 / 店长）
+  分别列出迟到 / 早退 / 未打卡 / 正常，用各自的上下班时间判定，**有问题的排前面**，没到上班时间不算未打卡，
+  某个职位考勤关掉就整块不显示。陪玩端首页换成**进度条看板**：今日/本月流水与单量、综合分·段位、
+  今日剩余抢单名额、客户数、今日考勤 + 我的 KPI 进度条（首单成功率 / 续单率 / 复购率 / 微信添加率 / 转化率）
+  + **我的客户消费榜（从高到低）**。新接口 `GET /api/companions/attendance-today`（客服/店长本店、老板全站）、
+  `GET /api/companions/me/attendance-today`（陪玩自己）。
 - **客户微信号「隐形水印」+ 溯源（2026-10-04，服务端 + 网页 `v911`）:** 接口返回客户微信号时在末尾追加
   一串看不见的字符（记着「哪个账号 + 哪一天」），全局一处覆盖所有页面；老板在「设置中心 → 微信号溯源（隐形水印）」
   粘贴可疑文本即可查出是谁、哪天看过的。另有全站淡色「账号名 · 日期」画面水印，截图 / 拍照也能追。
@@ -1196,6 +1203,8 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/companions/me/today-sessions` | JWT | COMPANION | 当前营业日（12:00 换日）已完成场次。可选 `?day=YYYY-MM-DD`。 |
 | `GET` | `/api/companions/me/reportable-sessions` | JWT | COMPANION | 报账取数：默认当前营业日，`?day=` 补报某天，`?unreported=1` 取最近 14 天漏报（含 `reported` 标记）。 |
 | `GET` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 读取「打单/娱乐中也接新单弹窗」偏好。 |
+| `GET` | `/api/companions/attendance-today` | JWT | OWNER, ADMIN, CS | 今日考勤汇总（运营看板「今日考勤」卡片）：按职位分块 `{ COMPANION/CS/ADMIN: { enabled, workStart, workEnd, rows[], counts{total,late,earlyLeave,absent,notStarted,present} } }`。客服 / 店长只看本店，老板看全站；考勤关掉的职位整块不返回；未到上班时间算 `NOT_STARTED`（不算未打卡）。 |
+| `GET` | `/api/companions/me/attendance-today` | JWT | COMPANION | 我（陪玩）今天的考勤：`{ date, workStart, workEnd, onDuty, loginAt, logoutAt, workMinutes, isLate, isEarlyLeave, status }`；该职位考勤关掉时返回 `null`。 |
 | `PUT` | `/api/companions/me/notify-prefs` | JWT | COMPANION | 设置该偏好。Body: `{ notifyWhileBusy?: boolean; notifyWhileEntertainment?: boolean }`（娱乐中默认弹；空闲 / 挂机不受开关影响，一律弹）。 |
 
 ### Expense Reports

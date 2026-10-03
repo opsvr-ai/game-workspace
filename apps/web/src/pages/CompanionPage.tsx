@@ -41,6 +41,7 @@ import {
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 import EmptyState from '../components/EmptyState';
 import MyWorkWechatCard from '../components/MyWorkWechatCard';
+import CompanionHomeBoard from '../components/CompanionHomeBoard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
 
@@ -63,6 +64,10 @@ const CompanionPage: React.FC = () => {
   const [showRule, setShowRule] = useState(false);
   // 陪玩自己的综合分 + 段位（老板 2026-10-04：让陪玩一眼看到自己的分、离下一级还差多少）。
   const [excellence, setExcellence] = useState<any>(null);
+  // 首页看板（老板 2026-10-04）：今日名额、我的今日考勤、完整排行榜（原来只取前 5）。
+  const [quota, setQuota] = useState<any>(null);
+  const [myAttendance, setMyAttendance] = useState<any>(null);
+  const [rankingAll, setRankingAll] = useState<any[]>([]);
 
   const fetchExcellence = useCallback(async () => {
     try {
@@ -76,7 +81,9 @@ const CompanionPage: React.FC = () => {
   const fetchRanking = useCallback(async () => {
     try {
       const { data: res } = await http.get('/companions/ranking?type=revenue');
-      setRanking((res.data || []).slice(0, 5));
+      const all = res.data || [];
+      setRankingAll(all);
+      setRanking(all.slice(0, 5));
     } catch {
     } finally {
       setRankingLoading(false);
@@ -142,6 +149,14 @@ const CompanionPage: React.FC = () => {
       .catch(() => {});
     fetchRanking();
     fetchExcellence();
+    http
+      .get('/orders/pool/status')
+      .then((r: any) => setQuota(r.data?.data || null))
+      .catch(() => {});
+    http
+      .get('/companions/me/attendance-today')
+      .then((r: any) => setMyAttendance(r.data?.data || null))
+      .catch(() => {});
     const t = visibleInterval(() => {
       fetchData();
       fetchWallet();
@@ -386,6 +401,15 @@ const CompanionPage: React.FC = () => {
         </Row>
       </Card>
 
+      {/* 📊 我的首页看板：进度条风格，一眼看完自己的流水 / KPI / 客户（老板 2026-10-04） */}
+      <CompanionHomeBoard
+        workbench={data}
+        excellence={excellence}
+        quota={quota}
+        customers={myCustomers}
+        attendance={myAttendance}
+      />
+
       {/* 我的工作微信：陪玩自己填 / 换，管理端审核通过才生效（老板 2026-10-02） */}
       <MyWorkWechatCard />
 
@@ -424,67 +448,6 @@ const CompanionPage: React.FC = () => {
         </Card>
       )}
 
-      {/* ② Analytics Dashboard */}
-      <Title level={5} style={{ marginBottom: 8 }}>
-        📊 数据看板
-      </Title>
-      <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
-        {[
-          {
-            l: '今日接单',
-            v: data?.todayOrderCount ?? 0,
-            color: '#2563EB',
-            max: Math.max(data?.todayOrderCount || 1, 5),
-          },
-          {
-            l: '本月接单',
-            v: data?.monthlyOrderCount ?? 0,
-            color: '#16A34A',
-            max: Math.max(data?.monthlyOrderCount || 1, 10),
-          },
-          { l: '微信添加成功率', v: data?.wechatAddRate ?? 0, color: '#722ed1', max: 100 },
-          { l: '转化率', v: data?.conversionRate ?? 0, color: '#fa8c16', max: 100 },
-        ].map((m) => (
-          <Col span={6} key={m.l} style={{ textAlign: 'center' }}>
-            <Card size="small" bodyStyle={{ padding: '6px 8px' }}>
-              <Text type="secondary" style={{ fontSize: 9 }}>
-                {m.l}
-              </Text>
-              <ResponsiveContainer width="100%" height={60}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'a', value: m.v, fill: m.color },
-                      { name: 'b', value: m.max - m.v, fill: '#F0F0F0' },
-                    ]}
-                    dataKey="value"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={25}
-                    innerRadius={18}
-                    startAngle={90}
-                    endAngle={-270}
-                    isAnimationActive={false}
-                  >
-                    <Cell fill={m.color} />
-                    <Cell fill="#F0F0F0" />
-                  </Pie>
-                  <text
-                    x="50%"
-                    y="50%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fontSize: 10, fontWeight: 600, fill: m.color }}
-                  >
-                    {m.v}
-                    {m.max === 100 ? '%' : ''}
-                  </text>
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
-        ))}
-      </Row>
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col span={13}>
           <Card size="small" title="订单占比">
@@ -639,6 +602,17 @@ const CompanionPage: React.FC = () => {
             ) : (
               <EmptyState description="暂无排行" />
             )}
+            {(() => {
+              const idx = rankingAll.findIndex((r: any) => r.companionId === user?.companionId);
+              if (idx < 0) return null;
+              return (
+                <div style={{ textAlign: 'center', marginTop: 6 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    我排第 {idx + 1} 名 / 共 {rankingAll.length} 人
+                  </Text>
+                </div>
+              );
+            })()}
             <div style={{ textAlign: 'center', marginTop: 8 }}>
               <Button type="link" size="small" onClick={() => (window.location.href = '/companion/companions')}>
                 查看完整排行 →

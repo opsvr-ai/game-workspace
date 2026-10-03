@@ -251,4 +251,146 @@ export class CompanionAttendanceService {
       orderBy: { date: 'desc' },
     });
   }
+
+  // ───────────── 今日考勤汇总（老板 2026-10-04：运营看板要「谁迟到了、谁早退了」） ─────────────
+
+  /** 本地日期键（YYYY-MM-DD），只用来给前端显示，不参与判断。 */
+  private dayKey(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
+   * 全店今日考勤：陪玩 / 客服 / 店长各一块。
+   * - 只汇总「考勤开着」的职位（关掉的职位不出现，免得页面上多出一堆没意义的红字）；
+   * - 没打卡的人：还没到上班时间显示「未到点」，过了上班时间才算「未打卡」；
+   * - 有问题的（迟到 / 早退 / 未打卡）排前面，一眼看完。
+   */
+  async summarizeToday(studioId: string | null) {
+    const today = this.startOfDay();
+    const now = new Date();
+    const roles: Record<string, any> = {};
+    for (const role of ['COMPANION', 'CS', 'ADMIN'] as AttendanceRole[]) {
+      if (await this.isEnabled(role, studioId)) {
+        roles[role] = await this.summarizeRole(role, studioId, today, now);
+      }
+    }
+    return { date: this.dayKey(today), now: now.toISOString(), roles };
+  }
+
+  /** 我（陪玩）今天的考勤 —— 陪玩端首页用，只返回自己这一条。 */
+  async myToday(companionId: string) {
+    const studioId = await this.studioIdOf(companionId);
+    if (!(await this.isEnabled('COMPANION', studioId))) return null;
+    const today = this.startOfDay();
+    const now = new Date();
+    const { workStart, workEnd } = await this.timesOf('COMPANION', studioId);
+    const row = await this.prisma.companionAttendance.findUnique({
+      where: { companionId_date: { companionId, date: today } },
+    });
+    return {
+      date: this.dayKey(today),
+      workStart,
+      workEnd,
+      onDuty: !!row && !row.logoutAt,
+      loginAt: (row?.loginAt as Date | undefined) ?? null,
+      logoutAt: (row?.logoutAt as Date | null | undefined) ?? null,
+      workMinutes: (row?.workMinutes as number | undefined) ?? 0,
+      isLate: !!row?.isLate,
+      isEarlyLeave: !!row?.isEarlyLeave,
+      status: !row
+        ? now < this.atTime(today, workStart)
+          ? 'NOT_STARTED'
+          : 'ABSENT'
+        : row.isLate && row.isEarlyLeave
+          ? 'LATE_EARLY'
+          : row.isLate
+            ? 'LATE'
+            : row.isEarlyLeave
+              ? 'EARLY_LEAVE'
+              : 'PRESENT',
+    };
+  }
+
+  /** 一个职位的今日考勤行 + 计数。 */
+  private async summarizeRole(role: AttendanceRole, studioId: string | null, today: Date, now: Date) {
+    const { workStart, workEnd } = await this.timesOf(role, studioId);
+    const rows: any[] = [];
+
+    if (role === 'COMPANION') {
+      const companions = await this.prisma.companion.findMany({
+        where: { isResigned: false, ...(studioId ? { studioId } : {}) },
+        select: { id: true, status: true, user: { select: { username: true, displayName: true } } },
+      });
+      const ids = companions.map((c) => c.id);
+      const records = ids.length
+        ? await this.prisma.companionAttendance.findMany({ where: { companionId: { in: ids }, date: today } })
+        : [];
+      const byId = new Map<string, any>(records.map((a) => [a.companionId, a] as [string, any]));
+      for (const c of companions) {
+        const a = byId.get(c.id);
+        rows.push({
+          id: c.id,
+          name: c.user?.displayName || c.user?.username || '陪玩',
+          role,
+          online: c.status !== 'OFFLINE',
+          onDuty: !!a && !a.logoutAt,
+          loginAt: a?.loginAt ?? null,
+          logoutAt: a?.logoutAt ?? null,
+          workMinutes: a?.workMinutes ?? 0,
+          status: a
+            ? a.isLate && a.isEarlyLeave
+              ? 'LATE_EARLY'
+              : a.isLate
+                ? 'LATE'
+                : a.isEarlyLeave
+                  ? 'EARLY_LEAVE'
+                  : 'PRESENT'
+            : now < this.atTime(today, workStart)
+              ? 'NOT_STARTED'
+              : 'ABSENT',
+        });
+      }
+    } else {
+      const users = await this.prisma.user.findMany({
+        where: { role, resignedAt: null, ...(studioId ? { studioId } : {}) },
+        select: { id: true, username: true, displayName: true },
+      });
+      const ids = users.map((u) => u.id);
+      const records = ids.length
+        ? await this.prisma.staffAttendance.findMany({ where: { userId: { in: ids }, date: today } })
+        : [];
+      const byId = new Map<string, any>(records.map((a) => [a.userId, a] as [string, any]));
+      for (const u of users) {
+        const a = byId.get(u.id);
+        rows.push({
+          id: u.id,
+          name: u.displayName || u.username || '员工',
+          role,
+          online: !!a && !a.logoutAt,
+          onDuty: !!a && !a.logoutAt,
+          loginAt: a?.loginAt ?? null,
+          logoutAt: a?.logoutAt ?? null,
+          workMinutes: 0,
+          status: a
+            ? String(a.status || 'PRESENT')
+            : now < this.atTime(today, workStart)
+              ? 'NOT_STARTED'
+              : 'ABSENT',
+        });
+      }
+    }
+
+    const counts = {
+      total: rows.length,
+      late: rows.filter((r) => r.status === 'LATE' || r.status === 'LATE_EARLY').length,
+      earlyLeave: rows.filter((r) => r.status === 'EARLY_LEAVE' || r.status === 'LATE_EARLY').length,
+      absent: rows.filter((r) => r.status === 'ABSENT').length,
+      notStarted: rows.filter((r) => r.status === 'NOT_STARTED').length,
+      present: rows.filter((r) => ['PRESENT', 'LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(r.status)).length,
+    };
+    const rank: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
+    rows.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.name).localeCompare(String(b.name)));
+
+    return { enabled: true, workStart, workEnd, rows, counts };
+  }
 }
