@@ -23,6 +23,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **搭档邀请不再弹 Windows 通知 / 软件内模态框，统一成「客服广播那种」可点击横幅（2026-10-03，网页 `v881`）。**
+  老板：「邀请搭档的链接还是 windows 弹窗 + 软件内弹窗，点这个 windows 弹窗并不能实现跳转；现在把邀请的 windows 弹窗删除掉，
+  改用客服广播的那种弹窗，陪玩点击就能跳转到软件的订单管理，然后去同意邀请」。
+  改动：`AppLayout` 收到 `DUAL_INVITE` / `onDualInvite` 时**不再** `setPartnerInviteModalOpen(true)`（软件内那个「🤝 搭档邀请」模态框整段删除），
+  只发一条横幅（文案写明是搭档邀请，hint 「点这里 → 打开订单管理，同意搭档邀请」），`action:'open-orders'`：
+  点一下把客户端拉到最前并打开「订单管理」。待处理的邀请改存共享的 `partnerInviteStore`，
+  在订单管理页**最上面**新增的 **「🤝 待我确认的搭档邀请（N）」**卡片里一目了然地同意 / 拒绝（带倒计时）；
+  右上角 🤝 铃铛保留为兜底入口。横幅点击跳转依赖客户端 `banner:action`（`1.0.20261009` 起）。
+
 - **工作方式补充（老板 2026-10-03 明确要求）**：以后**任何改动任务做完**，默认自动走完
   ① 提交 ② `git push origin master` ③ **服务端 / 网页端部署**，不用再问；
   **唯一例外是「终端上更新程序」**（陪玩端 `_publish_client.py` / 客服端 `_publish_cs_client.py` /

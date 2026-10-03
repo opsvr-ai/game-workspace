@@ -21,6 +21,7 @@ import { useVoiceCall } from '../hooks/useVoiceCall';
 import { showSystemNotification, showBannerNotification, playNotificationSound } from '../utils/notify';
 import { notifyNotice, recordNotice } from '../utils/notice';
 import { useNotifStore, selectUnreadNotices } from '../stores/notifStore';
+import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { NoticeList } from '../components/NoticeList';
@@ -1017,10 +1018,14 @@ const AppLayout: React.FC = () => {
   // ── Urgent order + dual-companion popup ──
   const [urgentOrder, setUrgentOrder] = React.useState<any>(null);
   const [urgentGrabbed, setUrgentGrabbed] = React.useState<any>(null);
-  // 待处理搭档邀请（弹窗消失后仍能在右上角铃铛里找到）
-  const [partnerInvites, setPartnerInvites] = React.useState<any[]>([]);
+  // 待处理搭档邀请（老板 2026-10-03）：状态放共享 store，右下角「客服广播那种横幅」点一下
+  // → 订单管理页，在最上面那张卡片里同意 / 拒绝；不再弹软件内模态框。
+  // 右上角铃铛只留作兜底入口。
   const [partnerInviteOpen, setPartnerInviteOpen] = React.useState(false);
-  const [partnerInviteModalOpen, setPartnerInviteModalOpen] = React.useState(false);
+  const partnerInvites = usePartnerInviteStore((s) => s.invites);
+  const addPartnerInvite = usePartnerInviteStore((s) => s.add);
+  const removePartnerInvite = usePartnerInviteStore((s) => s.remove);
+  const prunePartnerInvites = usePartnerInviteStore((s) => s.prune);
   // 待我确认的订单转让申请（老板 2026-10-03：「想转让的订单，需要被转让方同意才能过来，要不然乱套了」）：
   // 主入口是**订单列表里那一行的「接手 / 拒绝」**（老板 2026-10-03 否掉了自动弹窗：
   // 「放在订单列表那一行点转让或者点接受不行么」）；顶栏这个铃铛只是再留一份，
@@ -1058,9 +1063,7 @@ const AppLayout: React.FC = () => {
       const action = String(msg?.action || '');
       const payload = msg?.payload || {};
       try {
-        if (action === 'open-partner-invite') {
-          setPartnerInviteModalOpen(true);
-        } else if (action === 'open-transfer') {
+        if (action === 'open-transfer') {
           setTransferReqOpen(true);
         } else if (action === 'open-orders') {
           navigate(rolePage(user?.role, 'orders') || '/companion/orders');
@@ -1087,18 +1090,6 @@ const AppLayout: React.FC = () => {
       }
     };
   }, [navigate, user?.role, openDirectChat, openGroupChat]);
-
-  const addPartnerInvite = React.useCallback((invite: any) => {
-    setPartnerInvites((prev) => {
-      const exists = prev.some((p) => p.sessionId === invite.sessionId);
-      if (exists) return prev;
-      return [...prev, invite];
-    });
-  }, []);
-
-  const removePartnerInvite = React.useCallback((sessionId: string) => {
-    setPartnerInvites((prev) => prev.filter((p) => p.sessionId !== sessionId));
-  }, []);
 
   const addTransferReq = React.useCallback((req: any) => {
     setTransferReqs((prev) => {
@@ -1175,17 +1166,11 @@ const AppLayout: React.FC = () => {
     return () => window.removeEventListener('chunlv:transfer-updated', onUpdated);
   }, [user?.companionId]);
 
-  // 自动清理已过期的搭档邀请，避免铃铛里残留。
+  // 自动清理已过期的搭档邀请，避免铃铛里残留（订单管理页那张卡片里也会兜底清理）。
   useEffect(() => {
-    const t = setInterval(() => {
-      setPartnerInvites((prev) => {
-        const now = Date.now();
-        const next = prev.filter((p) => p.expiresAt > now);
-        return next.length === prev.length ? prev : next;
-      });
-    }, 3000);
+    const t = setInterval(prunePartnerInvites, 3000);
     return () => clearInterval(t);
-  }, []);
+  }, [prunePartnerInvites]);
 
   useEffect(() => {
     if (!user && isAuthenticated) {
@@ -1216,7 +1201,6 @@ const AppLayout: React.FC = () => {
         duration: data.duration || 1,
         expiresAt: Date.now() + ttl * 1000,
       });
-      setPartnerInviteModalOpen(true);
       recordNotice({
         kind: 'invite',
         icon: '🤝',
@@ -1225,14 +1209,15 @@ const AppLayout: React.FC = () => {
         dedupeKey: `partner-invite:${data.id}`,
         dedupeMs: 60_000,
       });
-      // 老板 2026-10-03：这张提醒也要「点了能跳」→ 改成陪玩端那张置顶横幅，点开就是搭档邀请弹窗。
+      // 老板 2026-10-03：删掉 Windows 弹窗，只留「客服广播那种」置顶横幅 ——
+      // 点一下直接打开「订单管理」，在最上面那张卡片里同意 / 拒绝。
       showBannerNotification({
         title: '🤝 搭档邀请',
         body: desc,
         icon: '🤝',
         seconds: 20,
-        hint: '点这里 → 打开搭档邀请（接受 / 拒绝）',
-        action: 'open-partner-invite',
+        hint: '点这里 → 打开订单管理，同意搭档邀请',
+        action: 'open-orders',
         actionPayload: { sessionId: data.id },
       });
       playNotificationSound();
@@ -1394,7 +1379,6 @@ const AppLayout: React.FC = () => {
         duration: data.duration || 1,
         expiresAt: Date.now() + ttl * 1000,
       });
-      setPartnerInviteModalOpen(true);
       recordNotice({
         kind: 'invite',
         icon: '📣',
@@ -1408,8 +1392,8 @@ const AppLayout: React.FC = () => {
         body: desc,
         icon: '📣',
         seconds: 20,
-        hint: '点这里 → 打开搭档邀请（接受 / 拒绝）',
-        action: 'open-partner-invite',
+        hint: '点这里 → 打开订单管理，同意搭档邀请',
+        action: 'open-orders',
         actionPayload: { sessionId: data.sessionId },
       });
       playNotificationSound();
@@ -2446,66 +2430,6 @@ const AppLayout: React.FC = () => {
         ) : (
           <Text type="secondary">暂无工资数据</Text>
         )}
-      </Modal>
-
-      {/* Automatic in-app partner invite popup — do not rely on Windows notification only */}
-      <Modal
-        open={partnerInviteModalOpen && partnerInvites.length > 0}
-        title="🤝 搭档邀请"
-        footer={null}
-        closable={false}
-        maskClosable={false}
-        width={360}
-        onCancel={() => setPartnerInviteModalOpen(false)}
-      >
-        {partnerInvites[0] &&
-          (() => {
-            const p = partnerInvites[0];
-            const remaining = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 1000));
-            return (
-              <div>
-                <div>
-                  <Text strong>{p.inviterName} 邀请你搭档</Text>
-                </div>
-                <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>
-                  {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
-                </div>
-                <div style={{ margin: '10px 0' }}>
-                  <InviteCountdown seconds={remaining} />
-                </div>
-                <Space>
-                  <Button
-                    type="primary"
-                    onClick={async () => {
-                      try {
-                        await ordersApi.acceptPartnerInvite(p.sessionId);
-                        message.success('已接受搭档邀请，开始计时');
-                        removePartnerInvite(p.sessionId);
-                        (window as any).electronAPI?.sessionWatch?.(p.sessionId);
-                        window.dispatchEvent(new Event('chunlv:service-started'));
-                        setPartnerInviteModalOpen(false);
-                      } catch (e: any) {
-                        message.error(e?.response?.data?.message || '接受失败');
-                      }
-                    }}
-                  >
-                    接受
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      try {
-                        await ordersApi.rejectPartnerInvite(p.sessionId);
-                      } catch {}
-                      removePartnerInvite(p.sessionId);
-                      setPartnerInviteModalOpen(false);
-                    }}
-                  >
-                    拒绝
-                  </Button>
-                </Space>
-              </div>
-            );
-          })()}
       </Modal>
 
       {/* Urgent order popup + solo grab success */}

@@ -10,7 +10,8 @@
   后者是普通系统通知，点了不跳转。现在横幅模板吃 `action` / `actionPayload`，主进程新增 IPC `banner:action`
   （先 `mainWindow.show()/focus()`，再 `webContents.send('banner-action', ...)`）；`broadcast:popup` 透传整包；
   网页 `showBannerNotification()` 在客户端里画横幅、在浏览器里退回系统通知；`AppLayout` 的 `onBannerAction`
-  按 action 打开搭档邀请弹窗 / 转让气泡 / 订单页 / 账目页 / 抢单池，`open-chat` 走 `openDirectChat` / `openGroupChat`。
+  按 action 打开订单管理（搭档邀请在这里同意 / 拒绝）/ 转让气泡 / 订单页 / 账目页 / 抢单池，`open-chat` 走 `openDirectChat` / `openGroupChat`。
+  2026-10-03 晚（网页 `v881`）：搭档邀请**不再**弹软件内模态框，横幅一律 `action:'open-orders'`，待处理的邀请在订单管理页顶部的 `components/PartnerInviteCards.tsx`（共享 `stores/partnerInviteStore.ts`）里同意 / 拒绝。
 
 - **管理端「实时看板」（2026-10-03，`GET /api/companions/live-board` + `pages/admin/LiveBoardPage.tsx`）**：
   `CompanionsService.liveBoard(user)` 一次查出：在线（`pc.lastHeartbeat` 2 分钟窗口）、状态、

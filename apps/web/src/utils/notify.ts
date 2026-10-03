@@ -51,7 +51,7 @@ export interface BannerNotificationOptions {
   seconds?: number;
   /** 横幅下面那行黄色提示，例如「点这里 → 打开搭档邀请」 */
   hint?: string;
-  /** 点击后要打开什么：open-partner-invite / open-transfer / open-orders / open-pool / open-billing / open-chat */
+  /** 点击后要打开什么：open-transfer / open-orders / open-pool / open-billing / open-chat */
   action?: string;
   /** 动作需要的数据（例如 open-chat 的 conversationId） */
   actionPayload?: Record<string, unknown> | null;

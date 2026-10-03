@@ -38,6 +38,7 @@ import { orderStatusConfig } from '../constants';
 import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
 import TableSkeleton from '../components/TableSkeleton';
+import { PartnerInviteCards } from '../components/PartnerInviteCards';
 import {
   ORDER_ACTIONS_COLUMN,
   ORDER_ACTIONS_COLUMN_COMPANION,
@@ -996,6 +997,7 @@ const OrdersPage: React.FC = () => {
             </div>
           }
         />
+        <PartnerInviteCards />
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <Input.Search
