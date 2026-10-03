@@ -77,7 +77,9 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       : tier === 'MIDDLE'
         ? `距上等马还差 ${Math.max(0, excellentThreshold - rankScore)} 分（上等马线 ${excellentThreshold} 分）`
         : `距中等马还差 ${Math.max(0, middleThreshold - rankScore)} 分（中等马线 ${middleThreshold} 分）`;
-  const scoreMax = Math.max(100, excellentThreshold);
+  // 进度条分母取「下一档分数线」：这样条子涨多少 = 离升级还差多少，不拿 999 那种大数当分母。
+  const nextLine = rankScore < middleThreshold ? middleThreshold : rankScore < excellentThreshold ? excellentThreshold : 0;
+  const scoreMax = Math.max(1, nextLine || rankScore || 100);
 
   const list = Array.isArray(customers) ? customers : [];
   const sortedCustomers = [...list]
@@ -126,7 +128,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />
             <Bar label="转化率" percent={Number(w.conversionRate ?? 0)} text={pct(w.conversionRate)} color="#FA8C16" />
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0' }}>
-              <Bar label="综合分" percent={(rankScore / scoreMax) * 100} text={`${rankScore} / ${scoreMax}`} color={tierMeta.color} />
+              <Bar label="综合分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierMeta.color} />
               <Space size={6} wrap style={{ marginTop: 2 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>{nextGapText}</Text>
                 {excellence?.scoreDelta?.hasBaseline && excellence.scoreDelta.delta !== 0 ? (
