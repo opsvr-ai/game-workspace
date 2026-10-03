@@ -99,7 +99,7 @@ const SupplementReviewButton: React.FC = () => {
       message.success(
         result === 'ACCEPTED'
           ? '已记「客户后来通过了」，这张单自动改成「已添加」'
-          : '已记「仍未通过」，3 天后再提醒你核查',
+          : '已记「仍未通过」，这条核查结案，不会再提醒',
       );
       await loadRows(tab);
       await loadSummary();
@@ -205,6 +205,7 @@ const SupplementReviewButton: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 12 }}>
             陪玩点「添加失败」就会在这里生成一条待审；同意 = 他的抢单次数 +1。
             同意后 24 小时会提醒你来这里核查「客户后来到底通过了没有」——通过就点一下，系统自动改成「已添加」。
+            点「仍未通过」= 这条核查**就结案了，不会再反复提醒你**（客户哪天真通过了，去「客户管理」把他捞回来就行）。
           </Text>
         </div>
         <Segmented

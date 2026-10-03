@@ -1187,8 +1187,11 @@ export class OrdersService implements OnModuleInit {
         reviewStatus: accept ? 'ACCEPTED' : 'STILL_NOT',
         reviewedAt: new Date(),
         reviewedByUserId: user?.id ?? null,
-        // 还是没通过：隔 3 天再提醒一次，直到有人确认通过为止
-        ...(accept ? {} : { reviewDueAt: new Date(Date.now() + 3 * 24 * 3600 * 1000) }),
+        // 老板 2026-10-04：「客户就是一直不通过，老这么提示烦不烦」——
+        // 点「仍未通过」就当**结案**：不再排下一次提醒（谁点的、什么时候点的留在
+        // reviewedAt / reviewedByUserId 里，翻历史查得到）。客户哪天真通过了，
+        // 陪玩 / 客服照旧能从「客户管理」把他捞回来，不影响。
+        ...(accept ? {} : { reviewDueAt: null }),
       },
     });
   }

@@ -243,7 +243,7 @@ describe('到期核查：客户后来通过了要改回系统', () => {
     expect(prisma.supplementRequest.update.mock.calls[0][0].data.reviewStatus).toBe('ACCEPTED');
   });
 
-  it('「仍未通过」→ 记 STILL_NOT，并隔 3 天再提醒', async () => {
+  it('「仍未通过」→ 记 STILL_NOT 并结案，不再排下一次提醒（老板嫌反复提醒烦）', async () => {
     const { service, prisma } = setup();
     prisma.supplementRequest.findUnique.mockResolvedValue({
       id: 'sr1',
@@ -258,8 +258,8 @@ describe('到期核查：客户后来通过了要改回系统', () => {
 
     const data = prisma.supplementRequest.update.mock.calls[0][0].data;
     expect(data.reviewStatus).toBe('STILL_NOT');
-    expect(data.reviewDueAt).toBeInstanceOf(Date);
-    expect(data.reviewDueAt.getTime()).toBeGreaterThan(Date.now() + 24 * 3600 * 1000);
+    // 结案：reviewDueAt 清空，于是既不会进「到期核查」列表，也不会再计入红点
+    expect(data.reviewDueAt).toBeNull();
     expect(prisma.order.update).not.toHaveBeenCalled();
   });
 });
