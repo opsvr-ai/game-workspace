@@ -21,6 +21,14 @@ export interface ExcellenceResult {
   repurchaseRate: number;
   newRate: number;
   orderCount: number;
+  /** 本月流水（元）：陪玩端「还差多少到下一档」要用。 */
+  revenueYuan: number;
+  /** 每一项「达到 X 得 Y 分」的完整档位表 + 战绩图每组加分：陪玩端「评分说明」显示规则用。 */
+  revenueTiers: Array<{ min: number; score: number }>;
+  renewTiers: Array<{ min: number; score: number }>;
+  repurchaseTiers: Array<{ min: number; score: number }>;
+  firstSuccessTiers: Array<{ min: number; score: number }>;
+  battleScreenshotBonus: number;
 }
 
 /**
@@ -127,6 +135,7 @@ export class ExcellenceService implements OnModuleInit {
       'excellence.first_success_tiers',
       'excellence.excellent_threshold',
       'excellence.middle_tier_threshold',
+      'excellence.battle_screenshot_bonus',
     ];
     const scoreCfgCache = new Map<string, Record<string, any>>();
     const loadScoreCfg = async (studioId: string | null) => {
@@ -173,6 +182,7 @@ export class ExcellenceService implements OnModuleInit {
         ]),
         excellentThreshold: num(cfg['excellence.excellent_threshold'], 50),
         middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 25),
+        battleScreenshotBonus: num(cfg['excellence.battle_screenshot_bonus'], 1),
       };
     };
 
@@ -277,6 +287,12 @@ export class ExcellenceService implements OnModuleInit {
         repurchaseRate: Math.round(repurchaseRate),
         newRate: Math.round(firstSuccessRate),
         orderCount: s.count,
+        revenueYuan: Math.round(revenue),
+        revenueTiers: metrics.revenueTiers,
+        renewTiers: metrics.renewTiers,
+        repurchaseTiers: metrics.repurchaseTiers,
+        firstSuccessTiers: metrics.firstSuccessTiers,
+        battleScreenshotBonus: metrics.battleScreenshotBonus,
       });
     }
     return result;
@@ -305,6 +321,12 @@ export class ExcellenceService implements OnModuleInit {
       repurchaseRate: 0,
       newRate: 0,
       orderCount: 0,
+      revenueYuan: 0,
+      revenueTiers: [],
+      renewTiers: [],
+      repurchaseTiers: [],
+      firstSuccessTiers: [],
+      battleScreenshotBonus: 0,
     };
   }
 }

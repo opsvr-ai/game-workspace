@@ -10,6 +10,13 @@ const { Text, Title } = Typography;
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** 首页已经拉到的那份（省一次请求）；没有就打开时现拉。 */
+  initial?: Excellence | null;
+}
+
+interface TierRow {
+  min: number;
+  score: number;
 }
 
 interface Excellence {
@@ -26,6 +33,12 @@ interface Excellence {
   newRate?: number;
   isExcellent?: boolean;
   tier?: 'TOP' | 'MIDDLE' | 'LOW';
+  revenueYuan?: number;
+  revenueTiers?: TierRow[];
+  renewTiers?: TierRow[];
+  repurchaseTiers?: TierRow[];
+  firstSuccessTiers?: TierRow[];
+  battleScreenshotBonus?: number;
 }
 
 const TIER: Record<string, { label: string; color: string; emoji: string }> = {
@@ -34,17 +47,19 @@ const TIER: Record<string, { label: string; color: string; emoji: string }> = {
   LOW: { label: '下等马', color: '#CD7F32', emoji: '🐴' },
 };
 
-const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
-  const [data, setData] = useState<Excellence | null>(null);
+const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
+  const [fetched, setFetched] = useState<Excellence | null>(null);
   const [loading, setLoading] = useState(false);
+  // 优先用刚拉回来的；打开时还没拉到就先用首页那份，别让陪玩看到一个空弹窗。
+  const data = fetched ?? initial ?? null;
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     http
       .get('/companions/me/excellence')
-      .then(({ data }: any) => setData(data?.data ?? null))
-      .catch(() => setData(null))
+      .then(({ data }: any) => setFetched(data?.data ?? null))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [open]);
 
@@ -56,10 +71,25 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
   const tier = TIER[data?.tier || 'MIDDLE'];
   const excellentThreshold = data?.excellentThreshold ?? 50;
   const middleTierThreshold = data?.middleTierThreshold ?? 25;
+  const myScore = data?.rankScore ?? 0;
+
+  /** 每项「达到 X 得 Y 分」的完整档位表 + 陪玩自己现在在哪一档、差多少到下一档。 */
+  const dims = [
+    { label: '月流水', unit: '元', score: data?.revenueScore ?? 0, value: data?.revenueYuan ?? 0, tiers: data?.revenueTiers ?? [] },
+    { label: '续单率', unit: '%', score: renewScore, value: data?.renewRate ?? 0, tiers: data?.renewTiers ?? [] },
+    { label: '复购率', unit: '%', score: repurchaseScore, value: data?.repurchaseRate ?? 0, tiers: data?.repurchaseTiers ?? [] },
+    { label: '首单成功率', unit: '%', score: newScore, value: data?.newRate ?? 0, tiers: data?.firstSuccessTiers ?? [] },
+  ];
+  const tierGapText =
+    data?.tier === 'TOP'
+      ? '已是最高段位（上等马）'
+      : data?.tier === 'MIDDLE'
+        ? `距上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分（上等马线 ${excellentThreshold} 分）`
+        : `距中等马还差 ${Math.max(0, middleTierThreshold - myScore)} 分；再往上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分`;
 
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={640} title="🏆 综合评分说明">
-      {loading ? (
+      {loading && !data ? (
         <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
       ) : (
         <div style={{ lineHeight: 1.9 }}>
@@ -74,9 +104,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={(data?.tier || 'MIDDLE') as 'TOP' | 'MIDDLE' | 'LOW'} /> {tier.label}</Tag>
                 </Space>
               }
-              description={data.tier === 'TOP'
-                ? '已达上等马，享受全部抢单权益'
-                : `还差 ${Math.max(0, excellentThreshold - (data.rankScore ?? 0))} 分达到上等马（${excellentThreshold} 分）`}
+              description={data.tier === 'TOP' ? '已达上等马，享受全部抢单权益' : tierGapText}
             />
           )}
 
@@ -98,6 +126,47 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
               +{data?.bonusScore ?? 0} 分（每采纳一组 +1 分）
             </Descriptions.Item>
           </Descriptions>
+
+          <Title level={5} style={{ marginTop: 20 }}>加分规则（每一项取达到的最高一档，不叠加）</Title>
+          {dims.map((d) => {
+            const sortedDesc = [...d.tiers].sort((a, b) => b.min - a.min);
+            const next = [...d.tiers].sort((a, b) => a.min - b.min).find((t) => t.min > d.value);
+            return (
+              <div key={d.label} style={{ marginBottom: 14 }}>
+                <Space size={8} wrap>
+                  <Text strong>{d.label}</Text>
+                  <Text type="secondary">
+                    现在 {d.value}{d.unit} → <Text strong>{d.score} 分</Text>
+                  </Text>
+                  {next ? (
+                    <Tag color="blue">
+                      再 {Math.ceil(next.min - d.value)}{d.unit} 就到 {next.score} 分
+                    </Tag>
+                  ) : (
+                    <Tag color="green">已是最高一档</Tag>
+                  )}
+                </Space>
+                <div style={{ marginTop: 6 }}>
+                  {sortedDesc.map((t, i) => {
+                    const reached = d.value >= t.min;
+                    const isCurrent = reached && !sortedDesc.some((o) => o.min > t.min && d.value >= o.min);
+                    return (
+                      <Tag
+                        key={i}
+                        color={isCurrent ? 'gold' : reached ? 'green' : 'default'}
+                        style={{ marginBottom: 4, fontWeight: isCurrent ? 600 : 400 }}
+                      >
+                        {isCurrent ? '⭐ ' : ''}达到 {t.min}{d.unit} → {t.score} 分
+                      </Tag>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            战绩图加分：每采纳一组 +{data?.battleScreenshotBonus ?? 1} 分（管理端审核通过才加，直接叠加在综合分上）。
+          </Text>
 
           <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马权益</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>

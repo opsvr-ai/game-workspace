@@ -61,6 +61,17 @@ const CompanionPage: React.FC = () => {
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [showRule, setShowRule] = useState(false);
+  // 陪玩自己的综合分 + 段位（老板 2026-10-04：让陪玩一眼看到自己的分、离下一级还差多少）。
+  const [excellence, setExcellence] = useState<any>(null);
+
+  const fetchExcellence = useCallback(async () => {
+    try {
+      const { data: res } = await http.get('/companions/me/excellence');
+      setExcellence(res.data || null);
+    } catch {
+      /* 拉不到就只显示「评分规则」入口，不打扰 */
+    }
+  }, []);
 
   const fetchRanking = useCallback(async () => {
     try {
@@ -130,12 +141,13 @@ const CompanionPage: React.FC = () => {
       .then((r: any) => setDormantCount(r.data?.data?.dormant || 0))
       .catch(() => {});
     fetchRanking();
+    fetchExcellence();
     const t = visibleInterval(() => {
       fetchData();
       fetchWallet();
     }, 30_000);
     return () => clearInterval(t);
-  }, [fetchData, fetchWallet, fetchMyCustomers]);
+  }, [fetchData, fetchWallet, fetchMyCustomers, fetchExcellence]);
 
   // Auto-refresh when tab becomes visible (catches data changes from admin panel / Electron)
   useEffect(() => {
@@ -145,6 +157,7 @@ const CompanionPage: React.FC = () => {
         fetchWallet();
         fetchMyCustomers();
         fetchRanking();
+        fetchExcellence();
       }
     };
     document.addEventListener('visibilitychange', onVisible);
@@ -153,7 +166,7 @@ const CompanionPage: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
     };
-  }, [fetchData, fetchWallet, fetchMyCustomers]);
+  }, [fetchData, fetchWallet, fetchMyCustomers, fetchExcellence]);
 
   // Auto-set AVAILABLE on first load if currently OFFLINE
   useEffect(() => {
@@ -288,15 +301,28 @@ const CompanionPage: React.FC = () => {
                 今日¥{data.todayRevenue} · 娱乐{data.entertainmentMinutes}min ·{' '}
                 {data.statusDurations?.entertainment || '00:00'}
               </Text>
-              <Button
-                size="small"
-                type="link"
-                icon={React.createElement(QuestionCircleOutlined)}
-                onClick={() => setShowRule(true)}
-                style={{ padding: 0, fontSize: 12 }}
-              >
-                评分规则
-              </Button>
+              {excellence ? (
+                <Tooltip title="点开看完整加分规则 / 离下一级还差多少">
+                  <Tag
+                    color={excellence.tier === 'TOP' ? 'gold' : excellence.tier === 'LOW' ? 'orange' : 'default'}
+                    style={{ cursor: 'pointer', fontSize: 12, margin: 0 }}
+                    onClick={() => setShowRule(true)}
+                  >
+                    {excellence.tier === 'TOP' ? '👑🏇 上等马' : excellence.tier === 'LOW' ? '🐴 下等马' : '🐎 中等马'} · 综合分{' '}
+                    {excellence.rankScore ?? 0}
+                  </Tag>
+                </Tooltip>
+              ) : (
+                <Button
+                  size="small"
+                  type="link"
+                  icon={React.createElement(QuestionCircleOutlined)}
+                  onClick={() => setShowRule(true)}
+                  style={{ padding: 0, fontSize: 12 }}
+                >
+                  评分规则
+                </Button>
+              )}
             </Space>
             {dormantCount > 0 && (
               <Tag color="red" style={{ marginLeft: 8 }}>
@@ -954,7 +980,7 @@ const CompanionPage: React.FC = () => {
         </div>
       </Modal>
 
-      <ExcellenceRuleModal open={showRule} onClose={() => setShowRule(false)} />
+      <ExcellenceRuleModal open={showRule} onClose={() => setShowRule(false)} initial={excellence} />
     </div>
   );
 };
