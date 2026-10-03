@@ -35,7 +35,6 @@ const CONFIG_KEYS = [
   'commission.admin_online_rate_percent',
   'bridge.secret_price_yuan',
   'bridge.jueju_net_yuan',
-  'dispatch.bridge_return_jimi_cents',
   'dispatch.bridge_return_jueju_cents',
 ];
 
@@ -76,7 +75,6 @@ const withEffectiveDefaults = (raw: any) => {
   fill('commission.admin_online_rate_percent', 0);
   fill('bridge.secret_price_yuan', 35);
   fill('bridge.jueju_net_yuan', 30);
-  fill('dispatch.bridge_return_jimi_cents', 0);
   fill('dispatch.bridge_return_jueju_cents', 1500);
   if (Array.isArray(next['revenue.share_tiers'])) {
     next['revenue.share_tiers'] = next['revenue.share_tiers'].map((t: any) => ({
@@ -159,7 +157,6 @@ const PaymentSettings: React.FC = () => {
   // 桥接工作室：单价（元/人/小时）+ 首单返款（库里存「分」，界面显示「元」）。
   const bridgeSecretPrice = Number(config?.['bridge.secret_price_yuan'] ?? 35);
   const bridgeJuejuNet = Number(config?.['bridge.jueju_net_yuan'] ?? 30);
-  const bridgeReturnJimi = Number(config?.['dispatch.bridge_return_jimi_cents'] ?? 0) / 100;
   const bridgeReturnJueju = Number(config?.['dispatch.bridge_return_jueju_cents'] ?? 1500) / 100;
 
   const offlineDeduct = round2(csOffline + adminOffline);
@@ -218,7 +215,6 @@ const PaymentSettings: React.FC = () => {
         'commission.cs_online_rate_percent': csOnlineRate,
         'bridge.secret_price_yuan': bridgeSecretPrice,
         'bridge.jueju_net_yuan': bridgeJuejuNet,
-        'dispatch.bridge_return_jimi_cents': Math.round(bridgeReturnJimi * 100),
         'dispatch.bridge_return_jueju_cents': Math.round(bridgeReturnJueju * 100),
       });
       message.success('分账规则 已保存');
@@ -465,8 +461,8 @@ const PaymentSettings: React.FC = () => {
 
           {labelCell('cs', '首单返款', '元 / 小时 / 陪玩')}
           <div style={CELL}>
-            {moneyInput(bridgeReturnJimi, (v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100)), 130, '元/时/陪玩')}
-            <Text type="secondary" style={{ fontSize: 12 }}>填 0 = 不返还</Text>
+            <Text strong style={{ fontSize: 13 }}>0（不返还）</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>机密首单不结</Text>
           </div>
           <div style={CELL}>
             {moneyInput(bridgeReturnJueju, (v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100)), 130, '元/时/陪玩')}

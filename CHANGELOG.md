@@ -69,6 +69,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   候选二进制 `apps/watchdog-service/SystemHelper-2026100302.exe`（`-ldflags="-s -w"`，带构建号标记）；
   仓库里现网那份 `SystemHelper.exe` **未改动**。**终端程序更新按规矩必须先问老板**，本次未发布。
 
+### Removed
+
+- **清掉一批「填了不生效」的死配置（老板 2026-10-04 回「删除」）。** ① 设置中心「派单优先级」页整页只剩一个
+  「线上响应窗口」（`dispatch.bridge_immediate_window_sec`）—— 审计确认**全仓库没有任何地方读它**，填了不生效；
+  现在这个框删掉，整页只留一句话指路到**「各等级等待时间」**（各段位 / 桥接 / 线上到底等多久，只在那一个地方设置）。
+  ② 「利润分成（分账规则）→ 桥接工作室 → 首单返款 · 机密单」也是死配置（`dispatch.bridge_return_jimi_cents`）：
+  代码里机密首单**一律不返**（固定 0），这个框改了没用；现在改成只读文字「0（不返还）· 机密首单不结」。
+  ③ `commission.attribution_window` 同批审计里发现的死键，全库没有任何界面与代码读它，一并删除。
+  三个键从内置默认表删除，线上 `SystemConfig` 里那条历史行（值 0）也删了；绝密返款
+  `dispatch.bridge_return_jueju_cents` 是真在用的键，**一分未动**（线上仍是 1500 分/时）。
 ### Changed
 
 - **电脑三页合并、去掉命令面板、补两个入口（2026-10-04，网页 `v898`）。**

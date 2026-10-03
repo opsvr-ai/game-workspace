@@ -218,7 +218,6 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
     { id: 'phone', name: '电话费', amount: 0 },
     { id: 'other', name: '其他', amount: 0 },
   ],
-  'dispatch.bridge_immediate_window_sec': 60,
   'dispatch.top_tier_daily_new_limit': 999,
   'dispatch.middle_tier_daily_new_limit': 2,
   'dispatch.low_tier_daily_new_limit': 1,
@@ -254,8 +253,7 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
     { min: 40, score: 5 },
     { min: 70, score: 10 },
   ],
-  // 桥接工作室首单返还（仅适用于桥接线下工作室）：首单 = 第一个小时。机密首单不结（0）；绝密按 15 元/小时/陪玩返还（双陪×2）。
-  'dispatch.bridge_return_jimi_cents': 0,
+  // 桥接工作室首单返还（仅适用于桥接线下工作室）：首单 = 第一个小时。机密首单不结（固定 0，没有配置键）；绝密按 15 元/小时/陪玩返还（双陪×2）。
   'dispatch.bridge_return_jueju_cents': 1500,
   'bridge.secret_price_yuan': 35,
   'bridge.jueju_net_yuan': 30,
@@ -307,7 +305,6 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   // 默认 false = **只算首单**（跟以前一模一样）；勾上才算续单那些。
   'commission.cs_include_renewal': false,
   'commission.cs_offline_per_order_cap_cents': 0,
-  'commission.attribution_window': 'month',
 };
 
 

@@ -79,7 +79,7 @@ const GROUPS: SettingGroup[] = [
       {
         key: 'dispatch',
         label: '派单优先级',
-        hint: '线上响应窗口、桥接响应窗口',
+        hint: '已并入「各等级等待时间」',
         keywords: '派单 优先级 响应 窗口 等待 桥接 线上',
         render: () => <DispatchCommissionSettings />,
       },

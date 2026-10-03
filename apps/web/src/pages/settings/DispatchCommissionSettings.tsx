@@ -1,85 +1,40 @@
 // craftsman-ignore: TS001,TS002
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Button, Typography, Space, message, Row, Col } from 'antd';
-import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
-import { configApi } from '../../api/config';
-import { SettingsField as Field } from '../../components/settings/SettingsField';
+import React from 'react';
+import { Alert, Card, Typography } from 'antd';
 
 const { Text } = Typography;
 
 /**
- * 派单优先级（老板 2026-09-22 要求「同一个功能别到处出现」后精简）
+ * 派单优先级（2026-10-04 清死键）
  *
- * 这一页原来还塞着三组数，全都是重复的，已经搬走：
- * - 「工作室分成比例」（dispatch.studio_share_percent）：**填了不参与任何计算**的历史遗留，直接删掉；
- * - 「每日新客户名额」：属于段位规则，统一在「评分与名额」里按上等马 / 中等马 / 下等马设置；
- * - 「机密 / 绝密线上返款」：桥接单价与首单返款统一在「利润分成（分账规则）」里设置。
- *
- * 留下的只有真正属于派单节奏的响应窗口。
+ * 这一页原来挂着三组重复的数，早就搬走了；最后剩的这一个「线上响应窗口」
+ * （`dispatch.bridge_immediate_window_sec`）审计确认**全仓库没有任何地方读它** ——
+ * 填了不生效，还有人以为它管着派单节奏，在这儿填半天又找不到原因。
+ * 现在整页只留一句话，指到真正生效的「各等级等待时间」。
  */
 
-const DispatchCommissionSettings: React.FC = () => {
-  const [config, setConfig] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const fetchConfig = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await configApi.getAll();
-      setConfig(data.data);
-    } catch {
-      message.error('加载配置失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchConfig(); }, [fetchConfig]);
-
-  const update = (key: string, value: number) => setConfig((c: any) => ({ ...c, [key]: value }));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await configApi.update({
-        'dispatch.bridge_immediate_window_sec': config?.['dispatch.bridge_immediate_window_sec'] ?? 60,
-      });
-      message.success('派单设置已保存');
-    } catch {
-      message.error('保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading && !config) {
-    return <div style={{ textAlign: 'center', padding: 40 }}><Text type="secondary">加载中...</Text></div>;
-  }
-
-  return (
-    <div>
-      <Card
-        title="🧭 派单优先级"
-        extra={
-          <Space>
-            <Button icon={React.createElement(ReloadOutlined)} onClick={fetchConfig} loading={loading}>刷新</Button>
-            <Button type="primary" icon={React.createElement(SaveOutlined)} loading={saving} onClick={save}>保存</Button>
-          </Space>
-        }
-      >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          各段位抢单名额在「评分与名额」里改；分成人 / 桥接单价在「利润分成（分账规则）」里改；
-          客服提成与底薪在「客服设置」里改。
-        </Text>
-        <Row gutter={24}>
-          <Col span={12}>
-            <Field label="线上响应窗口" unit="秒" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
-          </Col>
-        </Row>
-      </Card>
-    </div>
-  );
-};
+const DispatchCommissionSettings: React.FC = () => (
+  <Card title="🧭 派单优先级">
+    <Alert
+      type="info"
+      showIcon
+      message="派单等待时间统一在「各等级等待时间」里改"
+      description={
+        <span>
+          上等马 / 桥接工作室 / 中等马 / 下等马 / 线上俱乐部各等多久看到订单、立即打与预约单多久消失、
+          「线上→线下」「线下→线上」流转各留多久，全都在「设置中心 → 各等级等待时间」一处设置。
+          <br />
+          <Text type="secondary">
+            这一页以前那个「线上响应窗口」是历史遗留的无效配置（填了不生效），已删除。
+          </Text>
+        </span>
+      }
+    />
+    <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
+      各段位抢单名额在「评分与名额」里改；分成人 / 桥接单价与返款在「利润分成（分账规则）」里改；
+      客服提成与底薪在「客服设置」里改。
+    </Text>
+  </Card>
+);
 
 export default DispatchCommissionSettings;
