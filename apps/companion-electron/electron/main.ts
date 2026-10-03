@@ -357,7 +357,7 @@ function startBlacklistGuard(blacklist: Array<{ processName: string; processPath
     blacklist: activeBlacklist,
     whitelistCount: activeWhitelist.length,
     lastStatus: store.get('lastStatus') || '',
-    armed: activeBlacklist.length > 0 && store.get('lastStatus') === 'AVAILABLE',
+    armed: activeBlacklist.length > 0 && guardArmed(),
   });
   if (activeBlacklist.length === 0) {
     stopProcessWatcher();
@@ -399,12 +399,18 @@ function toImageName(name: string): string {
   return trimmed.toLowerCase().endsWith('.exe') ? trimmed : `${trimmed}.exe`;
 }
 
-/** 只有登录成功、且明确处于「空闲」时才动手；接单/娱乐/休息中一律不碰。 */
+/**
+ * 登录成功就按服务端下发的名单动手。
+ *
+ * 名单本身已经由服务端按「陪玩当前状态」算好了（空闲杀什么、娱乐杀什么、
+ * 休息杀什么，都是管理端按状态分别配的），客户端不用再自己按状态判断该不该动手。
+ * 老板 2026-10-04 报的「娱乐中不杀 python.exe」就是这里的老毛病：
+ * 以前写死只有本机 lastStatus === 'AVAILABLE' 才动手，娱乐中的名单等于白下发。
+ * 该不该杀、杀谁，全看服务端下发的 blacklist 内容。
+ */
 function guardArmed(): boolean {
-  if (!store.get('token')) return false;
-  // 状态未知（比如刚装好还没选过状态）时一律不动手，
-  // 避免把正在玩游戏的人当成空闲直接踢下线。
-  return store.get('lastStatus') === 'AVAILABLE';
+  // 没登录（拿不到令牌）时一律不动手。
+  return !!store.get('token');
 }
 
 /**
@@ -462,7 +468,7 @@ async function handleBlacklistedProcess(name: string): Promise<void> {
   }
 }
 
-/** 兜底扫描：只有登录成功且明确处于「空闲」时才动手（启动事件没抓到的靠它补）。 */
+/** 兜底扫描：登录后按服务端下发的名单动手（启动事件没抓到的靠它补）。 */
 async function runBlacklistGuard(): Promise<void> {
   if (!guardArmed()) return;
   if (blacklistGuardRunning) return;
@@ -1495,15 +1501,21 @@ app.whenReady().then(() => {
   onWsEvent('blacklist:update', (data: any) => {
     if (currentRole !== 'COMPANION') return;
     const prevStatus = store.get('lastStatus');
+    // 状态和名单必须成对处理：服务端下发的名单是照着「它以为的状态」算的
+    // （空闲＝杀游戏、娱乐＝杀 python……）。本地一旦拒绝服务端的状态，
+    // 就必须连这次一起下发的名单也拒绝，否则会出现「本地还是娱乐中、
+    // 却套用了空闲的名单」把正在玩的游戏当场杀掉。
+    let acceptList = true;
     if (data?.status) {
       const local = store.get('lastStatus');
       const localOffDuty = local === 'ENTERTAINMENT' || local === 'RESTING';
       // 服务端在连接/心跳时只是按「在线 = 空闲」补推一次，那只是猜测（authoritative=false）。
       // 不能让猜出来的空闲覆盖陪玩自己选的娱乐中/休息，
-      // 否则一覆盖客户端就会立刻开始杀游戏进程。
+      // 否则一覆盖客户端就会立刻开始按空闲名单杀进程。
       if (data.authoritative === true || !(localOffDuty && data.status === 'AVAILABLE')) {
         store.set('lastStatus', data.status);
       } else {
+        acceptList = false;
         logger.warn('Ignored non-authoritative AVAILABLE status (kept local off-duty status)', {
           local,
           pushed: data.status,
@@ -1517,7 +1529,14 @@ app.whenReady().then(() => {
     if (prevStatus === 'BUSY' && store.get('lastStatus') !== 'BUSY') {
       void checkForUpdates();
     }
-    startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
+    if (acceptList) {
+      startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
+    } else {
+      logger.warn('Kept existing blacklist (status push ignored)', {
+        local: store.get('lastStatus'),
+        kept: activeBlacklist,
+      });
+    }
   });
   // 新单弹窗（老板 2026-09-22 报「发广播单所有人都没弹窗提示」）：
   // 主进程这条 WebSocket 以前收到 order:urgent 直接丢掉，而界面里那张右下角卡片

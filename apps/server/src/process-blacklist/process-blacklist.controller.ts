@@ -151,7 +151,12 @@ export class ProcessBlacklistController {
     const whitelist = await this.service.getWhitelist(studioId);
     for (const cid of companionIds) {
       const blacklist = await this.service.getEffectiveBlacklist(cid);
-      await this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version, undefined, false, studioId);
+      // 第 5 个参数是「当前状态」，以前传 undefined，客户端收到后没法把本地状态对齐，
+      // 手动推送完状态还是旧的（老板 2026-10-03 报的「按人开了只杀一个」残留坑之一）。
+      const companion = await this.prisma.companion
+        .findUnique({ where: { id: cid }, select: { status: true } })
+        .catch(() => null);
+      await this.wsGateway.sendBlacklistUpdate(cid, blacklist, whitelist, version, companion?.status, false, studioId);
       pushed++;
     }
     logger.info("Blacklist push", { pushed, version, studioId: req.user.studioId });

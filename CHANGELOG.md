@@ -144,6 +144,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **修掉「娱乐中不杀 python.exe」的根因：客户端不再只看「本地空闲」才动手（2026-10-04，客户端 `1.0.20261011`）。**
+  老板：「当陪玩娱乐模式的时候我会禁用 python.exe，空闲的时候我会禁用 DeltaForceClient-Win64-Shipping，
+  你检测一下别弄错了，确保在不同状态下杀的正确」。查下来**线上按状态配的名单是对的**
+  （蠢驴电竞 `AVAILABLE → DeltaForceClient-Win64-Shipping`、`ENTERTAINMENT → python.exe`，
+  服务端 `getEffectiveBlacklist` / `pushCurrentBlacklist` 也都照陪玩当前状态取），**错的是客户端两处**：
+  ① `guardArmed()` 写死「只有本机 `lastStatus === 'AVAILABLE'` 才动手」，于是娱乐中的 `python.exe` 名单等于白下发
+  （老板报的就是这个）—— 现在改成「登录成功就按服务端下发的名单动手」，该不该杀、杀谁全看服务端按状态算出的名单；
+  ② `blacklist:update` 的状态和名单改成**成对处理**：本地拒绝服务端「猜出来的空闲」时，
+  连它一起下发的空闲名单也一并拒绝（否则会出现「本地还是娱乐中、却套用了空闲名单」把正在玩的游戏杀掉）。
+  服务端顺带补一处：`POST /api/processes/blacklist/push` 手动推送时第 5 个参数以前传 `undefined`，
+  客户端拿不到状态没法对齐，现在照 `companion.status` 传真实状态。
+  服务端 489 条单测全绿（含 `ws.gateway.blacklist` 14 条）；徐泽宁那台已静默升到 `1.0.20261011`。
+
 - **所有「粘贴截图」的位置都补齐了：Ctrl+V 一次可粘多张、图片能直接拖进框，点一下就能粘（2026-10-04，网页 `v888`）。**
   老板：「检查一下所有说能粘贴复制截图的地方，真正做到粘贴就行了么？能粘贴应该是个输入框吧？
   可以选中很多张图片拖进来那种，或者点粘贴能粘贴或者 Ctrl+V 那种」。改动：
