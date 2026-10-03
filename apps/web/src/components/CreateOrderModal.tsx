@@ -520,8 +520,8 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
                 <InputNumber min={1} step={1} style={{ width: '100%' }} disabled={!!editingOrder && editingOrder.status === 'DONE'} />
               </Form.Item>
             ) : (
-              <Form.Item name="duration" label="时长（小时）" initialValue={1}>
-                <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} disabled={!!editingOrder && editingOrder.status === 'DONE'} />
+              <Form.Item name="duration" label="时长" initialValue={1}>
+                <InputNumber min={0.5} step={0.5} suffix="小时" style={{ width: '100%' }} disabled={!!editingOrder && editingOrder.status === 'DONE'} />
               </Form.Item>
             )
           }

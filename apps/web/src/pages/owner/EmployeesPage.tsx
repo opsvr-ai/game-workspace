@@ -711,22 +711,22 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
         destroyOnClose
       >
         <Form form={financeForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="todayRevenue" label="今日流水（元）">
+          <Form.Item name="todayRevenue" label="今日流水">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="totalRevenue" label="总流水（元）">
+          <Form.Item name="totalRevenue" label="总流水">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="totalWithdrawn" label="已支取（元）">
+          <Form.Item name="totalWithdrawn" label="已支取">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="pendingWithdraw" label="审核中（元）">
+          <Form.Item name="pendingWithdraw" label="审核中">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="withdrawable" label="待支取（元）">
+          <Form.Item name="withdrawable" label="待支取">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
-          <Form.Item name="deposit" label="押金（元）">
+          <Form.Item name="deposit" label="押金">
             <InputNumber min={0} step={100} style={{ width: "100%" }} prefix="¥" />
           </Form.Item>
           <Form.Item name="note" label="调整备注">

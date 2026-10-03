@@ -252,18 +252,12 @@ const PaymentSettings: React.FC = () => {
     </div>
   );
 
-  const percentInput = (value: number, onChange: (v: number) => void, width = 110) => (
-    <Space size={4}>
-      <InputNumber min={0} max={100} step={1} value={value} onChange={(v) => onChange(clampPercent(v))} style={{ width }} />
-      <Text type="secondary">%</Text>
-    </Space>
+  const percentInput = (value: number, onChange: (v: number) => void, width = 110, unit = '%') => (
+    <InputNumber min={0} max={100} step={1} value={value} onChange={(v) => onChange(clampPercent(v))} suffix={unit} style={{ width }} />
   );
 
-  const moneyInput = (value: number, onChange: (v: number) => void, width = 110) => (
-    <Space size={4}>
-      <InputNumber min={0} step={1} value={value} onChange={(v) => onChange(Number(v ?? 0))} style={{ width }} />
-      <Text type="secondary">元</Text>
-    </Space>
+  const moneyInput = (value: number, onChange: (v: number) => void, width = 110, unit = '元') => (
+    <InputNumber min={0} step={1} value={value} onChange={(v) => onChange(Number(v ?? 0))} suffix={unit} style={{ width }} />
   );
 
   return (
@@ -463,19 +457,19 @@ const PaymentSettings: React.FC = () => {
 
           {labelCell('studio', '单价', '元 / 人 / 小时')}
           <div style={CELL}>
-            {moneyInput(bridgeSecretPrice, (v) => update('bridge.secret_price_yuan', v))}
+            {moneyInput(bridgeSecretPrice, (v) => update('bridge.secret_price_yuan', v), 130, '元/人/时')}
           </div>
           <div style={CELL}>
-            {moneyInput(bridgeJuejuNet, (v) => update('bridge.jueju_net_yuan', v))}
+            {moneyInput(bridgeJuejuNet, (v) => update('bridge.jueju_net_yuan', v), 130, '元/人/时')}
           </div>
 
           {labelCell('cs', '首单返款', '元 / 小时 / 陪玩')}
           <div style={CELL}>
-            {moneyInput(bridgeReturnJimi, (v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100)))}
+            {moneyInput(bridgeReturnJimi, (v) => update('dispatch.bridge_return_jimi_cents', Math.round(v * 100)), 130, '元/时/陪玩')}
             <Text type="secondary" style={{ fontSize: 12 }}>填 0 = 不返还</Text>
           </div>
           <div style={CELL}>
-            {moneyInput(bridgeReturnJueju, (v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100)))}
+            {moneyInput(bridgeReturnJueju, (v) => update('dispatch.bridge_return_jueju_cents', Math.round(v * 100)), 130, '元/时/陪玩')}
             <Text type="secondary" style={{ fontSize: 12 }}>双陪按 ×2 返</Text>
           </div>
         </div>

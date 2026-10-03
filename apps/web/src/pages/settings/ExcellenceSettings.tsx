@@ -9,14 +9,14 @@ const { Text } = Typography;
 
 type Tier = { min: number; score: number };
 
-const TIER_DEFS: Array<{ key: string; label: string; def: Tier[] }> = [
-  { key: 'excellence.revenue_tiers', label: '月流水（元）', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
-  { key: 'excellence.renew_tiers', label: '续单率（%）', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.repurchase_tiers', label: '复购率（%）', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.first_success_tiers', label: '首单成功率（%）', def: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
+const TIER_DEFS: Array<{ key: string; label: string; unit: string; def: Tier[] }> = [
+  { key: 'excellence.revenue_tiers', label: '月流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.renew_tiers', label: '续单率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.repurchase_tiers', label: '复购率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.first_success_tiers', label: '首单成功率', unit: '%', def: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
 ];
 
-const TierEditor = ({ label, tiers, onChange }: { label: string; tiers: Tier[]; onChange: (tiers: Tier[]) => void }) => {
+const TierEditor = ({ label, unit, tiers, onChange }: { label: string; unit: string; tiers: Tier[]; onChange: (tiers: Tier[]) => void }) => {
   const update = (i: number, patch: Partial<Tier>) => onChange(tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
   const add = () => onChange([...tiers, { min: 0, score: 0 }]);
   const remove = (i: number) => onChange(tiers.filter((_, idx) => idx !== i));
@@ -31,10 +31,9 @@ const TierEditor = ({ label, tiers, onChange }: { label: string; tiers: Tier[]; 
         {tiers.map((t, i) => (
           <Space key={i} size={6}>
             <Text type="secondary">达到</Text>
-            <InputNumber min={0} value={t.min} onChange={(v) => update(i, { min: v ?? 0 })} style={{ width: 110 }} />
+            <InputNumber min={0} value={t.min} onChange={(v) => update(i, { min: v ?? 0 })} suffix={unit} style={{ width: 110 }} />
             <Text type="secondary">加</Text>
-            <InputNumber min={0} value={t.score} onChange={(v) => update(i, { score: v ?? 0 })} style={{ width: 90 }} />
-            <Text type="secondary">分</Text>
+            <InputNumber min={0} value={t.score} onChange={(v) => update(i, { score: v ?? 0 })} suffix="分" style={{ width: 90 }} />
             <Button size="small" danger icon={<DeleteOutlined />} onClick={() => remove(i)} />
           </Space>
         ))}
@@ -115,12 +114,12 @@ const ExcellenceSettings: React.FC = () => {
         <Row gutter={24}>
           <Col span={12}>
             {TIER_DEFS.slice(0, 2).map((td) => (
-              <TierEditor key={td.key} label={td.label} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
+              <TierEditor key={td.key} label={td.label} unit={td.unit} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
             ))}
           </Col>
           <Col span={12}>
             {TIER_DEFS.slice(2).map((td) => (
-              <TierEditor key={td.key} label={td.label} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
+              <TierEditor key={td.key} label={td.label} unit={td.unit} tiers={getTiers(td.key, td.def)} onChange={(tiers) => setTiers(td.key, tiers)} />
             ))}
           </Col>
         </Row>
@@ -129,12 +128,12 @@ const ExcellenceSettings: React.FC = () => {
           <Col span={12}>
             {/* 老板 2026-10-04：改成「达成就加分」以后综合分能超过 100（四项全满是 125），
                 这两条线还卡着 max=100 就填不了（线上现在就是 999），把上限去掉。 */}
-            <Field label="上等马线（分）" value={config?.['excellence.excellent_threshold'] ?? 50} step={1} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
-            <Field label="中等马线（分）" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
+            <Field label="上等马线" unit="分" value={config?.['excellence.excellent_threshold'] ?? 50} step={1} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
+            <Field label="中等马线" unit="分" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>
-            <Field label="战绩图每组加分（分）" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
+            <Field label="战绩图每组加分" unit="分" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
             <Field label="上等马每日有效客户名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} suffix="成交才占名额" />
             <Field label="中等马每日有效客户名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} suffix="成交才占名额" />
             <Field label="下等马每日有效客户名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="成交才占名额" />

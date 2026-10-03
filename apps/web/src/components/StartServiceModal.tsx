@@ -195,12 +195,12 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       </Row>
       <Row gutter={12} align="middle">
         <Col span={12}>
-          <Text>单价（元/小时）</Text>
-          <InputNumber min={0} style={{ width: '100%' }} value={claimPrice ?? undefined} onChange={(v) => setClaimPrice(v ?? null)} prefix="¥" placeholder="？/人/h" />
+          <Text>单价</Text>
+          <InputNumber min={0} style={{ width: '100%' }} value={claimPrice ?? undefined} onChange={(v) => setClaimPrice(v ?? null)} suffix="元/小时" placeholder="？/人/h" />
         </Col>
         <Col span={12}>
-          <Text>实际时长（小时）</Text>
-          <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} value={claimDuration} onChange={(v) => setClaimDuration(v || 0)} placeholder="至少 0.5 小时" />
+          <Text>实际时长</Text>
+          <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} value={claimDuration} onChange={(v) => setClaimDuration(v || 0)} suffix="小时" placeholder="至少 0.5 小时" />
         </Col>
       </Row>
       {dual && (
@@ -216,8 +216,8 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
               </div>
             </Col>
             <Col span={12}>
-              <Text>搭档单价（元/小时）</Text>
-              <InputNumber min={0} style={{ width: '100%' }} value={coPrice ?? undefined} onChange={(v) => setCoPrice(v ?? null)} prefix="¥" placeholder="？/人/h" />
+              <Text>搭档单价</Text>
+              <InputNumber min={0} style={{ width: '100%' }} value={coPrice ?? undefined} onChange={(v) => setCoPrice(v ?? null)} suffix="元/小时" placeholder="？/人/h" />
             </Col>
           </Row>
           {partnerMode === 'assign' && (

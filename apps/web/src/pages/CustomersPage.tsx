@@ -1138,10 +1138,11 @@ const CustomersPage: React.FC = () => {
             <Text strong>客户：{depositCustomer?.wechatId || depositCustomer?.customerCode}</Text>
           </div>
           <div style={{ marginTop: 12 }}>
-            <Text>存单金额（元）</Text>
+            <Text>存单金额</Text>
             <InputNumber
               min={0}
               step={10}
+              suffix="元"
               style={{ width: '100%', marginTop: 6 }}
               value={depositAmount ?? undefined}
               onChange={(v) => setDepositAmount(v ?? null)}

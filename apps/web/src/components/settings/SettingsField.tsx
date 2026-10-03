@@ -31,7 +31,8 @@ export const SettingsField: React.FC<{
   step?: number;
   hint?: string;
   suffix?: string;
-}> = ({ label, value, onChange, min = 0, max, step = 1, hint, suffix }) => (
+  unit?: string;
+}> = ({ label, value, onChange, min = 0, max, step = 1, hint, suffix, unit }) => (
   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
     <Text style={{ flex: `0 0 ${SETTINGS_LABEL_WIDTH}px`, paddingTop: 5, lineHeight: '22px' }}>
       {label}
@@ -42,6 +43,7 @@ export const SettingsField: React.FC<{
       step={step}
       value={value}
       onChange={(v) => onChange(v ?? 0)}
+      suffix={unit ? <span style={{ color: '#8c8c8c' }}>{unit}</span> : undefined}
       style={{ width: 130, flex: '0 0 auto' }}
     />
     {(hint || suffix) && (

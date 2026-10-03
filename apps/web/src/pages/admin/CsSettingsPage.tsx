@@ -162,11 +162,12 @@ const CsSettingsPage: React.FC = () => {
   ) => (
     <Col span={12} key={key}>
       <div style={{ marginBottom: 10 }}>
-        <Text style={{ display: 'block', fontSize: 12 }}>{label}（{unit}）</Text>
+        <Text style={{ display: 'block', fontSize: 12 }}>{label}</Text>
         <InputNumber
           size="small"
           min={0}
           step={step}
+          suffix={unit}
           style={{ width: '100%' }}
           value={(cfgDraft[key] as any) ?? undefined}
           placeholder={`本店 ${defValue ?? '-'}`}
@@ -183,7 +184,7 @@ const CsSettingsPage: React.FC = () => {
         <Text type="secondary">
           客服的提成在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
           桥接提成按本月单价阶梯算（跑得越多单价越高），跑不够只是单价停在第一档，不扣底薪、不打折提成。
-          输入框右侧蓝色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
+          输入框里的蓝色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
         </Text>
       </div>
 
@@ -341,18 +342,16 @@ const CsSettingsPage: React.FC = () => {
               dataIndex: 'baseSalaryYuan',
               width: 200,
               render: (v: number | null, r: any) => (
-                <Space size={6}>
-                  <InputNumber
-                    size="small"
-                    min={0}
-                    step={100}
-                    style={{ width: 120 }}
-                    value={v ?? undefined}
-                    placeholder={`默认 ${Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}`}
-                    onChange={(next) => patchProfile(r.userId, { baseSalaryYuan: next })}
-                  />
-                  <Text type="secondary" style={{ fontSize: 12 }}>元/月</Text>
-                </Space>
+                <InputNumber
+                  size="small"
+                  min={0}
+                  step={100}
+                  suffix="元/月"
+                  style={{ width: 150 }}
+                  value={v ?? undefined}
+                  placeholder={`默认 ${Number(profiles?.defaultBaseSalaryYuan ?? 0).toFixed(0)}`}
+                  onChange={(next) => patchProfile(r.userId, { baseSalaryYuan: next })}
+                />
               ),
             },
             {
@@ -420,7 +419,7 @@ const CsSettingsPage: React.FC = () => {
         <Row gutter={[12, 0]} style={{ marginTop: 12 }}>
           {cfgNum('offlineRatePercent', '线下提成比例', '%', defs.offlineRatePercent, 0.5)}
           {cfgNum('offlineFloorYuan', '线下保底', '元/单', defs.offlineFloorYuan, 0.5)}
-          {cfgNum('offlineCapYuan', '线下每单封顶', '元/单（0=不封顶）', defs.offlineCapYuan, 0.5)}
+          {cfgNum('offlineCapYuan', '线下每单封顶（0=不封顶）', '元/单', defs.offlineCapYuan, 0.5)}
           {cfgNum('bridgePerOrderYuan', '桥接每单', '元/单', defs.bridgePerOrderYuan, 0.5)}
           {cfgNum('bridgeMinThreshold', '桥接最低单数', '单/月', defs.bridgeMinThreshold, 5)}
           {cfgNum('bridgeTier3Threshold', '3 元/单门槛', '单/月', defs.bridgeTier3Threshold, 5)}

@@ -281,12 +281,12 @@ const CommissionPage: React.FC = () => {
           <Form.Item noStyle shouldUpdate={(prev, cur) => prev.type !== cur.type}>
             {({ getFieldValue }) =>
               getFieldValue('type') === 'RATE' ? (
-                <Form.Item name="rate" label="比例（%）" rules={[{ required: true, message: '请输入比例' }]}>
-                  <InputNumber min={0} max={100} step={0.1} style={{ width: '100%' }} />
+                <Form.Item name="rate" label="比例" rules={[{ required: true, message: '请输入比例' }]}>
+                  <InputNumber min={0} max={100} step={0.1} suffix="%" style={{ width: '100%' }} />
                 </Form.Item>
               ) : (
-                <Form.Item name="fixedAmountYuan" label="固定金额（元/单）" rules={[{ required: true, message: '请输入固定金额' }]}>
-                  <InputNumber min={0} step={1} precision={1} style={{ width: '100%' }} />
+                <Form.Item name="fixedAmountYuan" label="固定金额" rules={[{ required: true, message: '请输入固定金额' }]}>
+                  <InputNumber min={0} step={1} precision={1} suffix="元/单" style={{ width: '100%' }} />
                 </Form.Item>
               )
             }

@@ -204,11 +204,11 @@ const PriceRulesPage: React.FC = () => {
           <Form.Item name="orderType" label="单类型" rules={[{ required: true }]}>
             <Select options={orderTypeOptions} />
           </Form.Item>
-          <Form.Item name="floorPriceYuan" label="底价（元/时/人）" rules={[{ required: true, message: '请输入底价' }]}>
-            <InputNumber min={0} step={1} precision={0} style={{ width: '100%' }} />
+          <Form.Item name="floorPriceYuan" label="底价" rules={[{ required: true, message: '请输入底价' }]}>
+            <InputNumber min={0} step={1} precision={0} suffix="元/时/人" style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="maxPriceYuan" label="上限（元/时/人，留空不限）">
-            <InputNumber min={0} step={1} precision={0} style={{ width: '100%' }} />
+          <Form.Item name="maxPriceYuan" label="上限（留空不限）">
+            <InputNumber min={0} step={1} precision={0} suffix="元/时/人" style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="isActive" label="启用" valuePropName="checked">
             <Switch />

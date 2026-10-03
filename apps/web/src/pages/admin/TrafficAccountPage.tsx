@@ -1384,11 +1384,11 @@ const TrafficAccountPage: React.FC = () => {
           <Row gutter={12}>
             <Col span={6}><Form.Item name="exposure" label="曝光量"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
             <Col span={6}><Form.Item name="views" label="观看量"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="clickRate" label="点击率 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="interactionRate" label="互动率 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="followRatio" label="涨粉率 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="dmRate" label="私信率 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.01} /></Form.Item></Col>
-            <Col span={6}><Form.Item name="readCompletionRate" label="阅读完成率 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="clickRate" label="点击率"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="interactionRate" label="互动率"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="followRatio" label="涨粉率"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.01} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="dmRate" label="私信率"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.01} /></Form.Item></Col>
+            <Col span={6}><Form.Item name="readCompletionRate" label="阅读完成率"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
             <Col span={6}><Form.Item name="likes" label="点赞量"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
             <Col span={6}><Form.Item name="comments" label="评论量"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
             <Col span={6}><Form.Item name="favorites" label="收藏量"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
@@ -1396,9 +1396,9 @@ const TrafficAccountPage: React.FC = () => {
 
           <Divider orientation="left" plain style={{ margin: '6px 0' }}>流量分析</Divider>
           <Row gutter={12}>
-            <Col span={8}><Form.Item name="homeRecommendRatio" label="首页推荐 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="searchRatio" label="搜索 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="profileRatio" label="个人主页 (%)"><InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="homeRecommendRatio" label="首页推荐"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="searchRatio" label="搜索"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="profileRatio" label="个人主页"><InputNumber suffix="%" style={{ width: '100%' }} min={0} max={100} step={0.1} /></Form.Item></Col>
             <Col span={24}><Form.Item name="searchKeywords" label="搜索热词（10个+占比）"><SearchListInput nameKey="word" count={10} /></Form.Item></Col>
           </Row>
 

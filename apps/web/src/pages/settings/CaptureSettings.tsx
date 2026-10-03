@@ -69,16 +69,16 @@ const CaptureSettings: React.FC = () => {
         </Text>
         <Row gutter={24}>
           <Col span={12}>
-            <Field label="截图最小间隔（分钟）" value={config?.['capture.interval_min_minutes'] ?? 12} onChange={(v) => update('capture.interval_min_minutes', v)} suffix="每次截图的最小随机间隔" />
-            <Field label="截图最大间隔（分钟）" value={config?.['capture.interval_max_minutes'] ?? 18} onChange={(v) => update('capture.interval_max_minutes', v)} suffix="每次截图的最大随机间隔" />
-            <Field label="首张截图最小延迟（分钟）" value={config?.['capture.first_delay_min_minutes'] ?? 1} onChange={(v) => update('capture.first_delay_min_minutes', v)} />
-            <Field label="首张截图最大延迟（分钟）" value={config?.['capture.first_delay_max_minutes'] ?? 3} onChange={(v) => update('capture.first_delay_max_minutes', v)} />
+            <Field label="截图最小间隔" unit="分钟" value={config?.['capture.interval_min_minutes'] ?? 12} onChange={(v) => update('capture.interval_min_minutes', v)} suffix="每次截图的最小随机间隔" />
+            <Field label="截图最大间隔" unit="分钟" value={config?.['capture.interval_max_minutes'] ?? 18} onChange={(v) => update('capture.interval_max_minutes', v)} suffix="每次截图的最大随机间隔" />
+            <Field label="首张截图最小延迟" unit="分钟" value={config?.['capture.first_delay_min_minutes'] ?? 1} onChange={(v) => update('capture.first_delay_min_minutes', v)} />
+            <Field label="首张截图最大延迟" unit="分钟" value={config?.['capture.first_delay_max_minutes'] ?? 3} onChange={(v) => update('capture.first_delay_max_minutes', v)} />
           </Col>
           <Col span={12}>
-            <Field label="黑屏判定体积阈值（KB）" value={config?.['capture.black_jpeg_kb'] ?? 15} onChange={(v) => update('capture.black_jpeg_kb', v)} suffix="JPEG 小于该体积判定为黑屏" />
-            <Field label="每小时预期有效截图（张）" value={config?.['capture.expected_per_hour'] ?? 4} onChange={(v) => update('capture.expected_per_hour', v)} suffix="用于计算本次服务应有截图数" />
-            <Field label="最低有效截图达成率（%）" value={config?.['capture.min_rate_percent'] ?? 50} onChange={(v) => update('capture.min_rate_percent', v)} max={100} suffix="有效截图低于该比例标黄" />
-            <Field label="黑屏率上限（%）" value={config?.['capture.black_rate_max_percent'] ?? 30} onChange={(v) => update('capture.black_rate_max_percent', v)} max={100} suffix="黑屏占比超过该值标黄" />
+            <Field label="黑屏判定体积阈值" unit="KB" value={config?.['capture.black_jpeg_kb'] ?? 15} onChange={(v) => update('capture.black_jpeg_kb', v)} suffix="JPEG 小于该体积判定为黑屏" />
+            <Field label="每小时预期有效截图" unit="张" value={config?.['capture.expected_per_hour'] ?? 4} onChange={(v) => update('capture.expected_per_hour', v)} suffix="用于计算本次服务应有截图数" />
+            <Field label="最低有效截图达成率" unit="%" value={config?.['capture.min_rate_percent'] ?? 50} onChange={(v) => update('capture.min_rate_percent', v)} max={100} suffix="有效截图低于该比例标黄" />
+            <Field label="黑屏率上限" unit="%" value={config?.['capture.black_rate_max_percent'] ?? 30} onChange={(v) => update('capture.black_rate_max_percent', v)} max={100} suffix="黑屏占比超过该值标黄" />
           </Col>
         </Row>
       </Card>

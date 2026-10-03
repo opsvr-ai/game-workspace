@@ -74,7 +74,7 @@ const DispatchCommissionSettings: React.FC = () => {
         </Text>
         <Row gutter={24}>
           <Col span={12}>
-            <Field label="线上响应窗口（秒）" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
+            <Field label="线上响应窗口" unit="秒" value={config?.['dispatch.bridge_immediate_window_sec'] ?? 60} onChange={(v) => update('dispatch.bridge_immediate_window_sec', v)} suffix="立即打转线上等待时间" />
           </Col>
         </Row>
       </Card>

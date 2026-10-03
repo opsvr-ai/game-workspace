@@ -76,9 +76,10 @@ const RevenueSettings: React.FC = () => {
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
-            <Label>免手续费流水阈值（元）</Label>
+            <Label>免手续费流水阈值</Label>
             <InputNumber
               min={0} step={10}
+              suffix="元"
               value={config?.['revenue.free_threshold'] ?? 300}
               onChange={(v) => update('revenue.free_threshold', v ?? 300)}
               style={{ width: 200 }}
@@ -86,9 +87,10 @@ const RevenueSettings: React.FC = () => {
             <Text type="secondary" style={{ marginLeft: 8 }}>当日流水达到此金额后免手续费</Text>
           </div>
           <div>
-            <Label>低流水预警（元）</Label>
+            <Label>低流水预警</Label>
             <InputNumber
               min={0} step={10}
+              suffix="元"
               value={config?.['revenue.low_warning'] ?? 300}
               onChange={(v) => update('revenue.low_warning', v ?? 300)}
               style={{ width: 200 }}
@@ -96,9 +98,10 @@ const RevenueSettings: React.FC = () => {
             <Text type="secondary" style={{ marginLeft: 8 }}>低于此金额触发低流水警告</Text>
           </div>
           <div>
-            <Label>报账差额预警阈值（元）</Label>
+            <Label>报账差额预警阈值</Label>
             <InputNumber
               min={0} step={1}
+              suffix="元"
               value={config?.['billing.report_diff_warning_yuan'] ?? 10}
               onChange={(v) => update('billing.report_diff_warning_yuan', v ?? 10)}
               style={{ width: 200 }}
@@ -106,9 +109,10 @@ const RevenueSettings: React.FC = () => {
             <Text type="secondary" style={{ marginLeft: 8 }}>系统应报与实际报账差额超过此金额即标红并推送管理端</Text>
           </div>
           <div>
-            <Label>娱乐模式时薪（元/小时）</Label>
+            <Label>娱乐模式时薪</Label>
             <InputNumber
               min={0} step={10}
+              suffix="元/小时"
               value={config?.['entertainment.hourly_rate'] ?? 60}
               onChange={(v) => update('entertainment.hourly_rate', v ?? 60)}
               style={{ width: 200 }}
@@ -145,9 +149,10 @@ const RevenueSettings: React.FC = () => {
       >
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
-            <Label>预支比例（%）</Label>
+            <Label>预支比例</Label>
             <InputNumber
               min={0} max={100} step={5}
+              suffix="%"
               value={config?.['withdraw.advance_ratio'] ?? 50}
               onChange={(v) => update('withdraw.advance_ratio', v ?? 50)}
               style={{ width: 200 }}
@@ -155,9 +160,10 @@ const RevenueSettings: React.FC = () => {
             <Text type="secondary" style={{ marginLeft: 8 }}>可预支收入的比例上限</Text>
           </div>
           <div>
-            <Label>默认押金（元）</Label>
+            <Label>默认押金</Label>
             <InputNumber
               min={0} step={50}
+              suffix="元"
               value={config?.['withdraw.default_deposit'] ?? 500}
               onChange={(v) => update('withdraw.default_deposit', v ?? 500)}
               style={{ width: 200 }}

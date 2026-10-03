@@ -154,14 +154,14 @@ const StudioSettings: React.FC = () => {
       }>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
-            <Label>押金门槛（元）</Label>
-            <InputNumber min={0} step={50} value={config?.['entertainment.deposit_threshold'] ?? 500}
+            <Label>押金门槛</Label>
+            <InputNumber min={0} step={50} suffix="元" value={config?.['entertainment.deposit_threshold'] ?? 500}
               onChange={(v) => update('entertainment.deposit_threshold', v ?? 500)} style={{ width: 200 }} />
             <Text type="secondary" style={{ marginLeft: 8 }}>押金低于此金额无法切换娱乐模式</Text>
           </div>
           <div>
-            <Label>日流水门槛（元）</Label>
-            <InputNumber min={0} step={50} value={config?.['entertainment.revenue_threshold'] ?? 200}
+            <Label>日流水门槛</Label>
+            <InputNumber min={0} step={50} suffix="元" value={config?.['entertainment.revenue_threshold'] ?? 200}
               onChange={(v) => update('entertainment.revenue_threshold', v ?? 200)} style={{ width: 200 }} />
             <Text type="secondary" style={{ marginLeft: 8 }}>当天流水低于此金额无法切换娱乐模式</Text>
           </div>

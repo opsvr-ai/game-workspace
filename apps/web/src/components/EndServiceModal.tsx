@@ -54,7 +54,7 @@ const EndServiceModal: React.FC<Props> = ({ open, sessionId, orderId, onClose, o
       okText="确认结束"
       cancelText="取消"
     >
-      <Text>请填写客户本次实际转账合计（微信 + 支付宝，元）</Text>
+      <Text>请填写客户本次实际转账合计（微信 + 支付宝）</Text>
       <div style={{ marginTop: 8 }}>
         <InputNumber
           min={0}

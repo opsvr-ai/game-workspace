@@ -53,10 +53,10 @@ const NoteBenchmarkSettings: React.FC = () => {
             min={0}
             step={0.1}
             style={{ width: 90 }}
+            suffix="%"
             value={benchmarks[section]?.[k] ?? undefined}
             onChange={(v) => setNested(section, k, v)}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>%</Text>
         </div>
       ))}
     </div>

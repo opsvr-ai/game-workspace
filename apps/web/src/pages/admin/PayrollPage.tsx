@@ -188,16 +188,14 @@ const PayrollPage: React.FC = () => {
     unit: string,
     opts?: { step?: number; min?: number },
   ) => (
-    <Space size={4}>
-      <InputNumber
-        min={opts?.min ?? 0}
-        step={opts?.step ?? 1}
-        value={value}
-        onChange={(v) => onChange(Number(v ?? 0))}
-        style={{ width: 110 }}
-      />
-      <Text type="secondary">{unit}</Text>
-    </Space>
+    <InputNumber
+      min={opts?.min ?? 0}
+      step={opts?.step ?? 1}
+      value={value}
+      onChange={(v) => onChange(Number(v ?? 0))}
+      suffix={<Text type="secondary" style={{ fontSize: 12 }}>{unit}</Text>}
+      style={{ width: 130 }}
+    />
   );
 
   const lockedValue = (value: number, unit: string) => (

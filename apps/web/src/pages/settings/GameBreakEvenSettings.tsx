@@ -79,11 +79,10 @@ const GameBreakEvenSettings: React.FC = () => {
                 min={0}
                 step={0.1}
                 style={{ width: 140 }}
-                placeholder="小时"
+                suffix="小时"
                 value={it.hours}
                 onChange={(v) => update(i, { hours: v ?? 0 })}
               />
-              <Text type="secondary">小时</Text>
               <Button danger icon={React.createElement(DeleteOutlined)} onClick={() => remove(i)} />
             </Space>
           </Col>

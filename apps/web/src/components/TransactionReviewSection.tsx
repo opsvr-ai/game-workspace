@@ -266,7 +266,7 @@ const TransactionReviewSection: React.FC = () => {
         <Text>原报账金额：</Text>
         <Text strong>¥{adjustTarget?.amount?.toFixed(1) ?? '0.00'}</Text>
         <div style={{ marginTop: 12 }}>
-          <Text>调整为（元）：</Text>
+          <Text>调整为：</Text>
           <InputNumber
             style={{ width: '100%', marginTop: 8 }}
             min={0}
