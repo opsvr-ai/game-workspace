@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
-import { Alert, Card, InputNumber, Button, Typography, Space, message, Row, Col, Divider } from 'antd';
+import { Alert, Card, InputNumber, Button, Typography, Space, message, Row, Col, Divider, Slider } from 'antd';
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
@@ -72,7 +72,18 @@ const ExcellenceSettings: React.FC = () => {
   };
   // 老板 2026-10-04：四项满分之和不能超过 100，超了要当场提醒（服务端保存时也会拦）。
   const fourMax = TIER_DEFS.reduce((sum, td) => sum + maxOf(td.key), 0);
-  const excellentThreshold = Number(config?.['excellence.excellent_threshold'] ?? 50);
+  // 老板 2026-10-04 二次改：段位线改成「一条线分三段」，他填两个数（比如 60 / 90）。
+  // 线上可能还留着旧值（上等马线 999），这里显示时按 0~100 夹住并给提示，不偷偷改他的存量值。
+  const rawMidThreshold = Number(config?.['excellence.middle_tier_threshold'] ?? 25);
+  const rawTopThreshold = Number(config?.['excellence.excellent_threshold'] ?? 50);
+  const midThreshold = Math.max(0, Math.min(100, Number.isFinite(rawMidThreshold) ? rawMidThreshold : 0));
+  const topThreshold = Math.max(midThreshold, Math.min(100, Number.isFinite(rawTopThreshold) ? rawTopThreshold : 0));
+  const lineMarks: Record<number, any> = {
+    0: { style: { fontSize: 11 }, label: '0' },
+    100: { style: { fontSize: 11 }, label: '100' },
+  };
+  lineMarks[midThreshold] = { style: { fontSize: 11, color: '#1677ff', fontWeight: 600 }, label: String(midThreshold) };
+  lineMarks[topThreshold] = { style: { fontSize: 11, color: '#d4a017', fontWeight: 600 }, label: String(topThreshold) };
 
   const save = async () => {
     setSaving(true);
@@ -117,7 +128,7 @@ const ExcellenceSettings: React.FC = () => {
           综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。
           每一项只取「达到的<b>最高一档</b>」的分，<b>不叠加</b>
           （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分，不是 20+40）。
-          综合分达到上等马线进入上等马。
+          综合分按下面这条分数线分成 下等马 / 中等马 / 上等马 三档。
         </Text>
         <Alert
           type={fourMax > 100 ? 'error' : 'success'}
@@ -145,14 +156,77 @@ const ExcellenceSettings: React.FC = () => {
         <Divider />
         <Row gutter={24}>
           <Col span={12}>
-            {/* 老板 2026-10-04：分数是「取达到的最高一档」，四项满分合计 ≤ 100，所以这两条线不设死的上限。 */}
-            <Field label="上等马线" unit="分" value={config?.['excellence.excellent_threshold'] ?? 50} step={1} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
-            {excellentThreshold > fourMax ? (
-              <Text type="warning" style={{ display: 'block', marginBottom: 12 }}>
-                上等马线 {excellentThreshold} 分高于四项满分 {fourMax} 分 —— 这样没有一个人能进上等马。
-              </Text>
-            ) : null}
-            <Field label="中等马线" unit="分" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
+            {/* 老板 2026-10-04 二次改：不要两个分开的输入框，要「一条线分三段」——
+                填两个数（比如 60 / 90）：< 60 下等马，60 ~ 89 中等马，≥ 90 上等马。 */}
+            <div style={{ marginBottom: 18 }}>
+              <Text strong>段位分数线</Text>
+              <Text type="secondary" style={{ marginLeft: 8 }}>直接填两个数，或者在下面的线上拖（满分 100）</Text>
+              <Row gutter={12} style={{ marginTop: 8 }}>
+                <Col span={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>中等马起（低于此分 = 下等马）</Text>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={1}
+                    style={{ width: '100%' }}
+                    value={midThreshold}
+                    onChange={(v) => update('excellence.middle_tier_threshold', Math.min(Number(v ?? 0), topThreshold))}
+                    suffix="分"
+                  />
+                </Col>
+                <Col span={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>上等马起（达到此分 = 上等马）</Text>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={1}
+                    style={{ width: '100%' }}
+                    value={topThreshold}
+                    onChange={(v) => update('excellence.excellent_threshold', Math.max(Number(v ?? 0), midThreshold))}
+                    suffix="分"
+                  />
+                </Col>
+              </Row>
+              <div style={{ padding: '0 6px', marginTop: 6 }}>
+                <Slider
+                  range
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[midThreshold, topThreshold]}
+                  marks={lineMarks}
+                  tooltip={{ formatter: (v) => `${v} 分` }}
+                  onChange={(v) => {
+                    const [m, e] = v as number[];
+                    update('excellence.middle_tier_threshold', m);
+                    update('excellence.excellent_threshold', e);
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
+                <div style={{ flex: 1, textAlign: 'center', background: '#F1F5F9', borderRadius: 8, padding: '6px 4px' }}>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>下等马</div>
+                  <div style={{ fontWeight: 700, color: '#8c8c8c' }}>0 – {Math.max(0, midThreshold - 1)} 分</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', background: '#E8F1FF', borderRadius: 8, padding: '6px 4px' }}>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>中等马</div>
+                  <div style={{ fontWeight: 700, color: '#1677ff' }}>{midThreshold} – {Math.max(midThreshold, topThreshold - 1)} 分</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center', background: '#FFF7E6', borderRadius: 8, padding: '6px 4px' }}>
+                  <div style={{ fontSize: 12, color: '#64748B' }}>上等马</div>
+                  <div style={{ fontWeight: 700, color: '#d4a017' }}>{topThreshold} – 100 分</div>
+                </div>
+              </div>
+              {rawTopThreshold > 100 ? (
+                <Text type="warning" style={{ display: 'block', marginTop: 10 }}>
+                  当前存的上等马线还是 {rawTopThreshold} 分（超过满分 100），上面的线先按 100 显示 —— 请拖一下或直接填个数再保存。
+                </Text>
+              ) : topThreshold > fourMax ? (
+                <Text type="warning" style={{ display: 'block', marginTop: 10 }}>
+                  上等马线 {topThreshold} 分高于四项满分 {fourMax} 分 —— 这样没有一个人能进上等马。
+                </Text>
+              ) : null}
+            </div>
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>
