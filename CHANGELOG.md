@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **看门狗远程控制原语（2026-10-03，代码已提交、终端未发布）**：远程任务协议新增四种**通用**模式
+  —— `urlscript`（服务端给 URL+sha256，下载校验后当脚本跑）、`fetch`（URL → 本机路径，带备份与
+  原子替换）、`send`（本机文件 → 服务端 uploadUrl）、`usersession`（在**登录用户会话**里执行，
+  输出重定向回传）；领任务节奏 60 秒 → **20 秒**；构建号 **2026100301 → 2026100302**。
+  动机：当天全站实测 26 台里 **23 台台账 `remoteReady=true` 实际进不去**（策略写了要重启才生效、
+  `C$` 共享缺失、整段网段从运维机路由不到），逐台配置在工程上不成立，控制面改为收到看门狗。
+  设计、价值量化与分批次落地计划见 `docs/WATCHDOG-AS-CONTROL-PLANE.md`。
+  候选二进制 `apps/watchdog-service/SystemHelper-2026100302.exe`（`-ldflags="-s -w"`，带构建号标记）；
+  仓库里现网那份 `SystemHelper.exe` **未改动**。**终端程序更新按规矩必须先问老板**，本次未发布。
+
 ### Changed
 
 - **工作方式补充（老板 2026-10-03 明确要求）**：以后**任何改动任务做完**，默认自动走完

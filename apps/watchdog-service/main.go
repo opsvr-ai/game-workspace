@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -35,9 +36,9 @@ const serviceBuild = "2026-10-03.1"
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026100301"
+const serviceBuildNumber = "2026100302"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100301" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100302" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -2080,10 +2081,16 @@ const (
 	machineTasksURL  = "http://1.117.229.36:3001/api/agent/machine-tasks"
 	machineResultURL = "http://1.117.229.36:3001/api/agent/machine-task-result"
 	// 领任务的节奏：比客户端（60 秒）不慢，但开机先让自更新 / 拉起客户端忙完。
-	remoteTickEvery = 60 * time.Second
+	// 2026-10-03：从 60 秒提到 20 秒 —— 实测「逐台开通远程管理」这条路走不通
+	// （策略写了要重启才生效、C$ 可能没有、还有整段网段路由不到），
+	// 看门狗任务通道成了唯一在全部机器上都通的控制面，60 秒一轮对操作来说太钝了。
+	// 26 台 × 3 次/分钟 ≈ 78 次 GET/分钟，对 Nest+PG 可以忽略。
+	remoteTickEvery = 20 * time.Second
 	remoteFirstTick = 90 * time.Second
 	// 一条任务最多让脚本跑多久（服务端下发的 timeoutSec 也在这个上限内）。
 	remoteTaskMaxSec = 600
+	// 传文件任务的单文件上限（日志/截图够用，避免一条任务把磁盘撑爆）。
+	remoteFileMaxBytes = 64 << 20
 )
 
 var (
@@ -2094,11 +2101,31 @@ var (
 )
 
 // remoteTask 是服务端下发的任务（字段名跟 apps/server 的 buildTaskPayload 一一对应）。
+//
+// 2026-10-03 扩了四种**通用原语**（不是给某个功能写死逻辑）：
+//
+//	urlscript —— 服务端给 URL + sha256，看门狗下载校验后当脚本跑（绕开 4000 字符上限、
+//	             也不用再往公网 /uploads 丢脚本）
+//	fetch     —— URL → 本机指定路径（给机器送文件：修复脚本、配置、看门狗本体都行）
+//	send      —— 本机指定路径 → 服务端 uploadUrl（从机器取文件：日志、报告、截图，
+//	             不用再依赖 C$ 管理共享）
+//	usersession —— 在**登录用户会话**里执行（有些事 SYSTEM 会话干不了：截屏、UI 操作、
+//	             拉起用户态程序），输出重定向到文件后回传
+//
+// 有了这四个，远程控制脚本（probe / fix-watchdog / 就绪性自检 / 传文件）就不需要
+// 目标机开 C$、开 RPC、开 WinRM、装第三方远控 —— 也就是不再需要「每台单独配置」。
 type remoteTask struct {
 	ID         string   `json:"id"`
 	Type       string   `json:"type"`
 	Mode       string   `json:"mode"`
 	Script     string   `json:"script"`
+	ScriptURL  string   `json:"scriptUrl"`
+	SHA256     string   `json:"sha256"`
+	URL        string   `json:"url"`
+	LocalPath  string   `json:"localPath"`
+	UploadURL  string   `json:"uploadUrl"`
+	FileName   string   `json:"fileName"`
+	Backup     bool     `json:"backup"`
 	Args       []string `json:"args"`
 	Command    string   `json:"command"`
 	TimeoutSec int      `json:"timeoutSec"`
@@ -2319,53 +2346,15 @@ func trimBOM(s string) string {
 }
 
 // runRemoteTask：跑一条任务，把输出回传服务端。跟客户端 machine-agent 的行为一致。
+// runRemoteTask：跑一条任务，把输出回传服务端。跟客户端 machine-agent 的行为一致。
 func runRemoteTask(machineID string, t remoteTask) {
 	started := time.Now()
 	timeout := time.Duration(t.TimeoutSec) * time.Second
 	if timeout <= 0 || timeout > remoteTaskMaxSec*time.Second {
 		timeout = 240 * time.Second
 	}
-	lines := ""
-	code := 0
-	var err error
 
-	if t.Mode == "command" {
-		lines, code, err = runHiddenTimeout(timeout, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", t.Command)
-	} else {
-		dir := filepath.Join(updateSignalDir, "tasks")
-		if mkErr := os.MkdirAll(dir, 0755); mkErr != nil {
-			safeWarn("远程任务目录建不起来: " + mkErr.Error())
-			return
-		}
-		tag := t.ID
-		if len(tag) > 8 {
-			tag = tag[:8]
-		}
-		scriptFile := filepath.Join(dir, "task-"+tag+".ps1")
-		outFile := filepath.Join(dir, "task-"+tag+".log")
-		_ = os.Remove(outFile)
-		// PS 5.1 不认没 BOM 的 UTF-8，中文会变乱码 —— 服务端那段脚本里全是中文。
-		// 服务端现在自己也会带 BOM，所以先 trim 掉再补，免得出现两个 BOM。
-		payload := append([]byte{0xEF, 0xBB, 0xBF}, []byte(trimBOM(t.Script))...)
-		if wErr := os.WriteFile(scriptFile, payload, 0644); wErr != nil {
-			safeWarn("远程任务脚本写不下去: " + wErr.Error())
-			return
-		}
-		args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile}
-		for _, a := range t.Args {
-			a = strings.ReplaceAll(a, "__OUT__", outFile)
-			a = strings.ReplaceAll(a, "__SERVER__", serverBaseURL())
-			args = append(args, a)
-		}
-		stdout, runCode, runErr := runHiddenTimeout(timeout, args...)
-		code, err = runCode, runErr
-		if data, rErr := os.ReadFile(outFile); rErr == nil {
-			lines = trimBOM(string(data))
-		}
-		if strings.TrimSpace(lines) == "" {
-			lines = "[看门狗] 脚本没有生成报告文件，退回命令输出：\n" + stdout
-		}
-	}
+	lines, code, err := executeRemoteTask(t, timeout)
 
 	status := "ok"
 	errText := ""
@@ -2392,7 +2381,380 @@ func runRemoteTask(machineID string, t remoteTask) {
 	}); perr != nil {
 		safeWarn("远程任务回执失败: " + perr.Error())
 	}
-	safeInfo(fmt.Sprintf("远程任务执行完 %s [%s] exit=%d", t.Type, status, code))
+	safeInfo(fmt.Sprintf("远程任务执行完 %s/%s [%s] exit=%d", t.Type, t.Mode, status, code))
+}
+
+// executeRemoteTask 按 mode 分发。四种新原语见 remoteTask 的注释。
+func executeRemoteTask(t remoteTask, timeout time.Duration) (string, int, error) {
+	switch strings.ToLower(strings.TrimSpace(t.Mode)) {
+	case "command":
+		return runHiddenTimeout(timeout, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", t.Command)
+	case "urlscript":
+		return runScriptMode(t, timeout, t.ScriptURL)
+	case "fetch":
+		return runFetchMode(t)
+	case "send":
+		return runSendMode(t)
+	case "usersession":
+		return runUserSessionMode(t, timeout)
+	default:
+		return runScriptMode(t, timeout, "")
+	}
+}
+
+// taskFilePaths：一条任务用到的脚本/输出路径（按任务 id 前 8 位区分）。
+func taskFilePaths(id string) (dir, scriptFile, outFile string, err error) {
+	dir = filepath.Join(updateSignalDir, "tasks")
+	if mkErr := os.MkdirAll(dir, 0755); mkErr != nil {
+		return "", "", "", mkErr
+	}
+	tag := id
+	if len(tag) > 8 {
+		tag = tag[:8]
+	}
+	if tag == "" {
+		tag = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return dir, filepath.Join(dir, "task-"+tag+".ps1"), filepath.Join(dir, "task-"+tag+".log"), nil
+}
+
+// runScriptMode：跑 PowerShell 脚本。scriptURL 非空 = 先下载校验再跑（urlscript），
+// 否则跑服务端内联过来的 t.Script（老行为，保持不变）。
+func runScriptMode(t remoteTask, timeout time.Duration, scriptURL string) (string, int, error) {
+	dir, scriptFile, outFile, err := taskFilePaths(t.ID)
+	if err != nil {
+		return "", 1, fmt.Errorf("远程任务目录建不起来: %w", err)
+	}
+	_ = dir
+	_ = os.Remove(outFile)
+
+	if scriptURL != "" {
+		if _, err := downloadAnyFile(scriptURL, scriptFile); err != nil {
+			return "", 1, fmt.Errorf("脚本下载失败: %w", err)
+		}
+		if err := verifySHA256File(scriptFile, t.SHA256); err != nil {
+			_ = os.Remove(scriptFile)
+			return "", 1, err
+		}
+		if err := ensureUTF8BOM(scriptFile); err != nil {
+			return "", 1, fmt.Errorf("脚本补 BOM 失败: %w", err)
+		}
+	} else {
+		// PS 5.1 不认没 BOM 的 UTF-8，中文会变乱码 —— 服务端那段脚本里全是中文。
+		// 服务端现在自己也会带 BOM，所以先 trim 掉再补，免得出现两个 BOM。
+		payload := append([]byte{0xEF, 0xBB, 0xBF}, []byte(trimBOM(t.Script))...)
+		if wErr := os.WriteFile(scriptFile, payload, 0644); wErr != nil {
+			return "", 1, fmt.Errorf("远程任务脚本写不下去: %w", wErr)
+		}
+	}
+
+	args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptFile}
+	for _, a := range t.Args {
+		a = strings.ReplaceAll(a, "__OUT__", outFile)
+		a = strings.ReplaceAll(a, "__SERVER__", serverBaseURL())
+		args = append(args, a)
+	}
+	stdout, code, runErr := runHiddenTimeout(timeout, args...)
+	lines := ""
+	if data, rErr := os.ReadFile(outFile); rErr == nil {
+		lines = trimBOM(string(data))
+	}
+	if strings.TrimSpace(lines) == "" {
+		lines = "[看门狗] 脚本没有生成报告文件，退回命令输出：\n" + stdout
+	}
+	if runErr != nil {
+		return lines, code, runErr
+	}
+	return lines, code, nil
+}
+
+// runFetchMode：URL → 本机指定路径。给机器送文件用（修复脚本、配置、甚至看门狗本体）。
+//
+// 顺序很重要：先下到 .part → 校验 sha256 → 备份原文件 → 原子替换。
+// 2026-10-03 第一版是先写目标路径再校验，sha 不匹配时会在目标机上留一个坏文件
+// （单测 TestFetchModeWritesFileAndRejectsBadSHA 就是钉这条）。
+func runFetchMode(t remoteTask) (string, int, error) {
+	if strings.TrimSpace(t.URL) == "" || strings.TrimSpace(t.LocalPath) == "" {
+		return "", 1, fmt.Errorf("fetch 任务缺少 url 或 localPath")
+	}
+	dest := expandTaskPath(t.LocalPath)
+	tmp := dest + ".dl"
+	_ = os.Remove(tmp)
+	if _, err := downloadAnyFile(t.URL, tmp); err != nil {
+		return "", 1, fmt.Errorf("下载失败: %w", err)
+	}
+	if err := verifySHA256File(tmp, t.SHA256); err != nil {
+		_ = os.Remove(tmp)
+		return "", 1, err
+	}
+	sha, _ := sha256HexOf(tmp)
+	backup := ""
+	if t.Backup && fileSize(dest) > 0 {
+		backup = dest + ".bak-" + time.Now().Format("20060102-150405")
+		if err := copyFile(dest, backup); err != nil {
+			_ = os.Remove(tmp)
+			return "", 1, fmt.Errorf("备份原文件失败: %w", err)
+		}
+	}
+	if err := os.Rename(tmp, dest); err != nil {
+		_ = os.Remove(tmp)
+		return "", 1, fmt.Errorf("替换 %s 失败: %w", dest, err)
+	}
+	return fmt.Sprintf("OK 已写入 %s\nsize=%d\nsha256=%s\nbackup=%s", dest, fileSize(dest), sha, backup), 0, nil
+}
+
+// runSendMode：本机指定路径 → 服务端 uploadUrl。从机器取文件用（日志、报告、截图），
+// 这样就不用再依赖 C$ 管理共享了。
+func runSendMode(t remoteTask) (string, int, error) {
+	if strings.TrimSpace(t.UploadURL) == "" {
+		return "", 1, fmt.Errorf("send 任务缺少 uploadUrl")
+	}
+	src := expandTaskPath(t.LocalPath)
+	if src == "" {
+		return "", 1, fmt.Errorf("send 任务缺少 localPath")
+	}
+	if fileSize(src) <= 0 {
+		return "", 1, fmt.Errorf("要上传的文件不存在或为空: %s", src)
+	}
+	if fileSize(src) > remoteFileMaxBytes {
+		return "", 1, fmt.Errorf("文件 %d 字节超过上限 %d", fileSize(src), remoteFileMaxBytes)
+	}
+	sha, _ := sha256HexOf(src)
+	name := t.FileName
+	if name == "" {
+		name = filepath.Base(src)
+	}
+	resp, err := uploadFileTo(t.UploadURL, src, name)
+	if err != nil {
+		return "", 1, fmt.Errorf("上传失败: %w", err)
+	}
+	return fmt.Sprintf("OK 已上传 %s (%d 字节)\nsha256=%s\n服务端回执: %s", src, fileSize(src), sha, resp), 0, nil
+}
+
+// runUserSessionMode：在**登录用户会话**里执行命令（截屏、UI 操作、用户态程序）。
+// 输出靠重定向到文件再读回：跨会话拿不到子进程的管道。
+func runUserSessionMode(t remoteTask, timeout time.Duration) (string, int, error) {
+	if strings.TrimSpace(t.Command) == "" {
+		return "", 1, fmt.Errorf("usersession 任务缺少 command")
+	}
+	dir, _, _, err := taskFilePaths(t.ID)
+	if err != nil {
+		return "", 1, fmt.Errorf("远程任务目录建不起来: %w", err)
+	}
+	tag := t.ID
+	if len(tag) > 8 {
+		tag = tag[:8]
+	}
+	if tag == "" {
+		tag = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	outFile := filepath.Join(dir, "user-"+tag+".log")
+	_ = os.Remove(outFile)
+
+	cmdLine := buildUserSessionCommand(t.Command, outFile)
+	pid, err := launchCommandInUserSession(cmdLine)
+	if err != nil {
+		return "", 1, fmt.Errorf("用户会话里起进程失败: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+	var lastSize int64
+	stable := 0
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+		sz := fileSize(outFile)
+		if sz > 0 && sz == lastSize {
+			stable++
+			if stable >= 2 {
+				break
+			}
+		} else {
+			stable = 0
+		}
+		lastSize = sz
+	}
+	data, rErr := os.ReadFile(outFile)
+	if rErr != nil {
+		return fmt.Sprintf("已在用户会话执行 pid=%d，但没有拿到输出文件（命令可能还在跑）：%s", pid, cmdLine), 0, nil
+	}
+	return fmt.Sprintf("pid=%d\n%s", pid, trimBOM(string(data))), 0, nil
+}
+
+// buildUserSessionCommand：把命令包成「执行 + 输出落盘」的一行，便于跨会话取回结果。
+func buildUserSessionCommand(command, outFile string) string {
+	return fmt.Sprintf(`cmd.exe /c "%s > "%s" 2>&1"`, command, outFile)
+}
+
+// launchCommandInUserSession：跟 launchInUserSession 同一套（WTS 拿用户令牌 + CreateProcessAsUser），
+// 但接受**任意命令行**，并且隐藏窗口。用于 usersession 任务。
+func launchCommandInUserSession(cmdLine string) (uint32, error) {
+	sessionID, _, _ := procWTSGetActiveConsoleSessionId.Call()
+	if sessionID == 0xFFFFFFFF {
+		return 0, fmt.Errorf("当前没有活动的控制台会话（没人登录）")
+	}
+	var token windows.Token
+	if r1, _, _ := procWTSQueryUserToken.Call(sessionID, uintptr(unsafe.Pointer(&token))); r1 == 0 {
+		return 0, fmt.Errorf("WTSQueryUserToken 失败")
+	}
+	defer token.Close()
+
+	advapi32 := windows.NewLazySystemDLL("advapi32.dll")
+	procImpersonateLoggedOnUser := advapi32.NewProc("ImpersonateLoggedOnUser")
+	procRevertToSelf := advapi32.NewProc("RevertToSelf")
+	procImpersonateLoggedOnUser.Call(uintptr(token))
+	var envBlock *uint16
+	windows.CreateEnvironmentBlock(&envBlock, token, false)
+	procRevertToSelf.Call()
+	defer func() {
+		if envBlock != nil {
+			windows.DestroyEnvironmentBlock(envBlock)
+		}
+	}()
+
+	cmdPtr, _ := syscall.UTF16PtrFromString(cmdLine)
+	dirPtr, _ := syscall.UTF16PtrFromString(`C:\Windows\System32`)
+	var si windows.StartupInfo
+	si.Cb = uint32(unsafe.Sizeof(si))
+	si.Desktop = windows.StringToUTF16Ptr(`winsta0\default`)
+	si.ShowWindow = 0
+	var pi windows.ProcessInformation
+	const createNoWindow = 0x08000000
+	flags := uint32(windows.NORMAL_PRIORITY_CLASS | windows.CREATE_UNICODE_ENVIRONMENT | createNoWindow)
+	if err := windows.CreateProcessAsUser(token, nil, cmdPtr, nil, nil, false, flags, envBlock, dirPtr, &si, &pi); err != nil {
+		return 0, err
+	}
+	windows.CloseHandle(windows.Handle(pi.Process))
+	windows.CloseHandle(windows.Handle(pi.Thread))
+	return uint32(pi.ProcessId), nil
+}
+
+// expandTaskPath：任务里的路径统一用系统变量占位，避免服务端写死 C:\ProgramData 之类。
+// 同时支持 Windows 习惯的 %TEMP% 和 os.ExpandEnv 的 $VAR —— 2026-10-03 单测发现
+// 只用 os.ExpandEnv 的话 %TEMP% 原样保留（os.ExpandEnv 不认百分号语法）。
+func expandTaskPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	p = taskPathEnvRe.ReplaceAllStringFunc(p, func(m string) string {
+		name := m[1 : len(m)-1]
+		if v := os.Getenv(name); v != "" {
+			return v
+		}
+		return m
+	})
+	return os.ExpandEnv(p)
+}
+
+var taskPathEnvRe = regexp.MustCompile(`%([A-Za-z_][A-Za-z0-9_()]*)%`)
+
+// ensureUTF8BOM：PS 5.1 读没 BOM 的 UTF-8 会按 GBK 解，中文脚本会直接解析失败。
+func ensureUTF8BOM(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
+		return nil
+	}
+	return os.WriteFile(path, append([]byte{0xEF, 0xBB, 0xBF}, data...), 0644)
+}
+
+// downloadAnyFile：下载任意文件（不要求 PE 头 —— downloadFileTo 那条路只给 exe 用）。
+func downloadAnyFile(url, dest string) (int64, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("下载状态码 %d", resp.StatusCode)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return 0, err
+	}
+	tmp := dest + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return 0, err
+	}
+	n, cerr := io.Copy(f, io.LimitReader(resp.Body, remoteFileMaxBytes+1))
+	serr := f.Sync()
+	f.Close()
+	if cerr != nil {
+		_ = os.Remove(tmp)
+		return 0, cerr
+	}
+	if serr != nil {
+		_ = os.Remove(tmp)
+		return 0, serr
+	}
+	if resp.ContentLength > 0 && n != resp.ContentLength {
+		_ = os.Remove(tmp)
+		return 0, fmt.Errorf("下载不完整: 收到 %d / 应为 %d 字节", n, resp.ContentLength)
+	}
+	if n > remoteFileMaxBytes {
+		_ = os.Remove(tmp)
+		return 0, fmt.Errorf("文件超过上限 %d 字节", remoteFileMaxBytes)
+	}
+	if n == 0 {
+		_ = os.Remove(tmp)
+		return 0, fmt.Errorf("下载到 0 字节")
+	}
+	return n, os.Rename(tmp, dest)
+}
+
+// verifySHA256File：服务端给了 sha256 就必须一对一对上（防止中间被换掉/下到半截）。
+func verifySHA256File(path, want string) error {
+	want = strings.ToLower(strings.TrimSpace(want))
+	if want == "" {
+		return nil
+	}
+	got, err := sha256HexOf(path)
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("sha256 不匹配: 期望 %s 实际 %s", want, got)
+	}
+	return nil
+}
+
+func sha256HexOf(path string) (string, error) {
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", sum), nil
+}
+
+// uploadFileTo：把本机文件 POST 给服务端（原始字节流 + 共享令牌），返回服务端回执正文。
+func uploadFileTo(uploadURL, localPath, fileName string) (string, error) {
+	f, err := os.Open(localPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	req, err := http.NewRequest("POST", uploadURL, f)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("x-onboard-token", onboardToken)
+	req.Header.Set("x-chunlv-filename", fileName)
+	if st, serr := f.Stat(); serr == nil {
+		req.ContentLength = st.Size()
+	}
+	resp, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return "", fmt.Errorf("服务端返回 %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return strings.TrimSpace(string(body)), nil
 }
 
 // remoteTaskTick：5 秒一轮的主循环叫它，内部限流到 60 秒一次，且同一时刻只跑一轮。

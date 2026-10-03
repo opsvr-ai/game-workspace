@@ -2,6 +2,13 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -599,5 +606,196 @@ func TestParseBuildNumberMissingMarker(t *testing.T) {
 	// 只有「标记常量」那半截、后面没数字时也要返回空串，不能瞎猜。
 	if got := parseBuildNumber([]byte("CHUNLV_WATCHDOG_BUILD=;")); got != "" {
 		t.Fatalf("标记后没有数字时应返回空串，实际 %q", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 2026-10-03：远程任务的四个**通用原语**（urlscript / fetch / send / usersession）。
+//
+// 为什么加这些：全站审计发现「逐台开通远程管理」这条路根本走不通 ——
+//   · 13 台策略写了要重启才生效（网络登录令牌被降级，C$/RPC 全拒）
+//   · 1 台 C$ 共享干脆不存在
+//   · 8 台整段网段从运维机路由不到
+// 而看门狗任务通道在**所有会上报的机器上都通**。所以远程控制的价值要收到看门狗这边：
+// 传文件、取文件、跑脚本、进用户会话，都不再要求目标机开 C$/RPC/WinRM。
+// ---------------------------------------------------------------------------
+
+// 服务端字段名最容易在这里悄悄错位（两边是手写的 JSON），钉住。
+func TestRemoteTaskPayloadCarriesNewPrimitiveFields(t *testing.T) {
+	raw := `{"id":"t1","type":"ops","mode":"fetch","scriptUrl":"http://x/s.ps1","sha256":"AB",
+	         "url":"http://x/a.ps1","localPath":"%TEMP%\\a.ps1","uploadUrl":"http://x/up",
+	         "fileName":"n.log","backup":true,"args":["-X","1"],"command":"c","timeoutSec":120,"reason":"r"}`
+	var task remoteTask
+	if err := json.Unmarshal([]byte(raw), &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.Mode != "fetch" || task.URL != "http://x/a.ps1" || task.LocalPath == "" ||
+		task.UploadURL != "http://x/up" || task.FileName != "n.log" || !task.Backup ||
+		task.ScriptURL != "http://x/s.ps1" || task.SHA256 != "AB" {
+		t.Fatalf("新字段没解析全: %+v", task)
+	}
+	if task.TimeoutSec != 120 || len(task.Args) != 2 || task.Command != "c" {
+		t.Fatalf("老字段被改坏了: %+v", task)
+	}
+}
+
+// fetch：下载 → 校验 → 替换。sha 不匹配时必须**什么都不改**（不留坏文件、不动原文件）。
+func TestFetchModeWritesFileAndRejectsBadSHA(t *testing.T) {
+	dir := useTempSignalDir(t)
+	body := []byte("Write-Output 'hello 中文'\r\n")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+	sum := fmt.Sprintf("%x", sha256.Sum256(body))
+
+	dest := filepath.Join(dir, "fetched.ps1")
+	out, code, err := runFetchMode(remoteTask{ID: "t1", Mode: "fetch", URL: srv.URL, LocalPath: dest, SHA256: sum})
+	if err != nil || code != 0 {
+		t.Fatalf("fetch 应该成功: err=%v code=%d out=%s", err, code, out)
+	}
+	got, _ := os.ReadFile(dest)
+	if string(got) != string(body) {
+		t.Fatalf("写入内容不对: %q", got)
+	}
+	if !strings.Contains(out, sum) {
+		t.Fatalf("回执里应带 sha256: %s", out)
+	}
+
+	// 原文件已有内容 + sha 不匹配 -> 原文件必须原样保留，且不留 .dl/.part 残渣
+	orig := []byte("原有内容")
+	if err := os.WriteFile(dest, orig, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := runFetchMode(remoteTask{ID: "t2", Mode: "fetch", URL: srv.URL, LocalPath: dest, SHA256: strings.Repeat("0", 64)}); err == nil {
+		t.Fatal("sha256 不匹配必须报错")
+	}
+	after, _ := os.ReadFile(dest)
+	if string(after) != string(orig) {
+		t.Fatalf("校验失败却改动了目标文件: %q", after)
+	}
+	if leftovers, _ := filepath.Glob(dest + ".*"); len(leftovers) != 0 {
+		t.Fatalf("校验失败留下了残渣: %v", leftovers)
+	}
+	// 目标文件本来不存在时也一样：校验失败不能凭空造出一个文件
+	missing := filepath.Join(dir, "never.ps1")
+	if _, _, err := runFetchMode(remoteTask{ID: "t3", Mode: "fetch", URL: srv.URL, LocalPath: missing, SHA256: strings.Repeat("0", 64)}); err == nil {
+		t.Fatal("sha256 不匹配必须报错")
+	}
+	if _, statErr := os.Stat(missing); statErr == nil {
+		t.Fatal("校验失败还留了文件")
+	}
+}
+
+// send：把机器上的文件回传服务端（替代 C$ 取文件）。
+func TestSendModeUploadsBodyAndFileName(t *testing.T) {
+	dir := useTempSignalDir(t)
+	var got []byte
+	var name, token string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = io.ReadAll(r.Body)
+		name = r.Header.Get("x-chunlv-filename")
+		token = r.Header.Get("x-onboard-token")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	src := filepath.Join(dir, "日志.log")
+	if err := os.WriteFile(src, []byte("hello 日志"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out, code, err := runSendMode(remoteTask{ID: "t4", Mode: "send", LocalPath: src, UploadURL: srv.URL, FileName: "日志.log"})
+	if err != nil || code != 0 {
+		t.Fatalf("send 应该成功: err=%v code=%d out=%s", err, code, out)
+	}
+	if string(got) != "hello 日志" {
+		t.Fatalf("上传内容不对: %q", got)
+	}
+	if name != "日志.log" {
+		t.Fatalf("文件名头不对: %q", name)
+	}
+	if token == "" {
+		t.Fatal("必须带共享令牌")
+	}
+	// 文件不存在 -> 明确失败，不能静默成功
+	if _, _, err := runSendMode(remoteTask{ID: "t5", Mode: "send", LocalPath: filepath.Join(dir, "无此文件"), UploadURL: srv.URL}); err == nil {
+		t.Fatal("文件不存在必须报错")
+	}
+	// 服务端拒绝（非 200）-> 也要报错
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte("boom"))
+	}))
+	defer bad.Close()
+	if _, _, err := runSendMode(remoteTask{ID: "t6", Mode: "send", LocalPath: src, UploadURL: bad.URL}); err == nil {
+		t.Fatal("服务端 500 时必须报错")
+	}
+}
+
+// downloadAnyFile 要能吃非 PE 文件（脚本/配置），而给 exe 用的 downloadFileTo 必须仍然只认 PE。
+func TestDownloadAnyFileAcceptsNonPEButExePathStillRequiresIt(t *testing.T) {
+	dir := useTempSignalDir(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("# 这是一个脚本，不是 PE"))
+	}))
+	defer srv.Close()
+
+	if _, err := downloadAnyFile(srv.URL, filepath.Join(dir, "s.ps1")); err != nil {
+		t.Fatalf("非 PE 文件应该能下: %v", err)
+	}
+	if err := downloadFileTo(srv.URL, filepath.Join(dir, "s.exe"), 1); err == nil {
+		t.Fatal("downloadFileTo 必须仍然要求 PE 头（自更新那条路不能被放宽）")
+	}
+}
+
+func TestEnsureUTF8BOMIsIdempotent(t *testing.T) {
+	dir := useTempSignalDir(t)
+	p := filepath.Join(dir, "a.ps1")
+	if err := os.WriteFile(p, []byte("中文内容"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureUTF8BOM(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureUTF8BOM(p); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(p)
+	if !bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
+		t.Fatal("缺 BOM：PS 5.1 会把中文按 GBK 解，脚本直接解析失败")
+	}
+	if bytes.Count(data, []byte{0xEF, 0xBB, 0xBF}) != 1 {
+		t.Fatalf("BOM 只能有一个: %v", data)
+	}
+}
+
+func TestUserSessionCommandRedirectsOutput(t *testing.T) {
+	cmd := buildUserSessionCommand(`powershell -NoProfile -Command "1..3"`, `C:\tmp\o.log`)
+	if !strings.Contains(cmd, "cmd.exe /c") || !strings.Contains(cmd, `C:\tmp\o.log`) || !strings.Contains(cmd, "2>&1") {
+		t.Fatalf("命令行没把输出重定向好（跨会话只能靠文件取回输出）: %s", cmd)
+	}
+}
+
+func TestExpandTaskPathExpandsEnv(t *testing.T) {
+	t.Setenv("CHUNLV_TEST_VAR", `C:\x`)
+	if got := expandTaskPath(`%CHUNLV_TEST_VAR%\y.ps1`); got != `C:\x\y.ps1` {
+		t.Fatalf("环境变量没展开: %s", got)
+	}
+	if got := expandTaskPath("   "); got != "" {
+		t.Fatalf("空路径应返回空串: %q", got)
+	}
+}
+
+// 领任务节奏：远程操作体验全靠它。60 秒一轮实测太钝（一次操作要等一分钟），钉住别退化。
+func TestRemoteTickCadenceSnappyEnoughForOps(t *testing.T) {
+	if remoteTickEvery > 30*time.Second {
+		t.Fatalf("领任务节奏 %s 太钝，远程操作会等太久", remoteTickEvery)
+	}
+	if remoteTaskMaxSec < 120 || remoteTaskMaxSec > 900 {
+		t.Fatalf("单任务上限 %d 秒不合理", remoteTaskMaxSec)
+	}
+	if remoteFileMaxBytes < 8<<20 || remoteFileMaxBytes > 256<<20 {
+		t.Fatalf("传文件上限 %d 不合理", remoteFileMaxBytes)
 	}
 }
