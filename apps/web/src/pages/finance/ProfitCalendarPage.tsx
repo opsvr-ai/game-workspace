@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, Card, Statistic, Row, Col, Spin, Typography, InputNumber, Input, Button, Space, Popconfirm, message } from 'antd';
+import { Calendar, Card, Statistic, Row, Col, Spin, Typography, InputNumber, Input, Button, Space, Popconfirm, Table, Tag, Tooltip, message } from 'antd';
 import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';
@@ -21,6 +21,7 @@ const ProfitCalendarPage: React.FC = () => {
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([]);
   const [bridgePrices, setBridgePrices] = useState({ secretPrice: 35, juejuNet: 30 });
   const [bridgeReturns, setBridgeReturns] = useState<any>({ records: [], total: 0 });
+  const [compare, setCompare] = useState<any>({ rows: [], totals: {} });
   const [returnAmount, setReturnAmount] = useState<number>(0);
   const [returnDate, setReturnDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [returnNote, setReturnNote] = useState('');
@@ -31,18 +32,21 @@ const ProfitCalendarPage: React.FC = () => {
   const load = async (m: Dayjs) => {
     setLoading(true);
     try {
-      const [profitRes, bridgeRes, bridgeReturnsRes] = await Promise.all([
+      const [profitRes, bridgeRes, bridgeReturnsRes, compareRes] = await Promise.all([
         financeApi.profitDaily(m.format('YYYY-MM')),
         financeApi.bridgeOnlineDaily(m.format('YYYY-MM')),
         financeApi.bridgeReturns.list(m.format('YYYY-MM')),
+        financeApi.companionCompare(m.format('YYYY-MM')),
       ]);
       setProfit(profitRes.data.data || { daily: [], totals: {} });
       setBridge(bridgeRes.data.data || { daily: [], totals: {} });
       setBridgeReturns(bridgeReturnsRes.data.data || { records: [], total: 0 });
+      setCompare(compareRes.data.data || { rows: [], totals: {} });
     } catch {
       setProfit({ daily: [], totals: {} });
       setBridge({ daily: [], totals: {} });
       setBridgeReturns({ records: [], total: 0 });
+      setCompare({ rows: [], totals: {} });
     } finally {
       setLoading(false);
     }
@@ -215,6 +219,122 @@ const ProfitCalendarPage: React.FC = () => {
           <Col span={12}><Statistic title="应付合计" value={monthPay} prefix="¥" precision={1} valueStyle={{ color: '#cf1322' }} /></Col>
           <Col span={12}><Statistic title="本月净利（不含支出）" value={monthNet} prefix="¥" precision={1} valueStyle={{ color: monthNet >= 0 ? '#3f8600' : '#cf1322' }} /></Col>
         </Row>
+      </Card>
+
+      <Card
+        size="small"
+        title="🎯 陪玩收益对比：派给他 vs 派桥接 / 线上"
+        style={{ marginBottom: 12 }}
+        extra={
+          <Text type="secondary">
+            差额 = 本店实得 − 对外更优的那个；负数（红）= 这单派出去更划算
+          </Text>
+        }
+      >
+        <Table
+          size="small"
+          rowKey="companionId"
+          dataSource={compare.rows || []}
+          pagination={false}
+          locale={{ emptyText: '本月还没有已完成的单' }}
+          columns={[
+            {
+              title: '陪玩',
+              dataIndex: 'name',
+              render: (v: any, r: any) => (
+                <span>
+                  {v}
+                  <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
+                    {r.orderCount}单 · {r.hours}人时
+                  </Text>
+                </span>
+              ),
+            },
+            {
+              title: '本月流水',
+              dataIndex: 'gross',
+              align: 'right',
+              render: (v: any) => '¥' + Number(v || 0).toFixed(1),
+            },
+            {
+              title: '本店实得',
+              dataIndex: 'ownNet',
+              align: 'right',
+              render: (v: any, r: any) => (
+                <span style={{ color: '#3f8600' }}>
+                  ¥{Number(v || 0).toFixed(1)}
+                  <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
+                    抽{r.studioPct}%
+                  </Text>
+                </span>
+              ),
+            },
+            {
+              title: '派桥接能挣',
+              dataIndex: 'bridgeNet',
+              align: 'right',
+              render: (v: any) => '¥' + Number(v || 0).toFixed(1),
+            },
+            {
+              title: '派线上能挣',
+              dataIndex: 'onlineNet',
+              align: 'right',
+              render: (v: any) => '¥' + Number(v || 0).toFixed(1),
+            },
+            {
+              title: '差额',
+              dataIndex: 'diff',
+              align: 'right',
+              render: (v: any, r: any) => (
+                <Tooltip
+                  title={
+                    r.better === 'OWN'
+                      ? '本店更划算'
+                      : r.better === 'BRIDGE'
+                        ? '派桥接更划算'
+                        : '派线上更划算'
+                  }
+                >
+                  <Tag color={Number(v) >= 0 ? 'green' : 'red'}>
+                    {(Number(v) >= 0 ? '+' : '−') + Math.abs(Number(v || 0)).toFixed(1)}
+                  </Tag>
+                </Tooltip>
+              ),
+            },
+          ]}
+          summary={() => {
+            const t = compare.totals || {};
+            return (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0}>
+                  <Text strong>合计（{t.companionCount || 0} 人）</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <Text strong>¥{Number(t.gross || 0).toFixed(1)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} align="right">
+                  <Text strong style={{ color: '#3f8600' }}>¥{Number(t.ownNet || 0).toFixed(1)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={3} align="right">
+                  <Text strong>¥{Number(t.bridgeNet || 0).toFixed(1)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={4} align="right">
+                  <Text strong>¥{Number(t.onlineNet || 0).toFixed(1)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={5} align="right">
+                  <Text strong style={{ color: Number(t.diff || 0) >= 0 ? '#3f8600' : '#cf1322' }}>
+                    {(Number(t.diff || 0) >= 0 ? '+' : '−') + Math.abs(Number(t.diff || 0)).toFixed(1)}
+                  </Text>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            );
+          }}
+        />
+        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+          口径：只算本店线下陪玩接的、未取消的单。「本店实得」= 流水 × 本店分成比例（按陪玩当月档位 × 6
+          个月工龄门槛）；「派桥接」= 机密 35 / 绝密净 30 元/人/时 × 人时（首单不结）；「派线上」= 流水
+          ×（100 − 线上陪玩分成）。流水 =（主陪单价 + 搭档单价）× 时长。
+        </Text>
       </Card>
 
       <Card

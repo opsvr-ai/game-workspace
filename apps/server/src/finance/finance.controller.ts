@@ -182,6 +182,19 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  /** 店长端「陪玩收益对比」：派给这个陪玩 vs 派到桥接/线上做首单不结，哪个挣得多。 */
+  @Get('companion-compare')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async companionCompare(
+    @Req() req: any,
+    @Query('month') month: string,
+    @Query('studioId') studioId?: string,
+  ) {
+    const m = month || new Date().toISOString().slice(0, 7);
+    const data = await this.reconciliations.getCompanionValueCompare(studioIdFor(req, studioId), m);
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('bridge-returns')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async listBridgeReturns(@Req() req: any, @Query('month') month: string, @Query('studioId') studioId?: string) {

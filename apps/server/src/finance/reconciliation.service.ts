@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { businessDayRange } from '../common/business-day';
 import { yuanToCents, centsToYuan } from '../common/money';
 import { resolveCompanionPctTiered, effectiveTenureMonths } from '../common/revenue-calculator';
+import { orderGrossYuan, orderUnits } from '../common/order-outcome';
 import { resolveConfigsRaw, saveConfigsByRole } from '../common/studio-config';
 
 @Injectable()
@@ -424,5 +425,171 @@ export class ReconciliationService {
     totals.totalExpense = Number(monthlyTotalExpense.toFixed(1));
 
     return { month, daily, totals };
+  }
+
+  /**
+   * 店长端「这个陪玩值不值」对比（老板 2026-10-04）：
+   * 「这个陪玩干了这一个月，给他的订单我（本店）抽到的，跟把这些单派到桥接 / 线上俱乐部
+   * 做首单不结能挣的，哪个多？」
+   *
+   * 口径（跟本页其他卡片对齐）：
+   *  - 只算**本店线下陪玩**接的、本店发的、未取消（CONFIRMED/DONE）的单；
+   *  - 流水 =（主陪单价 + 搭档单价）× 时长（双陪把搭档那份算上，跟「应收」口径一致）；
+   *  - **本店实得** = 流水 ×（100 − 该陪玩当月档位）/ 100，档位同「线下利润」（阶梯 + 6 个月工龄门槛）；
+   *  - **派桥接** = 机密 35 / 绝密净 30 元/人/时 × 时长 × 人时（首单不结，跟桥接利润同一口径）；
+   *  - **派线上** = 流水 ×（100 − revenue.club_companion_share）/ 100。
+   * 返回按「本店实得 − 对外更优的那个」升序，最不划算的排最上面。
+   */
+  async getCompanionValueCompare(studioId: string, month: string) {
+    studioId = await this.resolveStudioId(studioId);
+    const [year, mon] = month.split('-').map((n) => Number(n));
+    const start = new Date(Date.UTC(year, mon - 1, 1));
+    const end = new Date(Date.UTC(year, mon, 1));
+
+    const [orders, scopedCfg] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          studioId,
+          status: { in: ['CONFIRMED', 'DONE'] },
+          createdAt: { gte: start, lt: end },
+          companionId: { not: null },
+        },
+        include: {
+          companion: {
+            select: {
+              id: true,
+              createdAt: true,
+              isSeniorStaff: true,
+              studio: { select: { id: true, type: true } },
+              user: { select: { username: true, displayName: true } },
+            },
+          },
+        },
+      }),
+      resolveConfigsRaw(this.prisma, studioId, [
+        'revenue.share_tiers',
+        'revenue.club_companion_share',
+        'bridge.secret_price_yuan',
+        'bridge.jueju_net_yuan',
+      ]),
+    ]);
+
+    const tiers: Array<{ min: number; max: number | null; studio: number; companion: number }> =
+      (scopedCfg['revenue.share_tiers'] as any) ?? [
+        { min: 0, max: 5999.9, studio: 50, companion: 50 },
+        { min: 6000, max: 9999, studio: 40, companion: 60 },
+        { min: 10000, max: null, studio: 30, companion: 70 },
+      ];
+    const clubSharePct = Number(scopedCfg['revenue.club_companion_share'] ?? 80);
+    const secretPrice = Number(scopedCfg['bridge.secret_price_yuan'] ?? 35);
+    const juejuNet = Number(scopedCfg['bridge.jueju_net_yuan'] ?? 30);
+
+    const map = new Map<
+      string,
+      {
+        companionId: string;
+        name: string;
+        username: string;
+        gross: number;
+        units: number;
+        durationHours: number;
+        orderCount: number;
+        newCount: number;
+        renewCount: number;
+        bridgeNet: number;
+        onlineNet: number;
+      }
+    >();
+    const tenure = new Map<string, number>();
+
+    for (const o of orders) {
+      const comp = (o as any).companion as
+        | {
+            id: string;
+            createdAt?: Date;
+            isSeniorStaff?: boolean;
+            studio?: { id: string; type: string } | null;
+            user?: { username?: string; displayName?: string } | null;
+          }
+        | undefined;
+      if (!comp?.studio || comp.studio.type === 'RENTAL' || comp.studio.id !== studioId) continue;
+      const cid = o.companionId as string;
+      const cf = (o.customFields as any) || {};
+      const units = orderUnits(o as any);
+      const dur = Number(o.duration) || 1;
+      const gross = orderGrossYuan(o as any);
+      const isJueju = cf.deltaMission === '绝密';
+      const agg =
+        map.get(cid) ||
+        {
+          companionId: cid,
+          name: comp.user?.displayName || comp.user?.username || cid,
+          username: comp.user?.username || '',
+          gross: 0,
+          units: 0,
+          durationHours: 0,
+          orderCount: 0,
+          newCount: 0,
+          renewCount: 0,
+          bridgeNet: 0,
+          onlineNet: 0,
+        };
+      agg.gross += gross;
+      agg.units += units;
+      agg.durationHours += dur;
+      agg.orderCount += 1;
+      if (o.type === 'NEW') agg.newCount += 1;
+      else if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.renewCount += 1;
+      agg.bridgeNet += (isJueju ? juejuNet : secretPrice) * dur * units;
+      agg.onlineNet += gross * ((100 - clubSharePct) / 100);
+      map.set(cid, agg);
+      if (comp.createdAt) {
+        tenure.set(cid, effectiveTenureMonths(comp.createdAt, comp.isSeniorStaff));
+      }
+    }
+
+    const rows = Array.from(map.values()).map((a) => {
+      const companionPct = resolveCompanionPctTiered(a.gross, tenure.get(a.companionId) ?? 0, tiers);
+      const studioPct = 100 - companionPct;
+      const ownNet = a.gross * (studioPct / 100);
+      const bestOut = Math.max(a.bridgeNet, a.onlineNet);
+      const diff = ownNet - bestOut;
+      return {
+        companionId: a.companionId,
+        name: a.name,
+        username: a.username,
+        orderCount: a.orderCount,
+        newCount: a.newCount,
+        renewCount: a.renewCount,
+        units: a.units,
+        durationHours: Number(a.durationHours.toFixed(1)),
+        gross: Number(a.gross.toFixed(2)),
+        companionPct,
+        studioPct,
+        ownNet: Number(ownNet.toFixed(2)),
+        bridgeNet: Number(a.bridgeNet.toFixed(2)),
+        onlineNet: Number(a.onlineNet.toFixed(2)),
+        bestOut: Number(bestOut.toFixed(2)),
+        diff: Number(diff.toFixed(2)),
+        better: bestOut > ownNet ? (a.bridgeNet >= a.onlineNet ? 'BRIDGE' : 'ONLINE') : 'OWN',
+      };
+    });
+    rows.sort((x, y) => x.diff - y.diff);
+
+    const add = (k: 'gross' | 'ownNet' | 'bridgeNet' | 'onlineNet' | 'bestOut' | 'diff') =>
+      Number(rows.reduce((s, r) => s + Number(r[k] || 0), 0).toFixed(2));
+    const totals = {
+      companionCount: rows.length,
+      orderCount: rows.reduce((s, r) => s + r.orderCount, 0),
+      units: rows.reduce((s, r) => s + r.units, 0),
+      hours: Number(rows.reduce((s, r) => s + r.durationHours, 0).toFixed(1)),
+      gross: add('gross'),
+      ownNet: add('ownNet'),
+      bridgeNet: add('bridgeNet'),
+      onlineNet: add('onlineNet'),
+      bestOut: add('bestOut'),
+      diff: add('diff'),
+    };
+    return { month, rows, totals };
   }
 }

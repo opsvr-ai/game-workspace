@@ -52,6 +52,10 @@ export const financeApi = {
   profitDaily: (month: string, studioId?: string) =>
     http.get('/finance/profit-daily', { params: { month, studioId } }),
 
+  /** 店长端「陪玩收益对比」：派给这个陪玩 vs 派到桥接/线上做首单不结，哪个挣得多。 */
+  companionCompare: (month: string, studioId?: string) =>
+    http.get('/finance/companion-compare', { params: { month, studioId } }),
+
   // ── 桥接返还台账 ──
   bridgeReturns: {
     list: (month: string) => http.get('/finance/bridge-returns', { params: { month } }),
