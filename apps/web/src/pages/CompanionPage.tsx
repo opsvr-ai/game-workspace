@@ -310,6 +310,18 @@ const CompanionPage: React.FC = () => {
                   >
                     {excellence.tier === 'TOP' ? '👑🏇 上等马' : excellence.tier === 'LOW' ? '🐴 下等马' : '🐎 中等马'} · 综合分{' '}
                     {excellence.rankScore ?? 0}
+                    {excellence.scoreDelta?.hasBaseline && excellence.scoreDelta.delta !== 0 ? (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontWeight: 700,
+                          color: excellence.scoreDelta.delta > 0 ? '#3f8600' : '#cf1322',
+                        }}
+                      >
+                        {excellence.scoreDelta.delta > 0 ? '+' : ''}
+                        {excellence.scoreDelta.delta}
+                      </span>
+                    ) : null}
                   </Tag>
                 </Tooltip>
               ) : (

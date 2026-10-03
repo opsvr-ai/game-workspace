@@ -39,6 +39,27 @@ interface Excellence {
   repurchaseTiers?: TierRow[];
   firstSuccessTiers?: TierRow[];
   battleScreenshotBonus?: number;
+  /** 今日加减分（服务端算好）：跟「昨天定点那一刻」比。 */
+  scoreDelta?: {
+    hasBaseline: boolean;
+    baselineDate: string | null;
+    total: number;
+    prevTotal: number | null;
+    delta: number;
+    tier: string;
+    prevTier: string | null;
+    tierChanged: boolean;
+    items: Array<{
+      key: string;
+      label: string;
+      unit: string;
+      now: number;
+      before: number;
+      value: number;
+      prevValue: number;
+      delta: number;
+    }>;
+  } | null;
 }
 
 const TIER: Record<string, { label: string; color: string; emoji: string }> = {
@@ -72,6 +93,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
   const excellentThreshold = data?.excellentThreshold ?? 50;
   const middleTierThreshold = data?.middleTierThreshold ?? 25;
   const myScore = data?.rankScore ?? 0;
+  const delta = data?.scoreDelta ?? null;
 
   /** 每项「达到 X 得 Y 分」的完整档位表 + 陪玩自己现在在哪一档、差多少到下一档。 */
   const dims = [
@@ -106,6 +128,60 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
               }
               description={data.tier === 'TOP' ? '已达上等马，享受全部抢单权益' : tierGapText}
             />
+          )}
+
+          {delta && (
+            <div style={{ marginBottom: 16 }}>
+              {!delta.hasBaseline ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="今天是第一次记录积分，从明天开始这里会显示每天加了多少分、扣了多少分。"
+                />
+              ) : (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: '#F8FAFC' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong>今天的变化</Text>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 18,
+                        color: delta.delta > 0 ? '#3f8600' : delta.delta < 0 ? '#cf1322' : '#8c8c8c',
+                      }}
+                    >
+                      {delta.delta > 0 ? '+' : ''}{delta.delta} 分
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                    昨天 {delta.prevTotal ?? '-'} 分 → 现在 {delta.total} 分
+                    {delta.baselineDate ? `（基准：${delta.baselineDate}）` : ''}
+                    {delta.tierChanged ? ` · 段位：${(TIER[delta.prevTier || 'MIDDLE'] || tier).label} → ${tier.label}` : ''}
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    {delta.items.filter((it) => it.delta !== 0).length === 0 ? (
+                      <Text type="secondary" style={{ fontSize: 12 }}>各项分数跟昨天一样，没有加减。</Text>
+                    ) : (
+                      delta.items
+                        .filter((it) => it.delta !== 0)
+                        .map((it) => (
+                          <div
+                            key={it.key}
+                            style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0', color: '#475569' }}
+                          >
+                            <span>
+                              {it.label}
+                              {it.key === 'bonus' ? '' : `（${it.prevValue}${it.unit} → ${it.value}${it.unit}）`}
+                            </span>
+                            <span style={{ fontWeight: 700, color: it.delta > 0 ? '#3f8600' : '#cf1322' }}>
+                              {it.delta > 0 ? '+' : ''}{it.delta} 分 → 现在 {it.now} 分
+                            </span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一项取达到的最高一档，不叠加）</Title>

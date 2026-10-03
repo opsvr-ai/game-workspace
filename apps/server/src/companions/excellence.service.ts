@@ -129,6 +129,39 @@ export class ExcellenceService implements OnModuleInit {
       })
       .catch(() => {});
 
+    // 每日积分明细快照：给「陪玩端 今天加/扣了多少分」当基准。
+    // 换天时把上一份挪到 prev，同一天重复跑只刷新当天这份。
+    try {
+      const snapKey = ExcellenceService.SCORE_SNAPSHOT_KEY;
+      const prevKey = ExcellenceService.SCORE_SNAPSHOT_PREV_KEY;
+      const todayKey = this.scoreDayKey();
+      const items: Record<string, any> = {};
+      for (const c of companions) {
+        const r = results.get(c.id);
+        if (r) items[c.id] = this.breakdownOf(r);
+      }
+      const scoreRow = await this.prisma.systemConfig.findUnique({ where: { key: snapKey } });
+      const stored: any = scoreRow?.value || null;
+      if (stored?.date && stored.date !== todayKey) {
+        await this.prisma.systemConfig
+          .upsert({
+            where: { key: prevKey },
+            update: { value: stored },
+            create: { key: prevKey, value: stored },
+          })
+          .catch(() => {});
+      }
+      await this.prisma.systemConfig
+        .upsert({
+          where: { key: snapKey },
+          update: { value: { date: todayKey, items } },
+          create: { key: snapKey, value: { date: todayKey, items } },
+        })
+        .catch(() => {});
+    } catch {
+      // 快照写失败不影响段位复核本身
+    }
+
     if (changes.length > 0) {
       const logCfg = await this.prisma.systemConfig.findUnique({
         where: { key: 'excellence.tier_changes' },
@@ -400,6 +433,71 @@ export class ExcellenceService implements OnModuleInit {
       });
     }
     return result;
+  }
+
+  /** 每日积分快照的键（服务端自己维护的状态，不是给人填的配置）。 */
+  private static readonly SCORE_SNAPSHOT_KEY = 'excellence.score_snapshot';
+  private static readonly SCORE_SNAPSHOT_PREV_KEY = 'excellence.score_snapshot_prev';
+
+  /** 本地日期键（YYYY-MM-DD），只用来判断「这份快照是不是今天的」。 */
+  private scoreDayKey(d = new Date()): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** 一个人的四项明细 + 总分：存快照、算每日增减都用这一份。 */
+  private breakdownOf(r: ExcellenceResult) {
+    return {
+      rankScore: r.rankScore,
+      tier: r.tier,
+      revenueScore: r.revenueScore,
+      renewScore: r.renewScore,
+      repurchaseScore: r.repurchaseScore,
+      firstSuccessScore: r.firstSuccessScore,
+      bonusScore: r.bonusScore,
+      revenueYuan: r.revenueYuan,
+      renewRate: r.renewRate,
+      repurchaseRate: r.repurchaseRate,
+      newRate: r.newRate,
+    };
+  }
+
+  /**
+   * 今日加减分（老板 2026-10-04）：「各种属于陪玩的 KPI 都让陪玩能看得到，
+   * 每天的增减，让他扣或者加的心知肚明」。
+   *
+   * 跟「昨天定点那一刻的快照」比：总分差多少、哪一项加/扣了多少、指标值本身变了多少。
+   * 还没攒到前一天快照（刚上线 / 新账号）就返回 hasBaseline=false，前端提示明天再看。
+   */
+  async getScoreDelta(companionId: string, current?: ExcellenceResult) {
+    const [prevRow, cur] = await Promise.all([
+      this.prisma.systemConfig.findUnique({
+        where: { key: ExcellenceService.SCORE_SNAPSHOT_PREV_KEY },
+      }),
+      current ? Promise.resolve(current) : this.computeOne(companionId),
+    ]);
+    const prev: any = prevRow?.value || null;
+    const base: any = prev?.items?.[companionId] || null;
+    const now = this.breakdownOf(cur);
+
+    const items = [
+      { key: 'revenue', label: '月流水', unit: '元', now: now.revenueScore, before: base?.revenueScore ?? 0, value: now.revenueYuan, prevValue: base?.revenueYuan ?? 0 },
+      { key: 'renew', label: '续单率', unit: '%', now: now.renewScore, before: base?.renewScore ?? 0, value: now.renewRate, prevValue: base?.renewRate ?? 0 },
+      { key: 'repurchase', label: '复购率', unit: '%', now: now.repurchaseScore, before: base?.repurchaseScore ?? 0, value: now.repurchaseRate, prevValue: base?.repurchaseRate ?? 0 },
+      { key: 'firstSuccess', label: '首单成功率', unit: '%', now: now.firstSuccessScore, before: base?.firstSuccessScore ?? 0, value: now.newRate, prevValue: base?.newRate ?? 0 },
+      { key: 'bonus', label: '战绩图加分', unit: '分', now: now.bonusScore, before: base?.bonusScore ?? 0, value: now.bonusScore, prevValue: base?.bonusScore ?? 0 },
+    ].map((d) => ({ ...d, delta: base ? d.now - d.before : 0 }));
+
+    return {
+      hasBaseline: !!base,
+      baselineDate: prev?.date || null,
+      total: now.rankScore,
+      prevTotal: base?.rankScore ?? null,
+      delta: base ? now.rankScore - base.rankScore : 0,
+      tier: now.tier,
+      prevTier: base?.tier ?? null,
+      tierChanged: !!base && base.tier !== now.tier,
+      items,
+    };
   }
 
   async isExcellent(companionId: string): Promise<boolean> {

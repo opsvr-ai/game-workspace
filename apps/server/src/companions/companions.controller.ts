@@ -234,7 +234,11 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async getMyExcellence(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.excellence.computeOne(req.user.companionId);
-    return { code: 200, message: 'ok', data };
+    // 今日加减分（老板 2026-10-04）：跟「昨天定点那一刻」比，让陪玩心知肚明自己为什么加/扣。
+    const scoreDelta = await this.excellence
+      .getScoreDelta(req.user.companionId, data)
+      .catch(() => null);
+    return { code: 200, message: 'ok', data: { ...(data as any), scoreDelta } };
   }
 
   @Get('companions/me/wallet')
