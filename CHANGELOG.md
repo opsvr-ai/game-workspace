@@ -45,6 +45,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **清理「同一页面挂多条路由」的重复与残留（2026-10-04，网页 `v892`）。**
+  老板：「检查所有角色 功能重复的有多少 给我说 删除掉」。查下来：改动前 89 条路由只对应 48 个页面，
+  其中 20 个页面被重复挂在 2~4 条 URL 上（多出 40 条「别名路由」）；另有 10 条路由**任何角色菜单、
+  任何代码都进不去**。本次删掉这 10 条残留路由 + 1 个只在残留路由里出现的页面 + 4 个零引用的僵尸组件：
+  ① 路由：`/admin/analytics`、`/admin/stats`、`/owner/stats`、`/cs/companions`、`/cs/customer-board`、
+  `/cs/finance/risk`、`/owner/agent-version`、`/owner/cs-wechat-flow`、`/customer-board`（老的扁平客户看板）、
+  `/admin/traffic`（命令面板里叫「订单池」，实际渲染的是派单工作台，误导）；
+  ② 页面/组件：`AnalyticsPage`（老数据分析页，早被 `/admin` 数据看板取代）、`ConversationList`、
+  `chat/CompanionSidebar`、`chat/EmbeddedChatPanel`、`chat/FileMessage`（聊天改版留下的死文件，全仓库零引用）；
+  ③ 命令面板去掉「订单池」那一条（指的就是上面的 `/admin/traffic`）。
+  保留 `/admin/store-manager-settings`、`/admin/profit-split` 两条老书签跳转（注释写明是故意留的兼容入口）。
+  清理后 79 条路由 / 47 个页面；老板 / 店长 / 客服 / 陪玩四套菜单一条没动，线上已实测各自菜单照常。
+  **仍有 3 处「看着重复、其实各管一摊」没动**（三套电脑页 机器管理 / 电脑管理 / 远程控制、命令面板不按角色过滤、
+  老板与店长菜单里没有「个人设置」），需要老板拍板再动。
+
 - **陪玩端「客户看板」改成进度条排行榜，并修掉老板 / 店长菜单点进去是 404 的真 bug（2026-10-04，网页 `v890`）。**
   老板：「给陪玩做成进度条样式的吧，从高到低排列」。改动：
   ① 陪玩端客户看板不再用表格，改成**一个客户一条横向进度条**：条形长度 = 该客户在所选指标里的相对大小，

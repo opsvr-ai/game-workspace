@@ -11,7 +11,6 @@ const flatRoutes: { key: string; label: string }[] = [
   { key: '/admin/orders', label: '订单管理' },
   { key: '/admin/employees', label: '员工管理' },
   { key: '/admin/customers', label: '客户管理' },
-  { key: '/admin/traffic', label: '订单池' },
   { key: '/admin/billing', label: '报账系统' },
   { key: '/admin/pc-control', label: '远程控制' },
   { key: '/admin/blacklist', label: '进程黑名单' },

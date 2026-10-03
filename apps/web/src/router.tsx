@@ -64,7 +64,6 @@ import CompanionPoolPage from './pages/OrderPoolPage';
 import ManagedPcPage from './pages/admin/ManagedPcPage';
 import MachinesPage from './pages/admin/MachinesPage';
 import PcControlPage from './pages/admin/PcControlPage';
-import AnalyticsPage from './pages/admin/AnalyticsPage';
 import PayrollPage from './pages/admin/PayrollPage';
 import TrafficAccountPage from './pages/admin/TrafficAccountPage';
 import EmployeesPage from './pages/owner/EmployeesPage';
@@ -188,7 +187,7 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-     {
+      {
         path: 'customer-board',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -259,14 +258,6 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-     {
-        path: 'customer-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerBoardPage />
-          </Suspense>
-        ),
-      },
       {
         path: 'owner/customers',
        element: (
@@ -324,34 +315,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'owner/agent-version',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <AgentVersionPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'owner/work-wechats',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <WorkWechatPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'owner/cs-wechat-flow',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CsWechatFlowPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'owner/stats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StatsPage />
           </Suspense>
         ),
       },
@@ -419,8 +386,8 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      // 客户看板：老板 / 店长 / 客服各自的菜单路径（原来只有扁平的 /customer-board + /companion/...，
-      // 菜单里的 /owner/customer-board、/admin/customer-board 点进去是 404，老板 2026-10-04 发现）
+      // 客户看板：老板 / 店长各自的菜单路径（陪玩端另有 /companion/customer-board；
+      // 原来菜单里的 /owner/customer-board、/admin/customer-board 点进去是 404，老板 2026-10-04 发现）
       {
         path: 'owner/customer-board',
         element: (
@@ -431,14 +398,6 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/customer-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerBoardPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'cs/customer-board',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CustomerBoardPage />
@@ -581,14 +540,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/analytics',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <AnalyticsPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'admin/payroll',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -623,14 +574,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'admin/traffic',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <DispatchPage />
           </Suspense>
         ),
       },
@@ -699,26 +642,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'admin/stats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StatsPage />
-          </Suspense>
-        ),
-      },
-      {
         path: 'cs/billing',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <BillingOverview />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'cs/finance/risk',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <RiskWorkbenchPage />
           </Suspense>
         ),
       },
@@ -764,14 +691,6 @@ export const router = createBrowserRouter([
       },
       {
         path: 'cs/employees',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionsPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'cs/companions',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CompanionsPage />
