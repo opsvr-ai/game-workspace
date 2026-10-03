@@ -32,7 +32,12 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="repla
 
 HOST = "1.117.229.36"
 USER = "ubuntu"
-PASSWORD = "Pw123456!"
+# 服务器口令不写死在代码里（2026-10-03 清理明文凭证）：
+#   先设置环境变量再跑，例如 PowerShell:  $env:CHUNLV_SSH_PASS="<口令>"
+PASSWORD = os.environ.get("CHUNLV_SSH_PASS", "")
+if not PASSWORD:
+    raise SystemExit('缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
+                         '口令不再写死在脚本里（2026-10-03 清理明文凭证）。')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_RELEASE = os.path.join(ROOT, "apps", "cs-electron", "release")
 LOCAL_UNPACKED = os.path.join(LOCAL_RELEASE, "win-unpacked")

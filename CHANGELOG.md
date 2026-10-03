@@ -1059,7 +1059,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   邵泽慧那台连不进去，根因是早期的 `chunlv-allinone.nsi` / `setup-remote-access.nsi` 用
   `net user chunlvops <口令> /add` 建账号 —— **没设「密码永不过期」**，账号跟着本机密码策略到期；一到期
   Windows 就拒绝一切远程登录（RPC / WMI / 事件日志全挂），机器再也连不进去、连现场都看不到，只能等人到电脑跟前。
-  `COMPANION_PC_REGISTRY.md` 里同一批（口令 `Chunlv@Ops2026`）的那 8 台都在这条路上。现在两处一起补：
+  `COMPANION_PC_REGISTRY.md` 里同一批（口令 `<口令见机器管理页台账>`）的那 8 台都在这条路上。现在两处一起补：
   - `chunlv-allinone.nsi` / `setup-remote-access.nsi`：建完账号立刻
     `Set-LocalUser -Name chunlvops -PasswordNeverExpires $true`；
   - `scripts/repair-companion.ps1` 里「已经配好的机器不动密码」那条路（`accountEvent=kept`）**补上到期标志**：

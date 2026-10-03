@@ -1,3 +1,4 @@
+import os
 import io, sys, base64, subprocess
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
@@ -6,7 +7,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 # 说明：只重启“看门狗服务”，不碰陪玩正在跑的客户端，接单不中断。
 IPS = ["192.168.0.124", "192.168.0.126", "192.168.0.142", "192.168.0.153",
        "192.168.0.154", "192.168.0.178", "192.168.0.179", "192.168.0.196"]
-CRED = "chunlvops:Chunlv@Ops2026"
+CRED = os.environ.get("CHUNLV_SMB_CRED", "")
 ATEXEC = r"E:\Soft\Python313\Scripts\atexec.py"
 PS = r"""
 $ErrorActionPreference='SilentlyContinue'

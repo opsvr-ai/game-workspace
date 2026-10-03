@@ -9,6 +9,14 @@
 
 ## 发版链路（改完代码就按这个走，见 AGENTS.md）
 
+> **先配口令（2026-10-03 起）**：脚本不再把服务器口令写死在代码里，
+> 跑之前先设置环境变量，否则会直接报「缺少服务器口令」退出：
+>
+> ```powershell
+> $env:CHUNLV_SSH_PASS = "<服务器 ubuntu 口令>"      # 必需
+> $env:CHUNLV_SMB_CRED = "chunlvops:<运维口令>"      # 只有 _push_watchdog_all.py 需要
+> ```
+
 ```powershell
 # 1. 前端（网页端）——部署 + 打版本号
 python scripts\_deploy_web_cloud.py
