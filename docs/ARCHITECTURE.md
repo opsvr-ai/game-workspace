@@ -25,6 +25,15 @@
   `canSeeCustomerSource(user, studioId)` 在**服务层**抹掉（拦截器认不出 `platformAccount` 这一列）。
   排序 `live`（默认，正在打优先→消费→时长）/ `spent` / `hours` / `recent`；前端 15 秒轮询、正在打的行呼吸闪烁。
 
+- **客户端自动更新：「接单中先下好、一打完立刻装」（2026-10-03，陪玩端 `1.0.20261009`，`electron/updater.ts` + `electron/main.ts`）**：
+  以前 `performUpdate` 的第一步就是 `waitUntilIdle('before download')` —— 连下载都要等陪玩空闲，
+  一单打十几个小时的机器（王甲振那单从 10-02 20:51 打到 10-03 中午）就永远轮不到更新，于是点邀请横幅不跳转
+  （能跳要客户端主进程认 `banner:action`，那是 `1.0.20261008` 才有的）。现在：
+  下载不再等空闲（全网仍一次只放行一台）→ 下完写 `C:\ProgramData\chunlv\staged-update.json` 备货标记 →
+  **只有退出进程让看门狗换文件那一步等空闲**；`main.ts` 在 `blacklist:update` 里检测到状态从 `BUSY` 变回别的，
+  立刻 `checkForUpdates()`（包已备好，几秒就能装）；备货包下次开机也认，`clearStagedUpdate` 在版本装上 /
+  被 `blocked-versions.json` 拉黑时清标记。排队等更新名额时也不因为「这期间接了单」整轮放弃。
+
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。
   没有 `companionId` 的账号走这条分支时直接返回空数组（防越权）。非主陪的 `served` 单统一过

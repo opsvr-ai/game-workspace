@@ -1494,6 +1494,7 @@ app.whenReady().then(() => {
   });
   onWsEvent('blacklist:update', (data: any) => {
     if (currentRole !== 'COMPANION') return;
+    const prevStatus = store.get('lastStatus');
     if (data?.status) {
       const local = store.get('lastStatus');
       const localOffDuty = local === 'ENTERTAINMENT' || local === 'RESTING';
@@ -1508,6 +1509,13 @@ app.whenReady().then(() => {
           pushed: data.status,
         });
       }
+    }
+    // 老板 2026-10-03：接单中不装更新，一单打十几个小时的那台机器就会长时间停在老版本
+    // （王甲振点邀请横幅不跳转就是这么来的 —— 他那台还是 1.0.20261007）。
+    // 这一单刚打完（状态不再是 BUSY）的这一刻立刻查一次更新：包在接单时就已经下好了，
+    // 这时几秒钟就能装上，不用再等到下一个 30 分钟的轮询。
+    if (prevStatus === 'BUSY' && store.get('lastStatus') !== 'BUSY') {
+      void checkForUpdates();
     }
     startBlacklistGuard(data?.blacklist || [], data?.whitelist || []);
   });

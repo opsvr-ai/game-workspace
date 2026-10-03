@@ -56,6 +56,61 @@ function clearUpdateAttemptIfApplied(): void {
     store.set('updateAttemptAt', 0);
     store.set('updateAttemptFrom', '');
   }
+  // 本机已经是「备着的那一版」了（装上了 / 手动换成别的了）→ 备货标记没用了。
+  const staged = readStagedUpdate();
+  if (staged && staged.version === app.getVersion()) clearStagedUpdate();
+}
+
+// ── 「先下好，等空闲再装」───────────────────────────────────────────────
+// 老板 2026-10-03：王甲振那台一直是老版本 1.0.20261007（所以他点邀请横幅不跳转），
+// 根因是以前连「下载」都要等陪玩空闲 —— 一单打十几个小时，这机器就永远轮不到更新。
+// 下载本身不打断任何东西，所以改成接单中也先把包下好、写一个备货标记；
+// 真正会打断接单的只有最后那次「退出让看门狗换文件重启」，那一步才等空闲。
+// 备货包留在这儿，下一轮、甚至下次开机都能直接用，不用再下 123MB。
+const STAGED_UPDATE_FILE = 'C:\\ProgramData\\chunlv\\staged-update.json';
+
+function readStagedUpdate(): { version: string; localPath: string } | null {
+  try {
+    const raw = fs.readFileSync(STAGED_UPDATE_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as any;
+    if (parsed && typeof parsed.version === 'string' && parsed.version) {
+      return { version: parsed.version, localPath: typeof parsed.localPath === 'string' ? parsed.localPath : '' };
+    }
+  } catch {
+    /* 没备货 / 文件坏了都当没有 */
+  }
+  return null;
+}
+
+function clearStagedUpdate(): void {
+  try {
+    fs.rmSync(STAGED_UPDATE_FILE, { force: true });
+  } catch {
+    /* ignore */
+  }
+}
+
+function stageUpdate(version: string, localPath: string): void {
+  if (!version || !localPath) return;
+  try {
+    fs.writeFileSync(STAGED_UPDATE_FILE, JSON.stringify({ version, localPath }), 'utf-8');
+  } catch (err: any) {
+    logger.warn('Failed to write staged update marker', { error: err?.message || err });
+  }
+}
+
+/** 这一版是不是已经备好货了（标记在 + 包还在 + 不像半个文件）。 */
+function stagedPackageReady(version: string, fallbackZip: string): boolean {
+  if (!version) return false;
+  const staged = readStagedUpdate();
+  if (!staged || staged.version !== version) return false;
+  const zip = staged.localPath || fallbackZip;
+  try {
+    const st = fs.statSync(zip);
+    return st.isFile() && st.size > 1_000_000;
+  } catch {
+    return false;
+  }
 }
 
 // version：告诉看门狗这次装的是哪一版 —— 装完等不到这一版自报健康，它就整目录回滚并拉黑它。
@@ -172,11 +227,8 @@ async function acquireUpdateSlotWithRetry(serverUrl: string, token: string): Pro
       if (attempts > 1) logger.info('Update slot acquired after retry', { attempts });
       return true;
     }
-    // 排队等名额的这段时间里陪玩可能接了单：那就别再等了，这单结束后的下一轮再说。
-    if (companionBusy()) {
-      logger.info('Companion became busy while waiting for update slot, give up this round');
-      return false;
-    }
+    // 老板 2026-10-03：以前「排队等名额期间接了单就放弃」—— 这下好的包又白等一轮。
+    // 下载不打断接单（真正打断的是装），所以照等；下完只等空闲那一下。
     if (Date.now() >= deadline) {
       logger.warn('Update slot still busy after retrying, give up this round', { attempts });
       return false;
@@ -214,51 +266,55 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     });
     return;
   }
-  // 接单中不更新：更新最后要退出进程让看门狗重启，正在跑的单子会被打断
-  // （计时、截图、客户在等）。后台「推送更新」和 WS 命令都会走到这里，
-  // 所以这道闸必须在这里，而不是只靠启动时的更新检查。
-  if (!(await waitUntilIdle('before download'))) {
-    logger.info('Still busy after waiting, skip this update round');
-    return;
-  }
-  // 串行更新：先申请下载名额，没名额就等下一次检查，避免多台同时下载把带宽打满、谁也下不动。
-  const serverUrl = getServerUrl();
-  const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
-  // 新机器刚装完还没登录，store 里没有令牌。以前这里直接 return false，于是永远打印一句
-  // 「Update slot busy」，客户端版本卡死在装机包那一版。现在没令牌也去申请名额（服务端按机器记账）。
-  if (!(await acquireUpdateSlotWithRetry(serverUrl, token))) {
-    logger.info('Update slot busy, skip this round and retry later', { hasToken: !!token });
-    return;
-  }
   const localDir = 'C:\\ProgramData\\chunlv';
   const localZip = path.join(localDir, 'update.zip');
-  startUpdateSpin();
-  try {
-    fs.mkdirSync(localDir, { recursive: true });
-    await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
-    setUpdateProgress(100);
-    // 下载这段时间里可能刚好接了一单：包已经在本地下好了，先放着，
-    // 等这单结束再交给看门狗重启，不要为了更新把订单掐掉。
-    if (!(await waitUntilIdle('after download'))) {
-      logger.info('Still busy after waiting, keep the downloaded package for the next round');
+  // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
+  const havePackage = stagedPackageReady(version, localZip);
+  if (!havePackage) {
+    // 下载本身不打断接单（计时、截图、客户都在陪玩那边，跟这儿没关系），
+    // 所以「接单中」也先把包下好；会不会打断只看最后那一下重启。
+    // 串行更新：先申请下载名额，没名额就等着，避免多台同时下载把带宽打满、谁也下不动。
+    const serverUrl = getServerUrl();
+    // 新机器刚装完还没登录，store 里没有令牌。以前这里直接 return false，于是永远打印一句
+    // 「Update slot busy」，客户端版本卡死在装机包那一版。现在没令牌也去申请名额（服务端按机器记账）。
+    const token = (store.get('refreshToken') as string) || (store.get('token') as string) || '';
+    if (!(await acquireUpdateSlotWithRetry(serverUrl, token))) {
+      logger.info('Update slot busy, skip this round and retry later', { hasToken: !!token });
+      return;
+    }
+    startUpdateSpin();
+    try {
+      fs.mkdirSync(localDir, { recursive: true });
+      await downloadZipWithProgress(downloadUrl, localZip, setUpdateProgress);
+      setUpdateProgress(100);
+      // 记下「这一版已经备好货」：即使现在正在接单，下一轮 / 下次开机也能直接装，不用重下。
+      stageUpdate(version, localZip);
+    } catch (err: any) {
+      logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
       await releaseUpdateSlot(serverUrl, token);
       stopUpdateSpin();
       updateTrayTooltip('陪玩管理');
+      signalUpdate(downloadUrl, undefined, version);
+      rememberUpdateAttempt(version);
+      setTimeout(() => { app.exit(0); }, 800);
       return;
     }
-    signalUpdate(downloadUrl, localZip, version);
-    logger.info('Update downloaded, handing off to SystemHelper', { localZip });
     await releaseUpdateSlot(serverUrl, token);
-  } catch (err: any) {
-    logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
-    signalUpdate(downloadUrl, undefined, version);
-    await releaseUpdateSlot(serverUrl, token);
+    stopUpdateSpin();
+    updateTrayTooltip('陪玩管理');
   }
+  // 包已经在本地了。到这一步才需要「别打断接单」：等陪玩空闲，再交给看门狗解压重启。
+  // 等不到就把包留着（备货标记还在），这单结束后的下一轮立刻就能装，不重下。
+  if (!(await waitUntilIdle('before applying downloaded package'))) {
+    logger.info('Still busy after waiting, keep the downloaded package for the next round');
+    return;
+  }
+  signalUpdate(downloadUrl, localZip, version);
+  clearStagedUpdate();
+  logger.info('Update handed off to SystemHelper', { localZip, version });
   // 记下「这一版已经交出去了」：装成功后 clearUpdateAttemptIfApplied 会清掉，
   // 装不成功就至少 30 分钟内不再重复下这一版。
   rememberUpdateAttempt(version);
-  stopUpdateSpin();
-  updateTrayTooltip('陪玩管理');
   // 交给看门狗(SystemHelper，系统权限)解压重启，全程不弹 UAC
   setTimeout(() => { app.exit(0); }, 800);
 }
@@ -309,6 +365,7 @@ export async function checkForUpdates(): Promise<void> {
     // 否则每 30 分钟白下 128MB，还要被看门狗反复回滚。
     if (isVersionBlocked(latestVersion)) {
       logger.warn('Latest version is blocked on this machine, skip this round', { latestVersion });
+      clearStagedUpdate();
       return;
     }
 
