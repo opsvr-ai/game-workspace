@@ -62,6 +62,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **搭档邀请一超时就把整段会话作废，导致「被邀请方打的这个订单找不到」（2026-10-03，服务端 + 网页 `v882`）。**
+  老板：「陪玩抢单 / 发布订单都能在订单记录里找到，但是被邀请方打的这个订单找不到，
+  给我在订单记录中生成」。
+  查证：`GET /api/orders?scope=served`（陪玩端「我服务的」）其实已经回得出来
+  （实测王甲振 392、徐泽宁 400/2、王辰浩 23/20/10、马凝初 338 都能查到），
+  真正的问题在**邀请超时的处理**：`schedulePartnerInviteExpiry` / `acceptPartnerInvite` 一过
+  `PARTNER_INVITE_TTL_SEC` 就把会话标 `DONE`（复购 / 直接派单还把订单一起标 `DONE`）——
+  陪玩在游戏里没看到幅幅（或就差几秒），一超时整段会话作废，主陪只好重新开一单，
+  被邀请方记录里什么都不剩，两边对不上账。改：
+  - 邀请有效期 **60 秒 → 180 秒**（前端那句「20 秒未接受会自动取消」本来就和后端 60 秒对不上，
+    一并改成「3 分钟内接受有效」）；
+  - **超时只撕「待搭档」**（会话 `coCompanionId → null`），**不再把会话 / 订单标 DONE**：
+    主陪可以直接单人开打，也可以再邀请一次；被邀请方少一条「已过期」的垃圾会话；
+  - 搭档接受后，**订单级**同步写 `coCompanionId` + `coAmount`（以前只在会话上有，
+    管理端按陪玩筛「今日打单记录」/ 看板 / 报表读的是订单级字段）；
+  - 陪玩端「订单管理」三个页签（我抢到的 / 我服务的 / 我发布的）加**数量角标**，
+    被邀请来的单不会再藏在没点过的那一栏里。
+  回归用例：`apps/server/src/__tests__/orders.partner-invite-record.test.ts`。
+
 - **客服「今日看板」的日薪口径和月度明细差一天（2026-10-03 全量测试挖出来的历史 bug）。**
   看板 `getCsCommissionToday` 反推「当月天数」时写的是
   `new Date(end.getFullYear(), end.getMonth(), 0)`，而 `end` 来自 `currentBusinessDayRange()`（**明天** 12:00），

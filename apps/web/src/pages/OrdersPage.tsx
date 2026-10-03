@@ -110,6 +110,13 @@ const OrdersPage: React.FC = () => {
   //   served  = 我服务的（别人抢到、我当搭档一起打的单；这一栏隐藏主陪的客户微信）
   //   published = 我发布的（我自己发起的第一单 / 续费 / 复购）
   const [companionScope, setCompanionScope] = useState<'taken' | 'served' | 'published'>('taken');
+  // 三栏各自的单数（老板 2026-10-03：「被邀请方打的这个订单找不到」——把数量挂在页签上，
+  // 被邀请来的单不会再藏在没点过的那一栏里；当前这一栏直接用列表长度，永远最新）。
+  const [scopeCounts, setScopeCounts] = useState<{ taken: number; served: number; published: number }>({
+    taken: 0,
+    served: 0,
+    published: 0,
+  });
   // 客户 / 游戏 / 派单人… 一个框全搜（原来只搜游戏名，2026-09-27 从派单记录并过来）
   const [orderSearch, setOrderSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
@@ -235,6 +242,27 @@ const OrdersPage: React.FC = () => {
   useEffect(() => {
     fetch();
   }, [fetch]);
+
+  // 陪玩端：把三栏的单数拉一遍挂在页签角标上（只拉陪玩自己的，量很小）。
+  useEffect(() => {
+    if (!isCompanion) return;
+    let alive = true;
+    const countOf = (r: any) => {
+      const d = r?.data?.data ?? r?.data;
+      return Array.isArray(d) ? d.length : 0;
+    };
+    Promise.all(
+      (['taken', 'served', 'published'] as const).map((s) =>
+        ordersApi.list({ scope: s }).catch(() => null),
+      ),
+    ).then(([taken, served, published]) => {
+      if (!alive) return;
+      setScopeCounts({ taken: countOf(taken), served: countOf(served), published: countOf(published) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [isCompanion]);
 
   // 从聊天框点「查看订单」跳过来：<角色>/orders?orderId=<id> —— 直接把那一单的详情弹窗打开
   // （老板 2026-09-30：「客服点击这个位置会跳转到该订单方便查看客户信息」）。
@@ -897,6 +925,17 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  /** 当前这一栏以列表长度为准（切栏后立刻准），其余栏用单独拉到的数量。 */
+  const scopeTabLabel = (text: string, scope: 'taken' | 'served' | 'published') => {
+    const n = companionScope === scope ? orders.length : scopeCounts[scope];
+    return (
+      <span>
+        {text}
+        {n > 0 && <Badge count={n} size="small" offset={[6, -2]} />}
+      </span>
+    );
+  };
+
   const sorted = [...orders]
     .sort((a: any, b: any) => {
       const aUnread = unreadMap[a.id] || 0;
@@ -1067,9 +1106,9 @@ const OrdersPage: React.FC = () => {
               value={companionScope}
               onChange={(v) => setCompanionScope(v as 'taken' | 'served' | 'published')}
               options={[
-                { label: '我抢到的', value: 'taken' },
-                { label: '我服务的', value: 'served' },
-                { label: '我发布的', value: 'published' },
+                { label: scopeTabLabel('我抢到的', 'taken'), value: 'taken' },
+                { label: scopeTabLabel('我服务的', 'served'), value: 'served' },
+                { label: scopeTabLabel('我发布的', 'published'), value: 'published' },
               ]}
             />
           )}

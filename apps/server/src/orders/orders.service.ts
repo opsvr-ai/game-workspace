@@ -23,7 +23,10 @@ import {
   outsideViewerVisible,
 } from '../common/order-outcome';
 
-const PARTNER_INVITE_TTL_SEC = 60;
+// 搭档邀请有效期（老板 2026-10-03）：60 秒太短 —— 陪玩在游戏里 / 在微信上，
+// 看到横幅再切回来经常就过了，邀请一超时就等于这单没有搭档，被邀请方也拿不到记录。
+// 放到 3 分钟；而且超时只撤掉「待搭档」，不再把整段会话/订单作废（见 schedulePartnerInviteExpiry）。
+const PARTNER_INVITE_TTL_SEC = 180;
 
 /**
  * 转让申请多久没人理就作废（老板 2026-10-03：「需要被转让方同意才能过来」）。
@@ -2877,16 +2880,23 @@ export class OrdersService implements OnModuleInit {
     // 20 秒未接受则视为过期，防止定时器因服务重启失效后仍能接受过期邀请
     const ageSec = (Date.now() - new Date(session.createdAt).getTime()) / 1000;
     if (ageSec > PARTNER_INVITE_TTL_SEC) {
+      // 过期只把「待搭档」撤掉，不结束整段会话：主陪随时能单人开打、也能重新邀请，
+      // 别因为搭档没看到就把整张单作废（老板 2026-10-03）。
       await this.prisma.orderSession.update({
         where: { id: sessionId },
-        data: { status: 'DONE', endedAt: new Date() },
+        data: { coCompanionId: null },
       }).catch(() => {});
       throw new ForbiddenException('该搭档邀请已过期');
     }
 
     await this.prisma.order.update({
       where: { id: session.parentOrderId },
-      data: { coCompanionId: session.coCompanionId || partnerId },
+      data: {
+        coCompanionId: session.coCompanionId || partnerId,
+        // 搭档金额也落回订单级：管理端（订单管理 / 看板 / 报表）读的是订单上的 coAmount，
+        // 以前「续单 / 客户管理开始首单」这条路只在会话上有，订单级是空的。
+        ...(session.coAmount != null ? { coAmount: session.coAmount } : {}),
+      },
     }).catch(() => {});
 
     await this.prisma.order.updateMany({
@@ -3022,7 +3032,15 @@ export class OrdersService implements OnModuleInit {
     return { ok: true };
   }
 
-  /** 20 秒内未接受搭档邀请则自动取消该待接受会话 */
+  /**
+   * 搭档邀请到点还没人接受：**只撤掉「待搭档」，不结束会话、不结束订单**（老板 2026-10-03）。
+   *
+   * 以前超时会把会话标 `DONE`、把 DIRECT 订单也标 `DONE` —— 「被邀请方打的这个订单找不到」
+   * 有一大半就是这么来的：陪玩在游戏里没看到横幅（或就差几秒），邀请超时，整段会话作废，
+   * 主陪只好重新开始一单，被邀请方记录里什么都没有，两边对不上账。
+   * 现在：清掉会话上的搭档、推一条「搭档未回应」，会话保持 ACTIVE —— 主陪可以
+   * 直接单人开打，也可以再邀请一次（`addSession` / `broadcastPartnerInvite` 都能重来）。
+   */
   private schedulePartnerInviteExpiry(sessionId: string, studioId: string) {
     setTimeout(async () => {
       try {
@@ -3033,23 +3051,13 @@ export class OrdersService implements OnModuleInit {
         if (!s || s.status !== 'ACTIVE' || s.startedAt) return;
         await this.prisma.orderSession.update({
           where: { id: sessionId },
-          data: { status: 'DONE', endedAt: new Date() },
+          data: { coCompanionId: null },
         });
-        // 复购/直接派单的双陪邀请超时未接受：把订单也结束，避免卡在「进行中」
-        await this.prisma.order.updateMany({
-          where: {
-            id: s.parentOrderId,
-            status: 'CONFIRMED',
-            dispatchType: 'DIRECT',
-            sessions: { none: { status: 'ACTIVE' } },
-          },
-          data: { status: 'DONE' },
-        }).catch(() => {});
         this.wsGateway.broadcastToStudio(studioId, 'order:dual_invite_expired', {
           sessionId,
           orderId: s.parentOrderId,
         });
-        // 通知主陪：搭档未回应（超时）。
+        // 通知主陪：搭档未回应（超时）——你可以直接开始，或再邀请一次。
         if (s.companionId) {
           this.wsGateway.pushToCompanion(s.companionId, 'order:partner_timeout', {
             sessionId,

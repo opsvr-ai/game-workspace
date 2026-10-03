@@ -120,7 +120,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           await ordersApi.broadcastPartnerInvite(sessionId);
           notification.info({
             message: '📣 已广播找搭档',
-            description: '等待搭档接受，20 秒未接受会自动取消',
+            description: '等待搭档接受，3 分钟内接受有效',
             placement: 'bottomRight',
             duration: 5,
           });
@@ -130,7 +130,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
             || '对方';
           notification.info({
             message: `🤝 已邀请 ${partnerName} 搭档`,
-            description: '等待对方确认后开始计时，20 秒未接受会自动取消',
+            description: '等待对方确认后开始计时，3 分钟内接受有效',
             placement: 'bottomRight',
             duration: 5,
           });
