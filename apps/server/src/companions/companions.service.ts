@@ -1327,6 +1327,24 @@ export class CompanionsService {
     return this.attendanceService.getAttendance(filters);
   }
 
+  /** 客服 / 店长考勤（老板 2026-10-04：这三个职位都要考勤，各自能单独开关）。 */
+  async ensureStaffAttendance(userId: string, role: string) {
+    return this.attendanceService.ensureStaffAttendance(userId, role);
+  }
+
+  async finalizeStaffAttendance(userId: string, role: string) {
+    return this.attendanceService.finalizeStaffAttendance(userId, role);
+  }
+
+  async getStaffAttendance(filters: {
+    studioId?: string | null;
+    userId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
+    return this.attendanceService.getStaffAttendance(filters);
+  }
+
   // ── Status Blacklist CRUD ──
   async getStatusBlacklist(studioId: string, status: string) {
     return this.prisma.companionStatusBlacklist.findMany({

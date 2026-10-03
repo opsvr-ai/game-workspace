@@ -73,6 +73,8 @@ const PayrollPage: React.FC = () => {
   const [csRow, setCsRow] = useState<WageRow>(newRow());
   const [csEarlyLeave, setCsEarlyLeave] = useState(0);
   const [csFullAttendanceBonus, setCsFullAttendanceBonus] = useState(0);
+  /** 考勤设置（老板 2026-10-04：客服 / 店长也能单独开关考勤） */
+  const [attCfg, setAttCfg] = useState<any>({});
 
   const [staff, setStaff] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
@@ -105,6 +107,18 @@ const PayrollPage: React.FC = () => {
       setCsRow(pick('CS'));
       setCsEarlyLeave(Number(cfg['commission.cs_early_leave_deduction_yuan'] ?? 0));
       setCsFullAttendanceBonus(Number(cfg['commission.cs_full_attendance_bonus_yuan'] ?? 0));
+      setAttCfg({
+        cs: {
+          enabled: cfg['attendance.cs.enabled'] !== false,
+          start: cfg['attendance.cs.workStart'] ?? '09:00',
+          end: cfg['attendance.cs.workEnd'] ?? '18:00',
+        },
+        manager: {
+          enabled: cfg['attendance.manager.enabled'] !== false,
+          start: cfg['attendance.manager.workStart'] ?? '09:00',
+          end: cfg['attendance.manager.workEnd'] ?? '18:00',
+        },
+      });
       setStaff((staffRes.data as any)?.data || []);
       setRecords((recRes.data as any)?.data || []);
     } catch {
@@ -137,6 +151,13 @@ const PayrollPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  /** 这个职位的考勤开没开（关掉的职位不出现在登记下拉里） */
+  const attendanceOnFor = (role: string) => {
+    if (role === 'ADMIN') return attCfg.manager?.enabled !== false;
+    if (role === 'CS') return attCfg.cs?.enabled !== false;
+    return true;
   };
 
   const markAttendance = async (values: any) => {
@@ -279,7 +300,12 @@ const PayrollPage: React.FC = () => {
       <Card size="small" title="🗓 考勤登记（店长 / 客服）" style={{ marginBottom: 16 }}>
         <Form form={attForm} layout="inline" onFinish={markAttendance}>
           <Form.Item name="userId" label="员工" rules={[{ required: true }]}>
-            <Select style={{ width: 160 }} options={staff.map((s) => ({ value: s.id, label: s.username }))} />
+            <Select
+              style={{ width: 160 }}
+              options={staff
+                .filter((s) => attendanceOnFor(s.role))
+                .map((s) => ({ value: s.id, label: s.username }))}
+            />
           </Form.Item>
           <Form.Item name="date" label="日期" rules={[{ required: true }]}><DatePicker /></Form.Item>
           <Form.Item name="status" label="状态" rules={[{ required: true }]}>
@@ -294,7 +320,12 @@ const PayrollPage: React.FC = () => {
         </Form>
         <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
           登记「早退」后，客服的「早退扣款」才会真的扣（以前这个选项没地方登记，等于填了不生效）。
-          陪玩的考勤是客户端自动记录的，在「考勤管理」里查。
+          陪玩、客服、店长的考勤都会在客户端上线 / 下线时自动打卡，统一在「考勤管理」里查；
+          管理端这里手动登记的一律优先，不会被自动打卡覆盖。
+          <br />
+          标准上下班时间：客服 {attCfg.cs?.start}–{attCfg.cs?.end}
+          {attCfg.cs?.enabled === false ? '（已关闭考勤，下拉里不显示）' : ''}；店长 {attCfg.manager?.start}–{attCfg.manager?.end}
+          {attCfg.manager?.enabled === false ? '（已关闭考勤，下拉里不显示）' : ''}。
         </Text>
       </Card>
 

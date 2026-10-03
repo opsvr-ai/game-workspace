@@ -284,8 +284,36 @@ export class CompanionsController {
     @Query('companionId') companionId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    // 考勤管理页发的是 startDate / endDate，这里一并收下，免得筛选静默失效。
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.getAttendance({ companionId, dateFrom, dateTo });
+    const data = await this.companionsService.getAttendance({
+      companionId,
+      dateFrom: dateFrom ?? startDate,
+      dateTo: dateTo ?? endDate,
+    });
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 客服 / 店长考勤明细（老板 2026-10-04）。店长只看本店，老板看全部。 */
+  @Get('companions/staff-attendance')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async getStaffAttendance(
+    @Req() req: any,
+    @Query('userId') userId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const isOwner = req.user?.role === UserRole.OWNER;
+    const data = await this.companionsService.getStaffAttendance({
+      studioId: isOwner ? null : (req.user?.studioId as string) || null,
+      userId,
+      dateFrom: dateFrom ?? startDate,
+      dateTo: dateTo ?? endDate,
+    });
     return { code: 200, message: 'ok', data };
   }
 

@@ -165,8 +165,17 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'capture.expected_per_hour': 4,
   'capture.min_rate_percent': 50,
   'capture.black_rate_max_percent': 30,
+  // 考勤（老板 2026-10-04：「再加一个客服、店长考勤时间，给每个职位加一个开关，有的职位暂时不需要开考勤」）
+  // 陪玩的时间沿用老键 attendance.workStart / attendance.workEnd，不动它，免得线上店长已填的覆盖失效。
+  'attendance.companion.enabled': true,
   'attendance.workStart': '09:00',
   'attendance.workEnd': '18:00',
+  'attendance.cs.enabled': true,
+  'attendance.cs.workStart': '09:00',
+  'attendance.cs.workEnd': '18:00',
+  'attendance.manager.enabled': true,
+  'attendance.manager.workStart': '09:00',
+  'attendance.manager.workEnd': '18:00',
   'notification.sound': true,
   'notification.desktop': true,
   'notification.badge': true,

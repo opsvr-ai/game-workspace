@@ -245,6 +245,8 @@ export class CommissionService {
       'commission.cs_full_attendance_bonus_yuan',
       'commission.cs_early_leave_deduction_yuan',
       'commission.cs_base_salary_yuan',
+      // 客服考勤开关（老板 2026-10-04）：关掉 = 不按考勤扣款、也不发全勤奖
+      'attendance.cs.enabled',
     ];
     const resolved = await resolveConfigsRaw(this.prisma, studioId, keys);
     const map: Record<string, number> = {};
@@ -255,6 +257,7 @@ export class CommissionService {
       restDays: Number(payroll?.fullAttendanceDays ?? 4),
       lateDeduction: Number(payroll?.lateDeduction ?? 0),
       absentDeduction: Number(payroll?.absentDeduction ?? 0),
+      attendanceEnabled: map['attendance.cs.enabled'] !== 0,
       fullAttendanceBonus: map['commission.cs_full_attendance_bonus_yuan'] ?? 0,
       earlyLeaveDeduction: map['commission.cs_early_leave_deduction_yuan'] ?? 0,
       bridgeMin: map['commission.cs_bridge_min_threshold'] ?? 130,
@@ -546,15 +549,18 @@ export class CommissionService {
       // 底薪一律全额（老板 2026-09-30：「这个我建议别这样了，扣底薪客服会不愿意的」）。
       // 桥接没跑到最低单数**不再动底薪** —— 未达标只体现在桥接单价阶梯（<最低单数按「桥接每单提成」）。
       const baseEffective = userBaseSalary;
-      const attendanceDeduction = Number(
-        (
-          Math.max(0, absent) * dailyBase +
-          late * cfg.lateDeduction +
-          earlyLeave * cfg.earlyLeaveDeduction
-        ).toFixed(2),
-      );
+      // 客服考勤关掉 → 考勤相关的钱一律不参与（不扣也不奖），底薪提成照旧
+      const attendanceDeduction = cfg.attendanceEnabled
+        ? Number(
+            (
+              Math.max(0, absent) * dailyBase +
+              late * cfg.lateDeduction +
+              earlyLeave * cfg.earlyLeaveDeduction
+            ).toFixed(2),
+          )
+        : 0;
       const isFullAttendance = att.filter((a) => a.status === 'PRESENT').length >= fullAttendance;
-      const attendanceBonus = isFullAttendance ? cfg.fullAttendanceBonus : 0;
+      const attendanceBonus = cfg.attendanceEnabled && isFullAttendance ? cfg.fullAttendanceBonus : 0;
       const totalYuan = Number((baseEffective + commissionYuan + attendanceBonus - attendanceDeduction).toFixed(2));
 
       rows.push({
@@ -566,7 +572,7 @@ export class CommissionService {
         restDays: cfg.restDays,
         fullAttendance,
         monthDays,
-        attendance: { present, late, earlyLeave, absent, isFullAttendance },
+        attendance: { present, late, earlyLeave, absent, isFullAttendance, enabled: cfg.attendanceEnabled },
         attendanceBonus,
         attendanceDeduction,
         bridgeUnits,

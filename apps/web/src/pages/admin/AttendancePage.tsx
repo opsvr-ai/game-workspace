@@ -20,6 +20,25 @@ interface AttendanceRecord {
   status: string; // NORMAL / LATE / EARLY_LEAVE / ABSENT / LATE_AND_EARLY
 }
 
+interface StaffAttendanceRecord {
+  id: string;
+  date: string;
+  loginAt?: string | null;
+  logoutAt?: string | null;
+  status: string;
+  user?: { username?: string; displayName?: string; role?: string } | null;
+}
+
+const staffStatusConfig: Record<string, { color: string; label: string }> = {
+  PRESENT: { color: 'green', label: '正常' },
+  LATE: { color: 'orange', label: '迟到' },
+  EARLY_LEAVE: { color: 'gold', label: '早退' },
+  ABSENT: { color: 'red', label: '缺勤' },
+};
+
+const roleLabel = (role?: string) => (role === 'ADMIN' ? '店长' : role === 'CS' ? '客服' : role || '-');
+const hm = (v?: string | null) => (v ? new Date(v).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-');
+
 const statusConfig: Record<string, { color: string; label: string }> = {
   NORMAL: { color: 'green', label: '正常' },
   LATE: { color: 'orange', label: '迟到' },
@@ -35,6 +54,9 @@ const AttendancePage: React.FC = () => {
   const [companionFilter, setCompanionFilter] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [companions, setCompanions] = useState<{ id: string; user?: { username: string } }[]>([]);
+  // 客服 / 店长考勤（老板 2026-10-04：这三个职位都要考勤）
+  const [staffRecords, setStaffRecords] = useState<StaffAttendanceRecord[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -55,9 +77,30 @@ const AttendancePage: React.FC = () => {
     }
   }, [dateRange, companionFilter, statusFilter]);
 
+  const fetchStaffRecords = useCallback(async () => {
+    setStaffLoading(true);
+    try {
+      const params: Record<string, unknown> = {};
+      if (dateRange) {
+        params.startDate = dateRange[0].format('YYYY-MM-DD');
+        params.endDate = dateRange[1].format('YYYY-MM-DD');
+      }
+      const { data } = await http.get('/companions/staff-attendance', { params });
+      setStaffRecords(data.data ?? []);
+    } catch {
+      // 客服/店长考勤拉不到不影响陪玩那张表，静默即可
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [dateRange]);
+
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
+
+  useEffect(() => {
+    fetchStaffRecords();
+  }, [fetchStaffRecords]);
 
   useEffect(() => {
     http.get('/companions')
@@ -98,6 +141,36 @@ const AttendancePage: React.FC = () => {
       title: '状态', dataIndex: 'status', key: 'status', width: 100,
       render: (v: string) => {
         const cfg = statusConfig[v];
+        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>;
+      },
+    },
+  ], []);
+
+  const staffColumns = useMemo(() => [
+    {
+      title: '姓名', key: 'name', width: 140,
+      render: (_: unknown, r: StaffAttendanceRecord) => r.user?.displayName || r.user?.username || '-',
+    },
+    {
+      title: '职位', key: 'role', width: 90,
+      render: (_: unknown, r: StaffAttendanceRecord) => <Tag>{roleLabel(r.user?.role)}</Tag>,
+    },
+    {
+      title: '日期', dataIndex: 'date', key: 'date', width: 120,
+      render: (v: string) => (v ? String(v).slice(0, 10) : '-'),
+    },
+    {
+      title: '上班', dataIndex: 'loginAt', key: 'loginAt', width: 100,
+      render: (v: string | null | undefined) => hm(v),
+    },
+    {
+      title: '下班', dataIndex: 'logoutAt', key: 'logoutAt', width: 100,
+      render: (v: string | null | undefined) => hm(v),
+    },
+    {
+      title: '状态', dataIndex: 'status', key: 'status', width: 100,
+      render: (v: string) => {
+        const cfg = staffStatusConfig[v];
         return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{v}</Tag>;
       },
     },
@@ -168,6 +241,30 @@ const AttendancePage: React.FC = () => {
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
         onRow={(record) => ({
           style: record.isLate || record.isEarlyLeave ? { background: '#fff1f0' } : undefined,
+        })}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 12px' }}>
+        <div>
+          <Text strong style={{ fontSize: 16 }}>🧑‍💼 客服 / 店长考勤</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            客服端 / 店长端上线自动打上班卡、下线打下班卡；管理端手动登记的一律优先，不会被覆盖
+          </Text>
+        </div>
+        <Button icon={createElement(ReloadOutlined)} onClick={fetchStaffRecords} loading={staffLoading}>刷新</Button>
+      </div>
+      <Table
+        columns={staffColumns}
+        dataSource={staffRecords}
+        rowKey="id"
+        loading={staffLoading}
+        locale={{ emptyText: '暂无客服 / 店长考勤记录' }}
+        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
+        onRow={(record) => ({
+          style: record.status === 'LATE' || record.status === 'EARLY_LEAVE' || record.status === 'ABSENT'
+            ? { background: '#fff1f0' }
+            : undefined,
         })}
       />
     </div>

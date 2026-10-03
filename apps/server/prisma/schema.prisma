@@ -1242,11 +1242,15 @@ model ManagedPC {
 }
 
 model StaffAttendance {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   date      DateTime
   status    String
-  createdAt DateTime @default(now())
+  // 客服 / 店长打卡时间（老板 2026-10-04：这三个职位都要考勤）：
+  // 客户端连接 = 上班，断开（过宽限期）= 下班；管理端手动登记时这两列为空。
+  loginAt   DateTime?
+  logoutAt  DateTime?
+  createdAt DateTime  @default(now())
 
   @@unique([userId, date])
   @@index([userId, date])

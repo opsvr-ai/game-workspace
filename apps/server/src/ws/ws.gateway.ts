@@ -65,6 +65,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private offlineGraceCache: { seconds: number; at: number } | null = null;
   /** userId -> 该用户当前所有的连接 id（一个人可能同时开着网页 + 客户端 + 弹窗） */
   private userSockets = new Map<string, Set<string>>();
+  /**
+   * 客服 / 店长「下班打卡」的延迟定时器：userId -> timer（老板 2026-10-04）。
+   * 刷新页面 / 网络抖动会断开几秒，直接记下班就天天误记早退，所以跟陪玩一样等宽限期真的没连回来才算。
+   */
+  private pendingStaffOfflineTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private readonly jwt: JwtService,
@@ -298,6 +303,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
           transport: client.data.transport,
           address: client.handshake?.address,
         });
+        // 客服 / 店长的上班卡：客户端（客服端 / 店长端）一开机连上就打；
+        // 宽限期内又连回来 = 没走过，把「下班打卡」定时器撤掉。
+        this.cancelPendingStaffOffline(user.id);
+        try {
+          await this.companionsService?.ensureStaffAttendance(user.id, user.role);
+        } catch (err) {
+          logger.warn('Staff attendance punch-in failed', { userId: user.id, error: (err as Error).message });
+        }
       }
 
       const pendingCallEnd = this.pendingCallEndTimers.get(user.id);
@@ -440,6 +453,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         address: client.handshake?.address,
         stillConnected: presence.hasSocket(user.id),
       });
+      // 客服 / 店长：一条连接都不剩了才安排「下班打卡」，等宽限期（默认 60 秒）；
+      // 期间连回来就撤掉（撤销在 handleConnection 里），不会误记早退。
+      if (!presence.hasSocket(user.id)) {
+        await this.scheduleStaffOffline(user.id, user.role);
+      }
       return;
     }
     const sockets = this.companionSockets.get(user.companionId);
@@ -483,6 +501,44 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     clearTimeout(pending);
     this.pendingOfflineTimers.delete(companionId);
     return true;
+  }
+
+  /** 宽限期内客服 / 店长又连回来 → 撤掉「下班打卡」定时器。 */
+  private cancelPendingStaffOffline(userId: string): boolean {
+    const pending = this.pendingStaffOfflineTimers.get(userId);
+    if (!pending) return false;
+    clearTimeout(pending);
+    this.pendingStaffOfflineTimers.delete(userId);
+    return true;
+  }
+
+  /** 客服 / 店长最后一条连接断开 → 宽限期后记下班（早于下班时间就是早退）。 */
+  private async scheduleStaffOffline(userId: string, role: string): Promise<void> {
+    if (role !== 'CS' && role !== 'ADMIN') return; // 老板不考勤
+    // 考勤永远不能反过来影响连接处理：读配置 / 写库失败都只记一条日志。
+    try {
+      const existing = this.pendingStaffOfflineTimers.get(userId);
+      if (existing) clearTimeout(existing);
+      const graceMs = await this.offlineGraceMs();
+      const apply = async () => {
+        this.pendingStaffOfflineTimers.delete(userId);
+        if (presence.hasSocket(userId)) return;
+        try {
+          await this.companionsService?.finalizeStaffAttendance(userId, role);
+        } catch (err) {
+          logger.warn('Staff attendance punch-out failed', { userId, error: (err as Error).message });
+        }
+      };
+      if (graceMs <= 0) {
+        await apply();
+        return;
+      }
+      const timer = setTimeout(() => void apply(), graceMs);
+      if (typeof (timer as any).unref === 'function') (timer as any).unref();
+      this.pendingStaffOfflineTimers.set(userId, timer);
+    } catch (err) {
+      logger.warn('Staff attendance punch-out scheduling failed', { userId, error: (err as Error).message });
+    }
   }
 
   /** 安排「延迟置离线」；重复断开只保留最后一个定时器 */

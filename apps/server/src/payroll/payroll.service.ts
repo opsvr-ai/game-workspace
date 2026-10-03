@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { bridgeMetOrderWhere } from '../common/order-outcome';
@@ -6,6 +6,15 @@ import { bridgeMetOrderWhere } from '../common/order-outcome';
 @Injectable()
 export class PayrollService {
   constructor(private prisma: PrismaService) {}
+
+  /** 这个职位的考勤开没开（本店店长填的 → 老板全局默认）。老板 2026-10-04。 */
+  private async attendanceEnabled(role: string, studioId?: string | null): Promise<boolean> {
+    if (role !== 'CS' && role !== 'ADMIN') return true;
+    const key = role === 'CS' ? 'attendance.cs.enabled' : 'attendance.manager.enabled';
+    const scoped = await resolveConfigsRaw(this.prisma, studioId ?? null, [key]);
+    const v = scoped[key];
+    return v === undefined || v === null ? true : Boolean(v);
+  }
 
   async listConfigs() {
     return this.prisma.payrollConfig.findMany({ orderBy: { role: 'asc' } });
@@ -27,7 +36,20 @@ export class PayrollService {
   }
 
   async markAttendance(dto: { userId: string; date: string; status: string }) {
-    const date = new Date(dto.date);
+    // 日期必须归一到「当天 0 点（服务器本地时区）」，跟客户端自动打卡写的日期是同一个 key。
+    // 以前直接 new Date('2026-10-04') 是 UTC 0 点（北京时间早上 8 点），跟自动打卡的
+    // 本地 0 点对不上 —— 同一天会存成两行，手动登记的考勤就白填了。
+    const [y, m, d] = String(dto.date).slice(0, 10).split('-').map(Number);
+    const date = new Date(y, (m || 1) - 1, d || 1);
+    date.setHours(0, 0, 0, 0);
+
+    const user = await this.prisma.user
+      .findUnique({ where: { id: dto.userId }, select: { role: true, studioId: true } })
+      .catch(() => null);
+    if (user && !(await this.attendanceEnabled(user.role, user.studioId))) {
+      throw new BadRequestException('这个职位的考勤已经关掉了，要登记请先到「设置 → 考勤设置」把它打开');
+    }
+
     return this.prisma.staffAttendance.upsert({
       where: { userId_date: { userId: dto.userId, date } },
       create: { userId: dto.userId, date, status: dto.status },
@@ -72,7 +94,11 @@ export class PayrollService {
       // 以前这里是「整月桥接单数没到「每日目标 × 月天数」就按比例下调底薪」，现在整条废掉：
       // 未达标只影响桥接单价阶梯（在 commission.service 里算），底薪永远全额。
       // bridgeCount / bridgeTarget 仍然回显给店长看「谁这个月跑了多少桥接单」。
-      const attendanceDeduction = Math.max(0, absent - restDays) * config.absentDeduction + late * config.lateDeduction;
+      // 该职位考勤关掉 → 不统计考勤扣款（老板 2026-10-04：有的职位暂时不需要开考勤）
+      const attendanceOn = await this.attendanceEnabled(user.role, studioId);
+      const attendanceDeduction = attendanceOn
+        ? Math.max(0, absent - restDays) * config.absentDeduction + late * config.lateDeduction
+        : 0;
       // 派单提成：直接引用已确认（CONFIRMED）的提成明细，分 → 元，四舍五入到毛
       const ledgerAgg = await this.prisma.commissionLedger.aggregate({
         where: { userId: user.id, month, studioId, status: 'CONFIRMED' },
@@ -99,6 +125,7 @@ export class PayrollService {
         monthDays,
         restDays,
         fullAttendance,
+        attendanceEnabled: attendanceOn,
         bridgeCount: bridgeCounts.get(user.id) || 0,
         bridgeTarget,
       });
