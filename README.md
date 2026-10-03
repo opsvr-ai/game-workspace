@@ -1147,7 +1147,11 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/complete-billing` | JWT | COMPANION | Complete order with billing detail. |
 | `POST` | `/api/orders/:id/call-partner` | JWT | COMPANION | Call partner for dual companion order. |
 | `POST` | `/api/orders/:id/accept-partner` | JWT | COMPANION | Accept partner invitation. |
-| `GET` | `/api/orders/pool/status` | JWT | COMPANION | 抢单名额状态：`{ tier, dailyLimit, usedToday, remaining }`（旧的「流水门槛」已废弃）。 |
+| `GET` | `/api/orders/pool/status` | JWT | COMPANION | 抢单名额状态：`{ tier, dailyLimit, balance, usedToday, remaining, todayGranted, days[], recentLogs[], hasWorkWechat, workWechatId }`（旧的「流水门槛」已废弃）。抢单即扣、没用完累计；`days` 是最近 14 天每天加/用，`recentLogs` 是最近 20 笔明细。 |
+| `GET` | `/api/orders/supplements` | JWT | OWNER, ADMIN, CS | 补单申请列表。Query: `?scope=pending`（待审）\| `due`（到期要核查客户后来通过没）\| 不传=全部。 |
+| `GET` | `/api/orders/supplements/summary` | JWT | OWNER, ADMIN, CS | 管理端红点数量 `{ pending, due }`。 |
+| `POST` | `/api/orders/supplements/:id/decide` | JWT | OWNER, ADMIN, CS | 审核补单。Body: `{ decision: 'APPROVE'\|'REJECT', note? }`；同意 = 陪玩次数 +1（写 `CompanionQuotaLog`，并推 `order:supplement` 通知本人）并排 24 小时后的核查。 |
+| `POST` | `/api/orders/supplements/:id/review` | JWT | OWNER, ADMIN, CS | 到期核查。Body: `{ result: 'ACCEPTED'\|'STILL_NOT' }`；`ACCEPTED` = 系统把这张单改成「已添加」并把客户归到该陪玩名下；`STILL_NOT` 3 天后再提醒。 |
 
 ### Dashboard
 
