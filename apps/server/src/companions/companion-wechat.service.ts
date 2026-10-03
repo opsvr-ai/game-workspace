@@ -7,10 +7,13 @@ export class CompanionWechatService {
 
   async listWorkWechats(studioId: string, user?: any) {
     const where: any = { studioId };
-    // 客服只能看到并操作绑定给自己的客服微信，店长/老板看全部。
+    // 客服（老板 2026-10-03 报「邵泽慧怎么不显示陪玩的微信列表？」）：
+    //  - 「陪玩工作微信」是本店的全部都要能看（客服本来就要在这张表上审核陪玩提的号，
+    //    也要知道哪个号在谁手里）——以前这里一刀切成 `type='STUDIO' AND csUserId=我`，
+    //    于是「陪玩工作微信」那一栏永远是空的；
+    //  - 「客服工作微信」仍然只看绑给自己的那些（别去动别的客服的号）。
     if (user?.role === 'CS') {
-      where.type = 'STUDIO';
-      where.csUserId = user.id;
+      where.OR = [{ type: 'COMPANION' }, { type: 'STUDIO', csUserId: user.id }];
     }
     // 陪玩选择微信：俱乐部里的陪玩只看自己的微信，工作室里的陪玩只看本工作室的陪玩微信
     else if (user?.role === 'COMPANION' && user.companionId) {
@@ -41,7 +44,8 @@ export class CompanionWechatService {
   async updateWorkWechatNickname(id: string, nickname: string, user?: any) {
     const wechat = await this.prisma.workWechat.findUnique({ where: { id } });
     if (!wechat) throw new NotFoundException('微信不存在');
-    if (user?.role === 'CS' && wechat.csUserId !== user.id) {
+    // 客服能改本店陪玩微信的备注；「客服工作微信」才限定只能改自己那份。
+    if (user?.role === 'CS' && wechat.type === 'STUDIO' && wechat.csUserId !== user.id) {
       throw new ForbiddenException('客服只能修改绑定给自己的微信');
     }
     return this.prisma.workWechat.update({
@@ -101,7 +105,8 @@ export class CompanionWechatService {
   async deleteWorkWechat(id: string, user?: any) {
     const wechat = await this.prisma.workWechat.findUnique({ where: { id } });
     if (!wechat) throw new NotFoundException('微信不存在');
-    if (user?.role === 'CS' && wechat.csUserId !== user.id) {
+    // 同上：陪玩微信本店的都能删，客服微信只能删自己那份。
+    if (user?.role === 'CS' && wechat.type === 'STUDIO' && wechat.csUserId !== user.id) {
       throw new ForbiddenException('客服只能删除绑定给自己的微信');
     }
     return this.prisma.workWechat.delete({ where: { id } });

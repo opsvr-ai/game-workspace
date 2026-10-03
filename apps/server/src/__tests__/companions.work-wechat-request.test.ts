@@ -269,3 +269,55 @@ describe('陪玩提交工作微信 + 管理端审核', () => {
     });
   });
 });
+
+/**
+ * 工作微信「列表」的可见口径（老板 2026-10-03：「邵泽慧怎么不显示陪玩的微信列表？」）。
+ *
+ * 以前客服被一刀切成 `type='STUDIO' AND csUserId=我` —— 于是「陪玩工作微信」那一栏永远是空的，
+ * 可客服本来就要在这张表上审核陪玩提上来的号、也要知道哪个号在谁手里。
+ */
+describe('工作微信列表：客服也要看得到本店的陪玩微信', () => {
+  let prisma: ReturnType<typeof createMockPrisma>;
+  let svc: CompanionWechatService;
+
+  beforeEach(() => {
+    prisma = createMockPrisma();
+    svc = new CompanionWechatService(prisma as any);
+    vi.clearAllMocks();
+    (prisma.workWechat.findMany as any).mockResolvedValue([]);
+  });
+
+  it('客服：本店陪玩微信全看 + 客服微信只看绑给自己的', async () => {
+    await svc.listWorkWechats('st-1', { role: 'CS', id: 'cs-1' });
+    expect((prisma.workWechat.findMany as any).mock.calls[0][0].where).toEqual({
+      studioId: 'st-1',
+      OR: [{ type: 'COMPANION' }, { type: 'STUDIO', csUserId: 'cs-1' }],
+    });
+  });
+
+  it('店长 / 老板：本店全部，不做额外过滤', async () => {
+    await svc.listWorkWechats('st-1', { role: 'ADMIN', id: 'admin-1' });
+    expect((prisma.workWechat.findMany as any).mock.calls[0][0].where).toEqual({ studioId: 'st-1' });
+  });
+
+  it('客服能改本店陪玩微信的备注；客服微信仍然只能改自己那份', async () => {
+    (prisma.workWechat.findUnique as any).mockResolvedValue({
+      id: 'w1',
+      type: 'COMPANION',
+      csUserId: null,
+    });
+    (prisma.workWechat.update as any).mockResolvedValue({ id: 'w1', nickname: '小王' });
+    await expect(
+      svc.updateWorkWechatNickname('w1', '小王', { role: 'CS', id: 'cs-1' }),
+    ).resolves.toBeTruthy();
+
+    (prisma.workWechat.findUnique as any).mockResolvedValue({
+      id: 'w2',
+      type: 'STUDIO',
+      csUserId: 'cs-2',
+    });
+    await expect(
+      svc.updateWorkWechatNickname('w2', '别人的', { role: 'CS', id: 'cs-1' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
