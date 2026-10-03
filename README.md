@@ -4,6 +4,11 @@
 
 ---
 
+- **客户看板补上「今日」口径，跟实时看板对齐（2026-10-04，网页 `v885`）:**
+  `GET /api/customers/board` 新增 `todaySpent / todayOrders / todayHours`（**营业日**口径：当日 12:00 至次日 12:00，
+  与实时看板同一天界线）与 `counts.todaySpentTotal`，排序新增 `sort=today`；
+  客户管理 → 客户看板 顶部加「今日消费」卡片、客户行加「今日（营业日）」一列。累计消费口径不变。
+
 - **修：陪玩端开机不装更新、一直卡在旧版本（2026-10-04，客户端 `1.0.20261010`）:**
   老板「什么都不用加，你直接每次开机的时候给他们更新就行」。根因是客户端只看本地 `lastStatus === 'BUSY'`，
   上一单残留的 BUSY 让开机后仍被当成「接单中」，等空闲等半小时也等不到，机器就永远停在老版本。
@@ -1170,7 +1175,7 @@ Every endpoint returns a standard JSON envelope:
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
 | `GET` | `/api/customers` | JWT | -- | List customers (data isolation by role). |
-| `GET` | `/api/customers/board` | JWT | OWNER, ADMIN, CS, COMPANION | 客户看板：所有可见客户的消费（已完成单）、累计时长（已完成会话）、是否正在跟陪玩打。Query `?sort=live\|spent\|hours\|recent` + `&companionId=`。陪玩=自己的客户、店长/客服=本店、老板=全站；来源平台 / 引流账号对陪玩隐藏。 |
+| `GET` | `/api/customers/board` | JWT | OWNER, ADMIN, CS, COMPANION | 客户看板：所有可见客户的消费（已完成单）、**今日消费 / 今日单数 / 今日时长（营业日口径，当日 12:00 至次日 12:00，与实时看板同一天界线）**、累计时长（已完成会话）、是否正在跟陪玩打。Query `?sort=live\|spent\|today\|hours\|recent` + `&companionId=`。陪玩=自己的客户、店长/客服=本店、老板=全站；来源平台 / 引流账号对陪玩隐藏。 |
 | `GET` | `/api/customers/:id` | JWT | -- | Get customer detail. |
 | `POST` | `/api/customers` | JWT | ADMIN, OWNER, CS | Create a new customer. |
 | `PUT` | `/api/customers/:id` | JWT | ADMIN, OWNER | Update customer fields. |

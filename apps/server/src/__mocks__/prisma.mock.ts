@@ -44,6 +44,8 @@ export function createMockPrisma() {
       update: vi.fn(),
       updateMany: vi.fn(),
       count: vi.fn(),
+      // 客户看板按 parentOrderId 汇总时长（今日 / 累计各一次）
+      groupBy: vi.fn(),
     },
     companion: {
       findUnique: vi.fn(),

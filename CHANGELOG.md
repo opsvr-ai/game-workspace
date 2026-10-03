@@ -37,6 +37,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **客户看板补上「今日」口径，与实时看板对齐（2026-10-04，网页 `v885`）。**
+  老板：「还有个同样口径的『客户看板』（客户管理 → 客户看板），是『每个客户花了多少、现在跟谁在打』的视角，
+  它俩配合看基本就齐了」。客户看板原来只有「累计消费 / 累计时长」，跟实时看板新加的「今日业绩」对不上。
+  现在 `CustomersService.customerBoard` 用**同一套营业日口径**（`currentBusinessDayRange`，当日 12:00 至次日 12:00）
+  补出每个客户的 `todaySpent`（今日消费，已完成单按**下单时间**落在本营业日）/ `todayOrders` / `todayHours`，
+  统计里加 `todaySpentTotal`；排序新增 `sort=today`（今日消费优先，正在打的仍排最前）。
+  前端 `CustomerBoardPage` 顶部加「今日消费」卡片、排序加「今日消费」、客户行加「今日（营业日）」一列
+  （金额 + 单数 + 时长，悬停写明与实时看板同口径）。累计消费口径不变。
+  新增单测 `apps/server/src/__tests__/customers.customer-board.test.ts`（营业日边界：今日只算本营业日的已完成单、累计算全部、今日排序）。
+
 - **陪玩端「开机就自动装更新」，不再卡在残留的「接单中」（2026-10-04，客户端 `1.0.20261010`）。**
   老板：「什么都不用加，你直接每次开机的时候给他们更新就行」—— 不要「机器管理」里的强制安装按钮，改成开机自动装。
   根因：`updater.ts` 的 `companionBusy()` 只看本地 `lastStatus === 'BUSY'`；上一单结束时若残留了 BUSY，

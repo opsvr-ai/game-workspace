@@ -28,7 +28,10 @@
   在打 = `ACTIVE` 且已开打的会话命中该客户（`parentOrder.customerId`）。
   范围与「客户管理」一致（陪玩=自己的客户 / 店长·客服=本店 / 老板=全站）；来源平台 / 引流账号用
   `canSeeCustomerSource(user, studioId)` 在**服务层**抹掉（拦截器认不出 `platformAccount` 这一列）。
-  排序 `live`（默认，正在打优先→消费→时长）/ `spent` / `hours` / `recent`；前端 15 秒轮询、正在打的行呼吸闪烁。
+  今日口径（网页 `v885`，老板 2026-10-04「同样口径」）：再按 `currentBusinessDayRange()`（当日 12:00 至次日 12:00）
+  统计每个客户的 `todaySpent`（已完成单按下单时间落在本营业日）/ `todayOrders` / `todayHours`，另给
+  `counts.todaySpentTotal`；排序新增 `today`（今日消费优先）—— 与实时看板的「今日业绩」用同一条时间界线，
+  两个看板配合看才对得上。前端 15 秒轮询、正在打的行呼吸闪烁。
 
 - **客户端自动更新：「接单中先下好、一打完立刻装」（2026-10-03，陪玩端 `1.0.20261009`，`electron/updater.ts` + `electron/main.ts`）**：
   以前 `performUpdate` 的第一步就是 `waitUntilIdle('before download')` —— 连下载都要等陪玩空闲，

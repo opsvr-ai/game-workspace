@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { canSeeCustomerSource } from '../common/order-privacy';
+import { currentBusinessDayRange } from '../common/business-day';
 import type { UserRole } from '@chunlv/shared';
 
 export interface CreateCustomerDto {
@@ -123,7 +124,7 @@ export class CustomersService {
    *  客户来源（来源平台 / 引流账号）仍然只有「发单工作室的管理端」看得到 —— 这里自己先抹一遍，
    *  不指望响应拦截器（拦截器只认 `customFields` 里那几个键，认不出 `platformAccount` 这一列）。
    *
-   * @param opts.sort `live`（默认：正在打的排最前，再按消费金额 / 时长）/ `spent` / `hours` / `recent`
+   * @param opts.sort `live`（默认：正在打的排最前，再按消费金额 / 时长）/ `spent` / `today` / `hours` / `recent`
    */
   async customerBoard(user: AuthenticatedUser, opts: { sort?: string; companionId?: string } = {}) {
     const isCompanionViewer = user.role === 'COMPANION';
@@ -131,7 +132,7 @@ export class CustomersService {
     const empty = {
       rows: [],
       companions: [],
-      counts: { customers: 0, serving: 0, spentTotal: 0, hoursTotal: 0, companions: 0, unassigned: 0 },
+      counts: { customers: 0, serving: 0, spentTotal: 0, todaySpentTotal: 0, hoursTotal: 0, companions: 0, unassigned: 0 },
       scope,
       updatedAt: new Date().toISOString(),
     };
@@ -285,6 +286,38 @@ export class CustomersService {
       if (st) st.hours += Number(g._sum?.duration) || 0;
     }
 
+    // 今日（营业日口径，与「实时看板」的今日业绩同一条时间界线：当日 12:00 至次日 12:00）。
+    // 老板 2026-10-04：客户看板要和实时看板「同一口径」，两边配合看就齐了。
+    //  - 今日消费 / 今日单数：已完成（DONE）的单里，**下单时间**落在本营业日的（实时看板也按 createdAt 取数）；
+    //  - 今日时长：本营业日开局的已完成会话 duration 之和。
+    const { start: todayStart, end: todayEnd } = currentBusinessDayRange();
+    const todaySessionSums = ids.length
+      ? await this.prisma.orderSession.groupBy({
+          by: ['parentOrderId'],
+          where: {
+            status: 'DONE',
+            startedAt: { gte: todayStart, lt: todayEnd },
+            parentOrder: { customerId: { in: ids } },
+          },
+          _sum: { duration: true },
+        })
+      : ([] as any[]);
+    const todayStats = new Map<string, { spent: number; orders: number; hours: number }>();
+    for (const c of customers) todayStats.set(c.id, { spent: 0, orders: 0, hours: 0 });
+    for (const o of orders as any[]) {
+      if (o.status !== 'DONE') continue;
+      if (!(o.createdAt >= todayStart && o.createdAt < todayEnd)) continue;
+      const t = todayStats.get(o.customerId);
+      if (!t) continue;
+      t.spent += Number(o.amount) || 0;
+      t.orders += 1;
+    }
+    for (const g of todaySessionSums as any[]) {
+      const cid = customerOfOrder.get(g.parentOrderId);
+      const t = cid ? todayStats.get(cid) : null;
+      if (t) t.hours += Number(g._sum?.duration) || 0;
+    }
+
     const liveByCustomer = new Map<string, any>();
     for (const s of liveSessions as any[]) {
       const cid = s.parentOrder?.customerId;
@@ -293,6 +326,7 @@ export class CustomersService {
 
     const rows = customers.map((c) => {
       const st = stats.get(c.id)!;
+      const t = todayStats.get(c.id) || { spent: 0, orders: 0, hours: 0 };
       const s = liveByCustomer.get(c.id) || null;
       const owner = c.companionId ? infoOf.get(c.companionId) : null;
       const canSeeSource = canSeeCustomerSource(user, c.studioId);
@@ -353,6 +387,9 @@ export class CustomersService {
         orderCount: st.orderCount,
         spent: round1(st.spent),
         hours: round1(st.hours),
+        todaySpent: round1(t.spent),
+        todayOrders: t.orders,
+        todayHours: round1(t.hours),
         lastOrderAt: st.lastOrderAt,
         lastDoneAt: st.lastDoneAt,
         live,
@@ -368,6 +405,11 @@ export class CustomersService {
       if (liveFirst(a) !== liveFirst(b)) return liveFirst(a) - liveFirst(b);
       if (sortMode === 'hours') {
         if (b.hours !== a.hours) return b.hours - a.hours;
+        return b.spent - a.spent;
+      }
+      if (sortMode === 'today') {
+        if (b.todaySpent !== a.todaySpent) return b.todaySpent - a.todaySpent;
+        if (b.todayOrders !== a.todayOrders) return b.todayOrders - a.todayOrders;
         return b.spent - a.spent;
       }
       if (b.spent !== a.spent) return b.spent - a.spent;
@@ -424,6 +466,7 @@ export class CustomersService {
         customers: rows.length,
         serving: rows.filter((r: any) => r.live).length,
         spentTotal: round1(rows.reduce((s: number, r: any) => s + r.spent, 0)),
+        todaySpentTotal: round1(rows.reduce((s: number, r: any) => s + r.todaySpent, 0)),
         hoursTotal: round1(rows.reduce((s: number, r: any) => s + r.hours, 0)),
         companions: groups.length,
         unassigned: rows.filter((r: any) => !r.companionId).length,

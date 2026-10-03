@@ -87,6 +87,9 @@ interface BoardRow {
   orderCount: number;
   spent: number;
   hours: number;
+  todaySpent: number;
+  todayOrders: number;
+  todayHours: number;
   lastOrderAt: string | null;
   lastDoneAt: string | null;
   live: BoardLive | null;
@@ -117,6 +120,7 @@ interface BoardCounts {
   customers: number;
   serving: number;
   spentTotal: number;
+  todaySpentTotal: number;
   hoursTotal: number;
   companions: number;
   unassigned: number;
@@ -213,7 +217,7 @@ const CustomerBoardPage: React.FC = () => {
 
   const [data, setData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sort, setSort] = useState<'live' | 'spent' | 'hours' | 'recent'>('live');
+  const [sort, setSort] = useState<'live' | 'spent' | 'today' | 'hours' | 'recent'>('live');
   const [view, setView] = useState<'flat' | 'byCompanion'>('flat');
   const [showWechat, setShowWechat] = useState(false);
   const [search, setSearch] = useState('');
@@ -236,7 +240,7 @@ const CustomerBoardPage: React.FC = () => {
           companions: body?.companions || [],
           counts:
             body?.counts ||
-            { customers: 0, serving: 0, spentTotal: 0, hoursTotal: 0, companions: 0, unassigned: 0 },
+            { customers: 0, serving: 0, spentTotal: 0, todaySpentTotal: 0, hoursTotal: 0, companions: 0, unassigned: 0 },
           scope: body?.scope || '',
           updatedAt: body?.updatedAt || new Date().toISOString(),
         });
@@ -399,10 +403,30 @@ const CustomerBoardPage: React.FC = () => {
       width: 100,
       align: 'right',
       render: (v: number, r: BoardRow) => (
-        <Tooltip title={r.orderCount ? '已完成 ' + r.orderCount + ' 单（口径同盈亏统计）' : '还没有已完成的单'}>
+        <Tooltip title={r.orderCount ? '累计已完成 ' + r.orderCount + ' 单（口径同盈亏统计）' : '还没有已完成的单'}>
           <span style={{ color: v > 0 ? '#B91C1C' : '#94A3B8', fontWeight: v > 0 ? 600 : 400 }}>{yuan(v)}</span>
         </Tooltip>
       ),
+    },
+    {
+      title: '今日（营业日）',
+      key: 'today',
+      width: 122,
+      align: 'right',
+      render: (_: any, r: BoardRow) =>
+        r.todaySpent || r.todayOrders || r.todayHours ? (
+          <Tooltip title={'今日 ' + r.todayOrders + ' 单 · 今日时长 ' + fmtHours(r.todayHours) + '（营业日 12:00 起算，与实时看板同口径）'}>
+            <div style={{ lineHeight: 1.4 }}>
+              <div style={{ color: '#B91C1C', fontWeight: 600 }}>{yuan(r.todaySpent)}</div>
+              <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                {r.todayOrders ? r.todayOrders + ' 单' : ''}
+                {r.todayHours ? (r.todayOrders ? ' · ' : '') + fmtHours(r.todayHours) : ''}
+              </div>
+            </div>
+          </Tooltip>
+        ) : (
+          <span style={{ color: '#CBD5E1', fontSize: 12 }}>—</span>
+        ),
     },
     {
       title: '完成单数',
@@ -527,7 +551,7 @@ const CustomerBoardPage: React.FC = () => {
         subtitle={
           isCompanion
             ? '我的客户现在什么样：消费了多少、打过多长时间、此刻是不是正在跟我打（每 15 秒自动刷新）'
-            : '每个陪玩什么样、他的客户现在什么样：消费金额 / 游戏时长 / 此刻在不在打，一眼看全（每 15 秒自动刷新）'
+            : '每个陪玩什么样、他的客户现在什么样：今日消费 / 累计消费 / 游戏时长 / 此刻在不在打，一眼看全（今日按营业日 12:00 起算，与实时看板同口径；每 15 秒自动刷新）'
         }
         extra={
           <Space wrap>
@@ -546,6 +570,7 @@ const CustomerBoardPage: React.FC = () => {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         {statCard('客户总数', String(counts?.customers ?? rows.length), '#1D4ED8', '#EFF6FF')}
         {statCard('正在打', String(counts?.serving ?? 0), '#B91C1C', '#FEF2F2')}
+        {statCard('今日消费', yuan(counts?.todaySpentTotal ?? 0), '#C2410C', '#FFF7ED')}
         {statCard('累计消费', yuan(counts?.spentTotal ?? 0), '#15803D', '#F0FDF4')}
         {statCard('累计时长', fmtHours(counts?.hoursTotal ?? 0), '#7C3AED', '#F5F3FF')}
         {statCard('陪玩数', String(counts?.companions ?? companions.length), '#0F766E', '#F0FDFA')}
@@ -574,10 +599,11 @@ const CustomerBoardPage: React.FC = () => {
           <Segmented
             size="small"
             value={sort}
-            onChange={(v) => setSort(v as 'live' | 'spent' | 'hours' | 'recent')}
+            onChange={(v) => setSort(v as 'live' | 'spent' | 'today' | 'hours' | 'recent')}
             options={[
               { label: '正在打优先', value: 'live' },
-              { label: '消费金额', value: 'spent' },
+              { label: '今日消费', value: 'today' },
+              { label: '累计消费', value: 'spent' },
               { label: '游戏时长', value: 'hours' },
               { label: '最近下单', value: 'recent' },
             ]}
