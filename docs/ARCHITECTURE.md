@@ -38,6 +38,10 @@
   **只有退出进程让看门狗换文件那一步等空闲**；`main.ts` 在 `blacklist:update` 里检测到状态从 `BUSY` 变回别的，
   立刻 `checkForUpdates()`（包已备好，几秒就能装）；备货包下次开机也认，`clearStagedUpdate` 在版本装上 /
   被 `blocked-versions.json` 拉黑时清标记。排队等更新名额时也不因为「这期间接了单」整轮放弃。
+  再补一层（`1.0.20261010`，老板 2026-10-04「什么都不用加，每次开机就给他们更新」）：`waitUntilIdle` 加
+  「开机宽限期」—— 用 `os.uptime()`（**不是** `process.uptime()`，防止看门狗单独拉起时把老机器误判成刚开机）
+  判断系统刚启动（< 10 分钟）：此时残留的 BUSY 不算「接单中」，直接把已备好的包装上；开机已久又确实在接单的
+  仍老实等空闲，绝不打断。开机时机器上还没人开打，所以这一步无痛。
 
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。

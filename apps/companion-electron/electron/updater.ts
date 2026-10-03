@@ -5,6 +5,7 @@ import { store } from './store';
 import { logger } from './logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { execFile } from 'child_process';
 import { startUpdateSpin, stopUpdateSpin, updateTrayTooltip } from './tray';
 
@@ -244,8 +245,38 @@ function companionBusy(): boolean {
   return store.get('lastStatus') === 'BUSY';
 }
 
+// 开机宽限期：系统刚启动的这段时间，机器上还没人开打，把备好的更新直接装上最省事。
+// 老板 2026-10-04：「什么都不用加，你直接每次开机的时候给他们更新就行。」
+// 以前只看 store 里的 lastStatus：上一单结束时若残留了 BUSY，客户端重启/开机后仍读成 BUSY，
+// waitUntilIdle 一等就是半小时、等不到就跳过，机器于是永远卡在旧版本（王甲振那台就是这样）。
+// 这里改用**系统运行时长**判断「刚开机」：宽限期内直接放行装更新，不再等那个残留的 BUSY。
+// 用 os.uptime() 而不是 process.uptime()：客户端可能被看门狗单独拉起，那种情况下进程刚启动
+// 但机器早已开机，绝不能误判成「刚开机」去打断正在打单的人 —— 那种情况仍按老规矩等空闲。
+const BOOT_GRACE_SECONDS = 10 * 60;
+
+function justBooted(): boolean {
+  try {
+    return os.uptime() < BOOT_GRACE_SECONDS;
+  } catch {
+    return false;
+  }
+}
+
 /** 等陪玩空闲（最多 30 分钟）。返回 false = 还在接单，这一轮先不动它。 */
 async function waitUntilIdle(why: string): Promise<boolean> {
+  if (justBooted()) {
+    let uptimeSeconds = -1;
+    try {
+      uptimeSeconds = Math.round(os.uptime());
+    } catch {
+      /* ignore */
+    }
+    logger.info('System just booted, applying update without waiting for idle', {
+      why,
+      uptimeSeconds,
+    });
+    return true;
+  }
   if (!companionBusy()) return true;
   logger.info('Companion is busy, deferring update', { why });
   const deadline = Date.now() + 30 * 60 * 1000;
