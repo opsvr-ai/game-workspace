@@ -96,7 +96,6 @@ import ExpenseReviewPage from './pages/finance/ExpenseReviewPage';
 import BattleScreenshotsPage from './pages/BattleScreenshotsPage';
 import BattleScreenshotReviewPage from './pages/BattleScreenshotReviewPage';
 import ContentCheckPage from './pages/ContentCheckPage';
-import WechatTracePage from './pages/owner/WechatTracePage';
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -312,15 +311,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <SettingsPage />
-          </Suspense>
-        ),
-      },
-      {
-        // 微信号溯源（客户微信隐形水印解码）—— 老板 2026-10-04
-        path: 'owner/watermark',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <WechatTracePage />
           </Suspense>
         ),
       },

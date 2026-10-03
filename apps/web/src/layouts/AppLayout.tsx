@@ -80,7 +80,6 @@ import {
 } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';
-import ScreenWatermark from '../components/ScreenWatermark';
 import { useChatStore } from '../stores/chatStore';
 import { useOrderStore } from '../stores/orderStore';
 import { orderTypeConfig } from '../constants/orders';
@@ -228,7 +227,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           key: '系统与规则', label: '系统与规则',
           children: [
             { key: '/owner/settings', label: '系统配置' },
-            { key: '/owner/watermark', label: '微信号溯源（隐形水印）' },
             { key: '/admin/cs-settings', label: '客服设置', ratioKey: 'cs' },
             { key: '/admin/payroll', label: '工资规则', ratioKey: 'admin' },
             { key: '/admin/finance/price-rules', label: '价格规则' },
@@ -2535,8 +2533,6 @@ const AppLayout: React.FC = () => {
 
       <VoiceCallHandler />
       <ServiceStartOverlay />
-      {/* 画面淡色水印：截图 / 拍照能追到人（老板 2026-10-04）。固定最上层、不吃点击。 */}
-      <ScreenWatermark />
     </ChatProvider>
   );
 };
