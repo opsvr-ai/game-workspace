@@ -8,6 +8,7 @@ import { customersApi } from '../api/customers';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import PageHeader from '../components/PageHeader';
+import PasteImageBox from '../components/PasteImageBox';
 import { visibleInterval } from '../hooks/usePolling';
 
 const { Text } = Typography;
@@ -72,6 +73,33 @@ const BattleScreenshotsPage: React.FC = () => {
     }
     return false;
   };
+
+  // 一次加入多张图（Ctrl+V 粘贴 / 拖入都走这里），统一按「最多 MAX_FILES 张」收口。
+  const addFiles = useCallback((incoming: File[]) => {
+    const valid = incoming.filter(looksLikeImage);
+    if (!valid.length) {
+      message.warning('没有识别到图片，请粘贴 / 拖入 JPG、PNG 等格式的图片');
+      return;
+    }
+    const current = fileListRef.current;
+    const room = MAX_FILES - current.length;
+    if (room <= 0) {
+      message.warning(`最多 ${MAX_FILES} 张，先提交或删掉一些再加`);
+      return;
+    }
+    const take = valid.slice(0, room);
+    if (valid.length > room) message.warning(`最多 ${MAX_FILES} 张，已保留前 ${room} 张`);
+    const added: UploadFile[] = take.map((file, i) => ({
+      uid: `paste-${Date.now()}-${i}-${file.name || 'image'}`,
+      name: file.name || `截图-${i + 1}.png`,
+      status: 'done' as const,
+      originFileObj: file as unknown as UploadFile['originFileObj'],
+    }));
+    const next = [...current, ...added];
+    fileListRef.current = next;
+    setFileList(next);
+    message.success(`已加入 ${take.length} 张`);
+  }, []);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -180,23 +208,26 @@ const BattleScreenshotsPage: React.FC = () => {
               }, 300);
             }}
           >
-            <Dragger
-              multiple
-              maxCount={MAX_FILES}
-              accept={IMAGE_ACCEPT}
-              fileList={fileList}
-              beforeUpload={beforeUpload}
-              onChange={(info) => setFileList(info.fileList)}
-            >
-              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-              <p className="ant-upload-text">点击或拖拽上传战绩图</p>
-              <p className="ant-upload-hint">
-                必须同一个陪玩ID或同一个客户ID，最少 {MIN_FILES} 张为一组（最多 {MAX_FILES} 张）
-              </p>
-            </Dragger>
+            <PasteImageBox onFiles={addFiles} borderless showHint={false} enableDrop={false}>
+              <Dragger
+                multiple
+                maxCount={MAX_FILES}
+                accept={IMAGE_ACCEPT}
+                fileList={fileList}
+                beforeUpload={beforeUpload}
+                onChange={(info) => setFileList(info.fileList)}
+              >
+                <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+                <p className="ant-upload-text">点击、拖拽或 Ctrl+V 粘贴上传战绩图</p>
+                <p className="ant-upload-hint">
+                  必须同一个陪玩ID或同一个客户ID，最少 {MIN_FILES} 张为一组（最多 {MAX_FILES} 张）；
+                  先点一下这里，再直接 Ctrl+V 可一次粘贴多张
+                </p>
+              </Dragger>
+            </PasteImageBox>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            支持 JPG / PNG / WebP / GIF / BMP；微信电脑端里的图可以直接拖进来，拖不动就先「另存为」成图片再拖。
+            支持 JPG / PNG / WebP / GIF / BMP；微信电脑端里的图可以直接拖进来，也可以点一下上传框后 Ctrl+V 粘贴（支持一次多张）。
           </Text>
           <Button type="primary" loading={submitting} onClick={submit} disabled={files.length < MIN_FILES}>
             {files.length < MIN_FILES

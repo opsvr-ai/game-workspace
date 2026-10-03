@@ -5,6 +5,7 @@ import { SendOutlined, SmileOutlined, PaperClipOutlined, PlusOutlined, DeleteOut
 import http from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
 import ReplyBar from './ReplyBar';
+import { getImagesFromClipboard, isImageFile } from '../../utils/clipboardImage';
 
 interface ChatComposerProps {
   onSend: (text: string, replyToId?: string, mentionUserIds?: string[]) => void;
@@ -40,6 +41,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStart, setMentionStart] = useState(0);
@@ -252,7 +254,31 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
   const tabs = [...Object.keys(EMOJI_CATEGORIES), '⭐ 收藏'];
 
   return (
-    <div style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: '#FFF' }}>
+    <div
+      onDragOver={(e) => {
+        if (!onUpload) return;
+        if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={async (e) => {
+        if (!onUpload) return;
+        const dropped = Array.from(e.dataTransfer?.files || []).filter(isImageFile);
+        if (!dropped.length) {
+          setDragOver(false);
+          return;
+        }
+        e.preventDefault();
+        setDragOver(false);
+        for (const file of dropped) {
+          const markup = await onUpload(file);
+          if (markup) setText((prev) => prev + '\n' + markup + '\n');
+        }
+        message.success(dropped.length > 1 ? `已拖入 ${dropped.length} 张图片` : '图片已添加');
+      }}
+      style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: dragOver ? '#EAF3FF' : '#FFF', transition: 'background .15s' }}
+    >
       {replyTo && <ReplyBar content={replyTo.content} onCancel={() => setReplyTo(null)} />}
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '8px 12px' }}>
@@ -279,20 +305,15 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         <textarea ref={textareaRef} value={text} onChange={handleChange}
           onKeyDown={handleKeyDown} onMouseUp={persistInputHeight} onBlur={persistInputHeight}
           onPaste={async (e) => {
-            const items = e.clipboardData?.items;
-            if (!items || !onUpload) return;
-            for (let i = 0; i < items.length; i++) {
-              if (items[i].type.startsWith('image/')) {
-                e.preventDefault();
-                const file = items[i].getAsFile();
-                if (file) {
-                  const markup = await onUpload(file);
-                  if (markup) setText((prev) => prev + '\n' + markup + '\n');
-                  message.success('图片已粘贴');
-                }
-                break;
-              }
+            if (!onUpload) return;
+            const files = getImagesFromClipboard(e);
+            if (!files.length) return;
+            e.preventDefault();
+            for (const file of files) {
+              const markup = await onUpload(file);
+              if (markup) setText((prev) => prev + '\n' + markup + '\n');
             }
+            message.success(files.length > 1 ? `已粘贴 ${files.length} 张图片` : '图片已粘贴');
           }} placeholder="输入消息..." rows={1}
           style={{
             flex: 1, height: inputHeight, border: 'none', outline: 'none', resize: 'vertical',

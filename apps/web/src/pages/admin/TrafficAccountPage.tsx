@@ -12,6 +12,8 @@ import { employeesApi } from '../../api/employees';
 import { configApi } from '../../api/config';
 import { contentCheckApi } from '../../api/contentCheck';
 import CollectorPluginHint from '../../components/CollectorPluginHint';
+import PasteImageBox from '../../components/PasteImageBox';
+import { getImagesFromClipboard } from '../../utils/clipboardImage';
 import { useAuthStore } from '../../stores/authStore';
 import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
@@ -573,9 +575,8 @@ const TrafficAccountPage: React.FC = () => {
   };
 
   const onNotePaste = (e: React.ClipboardEvent) => {
-    const items = Array.from(e.clipboardData?.items || []);
-    const item = items.find((i) => i.type.startsWith('image/'));
-    const file = item?.getAsFile();
+    // 识别一次只吃一张，多粘的取第一张（PasteImageBox 已经处理过的话不会走到这儿）。
+    const file = getImagesFromClipboard(e)[0];
     if (file) {
       e.preventDefault();
       handleRecognizeFile(file);
@@ -1346,9 +1347,11 @@ const TrafficAccountPage: React.FC = () => {
         destroyOnClose
       >
         <Form form={noteForm} layout="vertical" onPaste={onNotePaste} onValuesChange={(_c, all) => setLiveNoteValues(all)}>
-          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button icon={<CameraOutlined />} onClick={() => noteFileInputRef.current?.click()} loading={recognizing}>上传截图识别</Button>
-            <Text type="secondary">粘贴（Ctrl+V）或上传小红书数据截图，自动填曝光/浏览/点赞等字段</Text>
+          <PasteImageBox onFiles={(files) => handleRecognizeFile(files[0])} style={{ marginBottom: 12 }}>
+            <Space size={8} align="center" wrap>
+              <Button icon={<CameraOutlined />} onClick={() => noteFileInputRef.current?.click()} loading={recognizing}>上传截图识别</Button>
+              <Text type="secondary">点一下这里再 Ctrl+V 粘贴小红书数据截图，自动填曝光/浏览/点赞等字段（也可以点左边从文件夹选）</Text>
+            </Space>
             <input
               ref={noteFileInputRef}
               type="file"
@@ -1356,7 +1359,7 @@ const TrafficAccountPage: React.FC = () => {
               style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRecognizeFile(f); e.target.value = ''; }}
             />
-          </div>
+          </PasteImageBox>
           {liveEval.length > 0 && (
             <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8 }}>
               <Text strong style={{ fontSize: 12 }}>📊 实时判级（48 小时数据，低于及格线标红）</Text>
