@@ -13,13 +13,21 @@
    只把用户真正必须手动点的那一步交给他，并给清晰清单，不要反复让他“再试一次”。
 4. **改完必复查整条链路。** 每次交付前，用可验证的证据确认结果（部署成功、版本正确、
    目录正确、自动更新可完成），而不是口头说“应该好了”。
-5. **提交、打包、发布、部署不必先问，直接做。**（用户明确要求，2026-09-19）
-   只要**不影响陪玩正在接单**（接单中不打断、不强制更新），
-   代码改完就自己提交、打包、发布、部署，并自己验证到底，不要反复问“要不要发”。
-   具体：前端 `python scripts\_deploy_web_cloud.py` + `python scripts\_set_web_version.py vXXX`；
-   服务端 `python scripts\_deploy_server_cloud.py`；客户端 `python scripts\_publish_client.py <版本号>`（安装包在
-   `apps/companion-electron/release/win-unpacked`）。发布客户端后不要去强制推送（会打断接单），
-   客户端自己每 30 分钟查一次版本（接单中会自动跳过；所以铺开是逐步的，别急着判定「没生效」）。
+5. **提交、打包、发布、部署不必先问，直接做；只有「终端程序更新」必须先问。**（用户明确要求，2026-09-19；
+   2026-10-03 补充确认）
+   **默认流程（不用问，做完自己验证到底）：** 任何改动任务完成后 —— ① `git add` + 提交（Conventional Commits）
+   ② `git push origin master`（远端 `opsvr-ai/game-workspace`）③ **服务端/网页端部署**：
+   前端 `python scripts\_deploy_web_cloud.py` + `python scripts\_set_web_version.py vXXX`；
+   服务端 `python scripts\_deploy_server_cloud.py`。
+   服务端改完即全端生效（客户端直连云服务器，不用等发版）；部署后按老规矩自检（dist/schema 指纹、
+   pm2 uptime 对齐、版本键回读、重启后无 error/5xx）。
+   **唯一例外 —— 必须问：** 凡是要**在终端上更新程序**的动作，例如
+   `python scripts\_publish_client.py <版本号>`（陪玩端）、`python scripts\_publish_cs_client.py <版本号>`（客服端）、
+   整包换装 / 强制升级 / 推送安装包，**都要先问老板「要不要现在自动更新」**，得到许可才发；
+   发完也不要强制推送（会打断接单）——客户端自己每 30 分钟查一次版本、接单中自动跳过，铺开是逐步的，
+   别急着判定「没生效」。安装包在 `apps/companion-electron/release/win-unpacked`。
+   前提始终是**不影响陪玩正在接单**（接单中不打断）。
+   > 注意：跑脚本前先设 `$env:CHUNLV_SSH_PASS`（口令已从脚本里脱敏，见 `scripts/README.md`）。
 6. **线上业务开关是老板/店长在界面上的东西，脚本/自动化一律不许改。**（用户明确要求，2026-09-20）
    具体：`blacklist.enabled`（「本店黑名单是否生效」，**店长自己拨**）——2026-09-24 起它是**唯一**的杀进程开关
    （老的全站总开关 `blacklist.auto_kill` 已按老板要求整条移除，代码里再搜不到这个键）；

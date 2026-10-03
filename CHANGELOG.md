@@ -9,6 +9,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **工作方式补充（老板 2026-10-03 明确要求）**：以后**任何改动任务做完**，默认自动走完
+  ① 提交 ② `git push origin master` ③ **服务端 / 网页端部署**，不用再问；
+  **唯一例外是「终端上更新程序」**（陪玩端 `_publish_client.py` / 客服端 `_publish_cs_client.py` /
+  整包换装 / 强制升级）——这类**必须先问老板「要不要现在自动更新」**，得到许可才发，
+  发完也不强制推送（客户端每 30 分钟自查、接单中自动跳过）。
+  已写进 `AGENTS.md` 工作准则第 5 条（Codex 与 Claude Code 都会读到）。
+
 ### Security
 
 - **把 AI 开发工具的运行产物 / 会话状态从仓库里摘出去（2026-10-03）。**
