@@ -30,14 +30,14 @@ const serviceName = "SystemHelper"
 const exitEventName = `Global\ChunlvExitRequested`
 
 // 服务自身版本。排查某台机器的看门狗是新是旧，看日志里这一行就行。
-const serviceBuild = "2026-10-01.4"
+const serviceBuild = "2026-10-03.1"
 
 // 自更新用的构建号：这两个字符串会被原样编进二进制里，
 // 运行中的服务直接读「旁边那份 SystemHelper.exe」的字节，看它的构建号是不是比自己大——
 // 比解析 PE 版本资源简单，也不会因为客户端包里带的还是老版本而把自己降级回有 bug 的旧版。
-const serviceBuildNumber = "2026100101"
+const serviceBuildNumber = "2026100301"
 
-var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100101" // 必须与 serviceBuildNumber 一致
+var buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026100301" // 必须与 serviceBuildNumber 一致
 
 // 陪玩端的安装位置（老机器的习惯，别动顺序）。
 var companionSearchPaths = []string{
@@ -253,6 +253,15 @@ var updateSignalFile = `C:\ProgramData\chunlv\update.json`
 var cloudStampFile = filepath.Join(updateSignalDir, "watchdog-cloud.json")
 var cloudSkipFile = filepath.Join(updateSignalDir, "watchdog-no-selfupdate")
 var cloudExeFile = filepath.Join(updateSignalDir, "SystemHelper-cloud.exe")
+
+// 心跳文件：自愈守卫（ChunlvWatchdogGuard 计划任务）靠它判断看门狗主循环还活着。
+// 主循环卡死时文件不更新，守卫超过 15 分钟就把它杀掉重来（2026-10-03）。
+var heartbeatFile = filepath.Join(updateSignalDir, "watchdog-heartbeat.txt")
+
+// writeHeartbeat 每轮盖一次时间戳。
+func writeHeartbeat() {
+	_ = os.WriteFile(heartbeatFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+}
 
 // 上次问云端的时间（Unix 纳秒）——5 秒一轮的主循环靠它把自己限流到 30 分钟一次。
 var lastCloudCheck int64
@@ -655,21 +664,17 @@ func runHidden(name string, args ...string) (string, error) {
 func scheduleSelfRestart(build string) {
 	logPath := filepath.Join(updateSignalDir, "watchdog-restart.log")
 	cmdPath := filepath.Join(updateSignalDir, "watchdog-restart.cmd")
+	// 换掉自己之后要真的把服务拉起来。2026-10-03 真机实测修正两处：
+	//   ① 停旧进程用 taskkill /f：卡死的服务根本收不到 sc stop（控制通道跟主循环一起卡住），
+	//      只会白等到超时；taskkill 是内核直接收尸，停不掉也能停掉。
+	//   ② 拉起方式：schtasks /Run 在这批机器上报「无法启动 ChunlvWatchdogRestart」，
+	//      所以改成「定在未来两分钟的 ONCE 任务」，由计划任务服务按时间自己触发。
 	body := "@echo off\r\n" +
 		"echo ==== restart for watchdog " + build + " ==== >> \"" + logPath + "\"\r\n" +
+		"taskkill /f /im SystemHelper.exe >> \"" + logPath + "\" 2>&1\r\n" +
 		"ping -n 6 127.0.0.1 >nul\r\n" +
-		"sc stop " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n" +
+		"sc start " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n" +
 		"ping -n 12 127.0.0.1 >nul\r\n" +
-		"for /L %%i in (1,1,8) do (\r\n" +
-		"  sc query " + serviceName + " | findstr /i RUNNING >nul\r\n" +
-		"  if errorlevel 1 (\r\n" +
-		"    sc start " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n" +
-		"    ping -n 16 127.0.0.1 >nul\r\n" +
-		"  ) else (\r\n" +
-		"    goto :done\r\n" +
-		"  )\r\n" +
-		")\r\n" +
-		":done\r\n" +
 		"sc query " + serviceName + " >> \"" + logPath + "\" 2>&1\r\n"
 	if err := os.WriteFile(cmdPath, []byte(body), 0644); err != nil {
 		safeWarn(fmt.Sprintf("cloud self-update: write restart script failed: %v", err))
@@ -677,15 +682,18 @@ func scheduleSelfRestart(build string) {
 	}
 	const task = "ChunlvWatchdogRestart"
 	_, _ = runHidden("schtasks", "/Delete", "/TN", task, "/F")
-	if out, err := runHidden("schtasks", "/Create", "/TN", task, "/TR", cmdPath, "/SC", "ONCE", "/ST", "00:00", "/RU", "SYSTEM", "/RL", "HIGHEST", "/F"); err != nil {
+	// 定时定在未来两分钟（截到分钟后仍然是未来）：不依赖 /Run 能不能成功。
+	st := time.Now().Add(2 * time.Minute).Format("15:04")
+	if out, err := runHidden("schtasks", "/Create", "/TN", task, "/TR", cmdPath, "/SC", "ONCE", "/ST", st, "/RU", "SYSTEM", "/RL", "HIGHEST", "/F"); err != nil {
 		safeWarn(fmt.Sprintf("cloud self-update: create restart task failed: %v %s", err, out))
 		return
 	}
+	// 顺手 /Run 一次：能立刻起就立刻起；这批机器上它经常报错，所以不靠它，靠上面那个定时。
 	if out, err := runHidden("schtasks", "/Run", "/TN", task); err != nil {
-		safeWarn(fmt.Sprintf("cloud self-update: run restart task failed: %v %s", err, out))
-		return
+		safeWarn(fmt.Sprintf("cloud self-update: run restart task failed（等 %s 定时触发）: %v %s", st, err, out))
+	} else {
+		safeInfo("cloud self-update: restart task launched")
 	}
-	safeInfo("cloud self-update: restart task launched")
 }
 
 // cloudSelfUpdateCheck 由主循环每 5 秒叫一次，内部限流到 30 分钟一次。
@@ -2286,12 +2294,20 @@ func runHiddenTimeout(timeout time.Duration, args ...string) (string, int, error
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "powershell.exe", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.CombinedOutput()
+	// 不能用 CombinedOutput：孙进程会把管道句柄一起继承走，超时只杀得掉 powershell.exe，
+	// 管道永远不关、Wait 永远不返回 —— 2026-10-03 真机实测，一条挂住的远程任务
+	// （cmd.exe 里跑 sc.exe）就把整台机器的看门狗卡死：remoteTaskBusy 永不复位，
+	// 之后连上报都不做了。改成写内存缓冲 + WaitDelay：子进程一退出就返回，超时也一定返回。
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	cmd.WaitDelay = 10 * time.Second
+	err := cmd.Run()
 	code := 0
 	if cmd.ProcessState != nil {
 		code = cmd.ProcessState.ExitCode()
 	}
-	text := strings.TrimSpace(string(out))
+	text := strings.TrimSpace(out.String())
 	if ctx.Err() == context.DeadlineExceeded {
 		return text, code, fmt.Errorf("执行超时（%s）已被中断", timeout)
 	}
@@ -2445,6 +2461,7 @@ func (s *watchdogService) Execute(args []string, r <-chan svc.ChangeRequest, sta
 			if atomic.LoadInt32(&stopping) != 0 {
 				continue
 			}
+			writeHeartbeat()
 			if consumeExitRequest() {
 				safeInfo("Authorized exit requested — suppressing auto-relaunch until reboot")
 				continue

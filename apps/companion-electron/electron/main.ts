@@ -895,18 +895,26 @@ function broadcastPopupHtml(payload: {
   seconds?: number;
   orderId?: string;
   hint?: string;
+  action?: string;
+  actionPayload?: any;
 }): string {
   const title = escapeHtml(payload?.title || '群聊广播');
   const body = escapeHtml(payload?.body || '');
   const icon = escapeHtml(payload?.icon || '📢');
   const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
   const orderId = String(payload?.orderId || '');
+  const action = String(payload?.action || '');
   const hint = escapeHtml(payload?.hint || '');
-  // 只有带订单号的横幅才「可点」（点了跳抢单池）；群聊广播仍然纯展示。
-  const clickable = orderId.length > 0 && hint.length > 0;
+  // 可点 = 带订单号（点了跳抢单池）或带动作（打开搭档邀请 / 转让 / 会话等）。
+  // 老板 2026-10-03：所有提醒统一成这张能点的横幅，不再用「点了没反应」的系统通知。
+  const clickable = (orderId.length > 0 && hint.length > 0) || action.length > 0;
   const bodyMax = hint ? 40 : 66;
   const clickCss = clickable ? '.card{cursor:pointer}' : '';
   const hintHtml = hint ? `<div class="hint">${hint}</div>` : '';
+  const jsLiteral = (v: unknown) => JSON.stringify(v ?? null).split('<').join('\\u003c');
+  const clickCall = action
+    ? `api.bannerAction(${jsLiteral(action)}, ${jsLiteral(payload?.actionPayload)});`
+    : `api.orderBannerClick(${JSON.stringify(orderId)});`;
   const script = clickable
     ? `<script>
 (function(){
@@ -918,7 +926,7 @@ function broadcastPopupHtml(payload: {
     if (hit !== over) { over = hit; try { api.orderBannerHover(hit); } catch(_){} }
   });
   document.addEventListener('click', function(){
-    try { api.orderBannerClick(${JSON.stringify(orderId)}); } catch(_){}
+    try { ${clickCall} } catch(_){}
   });
 })();
 </script>`
@@ -954,6 +962,8 @@ function showBroadcastPopup(payload: {
   icon?: string;
   orderId?: string;
   hint?: string;
+  action?: string;
+  actionPayload?: any;
 }): void {
   const W = 480;
   const H = 150;
@@ -1232,10 +1242,39 @@ function setupIPC(): void {
       logger.warn('Order banner click failed', { error: err?.message || err });
     }
   });
-  ipcMain.handle('broadcast:popup', (event, payload: { title?: string; body?: string }) => {
+  // 点横幅上的「动作」：把客户端拉到最前，再让界面去打开对应的东西
+  // （搭档邀请 / 订单转让 / 接单记录 / 会话……）。老板 2026-10-03：
+  // 王甲振点 Windows 弹窗没跳转 —— 那些提醒原来走系统通知，点了本来就不跳，
+  // 现在统一改成这张横幅 + 这个动作回执。
+  ipcMain.on('banner:action', (_event, action: string, payload: unknown) => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('banner-action', {
+          action: String(action || ''),
+          payload: payload ?? null,
+        });
+      }
+    } catch (err: any) {
+      logger.warn('Banner action failed', { error: err?.message || err });
+    }
+  });
+  ipcMain.handle('broadcast:popup', (event, payload: Record<string, unknown>) => {
     if (!isTrustedSender(event)) return { ok: false, reason: 'untrusted-origin' };
     try {
-      showBroadcastPopup({ title: payload?.title, body: payload?.body });
+      const p = payload as any;
+      showBroadcastPopup({
+        title: p?.title,
+        body: p?.body,
+        icon: p?.icon,
+        seconds: p?.seconds,
+        hint: p?.hint,
+        orderId: p?.orderId,
+        action: p?.action,
+        actionPayload: p?.actionPayload,
+      });
       return { ok: true };
     } catch (err: any) {
       logger.warn('Broadcast popup failed, fallback to system notification', {

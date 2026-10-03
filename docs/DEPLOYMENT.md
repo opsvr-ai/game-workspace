@@ -714,9 +714,19 @@ binPath= "..." start= auto obj= LocalSystem` → `sc start SystemHelper`。
    `buildTagLiteral = "CHUNLV_WATCHDOG_BUILD=2026092004"`。
 2. 编译：`cd apps/watchdog-service && go build -o SystemHelper.exe .`
 3. 上传云端：`python scripts\_upload_sh_cloud.py`（传到 `1.117.229.36:3001/uploads/SystemHelper.exe`）。
-4. 批量下发：`python scripts\_push_watchdog_all.py`（逐台下载→停服务→换文件→起服务，并回读新构建号；
-   只重启看门狗服务，不会打断正在接单的客户端）。
-5. 单台手工装了算：把 `SystemHelper.exe` 放到客户端安装目录的 `resources\` 下，或直接在目标机跑
+4. **别忘了「自愈两件套」**（2026-10-03 起补进标准流程，以前经常漏）：
+   - 上传守卫脚本到 `/uploads/watchdog-guard.ps1`（服务端自愈脚本 `client-remote.ts` 会去下载它，
+     **云端没有这个文件时，那条「每 5 分钟看一眼门狗」的计划任务压根建不起来**）；
+   - 把 `SystemConfig.watchdog.latest_build` 改成这次的构建号 —— 客户端上报时，服务端就靠它判断
+     「这台机器的看门狗该不该换」。改完回读一次确认。
+     ```sql
+     INSERT INTO "SystemConfig" (id, key, value)
+     VALUES (gen_random_uuid(), 'watchdog.latest_build', to_jsonb('2026100301'::text))
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+     ```
+5. 批量下发（可选，想立刻推）：`python scripts\_push_watchdog_all.py`（逐台下载→停服务→换文件→起服务，并回读新构建号；
+   只重启看门狗服务，不会打断正在接单的客户端）。**不做这一步也行** —— 远端机器一上报就会自愈换掉。
+6. 单台手工装了算：把 `SystemHelper.exe` 放到客户端安装目录的 `resources\` 下，或直接在目标机跑
    `deploy\install-watchdog.bat`（会从云端下载并重建服务）。
 
 **⚠ 改完看门狗必须同时更新两个「客户端更新包」里的那一份。** 更新包（陪玩端 `chunlv-latest.zip`、

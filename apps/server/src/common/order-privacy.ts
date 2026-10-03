@@ -15,6 +15,19 @@ export function maskCustomerWechat(order: any, user?: PrivacyUser | null): any {
   if (order.coCompanionId !== user.companionId) return order; // 与当前陪玩无关，原样返回
 
   // 副陪（搭档）：隐藏客户微信与二维码
+  return maskPartnerContactView(order);
+}
+
+/**
+ * 强制按「副陪（搭档）视角」隐藏客户联系方式：客户微信 + 二维码抹掉，
+ * 房间码 / YY / KOOK 这些服务时要用的留着（跟线下陪玩端看到的一样）。
+ *
+ * 用在「我服务的单」那一栏（老板 2026-10-03）：那一栏里凡是主陪不是我的单，
+ * 一律看不到主陪的客户微信 —— 就算这张单的 `coCompanionId` 后来因为再转让变了，
+ * 也不能把客户信息漏给曾经的搭档。
+ */
+export function maskPartnerContactView(order: any): any {
+  if (!order || typeof order !== 'object') return order;
   const cf = order.customFields as any;
   return {
     ...order,

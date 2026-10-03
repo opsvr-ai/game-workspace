@@ -7,7 +7,7 @@
  *
  * 跟 client-diag.ts 一样用 String.raw 保存，不要出现模板字符串的插值符号和反引号。
  */
-export const CLIENT_ENABLE_REMOTE_VERSION = '2026-10-01.1';
+export const CLIENT_ENABLE_REMOTE_VERSION = '2026-10-03.2';
 
 export const CLIENT_ENABLE_REMOTE_PS = String.raw`# 蠢驴电竞 · 一键开通远程管理（客服端 / 陪玩端通用）
 # 作用：在这台电脑上开一个专属运维账号 + 打开远程管理通道，并把结果回传到服务器。
@@ -19,6 +19,7 @@ param(
   [string]$ServerUrl = '',
   [string]$ClientType = '',
   [string]$HostnameOverride = '',
+  [string]$ReportedWatchdogBuild = '',
   [switch]$NoUpload
 )
 
@@ -132,8 +133,26 @@ try {
 #    老板 2026-10-01：「你看看还谁不是全自动的……以后都弄全自动好么？」看门狗负责
 #    「自动更新 + 领远程任务」，它一旧，这两件事就都得靠人跑到电脑跟前。比它自己
 #    云端自更新更早的版本还不认识那套机制，只能靠这条任务把它带上来。
-#    以 SYSTEM 身份跑的时候（看门狗自己领的任务）不换自己 —— 它会自己跟云端升级，
-#    在这儿 sc stop 只会把自己打断。
+#
+#    老板 2026-10-03：「能不能一次行全部所有电脑都修好？」—— 这儿以前只看「磁盘上那份
+#    跟云端一不一样」，漏了更常见的一种：老看门狗换文件时只 stage、不重启自己
+#    （service.log 里那句 "staged new SystemHelper (takes effect on next service start)"），
+#    于是文件早就是新的了、服务还跑着老进程，等下次开机才生效 —— 常年不关机的机器
+#    等于永远不生效，只能人工一台台重启。现在三件事一起看：
+#      ① 磁盘上那份落后云端 → 换文件；
+#      ② 台账里这台机器上报的构建号（-ReportedWatchdogBuild）跟磁盘上那份对不上，
+#         或者服务压根没在跑 → 重启服务（老看门狗自己不会重启自己）；
+#      ③ SYSTEM 身份（看门狗自己领的任务）不能 sc stop 自己 —— 服务一停，脚本跟着被结束，
+#         换到一半就烂在那儿。照抄新版看门狗自己那套做法（stageSelfReplace + 计划任务重启）：
+#         先换文件（Windows 允许重命名正在运行的 exe），再把「停/起服务」交给一次性计划任务
+#         （SYSTEM，不属于本服务进程），服务被停掉它照样能把服务拉起来。
+#      ④ 「重启」这一步最终交给看门狗守卫（见下）：每 5 分钟一次的 SYSTEM 计划任务 + 装完立刻跑一次，
+#         它自己按「磁盘版本 vs 正在跑的版本」判断，服务卡死了直接 taskkill 再拉起来。
+#
+#    另外记一笔 2026-10-03 挖到的真根因：上一版是用 PowerShell 数组拼 watchdog-restart.cmd，
+#    PowerShell 里「逗号比加号紧」，@( 'a' + $x + 'b' ) 会被拆成三个数组元素，落盘后路径各占一行，
+#    cmd.exe 认为重定向目标非法、整条命令都不执行 —— sc stop / sc start 一次都没跑过。
+#    所以现在一段脚本正文都不拼了：正文都用 here-string，落盘前用 -split/-join 统一换行。
 $wdPath = $env:ProgramFiles + '\SystemHelper\SystemHelper.exe'
 $wdBuild = ''
 if (Test-Path -LiteralPath $wdPath) { $wdBuild = Get-WatchdogBuild $wdPath }
@@ -147,18 +166,80 @@ if ($ServerUrl) {
 }
 $isSystem = $false
 try { $isSystem = ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq 'S-1-5-18') } catch { }
-W ('看门狗: 本机=' + $(if ($wdBuild) { $wdBuild } else { '未知' }) + ' 云端=' + $(if ($cloudBuild) { $cloudBuild } else { '未知' }) + ' 执行身份=' + $(if ($isSystem) { 'SYSTEM' } else { '用户' }))
-if ($cloudBuild -and (-not $isSystem) -and ((-not $wdBuild) -or ([string]$wdBuild).CompareTo([string]$cloudBuild) -lt 0)) {
-  $kind = 'companion'
-  if ($ClientType -and ($ClientType.ToUpper() -eq 'CS')) { $kind = 'cs' }
-  elseif (Test-Path -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt')) {
-    try { $k = (Get-Content -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt') -Raw).Trim(); if ($k) { $kind = $k } } catch { }
+$reportedBuild = [string]$ReportedWatchdogBuild
+$svcState = ''
+try { $svc = Get-Service -Name 'SystemHelper' -ErrorAction SilentlyContinue; if ($svc) { $svcState = [string]$svc.Status } } catch { }
+$needSwap = [bool]$cloudBuild -and ((-not $wdBuild) -or ([string]$wdBuild).CompareTo([string]$cloudBuild) -lt 0)
+$needRestart = [bool]$needSwap
+if ((-not $needRestart) -and $reportedBuild -and $wdBuild -and ($reportedBuild -ne $wdBuild)) { $needRestart = $true }
+if ((-not $needRestart) -and (Test-Path -LiteralPath $wdPath) -and ($svcState -ne 'Running')) { $needRestart = $true }
+W ('看门狗: 磁盘=' + $(if ($wdBuild) { $wdBuild } else { '未知' }) + ' 云端=' + $(if ($cloudBuild) { $cloudBuild } else { '未知' }) + ' 上报=' + $(if ($reportedBuild) { $reportedBuild } else { '未知' }) + ' 服务=' + $(if ($svcState) { $svcState } else { '未安装' }) + ' 执行身份=' + $(if ($isSystem) { 'SYSTEM' } else { '用户' }) + ' 换文件=' + $needSwap + ' 重启=' + $needRestart)
+$kind = 'companion'
+if ($ClientType -and ($ClientType.ToUpper() -eq 'CS')) { $kind = 'cs' }
+elseif (Test-Path -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt')) {
+  try { $k = (Get-Content -LiteralPath ($env:ProgramData + '\chunlv\watchdog-client.txt') -Raw).Trim(); if ($k) { $kind = $k } } catch { }
+}
+function Install-WatchdogGuard {
+  $gdir = $env:ProgramData + '\chunlv'
+  if (-not (Test-Path -LiteralPath $gdir)) { New-Item -ItemType Directory -Path $gdir -Force | Out-Null }
+  # 2026-10-03 真根因：上一版把「重启看门狗」写成一个 watchdog-restart.cmd，用 @( '...' + $x + '...' ) 拼行。
+  # PowerShell 里「逗号比加号紧」，一行的三段被拆成三个数组元素，落盘后路径各占一行 ——
+  # cmd.exe 认为重定向目标非法、整条命令都不执行，sc stop / sc start 一次都没跑过，
+  # 所以「文件换了、服务还跑着老的」拖了一整天。现在不再拼任何脚本正文。
+  Remove-Item -LiteralPath ($gdir + '\watchdog-restart.cmd') -Force -ErrorAction SilentlyContinue
+  $gps = $gdir + '\watchdog-guard.ps1'
+  $got = $false
+  if ($ServerUrl) {
+    try {
+      $tmp = $gdir + '\watchdog-guard.tmp'
+      Invoke-WebRequest -Uri ($ServerUrl.TrimEnd('/') + '/uploads/watchdog-guard.ps1') -OutFile $tmp -UseBasicParsing -TimeoutSec 60
+      $text = [System.IO.File]::ReadAllText($tmp, [System.Text.Encoding]::UTF8)
+      if ($text -and ($text.Length -gt 400)) {
+        # 必须带 BOM：PowerShell 5.1 见到没 BOM 的 UTF-8 会按 GBK 解码，中文注释当场乱码。
+        [System.IO.File]::WriteAllText($gps, $text, (New-Object System.Text.UTF8Encoding($true)))
+        $got = $true
+      }
+      Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    } catch { W ('  取看门狗守卫脚本失败: ' + $_.Exception.Message) }
   }
+  if (-not $got) { W '  没拿到看门狗守卫脚本，这轮跳过（不影响远程管理，下一轮自愈会再补）'; return }
+  $tr = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ' + $gps
+  schtasks /Delete /TN ChunlvWatchdogGuard /F 2>&1 | Out-Null
+  $null = schtasks /Create /TN ChunlvWatchdogGuard /TR $tr /SC MINUTE /MO 5 /RU SYSTEM /RL HIGHEST /F 2>&1
+  W ('  看门狗守卫任务（每 5 分钟）: exit=' + $LASTEXITCODE)
+  if ($LASTEXITCODE -eq 0) {
+    # 立刻跑一次：schtasks /Run 在这批机器上会报「无法启动」（真机实测过），
+    # 只有「定在未来、由计划任务按时间拉起」这条路靠得住。
+    $st = (Get-Date).AddMinutes(2).ToString('HH:mm')
+    schtasks /Delete /TN ChunlvWatchdogGuardNow /F 2>&1 | Out-Null
+    $null = schtasks /Create /TN ChunlvWatchdogGuardNow /TR $tr /SC ONCE /ST $st /RU SYSTEM /RL HIGHEST /F 2>&1
+    W ('  立刻跑一次守卫: exit=' + $LASTEXITCODE + ' 定在 ' + $st)
+  }
+}
+if (-not $needRestart) {
+  W '看门狗不用动（磁盘、上报、服务都对得上云端）'
+} elseif ($isSystem -and (Test-Path -LiteralPath $wdPath)) {
+  if ($needSwap) {
+    try {
+      Copy-Item -LiteralPath $cloudWd -Destination ($wdPath + '.new') -Force
+      if (Test-Path -LiteralPath ($wdPath + '.old')) { Remove-Item -LiteralPath ($wdPath + '.old') -Force }
+      Rename-Item -LiteralPath $wdPath -NewName 'SystemHelper.exe.old' -Force
+      Rename-Item -LiteralPath ($wdPath + '.new') -NewName 'SystemHelper.exe' -Force
+      $wdBuild = Get-WatchdogBuild $wdPath
+      W '  看门狗文件已换（SYSTEM 模式）'
+    } catch {
+      W ('  换看门狗文件失败: ' + $_.Exception.Message)
+      if ((-not (Test-Path -LiteralPath $wdPath)) -and (Test-Path -LiteralPath ($wdPath + '.old'))) {
+        try { Rename-Item -LiteralPath ($wdPath + '.old') -NewName 'SystemHelper.exe' -Force } catch { }
+      }
+    }
+  } else {
+    W '  磁盘上那份已经是新的，只差重启服务（老看门狗换文件只 stage、不重启自己）'
+  }
+} else {
   $wdDir = $env:ProgramFiles + '\SystemHelper'
   if (-not (Test-Path -LiteralPath $wdDir)) { New-Item -ItemType Directory -Path $wdDir -Force | Out-Null }
-  if (-not (Get-WatchdogBuild $cloudWd)) {
-    W '  下载的那份看门狗认不出构建号，不敢换'
-  } elseif (-not (Test-Path -LiteralPath $wdPath)) {
+  if (-not (Test-Path -LiteralPath $wdPath)) {
     Copy-Item -LiteralPath $cloudWd -Destination $wdPath -Force
     & $wdPath install ('--client=' + $kind) 2>&1 | ForEach-Object { W ('  装看门狗: ' + $_) }
     sc.exe start SystemHelper 2>&1 | Out-Null
@@ -168,11 +249,13 @@ if ($cloudBuild -and (-not $isSystem) -and ((-not $wdBuild) -or ([string]$wdBuil
   } else {
     try {
       sc.exe stop SystemHelper 2>&1 | Out-Null
-      Start-Sleep -Seconds 2
-      Copy-Item -LiteralPath $cloudWd -Destination ($wdPath + '.new') -Force
-      if (Test-Path -LiteralPath ($wdPath + '.old')) { Remove-Item -LiteralPath ($wdPath + '.old') -Force }
-      Rename-Item -LiteralPath $wdPath -NewName 'SystemHelper.exe.old' -Force
-      Rename-Item -LiteralPath ($wdPath + '.new') -NewName 'SystemHelper.exe' -Force
+      Start-Sleep -Seconds 3
+      if ($needSwap) {
+        Copy-Item -LiteralPath $cloudWd -Destination ($wdPath + '.new') -Force
+        if (Test-Path -LiteralPath ($wdPath + '.old')) { Remove-Item -LiteralPath ($wdPath + '.old') -Force }
+        Rename-Item -LiteralPath $wdPath -NewName 'SystemHelper.exe.old' -Force
+        Rename-Item -LiteralPath ($wdPath + '.new') -NewName 'SystemHelper.exe' -Force
+      }
       Start-Sleep -Seconds 2
       sc.exe start SystemHelper 2>&1 | Out-Null
       Start-Sleep -Seconds 4
@@ -183,9 +266,10 @@ if ($cloudBuild -and (-not $isSystem) -and ((-not $wdBuild) -or ([string]$wdBuil
       sc.exe start SystemHelper 2>&1 | Out-Null
     }
   }
-} else {
-  W '看门狗不用动（已是最新或本机没有可换的那份）'
 }
+# 守卫：不管上面走了哪条路都装一遍（幂等）。它是全网自愈的兜底 ——
+# 老看门狗换文件不重启自己、卡死了也不会自己爬起来，都靠它每 5 分钟兜一次。
+try { Install-WatchdogGuard } catch { W ('  装看门狗守卫失败: ' + $_.Exception.Message) }
 
 # 7) 回传服务器（这样管理端不用问任何人就能拿到口令）
 $hostName = $HostnameOverride

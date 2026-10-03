@@ -17,6 +17,24 @@
 - **修：离职的人还挂在下拉里:** `GET /companions` 默认过滤已离职（跟人员列表一个口径，另有 `includeResigned=true` 留口子），
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
+## Recent Updates (v3.3.0)
+
+- **全站弹窗 / 邀请统一成「可点击横幅」，客户管理「服务中」整行闪烁，订单管理给陪玩加「我服务的」一栏，管理端新增「实时看板」（2026-10-03，客户端 `1.0.20261008` + 网页 `v879`）:**
+  - **弹窗统一：** 老板「所有涉及弹窗或者邀请的，都给我做成客服发布订单时广播那个效果：陪玩游戏中也能出现弹窗，点击能跳转」。
+    以前只有客服发单那条横幅能点，搭档邀请 / 转让 / @提醒 / 账目异常都是普通系统通知、点了不跳转。现在统一走横幅：
+    横幅 HTML 支持 `action` / `actionPayload`，新增 IPC `banner:action`（先把主窗口拉到最前，再给界面发 `banner-action`），
+    网页 `showBannerNotification()` 在客户端里画横幅、浏览器里退回系统通知，`AppLayout` 按 action 打开搭档邀请弹窗 /
+    转让气泡 / 订单页 / 账目页 / 抢单池 / 对应聊天。群聊与单聊 @提醒也走 `open-chat` 横幅。
+  - **客户管理：** 「服务中」的客户整行淡绿呼吸闪烁，行首半透明「服务中」水印（`CustomersPage.tsx`，判断口径与操作列一致）。
+  - **订单管理（陪玩端）：** 从两栏改三栏 ——「我抢到的 / 我服务的 / 我发布的」。`GET /api/orders?scope=served`
+    把「我是主陪」或「我是这单会话副陪」的单都捞出来；`served` 栏里不是我主陪的单，客户微信 + 二维码一律抹掉
+    （`order-privacy.ts#maskPartnerContactView`，房间码 / YY / KOOK 保留）。没有 `companionId` 的账号直接返回空（防越权）。
+  - **实时看板：** 新增 `GET /api/companions/live-board`（OWNER / ADMIN / CS）与新页 `LiveBoardPage`
+    （菜单 `owner|admin|cs/live-board`）。顶部 5 个数（接单中 / 娱乐中 / 空闲 / 休息 / 离线）+ 接单中卡片：
+    主陪副陪各一行，写明搭档是谁、在打什么游戏、客户编号、已打多久（扣累计暂停）。15 秒轮询、时长本地走字。
+  - **看门狗：** `2026100301` 已铺到云端并把 `watchdog.latest_build` 提到 `2026100301`；
+    云端补上 `uploads/watchdog-guard.ps1`（以前云端根本没这文件，多数机器那条每 5 分钟的自愈计划任务压根没建起来）。
+
 ## Recent Updates (v3.2.0)
 
 - **转让订单改成「要对方同意」（2026-10-03，服务端 + 网页 `v877`）:** 老板「想转让的订单，需要被转让方同意才能过来，
@@ -1027,6 +1045,12 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/config` | JWT | -- | Get the **effective** config for the caller's studio (store override → owner global → code default). Query: `?keys=a,b`; owners may add `?studioId=...` to inspect another store. Returns `_meta` with `overridden` / `studioScopedKeys`. |
 | `PUT` | `/api/config` | JWT | ADMIN, OWNER | OWNER writes the global default; ADMIN writes **this studio's override only** (non-studio-scoped keys are skipped and reported in `data.skipped`). |
 | `DELETE` | `/api/config/studio-overrides` | JWT | ADMIN, OWNER | Drop this studio's overrides so it falls back to the owner default. Query: `?keys=a,b` (omit to reset all); owners may pass `?studioId=...`. |
+
+### Companions (实时看板)
+
+| Method | Path | Auth | Roles | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/api/companions/live-board` | JWT | OWNER, ADMIN, CS | 派单实时看板：在线（2 分钟内有心跳）陪玩的当前状态、正在打的单（主陪 / 副陪各一行，含搭档、游戏、客户编号、已打时长），按 接单中 / 娱乐中 / 空闲 / 休息 / 离线 分组。只给客户编号，不给微信。 |
 
 ### Companions (报账 / 通知偏好)
 

@@ -84,6 +84,15 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 实时看板：谁跟谁在接单中 / 谁娱乐 / 谁空闲 + 在打什么游戏、打了多久（老板 2026-10-03）。
+  // 派单的人（客服 / 店长 / 老板）才看得到，陪玩端不开放。
+  @Get('companions/live-board')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  async liveBoard(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.companionsService.liveBoard(req.user);
+    return { code: 200, message: 'ok', data };
+  }
+
   // Chat: get pending messages (DB-backed, survives restarts)
   @Get('companions/chat-pending')
   async chatPending(@Req() req: any, @Query('orderId') orderId?: string): Promise<ApiResponse<unknown>> {

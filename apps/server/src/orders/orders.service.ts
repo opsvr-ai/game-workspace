@@ -8,7 +8,7 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { CompanionQuotaService } from './companion-quota.service';
 import { ExcellenceService } from '../companions/excellence.service';
 import { logger } from '../common/logger';
-import { maskCustomerWechat, stripPoolCustomerContact } from '../common/order-privacy';
+import { maskCustomerWechat, maskPartnerContactView, stripPoolCustomerContact } from '../common/order-privacy';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
@@ -623,7 +623,7 @@ export class OrdersService implements OnModuleInit {
    *
    * `scope` 只有客服端和陪玩端用得上：
    * - 客服：「只看我的」传 `mine`，要看全店传 `all`（不传按原来的全店口径）
-   * - 陪玩：「我接的单」传 `taken`（默认），「我发的单」传 `published`
+   * - 陪玩：「我抢到的」传 `taken`（默认），「我服务的」传 `served`，「我发的」传 `published`
    * 店长 / 老板传什么都不受影响，各自走下面的本店 / 全部工作室分支。
    */
   async findAll(user: any, status?: string, scope?: string) {
@@ -645,18 +645,28 @@ export class OrdersService implements OnModuleInit {
         // 这里不再排除 PENDING+POOL —— 自己发出去还没人抢的单也是「我发的单」。
         where.csUserId = user.id;
       } else {
-        // 默认「我接的单」：挂在我名下的单（抢到的 / 派给我的 / 我当搭档的）。
+        // 陪玩一定挂着 Companion 档案。万一没挂（异常账号），宁可给空列表 ——
+        // 否则 `{ companionId: undefined }` 会被 Prisma 当成空条件，等于把全站订单漏给他。
+        if (!user.companionId) return [];
+        if (scope === 'served') {
+          // 「我服务的单」（老板 2026-10-03）：别人抢到、我当搭档（副陪）跟着一起打的单。
+          // 以前这类单混在「我接的单」里，跟主陪自己的单分不清；现在单独一栏，
+          // 并且这一栏里客户微信对副陪隐藏（见函数结尾的 maskPartnerContactView）。
+          // 带上 sessions 那一层：搭档关系换过手、只有会话上还是我的，也别漏。
+          where.OR = [
+            { coCompanionId: user.companionId },
+            { sessions: { some: { coCompanionId: user.companionId } } },
+          ];
+          if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
+        } else {
+        // 默认「我抢到的」：挂在我名下的单（抢到的 / 派给我的）。
         // 自己发的单只要也挂在我名下，这里照样留着 —— 老板 2026-09-27 明确
         // 「自己发的单两个栏都显示」，所以这里不排除自己发布的那些。
-        where.OR = [
-          { companionId: user.companionId },
-          { coCompanionId: user.companionId },
-        ];
-        // 转让出去的订单也要留在转出方的接单记录里（老板 2026-09-29：抢单超时
-        // 自动回收整条删掉，改由陪玩自己转让；转给谁、什么时候转的都得看得到）。
-        if (user.companionId) {
+          where.OR = [{ companionId: user.companionId }];
+          // 转让出去的订单也要留在转出方的接单记录里（老板 2026-09-29：抢单超时
+          // 自动回收整条删掉，改由陪玩自己转让；转给谁、什么时候转的都得看得到）。
           where.OR.push({ transfers: { some: { fromCompanionId: user.companionId } } });
-          // 别人要转给我的单也进「我接的单」：那一行会长出「接手 / 拒绝」
+          // 别人要转给我的单也进「我抢到的」：那一行会长出「接手 / 拒绝」
           // （老板 2026-10-03：「放在订单列表那一行点转让或者点接受不行么」）。
           // 以前只靠顶栏铃铛 / 弹窗提醒，单子压根不在列表里，陪玩想点都没地方点。
           pendingIncoming = await this.prisma.orderTransferRequest.findMany({
@@ -675,8 +685,8 @@ export class OrdersService implements OnModuleInit {
           if (pendingIncoming.length) {
             where.OR.push({ id: { in: pendingIncoming.map((r) => r.orderId) } });
           }
+          if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
         }
-        if (!status) where.NOT = { status: 'PENDING', dispatchType: 'POOL' };
       }
     } else if (user.role === 'CS') {
       if (scope === 'mine') {
@@ -769,9 +779,17 @@ export class OrdersService implements OnModuleInit {
     // 引流账号（来源账号）**不再按角色抹成 `***`**（老板 2026-09-30「管理端的 订单管理
     // 引流账号 怎么是 *？」）：陪玩端那一列本来就被 CustomerSourceMaskInterceptor 整列摘掉了，
     // 管理端（客服 / 店长 / 老板）一律显示完整账号 —— 和「客户管理」那一格同一口径。
-    return orders.map((o) =>
+    const rows = orders.map((o) =>
       maskCustomerWechat({ ...o, pendingTransferForMe: pendingTransferMap.get(o.id) || null }, user),
     );
+    if (user.role === 'COMPANION' && scope === 'served') {
+      // 「我服务的单」里主陪不是我的，一律按副陪视角遮客户微信：这一栏是我跟着别人打的单，
+      // 客户资源是主陪的（老板 2026-10-03：「这个订单可以隐藏掉客户的微信信息，保护王昊的权益」）。
+      return rows.map((o: any) =>
+        o.companionId === user.companionId ? o : maskPartnerContactView(o),
+      );
+    }
+    return rows;
   }
 
   async grab(orderId: string, companionId: string) {

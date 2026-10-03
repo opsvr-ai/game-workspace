@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   canSeeCustomerSource,
   maskCustomerWechat,
+  maskPartnerContactView,
   stripCustomerSource,
   stripCustomerSourceDeep,
   stripCustomerSourceForViewer,
@@ -43,6 +44,52 @@ describe('maskCustomerWechat（客户微信可见性，口径不变）', () => {
     expect(out.customer.wechatId).toBe('');
     expect(out.customFields.customerWechat).toBe('');
     expect(out.customFields.customerWechatQr).toBeUndefined();
+  });
+});
+
+describe('maskPartnerContactView（「我服务的」那一栏：非主陪一律按搭档视角）', () => {
+  const row = () => ({
+    companionId: 'cpMain',
+    coCompanionId: 'cpOther',
+    customer: { wechatId: 'wx123', customerCode: 'C391' },
+    customFields: {
+      customerWechat: 'wx123',
+      customerWechatQr: 'qr.png',
+      customerRoomCode: '7788',
+      customerYy: '12345',
+      customerPlatformAccount: 'kook-1',
+    },
+  });
+
+  it('客户微信 + 二维码抹掉，房间码 / YY / KOOK 留着', () => {
+    const out: any = maskPartnerContactView(row());
+    expect(out.customer.wechatId).toBe('');
+    expect(out.customFields.customerWechat).toBe('');
+    expect(out.customFields.customerWechatQr).toBeUndefined();
+    expect(out.customFields.customerRoomCode).toBe('7788');
+    expect(out.customFields.customerYy).toBe('12345');
+    expect(out.customFields.customerPlatformAccount).toBe('kook-1');
+    // 客户编号留着（要跟客户管理对号）
+    expect(out.customer.customerCode).toBe('C391');
+  });
+
+  it('不认 coCompanionId：就算这单的搭档字段已经换成别人，也照样抹', () => {
+    const src = row();
+    src.coCompanionId = 'cpSomeoneElse';
+    const out: any = maskPartnerContactView(src);
+    expect(out.customer.wechatId).toBe('');
+  });
+
+  it('不改传进来的对象', () => {
+    const src = row();
+    maskPartnerContactView(src);
+    expect(src.customer.wechatId).toBe('wx123');
+    expect(src.customFields.customerWechat).toBe('wx123');
+  });
+
+  it('空值 / 非对象原样返回', () => {
+    expect(maskPartnerContactView(null as any)).toBeNull();
+    expect(maskPartnerContactView(undefined as any)).toBeUndefined();
   });
 });
 

@@ -574,7 +574,10 @@ export class MachineService {
       return { ...base, mode: 'script', script: buildClientDiagScript(ONBOARD_REPORT_TOKEN), args: ['-OutFile', '__OUT__', '-ServerUrl', '__SERVER__', '-TaskId', task.id, '-Reason', task.reason || '远程一键诊断'] };
     }
     if (task.type === 'enable-remote') {
-      return { ...base, mode: 'script', script: buildEnableRemoteScript(ONBOARD_REPORT_TOKEN), args: ['-ServerUrl', '__SERVER__', '-ClientType', machine?.clientType || ''] };
+      // -ReportedWatchdogBuild：台账里这台机器上报的看门狗构建号。脚本拿它跟磁盘上那份比 ——
+      // 老看门狗换文件时只 stage、不重启自己（service.log 里那句 takes effect on next service start），
+      // 文件新了、服务还跑着老进程，只有「重启」这一步能让新版本真正生效（老板 2026-10-03）。
+      return { ...base, mode: 'script', script: buildEnableRemoteScript(ONBOARD_REPORT_TOKEN), args: ['-ServerUrl', '__SERVER__', '-ClientType', machine?.clientType || '', '-ReportedWatchdogBuild', String(machine?.watchdogBuild || '')] };
     }
     return { ...base, mode: 'command', command: task.command || '' };
   }

@@ -9,6 +9,51 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **管理端「实时看板」上线（老板 2026-10-03：「谁跟谁在接单中、谁谁娱乐中、谁谁空闲中，也显示正在打什么游戏、打了多久…一目了然，不用挨个问」）**。
+  新增 `GET /api/companions/live-board`（老板 / 店长 / 客服可看），`companions.service.ts#liveBoard`：
+  在线口径 = 该陪玩电脑最近 2 分钟内有心跳；接单中 = 存在 `ACTIVE` 且已开打的会话，**主陪、副陪各出一行**，
+  写清搭档是谁、在打什么游戏、客户**编号**、已打多久（扣掉累计暂停）；其余按娱乐中 / 空闲 / 休息 / 离线分块。
+  前端新页 `apps/web/src/pages/admin/LiveBoardPage.tsx`（`owner|admin|cs/live-board`，三个「派单管理」菜单下都挂了入口），
+  顶部 5 个数（接单中 / 娱乐中 / 空闲 / 休息 / 离线）+ 接单中卡片，15 秒轮询一次、秒级时长本地走字。
+  看板只给客户编号，不给微信 —— 它是给派单用的，不是客户资料页。
+
+- **订单管理给陪玩加了「我服务的」一栏，并且非主陪看不到客户微信（老板 2026-10-03）**。
+  老板原话：「王甲振被邀请打这个订单，为什么没给他生成一个接单记录…订单管理中要有我抢到的订单 + 我发布的订单 + 我服务的订单，
+  这个订单可以隐藏掉客户的微信信息，保护王昊的权益，这样陪玩也能看到自己接单记录，管理端也能看到每个陪玩的接单记录，并且可以筛选」。
+  服务端 `orders.service.ts#findAll` 的陪玩分支新增 `scope='served'`（我当主陪 **或** 我是这单会话的副陪都算「我服务的」），
+  没有 `companionId` 的账号直接返回空数组（防越权）；`served` 栏里**不是我主陪**的单统一过
+  `order-privacy.ts#maskPartnerContactView()`（抹掉客户微信号 + 二维码，房间码 / YY / KOOK 保留）。
+  前端订单管理页 Segmented 由两栏变三栏：「我抢到的 / 我服务的 / 我发布的」，标题、副标题、空态文案同步；
+  员工筛选按 `companionId || coCompanionId` 命中。原来 400 那单（主陪王昊、副陪王甲振）其实早就在王甲振名下，
+  只是没有单独成栏，所以「看不到自己的接单记录」—— 现在归在「我服务的」里。
+
+### Changed
+
+- **全站弹窗 / 邀请统一成「可点击横幅」（老板 2026-10-03：「所有涉及弹窗或者邀请的，你都给我做成客服发布订单时广播那个效果：陪玩游戏中也能出现弹窗，点击能跳转」）**。
+  以前客服发单的横幅（桌面右下角、鼠标能点、点了进抢单池）和「搭档邀请 / 转让 / @提醒 / 账目异常」的弹窗是两套东西：
+  后者是普通系统通知，点了**进去了也不跳转**。现在全部走同一套横幅：
+  - 客户端 `electron/main.ts`：横幅 HTML 支持 `action` / `actionPayload`；新增 IPC `banner:action` ——
+    先把主窗口拉到最前，再给界面发 `banner-action`；`broadcast:popup` 透传整个 payload；
+  - `electron/preload.ts`：新增 `bannerAction()` / `onBannerAction()`；
+  - 网页 `utils/notify.ts#showBannerNotification()`：客户端里走横幅，浏览器里退回系统通知；
+  - `layouts/AppLayout.tsx`：搭档邀请 / 找搭档 / 转让 → `open-partner-invite` / `open-transfer`；
+    服务结束 + 时间提醒 → `open-orders`；账目异常 → `open-billing`；新单在浏览器里兜底；
+    并新增 `onBannerAction` 监听（打开搭档邀请弹窗 / 转让气泡 / 跳订单页 / 账目页 / 抢单池，`open-chat` 走 `openDirectChat` / `openGroupChat`）；
+  - `components/chat/ChatProvider.tsx`：群聊 / 单聊 @提醒 → `open-chat` 横幅，带上会话 id、对方名字、是否群聊。
+
+- **看门狗 `2026-10-03.1 / 2026100301` 已铺到云端，并把 `watchdog.latest_build` 从 `2026100101` 提到 `2026100301`**。
+  `/uploads/watchdog-guard.ps1`（5,187 字节，md5 `903c602b69e02a52dea8f89d5555449b`）也一起发了 —— 服务端自愈脚本会去下载它，
+  以前云端根本没有这个文件，`schtasks` 那条「每 5 分钟看一眼门狗」的计划任务在多数机器上**从来没建起来过**。
+  本次带上「旧进程只 stage 不重启」的修复：守卫发现磁盘上的看门狗比正在跑的新，就 `sc stop/start` 换过来。
+  实机（`MS-IXRDGIIIMISW`）19:43 已自愈成功：`磁盘上那份 2026100301 比正在跑的 2026100101 新 → 结果: 服务=Running`。
+
+- **客户管理里「服务中」的客户，整行会一闪一闪，第一格还隐隐约约写着「服务中」（老板 2026-10-03）**。
+  `CustomersPage.tsx` 抽出 `servingSessionOf()`（和操作列「服务中」同一个判断口径），给这些行挂 `chunlv-row-serving`，
+  注入 `chunlvServingRowPulse` 淡绿整行呼吸闪烁；行首 `.chunlv-serving-mark` 是半透明「服务中」水印。
+  列表里一眼就能看出哪几个客户正在服务，不用去点操作列。
+
 ### Fixed
 
 - **别人转给我的单，改成在「接单记录」那一行点「接手」，不再自动弹窗（老板 2026-10-03：「放在订单列表那一行点转让或者点接受不行么」）**。

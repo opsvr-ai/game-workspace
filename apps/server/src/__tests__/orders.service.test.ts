@@ -246,15 +246,43 @@ describe('OrdersService', () => {
       expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({ studioId: 'studio-1' });
     });
 
-    it('陪玩默认「我接的单」：认挂在我名下的单，自己发的单也留着（两个栏都显示）', async () => {
+    it('陪玩默认「我抢到的」：认挂在我名下的单（含我转出去的留痕），自己发的单也留着', async () => {
       prisma.order.findMany.mockResolvedValue([]);
 
       await service.findAll({ id: 'u-1', role: 'COMPANION', companionId: 'c-1' }, undefined, 'taken');
 
+      // 2026-10-03 起「我当搭档的单」从这一栏移到「我服务的」（scope=served），
+      // 这一栏只剩「挂在我名下」+「我转出去的留痕」+「别人待我接手的转让」。
       expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({
-        OR: [{ companionId: 'c-1' }, { coCompanionId: 'c-1' }],
+        OR: [
+          { companionId: 'c-1' },
+          { transfers: { some: { fromCompanionId: 'c-1' } } },
+        ],
         NOT: { status: 'PENDING', dispatchType: 'POOL' },
       });
+    });
+
+    it('陪玩「我服务的」：别人抢到、我当搭档的单（订单字段或会话上是我都算）', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      await service.findAll({ id: 'u-1', role: 'COMPANION', companionId: 'c-1' }, undefined, 'served');
+
+      expect(prisma.order.findMany.mock.calls[0][0].where).toEqual({
+        OR: [
+          { coCompanionId: 'c-1' },
+          { sessions: { some: { coCompanionId: 'c-1' } } },
+        ],
+        NOT: { status: 'PENDING', dispatchType: 'POOL' },
+      });
+    });
+
+    it('陪玩账号没挂 Companion 档案：直接空列表，绝不把全站订单漏出去', async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+
+      const out = await service.findAll({ id: 'u-9', role: 'COMPANION' }, undefined, 'taken');
+
+      expect(out).toEqual([]);
+      expect(prisma.order.findMany).not.toHaveBeenCalled();
     });
 
     it('陪玩切「我发的单」：只看自己发布的单（含还没人抢的池子单）', async () => {

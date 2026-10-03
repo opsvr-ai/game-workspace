@@ -4,6 +4,8 @@ export const companionsApi = {
   listWorkWechats: () => http.get('/companions/work-wechats'),
   list: (params?: any) => http.get('/companions', { params }),
   listPersonnel: (params?: any) => http.get('/personnel', { params }),
+  /** 实时看板：谁跟谁在接单中 / 谁娱乐 / 谁空闲 + 在打什么游戏、打了多久（管理端） */
+  liveBoard: () => http.get('/companions/live-board'),
   getById: (id: string) => http.get(`/companions/${id}`),
   updateStatus: (id: string, status: string) =>
     http.put(`/companions/${id}/status`, { status }),

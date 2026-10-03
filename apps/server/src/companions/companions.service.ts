@@ -273,6 +273,167 @@ export class CompanionsService {
     }));
   }
 
+  /**
+   * 实时看板（老板 2026-10-03）：
+   * 「谁跟谁在接单中 / 谁谁娱乐中 / 谁谁空闲中，也显示正在打什么游戏、打了多久等等，
+   *  让管理端派单的时候也方便，一目了然，不用挨个问。」
+   *
+   * 口径：
+   *  - 在线 = 机器有心跳（跟人员列表同一个 2 分钟阈值，见 constants/companions.ts）；
+   *  - 接单中 = 有一段 ACTIVE 且已开始、没结束的会话；主陪和副陪各占一行，互相写清搭档是谁；
+   *  - 娱乐 / 休息 / 空闲 = Companion.status；
+   *  - 时长 = 从 startedAt 到现在，扣掉累计暂停（暂停中的那一段也扣）。
+   *
+   * 隐私：只下发客户**编号**，不下发客户微信 —— 看板是派单用的，不是给谁抄客户的。
+   */
+  async liveBoard(user: any) {
+    const where: any = { isResigned: false, user: { resignedAt: null } };
+    if (user.role !== 'OWNER') where.studioId = user.studioId;
+
+    const companions = await this.prisma.companion.findMany({
+      where,
+      include: {
+        user: { select: { id: true, username: true, displayName: true, avatar: true } },
+        studio: { select: { id: true, name: true, type: true } },
+        pc: { select: { lastHeartbeat: true, currentMode: true } },
+      },
+    });
+    const ids = companions.map((c) => c.id);
+    if (ids.length === 0) return { rows: [], updatedAt: new Date().toISOString() };
+
+    const sessions = await this.prisma.orderSession.findMany({
+      where: {
+        status: 'ACTIVE',
+        startedAt: { not: null },
+        endedAt: null,
+        OR: [{ companionId: { in: ids } }, { coCompanionId: { in: ids } }],
+      },
+      orderBy: { startedAt: 'desc' },
+      select: {
+        id: true,
+        companionId: true,
+        coCompanionId: true,
+        startedAt: true,
+        pausedAt: true,
+        totalPausedSec: true,
+        duration: true,
+        amount: true,
+        coAmount: true,
+        parentOrder: {
+          select: {
+            id: true,
+            orderCode: true,
+            gameName: true,
+            customFields: true,
+            customer: { select: { customerCode: true } },
+            studio: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    // 一个人同一时刻只可能有一段会话；同一个会话给主陪和副陪各生成一份视角。
+    const byCompanion = new Map<string, any>();
+    for (const s of sessions) {
+      const base = {
+        sessionId: s.id,
+        orderId: s.parentOrder?.id || '',
+        orderCode: s.parentOrder?.orderCode || '',
+        gameName: s.parentOrder?.gameName || '',
+        duration: s.duration ?? 1,
+        startedAt: s.startedAt,
+        pausedAt: s.pausedAt,
+        totalPausedSec: s.totalPausedSec || 0,
+        customerCode: s.parentOrder?.customer?.customerCode || '',
+        orderStudioName: s.parentOrder?.studio?.name || '',
+        mainCompanionId: s.companionId,
+        coCompanionId: s.coCompanionId,
+        amount: s.amount,
+        coAmount: s.coAmount,
+      };
+      if (s.companionId && !byCompanion.has(s.companionId)) {
+        byCompanion.set(s.companionId, { ...base, roleInSession: 'MAIN' });
+      }
+      if (s.coCompanionId && !byCompanion.has(s.coCompanionId)) {
+        byCompanion.set(s.coCompanionId, { ...base, roleInSession: 'CO' });
+      }
+    }
+
+    const nameOf = (id?: string | null) => {
+      if (!id) return '';
+      const c = companions.find((x) => x.id === id);
+      return c?.user?.displayName || c?.user?.username || '';
+    };
+    const now = Date.now();
+    const ONLINE_MS = 120_000;
+
+    const rows = companions.map((c) => {
+      const hb = c.pc?.lastHeartbeat ? new Date(c.pc.lastHeartbeat).getTime() : 0;
+      const online = !!hb && now - hb < ONLINE_MS;
+      const s = byCompanion.get(c.id) || null;
+      let elapsedSec = 0;
+      if (s?.startedAt) {
+        elapsedSec = Math.max(0, Math.round((now - new Date(s.startedAt).getTime()) / 1000) - (s.totalPausedSec || 0));
+        if (s.pausedAt) {
+          elapsedSec -= Math.max(0, Math.round((now - new Date(s.pausedAt).getTime()) / 1000));
+        }
+        elapsedSec = Math.max(0, elapsedSec);
+      }
+      const partnerId = s ? (s.roleInSession === 'MAIN' ? s.coCompanionId : s.mainCompanionId) : null;
+      return {
+        companionId: c.id,
+        name: c.user?.displayName || c.user?.username || '',
+        username: c.user?.username || '',
+        avatar: c.user?.avatar || null,
+        status: c.status,
+        online,
+        lastHeartbeat: c.pc?.lastHeartbeat || null,
+        studioName: c.studio?.name || '',
+        serving: s
+          ? {
+              sessionId: s.sessionId,
+              orderId: s.orderId,
+              orderCode: s.orderCode,
+              gameName: s.gameName,
+              duration: s.duration,
+              customerCode: s.customerCode,
+              orderStudioName: s.orderStudioName,
+              startedAt: s.startedAt,
+              paused: !!s.pausedAt,
+              elapsedSec,
+              role: s.roleInSession,
+              partnerId,
+              partnerName: nameOf(partnerId),
+              myAmount: s.roleInSession === 'MAIN' ? s.amount : s.coAmount ?? null,
+            }
+          : null,
+      };
+    });
+
+    // 排序：接单中 → 娱乐 → 空闲 → 休息 → 离线（同一组内按名字排，看着稳）。
+    const rank = (r: any) => {
+      if (!r.online) return 9;
+      if (r.serving) return 0;
+      if (r.status === 'ENTERTAINMENT') return 1;
+      if (r.status === 'AVAILABLE') return 2;
+      if (r.status === 'RESTING') return 3;
+      return 4;
+    };
+    rows.sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(String(b.name), 'zh'));
+
+    return {
+      rows,
+      updatedAt: new Date().toISOString(),
+      counts: {
+        serving: rows.filter((r) => r.online && r.serving).length,
+        entertainment: rows.filter((r) => r.online && !r.serving && r.status === 'ENTERTAINMENT').length,
+        available: rows.filter((r) => r.online && !r.serving && r.status === 'AVAILABLE').length,
+        resting: rows.filter((r) => r.online && !r.serving && r.status === 'RESTING').length,
+        offline: rows.filter((r) => !r.online).length,
+      },
+    };
+  }
+
   async findOne(id: string) {
     return this.prisma.companion.findUnique({
       where: { id },

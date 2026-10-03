@@ -6,7 +6,7 @@ import { useChatStore } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';
 import { playMessageSound } from '../../utils/notificationSound';
-import { showSystemNotification, playNotificationSound } from '../../utils/notify';
+import { showBannerNotification, playNotificationSound } from '../../utils/notify';
 
 interface ChatContextValue {
   wsConnected: boolean;
@@ -66,12 +66,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const isActive = state.activeConversationId === data.roomId;
         if (!isMine && !isActive) playMessageSound();
         if (!isMine && data.message.mentions?.includes(state.myUserId)) {
-          showSystemNotification(
-            '蠢驴电竞 · 有人@你',
-            (data.sender?.displayName || data.sender?.username || '有人') +
-              '：' +
-              (data.message.content || data.message.text || '[消息]'),
-          );
+          // 老板 2026-10-03：@提醒统一走陪玩端那张能点的置顶横幅，点一下直接打开这个会话。
+          const senderName =
+            data.sender?.displayName || data.sender?.username || '有人';
+          showBannerNotification({
+            title: '💬 有人@你',
+            body: senderName + '：' + (data.message.content || data.message.text || '[消息]'),
+            icon: '💬',
+            seconds: 18,
+            hint: '点这里 → 打开这个会话',
+            action: 'open-chat',
+            actionPayload: {
+              conversationId: data.roomId,
+              participantName: senderName,
+              isGroup: !!data.isGroup,
+              groupName: data.groupName || '工作室群聊',
+            },
+          });
           playNotificationSound();
         }
         useChatStore.getState().receiveMessage(

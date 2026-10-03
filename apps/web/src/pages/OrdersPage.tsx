@@ -104,8 +104,11 @@ const OrdersPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('');
   // 客服端默认只看自己发布/认领的单，需要时可切到全店（服务端 scope 参数）
   const [csScope, setCsScope] = useState<'mine' | 'all'>('mine');
-  // 陪玩端默认只看「我接的单」，需要时切到「我发的单」（服务端 scope 参数）
-  const [companionScope, setCompanionScope] = useState<'taken' | 'published'>('taken');
+  // 陪玩端的三个口径（服务端 scope 参数），老板 2026-10-03：
+  //   taken   = 我抢到的（挂在我名下的单，含转出的留痕、待我接手的转让）
+  //   served  = 我服务的（别人抢到、我当搭档一起打的单；这一栏隐藏主陪的客户微信）
+  //   published = 我发布的（我自己发起的第一单 / 续费 / 复购）
+  const [companionScope, setCompanionScope] = useState<'taken' | 'served' | 'published'>('taken');
   // 客户 / 游戏 / 派单人… 一个框全搜（原来只搜游戏名，2026-09-27 从派单记录并过来）
   const [orderSearch, setOrderSearch] = useState('');
   const [companionFilter, setCompanionFilter] = useState<string>('');
@@ -915,7 +918,9 @@ const OrdersPage: React.FC = () => {
     })
     .filter((o: any) => {
       if (!companionFilter) return true;
-      return o.companionId === companionFilter;
+      // 主陪 / 副陪都算「这个陪玩的接单记录」：管理端按人筛选时，
+      // 他当搭档跟着打的单（coCompanionId）也要一起筛出来（老板 2026-10-03）。
+      return o.companionId === companionFilter || o.coCompanionId === companionFilter;
     })
     .filter((o: any) => {
       if (!csFilter) return true;
@@ -951,12 +956,22 @@ const OrdersPage: React.FC = () => {
     <>
       <div>
         <PageHeader
-          title={isCompanion ? (companionScope === 'published' ? '我发的单' : '接单记录') : '订单管理'}
+          title={
+            isCompanion
+              ? companionScope === 'published'
+                ? '我发布的订单'
+                : companionScope === 'served'
+                  ? '我服务的订单'
+                  : '我抢到的订单'
+              : '订单管理'
+          }
           subtitle={
             isCompanion
               ? companionScope === 'published'
                 ? '我自己发布过的订单（首单 / 续费 / 复购）'
-                : '查看我的接单历史'
+                : companionScope === 'served'
+                  ? '别人抢到、我当搭档一起打的单（这一栏看不到主陪的客户微信）'
+                  : '我抢到的单（含转让留痕、待我接手的转让）'
               : undefined
           }
           extra={
@@ -1048,10 +1063,11 @@ const OrdersPage: React.FC = () => {
             <Segmented
               size="small"
               value={companionScope}
-              onChange={(v) => setCompanionScope(v as 'taken' | 'published')}
+              onChange={(v) => setCompanionScope(v as 'taken' | 'served' | 'published')}
               options={[
-                { label: '我接的单', value: 'taken' },
-                { label: '我发的单', value: 'published' },
+                { label: '我抢到的', value: 'taken' },
+                { label: '我服务的', value: 'served' },
+                { label: '我发布的', value: 'published' },
               ]}
             />
           )}
@@ -1108,7 +1124,9 @@ const OrdersPage: React.FC = () => {
                     ? '暂无我发布的订单，可切到「全店订单」查看'
                     : isCompanion && companionScope === 'published'
                       ? '我还没发过订单'
-                      : '暂无订单',
+                      : isCompanion && companionScope === 'served'
+                        ? '还没有我当搭档服务的订单'
+                        : '暂无订单',
                 }}
                 // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
                 onRow={(record: any) => ({

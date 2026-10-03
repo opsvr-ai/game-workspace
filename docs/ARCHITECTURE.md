@@ -1,9 +1,26 @@
 # 蠢驴电竞陪玩派单管理系统 — 架构说明
 
 > 以图表形式阐述整个平台的系统架构、数据流转、业务流程和部署拓扑。
-> 最后更新: 2026-09-29 · v3.2.0
+> 最后更新: 2026-10-03 · v3.3.0
 
 ## 新增功能
+
+- **弹窗 / 邀请统一成「可点击横幅」（2026-10-03，客户端 `electron/main.ts` + `utils/notify.ts` + `layouts/AppLayout.tsx`）**：
+  客服发单的横幅（桌面右下角、可点、点了进抢单池）以前和「搭档邀请 / 转让 / @提醒 / 账目异常」的弹窗是两套东西 ——
+  后者是普通系统通知，点了不跳转。现在横幅模板吃 `action` / `actionPayload`，主进程新增 IPC `banner:action`
+  （先 `mainWindow.show()/focus()`，再 `webContents.send('banner-action', ...)`）；`broadcast:popup` 透传整包；
+  网页 `showBannerNotification()` 在客户端里画横幅、在浏览器里退回系统通知；`AppLayout` 的 `onBannerAction`
+  按 action 打开搭档邀请弹窗 / 转让气泡 / 订单页 / 账目页 / 抢单池，`open-chat` 走 `openDirectChat` / `openGroupChat`。
+
+- **管理端「实时看板」（2026-10-03，`GET /api/companions/live-board` + `pages/admin/LiveBoardPage.tsx`）**：
+  `CompanionsService.liveBoard(user)` 一次查出：在线（`pc.lastHeartbeat` 2 分钟窗口）、状态、
+  以及「`ACTIVE` 且已 `startedAt`」的会话 —— **主陪、副陪各出一行**，写搭档、游戏、客户**编号**、
+  已打时长（`elapsedSec` 扣累计暂停）。权限 OWNER / ADMIN / CS，前端 15 秒轮询、时长本地走字。
+
+- **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
+  「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。
+  没有 `companionId` 的账号走这条分支时直接返回空数组（防越权）。非主陪的 `served` 单统一过
+  `maskPartnerContactView()`：抹客户微信 + 二维码，留房间码 / YY / KOOK。前端 `OrdersPage` 由两栏改三栏。
 
 - **「服务端改状态必须推黑名单」这条链路补齐了（2026-10-03，服务端 `OrdersService` / `CompanionStatusSweepService`）**：
   老板报「徐泽宁接受搭档邀请后一直不让启动游戏」。黑名单是**按状态**下发的（`CompanionStatusBlacklist` 里

@@ -18,7 +18,7 @@ import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
-import { showSystemNotification, playNotificationSound } from '../utils/notify';
+import { showSystemNotification, showBannerNotification, playNotificationSound } from '../utils/notify';
 import { notifyNotice, recordNotice } from '../utils/notice';
 import { useNotifStore, selectUnreadNotices } from '../stores/notifStore';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
@@ -132,6 +132,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-dispatch', icon: IconDispatch, label: '派单管理',
       children: [
         { key: '/admin/dispatch', label: '派单工作台' },
+        { key: '/owner/live-board', label: '实时看板' },
       ],
     },
     {
@@ -255,6 +256,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-dispatch', icon: IconDispatch, label: '派单管理',
       children: [
         { key: '/admin/dispatch', label: '派单工作台' },
+        { key: '/admin/live-board', label: '实时看板' },
       ],
     },
     {
@@ -361,7 +363,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'cs-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/cs/dispatch', label: '派单工作台' }],
+      children: [
+        { key: '/cs/dispatch', label: '派单工作台' },
+        { key: '/cs/live-board', label: '实时看板' },
+      ],
     },
     {
       key: 'cs-orders', icon: IconOrders, label: '订单管理',
@@ -1038,6 +1043,46 @@ const AppLayout: React.FC = () => {
     };
   }, [navigate, user?.role]);
 
+  // 点横幅上的动作 → 打开对应界面（老板 2026-10-03：「所有涉及弹窗或者邀请的，
+  // 都给我做成客服发布订单时广播那个效果，点了能直接跳转」）。
+  // 跟新单横幅那条 order-pool-focus 同一套：主进程先把窗口拉到前台，再把动作回执给界面。
+  React.useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.onBannerAction) return;
+    const off = api.onBannerAction((msg: any) => {
+      const action = String(msg?.action || '');
+      const payload = msg?.payload || {};
+      try {
+        if (action === 'open-partner-invite') {
+          setPartnerInviteModalOpen(true);
+        } else if (action === 'open-transfer') {
+          setTransferReqOpen(true);
+        } else if (action === 'open-orders') {
+          navigate(rolePage(user?.role, 'orders') || '/companion/orders');
+        } else if (action === 'open-billing') {
+          navigate(rolePage(user?.role, 'billing') || '/companion/orders');
+        } else if (action === 'open-pool') {
+          navigate(rolePage(user?.role, 'pool') || '/companion/pool');
+        } else if (action === 'open-chat') {
+          const convId = String(payload?.conversationId || '');
+          if (convId) {
+            if (payload?.isGroup) openGroupChat(convId, String(payload?.groupName || '工作室群聊'));
+            else openDirectChat(convId, String(payload?.participantName || '会话'));
+          }
+        }
+      } catch {
+        /* 打不开也不影响接单主流程 */
+      }
+    });
+    return () => {
+      try {
+        off?.();
+      } catch {
+        /* 已经卸载了 */
+      }
+    };
+  }, [navigate, user?.role, openDirectChat, openGroupChat]);
+
   const addPartnerInvite = React.useCallback((invite: any) => {
     setPartnerInvites((prev) => {
       const exists = prev.some((p) => p.sessionId === invite.sessionId);
@@ -1175,7 +1220,16 @@ const AppLayout: React.FC = () => {
         dedupeKey: `partner-invite:${data.id}`,
         dedupeMs: 60_000,
       });
-      showSystemNotification('蠢驴电竞 · 搭档邀请', desc);
+      // 老板 2026-10-03：这张提醒也要「点了能跳」→ 改成陪玩端那张置顶横幅，点开就是搭档邀请弹窗。
+      showBannerNotification({
+        title: '🤝 搭档邀请',
+        body: desc,
+        icon: '🤝',
+        seconds: 20,
+        hint: '点这里 → 打开搭档邀请（接受 / 拒绝）',
+        action: 'open-partner-invite',
+        actionPayload: { sessionId: data.id },
+      });
       playNotificationSound();
     },
     onOrderTransferred: (data: any) => {
@@ -1215,10 +1269,15 @@ const AppLayout: React.FC = () => {
         dedupeKey: `transfer-req:${data.requestId}`,
         dedupeMs: 60_000,
       });
-      showSystemNotification(
-        '蠢驴电竞 · 订单转让',
-        `${fromName} 想把「${data.gameName || '订单'}」转给你，去「接单记录」那一行点接手`,
-      );
+      showBannerNotification({
+        title: '🔁 订单转让',
+        body: `${fromName} 想把「${data.gameName || '订单'}」转给你`,
+        icon: '🔁',
+        seconds: 20,
+        hint: '点这里 → 打开「待我确认的转让」',
+        action: 'open-transfer',
+        actionPayload: { requestId: data.requestId },
+      });
       playNotificationSound();
     },
     onTransferAccepted: (data: any) => {
@@ -1339,7 +1398,15 @@ const AppLayout: React.FC = () => {
         dedupeKey: `dual-invite:${data.sessionId}`,
         dedupeMs: 60_000,
       });
-      showSystemNotification('蠢驴电竞 · 找搭档邀请', desc);
+      showBannerNotification({
+        title: '📣 广播找搭档',
+        body: desc,
+        icon: '📣',
+        seconds: 20,
+        hint: '点这里 → 打开搭档邀请（接受 / 拒绝）',
+        action: 'open-partner-invite',
+        actionPayload: { sessionId: data.sessionId },
+      });
       playNotificationSound();
     },
     onDualInviteExpired: (data: any) => {
@@ -1377,7 +1444,14 @@ const AppLayout: React.FC = () => {
         toast: 'info',
         duration: 6,
       });
-      showSystemNotification('蠢驴电竞 · 服务结束', desc);
+      showBannerNotification({
+        title: '🏁 这一段服务已结束',
+        body: desc,
+        icon: '🏁',
+        seconds: 12,
+        hint: '点这里 → 去接单记录看',
+        action: 'open-orders',
+      });
     },
     onServiceDurationReminder: (data: any) => {
       const desc = data?.message || '服务时间已到，请引导客户续单';
@@ -1390,7 +1464,14 @@ const AppLayout: React.FC = () => {
         toast: 'warning',
         duration: 5,
       });
-      showSystemNotification('蠢驴电竞 · 时间提醒', desc);
+      showBannerNotification({
+        title: '⏰ 时间到了',
+        body: desc,
+        icon: '⏰',
+        seconds: 15,
+        hint: '点这里 → 去接单记录看',
+        action: 'open-orders',
+      });
     },
     onOrderPoolUpdated: () => {
       window.dispatchEvent(new Event('chunlv:order-pool-updated'));
@@ -1443,10 +1524,18 @@ const AppLayout: React.FC = () => {
           dedupeKey: `urgent:${data?.id || data?.orderCode || urgentDesc}`,
           dedupeMs: 5 * 60_000,
         });
-        showSystemNotification(
-          data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
-          urgentDesc,
-        );
+        // 陪玩客户端里，主进程收到 order:urgent 已经画了那张能点的桌面横幅（见 electron/main.ts），
+        // 这里不再补一条「点了没反应、还容易被系统吞掉」的系统通知；只有浏览器里打开时才兜底。
+        if (!(window as any).electronAPI?.broadcastPopup) {
+          showBannerNotification({
+            title: data?._direct ? '🎯 客服指定给你接单' : `⚡ 新订单 · ${data?.gameName || ''}`,
+            body: urgentDesc,
+            icon: data?._direct ? '🎯' : '⚡',
+            seconds: 15,
+            hint: '点这里 → 去抢单池看这单',
+            action: 'open-pool',
+          });
+        }
       }
     },
     onScheduledReminder: (data: any) => {
@@ -1532,7 +1621,14 @@ const AppLayout: React.FC = () => {
     onCsAccountAnomaly: (data: any) => {
       if (user?.role === 'CS' && data.message) {
         message.warning({ content: data.message, duration: 12 });
-        showSystemNotification('蠢驴电竞 · 账目异常', data.message);
+        showBannerNotification({
+          title: '⚠️ 账目异常',
+          body: data.message,
+          icon: '⚠️',
+          seconds: 15,
+          hint: '点这里 → 去账目看',
+          action: 'open-billing',
+        });
         recordNotice({
           kind: 'finance',
           icon: '⚠️',

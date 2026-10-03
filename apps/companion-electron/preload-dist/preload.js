@@ -35,6 +35,14 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
     import_electron.ipcRenderer.on("order-pool-focus", handler);
     return () => import_electron.ipcRenderer.removeListener("order-pool-focus", handler);
   },
-  /** 群聊广播：弹一个 Windows 置顶窗口，5 秒后自动消失 */
+  /** 点横幅上的「动作」（搭档邀请 / 转让 / 会话等）：主进程会把界面拉到最前并回执。 */
+  bannerAction: (action, payload) => import_electron.ipcRenderer.send("banner:action", String(action || ""), payload ?? null),
+  /** 主进程回执「用户点了横幅上的动作」（返回取消订阅函数）。 */
+  onBannerAction: (cb) => {
+    const handler = (_e, data) => cb(data || {});
+    import_electron.ipcRenderer.on("banner-action", handler);
+    return () => import_electron.ipcRenderer.removeListener("banner-action", handler);
+  },
+  /** 群聊广播 / 各类提醒：弹一个 Windows 置顶小窗（可带点击动作），到时自动消失。 */
   broadcastPopup: (payload) => import_electron.ipcRenderer.invoke("broadcast:popup", payload)
 });

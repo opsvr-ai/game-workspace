@@ -100,6 +100,40 @@ function hasFirstOrder(c: Customer): boolean {
   return !!c.isLegacy || !!(c.orders?.some((o) => o.type === 'NEW' && o.status === 'DONE'));
 }
 
+/**
+ * 这个客户现在是不是「服务中」，是的话返回那一单 / 那一段会话。
+ *
+ * 老板 2026-10-03：「王昊通过点击客户管理的开始首单邀请王甲振一起打，王昊这个客户显示服务中，
+ * 能不能把这个客户整行做个效果，一闪一闪的，并且隐隐约约显示服务中」。
+ * 判定口径跟操作列那个「服务中」标签**完全一致**（同一个 CONFIRMED 单、同一个 ACTIVE 会话、
+ * 已经点过开始首单还没结束），保证「整行在闪」和「标签写着服务中」永远是同一件事。
+ */
+function servingSessionOf(c: Customer): { orderId: string; sessionId: string; startedAt: string } | null {
+  const activeOrder =
+    c.orders?.find((o) => o.status === 'CONFIRMED') ||
+    c.orders?.find(
+      (o) =>
+        o.status === 'GRABBED' &&
+        o.sessions?.some((s) => s.status === 'ACTIVE' && !s.startedAt && s.coCompanionId),
+    );
+  const s = activeOrder?.sessions?.find((x) => x.status === 'ACTIVE');
+  if (!activeOrder || !s?.startedAt) return null;
+  return { orderId: activeOrder.id, sessionId: s.id, startedAt: s.startedAt };
+}
+
+// 服务中的客户整行：淡淡的绿色一闪一闪 + 一个隐隐约约的「服务中」水印（老板 2026-10-03）。
+if (typeof document !== 'undefined' && !document.getElementById('chunlv-customer-serving-css')) {
+  const st = document.createElement('style');
+  st.id = 'chunlv-customer-serving-css';
+  st.textContent = [
+    '@keyframes chunlvServingRowPulse{0%,100%{background-color:rgba(22,163,74,.05)}50%{background-color:rgba(22,163,74,.22)}}',
+    'tr.chunlv-row-serving > td{animation:chunlvServingRowPulse 2.4s ease-in-out infinite}',
+    '@keyframes chunlvServingMarkBlink{0%,100%{opacity:.4}50%{opacity:1}}',
+    '.chunlv-serving-mark{position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:15px;font-weight:800;letter-spacing:2px;color:rgba(22,163,74,.32);pointer-events:none;white-space:nowrap;animation:chunlvServingMarkBlink 2.4s ease-in-out infinite}',
+  ].join('');
+  document.head.appendChild(st);
+}
+
 const CustomersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const role = user?.role;
@@ -453,11 +487,16 @@ const CustomersPage: React.FC = () => {
             })()
           : '';
         const tail = [deposit, scheduled].filter(Boolean).join(' · ');
+        const serving = !!servingSessionOf(record);
         return (
-          <div style={CELL_ONE_LINE} title={[code, sub, tail].filter(Boolean).join(' · ')}>
+          <div
+            style={{ ...CELL_ONE_LINE, position: 'relative', paddingRight: serving ? 56 : undefined }}
+            title={[code, sub, tail].filter(Boolean).join(' · ')}
+          >
             <Text strong>{code}</Text>
             <span style={CELL_SUB_TEXT}>· {sub}</span>
             {tail && <span style={{ ...CELL_SUB_TEXT, color: '#1D4ED8' }}>· {tail}</span>}
+            {serving && <span className="chunlv-serving-mark">服务中</span>}
           </div>
         );
       },
@@ -928,6 +967,7 @@ const CustomersPage: React.FC = () => {
                         )}
                         rowKey="id"
                         loading={loading}
+                        rowClassName={(record) => (servingSessionOf(record as Customer) ? 'chunlv-row-serving' : '')}
                         onRow={(record) => ({
                           style: { cursor: 'pointer' },
                           onClick: (e: React.MouseEvent) => {
