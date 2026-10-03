@@ -12,14 +12,14 @@ import { ExcellenceService } from '../companions/excellence.service';
  * 是不是不合理」+「按照你的建议把 30 天」。
  * → 续单率 / 复购率 改成 **按客户算 + 只看最近 30 天**（同一个客户买第 2 单算续单、第 3 单起算复购），
  *   不再按「订单类型」算（那样两栏互斥、且线上没人点按钮）；首单成功率同样只看 30 天。
- *   成交客户不足 5 人按 5 人算，防 1 个客户刷满分。
+ *   成交客户不足 3 人按 3 人算，防只有 1 个客户就刷满分。
  */
 
 const LIVE_CFG = [
   { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
-  { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 10, score: 10 }, { min: 30, score: 20 }] },
-  { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 10, score: 10 }, { min: 30, score: 20 }] },
-  { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 50, score: 5 }, { min: 100, score: 10 }] },
+  { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
+  { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
   // 老板 2026-10-04 拍板：上等马 90 / 中等马 60（原来是 999 / 0，等于谁都不升不降）
   { key: 'excellence.excellent_threshold', value: 90 },
   { key: 'excellence.middle_tier_threshold', value: 60 },
@@ -103,9 +103,9 @@ describe('综合评分：每项取达到的最高一档（不叠加）', () => {
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
 
     expect(r.revenueScore).toBe(40); // 8500 → 最高一档 6000 = 40 分（不是 20+40）
-    expect(r.renewScore).toBe(20); // 46% ≥ 30% → 20
-    expect(r.repurchaseScore).toBe(20); // 38% ≥ 30% → 20
-    expect(r.firstSuccessScore).toBe(5); // 80% 只够到 50% 那一档 → 5 分（100% 那档才是 10）
+    expect(r.renewScore).toBe(20); // 85% ≥ 60% → 20
+    expect(r.repurchaseScore).toBe(10); // 38% 够到 30% 那一档 → 10
+    expect(r.firstSuccessScore).toBe(10); // 80% ≥ 70% → 10
     expect(r.bonusScore).toBe(3);
     expect(r.renewRate).toBe(85);
     expect(r.repurchaseRate).toBe(38);
@@ -135,7 +135,7 @@ describe('综合评分：每项取达到的最高一档（不叠加）', () => {
 describe('回头客口径：按客户算 + 只看最近 30 天', () => {
   it('只吃老客的陪玩也能上上等马（老板那个例子：流水过万 + 2 个老客户一直玩）', async () => {
     const svc = setup({
-      // 2 个客户，每人买了 5 单 → 续单 2/5=40%、复购 2/5=40%（分母不足 5 人按 5 算）
+      // 2 个客户，每人买了 5 单 → 续单 2/3=67%、复购 2/3=67%（分母不足 3 人按 3 算）
       doneOrders: { c1: [{ cust: 'a', count: 5 }, { cust: 'b', count: 5 }] },
       monthlyRevenue: { c1: 10000 },
       newGrabs: { c1: 0 },
@@ -160,11 +160,11 @@ describe('回头客口径：按客户算 + 只看最近 30 天', () => {
     expect(r.repurchaseRate).toBe(80); // 5 个里 4 个买过 ≥3 单
   });
 
-  it('小样本防刷：只有 1 个客户，分母按 5 人算，刷不出满分', async () => {
+  it('小样本防刷：只有 1 个客户，分母按 3 人算，刷不出满分', async () => {
     const svc = setup({ doneOrders: { c1: [{ cust: 'a', count: 9 }] }, monthlyRevenue: { c1: 6000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
-    expect(r.renewRate).toBe(20); // 1/5
-    expect(r.repurchaseRate).toBe(20);
+    expect(r.renewRate).toBe(33); // 1/3
+    expect(r.repurchaseRate).toBe(33);
     expect(r.renewScore).toBe(10); // 达到 10% 这一档
   });
 

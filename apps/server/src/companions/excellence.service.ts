@@ -333,9 +333,10 @@ export class ExcellenceService implements OnModuleInit {
     //      这两栏实际上永远 0 分。
     // 新口径：**按客户算 + 只看最近 30 天**。同一个客户买第 2 单 = 回头（续单），买第 3 单起 = 常来（复购）；
     // 系统自己数订单，跟按钮怎么点没关系。两栏不再互斥，只吃老客的陪玩也能拿满，凑得上 90 分上等马。
-    // 防刷：成交客户不足 5 人时，分母按 5 人算（1 个客户刷不出满分）。
+    // 防刷：成交客户不足 3 人时，分母按 3 人算（只有 1 个客户时刷不出满分；2 个老客户的情况要达到
+    //   60% 那一档正好需要 2/3=67%，所以「只跟 2 个老客玩」的陪玩照样能拿满两栏）。
     const RATE_WINDOW_DAYS = 30;
-    const RATE_MIN_CUSTOMERS = 5;
+    const RATE_MIN_CUSTOMERS = 3;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
     const m = new Map<string, { count: number; renew: number; repurchase: number }>();
