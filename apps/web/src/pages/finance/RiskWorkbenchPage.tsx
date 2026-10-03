@@ -16,9 +16,12 @@ const riskLevelConfig: Record<string, { color: string; label: string }> = {
 const RiskWorkbenchPage: React.FC = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lowPairs, setLowPairs] = useState<any[]>([]);
+  const [pairsLoading, setPairsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setPairsLoading(true);
     try {
       const { data } = await financeApi.riskQueue.get();
       setRows((data as any)?.data || []);
@@ -26,6 +29,14 @@ const RiskWorkbenchPage: React.FC = () => {
       message.error('加载风险队列失败');
     } finally {
       setLoading(false);
+    }
+    try {
+      const { data } = await financeApi.lowPricePairs.get(30);
+      setLowPairs((data as any)?.data || []);
+    } catch {
+      /* 低价搭档拿不到就先不显示，不影响主表 */
+    } finally {
+      setPairsLoading(false);
     }
   }, []);
 
@@ -55,6 +66,77 @@ const RiskWorkbenchPage: React.FC = () => {
         <Col span={6}><Card size="small"><Statistic title="异常订单信号" value={totalFlagged} suffix="条" /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="纳入统计陪玩" value={rows.length} suffix="人" /></Card></Col>
       </Row>
+
+      <Card
+        size="small"
+        title="⚠️ 低价搭档（重点关注）"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            近 30 天双陪单：主陪价或副陪单价（副陪总价÷时长）低于底线（机密 35 / 绝密 45）标红；
+            正好按底线打的单独计数（只是统计，不拦单）
+          </Text>
+        }
+      >
+        <Table
+          rowKey={(r: any) => `${r.mainCompanionId}|${r.partnerCompanionId}`}
+          size="small"
+          loading={pairsLoading}
+          pagination={false}
+          dataSource={lowPairs}
+          locale={{ emptyText: '近 30 天没有低于底线或按底线打的双陪组合' }}
+        >
+          <Table.Column title="主陪" dataIndex="mainCompanionName" render={(v: string) => <Text strong>{v}</Text>} />
+          <Table.Column title="搭档" dataIndex="partnerCompanionName" render={(v: string) => <Text strong>{v}</Text>} />
+          <Table.Column
+            title="低于底线"
+            dataIndex="lowPriceCount"
+            width={110}
+            sorter={(a: any, b: any) => a.lowPriceCount - b.lowPriceCount}
+            render={(v: number, r: any) =>
+              v > 0 ? (
+                <Tag color={r.watch ? 'red' : 'orange'}>
+                  {v} 次{r.watch ? ' · 重点关注' : ''}
+                </Tag>
+              ) : (
+                <Text type="secondary">—</Text>
+              )
+            }
+          />
+          <Table.Column
+            title="按底线打"
+            dataIndex="floorPriceCount"
+            width={110}
+            sorter={(a: any, b: any) => a.floorPriceCount - b.floorPriceCount}
+            render={(v: number) => (v > 0 ? <Tag>最低价 {v} 次</Tag> : <Text type="secondary">—</Text>)}
+          />
+          <Table.Column title="涉及客户" dataIndex="customerCount" width={90} render={(v: number) => `${v} 位`} />
+          <Table.Column
+            title="最低主陪价"
+            dataIndex="minPriceYuan"
+            width={110}
+            render={(v: number) => (v != null ? `${v} 元/h` : '-')}
+          />
+          <Table.Column
+            title="最低副陪单价"
+            dataIndex="minPartnerPriceYuan"
+            width={120}
+            render={(v: number) => (v != null ? `${v} 元/h` : '-')}
+          />
+          <Table.Column
+            title="模式"
+            dataIndex="modes"
+            width={110}
+            render={(v: string[]) => (v?.length ? v.join(' / ') : '-')}
+          />
+          <Table.Column
+            title="最近一次"
+            dataIndex="lastAt"
+            width={140}
+            render={(v: string) => (v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-')}
+          />
+        </Table>
+      </Card>
 
       <Card size="small" title="重点查看队列">
         <Table
@@ -122,7 +204,7 @@ const RiskWorkbenchPage: React.FC = () => {
           />
         </Table>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-          📌 评分基于转账与上报差额、单价低于客户历史基线、周消费/时长腰斩、客户流失风险等信号综合计算，仅作抽查辅助，不自动判定责任。
+          📌 评分基于转账与上报差额、单价低于底线（机密 35 / 绝密 45）、周消费/时长腰斩、客户流失风险等信号综合计算，仅作抽查辅助，不自动判定责任。
         </Text>
       </Card>
     </div>

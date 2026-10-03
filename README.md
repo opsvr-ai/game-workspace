@@ -36,6 +36,12 @@
 
 ## Recent Updates (v3.3.0)
 
+- **单价底线统计 + 低价搭档关注表 + 复购防滥用（2026-10-04，服务端 + 网页 `v910`）:** 老板口径「机密别低于 35、
+  绝密别低于 45，35 跟 45 就是个统计」—— **只统计、不拦单**。主陪价或副陪单价（副陪总价 ÷ 时长，填 0 也算）
+  低于底线时，实时提醒店长 / 客服 + 老板；管理端「客户画像与私单风险」多一张 **⚠️ 低价搭档（重点关注）** 表，
+  按「主陪 + 同一搭档」聚合，低于底线 ≥ 3 次标红，**正好按底线打**的另记次数（只是统计）。陪玩自己点「复购」
+  必须该客户有成交单、且自己服务过或客户归自己，客服 / 店长 / 老板代发不受限。新接口
+  `GET /api/finance/risk/low-price-pairs`；`GET /api/finance/risk-queue` 现在老板不筛工作室 = 看全站。
 - **抢单名额改成「抢单那一刻就扣」+ 补单审核 / 到期核查 + 每日台账（2026-10-04，服务端 + 网页 `v909`）:** 线下工作室口径 ——
   抢单即扣（不再等「添加成功 / 转账」），陪玩自己发布的单与客服指定单不占名额、线下工作室的预约单占 1 个，
   没用完的累计到以后；订单池的名额卡片显示「今日已用 / 当前可用」，点开看最近 14 天每天加了多少、用了多少和最近明细。
@@ -1229,7 +1235,8 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/finance/commission/cs-today-orders` | JWT | ADMIN, OWNER, CS | 今日看板点开一行：这个客服今天发出的单 + 每张单现在的结果（渠道 / 成功·不成功·待反馈 / 原因）。客服只能看自己。 |
 | `GET` | `/api/finance/received-today` | JWT | ADMIN, OWNER, CS | 「今天我们店接的单」：别的店发的单被本店陪玩接走的（`companion.studioId=本店` 且 `order.studioId!=本店`），返回今天接了多少 / 成功 / 不成功 / 待反馈 / 成功率 / 桥接·线上各几单 / 被催过几单 + 逐单明细（含「谁记的结果」）。 |
 | `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
-| `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue. |
+| `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue（老板不传 studioId = 看全站）. |
+| `GET` | `/api/finance/risk/low-price-pairs?days=30&studioId=` | JWT | ADMIN, OWNER, CS | 低价搭档关注表：主陪 + 同一搭档反复填低于底线（机密 35 / 绝密 45）的双陪组合，含「正好按底线打」统计。 |
 
 ### Customer Profiles & AI
 

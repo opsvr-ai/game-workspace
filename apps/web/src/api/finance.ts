@@ -75,4 +75,9 @@ export const financeApi = {
   riskQueue: {
     get: (studioId?: string) => http.get('/finance/risk-queue', { params: { studioId } }),
   },
+  /** 低价搭档组合（老板 2026-10-04）：主陪 + 同一个搭档反复填最低价，拿这个去重点盯这 2 个人 */
+  lowPricePairs: {
+    get: (days?: number, studioId?: string) =>
+      http.get('/finance/risk/low-price-pairs', { params: { days, studioId } }),
+  },
 };

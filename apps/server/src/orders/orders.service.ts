@@ -13,6 +13,7 @@ import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { PRICE_STATS_FLOOR, isBelowPriceFloor, partnerUnitPriceYuan } from '../common/price-rules';
 import { PoolScope, OrderOutcome } from '@chunlv/shared';
 import {
   normalizePoolScope,
@@ -207,6 +208,37 @@ export class OrdersService implements OnModuleInit {
         },
       });
       customerId = placeholder.id;
+    }
+
+    // 「复购」兜底校验（老板 2026-10-04：「怎么防止陪玩随便去客户管理找一个客户就点复购了？」）：
+    // 复购率是评分项，不能自己造。**只卡陪玩自己发起的复购**（客服 / 店长 / 老板代发不动，
+    // 免得老客户前一单还没 DONE 就把客服的正常复购发单给拦了）：
+    //   ① 这个客户必须**真成交过**（有 DONE 单）；
+    //   ② 只能挑**自己服务过**（当过主陪或副陪）或归属自己的客户。
+    if (dto.type === 'REPURCHASE' && customerId && creator?.role === 'COMPANION') {
+      const doneCount = await this.prisma.order.count({
+        where: { customerId, status: 'DONE' },
+      });
+      if (doneCount === 0) {
+        throw new ForbiddenException('这个客户还没有成交记录，不能算复购；新客户请走抢单 / 首单');
+      }
+      const me = await this.prisma.companion
+        .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
+        .catch(() => null);
+      if (!me) throw new ForbiddenException('陪玩信息不存在');
+      const served = await this.prisma.order.count({
+        where: {
+          customerId,
+          status: 'DONE',
+          OR: [{ companionId: me.id }, { coCompanionId: me.id }],
+        },
+      });
+      const owner = await this.prisma.customer
+        .findUnique({ where: { id: customerId }, select: { companionId: true } })
+        .catch(() => null);
+      if (served === 0 && owner?.companionId !== me.id) {
+        throw new ForbiddenException('只能复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
+      }
     }
 
     const orderCode = await this.nextGlobalCode();
@@ -2854,6 +2886,56 @@ export class OrdersService implements OnModuleInit {
     return updated;
   }
 
+  /**
+   * 单价低于底线 → 推一条 `review:alert`（老板 2026-10-04）：
+   * 主陪价、副陪单价（副陪总价 / 时长）任意一边低于底线（机密 35 / 绝密 45）就提醒，
+   * 副陪填 0 也算 —— 老板要拿这个去重点盯「主陪 + 搭档」这 2 个人。
+   * 店长 / 客服走工作室广播；**老板没有工作室、不在工作室房间里，必须单独通知**，否则收不到。
+   */
+  private async alertBelowFloorPrice(order: any, session: any, info: any): Promise<void> {
+    if (!order?.studioId) return;
+    const mode = info?.claimedMode ?? session?.claimedMode ?? null;
+    const partnerUnit = partnerUnitPriceYuan(info?.coAmount, info?.duration);
+    const mainBelow = isBelowPriceFloor(mode, info?.claimedPrice);
+    const partnerBelow = !!session?.coCompanionId && isBelowPriceFloor(mode, partnerUnit);
+    if (!mainBelow && !partnerBelow) return;
+    const ids = [session.companionId, session.coCompanionId].filter(Boolean) as string[];
+    const companions = ids.length
+      ? await this.prisma.companion
+          .findMany({
+            where: { id: { in: ids } },
+            select: { id: true, user: { select: { username: true, displayName: true } } },
+          })
+          .catch(() => [] as any[])
+      : [];
+    const nameOf = (id: string) => {
+      const c = companions.find((x: any) => x.id === id);
+      return c?.user?.displayName || c?.user?.username || '未知';
+    };
+    const floor = mode ? PRICE_STATS_FLOOR[mode as string] : undefined;
+    const who = session.coCompanionId
+      ? `${nameOf(session.companionId)} + ${nameOf(session.coCompanionId)}`
+      : nameOf(session.companionId);
+    const customerLabel =
+      (order.customFields as any)?.customerWechat || order.orderCode || order.customerId || '';
+    const parts: string[] = [];
+    if (mainBelow) parts.push(`主陪价 ${info.claimedPrice} 元/小时`);
+    if (partnerBelow) parts.push(`副陪单价 ${Math.round((partnerUnit as number) * 100) / 100} 元/小时`);
+    const payload = {
+      sessionId: session.id,
+      orderId: order.id,
+      companionName: who,
+      level: 'yellow',
+      reason: `单价低于底线：${mode}（底线 ${floor}），${parts.join('、')}，客户 ${customerLabel}`,
+      timestamp: new Date().toISOString(),
+    };
+    this.wsGateway.broadcastToStudio(order.studioId, 'review:alert', payload);
+    const owners = await this.prisma.user
+      .findMany({ where: { role: 'OWNER' }, select: { id: true } })
+      .catch(() => [] as Array<{ id: string }>);
+    for (const u of owners) this.wsGateway.notifyUser(u.id, 'review:alert', payload);
+  }
+
   /** 回冲一笔已完成订单已累计的流水与总消费 */
   private async reverseOrderRevenue(order: any) {
     const splits: Array<{ companionId: string; amount: number }> =
@@ -3049,6 +3131,17 @@ export class OrdersService implements OnModuleInit {
         status: 'ACTIVE',
       },
     });
+
+    // 单价低于底线（机密 35 / 绝密 45）：**只提醒、不拦单**，并告诉老板是谁在主陪+搭档一起填低价。
+    // 主陪价和副陪单价都看（副陪那段总价 / 时长，填 0 也算），方法内部自己判断要不要推。
+    void this
+      .alertBelowFloorPrice(order, session, {
+        claimedMode: session?.claimedMode,
+        claimedPrice: session?.claimedPrice,
+        coAmount: session?.coAmount,
+        duration: session?.duration,
+      })
+      .catch(() => null);
     // Notify coCompanion if set
     if (order && session.coCompanionId) {
       const inviter = await this.prisma.companion.findUnique({
@@ -3353,7 +3446,7 @@ export class OrdersService implements OnModuleInit {
   ) {
     const own = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { id: true, companionId: true, parentOrderId: true },
+      select: { id: true, companionId: true, parentOrderId: true, claimedPrice: true, coAmount: true, duration: true },
     });
     if (!own) throw new NotFoundException('会话不存在');
     const isHandoff = !!(companionId && own.companionId && own.companionId !== companionId);
@@ -3368,6 +3461,9 @@ export class OrdersService implements OnModuleInit {
       }
     }
     const data: any = { startedAt: new Date() };
+    // 复购单陪这条路只在 startSession 填价（addSession 那条路已经提醒过），
+    // 用「这段会话还没记过单价」当幂等条件，避免同一次填价弹两遍。
+    let belowFloorNew = false;
     if (claims) {
       if (!claims.claimedMode) throw new BadRequestException('请填写游戏模式');
       if (claims.claimedPrice == null || !Number.isFinite(claims.claimedPrice) || claims.claimedPrice <= 0) throw new BadRequestException('请填写有效单价');
@@ -3377,6 +3473,10 @@ export class OrdersService implements OnModuleInit {
       data.transferScreenshotUrl = claims.transferScreenshotUrl;
       data.duration = claims.duration;
       data.paidByDeposit = claims.useDeposit === true;
+      belowFloorNew =
+        own.claimedPrice == null &&
+        (isBelowPriceFloor(claims.claimedMode, claims.claimedPrice) ||
+          isBelowPriceFloor(claims.claimedMode, partnerUnitPriceYuan(own.coAmount, claims.duration)));
     }
     const updated = await this.prisma.orderSession.update({ where: { id }, data });
 
@@ -3401,6 +3501,29 @@ export class OrdersService implements OnModuleInit {
         }
       }
       await this.markCompanionsBusy([s.companionId, s.coCompanionId]);
+      // 单价低于底线（机密 35 / 绝密 45）：提醒老板 / 店长，不拦单。
+      if (belowFloorNew && claims) {
+        const parent = await this.prisma.order
+          .findUnique({
+            where: { id: s.parentOrderId },
+            select: { id: true, studioId: true, customFields: true, orderCode: true, customerId: true },
+          })
+          .catch(() => null);
+        if (parent) {
+          void this
+            .alertBelowFloorPrice(
+              parent,
+              { id, companionId: s.companionId, coCompanionId: s.coCompanionId },
+              {
+                claimedMode: claims.claimedMode,
+                claimedPrice: claims.claimedPrice,
+                coAmount: own.coAmount,
+                duration: claims.duration,
+              },
+            )
+            .catch(() => null);
+        }
+      }
       if (isHandoff && s.companionId) {
         this.wsGateway.pushToCompanion(s.companionId, 'order:service_handoff', {
           sessionId: id,

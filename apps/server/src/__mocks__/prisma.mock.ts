@@ -27,6 +27,8 @@ export function createMockPrisma() {
       delete: vi.fn(),
       aggregate: vi.fn(),
       groupBy: vi.fn(),
+      // 复购兜底校验（老板 2026-10-04）：按客户数成交单 / 数自己服务过的单
+      count: vi.fn(),
     },
     customer: {
       findUnique: vi.fn(),

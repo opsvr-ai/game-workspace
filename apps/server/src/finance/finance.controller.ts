@@ -237,6 +237,17 @@ export class FinanceController {
     return { code: 200, message: 'ok', data };
   }
 
+  /** 低价搭档组合：主陪 + 同一个搭档反复填最低价，提醒老板重点关注这 2 个人（老板 2026-10-04）。 */
+  @Get('risk/low-price-pairs')
+  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  async lowPricePairs(@Req() req: any, @Query('studioId') studioId?: string, @Query('days') days?: string) {
+    const data = await this.analytics.getLowPricePairs(
+      studioIdFor(req, studioId),
+      days ? Number(days) : 30,
+    );
+    return { code: 200, message: 'ok', data };
+  }
+
   @Get('risk-queue')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async riskQueue(@Req() req: any, @Query('studioId') studioId?: string) {

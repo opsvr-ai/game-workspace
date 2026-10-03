@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PRICE_STATS_FLOOR, isBelowPriceFloor, partnerUnitPriceYuan } from '../common/price-rules';
 
 interface OrderRow {
   id: string;
@@ -18,6 +19,7 @@ interface CustomerSignal {
   orderCount: number;
   avgAmount: number;
   lastOrderAt: Date | null;
+  /** 单价低于底线（机密 < 35 / 绝密 < 45）的会话次数 —— 老板 2026-10-04 的口径。 */
   lowPriceCount: number;
   consumptionDrop: boolean;
   durationDrop: boolean;
@@ -41,22 +43,26 @@ export interface CompanionRisk {
 }
 
 const LOOKBACK_DAYS = 90;
+/** 主陪 + 同一个搭档，低价次数到这个数就让老板重点关注这 2 个人。 */
+export const LOW_PRICE_PAIR_WATCH_THRESHOLD = 3;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class CustomerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getRiskQueue(studioId: string): Promise<CompanionRisk[]> {
+  async getRiskQueue(studioId: string | null): Promise<CompanionRisk[]> {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    // 老板没有工作室：不筛工作室 = 看全站（以前传 null 会筛出 0 个人，老板那儿一直是空的）。
+    const studioWhere = studioId ? { studioId } : {};
 
     const companions = await this.prisma.companion.findMany({
-      where: { studioId },
+      where: { ...studioWhere },
       select: { id: true, user: { select: { username: true, displayName: true } } },
     });
 
     const orders = (await this.prisma.order.findMany({
-      where: { studioId, status: 'DONE', createdAt: { gte: since }, companionId: { not: null } },
+      where: { ...studioWhere, status: 'DONE', createdAt: { gte: since }, companionId: { not: null } },
       select: {
         id: true,
         companionId: true,
@@ -71,6 +77,39 @@ export class CustomerAnalyticsService {
       orderBy: { createdAt: 'asc' },
     })) as OrderRow[];
 
+    // 单价低于底线（机密 35 / 绝密 45）：**只统计、不拦单**（老板 2026-10-04）。
+    const belowFloorSessions = await this.prisma.orderSession
+      .findMany({
+        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: { studioId } } : {}) },
+        select: {
+          id: true,
+          companionId: true,
+          coCompanionId: true,
+          claimedMode: true,
+          claimedPrice: true,
+          coAmount: true,
+          duration: true,
+          parentOrder: { select: { customerId: true } },
+        },
+      })
+      .catch(() => [] as any[]);
+
+    const belowFloorByCompanion = new Map<string, number>();
+    const belowFloorByCustomer = new Map<string, number>();
+    for (const row of belowFloorSessions) {
+      // 主陪价、副陪单价（副陪这段总价 / 时长）任意一边低于底线就算一次，填 0 也算。
+      const mainBelow = isBelowPriceFloor(row.claimedMode, row.claimedPrice);
+      const partnerBelow =
+        !!row.coCompanionId && isBelowPriceFloor(row.claimedMode, partnerUnitPriceYuan(row.coAmount, row.duration));
+      if (!mainBelow && !partnerBelow) continue;
+      for (const id of [row.companionId, row.coCompanionId]) {
+        if (!id) continue;
+        belowFloorByCompanion.set(id, (belowFloorByCompanion.get(id) || 0) + 1);
+      }
+      const cid = row.parentOrder?.customerId;
+      if (cid) belowFloorByCustomer.set(cid, (belowFloorByCustomer.get(cid) || 0) + 1);
+    }
+
     const byCompanion = new Map<string, OrderRow[]>();
     for (const o of orders) {
       if (!o.companionId) continue;
@@ -82,10 +121,10 @@ export class CustomerAnalyticsService {
     const results: CompanionRisk[] = [];
     for (const c of companions) {
       const cOrders = byCompanion.get(c.id) || [];
-      const customers = this.buildCustomerSignals(cOrders);
+      const customers = this.buildCustomerSignals(cOrders, belowFloorByCustomer);
 
       const flaggedCount = cOrders.filter((o) => this.isFlagged(o)).length;
-      const lowPriceCount = customers.reduce((sum, cs) => sum + cs.lowPriceCount, 0);
+      const lowPriceCount = belowFloorByCompanion.get(c.id) || 0;
       const consumptionDropCount = customers.filter((cs) => cs.consumptionDrop).length;
       const durationDropCount = customers.filter((cs) => cs.durationDrop).length;
       const churnRiskCount = customers.filter((cs) => cs.churnRisk).length;
@@ -131,6 +170,134 @@ export class CustomerAnalyticsService {
     return results.filter((r) => r.orderCount > 0 || r.flaggedCount > 0).sort((a, b) => b.riskScore - a.riskScore);
   }
 
+  /**
+   * 「低价搭档组合」（老板 2026-10-04）：
+   *   主陪 + 同一个搭档，反复在客户的首单 / 续单 / 复购里填最低价 —— 老板要拿这个去**重点盯这 2 个人**。
+   * 只看双陪（有搭档）的组合：主陪价 或 副陪单价（副陪总价 / 时长）低于底线（机密 35 / 绝密 45）算一次异常
+   * （lowPriceCount，低了 3 次标「重点关注」）；正好按底线 35 / 45 打的另记 floorPriceCount，
+   * 方便老板看「谁老是按最低价打」，但不标红。
+   */
+  async getLowPricePairs(studioId: string | null, days = 30) {
+    const since = new Date(Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000);
+    const sessions = await this.prisma.orderSession
+      .findMany({
+        where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: { studioId } } : {}) },
+        select: {
+          id: true,
+          companionId: true,
+          coCompanionId: true,
+          claimedMode: true,
+          claimedPrice: true,
+          coAmount: true,
+          duration: true,
+          startedAt: true,
+          parentOrder: { select: { type: true, customerId: true } },
+        },
+        orderBy: { startedAt: 'desc' },
+        take: 5000,
+      })
+      .catch(() => [] as any[]);
+
+    type PairAgg = {
+      mainId: string;
+      partnerId: string;
+      /** 低于底线（机密 < 35 / 绝密 < 45）的次数 —— 真异常。 */
+      lowCount: number;
+      /** 正好按底线（机密 35 / 绝密 45）打的次数 —— 老板 2026-10-04：「这个 35 跟 45 就是个统计」。 */
+      floorCount: number;
+      sessionCount: number;
+      customers: Set<string>;
+      types: Set<string>;
+      modes: Set<string>;
+      minPrice: number | null;
+      minPartnerPrice: number | null;
+      lastAt: Date | null;
+    };
+    const pairs = new Map<string, PairAgg>();
+
+    for (const row of sessions) {
+      if (!row.companionId || !row.coCompanionId) continue; // 只看双陪
+      const key = [row.companionId, row.coCompanionId].sort().join('|');
+      const item: PairAgg =
+        pairs.get(key) || {
+          mainId: row.companionId,
+          partnerId: row.coCompanionId,
+          lowCount: 0,
+          floorCount: 0,
+          sessionCount: 0,
+          customers: new Set<string>(),
+          types: new Set<string>(),
+          modes: new Set<string>(),
+          minPrice: null,
+          minPartnerPrice: null,
+          lastAt: null,
+        };
+      item.sessionCount += 1;
+      if (row.parentOrder?.customerId) item.customers.add(row.parentOrder.customerId);
+      if (row.parentOrder?.type) item.types.add(row.parentOrder.type);
+
+      // 主陪价、副陪单价（副陪这段总价 / 时长）任意一边低于底线 = 一次异常；副陪填 0 也算异常。
+      const floor = row.claimedMode ? PRICE_STATS_FLOOR[row.claimedMode] : undefined;
+      const partnerUnit = partnerUnitPriceYuan(row.coAmount, row.duration);
+      const isLow = isBelowPriceFloor(row.claimedMode, row.claimedPrice) || isBelowPriceFloor(row.claimedMode, partnerUnit);
+      const isAtFloor = !isLow && floor != null && (row.claimedPrice === floor || partnerUnit === floor);
+      if (isLow) item.lowCount += 1;
+      if (isAtFloor) item.floorCount += 1;
+      if (isLow || isAtFloor) {
+        if (row.claimedMode) item.modes.add(row.claimedMode);
+        if (row.startedAt && (!item.lastAt || row.startedAt > item.lastAt)) item.lastAt = row.startedAt;
+      }
+      if (row.claimedPrice != null && (item.minPrice == null || row.claimedPrice < item.minPrice)) {
+        item.minPrice = row.claimedPrice;
+      }
+      if (partnerUnit != null && (item.minPartnerPrice == null || partnerUnit < item.minPartnerPrice)) {
+        item.minPartnerPrice = partnerUnit;
+      }
+      pairs.set(key, item);
+    }
+
+    const ids = new Set<string>();
+    for (const p of pairs.values()) {
+      ids.add(p.mainId);
+      ids.add(p.partnerId);
+    }
+    const companions = ids.size
+      ? await this.prisma.companion.findMany({
+          where: { id: { in: [...ids] } },
+          select: { id: true, user: { select: { username: true, displayName: true } } },
+        })
+      : [];
+    const nameOf = (id: string) => {
+      const c = companions.find((x) => x.id === id);
+      return c?.user?.displayName || c?.user?.username || id;
+    };
+
+    return [...pairs.values()]
+      .filter((p) => p.lowCount > 0 || p.floorCount > 0)
+      .map((p) => ({
+        mainCompanionId: p.mainId,
+        mainCompanionName: nameOf(p.mainId),
+        partnerCompanionId: p.partnerId,
+        partnerCompanionName: nameOf(p.partnerId),
+        lowPriceCount: p.lowCount,
+        floorPriceCount: p.floorCount,
+        sessionCount: p.sessionCount,
+        customerCount: p.customers.size,
+        minPriceYuan: p.minPrice,
+        minPartnerPriceYuan: p.minPartnerPrice,
+        modes: [...p.modes],
+        orderTypes: [...p.types],
+        lastAt: p.lastAt,
+        watch: p.lowCount >= LOW_PRICE_PAIR_WATCH_THRESHOLD,
+      }))
+      .sort(
+        (a, b) =>
+          b.lowPriceCount - a.lowPriceCount ||
+          b.floorPriceCount - a.floorPriceCount ||
+          b.customerCount - a.customerCount,
+      );
+  }
+
   private isFlagged(o: OrderRow): boolean {
     if (o.auditStatus === 'FLAGGED') return true;
     if (o.auditAmountCents != null && o.transferTotalCents != null) {
@@ -139,7 +306,10 @@ export class CustomerAnalyticsService {
     return false;
   }
 
-  private buildCustomerSignals(orders: OrderRow[]): CustomerSignal[] {
+  private buildCustomerSignals(
+    orders: OrderRow[],
+    belowFloorByCustomer: Map<string, number> = new Map(),
+  ): CustomerSignal[] {
     const byCustomer = new Map<string, OrderRow[]>();
     for (const o of orders) {
       const list = byCustomer.get(o.customerId) || [];
@@ -154,13 +324,9 @@ export class CustomerAnalyticsService {
       const avgAmount = amounts.reduce((s, v) => s + v, 0) / amounts.length;
       const lastOrderAt = cOrders[cOrders.length - 1].createdAt;
 
-      let lowPriceCount = 0;
-      for (let i = 1; i < cOrders.length; i++) {
-        const prevAvg = cOrders.slice(0, i).reduce((s, o) => s + (o.amount || 0), 0) / i;
-        if (prevAvg > 0 && (cOrders[i].amount || 0) < prevAvg * 0.75) {
-          lowPriceCount += 1;
-        }
-      }
+      // 低价口径：单价低于底线（机密 < 35 / 绝密 < 45）的次数（老板 2026-10-04）。
+      // 原来按「比自己的历史均价低 25%」算，客户单价本来就低的时候会误报。
+      const lowPriceCount = belowFloorByCustomer.get(customerId) || 0;
 
       const consumptionDrop = this.weeklyDrop(cOrders, (o) => o.amount || 0);
       const durationDrop = this.weeklyDrop(cOrders, (o) => o.duration || 0);
@@ -222,7 +388,7 @@ export class CustomerAnalyticsService {
     if (s.orderCount === 0) return `${name} 近 90 天暂无完成订单，暂无异常基线`;
     parts.push(`${name} 近 90 天完成 ${s.orderCount} 单、流水 ¥${Math.round(s.revenueYuan)}`);
     if (s.flaggedCount > 0) parts.push(`${s.flaggedCount} 单转账与上报金额不符`);
-    if (s.lowPriceCount > 0) parts.push(`${s.lowPriceCount} 次单价低于客户历史基线`);
+    if (s.lowPriceCount > 0) parts.push(`${s.lowPriceCount} 次单价低于底线（机密 35 / 绝密 45）`);
     if (s.consumptionDropCount > 0) parts.push(`${s.consumptionDropCount} 位客户周消费腰斩`);
     if (s.durationDropCount > 0) parts.push(`${s.durationDropCount} 位客户服务时长骤降`);
     if (s.churnRiskCount > 0) parts.push(`${s.churnRiskCount} 位客户疑似流失`);
