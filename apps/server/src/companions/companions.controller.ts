@@ -553,6 +553,29 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 陪玩端「无操作 1 小时」自动休息（客户端本地检测到鼠标键盘 1 小时没动后调用）。
+   * 只能从「空闲 / 娱乐」进休息；接单中一律拒绝（见 service.autoRestOnIdle）。
+   */
+  @Put('companions/me/idle-rest')
+  @Roles(UserRole.COMPANION)
+  async idleRest(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const id = req.user.companionId;
+    if (!id) return { code: 400, message: '当前用户不是陪玩', data: null };
+
+    logger.info('REST idle auto-rest', { companionId: id, username: req.user.username });
+    const data = await this.companionsService.autoRestOnIdle(id, req.user);
+    await this.wsGateway.pushCurrentBlacklist(id, req.user?.studioId || null, true);
+    this.restingMonitor.startResting(id);
+    if (req.user?.studioId) {
+      this.wsGateway.broadcastToStudio(req.user.studioId, 'status:broadcast', {
+        companionId: id,
+        status: 'RESTING',
+      });
+    }
+    return { code: 200, message: 'ok', data };
+  }
+
   @Put('companions/:id/status')
   @Roles(UserRole.COMPANION)
   async updateStatus(

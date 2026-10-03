@@ -571,7 +571,58 @@ export class CompanionsService {
       throw new BadRequestException('当前状态不能直接休息，请先切回空闲');
     }
 
-    // 关闭上一个计时日志，并开启新状态的计时日志（用于统计各状态时长/娱乐计费）。
+    return this.applyStatusChange(id, status, now);
+  }
+
+  /**
+   * 陪玩端「无操作 1 小时」自动休息（老板 2026-10-04 要求：
+   * 「很多陪玩怎么说都不听，经常出去吃饭或者睡觉没电休眠」）。
+   *
+   * 跟手动点「休息」的差别只有一条：手动休息不允许从「娱乐中」
+   * 直接切（防止点一下休息逃掉娱乐计费），自动休息允许 —— 人确实 1 小时
+   * 没碰过鼠标键盘了，再按娱乐计费不合理。「接单中」（有进行中的服务会话）
+   * 一律拒绝：那一单正在给客户打，绝不能把机器自动睡过去。
+   */
+  async autoRestOnIdle(id: string, user: any) {
+    if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
+    const now = new Date();
+    await this.prisma.companionPC
+      .upsert({
+        where: { companionId: id },
+        create: { companionId: id, lastHeartbeat: now },
+        update: { lastHeartbeat: now },
+      })
+      .catch(() => {});
+
+    const current = await this.prisma.companion.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!current) throw new NotFoundException('陪玩不存在');
+    // 已经是休息：当成成功（客户端重试时不要报错，也不重置计时）。
+    if (current.status === 'RESTING') return { id, status: 'RESTING', alreadyInStatus: true };
+    if (current.status !== 'AVAILABLE' && current.status !== 'ENTERTAINMENT') {
+      throw new BadRequestException('当前状态不能自动休息');
+    }
+    const active = await this.prisma.orderSession.findFirst({
+      where: {
+        OR: [{ companionId: id }, { coCompanionId: id }],
+        status: 'ACTIVE',
+        startedAt: { not: null },
+      },
+      select: { id: true },
+    });
+    if (active) throw new BadRequestException('正在接单，不能自动休息');
+
+    return this.applyStatusChange(id, 'RESTING', now);
+  }
+
+  /**
+   * 状态落库 + 维护计时日志（手动切状态和无操作自动休息共用）。
+   * 关闭上一个计时日志、开新状态的，用于统计各状态时长 / 娱乐计费，
+   * 然后把 Companion.status 改掉。
+   */
+  private async applyStatusChange(id: string, status: string, now: Date) {
     const openLog = await this.prisma.companionTimeLog.findFirst({
       where: { companionId: id, endedAt: null },
       orderBy: { startedAt: 'desc' },
@@ -587,8 +638,7 @@ export class CompanionsService {
       data: { companionId: id, mode: status, startedAt: now, endedAt: null, durationSeconds: 0 },
     });
 
-    const updated = await this.prisma.companion.update({ where: { id }, data: { status } });
-    return updated;
+    return this.prisma.companion.update({ where: { id }, data: { status } });
   }
 
   /** 是否有“已开始的进行中服务会话”（作为主陪或副陪）。 */

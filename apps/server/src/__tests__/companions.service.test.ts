@@ -272,6 +272,77 @@ describe('CompanionsService', () => {
     });
   });
 
+  describe('autoRestOnIdle (无操作自动休息)', () => {
+    const companionUser = {
+      id: 'u5',
+      username: 'zhangsan',
+      role: 'COMPANION' as const,
+      studioId: 'studio-1',
+      companionId: 'comp-1',
+    };
+
+    const armMocks = (status: string, activeSession: any = null) => {
+      mockPrisma.companionPC.upsert.mockResolvedValue({ id: 'pc-1' });
+      mockPrisma.companion.findUnique.mockResolvedValue({ status });
+      mockPrisma.orderSession.findFirst.mockResolvedValue(activeSession);
+      mockPrisma.companionTimeLog.findFirst.mockResolvedValue(null);
+      mockPrisma.companionTimeLog.create.mockResolvedValue({ id: 'log-1' });
+      mockPrisma.companion.update.mockResolvedValue({ id: 'comp-1', status: 'RESTING' });
+    };
+
+    it('空闲中 1 小时无操作 → 自动切到休息', async () => {
+      armMocks('AVAILABLE');
+
+      const result = await service.autoRestOnIdle('comp-1', companionUser);
+
+      expect(mockPrisma.companion.update).toHaveBeenCalledWith({
+        where: { id: 'comp-1' },
+        data: { status: 'RESTING' },
+      });
+      expect(result).toEqual({ id: 'comp-1', status: 'RESTING' });
+    });
+
+    it('娱乐中也能自动休息（人确实不在，不再按娱乐计费）', async () => {
+      armMocks('ENTERTAINMENT');
+
+      await service.autoRestOnIdle('comp-1', companionUser);
+
+      expect(mockPrisma.companion.update).toHaveBeenCalledWith({
+        where: { id: 'comp-1' },
+        data: { status: 'RESTING' },
+      });
+    });
+
+    it('接单中（有进行中会话）一律拒绝，绝不能把正在打单的机器睡过去', async () => {
+      armMocks('AVAILABLE', { id: 'session-1' });
+
+      await expect(service.autoRestOnIdle('comp-1', companionUser)).rejects.toThrow(
+        '正在接单，不能自动休息',
+      );
+      expect(mockPrisma.companion.update).not.toHaveBeenCalled();
+    });
+
+    it('已经是休息 / 接单中 不重复切', async () => {
+      armMocks('RESTING');
+      await expect(service.autoRestOnIdle('comp-1', companionUser)).resolves.toEqual({
+        id: 'comp-1',
+        status: 'RESTING',
+        alreadyInStatus: true,
+      });
+
+      armMocks('BUSY');
+      await expect(service.autoRestOnIdle('comp-1', companionUser)).rejects.toThrow(
+        '当前状态不能自动休息',
+      );
+    });
+
+    it('只能操作自己的状态', async () => {
+      await expect(
+        service.autoRestOnIdle('comp-1', { ...companionUser, companionId: 'comp-2' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   describe('getRanking', () => {
     it('returns top 10 companions by revenue score', async () => {
       mockRevenueService.getRanking.mockResolvedValue([

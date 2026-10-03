@@ -1318,6 +1318,85 @@ function setupApplicationMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ── 无操作自动休息（老板 2026-10-04）─────────────────────────────────
+// 老板把「休息」定义成「整机休眠」。以前只有手动点休息才休眠，结果出去吃饭 / 睡觉的机器
+// 一直亮着空转。现在客户端本地盯着「鼠标键盘多久没动」：满 1 小时先弹一条右下角提示，
+// 倒计时结束后如果还是没人动电脑，就自动上报「休息」并休眠。动一下鼠标/键盘即可取消。
+const IDLE_REST_AFTER_MS = 60 * 60 * 1000;
+const IDLE_REST_GRACE_MS = 20 * 1000;
+const IDLE_REST_CHECK_MS = 60 * 1000;
+let idleRestInFlight = false;
+let idleRestSettled = false;
+
+/** 只有「空闲 / 娱乐」会因长时间无操作自动休息；接单中、已休息、离线一律不动。 */
+function isIdleRestableStatus(status: unknown): boolean {
+  return status === 'AVAILABLE' || status === 'ENTERTAINMENT';
+}
+
+async function idleRestTick(): Promise<void> {
+  if (idleRestInFlight) return;
+  if (currentRole !== 'COMPANION') return;
+  if (!store.get('token')) return;
+  if (!isIdleRestableStatus(store.get('lastStatus'))) return;
+
+  const idleMs = powerMonitor.getSystemIdleTime() * 1000;
+  if (idleMs < IDLE_REST_AFTER_MS) {
+    // 有输入了：这一轮结束，下次再攒满 1 小时还能触发。
+    idleRestSettled = false;
+    return;
+  }
+  if (idleRestSettled) return;
+
+  idleRestInFlight = true;
+  try {
+    const graceSec = Math.round(IDLE_REST_GRACE_MS / 1000);
+    try {
+      showBroadcastPopup({
+        title: '😴 已经 1 小时没操作',
+        body: `${graceSec} 秒后自动进入休息并休眠电脑 · 动一下鼠标就能取消`,
+        icon: '😴',
+        seconds: graceSec,
+      });
+    } catch {}
+
+    await new Promise((resolve) => setTimeout(resolve, IDLE_REST_GRACE_MS));
+
+    // 倒计时里摸过鼠标/键盘，或状态变了 → 取消这次自动休息。
+    if (powerMonitor.getSystemIdleTime() * 1000 < IDLE_REST_AFTER_MS) {
+      logger.info('Idle auto-rest cancelled: user is back');
+      return;
+    }
+    if (!isIdleRestableStatus(store.get('lastStatus'))) return;
+
+    const token = await refreshAccessToken();
+    if (!token) return;
+    const res = await fetch(`${getServerUrl()}/api/companions/me/idle-rest`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      // 比如「正在接单」、已经不是陪玩账号：服务端拒绝就不休眠。
+      // 这一轮不再重试，避免每分钟吨一次日志 / 请求。
+      logger.warn('Idle auto-rest rejected by server', { httpStatus: res.status });
+      idleRestSettled = true;
+      return;
+    }
+    idleRestSettled = true;
+    logger.info('Idle auto-rest: reporting RESTING and hibernating');
+    emitStatus('RESTING');
+    handleStatusChanged('RESTING');
+  } catch (err: any) {
+    logger.warn('Idle auto-rest failed', { error: err?.message || String(err) });
+  } finally {
+    idleRestInFlight = false;
+  }
+}
+
+function startIdleRestWatcher(): void {
+  setTimeout(() => { void idleRestTick(); }, 30 * 1000);
+  setInterval(() => { void idleRestTick(); }, IDLE_REST_CHECK_MS);
+}
+
 // ── Lifecycle ──
 const machineAgent = createMachineAgent({
   app,
@@ -1337,6 +1416,7 @@ app.whenReady().then(() => {
   writeHealthMarker();
   setInterval(writeHealthMarker, 60 * 1000);
   ensureHibernateEnabled();
+  startIdleRestWatcher();
   setupApplicationMenu();
   app.setLoginItemSettings({ openAtLogin: true });
   cleanupStaleCaptures();
