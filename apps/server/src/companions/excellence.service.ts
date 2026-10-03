@@ -3,6 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { logger } from '../common/logger';
 
 export interface ExcellenceResult {
   isExcellent: boolean;
@@ -45,6 +46,109 @@ export class ExcellenceService implements OnModuleInit {
     // 下等马末位淘汰：每天检查一次（启动后 1 分钟先跑一次，之后每 24 小时）
     setTimeout(() => this.runLowTierResignCheck().catch(() => {}), 60 * 1000);
     setInterval(() => this.runLowTierResignCheck().catch(() => {}), 24 * 60 * 60 * 1000);
+
+    // 每日段位复核（老板 2026-10-04）：「每天都重新检查他的各项指标重新扣分或者加分，
+    // 然后进行等级的变换」。段位本来就是按当前指标实时算的（指标掉分就掉段，即降级），
+    // 这里补的是「每天定点复核一次 + 把谁升了谁降了留档」，让老板第二天打开就看得到。
+    setTimeout(() => this.runDailyTierCheck().catch(() => {}), 2 * 60 * 1000);
+    this.scheduleDailyTierCheck();
+  }
+
+  /** 每天 12:05（营业日刚切完）复核一次全员段位。 */
+  private scheduleDailyTierCheck() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(12, 5, 0, 0);
+    if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+    const delay = next.getTime() - now.getTime();
+    setTimeout(() => {
+      this.runDailyTierCheck().catch(() => {});
+      setInterval(() => this.runDailyTierCheck().catch(() => {}), 24 * 60 * 60 * 1000);
+    }, delay);
+  }
+
+  /**
+   * 每日段位复核：全员按当前指标重算一次，和上一次快照比对，把**换了段位**的人记下来。
+   *
+   * 说明（老板 2026-10-04 定）：不做「额外扣分」那一套 —— 分数本来就是
+   * 「月流水 + 续单率 + 复购率 + 首单成功率（每项取达到的最高一档）」实时算出来的，
+   * 指标掉了那一项的分自然掉回去，段位跟着变，这就是降级。
+   * 这里只负责「每天看一眼 + 留档」，不改任何算分口径。
+   *
+   * 快照存在 SystemConfig（服务端自己维护的状态，不是给人填的）：
+   *  - `excellence.tier_snapshot`：companionId → 当前段位，用来跟下次比对；
+   *  - `excellence.tier_changes` ：最近 200 条升降级记录（含时间、从哪段到哪段、当时多少分）。
+   */
+  async runDailyTierCheck(): Promise<number> {
+    const companions = await this.prisma.companion.findMany({
+      where: { isResigned: false },
+      select: {
+        id: true,
+        studioId: true,
+        user: { select: { username: true, displayName: true } },
+      },
+    });
+    if (companions.length === 0) return 0;
+
+    const results = await this.computeForCompanions(companions.map((c) => c.id));
+
+    const snapCfg = await this.prisma.systemConfig.findUnique({
+      where: { key: 'excellence.tier_snapshot' },
+    });
+    const prev: Record<string, string> =
+      snapCfg?.value && typeof snapCfg.value === 'object' && !Array.isArray(snapCfg.value)
+        ? (snapCfg.value as Record<string, string>)
+        : {};
+
+    const now: Record<string, string> = {};
+    const changes: Array<Record<string, unknown>> = [];
+    const at = new Date().toISOString();
+    for (const c of companions) {
+      const r = results.get(c.id);
+      if (!r) continue;
+      now[c.id] = r.tier;
+      const before = prev[c.id];
+      // 第一次跑没有历史快照：只建档，不刷一屏"变动"。
+      if (!before || before === r.tier) continue;
+      changes.push({
+        companionId: c.id,
+        name: c.user?.displayName || c.user?.username || '',
+        studioId: c.studioId,
+        from: before,
+        to: r.tier,
+        score: r.rankScore,
+        at,
+      });
+    }
+
+    await this.prisma.systemConfig
+      .upsert({
+        where: { key: 'excellence.tier_snapshot' },
+        update: { value: now },
+        create: { key: 'excellence.tier_snapshot', value: now },
+      })
+      .catch(() => {});
+
+    if (changes.length > 0) {
+      const logCfg = await this.prisma.systemConfig.findUnique({
+        where: { key: 'excellence.tier_changes' },
+      });
+      const oldLog = Array.isArray(logCfg?.value) ? (logCfg!.value as any[]) : [];
+      const merged = [...changes, ...oldLog].slice(0, 200);
+      await this.prisma.systemConfig
+        .upsert({
+          where: { key: 'excellence.tier_changes' },
+          update: { value: merged },
+          create: { key: 'excellence.tier_changes', value: merged },
+        })
+        .catch(() => {});
+      logger.info('Daily tier check: tier changes recorded', {
+        changed: changes.length,
+        total: companions.length,
+      });
+    }
+
+    return changes.length;
   }
 
   /**

@@ -133,6 +133,26 @@ export class DashboardService {
         message: `今日流水低于${lowThreshold}预警线`,
       }));
 
+    // 今日段位变动（老板 2026-10-04）：每天 12:05 由 ExcellenceService 复核后留档，
+    // 这里只把「本营业日内」的变动捞出来给首页看板显示（店长只看本店）。
+    let tierChanges: Array<Record<string, unknown>> = [];
+    try {
+      const changesCfg = await this.prisma.systemConfig.findUnique({
+        where: { key: 'excellence.tier_changes' },
+      });
+      const all = Array.isArray(changesCfg?.value) ? (changesCfg!.value as any[]) : [];
+      tierChanges = all
+        .filter((c) => {
+          if (!c?.at) return false;
+          if (new Date(c.at).getTime() < today.getTime()) return false;
+          if (studioId && c.studioId && c.studioId !== studioId) return false;
+          return true;
+        })
+        .slice(0, 30);
+    } catch {
+      // 读不到就当没有，不影响首页其它数据
+    }
+
     return {
       today: {
         totalRevenue,
@@ -142,6 +162,7 @@ export class DashboardService {
         acceptRate,
         entertainmentFee,
       },
+      tierChanges,
       ranking: ranking.map((r, i) => ({
         rank: i + 1,
         companionId: r.id,

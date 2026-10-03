@@ -296,6 +296,19 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       </Card>
 
       {/* ── 排行榜 ── */}
+      {/* 今日段位变动（老板 2026-10-04）：服务端每天 12:05 复核后留档，有才显示 */}
+      {dash?.tierChanges?.length ? (
+        <Card size="small" title="今日段位变动（升级 / 降级）" style={{ marginBottom: 14 }}>
+          <Space wrap size={[8, 8]}>
+            {dash.tierChanges.map((c: any, i: number) => (
+              <Tag key={`${c.companionId}-${i}`} color={TIER_META[c.to]?.color} style={{ padding: '4px 10px', fontSize: 12 }}>
+                {c.name}：{TIER_META[c.from]?.label || c.from} → {TIER_META[c.to]?.label || c.to}（{c.score} 分）
+              </Tag>
+            ))}
+          </Space>
+        </Card>
+      ) : null}
+
       <Card
         size="small"
         title="陪玩排行"
