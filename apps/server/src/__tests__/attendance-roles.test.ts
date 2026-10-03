@@ -12,8 +12,22 @@ import { CompanionAttendanceService } from "../companions/companion-attendance.s
  *   3. 管理端手动登记的一律优先，自动打卡绝不复写。
  */
 
-function setup(overrides: Record<string, any> = {}, data: Record<string, any> = {}) {
-  const cfg: Record<string, any> = { ...overrides };
+function setup(
+  overrides: Record<string, any> = {},
+  data: Record<string, any> = {},
+  opts: { seedEnabled?: boolean } = {},
+) {
+  // 默认把三个开关都显式配上（这些用例考的是「开了之后怎么算」）；
+  // 想测「没配过时的默认值」就传 { seedEnabled: false }。
+  const seed =
+    opts.seedEnabled === false
+      ? {}
+      : {
+          "attendance.companion.enabled": true,
+          "attendance.cs.enabled": true,
+          "attendance.manager.enabled": true,
+        };
+  const cfg: Record<string, any> = { ...seed, ...overrides };
   const created: any[] = [];
   const prisma = {
     systemConfig: {
@@ -59,7 +73,18 @@ describe("考勤：三个职位各自一个开关", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("陪玩默认开着：客户端上线就打卡，晚于上班时间记迟到", async () => {
+  it("陪玩默认**不开**（老板 2026-10-04：提成制、没底薪）→ 一条都不记", async () => {
+    at("2026-10-04T10:30:00");
+    const { svc, created } = setup(
+      { "attendance.workStart": "09:00", "attendance.workEnd": "18:00" },
+      {},
+      { seedEnabled: false },
+    );
+    expect(await svc.ensureAttendance("c1")).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+
+  it("店长把陪玩考勤打开后：客户端上线就打卡，晚于上班时间记迟到", async () => {
     at("2026-10-04T10:30:00");
     const { svc, created } = setup({ "attendance.workStart": "09:00", "attendance.workEnd": "18:00" });
     const row: any = await svc.ensureAttendance("c1");

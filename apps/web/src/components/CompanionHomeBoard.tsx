@@ -108,14 +108,18 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
           />
         </Col>
         <Col xs={12} md={4}><Kpi label="我的客户" value={`${list.length} 个`} sub={`累计消费 ${yuan(totalSpent)}`} tint="#EB2F96" /></Col>
-        <Col xs={12} md={4}>
-          <Kpi
-            label="今日考勤"
-            value={att ? att.label : '未考勤'}
-            sub={attTime ? `${attTime} 打卡 · 上班 ${attendance?.workStart || '—'}` : `上班时间 ${attendance?.workStart || '—'}`}
-            tint={att ? att.color : '#8C8C8C'}
-          />
-        </Col>
+        {/* 今日考勤：本店把「陪玩考勤」关掉时接口返回 null —— 这张卡整张不显示
+            （老板 2026-10-04：陪玩是提成制、没必要考勤），不再挂个「未考勤」占地方。 */}
+        {attendance && (
+          <Col xs={12} md={4}>
+            <Kpi
+              label="今日考勤"
+              value={att ? att.label : '未考勤'}
+              sub={attTime ? `${attTime} 打卡 · 上班 ${attendance?.workStart || '—'}` : `上班时间 ${attendance?.workStart || '—'}`}
+              tint={att ? att.color : '#8C8C8C'}
+            />
+          </Col>
+        )}
       </Row>
 
       <Row gutter={[12, 12]}>

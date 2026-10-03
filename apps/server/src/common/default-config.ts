@@ -167,7 +167,9 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'capture.black_rate_max_percent': 30,
   // 考勤（老板 2026-10-04：「再加一个客服、店长考勤时间，给每个职位加一个开关，有的职位暂时不需要开考勤」）
   // 陪玩的时间沿用老键 attendance.workStart / attendance.workEnd，不动它，免得线上店长已填的覆盖失效。
-  'attendance.companion.enabled': true,
+  // 开关默认**关**（老板 2026-10-04：「陪玩是提成制、本来也不扣钱……陪玩没必要考勤」）：
+  // 店长想给陪玩开考勤，在「本店设置 → 考勤」里自己打开。
+  'attendance.companion.enabled': false,
   'attendance.workStart': '09:00',
   'attendance.workEnd': '18:00',
   'attendance.cs.enabled': true,

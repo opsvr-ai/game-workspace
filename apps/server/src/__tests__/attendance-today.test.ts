@@ -13,8 +13,20 @@ import { CompanionAttendanceService } from "../companions/companion-attendance.s
  *   4. 考勤关掉的职位整块不出现。
  */
 
-function setup(overrides: Record<string, any> = {}, data: Record<string, any> = {}) {
-  const cfg: Record<string, any> = { ...overrides };
+function setup(
+  overrides: Record<string, any> = {},
+  data: Record<string, any> = {},
+  opts: { seedEnabled?: boolean } = {},
+) {
+  const seed =
+    opts.seedEnabled === false
+      ? {}
+      : {
+          "attendance.companion.enabled": true,
+          "attendance.cs.enabled": true,
+          "attendance.manager.enabled": true,
+        };
+  const cfg: Record<string, any> = { ...seed, ...overrides };
   const prisma = {
     systemConfig: {
       findMany: vi.fn(async ({ where }: any) =>
@@ -113,6 +125,17 @@ describe("今日考勤汇总：分类与排序", () => {
     expect(res.roles.OWNER).toBeUndefined();
   });
 
+  it("陪玩考勤没配过时默认不开（老板 2026-10-04：陪玩没必要考勤）→ 汇总里没有陪玩那一块", async () => {
+    at("2026-10-04T10:30:00");
+    const { svc } = setup(
+      { "attendance.cs.workStart": "09:00", "attendance.manager.workStart": "09:00" },
+      { companions: [{ id: "c1", status: "AVAILABLE", user: { username: "张三" } }] },
+      { seedEnabled: false },
+    );
+    const res: any = await svc.summarizeToday(null);
+    expect(res.roles.COMPANION).toBeUndefined();
+  });
+
   it("考勤关掉的职位整块不出现", async () => {
     at("2026-10-04T10:30:00");
     const { svc } = setup(
@@ -136,6 +159,12 @@ describe("陪玩自己的今日考勤", () => {
     );
     const res: any = await svc.myToday("c1");
     expect(res).toMatchObject({ status: "LATE", isLate: true, onDuty: true, workStart: "09:00" });
+  });
+
+  it("陪玩考勤没配过时默认不开 → myToday 返回 null（陪玩端整张卡不显示）", async () => {
+    at("2026-10-04T10:30:00");
+    const { svc } = setup({}, {}, { seedEnabled: false });
+    expect(await svc.myToday("c1")).toBeNull();
   });
 
   it("考勤关掉时返回 null（陪玩端不显示这个徽章）", async () => {

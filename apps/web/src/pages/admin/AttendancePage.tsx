@@ -108,6 +108,16 @@ const AttendancePage: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  // 本店把「陪玩考勤」关掉时（老板 2026-10-04：陪玩是提成制、没必要考勤），
+  // 这一页就不再列陪玩那张表，只留客服 / 店长的考勤。
+  const [companionOn, setCompanionOn] = useState(true);
+  useEffect(() => {
+    http
+      .get('/companions/attendance-today')
+      .then(({ data }: any) => setCompanionOn(!!(data?.data?.roles || {}).COMPANION))
+      .catch(() => {});
+  }, []);
+
   const columns = useMemo(() => [
     {
       title: '陪玩', key: 'companionName', width: 120,
@@ -190,7 +200,11 @@ const AttendancePage: React.FC = () => {
         <div>
           <Text strong style={{ fontSize: 16 }}>📋 考勤管理</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>查看陪玩上下班打卡记录与考勤状态</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {companionOn
+              ? '查看陪玩上下班打卡记录与考勤状态'
+              : '本店没开陪玩考勤（陪玩是提成制），这一页只统计客服 / 店长'}
+          </Text>
         </div>
         <Space>
           <Button icon={createElement(ReloadOutlined)} onClick={fetchRecords} loading={loading}>刷新</Button>
@@ -198,51 +212,57 @@ const AttendancePage: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <RangePicker
+        {companionOn && (
+          <>
+            <RangePicker
           value={dateRange}
           onChange={(dates) => setDateRange(dates as [Dayjs, Dayjs] | null)}
           placeholder={['开始日期', '结束日期']}
           style={{ width: 240 }}
         />
-        <Select
-          placeholder="选择陪玩"
-          allowClear
-          style={{ width: 180 }}
-          value={companionFilter}
-          onChange={setCompanionFilter}
-          options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))}
-          showSearch
-          filterOption={(input, option) => (option?.label as string || '').toLowerCase().includes(input.toLowerCase())}
-        />
-        <Select
-          placeholder="考勤状态"
-          allowClear
-          style={{ width: 140 }}
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={statusOptions}
-        />
-        <Button
-          type="primary"
-          icon={createElement(SearchOutlined)}
-          onClick={fetchRecords}
-          loading={loading}
-        >
-          查询
-        </Button>
+            <Select
+              placeholder="选择陪玩"
+              allowClear
+              style={{ width: 180 }}
+              value={companionFilter}
+              onChange={setCompanionFilter}
+              options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))}
+              showSearch
+              filterOption={(input, option) => (option?.label as string || '').toLowerCase().includes(input.toLowerCase())}
+            />
+            <Select
+              placeholder="考勤状态"
+              allowClear
+              style={{ width: 140 }}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusOptions}
+            />
+            <Button
+              type="primary"
+              icon={createElement(SearchOutlined)}
+              onClick={fetchRecords}
+              loading={loading}
+            >
+              查询
+            </Button>
+          </>
+        )}
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={records}
-        rowKey="id"
-        loading={loading}
-        locale={{ emptyText: '暂无考勤记录' }}
-        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
-        onRow={(record) => ({
-          style: record.isLate || record.isEarlyLeave ? { background: '#fff1f0' } : undefined,
-        })}
-      />
+      {companionOn && (
+        <Table
+          columns={columns}
+          dataSource={records}
+          rowKey="id"
+          loading={loading}
+          locale={{ emptyText: '暂无考勤记录' }}
+          pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }}
+          onRow={(record) => ({
+            style: record.isLate || record.isEarlyLeave ? { background: '#fff1f0' } : undefined,
+          })}
+        />
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 12px' }}>
         <div>

@@ -28,16 +28,30 @@ const ROLE_ENABLED_KEY: Record<AttendanceRole, string> = {
   ADMIN: 'attendance.manager.enabled',
 };
 
+/**
+ * 各职位「没配过」时的默认值。
+ *
+ * 陪玩默认**关**（老板 2026-10-04：「陪玩是提成制、本来也不扣钱……陪玩没必要考勤，
+ * 你要考勤这不是得给人家发底薪了么」）——不记考勤、不判迟到早退、陪玩端也不显示这张卡；
+ * 哪个店想给陪玩开考勤，店长在「本店设置 → 考勤」里打开即可（存到本店配置，只影响自己这家店）。
+ * 客服 / 店长默认**开**：这两个职位走工资考勤（迟到 / 早退 / 缺勤要扣款）。
+ */
+const ROLE_ENABLED_DEFAULT: Record<AttendanceRole, boolean> = {
+  COMPANION: false,
+  CS: true,
+  ADMIN: true,
+};
+
 @Injectable()
 export class CompanionAttendanceService {
   constructor(private prisma: PrismaService) {}
 
-  /** 这个职位的考勤开没开（本店店长填的 → 老板全局默认；没配过 = 开）。 */
+  /** 这个职位的考勤开没开（本店店长填的 → 老板全局默认；没配过看各职位默认值）。 */
   async isEnabled(role: AttendanceRole, studioId: string | null): Promise<boolean> {
     const key = ROLE_ENABLED_KEY[role];
     const scoped = await resolveConfigsRaw(this.prisma, studioId, [key]);
     const v = scoped[key];
-    return v === undefined || v === null ? true : Boolean(v);
+    return v === undefined || v === null ? ROLE_ENABLED_DEFAULT[role] : Boolean(v);
   }
 
   /** 这个职位的上/下班时间（"HH:mm"）。 */
