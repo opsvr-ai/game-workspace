@@ -13,7 +13,6 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
-import CommandPalette from '../components/CommandPalette';
 import ChatModal from '../components/ChatModal';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
@@ -235,7 +234,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: '客户端与设备', label: '客户端与设备',
           children: [
-            { key: '/admin/managed-pcs', label: '电脑管理' },
             { key: '/admin/pc-control', label: '远程控制' },
             { key: '/admin/machines', label: '机器管理' },
             { key: '/admin/agent-version', label: '客户端版本' },
@@ -244,6 +242,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
             { key: '/admin/process-kill-log', label: '杀进程日志' },
           ],
         },
+        { key: '/profile', label: '个人设置' },
       ],
     },
   ],
@@ -347,7 +346,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
         {
           key: '客户端与设备', label: '客户端与设备',
           children: [
-            { key: '/admin/managed-pcs', label: '电脑管理' },
             { key: '/admin/pc-control', label: '远程控制' },
             { key: '/admin/machines', label: '机器管理' },
             { key: '/admin/agent-version', label: '客户端版本' },
@@ -356,6 +354,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
             { key: '/admin/process-kill-log', label: '杀进程日志' },
           ],
         },
+        { key: '/profile', label: '个人设置' },
       ],
     },
   ],
@@ -379,6 +378,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'cs-customers', icon: IconCustomers, label: '客户管理',
       children: [
         { key: '/cs/customers', label: '客户列表' },
+        { key: '/admin/customer-board', label: '客户看板' },
       ],
     },
     {
@@ -727,7 +727,6 @@ const AppLayout: React.FC = () => {
     useNotifStore.getState().hydrate(user?.id || null);
   }, [user?.id]);
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
-  const [commandPalette, setCommandPalette] = React.useState(false);
 
   // Notification bell
   const [notifOpen, setNotifOpen] = React.useState(false);
@@ -982,10 +981,6 @@ const AppLayout: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setCommandPalette(true);
-      }
       if (
         e.key === '/' &&
         document.activeElement?.tagName !== 'INPUT' &&
@@ -2497,10 +2492,8 @@ const AppLayout: React.FC = () => {
         onClose={() => setGlobalChatPartner(null)}
       />
 
-      {/* Command Palette (Ctrl+K) */}
       <VoiceCallHandler />
       <ServiceStartOverlay />
-      <CommandPalette open={commandPalette} onClose={() => setCommandPalette(false)} />
     </ChatProvider>
   );
 };

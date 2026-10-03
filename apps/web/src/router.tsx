@@ -61,7 +61,6 @@ import OrdersPage from './pages/OrdersPage';
 import BillingOverview from './pages/BillingOverview';
 import CompanionsPage from './pages/CompanionsPage';
 import CompanionPoolPage from './pages/OrderPoolPage';
-import ManagedPcPage from './pages/admin/ManagedPcPage';
 import MachinesPage from './pages/admin/MachinesPage';
 import PcControlPage from './pages/admin/PcControlPage';
 import PayrollPage from './pages/admin/PayrollPage';
@@ -532,12 +531,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        // 「电脑管理」2026-10-04 并进「机器管理」（手工登记 + 远程开关机那一块就在机器管理页里），
+        // 老书签 / 老链接照旧能用，直接落到机器管理页。
         path: 'admin/managed-pcs',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ManagedPcPage />
-          </Suspense>
-        ),
+        element: <Navigate to="/admin/machines" replace />,
       },
       {
         path: 'admin/payroll',

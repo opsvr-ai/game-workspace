@@ -164,7 +164,7 @@ const PcControlPage: React.FC = () => {
   const wakePc = async (record: Companion) => {
     const pc = pcByLogin.get(record.user?.username || '');
     if (!pc) {
-      message.warning('该陪玩未登记电脑，请先到「电脑管理」添加');
+      message.warning('该陪玩未登记电脑，请先到「机器管理 → 手工登记的电脑」添加');
       return;
     }
     if (!pc.macAddress) {

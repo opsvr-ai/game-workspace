@@ -8,9 +8,9 @@ import {
 import { managedPcApi, ManagedPcItem } from '../../api/managedPc';
 import { visibleInterval } from '../../hooks/usePolling';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
-const ManagedPcPage: React.FC = () => {
+const ManagedPcPanel: React.FC = () => {
   const [items, setItems] = useState<ManagedPcItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -199,8 +199,7 @@ const ManagedPcPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>电脑管理</Title>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 12 }}>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
           <Button
@@ -268,4 +267,4 @@ const ManagedPcPage: React.FC = () => {
   );
 };
 
-export default ManagedPcPage;
+export default ManagedPcPanel;

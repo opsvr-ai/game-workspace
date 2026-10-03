@@ -11,6 +11,7 @@ import {
   MachineItem, MachineTask, machineApi, taskStatusLabels, taskTypeLabels,
 } from '../../api/machines';
 import { visibleInterval } from '../../hooks/usePolling';
+import ManagedPcPanel from './ManagedPcPanel';
 
 const { Text, Paragraph } = Typography;
 
@@ -598,6 +599,17 @@ const MachinesPage: React.FC = () => {
           message="指令是直接在客服/陪玩的电脑上执行的，发之前自己先看清楚。"
         />
       </Modal>
+
+      <div style={{ marginTop: 32, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+        <Space align="baseline" wrap style={{ marginBottom: 8 }}>
+          <Text strong>手工登记的电脑（远程开关机）</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            管理员手工登记 IP / MAC 的电脑，用来远程开机 / 关机 / 重启 / 睡眠 / 休眠；
+            装上客户端并上报机器信息后，就会出现在上面的「客户端机器」里。
+          </Text>
+        </Space>
+        <ManagedPcPanel />
+      </div>
     </div>
   );
 };
