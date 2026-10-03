@@ -1,5 +1,5 @@
 // craftsman-ignore: TS001
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { canSeeCustomerSource } from '../common/order-privacy';
 import { currentBusinessDayRange } from '../common/business-day';
@@ -1235,13 +1235,67 @@ export class CustomersService {
     });
   }
 
+  /**
+   * 删除客户（管理端）。
+   *
+   * 老板 2026-10-04：抢单后客户一直没通过、陪玩也没标记的，管理端把这个客户删掉即可。
+   * 但订单表对客户是 RESTRICT 外键，只要客户名下还有订单就删不掉；
+   * 而且真正成交过的客户删了会把订单 / 流水一起带走。所以这里分两种情况：
+   *   - 名下订单全是「从未成交」的（待抢 / 已抢 / 已确认 / 已取消，无流水、无会话、无补单申请）
+   *     → 连这些僵尸单一起清掉，客户才能真的删掉；
+   *   - 只要有一单成交 / 有流水 / 有服务会话 / 有补单申请
+   *     → 明确挡住，不动账目（真要处理由老板点名）。
+   */
   async delete(id: string) {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
     if (!customer) {
       throw new NotFoundException('客户不存在');
     }
 
+    let orders: any[] = [];
+    try {
+      orders =
+        ((await this.prisma.order.findMany({
+          where: { customerId: id },
+          select: { id: true, status: true },
+        })) as any[]) || [];
+    } catch {
+      orders = [];
+    }
+    const orderIds = orders.map((o: any) => o.id).filter(Boolean);
+
+    if (orderIds.length) {
+      const blocked = await this.hasSettledOrderHistory(orders, orderIds);
+      if (blocked) {
+        throw new ConflictException('该客户已有成交 / 流水记录，不能删除；请改用归属调整或备注说明');
+      }
+      try {
+        await this.prisma.order.deleteMany({ where: { customerId: id } });
+      } catch {
+        /* 僵尸单清不掉时交给下面的 customer.delete 报错，不吞掉 */
+      }
+    }
+
     return this.prisma.customer.delete({ where: { id } });
+  }
+
+  /** 客户名下订单里是否已经有「不能删」的痕迹（成交状态 / 流水 / 服务会话 / 补单申请）。 */
+  private async hasSettledOrderHistory(orders: any[], orderIds: string[]): Promise<boolean> {
+    const cleanStatuses = ['PENDING', 'GRABBED', 'CONFIRMED', 'CANCELLED'];
+    if (orders.some((o) => !cleanStatuses.includes(String(o.status)))) return true;
+    const count = async (p: any) => {
+      try {
+        return Number(await p) || 0;
+      } catch {
+        return 0;
+      }
+    };
+    const [txCount, sessionCount, supplementCount] = await Promise.all([
+      count(this.prisma.transaction.count({ where: { orderId: { in: orderIds } } })),
+      count(this.prisma.orderSession.count({ where: { parentOrderId: { in: orderIds } } })),
+      count(this.prisma.supplementRequest.count({ where: { orderId: { in: orderIds } } })),
+    ]);
+    return txCount > 0 || sessionCount > 0 || supplementCount > 0;
   }
 
   async listDeposits(customerId: string, user?: AuthenticatedUser) {

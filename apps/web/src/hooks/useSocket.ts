@@ -61,6 +61,10 @@ interface UseSocketOptions {
   onSupplementRequest?: (data: any) => void;
   /** 补单申请被审核（同意 / 驳回），陪玩本人实时收到（老板 2026-10-04） */
   onSupplementDecided?: (data: any) => void;
+  /** 抢单后迟迟没标「添加成功 / 添加失败」，服务端定期提醒陪玩本人（老板 2026-10-04） */
+  onOrderContactReminder?: (data: any) => void;
+  /** 同上满 3 天仍没处理 → 提醒客服 / 店长 / 老板去核实，确认过不了就删客户 */
+  onOrderContactReminderAdmin?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -316,6 +320,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('service:duration_reminder', (data: any) => {
       optsRef.current.onServiceDurationReminder?.(data);
+    });
+
+    socket.on('order:contact_reminder', (data: any) => {
+      optsRef.current.onOrderContactReminder?.(data);
+    });
+
+    socket.on('order:contact_reminder_admin', (data: any) => {
+      optsRef.current.onOrderContactReminderAdmin?.(data);
     });
 
     socket.on('wallet:reviewed', (data: any) => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CustomersService } from '../customers/customers.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 import { UserRole } from '@chunlv/shared';
 
@@ -192,6 +192,7 @@ describe('CustomersService', () => {
     it('removes customer', async () => {
       const existingCustomer = { id: 'c1', wechatId: 'wx1' };
       mockPrisma.customer.findUnique.mockResolvedValue(existingCustomer);
+      mockPrisma.order.findMany.mockResolvedValue([]);
       mockPrisma.customer.delete.mockResolvedValue(existingCustomer);
 
       const result = await service.delete('c1');
@@ -203,6 +204,41 @@ describe('CustomersService', () => {
         where: { id: 'c1' },
       });
       expect(result).toEqual(existingCustomer);
+    });
+
+    // 老板 2026-10-04：客户一直没通过 → 管理端直接删客户。
+    // 名下只有「未成交」的僵尸单时，连单一起清掉，否则 RESTRICT 外键会删不掉。
+    it('客户只有未成交订单时，连订单一起清掉再删客户', async () => {
+      const existingCustomer = { id: 'c1', wechatId: 'wx1' };
+      mockPrisma.customer.findUnique.mockResolvedValue(existingCustomer);
+      mockPrisma.order.findMany.mockResolvedValue([{ id: 'o1', status: 'GRABBED' }]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+      mockPrisma.orderSession.count.mockResolvedValue(0);
+      mockPrisma.supplementRequest.count.mockResolvedValue(0);
+      mockPrisma.customer.delete.mockResolvedValue(existingCustomer);
+
+      await service.delete('c1');
+
+      expect(mockPrisma.order.deleteMany).toHaveBeenCalledWith({ where: { customerId: 'c1' } });
+      expect(mockPrisma.customer.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+    });
+
+    it('客户已有成交订单时挡住，不动账目', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({ id: 'c1', wechatId: 'wx1' });
+      mockPrisma.order.findMany.mockResolvedValue([{ id: 'o1', status: 'DONE' }]);
+
+      await expect(service.delete('c1')).rejects.toBeInstanceOf(ConflictException);
+      expect(mockPrisma.order.deleteMany).not.toHaveBeenCalled();
+      expect(mockPrisma.customer.delete).not.toHaveBeenCalled();
+    });
+
+    it('客户有流水记录时挡住', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({ id: 'c1', wechatId: 'wx1' });
+      mockPrisma.order.findMany.mockResolvedValue([{ id: 'o1', status: 'GRABBED' }]);
+      mockPrisma.transaction.count.mockResolvedValue(1);
+
+      await expect(service.delete('c1')).rejects.toBeInstanceOf(ConflictException);
+      expect(mockPrisma.customer.delete).not.toHaveBeenCalled();
     });
   });
 

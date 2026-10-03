@@ -25,6 +25,8 @@ export function createMockPrisma() {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      // 删客户时连「从未成交」的僵尸单一起清（老板 2026-10-04）
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       aggregate: vi.fn(),
       groupBy: vi.fn(),
       // 复购兜底校验（老板 2026-10-04）：按客户数成交单 / 数自己服务过的单
@@ -110,6 +112,7 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     expense: {
       findMany: vi.fn(),

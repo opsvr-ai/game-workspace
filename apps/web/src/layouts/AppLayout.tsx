@@ -562,10 +562,10 @@ const decorateMenu = (
 
 /** 通知里的「查看 ›」跳哪：同一模块四个角色的路由都不一样，按角色查一次 */
 const ROLE_PAGES: Record<string, Record<string, string>> = {
-  COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion' },
-  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION' },
-  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION' },
-  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION' },
+  COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion', customers: '/companion/customers' },
+  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION', customers: '/cs/customers' },
+  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION', customers: '/admin/customers' },
+  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION', customers: '/owner/customers' },
 };
 
 const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
@@ -1610,6 +1610,45 @@ const AppLayout: React.FC = () => {
         title: approved ? '补单已同意：抢单次数 +1' : '补单被驳回',
         desc: data?.note ? `${text}（备注：${data.note}）` : text,
         href: rolePage(user?.role, 'orders'),
+      });
+    },
+    onOrderContactReminder: (data: any) => {
+      // 抢单后迟迟没标「添加成功 / 添加失败」→ 定期提醒陪玩本人（老板 2026-10-04）
+      const text = data?.message || '订单还没标记「添加成功 / 添加失败」，记得处理';
+      const stage = Number(data?.stage) || 1;
+      const title = stage > 1 ? `🔔 再次提醒（第 ${stage} 次）` : '🔔 记得标记客户微信';
+      notifyNotice({
+        kind: 'order',
+        icon: '🔔',
+        title,
+        desc: text,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'warning',
+        duration: 8,
+      });
+      showBannerNotification({
+        title,
+        body: text,
+        icon: '🔔',
+        seconds: 15,
+        hint: '点这里 → 去订单管理标记',
+        action: 'open-orders',
+      });
+    },
+    onOrderContactReminderAdmin: (data: any) => {
+      // 满 3 天还没处理 → 提醒客服 / 店长 / 老板去核实（老板 2026-10-04：确认过不了就删客户）
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      if (!isMgmt) return;
+      const text = data?.message || '有订单的客户微信 3 天没处理，请核实';
+      message.warning(text, 10);
+      recordNotice({
+        kind: 'order',
+        icon: '🧹',
+        title: '客户微信 3 天没处理',
+        desc: text,
+        href: rolePage(user?.role, 'customers'),
+        dedupeKey: `contact-reminder-${data?.orderId || ''}`,
+        dedupeMs: 12 * 60 * 60 * 1000,
       });
     },
     onBridgeResponded: (data: any) => {
