@@ -168,3 +168,31 @@ scripts/_*
 
 # 任何目录下的临时文件
 **/.tmp-*
+
+# ============================================================================
+# AI 开发工具的运行产物 / 会话状态（2026-10-03 清理）
+# 这些目录本来是各工具自己写着用的，却被提交进了仓库。问题：
+#   1) 公开仓库（opsvr-ai/game-workspace 是 public）里能看到我们的会话全文，
+#      其中 .claude/chat-exports/2026-07-18-200713.txt 里带过一把真实 ANTHROPIC key；
+#   2) 一个公开仓库跟着上千个会话/锁/metrics，diff 与 review 全被淹。
+# 以后一律不入库；本地文件保留（工具还要用）。
+# ============================================================================
+.claude/chat-exports/
+.claude/state/
+.claude/sessions/
+.claude/cost-log.jsonl
+.claude/tasks/
+.claude/telemetry/
+.claude/file-history/
+.claude/backups/
+.claude/shell-snapshots/
+.claude/odoo-timesheet/
+apps/*/.claude/
+.harnesskit/
+.dynos/
+.no-amnesia/
+.guild/
+.remember/
+.axme-code/active-sessions/
+.axme-code/audit-logs/
+.axme-code/.cache/

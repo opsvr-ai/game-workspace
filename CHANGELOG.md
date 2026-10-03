@@ -9,6 +9,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **把 AI 开发工具的运行产物 / 会话状态从仓库里摘出去（2026-10-03）。**
+  这个仓库（`opsvr-ai/game-workspace`）是 **public**，但一直跟着 **1247 个**工具产物：
+  `.claude/chat-exports/`（13 份会话全文导出）、`.claude/state/`、`.claude/sessions/`、
+  `apps/web/.claude/metrics/sessions/`（896 个）、`.guild/runs/`（206）、`.harnesskit/`、
+  `.dynos/`、`.no-amnesia/`、`.axme-code/audit-logs/` 等。
+  其中 **`.claude/chat-exports/2026-07-18-200713.txt` 里带过一把真实 `sk-…` API key**。
+  处理：`git rm --cached`（**本地文件保留**，工具还要用）+ `.gitignore` 拉黑这些路径，
+  以后不会再被提交。**历史提交里仍然有，所以那把 key 必须轮换**（见下方「凭证」一条）。
+
+- **发版脚本与排查文档里的服务器/运维明文口令全部脱敏（2026-10-03）。**
+  `scripts/` 下 9 个脚本原来把服务器 ubuntu 口令写死在 `PASSWORD` 常量里，现在改读环境变量
+  `CHUNLV_SSH_PASS`（缺了就明确报错退出）；`_push_watchdog_all.py` 的 SMB 凭据改 `CHUNLV_SMB_CRED`；
+  `scripts/README.md` 补上「跑之前先配环境变量」。
+  `COMPANION_PC_REGISTRY.md` / `CHANGELOG.md` 里记录过的真实运维口令改为「见机器管理页台账 /
+  本机 `remote-account.txt`」，排查过程与教训原文保留。
+  **注意**：`chunlv-allinone.nsi` 里的 `net user chunlvops <默认口令> /add` 是**装机默认口令**，
+  改掉会断掉新机器开通远程管理的链路（23 台靠它），所以**保留**；
+  真要消除只能连同那批机器的账号一起轮换。
+
 ### Fixed
 
 - **客服「今日看板」的日薪口径和月度明细差一天（2026-10-03 全量测试挖出来的历史 bug）。**
