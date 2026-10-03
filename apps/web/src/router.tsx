@@ -53,6 +53,7 @@ function RouteErrorBoundary() {
 }
 
 import UnifiedDashboard from './pages/admin/UnifiedDashboard';
+import OperationsBoard from './pages/admin/OperationsBoard';
 import LiveBoardPage from './pages/admin/LiveBoardPage';
 import CustomerBoardPage from './pages/CustomerBoardPage';
 import CustomersPage from './pages/CustomersPage';
@@ -331,6 +332,14 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OperationsBoard />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/revenue',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <UnifiedDashboard />
@@ -699,6 +708,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <WorkWechatPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/home',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OperationsBoard compact />
           </Suspense>
         ),
       },

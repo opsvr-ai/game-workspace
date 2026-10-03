@@ -187,6 +187,9 @@ export class CompanionsService {
       rankScore: u.companion ? excellence.get(u.companion.id)?.rankScore ?? 0 : 0,
       renewRate: u.companion ? excellence.get(u.companion.id)?.renewRate ?? 0 : 0,
       repurchaseRate: u.companion ? excellence.get(u.companion.id)?.repurchaseRate ?? 0 : 0,
+      // 首单成功率（老板 2026-10-04 首页看板要用）：跟续单率 / 复购率同一套口径，
+      // 在这里一起下发，省得首页再逐个去问一次。
+      newRate: u.companion ? excellence.get(u.companion.id)?.newRate ?? 0 : 0,
       orderCount: u.companion ? excellence.get(u.companion.id)?.orderCount ?? 0 : 0,
     }));
   }

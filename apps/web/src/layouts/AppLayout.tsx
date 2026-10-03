@@ -125,7 +125,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'owner-home', icon: IconDashboard, label: '首页',
       children: [
-        { key: '/admin', label: '数据看板' },
+        { key: '/admin', label: '运营看板' },
+        { key: '/admin/revenue', label: '营收报表' },
       ],
     },
     {
@@ -250,7 +251,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     {
       key: 'admin-home', icon: IconDashboard, label: '首页',
       children: [
-        { key: '/admin', label: '数据看板' },
+        { key: '/admin', label: '运营看板' },
+        { key: '/admin/revenue', label: '营收报表' },
       ],
     },
     {
@@ -361,7 +363,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.CS]: [
     {
       key: 'cs-home', icon: IconDashboard, label: '首页',
-      children: [{ key: '/cs/stats', label: '每日统计' }],
+      children: [
+        { key: '/cs/home', label: '运营看板' },
+        { key: '/cs/stats', label: '每日统计' },
+      ],
     },
     {
       key: 'cs-dispatch', icon: IconDispatch, label: '派单管理',
