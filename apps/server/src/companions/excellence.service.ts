@@ -25,7 +25,8 @@ export interface ExcellenceResult {
 
 /**
  * 陪玩段位综合分统一计算：
- * 综合分 = 月流水(50%) + 续单率(20%) + 复购率(20%) + 首单成功率(10%)。
+ * 综合分 = 月流水 + 续单率 + 复购率 + 首单成功率（每一项**取达到的最高一档**的分，不叠加）+ 战绩图加分。
+ * 四项各自满分之和不超过 100（设置页与 `PUT /api/config` 两侧都拦）。
  * 该口径同时用于管理端「上等马/中等马/下等马」标记与订单池「上等马立刻看到」的延迟判断。
  */
 @Injectable()
@@ -106,16 +107,16 @@ export class ExcellenceService implements OnModuleInit {
     const result = new Map<string, ExcellenceResult>();
     if (companionIds.length === 0) return result;
 
-    // 打分口径（老板 2026-10-04）：「满足条件就加上这个分」。
-    // 每一项是若干条「达到 X 就加 Y 分」的规则，够到几条就把这几条的分数**相加**。
-    // 以前是「取达到的最高那一档的分」（阶梯取最高），老板觉得绕，改成直接累加；
-    // 条数、门槛、分数都由「评分与名额」页面自己配。
-    const scoreByRules = (value: number, rules: Array<{ min: number; score: number }>) => {
-      let score = 0;
-      for (const r of rules) {
-        if (value >= r.min) score += r.score;
+    // 打分口径（老板 2026-10-04 二次澄清）：「到了什么档次就给他重新统计为多少分，别叠加」。
+    // 每一项是若干条「达到 X 得 Y 分」的档位，只取**达到的最高那一档**的 Y，不把几档加起来。
+    // 例：流水填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分。
+    // 四项各自满分之和不能超过 100（设置页会实时提醒，`PUT /api/config` 也会拦）。
+    const scoreOfHighestTier = (value: number, tiers: Array<{ min: number; score: number }>) => {
+      let best: { min: number; score: number } | null = null;
+      for (const t of tiers) {
+        if (value >= t.min && (best === null || t.min >= best.min)) best = t;
       }
-      return score;
+      return best ? best.score : 0;
     };
 
     // 评分口径按店解析（本店店长填的 → 老板全局默认），每家店的上等马线可以不一样。
@@ -250,10 +251,10 @@ export class ExcellenceService implements OnModuleInit {
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;
-      const revenueScore = scoreByRules(revenue, metrics.revenueTiers);
-      const renewScore = scoreByRules(renewRate, metrics.renewTiers);
-      const repurchaseScore = scoreByRules(repurchaseRate, metrics.repurchaseTiers);
-      const firstSuccessScore = scoreByRules(firstSuccessRate, metrics.firstSuccessTiers);
+      const revenueScore = scoreOfHighestTier(revenue, metrics.revenueTiers);
+      const renewScore = scoreOfHighestTier(renewRate, metrics.renewTiers);
+      const repurchaseScore = scoreOfHighestTier(repurchaseRate, metrics.repurchaseTiers);
+      const firstSuccessScore = scoreOfHighestTier(firstSuccessRate, metrics.firstSuccessTiers);
       const bonus = bonusMap.get(cid) || 0;
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
       const tier = rankScore >= metrics.excellentThreshold

@@ -222,12 +222,8 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.middle_tier_daily_new_limit': 2,
   'dispatch.low_tier_daily_new_limit': 1,
   'dispatch.break_even_hours': 2.5,
-  // 综合评分权重（默认：月流水50 + 续单20 + 复购20 + 首单10，上等马线50）
-  'excellence.revenue_weight': 50,
-  'excellence.revenue_cap_yuan': 10000,
-  'excellence.renew_weight': 20,
-  'excellence.repurchase_weight': 20,
-  'excellence.first_success_weight': 10,
+  // 综合评分：每一项「取达到的最高一档」的分（不叠加），四项满分之和 ≤ 100。
+  // 以前那套「权重占比」（excellence.*_weight）与「流水封顶」已整条去掉（老板 2026-10-04）。
   'excellence.excellent_threshold': 50,
   'excellence.middle_tier_threshold': 25,
   'excellence.battle_screenshot_bonus': 1,

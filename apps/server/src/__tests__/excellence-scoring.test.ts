@@ -2,14 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { ExcellenceService } from '../companions/excellence.service';
 
 /**
- * 综合评分口径回归（老板 2026-10-04 拍板）。
+ * 综合评分口径回归（老板 2026-10-04 二次澄清后拍板）。
  *
- * 老板原话：「别搞这么复杂，直接流水达到多少、复购率达到多少、续单率达到多少、
- * 首单成功率多少给多少分就行了，满足条件就加上这个分」。
+ * 老板原话：「我意思到了6000就加20分 到了10000就加40分，陪玩到了10000评分只需要给他40分就行了……
+ * 只需要到了什么档次 就给他重新统计为多少分就行了……别叠加，我要求整体别超过100分」。
  *
- * 以前是「取达到的最高那一档的分」（阶梯取最高），现在改成 **达标累加**：
- * 每一条「达到 X 加 Y 分」的规则，够到就把 Y 加进去。下面锁住这个口径，
- * 用的是线上那份真实配置，谁改回去这几个用例会直接变红。
+ * 口径：每一项是若干条「达到 X 得 Y 分」的档位，只取**达到的最高那一档**的 Y，不把几档加起来；
+ * 综合分 = 四项之和 + 战绩图加分；四项满分之和 ≤ 100（设置页提醒 + PUT /api/config 拦截）。
+ * 下面锁住这个口径，用的是线上那份真实配置，谁改回「累加」这几个用例会直接变红。
  */
 const LIVE_CFG = [
   { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
@@ -73,8 +73,8 @@ function setup(opts: {
   return new ExcellenceService(prisma as never);
 }
 
-describe('综合评分：达到就加分（达标累加）', () => {
-  it('四项各自达标累加，再叠加战绩图加分（用线上那份配置）', async () => {
+describe('综合评分：每项取达到的最高一档（不叠加）', () => {
+  it('四项各取最高一档，再叠加战绩图加分（用线上那份配置）', async () => {
     const svc = setup({
       // 26 单：首单 4、续单 12、复购 10 → 续单率 12/26=46%、复购率 10/26=38%
       doneByType: { c1: { NEW: 4, RENEW: 12, REPURCHASE: 10 } },
@@ -86,24 +86,24 @@ describe('综合评分：达到就加分（达标累加）', () => {
 
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
 
-    // 月流水 8500：0 + 20(3000) + 40(6000) = 60（没到 10000，那 50 分不加）
-    expect(r.revenueScore).toBe(60);
-    // 续单率 46%：0 + 10(30%) = 10（没到 60%，那 20 分不加）
+    // 月流水 8500：达到的最高一档是 6000 → 40 分（不是 20+40=60）
+    expect(r.revenueScore).toBe(40);
+    // 续单率 46%：最高一档是 30% → 10 分
     expect(r.renewScore).toBe(10);
-    // 复购率 38%：0 + 10(30%) = 10（没到 60%，那 20 分不加）
+    // 复购率 38%：最高一档是 30% → 10 分
     expect(r.repurchaseScore).toBe(10);
-    // 首单成功率 80%：0 + 5(40%) + 10(70%) = 15
-    expect(r.firstSuccessScore).toBe(15);
+    // 首单成功率 80%：最高一档是 70% → 10 分（不是 5+10=15）
+    expect(r.firstSuccessScore).toBe(10);
     expect(r.bonusScore).toBe(3);
-    expect(r.rankScore).toBe(60 + 10 + 10 + 15 + 3);
+    expect(r.rankScore).toBe(40 + 10 + 10 + 10 + 3);
     expect(r.renewRate).toBe(46);
     expect(r.repurchaseRate).toBe(38);
     expect(r.newRate).toBe(80);
   });
 
-  it('每一条都是独立的「达到 X 加 Y 分」：够到几条加几条', async () => {
+  it('到了什么档次就是多少分：过万只拿最高档的 40，不是 20+40', async () => {
     const cfg = [
-      { key: 'excellence.revenue_tiers', value: [{ min: 3000, score: 20 }, { min: 6000, score: 30 }] },
+      { key: 'excellence.revenue_tiers', value: [{ min: 3000, score: 0 }, { min: 6000, score: 20 }, { min: 10000, score: 40 }] },
       { key: 'excellence.renew_tiers', value: [] },
       { key: 'excellence.repurchase_tiers', value: [] },
       { key: 'excellence.first_success_tiers', value: [] },
@@ -111,25 +111,28 @@ describe('综合评分：达到就加分（达标累加）', () => {
       { key: 'excellence.middle_tier_threshold', value: 25 },
     ];
     const low = setup({ cfg, monthlyRevenue: { c1: 5000 }, bonus: {} });
-    expect((await low.computeForCompanions(['c1'])).get('c1')!.rankScore).toBe(20);
+    expect((await low.computeForCompanions(['c1'])).get('c1')!.rankScore).toBe(0);
 
-    const high = setup({ cfg, monthlyRevenue: { c1: 6000 }, bonus: {} });
-    expect((await high.computeForCompanions(['c1'])).get('c1')!.rankScore).toBe(50);
+    const mid = setup({ cfg, monthlyRevenue: { c1: 6000 }, bonus: {} });
+    expect((await mid.computeForCompanions(['c1'])).get('c1')!.rankScore).toBe(20);
+
+    const high = setup({ cfg, monthlyRevenue: { c1: 10000 }, bonus: {} });
+    expect((await high.computeForCompanions(['c1'])).get('c1')!.rankScore).toBe(40);
   });
 
   it('段位按配置的线判定（线上现在是 999 / 0，所以谁都是中等马）', async () => {
     const svc = setup({
       doneByType: { c1: { NEW: 4, RENEW: 12, REPURCHASE: 10 } },
-      monthlyRevenue: { c1: 12000 }, // 流水 110 分
+      monthlyRevenue: { c1: 12000 }, // 流水最高一档 50 分
       newGrabs: { c1: 20 },
       newCustomers: { c1: 16 },
       bonus: { c1: 3 },
-      thresholdOverride: { excellent: 100, middle: 20 },
+      thresholdOverride: { excellent: 80, middle: 20 },
     });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
-    expect(r.excellentThreshold).toBe(100);
+    expect(r.excellentThreshold).toBe(80);
     expect(r.middleTierThreshold).toBe(20);
-    expect(r.rankScore).toBe(110 + 10 + 10 + 15 + 3); // 148 >= 100
+    expect(r.rankScore).toBe(50 + 10 + 10 + 10 + 3); // 83 >= 80
     expect(r.isExcellent).toBe(true);
     expect(r.tier).toBe('TOP');
 

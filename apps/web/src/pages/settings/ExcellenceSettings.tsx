@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, InputNumber, Button, Typography, Space, message, Row, Col, Divider } from 'antd';
+import { Alert, Card, InputNumber, Button, Typography, Space, message, Row, Col, Divider } from 'antd';
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
@@ -20,24 +20,24 @@ const TierEditor = ({ label, unit, tiers, onChange }: { label: string; unit: str
   const update = (i: number, patch: Partial<Tier>) => onChange(tiers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
   const add = () => onChange([...tiers, { min: 0, score: 0 }]);
   const remove = (i: number) => onChange(tiers.filter((_, idx) => idx !== i));
-  // 老板 2026-10-04：改成「达成就加分」以后，「满分 XX」跟实际填的数字对不上、看着绕，
-  // 这里直接算给你看：这一项全部达标加起来是多少分。
-  const total = tiers.reduce((sum, t) => sum + (Number(t.score) || 0), 0);
+  // 老板 2026-10-04：「到了什么档次就给他重新统计为多少分，别叠加」——
+  // 这一项的分 = 达到的最高那一档的分，所以「满分」就是所有档位里最大的那个分。
+  const maxScore = tiers.reduce((m, t) => Math.max(m, Number(t.score) || 0), 0);
   return (
     <div style={{ marginBottom: 18 }}>
       <Text strong>{label}</Text>
-      <Text type="secondary" style={{ marginLeft: 8 }}>全部达标合计 {total} 分</Text>
+      <Text type="secondary" style={{ marginLeft: 8 }}>满分 {maxScore} 分（取达到的最高一档，不叠加）</Text>
       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tiers.map((t, i) => (
           <Space key={i} size={6}>
             <Text type="secondary">达到</Text>
             <InputNumber min={0} value={t.min} onChange={(v) => update(i, { min: v ?? 0 })} suffix={unit} style={{ width: 110 }} />
-            <Text type="secondary">加</Text>
+            <Text type="secondary">得</Text>
             <InputNumber min={0} value={t.score} onChange={(v) => update(i, { score: v ?? 0 })} suffix="分" style={{ width: 90 }} />
             <Button size="small" danger icon={<DeleteOutlined />} onClick={() => remove(i)} />
           </Space>
         ))}
-        <Button size="small" icon={<PlusOutlined />} onClick={add}>加一条规则</Button>
+        <Button size="small" icon={<PlusOutlined />} onClick={add}>加一档</Button>
       </div>
     </div>
   );
@@ -65,6 +65,14 @@ const ExcellenceSettings: React.FC = () => {
   const update = (key: string, value: number) => setConfig((c: any) => ({ ...c, [key]: value }));
   const getTiers = (key: string, def: Tier[]) => config?.[key] ?? def;
   const setTiers = (key: string, tiers: Tier[]) => setConfig((c: any) => ({ ...c, [key]: tiers }));
+  /** 某一项的满分 = 该项所有档位里最大的分（只取最高一档，不叠加）。 */
+  const maxOf = (key: string) => {
+    const list = (config?.[key] ?? TIER_DEFS.find((d) => d.key === key)!.def) as Tier[];
+    return list.reduce((m, t) => Math.max(m, Number(t?.score) || 0), 0);
+  };
+  // 老板 2026-10-04：四项满分之和不能超过 100，超了要当场提醒（服务端保存时也会拦）。
+  const fourMax = TIER_DEFS.reduce((sum, td) => sum + maxOf(td.key), 0);
+  const excellentThreshold = Number(config?.['excellence.excellent_threshold'] ?? 50);
 
   const save = async () => {
     setSaving(true);
@@ -97,7 +105,7 @@ const ExcellenceSettings: React.FC = () => {
   return (
     <div>
       <Card
-        title="🏆 综合评分（达成就加分）与抢单名额"
+        title="🏆 综合评分（取最高一档算分）与抢单名额"
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={fetchConfig} loading={loading}>刷新</Button>
@@ -105,12 +113,23 @@ const ExcellenceSettings: React.FC = () => {
           </Space>
         }
       >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。
-          每一条都是「达到 X 就加 Y 分」，满足几条就把这几条的分<b>加起来</b>
-          （比如填了「达到 3000 加 20 分」「达到 6000 加 30 分」，那流水 6000 的人是 20+30=50 分）。
+          每一项只取「达到的<b>最高一档</b>」的分，<b>不叠加</b>
+          （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分，不是 20+40）。
           综合分达到上等马线进入上等马。
         </Text>
+        <Alert
+          type={fourMax > 100 ? 'error' : 'success'}
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={
+            fourMax > 100
+              ? `四项满分合计 ${fourMax} 分，超过 100 了 —— 请把某一项调小再保存`
+              : `四项满分合计 ${fourMax} 分（上限 100）`
+          }
+          description={`月流水 ${maxOf('excellence.revenue_tiers')} + 续单率 ${maxOf('excellence.renew_tiers')} + 复购率 ${maxOf('excellence.repurchase_tiers')} + 首单成功率 ${maxOf('excellence.first_success_tiers')}。超过 100 分保存会被服务端拦下。`}
+        />
         <Row gutter={24}>
           <Col span={12}>
             {TIER_DEFS.slice(0, 2).map((td) => (
@@ -126,9 +145,13 @@ const ExcellenceSettings: React.FC = () => {
         <Divider />
         <Row gutter={24}>
           <Col span={12}>
-            {/* 老板 2026-10-04：改成「达成就加分」以后综合分能超过 100（四项全满是 125），
-                这两条线还卡着 max=100 就填不了（线上现在就是 999），把上限去掉。 */}
+            {/* 老板 2026-10-04：分数是「取达到的最高一档」，四项满分合计 ≤ 100，所以这两条线不设死的上限。 */}
             <Field label="上等马线" unit="分" value={config?.['excellence.excellent_threshold'] ?? 50} step={1} onChange={(v) => update('excellence.excellent_threshold', v)} suffix="达到即进入上等马" />
+            {excellentThreshold > fourMax ? (
+              <Text type="warning" style={{ display: 'block', marginBottom: 12 }}>
+                上等马线 {excellentThreshold} 分高于四项满分 {fourMax} 分 —— 这样没有一个人能进上等马。
+              </Text>
+            ) : null}
             <Field label="中等马线" unit="分" value={config?.['excellence.middle_tier_threshold'] ?? 25} step={1} onChange={(v) => update('excellence.middle_tier_threshold', v)} suffix="低于此分为下等马" />
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>

@@ -132,32 +132,28 @@ export class SettingsController {
     @Body() body: Record<string, any>,
     @Req() req?: any,
   ): Promise<ApiResponse<unknown>> {
-    // 校验综合评分权重：四项满分之和不能超过 100，上等马线不能超过总分。
-    const weightKeys = [
-      'excellence.revenue_weight',
-      'excellence.renew_weight',
-      'excellence.repurchase_weight',
-      'excellence.first_success_weight',
+    // 综合评分（老板 2026-10-04）：每一项「取达到的最高一档」的分，不叠加；
+    // 四项满分之和不能超过 100 —— 超了直接拦下来并给出算式（前端也会实时提醒）。
+    // 以前那套「权重占比」（excellence.*_weight）已经整条去掉：分数直接由档位分决定，不再乘比例。
+    const scoreTierKeys = [
+      'excellence.revenue_tiers',
+      'excellence.renew_tiers',
+      'excellence.repurchase_tiers',
+      'excellence.first_success_tiers',
     ];
-    if (weightKeys.some((k) => body[k] !== undefined)) {
-      const get0 = await this.effectiveValueGetter(req, weightKeys);
-      const map = new Map<string, number>(weightKeys.map((k) => [k, Number(get0(k)) || 0]));
-      for (const k of weightKeys) {
-        if (body[k] !== undefined) {
-          const v = Number(body[k]);
-          if (!Number.isFinite(v) || v < 0) throw new BadRequestException('评分权重必须是非负数字');
-          map.set(k, v);
-        }
-      }
-      const total = weightKeys.reduce((s, k) => s + (map.get(k) || 0), 0);
+    if (scoreTierKeys.some((k) => body[k] !== undefined)) {
+      const getTiers = await this.effectiveValueGetter(req, scoreTierKeys);
+      const maxOfTiers = (v: any): number => {
+        if (!Array.isArray(v) || v.length === 0) return 0;
+        return v.reduce((m: number, t: any) => Math.max(m, Number(t?.score) || 0), 0);
+      };
+      const maxes = scoreTierKeys.map((k) => maxOfTiers(body[k] !== undefined ? body[k] : getTiers(k)));
+      const total = maxes.reduce((sum, n) => sum + n, 0);
       if (total > 100) {
-        throw new BadRequestException(`评分权重满分之和不能超过 100 分（当前 ${total} 分）`);
-      }
-      if (body['excellence.excellent_threshold'] !== undefined) {
-        const t = Number(body['excellence.excellent_threshold']);
-        if (!Number.isFinite(t) || t < 0 || t > total) {
-          throw new BadRequestException(`上等马线需在 0~${total} 分之间`);
-        }
+        const [rev, renew, rep, first] = maxes;
+        throw new BadRequestException(
+          `四项评分满分加起来不能超过 100 分（当前 ${total} 分）：月流水 ${rev} + 续单率 ${renew} + 复购率 ${rep} + 首单成功率 ${first}`,
+        );
       }
     }
 

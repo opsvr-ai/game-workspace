@@ -80,7 +80,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
             />
           )}
 
-          <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一条「达到就加分」）</Title>
+          <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一项取达到的最高一档，不叠加）</Title>
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="月流水">
               {data?.revenueScore ?? 0} 分
@@ -113,7 +113,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose }) => {
             <li>客服派单时，快结束的陪玩列表里你排前面。</li>
           </ul>
 
-          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项都是「达到多少就加多少分」，满足的条件越多加得越多；综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
+          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项只取你达到的最高一档的分（不叠加）：比如流水到 6000 那一档是 20 分、到 10000 那一档是 40 分，那你流水过万这一项就是 40 分。综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
         </div>
       )}
     </Modal>
