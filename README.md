@@ -4,6 +4,11 @@
 
 ---
 
+- **客户看板加「客户画像」：同一个客户在几个工作微信上、各消费多少、爱打机密还是绝密（2026-10-04，网页 `v919`）:**
+  客户看板每行直接显示「N 人打过 · 常打机密/绝密」，行尾新增「画像」按钮 —— 新接口 `GET /api/customers/:id/profile-analytics`
+  按工作微信拆开：各号消费 / 机密绝密 / 时长 / 单价 / 维护天数 / 经手的陪玩（双陪含副陪），并给出一句话**派单建议**
+  （优先陪他打过、且打的就是他最常打模式的人）。口径同客户看板（只算已完成单），可见范围同客户看板。
+
 - **实时看板开放给陪玩端，并把桥接工作室的人一起显示（只给订单信息、不给业绩）（2026-10-04，网页 `v886`）:**
   `GET /api/companions/live-board` 现在 `OWNER / ADMIN / CS / COMPANION` 都能取：老板=全站，
   其余=**本店 + 桥接工作室**；桥接行返回 `isBridged:true` 且 `earningsHidden:true`（`todayRevenue` 与本单金额为 `null`，
@@ -1300,6 +1305,7 @@ Every endpoint returns a standard JSON envelope:
 |--------|------|------|-------|-------------|
 | `GET` | `/api/customers` | JWT | -- | List customers (data isolation by role). |
 | `GET` | `/api/customers/board` | JWT | OWNER, ADMIN, CS, COMPANION | 客户看板：所有可见客户的消费（已完成单）、**今日消费 / 今日单数 / 今日时长（营业日口径，当日 12:00 至次日 12:00，与实时看板同一天界线）**、累计时长（已完成会话）、是否正在跟陪玩打。Query `?sort=live\|spent\|today\|hours\|recent` + `&companionId=`。陪玩=自己的客户、店长/客服=本店、老板=全站；来源平台 / 引流账号对陪玩隐藏。 |
+| `GET` | `/api/customers/:id/profile-analytics` | JWT | OWNER, ADMIN, CS, COMPANION | 客户画像：这个客户在**几个工作微信**上打过、各自消费 / 机密绝密 / 时长 / 单价 / 维护天数，经手的陪玩是谁（双陪含副陪），并给出「下次该派给谁」的建议。可见范围同客户看板。 |
 | `GET` | `/api/customers/:id` | JWT | -- | Get customer detail. |
 | `POST` | `/api/customers` | JWT | ADMIN, OWNER, CS | Create a new customer. |
 | `PUT` | `/api/customers/:id` | JWT | ADMIN, OWNER | Update customer fields. |

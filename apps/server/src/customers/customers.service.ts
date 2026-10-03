@@ -184,7 +184,14 @@ export class CustomersService {
       ids.length
         ? this.prisma.order.findMany({
             where: { customerId: { in: ids } },
-            select: { id: true, customerId: true, status: true, amount: true, createdAt: true },
+            select: {
+              id: true,
+              customerId: true,
+              status: true,
+              amount: true,
+              createdAt: true,
+              customFields: true,
+            },
           })
         : Promise.resolve(noRows),
       ids.length
@@ -286,6 +293,40 @@ export class CustomersService {
       if (st) st.hours += Number(g._sum?.duration) || 0;
     }
 
+    // 客户画像小抄（老板 2026-10-04）：列表这一行直接标出「有几个人陪他打过、最常打机密还是绝密」，
+    // 不用点开抽屉也能一眼看出来。口径跟详情抽屉一致：只算已完成（DONE）的会话。
+    const sessionDetails = orderIds.length
+      ? await this.prisma.orderSession.findMany({
+          where: { parentOrderId: { in: orderIds }, status: 'DONE' },
+          select: {
+            parentOrderId: true,
+            companionId: true,
+            coCompanionId: true,
+            claimedMode: true,
+          },
+        })
+      : ([] as any[]);
+    const modeOfOrder = new Map<string, string>();
+    for (const o of orders as any[]) {
+      const cf = (o.customFields as any) || {};
+      const raw = String(cf.gameMode || cf.deltaMission || '').trim();
+      modeOfOrder.set(
+        o.id,
+        !raw ? '未知' : raw.includes('绝密') ? '绝密' : raw.includes('机密') ? '机密' : raw,
+      );
+    }
+    const hints = new Map<string, { companions: Set<string>; modes: Map<string, number> }>();
+    for (const c of customers) hints.set(c.id, { companions: new Set(), modes: new Map() });
+    for (const s of sessionDetails as any[]) {
+      const cid = customerOfOrder.get(s.parentOrderId);
+      const hint = cid ? hints.get(cid) : null;
+      if (!hint) continue;
+      if (s.companionId) hint.companions.add(s.companionId);
+      if (s.coCompanionId) hint.companions.add(s.coCompanionId);
+      const mode = String(s.claimedMode || '').trim() || modeOfOrder.get(s.parentOrderId) || '未知';
+      hint.modes.set(mode, (hint.modes.get(mode) || 0) + 1);
+    }
+
     // 今日（营业日口径，与「实时看板」的今日业绩同一条时间界线：当日 12:00 至次日 12:00）。
     // 老板 2026-10-04：客户看板要和实时看板「同一口径」，两边配合看就齐了。
     //  - 今日消费 / 今日单数：已完成（DONE）的单里，**下单时间**落在本营业日的（实时看板也按 createdAt 取数）；
@@ -330,6 +371,12 @@ export class CustomersService {
       const s = liveByCustomer.get(c.id) || null;
       const owner = c.companionId ? infoOf.get(c.companionId) : null;
       const canSeeSource = canSeeCustomerSource(user, c.studioId);
+      const hint = hints.get(c.id);
+      const servedBy = hint ? hint.companions.size : 0;
+      const topMode =
+        hint && hint.modes.size
+          ? [...hint.modes.entries()].sort((a, b) => b[1] - a[1])[0][0]
+          : '';
       let live: any = null;
       if (s) {
         let elapsedSec = 0;
@@ -385,6 +432,8 @@ export class CustomersService {
         companionOnline: isOnline(c.companionId),
         companionResigned: !!owner?.isResigned,
         orderCount: st.orderCount,
+        servedBy,
+        topMode,
         spent: round1(st.spent),
         hours: round1(st.hours),
         todaySpent: round1(t.spent),
@@ -472,6 +521,602 @@ export class CustomersService {
         unassigned: rows.filter((r: any) => !r.companionId).length,
       },
       scope,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  /**
+   * 客户画像（老板 2026-10-04）。
+   *
+   * 老板原话：「这同一个客户在多少个工作微信上，各自消费了多少、打机密还是绝密、打了多久、
+   * 维护多久了，不就能评判这个客户喜欢什么样的陪玩、喜欢什么样的单价等信息了，以后再遇到
+   * 这个客户咨询小红书，客服不就应该单独派给什么样的陪玩了。」
+   *
+   * 口径（跟客户看板列表、盈亏统计一条线）：
+   *  - 只统计**已完成（DONE）**的单 / 会话；
+   *  - 消费 = 单价 × 实际时长：主陪算 `amount`、副陪算 `coAmount`，两边各算各的；
+   *  - 模式（机密 / 绝密）优先取陪玩自己确认的 `session.claimedMode`，没有才退回客服发单时填的
+   *    `customFields.gameMode / deltaMission`；
+   *  - 单价优先取 `session.claimedPrice`，没有才退回订单单价；
+   *  - 「工作微信」= 陪玩抢到这张单时落在单上的工作微信（`customFields.workWechatName`，
+   *    来源 `order-dispatch.service.ts` 的自动绑定）；单上没记的，退回「这个陪玩当前绑定的工作微信」，
+   *    再没有就按陪玩兜一行（标「未记录工作微信」），保证表里不漏人。
+   *
+   * 可见范围跟客户管理 / 看板完全一致：陪玩只有自己的客户，店长 / 客服本店，老板全站。
+   */
+  async customerProfileAnalytics(id: string, user: AuthenticatedUser) {
+    const where: any = { id };
+    if (user.role === 'COMPANION') {
+      where.companionId = user.companionId;
+      where.isDeletedByCustomer = false;
+    } else if (user.role !== 'OWNER') {
+      where.studioId = user.studioId;
+    }
+    const customer = await this.prisma.customer.findUnique({
+      where,
+      select: {
+        id: true,
+        customerCode: true,
+        wechatId: true,
+        studioId: true,
+        status: true,
+        companionId: true,
+        createdAt: true,
+        studio: { select: { name: true } },
+      },
+    });
+    if (!customer) throw new NotFoundException('客户不存在');
+
+    const orders = await this.prisma.order.findMany({
+      where: { customerId: id, status: { not: 'CANCELLED' } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        orderCode: true,
+        type: true,
+        status: true,
+        amount: true,
+        coAmount: true,
+        duration: true,
+        gameName: true,
+        createdAt: true,
+        customFields: true,
+        companionId: true,
+        coCompanionId: true,
+        csWorkWechatId: true,
+        csWorkWechatName: true,
+      },
+    });
+    const doneOrders = (orders as any[]).filter((o) => o.status === 'DONE');
+    const orderIds = doneOrders.map((o) => o.id);
+    const sessions = orderIds.length
+      ? await this.prisma.orderSession.findMany({
+          where: { parentOrderId: { in: orderIds }, status: 'DONE' },
+          orderBy: { seq: 'asc' },
+          select: {
+            id: true,
+            parentOrderId: true,
+            companionId: true,
+            coCompanionId: true,
+            amount: true,
+            coAmount: true,
+            duration: true,
+            claimedMode: true,
+            claimedPrice: true,
+            startedAt: true,
+          },
+        })
+      : ([] as any[]);
+
+    const num = (v: unknown): number | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+    const normMode = (v: unknown): string => {
+      const s = String(v ?? '').trim();
+      if (!s) return '未知';
+      if (s.includes('绝密')) return '绝密';
+      if (s.includes('机密')) return '机密';
+      return s;
+    };
+    const hoursOf = (v: unknown, fallback = 1): number => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : fallback;
+    };
+    const tsOf = (d: Date | string | null | undefined) => (d ? new Date(d).getTime() : 0);
+    const DAY = 86_400_000;
+    const now = Date.now();
+
+    const sessionsByOrder = new Map<string, any[]>();
+    for (const s of sessions as any[]) {
+      const list = sessionsByOrder.get(s.parentOrderId) || [];
+      list.push(s);
+      sessionsByOrder.set(s.parentOrderId, list);
+    }
+
+    // 第一遍：每张已完成单先把口径算出来（金额 / 时长 / 模式 / 这张单挂的是哪个工作微信）。
+    const metas: Array<{
+      order: any;
+      orderMode: string;
+      orderHours: number;
+      spanHours: number;
+      orderMoney: number;
+      mainUnit: number | null;
+      coUnit: number | null;
+      recWx: string;
+      recWxId: string;
+      unitPrices: number[];
+      oSessions: any[];
+    }> = [];
+    const knownWx = new Set<string>();
+    const seenCompanions = new Set<string>();
+    const modeByOrder = new Map<string, { mode: string; hours: number; money: number }>();
+    const prices: number[] = [];
+    let totalHours = 0;
+    let totalGross = 0;
+    let firstDoneAt: Date | null = null;
+    let lastDoneAt: Date | null = null;
+
+    for (const o of doneOrders as any[]) {
+      const cf = (o.customFields as any) || {};
+      const orderMode = normMode(cf.gameMode || cf.deltaMission || '');
+      const orderHours = hoursOf(o.duration);
+      const mainUnit = num(o.amount);
+      const coUnit = num(o.coAmount);
+      const recWx = String(
+        cf.workWechatName || cf.csWorkWechatName || o.csWorkWechatName || '',
+      ).trim();
+      const recWxId = String(
+        cf.workWechatId || cf.csWorkWechatId || o.csWorkWechatId || '',
+      ).trim();
+      if (recWx) knownWx.add(recWx);
+      const oSessions = sessionsByOrder.get(o.id) || [];
+      const spanHours = oSessions.length
+        ? oSessions.reduce((s: number, x: any) => s + hoursOf(x.duration, orderHours), 0)
+        : orderHours;
+      const orderMoney = ((mainUnit ?? 0) + (coUnit ?? 0)) * spanHours;
+      const unitPrices: number[] = [];
+      if (!oSessions.length) {
+        if (mainUnit != null) unitPrices.push(mainUnit);
+        if (coUnit != null) unitPrices.push(coUnit);
+      } else {
+        for (const s of oSessions) {
+          const mp = num(s.claimedPrice) ?? num(s.amount) ?? mainUnit;
+          const cp = num(s.coAmount) ?? coUnit;
+          if (mp != null) unitPrices.push(mp);
+          if (cp != null) unitPrices.push(cp);
+        }
+      }
+      for (const p of unitPrices) prices.push(p);
+
+      totalGross += orderMoney;
+      totalHours += spanHours;
+      if (!firstDoneAt || o.createdAt < firstDoneAt) firstDoneAt = o.createdAt;
+      if (!lastDoneAt || o.createdAt > lastDoneAt) lastDoneAt = o.createdAt;
+
+      const oMode = oSessions.length ? normMode(oSessions[0].claimedMode || orderMode) : orderMode;
+      const modeEntry = modeByOrder.get(o.id) || { mode: oMode, hours: 0, money: orderMoney };
+      modeEntry.mode = oMode;
+      modeEntry.hours += spanHours;
+      modeByOrder.set(o.id, modeEntry);
+
+      for (const s of oSessions) {
+        if (s.companionId) seenCompanions.add(s.companionId);
+        if (s.coCompanionId) seenCompanions.add(s.coCompanionId);
+      }
+      if (o.companionId) seenCompanions.add(o.companionId);
+      if (o.coCompanionId) seenCompanions.add(o.coCompanionId);
+
+      metas.push({
+        order: o, orderMode, orderHours, spanHours, orderMoney, mainUnit, coUnit,
+        recWx, recWxId, unitPrices, oSessions,
+      });
+    }
+
+    // 第二遍：先查工作微信台账（按陪玩绑定 + 按单上记的号两种都能认），再查陪玩资料。
+    const wxList = [...knownWx];
+    const firstWorkWechats =
+      seenCompanions.size || wxList.length
+        ? await this.prisma.workWechat.findMany({
+            where: {
+              OR: [
+                ...(seenCompanions.size ? [{ companionId: { in: [...seenCompanions] } }] : []),
+                ...(wxList.length ? [{ wechatId: { in: wxList } }] : []),
+              ],
+            },
+            select: { companionId: true, wechatId: true, nickname: true, status: true },
+          })
+        : ([] as any[]);
+    const wxOwner = new Map<string, string>();
+    for (const w of firstWorkWechats as any[]) {
+      if (w.wechatId && w.companionId) wxOwner.set(w.wechatId, w.companionId);
+      if (w.companionId) seenCompanions.add(w.companionId);
+    }
+
+    const ownerId = customer.companionId || null;
+    const refIds = [...new Set([...seenCompanions, ...(ownerId ? [ownerId] : [])])];
+    const companions = refIds.length
+      ? await this.prisma.companion.findMany({
+          where: { id: { in: refIds } },
+          select: {
+            id: true,
+            status: true,
+            isResigned: true,
+            user: { select: { username: true, displayName: true, avatar: true } },
+            studio: { select: { id: true, name: true, type: true } },
+            pc: { select: { lastHeartbeat: true } },
+          },
+        })
+      : ([] as any[]);
+    const infoOf = new Map<string, any>((companions as any[]).map((c) => [c.id, c]));
+    const wxByOwner = new Map<string, any>();
+    const wxByCode = new Map<string, any>();
+    for (const w of firstWorkWechats as any[]) {
+      if (w.companionId && !wxByOwner.has(w.companionId)) wxByOwner.set(w.companionId, w);
+      if (w.wechatId && !wxByCode.has(w.wechatId)) wxByCode.set(w.wechatId, w);
+    }
+    const nameOf = (cid?: string | null): string => {
+      const c = cid ? infoOf.get(cid) : null;
+      return c?.user?.displayName || c?.user?.username || '';
+    };
+    const ONLINE_MS = 120_000;
+    const isOnline = (cid?: string | null): boolean => {
+      const hb = cid ? infoOf.get(cid)?.pc?.lastHeartbeat : null;
+      return !!hb && now - new Date(hb).getTime() < ONLINE_MS;
+    };
+
+    // 每个「工作微信 × 单」一条事件：主陪、副陪各记一条。
+    const events: Array<{
+      orderId: string;
+      companionId: string | null;
+      role: 'MAIN' | 'CO';
+      hours: number;
+      money: number;
+      mode: string;
+      price: number | null;
+      at: Date;
+    }> = [];
+
+    for (const m of metas) {
+      const o = m.order;
+      const wxOwnerId = m.recWx ? wxOwner.get(m.recWx) || null : null;
+      const fallbackMain = o.companionId || wxOwnerId;
+
+      if (!m.oSessions.length) {
+        if (fallbackMain) {
+          events.push({
+            orderId: o.id, companionId: fallbackMain, role: 'MAIN', hours: m.orderHours,
+            money: (m.mainUnit ?? 0) * m.orderHours, mode: m.orderMode, price: m.mainUnit,
+            at: o.createdAt,
+          });
+
+        }
+        if (o.coCompanionId) {
+          events.push({
+            orderId: o.id, companionId: o.coCompanionId, role: 'CO', hours: m.orderHours,
+            money: (m.coUnit ?? 0) * m.orderHours, mode: m.orderMode, price: m.coUnit,
+            at: o.createdAt,
+          });
+
+        }
+        continue;
+      }
+
+      for (const s of m.oSessions) {
+        const h = hoursOf(s.duration, m.orderHours);
+        const mode = normMode(s.claimedMode || m.orderMode);
+        const mainP = num(s.amount) ?? m.mainUnit;
+        const coP = num(s.coAmount) ?? m.coUnit;
+        const mainPrice = num(s.claimedPrice) ?? mainP;
+        const mainId = s.companionId || fallbackMain;
+        const coId = s.coCompanionId || o.coCompanionId;
+        const at = s.startedAt || o.createdAt;
+        if (mainId) {
+          events.push({
+            orderId: o.id, companionId: mainId, role: 'MAIN', hours: h,
+            money: (mainP ?? 0) * h, mode, price: mainPrice, at,
+          });
+
+        }
+        if (coId) {
+          events.push({
+            orderId: o.id, companionId: coId, role: 'CO', hours: h,
+            money: (coP ?? 0) * h, mode, price: coP, at,
+          });
+
+        }
+      }
+    }
+
+    // 按「工作微信」归一份：单上记了号的按号，没记的按陪玩兜一行。
+    const metaById = new Map<string, any>(metas.map((m) => [m.order.id, m]));
+    const groups = new Map<string, any>();
+    for (const e of events) {
+      const m = metaById.get(e.orderId);
+      const recWx = m?.recWx || '';
+      const recWxId = m?.recWxId || '';
+      const key = recWx
+        ? 'wx:' + recWx
+        : recWxId
+          ? 'wxid:' + recWxId
+          : 'cp:' + (e.companionId || '__none__');
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          key,
+          recWx,
+          recWxId,
+          recorded: !!(recWx || recWxId),
+          orderIds: new Set<string>(),
+          people: new Map<string, any>(),
+          hours: 0,
+          money: 0,
+          modes: new Map<string, number>(),
+          prices: [] as number[],
+          firstAt: e.at,
+          lastAt: e.at,
+        };
+        groups.set(key, g);
+      }
+      if (!g.orderIds.has(e.orderId)) {
+        g.orderIds.add(e.orderId);
+        const meta: any = metaById.get(e.orderId);
+        const span = meta?.spanHours ?? e.hours;
+        const money = meta?.orderMoney ?? e.money;
+        const mode = meta?.orderMode
+          ? meta.oSessions?.length
+            ? normMode(meta.oSessions[0].claimedMode || meta.orderMode)
+            : meta.orderMode
+          : e.mode;
+        g.hours += span;
+        g.money += money;
+        g.modes.set(mode, (g.modes.get(mode) || 0) + span);
+        g.prices.push(...((meta?.unitPrices as number[]) || []));
+      }
+      if (tsOf(e.at) < tsOf(g.firstAt)) g.firstAt = e.at;
+      if (tsOf(e.at) > tsOf(g.lastAt)) g.lastAt = e.at;
+      if (e.companionId) {
+        const p = g.people.get(e.companionId) || {
+          companionId: e.companionId, hours: 0, orderIds: new Set<string>(), roles: new Set<string>(),
+        };
+        p.hours += e.hours;
+        p.orderIds.add(e.orderId);
+        p.roles.add(e.role);
+        g.people.set(e.companionId, p);
+      }
+    }
+
+    // 再按「陪玩」归一份：工作微信那张表里，一张双陪单只挂在主陪的号上，
+    // 副陪不会单独成行；派单建议要按人算，所以这里单独汇总（副陪那份也算进他自己头上）。
+    const byCompanion = new Map<string, any>();
+    for (const e of events) {
+      if (!e.companionId) continue;
+      let a = byCompanion.get(e.companionId);
+      if (!a) {
+        a = {
+          companionId: e.companionId,
+          orderIds: new Set<string>(),
+          roles: new Set<string>(),
+          hours: 0,
+          money: 0,
+          modes: new Map<string, number>(),
+          prices: [] as number[],
+          wxCounts: new Map<string, number>(),
+          firstAt: e.at,
+          lastAt: e.at,
+        };
+        byCompanion.set(e.companionId, a);
+      }
+      a.orderIds.add(e.orderId);
+      a.roles.add(e.role);
+      a.hours += e.hours;
+      a.money += e.money;
+      a.modes.set(e.mode, (a.modes.get(e.mode) || 0) + e.hours);
+      if (e.price != null) a.prices.push(e.price);
+      const recWx = metaById.get(e.orderId)?.recWx || '';
+      if (recWx) a.wxCounts.set(recWx, (a.wxCounts.get(recWx) || 0) + 1);
+      if (tsOf(e.at) < tsOf(a.firstAt)) a.firstAt = e.at;
+      if (tsOf(e.at) > tsOf(a.lastAt)) a.lastAt = e.at;
+    }
+
+    const workWechatList = [...groups.values()]
+      .map((g: any) => {
+        const people = [...g.people.values()].sort((a: any, b: any) => b.hours - a.hours);
+        const main: any = people[0] || null;
+        const companionId: string | null = main?.companionId || null;
+        const info = companionId ? infoOf.get(companionId) : null;
+        const bound = companionId ? wxByOwner.get(companionId) : null;
+        const wxRow = g.recWx ? wxByCode.get(g.recWx) : null;
+        const modeList = [...g.modes.entries()]
+          .map(([mode, hours]) => ({ mode, hours: round1(hours as number) }))
+          .sort((x: any, y: any) => y.hours - x.hours);
+        const list: number[] = g.prices;
+        const roles: Set<string> = main?.roles || new Set();
+        const workWechatId = g.recWx || g.recWxId || bound?.wechatId || '';
+        return {
+          key: g.key,
+          recorded: g.recorded,
+          hasWorkWechat: !!workWechatId,
+          workWechatId,
+          workWechatNickname: wxRow?.nickname || bound?.nickname || '',
+          boundWorkWechatId: bound?.wechatId || '',
+          companionId,
+          companionName: nameOf(companionId) || '已删除的陪玩',
+          companionAvatar: info?.user?.avatar || null,
+          companionsCount: people.length,
+          companions: people.slice(0, 5).map((p: any) => ({
+            companionId: p.companionId, companionName: nameOf(p.companionId), hours: round1(p.hours),
+          })),
+          studioId: info?.studio?.id || '',
+          studioName: info?.studio?.name || '',
+          studioType: info?.studio?.type || '',
+          isResigned: !!info?.isResigned,
+          online: isOnline(companionId),
+          status: info?.status || 'OFFLINE',
+          role: roles.has('MAIN') && roles.has('CO') ? 'BOTH' : roles.has('MAIN') ? 'MAIN' : 'CO',
+          orders: g.orderIds.size,
+          hours: round1(g.hours),
+          money: round1(g.money),
+          modes: modeList,
+          topMode: modeList[0]?.mode || '未知',
+          priceMin: list.length ? Math.min(...list) : null,
+          priceMax: list.length ? Math.max(...list) : null,
+          priceAvg: list.length ? round1(list.reduce((s, x) => s + x, 0) / list.length) : null,
+          firstAt: g.firstAt,
+          lastAt: g.lastAt,
+          maintainDays: Math.floor((now - tsOf(g.firstAt)) / DAY),
+          lastDaysAgo: Math.floor((now - tsOf(g.lastAt)) / DAY),
+        };
+      })
+      .sort(
+        (a: any, b: any) =>
+          b.hours - a.hours ||
+          b.money - a.money ||
+          Number(b.hasWorkWechat) - Number(a.hasWorkWechat) ||
+          String(a.workWechatId).localeCompare(String(b.workWechatId)),
+      );
+
+    const modeTotals = new Map<string, { mode: string; orders: number; hours: number; money: number }>();
+    for (const m of modeByOrder.values()) {
+      const cur = modeTotals.get(m.mode) || { mode: m.mode, orders: 0, hours: 0, money: 0 };
+      cur.orders += 1;
+      cur.hours += m.hours;
+      cur.money += m.money;
+      modeTotals.set(m.mode, cur);
+    }
+    const modes = [...modeTotals.values()]
+      .map((m) => ({
+        mode: m.mode,
+        orders: m.orders,
+        hours: round1(m.hours),
+        money: round1(m.money),
+        ratio: totalHours > 0 ? Math.round((m.hours / totalHours) * 100) : 0,
+      }))
+      .sort((a, b) => b.hours - a.hours || b.orders - a.orders);
+
+    const topMode = modes[0]?.mode || '未知';
+    const priceBand = prices.length
+      ? {
+          min: Math.min(...prices),
+          max: Math.max(...prices),
+          avg: round1(prices.reduce((s, x) => s + x, 0) / prices.length),
+          samples: prices.length,
+        }
+      : { min: null, max: null, avg: null, samples: 0 };
+
+    // 派单建议：优先「陪他打过、且打得就是他现在最常打的模式」的人；其次总时长、在线、最近一次。
+    const statusLabel: Record<string, string> = {
+      AVAILABLE: '空闲',
+      BUSY: '接单中',
+      ENTERTAINMENT: '娱乐中',
+      RESTING: '休息中',
+      OFFLINE: '离线',
+    };
+    const picks = [...byCompanion.values()]
+      .filter((a: any) => !infoOf.get(a.companionId)?.isResigned)
+      .map((a: any) => {
+        const info = infoOf.get(a.companionId);
+        const bound = wxByOwner.get(a.companionId);
+        const recordedWx =
+          [...a.wxCounts.entries()].sort((x: any, y: any) => y[1] - x[1])[0]?.[0] || '';
+        const roles: Set<string> = a.roles;
+        return {
+          companionId: a.companionId,
+          companionName: nameOf(a.companionId) || '已删除的陪玩',
+          companionAvatar: info?.user?.avatar || null,
+          studioName: info?.studio?.name || '',
+          workWechatId: recordedWx || bound?.wechatId || '',
+          workWechatNickname:
+            (recordedWx ? wxByCode.get(recordedWx)?.nickname : bound?.nickname) || '',
+          online: isOnline(a.companionId),
+          status: info?.status || 'OFFLINE',
+          role: roles.has('MAIN') && roles.has('CO') ? 'BOTH' : roles.has('MAIN') ? 'MAIN' : 'CO',
+          orders: a.orderIds.size,
+          hours: round1(a.hours),
+          modeHours: round1(a.modes.get(topMode) || 0),
+          topMode,
+          priceAvg: a.prices.length
+            ? round1(a.prices.reduce((s: number, x: number) => s + x, 0) / a.prices.length)
+            : null,
+          lastDaysAgo: Math.floor((now - tsOf(a.lastAt)) / DAY),
+          _lastAt: a.lastAt,
+        };
+      })
+      .sort(
+        (a: any, b: any) =>
+          b.modeHours - a.modeHours ||
+          b.hours - a.hours ||
+          Number(b.online) - Number(a.online) ||
+          tsOf(b._lastAt) - tsOf(a._lastAt),
+      )
+      .slice(0, 3)
+      .map(({ _lastAt, ...rest }: any) => rest);
+
+    const priceText =
+      priceBand.min != null
+        ? `${priceBand.min}~${priceBand.max} 元/小时（均值 ${priceBand.avg}）`
+        : '还没有记录到单价';
+    const workWechatCount = workWechatList.filter((w: any) => w.hasWorkWechat).length;
+    let summary: string;
+    if (!doneOrders.length) {
+      summary = '这个客户还没有成交记录，先按普通新客派单；第一单落地后，这里会自动给出画像和派单建议。';
+    } else {
+      const head = `一共成交 ${doneOrders.length} 单、打了 ${round1(totalHours)} 小时，毛收入 ${round1(totalGross)} 元`;
+      const wxText = workWechatCount
+        ? `，在 ${workWechatCount} 个工作微信上打过`
+        : '';
+      const modeText = modes.length ? `，最常打「${topMode}」（占 ${modes[0]?.ratio ?? 0}%）` : '';
+      const first = picks[0];
+      const pickText = first
+        ? `优先派给 ${first.companionName}` +
+          (first.workWechatId ? `（工作微信 ${first.workWechatId}）` : '') +
+          `：他陪这个客户打过 ${first.modeHours > 0 ? first.modeHours + ' 小时' + topMode + '、' : ''}` +
+          `共 ${first.hours} 小时 ${first.orders} 单，现在${statusLabel[first.status] || first.status || '离线'}` +
+          `${first.online ? '' : '（电脑离线）'}。`
+        : '暂时没有可以推荐的陪玩。';
+      summary = `这个客户${head}${wxText}${modeText}；习惯单价 ${priceText}。${pickText}`;
+    }
+
+    const firstOrderAt = (orders as any[]).length ? (orders as any[])[0].createdAt : null;
+    const lastOrderAt = (orders as any[]).length
+      ? (orders as any[])[(orders as any[]).length - 1].createdAt
+      : null;
+
+    return {
+      customer: {
+        id: customer.id,
+        customerCode: customer.customerCode,
+        wechatId: customer.wechatId || '',
+        studioId: customer.studioId,
+        studioName: customer.studio?.name || '',
+        status: customer.status,
+        ownerCompanionId: ownerId,
+        ownerCompanionName: nameOf(ownerId),
+        createdAt: customer.createdAt,
+        firstOrderAt,
+        firstDoneAt,
+        lastOrderAt,
+        lastDoneAt,
+        maintainDays: firstOrderAt ? Math.floor((now - tsOf(firstOrderAt)) / DAY) : 0,
+        lastDaysAgo: lastOrderAt ? Math.floor((now - tsOf(lastOrderAt)) / DAY) : null,
+      },
+      totals: {
+        doneOrders: doneOrders.length,
+        sessions: (sessions as any[]).length,
+        hours: round1(totalHours),
+        gross: round1(totalGross),
+        modes,
+        topMode,
+        price: priceBand,
+        workWechatCount,
+        workWechatRowCount: workWechatList.length,
+        companionCount: byCompanion.size,
+        onlineCompanions: [...byCompanion.keys()].filter((cid: string) => isOnline(cid)).length,
+      },
+      workWechats: workWechatList,
+      recommendation: { topMode, priceBand, summary, picks },
+      scope: user.role === 'OWNER' ? 'all' : user.role === 'COMPANION' ? 'own' : 'studio',
       updatedAt: new Date().toISOString(),
     };
   }

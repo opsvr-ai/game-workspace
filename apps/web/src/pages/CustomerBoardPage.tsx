@@ -40,6 +40,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { customersApi } from '../api/customers';
+import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, customerStatusConfig } from '../constants';
 
@@ -84,6 +85,8 @@ interface BoardRow {
   companionStatus: string | null;
   companionOnline: boolean;
   companionResigned: boolean;
+  servedBy: number;
+  topMode: string;
   orderCount: number;
   spent: number;
   hours: number;
@@ -225,6 +228,7 @@ const CustomerBoardPage: React.FC = () => {
   const [showWechat, setShowWechat] = useState(false);
   const [search, setSearch] = useState('');
   const [focusCompanion, setFocusCompanion] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const fetchedAtRef = useRef<number>(Date.now());
 
@@ -385,6 +389,16 @@ const CustomerBoardPage: React.FC = () => {
             {r.depositBalance ? <span style={{ color: '#15803D' }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
             {fmtSchedule(r.scheduledAt) ? <span style={{ color: '#B45309' }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span> : null}
           </div>
+          {r.servedBy > 0 ? (
+            <div style={{ fontSize: 12 }}>
+              {r.servedBy > 1 ? (
+                <Tag color="purple" style={{ marginInlineEnd: 4 }}>{r.servedBy} 人打过</Tag>
+              ) : null}
+              {r.topMode && r.topMode !== '未知' ? (
+                <span style={{ color: '#7C3AED' }}>常打{r.topMode}</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ),
     },
@@ -457,11 +471,26 @@ const CustomerBoardPage: React.FC = () => {
     {
       title: '',
       key: 'op',
-      width: 62,
+      width: 116,
       render: (_: any, r: BoardRow) => (
-        <Button type="link" size="small" onClick={() => navigate('/' + prefix + '/customers/' + r.customerId)}>
-          详情
-        </Button>
+        <Space size={0}>
+          <Button
+            type="link"
+            size="small"
+            style={{ paddingInline: 4 }}
+            onClick={() => setProfileId(r.customerId)}
+          >
+            画像
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            style={{ paddingInline: 4 }}
+            onClick={() => navigate('/' + prefix + '/customers/' + r.customerId)}
+          >
+            详情
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -502,7 +531,7 @@ const CustomerBoardPage: React.FC = () => {
   const barList = (
     <div>
       <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
-        按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情。
+        按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情，点「画像」看他都跟哪些人打过、习惯什么单价。
       </div>
       {rankRows.map((r, i) => {
         const v = barValue(r);
@@ -553,6 +582,10 @@ const CustomerBoardPage: React.FC = () => {
                   <Text strong>{r.customerCode}</Text>
                   {statusTag(r)}
                   {live ? <Tag color="red" style={{ marginInlineEnd: 0 }}>🎮 正在打</Tag> : null}
+                  {r.servedBy > 1 ? <Tag color="purple" style={{ marginInlineEnd: 0 }}>{r.servedBy} 人打过</Tag> : null}
+                  {r.topMode && r.topMode !== '未知' ? (
+                    <span style={{ fontSize: 11, color: '#7C3AED' }}>常打{r.topMode}</span>
+                  ) : null}
                 </Space>
                 <div style={{ fontSize: 12, color: '#64748B' }}>
                   <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
@@ -589,6 +622,19 @@ const CustomerBoardPage: React.FC = () => {
                 </div>
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>
                   {'今日 ' + yuan(r.todaySpent) + ' · ' + (r.orderCount || 0) + ' 单 · ' + fmtHours(r.hours)}
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0, height: 18, fontSize: 12 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProfileId(r.customerId);
+                    }}
+                  >
+                    画像
+                  </Button>
                 </div>
               </div>
             </div>
@@ -825,6 +871,13 @@ const CustomerBoardPage: React.FC = () => {
           })()}
         </div>
       )}
+
+      <CustomerProfileDrawer
+        customerId={profileId}
+        open={!!profileId}
+        onClose={() => setProfileId(null)}
+        showWechat={showWechat}
+      />
     </>
   );
 };
