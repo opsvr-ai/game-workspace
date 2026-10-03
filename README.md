@@ -41,8 +41,11 @@
     把「我是主陪」或「我是这单会话副陪」的单都捞出来；`served` 栏里不是我主陪的单，客户微信 + 二维码一律抹掉
     （`order-privacy.ts#maskPartnerContactView`，房间码 / YY / KOOK 保留）。没有 `companionId` 的账号直接返回空（防越权）。
   - **实时看板：** 新增 `GET /api/companions/live-board`（OWNER / ADMIN / CS）与新页 `LiveBoardPage`
-    （菜单 `owner|admin|cs/live-board`）。顶部 5 个数（接单中 / 娱乐中 / 空闲 / 休息 / 离线）+ 接单中卡片：
-    主陪副陪各一行，写明搭档是谁、在打什么游戏、客户编号、已打多久（扣累计暂停）。15 秒轮询、时长本地走字。
+    （菜单 `owner|admin|cs/live-board`）。顶部 5 个数（接单中 / 娱乐中 / 空闲 / 休息 / 离线）**可点筛选**；
+    下面是「一人一格」的网吧式网格，按 接单中 → 娱乐中 → 空闲 → 休息 → 离线 顺序排开，打单中那格写清
+    游戏 / 搭档 / 已打多久（每秒走字）/ 单号 / 客户编号 / 本单金额 / **今日业绩**（口径同结算：`todayRevenue`
+    / `todayOrders` / `todayMinutes`）。有活跃会话但客户端掉线的人仍留在「接单中」，格子上标「⚠ 客户端已掉线」。
+    15 秒轮询、时长本地走字。
   - **客户看板（老板 / 店长 / 客服 / 陪玩）:** 老板「罗列所有客户，每个客户的消费情况 + 是不是正在跟陪玩打游戏」。
     新增 `GET /api/customers/board` 与新页 `CustomerBoardPage`（菜单「客户看板」）：客户消费金额（已完成单口径）、
     累计时长（已完成会话口径）、此刻在不在打（在打的行呼吸闪烁，带游戏 / 单号 / 已打多久 / 主陪与搭档）；
@@ -1072,7 +1075,7 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
-| `GET` | `/api/companions/live-board` | JWT | OWNER, ADMIN, CS | 派单实时看板：在线（2 分钟内有心跳）陪玩的当前状态、正在打的单（主陪 / 副陪各一行，含搭档、游戏、客户编号、已打时长），按 接单中 / 娱乐中 / 空闲 / 休息 / 离线 分组。只给客户编号，不给微信。 |
+| `GET` | `/api/companions/live-board` | JWT | OWNER, ADMIN, CS | 派单实时看板：陪玩当前状态、正在打的单（主陪 / 副陪各一条，含搭档、游戏、客户编号、已打时长），按 接单中 / 娱乐中 / 空闲 / 休息 / 离线 排序；另带 `todayRevenue` / `todayOrders` / `todayMinutes`（今日业绩 / 单数 / 接单时长，与结算同口径）。**有活跃会话的人即使客户端掉线也算「接单中」**（离线统计不含他）。只给客户编号，不给微信。 |
 
 ### Companions (报账 / 通知偏好)
 

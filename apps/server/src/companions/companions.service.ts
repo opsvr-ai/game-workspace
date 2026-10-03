@@ -332,6 +332,48 @@ export class CompanionsService {
       },
     });
 
+    // 今日业绩 / 今日单数 / 今日接单时长（老板 2026-10-03：「看板上要能直接看到业绩」）。
+    // 业绩口径与结算完全一致：走 companionOrderRevenue（主陪扣掉搭档与分给别人的部分、
+    // 搭档拿 coAmount）——不在这里另起一套算法，否则看板跟报账/结算对不上。
+    const { start: dayStart, end: dayEnd } = currentBusinessDayRange();
+    const dayNow = new Date();
+    const todayOrders = await this.prisma.order.findMany({
+      where: {
+        status: 'DONE',
+        createdAt: { gte: dayStart, lt: dayEnd },
+        OR: [{ companionId: { in: ids } }, { coCompanionId: { in: ids } }],
+      },
+      select: { companionId: true, coCompanionId: true, amount: true, coAmount: true, customFields: true },
+    });
+    const todayRevMap = new Map<string, number>();
+    const todayCountMap = new Map<string, number>();
+    for (const o of todayOrders) {
+      const involved = Array.from(new Set([o.companionId, o.coCompanionId].filter(Boolean) as string[]));
+      for (const cid of involved) {
+        const rev = companionOrderRevenue(o as any, cid);
+        if (!rev) continue;
+        todayRevMap.set(cid, (todayRevMap.get(cid) || 0) + rev);
+        todayCountMap.set(cid, (todayCountMap.get(cid) || 0) + 1);
+      }
+    }
+    // 今日接单时长：与首页仪表盘同源（CompanionTimeLog mode=BUSY），跨营业日只算落在今天那段。
+    const busyLogs = await this.prisma.companionTimeLog.findMany({
+      where: {
+        companionId: { in: ids },
+        mode: 'BUSY',
+        startedAt: { lt: dayEnd },
+        OR: [{ endedAt: null }, { endedAt: { gte: dayStart } }],
+      },
+      select: { companionId: true, startedAt: true, endedAt: true },
+    });
+    const todayWorkSecMap = new Map<string, number>();
+    for (const l of busyLogs) {
+      const from = Math.max(l.startedAt.getTime(), dayStart.getTime());
+      const to = Math.min((l.endedAt || dayNow).getTime(), dayEnd.getTime());
+      const sec = Math.round((to - from) / 1000);
+      if (sec > 0) todayWorkSecMap.set(l.companionId, (todayWorkSecMap.get(l.companionId) || 0) + sec);
+    }
+
     // 一个人同一时刻只可能有一段会话；同一个会话给主陪和副陪各生成一份视角。
     const byCompanion = new Map<string, any>();
     for (const s of sessions) {
@@ -389,6 +431,9 @@ export class CompanionsService {
         online,
         lastHeartbeat: c.pc?.lastHeartbeat || null,
         studioName: c.studio?.name || '',
+        todayRevenue: roundToJiao(todayRevMap.get(c.id) || 0),
+        todayOrders: todayCountMap.get(c.id) || 0,
+        todayMinutes: Math.round((todayWorkSecMap.get(c.id) || 0) / 60),
         serving: s
           ? {
               sessionId: s.sessionId,
@@ -412,8 +457,10 @@ export class CompanionsService {
 
     // 排序：接单中 → 娱乐 → 空闲 → 休息 → 离线（同一组内按名字排，看着稳）。
     const rank = (r: any) => {
-      if (!r.online) return 9;
+      // 有活跃会话就是「打单中」——哪怕客户端刚好掉线：订单还在跑，派单的人更需要先看到
+      // 这一对，而不是把人藏进「离线」堆里（前端会在这一格上标「客户端已掉线」）。
       if (r.serving) return 0;
+      if (!r.online) return 9;
       if (r.status === 'ENTERTAINMENT') return 1;
       if (r.status === 'AVAILABLE') return 2;
       if (r.status === 'RESTING') return 3;
@@ -425,11 +472,11 @@ export class CompanionsService {
       rows,
       updatedAt: new Date().toISOString(),
       counts: {
-        serving: rows.filter((r) => r.online && r.serving).length,
+        serving: rows.filter((r) => r.serving).length,
         entertainment: rows.filter((r) => r.online && !r.serving && r.status === 'ENTERTAINMENT').length,
         available: rows.filter((r) => r.online && !r.serving && r.status === 'AVAILABLE').length,
         resting: rows.filter((r) => r.online && !r.serving && r.status === 'RESTING').length,
-        offline: rows.filter((r) => !r.online).length,
+        offline: rows.filter((r) => !r.online && !r.serving).length,
       },
     };
   }

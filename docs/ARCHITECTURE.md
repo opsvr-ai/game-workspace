@@ -15,8 +15,12 @@
 
 - **管理端「实时看板」（2026-10-03，`GET /api/companions/live-board` + `pages/admin/LiveBoardPage.tsx`）**：
   `CompanionsService.liveBoard(user)` 一次查出：在线（`pc.lastHeartbeat` 2 分钟窗口）、状态、
-  以及「`ACTIVE` 且已 `startedAt`」的会话 —— **主陪、副陪各出一行**，写搭档、游戏、客户**编号**、
-  已打时长（`elapsedSec` 扣累计暂停）。权限 OWNER / ADMIN / CS，前端 15 秒轮询、时长本地走字。
+  以及「`ACTIVE` 且已 `startedAt`」的会话 —— **主陪、副陪各出一格**，写搭档、游戏、客户**编号**、
+  已打时长（`elapsedSec` 扣累计暂停）。同日追加：**今日业绩** `todayRevenue`（走 `companionOrderRevenue`
+  统一口径）、`todayOrders`、`todayMinutes`（`CompanionTimeLog mode=BUSY` 落在本营业日的部分）。
+  **排序以「是否有活跃会话」优先**：客户端掉线但单还在跑的人仍排进「接单中」（前端标「已掉线」），
+  离线统计不含这类人。权限 OWNER / ADMIN / CS，前端 15 秒轮询、
+  「一人一格」网格 + 顶部状态数可点筛选、时长本地走字。
 
 - **客户看板（2026-10-03，`GET /api/customers/board` + `pages/CustomerBoardPage.tsx`）**：
   `CustomersService.customerBoard(user, { sort, companionId })` 汇总每个客户的消费与在打情况 ——
