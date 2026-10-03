@@ -2,7 +2,7 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppThrottlerGuard } from './common/app-throttler.guard';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { StudiosModule } from './studios/studios.module';
@@ -28,6 +28,9 @@ import { BattleScreenshotsModule } from './battle-screenshots/battle-screenshots
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 import { ContentCheckModule } from './content-check/content-check.module';
+import { WatermarkModule } from './watermark/watermark.module';
+import { WechatWatermarkInterceptor } from './common/watermark.interceptor';
+import { InvisibleTextMiddleware } from './common/invisible-text.middleware';
 
 @Module({
   imports: [
@@ -77,16 +80,24 @@ import { ContentCheckModule } from './content-check/content-check.module';
     TrafficAccountModule,
     BattleScreenshotsModule,
     ContentCheckModule,
+    WatermarkModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: AppThrottlerGuard,
     },
+    // 客户微信号隐形水印（老板 2026-10-04）：全局挂在出口，所有页面 / 接口自动覆盖。
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: WechatWatermarkInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggerMiddleware).forRoutes('*');
+    // 入口消毒：把水印字符从请求里剥掉，保证存进库的永远是干净微信号。
+    consumer.apply(InvisibleTextMiddleware).forRoutes('*');
   }
 }

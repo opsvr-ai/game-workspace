@@ -36,6 +36,10 @@
 
 ## Recent Updates (v3.3.0)
 
+- **客户微信号「隐形水印」+ 溯源（2026-10-04，服务端 + 网页 `v911`）:** 接口返回客户微信号时在末尾追加
+  一串看不见的字符（记着「哪个账号 + 哪一天」），全局一处覆盖所有页面；老板在「设置中心 → 微信号溯源（隐形水印）」
+  粘贴可疑文本即可查出是谁、哪天看过的。另有全站淡色「账号名 · 日期」画面水印，截图 / 拍照也能追。
+  入口统一消毒，水印字符永远不会写进数据库。新接口 `POST /api/watermark/decode`（仅老板）。
 - **单价底线统计 + 低价搭档关注表 + 复购防滥用（2026-10-04，服务端 + 网页 `v910`）:** 老板口径「机密别低于 35、
   绝密别低于 45，35 跟 45 就是个统计」—— **只统计、不拦单**。主陪价或副陪单价（副陪总价 ÷ 时长，填 0 也算）
   低于底线时，实时提醒店长 / 客服 + 老板；管理端「客户画像与私单风险」多一张 **⚠️ 低价搭档（重点关注）** 表，
@@ -1237,6 +1241,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
 | `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue（老板不传 studioId = 看全站）. |
 | `GET` | `/api/finance/risk/low-price-pairs?days=30&studioId=` | JWT | ADMIN, OWNER, CS | 低价搭档关注表：主陪 + 同一搭档反复填低于底线（机密 35 / 绝密 45）的双陪组合，含「正好按底线打」统计。 |
+| `POST` | `/api/watermark/decode` | JWT | OWNER | 客户微信隐形水印溯源：把可疑文本粘进来 → 查出是谁（身份 / 工作室）+ 哪天看过的。 |
 
 ### Customer Profiles & AI
 
