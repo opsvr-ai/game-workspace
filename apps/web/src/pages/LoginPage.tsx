@@ -8,6 +8,7 @@ import http, { readSessionReplaced, clearSessionReplaced } from '../api/client';
 import { reportClientError, diagnoseUploadPath } from '../api/diagnostics';
 import { compressImage } from '../utils/imageCompress';
 import { restoreClientSession } from '../utils/sessionRestore';
+import PasteImageBox from '../components/PasteImageBox';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -162,6 +163,14 @@ const LoginPage: React.FC = () => {
   const isCompanionRole = registerRole.includes('COMPANION');
   const isAdminRole = registerRole.includes('ADMIN');
   const isOfflineAdmin = registerRole === 'OFFLINE_ADMIN';
+  // 合同照片常见好几兆，粘贴/截图来的更大；先压到长边 2400，保证文字看得清又不会传断。
+  const setLeaseFromFile = async (f: File) => {
+    try {
+      setLeaseContract(await compressImage(f, 2400, 0.85));
+    } catch (err: any) {
+      message.error(err?.message || '图片读取失败，请把图片另存到桌面后再试');
+    }
+  };
   const isOnlineRole = registerRole.startsWith('ONLINE');
   const filteredStudios = studios.filter((s) =>
     isOnlineRole ? s.type === 'RENTAL' : s.type !== 'RENTAL',
@@ -699,44 +708,62 @@ const LoginPage: React.FC = () => {
                     onChange={(e) => setRegisterAddress(e.target.value)}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Upload
-                      beforeUpload={(f) => { setLeaseContract(f); return false; }}
-                      maxCount={1}
-                      accept="image/*"
+                    <PasteImageBox
+                      onFile={setLeaseFromFile}
+                      style={{ flex: 1 }}
+                      hint="找不到文件？点一下这里，直接 Ctrl+V 粘贴"
                     >
-                      <Button icon={React.createElement(UploadOutlined)}>
-                        {leaseContract ? '✓ 合同已选' : '租赁合同照片'}
-                      </Button>
-                    </Upload>
+                      <Upload
+                        beforeUpload={(f) => { setLeaseFromFile(f); return false; }}
+                        maxCount={1}
+                        accept="image/*"
+                      >
+                        <Button icon={React.createElement(UploadOutlined)}>
+                          {leaseContract ? '✓ 合同已选' : '租赁合同照片'}
+                        </Button>
+                      </Upload>
+                    </PasteImageBox>
                     <Text style={{ color: '#94A3B8', fontSize: 11 }}>选填</Text>
                   </div>
                 </>
               )}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <Upload
-                  beforeUpload={(f) => {
-                    setIdCardFront(f);
-                    return false;
-                  }}
-                  maxCount={1}
-                  accept="image/*"
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <PasteImageBox
+                  onFile={(f) => setIdCardFront(f)}
+                  style={{ flex: 1, minWidth: 168 }}
+                  hint="也可以 Ctrl+V 粘贴"
                 >
-                  <Button icon={React.createElement(UploadOutlined)}>
-                    {idCardFront ? '✓ 正面已选' : '身份证正面 *'}
-                  </Button>
-                </Upload>
-                <Upload
-                  beforeUpload={(f) => {
-                    setIdCardBack(f);
-                    return false;
-                  }}
-                  maxCount={1}
-                  accept="image/*"
+                  <Upload
+                    beforeUpload={(f) => {
+                      setIdCardFront(f);
+                      return false;
+                    }}
+                    maxCount={1}
+                    accept="image/*"
+                  >
+                    <Button icon={React.createElement(UploadOutlined)}>
+                      {idCardFront ? '✓ 正面已选' : '身份证正面 *'}
+                    </Button>
+                  </Upload>
+                </PasteImageBox>
+                <PasteImageBox
+                  onFile={(f) => setIdCardBack(f)}
+                  style={{ flex: 1, minWidth: 168 }}
+                  hint="也可以 Ctrl+V 粘贴"
                 >
-                  <Button icon={React.createElement(UploadOutlined)}>
-                    {idCardBack ? '✓ 反面已选' : '身份证反面 *'}
-                  </Button>
-                </Upload>
+                  <Upload
+                    beforeUpload={(f) => {
+                      setIdCardBack(f);
+                      return false;
+                    }}
+                    maxCount={1}
+                    accept="image/*"
+                  >
+                    <Button icon={React.createElement(UploadOutlined)}>
+                      {idCardBack ? '✓ 反面已选' : '身份证反面 *'}
+                    </Button>
+                  </Upload>
+                </PasteImageBox>
               </div>
               {!skipPhotos && (
                 <Button

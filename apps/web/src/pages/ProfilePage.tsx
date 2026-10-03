@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, Form, Input, Button, Typography, Upload, Row, Col, message } from 'antd';
 import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
+import PasteImageBox from '../components/PasteImageBox';
+import { compressImage } from '../utils/imageCompress';
 
 const { Text, Title } = Typography;
 
@@ -99,10 +101,18 @@ const ProfilePage: React.FC = () => {
   const beforeUpload = async (file: File) => {
     const isImage = file.type.match(/^image\/(jpeg|png|webp)$/);
     if (!isImage) { message.error('仅支持 JPG/PNG/WEBP 格式'); return false; }
-    if (file.size / 1024 / 1024 > 2) { message.error('图片不能超过 2MB'); return false; }
+    // 粘贴/拖进来的截图动辄好几兆，先压一下，免得被 2MB 限制挡回去。
+    let target = file;
+    try {
+      target = await compressImage(file);
+    } catch (err: any) {
+      message.error(err?.message || '图片读取失败，请把图片另存到桌面后再试');
+      return false;
+    }
+    if (target.size / 1024 / 1024 > 2) { message.error('图片不能超过 2MB'); return false; }
     setAvatarLoading(true);
     try {
-      await authApi.uploadAvatar(file);
+      await authApi.uploadAvatar(target);
       message.success('头像已更新');
       await reloadUser();
     } catch (err: any) {
@@ -140,11 +150,17 @@ const ProfilePage: React.FC = () => {
                 @{user?.username} · {user?.role}
               </Text>
             </div>
-            <Upload showUploadList={false} beforeUpload={beforeUpload} accept="image/jpeg,image/png,image/webp">
-              <Button size="small" icon={React.createElement(CameraOutlined)} loading={avatarLoading} style={{ marginTop: 8 }}>
-                更换头像
-              </Button>
-            </Upload>
+            <PasteImageBox
+              onFile={beforeUpload}
+              style={{ marginTop: 8 }}
+              hint="点一下这里，直接 Ctrl+V 粘贴头像图"
+            >
+              <Upload showUploadList={false} beforeUpload={beforeUpload} accept="image/jpeg,image/png,image/webp">
+                <Button size="small" icon={React.createElement(CameraOutlined)} loading={avatarLoading}>
+                  更换头像
+                </Button>
+              </Upload>
+            </PasteImageBox>
           </div>
         </div>
       </Card>
