@@ -434,6 +434,8 @@ export class OrdersController {
   @Roles(UserRole.COMPANION)
   async addSession(@Param('id') id: string, @Body() body: any, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.addSession(id, {
+      // 发起人从登录态取：body 里的 companionId 只是「主陪可换人」的目标，不能当身份用
+      actorCompanionId: req.user.companionId,
       companionId: body.companionId || req.user.companionId,
       coCompanionId: body.coCompanionId,
       amount: body.amount,

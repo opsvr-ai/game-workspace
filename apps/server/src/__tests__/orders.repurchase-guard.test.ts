@@ -4,11 +4,14 @@ import { OrdersService } from '../orders/orders.service';
 import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 
 /**
- * 「怎么防止陪玩随便去客户管理找一个客户就点复购了？」（老板 2026-10-04）
- * 只卡**陪玩自己发起**的复购：
- *   ① 客户必须真成交过（有 DONE 单）；
- *   ② 只能复购自己服务过（主陪或副陪）或归属自己的客户。
- * 客服 / 店长 / 老板代发不受限。
+ * 「怎么防止陪玩随便去客户管理找一个客户就点复购了？」
+ * 「客户管理里有客户 A、客户 B，陪玩去客户 B 的位置点续单 / 复购，你怎么挡住？」（老板 2026-10-04）
+ *
+ * 规则（只卡**陪玩自己发起**的老客单；客服 / 店长 / 老板代发不拦）：
+ *   ① 客户必须是真实客户，且属于本单工作室；
+ *   ② 该客户必须真成交过（有 DONE 单）；
+ *   ③ 本人必须服务过（主陪或副陪的 DONE 单）或该客户在自己名下。
+ * 一律以服务端查出来的关系为准 —— 前端把 customerId 换成别人的客户也过不了。
  */
 function buildService(prisma: any) {
   return new OrdersService(
@@ -33,7 +36,7 @@ function buildService(prisma: any) {
   );
 }
 
-describe('OrdersService.create 复购兜底校验', () => {
+describe('OrdersService.create 续单 / 复购兜底校验', () => {
   let prisma: MockPrisma;
   let service: OrdersService;
 
@@ -49,6 +52,17 @@ describe('OrdersService.create 复购兜底校验', () => {
     gameName: '三角洲行动',
     isOnline: false,
   };
+  const renewDto = { ...companionDto, type: 'RENEW' };
+
+  const createdOrder = {
+    id: 'order-1',
+    orderCode: '1',
+    status: 'GRABBED',
+    companionId: 'comp-1',
+    coCompanionId: null,
+    customFields: {},
+    poolScope: null,
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,39 +72,51 @@ describe('OrdersService.create 复购兜底校验', () => {
     prisma.orderSession.create.mockResolvedValue({ id: 'sess-1', coCompanionId: null });
     (prisma.user.findUnique as any).mockResolvedValue({ role: 'COMPANION', username: 'wanghao' });
     (prisma.companion.findUnique as any).mockResolvedValue({ id: 'comp-1', studioId: 'studio-1' });
+    // 默认：客户真实存在、属于本店、归属别人（每个用例再按需要覆盖）
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+    (prisma.order.create as any).mockResolvedValue(createdOrder);
   });
 
-  it('客户没有成交记录 → 不能算复购', async () => {
-    (prisma.order.count as any).mockResolvedValue(0);
+  it('客户不存在（前端塞了假 / 别人的 customerId）→ 拒', async () => {
+    (prisma.customer.findUnique as any).mockResolvedValue(null);
     await expect(service.create(companionDto as any)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.create(companionDto as any)).rejects.toThrow(/客户不存在/);
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('客户属于别的工作室 → 拒', async () => {
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'other-studio' });
+    await expect(service.create(companionDto as any)).rejects.toThrow(/不属于本工作室/);
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('客户没有成交记录 → 不能算续单 / 复购', async () => {
+    (prisma.order.count as any).mockResolvedValue(0);
     await expect(service.create(companionDto as any)).rejects.toThrow(/还没有成交记录/);
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
 
-  it('客户成交过，但不是自己服务/归属的 → 不能复购', async () => {
+  it('客户成交过，但不是自己服务 / 归属的（在客户 B 那一行点复购）→ 拒', async () => {
     // 第一次 count = 该客户 DONE 单数（1）；第二次 = 我服务过的 DONE 单数（0）
-    (prisma.order.count as any).mockImplementation(async (args: any) =>
-      args?.where?.OR ? 0 : 1,
-    );
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else' });
+    (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
 
-    await expect(service.create(companionDto as any)).rejects.toThrow(/只能复购你自己服务过的客户/);
+    await expect(service.create(companionDto as any)).rejects.toThrow(/只能续单 \/ 复购你自己服务过的客户/);
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('续单（RENEW）同样被卡住，不给漏网（在客户 B 那一行点续单）→ 拒', async () => {
+    (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
+
+    await expect(service.create(renewDto as any)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.create(renewDto as any)).rejects.toThrow(/只能续单 \/ 复购你自己服务过的客户/);
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
 
   it('自己服务过（当过副陪也算）→ 放行', async () => {
     (prisma.order.count as any).mockResolvedValue(1);
-    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1' });
-    (prisma.order.create as any).mockResolvedValue({
-      id: 'order-1',
-      ...companionDto,
-      orderCode: '1',
-      status: 'GRABBED',
-      companionId: 'comp-1',
-      coCompanionId: null,
-      customFields: {},
-      poolScope: null,
-    });
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'someone-else', studioId: 'studio-1' });
 
     const res = await service.create(companionDto as any);
     expect(res.id).toBe('order-1');
@@ -100,20 +126,20 @@ describe('OrdersService.create 复购兜底校验', () => {
     expect(servedCall[0].where.OR).toEqual([{ companionId: 'comp-1' }, { coCompanionId: 'comp-1' }]);
   });
 
+  it('客户在自己名下（即使没当过主陪）→ 放行', async () => {
+    (prisma.order.count as any).mockImplementation(async (args: any) => (args?.where?.OR ? 0 : 1));
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+
+    const res = await service.create(companionDto as any);
+    expect(res.id).toBe('order-1');
+    expect(prisma.order.create).toHaveBeenCalled();
+  });
+
   it('客服 / 店长代发复购不校验（真实老客户前一单还没 DONE 也能发）', async () => {
     (prisma.user.findUnique as any).mockResolvedValue({ role: 'CS', username: 'kefu01' });
-    (prisma.order.create as any).mockResolvedValue({
-      id: 'order-2',
-      ...companionDto,
-      type: 'REPURCHASE',
-      orderCode: '2',
-      status: 'GRABBED',
-      customFields: {},
-      poolScope: null,
-    });
 
     const res = await service.create({ ...companionDto, csUserId: 'user-cs-1' } as any);
-    expect(res.id).toBe('order-2');
+    expect(res.id).toBe('order-1');
     // 压根不该去数成交单
     expect(prisma.order.count).not.toHaveBeenCalled();
   });

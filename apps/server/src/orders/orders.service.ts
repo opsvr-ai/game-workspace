@@ -210,22 +210,35 @@ export class OrdersService implements OnModuleInit {
       customerId = placeholder.id;
     }
 
-    // 「复购」兜底校验（老板 2026-10-04：「怎么防止陪玩随便去客户管理找一个客户就点复购了？」）：
-    // 复购率是评分项，不能自己造。**只卡陪玩自己发起的复购**（客服 / 店长 / 老板代发不动，
-    // 免得老客户前一单还没 DONE 就把客服的正常复购发单给拦了）：
-    //   ① 这个客户必须**真成交过**（有 DONE 单）；
-    //   ② 只能挑**自己服务过**（当过主陪或副陪）或归属自己的客户。
-    if (dto.type === 'REPURCHASE' && customerId && creator?.role === 'COMPANION') {
-      const doneCount = await this.prisma.order.count({
-        where: { customerId, status: 'DONE' },
-      });
-      if (doneCount === 0) {
-        throw new ForbiddenException('这个客户还没有成交记录，不能算复购；新客户请走抢单 / 首单');
-      }
+    // 「老客单」兜底校验（老板 2026-10-04）：「怎么防止陪玩随便去客户管理找一个客户就点复购了？」
+    // 以及「客户管理里有客户 A、客户 B，陪玩去客户 B 的位置点续单 / 复购，你怎么挡住？」
+    // 续单率 / 复购率是评分项，不能自己造。**只卡陪玩自己发起的老客单**（客服 / 店长 / 老板代发不动，
+    // 免得老客户前一单还没 DONE 就把客服的正常续单 / 复购发单给拦了）。
+    // 关键：一律**以服务端查出来的关系为准**，不信前端传的客户归属——把 customerId 换成别人的客户也过不了：
+    //   ① 客户必须是真实客户，且属于本单工作室（跨店客户直接拒）；
+    //   ② 这个客户必须**真成交过**（有 DONE 单）；
+    //   ③ 本人必须**服务过**（当过主陪或副陪的 DONE 单）或该客户**在自己名下**。
+    if ((dto.type === 'REPURCHASE' || dto.type === 'RENEW') && customerId && creator?.role === 'COMPANION') {
       const me = await this.prisma.companion
         .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
         .catch(() => null);
       if (!me) throw new ForbiddenException('陪玩信息不存在');
+
+      const customer = await this.prisma.customer
+        .findUnique({ where: { id: customerId }, select: { companionId: true, studioId: true } })
+        .catch(() => null);
+      if (!customer) throw new ForbiddenException('客户不存在，不能发续单 / 复购');
+      if (customer.studioId && customer.studioId !== studioId) {
+        throw new ForbiddenException('这个客户不属于本工作室，不能发续单 / 复购');
+      }
+
+      const doneCount = await this.prisma.order.count({
+        where: { customerId, status: 'DONE' },
+      });
+      if (doneCount === 0) {
+        throw new ForbiddenException('这个客户还没有成交记录，不能算续单 / 复购；新客户请走抢单 / 首单');
+      }
+
       const served = await this.prisma.order.count({
         where: {
           customerId,
@@ -233,11 +246,8 @@ export class OrdersService implements OnModuleInit {
           OR: [{ companionId: me.id }, { coCompanionId: me.id }],
         },
       });
-      const owner = await this.prisma.customer
-        .findUnique({ where: { id: customerId }, select: { companionId: true } })
-        .catch(() => null);
-      if (served === 0 && owner?.companionId !== me.id) {
-        throw new ForbiddenException('只能复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
+      if (served === 0 && customer.companionId !== me.id) {
+        throw new ForbiddenException('只能续单 / 复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
       }
     }
 
@@ -1203,6 +1213,7 @@ export class OrdersService implements OnModuleInit {
    */
   async releaseToOffline(orderId: string, user: any) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+
     if (!order) throw new NotFoundException('订单不存在');
     if (user?.role !== 'OWNER' && user?.studioId) {
       const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
@@ -3113,6 +3124,42 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
+  /**
+   * 谁能给这张单加一段服务（首单 / 续单 / 换主陪）——防止陪玩拿别人的订单编号直接续单、抢客户：
+   *   · 这张单现在的主陪 / 副陪本人；
+   *   · 这张单历史上任何一段会话里当过主陪 / 副陪的人（接手继续打）；
+   *   · 这个客户在自己名下的（客户归属人）；
+   *   · 以前服务过这个客户（DONE 单当过主陪 / 副陪）。
+   * 其余一律拒。
+   */
+  private async canActOnOrder(
+    order: { id: string; companionId: string | null; coCompanionId: string | null; customerId: string | null },
+    companionId: string,
+  ): Promise<boolean> {
+    if (order.companionId === companionId || order.coCompanionId === companionId) return true;
+    const sessionHit = await this.prisma.orderSession
+      .count({
+        where: { parentOrderId: order.id, OR: [{ companionId }, { coCompanionId: companionId }] },
+      })
+      .catch(() => 0);
+    if (sessionHit > 0) return true;
+    if (!order.customerId) return false;
+    const customer = await this.prisma.customer
+      .findUnique({ where: { id: order.customerId }, select: { companionId: true } })
+      .catch(() => null);
+    if (customer?.companionId === companionId) return true;
+    const served = await this.prisma.order
+      .count({
+        where: {
+          customerId: order.customerId,
+          status: 'DONE',
+          OR: [{ companionId }, { coCompanionId: companionId }],
+        },
+      })
+      .catch(() => 0);
+    return served > 0;
+  }
+
   async addSession(
     orderId: string,
     dto: {
@@ -3125,6 +3172,8 @@ export class OrdersService implements OnModuleInit {
       claimedPrice?: number;
       transferScreenshotUrl?: string;
       useDeposit?: boolean;
+      /** 发起这次加段的陪玩（控制器从登录态取，别信前端 body.companionId） */
+      actorCompanionId?: string;
     },
   ) {
     const sessions = await this.prisma.orderSession.findMany({
@@ -3135,6 +3184,12 @@ export class OrdersService implements OnModuleInit {
     const last = sessions[0];
     const seq = (last?.seq || 0) + 1;
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    // 老板 2026-10-04：「陪玩去客户 B 的位置点续单」——加一段服务之前先确认**这张单 / 这个客户是你的**。
+    // 以前只检查了「要换的主陪属不属于同店」，没检查发起人，拿到别人的订单编号就能直接续单抢客户。
+    const actorId = dto.actorCompanionId;
+    if (order && actorId && !(await this.canActOnOrder(order, actorId))) {
+      throw new ForbiddenException('这不是你的订单 / 客户，不能续单；请让客服或店长处理');
+    }
     // 换主陪：主陪必须属于同一工作室或已桥接工作室
     if (dto.companionId) {
       const target = await this.prisma.companion.findUnique({
