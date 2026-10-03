@@ -13,7 +13,7 @@ import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
-import { PRICE_STATS_FLOOR, isBelowPriceFloor, partnerUnitPriceYuan } from '../common/price-rules';
+import { isBelowPriceFloor, isRenewalSegment, partnerUnitPriceYuan, priceStatsFloor, resolvePriceMode } from '../common/price-rules';
 import { PoolScope, OrderOutcome } from '@chunlv/shared';
 import {
   normalizePoolScope,
@@ -427,6 +427,19 @@ export class OrdersService implements OnModuleInit {
           expiresInSec: PARTNER_INVITE_TTL_SEC,
         });
         this.schedulePartnerInviteExpiry(session.id, newOrder.studioId || '');
+      }
+
+      // 双陪续单 / 复购：这条路不经过 addSession / startSession，单价没人检查 ——
+      // 在会话建出来的这一刻按「续单 / 复购」的底线提醒一次（徐泽宁那对复购填 35 就是这么漏的）。
+      // 单陪的交给 startSession 填价那一步提醒，这里只管有搭档、别处不会触发的。
+      if (session?.coCompanionId && (newOrder.type === 'REPURCHASE' || newOrder.type === 'RENEW')) {
+        void this
+          .alertBelowFloorPrice(newOrder, session, {
+            claimedMode: resolvePriceMode(null, newOrder.customFields),
+            coAmount: (newOrder as any).coAmount,
+            duration: newOrder.duration,
+          })
+          .catch(() => null);
       }
     }
 
@@ -2948,16 +2961,20 @@ export class OrdersService implements OnModuleInit {
 
   /**
    * 单价低于底线 → 推一条 `review:alert`（老板 2026-10-04）：
-   * 主陪价、副陪单价（副陪总价 / 时长）任意一边低于底线（机密 35 / 绝密 45）就提醒，
-   * 副陪填 0 也算 —— 老板要拿这个去重点盯「主陪 + 搭档」这 2 个人。
+   * 主陪价、副陪单价（副陪总价 / 时长）任意一边低于底线就提醒，副陪填 0 也算 ——
+   * 老板要拿这个去重点盯「主陪 + 搭档」这 2 个人。
+   * 底线分两档（老板 2026-10-04）：「机密续单/复购 40-60 是正常的，绝密续单/复购 60-80 是正常的」——
+   * **首单** 机密 35 / 绝密 45，**续单 / 复购** 机密 40 / 绝密 60。
    * 店长 / 客服走工作室广播；**老板没有工作室、不在工作室房间里，必须单独通知**，否则收不到。
    */
   private async alertBelowFloorPrice(order: any, session: any, info: any): Promise<void> {
     if (!order?.studioId) return;
-    const mode = info?.claimedMode ?? session?.claimedMode ?? null;
+    const mode = resolvePriceMode(info?.claimedMode ?? session?.claimedMode, order?.customFields);
+    const isRenewal = isRenewalSegment(order?.type, session?.seq);
+    const floor = priceStatsFloor(mode, isRenewal);
     const partnerUnit = partnerUnitPriceYuan(info?.coAmount, info?.duration);
-    const mainBelow = isBelowPriceFloor(mode, info?.claimedPrice);
-    const partnerBelow = !!session?.coCompanionId && isBelowPriceFloor(mode, partnerUnit);
+    const mainBelow = isBelowPriceFloor(mode, info?.claimedPrice, isRenewal);
+    const partnerBelow = !!session?.coCompanionId && isBelowPriceFloor(mode, partnerUnit, isRenewal);
     if (!mainBelow && !partnerBelow) return;
     const ids = [session.companionId, session.coCompanionId].filter(Boolean) as string[];
     const companions = ids.length
@@ -2972,7 +2989,6 @@ export class OrdersService implements OnModuleInit {
       const c = companions.find((x: any) => x.id === id);
       return c?.user?.displayName || c?.user?.username || '未知';
     };
-    const floor = mode ? PRICE_STATS_FLOOR[mode as string] : undefined;
     const who = session.coCompanionId
       ? `${nameOf(session.companionId)} + ${nameOf(session.coCompanionId)}`
       : nameOf(session.companionId);
@@ -2986,7 +3002,7 @@ export class OrdersService implements OnModuleInit {
       orderId: order.id,
       companionName: who,
       level: 'yellow',
-      reason: `单价低于底线：${mode}（底线 ${floor}），${parts.join('、')}，客户 ${customerLabel}`,
+      reason: `单价低于底线：${mode}${isRenewal ? '续单 / 复购' : '首单'}（底线 ${floor}），${parts.join('、')}，客户 ${customerLabel}`,
       timestamp: new Date().toISOString(),
     };
     this.wsGateway.broadcastToStudio(order.studioId, 'review:alert', payload);
@@ -3236,7 +3252,7 @@ export class OrdersService implements OnModuleInit {
       },
     });
 
-    // 单价低于底线（机密 35 / 绝密 45）：**只提醒、不拦单**，并告诉老板是谁在主陪+搭档一起填低价。
+    // 单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）：**只提醒、不拦单**，并告诉老板是谁在主陪+搭档一起填低价。
     // 主陪价和副陪单价都看（副陪那段总价 / 时长，填 0 也算），方法内部自己判断要不要推。
     void this
       .alertBelowFloorPrice(order, session, {
@@ -3550,7 +3566,7 @@ export class OrdersService implements OnModuleInit {
   ) {
     const own = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { id: true, companionId: true, parentOrderId: true, claimedPrice: true, coAmount: true, duration: true },
+      select: { id: true, companionId: true, parentOrderId: true, claimedPrice: true, coAmount: true, duration: true, seq: true },
     });
     if (!own) throw new NotFoundException('会话不存在');
     const isHandoff = !!(companionId && own.companionId && own.companionId !== companionId);
@@ -3577,16 +3593,22 @@ export class OrdersService implements OnModuleInit {
       data.transferScreenshotUrl = claims.transferScreenshotUrl;
       data.duration = claims.duration;
       data.paidByDeposit = claims.useDeposit === true;
-      belowFloorNew =
-        own.claimedPrice == null &&
-        (isBelowPriceFloor(claims.claimedMode, claims.claimedPrice) ||
-          isBelowPriceFloor(claims.claimedMode, partnerUnitPriceYuan(own.coAmount, claims.duration)));
+      if (own.claimedPrice == null) {
+        // 判底线前先看这张单是首单还是续单 / 复购（单子类型 + 这一段是第几段）
+        const parentMeta = await this.prisma.order
+          .findUnique({ where: { id: own.parentOrderId }, select: { type: true } })
+          .catch(() => null);
+        const isRenewal = isRenewalSegment(parentMeta?.type, own.seq);
+        belowFloorNew =
+          isBelowPriceFloor(claims.claimedMode, claims.claimedPrice, isRenewal) ||
+          isBelowPriceFloor(claims.claimedMode, partnerUnitPriceYuan(own.coAmount, claims.duration), isRenewal);
+      }
     }
     const updated = await this.prisma.orderSession.update({ where: { id }, data });
 
     const s = await this.prisma.orderSession.findUnique({
       where: { id },
-      select: { parentOrderId: true, companionId: true, coCompanionId: true },
+      select: { parentOrderId: true, companionId: true, coCompanionId: true, seq: true },
     });
     if (s) {
       await this.prisma.order.updateMany({
@@ -3605,19 +3627,19 @@ export class OrdersService implements OnModuleInit {
         }
       }
       await this.markCompanionsBusy([s.companionId, s.coCompanionId]);
-      // 单价低于底线（机密 35 / 绝密 45）：提醒老板 / 店长，不拦单。
+      // 单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）：提醒老板 / 店长，不拦单。
       if (belowFloorNew && claims) {
         const parent = await this.prisma.order
           .findUnique({
             where: { id: s.parentOrderId },
-            select: { id: true, studioId: true, customFields: true, orderCode: true, customerId: true },
+            select: { id: true, studioId: true, customFields: true, orderCode: true, customerId: true, type: true },
           })
           .catch(() => null);
         if (parent) {
           void this
             .alertBelowFloorPrice(
               parent,
-              { id, companionId: s.companionId, coCompanionId: s.coCompanionId },
+              { id, companionId: s.companionId, coCompanionId: s.coCompanionId, seq: s.seq },
               {
                 claimedMode: claims.claimedMode,
                 claimedPrice: claims.claimedPrice,

@@ -1266,7 +1266,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/finance/received-today` | JWT | ADMIN, OWNER, CS | 「今天我们店接的单」：别的店发的单被本店陪玩接走的（`companion.studioId=本店` 且 `order.studioId!=本店`），返回今天接了多少 / 成功 / 不成功 / 待反馈 / 成功率 / 桥接·线上各几单 / 被催过几单 + 逐单明细（含「谁记的结果」）。 |
 | `GET` | `/api/finance/reconciliation?day=YYYY-MM-DD` | JWT | ADMIN, OWNER, CS | Daily arrival reconciliation per companion. |
 | `GET` | `/api/finance/risk-queue` | JWT | ADMIN, OWNER, CS | Customer analytics + private-order risk queue（老板不传 studioId = 看全站）. |
-| `GET` | `/api/finance/risk/low-price-pairs?days=30&studioId=` | JWT | ADMIN, OWNER, CS | 低价搭档关注表：主陪 + 同一搭档反复填低于底线（机密 35 / 绝密 45）的双陪组合，含「正好按底线打」统计。 |
+| `GET` | `/api/finance/risk/low-price-pairs?days=30&studioId=` | JWT | ADMIN, OWNER, CS | 低价搭档关注表：主陪 + 同一搭档反复填低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）的双陪组合，含「正好按底线打」统计。 |
 | `POST` | `/api/watermark/decode` | JWT | OWNER | 客户微信隐形水印溯源：把可疑文本粘进来 → 查出是谁（身份 / 工作室）+ 哪天看过的。 |
 
 ### Customer Profiles & AI

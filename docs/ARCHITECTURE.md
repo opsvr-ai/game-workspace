@@ -904,7 +904,7 @@ sequenceDiagram
 - 截图阈值：`GET/PUT /api/config` 读取/更新 `capture.*`（截图间隔、首张延迟、黑屏判定、每小时期望张数与合格率），Electron 客户端开始服务时拉取并动态执行
 
 **API 端点:**
-- `GET/POST/PATCH /api/finance/price-rules` — 价格规则 CRUD（内置默认机密 35/绝密 45）
+- `GET/POST/PATCH /api/finance/price-rules` — 价格规则 CRUD（内置默认：首单机密 35 / 绝密 45，续单 / 复购机密 40 / 绝密 60）
 - `POST/GET /api/finance/settlement/:month` — 月度分成结算快照
 - `GET/POST /api/finance/commission/rules` — 提成规则
 - `POST /api/finance/commission/calculate/:month` — 幂等月度提成计算

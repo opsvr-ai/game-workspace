@@ -6,7 +6,7 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
  * 「低价搭档」关注表（老板 2026-10-04）：
  *   「这个陪玩经常被邀请，主陪经常在某个客户点首单/续单/复购，他+搭档经常填写最低价，
  *     这时候提醒我，我就会去重点关注这 2 个人了。」
- * 口径：机密 < 35 / 绝密 < 45 才算「低价」，只统计不拦单；
+ * 口径：首单 机密 < 35 / 绝密 < 45，续单 / 复购 机密 < 40 / 绝密 < 60 才算「低价」，只统计不拦单；
  * 同一对主陪+搭档反复低价到 LOW_PRICE_PAIR_WATCH_THRESHOLD 次 → watch 标红。
  */
 function buildService(prisma: any) {
@@ -123,6 +123,46 @@ describe('CustomerAnalyticsService.getLowPricePairs（低价搭档关注）', ()
     await service.getLowPricePairs(null);
     const where = (prisma.orderSession.findMany as any).mock.calls[0][0].where;
     expect(where.parentOrder).toBeUndefined();
+  });
+
+  it('续单 / 复购按 40 / 60 判：复购填 35（机密）要算低价（老板点名的漏报）', async () => {
+    (prisma.orderSession.findMany as any).mockResolvedValue([
+      // 复购单，机密 35 —— 首单的线（35）是「等于不算」，续单 / 复购的线是 40 → 低价
+      session({ id: 's1', claimedMode: '机密', claimedPrice: 35, parentOrder: { type: 'REPURCHASE', customerId: 'cus-1' } }),
+      // 同一张首单上点「续单」加的第 2 段，机密 35 → 也算低价
+      session({ id: 's2', claimedMode: '机密', claimedPrice: 35, seq: 2, parentOrder: { type: 'NEW', customerId: 'cus-1' } }),
+      // 首单第 1 段，机密 35 → 等于首单底线，不算低价
+      session({ id: 's3', claimedMode: '机密', claimedPrice: 35, seq: 1, parentOrder: { type: 'NEW', customerId: 'cus-1' } }),
+      // 续单第 2 段 机密 40 → 正好按续单底线，进「按底线」不算低价
+      session({ id: 's4', claimedMode: '机密', claimedPrice: 40, seq: 2, parentOrder: { type: 'NEW', customerId: 'cus-1' } }),
+    ]);
+
+    const rows = await service.getLowPricePairs('studio-1');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].lowPriceCount).toBe(2);
+    // 首单 s3 按 35、续单 s4 按 40
+    expect(rows[0].floorPriceCount).toBe(2);
+    expect(rows[0].orderTypes.sort()).toEqual(['NEW', 'REPURCHASE']);
+  });
+
+  it('陪玩没填模式时退回客服发单填的（徐泽宁那对复购 claimedMode 是空的）', async () => {
+    (prisma.orderSession.findMany as any).mockResolvedValue([
+      // 复购双陪：claimedMode / claimedPrice 都是空的，只有副陪 1 小时 35；
+      // 模式要从订单 customFields.deltaMission 退回来，价格按续单 / 复购的 40 判 → 低价
+      session({
+        id: 's1',
+        claimedMode: null,
+        claimedPrice: null,
+        coAmount: 35,
+        duration: 1,
+        parentOrder: { type: 'REPURCHASE', customerId: 'cus-1', customFields: { deltaMission: '机密' } },
+      }),
+    ]);
+
+    const rows = await service.getLowPricePairs('studio-1');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].lowPriceCount).toBe(1);
+    expect(rows[0].modes).toEqual(['机密']);
   });
 
   it('传了工作室就按工作室过滤', async () => {

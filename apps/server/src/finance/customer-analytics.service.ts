@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PRICE_STATS_FLOOR, isBelowPriceFloor, partnerUnitPriceYuan } from '../common/price-rules';
+import { isBelowPriceFloor, isRenewalSegment, partnerUnitPriceYuan, priceStatsFloor, resolvePriceMode } from '../common/price-rules';
 
 interface OrderRow {
   id: string;
@@ -77,7 +77,7 @@ export class CustomerAnalyticsService {
       orderBy: { createdAt: 'asc' },
     })) as OrderRow[];
 
-    // 单价低于底线（机密 35 / 绝密 45）：**只统计、不拦单**（老板 2026-10-04）。
+    // 单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）：**只统计、不拦单**（老板 2026-10-04）。
     const belowFloorSessions = await this.prisma.orderSession
       .findMany({
         where: { startedAt: { gte: since }, ...(studioId ? { parentOrder: { studioId } } : {}) },
@@ -89,7 +89,8 @@ export class CustomerAnalyticsService {
           claimedPrice: true,
           coAmount: true,
           duration: true,
-          parentOrder: { select: { customerId: true } },
+          seq: true,
+          parentOrder: { select: { customerId: true, type: true, customFields: true } },
         },
       })
       .catch(() => [] as any[]);
@@ -98,9 +99,13 @@ export class CustomerAnalyticsService {
     const belowFloorByCustomer = new Map<string, number>();
     for (const row of belowFloorSessions) {
       // 主陪价、副陪单价（副陪这段总价 / 时长）任意一边低于底线就算一次，填 0 也算。
-      const mainBelow = isBelowPriceFloor(row.claimedMode, row.claimedPrice);
+      // 续单 / 复购（单子类型 RENEW / REPURCHASE，或这张单的第 2 段及以后）按 40 / 60 判；
+      // 陪玩没填 claimedMode 时退回客服发单填的模式，否则整段漏判。
+      const mode = resolvePriceMode(row.claimedMode, row.parentOrder?.customFields);
+      const isRenewal = isRenewalSegment(row.parentOrder?.type, row.seq);
+      const mainBelow = isBelowPriceFloor(mode, row.claimedPrice, isRenewal);
       const partnerBelow =
-        !!row.coCompanionId && isBelowPriceFloor(row.claimedMode, partnerUnitPriceYuan(row.coAmount, row.duration));
+        !!row.coCompanionId && isBelowPriceFloor(mode, partnerUnitPriceYuan(row.coAmount, row.duration), isRenewal);
       if (!mainBelow && !partnerBelow) continue;
       for (const id of [row.companionId, row.coCompanionId]) {
         if (!id) continue;
@@ -173,9 +178,10 @@ export class CustomerAnalyticsService {
   /**
    * 「低价搭档组合」（老板 2026-10-04）：
    *   主陪 + 同一个搭档，反复在客户的首单 / 续单 / 复购里填最低价 —— 老板要拿这个去**重点盯这 2 个人**。
-   * 只看双陪（有搭档）的组合：主陪价 或 副陪单价（副陪总价 / 时长）低于底线（机密 35 / 绝密 45）算一次异常
-   * （lowPriceCount，低了 3 次标「重点关注」）；正好按底线 35 / 45 打的另记 floorPriceCount，
-   * 方便老板看「谁老是按最低价打」，但不标红。
+   * 只看双陪（有搭档）的组合：主陪价 或 副陪单价（副陪总价 / 时长）低于底线算一次异常（lowPriceCount，
+   * 低了 3 次标「重点关注」）；正好按底线打的另记 floorPriceCount，方便老板看「谁老是按最低价打」，但不标红。
+   * 底线分两档（老板 2026-10-04）：「机密续单/复购 40-60 是正常的，绝密续单/复购 60-80 是正常的」——
+   * **首单** 机密 35 / 绝密 45，**续单 / 复购** 机密 40 / 绝密 60（续单 / 复购按 35 / 45 判会漏报）。
    */
   async getLowPricePairs(studioId: string | null, days = 30) {
     const since = new Date(Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000);
@@ -190,8 +196,9 @@ export class CustomerAnalyticsService {
           claimedPrice: true,
           coAmount: true,
           duration: true,
+          seq: true,
           startedAt: true,
-          parentOrder: { select: { type: true, customerId: true } },
+          parentOrder: { select: { type: true, customerId: true, customFields: true } },
         },
         orderBy: { startedAt: 'desc' },
         take: 5000,
@@ -201,9 +208,9 @@ export class CustomerAnalyticsService {
     type PairAgg = {
       mainId: string;
       partnerId: string;
-      /** 低于底线（机密 < 35 / 绝密 < 45）的次数 —— 真异常。 */
+      /** 低于底线的次数 —— 真异常（首单 机密 < 35 / 绝密 < 45，续单 / 复购 机密 < 40 / 绝密 < 60）。 */
       lowCount: number;
-      /** 正好按底线（机密 35 / 绝密 45）打的次数 —— 老板 2026-10-04：「这个 35 跟 45 就是个统计」。 */
+      /** 正好按底线打的次数 —— 老板 2026-10-04：「这个 35 跟 45 就是个统计」。 */
       floorCount: number;
       sessionCount: number;
       customers: Set<string>;
@@ -237,14 +244,19 @@ export class CustomerAnalyticsService {
       if (row.parentOrder?.type) item.types.add(row.parentOrder.type);
 
       // 主陪价、副陪单价（副陪这段总价 / 时长）任意一边低于底线 = 一次异常；副陪填 0 也算异常。
-      const floor = row.claimedMode ? PRICE_STATS_FLOOR[row.claimedMode] : undefined;
+      // 续单 / 复购（RENEW / REPURCHASE，或第 2 段及以后）底线是机密 40 / 绝密 60。
+      const mode = resolvePriceMode(row.claimedMode, row.parentOrder?.customFields);
+      const isRenewal = isRenewalSegment(row.parentOrder?.type, row.seq);
+      const floor = priceStatsFloor(mode, isRenewal);
       const partnerUnit = partnerUnitPriceYuan(row.coAmount, row.duration);
-      const isLow = isBelowPriceFloor(row.claimedMode, row.claimedPrice) || isBelowPriceFloor(row.claimedMode, partnerUnit);
+      const isLow =
+        isBelowPriceFloor(mode, row.claimedPrice, isRenewal) ||
+        isBelowPriceFloor(mode, partnerUnit, isRenewal);
       const isAtFloor = !isLow && floor != null && (row.claimedPrice === floor || partnerUnit === floor);
       if (isLow) item.lowCount += 1;
       if (isAtFloor) item.floorCount += 1;
       if (isLow || isAtFloor) {
-        if (row.claimedMode) item.modes.add(row.claimedMode);
+        if (mode) item.modes.add(mode);
         if (row.startedAt && (!item.lastAt || row.startedAt > item.lastAt)) item.lastAt = row.startedAt;
       }
       if (row.claimedPrice != null && (item.minPrice == null || row.claimedPrice < item.minPrice)) {
@@ -388,7 +400,7 @@ export class CustomerAnalyticsService {
     if (s.orderCount === 0) return `${name} 近 90 天暂无完成订单，暂无异常基线`;
     parts.push(`${name} 近 90 天完成 ${s.orderCount} 单、流水 ¥${Math.round(s.revenueYuan)}`);
     if (s.flaggedCount > 0) parts.push(`${s.flaggedCount} 单转账与上报金额不符`);
-    if (s.lowPriceCount > 0) parts.push(`${s.lowPriceCount} 次单价低于底线（机密 35 / 绝密 45）`);
+    if (s.lowPriceCount > 0) parts.push(`${s.lowPriceCount} 次单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）`);
     if (s.consumptionDropCount > 0) parts.push(`${s.consumptionDropCount} 位客户周消费腰斩`);
     if (s.durationDropCount > 0) parts.push(`${s.durationDropCount} 位客户服务时长骤降`);
     if (s.churnRiskCount > 0) parts.push(`${s.churnRiskCount} 位客户疑似流失`);

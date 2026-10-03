@@ -73,7 +73,7 @@ const RiskWorkbenchPage: React.FC = () => {
         style={{ marginBottom: 16 }}
         extra={
           <Text type="secondary" style={{ fontSize: 12 }}>
-            近 30 天双陪单：主陪价或副陪单价（副陪总价÷时长）低于底线（机密 35 / 绝密 45）标红；
+            近 30 天双陪单：主陪价或副陪单价（副陪总价÷时长）低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）标红；
             正好按底线打的单独计数（只是统计，不拦单）
           </Text>
         }
@@ -204,7 +204,7 @@ const RiskWorkbenchPage: React.FC = () => {
           />
         </Table>
         <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
-          📌 评分基于转账与上报差额、单价低于底线（机密 35 / 绝密 45）、周消费/时长腰斩、客户流失风险等信号综合计算，仅作抽查辅助，不自动判定责任。
+          📌 评分基于转账与上报差额、单价低于底线（首单 机密 35 / 绝密 45，续单 / 复购 机密 40 / 绝密 60）、周消费/时长腰斩、客户流失风险等信号综合计算，仅作抽查辅助，不自动判定责任。
         </Text>
       </Card>
     </div>
