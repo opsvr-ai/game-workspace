@@ -33,6 +33,25 @@ function isMachineSelfSource(source: unknown): boolean {
 }
 
 /**
+ * 这一行有没有「客户端心跳 / 看门狗自己写过」的**证据**。
+ *
+ * 为什么不能直接用 isMachineSelfSource（2026-10-03 修）：
+ * `isClientSource('')` 会把「没写 lastSource」当成老客户端行 → 返回 true，
+ * 于是一行既没有 `lastSource`、也没有 `appVersion` 的记录（只可能是运维脚本刚写出来的）
+ * 也会被当成「客户端那一行」，在主机名相同的情况下被认领。
+ * 机房里有 11 台机器都叫 `User-20240831VS`，脚本上报一旦认领到别的同名行，
+ * 远程账号口令 / 已开通状态 / 远程任务就全落到别人机器上了。
+ *
+ * 判据：显式写过 `*-client` / `watchdog`；或者没写 source 但**带 appVersion**
+ * （老客户端行，读机器上的 exe 版本才有；运维脚本不写这个字段）。
+ */
+function isMachineSelfRow(value: any): boolean {
+  const src = String(value?.lastSource ?? '').trim();
+  if (src) return isMachineSelfSource(src);
+  return !!String(value?.appVersion ?? '').trim();
+}
+
+/**
  * 客户端机器台账 + 远程任务队列。
  *
  * 为什么要有这个（老板 2026-09-30）：
@@ -175,15 +194,24 @@ export class MachineService {
       .map((row) => (row.value as any) || {})
       .filter((value: any) => String(value.hostname || '').toLowerCase() === host);
     if (!sameHost.length) return null;
-    // 只认「客户端心跳明确写过 source」的行（scripts 走的是 enable-remote / diag 之类）。
-    const clientRows = sameHost.filter((value: any) => isMachineSelfSource(value.lastSource));
-    // 这台机器名下只有一条客户端行：主机名对上就认它（IP 可能因为虚拟网卡不一样）
-    if (clientRows.length === 1) return clientRows[0];
+    // 「客户端心跳 / 看门狗」自己报过的行（运维脚本走的是 enable-remote / diag，不算）。
+    // 这里用 isMachineSelfRow 而不是 isMachineSelfSource：没有心跳证据的行（只有主机名 + IP）
+    // 不能算客户端行，否则同名机器会互相认领（2026-10-03 修，见上面注释）。
+    const clientRows = sameHost.filter((value: any) => isMachineSelfRow(value));
     const sameIp = sameHost.filter((value: any) => String(value.primaryIp || '') === primaryIp);
+    // 这台机器名下只有一条「客户端心跳」行：主机名对上就认它（IP 可能因虚拟网卡不一样）。
+    // 只有心跳行有这个特权 —— 心跳就是这台机器自己在说话。
+    if (clientRows.length === 1) return clientRows[0];
     const ipClient = sameIp.find((value: any) => isMachineSelfSource(value.lastSource));
     if (ipClient) return ipClient;
-    // 同名机器不止一台：只能靠 IP 认，IP 也对不上就别猜（宁可在台账里多一行）
+    // 同名机器不止一台心跳：只能靠 IP 认，IP 也对不上就别猜（宁可在台账里多一行）
     if (clientRows.length > 1) return null;
+    // 一条心跳都没有：剩下的都是运维脚本行（enable-remote / diag）。
+    // **脚本行只能靠 IP 认领**（2026-10-03 修）：机房里有 11 台机器主机名都叫
+    // `User-20240831VS`（装机镜像的通用名），原来这里不看 IP 直接 return sameIp[0]，
+    // 于是 192.168.0.179 那台上报会被认成 192.168.0.125 那一行 —— 台账串号：
+    // 远程账号口令、已开通状态、远程任务全落到别人机器上。脚本行 IP 对不上就不认领。
+    if (!ipClient && !sameIp.length) return null;
     return sameIp[0] ?? null;
   }
 

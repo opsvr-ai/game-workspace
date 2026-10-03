@@ -796,7 +796,14 @@ export class CommissionService {
     const baseSalaryOf = (userId: string) =>
       Number(profileByUser.get(userId)?.baseSalaryYuan ?? salaryCfg.baseSalary ?? 0);
     const monthByUser = new Map((monthBuilt.rows as any[]).map((r) => [r.userId, r]));
-    const monthDays = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    // 当月天数：必须跟「月度提成明细」同一个口径（见本文件 buildCsSalaryRows 里的
+    // `new Date(start.getFullYear(), start.getMonth() + 1, 0)`）。
+    // 这里原来写的是 `new Date(end.getFullYear(), end.getMonth(), 0)`，而 end 来自
+    // currentBusinessDayRange()（= 明天 12:00），于是「当月天数」实际取成了**上个月**的天数：
+    // 2026-09-30 当日看板满勤算 31-4=27 天、月度明细算 30-4=26 天，日薪 111.11 vs 115.38 对不上
+    // —— 正是老板 2026-09-30 说的「两个口径不是一套」。现在统一从结算月开始取。
+    // （2026-10-03 修；回归用例见 __tests__/cs-no-base-deduction.test.ts）
+    const monthDays = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
     const fullAttendance = Math.max(1, monthDays - salaryCfg.restDays);
     // 每个人生效的那一套（他自己填过就用他的）
     const moneyCfgCache = new Map<string, any>();

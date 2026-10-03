@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CommissionService } from '../finance/commission.service';
 import { PayrollService } from '../payroll/payroll.service';
+import { settlementMonthRange } from '../common/business-day';
 
 /**
  * 底薪一律不打折（老板 2026-09-30）。
@@ -115,6 +116,56 @@ describe('底薪不打折 · 一套口径（老板 2026-09-30）', () => {
     expect(row.baseSalary).toBe(3000);
     expect(row.baseEffective).toBe(3000); // 以前这里是 1500
     expect(mine.config.baseSalary).toBe(3000);
+  });
+
+  /**
+   * 回归（2026-10-03 修）：看板的「日薪」必须和月度提成明细用同一个分母 —— 当月天数按
+   * **本结算月**算，不能借用别的日期去反推。
+   *
+   * 原来 getCsCommissionToday 写的是 `new Date(end.getFullYear(), end.getMonth(), 0)`，
+   * 而 end 来自 currentBusinessDayRange()（= 明天 12:00）：于是「当月天数」实际取成了
+   * **上个月**的天数。9 月第 30 天：看板算 31-4=27 天（日薪 111.11）、月度明细算 30-4=26 天
+   * （日薪 115.38）—— 两个口径不是一套，正是老板 2026-09-30 说的那个问题。
+   *
+   * 这里把系统时间钉在 9 月 30 日，直接断言日薪 = 底薪 ÷ (当月天数 − 月休天数)。
+   */
+  describe('看板日薪口径（跨月回归）', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('9 月：日薪 = 3000 ÷ (30 − 4) = 115.38，与月度明细同源', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 8, 30, 20, 0, 0)); // 2026-09-30 20:00（第 30 天）
+
+      const svc = new CommissionService(makePrisma({}, [offlineOrder()]));
+      const today = await svc.getCsCommissionToday(STUDIO);
+      const row = today.csList[0] as any;
+
+      const { start } = settlementMonthRange('2026-09');
+      const monthDays = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate(); // 30
+      const fullAttendance = monthDays - 4; // 月休 4 天 → 26
+
+      expect(monthDays).toBe(30);
+      expect(row.salaryDaily).toBeCloseTo(3000 / fullAttendance, 2); // 115.38
+      expect(row.salaryDaily).not.toBeCloseTo(3000 / (monthDays + 1 - 4), 2); // 不能是 27 天
+    });
+
+    it('10 月：日薪 = 3000 ÷ (31 − 4) = 111.11（跨月后不会还按 9 月算）', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 9, 3, 20, 0, 0)); // 2026-10-03 20:00
+
+      const svc = new CommissionService(makePrisma({}, [offlineOrder()]));
+      const today = await svc.getCsCommissionToday(STUDIO);
+      const row = today.csList[0] as any;
+
+      const { start } = settlementMonthRange('2026-10');
+      const monthDays = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate(); // 31
+      const fullAttendance = monthDays - 4; // 27
+
+      expect(monthDays).toBe(31);
+      expect(row.salaryDaily).toBeCloseTo(3000 / fullAttendance, 2); // 111.11
+    });
   });
 
   it('工资生成：整月桥接没到目标，底薪照发全额', async () => {
