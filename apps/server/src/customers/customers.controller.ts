@@ -32,6 +32,22 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 客户看板（老板 2026-10-03）：「店长端 + 陪玩端 加一个看板，罗列所有的客户，
+   * 每个客户的消费情况 + 是不是正在跟陪玩打游戏……消费金额 / 游戏时长 / 正在跟陪玩打的排在最上边」。
+   *
+   * MUST be before :id routes（`customers/:id` 会把 `board` 当成一个 id）。
+   * 四个角色都能进：陪玩只拿到自己的客户，店长 / 客服拿到本店，老板拿全站。
+   */
+  @Get('customers/board')
+  async customerBoard(
+    @Req() req: any,
+    @Query('sort') sort?: string,
+    @Query('companionId') companionId?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.customerBoard(req.user, { sort, companionId });
+    return { code: 200, message: 'ok', data };
+  }
   // ── Traffic Pool (MUST be before :id routes) ──
 
   @Get('customers/traffic/pool')

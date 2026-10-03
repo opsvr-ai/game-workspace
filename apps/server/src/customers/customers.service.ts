@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { canSeeCustomerSource } from '../common/order-privacy';
 import type { UserRole } from '@chunlv/shared';
 
 export interface CreateCustomerDto {
@@ -98,6 +99,339 @@ export class CustomersService {
     });
   }
 
+  /**
+   * 客户看板（老板 2026-10-03）。
+   *
+   * 老板原话：「店长端 + 陪玩端 加一个看板，罗列所有的客户，每个客户的消费情况 +
+   * 是不是正在跟陪玩打游戏，都列出来，消费金额或者游戏时长或者正在跟陪玩打的排在最上边……
+   * 店长需要掌控并知道每个陪玩什么样、每个陪玩的客户现在什么样，要一个动态看板，
+   * 让所有人都能一目了然知道自己的陪玩或者自己的客户到底什么样。」
+   *
+   * 一张表同时回答三个问题：
+   *  ① 客户什么样 —— 消费金额（口径 = 已完成单 `DONE`，跟盈亏统计 / 报账一致）、
+   *     已完成单数、累计游戏时长（已完成会话 duration 之和，单位小时）、最近一单、
+   *     客户状态、客户存款；
+   *  ② 陪玩什么样 —— 这个人现在什么状态（接单中 / 娱乐中 / 空闲 / 休息 / 离线）、
+   *     电脑在不在线、此刻正在给哪个客户打；
+   *  ③ 现在什么样 —— 这个客户此刻是不是正在跟陪玩打、打的哪张单、什么游戏、
+   *     已经打了多久、跟谁一起打。
+   *
+   * 可见范围（和「客户管理」同一套口径，不能因为多了个看板就多看到东西）：
+   *  - 陪玩：只有自己的客户（`companionId = 我`）；
+   *  - 店长 / 客服：本店；
+   *  - 老板：全部工作室。
+   *  客户来源（来源平台 / 引流账号）仍然只有「发单工作室的管理端」看得到 —— 这里自己先抹一遍，
+   *  不指望响应拦截器（拦截器只认 `customFields` 里那几个键，认不出 `platformAccount` 这一列）。
+   *
+   * @param opts.sort `live`（默认：正在打的排最前，再按消费金额 / 时长）/ `spent` / `hours` / `recent`
+   */
+  async customerBoard(user: AuthenticatedUser, opts: { sort?: string; companionId?: string } = {}) {
+    const isCompanionViewer = user.role === 'COMPANION';
+    const scope = isCompanionViewer ? 'own' : user.role === 'OWNER' ? 'all' : 'studio';
+    const empty = {
+      rows: [],
+      companions: [],
+      counts: { customers: 0, serving: 0, spentTotal: 0, hoursTotal: 0, companions: 0, unassigned: 0 },
+      scope,
+      updatedAt: new Date().toISOString(),
+    };
+    // 陪玩账号没挂 Companion 档案：宁可给空，也不要把全店 / 全站客户漏出去。
+    if (isCompanionViewer && !user.companionId) return empty;
+
+    const customerWhere: any = { isDeletedByCustomer: false };
+    if (isCompanionViewer) customerWhere.companionId = user.companionId;
+    else if (user.role !== 'OWNER') customerWhere.studioId = user.studioId;
+    if (!isCompanionViewer && opts.companionId) customerWhere.companionId = opts.companionId;
+
+    const companionWhere: any = { isResigned: false };
+    if (user.role !== 'OWNER') companionWhere.studioId = user.studioId;
+    if (isCompanionViewer) companionWhere.id = user.companionId;
+    else if (opts.companionId) companionWhere.id = opts.companionId;
+
+    const [customers, scopedCompanions] = await Promise.all([
+      this.prisma.customer.findMany({
+        where: customerWhere,
+        select: {
+          id: true,
+          customerCode: true,
+          wechatId: true,
+          studioId: true,
+          companionId: true,
+          platform: true,
+          platformAccount: true,
+          status: true,
+          scheduledAt: true,
+          depositBalance: true,
+          createdAt: true,
+          studio: { select: { name: true } },
+        },
+      }),
+      this.prisma.companion.findMany({
+        where: companionWhere,
+        select: {
+          id: true,
+          status: true,
+          user: { select: { username: true, displayName: true, avatar: true } },
+          pc: { select: { lastHeartbeat: true } },
+        },
+      }),
+    ]);
+
+    const ids = customers.map((c) => c.id);
+    const noRows: any[] = [];
+    const [orders, liveSessions] = await Promise.all([
+      ids.length
+        ? this.prisma.order.findMany({
+            where: { customerId: { in: ids } },
+            select: { id: true, customerId: true, status: true, amount: true, createdAt: true },
+          })
+        : Promise.resolve(noRows),
+      ids.length
+        ? this.prisma.orderSession.findMany({
+            where: {
+              status: 'ACTIVE',
+              startedAt: { not: null },
+              endedAt: null,
+              parentOrder: { customerId: { in: ids } },
+            },
+            orderBy: { startedAt: 'desc' },
+            select: {
+              id: true,
+              companionId: true,
+              coCompanionId: true,
+              amount: true,
+              coAmount: true,
+              duration: true,
+              startedAt: true,
+              pausedAt: true,
+              totalPausedSec: true,
+              parentOrder: {
+                select: {
+                  id: true,
+                  orderCode: true,
+                  gameName: true,
+                  customerId: true,
+                  studio: { select: { name: true } },
+                },
+              },
+            },
+          })
+        : Promise.resolve(noRows),
+    ]);
+
+    // 累计游戏时长：已完成会话的 duration（小时）按订单归到客户身上
+    const orderIds = orders.map((o: any) => o.id);
+    const durationSums = orderIds.length
+      ? await this.prisma.orderSession.groupBy({
+          by: ['parentOrderId'],
+          where: { parentOrderId: { in: orderIds }, status: 'DONE' },
+          _sum: { duration: true },
+        })
+      : ([] as any[]);
+
+    // 名字 / 头像 / 状态：把「客户归属的陪玩」和「正在一起打的两个陪玩」收进同一份索引。
+    const refIds = new Set<string>();
+    for (const c of scopedCompanions) refIds.add(c.id);
+    for (const c of customers) if (c.companionId) refIds.add(c.companionId);
+    for (const s of liveSessions as any[]) {
+      if (s.companionId) refIds.add(s.companionId);
+      if (s.coCompanionId) refIds.add(s.coCompanionId);
+    }
+    const refCompanions: any[] = refIds.size
+      ? await this.prisma.companion.findMany({
+          where: { id: { in: [...refIds] } },
+          select: {
+            id: true,
+            status: true,
+            isResigned: true,
+            user: { select: { username: true, displayName: true, avatar: true } },
+            pc: { select: { lastHeartbeat: true } },
+          },
+        })
+      : noRows;
+    const infoOf = new Map<string, any>(refCompanions.map((c) => [c.id, c]));
+    const now = Date.now();
+    const ONLINE_MS = 120_000;
+    const isOnline = (id?: string | null): boolean => {
+      if (!id) return false;
+      const hb = infoOf.get(id)?.pc?.lastHeartbeat;
+      return !!hb && now - new Date(hb).getTime() < ONLINE_MS;
+    };
+    const nameOf = (id?: string | null): string => {
+      const c = id ? infoOf.get(id) : null;
+      return c?.user?.displayName || c?.user?.username || '';
+    };
+    const round1 = (n: unknown) => Math.round((Number(n) || 0) * 10) / 10;
+
+    const stats = new Map<string, { orderCount: number; spent: number; hours: number; lastOrderAt: Date | null; lastDoneAt: Date | null }>();
+    for (const c of customers) {
+      stats.set(c.id, { orderCount: 0, spent: 0, hours: 0, lastOrderAt: null, lastDoneAt: null });
+    }
+    const customerOfOrder = new Map<string, string>();
+    for (const o of orders as any[]) {
+      customerOfOrder.set(o.id, o.customerId);
+      const st = stats.get(o.customerId);
+      if (!st) continue;
+      if (!st.lastOrderAt || o.createdAt > st.lastOrderAt) st.lastOrderAt = o.createdAt;
+      if (o.status === 'DONE') {
+        st.orderCount += 1;
+        st.spent += Number(o.amount) || 0;
+        if (!st.lastDoneAt || o.createdAt > st.lastDoneAt) st.lastDoneAt = o.createdAt;
+      }
+    }
+    for (const g of durationSums as any[]) {
+      const cid = customerOfOrder.get(g.parentOrderId);
+      const st = cid ? stats.get(cid) : null;
+      if (st) st.hours += Number(g._sum?.duration) || 0;
+    }
+
+    const liveByCustomer = new Map<string, any>();
+    for (const s of liveSessions as any[]) {
+      const cid = s.parentOrder?.customerId;
+      if (cid && !liveByCustomer.has(cid)) liveByCustomer.set(cid, s);
+    }
+
+    const rows = customers.map((c) => {
+      const st = stats.get(c.id)!;
+      const s = liveByCustomer.get(c.id) || null;
+      const owner = c.companionId ? infoOf.get(c.companionId) : null;
+      const canSeeSource = canSeeCustomerSource(user, c.studioId);
+      let live: any = null;
+      if (s) {
+        let elapsedSec = 0;
+        if (s.startedAt) {
+          elapsedSec =
+            Math.round((now - new Date(s.startedAt).getTime()) / 1000) - (s.totalPausedSec || 0);
+          if (s.pausedAt) {
+            elapsedSec -= Math.max(0, Math.round((now - new Date(s.pausedAt).getTime()) / 1000));
+          }
+          elapsedSec = Math.max(0, elapsedSec);
+        }
+        // 客户归属的那个人是不是这张单的主陪，决定「搭档」显示谁
+        const assignedIsMain = !!c.companionId && s.companionId === c.companionId;
+        const partnerId = assignedIsMain ? s.coCompanionId : s.companionId;
+        const servingId = c.companionId || s.companionId || s.coCompanionId || null;
+        live = {
+          sessionId: s.id,
+          orderId: s.parentOrder?.id || '',
+          orderCode: s.parentOrder?.orderCode || '',
+          gameName: s.parentOrder?.gameName || '',
+          orderStudioName: s.parentOrder?.studio?.name || '',
+          startedAt: s.startedAt,
+          paused: !!s.pausedAt,
+          elapsedSec,
+          plannedHours: Number(s.duration) || 0,
+          mainCompanionId: s.companionId || null,
+          mainCompanionName: nameOf(s.companionId),
+          coCompanionId: s.coCompanionId || null,
+          coCompanionName: nameOf(s.coCompanionId),
+          partnerId: partnerId || null,
+          partnerName: nameOf(partnerId),
+          servingCompanionId: servingId,
+          servingCompanionName: nameOf(servingId),
+          role: assignedIsMain ? 'MAIN' : 'CO',
+        };
+      }
+      return {
+        customerId: c.id,
+        studioId: c.studioId,
+        studioName: c.studio?.name || '',
+        customerCode: c.customerCode,
+        wechatId: c.wechatId || '',
+        status: c.status,
+        scheduledAt: c.scheduledAt,
+        createdAt: c.createdAt,
+        depositBalance: round1(c.depositBalance),
+        platform: canSeeSource ? c.platform || '' : '',
+        platformAccount: canSeeSource ? c.platformAccount || '' : '',
+        companionId: c.companionId || null,
+        companionName: nameOf(c.companionId),
+        companionAvatar: owner?.user?.avatar || null,
+        companionStatus: owner?.status || null,
+        companionOnline: isOnline(c.companionId),
+        companionResigned: !!owner?.isResigned,
+        orderCount: st.orderCount,
+        spent: round1(st.spent),
+        hours: round1(st.hours),
+        lastOrderAt: st.lastOrderAt,
+        lastDoneAt: st.lastDoneAt,
+        live,
+      };
+    });
+
+    // 排序：默认「正在打的最上边」，然后消费金额、游戏时长、最近一单。
+    const sortMode = opts.sort || 'live';
+    const liveFirst = (r: any) => (r.live ? 0 : 1);
+    const ts = (d: Date | null) => (d ? new Date(d).getTime() : 0);
+    rows.sort((a: any, b: any) => {
+      if (sortMode === 'recent') return ts(b.lastOrderAt) - ts(a.lastOrderAt);
+      if (liveFirst(a) !== liveFirst(b)) return liveFirst(a) - liveFirst(b);
+      if (sortMode === 'hours') {
+        if (b.hours !== a.hours) return b.hours - a.hours;
+        return b.spent - a.spent;
+      }
+      if (b.spent !== a.spent) return b.spent - a.spent;
+      if (b.hours !== a.hours) return b.hours - a.hours;
+      return ts(b.lastOrderAt) - ts(a.lastOrderAt);
+    });
+
+    // 陪玩分组：店长要「每个陪玩什么样、他的客户现在什么样」，所以再按陪玩归一份汇总。
+    const groupIds = new Set<string>();
+    for (const c of scopedCompanions) groupIds.add(c.id);
+    for (const r of rows) if (r.companionId) groupIds.add(r.companionId);
+    const groups = [...groupIds].map((id) => {
+      const info = infoOf.get(id);
+      const mine = rows.filter((r: any) => r.companionId === id);
+      const liveRow: any = mine.find((r: any) => r.live) || null;
+      return {
+        companionId: id,
+        name: nameOf(id) || '已删除的陪玩',
+        username: info?.user?.username || '',
+        avatar: info?.user?.avatar || null,
+        status: info?.status || 'OFFLINE',
+        online: isOnline(id),
+        resigned: !!info?.isResigned,
+        customers: mine.length,
+        spent: round1(mine.reduce((s: number, r: any) => s + r.spent, 0)),
+        hours: round1(mine.reduce((s: number, r: any) => s + r.hours, 0)),
+        servingCustomer: liveRow
+          ? {
+              customerId: liveRow.customerId,
+              customerCode: liveRow.customerCode,
+              gameName: liveRow.live.gameName,
+              orderCode: liveRow.live.orderCode,
+              paused: liveRow.live.paused,
+              elapsedSec: liveRow.live.elapsedSec,
+            }
+          : null,
+      };
+    });
+    const statusRank: Record<string, number> = { BUSY: 0, ENTERTAINMENT: 1, AVAILABLE: 2, RESTING: 3, OFFLINE: 4 };
+    groups.sort((a, b) => {
+      if (!!a.servingCustomer !== !!b.servingCustomer) return a.servingCustomer ? -1 : 1;
+      if (a.online !== b.online) return a.online ? -1 : 1;
+      const ra = statusRank[a.status] ?? 5;
+      const rb = statusRank[b.status] ?? 5;
+      if (ra !== rb) return ra - rb;
+      if (b.spent !== a.spent) return b.spent - a.spent;
+      return String(a.name).localeCompare(String(b.name), 'zh-CN');
+    });
+
+    return {
+      rows,
+      companions: groups,
+      counts: {
+        customers: rows.length,
+        serving: rows.filter((r: any) => r.live).length,
+        spentTotal: round1(rows.reduce((s: number, r: any) => s + r.spent, 0)),
+        hoursTotal: round1(rows.reduce((s: number, r: any) => s + r.hours, 0)),
+        companions: groups.length,
+        unassigned: rows.filter((r: any) => !r.companionId).length,
+      },
+      scope,
+      updatedAt: new Date().toISOString(),
+    };
+  }
   async findOne(id: string, user?: AuthenticatedUser) {
     const where: any = { id };
     // Studio isolation: non-OWNER users can only see customers in their studio

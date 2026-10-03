@@ -24,4 +24,7 @@ export const customersApi = {
     http.post(`/customers/${id}/deposits`, data),
   trafficPool: (platform?: string) => http.get('/customers/traffic/pool', { params: { platform } }),
   trafficStats: () => http.get('/customers/traffic/stats'),
+  /** 客户看板：所有客户 + 消费 / 时长 / 此刻在不在打（老板 2026-10-03） */
+  board: (params?: { sort?: string; companionId?: string }) =>
+    http.get('/customers/board', { params }),
 };

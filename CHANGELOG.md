@@ -11,6 +11,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **新增「客户看板」（店长 / 陪玩 / 客服 / 老板，老板 2026-10-03，网页 `v880`）**：
+  老板原话：「店长端 + 陪玩端 加一个看板，罗列所有的客户，每个客户的消费情况 + 是不是正在跟陪玩打游戏，
+  消费金额或者游戏时长或者正在跟陪玩打的排在最上边……让所有人都能一目了然知道自己的陪玩或者自己的客户到底什么样」。
+  新增 `GET /api/customers/board`（`customers.service.ts#customerBoard`）+ 新页 `apps/web/src/pages/CustomerBoardPage.tsx`
+  （菜单「客户看板」，`owner|admin|cs|companion/customer-board` 四条路由，老板 / 店长 / 客服 / 陪玩都能进）。
+  - **口径**：客户**消费金额** = 该客户已完成单（`DONE`）金额之和（与盈亏统计 / 报账一致；`Customer.totalSpent` 线上全是 0，不能用）；
+    **累计时长** = 已完成会话（`OrderSession.status='DONE'`）的 `duration` 之和，按订单归到客户；
+    **是不是正在打** = 存在 `ACTIVE` 且已开打的会话命中该客户，带游戏名、单号、已打多久、主陪 / 搭档。
+  - **可见范围**：陪玩只看自己的客户；店长 / 客服看本店；老板看全站。
+  - **来源保护**：客户来源平台 / 引流账号只有发单工作室的管理端看得到，陪玩被抹掉 —— 由服务层
+    `canSeeCustomerSource(user, studioId)` 处理（`CustomerProfileSourceMaskInterceptor` 只认 `customFields` 里的键，认不出 `platformAccount` 这一列）。
+  - **客户微信**：店长 / 客服 / 老板看得到（等同「客户管理」），但前端默认打码 `••••••`，右上角「显示微信号」开关可展开（看板可能挂墙）。
+  - **排序**：`live`（默认：正在打的排最前，再按消费金额 / 时长）/ `spent` / `hours` / `recent`；顶部统计客户总数 / 正在打 / 累计消费 / 累计时长 / 陪玩数；
+    一排陪玩小卡点一下只看这个陪玩（再点取消）＋「总表 / 按陪玩分组」切换；正在打的行整行呼吸闪烁。15 秒轮询 + 秒级本地走字。
+
 - **管理端「实时看板」上线（老板 2026-10-03：「谁跟谁在接单中、谁谁娱乐中、谁谁空闲中，也显示正在打什么游戏、打了多久…一目了然，不用挨个问」）**。
   新增 `GET /api/companions/live-board`（老板 / 店长 / 客服可看），`companions.service.ts#liveBoard`：
   在线口径 = 该陪玩电脑最近 2 分钟内有心跳；接单中 = 存在 `ACTIVE` 且已开打的会话，**主陪、副陪各出一行**，

@@ -145,6 +145,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-customers', icon: IconCustomers, label: '客户管理',
       children: [
         { key: '/owner/customers', label: '客户列表' },
+        { key: '/owner/customer-board', label: '客户看板' },
       ],
     },
     {
@@ -269,6 +270,7 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-customers', icon: IconCustomers, label: '客户管理',
       children: [
         { key: '/admin/customers', label: '客户列表' },
+        { key: '/admin/customer-board', label: '客户看板' },
       ],
     },
     {
@@ -428,7 +430,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'companion-customers', icon: IconCustomers, label: '客户管理',
-      children: [{ key: '/companion/customers', label: '我的客户' }],
+      children: [
+        { key: '/companion/customers', label: '我的客户' },
+        { key: '/companion/customer-board', label: '客户看板' },
+      ],
     },
     {
       key: 'companion-battle-screenshots', icon: IconPicture, label: '战绩图上传',

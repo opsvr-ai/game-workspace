@@ -54,6 +54,7 @@ function RouteErrorBoundary() {
 
 import UnifiedDashboard from './pages/admin/UnifiedDashboard';
 import LiveBoardPage from './pages/admin/LiveBoardPage';
+import CustomerBoardPage from './pages/CustomerBoardPage';
 import CustomersPage from './pages/CustomersPage';
 import DispatchPage from './pages/DispatchPage';
 import OrdersPage from './pages/OrdersPage';
@@ -179,9 +180,17 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
+     {
+        path: 'customer-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
       {
         path: 'customers',
-        element: (
+       element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CustomersPage />
           </Suspense>
@@ -242,9 +251,17 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
+     {
+        path: 'customer-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
       {
         path: 'owner/customers',
-        element: (
+       element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CustomersPage />
           </Suspense>
@@ -394,9 +411,17 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
+     {
+        path: 'customer-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
       {
         path: 'admin/customers',
-        element: (
+       element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CustomersPage />
           </Suspense>

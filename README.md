@@ -19,7 +19,7 @@
 
 ## Recent Updates (v3.3.0)
 
-- **全站弹窗 / 邀请统一成「可点击横幅」，客户管理「服务中」整行闪烁，订单管理给陪玩加「我服务的」一栏，管理端新增「实时看板」（2026-10-03，客户端 `1.0.20261008` + 网页 `v879`）:**
+- **全站弹窗 / 邀请统一成「可点击横幅」，客户管理「服务中」整行闪烁，订单管理给陪玩加「我服务的」一栏，管理端新增「实时看板」，客户看板看消费与在打（2026-10-03，客户端 `1.0.20261008` + 网页 `v880`）:**
   - **弹窗统一：** 老板「所有涉及弹窗或者邀请的，都给我做成客服发布订单时广播那个效果：陪玩游戏中也能出现弹窗，点击能跳转」。
     以前只有客服发单那条横幅能点，搭档邀请 / 转让 / @提醒 / 账目异常都是普通系统通知、点了不跳转。现在统一走横幅：
     横幅 HTML 支持 `action` / `actionPayload`，新增 IPC `banner:action`（先把主窗口拉到最前，再给界面发 `banner-action`），
@@ -32,6 +32,11 @@
   - **实时看板：** 新增 `GET /api/companions/live-board`（OWNER / ADMIN / CS）与新页 `LiveBoardPage`
     （菜单 `owner|admin|cs/live-board`）。顶部 5 个数（接单中 / 娱乐中 / 空闲 / 休息 / 离线）+ 接单中卡片：
     主陪副陪各一行，写明搭档是谁、在打什么游戏、客户编号、已打多久（扣累计暂停）。15 秒轮询、时长本地走字。
+  - **客户看板（老板 / 店长 / 客服 / 陪玩）:** 老板「罗列所有客户，每个客户的消费情况 + 是不是正在跟陪玩打游戏」。
+    新增 `GET /api/customers/board` 与新页 `CustomerBoardPage`（菜单「客户看板」）：客户消费金额（已完成单口径）、
+    累计时长（已完成会话口径）、此刻在不在打（在打的行呼吸闪烁，带游戏 / 单号 / 已打多久 / 主陪与搭档）；
+    默认「正在打 → 消费 → 时长」排序，可切「按陪玩分组」，一排陪玩小卡点一下只看这个人。
+    陪玩只看自己的客户，来源平台 / 引流账号对陪玩隐藏；客户微信默认打码、右上角开关展开。15 秒轮询、时长本地走字。
   - **看门狗：** `2026100301` 已铺到云端并把 `watchdog.latest_build` 提到 `2026100301`；
     云端补上 `uploads/watchdog-guard.ps1`（以前云端根本没这文件，多数机器那条每 5 分钟的自愈计划任务压根没建起来）。
 
@@ -1139,6 +1144,7 @@ Every endpoint returns a standard JSON envelope:
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
 | `GET` | `/api/customers` | JWT | -- | List customers (data isolation by role). |
+| `GET` | `/api/customers/board` | JWT | OWNER, ADMIN, CS, COMPANION | 客户看板：所有可见客户的消费（已完成单）、累计时长（已完成会话）、是否正在跟陪玩打。Query `?sort=live\|spent\|hours\|recent` + `&companionId=`。陪玩=自己的客户、店长/客服=本店、老板=全站；来源平台 / 引流账号对陪玩隐藏。 |
 | `GET` | `/api/customers/:id` | JWT | -- | Get customer detail. |
 | `POST` | `/api/customers` | JWT | ADMIN, OWNER, CS | Create a new customer. |
 | `PUT` | `/api/customers/:id` | JWT | ADMIN, OWNER | Update customer fields. |

@@ -17,6 +17,14 @@
   以及「`ACTIVE` 且已 `startedAt`」的会话 —— **主陪、副陪各出一行**，写搭档、游戏、客户**编号**、
   已打时长（`elapsedSec` 扣累计暂停）。权限 OWNER / ADMIN / CS，前端 15 秒轮询、时长本地走字。
 
+- **客户看板（2026-10-03，`GET /api/customers/board` + `pages/CustomerBoardPage.tsx`）**：
+  `CustomersService.customerBoard(user, { sort, companionId })` 汇总每个客户的消费与在打情况 ——
+  消费 = 已完成单（`DONE`）金额之和、时长 = 已完成会话（`OrderSession.status='DONE'`）`duration` 之和、
+  在打 = `ACTIVE` 且已开打的会话命中该客户（`parentOrder.customerId`）。
+  范围与「客户管理」一致（陪玩=自己的客户 / 店长·客服=本店 / 老板=全站）；来源平台 / 引流账号用
+  `canSeeCustomerSource(user, studioId)` 在**服务层**抹掉（拦截器认不出 `platformAccount` 这一列）。
+  排序 `live`（默认，正在打优先→消费→时长）/ `spent` / `hours` / `recent`；前端 15 秒轮询、正在打的行呼吸闪烁。
+
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。
   没有 `companionId` 的账号走这条分支时直接返回空数组（防越权）。非主陪的 `served` 单统一过
