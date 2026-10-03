@@ -85,9 +85,10 @@ export class CompanionsController {
   }
 
   // 实时看板：谁跟谁在接单中 / 谁娱乐 / 谁空闲 + 在打什么游戏、打了多久（老板 2026-10-03）。
-  // 派单的人（客服 / 店长 / 老板）才看得到，陪玩端不开放。
+  // 2026-10-04 起也开放给陪玩端（老板：「也给他们加上，方便提前预约快打完的人 / 邀请桥接工作室的陪玩」）：
+  // 陪玩只看到本店 + 桥接工作室的人，且只有自己那一格显示业绩，别人只给订单信息。
   @Get('companions/live-board')
-  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
   async liveBoard(@Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.liveBoard(req.user);
     return { code: 200, message: 'ok', data };

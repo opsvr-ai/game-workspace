@@ -285,10 +285,39 @@ export class CompanionsService {
    *  - 时长 = 从 startedAt 到现在，扣掉累计暂停（暂停中的那一段也扣）。
    *
    * 隐私：只下发客户**编号**，不下发客户微信 —— 看板是派单用的，不是给谁抄客户的。
+   *
+   * 2026-10-04 扩展（老板：「这个看板也给陪玩端加上……把桥接工作室的也加进来，但不显示他们挣了多少，
+   * 只标注订单信息，方便蠢驴电竞线下找不到人的时候可以邀请桥接工作室的陪玩」）：
+   *  - 可见范围：老板 = 全站；店长 / 客服 / 陪玩 = 本店 + **桥接工作室**（方便照着看板去邀请桥接的人）；
+   *  - 金额保护：桥接工作室的人一律不显示业绩/本单金额（只留订单信息：在打什么、跟谁、多久、单号）；
+   *    陪玩端更是只在**自己那一格**显示业绩，同店同事也不给看，免得把别人的收入摊在所有人面前。
    */
   async liveBoard(user: any) {
+    const viewerIsCompanion = user.role === 'COMPANION';
+    const myCompanionId: string | null = viewerIsCompanion ? (user.companionId || null) : null;
+
     const where: any = { isResigned: false, user: { resignedAt: null } };
-    if (user.role !== 'OWNER') where.studioId = user.studioId;
+    let ownStudioId: string | null = null;
+    if (user.role !== 'OWNER') {
+      if (!user.studioId) {
+        // 没挂工作室的账号（异常数据）：宁可给空，也绝不能因为 studioId 为空把全站漏出去。
+        return {
+          rows: [],
+          updatedAt: new Date().toISOString(),
+          counts: { serving: 0, entertainment: 0, available: 0, resting: 0, offline: 0 },
+        };
+      }
+      const ownId: string = user.studioId;
+      ownStudioId = ownId;
+      let studioIds: string[] = [ownId];
+      try {
+        const bridged = await this.bridgeService.getBridgedStudioIds(ownId);
+        studioIds = [...new Set([...studioIds, ...(bridged || [])])];
+      } catch {
+        // 桥接表查不到就退回只看本店，别把整个看板拖挂。
+      }
+      where.studioId = studioIds.length > 1 ? { in: studioIds } : ownId;
+    }
 
     const companions = await this.prisma.companion.findMany({
       where,
@@ -413,6 +442,9 @@ export class CompanionsService {
       const hb = c.pc?.lastHeartbeat ? new Date(c.pc.lastHeartbeat).getTime() : 0;
       const online = !!hb && now - hb < ONLINE_MS;
       const s = byCompanion.get(c.id) || null;
+      const isOwnStudio = !ownStudioId ? true : c.studioId === ownStudioId;
+      const earningsHidden =
+        (viewerIsCompanion && c.id !== myCompanionId) || (user.role !== 'OWNER' && !isOwnStudio);
       let elapsedSec = 0;
       if (s?.startedAt) {
         elapsedSec = Math.max(0, Math.round((now - new Date(s.startedAt).getTime()) / 1000) - (s.totalPausedSec || 0));
@@ -431,7 +463,10 @@ export class CompanionsService {
         online,
         lastHeartbeat: c.pc?.lastHeartbeat || null,
         studioName: c.studio?.name || '',
-        todayRevenue: roundToJiao(todayRevMap.get(c.id) || 0),
+        // 桥接工作室的人：只标注在不在忙、在打什么，不给业绩。
+        isBridged: !isOwnStudio,
+        earningsHidden,
+        todayRevenue: earningsHidden ? null : roundToJiao(todayRevMap.get(c.id) || 0),
         todayOrders: todayCountMap.get(c.id) || 0,
         todayMinutes: Math.round((todayWorkSecMap.get(c.id) || 0) / 60),
         serving: s
@@ -449,7 +484,7 @@ export class CompanionsService {
               role: s.roleInSession,
               partnerId,
               partnerName: nameOf(partnerId),
-              myAmount: s.roleInSession === 'MAIN' ? s.amount : s.coAmount ?? null,
+              myAmount: earningsHidden ? null : (s.roleInSession === 'MAIN' ? s.amount : s.coAmount ?? null),
             }
           : null,
       };

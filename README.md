@@ -4,6 +4,12 @@
 
 ---
 
+- **实时看板开放给陪玩端，并把桥接工作室的人一起显示（只给订单信息、不给业绩）（2026-10-04，网页 `v886`）:**
+  `GET /api/companions/live-board` 现在 `OWNER / ADMIN / CS / COMPANION` 都能取：老板=全站，
+  其余=**本店 + 桥接工作室**；桥接行返回 `isBridged:true` 且 `earningsHidden:true`（`todayRevenue` 与本单金额为 `null`，
+  只留订单信息）。陪玩端新增菜单 `派单管理 → 实时看板`，且**只有自己那一格显示业绩**，别人（含同店）只给订单信息。
+  没挂工作室的账号返回空，不泄漏全站。
+
 - **客户看板补上「今日」口径，跟实时看板对齐（2026-10-04，网页 `v885`）:**
   `GET /api/customers/board` 新增 `todaySpent / todayOrders / todayHours`（**营业日**口径：当日 12:00 至次日 12:00，
   与实时看板同一天界线）与 `counts.todaySpentTotal`，排序新增 `sort=today`；
@@ -1086,7 +1092,7 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
-| `GET` | `/api/companions/live-board` | JWT | OWNER, ADMIN, CS | 派单实时看板：陪玩当前状态、正在打的单（主陪 / 副陪各一条，含搭档、游戏、客户编号、已打时长），按 接单中 / 娱乐中 / 空闲 / 休息 / 离线 排序；另带 `todayRevenue` / `todayOrders` / `todayMinutes`（今日业绩 / 单数 / 接单时长，与结算同口径）。**有活跃会话的人即使客户端掉线也算「接单中」**（离线统计不含他）。只给客户编号，不给微信。 |
+| `GET` | `/api/companions/live-board` | JWT | OWNER, ADMIN, CS, COMPANION | 派单实时看板：陪玩当前状态、正在打的单（主陪 / 副陪各一条，含搭档、游戏、客户编号、已打时长），按 接单中 / 娱乐中 / 空闲 / 休息 / 离线 排序；另带 `todayRevenue` / `todayOrders` / `todayMinutes`（今日业绩 / 单数 / 接单时长，与结算同口径）。老板=全站，店长/客服/陪玩=**本店 + 桥接工作室**；桥接行 `isBridged:true` 且 `earningsHidden:true`（不给业绩），陪玩端只有自己那格显示业绩。**有活跃会话的人即使客户端掉线也算「接单中」**（离线统计不含他）。只给客户编号，不给微信。 |
 
 ### Companions (报账 / 通知偏好)
 

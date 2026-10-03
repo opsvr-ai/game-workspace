@@ -157,6 +157,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'live-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <LiveBoardPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'billing',
         element: (
           <Suspense fallback={<SuspenseFallback />}>

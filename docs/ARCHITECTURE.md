@@ -19,8 +19,13 @@
   已打时长（`elapsedSec` 扣累计暂停）。同日追加：**今日业绩** `todayRevenue`（走 `companionOrderRevenue`
   统一口径）、`todayOrders`、`todayMinutes`（`CompanionTimeLog mode=BUSY` 落在本营业日的部分）。
   **排序以「是否有活跃会话」优先**：客户端掉线但单还在跑的人仍排进「接单中」（前端标「已掉线」），
-  离线统计不含这类人。权限 OWNER / ADMIN / CS，前端 15 秒轮询、
-  「一人一格」网格 + 顶部状态数可点筛选、时长本地走字。
+  离线统计不含这类人。前端 15 秒轮询、「一人一格」网格 + 顶部状态数可点筛选、时长本地走字。
+  2026-10-04 扩展（网页 `v886`，老板「也给陪玩端加上 / 把桥接工作室的也加进来，但不显示他们挣了多少」）：
+  权限放开到 **OWNER / ADMIN / CS / COMPANION**；可见范围 = 老板全站、其余**本店 + 桥接工作室**
+  （`bridgeService.getBridgedStudioIds`）；桥接行 `isBridged:true`，店长/客服/陪玩看桥接行一律
+  `earningsHidden:true`（`todayRevenue`、`serving.myAmount` 置 `null`，只留订单信息）；
+  **陪玩端再收一层**：只有 `companionId` 等于自己那一行给业绩，同店同事也隐藏。
+  没挂工作室的账号直接返回空（不给 `studioId` 为空时泄漏全站）。陪玩端菜单 `派单管理 → 实时看板`。
 
 - **客户看板（2026-10-03，`GET /api/customers/board` + `pages/CustomerBoardPage.tsx`）**：
   `CustomersService.customerBoard(user, { sort, companionId })` 汇总每个客户的消费与在打情况 ——

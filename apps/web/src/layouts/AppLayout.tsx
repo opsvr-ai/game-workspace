@@ -423,7 +423,10 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'companion-dispatch', icon: IconDispatch, label: '派单管理',
-      children: [{ key: '/companion/pool', label: '订单池' }],
+      children: [
+        { key: '/companion/pool', label: '订单池' },
+        { key: '/companion/live-board', label: '实时看板' },
+      ],
     },
     {
       key: 'companion-orders', icon: IconOrders, label: '订单管理',

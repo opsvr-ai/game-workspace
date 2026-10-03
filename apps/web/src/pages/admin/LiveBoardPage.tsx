@@ -21,6 +21,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
 import { statusDotColor } from '../../constants/companions';
+import { useAuthStore } from '../../stores/authStore';
 
 const { Text } = Typography;
 
@@ -56,6 +57,10 @@ interface BoardRow {
   todayOrders?: number;
   /** 今日接单时长（分钟） */
   todayMinutes?: number;
+  /** 桥接工作室的人（不是查看者本店）；只给订单信息，不给业绩 */
+  isBridged?: boolean;
+  /** 业绩对本查看者隐藏（桥接工作室；陪玩端看别人也隐藏） */
+  earningsHidden?: boolean;
   serving: ServingInfo | null;
 }
 
@@ -104,6 +109,8 @@ function money(v?: number | null): string {
 }
 
 const LiveBoardPage: React.FC = () => {
+  const role = useAuthStore((st) => st.user?.role);
+  const isCompanionViewer = role === 'COMPANION';
   const [data, setData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -190,8 +197,8 @@ const LiveBoardPage: React.FC = () => {
             <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.name || r.username || '未知'}
             </div>
-            <div style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {r.studioName || '—'}
+            <div style={{ fontSize: 11, color: r.isBridged ? '#B45309' : '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {r.isBridged ? '🌉 桥接 · ' : ''}{r.studioName || '—'}
             </div>
           </div>
           <span
@@ -240,14 +247,22 @@ const LiveBoardPage: React.FC = () => {
           )}
         </div>
 
-        {/* 业绩 */}
+        {/* 业绩 / 工作量：桥接工作室的人、以及陪玩端看别人，都只给订单信息，不给挣了多少 */}
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
-          <span style={{ color: '#64748B' }}>
-            今日 <Text strong style={{ color: '#0F172A' }}>¥{money(r.todayRevenue)}</Text>
-            {r.todayOrders ? <span style={{ color: '#94A3B8' }}> · {r.todayOrders}单</span> : null}
-            {r.todayMinutes ? <span style={{ color: '#94A3B8' }}> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
-          </span>
-          {s && s.myAmount != null ? (
+          {r.earningsHidden ? (
+            <span style={{ color: '#94A3B8' }}>
+              今日 {r.todayOrders || 0}单
+              {r.todayMinutes ? <span> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
+              <span style={{ marginLeft: 6 }}>🔒 业绩不公开</span>
+            </span>
+          ) : (
+            <span style={{ color: '#64748B' }}>
+              今日 <Text strong style={{ color: '#0F172A' }}>¥{money(r.todayRevenue)}</Text>
+              {r.todayOrders ? <span style={{ color: '#94A3B8' }}> · {r.todayOrders}单</span> : null}
+              {r.todayMinutes ? <span style={{ color: '#94A3B8' }}> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
+            </span>
+          )}
+          {!r.earningsHidden && s && s.myAmount != null ? (
             <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>
               本单 <Text strong style={{ color: '#0F172A' }}>¥{money(s.myAmount)}</Text>
             </span>
@@ -271,7 +286,11 @@ const LiveBoardPage: React.FC = () => {
     <>
       <PageHeader
         title="实时看板"
-        subtitle="一人一格：谁在跟谁打什么、打了多久、今天多少业绩 —— 一眼看全（每 15 秒自动刷新）"
+        subtitle={
+          isCompanionViewer
+            ? '谁在跟谁打什么、打了多久、谁快打完了 —— 想预约搭档就照着这一格去找；🌉 是桥接工作室的人，只显示订单信息（每 15 秒自动刷新）'
+            : '一人一格：谁在跟谁打什么、打了多久、今天多少业绩 —— 一眼看全（每 15 秒自动刷新）'
+        }
         extra={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {data?.updatedAt ? (
