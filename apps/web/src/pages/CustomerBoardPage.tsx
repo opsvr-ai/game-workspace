@@ -217,7 +217,10 @@ const CustomerBoardPage: React.FC = () => {
 
   const [data, setData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sort, setSort] = useState<'live' | 'spent' | 'today' | 'hours' | 'recent'>('live');
+  // 陪玩端默认「累计消费」从高到低（老板 2026-10-04：「给陪玩做成进度条样式的吧，从高到低排列」）
+  const [sort, setSort] = useState<'live' | 'spent' | 'today' | 'hours' | 'recent'>(
+    role === 'COMPANION' ? 'spent' : 'live',
+  );
   const [view, setView] = useState<'flat' | 'byCompanion'>('flat');
   const [showWechat, setShowWechat] = useState(false);
   const [search, setSearch] = useState('');
@@ -482,6 +485,119 @@ const CustomerBoardPage: React.FC = () => {
     />
   );
 
+  // ── 陪玩端：客户排行榜（进度条形态，从高到低）────────────────────────────
+  // 老板 2026-10-04：「给陪玩做成进度条样式的吧，从高到低排列」。
+  const barValue = (r: BoardRow) =>
+    sort === 'today' ? Number(r.todaySpent) || 0 : sort === 'hours' ? Number(r.hours) || 0 : Number(r.spent) || 0;
+  const barLabel = sort === 'today' ? '今日消费' : sort === 'hours' ? '游戏时长' : '累计消费';
+
+  const rankRows = useMemo(() => {
+    const val = (r: BoardRow) =>
+      sort === 'today' ? Number(r.todaySpent) || 0 : sort === 'hours' ? Number(r.hours) || 0 : Number(r.spent) || 0;
+    return [...filtered].sort((a, b) => val(b) - val(a));
+  }, [filtered, sort]);
+
+  const barMax = rankRows.reduce((m, r) => Math.max(m, barValue(r)), 0) || 1;
+
+  const barList = (
+    <div>
+      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
+        按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情。
+      </div>
+      {rankRows.map((r, i) => {
+        const v = barValue(r);
+        const pct = v > 0 ? Math.max(4, Math.round((v / barMax) * 100)) : 0;
+        const live = r.live;
+        return (
+          <div
+            key={r.customerId}
+            onClick={() => navigate('/' + prefix + '/customers/' + r.customerId)}
+            style={{
+              position: 'relative',
+              marginBottom: 8,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: '1px solid ' + (live ? '#FECACA' : '#EEF2F6'),
+              background: '#fff',
+              cursor: 'pointer',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: pct + '%',
+                background: live
+                  ? 'linear-gradient(90deg, rgba(220,38,38,.18), rgba(220,38,38,.04))'
+                  : 'linear-gradient(90deg, rgba(37,99,235,.16), rgba(37,99,235,.03))',
+                transition: 'width .4s ease',
+              }}
+            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  width: 26,
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  fontSize: i < 3 ? 16 : 13,
+                  color: i === 0 ? '#D97706' : i === 1 ? '#64748B' : i === 2 ? '#B45309' : '#94A3B8',
+                }}
+              >
+                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+              </span>
+              <div style={{ minWidth: 150 }}>
+                <Space size={6}>
+                  <Text strong>{r.customerCode}</Text>
+                  {statusTag(r)}
+                  {live ? <Tag color="red" style={{ marginInlineEnd: 0 }}>🎮 正在打</Tag> : null}
+                </Space>
+                <div style={{ fontSize: 12, color: '#64748B' }}>
+                  <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
+                    <span>{showWechat ? r.wechatId || '—' : maskWechat(r.wechatId)}</span>
+                  </Tooltip>
+                  {r.depositBalance ? <span style={{ color: '#15803D' }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
+                  {fmtSchedule(r.scheduledAt) ? (
+                    <span style={{ color: '#B45309' }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span>
+                  ) : null}
+                </div>
+              </div>
+              <div style={{ flex: 1, minWidth: 170, fontSize: 12, color: '#475569' }}>
+                {live ? (
+                  <span>
+                    <span className="chunlv-board-dot" />
+                    <Text strong style={{ color: '#B91C1C' }}>{live.gameName || '游戏中'}</Text>
+                    {live.paused ? ' · ⏸ 暂停中' : ' · 已打 ' + fmtDuration(elapsedOf(live))}
+                    {live.partnerName ? ' · 搭档 ' + live.partnerName : ''}
+                  </span>
+                ) : (
+                  <span style={{ color: '#94A3B8' }}>{r.lastOrderAt ? '最近 ' + fmtWhen(r.lastOrderAt) : '还没打过'}</span>
+                )}
+              </div>
+              <div style={{ textAlign: 'right', minWidth: 104 }}>
+                <div
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: v > 0 ? '#B91C1C' : '#94A3B8',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {sort === 'hours' ? fmtHours(v) : yuan(v)}
+                </div>
+                <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                  {'今日 ' + yuan(r.todaySpent) + ' · ' + (r.orderCount || 0) + ' 单 · ' + fmtHours(r.hours)}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const companionCard = (c: BoardCompanion) => {
     const cfg = companionStatusConfig[c.status] || companionStatusConfig.OFFLINE;
     const active = focusCompanion === c.companionId;
@@ -550,7 +666,7 @@ const CustomerBoardPage: React.FC = () => {
         title="客户看板"
         subtitle={
           isCompanion
-            ? '我的客户现在什么样：消费了多少、打过多长时间、此刻是不是正在跟我打（每 15 秒自动刷新）'
+            ? '我的客户排行榜：按累计消费 / 今日消费 / 游戏时长从高到低排列，正在打的亮红点（每 15 秒自动刷新）'
             : '每个陪玩什么样、他的客户现在什么样：今日消费 / 累计消费 / 游戏时长 / 此刻在不在打，一眼看全（今日按营业日 12:00 起算，与实时看板同口径；每 15 秒自动刷新）'
         }
         extra={
@@ -573,7 +689,7 @@ const CustomerBoardPage: React.FC = () => {
         {statCard('今日消费', yuan(counts?.todaySpentTotal ?? 0), '#C2410C', '#FFF7ED')}
         {statCard('累计消费', yuan(counts?.spentTotal ?? 0), '#15803D', '#F0FDF4')}
         {statCard('累计时长', fmtHours(counts?.hoursTotal ?? 0), '#7C3AED', '#F5F3FF')}
-        {statCard('陪玩数', String(counts?.companions ?? companions.length), '#0F766E', '#F0FDFA')}
+        {isCompanion ? null : statCard('陪玩数', String(counts?.companions ?? companions.length), '#0F766E', '#F0FDFA')}
       </div>
 
       <div
@@ -587,26 +703,36 @@ const CustomerBoardPage: React.FC = () => {
         }}
       >
         <Space wrap>
-          <Segmented
-            size="small"
-            value={view}
-            onChange={(v) => setView(v as 'flat' | 'byCompanion')}
-            options={[
-              { label: '总表', value: 'flat' },
-              { label: '按陪玩分组', value: 'byCompanion' },
-            ]}
-          />
+          {!isCompanion && (
+            <Segmented
+              size="small"
+              value={view}
+              onChange={(v) => setView(v as 'flat' | 'byCompanion')}
+              options={[
+                { label: '总表', value: 'flat' },
+                { label: '按陪玩分组', value: 'byCompanion' },
+              ]}
+            />
+          )}
           <Segmented
             size="small"
             value={sort}
             onChange={(v) => setSort(v as 'live' | 'spent' | 'today' | 'hours' | 'recent')}
-            options={[
-              { label: '正在打优先', value: 'live' },
-              { label: '今日消费', value: 'today' },
-              { label: '累计消费', value: 'spent' },
-              { label: '游戏时长', value: 'hours' },
-              { label: '最近下单', value: 'recent' },
-            ]}
+            options={
+              isCompanion
+                ? [
+                    { label: '累计消费', value: 'spent' },
+                    { label: '今日消费', value: 'today' },
+                    { label: '游戏时长', value: 'hours' },
+                  ]
+                : [
+                    { label: '正在打优先', value: 'live' },
+                    { label: '今日消费', value: 'today' },
+                    { label: '累计消费', value: 'spent' },
+                    { label: '游戏时长', value: 'hours' },
+                    { label: '最近下单', value: 'recent' },
+                  ]
+            }
           />
           {focusCompanion ? (
             <Tag color="blue" closable onClose={() => setFocusCompanion(null)} style={{ padding: '2px 8px' }}>
@@ -630,7 +756,7 @@ const CustomerBoardPage: React.FC = () => {
         </Space>
       </div>
 
-      {companions.length > 0 ? (
+      {!isCompanion && companions.length > 0 ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {companions.map(companionCard)}
         </div>
@@ -644,6 +770,8 @@ const CustomerBoardPage: React.FC = () => {
         <Card size="small">
           <Empty description={focusCompanion || search ? '没有符合条件的客户' : '还没有客户'} />
         </Card>
+      ) : isCompanion ? (
+        <Card size="small">{barList}</Card>
       ) : view === 'flat' ? (
         <Card size="small" bodyStyle={{ padding: 0 }}>
           {tableFor(filtered)}

@@ -419,11 +419,38 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-     {
-        path: 'customer-board',
+      // 客户看板：老板 / 店长 / 客服各自的菜单路径（原来只有扁平的 /customer-board + /companion/...，
+      // 菜单里的 /owner/customer-board、/admin/customer-board 点进去是 404，老板 2026-10-04 发现）
+      {
+        path: 'owner/customer-board',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'admin/customer-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/customer-board',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerBoardPage />
+          </Suspense>
+        ),
+      },
+      // 老板看客户看板点「详情」跳的是 /owner/customers/:id，这条原来也漏了
+      {
+        path: 'owner/customers/:id',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <CustomerDetailPage />
           </Suspense>
         ),
       },
