@@ -1323,6 +1323,8 @@ function setupApplicationMenu(): void {
 // 一直亮着空转。现在客户端本地盯着「鼠标键盘多久没动」：每 65 分钟看一次，看到「60 多分钟没动」
 // 先弹一条右下角提示，倒计时结束后如果还是没人动电脑，就自动上报「休息」并休眠。
 // 动一下鼠标/键盘即可取消。
+// 只有「空闲」会这样：「娱乐中」一律不动（老板 2026-10-04「他点娱乐中 他人就没了，
+// 该计费计费 谁让他不切换的」—— 人走了照常按 10 元/小时计费，想停自己切休息）。
 const IDLE_REST_AFTER_MS = 60 * 60 * 1000;
 const IDLE_REST_GRACE_MS = 20 * 1000;
 // 老板 2026-10-04：「不用检测这么频繁，60 多分钟检查一次就行，确定他 60 多分钟鼠标键盘都没动，
@@ -1351,9 +1353,13 @@ function currentIdleMs(): number {
   return rawIdleMs - idleBaselineMs;
 }
 
-/** 只有「空闲 / 娱乐」会因长时间无操作自动休息；接单中、已休息、离线一律不动。 */
+/**
+ * 只有「空闲」会因长时间无操作自动休息（老板 2026-10-04：「他点娱乐中 他人就没了，
+ * 该计费计费 谁让他不切换的」—— 娱乐中一律不动，照常按 10 元/小时计费）；
+ * 接单中、已休息、离线同样不动。
+ */
 function isIdleRestableStatus(status: unknown): boolean {
-  return status === 'AVAILABLE' || status === 'ENTERTAINMENT';
+  return status === 'AVAILABLE';
 }
 
 async function idleRestTick(): Promise<void> {

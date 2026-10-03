@@ -302,15 +302,14 @@ describe('CompanionsService', () => {
       expect(result).toEqual({ id: 'comp-1', status: 'RESTING' });
     });
 
-    it('娱乐中也能自动休息（人确实不在，不再按娱乐计费）', async () => {
+    it('娱乐中不自动休息：人走了照常按娱乐计费，想停自己切休息', async () => {
+      // 老板 2026-10-04：「他点娱乐中 他人就没了，该计费计费 谁让他不切换的」
       armMocks('ENTERTAINMENT');
 
-      await service.autoRestOnIdle('comp-1', companionUser);
-
-      expect(mockPrisma.companion.update).toHaveBeenCalledWith({
-        where: { id: 'comp-1' },
-        data: { status: 'RESTING' },
-      });
+      await expect(service.autoRestOnIdle('comp-1', companionUser)).rejects.toThrow(
+        '当前状态不能自动休息',
+      );
+      expect(mockPrisma.companion.update).not.toHaveBeenCalled();
     });
 
     it('接单中（有进行中会话）一律拒绝，绝不能把正在打单的机器睡过去', async () => {

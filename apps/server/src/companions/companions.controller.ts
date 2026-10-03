@@ -574,7 +574,7 @@ export class CompanionsController {
 
   /**
    * 陪玩端「无操作 1 小时」自动休息（客户端本地检测到鼠标键盘 1 小时没动后调用）。
-   * 只能从「空闲 / 娱乐」进休息；接单中一律拒绝（见 service.autoRestOnIdle）。
+   * 只能从「空闲」进休息；娱乐中 / 接单中一律拒绝（见 service.autoRestOnIdle）。
    */
   @Put('companions/me/idle-rest')
   @Roles(UserRole.COMPANION)

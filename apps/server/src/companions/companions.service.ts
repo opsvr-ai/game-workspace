@@ -575,13 +575,14 @@ export class CompanionsService {
   }
 
   /**
-   * 陪玩端「无操作 1 小时」自动休息（老板 2026-10-04 要求：
+   * 陪玩端「无操作 60 多分钟」自动休息（老板 2026-10-04 要求：
    * 「很多陪玩怎么说都不听，经常出去吃饭或者睡觉没电休眠」）。
    *
-   * 跟手动点「休息」的差别只有一条：手动休息不允许从「娱乐中」
-   * 直接切（防止点一下休息逃掉娱乐计费），自动休息允许 —— 人确实 1 小时
-   * 没碰过鼠标键盘了，再按娱乐计费不合理。「接单中」（有进行中的服务会话）
-   * 一律拒绝：那一单正在给客户打，绝不能把机器自动睡过去。
+   * 口径跟手动点「休息」完全一致（老板 2026-10-04 二次拍板：
+   * 「他点娱乐中 他人就没了，该计费计费 谁让他不切换的」）：
+   * **只有「空闲」会自动休息**；「娱乐中」一律拒绝 —— 人走了照常按娱乐计费，
+   * 想停就自己切「休息」。「接单中」（有进行中的服务会话）同样拒绝：
+   * 那一单正在给客户打，绝不能把机器自动睡过去。
    */
   async autoRestOnIdle(id: string, user: any) {
     if (user.companionId !== id) throw new ForbiddenException('只能更新自己的状态');
@@ -601,7 +602,8 @@ export class CompanionsService {
     if (!current) throw new NotFoundException('陪玩不存在');
     // 已经是休息：当成成功（客户端重试时不要报错，也不重置计时）。
     if (current.status === 'RESTING') return { id, status: 'RESTING', alreadyInStatus: true };
-    if (current.status !== 'AVAILABLE' && current.status !== 'ENTERTAINMENT') {
+    // 只有「空闲」会自动休息：娱乐中不动（老板 2026-10-04「该计费计费 谁让他不切换的」）。
+    if (current.status !== 'AVAILABLE') {
       throw new BadRequestException('当前状态不能自动休息');
     }
     const active = await this.prisma.orderSession.findFirst({
