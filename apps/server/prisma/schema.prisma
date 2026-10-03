@@ -400,6 +400,12 @@ model Customer {
   depositBalance      Float     @default(0)
   scheduledAt         DateTime?
   status              String    @default("PENDING_DEVELOPMENT") // ACTIVE | FOLLOW_UP | LOST | PENDING_DEVELOPMENT
+  // 封存（老板 2026-10-04）：「客户小红书也不回，那只能把这个客户信息封存起来了，
+  // 找合适的时候再找别的陪玩加加试试」—— 不是删除：档案、订单、流水全留着，
+  // 只是从活跃列表里收起来，等以后再解封换人加。
+  archivedAt          DateTime?
+  archivedReason      String?
+  archivedByUserId    String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @default(now()) @updatedAt
 
@@ -417,6 +423,7 @@ model Customer {
   @@index([studioId])
   @@index([companionId])
   @@index([status])
+  @@index([archivedAt])
 }
 
 model CustomerDeposit {

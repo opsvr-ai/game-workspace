@@ -6,6 +6,14 @@ export const customersApi = {
   create: (data: any) => http.post('/customers', data),
   update: (id: string, data: any) => http.put(`/customers/${id}`, data),
   delete: (id: string) => http.delete(`/customers/${id}`),
+  /**
+   * 封存 / 解封（老板 2026-10-04）：
+   *   客户一直没通过、小红书也不回 → 先把档案封存起来（订单流水都留着），
+   *   等合适的时候再解封、换一个陪玩加试试。不是删除。
+   */
+  archive: (id: string, reason?: string) => http.post(`/customers/${id}/archive`, { reason }),
+  unarchive: (id: string, companionId?: string) =>
+    http.post(`/customers/${id}/unarchive`, { companionId }),
   reassign: (id: string, companionId: string) =>
     http.put(`/customers/${id}/reassign`, { companionId }),
   getProfile: (id: string) => http.get(`/customers/${id}/profile`),

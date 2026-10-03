@@ -45,8 +45,12 @@ export class CustomersService {
     private prisma: PrismaService,
   ) {}
 
-  async findAll(user: AuthenticatedUser, sortBy?: string) {
+  async findAll(user: AuthenticatedUser, sortBy?: string, scope?: string) {
     const where: any = {};
+
+    // 封存（老板 2026-10-04）：默认只列活跃客户；要看「已封存」传 scope=archived。
+    if (scope === 'archived') where.archivedAt = { not: null };
+    else if (scope !== 'all') where.archivedAt = null;
 
     if (user.role === 'COMPANION') {
       where.companionId = user.companionId;
@@ -139,7 +143,8 @@ export class CustomersService {
     // 陪玩账号没挂 Companion 档案：宁可给空，也不要把全店 / 全站客户漏出去。
     if (isCompanionViewer && !user.companionId) return empty;
 
-    const customerWhere: any = { isDeletedByCustomer: false };
+    // 封存的客户不在看板上出现（封存 = 这轮不打了、等以后再换人加）
+    const customerWhere: any = { isDeletedByCustomer: false, archivedAt: null };
     if (isCompanionViewer) customerWhere.companionId = user.companionId;
     else if (user.role !== 'OWNER') customerWhere.studioId = user.studioId;
     if (!isCompanionViewer && opts.companionId) customerWhere.companionId = opts.companionId;
@@ -1246,6 +1251,49 @@ export class CustomersService {
    *   - 只要有一单成交 / 有流水 / 有服务会话 / 有补单申请
    *     → 明确挡住，不动账目（真要处理由老板点名）。
    */
+  /**
+   * 封存客户（老板 2026-10-04）：
+   *   「客户小红书也不回，那只能把这个客户信息封存起来了，找合适的时候再找别的陪玩加加试试」。
+   * 不是删除 —— 档案、订单、流水、跟进记录全留着，只是从活跃列表里收起来。
+   */
+  async archive(id: string, user: AuthenticatedUser, reason?: string) {
+    const customer = await this.findOne(id, user);
+    if ((customer as any).archivedAt) return customer;
+    return this.prisma.customer.update({
+      where: { id },
+      data: {
+        archivedAt: new Date(),
+        archivedReason: String(reason || '').trim() || null,
+        archivedByUserId: user?.id || null,
+      },
+    });
+  }
+
+  /**
+   * 解封（老板 2026-10-04）：可以把客户直接改派给另一个陪玩再试一次；
+   * 改派 / 解封都会往备注里追加一行，留个「什么时候解封、换给了谁」的痕。
+   */
+  async unarchive(id: string, user: AuthenticatedUser, opts: { companionId?: string } = {}) {
+    const customer = await this.findOne(id, user);
+    const data: any = { archivedAt: null, archivedReason: null, archivedByUserId: null };
+    let extra = '';
+    if (opts.companionId && opts.companionId !== (customer as any).companionId) {
+      const target = await this.prisma.companion
+        .findUnique({
+          where: { id: opts.companionId },
+          select: { id: true, user: { select: { username: true, displayName: true } } },
+        })
+        .catch(() => null);
+      if (!target) throw new NotFoundException('陪玩不存在');
+      data.companionId = opts.companionId;
+      extra = `改派给 ${(target as any).user?.displayName || (target as any).user?.username || opts.companionId}`;
+    }
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const line = `[解封重试 ${stamp}] ${extra || '仍归原陪玩'} —— 冷一段时间后换人加微信`;
+    const notes = (customer as any).notes ? `${(customer as any).notes}\n${line}` : line;
+    return this.prisma.customer.update({ where: { id }, data: { ...data, notes } });
+  }
+
   async delete(id: string) {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
     if (!customer) {

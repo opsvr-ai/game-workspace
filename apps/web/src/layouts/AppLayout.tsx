@@ -1636,18 +1636,25 @@ const AppLayout: React.FC = () => {
       });
     },
     onOrderContactReminderAdmin: (data: any) => {
-      // 满 3 天还没处理 → 提醒客服 / 店长 / 老板去核实（老板 2026-10-04：确认过不了就删客户）
+      // 客户微信满 3 天 / 满 7 天没处理（老板 2026-10-04）：
+      // 只落进「待办」（右上角铃铛，带红点角标），不弹窗打扰；
+      // 人工去对应的小红书账号私信问问客户还加不加，客户也不回就把客户封存起来。
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
       if (!isMgmt) return;
-      const text = data?.message || '有订单的客户微信 3 天没处理，请核实';
-      message.warning(text, 10);
+      const long = data?.kind === 'LONG_PENDING';
+      const count = Number(data?.count) || 0;
+      const text =
+        data?.message ||
+        (long ? '有客户挂满 7 天还没通过，请核实' : '有客户 3 天没标记「添加成功 / 添加失败」，请核实');
       recordNotice({
         kind: 'order',
-        icon: '🧹',
-        title: '客户微信 3 天没处理',
+        icon: long ? '🧊' : '🧹',
+        title: long
+          ? `长期挂起客户${count ? ` ${count} 个` : ''}：去小红书问问 / 该封存了`
+          : `客户微信没标记${count ? ` ${count} 个` : ''}：去核实`,
         desc: text,
         href: rolePage(user?.role, 'customers'),
-        dedupeKey: `contact-reminder-${data?.orderId || ''}`,
+        dedupeKey: `contact-reminder-${data?.kind || 'unknown'}`,
         dedupeMs: 12 * 60 * 60 * 1000,
       });
     },

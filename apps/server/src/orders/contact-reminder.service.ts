@@ -9,24 +9,27 @@ import { WsGateway } from '../ws/ws.gateway';
  *   「客户真通过了、要打单，陪玩必须点添加成功才能在客户管理里找到这个客户、点开始首单；
  *     他要是真忘记，系统会定期提醒他。除非真的好几天客户都没通过，那就是客户真的不通过了，
  *     这时候管理端给对应删除这个客户即可。」
+ *   再往后（老板补充）：「你收回来也没用，顶多让管理端去对应的小红书找到该客户、
+ *     通过小红书去问问客户、看看客户回不回，才能定；客户小红书也不回，
+ *     那只能把这个客户信息封存起来了，找合适的时候再找别的陪玩加加试试。」
  *
- * 所以这里**不做**超时收回、也不动名额：
- *   1) 陪玩抢到单后迟迟没标记（contactStatus 还是空 = 还没点「添加成功 / 添加失败」），
- *      按 1 小时 / 6 小时 / 24 小时 / 48 小时 / 72 小时 五个节点给他本人弹提醒；
- *      积压很久的老单只弹一次（直接跳到当前该到的节点），不会连弹 5 遍。
- *   2) 满 3 天还没处理，汇总成一条通知本店客服 / 店长 / 老板一次，
- *      让他们去核实「这客户是不是一直没通过」，确认不通过就由管理端把客户删掉。
- *   3) 陪玩一旦点了「添加成功」或「添加失败」，或这单已经产生服务会话，提醒自动停止。
+ * 所以这个服务**只提醒、绝不自动收回**，也不动名额：
+ *   ① 陪玩本人：抢到单后 contactStatus 还是空（既没点「添加成功」也没点「添加失败」），
+ *      按 1 小时 / 6 小时 / 24 小时 / 48 小时 / 72 小时五个节点弹他本人；积压的老单
+ *      直接跳到当前该到的节点、只弹一次；已经有服务会话的单不再催。
+ *   ② 管理端待办：满 3 天、满 7 天各留一条（按工作室汇总成一条），
+ *      带上「订单号 + 陪玩 + 客户微信 + 来源平台/小红书账号」，让人能去小红书私信客户问一问；
+ *      客户也不回就在「客户管理」把这客户封存，以后再换陪玩加。
  *
- * 提醒进度记在 order.customFields.contactReminder = { stage, lastAt, escalatedAt }，
+ * 进度记在 order.customFields.contactReminder = { stage, lastAt, adminNotified: [4320, 10080] }，
  * 不新增数据库列（部署脚本只做 prisma generate，不跑迁移）。
  */
 @Injectable()
 export class ContactReminderService implements OnModuleInit {
-  /** 提醒节点（分钟）：1 小时、6 小时、24 小时、48 小时、72 小时。 */
-  private static readonly LADDER_MINUTES = [60, 6 * 60, 24 * 60, 48 * 60, 72 * 60];
-  /** 满这个时长还没处理就提醒管理端（分钟）——就是最后一个节点，3 天。 */
-  private static readonly ESCALATE_MINUTES = 72 * 60;
+  /** 陪玩本人提醒节点（分钟）：1 小时、6 小时、24 小时、48 小时、72 小时。 */
+  private static readonly PLAYER_LADDER_MINUTES = [60, 6 * 60, 24 * 60, 48 * 60, 72 * 60];
+  /** 管理端待办节点（分钟）：满 3 天、满 7 天各一条。 */
+  private static readonly ADMIN_NUDGE_MINUTES = [72 * 60, 7 * 24 * 60];
   /** 管理端汇总通知里最多列几条明细。 */
   private static readonly MAX_LISTED = 10;
 
@@ -58,7 +61,7 @@ export class ContactReminderService implements OnModuleInit {
         grabbedAt: true,
         createdAt: true,
         customFields: true,
-        customer: { select: { wechatId: true, customerCode: true } },
+        customer: { select: { wechatId: true, customerCode: true, platform: true, platformAccount: true } },
         companion: { select: { user: { select: { displayName: true, username: true } } } },
         _count: { select: { sessions: true } },
       },
@@ -66,8 +69,8 @@ export class ContactReminderService implements OnModuleInit {
     if (!orders.length) return;
 
     const now = Date.now();
-    // 管理端按工作室汇总：一轮里同一个店的单只发一条，别一次弹一屏。
-    const groups = new Map<string, { studioId: string | null; entries: any[] }>();
+    // 管理端按「工作室 + 哪一档」汇总：一轮里同一个店的同一档只发一条，别一次弹一屏。
+    const groups = new Map<string, { studioId: string | null; minutes: number; entries: any[] }>();
     for (const order of orders) {
       try {
         await this.remindIfDue(order as any, now, groups);
@@ -87,140 +90,132 @@ export class ContactReminderService implements OnModuleInit {
   private async remindIfDue(
     order: any,
     now: number,
-    groups: Map<string, { studioId: string | null; entries: any[] }>,
+    groups: Map<string, { studioId: string | null; minutes: number; entries: any[] }>,
   ) {
     // 已经有服务会话的（说明单子早走下去了）就别再催他标记，免得变成噪音。
     if (order?._count?.sessions) return;
 
     const cf = (order.customFields as any) || {};
     const state = (cf.contactReminder as any) || {};
-    const stage = Number(state.stage) || 0;
-    if (stage >= ContactReminderService.LADDER_MINUTES.length) {
-      // 五个节点都提醒过了：陪玩这边不再重复打扰，只在还没升级过时补一次管理端提醒。
-      await this.escalateIfNeeded(order, cf, state, now, groups);
-      return;
-    }
-
     const base = (order.grabbedAt ? new Date(order.grabbedAt) : new Date(order.createdAt)).getTime();
     const elapsedMin = (now - base) / 60000;
-
-    // 直接跳到「当前时间已经跨过」的最高节点：积压的老单只提醒一次，
-    // 不会因为一轮只前进一格、被连弹 5 遍。
-    let nextStage = stage;
-    while (
-      nextStage < ContactReminderService.LADDER_MINUTES.length &&
-      elapsedMin >= ContactReminderService.LADDER_MINUTES[nextStage]
-    ) {
-      nextStage += 1;
-    }
-    if (nextStage === stage) return;
-
-    const total = ContactReminderService.LADDER_MINUTES.length;
     const hours = Math.floor(elapsedMin / 60);
     const code = order.orderCode || order.id;
-    const head = nextStage === 1 ? '' : `（第 ${nextStage} 次提醒）`;
-    const message =
-      `${head}订单 ${code}：你还没标记「添加成功 / 添加失败」。加完客户微信请点「添加成功」，` +
-      `客户一直不通过就点「添加失败」；不标记的话这个客户不会进你的客户管理，也没法开始首单。`;
 
-    if (order.companionId) {
-      this.wsGateway.pushToCompanion(order.companionId, 'order:contact_reminder', {
-        orderId: order.id,
-        orderCode: order.orderCode || null,
-        customerWechat: order.customer?.wechatId || null,
-        stage: nextStage,
-        total,
-        elapsedHours: hours,
-        message,
-      });
+    const nextState: any = { ...state };
+    let changed = false;
+
+    // ① 陪玩本人
+    const ladder = ContactReminderService.PLAYER_LADDER_MINUTES;
+    const stage = Number(state.stage) || 0;
+    if (stage < ladder.length) {
+      // 直接跳到「当前时间已经跨过」的最高节点：积压的老单只提醒一次，
+      // 不会因为一轮只前进一格、被连弹 5 遍。
+      let next = stage;
+      while (next < ladder.length && elapsedMin >= ladder[next]) next += 1;
+      if (next > stage) {
+        const total = ladder.length;
+        const head = next === 1 ? '' : `（第 ${next} 次提醒）`;
+        const message =
+          `${head}订单 ${code}：你还没标记「添加成功 / 添加失败」。加完客户微信请点「添加成功」，` +
+          `客户一直不通过就点「添加失败」；不标记的话这个客户不会进你的客户管理，也没法开始首单。`;
+        if (order.companionId) {
+          this.wsGateway.pushToCompanion(order.companionId, 'order:contact_reminder', {
+            orderId: order.id,
+            orderCode: order.orderCode || null,
+            customerWechat: order.customer?.wechatId || null,
+            stage: next,
+            total,
+            elapsedHours: hours,
+            message,
+          });
+        }
+        nextState.stage = next;
+        nextState.lastAt = new Date(now).toISOString();
+        changed = true;
+        this.logger.log(`客户微信提醒：订单 ${code} 第 ${next}/${total} 次（已过 ${hours} 小时）`);
+      }
     }
 
-    const escalateNow = elapsedMin >= ContactReminderService.ESCALATE_MINUTES;
-    const nextState: any = {
-      ...state,
-      stage: nextStage,
-      lastAt: new Date(now).toISOString(),
-    };
-    if (escalateNow) nextState.escalatedAt = new Date(now).toISOString();
+    // ② 管理端待办：满 3 天 / 满 7 天各一次（只记录，不自动收单）
+    const notified: number[] = Array.isArray(state.adminNotified) ? [...state.adminNotified] : [];
+    for (const minutes of ContactReminderService.ADMIN_NUDGE_MINUTES) {
+      if (elapsedMin >= minutes && !notified.includes(minutes)) {
+        notified.push(minutes);
+        this.collectEscalation(order, minutes, hours, groups);
+      }
+    }
+    if (notified.length > (Array.isArray(state.adminNotified) ? state.adminNotified.length : 0)) {
+      nextState.adminNotified = notified;
+      changed = true;
+    }
 
-    if (escalateNow) this.collectEscalation(order, nextState, groups);
-
-    this.logger.log(
-      `客户微信提醒：订单 ${code} 第 ${nextStage}/${total} 次（已过 ${hours} 小时）` +
-        (escalateNow ? '，同时已汇总给管理端' : ''),
-    );
-
+    if (!changed) return;
     await this.prisma.order
       .update({ where: { id: order.id }, data: { customFields: { ...cf, contactReminder: nextState } } })
       .catch(() => {});
   }
 
-  /** 五个节点都提醒完了，若还没升级过、时长达标，就补一次管理端提醒。 */
-  private async escalateIfNeeded(
-    order: any,
-    cf: any,
-    state: any,
-    now: number,
-    groups: Map<string, { studioId: string | null; entries: any[] }>,
-  ) {
-    if (state.escalatedAt) return;
-    const base = (order.grabbedAt ? new Date(order.grabbedAt) : new Date(order.createdAt)).getTime();
-    if ((now - base) / 60000 < ContactReminderService.ESCALATE_MINUTES) return;
-
-    const nextState = { ...state, escalatedAt: new Date(now).toISOString() };
-    this.collectEscalation(order, nextState, groups);
-    await this.prisma.order
-      .update({ where: { id: order.id }, data: { customFields: { ...cf, contactReminder: nextState } } })
-      .catch(() => {});
-  }
-
-  /** 把「这单客户 3 天没处理」记进本店那一组，等本轮扫完汇总发一条。 */
+  /** 把「这单挂了 N 分钟」记进本店 + 本档那一组，等本轮扫完汇总发一条。 */
   private collectEscalation(
     order: any,
-    state: any,
-    groups: Map<string, { studioId: string | null; entries: any[] }>,
+    minutes: number,
+    hours: number,
+    groups: Map<string, { studioId: string | null; minutes: number; entries: any[] }>,
   ) {
-    const key = order.studioId || '__global__';
-    if (!groups.has(key)) groups.set(key, { studioId: order.studioId ?? null, entries: [] });
+    const key = `${order.studioId || '__global__'}|${minutes}`;
+    if (!groups.has(key)) groups.set(key, { studioId: order.studioId ?? null, minutes, entries: [] });
     groups.get(key)!.entries.push({
       orderId: order.id,
       orderCode: order.orderCode || null,
       companionName: this.companionName(order),
       customerWechat: order.customer?.wechatId || null,
-      stage: Number(state.stage) || ContactReminderService.LADDER_MINUTES.length,
+      platform: order.customer?.platform || null,
+      platformAccount: order.customer?.platformAccount || null,
+      hours,
     });
   }
 
-  /** 通知本店客服 / 店长 + 老板：这些单客户几天没处理，去核实要不要删掉（一轮一条）。 */
-  private async flushEscalation(group: { studioId: string | null; entries: any[] }) {
+  /** 管理端待办一条汇总：客服 / 店长 / 老板各推一份（前端只记进通知中心，不弹窗）。 */
+  private async flushEscalation(group: { studioId: string | null; minutes: number; entries: any[] }) {
     const entries = group.entries;
     if (!entries.length) return;
     const shown = entries.slice(0, ContactReminderService.MAX_LISTED);
-    const lines = shown.map(
-      (e) => `· 订单 ${e.orderCode || e.orderId}（${e.companionName}，微信 ${e.customerWechat || '没留'}）`,
-    );
+    const lines = shown.map((e) => {
+      const source = e.platformAccount
+        ? `${e.platform || '平台'} @${e.platformAccount}`
+        : e.platform || '来源没记';
+      return `· 订单 ${e.orderCode || e.orderId}（${e.companionName}，客户微信 ${e.customerWechat || '没留'}，来自 ${source}）`;
+    });
     if (entries.length > shown.length) lines.push(`…还有 ${entries.length - shown.length} 个`);
-    const message =
-      `有 ${entries.length} 个客户 3 天都没标记「添加成功 / 添加失败」，客户大概率一直没通过。` +
-      `去「客户管理」核实一下，确认过不了就把客户删掉，别一直挂着：\n${lines.join('\n')}`;
+
+    const longPending = group.minutes >= 7 * 24 * 60;
+    const kind = longPending ? 'LONG_PENDING' : 'NOT_PASSED';
+    const what = longPending ? '挂满 7 天还是没通过' : '3 天都没标记「添加成功 / 添加失败」';
+    const how = longPending
+      ? '去对应的小红书账号私信问问客户还加不加；客户也不回，就把客户封存起来，等以后再换陪玩加'
+      : '先去对应的小红书账号私信问一下客户；客户一直不回，就直接把客户封存起来';
+    const message = `有 ${entries.length} 个客户${what}（不自动收单，人工决定）。${how}：\n${lines.join('\n')}`;
+
     const payload = {
+      kind,
       count: entries.length,
+      minutes: group.minutes,
       orders: entries,
-      escalatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       message,
     };
-
     const reviewers = await this.findReviewers(group.studioId);
     for (const reviewer of reviewers) {
       this.wsGateway.notifyUser(reviewer.id, 'order:contact_reminder_admin', payload);
     }
-    this.logger.log(`客户微信提醒：已汇总通知管理端 ${entries.length} 单（工作室 ${group.studioId || '全局'}）`);
+    this.logger.log(
+      `客户微信提醒：已汇总进管理端待办 ${entries.length} 单（${kind}，工作室 ${group.studioId || '全局'}）`,
+    );
   }
 
   private companionName(order: any): string {
-    return (
-      order?.companion?.user?.displayName || order?.companion?.user?.username || '有陪玩'
-    );
+    return order?.companion?.user?.displayName || order?.companion?.user?.username || '有陪玩';
   }
 
   private async findReviewers(studioId: string | null): Promise<Array<{ id: string }>> {

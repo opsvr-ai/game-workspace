@@ -83,6 +83,9 @@ interface Customer {
   depositBalance?: number;
   status: string;
   isLegacy?: boolean;
+  /** 封存（老板 2026-10-04）：非空 = 已封存，收起来等以后再换人加 */
+  archivedAt?: string | null;
+  archivedReason?: string | null;
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
@@ -149,6 +152,14 @@ const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchCode, setSearchCode] = useState('');
   const [sortBy, setSortBy] = useState<string>('createdAt'); // createdAt | totalSpent
+  // 封存（老板 2026-10-04）：默认看活跃客户，切到「已封存」看收起来的那批
+  const [archivedScope, setArchivedScope] = useState<'active' | 'archived'>('active');
+  const [archiveTarget, setArchiveTarget] = useState<Customer | null>(null);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [archiving, setArchiving] = useState(false);
+  const [unarchiveTarget, setUnarchiveTarget] = useState<Customer | null>(null);
+  const [unarchiveCompanionId, setUnarchiveCompanionId] = useState<string | undefined>(undefined);
+  const [unarchiving, setUnarchiving] = useState(false);
 
   // Companion: chat, create order, schedule
   const [chatPartner, setChatPartner] = useState<any>(null);
@@ -320,7 +331,10 @@ const CustomersPage: React.FC = () => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const { data } = await customersApi.list(force ? { sortBy, _: Date.now() } : { sortBy });
+      const params: any = { sortBy };
+      if (archivedScope === 'archived') params.scope = 'archived';
+      if (force) params._ = Date.now();
+      const { data } = await customersApi.list(params);
       setCustomers(data.data?.items ?? data.data ?? []);
     } catch (err: any) {
       if (!silent) {
@@ -331,7 +345,7 @@ const CustomersPage: React.FC = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [sortBy]);
+  }, [sortBy, archivedScope]);
 
   useEffect(() => {
     fetchCustomers();
@@ -405,6 +419,39 @@ const CustomersPage: React.FC = () => {
       message.error(extractErrorMessage(err, '操作失败'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // 封存（老板 2026-10-04）：客户一直没通过、小红书也不回 → 收起来，以后再换人加
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    try {
+      await customersApi.archive(archiveTarget.id, archiveReason);
+      message.success('已封存，可在「已封存」里解封换人');
+      setArchiveTarget(null);
+      setArchiveReason('');
+      fetchCustomers();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '封存失败'));
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    if (!unarchiveTarget) return;
+    setUnarchiving(true);
+    try {
+      await customersApi.unarchive(unarchiveTarget.id, unarchiveCompanionId);
+      message.success('已解封');
+      setUnarchiveTarget(null);
+      setUnarchiveCompanionId(undefined);
+      fetchCustomers();
+    } catch (err: any) {
+      message.error(extractErrorMessage(err, '解封失败'));
+    } finally {
+      setUnarchiving(false);
     }
   };
 
@@ -486,7 +533,10 @@ const CustomersPage: React.FC = () => {
               return `预约 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
             })()
           : '';
-        const tail = [deposit, scheduled].filter(Boolean).join(' · ');
+        const archived = record.archivedAt
+          ? `已封存 ${String(record.archivedAt).slice(5, 10)}`
+          : '';
+        const tail = [deposit, scheduled, archived].filter(Boolean).join(' · ');
         const serving = !!servingSessionOf(record);
         return (
           <div
@@ -844,6 +894,34 @@ const CustomersPage: React.FC = () => {
               编辑
             </Button>
           )}
+          {isAdmin && !record.archivedAt && (
+            <Tooltip title="客户一直没通过、小红书也不回：先收起来，以后在「已封存」里解封换人加（档案订单都留着）">
+              <Button
+                type="link"
+                size="small"
+                onClick={() => {
+                  setArchiveReason('');
+                  setArchiveTarget(record);
+                }}
+              >
+                封存
+              </Button>
+            </Tooltip>
+          )}
+          {isAdmin && record.archivedAt && (
+            <Tooltip title="回到活跃客户列表，可顺手换一个陪玩再试一次">
+              <Button
+                type="link"
+                size="small"
+                onClick={() => {
+                  setUnarchiveCompanionId(undefined);
+                  setUnarchiveTarget(record);
+                }}
+              >
+                解封
+              </Button>
+            </Tooltip>
+          )}
           {isAdmin && (
             <Popconfirm
               title="确定删除该客户？"
@@ -869,6 +947,18 @@ const CustomersPage: React.FC = () => {
           subtitle={isCompanion ? '管理我的客户信息' : undefined}
           extra={
             <Space>
+              {!isCompanion && (
+                <Radio.Group
+                  value={archivedScope}
+                  onChange={(e) => setArchivedScope(e.target.value)}
+                  optionType="button"
+                  buttonStyle="solid"
+                  options={[
+                    { label: '活跃客户', value: 'active' },
+                    { label: '已封存', value: 'archived' },
+                  ]}
+                />
+              )}
               <Select
                 value={sortBy}
                 onChange={(v) => setSortBy(v)}
@@ -1027,6 +1117,61 @@ const CustomersPage: React.FC = () => {
               <Input.TextArea rows={3} placeholder="请输入备注信息" />
             </Form.Item>
           </Form>
+        </Modal>
+
+        <Modal
+          title="封存客户"
+          open={!!archiveTarget}
+          onOk={handleArchive}
+          onCancel={() => {
+            setArchiveTarget(null);
+            setArchiveReason('');
+          }}
+          confirmLoading={archiving}
+          okText="确认封存"
+          cancelText="取消"
+          destroyOnClose
+        >
+          <p style={{ marginTop: 8 }}>
+            把 <Text strong>{archiveTarget?.wechatId || archiveTarget?.customerCode}</Text> 收起来？
+            档案、订单、流水、跟进记录全都保留，只是不再出现在活跃客户里；
+            以后想再试一次，可以在「已封存」里解封、顺手换一个陪玩加。
+          </p>
+          <Input.TextArea
+            rows={3}
+            value={archiveReason}
+            onChange={(e) => setArchiveReason(e.target.value)}
+            placeholder="封存原因（可不填）：例如 客户一直没通过、小红书也不回"
+          />
+        </Modal>
+
+        <Modal
+          title="解封客户"
+          open={!!unarchiveTarget}
+          onOk={handleUnarchive}
+          onCancel={() => {
+            setUnarchiveTarget(null);
+            setUnarchiveCompanionId(undefined);
+          }}
+          confirmLoading={unarchiving}
+          okText="确认解封"
+          cancelText="取消"
+          destroyOnClose
+        >
+          <p style={{ marginTop: 8 }}>
+            把 <Text strong>{unarchiveTarget?.wechatId || unarchiveTarget?.customerCode}</Text> 放回活跃客户列表。
+            {unarchiveTarget?.archivedReason ? `（封存原因：${unarchiveTarget.archivedReason}）` : ''}
+          </p>
+          <p style={{ marginBottom: 8 }}>要不要顺手换一个陪玩再试一次？（不选就还是原来那位）</p>
+          <Select
+            allowClear
+            style={{ width: '100%' }}
+            placeholder="保持原陪玩 / 选一个新陪玩"
+            loading={companionsLoading}
+            value={unarchiveCompanionId}
+            onChange={(v) => setUnarchiveCompanionId(v)}
+            options={companionOptions.map((c) => ({ label: c.username, value: c.id }))}
+          />
         </Modal>
 
         <Modal

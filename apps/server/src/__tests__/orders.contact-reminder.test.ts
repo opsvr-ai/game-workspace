@@ -4,7 +4,7 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
 
 /**
  * 客户微信「添加成功 / 添加失败」定期提醒（老板 2026-10-04）。
- * 只提醒，不收回、不动名额；管理端按工作室汇总成一条。
+ * 只提醒、绝不自动收回，也不动名额；管理端按工作室 + 档位汇总一条进待办。
  */
 describe('ContactReminderService', () => {
   let service: ContactReminderService;
@@ -21,7 +21,12 @@ describe('ContactReminderService', () => {
     grabbedAt: hoursAgo(0.5),
     createdAt: hoursAgo(1),
     customFields: {},
-    customer: { wechatId: 'wx-client', customerCode: 'C1' },
+    customer: {
+      wechatId: 'wx-client',
+      customerCode: 'C1',
+      platform: '小红书',
+      platformAccount: '蠢驴电竞官方号',
+    },
     companion: { user: { displayName: '张三', username: 'zhangsan' } },
     _count: { sessions: 0 },
     ...over,
@@ -55,7 +60,7 @@ describe('ContactReminderService', () => {
     const updateArg = prisma.order.update.mock.calls[0][0];
     expect(updateArg.where).toEqual({ id: 'o1' });
     expect(updateArg.data.customFields.contactReminder.stage).toBe(1);
-    // 还没到 3 天，不该叫管理端
+    // 还没到 3 天，不该进管理端待办
     expect(ws.notifyUser).not.toHaveBeenCalled();
   });
 
@@ -80,13 +85,13 @@ describe('ContactReminderService', () => {
 
     expect(ws.pushToCompanion).toHaveBeenCalledTimes(1);
     expect(ws.pushToCompanion.mock.calls[0][2].stage).toBe(5);
-    expect(ws.notifyUser).toHaveBeenCalledTimes(1);
     const updateArg = prisma.order.update.mock.calls[0][0];
     expect(updateArg.data.customFields.contactReminder.stage).toBe(5);
-    expect(updateArg.data.customFields.contactReminder.escalatedAt).toBeTruthy();
+    // 80 小时 = 满 3 天但没满 7 天 → 只进一档待办
+    expect(updateArg.data.customFields.contactReminder.adminNotified).toEqual([4320]);
   });
 
-  it('满 3 天：最后一次提醒 + 管理端汇总一条（带陪玩名和微信号）', async () => {
+  it('满 3 天：最后一次提醒陪玩 + 管理端待办一条（带小红书来源）', async () => {
     prisma.order.findMany.mockResolvedValue([
       order({
         grabbedAt: hoursAgo(80),
@@ -102,12 +107,34 @@ describe('ContactReminderService', () => {
     const [userId, event, payload] = ws.notifyUser.mock.calls[0];
     expect(userId).toBe('u-admin');
     expect(event).toBe('order:contact_reminder_admin');
+    expect(payload.kind).toBe('NOT_PASSED');
     expect(payload.count).toBe(1);
-    expect(payload.orders[0].orderId).toBe('o1');
     expect(payload.orders[0].companionName).toBe('张三');
     expect(payload.orders[0].customerWechat).toBe('wx-client');
-    expect(String(payload.message)).toContain('张三');
-    expect(String(payload.message)).toContain('删掉');
+    expect(payload.orders[0].platformAccount).toBe('蠢驴电竞官方号');
+    expect(String(payload.message)).toContain('小红书 @蠢驴电竞官方号');
+    expect(String(payload.message)).toContain('封存');
+  });
+
+  it('挂满 7 天：再进一档待办（长期挂起）——只提醒、不自动收单', async () => {
+    prisma.order.findMany.mockResolvedValue([
+      order({
+        grabbedAt: hoursAgo(24 * 8),
+        customFields: { contactReminder: { stage: 5, lastAt: hoursAgo(100), adminNotified: [4320] } },
+      }),
+    ]);
+    prisma.user.findMany.mockResolvedValue([{ id: 'u-admin' }]);
+
+    await service.tick();
+
+    // 陪玩那边五个节点已提醒完，不再重复打扰
+    expect(ws.pushToCompanion).not.toHaveBeenCalled();
+    expect(ws.notifyUser).toHaveBeenCalledTimes(1);
+    const payload = ws.notifyUser.mock.calls[0][2];
+    expect(payload.kind).toBe('LONG_PENDING');
+    expect(String(payload.message)).toContain('7 天');
+    const updateArg = prisma.order.update.mock.calls[0][0];
+    expect(updateArg.data.customFields.contactReminder.adminNotified).toEqual([4320, 10080]);
   });
 
   it('同一个工作室多单积压 → 管理端只收一条汇总', async () => {
@@ -126,11 +153,13 @@ describe('ContactReminderService', () => {
     expect(payload.orders.map((o: any) => o.orderCode)).toEqual(['D001', 'D002']);
   });
 
-  it('五个节点都提醒过 + 已升级过 → 完全不再打扰', async () => {
+  it('五个节点都提醒过 + 两档待办都发过 → 完全不再打扰', async () => {
     prisma.order.findMany.mockResolvedValue([
       order({
-        grabbedAt: hoursAgo(100),
-        customFields: { contactReminder: { stage: 5, lastAt: hoursAgo(20), escalatedAt: hoursAgo(20) } },
+        grabbedAt: hoursAgo(24 * 20),
+        customFields: {
+          contactReminder: { stage: 5, lastAt: hoursAgo(20), adminNotified: [4320, 10080] },
+        },
       }),
     ]);
     await service.tick();

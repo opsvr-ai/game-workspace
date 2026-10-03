@@ -27,8 +27,12 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get('customers')
-  async findAll(@Req() req: any, @Query('sortBy') sortBy?: string): Promise<ApiResponse<unknown>> {
-    const data = await this.customersService.findAll(req.user, sortBy);
+  async findAll(
+    @Req() req: any,
+    @Query('sortBy') sortBy?: string,
+    @Query('scope') scope?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.findAll(req.user, sortBy, scope);
     return { code: 200, message: 'ok', data };
   }
 
@@ -133,6 +137,33 @@ export class CustomersController {
     return { code: 200, message: 'ok', data };
   }
 
+  /**
+   * 封存客户（老板 2026-10-04）：客户一直不通过、小红书也不回 → 先收起来，以后再换人加。
+   * 不删档案、不动订单流水。
+   */
+  @Post('customers/:id/archive')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async archive(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.archive(id, req.user, body?.reason);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 解封（老板 2026-10-04）：可以顺手改派给另一个陪玩再试一次。 */
+  @Post('customers/:id/unarchive')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async unarchive(
+    @Param('id') id: string,
+    @Body() body: { companionId?: string },
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.customersService.unarchive(id, req.user, { companionId: body?.companionId });
+    return { code: 200, message: 'ok', data };
+  }
+
   @Delete('customers/:id')
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async delete(@Param('id') id: string): Promise<ApiResponse<unknown>> {
@@ -173,7 +204,7 @@ export class CustomersController {
   async profileAnalytics(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.customerProfileAnalytics(id, req.user);
     return { code: 200, message: 'ok', data };
-  }
+  }
 
   @Get('customers/:id/profile')
   async getProfile(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {

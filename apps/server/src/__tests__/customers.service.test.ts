@@ -62,7 +62,8 @@ describe('CustomersService', () => {
 
       expect(mockPrisma.customer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { studioId: 'studio-1' },
+          // 默认只列活跃客户（老板 2026-10-04：封存的收起来）
+          where: { studioId: 'studio-1', archivedAt: null },
         }),
       );
       expect(result).toEqual(expectedCustomers);
@@ -239,6 +240,77 @@ describe('CustomersService', () => {
 
       await expect(service.delete('c1')).rejects.toBeInstanceOf(ConflictException);
       expect(mockPrisma.customer.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  // 老板 2026-10-04：客户一直没通过、小红书也不回 → 封存起来，以后再换陪玩加（不是删除）
+  describe('archive / unarchive', () => {
+    const admin = {
+      id: 'u-admin',
+      username: 'boss',
+      role: UserRole.ADMIN,
+      studioId: 'studio-1',
+    };
+
+    it('封存客户：记下时间 / 原因 / 操作人', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({ id: 'c1', studioId: 'studio-1', archivedAt: null });
+      mockPrisma.customer.update.mockResolvedValue({ id: 'c1' });
+
+      await service.archive('c1', admin as any, '客户一直没通过');
+
+      const arg = mockPrisma.customer.update.mock.calls[0][0];
+      expect(arg.where).toEqual({ id: 'c1' });
+      expect(arg.data.archivedReason).toBe('客户一直没通过');
+      expect(arg.data.archivedByUserId).toBe('u-admin');
+      expect(arg.data.archivedAt instanceof Date).toBe(true);
+    });
+
+    it('已封存的客户再点封存不重复动', async () => {
+      const archived = { id: 'c1', studioId: 'studio-1', archivedAt: new Date() };
+      mockPrisma.customer.findUnique.mockResolvedValue(archived);
+
+      const result = await service.archive('c1', admin as any, '再来一次');
+
+      expect(result).toEqual(archived);
+      expect(mockPrisma.customer.update).not.toHaveBeenCalled();
+    });
+
+    it('解封：清掉封存字段 + 可换陪玩 + 备注留痕', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({
+        id: 'c1',
+        studioId: 'studio-1',
+        archivedAt: new Date(),
+        notes: '老备注',
+        companionId: 'comp-old',
+      });
+      mockPrisma.companion.findUnique.mockResolvedValue({ id: 'comp-new', user: { displayName: '李四' } });
+      mockPrisma.customer.update.mockResolvedValue({ id: 'c1' });
+
+      await service.unarchive('c1', admin as any, { companionId: 'comp-new' });
+
+      const arg = mockPrisma.customer.update.mock.calls[0][0];
+      expect(arg.data.archivedAt).toBeNull();
+      expect(arg.data.archivedReason).toBeNull();
+      expect(arg.data.archivedByUserId).toBeNull();
+      expect(arg.data.companionId).toBe('comp-new');
+      expect(String(arg.data.notes)).toContain('老备注');
+      expect(String(arg.data.notes)).toContain('解封重试');
+      expect(String(arg.data.notes)).toContain('李四');
+    });
+
+    it('解封时指定的陪玩不存在 → 报错', async () => {
+      mockPrisma.customer.findUnique.mockResolvedValue({
+        id: 'c1',
+        studioId: 'studio-1',
+        archivedAt: new Date(),
+        companionId: 'comp-old',
+      });
+      mockPrisma.companion.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.unarchive('c1', admin as any, { companionId: 'ghost' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockPrisma.customer.update).not.toHaveBeenCalled();
     });
   });
 
