@@ -61,9 +61,22 @@ const SupplementReviewButton: React.FC = () => {
     return () => clearInterval(t);
   }, [loadSummary]);
 
+  // 陪玩一提交补单申请，服务端会推 order:supplement_request、AppLayout 收到后发这个事件：
+  // 红点（以及正开着的列表）立刻刷新，不用干等下面那 60 秒轮询（老板 2026-10-04：双方都要有提示）。
+  const [refreshTick, setRefreshTick] = useState(0);
+
   useEffect(() => {
     if (open) void loadRows(tab);
-  }, [open, tab, loadRows]);
+  }, [open, tab, loadRows, refreshTick]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void loadSummary();
+      setRefreshTick((v) => v + 1);
+    };
+    window.addEventListener('supplement:refresh', onRefresh as EventListener);
+    return () => window.removeEventListener('supplement:refresh', onRefresh as EventListener);
+  }, [loadSummary]);
 
   const decide = async (row: any, decision: 'APPROVE' | 'REJECT') => {
     try {

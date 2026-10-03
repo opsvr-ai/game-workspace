@@ -98,6 +98,32 @@ describe('补单申请：陪玩点「添加失败」自动建档', () => {
     );
   });
 
+  it('提交后实时通知本店客服 / 店长 + 全站老板（不再是只有 60 秒轮询的红点）', async () => {
+    const { service, prisma, ws } = setup();
+    prisma.order.findUnique.mockResolvedValue({ status: 'GRABBED' });
+    prisma.order.update.mockResolvedValue({
+      id: 'o1',
+      orderCode: 'A100',
+      studioId: 's1',
+      companionId: 'c1',
+      customerId: 'cus1',
+      customFields: {},
+    });
+    prisma.supplementRequest.findUnique.mockResolvedValue(null);
+    prisma.supplementRequest.create.mockResolvedValue({ id: 'sr1' });
+    prisma.user.findMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'cs-1' }]);
+    prisma.companion.findUnique.mockResolvedValue({ user: { displayName: '张三' } });
+
+    await service.updateContact('o1', { contactStatus: 'not_accepted', failReason: 'not_added' });
+
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'admin-1',
+      'order:supplement_request',
+      expect.objectContaining({ orderId: 'o1', companionName: '张三', reason: 'not_added' }),
+    );
+    expect(ws.notifyUser).toHaveBeenCalledWith('cs-1', 'order:supplement_request', expect.anything());
+  });
+
   it('已经同意补过的单不再重复开（防反复要名额）', async () => {
     const { service, prisma } = setup();
     prisma.order.findUnique.mockResolvedValue({ status: 'GRABBED' });
@@ -149,8 +175,8 @@ describe('补单审核：同意 = 次数 +1 并排核查', () => {
     expect(ws.notifyUser).toHaveBeenCalledWith('u1', 'order:supplement', expect.anything());
   });
 
-  it('驳回：不返还名额，只留痕', async () => {
-    const { service, prisma, quota } = setup();
+  it('驳回：不返还名额，只留痕，但也要实时告诉陪玩本人', async () => {
+    const { service, prisma, quota, ws } = setup();
     prisma.supplementRequest.findUnique.mockResolvedValue({
       id: 'sr1',
       orderId: 'o1',
@@ -159,11 +185,18 @@ describe('补单审核：同意 = 次数 +1 并排核查', () => {
       status: 'PENDING',
     });
     prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', status: 'REJECTED' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
 
     await service.decideSupplement('sr1', 'REJECT', '截图看不出来', ADMIN);
 
     expect(quota.credit).not.toHaveBeenCalled();
     expect(prisma.supplementRequest.update.mock.calls[0][0].data.status).toBe('REJECTED');
+    // 以前驳回连事件都不发，陪玩一直不知道自己被驳回了，只能对着失败状态干等
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'u1',
+      'order:supplement',
+      expect.objectContaining({ approved: false, note: '截图看不出来' }),
+    );
   });
 
   it('处理过的申请不能重复处理', async () => {

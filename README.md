@@ -65,7 +65,8 @@
 - **抢单名额改成「抢单那一刻就扣」+ 补单审核 / 到期核查 + 每日台账（2026-10-04，服务端 + 网页 `v909`）:** 线下工作室口径 ——
   抢单即扣（不再等「添加成功 / 转账」），陪玩自己发布的单与客服指定单不占名额、线下工作室的预约单占 1 个，
   没用完的累计到以后；订单池的名额卡片显示「今日已用 / 当前可用」，点开看最近 14 天每天加了多少、用了多少和最近明细。
-  陪玩点「添加失败」自动生成待审补单申请，管理端在「订单管理 → 🧾 补单审核」同意则次数 +1（写台账 + 通知本人），
+  陪玩点「添加失败」自动生成待审补单申请，管理端在「订单管理 → 🧾 补单审核」同意则次数 +1（写台账），
+  **双方都有实时提示**（陪玩提交 → 本店客服/店长 + 全站老板收到提示、红点立刻刷新；同意/驳回 → 陪玩本人收到提示），
   24 小时后在「到期核查」里提醒回看「客户后来通过没」——通过即自动改成「已添加」并把客户归到该陪玩名下。
   新表 `CompanionQuotaLog` / `SupplementRequest`，新接口 `GET/POST /orders/supplements*`。
 - **无操作自动进休息 + 休眠（2026-10-04，客户端 `1.0.20261015` + 服务端）:** 客户端本地盯「鼠标键盘多久没动」，
@@ -1177,7 +1178,7 @@ Every endpoint returns a standard JSON envelope:
 | `GET` | `/api/orders/pool/status` | JWT | COMPANION | 抢单名额状态：`{ tier, dailyLimit, balance, usedToday, remaining, todayGranted, days[], recentLogs[], hasWorkWechat, workWechatId }`（旧的「流水门槛」已废弃）。抢单即扣、没用完累计；`days` 是最近 14 天每天加/用，`recentLogs` 是最近 20 笔明细。 |
 | `GET` | `/api/orders/supplements` | JWT | OWNER, ADMIN, CS | 补单申请列表。Query: `?scope=pending`（待审）\| `due`（到期要核查客户后来通过没）\| 不传=全部。 |
 | `GET` | `/api/orders/supplements/summary` | JWT | OWNER, ADMIN, CS | 管理端红点数量 `{ pending, due }`。 |
-| `POST` | `/api/orders/supplements/:id/decide` | JWT | OWNER, ADMIN, CS | 审核补单。Body: `{ decision: 'APPROVE'\|'REJECT', note? }`；同意 = 陪玩次数 +1（写 `CompanionQuotaLog`，并推 `order:supplement` 通知本人）并排 24 小时后的核查。 |
+| `POST` | `/api/orders/supplements/:id/decide` | JWT | OWNER, ADMIN, CS | 审核补单。Body: `{ decision: 'APPROVE'\|'REJECT', note? }`；同意 = 陪玩次数 +1（写 `CompanionQuotaLog`），并排 24 小时后的核查；**同意 / 驳回都会推 `order:supplement` 通知陪玩本人**。 |
 | `POST` | `/api/orders/supplements/:id/review` | JWT | OWNER, ADMIN, CS | 到期核查。Body: `{ result: 'ACCEPTED'\|'STILL_NOT' }`；`ACCEPTED` = 系统把这张单改成「已添加」并把客户归到该陪玩名下；`STILL_NOT` 3 天后再提醒。 |
 
 ### Dashboard

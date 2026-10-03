@@ -933,6 +933,7 @@ export class OrdersService implements OnModuleInit {
           reviewedByUserId: null,
         },
       });
+      await this.notifySupplementRequest(order, reason).catch(() => null);
       return;
     }
     await this.prisma.supplementRequest.create({
@@ -945,6 +946,44 @@ export class OrdersService implements OnModuleInit {
         status: 'PENDING',
       },
     });
+    await this.notifySupplementRequest(order, reason).catch(() => null);
+  }
+
+  /**
+   * 陪玩提交补单申请 → 实时告诉本店客服 / 店长 + 全站老板。
+   *
+   * 老板 2026-10-04 问「这种交互 双方都有提示么？」——以前陪玩这边提交完，
+   * 管理端只有「订单管理」页上那个每 60 秒自己轮询一次的红点数字，
+   * 管理端不在那一页就完全不知道有人要补单。
+   */
+  private async notifySupplementRequest(order: any, reason: string | null): Promise<void> {
+    const studioId: string | null = order?.studioId ?? null;
+    const where: any = { isAuthorized: true, role: { in: ['OWNER', 'ADMIN', 'CS'] } };
+    if (studioId) where.OR = [{ studioId }, { role: 'OWNER', studioId: null }];
+    else where.role = 'OWNER';
+    const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
+    const reviewers = Array.isArray(found) ? found : [];
+    if (!reviewers.length) return;
+    const companion = await this.prisma.companion
+      .findUnique({
+        where: { id: order.companionId },
+        select: { user: { select: { displayName: true, username: true } } },
+      })
+      .catch(() => null);
+    const name =
+      (companion as any)?.user?.displayName || (companion as any)?.user?.username || '有陪玩';
+    const code = order?.orderCode || order?.id || '';
+    const payload = {
+      orderId: order?.id ?? null,
+      orderCode: order?.orderCode ?? null,
+      companionId: order?.companionId ?? null,
+      companionName: name,
+      reason: reason ?? null,
+      message: `${name} 提交了补单申请（订单 ${code}），去「订单管理 → 补单审核」同意或驳回`,
+    };
+    for (const reviewer of reviewers) {
+      this.wsGateway.notifyUser((reviewer as any).id, 'order:supplement_request', payload);
+    }
   }
 
   /**
@@ -1090,15 +1129,22 @@ export class OrdersService implements OnModuleInit {
           },
         })
         .catch(() => null);
-      const companion = await this.prisma.companion
-        .findUnique({ where: { id: req.companionId }, select: { userId: true } })
-        .catch(() => null);
-      if (companion?.userId) {
-        this.wsGateway.notifyUser(companion.userId, 'order:supplement', {
-          orderId: req.orderId,
-          message: '管理端已同意补单，你的抢单次数 +1',
-        });
-      }
+    }
+    // 审核结果陪玩本人也要实时知道（老板 2026-10-04 问「双方都有提示么」）。
+    // 以前只有「同意」发了事件、而且陪玩端页面没监听；「驳回」连事件都没发 ——
+    // 陪玩一直不知道自己被驳回了，只能对着失败状态干等。
+    const companion = await this.prisma.companion
+      .findUnique({ where: { id: req.companionId }, select: { userId: true } })
+      .catch(() => null);
+    if (companion?.userId) {
+      this.wsGateway.notifyUser(companion.userId, 'order:supplement', {
+        orderId: req.orderId,
+        approved: approve,
+        note: (note || '').trim() || null,
+        message: approve
+          ? '管理端已同意补单，你的抢单次数 +1'
+          : '管理端驳回了补单申请，这次不返还名额',
+      });
     }
     return updated;
   }

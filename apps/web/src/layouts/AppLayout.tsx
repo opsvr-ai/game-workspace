@@ -1580,6 +1580,40 @@ const AppLayout: React.FC = () => {
         href: rolePage(user?.role, 'work-wechats'),
       });
     },
+    onSupplementRequest: (data: any) => {
+      // 陪玩点了「添加失败」提交补单申请（老板 2026-10-04：这种交互双方都要有提示）
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      if (!isMgmt) return;
+      const text = data?.message || '有陪玩提交了补单申请，待审核';
+      message.info(text, 8);
+      recordNotice({
+        kind: 'audit',
+        icon: '🧾',
+        title: '待审核：补单申请',
+        desc: text,
+        href: rolePage(user?.role, 'orders'),
+        dedupeKey: `supplement-req-${data?.orderId || data?.companionId || ''}`,
+        dedupeMs: 60 * 1000,
+      });
+      // 让「订单管理 → 补单审核」的红点立刻刷新（否则要等它自己的 60 秒轮询）
+      window.dispatchEvent(new CustomEvent('supplement:refresh'));
+    },
+    onSupplementDecided: (data: any) => {
+      // 管理端同意 / 驳回补单 → 实时告诉陪玩本人（老板 2026-10-04）
+      if (user?.role !== 'COMPANION') return;
+      const approved = data?.approved !== false;
+      const text =
+        data?.message || (approved ? '管理端已同意补单，你的抢单次数 +1' : '管理端驳回了补单申请');
+      if (approved) message.success(text, 8);
+      else message.warning(text, 8);
+      recordNotice({
+        kind: 'audit',
+        icon: approved ? '✅' : '⛔',
+        title: approved ? '补单已同意：抢单次数 +1' : '补单被驳回',
+        desc: data?.note ? `${text}（备注：${data.note}）` : text,
+        href: rolePage(user?.role, 'orders'),
+      });
+    },
     onBridgeResponded: (data: any) => {
       const text = data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请');
       message.info(text);

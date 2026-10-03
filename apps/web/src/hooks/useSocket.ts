@@ -57,6 +57,10 @@ interface UseSocketOptions {
   onWorkWechatRequest?: (data: any) => void;
   /** 自己的工作微信申请被审核（通过 / 驳回），陪玩端刷新卡片 */
   onWorkWechatUpdated?: (data: any) => void;
+  /** 陪玩点了「添加失败」提交补单申请，管理端实时收到（老板 2026-10-04） */
+  onSupplementRequest?: (data: any) => void;
+  /** 补单申请被审核（同意 / 驳回），陪玩本人实时收到（老板 2026-10-04） */
+  onSupplementDecided?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -348,6 +352,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('work-wechat:updated', (data: any) => {
       optsRef.current.onWorkWechatUpdated?.(data);
+    });
+
+    socket.on('order:supplement_request', (data: any) => {
+      optsRef.current.onSupplementRequest?.(data);
+    });
+
+    socket.on('order:supplement', (data: any) => {
+      optsRef.current.onSupplementDecided?.(data);
     });
 
     // 页面级 useSocket 可能在 accessToken 已过期后才挂载（例如陪玩先登录，
