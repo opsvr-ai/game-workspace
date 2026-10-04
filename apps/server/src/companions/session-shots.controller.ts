@@ -28,6 +28,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
 import { yuanToCents } from '../common/money';
+import { resolveDepositDeduct } from '../common/deposit-deduct';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { releaseCompanionIfIdle } from '../common/companion-presence';
 
@@ -111,7 +112,7 @@ export class SessionShotsController {
   async finishSession(
     @Param('id') id: string,
     @Req() req: any,
-    @Body() body: { transferTotalYuan?: number },
+    @Body() body: { transferTotalYuan?: number; depositDeductYuan?: number },
   ): Promise<ApiResponse<unknown>> {
     const session = await this.prisma.orderSession.findUnique({
       where: { id },
@@ -226,16 +227,33 @@ export class SessionShotsController {
     await releaseCompanionIfIdle(this.prisma, session.companionId, id);
     await releaseCompanionIfIdle(this.prisma, session.coCompanionId, id);
 
-    // 存单扣款：用存单支付的服务，按实际计时扣减客户存单余额
-    if (session.paidByDeposit) {
-      const deduct = Math.round(actualHours * declaredPrice * 100) / 100;
-      await this.prisma.customer.update({
-        where: { id: session.parentOrder.customerId },
-        data: { depositBalance: { decrement: deduct } },
-      }).catch(() => {});
+    // 存单扣款（老板 2026-10-04：「有时候你统计的并不准，以陪玩自己输入的为准吧」）：
+    // 陪玩在「结束服务」里填了金额就以他填的为准，没填才退回「实际时长 × 单价」；
+    // 最多扣到客户当前存单余额（不做成负数，否则财务「未打存单预留」会被算花）。
+    let depositDeducted: number | null = null;
+    if (session.paidByDeposit && session.parentOrder.customerId) {
+      const autoDeduct = Math.round(actualHours * declaredPrice * 100) / 100;
+      const customer = await this.prisma.customer
+        .findUnique({ where: { id: session.parentOrder.customerId }, select: { depositBalance: true } })
+        .catch(() => null);
+      depositDeducted = resolveDepositDeduct({
+        wanted: body?.depositDeductYuan,
+        autoDeduct,
+        balance: customer?.depositBalance ?? 0,
+      });
+      if (depositDeducted > 0) {
+        await this.prisma.customer.update({
+          where: { id: session.parentOrder.customerId },
+          data: { depositBalance: { decrement: depositDeducted } },
+        }).catch(() => {});
+      }
     }
 
-    return { code: 200, message: '已结束', data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason } };
+    return {
+      code: 200,
+      message: '已结束',
+      data: { shotCount, flagged, compositeUrl, auditStatus, flaggedReason, depositDeducted },
+    };
   }
   private async getCaptureConfig(studioId?: string | null): Promise<{ expectedPerHour: number; minRatePercent: number; blackRateMaxPercent: number }> {
     const keys = ['capture.expected_per_hour', 'capture.min_rate_percent', 'capture.black_rate_max_percent'];

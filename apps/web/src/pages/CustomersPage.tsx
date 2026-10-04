@@ -90,7 +90,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; createdAt?: string; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; endedAt?: string | null; status: string; pausedAt?: string | null; totalPausedSec?: number | null; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; createdAt?: string; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; endedAt?: string | null; status: string; pausedAt?: string | null; totalPausedSec?: number | null; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null; paidByDeposit?: boolean | null }> }>;
 }
 
 interface CompanionOption {
@@ -206,7 +206,13 @@ const CustomersPage: React.FC = () => {
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
   const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any; depositBalance?: number } | null>(null);
-  const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
+  const [endServiceTarget, setEndServiceTarget] = useState<{
+    sessionId: string;
+    orderId: string;
+    paidByDeposit?: boolean;
+    depositBalance?: number;
+    suggestedDeduct?: number;
+  } | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
   const [scheduleTime, setScheduleTime] = useState<any>(null);
@@ -908,7 +914,28 @@ const CustomersPage: React.FC = () => {
                   <Button
                     size="small"
                     danger
-                    onClick={() => setEndServiceTarget({ sessionId: activeSession.id, orderId: activeOrder.id })}
+                    onClick={() => {
+                      // 存单付款的：预填「实际时长 × 单价」，陪玩觉得不对可以直接改成自己的数
+                      // （老板 2026-10-04：「有时候你统计的并不准，以陪玩自己输入的为准吧」）
+                      const startedMs = activeSession.startedAt
+                        ? new Date(activeSession.startedAt).getTime()
+                        : Date.now();
+                      let sec = Math.max(
+                        0,
+                        (Date.now() - startedMs) / 1000 - (activeSession.totalPausedSec || 0),
+                      );
+                      if (activeSession.pausedAt) {
+                        sec = Math.max(0, sec - (Date.now() - new Date(activeSession.pausedAt).getTime()) / 1000);
+                      }
+                      const unit = Number(activeSession.claimedPrice) || 0;
+                      setEndServiceTarget({
+                        sessionId: activeSession.id,
+                        orderId: activeOrder.id,
+                        paidByDeposit: !!activeSession.paidByDeposit,
+                        depositBalance: Number(record.depositBalance) || 0,
+                        suggestedDeduct: unit > 0 && sec > 0 ? Math.round((sec / 3600) * unit * 100) / 100 : 0,
+                      });
+                    }}
                   >
                     结束服务
                   </Button>
@@ -1346,6 +1373,9 @@ const CustomersPage: React.FC = () => {
           open={!!endServiceTarget}
           sessionId={endServiceTarget?.sessionId}
           orderId={endServiceTarget?.orderId}
+          paidByDeposit={endServiceTarget?.paidByDeposit}
+          depositBalance={endServiceTarget?.depositBalance}
+          suggestedDeduct={endServiceTarget?.suggestedDeduct}
           onClose={() => setEndServiceTarget(null)}
           onDone={() => fetchCustomers()}
         />
