@@ -10,7 +10,7 @@ const { Text } = Typography;
 type Tier = { min: number; score: number };
 
 const TIER_DEFS: Array<{ key: string; label: string; unit: string; def: Tier[] }> = [
-  { key: 'excellence.revenue_tiers', label: '最近 30 天流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.revenue_tiers', label: '最近 30 天流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 45 }, { min: 10000, score: 50 }] },
   { key: 'excellence.renew_tiers', label: '续单率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.repurchase_tiers', label: '复购率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.first_success_tiers', label: '首单成功率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
@@ -95,7 +95,7 @@ const ExcellenceSettings: React.FC = () => {
         'excellence.renew_tiers': config?.['excellence.renew_tiers'],
         'excellence.repurchase_tiers': config?.['excellence.repurchase_tiers'],
         'excellence.first_success_tiers': config?.['excellence.first_success_tiers'],
-        'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 50,
+        'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 85,
         'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 60,
         'excellence.revenue_floor': config?.['excellence.revenue_floor'] ?? 5200,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,

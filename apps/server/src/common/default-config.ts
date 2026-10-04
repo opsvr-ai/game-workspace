@@ -226,13 +226,13 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.break_even_hours': 2.5,
   // 综合评分：每一项「取达到的最高一档」的分（不叠加），四项满分之和 ≤ 100。
   // 以前那套「权重占比」（excellence.*_weight）与「流水封顶」已整条去掉（老板 2026-10-04）。
-  // 老板 2026-10-04 定稿的四张档位表 + 一条硬门槛，满分 50 + 20 + 20 + 10 = 100：
-  //   流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
+  // 老板 2026-10-04 定稿、2026-10-05 选 B 微调的档位表 + 一条硬门槛，满分 45 + 20 + 20 + 10 = 95：
+  //   流水 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（上等马线 85，留 10 分缓冲）；
   //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
   //   纯新客打满 ≈ 4050 元（3 单/天 × 45 元 × 30 天）够不到门槛 → 必然下等马。
   // revenue_floor：最近 30 天流水没到这条线的人**一律下等马**（KPI 再高也不算）；
   //   流水达标的人最低也是中等马。填 0 = 关掉这条硬线。
-  'excellence.excellent_threshold': 90,
+  'excellence.excellent_threshold': 85,
   'excellence.middle_tier_threshold': 60,
   'excellence.revenue_floor': 5200,
   'excellence.battle_screenshot_bonus': 1,
@@ -244,7 +244,7 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
     { min: 0, score: 0 },
     { min: 3000, score: 20 },
     { min: 6000, score: 30 },
-    { min: 8000, score: 40 },
+    { min: 8000, score: 45 },
     { min: 10000, score: 50 },
   ],
   'excellence.renew_tiers': [

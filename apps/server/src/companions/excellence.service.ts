@@ -310,12 +310,12 @@ export class ExcellenceService implements OnModuleInit {
         return def;
       };
       return {
-        // 老板 2026-10-04 定稿的四个档位表（满分 50 + 20 + 20 + 10 = 100）：
-        //   · 最近 30 天流水：0 / 3000 / 6000 / 8000 / 10000 → 0 / 20 / 30 / 40 / 50；
+        // 老板 2026-10-04 定稿、2026-10-05 选 B 微调的四个档位表（满分 45 + 20 + 20 + 10 = 95）：
+        //   · 最近 30 天流水：0 / 3000 / 6000 / 8000 / 10000 → 0 / 20 / 30 / 45 / 50；
         //   · 续单率、复购率：过 30% 得 10 分、过 50% 得 20 分；
         //   · 首单成功率：过 30% 得 5 分、过 50% 得 10 分。
-        // 校验过的例子：
-        //   流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
+        // 校验过的例子（上等马线 85）：
+        //   流水 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（留 10 分缓冲）；
         //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
         //   流水 6000 + 三率都过半 = 30+50 = 80 → 中等马。
         // **纯新客到不了高流水**（老板 2026-10-04 指出）：抢单名额最多 3 单/天、每单约 1 小时、
@@ -326,7 +326,7 @@ export class ExcellenceService implements OnModuleInit {
           { min: 0, score: 0 },
           { min: 3000, score: 20 },
           { min: 6000, score: 30 },
-          { min: 8000, score: 40 },
+          { min: 8000, score: 45 },
           { min: 10000, score: 50 },
         ]),
         renewTiers: parseTiers(cfg['excellence.renew_tiers'], [
@@ -344,7 +344,7 @@ export class ExcellenceService implements OnModuleInit {
           { min: 30, score: 5 },
           { min: 50, score: 10 },
         ]),
-        excellentThreshold: num(cfg['excellence.excellent_threshold'], 90),
+        excellentThreshold: num(cfg['excellence.excellent_threshold'], 85),
         middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 60),
         // 最近 30 天流水硬门槛（老板 2026-10-04）：「最近 30 天流水没过 5200 在我眼里就是下等马，
         // 就算他各种 KPI 都高」。填 0 = 关掉这条硬线，退回纯分数判段位。

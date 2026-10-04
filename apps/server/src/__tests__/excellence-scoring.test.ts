@@ -20,7 +20,8 @@ import { ExcellenceService } from '../companions/excellence.service';
  * 第四次（本次）：
  *   · 段位多一条**最近 30 天流水硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
  *   · 反过来，**流水达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
- *   · 四个档位表按老板举的例子定稿：流水 8000 + 三率都过半 = 90（上等马）、
+ *   · 四个档位表按老板举的例子定稿；**2026-10-05 老板选 B** 微调成：
+ *     流水 8000 + 三率都过半 = 95（上等马，线 85、留 10 分缓冲）、
  *     流水 10000 纯老客 = 90（上等马）、流水 6000 + 三率过半 = 80（中等马）。
  *     （纯新客打满也只有约 4050 元、够不到 5200 门槛 → 必然下等马，不是 60 分中等马。）
  *
@@ -40,12 +41,12 @@ import { ExcellenceService } from '../companions/excellence.service';
  */
 
 const LIVE_CFG = [
-  { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 45 }, { min: 10000, score: 50 }] },
   { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
   { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
-  // 老板 2026-10-04 拍板：上等马 90 / 中等马 60（原来是 999 / 0，等于谁都不升不降）
-  { key: 'excellence.excellent_threshold', value: 90 },
+  // 老板 2026-10-04 拍板 90 / 60；2026-10-05 选 B：上等马线 90 → 85、流水 8000 档 40 → 45（中等马线 60 不动）
+  { key: 'excellence.excellent_threshold', value: 85 },
   { key: 'excellence.middle_tier_threshold', value: 60 },
   // 最近 30 天流水硬门槛（第四次拍板）：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
   { key: 'excellence.revenue_floor', value: 5200 },
@@ -171,7 +172,7 @@ describe('综合评分：每项取达到的最高一档（不叠加）', () => {
 
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
 
-    expect(r.revenueScore).toBe(40); // 8500 → 最高一档 6000 = 40 分（不是 20+40）
+    expect(r.revenueScore).toBe(45); // 8500 → 最高一档 8000 = 45 分（不是 20+30+45）
     expect(r.renewScore).toBe(20); // 85% ≥ 60% → 20
     expect(r.repurchaseScore).toBe(20); // 85% ≥ 60% → 20
     expect(r.firstSuccessScore).toBe(10); // 81% ≥ 70% → 10
@@ -329,11 +330,18 @@ describe('最近 30 天流水硬门槛：没到线一律下等马，流水达标
   const hotCustomerSpec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
   const hotExtra = { added: { c1: 3 } };
 
-  it('流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马（老板举的目标画像）', async () => {
+  it('流水 8000 + 三率都过半 = 45+20+20+10 = 95 → 上等马（老板举的目标画像，B 方案留 10 分缓冲）', async () => {
     const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 8000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
-    expect(r.rankScore).toBe(90);
+    expect(r.revenueScore).toBe(45);
+    expect(r.rankScore).toBe(95);
+    expect(r.excellentThreshold).toBe(85);
     expect(r.tier).toBe('TOP');
+    // 掉一档：流水掉回 6000（30 分）→ 80 分，低于 85 线 → 中等马（这正是 B 要的「留一点缓冲」）
+    const mid = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 6000 } });
+    const rMid = (await mid.computeForCompanions(['c1'])).get('c1')!;
+    expect(rMid.rankScore).toBe(80);
+    expect(rMid.tier).toBe('MIDDLE');
   });
 
   it('流水 6000 + 三率都过半 = 30+20+20+10 = 80 → 中等马（差一点的那个）', async () => {
@@ -370,13 +378,13 @@ describe('最近 30 天流水硬门槛：没到线一律下等马，流水达标
 });
 
 describe('段位按配置的线判定', () => {
-  it('线上新线 90 / 60：老客型 90 分是上等马，新客型 60 分是中等马', async () => {
+  it('线上新线 85 / 60：老客型 90 分是上等马（留 5 分缓冲），新客型 60 分是中等马', async () => {
     const oldCustomerType = setup({
       doneOrders: { c1: [{ cust: 'a', count: 5 }, { cust: 'b', count: 5 }] },
       monthlyRevenue: { c1: 10000 },
     });
     const r1 = (await oldCustomerType.computeForCompanions(['c1'])).get('c1')!;
-    expect(r1.excellentThreshold).toBe(90);
+    expect(r1.excellentThreshold).toBe(85);
     expect(r1.middleTierThreshold).toBe(60);
     expect(r1.revenueFloor).toBe(5200);
     expect(r1.tier).toBe('TOP');
@@ -466,10 +474,10 @@ describe('战绩图加分不参与段位（老板 2026-10-04：堆截图刷不�
     expect(r.tier).toBe('MIDDLE');
   });
 
-  it('段位分自己够线才升段：流水 8000 + 三率过半 = 90 → 上等马（跟战绩图无关）', async () => {
+  it('段位分自己够线才升段：流水 8000 + 三率过半 = 95 → 上等马（跟战绩图无关）', async () => {
     const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 8000 } });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
-    expect(r.tierScore).toBe(90);
+    expect(r.tierScore).toBe(95);
     expect(r.bonusScore).toBe(0);
     expect(r.tier).toBe('TOP');
   });
