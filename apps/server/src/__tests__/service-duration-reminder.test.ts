@@ -59,9 +59,10 @@ describe('服务时长到点提醒（不点结束就一直提醒）', () => {
     expect(pushed).toHaveLength(1);
     expect(pushed[0].id).toBe('c1');
     expect(pushed[0].event).toBe('service:duration_reminder');
-    expect(pushed[0].data.message).toContain('不点结束');
-    expect(pushed[0].data.message).toContain('不计流水');
     expect(pushed[0].data.message).toContain('结束服务');
+    expect(pushed[0].data.message).toContain('续单'); // 客户接着打就先点续单，别让人白打
+    expect(pushed[0].data.message).toContain('不计流水');
+    expect(pushed[0].data.message).toContain('不算首单成交');
     expect(pushed[0].data.overdueMin).toBeGreaterThan(50);
     expect(updated).toHaveLength(1);
     expect(updated[0].data.durationRemindedAt).toBeInstanceOf(Date);

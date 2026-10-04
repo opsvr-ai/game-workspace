@@ -63,7 +63,8 @@ export class ServiceDurationReminderService implements OnModuleInit {
           : '时间到了';
       const message =
         `已服务 ${durationH} 小时，${overdueText}。` +
-        '打完请立刻点「结束服务」—— 不点结束这一单不计流水，也不算首单成交 / 续单 / 复购（评分和抢单名额都受影响）';
+        '打完请立刻点「结束服务」；客户还要接着打就先点「续单」—— ' +
+        '不点的话这一单不计流水，也不算首单成交 / 续单 / 复购（评分和抢单名额都会少）';
       if (s.companionId) {
         this.wsGateway.pushToCompanion(s.companionId, 'service:duration_reminder', {
           sessionId: s.id,
