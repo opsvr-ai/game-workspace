@@ -511,6 +511,18 @@ const tintOfMenuKey = (key: string): string =>
   MODULE_TINTS[String(key).split('-').slice(1).join('-')] || '#7C4DFF';
 
 /**
+ * 菜单角标（红色）：label 后面跟一个数量。
+ *   叶子挂「这个页面自己的未读数」；父级挂「子树汇总」—— 子菜单被手动收起时，
+ *   父级上的角标也能看到里面还有几条没读（老板 2026-10-04：「把子项的未读数合计到父级」）。
+ */
+const menuBadgeLabel = (label: React.ReactNode, count: number) => (
+  <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+    {label}
+    <Badge count={count} size="small" overflowCount={99} color="#FF4D4F" />
+  </span>
+);
+
+/**
  * 把「流水比例」小字挂到左侧栏标题后面。
  *
  * 老板 2026-09-21：店长 / 客服 / 陪玩的工资页要一眼看到他们各拿流水的百分之几，
@@ -2079,27 +2091,28 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
-    // 最后一道：把「通知」未读角标挂到对应菜单项上（挂在叶子上，跟具体页面一一对应）。
-    const withNoticeBadges = (list: any[]): any[] =>
-      list.map((item) => {
+    // 最后一道：把「通知」未读角标挂到对应菜单项上。
+    //   叶子（跟具体页面一一对应）：挂这个页面自己的未读数；
+    //   父级（有子菜单）：挂**子树汇总** —— 店长把子菜单手动收起时，一级菜单上的角标照样看得到还有几条没读。
+    const withNoticeBadges = (list: any[]): { items: any[]; count: number } => {
+      let total = 0;
+      const items = list.map((item) => {
         if (Array.isArray(item.children) && item.children.length > 0) {
-          return { ...item, children: withNoticeBadges(item.children) };
+          const sub = withNoticeBadges(item.children);
+          total += sub.count;
+          if (!sub.count) return { ...item, children: sub.items };
+          return { ...item, children: sub.items, label: menuBadgeLabel(item.label, sub.count) };
         }
         const path = noticePath(item.key);
         const n = path ? unreadByPath[path] || 0 : 0;
+        total += n;
         if (!n) return item;
-        return {
-          ...item,
-          label: (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-              {item.label}
-              <Badge count={n} size="small" overflowCount={99} color="#FF4D4F" />
-            </span>
-          ),
-        };
+        return { ...item, label: menuBadgeLabel(item.label, n) };
       });
-    return withNoticeBadges(flattened);
-    // 徽标那一段是拿 label 字符串比对的，所以装饰必须放在它之后。
+      return { items, count: total };
+    };
+    // 上面「徽标那一段」是拿 label 字符串比对的，所以这层装饰必须放在它之后。
+    return withNoticeBadges(flattened).items;
   }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, clearNoticesByKey]);
 
   const selectedKeys = useMemo(() => {
