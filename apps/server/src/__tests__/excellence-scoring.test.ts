@@ -18,7 +18,7 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   两栏仍然**不互斥**：隔天回头的客户两边都算。
  *
  * 第四次（本次）：
- *   · 段位多一条**月流水硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
+ *   · 段位多一条**最近 30 天流水硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
  *   · 反过来，**流水达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
  *   · 四个档位表按老板举的例子定稿：流水 8000 + 三率都过半 = 90（上等马）、
  *     流水 10000 纯老客 = 90（上等马）、流水 10000 纯新客 = 60（中等马）、流水 6000 + 三率过半 = 80（中等马）。
@@ -27,6 +27,10 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   · 老板澄清「成交首单就是陪玩点了开始首单那个按钮」→ 首单成功率的**分子改成
  *     「点过『开始首单』（这张首单开过会话）的客户数」，不等单子结束**；
  *   · 分母同时从「添加成功的**单数**」改成「添加成功的**客户数**」（同一客户重复抢单只算一个）。
+ *
+ * 第六次（2026-10-04）：老板「所有指标都按照最近 30 天统计」→ **流水分档与流水硬门槛
+ * 也从「本营业月」改成「最近 30 天」**（续单率 / 复购率 / 首单成功率本来就是 30 天），
+ * 月初不再全员归零。变量名 monthlyRevenue* 保留，只换取数窗口。
  */
 
 const LIVE_CFG = [
@@ -37,7 +41,7 @@ const LIVE_CFG = [
   // 老板 2026-10-04 拍板：上等马 90 / 中等马 60（原来是 999 / 0，等于谁都不升不降）
   { key: 'excellence.excellent_threshold', value: 90 },
   { key: 'excellence.middle_tier_threshold', value: 60 },
-  // 月流水硬门槛（第四次拍板）：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
+  // 最近 30 天流水硬门槛（第四次拍板）：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
   { key: 'excellence.revenue_floor', value: 5200 },
 ];
 
@@ -314,7 +318,7 @@ describe('健壮性', () => {
   });
 });
 
-describe('月流水硬门槛：没到线一律下等马，流水达标最低中等马（老板 2026-10-04）', () => {
+describe('最近 30 天流水硬门槛：没到线一律下等马，流水达标最低中等马（老板 2026-10-04）', () => {
   /** 2 个客户各打 2 单（隔天）→ 续单 100%、复购 100%；成交 2 个首单 ÷ 加了 3 个微信 = 67% */
   const hotCustomerSpec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
   const hotExtra = { added: { c1: 3 } };
@@ -390,5 +394,46 @@ describe('段位按配置的线判定', () => {
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.isExcellent).toBe(false);
     expect(r.tier).toBe('MIDDLE');
+  });
+});
+
+describe('流水窗口 = 最近 30 天（老板 2026-10-04「所有指标都按照最近 30 天统计」）', () => {
+  it('取数不再卡「营业月」：上界去掉、下界是 30 天前，流水分档照算', async () => {
+    const groupByArgs: any[] = [];
+    const prisma = {
+      order: {
+        groupBy: vi.fn((args: any) => {
+          groupByArgs.push(args);
+          if (args?._sum?.amount) {
+            return Promise.resolve([{ companionId: 'c1', _sum: { amount: 12000 } }]);
+          }
+          return Promise.resolve([]);
+        }),
+        findMany: vi.fn(() => Promise.resolve([])),
+      },
+      companion: {
+        findMany: vi.fn((args: any) =>
+          Promise.resolve(
+            (args?.where?.id?.in ?? []).map((id: string) => ({ id, bonusScore: 0, studioId: 'studio-1' })),
+          ),
+        ),
+      },
+      systemConfig: { findMany: vi.fn(() => Promise.resolve(LIVE_CFG)) },
+      studioConfig: { findMany: vi.fn(() => Promise.resolve([])) },
+    };
+    const svc = new ExcellenceService(prisma as never);
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+
+    const revCall = groupByArgs.find((a) => a?._sum?.amount);
+    expect(revCall).toBeTruthy();
+    // 不再有「次月 1 日 12:00」那种上界
+    expect(revCall.where.createdAt.lt).toBeUndefined();
+    // 下界正好是 30 天前（滚动窗口）
+    const days = (Date.now() - new Date(revCall.where.createdAt.gte).getTime()) / (24 * 60 * 60 * 1000);
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThan(30.1);
+    // 30 天 12000 元 → 达到最高档 50 分
+    expect(r.revenueScore).toBe(50);
+    expect(r.revenueYuan).toBe(12000);
   });
 });

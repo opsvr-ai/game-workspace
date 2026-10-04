@@ -28,7 +28,7 @@ interface Excellence {
   firstSuccessScore?: number;
   excellentThreshold?: number;
   middleTierThreshold?: number;
-  /** 月流水硬门槛（元）：没到这条线一律下等马（老板 2026-10-04）。 */
+  /** 最近 30 天流水硬门槛（元）：没到这条线一律下等马（老板 2026-10-04）。 */
   revenueFloor?: number;
   renewRate?: number;
   repurchaseRate?: number;
@@ -101,7 +101,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
 
   /** 每项「达到 X 得 Y 分」的完整档位表 + 陪玩自己现在在哪一档、差多少到下一档。 */
   const dims = [
-    { label: '月流水', unit: '元', score: data?.revenueScore ?? 0, value: data?.revenueYuan ?? 0, tiers: data?.revenueTiers ?? [] },
+    { label: '最近 30 天流水', unit: '元', score: data?.revenueScore ?? 0, value: data?.revenueYuan ?? 0, tiers: data?.revenueTiers ?? [] },
     { label: '续单率', unit: '%', score: renewScore, value: data?.renewRate ?? 0, tiers: data?.renewTiers ?? [] },
     { label: '复购率', unit: '%', score: repurchaseScore, value: data?.repurchaseRate ?? 0, tiers: data?.repurchaseTiers ?? [] },
     { label: '首单成功率', unit: '%', score: newScore, value: data?.newRate ?? 0, tiers: data?.firstSuccessTiers ?? [] },
@@ -112,7 +112,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
       : data?.tier === 'MIDDLE'
         ? `距上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分（上等马线 ${excellentThreshold} 分）`
         : belowFloor
-          ? `本月流水 ${data?.revenueYuan ?? 0} 元，没到 ${revenueFloor} 元这条硬线 —— 没到线的分数再高也算下等马，先把流水做上去；再往上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分`
+          ? `最近 30 天流水 ${data?.revenueYuan ?? 0} 元，没到 ${revenueFloor} 元这条硬线 —— 没到线的分数再高也算下等马，先把流水做上去；再往上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分`
           : `距中等马还差 ${Math.max(0, middleTierThreshold - myScore)} 分；再往上等马还差 ${Math.max(0, excellentThreshold - myScore)} 分`;
 
   return (
@@ -194,11 +194,11 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message={`口径（老板 2026-10-04）：月流水 = 当月成交；续单率 / 复购率 / 首单成功率 = 最近 30 天。续单 = 该客户在你这有第 2 段及以后会话（点「续单」加出来的那段）；复购 = 隔了一个营业日（12:00 为界）又来打。续单率 / 复购率的分母都是「打了首单的客户数」；首单成功率 = 点过「开始首单」的客户数 ÷ 「添加成功」的客户数（成交首单 = 陪玩点了「开始首单」那个按钮，开了会话就算，不等单子结束）。${revenueFloor > 0 ? `段位还看一条硬线：月流水没到 ${revenueFloor} 元一律下等马（其他分再高也不算）；流水达标的人最低也是中等马。` : ''}`}
+            message={`口径（老板 2026-10-04）：流水 = 最近 30 天成交；续单率 / 复购率 / 首单成功率 也统一按最近 30 天算。续单 = 该客户在你这有第 2 段及以后会话（点「续单」加出来的那段）；复购 = 隔了一个营业日（12:00 为界）又来打。续单率 / 复购率的分母都是「打了首单的客户数」；首单成功率 = 点过「开始首单」的客户数 ÷ 「添加成功」的客户数（成交首单 = 陪玩点了「开始首单」那个按钮，开了会话就算，不等单子结束）。${revenueFloor > 0 ? `段位还看一条硬线：最近 30 天流水没到 ${revenueFloor} 元一律下等马（其他分再高也不算）；流水达标的人最低也是中等马。` : ''}`}
           />
           <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一项取达到的最高一档，不叠加）</Title>
           <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="月流水">
+            <Descriptions.Item label="最近 30 天流水">
               {data?.revenueScore ?? 0} 分
             </Descriptions.Item>
             <Descriptions.Item label={`续单率 ${data?.renewRate ?? 0}%`}>
@@ -270,7 +270,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             <li>客服派单时，快结束的陪玩列表里你排前面。</li>
           </ul>
 
-          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 月流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项只取你达到的最高一档的分（不叠加）：比如流水到 6000 那一档是 20 分、到 10000 那一档是 40 分，那你流水过万这一项就是 40 分。综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
+          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项只取你达到的最高一档的分（不叠加）：比如流水到 6000 那一档是 20 分、到 10000 那一档是 40 分，那你流水过万这一项就是 40 分。综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
         </div>
       )}
     </Modal>

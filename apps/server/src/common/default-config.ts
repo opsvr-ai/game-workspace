@@ -230,7 +230,7 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   //   流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
   //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
   //   流水 10000 纯新客（老客 0）= 50+10 = 60 → 中等马。
-  // revenue_floor：月流水没到这条线的人**一律下等马**（KPI 再高也不算）；
+  // revenue_floor：最近 30 天流水没到这条线的人**一律下等马**（KPI 再高也不算）；
   //   流水达标的人最低也是中等马。填 0 = 关掉这条硬线。
   'excellence.excellent_threshold': 90,
   'excellence.middle_tier_threshold': 60,

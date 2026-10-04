@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { businessDayKey, settlementMonthRange } from '../common/business-day';
+import { businessDayKey } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { logger } from '../common/logger';
 
@@ -18,13 +18,13 @@ export interface ExcellenceResult {
   /** 上等马线 / 中等马线：给「评分说明」页面显示用，和算段位用的是同一份配置。 */
   excellentThreshold: number;
   middleTierThreshold: number;
-  /** 月流水硬门槛（元）：没到这条线的人一律下等马，其他分再高也不算（老板 2026-10-04）。 */
+  /** 最近 30 天流水硬门槛（元）：没到这条线的人一律下等马，其他分再高也不算（老板 2026-10-04）。 */
   revenueFloor: number;
   renewRate: number;
   repurchaseRate: number;
   newRate: number;
   orderCount: number;
-  /** 本月流水（元）：陪玩端「还差多少到下一档」要用。 */
+  /** 最近 30 天流水（元）：陪玩端「还差多少到下一档」要用。 */
   revenueYuan: number;
   /** 每一项「达到 X 得 Y 分」的完整档位表 + 战绩图每组加分：陪玩端「评分说明」显示规则用。 */
   revenueTiers: Array<{ min: number; score: number }>;
@@ -36,7 +36,7 @@ export interface ExcellenceResult {
 
 /**
  * 陪玩段位综合分统一计算：
- * 综合分 = 月流水 + 续单率 + 复购率 + 首单成功率（每一项**取达到的最高一档**的分，不叠加）+ 战绩图加分。
+ * 综合分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率（每一项**取达到的最高一档**的分，不叠加）+ 战绩图加分。
  * 四项各自满分之和不超过 100（设置页与 `PUT /api/config` 两侧都拦）。
  * 该口径同时用于管理端「上等马/中等马/下等马」标记与订单池「上等马立刻看到」的延迟判断。
  */
@@ -73,7 +73,7 @@ export class ExcellenceService implements OnModuleInit {
    * 每日段位复核：全员按当前指标重算一次，和上一次快照比对，把**换了段位**的人记下来。
    *
    * 说明（老板 2026-10-04 定）：不做「额外扣分」那一套 —— 分数本来就是
-   * 「月流水 + 续单率 + 复购率 + 首单成功率（每项取达到的最高一档）」实时算出来的，
+   * 「最近 30 天流水 + 续单率 + 复购率 + 首单成功率（每项取达到的最高一档）」实时算出来的，
    * 指标掉了那一项的分自然掉回去，段位跟着变，这就是降级。
    * 这里只负责「每天看一眼 + 留档」，不改任何算分口径。
    *
@@ -303,7 +303,7 @@ export class ExcellenceService implements OnModuleInit {
       };
       return {
         // 老板 2026-10-04 定稿的四个档位表（满分 50 + 20 + 20 + 10 = 100）：
-        //   · 月流水：0 / 3000 / 6000 / 8000 / 10000 → 0 / 20 / 30 / 40 / 50；
+        //   · 最近 30 天流水：0 / 3000 / 6000 / 8000 / 10000 → 0 / 20 / 30 / 40 / 50；
         //   · 续单率、复购率：过 30% 得 10 分、过 50% 得 20 分；
         //   · 首单成功率：过 30% 得 5 分、过 50% 得 10 分。
         // 校验过的例子（老板自己举的）：流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
@@ -334,7 +334,7 @@ export class ExcellenceService implements OnModuleInit {
         ]),
         excellentThreshold: num(cfg['excellence.excellent_threshold'], 90),
         middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 60),
-        // 月流水硬门槛（老板 2026-10-04）：「月流水没过 5200 在我眼里就是下等马，
+        // 最近 30 天流水硬门槛（老板 2026-10-04）：「最近 30 天流水没过 5200 在我眼里就是下等马，
         // 就算他各种 KPI 都高」。填 0 = 关掉这条硬线，退回纯分数判段位。
         revenueFloor: num(cfg['excellence.revenue_floor'], 5200),
         battleScreenshotBonus: num(cfg['excellence.battle_screenshot_bonus'], 1),
@@ -419,17 +419,17 @@ export class ExcellenceService implements OnModuleInit {
       }
     }
 
-    // 月流水：按营业月统计（当月 1 日 12:00 至次月 1 日 12:00，不含）
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const { start: monthStart, end: monthEnd } = settlementMonthRange(monthKey);
+    // 最近 30 天流水（老板 2026-10-04：「所有指标都按照最近 30 天统计」）：
+    //   原来按「营业月」（当月 1 日 12:00 至次月 1 日 12:00）取，月初几天全员流水从 0 起算，
+    //   连最厉害的陪玩也会暂时掉成下等马；改成滚动 30 天，跟续单率 / 复购率 / 首单成功率同窗口，
+    //   月初不再清零。变量名仍叫 monthlyRevenue*（避免牵动前端与快照结构），语义已是「最近 30 天」。
     const monthlyRevenue = await this.prisma.order.groupBy({
       by: ['companionId'],
       where: {
         companionId: { in: ids },
         status: 'DONE',
         type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
-        createdAt: { gte: monthStart, lt: monthEnd },
+        createdAt: { gte: rateWindowStart },
       },
       _sum: { amount: true },
     });
@@ -505,8 +505,8 @@ export class ExcellenceService implements OnModuleInit {
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
       // 段位（老板 2026-10-04 定稿，比分数更硬的一条线）：
       //   ① 先按分数分档：够上等马线 → 上等马，够中等马线 → 中等马，其余下等马；
-      //   ② **月流水没到硬门槛**（默认 5200 元）的人，一律下等马 —— KPI 再高也不算。
-      //      老板原话：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高……
+      //   ② **最近 30 天流水没到硬门槛**（默认 5200 元）的人，一律下等马 —— KPI 再高也不算。
+      //      老板原话：「最近 30 天流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高……
       //      那就只有一个原因，他工作时间短、来得晚走得早，给工作室创造不了多少价值」；
       //   ③ 反过来，**流水达标的人最低也是中等马**（「要的少、挣得少可以理解，
       //      留着他也妨」，除了浪费点电费没有别的损失）。
@@ -591,7 +591,7 @@ export class ExcellenceService implements OnModuleInit {
     const now = this.breakdownOf(cur);
 
     const items = [
-      { key: 'revenue', label: '月流水', unit: '元', now: now.revenueScore, before: base?.revenueScore ?? 0, value: now.revenueYuan, prevValue: base?.revenueYuan ?? 0 },
+      { key: 'revenue', label: '最近 30 天流水', unit: '元', now: now.revenueScore, before: base?.revenueScore ?? 0, value: now.revenueYuan, prevValue: base?.revenueYuan ?? 0 },
       { key: 'renew', label: '续单率', unit: '%', now: now.renewScore, before: base?.renewScore ?? 0, value: now.renewRate, prevValue: base?.renewRate ?? 0 },
       { key: 'repurchase', label: '复购率', unit: '%', now: now.repurchaseScore, before: base?.repurchaseScore ?? 0, value: now.repurchaseRate, prevValue: base?.repurchaseRate ?? 0 },
       { key: 'firstSuccess', label: '首单成功率', unit: '%', now: now.firstSuccessScore, before: base?.firstSuccessScore ?? 0, value: now.newRate, prevValue: base?.newRate ?? 0 },

@@ -152,7 +152,7 @@ export class SettingsController {
       if (total > 100) {
         const [rev, renew, rep, first] = maxes;
         throw new BadRequestException(
-          `四项评分满分加起来不能超过 100 分（当前 ${total} 分）：月流水 ${rev} + 续单率 ${renew} + 复购率 ${rep} + 首单成功率 ${first}`,
+          `四项评分满分加起来不能超过 100 分（当前 ${total} 分）：最近 30 天流水 ${rev} + 续单率 ${renew} + 复购率 ${rep} + 首单成功率 ${first}`,
         );
       }
     }
