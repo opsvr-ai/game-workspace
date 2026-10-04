@@ -437,19 +437,45 @@ export class ExcellenceService implements OnModuleInit {
       monthlyRevenue.map((r) => [r.companionId!, r._sum.amount || 0]),
     );
 
-    // 首单成功率分母：「添加成功」数 —— 最近 30 天这个陪玩标了「添加成功」的首单（微信真加上了的量）。
-    // 老板 2026-10-04：「首单成功率 = 成交首单客户数 / 添加成功数」。
-    const addedGrabs = await this.prisma.order.groupBy({
-      by: ['companionId'],
+    // 首单成功率（老板 2026-10-04 两次澄清）：
+    //   分子 = 「成交首单」的客户数 —— 老板原话「成交首单就是陪玩点了开始首单那个按钮」，
+    //          所以判定标准是**这张首单开过会话**（点按钮就会建会话），**不等单子结束**；
+    //   分母 = 「添加成功」的**客户数** —— 同一个客户重复抢单只算一个，免得分母被重复单抬高。
+    const addedOrders = await this.prisma.order.findMany({
       where: {
         companionId: { in: ids },
         type: 'NEW',
         contactStatus: 'added',
         createdAt: { gte: rateWindowStart },
       },
-      _count: { id: true },
+      select: { companionId: true, customerId: true },
     });
-    const addedMap = new Map(addedGrabs.map((g) => [g.companionId!, g._count.id]));
+    const addedCustomers = new Map<string, Set<string>>();
+    for (const o of addedOrders) {
+      if (!o.companionId || !o.customerId) continue;
+      let set = addedCustomers.get(o.companionId);
+      if (!set) {
+        set = new Set<string>();
+        addedCustomers.set(o.companionId, set);
+      }
+      set.add(o.customerId);
+    }
+    // 点过「开始首单」的客户：这张首单至少有 1 段会话（不管单子结没结束）。
+    const firstStartedOrders = await this.prisma.order.findMany({
+      where: { companionId: { in: ids }, type: 'NEW', createdAt: { gte: rateWindowStart } },
+      select: { companionId: true, customerId: true, _count: { select: { sessions: true } } },
+    });
+    const firstStartedCustomers = new Map<string, Set<string>>();
+    for (const o of firstStartedOrders) {
+      if (!o.companionId || !o.customerId) continue;
+      if (((o as any)._count?.sessions || 0) < 1) continue;
+      let set = firstStartedCustomers.get(o.companionId);
+      if (!set) {
+        set = new Set<string>();
+        firstStartedCustomers.set(o.companionId, set);
+      }
+      set.add(o.customerId);
+    }
 
     // 战绩图采纳加分：直接叠加到综合分。
     const bonusRows = await this.prisma.companion.findMany({
@@ -464,9 +490,10 @@ export class ExcellenceService implements OnModuleInit {
       const rateDenom = s.firstCustomers;
       const renewRate = rateDenom > 0 ? (s.renew / rateDenom) * 100 : 0;
       const repurchaseRate = rateDenom > 0 ? (s.repurchase / rateDenom) * 100 : 0;
-      const addedCount = addedMap.get(cid) || 0;
-      const customerCount = s.firstCustomers; // 成交首单客户数
-      const firstSuccessRate = addedCount > 0 ? (customerCount / addedCount) * 100 : 0;
+      const addedCount = addedCustomers.get(cid)?.size || 0;
+      // 成交首单客户数 = 点过「开始首单」（开过会话）的客户数；理论上不会超过分母，超了就按 100% 封顶。
+      const customerCount = firstStartedCustomers.get(cid)?.size || 0;
+      const firstSuccessRate = addedCount > 0 ? Math.min(100, (customerCount / addedCount) * 100) : 0;
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;

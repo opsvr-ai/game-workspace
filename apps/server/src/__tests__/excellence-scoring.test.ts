@@ -22,6 +22,11 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   · 反过来，**流水达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
  *   · 四个档位表按老板举的例子定稿：流水 8000 + 三率都过半 = 90（上等马）、
  *     流水 10000 纯老客 = 90（上等马）、流水 10000 纯新客 = 60（中等马）、流水 6000 + 三率过半 = 80（中等马）。
+ *
+ * 第五次（本次）：
+ *   · 老板澄清「成交首单就是陪玩点了开始首单那个按钮」→ 首单成功率的**分子改成
+ *     「点过『开始首单』（这张首单开过会话）的客户数」，不等单子结束**；
+ *   · 分母同时从「添加成功的**单数**」改成「添加成功的**客户数**」（同一客户重复抢单只算一个）。
  */
 
 const LIVE_CFG = [
@@ -51,8 +56,12 @@ function setup(opts: {
   /** 最近 30 天的成交：companionId -> 每个客户买了几单 / 几段 */
   doneOrders?: Record<string, CustSpec[]>;
   monthlyRevenue?: Record<string, number>;
-  /** 最近 30 天这个陪玩标了「添加成功」的首单数（首单成功率的分母） */
+  /** 最近 30 天这个陪玩标了「添加成功」的**客户数**（首单成功率的分母；按客户去重） */
   added?: Record<string, number>;
+  /** 直接给「添加成功」的明细（重复的 customerId 用来验分母去重） */
+  addedList?: Array<{ companionId: string; customerId: string }>;
+  /** 点了「开始首单」、但这张单还没结束的客户数（首单成功率的分子也要算） */
+  startedNotDone?: Record<string, number>;
   bonus?: Record<string, number>;
   thresholdOverride?: { excellent?: number; middle?: number };
 }) {
@@ -82,15 +91,43 @@ function setup(opts: {
     }
   }
 
+  // 点过「开始首单」的单：默认 = 上面那些成交单（每张都有会话），再加上「开了会话但还没结束」的。
+  const startedRows: any[] = windowRows.map((r) => ({ ...r }));
+  for (const [companionId, n] of Object.entries(opts.startedNotDone ?? {})) {
+    for (let i = 0; i < Number(n); i++) {
+      startedRows.push({
+        companionId,
+        customerId: `${companionId}-started${i}`,
+        type: 'NEW',
+        createdAt: new Date(2026, 9, 2, 14, 0, 0),
+        _count: { sessions: 1 },
+      });
+    }
+  }
+
   const prisma = {
     order: {
       groupBy: vi.fn((args: any) => {
         if (args?._sum?.amount) {
           return Promise.resolve(Object.entries(opts.monthlyRevenue ?? {}).map(([companionId, amount]) => ({ companionId, _sum: { amount } })));
         }
-        return Promise.resolve(Object.entries(opts.added ?? {}).map(([companionId, n]) => ({ companionId, _count: { id: n } })));
+        return Promise.resolve([]);
       }),
-      findMany: vi.fn(() => Promise.resolve(windowRows)),
+      findMany: vi.fn((args: any) => {
+        const where = args?.where ?? {};
+        if (where.contactStatus === 'added') {
+          if (opts.addedList) return Promise.resolve(opts.addedList);
+          const rows: any[] = [];
+          for (const [companionId, n] of Object.entries(opts.added ?? {})) {
+            for (let i = 0; i < Number(n); i++) {
+              rows.push({ companionId, customerId: `${companionId}-added${i}` });
+            }
+          }
+          return Promise.resolve(rows);
+        }
+        if (where.status === 'DONE') return Promise.resolve(windowRows);
+        return Promise.resolve(startedRows);
+      }),
     },
     companion: {
       findMany: vi.fn((args: any) => {
@@ -208,7 +245,42 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
     expect(r.repurchaseRate).toBe(50); // 只有 b 隔了营业日
   });
 
-  it('首单成功率 = 成交首单客户数 / 添加成功数（加了微信没成交的人也进分母）', async () => {
+  it('成交首单 = 点了「开始首单」的客户：单子还没结束也算（老板 2026-10-04 澄清）', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }] }, // 只有 1 个客户把单结了
+      startedNotDone: { c1: 2 }, // 另外 2 个点了「开始首单」、还在打
+      monthlyRevenue: { c1: 6000 },
+      added: { c1: 4 },
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.newRate).toBe(75); // 3 / 4
+    expect(r.firstSuccessScore).toBe(10);
+  });
+
+  it('分母按客户去重：同一个客户抢了两张单都标添加成功，只算 1 个', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }] },
+      monthlyRevenue: { c1: 6000 },
+      addedList: [
+        { companionId: 'c1', customerId: 'c1-a' },
+        { companionId: 'c1', customerId: 'c1-a' },
+      ],
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.newRate).toBe(100);
+  });
+
+  it('理论上分子不会超过分母；真超了按 100% 封顶（不出现 200% 这种数）', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }, { cust: 'b', count: 1 }] },
+      monthlyRevenue: { c1: 6000 },
+      added: { c1: 1 },
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.newRate).toBe(100);
+  });
+
+  it('首单成功率 = 成交首单客户数 / 添加成功客户数（加了微信没成交的人也进分母）', async () => {
     const svc = setup({
       doneOrders: { c1: [{ cust: 'a', count: 1 }, { cust: 'b', count: 1 }, { cust: 'c', count: 1 }] },
       monthlyRevenue: { c1: 6000 },
