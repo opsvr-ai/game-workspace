@@ -225,13 +225,12 @@ const LiveBoardPage: React.FC = () => {
                 </span>
               </div>
               <div>
-                👥 {s.role === 'MAIN' ? '主陪' : '搭档'}
-                {s.partnerName ? (
+                👥 {s.partnerName ? (
                   <>
-                    {' '}· 跟 <Text strong>{s.partnerName}</Text>
+                    双陪 · 跟 <Text strong>{s.partnerName}</Text>
                   </>
                 ) : (
-                  ' · 单人'
+                  s.role === 'CO' ? '双陪' : '单陪'
                 )}
               </div>
               <div style={{ color: '#94A3B8' }}>

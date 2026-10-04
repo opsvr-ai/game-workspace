@@ -297,7 +297,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                     </div>
                     {r.serving ? (
                       <div style={{ fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 1.5 }}>
-                        {r.serving.role === 'CO' ? '搭档' : '主陪'}：{r.serving.partnerName || '（找搭档中）'}<br />
+                        {r.serving.partnerName ? `双陪 · 跟 ${r.serving.partnerName}` : r.serving.role === 'CO' ? '双陪' : '单陪'}<br />
                         {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
                       </div>
                     ) : (
