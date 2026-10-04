@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React from 'react';
-import { Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
+import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
 
 const { Text } = Typography;
 
@@ -95,6 +95,15 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
 
   return (
     <div style={{ marginBottom: 12 }}>
+      {/* 老板 2026-10-05：「给陪玩提示一下，不点结束不会计入影响评分增加，让他们主动点」——
+          摆在他每天必看的首页最上面，一句话说清「不点结束 = 这一单不算数」。 */}
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 10 }}
+        message="打完一定要点「结束服务」！"
+        description="系统只认「已经打完（结束过）」的单：不点结束，这一单不计流水，也不算首单成交 / 续单 / 复购 —— 分数和抢单名额都会少。到点后右下角会每隔一会儿提醒你一次。"
+      />
       {/* ① 关键数字 */}
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
         <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint="#1677FF" /></Col>

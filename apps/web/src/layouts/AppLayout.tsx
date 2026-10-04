@@ -1536,22 +1536,31 @@ const AppLayout: React.FC = () => {
       });
     },
     onServiceDurationReminder: (data: any) => {
-      const desc = data?.message || '服务时间已到，请引导客户续单';
+      // 老板 2026-10-05：「不点结束不会计入影响评分增加，让他们主动点」——
+      // 这条提醒现在带「不点结束不计流水/不算分」，而且服务端每 30 分钟会再推一次（没结束就一直提醒）。
+      const desc =
+        data?.message ||
+        '服务时间已到，请引导客户续单；打完记得点「结束服务」，不点结束这一单不算流水也不算分';
+      const overdue = Number(data?.overdueMin) || 0;
+      const title = overdue >= 5 ? '⏰ 还没点「结束服务」' : '⏰ 时间到了';
       notifyNotice({
         kind: 'order',
         icon: '⏰',
-        title: '⏰ 时间到了',
+        title,
         desc,
         href: rolePage(user?.role, 'orders'),
         toast: 'warning',
-        duration: 5,
+        duration: 8,
+        // 同一段服务 30 分钟内只在铃铛里留一条，别把通知中心刷满
+        dedupeKey: `duration-reminder:${data?.sessionId || ''}`,
+        dedupeMs: 30 * 60 * 1000,
       });
       showBannerNotification({
-        title: '⏰ 时间到了',
+        title,
         body: desc,
         icon: '⏰',
-        seconds: 15,
-        hint: '点这里 → 去接单记录看',
+        seconds: 20,
+        hint: '点这里 → 去接单记录点「结束服务」',
         action: 'open-orders',
       });
     },
