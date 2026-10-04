@@ -6,7 +6,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
 
@@ -94,7 +93,6 @@ interface Props {
 }
 
 const OperationsBoard: React.FC<Props> = ({ compact }) => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dash, setDash] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
@@ -206,13 +204,6 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       <SectionTitle
         extra={
           <Space>
-            <Button
-              size="small"
-              type="link"
-              onClick={() => navigate(compact ? '/cs/live-board' : '/admin/live-board')}
-            >
-              📺 实时看板
-            </Button>
             <Text type="secondary" style={{ fontSize: 12 }}>
               每 60 秒自动刷新 · {dayjs().format('HH:mm')}
             </Text>
@@ -283,6 +274,43 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
         </Col>
       </Row>
+
+      {/* ── 陪玩状态墙 ── */}
+      <Card
+        size="small"
+        title="陪玩状态墙（谁在跟谁打 · 打了多久）"
+        style={{ marginBottom: 14 }}
+      >
+        {liveRows.length ? (
+          <Row gutter={[10, 10]}>
+            {liveRows.map((r) => {
+              const meta = STATUS_META[r.serving ? 'BUSY' : r.online ? r.status : 'OFFLINE'] || STATUS_META.OFFLINE;
+              return (
+                <Col xs={12} sm={8} md={6} lg={4} key={r.companionId}>
+                  <div style={{ border: `1px solid ${meta.color}33`, borderLeft: `4px solid ${meta.color}`, background: meta.bg, borderRadius: 10, padding: '8px 10px', height: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                      <Tag color={meta.color} style={{ marginInlineEnd: 0, fontSize: 11 }}>{meta.label}</Tag>
+                    </div>
+                    {r.serving ? (
+                      <div style={{ fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 1.5 }}>
+                        {r.serving.partnerName ? `双陪 · 跟 ${r.serving.partnerName}` : r.serving.role === 'CO' ? '双陪' : '单陪'}<br />
+                        {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#64748B', marginTop: 4, lineHeight: 1.5 }}>
+                        今日 {r.todayOrders || 0} 单 · {r.earningsHidden ? '—' : yuan(r.todayRevenue)}<br />
+                        工时 {r.todayMinutes || 0} 分钟
+                      </div>
+                    )}
+                    {r.isBridged ? <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>桥接 · {r.studioName}</div> : null}
+                  </div>
+                </Col>
+              );
+            })}
+          </Row>
+        ) : <Empty description="暂无陪玩数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
+      </Card>
 
       {/* ── 排行榜 ── */}
       {/* 今日段位变动（老板 2026-10-04）：服务端每天 12:05 复核后留档，有才显示 */}

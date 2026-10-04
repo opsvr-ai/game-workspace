@@ -250,14 +250,7 @@ export const router = createBrowserRouter([
     element: <SuspenseOutlet />,
     errorElement: <RouteErrorBoundary />,
     children: [
-      {
-        path: 'owner/live-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <LiveBoardPage />
-          </Suspense>
-        ),
-      },
+      { path: 'owner/live-board', element: <Navigate to="/admin" replace /> },
       {
         path: 'owner/customers',
        element: (
@@ -354,14 +347,7 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      {
-        path: 'admin/live-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <LiveBoardPage />
-          </Suspense>
-        ),
-      },
+      { path: 'admin/live-board', element: <Navigate to="/admin" replace /> },
       {
         path: 'admin/employees',
         element: (
@@ -663,14 +649,7 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
-      {
-        path: 'cs/live-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <LiveBoardPage />
-          </Suspense>
-        ),
-      },
+      { path: 'cs/live-board', element: <Navigate to="/cs/home" replace /> },
       {
         path: 'cs/orders',
         element: (

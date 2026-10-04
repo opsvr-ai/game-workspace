@@ -133,7 +133,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-dispatch', icon: IconDispatch, label: '派单管理',
       children: [
         { key: '/admin/dispatch', label: '派单工作台' },
-        { key: '/owner/live-board', label: '实时看板' },
       ],
     },
     {
@@ -259,7 +258,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-dispatch', icon: IconDispatch, label: '派单管理',
       children: [
         { key: '/admin/dispatch', label: '派单工作台' },
-        { key: '/admin/live-board', label: '实时看板' },
       ],
     },
     {
@@ -372,7 +370,6 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'cs-dispatch', icon: IconDispatch, label: '派单管理',
       children: [
         { key: '/cs/dispatch', label: '派单工作台' },
-        { key: '/cs/live-board', label: '实时看板' },
       ],
     },
     {
