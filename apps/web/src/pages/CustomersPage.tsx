@@ -68,6 +68,7 @@ import {
 import { ORDER_FIELD_LABELS, orderFieldText } from '../constants/orderFields';
 import TableSkeleton from '../components/TableSkeleton';
 import { visibleInterval } from '../hooks/usePolling';
+import { currentBusinessDayStart } from '../utils/businessDay';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -89,7 +90,7 @@ interface Customer {
   companion?: { id: string; user?: { username: string } };
   scheduledAt?: string | null;
   followUps?: Array<{ content: string; createdAt: string }>;
-  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; status: string; pausedAt?: string | null; totalPausedSec?: number | null; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
+  orders?: Array<{ id: string; gameName: string; type: string; amount: number; duration: number; createdAt?: string; customFields: any; csUserId?: string; csUser?: { username?: string; displayName?: string; avatar?: string }; contactStatus?: string; screenshotUrl?: string; status?: string; sessions?: Array<{ id: string; startedAt: string | null; endedAt?: string | null; status: string; pausedAt?: string | null; totalPausedSec?: number | null; coCompanionId?: string | null; coAmount?: number | null; claimedMode?: string | null; claimedPrice?: number | null; duration?: number | null }> }>;
 }
 
 interface CompanionOption {
@@ -101,6 +102,26 @@ interface CompanionOption {
 // 是否已经“打过首单”：自己录入的老客户视为已打过；系统抢来的要有已完成的首单(NEW/DONE)。
 function hasFirstOrder(c: Customer): boolean {
   return !!c.isLegacy || !!(c.orders?.some((o) => o.type === 'NEW' && o.status === 'DONE'));
+}
+
+/**
+ * 续单按钮只在「同一个营业日（12:00 为界）」里给 —— 老板 2026-10-04：
+ * 「客户打了首单，12 点前接着打这叫续单；一单过了中午 12 点就叫复购了」。
+ * 判定用这个客户**最近一次服务**的时间：最后一段会话的结束 / 开始时间，没会话就退回订单创建时间。
+ */
+function canRenewNow(c: Customer): boolean {
+  let latest = 0;
+  for (const o of c.orders ?? []) {
+    const s = o.sessions?.[0];
+    const t = s?.endedAt || s?.startedAt || o.createdAt || null;
+    if (!t) continue;
+    const ms = new Date(t).getTime();
+    if (Number.isFinite(ms) && ms > latest) latest = ms;
+  }
+  if (!latest) return false;
+  return (
+    currentBusinessDayStart(new Date(latest)).getTime() === currentBusinessDayStart().getTime()
+  );
 }
 
 /**
@@ -731,7 +752,9 @@ const CustomersPage: React.FC = () => {
                 message.warning('当前没有可打首单的订单，请先在抢单池抢单');
               }
             };
-            if (confirmed?.id) {
+            // 老板 2026-10-04：续单只在同一个营业日里给。过了中午 12 点，即使 CONFIRMED 单还挂着，
+            // 也不再给「续单」按钮，只留「复购」（另开一张复购单）。
+            if (confirmed?.id && canRenewNow(record)) {
               label = '续单';
               action = () => {
                 const lastSession = confirmed.sessions?.[0];
@@ -749,7 +772,7 @@ const CustomersPage: React.FC = () => {
                   },
                 });
               };
-            } else if (firstDone) {
+            } else if (confirmed?.id || firstDone) {
               label = '复购';
               action = () => {
                 setStartServiceOrder({

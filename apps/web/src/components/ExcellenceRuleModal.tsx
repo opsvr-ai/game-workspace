@@ -188,7 +188,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message="口径：月流水 = 当月成交；续单率 / 复购率 / 首单成功率 = 最近 30 天。续单率 = 最近 30 天的成交客户里，回头买第 2 单的客户占比；复购率 = 买第 3 单及以上的客户占比（同一个客户只算一次，系统自己数订单，不用选订单类型）。成交客户不足 3 人时按 3 人算，防止只有 1 个客户就刷满分。"
+            message="口径（老板 2026-10-04）：月流水 = 当月成交；续单率 / 复购率 / 首单成功率 = 最近 30 天。续单 = 该客户在你这有第 2 段及以后会话（点「续单」加出来的那段）；复购 = 隔了一个营业日（12:00 为界）又来打。续单率 / 复购率的分母都是「打了首单的客户数」；首单成功率 = 成交首单客户数 ÷ 「添加成功」数。"
           />
           <Title level={5} style={{ marginTop: 0 }}>评分怎么算（每一项取达到的最高一档，不叠加）</Title>
           <Descriptions column={1} size="small" bordered>

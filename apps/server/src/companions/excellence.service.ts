@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { settlementMonthRange } from '../common/business-day';
+import { businessDayKey, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { logger } from '../common/logger';
 
@@ -335,14 +335,20 @@ export class ExcellenceService implements OnModuleInit {
     // 系统自己数订单，跟按钮怎么点没关系。两栏不再互斥，只吃老客的陪玩也能拿满，凑得上 90 分上等马。
     // 防刷：成交客户不足 3 人时，分母按 3 人算（只有 1 个客户时刷不出满分；2 个老客户的情况要达到
     //   60% 那一档正好需要 2/3=67%，所以「只跟 2 个老客玩」的陪玩照样能拿满两栏）。
+    // 第三版（老板 2026-10-04 再次定稿，替换上面的「第 2 单算续单 / 第 3 单算复购」）：
+    //   · 续单 = 该客户在你这有**第 2 段及以后会话**（点「续单」加出来的那段），或有一张 RENEW / REPURCHASE 成交单；
+    //   · 复购 = 打完首单 / 续单后，**隔了一个营业日**客户又来打（另有一张成交单）；
+    //   · 首单成功率 = 成交首单客户数 / 「添加成功」数；
+    //   · 续单率 / 复购率分母统一 = **打了首单的客户数**；窗口 = 最近 30 天；营业日以 **12:00** 为界。
+    // 「12:00 前接着打」走的是同一张单里的第 2 段会话（续单），「过了中午 12 点」会另开一张复购单；
+    // 两栏**不互斥**：隔天回头的客户两边都算，只吃老客的陪玩也能拿满。
     const RATE_WINDOW_DAYS = 30;
-    const RATE_MIN_CUSTOMERS = 3;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const m = new Map<string, { count: number; renew: number; repurchase: number }>();
+    const m = new Map<string, { count: number; firstCustomers: number; renew: number; repurchase: number }>();
     // 一单都没成交过的人也要有一份结果（哪怕全是 0）：否则调用方只能 ?? 兜底，
     // 「评分说明」里连上等马线都拿不到真实配置（老板 2026-10-04 顺手修）。
-    for (const cid of companionIds) m.set(cid, { count: 0, renew: 0, repurchase: 0 });
+    for (const cid of companionIds) m.set(cid, { count: 0, firstCustomers: 0, renew: 0, repurchase: 0 });
 
     const windowOrders = await this.prisma.order.findMany({
       where: {
@@ -350,28 +356,48 @@ export class ExcellenceService implements OnModuleInit {
         status: 'DONE',
         createdAt: { gte: rateWindowStart },
       },
-      select: { companionId: true, customerId: true },
+      select: {
+        companionId: true,
+        customerId: true,
+        type: true,
+        createdAt: true,
+        _count: { select: { sessions: true } },
+      },
     });
-    // companionId -> (customerId -> 成单数)
-    const perCustomer = new Map<string, Map<string, number>>();
+    // companionId -> (customerId -> 这个客户在你这的汇总：单数 / 段数 / 有没有续复购单 / 出现过哪些营业日）
+    type CustAgg = {
+      orders: number;
+      sessions: number;
+      hasRenewType: boolean;
+      days: Set<string>;
+      firstDone: boolean;
+    };
+    const perCustomer = new Map<string, Map<string, CustAgg>>();
     for (const o of windowOrders) {
       const s = m.get(o.companionId!);
       if (!s) continue;
       s.count += 1;
       let byCust = perCustomer.get(o.companionId!);
       if (!byCust) {
-        byCust = new Map<string, number>();
+        byCust = new Map<string, CustAgg>();
         perCustomer.set(o.companionId!, byCust);
       }
-      byCust.set(o.customerId, (byCust.get(o.customerId) || 0) + 1);
+      const agg =
+        byCust.get(o.customerId) ||
+        { orders: 0, sessions: 0, hasRenewType: false, days: new Set<string>(), firstDone: false };
+      agg.orders += 1;
+      agg.sessions += (o as any)._count?.sessions || 0;
+      if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.hasRenewType = true;
+      if (o.type === 'NEW') agg.firstDone = true;
+      if (o.createdAt) agg.days.add(businessDayKey(o.createdAt as Date));
+      byCust.set(o.customerId, agg);
     }
-    const customerCountByCompanion = new Map<string, number>();
     for (const [cid, byCust] of perCustomer) {
       const s = m.get(cid)!;
-      customerCountByCompanion.set(cid, byCust.size);
-      for (const n of byCust.values()) {
-        if (n >= 2) s.renew += 1; // 回头客：同一个客户买过 ≥2 单
-        if (n >= 3) s.repurchase += 1; // 常客：同一个客户买过 ≥3 单
+      for (const agg of byCust.values()) {
+        if (agg.firstDone) s.firstCustomers += 1; // 打了首单的客户数 = 续单率 / 复购率的分母
+        if (agg.sessions >= 2 || agg.hasRenewType) s.renew += 1; // 续单：第 2 段及以后（或 RENEW / REPURCHASE 单）
+        if (agg.days.size >= 2) s.repurchase += 1; // 复购：隔了一个营业日又来打（另有成交单）
       }
     }
 
@@ -393,34 +419,19 @@ export class ExcellenceService implements OnModuleInit {
       monthlyRevenue.map((r) => [r.companionId!, r._sum.amount || 0]),
     );
 
-    // 总抢单数：该陪玩抢到的所有首单（type=NEW，任意状态）
-    // 首单成功率同样看最近 30 天（老板 2026-10-04：「比率改成最近 30 天」）。
-    const newGrabs = await this.prisma.order.groupBy({
+    // 首单成功率分母：「添加成功」数 —— 最近 30 天这个陪玩标了「添加成功」的首单（微信真加上了的量）。
+    // 老板 2026-10-04：「首单成功率 = 成交首单客户数 / 添加成功数」。
+    const addedGrabs = await this.prisma.order.groupBy({
       by: ['companionId'],
       where: {
         companionId: { in: companionIds },
         type: 'NEW',
+        contactStatus: 'added',
         createdAt: { gte: rateWindowStart },
       },
       _count: { id: true },
     });
-    const grabMap = new Map(newGrabs.map((g) => [g.companionId!, g._count.id]));
-
-    // 首单消费客户数：DONE 首单的去重客户数
-    const doneNewCustomers = await this.prisma.order.findMany({
-      where: {
-        companionId: { in: companionIds },
-        type: 'NEW',
-        status: 'DONE',
-        createdAt: { gte: rateWindowStart },
-      },
-      select: { companionId: true, customerId: true },
-      distinct: ['companionId', 'customerId'],
-    });
-    const customerMap = new Map<string, number>();
-    for (const r of doneNewCustomers) {
-      customerMap.set(r.companionId!, (customerMap.get(r.companionId!) || 0) + 1);
-    }
+    const addedMap = new Map(addedGrabs.map((g) => [g.companionId!, g._count.id]));
 
     // 战绩图采纳加分：直接叠加到综合分。
     const bonusRows = await this.prisma.companion.findMany({
@@ -431,13 +442,13 @@ export class ExcellenceService implements OnModuleInit {
     const studioIdOfCompanion = new Map(bonusRows.map((b) => [b.id, b.studioId as string | null]));
 
     for (const [cid, s] of m) {
-      // 分母 = 最近 30 天的成交客户数（不足 RATE_MIN_CUSTOMERS 人按它算，防小样本刷满分）
-      const rateDenom = Math.max(customerCountByCompanion.get(cid) ?? 0, RATE_MIN_CUSTOMERS);
-      const renewRate = (s.renew / rateDenom) * 100;
-      const repurchaseRate = (s.repurchase / rateDenom) * 100;
-      const grabCount = grabMap.get(cid) || 0;
-      const customerCount = customerMap.get(cid) || 0;
-      const firstSuccessRate = grabCount > 0 ? (customerCount / grabCount) * 100 : 0;
+      // 分母统一 = 打了首单的客户数（老板 2026-10-04）
+      const rateDenom = s.firstCustomers;
+      const renewRate = rateDenom > 0 ? (s.renew / rateDenom) * 100 : 0;
+      const repurchaseRate = rateDenom > 0 ? (s.repurchase / rateDenom) * 100 : 0;
+      const addedCount = addedMap.get(cid) || 0;
+      const customerCount = s.firstCustomers; // 成交首单客户数
+      const firstSuccessRate = addedCount > 0 ? (customerCount / addedCount) * 100 : 0;
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);
       const revenue = monthlyRevenueMap.get(cid) || 0;
