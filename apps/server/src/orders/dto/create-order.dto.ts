@@ -59,4 +59,10 @@ export class CreateOrderDto {
   @IsOptional() @IsBoolean() csCultivated?: boolean;
   /** 客服养好的客户重新派单时，指向原来那张单（追溯 + 流转明细用） */
   @IsOptional() @IsString() sourceOrderId?: string;
+
+  /**
+   * 陪玩自己录入客户、直接开单（首单/续单/复购）时是否用客户存单抵扣。
+   * 老板 2026-10-04：双陪开新单也要能消耗存单，所以这里透传到自动建的会话上。
+   */
+  @IsOptional() @IsBoolean() useDeposit?: boolean;
 }

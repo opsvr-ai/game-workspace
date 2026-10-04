@@ -62,16 +62,14 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       setPartnerMode('assign');
       // 老板 2026-10-04：「老客户还剩存单没打完……打的时候去消耗存单金额就可以了」——
       // 客户有存单余额就默认按存单付款（结束时按实际时长扣），没余额就是普通付款、开关无效。
-      // 双陪开新单这条路上系统带不了存单（见下面开关的提示），所以那种情况默认关。
-      setUseDeposit(Number(depositBalance) > 0 && !((initialValues?.dual ?? false) && !!customerId && !orderId));
+      // 双陪开新单也走同一套（老板：有时候确实会喊搭档一起来打这个存单，一起消耗）。
+      setUseDeposit(Number(depositBalance) > 0);
       loadCompanions();
     }
   }, [open]);
 
-  // 这个客户还带着没打完的存单，是不是就默认走存单扣款；双陪开新单暂时带不了存单（见下面开关）
+  // 这个客户还带着没打完的存单，是不是就默认走存单扣款（双陪开新单也一样能扣）
   const hasDepositBalance = Number(depositBalance) > 0;
-  const dualNewOrder = dual && !!customerId && !orderId;
-  const depositDisabled = !hasDepositBalance || dualNewOrder;
 
   const handleStart = async () => {
     if (!orderId && !customerId) return;
@@ -100,6 +98,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           coAmount: dual ? (coPrice ?? 0) * claimDuration : undefined,
           deltaMission: claimMode,
           deltaCount: dual ? '双' : '单',
+          useDeposit,
         });
         const newOrder = orderRes?.data?.data;
         if (!newOrder?.id) {
@@ -197,10 +196,7 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
             <Button
               size="small"
               type={dual ? 'primary' : 'default'}
-              onClick={() => {
-                setDual(true);
-                setUseDeposit(false);
-              }}
+              onClick={() => setDual(true)}
             >
               双陪
             </Button>
@@ -256,13 +252,9 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         </>
       )}
       <div style={{ marginTop: 12 }}>
-        <Switch checked={useDeposit} onChange={setUseDeposit} disabled={depositDisabled} />
+        <Switch checked={useDeposit} onChange={setUseDeposit} disabled={!hasDepositBalance} />
         <Text style={{ marginLeft: 8 }}>用存单支付（结束时按实际计时从客户存单余额扣款）</Text>
-        {dualNewOrder && Number(depositBalance) > 0 ? (
-          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
-            双陪开新单要等搭档确认，这条路上系统带不了存单扣款 —— 这单请按普通付款结算，存单留着下次单陪用。
-          </Text>
-        ) : Number(depositBalance) > 0 ? (
+        {Number(depositBalance) > 0 ? (
           <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
             客户存单还剩 <Text strong style={{ color: '#FF4757' }}>¥{Number(depositBalance).toFixed(2)}</Text>，这单默认走存单扣款。
           </Text>

@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **双陪开新单也能用存单抵扣（老板 2026-10-04，服务端 + 网页 `v941`）。**
+  老板原话：「有的时候确实会喊搭档一起来打这个存单，一起消耗。」
+  原来「陪玩自己录入客户 → 双陪开新单」这条路会先建一张直派单再等搭档接受邀请，建单时没带存单标记
+  （`StartServiceModal` 里双陪开新单的存单开关被禁用，还提示「这条路上系统带不了存单扣款」），
+  结果搭档一起打完，结束服务时不会从客户存单里扣。现在：
+  ① `CreateOrderDto` 新增 `useDeposit`，服务端建单自动建第一个会话时把它落成会话的 `paidByDeposit`
+  （搭档接受邀请 `acceptPartnerInvite` / 广播找搭档 `broadcastPartnerInvite` 都不覆盖这个字段，
+  所以双陪打完照样按存单扣）；② 前端双陪开新单也能勾「用存单支付」，开关不再禁用，切「双陪」也不再强制关掉。
+  单陪那条路（`addSession` / `startSession`）口径一点没动。
+
 ### Fixed
 
 - **「全站老板」调陪玩端排行榜接口 500（老板 2026-10-04，服务端）。**
