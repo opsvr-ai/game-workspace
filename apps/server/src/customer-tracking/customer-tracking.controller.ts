@@ -12,13 +12,17 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CustomerTrackingService } from './customer-tracking.service';
+import { WsGateway } from '../ws/ws.gateway';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 
 @Controller('customer-tracking')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class CustomerTrackingController {
-  constructor(private readonly tracking: CustomerTrackingService) {}
+  constructor(
+    private readonly tracking: CustomerTrackingService,
+    private readonly wsGateway: WsGateway,
+  ) {}
 
   @Post('contacts')
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
@@ -64,6 +68,18 @@ export class CustomerTrackingController {
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.COMPANION)
   async submitDeleteRequest(@Req() req: any, @Body() dto: any): Promise<ApiResponse<unknown>> {
     const data = await this.tracking.submitDeleteRequest(req.user, dto);
+    // 陪玩申请删除客户 → 管理端实时知道（老板 2026-10-04：交互双方都要有提示）
+    if (req.user?.role === 'COMPANION') {
+      this.wsGateway.notifyManagers(req.user.studioId, {
+        title: '待审核：陪玩申请删除客户',
+        desc: `有陪玩申请删除客户${(data as any)?.customer?.wechatId ? '「' + (data as any).customer.wechatId + '」' : ''}，去「客户管理 → 删除申请」处理`,
+        icon: '🗑️',
+        kind: 'audit',
+        hrefKey: 'customers',
+        dedupeKey: `cust-del-${(data as any)?.id || ''}`,
+        dedupeMs: 60 * 1000,
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 
@@ -81,6 +97,19 @@ export class CustomerTrackingController {
     @Body() dto: { approve: boolean; rejectReason?: string },
   ): Promise<ApiResponse<unknown>> {
     const data = await this.tracking.reviewDeleteRequest(req.user, id, dto.approve, dto.rejectReason);
+    // 审核结果实时告诉申请人本人（老板 2026-10-04：双方都要有提示）
+    const approved = dto.approve !== false;
+    if ((data as any)?.companionId) {
+      this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+        title: approved ? '删除客户申请已通过' : '删除客户申请被驳回',
+        desc: approved
+          ? '你申请的「删除客户」已通过，该客户已不再显示'
+          : `你申请的「删除客户」被驳回${dto.rejectReason ? '：' + dto.rejectReason : ''}`,
+        icon: approved ? '✅' : '⛔',
+        kind: 'audit',
+        hrefKey: 'customers',
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 

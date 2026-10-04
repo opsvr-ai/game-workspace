@@ -562,10 +562,10 @@ const decorateMenu = (
 
 /** 通知里的「查看 ›」跳哪：同一模块四个角色的路由都不一样，按角色查一次 */
 const ROLE_PAGES: Record<string, Record<string, string>> = {
-  COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion', customers: '/companion/customers' },
-  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION', customers: '/cs/customers' },
-  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION', customers: '/admin/customers' },
-  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION', customers: '/owner/customers' },
+  COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion', customers: '/companion/customers', battle: '/companion/battle-screenshots' },
+  CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION', customers: '/cs/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
+  ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION', customers: '/admin/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
+  OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION', customers: '/owner/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
 };
 
 const rolePage = (role: string | undefined, module: string): string => ROLE_PAGES[role || '']?.[module] || '';
@@ -1633,6 +1633,26 @@ const AppLayout: React.FC = () => {
         seconds: 15,
         hint: '点这里 → 去订单管理标记',
         action: 'open-orders',
+      });
+    },
+    onReviewNotice: (data: any) => {
+      // 通用「审核 / 交互」提醒（老板 2026-10-04）：
+      // 报账 / 支取 / 战绩图 / 客户删除申请 / 封存解封 / 桥接 / 注册 —— 提交方和审核方双方都能收到。
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      const isCompanion = user?.role === 'COMPANION';
+      const audience = data?.audience;
+      if (audience === 'MGMT' && !isMgmt) return;
+      if (audience === 'COMPANION' && !isCompanion) return;
+      notifyNotice({
+        kind: data?.kind || 'audit',
+        icon: data?.icon || '🔔',
+        title: data?.title || '有新的待办',
+        desc: data?.desc || '',
+        href: rolePage(user?.role, data?.hrefKey || 'orders'),
+        toast: data?.toast || 'info',
+        duration: 8,
+        dedupeKey: data?.dedupeKey,
+        dedupeMs: data?.dedupeMs || 60 * 1000,
       });
     },
     onOrderContactReminderAdmin: (data: any) => {

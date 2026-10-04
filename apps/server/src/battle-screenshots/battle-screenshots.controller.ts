@@ -29,6 +29,7 @@ import * as os from 'os';
 import type { Request } from 'express';
 import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { WsGateway } from '../ws/ws.gateway';
 
 const UPLOAD_DIR = join(process.cwd(), '..', '..', 'uploads', 'battle-screenshots');
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic', '.heif', '.tif', '.tiff'];
@@ -47,6 +48,7 @@ export class BattleScreenshotsController {
   constructor(
     private readonly service: BattleScreenshotsService,
     private readonly prisma: PrismaService,
+    private readonly wsGateway: WsGateway,
   ) {}
 
   @Post()
@@ -117,6 +119,14 @@ export class BattleScreenshotsController {
       customerId: body?.customerId || null,
       images,
     });
+    // 管理端要实时知道有人上传了战绩图（老板 2026-10-04：交互双方都要有提示）
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审核：陪玩上传战绩图',
+      desc: '有陪玩上传了一组战绩图，去「战绩图审核」采纳或驳回（采纳会加分）',
+      icon: '🏅',
+      kind: 'audit',
+      hrefKey: 'battle',
+    });
     return { code: 200, message: '已提交，等待管理端审核', data };
   }
 
@@ -145,7 +155,21 @@ export class BattleScreenshotsController {
       throw new BadRequestException('请选择采纳或驳回');
     }
     const data = await this.service.review(id, req.user.id, body.action, body.note);
-    return { code: 200, message: body.action === 'approve' ? '已采纳并加分' : '已驳回', data };
+    // 审核结果实时告诉上传的陪玩本人（老板 2026-10-04：双方都要有提示）
+    const approved = body.action === 'approve';
+    if ((data as any)?.companionId) {
+      const bonus = Number((data as any)?.bonus) || 0;
+      this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+        title: approved ? '战绩图已采纳' : '战绩图被驳回',
+        desc: approved
+          ? `你的战绩图被采纳，综合分 +${bonus}`
+          : `你的战绩图被驳回${body.note ? '：' + body.note : ''}`,
+        icon: approved ? '🏅' : '⛔',
+        kind: 'audit',
+        hrefKey: 'battle',
+      });
+    }
+    return { code: 200, message: approved ? '已采纳并加分' : '已驳回', data };
   }
 
   // 老板 2026-10-01：「客服端怎么没有查看战绩图呢？只有店长有？」——战绩图这页本身不显示图片，

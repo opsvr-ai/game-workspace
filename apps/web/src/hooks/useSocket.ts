@@ -65,6 +65,12 @@ interface UseSocketOptions {
   onOrderContactReminder?: (data: any) => void;
   /** 同上满 3 天仍没处理 → 提醒客服 / 店长 / 老板去核实，确认过不了就删客户 */
   onOrderContactReminderAdmin?: (data: any) => void;
+  /**
+   * 通用「审核 / 交互」提醒（老板 2026-10-04）——报账 / 支取 / 战绩图 / 客户删除申请 /
+   * 封存解封 / 桥接申请 / 注册审核，提交方和审核方都要能实时收到提示。
+   * payload.audience: 'MGMT' 只发给管理端，'COMPANION' 只发给陪玩本人。
+   */
+  onReviewNotice?: (data: any) => void;
 }
 
 export function useSocket(opts: UseSocketOptions = {}) {
@@ -328,6 +334,10 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:contact_reminder_admin', (data: any) => {
       optsRef.current.onOrderContactReminderAdmin?.(data);
+    });
+
+    socket.on('review:notice', (data: any) => {
+      optsRef.current.onReviewNotice?.(data);
     });
 
     socket.on('wallet:reviewed', (data: any) => {

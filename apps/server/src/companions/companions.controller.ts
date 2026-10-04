@@ -269,6 +269,16 @@ export class CompanionsController {
   @Roles(UserRole.COMPANION)
   async requestWithdraw(@Req() req: any, @Body() dto: { amount: number; note?: string }): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.requestWithdraw(req.user.companionId, dto.amount, dto.note);
+    // 管理端要实时知道有人申请支取（老板 2026-10-04：交互双方都要有提示）
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审批：陪玩支取申请',
+      desc: `有陪玩申请支取 ¥${dto.amount}，去「财务 → 支取审批」处理`,
+      icon: '💰',
+      kind: 'finance',
+      hrefKey: 'billing',
+      dedupeKey: `withdraw-${req.user.companionId}`,
+      dedupeMs: 30 * 1000,
+    });
     return { code: 201, message: '支取申请已提交', data };
   }
 

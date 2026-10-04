@@ -1068,6 +1068,37 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`companion:${companionId}`).emit(event, stripCustomerSourceDeep(data));
   }
 
+  /**
+   * 把「有人提交了东西等你审核」推给本店客服 / 店长 + 全站老板。
+   *
+   * 老板 2026-10-04：「其他需要交互的地方也都双方都能提示了么」——
+   * 以前只有补单做了双向实时提示，报账 / 战绩图 / 支取 / 客户删除申请这些
+   * 管理端只能靠页面每 60 秒轮询的红点，陪玩端连审核结果都不知道。
+   */
+  async notifyStudioManagers(
+    studioId: string | null | undefined,
+    event: string,
+    data: unknown,
+  ): Promise<void> {
+    const where: any = { isAuthorized: true, role: { in: ['OWNER', 'ADMIN', 'CS'] } };
+    if (studioId) where.OR = [{ studioId }, { role: 'OWNER', studioId: null }];
+    else where.role = 'OWNER';
+    const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
+    for (const u of Array.isArray(found) ? (found as any[]) : []) {
+      this.notifyUser(u.id, event, data);
+    }
+  }
+
+  /** 通用「审核 / 交互」提醒 —— 管理端一侧（本店客服 / 店长 + 全站老板）。 */
+  notifyManagers(studioId: string | null | undefined, payload: Record<string, any>): void {
+    void this.notifyStudioManagers(studioId, 'review:notice', { ...payload, audience: 'MGMT' });
+  }
+
+  /** 通用「审核 / 交互」提醒 —— 陪玩本人一侧（我提交的东西有结果了）。 */
+  notifyCompanionNotice(companionId: string, payload: Record<string, any>): void {
+    this.notifyCompanion(companionId, 'review:notice', { ...payload, audience: 'COMPANION' });
+  }
+
   // 前端有些入口会把 companionId 当成 userId 传过来（例如陪玩端订单池）。
   // 这里统一归一化为 User id，保证语音信令能投递到正确的 user:{id} 房间。
   private async resolveUserId(id: string | undefined | null): Promise<string> {

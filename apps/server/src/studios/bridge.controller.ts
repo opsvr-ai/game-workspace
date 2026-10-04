@@ -18,6 +18,16 @@ export class BridgeController {
   @Roles(UserRole.ADMIN)
   async propose(@Req() req: any, @Body('targetStudioId') targetStudioId: string) {
     const data = await this.bridgeService.propose(req.user.studioId, targetStudioId, req.user.id);
+    // 对方工作室的管理端要实时知道有人申请桥接（老板 2026-10-04：交互双方都要有提示）
+    this.wsGateway?.notifyManagers(targetStudioId, {
+      title: '待处理：桥接申请',
+      desc: '有工作室申请与你桥接，去「工作室桥接」同意或拒绝',
+      icon: '🔗',
+      kind: 'system',
+      hrefKey: 'bridges',
+      dedupeKey: `bridge-${(data as any)?.id || targetStudioId}`,
+      dedupeMs: 60 * 1000,
+    });
     return { code: 200, message: '桥接申请已发送', data };
   }
 

@@ -74,16 +74,25 @@ export class BattleScreenshotsService {
       },
     });
 
+    let bonusApplied = 0;
     if (action === 'approve') {
       // 采纳后给陪玩综合分加分（每采纳一组 +1 分，可通过配置调整）。
       const bonus = await this.getBonusPerApproval(item.studioId);
+      bonusApplied = bonus;
       await this.prisma.companion.update({
         where: { id: item.companionId },
         data: { bonusScore: { increment: bonus } },
       }).catch(() => {});
     }
 
-    return { id, status };
+    // 带上 companionId / 加分值，控制器要拿它给陪玩本人推「审核结果」实时提示。
+    return {
+      id,
+      status,
+      companionId: item.companionId,
+      studioId: item.studioId,
+      bonus: bonusApplied,
+    };
   }
 
   private async getBonusPerApproval(studioId?: string | null): Promise<number> {

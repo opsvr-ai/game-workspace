@@ -24,6 +24,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **所有「要双方交互」的地方一律双向实时提示（老板 2026-10-04，服务端 + 网页 `v925`）。**
+  老板原话：「其他需要交互的地方也都双方都能提示了么。」上一版只把**补单申请**做成了双向，
+  复查后确认还有 7 处只有「页面轮询红点」或干脆没人通知，这次一起补齐：
+  ① **报账**（`POST /expense-reports`、`POST /billing/report-today`、`POST /billing/report-today-v2`）
+  → 提交时推「待审核：陪玩报账」给本店客服 / 店长 + 全站老板；`PUT /expense-reports/:id/review` → **通过 / 驳回都推给报账本人**
+  （以前连审核结果都没有）。② **支取**（`POST /companions/me/withdraw`）→ 提交时推「待审批：陪玩支取申请」
+  （审核结果 `wallet:reviewed` 原来就有）。③ **战绩图**（`POST /battle-screenshots` → 推管理端；
+  `POST /battle-screenshots/:id/review` → 采纳 / 驳回推给上传人，采纳时带上「+N 分」）。④ **客户删除申请**
+  （`POST /customer-tracking/delete-requests` → 推管理端；`POST /customer-tracking/delete-requests/:id/review` → 推申请人）。
+  ⑤ **客户封存 / 解封改派**（`POST /customers/:id/archive`、`/unarchive`）→ 推给该客户名下的陪玩（改派时推给新归属人）。
+  ⑥ **桥接申请**（`POST /bridges/propose`）→ 推给**对方工作室**的管理端（原来只有「对方响应」推给发起人）。
+  ⑦ **新注册**（`POST /auth/register`）→ 推「待审核：新注册」给对应工作室管理端；`PUT /companions/:id/review` 也补上审核结果通知
+  （网页走的 `PUT /auth/users/:id/authorize` 原来就有）。
+  **实现**：`WsGateway` 新增通用通道 `notifyStudioManagers()`（按工作室查 `OWNER/ADMIN/CS` + 全站老板，查库失败静默跳过、
+  绝不让提醒把业务接口带崩）、`notifyManagers()` / `notifyCompanionNotice()` 统一发 `review:notice` 事件，带
+  `audience: 'MGMT' | 'COMPANION'`；网页 `useSocket` 加一个 `onReviewNotice`，`AppLayout` 按角色过滤后进右下角弹窗 + 右上角铃铛
+  （点一下直接跳到对应审核页）。**没有改动任何线上业务开关、也没动客户端。**
+  新增 4 条单元测试（`review-notice.test.ts`，合计 69 个文件 / 610 条全绿）。
+
 - **客户不通过 → 人工去小红书问、问不到就「封存」；超长挂起只进管理端待办，系统绝不自动收单（老板 2026-10-04，服务端 + 网页 `v923`）。**
   老板原话：「你收回来也没用，顶多让管理端去对应的小红书找到该客户、通过小红书去问问客户、看看客户回不回，才能定；
   客户小红书也不回，那只能把这个客户信息封存起来了，找合适的时候再找别的陪玩加加试试。」

@@ -201,6 +201,13 @@ export class BillingController {
       companionId: req.user.companionId,
       studioId: req.user.studioId,
     });
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审核：陪玩报账',
+      desc: '有陪玩提交了报账，去「财务 → 报账审核」处理',
+      icon: '🧾',
+      kind: 'finance',
+      hrefKey: 'billing',
+    });
     return { code: 201, message: '报账提交成功', data };
   }
 
@@ -226,6 +233,19 @@ export class BillingController {
     const data = await this.billingService.reviewExpenseReport(
       id, dto.status, req.user.id, dto.note,
     );
+    // 审核结果实时告诉陪玩本人（老板 2026-10-04：双方都要有提示）
+    const approved = String(dto.status || '').toUpperCase() === 'APPROVED';
+    if ((data as any)?.companionId) {
+      this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+        title: approved ? '报账已通过' : '报账被驳回',
+        desc: approved
+          ? '你的报账已通过审核'
+          : `你的报账被驳回${dto.note ? '：' + dto.note : ''}`,
+        icon: approved ? '✅' : '⛔',
+        kind: 'finance',
+        hrefKey: 'billing',
+      });
+    }
     return { code: 200, message: '审核完成', data };
   }
 
@@ -292,6 +312,13 @@ export class BillingController {
       amount: 0,
       description: JSON.stringify(dto.screenshots),
     });
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审核：陪玩报账',
+      desc: '有陪玩提交了今日报账，去「财务 → 报账审核」处理',
+      icon: '🧾',
+      kind: 'finance',
+      hrefKey: 'billing',
+    });
     return { code: 201, message: '已提交审核', data: null };
   }
 
@@ -308,6 +335,15 @@ export class BillingController {
       amount: totalAmount,
       screenshotUrl: dto.totalScreenshotUrl || undefined,
       description: JSON.stringify({ screenshots, totalScreenshotUrl: dto.totalScreenshotUrl, items: dto.items }),
+    });
+
+    // 管理端要实时知道有人提交了报账（老板 2026-10-04：交互双方都要有提示）
+    this.wsGateway.notifyManagers(req.user.studioId, {
+      title: '待审核：陪玩报账',
+      desc: `有陪玩提交了今日报账 ¥${totalAmount}，去「财务 → 报账审核」处理`,
+      icon: '🧾',
+      kind: 'finance',
+      hrefKey: 'billing',
     });
 
     // 把每单实际报账金额回写到客户身上，累计客户实际消费金额

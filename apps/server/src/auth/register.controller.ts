@@ -12,13 +12,18 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service';
 import { notResignedWhere, pendingReviewWhere } from '../common/offboarding';
 import { RolesGuard, Roles } from './roles.guard';
+import { WsGateway } from '../ws/ws.gateway';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import * as bcrypt from 'bcryptjs';
 
 @Controller()
 export class RegisterController {
-  constructor(private readonly prisma: PrismaService, private readonly identityVerify: IdentityVerifyService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identityVerify: IdentityVerifyService,
+    private readonly wsGateway: WsGateway,
+  ) {}
 
   @Get('auth/check-username')
   async checkUsername(@Query('q') q: string): Promise<ApiResponse<{ exists: boolean }>> {
@@ -169,6 +174,17 @@ export class RegisterController {
       throw err;
     }
 
+    // 有新注册待审核 → 实时告诉对应工作室的管理端（老板 2026-10-04：交互双方都要有提示）
+    this.wsGateway.notifyManagers(studioId ?? null, {
+      title: '待审核：新注册',
+      desc: `${body.realName || body.username} 提交了${role === 'COMPANION' ? '陪玩' : role === 'CS' ? '客服' : '店长'}注册，去「授权 / 审核」通过或拒绝`,
+      icon: '🆕',
+      kind: 'audit',
+      hrefKey: 'audits',
+      dedupeKey: `register-${user.id}`,
+      dedupeMs: 5 * 60 * 1000,
+    });
+
     return {
       code: 201,
       message: '注册成功，请等待管理员审核',
@@ -277,6 +293,18 @@ export class RegisterController {
         data: { isAuthorized: isApproved },
       }),
     ]);
+
+    // 审核结果也告诉本人（这条路径以前连事件都没有）
+    this.wsGateway.notifyUser(companion.userId, 'review:notice', {
+      audience: 'COMPANION',
+      title: isApproved ? '注册审核已通过' : '注册审核未通过',
+      desc: isApproved
+        ? '管理员已通过你的审核，现在可以登录了'
+        : `管理员未通过你的注册${body.note ? '：' + body.note : ''}`,
+      icon: isApproved ? '✅' : '⛔',
+      kind: 'audit',
+      hrefKey: 'orders',
+    });
 
     return {
       code: 200,

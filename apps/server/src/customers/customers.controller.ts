@@ -19,12 +19,16 @@ import type { CreateCustomerDto, UpdateCustomerDto } from './customers.service';
 import { UserRole } from '@chunlv/shared';
 import type { ApiResponse } from '@chunlv/shared';
 import { CustomerProfileSourceMaskInterceptor } from '../common/customer-source-mask.interceptor';
+import { WsGateway } from '../ws/ws.gateway';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @UseInterceptors(CustomerProfileSourceMaskInterceptor)
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
+  constructor(
+    private readonly customersService: CustomersService,
+    private readonly wsGateway: WsGateway,
+  ) {}
 
   @Get('customers')
   async findAll(
@@ -149,6 +153,16 @@ export class CustomersController {
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.archive(id, req.user, body?.reason);
+    // 客户被封存，名下的陪玩要实时知道（老板 2026-10-04：交互双方都要有提示）
+    if ((data as any)?.companionId) {
+      this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+        title: '你的客户已被封存',
+        desc: `客户${(data as any)?.wechatId ? '「' + (data as any).wechatId + '」' : ''}已被店长封存，暂时不在你的客户列表里${body?.reason ? '（原因：' + body.reason + '）' : ''}`,
+        icon: '🧊',
+        kind: 'system',
+        hrefKey: 'customers',
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 
@@ -161,6 +175,16 @@ export class CustomersController {
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.unarchive(id, req.user, { companionId: body?.companionId });
+    // 解封（可能顺手改派）→ 新的归属陪玩要实时知道
+    if ((data as any)?.companionId) {
+      this.wsGateway.notifyCompanionNotice((data as any).companionId, {
+        title: body?.companionId ? '客户已解封并改派给你' : '你的客户已解封',
+        desc: `客户${(data as any)?.wechatId ? '「' + (data as any).wechatId + '」' : ''}已解封，可以再试着加一次微信`,
+        icon: '🔓',
+        kind: 'system',
+        hrefKey: 'customers',
+      });
+    }
     return { code: 200, message: 'ok', data };
   }
 
