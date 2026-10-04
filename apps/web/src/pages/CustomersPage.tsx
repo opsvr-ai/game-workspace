@@ -747,7 +747,8 @@ const CustomersPage: React.FC = () => {
             const grabbed = record.orders?.find((o: any) => o.status === 'GRABBED');
             const confirmed = record.orders?.find((o: any) => o.status === 'CONFIRMED');
             const firstDone = hasFirstOrder(record);
-            const hasAnyOrder = (record.orders?.length ?? 0) > 0;
+            // 只算「真动过」的单：退款 / 取消掉的单不算（那种情况他还是新客，该给「开始首单」）
+            const hasAnyOrder = (record.orders ?? []).some((o: any) => o.status !== 'CANCELLED');
             const hasDeposit = Number(record.depositBalance) > 0;
             const balance = Number(record.depositBalance) || 0;
 
