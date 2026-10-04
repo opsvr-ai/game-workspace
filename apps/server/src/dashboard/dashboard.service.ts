@@ -7,7 +7,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { roundToJiao } from '../common/money';
-import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { computeEntertainmentFee, entertainmentBasisRevenue, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { resolveConfigsRaw } from '../common/studio-config';
 
 /** 计「在线时长」时认可的模式，与 onlineCount 保持一致 */
@@ -112,13 +112,23 @@ export class DashboardService {
     for (const o of todayDoneOrders) {
       if (o.companionId) revMap.set(o.companionId, (revMap.get(o.companionId) || 0) + o.amount);
     }
-    // 娱乐费：走全系统唯一口径（当日流水达标免单，否则按配置时薪折算）
+    // 娱乐费：走全系统唯一口径（门槛 = 订单流水 + 今天打掉的存单，达标免单，否则按配置时薪折算）
+    // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——存单常加在老的续单上打，
+    // 订单 createdAt 不是今天，按订单取数的当日流水会漏，按会话补回来。
     const { hourlyRate, freeThreshold } = await loadEntertainmentRule(this.prisma, studioId);
+    const depositPlayedMap = await sumDepositPlayedToday(
+      this.prisma,
+      Array.from(entertainmentSecondsByCompanion.keys()),
+      { start: today, end: tomorrow },
+    );
     let entertainmentFee = 0;
     for (const [companionId, seconds] of entertainmentSecondsByCompanion) {
       entertainmentFee += computeEntertainmentFee({
         minutes: seconds / 60,
-        todayRevenue: revMap.get(companionId) || 0,
+        todayRevenue: entertainmentBasisRevenue(
+          revMap.get(companionId) || 0,
+          depositPlayedMap.get(companionId) || 0,
+        ),
         hourlyRate,
         freeThreshold,
       });

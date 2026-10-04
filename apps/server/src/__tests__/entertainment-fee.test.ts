@@ -2,7 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeEntertainmentFee,
+  depositPlayedCredit,
+  entertainmentBasisRevenue,
   isEntertainmentFree,
+  sumDepositPlayedToday,
 } from '../common/entertainment-fee';
 
 // 娱乐费在老板的系统里只有一个算法（看板 / 工作台 / 搭档结算 / 余额预警共用），
@@ -48,5 +51,100 @@ describe('娱乐费唯一口径', () => {
     expect(isEntertainmentFree(300, 300)).toBe(true);
     expect(isEntertainmentFree(299, 300)).toBe(false);
     expect(isEntertainmentFree(99999, 0)).toBe(false);
+  });
+});
+
+// ── 老板 2026-10-04：「打存单也算在娱乐那个门槛里」 ──
+// 存单常加在老的续单上打（父单 createdAt 不是今天），按订单取数的当日流水会漏，
+// 所以按「今天结束的存单会话」补一份；父单本身就是今天建的就不重复加。
+describe('打存单也算进娱乐门槛（老板 2026-10-04）', () => {
+  const day = { start: new Date('2026-10-04T12:00:00+08:00'), end: new Date('2026-10-05T12:00:00+08:00') };
+
+  let lastArgs: any = null;
+  const fakePrisma = (rows: any[]) =>
+    ({
+      orderSession: {
+        findMany: async (args: any) => {
+          lastArgs = args;
+          return rows;
+        },
+      },
+    }) as any;
+
+  it('主陪按 单价×时长、副陪按那一段总价，各记一份', () => {
+    expect(
+      depositPlayedCredit({ companionId: 'c1', coCompanionId: 'c2', claimedPrice: 40, duration: 2, coAmount: 70 }),
+    ).toEqual([
+      { companionId: 'c1', amount: 80 },
+      { companionId: 'c2', amount: 70 },
+    ]);
+  });
+
+  it('父单是老的（不是今天建）→ 今天打掉的存单要补进门槛', async () => {
+    const prisma = fakePrisma([
+      {
+        companionId: 'c1',
+        coCompanionId: null,
+        claimedPrice: 40,
+        duration: 9,
+        amount: 360,
+        coAmount: null,
+        parentOrder: { createdAt: new Date('2026-09-20T13:00:00+08:00') },
+      },
+    ]);
+    const map = await sumDepositPlayedToday(prisma, ['c1'], day);
+    expect(map.get('c1')).toBe(360);
+    // 只查「今天结束 + 存单付款」的会话
+    const where = lastArgs.where;
+    expect(where.status).toBe('DONE');
+    expect(where.paidByDeposit).toBe(true);
+    expect(where.endedAt).toEqual({ gte: day.start, lt: day.end });
+  });
+
+  it('父单本身就是今天建的 → 已经在今日流水里，不重复加', async () => {
+    const prisma = fakePrisma([
+      {
+        companionId: 'c1',
+        coCompanionId: null,
+        claimedPrice: 40,
+        duration: 2,
+        amount: 80,
+        coAmount: null,
+        parentOrder: { createdAt: new Date('2026-10-04T18:00:00+08:00') },
+      },
+    ]);
+    const map = await sumDepositPlayedToday(prisma, ['c1'], day);
+    expect(map.get('c1')).toBeUndefined();
+  });
+
+  it('副陪那份存单也记在副陪头上', async () => {
+    const prisma = fakePrisma([
+      {
+        companionId: 'c1',
+        coCompanionId: 'c2',
+        claimedPrice: 40,
+        duration: 9,
+        amount: 360,
+        coAmount: 315,
+        parentOrder: { createdAt: new Date('2026-09-20T13:00:00+08:00') },
+      },
+    ]);
+    const map = await sumDepositPlayedToday(prisma, ['c1', 'c2'], day);
+    expect(map.get('c1')).toBe(360);
+    expect(map.get('c2')).toBe(315);
+  });
+
+  it('查不到数据 / 报错都不炸（宁可少算，不让娱乐功能挂）', async () => {
+    const map = await sumDepositPlayedToday({ orderSession: { findMany: async () => { throw new Error('boom'); } } } as any, ['c1'], day);
+    expect(map.size).toBe(0);
+    const empty = await sumDepositPlayedToday(fakePrisma([]), [], day);
+    expect(empty.size).toBe(0);
+  });
+
+  it('门槛口径：流水 0 + 存单 300 = 300 → 免费', () => {
+    const basis = entertainmentBasisRevenue(0, 300);
+    expect(basis).toBe(300);
+    expect(isEntertainmentFree(basis, 300)).toBe(true);
+    expect(computeEntertainmentFee({ minutes: 540, todayRevenue: basis, hourlyRate: 10, freeThreshold: 300 })).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS003
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { computeEntertainmentFee, isEntertainmentFree, loadEntertainmentRule } from '../common/entertainment-fee';
+import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { currentBusinessDayRange } from '../common/business-day';
 import { logger } from '../common/logger';
 import { WsGateway } from './ws.gateway';
@@ -100,11 +100,19 @@ export class HeartbeatService {
             })
             .catch(() => null);
           const todayRevenue = dayAgg?._sum?.amount || 0;
-          const freeToday = isEntertainmentFree(todayRevenue, freeThreshold);
+          // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——
+          // 门槛看的是「今天到手的钱」：订单流水 + 今天打掉的存单（存单常加在老的续单上，订单算不到今天）。
+          const depositPlayed = await sumDepositPlayedToday(
+            this.prisma,
+            [user.companionId],
+            { start: dayStart, end: dayEnd },
+          ).then((m) => (user.companionId ? m.get(user.companionId) || 0 : 0)).catch(() => 0);
+          const basisRevenue = entertainmentBasisRevenue(todayRevenue, depositPlayed);
+          const freeToday = isEntertainmentFree(basisRevenue, freeThreshold);
           const feeMinutes = Math.floor(elapsed / 60);
           const fee = computeEntertainmentFee({
             minutes: feeMinutes,
-            todayRevenue,
+            todayRevenue: basisRevenue,
             hourlyRate,
             freeThreshold,
           });

@@ -10,7 +10,7 @@ import {
   currentSettlementMonthRange,
 } from '../common/business-day';
 import { companionOrderRevenue } from '../common/order-revenue';
-import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
+import { computeEntertainmentFee, entertainmentBasisRevenue, isEntertainmentFree, loadEntertainmentRule, sumDepositPlayedToday } from '../common/entertainment-fee';
 import { roundToJiao } from '../common/money';
 import { resolveConfigsRaw } from '../common/studio-config';
 import { CompanionRevenueService } from './companion-revenue.service';
@@ -1028,11 +1028,19 @@ export class CompanionsService {
 
     const entertainmentMinutes = Math.floor(durations.entertainment / 60);
     const { hourlyRate } = await loadEntertainmentRule(this.prisma, workbenchStudioId);
-    // 娱乐随时可进：当日流水 ≥ 门槛则免费，否则按小时计费（报账时体现）。
+    // 老板 2026-10-04：「打存单也算在娱乐那个门槛里」——
+    // 门槛看「今天到手的钱」：订单流水 + 今天打掉的存单（存单常加在老的续单上，订单取数算不到今天）。
+    const depositPlayedMap = await sumDepositPlayedToday(this.prisma, [companionId], {
+      start: todayStart,
+      end: todayEnd,
+    });
+    const todayDepositPlayed = depositPlayedMap.get(companionId) || 0;
+    const entertainmentBasis = entertainmentBasisRevenue(todayRevenue, todayDepositPlayed);
+    // 娱乐随时可进：门槛内免费，否则按小时计费（报账时体现）。
     // 算法统一在 common/entertainment-fee.ts，跟看板、搭档结算、余额预警同一套。
     const entertainmentFee = computeEntertainmentFee({
       minutes: durations.entertainment / 60,
-      todayRevenue,
+      todayRevenue: entertainmentBasis,
       hourlyRate,
       freeThreshold: entertainmentThreshold,
     });
@@ -1167,6 +1175,10 @@ export class CompanionsService {
       entertainmentMinutes,
       entertainmentFee,
       hourlyRate,
+      // 娱乐门槛口径（老板 2026-10-04）：订单流水 + 今天打掉的存单
+      todayDepositPlayed: roundToJiao(todayDepositPlayed),
+      entertainmentBasis: roundToJiao(entertainmentBasis),
+      entertainmentFreeToday: isEntertainmentFree(entertainmentBasis, entertainmentThreshold),
       totalRevenue: roundToJiao(totalRev),
       availableFunds: roundToJiao(availableFunds),
       feeBalanceWarning,

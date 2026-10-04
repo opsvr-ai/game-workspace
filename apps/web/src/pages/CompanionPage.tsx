@@ -313,8 +313,9 @@ const CompanionPage: React.FC = () => {
                 {companionStatusConfig[data.currentStatus]?.label || data.currentStatus}
               </Tag>
               <Text type="secondary">
-                今日¥{data.todayRevenue} · 娱乐{data.entertainmentMinutes}min ·{' '}
-                {data.statusDurations?.entertainment || '00:00'}
+                今日¥{data.todayRevenue}
+                {Number(data.todayDepositPlayed) > 0 ? ` · 存单已打¥${data.todayDepositPlayed}` : ''} · 娱乐
+                {data.entertainmentMinutes}min · {data.statusDurations?.entertainment || '00:00'}
               </Text>
               {excellence ? (
                 <Tooltip title="点开看完整加分规则 / 离下一级还差多少">
@@ -359,7 +360,14 @@ const CompanionPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Tooltip title="娱乐随时可进，当日流水达标 ¥300 则免费，否则按小时计费">
+              {/* 门槛口径（老板 2026-10-04）：今天到手的钱 = 订单流水 + 打掉的存单 */}
+              <Tooltip
+                title={
+                  data.entertainmentFreeToday
+                    ? `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，已到 ¥${data.entertainmentThreshold ?? 0} 门槛 → 今天免费`
+                    : `娱乐随时可进：今天流水 ¥${data.todayRevenue} + 存单已打 ¥${data.todayDepositPlayed ?? 0} = ¥${data.entertainmentBasis ?? 0}，还没到 ¥${data.entertainmentThreshold ?? 0} → 按 ¥${data.hourlyRate ?? 0}/小时 计费`
+                }
+              >
                 <Button
                   type={data.currentStatus === 'ENTERTAINMENT' ? 'primary' : 'default'}
                   icon={IconPlay}
