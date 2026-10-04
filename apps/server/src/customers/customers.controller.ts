@@ -225,7 +225,7 @@ export class CustomersController {
    * 打了多久、维护多久，并给出「下次该派给谁」的建议。
    */
   @Get('customers/:id/profile-analytics')
-  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.CS, UserRole.COMPANION)
   async profileAnalytics(@Param('id') id: string, @Req() req: any): Promise<ApiResponse<unknown>> {
     const data = await this.customersService.customerProfileAnalytics(id, req.user);
     return { code: 200, message: 'ok', data };

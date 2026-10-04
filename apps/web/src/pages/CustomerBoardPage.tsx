@@ -531,7 +531,7 @@ const CustomerBoardPage: React.FC = () => {
   const barList = (
     <div>
       <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
-        按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情，点「画像」看他都跟哪些人打过、习惯什么单价。
+        按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情，点「客户喜好」看他爱打机密还是绝密、习惯什么单价。
       </div>
       {rankRows.map((r, i) => {
         const v = barValue(r);
@@ -582,7 +582,7 @@ const CustomerBoardPage: React.FC = () => {
                   <Text strong>{r.customerCode}</Text>
                   {statusTag(r)}
                   {live ? <Tag color="red" style={{ marginInlineEnd: 0 }}>🎮 正在打</Tag> : null}
-                  {r.servedBy > 1 ? <Tag color="purple" style={{ marginInlineEnd: 0 }}>{r.servedBy} 人打过</Tag> : null}
+                  {/* 老板 2026-10-04：陪玩端不显示「N 人打过」—— 不暴露「跟谁打过」。 */}
                   {r.topMode && r.topMode !== '未知' ? (
                     <span style={{ fontSize: 11, color: '#7C3AED' }}>常打{r.topMode}</span>
                   ) : null}
@@ -623,9 +623,22 @@ const CustomerBoardPage: React.FC = () => {
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>
                   {'今日 ' + yuan(r.todaySpent) + ' · ' + (r.orderCount || 0) + ' 单 · ' + fmtHours(r.hours)}
                 </div>
-                {/* 老板 2026-10-04：客户画像只给管理端（客服 / 店长 / 老板）看 ——
-                    抽屉里会列出「这个客户在哪些陪玩 / 工作微信上各消费了多少」，
-                    属于别的陪玩的隐私，所以陪玩端不展示（后端接口也同步限制了角色）。 */}
+                {/* 老板 2026-10-04：陪玩端只给「客户喜好」（爱打机密/绝密、习惯单价），
+                    不显示「跟谁打过」—— 抽屉里不会有其他陪玩 / 工作微信 / 收入，
+                    服务端返回的陪玩画像也不含这些字段。 */}
+                <div style={{ marginTop: 4 }}>
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0, height: 18, fontSize: 12 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProfileId(r.customerId);
+                    }}
+                  >
+                    客户喜好
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

@@ -113,6 +113,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
     }
   }, [open, customerId, load]);
 
+  const companionView = !!data?.companionView; // 陪玩端：只给「客户喜好」，不给经手人 / 工作微信明细
   const customer = data?.customer;
   const totals = data?.totals;
   const rec = data?.recommendation;
@@ -243,7 +244,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       destroyOnClose
       title={
         <Space size={8}>
-          <span>客户画像</span>
+          <span>{companionView ? '客户喜好' : '客户画像'}</span>
           {customer ? <Text strong>{customer.customerCode}</Text> : null}
           {data?.scope === 'all' ? <Tag color="gold">全站</Tag> : null}
         </Space>
@@ -258,7 +259,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       ) : (
         <div style={{ display: 'grid', gap: 14 }}>
           <Card size="small" style={{ background: '#F5F3FF', borderColor: '#DDD6FE' }} bodyStyle={{ padding: 12 }}>
-            <div style={{ fontSize: 13, color: '#4C1D95', fontWeight: 600, marginBottom: 4 }}>💡 派单建议</div>
+            <div style={{ fontSize: 13, color: '#4C1D95', fontWeight: 600, marginBottom: 4 }}>{companionView ? '💡 这个客户喜欢什么' : '💡 派单建议'}</div>
             <div style={{ fontSize: 13, lineHeight: 1.7, color: '#312E81' }}>{rec?.summary}</div>
             {rec?.picks?.length ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
@@ -345,34 +346,38 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
               </div>
             </Card>
 
-            <Card size="small" style={{ flex: '1 1 220px' }} title={<span style={{ fontSize: 13 }}>速览</span>}>
-              <div style={{ fontSize: 13, lineHeight: 2, color: '#334155' }}>
-                <div>打过的工作微信：<Text strong>{wxC}</Text> 个</div>
-                <div>经手的陪玩：<Text strong>{totals.companionCount ?? 0}</Text> 人</div>
-                <div>其中现在在线：<Text strong>{totals.onlineCompanions ?? 0}</Text> 人</div>
-              </div>
-            </Card>
+            {!companionView && (
+              <Card size="small" style={{ flex: '1 1 220px' }} title={<span style={{ fontSize: 13 }}>速览</span>}>
+                <div style={{ fontSize: 13, lineHeight: 2, color: '#334155' }}>
+                  <div>打过的工作微信：<Text strong>{wxC}</Text> 个</div>
+                  <div>经手的陪玩：<Text strong>{totals.companionCount ?? 0}</Text> 人</div>
+                  <div>其中现在在线：<Text strong>{totals.onlineCompanions ?? 0}</Text> 人</div>
+                </div>
+              </Card>
+            )}
           </div>
 
-          <Card
-            size="small"
-            title={
-              <span style={{ fontSize: 13 }}>
-                这个客户在 {wxC} 个工作微信上
-                {rowC > wxC ? `（另有 ${rowC - wxC} 个陪玩没记录工作微信，也一并列出来了）` : ''}
-              </span>
-            }
-            bodyStyle={{ padding: 0 }}
-          >
-            <Table
-              rowKey="key"
+          {!companionView && (
+            <Card
               size="small"
-              columns={columns}
-              dataSource={data.workWechats || []}
-              pagination={false}
-              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有成交记录" /> }}
-            />
-          </Card>
+              title={
+                <span style={{ fontSize: 13 }}>
+                  这个客户在 {wxC} 个工作微信上
+                  {rowC > wxC ? `（另有 ${rowC - wxC} 个陪玩没记录工作微信，也一并列出来了）` : ''}
+                </span>
+              }
+              bodyStyle={{ padding: 0 }}
+            >
+              <Table
+                rowKey="key"
+                size="small"
+                columns={columns}
+                dataSource={data.workWechats || []}
+                pagination={false}
+                locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有成交记录" /> }}
+              />
+            </Card>
+          )}
         </div>
       )}
     </Drawer>

@@ -1088,6 +1088,49 @@ export class CustomersService {
       ? (orders as any[])[(orders as any[]).length - 1].createdAt
       : null;
 
+    // 老板 2026-10-04：「陪玩端不要显示跟谁打过，只写客户喜好就行了」——
+    // 陪玩拿到的画像**只含这个客户自己的偏好**（常打机密/绝密、习惯单价、成交单数/时长/消费），
+    // 不含工作微信明细表、不含推荐陪玩、不含经手人数 —— 看不到「跟谁打过」，也就不会泄露别的陪玩。
+    if (user.role === 'COMPANION') {
+      const prefText = !doneOrders.length
+        ? '这个客户还没有成交记录，先按普通新客接待；打过一单后这里会自动给出他的喜好。'
+        : `这个客户一共成交 ${doneOrders.length} 单、打了 ${round1(totalHours)} 小时、消费 ${round1(totalGross)} 元` +
+          (modes.length ? `，最常打「${topMode}」（占 ${modes[0]?.ratio ?? 0}%）` : '') +
+          `；习惯单价 ${priceText}。`;
+      return {
+        customer: {
+          id: customer.id,
+          customerCode: customer.customerCode,
+          wechatId: customer.wechatId || '',
+          studioId: customer.studioId,
+          studioName: customer.studio?.name || '',
+          status: customer.status,
+          ownerCompanionId: ownerId,
+          ownerCompanionName: nameOf(ownerId),
+          createdAt: customer.createdAt,
+          firstOrderAt,
+          firstDoneAt,
+          lastOrderAt,
+          lastDoneAt,
+          maintainDays: firstOrderAt ? Math.floor((now - tsOf(firstOrderAt)) / DAY) : 0,
+          lastDaysAgo: lastOrderAt ? Math.floor((now - tsOf(lastOrderAt)) / DAY) : null,
+        },
+        totals: {
+          doneOrders: doneOrders.length,
+          sessions: (sessions as any[]).length,
+          hours: round1(totalHours),
+          gross: round1(totalGross),
+          modes,
+          topMode,
+          price: priceBand,
+        },
+        recommendation: { topMode, priceBand, summary: prefText, picks: [] },
+        companionView: true,
+        scope: 'own',
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     return {
       customer: {
         id: customer.id,
@@ -1121,7 +1164,8 @@ export class CustomersService {
       },
       workWechats: workWechatList,
       recommendation: { topMode, priceBand, summary, picks },
-      scope: user.role === 'OWNER' ? 'all' : user.role === 'COMPANION' ? 'own' : 'studio',
+      // 陪玩已在上面提前 return（只给「客户喜好」），这里剩 OWNER / ADMIN / CS
+      scope: user.role === 'OWNER' ? 'all' : 'studio',
       updatedAt: new Date().toISOString(),
     };
   }

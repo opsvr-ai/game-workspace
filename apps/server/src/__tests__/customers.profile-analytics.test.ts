@@ -193,6 +193,26 @@ describe('CustomersService.customerProfileAnalytics（客户画像）', () => {
     expect(res.recommendation.summary).toContain('还没有成交记录');
   });
 
+  it('陪玩端只拿「客户喜好」：不含工作微信明细 / 推荐陪玩 / 经手人数（老板 2026-10-04）', async () => {
+    // 这个客户就是这个陪玩自己的（C1），所以进得来；但返回里不能有别的陪玩。
+    const res: any = await service.customerProfileAnalytics('cust1', {
+      role: 'COMPANION', studioId: 's1', companionId: 'C1',
+    } as any);
+
+    expect(res.companionView).toBe(true);
+    expect(res.scope).toBe('own');
+    // 只给这个客户自己的喜好：常打模式 / 习惯单价
+    expect(res.totals.topMode).toBe('机密');
+    expect(res.totals.price.samples).toBeGreaterThan(0);
+    // 绝不带「跟谁打过」的东西
+    expect(res.workWechats).toBeUndefined();
+    expect(res.recommendation.picks).toEqual([]);
+    expect(res.totals.companionCount).toBeUndefined();
+    expect(String(res.recommendation.summary)).not.toContain('工作微信');
+    expect(String(res.recommendation.summary)).not.toContain('优先派给');
+    expect(JSON.stringify(res)).not.toContain('陪玩二');
+  });
+
   it('可见范围：陪玩看不到别人的客户（查不到 = 404）', async () => {
     (prisma.customer.findUnique as any).mockResolvedValue(null);
     await expect(
