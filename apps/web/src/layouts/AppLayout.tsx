@@ -2613,7 +2613,9 @@ const AppLayout: React.FC = () => {
                 ② 刚从左侧栏点进来、角标已经被点掉的：橙色横幅把「刚才清掉的是哪几条」再写一遍，
                    数字一没也知道刚才那条提醒是啥（点「知道了」才收）。 */}
             {(() => {
-              const curPath = noticePath(location.pathname);
+              // 必须带上 query：`陪玩工作微信` / `客服工作微信` 是**同一个路径**下按
+              // `type` 区分的两个菜单，只看 pathname 的话这两页的横幅永远匹配不上（老板 2026-10-05）。
+              const curPath = noticePath(location.pathname + (location.search || ''));
               if (!curPath) return null;
               const titles = titlesByPath[curPath] || [];
               const just = clearedNotices[curPath];
