@@ -65,7 +65,8 @@ interface Props {
 const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, customers, attendance }) => {
   const w = workbench || {};
   const monthRevenue = Number(w?.tierInfo?.monthlyRevenue ?? excellence?.revenueYuan ?? 0);
-  const rankScore = Number(excellence?.rankScore ?? 0);
+  // 段位分 = 四项 KPI（不含战绩图加分）；段位 / 距下一级都看它。
+  const rankScore = Number(excellence?.tierScore ?? excellence?.rankScore ?? 0);
   const tier = String(excellence?.tier || 'MIDDLE');
   const tierMeta = TIER_META[tier] || TIER_META.MIDDLE;
   const excellentThreshold = Number(excellence?.excellentThreshold ?? 60);
@@ -98,7 +99,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
         <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint="#1677FF" /></Col>
         <Col xs={12} md={4}><Kpi label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
-        <Col xs={12} md={4}><Kpi label="综合分 · 段位" value={rankScore} sub={<span style={{ color: tierMeta.color }}>{tierMeta.label}</span>} tint={tierMeta.color} /></Col>
+        <Col xs={12} md={4}><Kpi label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierMeta.color }}>{tierMeta.label}</span>} tint={tierMeta.color} /></Col>
         <Col xs={12} md={4}>
           <Kpi
             label="今日剩余抢单名额"
@@ -132,7 +133,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />
             <Bar label="转化率" percent={Number(w.conversionRate ?? 0)} text={pct(w.conversionRate)} color="#FA8C16" />
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0' }}>
-              <Bar label="综合分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierMeta.color} />
+              <Bar label="段位分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierMeta.color} />
               <Space size={6} wrap style={{ marginTop: 2 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>{nextGapText}</Text>
                 {excellence?.scoreDelta?.hasBaseline && excellence.scoreDelta.delta !== 0 ? (

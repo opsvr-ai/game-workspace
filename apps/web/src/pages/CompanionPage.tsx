@@ -323,8 +323,8 @@ const CompanionPage: React.FC = () => {
                     style={{ cursor: 'pointer', fontSize: 12, margin: 0 }}
                     onClick={() => setShowRule(true)}
                   >
-                    {excellence.tier === 'TOP' ? '👑🏇 上等马' : excellence.tier === 'LOW' ? '🐴 下等马' : '🐎 中等马'} · 综合分{' '}
-                    {excellence.rankScore ?? 0}
+                    {excellence.tier === 'TOP' ? '👑🏇 上等马' : excellence.tier === 'LOW' ? '🐴 下等马' : '🐎 中等马'} · 段位分{' '}
+                    {excellence.tierScore ?? excellence.rankScore ?? 0}
                     {excellence.scoreDelta?.hasBaseline && excellence.scoreDelta.delta !== 0 ? (
                       <span
                         style={{

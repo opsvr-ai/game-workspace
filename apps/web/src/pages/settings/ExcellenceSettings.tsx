@@ -99,6 +99,7 @@ const ExcellenceSettings: React.FC = () => {
         'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 60,
         'excellence.revenue_floor': config?.['excellence.revenue_floor'] ?? 5200,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,
+        'excellence.battle_screenshot_bonus_cap': config?.['excellence.battle_screenshot_bonus_cap'] ?? 10,
         'excellence.low_tier_auto_resign_days': config?.['excellence.low_tier_auto_resign_days'] ?? 0,
         'dispatch.top_tier_daily_new_limit': config?.['dispatch.top_tier_daily_new_limit'] ?? 999,
         'dispatch.middle_tier_daily_new_limit': config?.['dispatch.middle_tier_daily_new_limit'] ?? 2,
@@ -128,10 +129,13 @@ const ExcellenceSettings: React.FC = () => {
         }
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          综合分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。
+          <b>段位分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率</b>（段位只看这四项）。
           每一项只取「达到的<b>最高一档</b>」的分，<b>不叠加</b>
           （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分，不是 20+40）。
-          综合分按下面这条分数线分成 下等马 / 中等马 / 上等马 三档。
+          段位分按下面这条分数线分成 下等马 / 中等马 / 上等马 三档。
+          <br />
+          <b>战绩图加分只加在「综合分 / 排行榜」上，不参与段位判定</b> ——
+          防止「流水、三率都不够，靠堆截图也能维持上等马」，那样段位就没意义了。
           <br />
           <b>但段位还有一条更硬的线</b>：<b>最近 30 天流水没到「流水硬门槛」的人一律下等马</b>（其他分再高也不算）；
           反过来，<b>流水达标的人最低也是中等马</b> —— 要的少、挣得少可以理解，要的少、挣得多才是最理想的陪玩。
@@ -151,7 +155,7 @@ const ExcellenceSettings: React.FC = () => {
               ? `四项满分合计 ${fourMax} 分，超过 100 了 —— 请把某一项调小再保存`
               : `四项满分合计 ${fourMax} 分（上限 100）`
           }
-          description={`最近 30 天流水 ${maxOf('excellence.revenue_tiers')} + 续单率 ${maxOf('excellence.renew_tiers')} + 复购率 ${maxOf('excellence.repurchase_tiers')} + 首单成功率 ${maxOf('excellence.first_success_tiers')}。超过 100 分保存会被服务端拦下。`}
+          description={`段位分 = 最近 30 天流水 ${maxOf('excellence.revenue_tiers')} + 续单率 ${maxOf('excellence.renew_tiers')} + 复购率 ${maxOf('excellence.repurchase_tiers')} + 首单成功率 ${maxOf('excellence.first_success_tiers')}。超过 100 分保存会被服务端拦下。战绩图加分另算，不影响段位。`}
         />
         <Row gutter={24}>
           <Col span={12}>
@@ -249,7 +253,8 @@ const ExcellenceSettings: React.FC = () => {
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>
-            <Field label="战绩图每组加分" unit="分" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分" />
+            <Field label="战绩图每组加分" unit="分" value={config?.['excellence.battle_screenshot_bonus'] ?? 1} step={0.5} onChange={(v) => update('excellence.battle_screenshot_bonus', v)} suffix="管理端采纳后加分（只进综合分 / 排行榜）" />
+            <Field label="战绩图加分上限" unit="分" value={config?.['excellence.battle_screenshot_bonus_cap'] ?? 10} step={1} onChange={(v) => update('excellence.battle_screenshot_bonus_cap', v)} suffix="最多加到几分，防堆图刷分；填 0 = 不封顶" />
             <Field label="上等马每日有效客户名额" value={config?.['dispatch.top_tier_daily_new_limit'] ?? 999} step={1} onChange={(v) => update('dispatch.top_tier_daily_new_limit', v)} suffix="抢单那一刻就占，没用完累计" />
             <Field label="中等马每日有效客户名额" value={config?.['dispatch.middle_tier_daily_new_limit'] ?? 2} step={1} onChange={(v) => update('dispatch.middle_tier_daily_new_limit', v)} suffix="抢单那一刻就占，没用完累计" />
             <Field label="下等马每日有效客户名额" value={config?.['dispatch.low_tier_daily_new_limit'] ?? 1} step={1} onChange={(v) => update('dispatch.low_tier_daily_new_limit', v)} suffix="抢单那一刻就占，没用完累计" />

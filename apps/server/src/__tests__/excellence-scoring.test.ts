@@ -32,6 +32,11 @@ import { ExcellenceService } from '../companions/excellence.service';
  * 第六次（2026-10-04）：老板「所有指标都按照最近 30 天统计」→ **流水分档与流水硬门槛
  * 也从「本营业月」改成「最近 30 天」**（续单率 / 复购率 / 首单成功率本来就是 30 天），
  * 月初不再全员归零。变量名 monthlyRevenue* 保留，只换取数窗口。
+ *
+ * 第七次（2026-10-04）：老板「陪玩 80 分……上传几十张战绩图，这分岂不是一直维持在上等马上？
+ * 全员都是上等马，岂不是就丧失评分系统的意义了」→ **段位只看四项 KPI（段位分 tierScore）**；
+ * 战绩图加分只进「综合分 / 排行榜」（rankScore），并且**封顶**
+ * （`excellence.battle_screenshot_bonus_cap`，默认 10 分）。
  */
 
 const LIVE_CFG = [
@@ -436,5 +441,36 @@ describe('流水窗口 = 最近 30 天（老板 2026-10-04「所有指标都按�
     // 30 天 12000 元 → 达到最高档 50 分
     expect(r.revenueScore).toBe(50);
     expect(r.revenueYuan).toBe(12000);
+  });
+});
+
+describe('战绩图加分不参与段位（老板 2026-10-04：堆截图刷不出上等马）', () => {
+  /** 2 个客户各打 2 单（隔天）→ 续单 100%、复购 100%；成交 2 个首单 ÷ 加 3 个微信 = 67%。三率合计 50 分 */
+  const spec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
+
+  it('段位分 80（流水 6000 + 三率过半）+ 战绩图 10 分：综合分 90，但段位仍是中等马', async () => {
+    const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 6000 }, bonus: { c1: 10 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.tierScore).toBe(80);
+    expect(r.bonusScore).toBe(10);
+    expect(r.rankScore).toBe(90); // 综合分够到上等马线了……
+    expect(r.tier).toBe('MIDDLE'); // ……但段位只看段位分，还是中等马
+    expect(r.isExcellent).toBe(false);
+  });
+
+  it('战绩图加分封顶：传 50 分也只按上限 10 分算', async () => {
+    const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 6000 }, bonus: { c1: 50 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.bonusScore).toBe(10);
+    expect(r.rankScore).toBe(90);
+    expect(r.tier).toBe('MIDDLE');
+  });
+
+  it('段位分自己够线才升段：流水 8000 + 三率过半 = 90 → 上等马（跟战绩图无关）', async () => {
+    const svc = setup({ doneOrders: spec, added: { c1: 3 }, monthlyRevenue: { c1: 8000 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.tierScore).toBe(90);
+    expect(r.bonusScore).toBe(0);
+    expect(r.tier).toBe('TOP');
   });
 });

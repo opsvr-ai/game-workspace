@@ -236,6 +236,9 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'excellence.middle_tier_threshold': 60,
   'excellence.revenue_floor': 5200,
   'excellence.battle_screenshot_bonus': 1,
+  // 战绩图加分上限（老板 2026-10-04）：传图不能无限刷「综合分 / 排行榜」；
+  // 段位只认四项 KPI，不受它影响（0 或负数 = 不封顶）。
+  'excellence.battle_screenshot_bonus_cap': 10,
   'excellence.low_tier_auto_resign_days': 0,
   'excellence.revenue_tiers': [
     { min: 0, score: 0 },

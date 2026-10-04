@@ -9,6 +9,8 @@ export interface ExcellenceResult {
   isExcellent: boolean;
   tier: string;
   rankScore: number;
+  /** 段位分 = 四项 KPI 之和（最近 30 天流水 + 续单率 + 复购率 + 首单成功率），**不含战绩图加分**；段位按它判。 */
+  tierScore: number;
   revenueScore: number;
   bonusScore: number;
   /** 另外三项的得分：以前不返回，客户端只能自己瞎猜（乘 0.2 / 0.1），跟真分对不上。 */
@@ -32,12 +34,17 @@ export interface ExcellenceResult {
   repurchaseTiers: Array<{ min: number; score: number }>;
   firstSuccessTiers: Array<{ min: number; score: number }>;
   battleScreenshotBonus: number;
+  /** 战绩图加分上限（分）：超过按上限算；只影响综合分 / 排行榜，不参与段位判定。 */
+  battleScreenshotBonusCap: number;
 }
 
 /**
- * 陪玩段位综合分统一计算：
- * 综合分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率（每一项**取达到的最高一档**的分，不叠加）+ 战绩图加分。
- * 四项各自满分之和不超过 100（设置页与 `PUT /api/config` 两侧都拦）。
+ * 陪玩段位统一计算（老板 2026-10-04 两次定稿）：
+ *   · **段位分** = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率（每一项**取达到的最高一档**的分，
+ *     不叠加）；四项满分之和不超过 100（设置页与 `PUT /api/config` 两侧都拦）。**段位只按段位分判**。
+ *   · **综合分 / 排行榜分** = 段位分 + 战绩图加分（封顶 `excellence.battle_screenshot_bonus_cap`，默认 10）。
+ *     战绩图加分**不参与段位判定** —— 否则「流水、三率都不够，靠堆截图也能维持上等马」，
+ *     老板原话：「全员都是上等马，岂不是就丧失评分系统的意义了」。
  * 该口径同时用于管理端「上等马/中等马/下等马」标记与订单池「上等马立刻看到」的延迟判断。
  */
 @Injectable()
@@ -279,6 +286,7 @@ export class ExcellenceService implements OnModuleInit {
       'excellence.excellent_threshold',
       'excellence.middle_tier_threshold',
       'excellence.battle_screenshot_bonus',
+      'excellence.battle_screenshot_bonus_cap',
     ];
     const scoreCfgCache = new Map<string, Record<string, any>>();
     const loadScoreCfg = async (studioId: string | null) => {
@@ -342,6 +350,9 @@ export class ExcellenceService implements OnModuleInit {
         // 就算他各种 KPI 都高」。填 0 = 关掉这条硬线，退回纯分数判段位。
         revenueFloor: num(cfg['excellence.revenue_floor'], 5200),
         battleScreenshotBonus: num(cfg['excellence.battle_screenshot_bonus'], 1),
+        // 战绩图加分封顶（老板 2026-10-04）：传图不能无限刷「综合分 / 排行榜」。
+        // 填 0 或负数 = 不封顶。注意它只影响排行榜 —— 段位只认四项 KPI（见下面 compute）。
+        battleScreenshotBonusCap: num(cfg['excellence.battle_screenshot_bonus_cap'], 10),
       };
     };
 
@@ -505,18 +516,26 @@ export class ExcellenceService implements OnModuleInit {
       const renewScore = scoreOfHighestTier(renewRate, metrics.renewTiers);
       const repurchaseScore = scoreOfHighestTier(repurchaseRate, metrics.repurchaseTiers);
       const firstSuccessScore = scoreOfHighestTier(firstSuccessRate, metrics.firstSuccessTiers);
-      const bonus = bonusMap.get(cid) || 0;
-      const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
+      const rawBonus = bonusMap.get(cid) || 0;
+      // 战绩图加分封顶（老板 2026-10-04：不能靠堆截图刷分）。填 0 或负数 = 不封顶。
+      const bonus = metrics.battleScreenshotBonusCap > 0
+        ? Math.min(rawBonus, metrics.battleScreenshotBonusCap)
+        : rawBonus;
+      // **段位分** = 四项 KPI（不含战绩图）；**综合分** = 段位分 + 战绩图加分（只用于排行榜 / 展示）。
+      // 老板 2026-10-04 原话：「如果陪玩 80 分……他去上传几十张战绩图，这分岂不是一直维持在上等马上？
+      // 全员都是上等马，岂不是就丧失评分系统的意义了」—— 所以段位必须只看 KPI。
+      const tierScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore);
+      const rankScore = Math.round(tierScore + bonus);
       // 段位（老板 2026-10-04 定稿，比分数更硬的一条线）：
-      //   ① 先按分数分档：够上等马线 → 上等马，够中等马线 → 中等马，其余下等马；
+      //   ① 先按**段位分**分档：够上等马线 → 上等马，够中等马线 → 中等马，其余下等马；
       //   ② **最近 30 天流水没到硬门槛**（默认 5200 元）的人，一律下等马 —— KPI 再高也不算。
       //      老板原话：「最近 30 天流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高……
       //      那就只有一个原因，他工作时间短、来得晚走得早，给工作室创造不了多少价值」；
       //   ③ 反过来，**流水达标的人最低也是中等马**（「要的少、挣得少可以理解，
       //      留着他也妨」，除了浪费点电费没有别的损失）。
-      let tier: 'TOP' | 'MIDDLE' | 'LOW' = rankScore >= metrics.excellentThreshold
+      let tier: 'TOP' | 'MIDDLE' | 'LOW' = tierScore >= metrics.excellentThreshold
         ? 'TOP'
-        : rankScore >= metrics.middleTierThreshold
+        : tierScore >= metrics.middleTierThreshold
           ? 'MIDDLE'
           : 'LOW';
       if (metrics.revenueFloor > 0) {
@@ -527,6 +546,7 @@ export class ExcellenceService implements OnModuleInit {
         isExcellent: tier === 'TOP',
         tier,
         rankScore,
+        tierScore,
         revenueScore: Math.round(revenueScore),
         bonusScore: bonus,
         renewScore: Math.round(renewScore),
@@ -545,6 +565,7 @@ export class ExcellenceService implements OnModuleInit {
         repurchaseTiers: metrics.repurchaseTiers,
         firstSuccessTiers: metrics.firstSuccessTiers,
         battleScreenshotBonus: metrics.battleScreenshotBonus,
+        battleScreenshotBonusCap: metrics.battleScreenshotBonusCap,
       });
     }
     return result;
@@ -563,6 +584,7 @@ export class ExcellenceService implements OnModuleInit {
   private breakdownOf(r: ExcellenceResult) {
     return {
       rankScore: r.rankScore,
+      tierScore: r.tierScore,
       tier: r.tier,
       revenueScore: r.revenueScore,
       renewScore: r.renewScore,
@@ -599,15 +621,21 @@ export class ExcellenceService implements OnModuleInit {
       { key: 'renew', label: '续单率', unit: '%', now: now.renewScore, before: base?.renewScore ?? 0, value: now.renewRate, prevValue: base?.renewRate ?? 0 },
       { key: 'repurchase', label: '复购率', unit: '%', now: now.repurchaseScore, before: base?.repurchaseScore ?? 0, value: now.repurchaseRate, prevValue: base?.repurchaseRate ?? 0 },
       { key: 'firstSuccess', label: '首单成功率', unit: '%', now: now.firstSuccessScore, before: base?.firstSuccessScore ?? 0, value: now.newRate, prevValue: base?.newRate ?? 0 },
-      { key: 'bonus', label: '战绩图加分', unit: '分', now: now.bonusScore, before: base?.bonusScore ?? 0, value: now.bonusScore, prevValue: base?.bonusScore ?? 0 },
+      // 战绩图加分不参与段位，就不放进这份清单（免得各行加起来跟总分对不上，老板 2026-10-04）。
     ].map((d) => ({ ...d, delta: base ? d.now - d.before : 0 }));
+
+    // 段位分：老快照里没有这个字段（本次新增），退回用当时的综合分当基准
+    // （绝大多数人战绩图加分是 0，两者相等）。
+    const prevTierScore = base
+      ? (typeof base.tierScore === 'number' ? base.tierScore : (base.rankScore ?? 0))
+      : 0;
 
     return {
       hasBaseline: !!base,
       baselineDate: prev?.date || null,
-      total: now.rankScore,
-      prevTotal: base?.rankScore ?? null,
-      delta: base ? now.rankScore - base.rankScore : 0,
+      total: now.tierScore,
+      prevTotal: base ? prevTierScore : null,
+      delta: base ? now.tierScore - prevTierScore : 0,
       tier: now.tier,
       prevTier: base?.tier ?? null,
       tierChanged: !!base && base.tier !== now.tier,
@@ -626,6 +654,7 @@ export class ExcellenceService implements OnModuleInit {
       isExcellent: false,
       tier: 'MIDDLE',
       rankScore: 0,
+      tierScore: 0,
       revenueScore: 0,
       bonusScore: 0,
       renewScore: 0,
@@ -645,6 +674,7 @@ export class ExcellenceService implements OnModuleInit {
       repurchaseTiers: [],
       firstSuccessTiers: [],
       battleScreenshotBonus: 0,
+      battleScreenshotBonusCap: 0,
     };
   }
 }

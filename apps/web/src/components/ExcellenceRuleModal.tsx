@@ -21,6 +21,8 @@ interface TierRow {
 
 interface Excellence {
   rankScore?: number;
+  /** 段位分 = 四项 KPI（不含战绩图加分）；段位按它判。 */
+  tierScore?: number;
   revenueScore?: number;
   bonusScore?: number;
   renewScore?: number;
@@ -41,6 +43,8 @@ interface Excellence {
   repurchaseTiers?: TierRow[];
   firstSuccessTiers?: TierRow[];
   battleScreenshotBonus?: number;
+  /** 战绩图加分上限（分）：只影响综合分 / 排行榜。 */
+  battleScreenshotBonusCap?: number;
   /** 今日加减分（服务端算好）：跟「昨天定点那一刻」比。 */
   scoreDelta?: {
     hasBaseline: boolean;
@@ -96,7 +100,8 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
   const middleTierThreshold = data?.middleTierThreshold ?? 60;
   const revenueFloor = data?.revenueFloor ?? 0;
   const belowFloor = revenueFloor > 0 && (data?.revenueYuan ?? 0) < revenueFloor;
-  const myScore = data?.rankScore ?? 0;
+  // 段位 / 差距一律看「段位分」（四项 KPI），不看含战绩图加分的综合分。
+  const myScore = data?.tierScore ?? data?.rankScore ?? 0;
   const delta = data?.scoreDelta ?? null;
 
   /** 每项「达到 X 得 Y 分」的完整档位表 + 陪玩自己现在在哪一档、差多少到下一档。 */
@@ -127,9 +132,12 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
               type={data.isExcellent ? 'success' : 'info'}
               showIcon
               message={
-                <Space>
-                  <span>我的综合分：<b>{data.rankScore ?? 0}</b> 分</span>
-              <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={(data?.tier || 'MIDDLE') as 'TOP' | 'MIDDLE' | 'LOW'} /> {tier.label}</Tag>
+                <Space wrap>
+                  <span>我的段位分：<b>{myScore}</b> 分</span>
+                  <Tag color={tier.color} style={{ fontSize: 14, padding: '2px 10px' }}><TierHorseIcon tier={(data?.tier || 'MIDDLE') as 'TOP' | 'MIDDLE' | 'LOW'} /> {tier.label}</Tag>
+                  {(data?.bonusScore ?? 0) > 0 && (
+                    <Tag color="blue">战绩图 +{data?.bonusScore ?? 0} → 综合分 {data?.rankScore ?? 0}</Tag>
+                  )}
                 </Space>
               }
               description={data.tier === 'TOP' ? '已达上等马，享受全部抢单权益' : tierGapText}
@@ -210,8 +218,11 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             <Descriptions.Item label={`首单成功率 ${data?.newRate ?? 0}%`}>
               {newScore} 分
             </Descriptions.Item>
-            <Descriptions.Item label="战绩图加分">
-              +{data?.bonusScore ?? 0} 分（每采纳一组 +1 分）
+            <Descriptions.Item label="段位分合计（段位看这个）">
+              <b>{myScore}</b> 分（上面四项相加）
+            </Descriptions.Item>
+            <Descriptions.Item label="战绩图加分（不参与段位）">
+              +{data?.bonusScore ?? 0} 分 → 综合分 {data?.rankScore ?? 0} 分（只用于排行榜 / 展示）
             </Descriptions.Item>
           </Descriptions>
 
@@ -253,14 +264,16 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             );
           })}
           <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-            战绩图加分：每采纳一组 +{data?.battleScreenshotBonus ?? 1} 分（管理端审核通过才加，直接叠加在综合分上）。
+            战绩图加分：每采纳一组 +{data?.battleScreenshotBonus ?? 1} 分（管理端审核通过才加），
+            <b>只叠加到「综合分 / 排行榜」上（最多加 {data?.battleScreenshotBonusCap ?? 10} 分），不参与段位判定</b>
+            —— 段位只看上面四项 KPI，光靠传图升不了段。
           </Text>
 
           <Title level={5} style={{ marginTop: 20 }}>三个段位 & 上等马权益</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
-            <li><TierHorseIcon tier="TOP" /> 上等马（≥ {excellentThreshold} 分）：享受下面全部权益。</li>
-            <li>🐎 中等马（{middleTierThreshold}~{Math.max(middleTierThreshold, excellentThreshold - 1)} 分）：一般权益。</li>
-            <li>🐴 下等马（&lt; {middleTierThreshold} 分）：需加油提升。</li>
+            <li><TierHorseIcon tier="TOP" /> 上等马（段位分 ≥ {excellentThreshold}）：享受下面全部权益。</li>
+            <li>🐎 中等马（段位分 {middleTierThreshold}~{Math.max(middleTierThreshold, excellentThreshold - 1)}）：一般权益。</li>
+            <li>🐴 下等马（段位分 &lt; {middleTierThreshold}）：需加油提升。</li>
           </ul>
           <Title level={5} style={{ marginTop: 16 }}>上等马好处</Title>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
@@ -270,7 +283,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
             <li>客服派单时，快结束的陪玩列表里你排前面。</li>
           </ul>
 
-          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`综合分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率 + 战绩图加分。每一项只取你达到的最高一档的分（不叠加）：比如流水到 6000 那一档是 20 分、到 10000 那一档是 40 分，那你流水过万这一项就是 40 分。综合分达到 ${excellentThreshold} 分即进入上等马。多上传高光战绩图（每采纳一组 +1 分）也能加分。`} />
+          <Alert style={{ marginTop: 20 }} type="info" showIcon message="怎么快速加分？" description={`段位分 = 最近 30 天流水 + 续单率 + 复购率 + 首单成功率。每一项只取你达到的最高一档的分（不叠加）：比如流水到 6000 那一档是 20 分、到 10000 那一档是 40 分，那你流水过万这一项就是 40 分。段位分达到 ${excellentThreshold} 分即进入上等马。上传高光战绩图（每采纳一组 +1 分）会加在「综合分 / 排行榜」上，但不参与段位 —— 想升段只能把上面四项 KPI 做上去。`} />
         </div>
       )}
     </Modal>
