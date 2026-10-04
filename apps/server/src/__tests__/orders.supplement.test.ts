@@ -243,7 +243,7 @@ describe('到期核查：客户后来通过了要改回系统', () => {
     expect(prisma.supplementRequest.update.mock.calls[0][0].data.reviewStatus).toBe('ACCEPTED');
   });
 
-  it('「仍未通过」→ 记 STILL_NOT 并结案，不再排下一次提醒（老板嫌反复提醒烦）', async () => {
+  it('「仍未通过」第一次 → 记 STILL_NOT，并排 7 天后再提醒一次', async () => {
     const { service, prisma } = setup();
     prisma.supplementRequest.findUnique.mockResolvedValue({
       id: 'sr1',
@@ -251,15 +251,38 @@ describe('到期核查：客户后来通过了要改回系统', () => {
       companionId: 'c1',
       studioId: 's1',
       status: 'APPROVED',
+      reviewStatus: 'PENDING',
     });
     prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', reviewStatus: 'STILL_NOT' });
 
+    const before = Date.now();
     await service.reviewSupplement('sr1', 'STILL_NOT', ADMIN);
 
     const data = prisma.supplementRequest.update.mock.calls[0][0].data;
     expect(data.reviewStatus).toBe('STILL_NOT');
-    // 结案：reviewDueAt 清空，于是既不会进「到期核查」列表，也不会再计入红点
-    expect(data.reviewDueAt).toBeNull();
+    // 不是结案：7 天后还要再提醒一次
+    const due = new Date(data.reviewDueAt).getTime() - before;
+    expect(due).toBeGreaterThan(7 * 24 * 3600 * 1000 - 60 * 1000);
+    expect(due).toBeLessThan(7 * 24 * 3600 * 1000 + 60 * 1000);
     expect(prisma.order.update).not.toHaveBeenCalled();
+  });
+
+  it('第二次「仍未通过」→ 结案 CLOSED，不再排提醒', async () => {
+    const { service, prisma } = setup();
+    prisma.supplementRequest.findUnique.mockResolvedValue({
+      id: 'sr1',
+      orderId: 'o1',
+      companionId: 'c1',
+      studioId: 's1',
+      status: 'APPROVED',
+      reviewStatus: 'STILL_NOT',
+    });
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', reviewStatus: 'CLOSED' });
+
+    await service.reviewSupplement('sr1', 'STILL_NOT', ADMIN);
+
+    const data = prisma.supplementRequest.update.mock.calls[0][0].data;
+    expect(data.reviewStatus).toBe('CLOSED');
+    expect(data.reviewDueAt).toBeNull();
   });
 });

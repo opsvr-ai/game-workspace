@@ -40,6 +40,8 @@ const DEFAULT_BRIDGE_DELAY_SECONDS = 30;
 
 /** 同意补单后，隔多久提醒管理端去核查「这个客户后来到底通过了没有」（小时）。 */
 const SUPPLEMENT_REVIEW_HOURS = 24;
+/** 第一次「仍未通过」之后，再过 7 天提醒管理端核查一次（第二次点仍未通过就结案）。 */
+const SUPPLEMENT_REVIEW_AGAIN_HOURS = 7 * 24;
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -1184,6 +1186,8 @@ export class OrdersService implements OnModuleInit {
       throw new ForbiddenException('无权操作其他工作室的补单申请');
     }
     const accept = String(result || '').toUpperCase() === 'ACCEPTED';
+    // 已经记过一次「仍未通过」→ 这次再点就是第二次，直接结案（最多提醒两次）。
+    const alreadyStillNot = (req as any).reviewStatus === 'STILL_NOT';
     if (accept) {
       const order = await this.prisma.order.findUnique({
         where: { id: req.orderId },
@@ -1207,14 +1211,19 @@ export class OrdersService implements OnModuleInit {
     return this.prisma.supplementRequest.update({
       where: { id },
       data: {
-        reviewStatus: accept ? 'ACCEPTED' : 'STILL_NOT',
+        // 老板 2026-10-04：「别搞这么复杂，先 24h 提醒一次，后期直接 7 天提醒一次」——
+        // 第一次点「仍未通过」→ 7 天后再提醒一次；第二次再点「仍未通过」→ 结案（CLOSED），
+        // 不再排提醒、也不再进「到期核查」的红点。谁点的、什么时候点的留在
+        // reviewedAt / reviewedByUserId 里，翻历史查得到。客户哪天真通过了，
+        // 陪玩 / 客服照旧能从「客户管理」把他捞回来，不影响。
+        reviewStatus: accept ? 'ACCEPTED' : alreadyStillNot ? 'CLOSED' : 'STILL_NOT',
         reviewedAt: new Date(),
         reviewedByUserId: user?.id ?? null,
-        // 老板 2026-10-04：「客户就是一直不通过，老这么提示烦不烦」——
-        // 点「仍未通过」就当**结案**：不再排下一次提醒（谁点的、什么时候点的留在
-        // reviewedAt / reviewedByUserId 里，翻历史查得到）。客户哪天真通过了，
-        // 陪玩 / 客服照旧能从「客户管理」把他捞回来，不影响。
-        ...(accept ? {} : { reviewDueAt: null }),
+        reviewDueAt: accept
+          ? null
+          : alreadyStillNot
+            ? null
+            : new Date(Date.now() + SUPPLEMENT_REVIEW_AGAIN_HOURS * 3600 * 1000),
       },
     });
   }

@@ -13,11 +13,13 @@ import { WsGateway } from '../ws/ws.gateway';
  *     通过小红书去问问客户、看看客户回不回，才能定；客户小红书也不回，
  *     那只能把这个客户信息封存起来了，找合适的时候再找别的陪玩加加试试。」
  *
- * 所以这个服务**只提醒、绝不自动收回**，也不动名额：
+ * 所以这个服务**只提醒、绝不自动收回**，也不动名额。
+ *
+ * 提醒节奏（老板 2026-10-04 简化）：「别搞这么复杂，先 24h 提醒一次，后期直接 7 天提醒一次」——
  *   ① 陪玩本人：抢到单后 contactStatus 还是空（既没点「添加成功」也没点「添加失败」），
- *      按 1 小时 / 6 小时 / 24 小时 / 48 小时 / 72 小时五个节点弹他本人；积压的老单
- *      直接跳到当前该到的节点、只弹一次；已经有服务会话的单不再催。
- *   ② 管理端待办：满 3 天、满 7 天各留一条（按工作室汇总成一条），
+ *      **满 24 小时提醒一次、满 7 天再提醒一次**（就两次）；积压的老单直接跳到当前该到的节点、
+ *      只弹一次；已经有服务会话的单不再催。
+ *   ② 管理端待办：**只在满 7 天时**留一条（按工作室汇总成一条），
  *      带上「订单号 + 陪玩 + 客户微信 + 来源平台/小红书账号」，让人能去小红书私信客户问一问；
  *      客户也不回就在「客户管理」把这客户封存，以后再换陪玩加。
  *
@@ -26,10 +28,20 @@ import { WsGateway } from '../ws/ws.gateway';
  */
 @Injectable()
 export class ContactReminderService implements OnModuleInit {
-  /** 陪玩本人提醒节点（分钟）：1 小时、6 小时、24 小时、48 小时、72 小时。 */
-  private static readonly PLAYER_LADDER_MINUTES = [60, 6 * 60, 24 * 60, 48 * 60, 72 * 60];
-  /** 管理端待办节点（分钟）：满 3 天、满 7 天各一条。 */
-  private static readonly ADMIN_NUDGE_MINUTES = [72 * 60, 7 * 24 * 60];
+  /**
+   * 陪玩本人提醒节点（分钟）：**24 小时一次、满 7 天再一次**，就两次。
+   *
+   * 老板 2026-10-04：「别搞这么复杂，先 24h 提醒一次，后期直接 7 天提醒一次」——
+   * 以前是 1h / 6h / 24h / 48h / 72h 五个节点，太吵。
+   */
+  private static readonly PLAYER_LADDER_MINUTES = [24 * 60, 7 * 24 * 60];
+  /**
+   * 管理端待办节点（分钟）：**只留满 7 天这一档**。
+   *
+   * 满 7 天还没标记 → 陪玩这边基本没戏了，管理端去小红书问一下客户、
+   * 问不到就把客户封存，别让单一直挂着。24 小时那一档不打扰管理端。
+   */
+  private static readonly ADMIN_NUDGE_MINUTES = [7 * 24 * 60];
   /** 管理端汇总通知里最多列几条明细。 */
   private static readonly MAX_LISTED = 10;
 
@@ -137,7 +149,7 @@ export class ContactReminderService implements OnModuleInit {
       }
     }
 
-    // ② 管理端待办：满 3 天 / 满 7 天各一次（只记录，不自动收单）
+    // ② 管理端待办：满 7 天一次（只记录，不自动收单）
     const notified: number[] = Array.isArray(state.adminNotified) ? [...state.adminNotified] : [];
     for (const minutes of ContactReminderService.ADMIN_NUDGE_MINUTES) {
       if (elapsedMin >= minutes && !notified.includes(minutes)) {
@@ -191,10 +203,9 @@ export class ContactReminderService implements OnModuleInit {
 
     const longPending = group.minutes >= 7 * 24 * 60;
     const kind = longPending ? 'LONG_PENDING' : 'NOT_PASSED';
-    const what = longPending ? '挂满 7 天还是没通过' : '3 天都没标记「添加成功 / 添加失败」';
-    const how = longPending
-      ? '去对应的小红书账号私信问问客户还加不加；客户也不回，就把客户封存起来，等以后再换陪玩加'
-      : '先去对应的小红书账号私信问一下客户；客户一直不回，就直接把客户封存起来';
+    const what = '满 7 天还是没标记「添加成功 / 添加失败」';
+    const how =
+      '去对应的小红书账号私信问问客户还加不加；客户也不回，就在「客户管理」把客户封存起来，以后再换陪玩加';
     const message = `有 ${entries.length} 个客户${what}（不自动收单，人工决定）。${how}：\n${lines.join('\n')}`;
 
     const payload = {
