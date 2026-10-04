@@ -9,6 +9,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **「全站老板」调陪玩端排行榜接口 500（老板 2026-10-04，服务端）。**
+  老板原话：「『全站老板』（没挂具体工作室的 OWNER，比如 hanlei）去调陪玩端那个『排行榜』接口会报 500
+  —— 陪玩自己用是正常的，所以一直没被发现。」
+  根因：`CompanionRevenueService.getRanking` 无条件拼 `studioId: { in: [studioId, ...桥接店] }`，
+  全站老板的 `studioId` 是 `null`，拼出来就是 `in: [null]`，Prisma 判参数非法直接抛错。
+  修法跟 `liveBoard` 一个规矩：**OWNER 看全站**（不加工作室过滤）；**非 OWNER 又没挂店的账号一律返回空**，
+  绝不因为 studioId 为空把全站漏给一个没店的人；挂了店的照旧只看「本店 + 桥接店」，口径一点没动。
+  新增 1 个测试文件（3 条：全站老板看全站 / 没店的非老板给空且不查库 / 有店只看本店 + 桥接店），
+  合计 70 个文件 / 628 条全绿。
+
 ### Changed
 
 - **首单成功率分子按「点了开始首单」算，不等单子结束（老板 2026-10-04 澄清，服务端 + 网页 `v932`）。**

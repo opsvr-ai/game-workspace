@@ -351,7 +351,7 @@ describe('CompanionsService', () => {
 
       const result = await service.getRanking('studio-1', 'revenue');
 
-      expect(mockRevenueService.getRanking).toHaveBeenCalledWith('studio-1', 'revenue');
+      expect(mockRevenueService.getRanking).toHaveBeenCalledWith('studio-1', 'revenue', false);
       expect(result).toHaveLength(2);
       expect(result[0].totalAmount).toBe(300);
       expect(result[0].totalCount).toBe(2);

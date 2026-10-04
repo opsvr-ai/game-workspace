@@ -80,7 +80,12 @@ export class CompanionsController {
 
   @Get('companions/ranking')
   async getRanking(@Req() req: any, @Query('type') type?: string): Promise<ApiResponse<unknown>> {
-    const data = await this.companionsService.getRanking(req.user.studioId, type || 'revenue');
+    // 全站老板（OWNER）没挂工作室 → 看全站排行榜；其他人只看本店 + 桥接店（老板 2026-10-04）。
+    const data = await this.companionsService.getRanking(
+      req.user.studioId ?? null,
+      type || 'revenue',
+      req.user.role === 'OWNER',
+    );
     return { code: 200, message: 'ok', data };
   }
 

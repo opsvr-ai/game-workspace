@@ -14,11 +14,25 @@ export class CompanionRevenueService {
     private bridgeService: BridgeService,
   ) {}
 
-  async getRanking(studioId: string, type: string) {
-    const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
-    const where: any = { studioId: { in: [studioId, ...bridgedIds] } };
+  /**
+   * 陪玩端「排行榜」（每个指标取前 10）。
+   *
+   * 老板 2026-10-04 报：**全站老板**（OWNER 没挂工作室，`studioId` 是 null）点这个接口直接 500。
+   * 根因是老代码无条件拼 `studioId: { in: [studioId, ...bridged] }`，studioId 为 null 时就成了
+   * `in: [null]`，Prisma 认为参数非法直接抛错（陪玩自己都有工作室，所以一直没暴露出来）。
+   *
+   * 现在：全站老板（`allStudios`）看全站；**非 OWNER 又没挂店的账号一律给空** ——
+   * 绝不能因为 studioId 为空就把全站漏给一个没店的人（跟 liveBoard 一个规矩）；
+   * 挂了店的照旧只看「本店 + 桥接店」，口径一点没动。
+   */
+  async getRanking(studioId: string | null, type: string, allStudios = false) {
+    let scopeIds: string[] | null = null;
+    if (!allStudios) {
+      if (!studioId) return [];
+      scopeIds = [studioId, ...(await this.bridgeService.getBridgedStudioIds(studioId))];
+    }
     const companions = await this.prisma.companion.findMany({
-      where,
+      where: scopeIds ? { studioId: { in: scopeIds } } : {},
       select: { id: true, user: { select: { username: true, displayName: true } } },
     });
 

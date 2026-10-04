@@ -663,8 +663,8 @@ export class CompanionsService {
     return currentStatus;
   }
 
-  async getRanking(studioId: string, type: string) {
-    return this.revenueService.getRanking(studioId, type);
+  async getRanking(studioId: string | null, type: string, allStudios = false) {
+    return this.revenueService.getRanking(studioId, type, allStudios);
   }
 
   async getRevenue(id: string) {
