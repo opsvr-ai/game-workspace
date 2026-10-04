@@ -19,7 +19,7 @@ import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
 import { showSystemNotification, showBannerNotification, playNotificationSound } from '../utils/notify';
 import { notifyNotice, recordNotice } from '../utils/notice';
-import { useNotifStore, selectUnreadNotices } from '../stores/notifStore';
+import { useNotifStore, selectUnreadNotices, noticePath } from '../stores/notifStore';
 import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
@@ -731,6 +731,28 @@ const AppLayout: React.FC = () => {
   useEffect(() => {
     useNotifStore.getState().hydrate(user?.id || null);
   }, [user?.id]);
+  // 老板 2026-10-04：提醒除了「右下角弹窗 + 右上角铃铛」，左侧栏对应菜单也要挂角标。
+  // 每条通知都指着一个页面（href），按归一化路径分堆，菜单项就按自己的路由领角标。
+  const notifItems = useNotifStore((s) => s.items);
+  const markNoticesReadByPath = useNotifStore((s) => s.markReadByPath);
+  const unreadByPath = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const it of notifItems) {
+      if (it.read) continue;
+      const path = noticePath(it.href);
+      if (!path) continue;
+      map[path] = (map[path] || 0) + 1;
+    }
+    return map;
+  }, [notifItems]);
+  // 点左侧栏那一项 = 把指向这个页面的未读通知都消掉（跟点铃铛条目、点弹窗一个效果）。
+  const clearNoticesByKey = useCallback(
+    (key: string) => {
+      const path = noticePath(key);
+      if (path) markNoticesReadByPath(path);
+    },
+    [markNoticesReadByPath],
+  );
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
 
   // Notification bell
@@ -1093,6 +1115,16 @@ const AppLayout: React.FC = () => {
       }
     };
   }, [navigate, user?.role, openDirectChat, openGroupChat]);
+
+  // 右下角通知弹窗被点了一下（utils/notice.ts 派发的自定义事件）→ 跳到通知指向的页面。
+  React.useEffect(() => {
+    const onNoticeGoto = (e: Event) => {
+      const href = (e as CustomEvent)?.detail?.href;
+      if (href) navigate(String(href));
+    };
+    window.addEventListener('chunlv:notice-goto', onNoticeGoto as EventListener);
+    return () => window.removeEventListener('chunlv:notice-goto', onNoticeGoto as EventListener);
+  }, [navigate]);
 
   const addTransferReq = React.useCallback((req: any) => {
     setTransferReqs((prev) => {
@@ -1828,6 +1860,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markSeen();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1846,6 +1879,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markBridgeSeen();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1869,6 +1903,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markBillingSeen();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1887,6 +1922,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markReviewSeen();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1909,6 +1945,7 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -1932,6 +1969,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markContactSeen();
+                        clearNoticesByKey(child.key);
                         // 「客服跟进台账」已并进「管理端直添客户流转明细」（老板 2026-09-30），
                         // 待跟进角标点进去就是那一页
                         navigate(`${child.key}?tab=converted`);
@@ -1957,6 +1995,7 @@ const AppLayout: React.FC = () => {
                       onClick={(e: any) => {
                         e.stopPropagation();
                         markPendingStartSeen();
+                        clearNoticesByKey(child.key);
                         navigate(child.key);
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
@@ -2032,7 +2071,7 @@ const AppLayout: React.FC = () => {
     // 先把「模块图标色 + 流水比例小字」挂好，再平铺单子菜单 ——
     // 平铺时父级的图标/文字会被搬到子项上，顺序反了颜色就丢了。
     const decorated = decorateMenu(badged, shareRatios);
-    return decorated.map((item) => {
+    const flattened = decorated.map((item) => {
       // 单子菜单直接平铺：点击父级直接跳转，省掉再点一次二级菜单
       if (item.children && item.children.length === 1) {
         const child = item.children[0];
@@ -2040,8 +2079,28 @@ const AppLayout: React.FC = () => {
       }
       return item;
     });
+    // 最后一道：把「通知」未读角标挂到对应菜单项上（挂在叶子上，跟具体页面一一对应）。
+    const withNoticeBadges = (list: any[]): any[] =>
+      list.map((item) => {
+        if (Array.isArray(item.children) && item.children.length > 0) {
+          return { ...item, children: withNoticeBadges(item.children) };
+        }
+        const path = noticePath(item.key);
+        const n = path ? unreadByPath[path] || 0 : 0;
+        if (!n) return item;
+        return {
+          ...item,
+          label: (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+              {item.label}
+              <Badge count={n} size="small" overflowCount={99} color="#2563EB" />
+            </span>
+          ),
+        };
+      });
+    return withNoticeBadges(flattened);
     // 徽标那一段是拿 label 字符串比对的，所以装饰必须放在它之后。
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, clearNoticesByKey]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -2059,6 +2118,7 @@ const AppLayout: React.FC = () => {
     if (!titleContent) return;
 
     // 只清掉对应页面的角标，避免点其他菜单误清
+    clearNoticesByKey(key);
     if (key.includes('/review')) markSeen();
     if (key.includes('bridges')) markBridgeSeen();
     if (key.includes('/billing')) markBillingSeen();

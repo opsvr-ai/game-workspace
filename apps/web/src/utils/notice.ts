@@ -13,14 +13,27 @@ export interface NotifyNoticeInput extends PushNoticeInput {
  * 弹窗还是原来的弹窗，同时铃铛里留一份（弹窗关了也能回头翻）。
  */
 export function notifyNotice(input: NotifyNoticeInput) {
-  useNotifStore.getState().push(input);
+  const id = useNotifStore.getState().push(input);
   const toast = input.toast || 'info';
   if (toast === 'none') return;
+  const key = id || 'notice-' + Date.now();
+  const href = input.href;
   const cfg = {
+    key,
     message: input.title,
     description: input.desc,
     placement: 'bottomRight' as const,
     duration: input.duration || 6,
+    // 老板 2026-10-04：点了弹窗也算「看到了」——标已读（铃铛 + 左侧栏角标一起消），
+    // 有目标的顺带跳到对应页面。跳转走自定义事件，交给 AppLayout 的 router 处理。
+    onClick: () => {
+      if (id) useNotifStore.getState().markRead(id);
+      notification.destroy(key);
+      if (href) {
+        window.dispatchEvent(new CustomEvent('chunlv:notice-goto', { detail: { href } }));
+      }
+    },
+    style: href ? { cursor: 'pointer' } : undefined,
   };
   if (toast === 'success') notification.success(cfg);
   else if (toast === 'warning') notification.warning(cfg);

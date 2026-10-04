@@ -52,6 +52,26 @@ const KIND_ICON: Record<NoticeKind, string> = {
 
 const storageKey = (userId: string) => STORAGE_PREFIX + userId;
 
+/**
+ * 通知 href → 归一化路径（去掉 ?query / #hash，末尾斜杠也去掉）。
+ *
+ * 左侧栏要靠它把「通知」和「菜单」对上：通知 href 和菜单 key 用的是同一套路由，
+ * 但有的带 query（如 /admin/companions?role=COMPANION），所以比对前先归一化。
+ * 老板 2026-10-04：弹窗 + 右上角铃铛 + 左侧栏对应位置三处都要提醒，点任意一处都消。
+ */
+export function noticePath(href?: string | null): string {
+  if (!href) return '';
+  const s = String(href).trim();
+  if (!s) return '';
+  let end = s.length;
+  const q = s.indexOf('?');
+  if (q >= 0 && q < end) end = q;
+  const h = s.indexOf('#');
+  if (h >= 0 && h < end) end = h;
+  const p = s.slice(0, end);
+  return p.length > 1 ? p.replace(/\/+$/, '') : p;
+}
+
 function readStored(userId: string | null): NoticeItem[] {
   if (!userId) return [];
   try {
@@ -95,8 +115,10 @@ interface NotifState {
   items: NoticeItem[];
   /** 登录后调用一次：换用户就把那份通知读出来 */
   hydrate: (userId?: string | null) => void;
-  push: (input: PushNoticeInput) => void;
+  push: (input: PushNoticeInput) => string | undefined;
   markRead: (id: string) => void;
+  /** 把「指向这个页面」的未读通知全部标为已读（左侧栏点对应菜单时用） */
+  markReadByPath: (path: string) => void;
   markAllRead: () => void;
   clear: () => void;
 }
@@ -115,12 +137,13 @@ export const useNotifStore = create<NotifState>((set, get) => ({
   },
 
   push: (input) => {
-    if (!input || !input.title) return;
+    if (!input || !input.title) return undefined;
     const { userId, items } = get();
     const dedupeMs = input.dedupeMs || 0;
     if (input.dedupeKey && dedupeMs > 0) {
       const dup = items.find((it) => it.dedupeKey === input.dedupeKey && Date.now() - it.at < dedupeMs);
-      if (dup) return;
+      // 去重命中：不重复入列，但把已有那条的 id 交回去 —— 弹窗点一下还是要能把它标已读。
+      if (dup) return dup.id;
     }
     const kind = input.kind || 'system';
     const item: NoticeItem = {
@@ -137,11 +160,23 @@ export const useNotifStore = create<NotifState>((set, get) => ({
     const next = [item, ...items].slice(0, MAX_ITEMS);
     set({ items: next });
     writeStored(userId, next);
+    return item.id;
   },
 
   markRead: (id) => {
     const { userId, items } = get();
     const next = items.map((it) => (it.id === id ? { ...it, read: true } : it));
+    set({ items: next });
+    writeStored(userId, next);
+  },
+
+  markReadByPath: (path) => {
+    const target = noticePath(path);
+    if (!target) return;
+    const { userId, items } = get();
+    const next = items.map((it) =>
+      !it.read && noticePath(it.href) === target ? { ...it, read: true } : it,
+    );
     set({ items: next });
     writeStored(userId, next);
   },
