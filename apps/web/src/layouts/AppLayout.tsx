@@ -763,17 +763,45 @@ const AppLayout: React.FC = () => {
     }
     return { unreadByPath: map, titlesByPath: titles };
   }, [notifItems]);
+  // 老板 2026-10-05：「订单管理有未读，我点进去也没看到什么变化」——
+  // 点菜单只把角标数字清掉、页面里什么都不留，人根本不知道刚才那几条提醒是什么。
+  // 所以「刚点掉的是哪几条」按页面路径记在这，进到那一页顶头再写一遍（见下面内容区横幅）。
+  const CLEARED_TTL_MS = 10 * 60 * 1000;
+  const [clearedNotices, setClearedNotices] = React.useState<
+    Record<string, { titles: string[]; at: number }>
+  >({});
+  const rememberCleared = useCallback((path: string, titles: string[]) => {
+    if (!path || !titles.length) return;
+    setClearedNotices((prev) => {
+      const old = prev[path];
+      const fresh = old && Date.now() - old.at < CLEARED_TTL_MS ? old.titles : [];
+      // 合并去重：点菜单时通知角标和「待开始订单」角标可能一起被清掉，两条提示都要留着。
+      const merged = Array.from(new Set([...fresh, ...titles]));
+      return { ...prev, [path]: { titles: merged, at: Date.now() } };
+    });
+  }, []);
+  const forgetCleared = useCallback((path: string) => {
+    setClearedNotices((prev) => {
+      if (!prev[path]) return prev;
+      const next = { ...prev };
+      delete next[path];
+      return next;
+    });
+  }, []);
+
   // 点左侧栏那一项 = 把指向这个页面的未读通知都消掉（跟点铃铛条目、点弹窗一个效果）。
   const clearNoticesByKey = useCallback(
     (key: string) => {
       const path = noticePath(key);
       if (!path) return;
       // 老板 2026-10-05：「点进去发现没任何变化」——角标一点就消、又不说是什么，人会懵。
-      // 所以点菜单清角标时，把刚标为已读的是哪几条用一条轻提示念出来。
+      // 一边把刚标为已读的是哪几条记下来（页面顶头横幅再写一遍，不会被一闪而过的提示漏看），
+      // 一边用一条轻提示念出来兜底。
       const titles = titlesByPath[path] || [];
       if (titles.length) {
+        rememberCleared(path, titles);
         message.info(
-          `这里刚才有 ${titles.length} 条提醒（已处理）：${titles.slice(0, 2).join(' · ')}${
+          `这里刚才有 ${titles.length} 条提醒（已标已读）：${titles.slice(0, 2).join(' · ')}${
             titles.length > 2 ? ` 等 ${titles.length} 条` : ''
           }`,
           6,
@@ -781,7 +809,7 @@ const AppLayout: React.FC = () => {
       }
       markNoticesReadByPath(path);
     },
-    [markNoticesReadByPath, titlesByPath],
+    [markNoticesReadByPath, titlesByPath, rememberCleared],
   );
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
 
@@ -2024,6 +2052,12 @@ const AppLayout: React.FC = () => {
                     <span
                       onClick={(e: any) => {
                         e.stopPropagation();
+                        // 陪玩的「订单管理」红点 = 有几张单已抢到/已确认但还没点「开始首单」，
+                        // 原来点掉就没了、页面里什么都不说 —— 一并记进「刚清掉」，进页面顶头写清。
+                        rememberCleared(
+                          noticePath(child.key),
+                          [`${psCount} 张单已抢到/已确认，还没点「开始首单」`],
+                        );
                         markPendingStartSeen();
                         clearNoticesByKey(child.key);
                         navigate(child.key);
@@ -2148,7 +2182,7 @@ const AppLayout: React.FC = () => {
     };
     // 上面「徽标那一段」是拿 label 字符串比对的，所以这层装饰必须放在它之后。
     return withNoticeBadges(flattened).items;
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -2170,7 +2204,15 @@ const AppLayout: React.FC = () => {
     if (key.includes('/review')) markSeen();
     if (key.includes('bridges')) markBridgeSeen();
     if (key.includes('/billing')) markBillingSeen();
-    if (key.includes('/orders')) markPendingStartSeen();
+    if (key.includes('/orders')) {
+      // 同上：从左侧栏点进来（红点没走自定义 label 那条路时）也要把「还剩几张单没开始」写进横幅。
+      if (pendingStartBadge > 0) {
+        rememberCleared(noticePath(key), [
+          `${pendingStartBadge} 张单已抢到/已确认，还没点「开始首单」`,
+        ]);
+      }
+      markPendingStartSeen();
+    }
     navigate(key);
   };
 
@@ -2566,24 +2608,66 @@ const AppLayout: React.FC = () => {
             }}
           >
             {/* 老板 2026-10-05：「有未读，点进去发现没任何变化」——进到这一页顶头就直接写清
-                这条路由上还挂着几条提醒、分别是什么，点「全部已读」才消（角标 / 铃铛同步）。 */}
+                这条路由上挂着几条提醒、分别是什么。
+                ① 还有没读的：蓝色横幅 + 「全部已读」（角标 / 铃铛同步）；
+                ② 刚从左侧栏点进来、角标已经被点掉的：橙色横幅把「刚才清掉的是哪几条」再写一遍，
+                   数字一没也知道刚才那条提醒是啥（点「知道了」才收）。 */}
             {(() => {
               const curPath = noticePath(location.pathname);
-              const titles = curPath ? titlesByPath[curPath] || [] : [];
-              if (!titles.length) return null;
+              if (!curPath) return null;
+              const titles = titlesByPath[curPath] || [];
+              const just = clearedNotices[curPath];
+              const justTitles = just && Date.now() - just.at < CLEARED_TTL_MS ? just.titles : [];
+              if (!titles.length && !justTitles.length) return null;
+              const unread = titles.length > 0;
+              const list = unread ? titles : justTitles;
+              // 「订单管理」这一页的提醒八成是「待审核：补单申请」——给个按钮直接打开补单审核，
+              // 别让老板在一长串订单里自己找（那个按钮在订单页右上角）。
+              const ordersPath = rolePage(user?.role, 'orders');
+              const canGoSupplement =
+                user?.role !== 'COMPANION' &&
+                !!ordersPath &&
+                curPath === noticePath(ordersPath) &&
+                list.some((t) => t.includes('补单'));
               return (
                 <Alert
-                  type="info"
+                  type={unread ? 'info' : 'warning'}
                   showIcon
                   style={{ marginBottom: 12 }}
-                  message={`这里还有 ${titles.length} 条未读提醒`}
-                  description={`${titles.slice(0, 5).join(' · ')}${
-                    titles.length > 5 ? ` … 等 ${titles.length} 条` : ''
+                  message={
+                    unread
+                      ? `这里还有 ${titles.length} 条未读提醒`
+                      : `刚才这里清掉了 ${justTitles.length} 条提醒（已标已读）`
+                  }
+                  description={`${list.slice(0, 5).join(' · ')}${
+                    list.length > 5 ? ` … 等 ${list.length} 条` : ''
                   }`}
                   action={
-                    <Button size="small" onClick={() => markNoticesReadByPath(curPath)}>
-                      全部已读
-                    </Button>
+                    <Space size={8}>
+                      {canGoSupplement && (
+                        <Button
+                          size="small"
+                          onClick={() => window.dispatchEvent(new CustomEvent('supplement:open'))}
+                        >
+                          🧾 去补单审核
+                        </Button>
+                      )}
+                      {unread ? (
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            rememberCleared(curPath, titles);
+                            markNoticesReadByPath(curPath);
+                          }}
+                        >
+                          全部已读
+                        </Button>
+                      ) : (
+                        <Button size="small" onClick={() => forgetCleared(curPath)}>
+                          知道了
+                        </Button>
+                      )}
+                    </Space>
                   }
                 />
               );

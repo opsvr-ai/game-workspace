@@ -78,6 +78,18 @@ const SupplementReviewButton: React.FC = () => {
     return () => window.removeEventListener('supplement:refresh', onRefresh as EventListener);
   }, [loadSummary]);
 
+  // 老板 2026-10-05：订单管理页顶头的提醒横幅点「🧾 去补单审核」直接把它打开，
+  // 不用再自己在右上角找那个按钮。
+  useEffect(() => {
+    const onOpen = () => {
+      setTab('pending');
+      setOpen(true);
+      void loadSummary();
+    };
+    window.addEventListener('supplement:open', onOpen as EventListener);
+    return () => window.removeEventListener('supplement:open', onOpen as EventListener);
+  }, [loadSummary]);
+
   const decide = async (row: any, decision: 'APPROVE' | 'REJECT') => {
     try {
       await ordersApi.decideSupplement(row.id, decision);
