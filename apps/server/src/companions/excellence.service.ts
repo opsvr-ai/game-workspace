@@ -377,6 +377,9 @@ export class ExcellenceService implements OnModuleInit {
     // 两栏**不互斥**：隔天回头的客户两边都算，只吃老客的陪玩也能拿满。
     // 第四版（老板 2026-10-05）：「只有真有 DONE 单才计入续单率 / 复购率 —— 不结束、还没打完你怎么计算？」
     //   → 父单必须 DONE（本来已是），**段也必须打完（会话 DONE）**：点了续单、还在打的不算。
+    // 第五版（老板 2026-10-05 又一句）：「（首单成功率）我什么时候说过，不打完怎么算？」
+    //   → 首单成功率也统一到「打完才算」：分子从「点过『开始首单』（开过会话）」改成
+    //     「这张首单**打完了**（父单 DONE）」的客户数。三率现在同一个口径：都要 DONE。
     const RATE_WINDOW_DAYS = 30;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -480,10 +483,11 @@ export class ExcellenceService implements OnModuleInit {
       monthlyRevenue.map((r) => [r.companionId!, r._sum.amount || 0]),
     );
 
-    // 首单成功率（老板 2026-10-04 两次澄清）：
-    //   分子 = 「成交首单」的客户数 —— 老板原话「成交首单就是陪玩点了开始首单那个按钮」，
-    //          所以判定标准是**这张首单开过会话**（点按钮就会建会话），**不等单子结束**；
-    //   分母 = 「添加成功」的**客户数** —— 同一个客户重复抢单只算一个，免得分母被重复单抬高。
+    // 首单成功率（老板 2026-10-04 分母口径 + 2026-10-05 分子口径）：
+    //   分子 = 「成交首单」的客户数 —— **这张首单打完了（父单 DONE）才算成交**
+    //          （老板 2026-10-05：「我什么时候说过，不打完怎么算？」）；
+    //   分母 = 「添加成功」的**客户数** —— 同一个客户重复抢单只算一个，免得分母被重复单抬高；
+    //          加了微信却没打成的也一样进分母（这才是成功率的意义）。
     const addedOrders = await this.prisma.order.findMany({
       where: {
         companionId: { in: ids },
@@ -503,19 +507,16 @@ export class ExcellenceService implements OnModuleInit {
       }
       set.add(o.customerId);
     }
-    // 点过「开始首单」的客户：这张首单至少有 1 段会话（不管单子结没结束）。
-    const firstStartedOrders = await this.prisma.order.findMany({
-      where: { companionId: { in: ids }, type: 'NEW', createdAt: { gte: rateWindowStart } },
-      select: { companionId: true, customerId: true, _count: { select: { sessions: true } } },
-    });
-    const firstStartedCustomers = new Map<string, Set<string>>();
-    for (const o of firstStartedOrders) {
+    // 成交首单的客户：这张首单**打完了**才算 —— 上面那份 windowOrders 本来就是「DONE + 窗口内」，
+    // 直接拿来数首单，不再另查一份「开过会话就算」的（那个口径把还在打的单也算成交，已作废）。
+    const firstSuccessCustomers = new Map<string, Set<string>>();
+    for (const o of windowOrders) {
       if (!o.companionId || !o.customerId) continue;
-      if (((o as any)._count?.sessions || 0) < 1) continue;
-      let set = firstStartedCustomers.get(o.companionId);
+      if (o.type !== 'NEW') continue;
+      let set = firstSuccessCustomers.get(o.companionId);
       if (!set) {
         set = new Set<string>();
-        firstStartedCustomers.set(o.companionId, set);
+        firstSuccessCustomers.set(o.companionId, set);
       }
       set.add(o.customerId);
     }
@@ -534,8 +535,9 @@ export class ExcellenceService implements OnModuleInit {
       const renewRate = rateDenom > 0 ? (s.renew / rateDenom) * 100 : 0;
       const repurchaseRate = rateDenom > 0 ? (s.repurchase / rateDenom) * 100 : 0;
       const addedCount = addedCustomers.get(cid)?.size || 0;
-      // 成交首单客户数 = 点过「开始首单」（开过会话）的客户数；理论上不会超过分母，超了就按 100% 封顶。
-      const customerCount = firstStartedCustomers.get(cid)?.size || 0;
+      // 成交首单客户数 = **打完的**首单客户数（老板 2026-10-05：「不打完怎么算？」）；
+      // 理论上不会超过分母，超了就按 100% 封顶。
+      const customerCount = firstSuccessCustomers.get(cid)?.size || 0;
       const firstSuccessRate = addedCount > 0 ? Math.min(100, (customerCount / addedCount) * 100) : 0;
       const cfg = await loadScoreCfg(studioIdOfCompanion.get(cid) ?? opts?.studioId ?? null);
       const metrics = metricsFor(cfg);

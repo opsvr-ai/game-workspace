@@ -25,10 +25,12 @@ import { ExcellenceService } from '../companions/excellence.service';
  *     流水 10000 纯老客 = 90（上等马）、流水 6000 + 三率过半 = 80（中等马）。
  *     （纯新客打满也只有约 4050 元、够不到 5200 门槛 → 必然下等马，不是 60 分中等马。）
  *
- * 第五次（本次）：
+ * 第五次（2026-10-04）：
  *   · 老板澄清「成交首单就是陪玩点了开始首单那个按钮」→ 首单成功率的**分子改成
  *     「点过『开始首单』（这张首单开过会话）的客户数」，不等单子结束**；
  *   · 分母同时从「添加成功的**单数**」改成「添加成功的**客户数**」（同一客户重复抢单只算一个）。
+ *   ⚠️ 上面这条「不等单子结束」的口径 **2026-10-05 被老板当面推翻**
+ *   （「我什么时候说过，不打完怎么算？」）→ 见第八次，分子改成「打完才算」。
  *
  * 第六次（2026-10-04）：老板「所有指标都按照最近 30 天统计」→ **流水分档与流水硬门槛
  * 也从「本营业月」改成「最近 30 天」**（续单率 / 复购率 / 首单成功率本来就是 30 天），
@@ -38,6 +40,12 @@ import { ExcellenceService } from '../companions/excellence.service';
  * 全员都是上等马，岂不是就丧失评分系统的意义了」→ **段位只看四项 KPI（段位分 tierScore）**；
  * 战绩图加分只进「综合分 / 排行榜」（rankScore），并且**封顶**
  * （`excellence.battle_screenshot_bonus_cap`，默认 10 分）。
+ *
+ * 第八次（2026-10-05）：老板驳回「点了开始首单就算成交」——
+ *   · **首单成功率也要求打完**：分子 = 最近 30 天**已打完（父单 DONE）**的首单客户数，
+ *     点了「开始首单」还在打的不算；
+ *   · 分母不变 = 「添加成功」的客户数（按客户去重，加了微信没打成的照样留着拉低成功率）；
+ *   · 至此四项 KPI 口径统一：**只有 DONE 才算数**（流水本来只算 DONE，续单率 / 复购率 2026-10-05 已卡 DONE）。
  */
 
 const LIVE_CFG = [
@@ -71,8 +79,7 @@ function setup(opts: {
   added?: Record<string, number>;
   /** 直接给「添加成功」的明细（重复的 customerId 用来验分母去重） */
   addedList?: Array<{ companionId: string; customerId: string }>;
-  /** 点了「开始首单」、但这张单还没结束的客户数（首单成功率的分子也要算） */
-  startedNotDone?: Record<string, number>;
+  // 2026-10-05：不再有「点了开始首单就算成交」的口径 —— 分子一律取自 doneOrders（父单 DONE）。
   /** 「点了续单但那段还没打完」（会话还是 ACTIVE）的段数：key = `${companionId}|${customerId}` → 不算续单 */
   openSegments?: Record<string, number>;
   bonus?: Record<string, number>;
@@ -104,20 +111,6 @@ function setup(opts: {
     }
   }
 
-  // 点过「开始首单」的单：默认 = 上面那些成交单（每张都有会话），再加上「开了会话但还没结束」的。
-  const startedRows: any[] = windowRows.map((r) => ({ ...r }));
-  for (const [companionId, n] of Object.entries(opts.startedNotDone ?? {})) {
-    for (let i = 0; i < Number(n); i++) {
-      startedRows.push({
-        companionId,
-        customerId: `${companionId}-started${i}`,
-        type: 'NEW',
-        createdAt: new Date(2026, 9, 2, 14, 0, 0),
-        _count: { sessions: 1 },
-      });
-    }
-  }
-
   const prisma = {
     order: {
       groupBy: vi.fn((args: any) => {
@@ -139,7 +132,9 @@ function setup(opts: {
           return Promise.resolve(rows);
         }
         if (where.status === 'DONE') return Promise.resolve(windowRows);
-        return Promise.resolve(startedRows);
+        // 2026-10-05 起，服务端不应再查「没卡 DONE」的订单来数成交首单 —— 真查了这里返回空，
+        // 用例会直接失败，防止老口径偷偷回来。
+        return Promise.resolve([]);
       }),
     },
     // 老板 2026-10-05：续单只数**打完的段**（会话 DONE）。默认每张单的段都打完；
@@ -273,16 +268,26 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
     expect(r.repurchaseRate).toBe(50); // 只有 b 隔了营业日
   });
 
-  it('成交首单 = 点了「开始首单」的客户：单子还没结束也算（老板 2026-10-04 澄清）', async () => {
-    const svc = setup({
-      doneOrders: { c1: [{ cust: 'a', count: 1 }] }, // 只有 1 个客户把单结了
-      startedNotDone: { c1: 2 }, // 另外 2 个点了「开始首单」、还在打
+  it('成交首单必须「打完了」：点了「开始首单」还在打的不算（老板 2026-10-05「我什么时候说过，不打完怎么算？」）', async () => {
+    // 只把 1 个客户的首单打完 → 分子只有 1；另外 2 个客户还没打完，不算成交首单。
+    const unfinished = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }] },
       monthlyRevenue: { c1: 6000 },
       added: { c1: 4 },
     });
-    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
-    expect(r.newRate).toBe(75); // 3 / 4
-    expect(r.firstSuccessScore).toBe(10);
+    const r1 = (await unfinished.computeForCompanions(['c1'])).get('c1')!;
+    expect(r1.newRate).toBe(25); // 1 / 4
+    expect(r1.firstSuccessScore).toBe(0); // 25% 够不到「过 30% 得 5 分」
+
+    // 同样 4 个添加成功，3 个把首单打完了 → 75%
+    const finished = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1 }, { cust: 'b', count: 1 }, { cust: 'c', count: 1 }] },
+      monthlyRevenue: { c1: 6000 },
+      added: { c1: 4 },
+    });
+    const r2 = (await finished.computeForCompanions(['c1'])).get('c1')!;
+    expect(r2.newRate).toBe(75); // 3 / 4
+    expect(r2.firstSuccessScore).toBe(10);
   });
 
   it('分母按客户去重：同一个客户抢了两张单都标添加成功，只算 1 个', async () => {
