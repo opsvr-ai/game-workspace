@@ -2124,7 +2124,9 @@ const AppLayout: React.FC = () => {
             .map((ch: any) => {
               const cp = noticePath(ch.key);
               const ts = cp ? titlesByPath[cp] || [] : [];
-              return ts.length ? `${ch.label}：${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}` : '';
+              // ch.label 可能已被 decorateMenu 换成节点（带流水比例那种），只对字符串拼提示。
+              const name = typeof ch.label === 'string' ? ch.label : '';
+              return ts.length ? `${name ? name + '：' : ''}${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}` : '';
             })
             .filter(Boolean)
             .join('\n');
