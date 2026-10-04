@@ -623,19 +623,9 @@ const CustomerBoardPage: React.FC = () => {
                 <div style={{ fontSize: 11, color: '#94A3B8' }}>
                   {'今日 ' + yuan(r.todaySpent) + ' · ' + (r.orderCount || 0) + ' 单 · ' + fmtHours(r.hours)}
                 </div>
-                <div style={{ marginTop: 4 }}>
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ padding: 0, height: 18, fontSize: 12 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProfileId(r.customerId);
-                    }}
-                  >
-                    画像
-                  </Button>
-                </div>
+                {/* 老板 2026-10-04：客户画像只给管理端（客服 / 店长 / 老板）看 ——
+                    抽屉里会列出「这个客户在哪些陪玩 / 工作微信上各消费了多少」，
+                    属于别的陪玩的隐私，所以陪玩端不展示（后端接口也同步限制了角色）。 */}
               </div>
             </div>
           </div>

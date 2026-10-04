@@ -41,6 +41,8 @@
 
 ## Recent Updates (v3.3.0)
 
+- **客户画像「画像」抽屉收口到管理端（2026-10-04，服务端 + 网页 `v927`）:** 画像会列出「这个客户在哪些陪玩 / 工作微信上各消费了多少」，
+  属于别的陪玩的隐私 —— 陪玩端客户看板上的「画像」按钮已去掉，后端 `GET /api/customers/:id/profile-analytics` 也限成客服 / 店长 / 老板（陪玩直接调返回 403）。
 - **客户端微信提醒节奏简化（2026-10-04，服务端 + 网页 `v926`）:** 老板「别搞这么复杂，先 24h 提醒一次，后期直接 7 天提醒一次」——
   陪玩本人只在满 24 小时、满 7 天各提醒一次；管理端只在满 7 天进一条待办；补单「到期核查」第一次点「仍未通过」7 天后再提醒一次、第二次点才结案。
 - **所有「要双方交互」的地方一律双向实时提示（2026-10-04，服务端 + 网页 `v925`）:** 老板「其他需要交互的地方也都双方都能提示了么」——
@@ -1317,7 +1319,7 @@ Every endpoint returns a standard JSON envelope:
 |--------|------|------|-------|-------------|
 | `GET` | `/api/customers` | JWT | -- | List customers (data isolation by role). |
 | `GET` | `/api/customers/board` | JWT | OWNER, ADMIN, CS, COMPANION | 客户看板：所有可见客户的消费（已完成单）、**今日消费 / 今日单数 / 今日时长（营业日口径，当日 12:00 至次日 12:00，与实时看板同一天界线）**、累计时长（已完成会话）、是否正在跟陪玩打。Query `?sort=live\|spent\|today\|hours\|recent` + `&companionId=`。陪玩=自己的客户、店长/客服=本店、老板=全站；来源平台 / 引流账号对陪玩隐藏。 |
-| `GET` | `/api/customers/:id/profile-analytics` | JWT | OWNER, ADMIN, CS, COMPANION | 客户画像：这个客户在**几个工作微信**上打过、各自消费 / 机密绝密 / 时长 / 单价 / 维护天数，经手的陪玩是谁（双陪含副陪），并给出「下次该派给谁」的建议。可见范围同客户看板。 |
+| `GET` | `/api/customers/:id/profile-analytics` | JWT | OWNER, ADMIN, CS | 客户画像：这个客户在**几个工作微信**上打过、各自消费 / 机密绝密 / 时长 / 单价 / 维护天数，经手的陪玩是谁（双陪含副陪），并给出「下次该派给谁」的建议。可见范围同客户看板。 |
 | `GET` | `/api/customers/:id` | JWT | -- | Get customer detail. |
 | `POST` | `/api/customers` | JWT | ADMIN, OWNER, CS | Create a new customer. |
 | `PUT` | `/api/customers/:id` | JWT | ADMIN, OWNER | Update customer fields. |
