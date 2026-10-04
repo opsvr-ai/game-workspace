@@ -19,7 +19,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   ① `CreateOrderDto` 新增 `useDeposit`，服务端建单自动建第一个会话时把它落成会话的 `paidByDeposit`
   （搭档接受邀请 `acceptPartnerInvite` / 广播找搭档 `broadcastPartnerInvite` 都不覆盖这个字段，
   所以双陪打完照样按存单扣）；② 前端双陪开新单也能勾「用存单支付」，开关不再禁用，切「双陪」也不再强制关掉。
-  单陪那条路（`addSession` / `startSession`）口径一点没动。
+  单陪那条路（`addSession` / `startSession`）口径一点没动。新增 2 条单测（合计 71 个文件 / 649 条全绿）。
 
 ### Fixed
 

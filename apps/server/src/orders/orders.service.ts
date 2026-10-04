@@ -168,6 +168,8 @@ export class OrdersService implements OnModuleInit {
     duration?: number;
     customFields?: any;
     companionId?: string;
+    /** 陪玩自己录入客户、直接开单时是否用客户存单抵扣（落到自动建的会话上，双陪也走这条） */
+    useDeposit?: boolean;
   }) {
     // Resolve studioId: from dto or from CS user's studio
     let studioId = dto.studioId;
@@ -417,7 +419,7 @@ export class OrdersService implements OnModuleInit {
             duration: newOrder.duration || 1,
             // 老板 2026-10-04：双陪开新单同样能消耗存单 —— 主陪发起时带的标记先落在会话上，
             // 搭档接受邀请（acceptPartnerInvite）不改这个字段，所以结束服务时照扣。
-            paidByDeposit: (dto as any).useDeposit === true,
+            paidByDeposit: dto.useDeposit === true,
             status: 'ACTIVE',
           },
         })

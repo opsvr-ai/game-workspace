@@ -147,6 +147,32 @@ describe('OrdersService', () => {
       expect(wsGateway.broadcastToStudio).not.toHaveBeenCalled();
     });
 
+    it('直接派单带 useDeposit：自动建的会话落上 paidByDeposit（双陪开新单也能扣存单）', async () => {
+      const dto = { ...baseDto, dispatchType: 'DIRECT', companionId: 'companion-1', useDeposit: true };
+      const created = { id: 'order-dep', ...dto, status: 'GRABBED' };
+      prisma.order.create.mockResolvedValue(created);
+      prisma.orderSession.create.mockResolvedValue(null);
+
+      await service.create(dto);
+
+      expect(prisma.orderSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ parentOrderId: 'order-dep', paidByDeposit: true }),
+      });
+    });
+
+    it('不带 useDeposit：自动建的会话 paidByDeposit=false（老口径不变）', async () => {
+      const dto = { ...baseDto, dispatchType: 'DIRECT', companionId: 'companion-1' };
+      const created = { id: 'order-dep2', ...dto, status: 'GRABBED' };
+      prisma.order.create.mockResolvedValue(created);
+      prisma.orderSession.create.mockResolvedValue(null);
+
+      await service.create(dto);
+
+      expect(prisma.orderSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ paidByDeposit: false }),
+      });
+    });
+
     it('入池订单（含打单时间为“立即”）只进抢单池，不弹窗', async () => {
       const dto = { ...baseDto, dispatchType: 'POOL', urgency: 'now' };
       const created = { id: 'order-3', ...dto, status: 'PENDING', companionId: null };
