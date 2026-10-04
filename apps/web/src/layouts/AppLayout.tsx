@@ -2093,7 +2093,7 @@ const AppLayout: React.FC = () => {
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
               {item.label}
-              <Badge count={n} size="small" overflowCount={99} color="#2563EB" />
+              <Badge count={n} size="small" overflowCount={99} color="#FF4D4F" />
             </span>
           ),
         };
@@ -2276,7 +2276,7 @@ const AppLayout: React.FC = () => {
                         ...(unreadNotices > 0
                           ? {
                               animation: 'bell-glow 2s ease-in-out infinite',
-                              boxShadow: '0 0 12px rgba(37, 99, 235, 0.5)',
+                              boxShadow: '0 0 12px rgba(255, 77, 79, 0.5)',
                             }
                           : {}),
                       }}
@@ -2285,7 +2285,7 @@ const AppLayout: React.FC = () => {
                         type="text"
                         icon={React.createElement(BellOutlined)}
                         style={{
-                          color: unreadNotices > 0 ? '#2563EB' : commander.textSecondary,
+                          color: unreadNotices > 0 ? '#FF4D4F' : commander.textSecondary,
                           fontSize: 20,
                         }}
                         className={unreadNotices > 0 ? 'bell-glow-active' : ''}

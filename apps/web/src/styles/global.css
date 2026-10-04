@@ -439,13 +439,13 @@ body {
 
 @keyframes bell-glow {
   0% {
-    box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 0 4px rgba(255, 77, 79, 0.4);
   }
   50% {
-    box-shadow: 0 0 16px rgba(37, 99, 235, 0.7);
+    box-shadow: 0 0 16px rgba(255, 77, 79, 0.7);
   }
   100% {
-    box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 0 4px rgba(255, 77, 79, 0.4);
   }
 }
 
