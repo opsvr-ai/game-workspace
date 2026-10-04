@@ -73,6 +73,8 @@ function setup(opts: {
   addedList?: Array<{ companionId: string; customerId: string }>;
   /** 点了「开始首单」、但这张单还没结束的客户数（首单成功率的分子也要算） */
   startedNotDone?: Record<string, number>;
+  /** 「点了续单但那段还没打完」（会话还是 ACTIVE）的段数：key = `${companionId}|${customerId}` → 不算续单 */
+  openSegments?: Record<string, number>;
   bonus?: Record<string, number>;
   thresholdOverride?: { excellent?: number; middle?: number };
 }) {
@@ -139,6 +141,21 @@ function setup(opts: {
         if (where.status === 'DONE') return Promise.resolve(windowRows);
         return Promise.resolve(startedRows);
       }),
+    },
+    // 老板 2026-10-05：续单只数**打完的段**（会话 DONE）。默认每张单的段都打完；
+    // openSegments 指定「这几段还挂着（ACTIVE）」→ 不算。
+    orderSession: {
+      findMany: vi.fn(() =>
+        Promise.resolve(
+          windowRows.flatMap((r) => {
+            const total = (r as any)._count?.sessions || 0;
+            const open = opts.openSegments?.[`${r.companionId}|${r.customerId}`] ?? 0;
+            return Array.from({ length: Math.max(0, total - open) }, () => ({
+              parentOrder: { companionId: r.companionId, customerId: r.customerId },
+            }));
+          }),
+        ),
+      ),
     },
     companion: {
       findMany: vi.fn((args: any) => {
@@ -425,6 +442,7 @@ describe('流水窗口 = 最近 30 天（老板 2026-10-04「所有指标都按�
         }),
         findMany: vi.fn(() => Promise.resolve([])),
       },
+      orderSession: { findMany: vi.fn(() => Promise.resolve([])) },
       companion: {
         findMany: vi.fn((args: any) =>
           Promise.resolve(
@@ -480,5 +498,21 @@ describe('战绩图加分不参与段位（老板 2026-10-04：堆截图刷不�
     expect(r.tierScore).toBe(95);
     expect(r.bonusScore).toBe(0);
     expect(r.tier).toBe('TOP');
+  });
+});
+
+describe('只有真有 DONE 单 / DONE 段才计入续单率 / 复购率（老板 2026-10-05）', () => {
+  it('点了「续单」但那段还没打完（会话 ACTIVE）→ 先不算；打完（DONE）才算续单', async () => {
+    // 1 张 DONE 首单，里面 2 段（第 2 段 = 点了「续单」加出来的那段）
+    const open = setup({
+      doneOrders: { c1: [{ cust: 'a', count: 1, sessions: 2 }] },
+      openSegments: { 'c1|c1-a': 1 }, // 第 2 段还挂着（ACTIVE）
+    });
+    const rOpen = (await open.computeForCompanions(['c1'])).get('c1')!;
+    expect(rOpen.renewRate).toBe(0); // 没打完 → 不算续单
+
+    const done = setup({ doneOrders: { c1: [{ cust: 'a', count: 1, sessions: 2 }] } });
+    const rDone = (await done.computeForCompanions(['c1'])).get('c1')!;
+    expect(rDone.renewRate).toBe(100); // 两段都打完 → 续单 1/1
   });
 });

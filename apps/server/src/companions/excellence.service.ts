@@ -375,6 +375,8 @@ export class ExcellenceService implements OnModuleInit {
     //   · 续单率 / 复购率分母统一 = **打了首单的客户数**；窗口 = 最近 30 天；营业日以 **12:00** 为界。
     // 「12:00 前接着打」走的是同一张单里的第 2 段会话（续单），「过了中午 12 点」会另开一张复购单；
     // 两栏**不互斥**：隔天回头的客户两边都算，只吃老客的陪玩也能拿满。
+    // 第四版（老板 2026-10-05）：「只有真有 DONE 单才计入续单率 / 复购率 —— 不结束、还没打完你怎么计算？」
+    //   → 父单必须 DONE（本来已是），**段也必须打完（会话 DONE）**：点了续单、还在打的不算。
     const RATE_WINDOW_DAYS = 30;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -394,13 +396,37 @@ export class ExcellenceService implements OnModuleInit {
         customerId: true,
         type: true,
         createdAt: true,
-        _count: { select: { sessions: true } },
       },
     });
+    // 老板 2026-10-05：「不结束、还没打完你怎么计算？」——除了父单要是 DONE（上面已卡），
+    // **段**也要打完才算数：陪玩点了「续单」开了第 2 段、但那段还在打（会话 ACTIVE）的先不算。
+    // 修前读的是父单的 `_count.sessions`（不分段状态），点了续单即刻就计 —— 正是这个洞。
+    const windowDoneSessions = await this.prisma.orderSession.findMany({
+      where: {
+        status: 'DONE',
+        parentOrder: {
+          companionId: { in: ids },
+          status: 'DONE',
+          createdAt: { gte: rateWindowStart },
+        },
+      },
+      select: { parentOrder: { select: { companionId: true, customerId: true } } },
+    });
+    const doneSegments = new Map<string, Map<string, number>>(); // companionId -> customerId -> 已打完的段数
+    for (const seg of windowDoneSessions) {
+      const cid = (seg as any).parentOrder?.companionId;
+      const cust = (seg as any).parentOrder?.customerId;
+      if (!cid || !cust) continue;
+      let segByCust = doneSegments.get(cid);
+      if (!segByCust) {
+        segByCust = new Map<string, number>();
+        doneSegments.set(cid, segByCust);
+      }
+      segByCust.set(cust, (segByCust.get(cust) || 0) + 1);
+    }
     // companionId -> (customerId -> 这个客户在你这的汇总：单数 / 段数 / 有没有续复购单 / 出现过哪些营业日）
     type CustAgg = {
       orders: number;
-      sessions: number;
       hasRenewType: boolean;
       days: Set<string>;
       firstDone: boolean;
@@ -417,9 +443,8 @@ export class ExcellenceService implements OnModuleInit {
       }
       const agg =
         byCust.get(o.customerId) ||
-        { orders: 0, sessions: 0, hasRenewType: false, days: new Set<string>(), firstDone: false };
+        { orders: 0, hasRenewType: false, days: new Set<string>(), firstDone: false };
       agg.orders += 1;
-      agg.sessions += (o as any)._count?.sessions || 0;
       if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.hasRenewType = true;
       if (o.type === 'NEW') agg.firstDone = true;
       if (o.createdAt) agg.days.add(businessDayKey(o.createdAt as Date));
@@ -427,10 +452,13 @@ export class ExcellenceService implements OnModuleInit {
     }
     for (const [cid, byCust] of perCustomer) {
       const s = m.get(cid)!;
-      for (const agg of byCust.values()) {
+      for (const [custId, agg] of byCust) {
+        const doneSegs = doneSegments.get(cid)?.get(custId) || 0;
         if (agg.firstDone) s.firstCustomers += 1; // 打了首单的客户数 = 续单率 / 复购率的分母
-        if (agg.sessions >= 2 || agg.hasRenewType) s.renew += 1; // 续单：第 2 段及以后（或 RENEW / REPURCHASE 单）
-        if (agg.days.size >= 2) s.repurchase += 1; // 复购：隔了一个营业日又来打（另有成交单）
+        // 续单：该客户有 2 段及以后**打完的**会话（或一张 DONE 的 RENEW / REPURCHASE 单）。
+        // 「点了续单还在打」不算（老板 2026-10-05）。
+        if (doneSegs >= 2 || agg.hasRenewType) s.renew += 1;
+        if (agg.days.size >= 2) s.repurchase += 1; // 复购：隔了一个营业日又来打（另有成交单，且父单 DONE）
       }
     }
 
