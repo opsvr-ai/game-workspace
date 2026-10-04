@@ -10,10 +10,10 @@ const { Text } = Typography;
 type Tier = { min: number; score: number };
 
 const TIER_DEFS: Array<{ key: string; label: string; unit: string; def: Tier[] }> = [
-  { key: 'excellence.revenue_tiers', label: '月流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
-  { key: 'excellence.renew_tiers', label: '续单率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.repurchase_tiers', label: '复购率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.first_success_tiers', label: '首单成功率', unit: '%', def: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
+  { key: 'excellence.revenue_tiers', label: '月流水', unit: '元', def: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.renew_tiers', label: '续单率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
+  { key: 'excellence.repurchase_tiers', label: '复购率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
+  { key: 'excellence.first_success_tiers', label: '首单成功率', unit: '%', def: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
 ];
 
 const TierEditor = ({ label, unit, tiers, onChange }: { label: string; unit: string; tiers: Tier[]; onChange: (tiers: Tier[]) => void }) => {
@@ -78,6 +78,8 @@ const ExcellenceSettings: React.FC = () => {
   const rawTopThreshold = Number(config?.['excellence.excellent_threshold'] ?? 50);
   const midThreshold = Math.max(0, Math.min(100, Number.isFinite(rawMidThreshold) ? rawMidThreshold : 0));
   const topThreshold = Math.max(midThreshold, Math.min(100, Number.isFinite(rawTopThreshold) ? rawTopThreshold : 0));
+  // 老板 2026-10-04：月流水硬门槛 —— 没到这条线一律下等马（分数再高也不算），流水达标最低中等马。
+  const revenueFloor = Math.max(0, Number(config?.['excellence.revenue_floor'] ?? 5200) || 0);
   const lineMarks: Record<number, any> = {
     0: { style: { fontSize: 11 }, label: '0' },
     100: { style: { fontSize: 11 }, label: '100' },
@@ -94,7 +96,8 @@ const ExcellenceSettings: React.FC = () => {
         'excellence.repurchase_tiers': config?.['excellence.repurchase_tiers'],
         'excellence.first_success_tiers': config?.['excellence.first_success_tiers'],
         'excellence.excellent_threshold': config?.['excellence.excellent_threshold'] ?? 50,
-        'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 25,
+        'excellence.middle_tier_threshold': config?.['excellence.middle_tier_threshold'] ?? 60,
+        'excellence.revenue_floor': config?.['excellence.revenue_floor'] ?? 5200,
         'excellence.battle_screenshot_bonus': config?.['excellence.battle_screenshot_bonus'] ?? 1,
         'excellence.low_tier_auto_resign_days': config?.['excellence.low_tier_auto_resign_days'] ?? 0,
         'dispatch.top_tier_daily_new_limit': config?.['dispatch.top_tier_daily_new_limit'] ?? 999,
@@ -129,6 +132,9 @@ const ExcellenceSettings: React.FC = () => {
           每一项只取「达到的<b>最高一档</b>」的分，<b>不叠加</b>
           （比如填了「达到 6000 得 20 分」「达到 10000 得 40 分」，流水 10000 的人这一项就是 40 分，不是 20+40）。
           综合分按下面这条分数线分成 下等马 / 中等马 / 上等马 三档。
+          <br />
+          <b>但段位还有一条更硬的线</b>：<b>月流水没到「流水硬门槛」的人一律下等马</b>（其他分再高也不算）；
+          反过来，<b>流水达标的人最低也是中等马</b> —— 要的少、挣得少可以理解，要的少、挣得多才是最理想的陪玩。
           <br />
           <b>续单率</b> = 最近 30 天里「有第 2 段及以后会话（点续单加的那段）」的客户占比；
           <b>复购率</b> = 隔了一个营业日（12:00 为界）又来打的客户占比；
@@ -222,6 +228,12 @@ const ExcellenceSettings: React.FC = () => {
                   <div style={{ fontWeight: 700, color: '#d4a017' }}>{topThreshold} – 100 分</div>
                 </div>
               </div>
+              {revenueFloor > 0 ? (
+                <Text type="secondary" style={{ display: 'block', marginTop: 10, fontSize: 12 }}>
+                  上面这三段只是「按分数」分 —— 真正的段位还看一条硬线：月流水没到 {revenueFloor} 元的一律下等马
+                  （分数再高也不算；要的少、挣得少可以理解，留着也妨），流水达标的人最低也是中等马。
+                </Text>
+              ) : null}
               {rawTopThreshold > 100 ? (
                 <Text type="warning" style={{ display: 'block', marginTop: 10 }}>
                   当前存的上等马线还是 {rawTopThreshold} 分（超过满分 100），上面的线先按 100 显示 —— 请拖一下或直接填个数再保存。
@@ -232,6 +244,7 @@ const ExcellenceSettings: React.FC = () => {
                 </Text>
               ) : null}
             </div>
+            <Field label="流水硬门槛" unit="元" value={config?.['excellence.revenue_floor'] ?? 5200} step={100} onChange={(v) => update('excellence.revenue_floor', v)} suffix="月流水没到它一律下等马（填 0 = 关掉这条硬线）" />
             <Field label="下等马自动离职天数" value={config?.['excellence.low_tier_auto_resign_days'] ?? 0} step={1} onChange={(v) => update('excellence.low_tier_auto_resign_days', v)} suffix="0=不自动离职" />
           </Col>
           <Col span={12}>

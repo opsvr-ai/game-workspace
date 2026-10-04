@@ -16,16 +16,24 @@ import { ExcellenceService } from '../companions/excellence.service';
  *   · 首单成功率 = 成交首单客户数 / **添加成功数**；
  *   · 续单率 / 复购率**分母统一 = 打了首单的客户数**；窗口 30 天；营业日以 **12:00** 为界。
  *   两栏仍然**不互斥**：隔天回头的客户两边都算。
+ *
+ * 第四次（本次）：
+ *   · 段位多一条**月流水硬门槛**（默认 5200 元）：没到线的人一律下等马，其他分再高也不算；
+ *   · 反过来，**流水达标的人最低也是中等马**（要的少、挣得少可以理解，留着也妨）；
+ *   · 四个档位表按老板举的例子定稿：流水 8000 + 三率都过半 = 90（上等马）、
+ *     流水 10000 纯老客 = 90（上等马）、流水 10000 纯新客 = 60（中等马）、流水 6000 + 三率过半 = 80（中等马）。
  */
 
 const LIVE_CFG = [
-  { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 40 }, { min: 10000, score: 50 }] },
-  { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 60, score: 20 }] },
-  { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 40, score: 5 }, { min: 70, score: 10 }] },
+  { key: 'excellence.revenue_tiers', value: [{ min: 0, score: 0 }, { min: 3000, score: 20 }, { min: 6000, score: 30 }, { min: 8000, score: 40 }, { min: 10000, score: 50 }] },
+  { key: 'excellence.renew_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
+  { key: 'excellence.repurchase_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 10 }, { min: 50, score: 20 }] },
+  { key: 'excellence.first_success_tiers', value: [{ min: 0, score: 0 }, { min: 30, score: 5 }, { min: 50, score: 10 }] },
   // 老板 2026-10-04 拍板：上等马 90 / 中等马 60（原来是 999 / 0，等于谁都不升不降）
   { key: 'excellence.excellent_threshold', value: 90 },
   { key: 'excellence.middle_tier_threshold', value: 60 },
+  // 月流水硬门槛（第四次拍板）：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高」
+  { key: 'excellence.revenue_floor', value: 5200 },
 ];
 
 type CustSpec = {
@@ -208,7 +216,7 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
     });
     const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
     expect(r.newRate).toBe(30);
-    expect(r.firstSuccessScore).toBe(0); // 30% 没够到 40% 那一档
+    expect(r.firstSuccessScore).toBe(5); // 30% 正好够到「过 30% 得 5 分」那一档（新表）
   });
 
   it('一个「添加成功」都没有时，首单成功率是 0（不炸）', async () => {
@@ -226,6 +234,59 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
   });
 });
 
+describe('健壮性', () => {
+  it('令牌里没有 companionId（传进 undefined）时不炸，直接返回空结果', async () => {
+    const svc = setup({});
+    const r = await svc.computeForCompanions([undefined as unknown as string]);
+    expect(r.size).toBe(0);
+  });
+});
+
+describe('月流水硬门槛：没到线一律下等马，流水达标最低中等马（老板 2026-10-04）', () => {
+  /** 2 个客户各打 2 单（隔天）→ 续单 100%、复购 100%；成交 2 个首单 ÷ 加了 3 个微信 = 67% */
+  const hotCustomerSpec = { c1: [{ cust: 'a', count: 2 }, { cust: 'b', count: 2 }] };
+  const hotExtra = { added: { c1: 3 } };
+
+  it('流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马（老板举的目标画像）', async () => {
+    const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 8000 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.rankScore).toBe(90);
+    expect(r.tier).toBe('TOP');
+  });
+
+  it('流水 6000 + 三率都过半 = 30+20+20+10 = 80 → 中等马（差一点的那个）', async () => {
+    const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 6000 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.rankScore).toBe(80);
+    expect(r.tier).toBe('MIDDLE');
+  });
+
+  it('流水 5000 + 三率都过半（分数 70）：没到 5200 就是下等马，分数再高也不算', async () => {
+    const svc = setup({ ...hotExtra, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 5000 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.rankScore).toBe(70); // 20 + 20 + 20 + 10
+    expect(r.tier).toBe('LOW');
+    expect(r.isExcellent).toBe(false);
+  });
+
+  it('流水刚到 5200、其他全是 0：分数只有 20，但流水达标 → 至少中等马', async () => {
+    const svc = setup({ doneOrders: {}, monthlyRevenue: { c1: 5200 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.rankScore).toBe(20);
+    expect(r.tier).toBe('MIDDLE');
+  });
+
+  it('门槛填 0 = 关掉这条硬线，退回纯分数判段位', async () => {
+    const cfg = LIVE_CFG.map((row) =>
+      row.key === 'excellence.revenue_floor' ? { ...row, value: 0 } : row,
+    );
+    const svc = setup({ ...hotExtra, cfg, doneOrders: hotCustomerSpec, monthlyRevenue: { c1: 5000 } });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.rankScore).toBe(70);
+    expect(r.tier).toBe('MIDDLE'); // 70 ≥ 中等马线 60
+  });
+});
+
 describe('段位按配置的线判定', () => {
   it('线上新线 90 / 60：老客型 90 分是上等马，新客型 60 分是中等马', async () => {
     const oldCustomerType = setup({
@@ -235,6 +296,7 @@ describe('段位按配置的线判定', () => {
     const r1 = (await oldCustomerType.computeForCompanions(['c1'])).get('c1')!;
     expect(r1.excellentThreshold).toBe(90);
     expect(r1.middleTierThreshold).toBe(60);
+    expect(r1.revenueFloor).toBe(5200);
     expect(r1.tier).toBe('TOP');
 
     const newCustomerType = setup({

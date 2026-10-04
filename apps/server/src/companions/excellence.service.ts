@@ -18,6 +18,8 @@ export interface ExcellenceResult {
   /** 上等马线 / 中等马线：给「评分说明」页面显示用，和算段位用的是同一份配置。 */
   excellentThreshold: number;
   middleTierThreshold: number;
+  /** 月流水硬门槛（元）：没到这条线的人一律下等马，其他分再高也不算（老板 2026-10-04）。 */
+  revenueFloor: number;
   renewRate: number;
   repurchaseRate: number;
   newRate: number;
@@ -250,7 +252,10 @@ export class ExcellenceService implements OnModuleInit {
     opts?: { studioId?: string | null },
   ): Promise<Map<string, ExcellenceResult>> {
     const result = new Map<string, ExcellenceResult>();
-    if (companionIds.length === 0) return result;
+    // 过滤掉空值再判空：以前只判 `length === 0`，令牌里没有 companionId 时
+    // 会带着 `undefined` 进 Prisma 的 `in: [...]`，直接抛 500（2026-10-04 线上探测时踩到）。
+    const ids = companionIds.filter((id): id is string => !!id);
+    if (ids.length === 0) return result;
 
     // 打分口径（老板 2026-10-04 二次澄清）：「到了什么档次就给他重新统计为多少分，别叠加」。
     // 每一项是若干条「达到 X 得 Y 分」的档位，只取**达到的最高那一档**的 Y，不把几档加起来。
@@ -270,6 +275,7 @@ export class ExcellenceService implements OnModuleInit {
       'excellence.renew_tiers',
       'excellence.repurchase_tiers',
       'excellence.first_success_tiers',
+      'excellence.revenue_floor',
       'excellence.excellent_threshold',
       'excellence.middle_tier_threshold',
       'excellence.battle_screenshot_bonus',
@@ -296,29 +302,41 @@ export class ExcellenceService implements OnModuleInit {
         return def;
       };
       return {
+        // 老板 2026-10-04 定稿的四个档位表（满分 50 + 20 + 20 + 10 = 100）：
+        //   · 月流水：0 / 3000 / 6000 / 8000 / 10000 → 0 / 20 / 30 / 40 / 50；
+        //   · 续单率、复购率：过 30% 得 10 分、过 50% 得 20 分；
+        //   · 首单成功率：过 30% 得 5 分、过 50% 得 10 分。
+        // 校验过的例子（老板自己举的）：流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
+        //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
+        //   流水 10000 纯新客（老客 0）= 50+10 = 60 → 中等马；
+        //   流水 6000 + 三率都过半 = 30+50 = 80 → 中等马。
         revenueTiers: parseTiers(cfg['excellence.revenue_tiers'], [
           { min: 0, score: 0 },
           { min: 3000, score: 20 },
-          { min: 6000, score: 40 },
+          { min: 6000, score: 30 },
+          { min: 8000, score: 40 },
           { min: 10000, score: 50 },
         ]),
         renewTiers: parseTiers(cfg['excellence.renew_tiers'], [
           { min: 0, score: 0 },
           { min: 30, score: 10 },
-          { min: 60, score: 20 },
+          { min: 50, score: 20 },
         ]),
         repurchaseTiers: parseTiers(cfg['excellence.repurchase_tiers'], [
           { min: 0, score: 0 },
           { min: 30, score: 10 },
-          { min: 60, score: 20 },
+          { min: 50, score: 20 },
         ]),
         firstSuccessTiers: parseTiers(cfg['excellence.first_success_tiers'], [
           { min: 0, score: 0 },
-          { min: 40, score: 5 },
-          { min: 70, score: 10 },
+          { min: 30, score: 5 },
+          { min: 50, score: 10 },
         ]),
-        excellentThreshold: num(cfg['excellence.excellent_threshold'], 50),
-        middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 25),
+        excellentThreshold: num(cfg['excellence.excellent_threshold'], 90),
+        middleTierThreshold: num(cfg['excellence.middle_tier_threshold'], 60),
+        // 月流水硬门槛（老板 2026-10-04）：「月流水没过 5200 在我眼里就是下等马，
+        // 就算他各种 KPI 都高」。填 0 = 关掉这条硬线，退回纯分数判段位。
+        revenueFloor: num(cfg['excellence.revenue_floor'], 5200),
         battleScreenshotBonus: num(cfg['excellence.battle_screenshot_bonus'], 1),
       };
     };
@@ -348,11 +366,11 @@ export class ExcellenceService implements OnModuleInit {
     const m = new Map<string, { count: number; firstCustomers: number; renew: number; repurchase: number }>();
     // 一单都没成交过的人也要有一份结果（哪怕全是 0）：否则调用方只能 ?? 兜底，
     // 「评分说明」里连上等马线都拿不到真实配置（老板 2026-10-04 顺手修）。
-    for (const cid of companionIds) m.set(cid, { count: 0, firstCustomers: 0, renew: 0, repurchase: 0 });
+    for (const cid of ids) m.set(cid, { count: 0, firstCustomers: 0, renew: 0, repurchase: 0 });
 
     const windowOrders = await this.prisma.order.findMany({
       where: {
-        companionId: { in: companionIds },
+        companionId: { in: ids },
         status: 'DONE',
         createdAt: { gte: rateWindowStart },
       },
@@ -408,7 +426,7 @@ export class ExcellenceService implements OnModuleInit {
     const monthlyRevenue = await this.prisma.order.groupBy({
       by: ['companionId'],
       where: {
-        companionId: { in: companionIds },
+        companionId: { in: ids },
         status: 'DONE',
         type: { in: ['NEW', 'RENEW', 'REPURCHASE'] },
         createdAt: { gte: monthStart, lt: monthEnd },
@@ -424,7 +442,7 @@ export class ExcellenceService implements OnModuleInit {
     const addedGrabs = await this.prisma.order.groupBy({
       by: ['companionId'],
       where: {
-        companionId: { in: companionIds },
+        companionId: { in: ids },
         type: 'NEW',
         contactStatus: 'added',
         createdAt: { gte: rateWindowStart },
@@ -435,7 +453,7 @@ export class ExcellenceService implements OnModuleInit {
 
     // 战绩图采纳加分：直接叠加到综合分。
     const bonusRows = await this.prisma.companion.findMany({
-      where: { id: { in: companionIds } },
+      where: { id: { in: ids } },
       select: { id: true, bonusScore: true, studioId: true },
     });
     const bonusMap = new Map(bonusRows.map((b) => [b.id, b.bonusScore || 0]));
@@ -458,13 +476,24 @@ export class ExcellenceService implements OnModuleInit {
       const firstSuccessScore = scoreOfHighestTier(firstSuccessRate, metrics.firstSuccessTiers);
       const bonus = bonusMap.get(cid) || 0;
       const rankScore = Math.round(revenueScore + renewScore + repurchaseScore + firstSuccessScore + bonus);
-      const tier = rankScore >= metrics.excellentThreshold
+      // 段位（老板 2026-10-04 定稿，比分数更硬的一条线）：
+      //   ① 先按分数分档：够上等马线 → 上等马，够中等马线 → 中等马，其余下等马；
+      //   ② **月流水没到硬门槛**（默认 5200 元）的人，一律下等马 —— KPI 再高也不算。
+      //      老板原话：「月流水没过 5200 在我眼里就是下等马，就算他各种 KPI 都高……
+      //      那就只有一个原因，他工作时间短、来得晚走得早，给工作室创造不了多少价值」；
+      //   ③ 反过来，**流水达标的人最低也是中等马**（「要的少、挣得少可以理解，
+      //      留着他也妨」，除了浪费点电费没有别的损失）。
+      let tier: 'TOP' | 'MIDDLE' | 'LOW' = rankScore >= metrics.excellentThreshold
         ? 'TOP'
         : rankScore >= metrics.middleTierThreshold
           ? 'MIDDLE'
           : 'LOW';
+      if (metrics.revenueFloor > 0) {
+        if (revenue < metrics.revenueFloor) tier = 'LOW';
+        else if (tier === 'LOW') tier = 'MIDDLE';
+      }
       result.set(cid, {
-        isExcellent: rankScore >= metrics.excellentThreshold,
+        isExcellent: tier === 'TOP',
         tier,
         rankScore,
         revenueScore: Math.round(revenueScore),
@@ -474,6 +503,7 @@ export class ExcellenceService implements OnModuleInit {
         firstSuccessScore: Math.round(firstSuccessScore),
         excellentThreshold: metrics.excellentThreshold,
         middleTierThreshold: metrics.middleTierThreshold,
+        revenueFloor: metrics.revenueFloor,
         renewRate: Math.round(renewRate),
         repurchaseRate: Math.round(repurchaseRate),
         newRate: Math.round(firstSuccessRate),
@@ -571,8 +601,9 @@ export class ExcellenceService implements OnModuleInit {
       repurchaseScore: 0,
       firstSuccessScore: 0,
       // 兜底值只求不崩；正常路径（上面已经给每个人补了结果）拿到的都是真实配置。
-      excellentThreshold: 50,
-      middleTierThreshold: 25,
+      excellentThreshold: 90,
+      middleTierThreshold: 60,
+      revenueFloor: 5200,
       renewRate: 0,
       repurchaseRate: 0,
       newRate: 0,

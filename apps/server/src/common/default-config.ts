@@ -226,30 +226,38 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'dispatch.break_even_hours': 2.5,
   // 综合评分：每一项「取达到的最高一档」的分（不叠加），四项满分之和 ≤ 100。
   // 以前那套「权重占比」（excellence.*_weight）与「流水封顶」已整条去掉（老板 2026-10-04）。
-  'excellence.excellent_threshold': 50,
-  'excellence.middle_tier_threshold': 25,
+  // 老板 2026-10-04 定稿的四张档位表 + 一条硬门槛，满分 50 + 20 + 20 + 10 = 100：
+  //   流水 8000 + 三率都过半 = 40+20+20+10 = 90 → 上等马；
+  //   流水 10000 只吃老客（首单 0）= 50+20+20 = 90 → 上等马；
+  //   流水 10000 纯新客（老客 0）= 50+10 = 60 → 中等马。
+  // revenue_floor：月流水没到这条线的人**一律下等马**（KPI 再高也不算）；
+  //   流水达标的人最低也是中等马。填 0 = 关掉这条硬线。
+  'excellence.excellent_threshold': 90,
+  'excellence.middle_tier_threshold': 60,
+  'excellence.revenue_floor': 5200,
   'excellence.battle_screenshot_bonus': 1,
   'excellence.low_tier_auto_resign_days': 0,
   'excellence.revenue_tiers': [
     { min: 0, score: 0 },
     { min: 3000, score: 20 },
-    { min: 6000, score: 40 },
+    { min: 6000, score: 30 },
+    { min: 8000, score: 40 },
     { min: 10000, score: 50 },
   ],
   'excellence.renew_tiers': [
     { min: 0, score: 0 },
     { min: 30, score: 10 },
-    { min: 60, score: 20 },
+    { min: 50, score: 20 },
   ],
   'excellence.repurchase_tiers': [
     { min: 0, score: 0 },
     { min: 30, score: 10 },
-    { min: 60, score: 20 },
+    { min: 50, score: 20 },
   ],
   'excellence.first_success_tiers': [
     { min: 0, score: 0 },
-    { min: 40, score: 5 },
-    { min: 70, score: 10 },
+    { min: 30, score: 5 },
+    { min: 50, score: 10 },
   ],
   // 桥接工作室首单返还（仅适用于桥接线下工作室）：首单 = 第一个小时。机密首单不结（固定 0，没有配置键）；绝密按 15 元/小时/陪玩返还（双陪×2）。
   'dispatch.bridge_return_jueju_cents': 1500,
