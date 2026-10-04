@@ -13,6 +13,8 @@ interface Props {
   customerId?: string | null;
   gameName?: string;
   mode?: 'first' | 'renew' | 'repurchase';
+  /** 客户当前还没打完的存单余额（> 0 时默认按存单付款） */
+  depositBalance?: number;
   initialValues?: {
     dual?: boolean;
     coId?: string;
@@ -25,7 +27,7 @@ interface Props {
   onDone: () => void;
 }
 
-const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', initialValues, onClose, onDone }) => {
+const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameName, mode = 'first', depositBalance = 0, initialValues, onClose, onDone }) => {
   const user = useAuthStore((s) => s.user);
   const [mainId, setMainId] = useState<string | undefined>(undefined);
   const [dual, setDual] = useState(false);
@@ -58,10 +60,18 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
       setClaimPrice(initialValues?.claimPrice ?? 35);
       setClaimDuration(initialValues?.claimDuration ?? 1);
       setPartnerMode('assign');
-      setUseDeposit(false);
+      // 老板 2026-10-04：「老客户还剩存单没打完……打的时候去消耗存单金额就可以了」——
+      // 客户有存单余额就默认按存单付款（结束时按实际时长扣），没余额就是普通付款、开关无效。
+      // 双陪开新单这条路上系统带不了存单（见下面开关的提示），所以那种情况默认关。
+      setUseDeposit(Number(depositBalance) > 0 && !((initialValues?.dual ?? false) && !!customerId && !orderId));
       loadCompanions();
     }
   }, [open]);
+
+  // 这个客户还带着没打完的存单，是不是就默认走存单扣款；双陪开新单暂时带不了存单（见下面开关）
+  const hasDepositBalance = Number(depositBalance) > 0;
+  const dualNewOrder = dual && !!customerId && !orderId;
+  const depositDisabled = !hasDepositBalance || dualNewOrder;
 
   const handleStart = async () => {
     if (!orderId && !customerId) return;
@@ -75,9 +85,11 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
     try {
       let sessionId: string | undefined;
       if (customerId && !orderId) {
-        // 复购：先创建直接派单（会自动建会话），再开始会话
+        // 陪玩自己录入的客户：先创建直接派单（会自动建会话），再开始会话 ——
+        //   开始首单 = NEW，续单 = RENEW，复购 = REPURCHASE。
+        const directType = mode === 'first' ? 'NEW' : mode === 'renew' ? 'RENEW' : 'REPURCHASE';
         const orderRes: any = await ordersApi.create({
-          type: 'REPURCHASE',
+          type: directType,
           dispatchType: 'DIRECT',
           companionId: mainId || user?.companionId,
           customerId,
@@ -182,7 +194,16 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
           <Text>单/双陪</Text>
           <div>
             <Button size="small" type={!dual ? 'primary' : 'default'} onClick={() => setDual(false)} style={{ marginRight: 8 }}>单陪</Button>
-            <Button size="small" type={dual ? 'primary' : 'default'} onClick={() => setDual(true)}>双陪</Button>
+            <Button
+              size="small"
+              type={dual ? 'primary' : 'default'}
+              onClick={() => {
+                setDual(true);
+                setUseDeposit(false);
+              }}
+            >
+              双陪
+            </Button>
           </div>
         </Col>
         <Col span={12}>
@@ -235,8 +256,21 @@ const StartServiceModal: React.FC<Props> = ({ open, orderId, customerId, gameNam
         </>
       )}
       <div style={{ marginTop: 12 }}>
-        <Switch checked={useDeposit} onChange={setUseDeposit} />
+        <Switch checked={useDeposit} onChange={setUseDeposit} disabled={depositDisabled} />
         <Text style={{ marginLeft: 8 }}>用存单支付（结束时按实际计时从客户存单余额扣款）</Text>
+        {dualNewOrder && Number(depositBalance) > 0 ? (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            双陪开新单要等搭档确认，这条路上系统带不了存单扣款 —— 这单请按普通付款结算，存单留着下次单陪用。
+          </Text>
+        ) : Number(depositBalance) > 0 ? (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            客户存单还剩 <Text strong style={{ color: '#FF4757' }}>¥{Number(depositBalance).toFixed(2)}</Text>，这单默认走存单扣款。
+          </Text>
+        ) : (
+          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+            这个客户没有未打完的存单余额。
+          </Text>
+        )}
       </div>
       <Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
         服务期间将自动开启工作记录（随机截图），请保持客户端运行。

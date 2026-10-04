@@ -205,7 +205,7 @@ const CustomersPage: React.FC = () => {
     });
   };
   const [startServicePreFill, setStartServicePreFill] = useState<any>(null);
-  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any } | null>(null);
+  const [startServiceOrder, setStartServiceOrder] = useState<{ id?: string; customerId?: string; gameName?: string; mode?: 'first' | 'renew' | 'repurchase'; initialValues?: any; depositBalance?: number } | null>(null);
   const [endServiceTarget, setEndServiceTarget] = useState<{ sessionId: string; orderId: string } | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
@@ -429,8 +429,20 @@ const CustomersPage: React.FC = () => {
         await customersApi.update(editingCustomer.id, values);
         message.success('客户信息已更新');
       } else {
-        await customersApi.create(values);
-        message.success('客户已创建');
+        const res: any = await customersApi.create(values);
+        const createdId = res?.data?.data?.id;
+        // 老板 2026-10-04：老客户手里还剩没打完的存单，陪玩录入客户时就能一起填上，
+        // 走的是同一个客户存单接口（depositBalance），财务那边「未打存单预留」立刻同步。
+        const deposit = Number(values.depositAmount || 0);
+        if (createdId && deposit > 0) {
+          await customersApi.createDeposit(createdId, {
+            amount: deposit,
+            note: '陪玩录入客户时登记：老客剩余存单余额',
+          });
+          message.success(`客户已创建，存单余额 ¥${deposit} 已记入`);
+        } else {
+          message.success('客户已创建');
+        }
       }
       setModalOpen(false);
       form.resetFields();
@@ -735,56 +747,105 @@ const CustomersPage: React.FC = () => {
             const grabbed = record.orders?.find((o: any) => o.status === 'GRABBED');
             const confirmed = record.orders?.find((o: any) => o.status === 'CONFIRMED');
             const firstDone = hasFirstOrder(record);
-            let label = '开始首单';
-            let action = () => {
-              if (grabbed?.id) {
-                setStartServiceOrder({
-                  id: grabbed.id,
-                  gameName: grabbed.gameName,
-                  mode: 'first',
-                  initialValues: {
-                    claimPrice: grabbed.amount || null,
-                    claimDuration: grabbed.duration || 1,
-                    claimMode: grabbed.customFields?.deltaMission || '机密',
-                  },
-                });
-              } else {
-                message.warning('当前没有可打首单的订单，请先在抢单池抢单');
-              }
+            const hasAnyOrder = (record.orders?.length ?? 0) > 0;
+            const hasDeposit = Number(record.depositBalance) > 0;
+            const balance = Number(record.depositBalance) || 0;
+
+            // 陪玩自己录入的客户，开场时新客老客他自己知道，所以三条路一起给他：
+            //   真新客 → 点「开始首单」；本来就是老客（还有没打完的存单）→ 直接点「续单 / 复购 / 存单」。
+            // 只要动过其中一条（开过单 / 记过存单），下面别的分支就会接管，「开始首单」自动收起来。
+            const startFresh = (m: 'first' | 'renew' | 'repurchase') => {
+              setStartServiceOrder({
+                customerId: record.id,
+                gameName: record.orders?.[0]?.gameName,
+                mode: m,
+                depositBalance: balance,
+              });
             };
-            // 老板 2026-10-04：续单只在同一个营业日里给。过了中午 12 点，即使 CONFIRMED 单还挂着，
-            // 也不再给「续单」按钮，只留「复购」（另开一张复购单）。
+
+            if (grabbed?.id) {
+              return (
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() =>
+                    setStartServiceOrder({
+                      id: grabbed.id,
+                      gameName: grabbed.gameName,
+                      mode: 'first',
+                      depositBalance: balance,
+                      initialValues: {
+                        claimPrice: grabbed.amount || null,
+                        claimDuration: grabbed.duration || 1,
+                        claimMode: grabbed.customFields?.deltaMission || '机密',
+                      },
+                    })
+                  }
+                >
+                  开始首单
+                </Button>
+              );
+            }
+            // 老板 2026-10-04：续单只在同一个营业日里给。过了中午 12 点，不再给「续单」，只留「复购」。
             if (confirmed?.id && canRenewNow(record)) {
-              label = '续单';
-              action = () => {
-                const lastSession = confirmed.sessions?.[0];
-                setStartServiceOrder({
-                  id: confirmed.id,
-                  gameName: confirmed.gameName,
-                  mode: 'renew',
-                  initialValues: {
-                    dual: !!lastSession?.coCompanionId,
-                    coId: lastSession?.coCompanionId,
-                    coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
-                    claimMode: lastSession?.claimedMode || '机密',
-                    claimPrice: null,
-                    claimDuration: lastSession?.duration || 1,
-                  },
-                });
-              };
-            } else if (confirmed?.id || firstDone) {
-              label = '复购';
-              action = () => {
-                setStartServiceOrder({
-                  customerId: record.id,
-                  gameName: record.orders?.[0]?.gameName,
-                  mode: 'repurchase',
-                });
-              };
+              return (
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => {
+                    const lastSession = confirmed.sessions?.[0];
+                    setStartServiceOrder({
+                      id: confirmed.id,
+                      gameName: confirmed.gameName,
+                      mode: 'renew',
+                      depositBalance: balance,
+                      initialValues: {
+                        dual: !!lastSession?.coCompanionId,
+                        coId: lastSession?.coCompanionId,
+                        coPrice: lastSession?.coAmount != null ? Number(lastSession.coAmount) / (lastSession.duration || 1) : null,
+                        claimMode: lastSession?.claimedMode || '机密',
+                        claimPrice: null,
+                        claimDuration: lastSession?.duration || 1,
+                      },
+                    });
+                  }}
+                >
+                  续单
+                </Button>
+              );
+            }
+            // 从没动过这个客户（没单、没存单）→ 新客老客都给，让他自己挑。
+            if (!hasAnyOrder && !hasDeposit && !firstDone) {
+              return (
+                <>
+                  <Button type="primary" size="small" onClick={() => startFresh('first')}>
+                    开始首单
+                  </Button>
+                  <Button size="small" onClick={() => startFresh('renew')}>
+                    续单
+                  </Button>
+                  <Button size="small" onClick={() => startFresh('repurchase')}>
+                    复购
+                  </Button>
+                </>
+              );
+            }
+            // 同一营业日内接着打 = 续单（老板 2026-10-04 的口径），过了 12 点只剩复购。
+            if (canRenewNow(record)) {
+              return (
+                <>
+                  <Button type="primary" size="small" onClick={() => startFresh('renew')}>
+                    续单
+                  </Button>
+                  <Button size="small" onClick={() => startFresh('repurchase')}>
+                    复购
+                  </Button>
+                </>
+              );
             }
             return (
-              <Button type="primary" size="small" onClick={action}>
-                {label}
+              <Button type="primary" size="small" onClick={() => startFresh('repurchase')}>
+                复购
               </Button>
             );
           })()}
@@ -1136,6 +1197,21 @@ const CustomersPage: React.FC = () => {
             <Form.Item name="platformAccount" label="平台账号">
               <Input placeholder="请输入平台账号" />
             </Form.Item>
+            {!editingCustomer && (
+              <Form.Item
+                name="depositAmount"
+                label="客户存单余额（元）"
+                tooltip="老客户手里还有没打完的存单就填在这里，以后打单可以直接用存单付款、按实际时长扣；新客户留空。"
+              >
+                <InputNumber
+                  min={0}
+                  step={10}
+                  suffix="元"
+                  style={{ width: '100%' }}
+                  placeholder="老客剩下没打完的存单就填，新客户留空"
+                />
+              </Form.Item>
+            )}
             <Form.Item name="notes" label="备注">
               <Input.TextArea rows={3} placeholder="请输入备注信息" />
             </Form.Item>
@@ -1258,6 +1334,7 @@ const CustomersPage: React.FC = () => {
           gameName={startServiceOrder?.gameName}
           mode={startServiceOrder?.mode}
           initialValues={startServiceOrder?.initialValues}
+          depositBalance={startServiceOrder?.depositBalance ?? 0}
           onClose={() => setStartServiceOrder(null)}
           onDone={() => {
             setStartServiceOrder(null);

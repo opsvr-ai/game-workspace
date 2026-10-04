@@ -9,8 +9,10 @@ import { createMockPrisma, type MockPrisma } from '../__mocks__/prisma.mock';
  *
  * 规则（只卡**陪玩自己发起**的老客单；客服 / 店长 / 老板代发不拦）：
  *   ① 客户必须是真实客户，且属于本单工作室；
- *   ② 该客户必须真成交过（有 DONE 单）；
- *   ③ 本人必须服务过（主陪或副陪的 DONE 单）或该客户在自己名下。
+ *   ② 客户**在自己名下**（自己录入的老客）→ 直接放行（老板 2026-10-04：
+ *      「他自己录入的……开始首单 / 续单 / 复购 / 存单都要有」，哪怕还没 DONE 单，
+ *      比如老客手里还剩没打完的存单）；
+ *   ③ 不是自己名下的客户 → 必须真成交过（有 DONE 单）且本人服务过（主陪或副陪的 DONE 单）。
  * 一律以服务端查出来的关系为准 —— 前端把 customerId 换成别人的客户也过不了。
  */
 function buildService(prisma: any) {
@@ -131,6 +133,26 @@ describe('OrdersService.create 续单 / 复购兜底校验', () => {
     (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
 
     const res = await service.create(companionDto as any);
+    expect(res.id).toBe('order-1');
+    expect(prisma.order.create).toHaveBeenCalled();
+  });
+
+  it('自己录入的客户（在自己名下）没有 DONE 单也能直接续单 / 复购', async () => {
+    (prisma.order.count as any).mockResolvedValue(0);
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+
+    const res = await service.create(companionDto as any);
+    expect(res.id).toBe('order-1');
+    expect(prisma.order.create).toHaveBeenCalled();
+    // 自己名下的客户连成交单都不用数
+    expect(prisma.order.count).not.toHaveBeenCalled();
+  });
+
+  it('自己录入的客户点「续单」（RENEW）同样放行', async () => {
+    (prisma.order.count as any).mockResolvedValue(0);
+    (prisma.customer.findUnique as any).mockResolvedValue({ companionId: 'comp-1', studioId: 'studio-1' });
+
+    const res = await service.create(renewDto as any);
     expect(res.id).toBe('order-1');
     expect(prisma.order.create).toHaveBeenCalled();
   });

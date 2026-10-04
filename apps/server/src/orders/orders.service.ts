@@ -218,8 +218,8 @@ export class OrdersService implements OnModuleInit {
     // 免得老客户前一单还没 DONE 就把客服的正常续单 / 复购发单给拦了）。
     // 关键：一律**以服务端查出来的关系为准**，不信前端传的客户归属——把 customerId 换成别人的客户也过不了：
     //   ① 客户必须是真实客户，且属于本单工作室（跨店客户直接拒）；
-    //   ② 这个客户必须**真成交过**（有 DONE 单）；
-    //   ③ 本人必须**服务过**（当过主陪或副陪的 DONE 单）或该客户**在自己名下**。
+    //   ② 客户**在自己名下**（自己录入 / 打过的）→ 放行（老板 2026-10-04：自己录入的老客可直接续单 / 复购 / 存单）；
+    //   ③ 不是自己名下的客户 → 必须**真成交过**（有 DONE 单）且本人**服务过**（主陪或副陪的 DONE 单）。
     if ((dto.type === 'REPURCHASE' || dto.type === 'RENEW') && customerId && creator?.role === 'COMPANION') {
       const me = await this.prisma.companion
         .findUnique({ where: { userId: dto.csUserId }, select: { id: true } })
@@ -234,22 +234,30 @@ export class OrdersService implements OnModuleInit {
         throw new ForbiddenException('这个客户不属于本工作室，不能发续单 / 复购');
       }
 
-      const doneCount = await this.prisma.order.count({
-        where: { customerId, status: 'DONE' },
-      });
-      if (doneCount === 0) {
-        throw new ForbiddenException('这个客户还没有成交记录，不能算续单 / 复购；新客户请走抢单 / 首单');
-      }
+      // 老板 2026-10-04：陪玩自己录入的客户，新客老客他自己清楚 ——
+      // 「有的就是老客户……他自己录入的，开始首单 / 续单 / 复购 / 存单都要有」。
+      // 所以**自己名下的客户直接放行**（允许没有 DONE 单就点续单 / 复购 / 存单，比如还有没打完的存单）；
+      // 只有**不在自己名下**的客户才要求「真成交过 + 本人服务过」——
+      // 「陪玩去客户 B 的位置点续单 / 复购」这条路照样堵着。
+      const isMine = !!customer.companionId && customer.companionId === me.id;
+      if (!isMine) {
+        const doneCount = await this.prisma.order.count({
+          where: { customerId, status: 'DONE' },
+        });
+        if (doneCount === 0) {
+          throw new ForbiddenException('这个客户还没有成交记录，不能算续单 / 复购；新客户请走抢单 / 首单');
+        }
 
-      const served = await this.prisma.order.count({
-        where: {
-          customerId,
-          status: 'DONE',
-          OR: [{ companionId: me.id }, { coCompanionId: me.id }],
-        },
-      });
-      if (served === 0 && customer.companionId !== me.id) {
-        throw new ForbiddenException('只能续单 / 复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
+        const served = await this.prisma.order.count({
+          where: {
+            customerId,
+            status: 'DONE',
+            OR: [{ companionId: me.id }, { coCompanionId: me.id }],
+          },
+        });
+        if (served === 0) {
+          throw new ForbiddenException('只能续单 / 复购你自己服务过的客户；这个客户不是你打的，请让客服 / 店长处理');
+        }
       }
     }
 
