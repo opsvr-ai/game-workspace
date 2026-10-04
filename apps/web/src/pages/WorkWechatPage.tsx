@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal, Tooltip } from 'antd';
+import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal, Tooltip, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import PageHeader from '../components/PageHeader';
@@ -243,6 +243,18 @@ const WorkWechatPage: React.FC = () => {
         }
       />
 
+      {/* 老板 2026-10-05：「客服更换工作微信需要店长同意吧？」——客服看得到台账，但绑 / 解绑按钮
+          只给店长 / 老板；客服要换号就找店长。 */}
+      {isCs && typeFilter === 'STUDIO' && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="客服工作微信由店长 / 老板绑定"
+          description="要换工作微信，把新微信号发给店长，让他在这一页改；客服自己改不了（需要店长同意）。"
+        />
+      )}
+
       <Card size="small">
         {/* 一块：上面这一行是「加号」、下面就是这张表 —— 陪玩自己提交、等审核的那几行直接排在
             这张表最上面，不再单开一张卡片（老板 2026-10-02：「现在是上下两部分，合并成一整块，
@@ -428,12 +440,16 @@ const WorkWechatPage: React.FC = () => {
                     return (
                       <Space size={4}>
                         <Text>{cs?.username || boundNames[r.id]}</Text>
-                        <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
-                          解绑
-                        </Button>
+                        {/* 客服本人不能解绑（换号要店长同意） */}
+                        {!isCs && (
+                          <Button type="link" size="small" onClick={() => handleUnbindCs(r.id)}>
+                            解绑
+                          </Button>
+                        )}
                       </Space>
                     );
                   }
+                  if (isCs) return <Text type="secondary">由店长 / 老板绑定</Text>;
                   return (
                     <Button type="link" size="small" onClick={() => setBindingId(r.id)}>
                       绑定客服

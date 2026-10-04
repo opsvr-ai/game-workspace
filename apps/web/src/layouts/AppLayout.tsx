@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, notification, Form, Input } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, notification, Form, Input, Alert, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import { usePolling } from '../hooks/usePolling';
@@ -515,12 +515,16 @@ const tintOfMenuKey = (key: string): string =>
  *   叶子挂「这个页面自己的未读数」；父级挂「子树汇总」—— 子菜单被手动收起时，
  *   父级上的角标也能看到里面还有几条没读（老板 2026-10-04：「把子项的未读数合计到父级」）。
  */
-const menuBadgeLabel = (label: React.ReactNode, count: number) => (
-  <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-    {label}
-    <Badge count={count} size="small" overflowCount={99} color="#FF4D4F" />
-  </span>
-);
+const menuBadgeLabel = (label: React.ReactNode, count: number, hint?: string) => {
+  const badge = <Badge count={count} size="small" overflowCount={99} color="#FF4D4F" />;
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+      {label}
+      {/* 老板 2026-10-05：「有未读，点进去不知道是什么」——鼠标停在红点上直接写清是哪几条待办。 */}
+      {hint ? <Tooltip title={hint}>{badge}</Tooltip> : badge}
+    </span>
+  );
+};
 
 /**
  * 把「流水比例」小字挂到左侧栏标题后面。
@@ -747,23 +751,37 @@ const AppLayout: React.FC = () => {
   // 每条通知都指着一个页面（href），按归一化路径分堆，菜单项就按自己的路由领角标。
   const notifItems = useNotifStore((s) => s.items);
   const markNoticesReadByPath = useNotifStore((s) => s.markReadByPath);
-  const unreadByPath = useMemo(() => {
+  const { unreadByPath, titlesByPath } = useMemo(() => {
     const map: Record<string, number> = {};
+    const titles: Record<string, string[]> = {};
     for (const it of notifItems) {
       if (it.read) continue;
       const path = noticePath(it.href);
       if (!path) continue;
       map[path] = (map[path] || 0) + 1;
+      (titles[path] || (titles[path] = [])).push(it.title);
     }
-    return map;
+    return { unreadByPath: map, titlesByPath: titles };
   }, [notifItems]);
   // 点左侧栏那一项 = 把指向这个页面的未读通知都消掉（跟点铃铛条目、点弹窗一个效果）。
   const clearNoticesByKey = useCallback(
     (key: string) => {
       const path = noticePath(key);
-      if (path) markNoticesReadByPath(path);
+      if (!path) return;
+      // 老板 2026-10-05：「点进去发现没任何变化」——角标一点就消、又不说是什么，人会懵。
+      // 所以点菜单清角标时，把刚标为已读的是哪几条用一条轻提示念出来。
+      const titles = titlesByPath[path] || [];
+      if (titles.length) {
+        message.info(
+          `这里刚才有 ${titles.length} 条提醒（已处理）：${titles.slice(0, 2).join(' · ')}${
+            titles.length > 2 ? ` 等 ${titles.length} 条` : ''
+          }`,
+          6,
+        );
+      }
+      markNoticesReadByPath(path);
     },
-    [markNoticesReadByPath],
+    [markNoticesReadByPath, titlesByPath],
   );
   const { grabbedOrder, setGrabbedOrder } = useOrderStore();
 
@@ -2101,19 +2119,34 @@ const AppLayout: React.FC = () => {
           const sub = withNoticeBadges(item.children);
           total += sub.count;
           if (!sub.count) return { ...item, children: sub.items };
-          return { ...item, children: sub.items, label: menuBadgeLabel(item.label, sub.count) };
+          // 父级（店长 / 老板收起子菜单时）：悬停写清是哪个子页面有几条。
+          const parentHint = item.children
+            .map((ch: any) => {
+              const cp = noticePath(ch.key);
+              const ts = cp ? titlesByPath[cp] || [] : [];
+              return ts.length ? `${ch.label}：${ts[0]}${ts.length > 1 ? ` 等 ${ts.length} 条` : ''}` : '';
+            })
+            .filter(Boolean)
+            .join('\n');
+          return {
+            ...item,
+            children: sub.items,
+            label: menuBadgeLabel(item.label, sub.count, parentHint || undefined),
+          };
         }
         const path = noticePath(item.key);
         const n = path ? unreadByPath[path] || 0 : 0;
         total += n;
         if (!n) return item;
-        return { ...item, label: menuBadgeLabel(item.label, n) };
+        const ts = (path ? titlesByPath[path] : []) || [];
+        const hint = ts.slice(0, 3).join('\n') + (ts.length > 3 ? `\n… 等 ${ts.length} 条` : '');
+        return { ...item, label: menuBadgeLabel(item.label, n, hint || undefined) };
       });
       return { items, count: total };
     };
     // 上面「徽标那一段」是拿 label 字符串比对的，所以这层装饰必须放在它之后。
     return withNoticeBadges(flattened).items;
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, clearNoticesByKey]);
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -2530,6 +2563,29 @@ const AppLayout: React.FC = () => {
               boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
             }}
           >
+            {/* 老板 2026-10-05：「有未读，点进去发现没任何变化」——进到这一页顶头就直接写清
+                这条路由上还挂着几条提醒、分别是什么，点「全部已读」才消（角标 / 铃铛同步）。 */}
+            {(() => {
+              const curPath = noticePath(location.pathname);
+              const titles = curPath ? titlesByPath[curPath] || [] : [];
+              if (!titles.length) return null;
+              return (
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message={`这里还有 ${titles.length} 条未读提醒`}
+                  description={`${titles.slice(0, 5).join(' · ')}${
+                    titles.length > 5 ? ` … 等 ${titles.length} 条` : ''
+                  }`}
+                  action={
+                    <Button size="small" onClick={() => markNoticesReadByPath(curPath)}>
+                      全部已读
+                    </Button>
+                  }
+                />
+              );
+            })()}
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>

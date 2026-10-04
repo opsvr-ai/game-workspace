@@ -59,17 +59,34 @@ const storageKey = (userId: string) => STORAGE_PREFIX + userId;
  * 但有的带 query（如 /admin/companions?role=COMPANION），所以比对前先归一化。
  * 老板 2026-10-04：弹窗 + 右上角铃铛 + 左侧栏对应位置三处都要提醒，点任意一处都消。
  */
+/** 归一化后要**保留**的 query 参数：只有它们能区分「同一个路径下的不同菜单」。 */
+const KEEP_QUERY_KEYS = ['type', 'role'];
+
 export function noticePath(href?: string | null): string {
   if (!href) return '';
   const s = String(href).trim();
   if (!s) return '';
-  let end = s.length;
-  const q = s.indexOf('?');
-  if (q >= 0 && q < end) end = q;
-  const h = s.indexOf('#');
-  if (h >= 0 && h < end) end = h;
-  const p = s.slice(0, end);
-  return p.length > 1 ? p.replace(/\/+$/, '') : p;
+  const hashAt = s.indexOf('#');
+  const noHash = hashAt >= 0 ? s.slice(0, hashAt) : s;
+  const qAt = noHash.indexOf('?');
+  let path = qAt >= 0 ? noHash.slice(0, qAt) : noHash;
+  if (path.length > 1) path = path.replace(/\/+$/, '');
+  // 老板 2026-10-05：「客服管理有未读，点进去发现没任何变化」——
+  // 根因：`/owner/work-wechats` 这一个路径下挂着两个菜单（陪玩工作微信 type=COMPANION /
+  // 客服工作微信 type=STUDIO），只留路径会让两条通知串台：陪玩提交的微信号把「客服工作微信」
+  // 连同父级「客服管理」也点亮了，点进去那条待审核行按 type 被过滤掉，自然什么都看不到。
+  // 所以带上语义参数（只留 type / role 白名单，其余照旧丢掉），两边各归各的角标。
+  let kept = '';
+  if (qAt >= 0) {
+    const params = new URLSearchParams(noHash.slice(qAt + 1));
+    const parts: string[] = [];
+    for (const key of KEEP_QUERY_KEYS) {
+      const v = params.get(key);
+      if (v) parts.push(`${key}=${v}`);
+    }
+    if (parts.length) kept = '?' + parts.join('&');
+  }
+  return path + kept;
 }
 
 function readStored(userId: string | null): NoticeItem[] {

@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ForbiddenException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { CompanionWechatService } from '../companions/companion-wechat.service';
+import { CompanionsController } from '../companions/companions.controller';
+import { ROLES_KEY } from '../auth/roles.guard';
 import { createMockPrisma } from '../__mocks__/prisma.mock';
 
 /**
@@ -319,5 +321,30 @@ describe('工作微信列表：客服也要看得到本店的陪玩微信', () =
     await expect(
       svc.updateWorkWechatNickname('w2', '别人的', { role: 'CS', id: 'cs-1' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+/**
+ * 老板 2026-10-05：「客服更换工作微信需要店长同意吧？」
+ *
+ * 以前 `bind-cs` / `unbind-cs` 的 @Roles 里带着 CS —— 客服在「客服工作微信」页
+ * 可以把任意一个号绑到自己名下、也能自己解绑，等于自己就能换号，没人管。
+ * 现在只有店长（ADMIN）/ 老板（OWNER）能绑 / 解绑；客服仍可审核陪玩提交的申请
+ * （那条申请是绑给陪玩的，客服自己占不到）。
+ */
+describe('客服工作微信：绑 / 解绑只有店长与老板能操作（老板 2026-10-05）', () => {
+  const rolesOf = (method: string): string[] =>
+    (Reflect.getMetadata(ROLES_KEY, (CompanionsController.prototype as any)[method]) || []) as string[];
+
+  it('bind-cs / unbind-cs 只允许 ADMIN / OWNER，客服被排除', () => {
+    expect([...rolesOf('bindCsUser')].sort()).toEqual(['ADMIN', 'OWNER']);
+    expect([...rolesOf('unbindCsUser')].sort()).toEqual(['ADMIN', 'OWNER']);
+    expect(rolesOf('bindCsUser')).not.toContain('CS');
+    expect(rolesOf('unbindCsUser')).not.toContain('CS');
+  });
+
+  it('客服仍可审核陪玩提交的工作微信（申请绑给陪玩，客服占不到）', () => {
+    expect(rolesOf('approveWorkWechatRequest')).toContain('CS');
+    expect(rolesOf('rejectWorkWechatRequest')).toContain('CS');
   });
 });

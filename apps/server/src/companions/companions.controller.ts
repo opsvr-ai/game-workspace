@@ -396,15 +396,17 @@ export class CompanionsController {
     return { code: 200, message: 'ok', data };
   }
 
+  // 老板 2026-10-05：「客服更换工作微信需要店长同意吧？」——客服**不能**自己换号 / 自己绑到
+  // 名下，只有店长（ADMIN）/ 老板（OWNER）能绑。客服在界面上保留查看，按钮已隐藏。
   @Put('companions/work-wechats/:id/bind-cs')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   async bindCsUser(@Param('id') id: string, @Body() dto: { csUserId: string }): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.bindCsUser(id, dto.csUserId);
     return { code: 200, message: 'ok', data };
   }
 
   @Put('companions/work-wechats/:id/unbind-cs')
-  @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
   async unbindCsUser(@Param('id') id: string): Promise<ApiResponse<unknown>> {
     const data = await this.companionsService.unbindCsUser(id);
     return { code: 200, message: 'ok', data };
