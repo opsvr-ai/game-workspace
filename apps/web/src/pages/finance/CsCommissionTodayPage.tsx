@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from 'antd';
 import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { financeApi } from '../../api/finance';
@@ -155,6 +156,52 @@ const CsCommissionTodayPage: React.FC = () => {
   const failReasons: Array<[string, number]> = Object.entries(s?.failReasons || {}).sort(
     (a: any, b: any) => b[1] - a[1],
   ) as Array<[string, number]>;
+
+  /**
+   * 「我的今日」（老板 2026-10-06）：「最好也给客服弄一个今日图，跟陪玩那样的 ——
+   * 知道今天接了多少、挣了多少、多少成功、多少失败那样。」
+   *
+   * 客服看自己那一行；店长 / 老板看全店合计（同一份数据，不另算一套口径）。
+   * 数字全部来自 `/finance/commission/today`，跟提成、跟月底结算同源。
+   */
+  const isCsRole = user?.role === 'CS';
+  const myRow = isCsRole ? csList.find((r) => r.userId === user?.id) : null;
+  const board = isCsRole ? myRow : s;
+  const boardPay = isCsRole ? Number(myRow?.todayPay || 0) : todayPayTotal;
+  const boardCards: Array<{
+    title: string;
+    value: number;
+    suffix?: string;
+    prefix?: string;
+    precision?: number;
+    hint?: string;
+    color?: string;
+  }> = [
+    { title: isCsRole ? '今天发单' : '全店发单', value: board?.published ?? 0, suffix: '单', hint: '今天建了多少单' },
+    { title: '成功', value: board?.success ?? 0, suffix: '单', hint: '线下陪玩点「开始首单」/ 桥接·线上反馈成功' },
+    { title: '不成功', value: board?.failed ?? 0, suffix: '单', hint: '没打成的，不计提成', color: '#cf1322' },
+    { title: '待反馈', value: board?.pending ?? 0, suffix: '单', hint: '桥接 / 线上还没给结果' },
+    {
+      title: '成功率',
+      value: board?.successRate ?? 0,
+      suffix: '%',
+      hint: '成功 ÷（成功 + 不成功）；待反馈的不算分母',
+    },
+    {
+      title: isCsRole ? '今天挣了' : '全店今日应发',
+      value: boardPay,
+      prefix: '¥',
+      precision: 1,
+      hint: '底薪按天折算 + 提成（只有成功单才算提成）',
+      color: '#cf1322',
+    },
+  ];
+  const boardPie: Array<{ name: string; value: number; color: string }> = [
+    { name: '成功', value: Number(board?.success || 0), color: '#15803D' },
+    { name: '不成功', value: Number(board?.failed || 0), color: '#DC2626' },
+    { name: '待反馈', value: Number(board?.pending || 0), color: '#B45309' },
+    { name: '未开始', value: Number(board?.unstarted || 0), color: '#94A3B8' },
+  ].filter((d) => d.value > 0);
 
   const summaryCards = [
     { title: '今日发单', value: s?.published ?? 0, suffix: '单', hint: '客服今天建了多少单' },
@@ -332,6 +379,63 @@ const CsCommissionTodayPage: React.FC = () => {
           </Space>
         }
       />
+
+      {board && (
+        <Card
+          size="small"
+          style={{ marginBottom: 12, borderColor: '#722ed1' }}
+          title={
+            <span>
+              📅 {isCsRole ? '我的今日' : '全店今日'}（营业日 {data?.date || dayjs().format('YYYY-MM-DD')}）
+            </span>
+          }
+        >
+          <Row gutter={[12, 12]} align="middle">
+            <Col xs={24} md={16}>
+              <Row gutter={[12, 12]}>
+                {boardCards.map((c) => (
+                  <Col xs={8} sm={4} key={c.title}>
+                    <Tooltip title={c.hint}>
+                      <Statistic
+                        title={c.title}
+                        value={c.value}
+                        precision={c.precision}
+                        prefix={c.prefix}
+                        suffix={c.suffix}
+                        valueStyle={c.color ? { color: c.color } : undefined}
+                      />
+                    </Tooltip>
+                  </Col>
+                ))}
+              </Row>
+            </Col>
+            <Col xs={24} md={8}>
+              {boardPie.length > 0 ? (
+                <ResponsiveContainer width="100%" height={170}>
+                  <PieChart>
+                    <Pie
+                      data={boardPie}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={52}
+                      innerRadius={26}
+                      label={({ name, value }) => `${name} ${value}单`}
+                    >
+                      {boardPie.map((d, i) => (
+                        <Cell key={i} fill={d.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <Text type="secondary">今天还没有发单</Text>
+              )}
+            </Col>
+          </Row>
+        </Card>
+      )}
 
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         {summaryCards.map((c) => (
