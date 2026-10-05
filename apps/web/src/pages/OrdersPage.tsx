@@ -179,16 +179,26 @@ const OrdersPage: React.FC = () => {
   };
 
   /**
-   * 能不能给这张单记结果（老板 2026-09-29）：只有桥接 / 线上单要接单方反馈，
-   * 本店线下的单看「开始首单」就自动算成功、不用记；还没人接的单也没结果可记。
-   * 陪玩端不参与（反馈是客服 / 店长代录）。
+   * 能不能给这张单报结果（老板 2026-09-29 定、2026-10-06 改成「接单方自己报」）：
+   *  - 桥接 / 线上单：接单方必须给个说法（成功 / 不成功，不成功要带截图）；
+   *  - 本店线下单：点了「开始首单」就算成功、不用报；**抢了单一直没开始首单的**，
+   *    接单方可以报「不成功」（添加失败 / 暂时不打 / 价格谈不拢 …），一样要带截图；
+   *  - 客服 / 店长 / 老板可以替接单方补录；还没人接的单没结果可记。
    */
-  const canRecordOutcome = (r: any) =>
-    !isCompanion &&
-    !!r.companionId &&
-    r.status !== 'CANCELLED' &&
-    !r.refundedAt &&
-    orderChannelOf(r) !== 'offline';
+  const canRecordOutcome = (r: any) => {
+    if (!r.companionId || r.status === 'CANCELLED' || r.refundedAt) return false;
+    if (isCompanion) {
+      if (!user?.companionId || r.companionId !== user.companionId) return false;
+      // 已经报过的还能点开看 / 改（失败单重报会退回「待店长拍板」）
+      if (r.outcome === 'SUCCESS' || r.outcome === 'FAILED') return true;
+      if (orderChannelOf(r) === 'offline') {
+        const started = r.status === 'DONE' || (r.sessions || []).some((s: any) => !!s.startedAt);
+        return !started;
+      }
+      return true;
+    }
+    return orderChannelOf(r) !== 'offline';
+  };
 
   /**
    * 陪玩能不能转让这张单（老板 2026-09-29）。
@@ -771,10 +781,31 @@ const OrdersPage: React.FC = () => {
             </Button>
           ) : canRecordOutcome(r) ? (
             // 这一格平时被「添加失败」占着；客户微信已经加过（或这单不用标）时就空出来了，
-            // 空出来正好放「记结果」—— 位置固定（永远第 3 格 60px），操作列宽度不变、行高不变。
-            <Button size="small" style={{ width: 58 }} onClick={() => setOutcomeOrder(r)}>
-              记结果
-            </Button>
+            // 空出来正好放「记结果 / 报结果」—— 位置固定（永远第 3 格 60px），
+            // 操作列宽度不变、行高不变。陪玩端（接单方）报过了就把结果显示在这一格。
+            isCompanion && r.outcome ? (
+              <Tooltip
+                title={
+                  r.outcome === 'SUCCESS'
+                    ? '已报「成功」：推给发单者、计入考核'
+                    : r.reviewStatus === 'DECIDED'
+                      ? `已报「不成功」，店长已拍板：${r.reviewNote || '（没写结论）'}`
+                      : '已报「不成功」：已附截图推给发单者 + 店长，等店长拍板定责'
+                }
+              >
+                <Tag
+                  color={r.outcome === 'SUCCESS' ? 'green' : 'red'}
+                  style={{ margin: 0, cursor: 'pointer' }}
+                  onClick={() => setOutcomeOrder(r)}
+                >
+                  {r.outcome === 'SUCCESS' ? '成功' : '不成功'}
+                </Tag>
+              </Tooltip>
+            ) : (
+              <Button size="small" style={{ width: 58 }} onClick={() => setOutcomeOrder(r)}>
+                {isCompanion ? '报结果' : '记结果'}
+              </Button>
+            )
           ) : null}
         </span>
         <span style={actionSlot(36)}>

@@ -269,6 +269,16 @@ model Order {
   outcomeByUserId String?
   outcomeAt       DateTime?
 
+  // 成交核对（老板 2026-10-06）：接单方点「不成功」必须粘贴截图；失败单同时推给发单者
+  // 和店长，由店长拍板「到底是谁的问题」（谁的问题就去找谁），发单者据此去追。
+  // 点「成功」不用拍板，直接推给发单者、计入考核。重点追查的永远是失败单。
+  outcomeEvidence      Json? // 接单方报「不成功」时粘贴的截图（URL 列表，至少 1 张）
+  reviewStatus         String? // WAITING（待店长拍板）| DECIDED（已拍板）
+  reviewResponsibility String? // COMPANION | CS | CUSTOMER | NONE —— 谁的问题
+  reviewNote           String? // 店长的结论 / 追责说明
+  reviewByUserId       String?
+  reviewAt             DateTime?
+
   // 「催一下」（老板 2026-09-30）：线上 / 桥接单一直是「待反馈」时，发单的客服可以催接单
   // 工作室给个说法。催了几次、最后一次什么时候记在这里；接单方的看板上显示「对方催过 N 次」。
   feedbackChasedAt   DateTime?
@@ -293,6 +303,7 @@ model Order {
   @@index([status])
   @@index([studioId, createdAt])
   @@index([status, dispatchType])
+  @@index([reviewStatus])
 }
 
 model OrderSession {

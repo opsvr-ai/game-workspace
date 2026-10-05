@@ -140,6 +140,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'owner-orders', icon: IconOrders, label: '订单管理',
       children: [
         { key: '/owner/orders', label: '全部订单' },
+        // 成交核对（老板 2026-10-06）：接单方报的「不成功」在这儿由店长拍板定责，抢了没结果的也在这儿。
+        { key: '/owner/order-review', label: '成交核对' },
       ],
     },
     {
@@ -265,6 +267,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
       key: 'admin-orders', icon: IconOrders, label: '订单管理',
       children: [
         { key: '/admin/orders', label: '全部订单' },
+        // 成交核对（老板 2026-10-06）：待拍板的失败单在这儿定责（谁的问题找谁）。
+        { key: '/admin/order-review', label: '成交核对' },
       ],
     },
     {
@@ -375,7 +379,11 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
     {
       key: 'cs-orders', icon: IconOrders, label: '订单管理',
-      children: [{ key: '/cs/orders', label: '全部订单' }],
+      children: [
+        { key: '/cs/orders', label: '全部订单' },
+        // 客服也能看（自己的单被别人报「不成功」时要跟进）；拍板只有店长 / 老板能做。
+        { key: '/cs/order-review', label: '成交核对' },
+      ],
     },
     {
       key: 'cs-customers', icon: IconCustomers, label: '客户管理',
@@ -1038,6 +1046,29 @@ const AppLayout: React.FC = () => {
       return 0;
     });
   };
+
+  /**
+   * 「成交核对」角标（老板 2026-10-06）：「最好每天要求管理端去核对」——
+   * 客服 / 店长 / 老板的「订单管理 → 成交核对」上挂一个红数字，就是**待店长拍板的失败单**有几张。
+   * 这不是「看过就消」的通知角标，而是真有一张没拍板就一直在（拍完自动消失）。
+   */
+  const [outcomeReviewBadge, setOutcomeReviewBadge] = React.useState(0);
+  useEffect(() => {
+    if (!user || !['OWNER', 'ADMIN', 'CS'].includes(user.role)) return;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/orders/reviews/summary');
+        setOutcomeReviewBadge(Number(data?.data?.waiting || 0));
+      } catch {
+        /* 拿不到就当作没有，别把菜单弄崩 */
+      }
+    };
+    doFetch();
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') doFetch();
+    }, 60000);
+    return () => clearInterval(t);
+  }, [user?.role, user?.id]);
 
   // Chat 3.0: notification handled by ChatProvider
 
@@ -1934,10 +1965,12 @@ const AppLayout: React.FC = () => {
     const cCount = contactBadge;
     const psCount = pendingStartBadge;
     const rvCount = reviewBadge;
+    const orCount = outcomeReviewBadge;
     const REVIEW_LABELS = ['工作室管理', '实名审核'];
     const CHAT_LABELS = ['陪玩管理', '员工管理', '首页'];
     const CONTACT_LABELS = ['派单工作台'];
     const PENDING_START_LABELS = ['订单管理'];
+    const OUTCOME_REVIEW_LABELS = ['成交核对'];
     const REVIEW_WORK_LABELS = ['陪玩管理', '陪玩'];
     const badged = items.map((item) => {
       // Check children (group items) for badge targets
@@ -1949,7 +1982,19 @@ const AppLayout: React.FC = () => {
         const hasReview = item.children.some((c: any) => REVIEW_WORK_LABELS.includes(c.label) && rvCount > 0);
         const hasContact = item.children.some((c: any) => CONTACT_LABELS.includes(c.label) && cCount > 0);
         const hasPendingStart = item.children.some((c: any) => PENDING_START_LABELS.includes(c.label) && psCount > 0);
-        if (hasPending || hasBridgePending || hasBilling || hasUnread || hasReview || hasContact || hasPendingStart) {
+        const hasOutcomeReview = item.children.some(
+          (c: any) => OUTCOME_REVIEW_LABELS.includes(c.label) && orCount > 0,
+        );
+        if (
+          hasPending ||
+          hasBridgePending ||
+          hasBilling ||
+          hasUnread ||
+          hasReview ||
+          hasContact ||
+          hasPendingStart ||
+          hasOutcomeReview
+        ) {
           return {
             ...item,
             children: item.children.map((child: any) => {
@@ -2113,6 +2158,30 @@ const AppLayout: React.FC = () => {
                         size="small"
                         overflowCount={99}
                         style={{ boxShadow: '0 0 10px #F59E0B' }}
+                      />
+                    </span>
+                  ),
+                };
+              }
+              if (!child.children && OUTCOME_REVIEW_LABELS.includes(child.label) && orCount > 0) {
+                return {
+                  ...child,
+                  label: (
+                    <span
+                      onClick={(e: any) => {
+                        e.stopPropagation();
+                        clearNoticesByKey(child.key);
+                        navigate(child.key);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
+                      title={`${orCount} 张报「不成功」的单还没拍板 —— 去定责：谁的问题找谁`}
+                    >
+                      {child.label}
+                      <Badge
+                        count={orCount}
+                        size="small"
+                        overflowCount={99}
+                        style={{ boxShadow: '0 0 10px #FF4757' }}
                       />
                     </span>
                   ),

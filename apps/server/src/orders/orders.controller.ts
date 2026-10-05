@@ -328,12 +328,47 @@ export class OrdersController {
     return { code: 200, message: '已放给本店线下', data };
   }
 
-  /** 线上 / 桥接单的结果反馈：成功 / 不成功（带原因 + 备注）。 */
+  /**
+   * 订单结果反馈：成功 / 不成功（老板 2026-10-06：接单方自己点）。
+   * 「不成功」必须带截图（evidence: string[]，走 /upload/screenshot 上传后拿到的 URL）。
+   */
   @Post('orders/:id/outcome')
-  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async recordOutcome(@Param('id') id: string, @Req() req: any, @Body() body: any): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.recordOutcome(id, req.user, body || {});
     return { code: 200, message: '已记录结果', data };
+  }
+
+  /** 店长 / 老板拍板：这张「不成功」到底是谁的问题（谁的问题就去找谁）。 */
+  @Post('orders/:id/review')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async reviewOrderOutcome(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.reviewOrderOutcome(id, req.user, body || {});
+    return { code: 200, message: '已拍板', data };
+  }
+
+  /** 成交核对清单：waiting 待拍板的失败单 / recheck 抢了没结果的 / decided 已拍板。 */
+  @Get('orders/reviews')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async listOrderReviews(
+    @Req() req: any,
+    @Query('scope') scope?: string,
+  ): Promise<ApiResponse<unknown>> {
+    const wanted = scope === 'recheck' || scope === 'decided' ? scope : 'waiting';
+    const data = await this.ordersService.listOrderReviews(req.user, wanted);
+    return { code: 200, message: 'ok', data };
+  }
+
+  /** 成交核对条数（管理端菜单红点 / 每天提醒）。 */
+  @Get('orders/reviews/summary')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async orderReviewSummary(@Req() req: any): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.orderReviewSummary(req.user);
+    return { code: 200, message: 'ok', data };
   }
 
   /** 「催一下」：线上 / 桥接单一直没反馈结果时，发单的客服催接单工作室给个说法。 */

@@ -26,7 +26,8 @@ const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UploadController {
   @Post('upload/screenshot')
-  @Roles(UserRole.COMPANION)
+  // 陪玩自己传（报结果 / 报账都要），客服 / 店长 / 老板替接单方补录结果时也要传。
+  @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

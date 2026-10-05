@@ -1298,30 +1298,59 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * 线上 / 桥接单的结果反馈（老板 2026-09-29）：接单方（或替他代填的客服 / 店长）点
-   * 「成功 / 不成功」；不成功要选原因。没反馈 = 待反馈，不算成功也不算不成功，不计提成。
-   * 本店线下的单不用反馈：陪玩点「开始首单」就算成功（见 common/order-outcome.ts）。
+   * 订单结果反馈 ——「这单到底成没成」（老板 2026-09-29 定、2026-10-06 加成交核对）。
+   *
+   * **谁报**：接单方自己报（抢到这张单的陪玩 / 他的搭档）；客服、店长、老板可以替他补录。
+   * **报完怎么走**（老板 2026-10-06 原话：「接单方点成功那就推给发单者计入考核，
+   * 失败的推给发单者 + 店长，店长最终拍板这个到底是谁的原因、谁的问题，谁的问题就去找谁，
+   * 失败的还得粘贴上截图。成功的不用重点追查，重点追查失败的。」）：
+   *  - 「成功」→ 直接推给发单者、计入客服考核，不用店长拍板；
+   *  - 「不成功」→ **必须粘贴截图**（+ 原因 + 说明），同时推给发单者和店长，
+   *    进「成交核对」清单等店长拍板定责。
+   * 本店线下单点了「开始首单」就算成功、不用再报；抢了单一直没开始首单的，
+   * 接单方可以报「不成功」（添加失败 / 暂时不打 / 对价格不满意 …），一样要带截图。
    */
   async recordOutcome(
     orderId: string,
     user: any,
-    body: { outcome?: string; reason?: string; note?: string },
+    body: { outcome?: string; reason?: string; note?: string; evidence?: unknown },
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { companion: { select: { studioId: true, studio: { select: { id: true, type: true } } } } },
+      include: {
+        companion: {
+          select: {
+            id: true,
+            studioId: true,
+            studio: { select: { id: true, type: true, name: true } },
+            user: { select: { id: true, username: true, displayName: true } },
+          },
+        },
+        sessions: { select: { startedAt: true } },
+      },
     });
     if (!order) throw new NotFoundException('订单不存在');
-    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
-      throw new ForbiddenException('只有客服 / 店长 / 老板能记结果反馈');
-    }
-    if (user?.role !== 'OWNER' && user?.studioId) {
-      const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
-      if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+    const role = user?.role ?? '';
+    if (role === 'COMPANION') {
+      // 只有这张单的接单方（主陪 / 搭档本人）能报结果，别人不能替他报。
+      const mine =
+        !!user?.companionId &&
+        (order.companionId === user.companionId || order.coCompanionId === user.companionId);
+      if (!mine) throw new ForbiddenException('只有这张单的接单方能报结果');
+    } else {
+      if (!['OWNER', 'ADMIN', 'CS'].includes(role)) {
+        throw new ForbiddenException('只有接单方 / 客服 / 店长 / 老板能记结果反馈');
+      }
+      if (role !== 'OWNER' && user?.studioId) {
+        const visibleIds = await this.bridgeService.getVisibleStudioIds(user.studioId);
+        if (!visibleIds.includes(order.studioId)) throw new ForbiddenException('无权操作其他工作室的订单');
+      }
     }
     if (!order.companionId) throw new ForbiddenException('这张单还没人接，先等陪玩抢单');
-    if (orderChannelOf(order, order.studioId) === 'offline') {
-      throw new ForbiddenException('本店线下的单不用反馈：陪玩点了「开始首单」就算成功');
+    const channel = orderChannelOf(order, order.studioId);
+    const started = order.status === 'DONE' || (order.sessions || []).some((s: any) => !!s.startedAt);
+    if (channel === 'offline' && started) {
+      throw new BadRequestException('本店线下的单点了「开始首单」就算成功，不用再反馈');
     }
     const outcome =
       body.outcome === OrderOutcome.SUCCESS
@@ -1331,19 +1360,263 @@ export class OrdersService implements OnModuleInit {
           : null;
     if (!outcome) throw new BadRequestException('结果只能是「成功」或「不成功」');
     const reason = (body.reason || '').trim();
-    if (outcome === OrderOutcome.FAILED && !reason) throw new BadRequestException('不成功要选一个原因');
+    const evidence = (Array.isArray(body.evidence) ? body.evidence : [])
+      .map((u) => String(u ?? '').trim())
+      .filter((u) => !!u)
+      .slice(0, 12);
+    if (outcome === OrderOutcome.FAILED) {
+      if (!reason) throw new BadRequestException('不成功要选一个原因');
+      if (!evidence.length) {
+        throw new BadRequestException('报「不成功」要粘贴截图 —— 店长得凭这个定责（谁的问题找谁）');
+      }
+    }
+    const data: any = {
+      outcome,
+      outcomeReason: reason || null,
+      outcomeNote: (body.note || '').trim() || null,
+      outcomeByUserId: user?.id ?? null,
+      outcomeAt: new Date(),
+      outcomeEvidence: evidence.length ? evidence : null,
+      // 失败单进「待店长拍板」；成功单不用拍板（老板 2026-10-06）。
+      reviewStatus: outcome === OrderOutcome.FAILED ? 'WAITING' : null,
+      reviewResponsibility: null,
+      reviewNote: null,
+      reviewByUserId: null,
+      reviewAt: null,
+    };
+    const updated = await this.prisma.order.update({ where: { id: orderId }, data });
+    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    await this.notifyOutcomeReport(updated, {
+      channel,
+      companionName:
+        (order.companion as any)?.user?.displayName ||
+        (order.companion as any)?.user?.username ||
+        '接单方',
+    }).catch(() => null);
+    return updated;
+  }
+
+  /**
+   * 报完结果之后通知谁（老板 2026-10-06）：
+   *  - 成功 → 只推给发单者（这单算进他的考核，他得知道）；
+   *  - 不成功 → 推给发单者 **和店长 / 老板** —— 失败单才是要追的那一类。
+   */
+  private async notifyOutcomeReport(
+    order: any,
+    ctx: { channel: string; companionName: string },
+  ): Promise<void> {
+    const failed = order?.outcome === OrderOutcome.FAILED;
+    const code = order?.orderCode || order?.id || '';
+    const payload = {
+      orderId: order?.id ?? null,
+      orderCode: order?.orderCode ?? null,
+      gameName: order?.gameName ?? null,
+      outcome: order?.outcome ?? null,
+      reason: order?.outcomeReason ?? null,
+      note: order?.outcomeNote ?? null,
+      evidence: Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : [],
+      companionName: ctx.companionName,
+      channel: ctx.channel,
+      message: failed
+        ? `${ctx.companionName} 报了「不成功」（订单 ${code}${order?.outcomeReason ? '：' + order.outcomeReason : ''}）—— 已附截图，等店长拍板到底是谁的问题`
+        : `${ctx.companionName} 报了「成功」（订单 ${code}）—— 计入发单客服考核`,
+    };
+    const csUserId: string | null = order?.csUserId ?? null;
+    const event = failed ? 'order:outcome_failed' : 'order:outcome_success';
+    if (csUserId) this.wsGateway.notifyUser(csUserId, event, payload);
+    if (!failed) return;
+    const where: any = { isAuthorized: true, role: { in: ['OWNER', 'ADMIN'] } };
+    if (order?.studioId) where.OR = [{ studioId: order.studioId }, { role: 'OWNER', studioId: null }];
+    else where.role = 'OWNER';
+    const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
+    for (const reviewer of (Array.isArray(found) ? found : []) as any[]) {
+      if (csUserId && reviewer.id === csUserId) continue;
+      this.wsGateway.notifyUser(reviewer.id, event, payload);
+    }
+  }
+
+  /** 店长拍板能选的责任方：接单方 / 发单客服 / 客户 / 无人担责。 */
+  static readonly REVIEW_RESPONSIBILITIES = ['COMPANION', 'CS', 'CUSTOMER', 'NONE'] as const;
+
+  /**
+   * 店长 / 老板拍板（老板 2026-10-06）：「店长最终拍板这个到底是谁的原因，到底谁的问题，
+   * 谁的问题就去找谁。」拍完给接单方 + 发单者各推一条，两边都知道这事定了、找谁。
+   */
+  async reviewOrderOutcome(orderId: string, user: any, body: { responsibility?: string; note?: string }) {
+    if (!['OWNER', 'ADMIN'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有店长 / 老板能拍板');
+    }
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        companion: {
+          select: {
+            id: true,
+            user: { select: { id: true, username: true, displayName: true } },
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (user?.role !== 'OWNER' && user?.studioId && order.studioId !== user.studioId) {
+      throw new ForbiddenException('无权拍板其他工作室的订单');
+    }
+    if (order.outcome !== OrderOutcome.FAILED) {
+      throw new BadRequestException('只有报「不成功」的单才需要拍板');
+    }
+    const responsibility = String(body.responsibility || '').trim().toUpperCase();
+    if (!(OrdersService.REVIEW_RESPONSIBILITIES as readonly string[]).includes(responsibility)) {
+      throw new BadRequestException('请选一个责任方：接单方 / 发单客服 / 客户 / 无人担责');
+    }
+    const note = (body.note || '').trim();
+    if (!note) throw new BadRequestException('要写清楚结论：到底谁的问题、后面怎么处理');
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
-        outcome,
-        outcomeReason: reason || null,
-        outcomeNote: (body.note || '').trim() || null,
-        outcomeByUserId: user?.id ?? null,
-        outcomeAt: new Date(),
+        reviewStatus: 'DECIDED',
+        reviewResponsibility: responsibility,
+        reviewNote: note,
+        reviewByUserId: user?.id ?? null,
+        reviewAt: new Date(),
       },
     });
-    this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
+    const label =
+      responsibility === 'COMPANION'
+        ? '接单方的问题'
+        : responsibility === 'CS'
+          ? '发单客服的问题'
+          : responsibility === 'CUSTOMER'
+            ? '客户的问题'
+            : '谁都没问题（不可抗力）';
+    const payload = {
+      orderId: updated.id,
+      orderCode: updated.orderCode ?? null,
+      responsibility,
+      note,
+      decidedBy: user?.displayName || user?.username || '店长',
+      message: `订单 ${updated.orderCode || updated.id} 的「不成功」已拍板：${label}｜结论：${note}`,
+    };
+    if (updated.csUserId) this.wsGateway.notifyUser(updated.csUserId, 'order:outcome_decided', payload);
+    const companionUserId = (order.companion as any)?.user?.id ?? null;
+    if (companionUserId) this.wsGateway.notifyUser(companionUserId, 'order:outcome_decided', payload);
     return updated;
+  }
+
+  /** 核对范围：老板看全部，其他人看本店 + 桥接工作室（和补单申请同一套口径）。 */
+  private async reviewScopeIds(user: any): Promise<string[] | null> {
+    if (user?.role === 'OWNER' || !user?.studioId) return null;
+    return this.bridgeService.getVisibleStudioIds(user.studioId);
+  }
+
+  /** 抢走多久还没结果，就该进「待核对」清单（30 分钟：够打一局，又不至于全堆在清单里）。 */
+  private static readonly RECHECK_AFTER_MINUTES = 30;
+
+  /**
+   * 「成交核对」清单（老板 2026-10-06）。管理端每天要核的就这三类：
+   *  - waiting：接单方报了「不成功」、还没拍板的（**重点追这类**，带截图，店长来定责）；
+   *  - recheck：抢走了却一直没结果的（本店线下没点「开始首单」、桥接 / 线上没反馈）；
+   *  - decided：最近拍过板的（留痕，可回看）。
+   */
+  async listOrderReviews(user: any, scope: 'waiting' | 'recheck' | 'decided' = 'waiting') {
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有客服 / 店长 / 老板能看成交核对');
+    }
+    const scopeIds = await this.reviewScopeIds(user);
+    const where: any = { companionId: { not: null }, refundedAt: null, status: { not: 'CANCELLED' } };
+    if (scopeIds) where.studioId = { in: scopeIds };
+    if (scope === 'waiting') {
+      where.outcome = OrderOutcome.FAILED;
+      // 注意：`not` 在 SQL 里会把 NULL 一起排掉，而这批字段是新加的 ——
+      // 之前报过「不成功」的老单 reviewStatus 是 NULL，也必须留在清单里等拍板。
+      where.OR = [{ reviewStatus: null }, { reviewStatus: { not: 'DECIDED' } }];
+    } else if (scope === 'decided') {
+      where.reviewStatus = 'DECIDED';
+    } else {
+      where.outcome = null;
+      where.status = { not: 'DONE' };
+      // 只看最近这两周抢走的：更早的属于历史烂账，堆上来只会把真正要追的淹掉。
+      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      where.OR = [{ grabbedAt: { gte: since } }, { grabbedAt: null, createdAt: { gte: since } }];
+    }
+    const rows = await this.prisma.order.findMany({
+      where,
+      include: {
+        companion: {
+          select: {
+            id: true,
+            studioId: true,
+            studio: { select: { id: true, name: true, type: true } },
+            user: { select: { username: true, displayName: true } },
+          },
+        },
+        coCompanion: { select: { user: { select: { username: true, displayName: true } } } },
+        csUser: { select: { username: true, displayName: true } },
+        customer: { select: { id: true, wechatId: true, customerCode: true, platform: true } },
+        sessions: { select: { startedAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+    const cutoff = Date.now() - OrdersService.RECHECK_AFTER_MINUTES * 60_000;
+    const list = rows
+      .map((o) => {
+        const channel = orderChannelOf(o as any, o.studioId);
+        const started =
+          o.status === 'DONE' || (o.sessions || []).some((s: any) => !!s.startedAt);
+        const grabbedAt = (o.grabbedAt || o.createdAt) as any;
+        return {
+          id: o.id,
+          orderCode: o.orderCode,
+          type: o.type,
+          gameName: o.gameName,
+          status: o.status,
+          amount: o.amount,
+          coAmount: o.coAmount,
+          duration: o.duration,
+          customFields: o.customFields,
+          channel,
+          started,
+          outcome: o.outcome,
+          outcomeReason: o.outcomeReason,
+          outcomeNote: o.outcomeNote,
+          outcomeAt: o.outcomeAt,
+          evidence: Array.isArray(o.outcomeEvidence) ? o.outcomeEvidence : [],
+          reviewStatus: o.reviewStatus,
+          reviewResponsibility: o.reviewResponsibility,
+          reviewNote: o.reviewNote,
+          reviewAt: o.reviewAt,
+          csUserId: o.csUserId,
+          csUserName: (o.csUser as any)?.displayName || (o.csUser as any)?.username || null,
+          companionId: o.companionId,
+          companionName:
+            (o.companion as any)?.user?.displayName || (o.companion as any)?.user?.username || null,
+          companionStudioName: (o.companion as any)?.studio?.name ?? null,
+          coCompanionName:
+            (o.coCompanion as any)?.user?.displayName || (o.coCompanion as any)?.user?.username || null,
+          customerId: o.customerId,
+          customerWechat: (o.customer as any)?.wechatId ?? null,
+          customerCode: (o.customer as any)?.customerCode ?? null,
+          grabbedAt,
+          createdAt: o.createdAt,
+        };
+      })
+      // 「待核对」只留抢走 30 分钟以上、还一直没结果的 —— 刚抢走的不算问题单。
+      .filter((o) =>
+        scope === 'recheck' ? !o.started && new Date(o.grabbedAt as any).getTime() <= cutoff : true,
+      );
+    return list;
+  }
+
+  /** 管理端菜单 / 首页红点要的条数（老板 2026-10-06：每天点名管理端去核对）。 */
+  async orderReviewSummary(user: any) {
+    if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
+      return { waiting: 0, recheck: 0, decided: 0 };
+    }
+    const [waiting, recheck] = await Promise.all([
+      this.listOrderReviews(user, 'waiting').catch(() => []),
+      this.listOrderReviews(user, 'recheck').catch(() => []),
+    ]);
+    return { waiting: waiting.length, recheck: recheck.length };
   }
 
   /**

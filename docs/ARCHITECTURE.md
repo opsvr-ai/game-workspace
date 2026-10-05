@@ -193,7 +193,19 @@
   （首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里，并给按月汇总；
   这页可按月 + 按客服（`csUserId`，CS 角色服务端强制成自己）筛选，前端一键导出 CSV（逐单明细 + 汇总）；
   「一键导出全员」把每个客服一份月表打成一个 zip（`utils/escalated-pool-csv.ts` 拼表 + `utils/zip.ts` 手写 ZIP，
-  不引第三方库），表内容与单人导出同源
+   不引第三方库），表内容与单人导出同源
+- **成交核对：接单方报结果 + 店长拍板定责**（2026-10-06，服务端 + 网页 `v967`）: 老板「客服发起 + 接单方确认，
+  这个需要接单方进行发起」—— 线上 / 桥接单的结果由**接单方本人**在 `POST /api/orders/:id/outcome` 自己点
+  （`COMPANION` 只能报自己名下 / 搭档名下的单，CS / ADMIN / OWNER 可代录）。**报成功** = 直接推给发单客服计入考核，
+  不必店长拍板；**报失败** = **必须粘贴 ≥1 张截图**（存 `Order.outcomeEvidence`，走 `/upload/screenshot`）
+  + 原因 + 说明，推给发单客服 **和** 店长，单上写 `reviewStatus=WAITING` 进「待拍板」。店长 / 老板在「成交核对」页
+  `POST /api/orders/:id/review` 拍板定责（`reviewResponsibility` = 接单方 / 发单客服 / 客户 / 无人担责，
+  必填结论 `reviewNote`，置 `reviewStatus=DECIDED`），结论同时推给接单方和发单客服 —— **谁的问题就去找谁**。
+  成功的不用重点追查，重点追查失败的（如客服发的机密双本来 35+35 可赚，接单方找理由说没打成，店长 + 发单者要去追究）。
+  页面 `pages/admin/OrderReviewPage.tsx`（路由 `/owner|admin|cs/order-review`，CS 只读不能拍板）三栏 Tab：
+  待拍板 / 抢了没结果 / 已拍板，顶部统计卡 + 拍板弹窗（截图墙 + 责任方 + 结论）；管理端「订单管理」菜单挂
+  **待拍板条数**红数字（不是「看过就消」的角标）。**钱的口径完全不动**（仍只有报成功 / 本店线下点「开始首单」才算提成），
+  历史单不追溯、不倒扣。
 
 ---
 
@@ -872,6 +884,11 @@ sequenceDiagram
   空 = 待反馈，`FAILED` 不计提成且带 `outcomeReason`（原因字典 `options.outcome_fail_reasons`）；
   退款 / 取消一律不算。提成（`commission.service`）、工资达标（`payroll.service`）、今日看板三处调同一套，
   不允许再各写一份（这个项目已经在「两套口径」上翻过车）
+- **成交核对只追记录、不改钱**（老板 2026-10-06）：`Order.reviewStatus / reviewResponsibility / reviewNote / reviewAt`
+  是给店长定责用的附加字段，`successOrderWhere()` 与 `commission.service` 一律不看它 —— 失败单进「待拍板」
+  不影响上面那套成功口径，也不追溯、不倒扣。「抢了没结果」栏（`listOrderReviews(scope=recheck)`）= `outcome` 空 +
+  没点「开始首单」+ 抢单满 `OrdersService.RECHECK_AFTER_MINUTES`（30 分钟）+ 只看最近 14 天，用来捞
+  「派出去没人报结果」的漏网单。
 - **线上俱乐部提成口径**（老板 2026-09-30）：`commission.cs_online_mode` = `RATE`（默认，流水 ×
   `commission.cs_online_rate_percent`，2026-09-29 定的口径）/ `PER_ORDER`（成功单数 ×
   `commission.cs_online_per_order_yuan`）。判定在 `onlineModeOf`，算钱只走 `CommissionService.onlineCommissionOf`，
@@ -924,5 +941,9 @@ sequenceDiagram
   事务里 `Order.companionId`/`grabbedAt` 换成新人 + 写 `OrderTransfer` 留痕 + `Customer.companionId` 跟着转 +
   `contactStatus`/`screenshotUrl` 清零；转出方的 `GET /orders?scope=taken` 仍返回该单（带 `transfers`）；
   已经开始服务（有 `startedAt` 会话）的单拒绝，提示走客服「归属调整」
-- `POST /api/orders/:id/outcome` — 线上 / 桥接单的结果反馈（`SUCCESS`/`FAILED`+原因+备注，CS/ADMIN/OWNER）
+- `POST /api/orders/:id/outcome` — 线上 / 桥接单的结果反馈（**接单方 COMPANION 自己点**，CS/ADMIN/OWNER 可代录；`SUCCESS`/`FAILED`+原因+备注+`evidence` 截图，报 `FAILED` 必须带截图；线下已点开始首单的单 400 不用再反馈）
+- `POST /api/orders/:id/review` — 店长 / 老板拍板失败单责任（**仅 ADMIN/OWNER**）：`{ responsibility: 'COMPANION'|'CS'|'CUSTOMER'|'NONE', note }`，结论推给接单方 + 发单客服
+- `GET /api/orders/reviews?scope=waiting|recheck|decided` — 成交核对清单（待拍板 / 抢了没结果 / 已拍板；OWNER 全量，其余按可见工作室）
+- `GET /api/orders/reviews/summary` — 成交核对条数（管理端菜单红数字 `{ waiting, recheck, decided }`）
+- `POST /api/upload/screenshot` — 截图上传（`COMPANION`/`CS`/`ADMIN`/`OWNER`，失败结果证据 / 客服代录用）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

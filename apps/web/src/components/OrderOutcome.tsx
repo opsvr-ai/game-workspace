@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useEffect, useState } from 'react';
-import { Modal, Radio, Select, Input, Typography, message, Space } from 'antd';
+import { Modal, Radio, Select, Input, Typography, message, Space, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
 import { configApi } from '../api/config';
+import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';
 
 const { Text } = Typography;
@@ -136,14 +137,39 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
   const [outcome, setOutcome] = useState<'SUCCESS' | 'FAILED'>('SUCCESS');
   const [reason, setReason] = useState<string | undefined>();
   const [note, setNote] = useState('');
+  // 报「不成功」必须粘贴截图（老板 2026-10-06）：店长要凭这个定责，谁的问题找谁。
+  const [evidence, setEvidence] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const channel = channelProp || orderChannelOf(order);
+  // 本店线下单还没点「开始首单」= 这单没打成：只能报「不成功」，走截图 + 店长定责。
+  const offlineNotStarted = channel === 'offline';
 
   useEffect(() => {
     if (!open) return;
-    setOutcome(order?.outcome === 'FAILED' ? 'FAILED' : 'SUCCESS');
+    setOutcome(order?.outcome === 'FAILED' || offlineNotStarted ? 'FAILED' : 'SUCCESS');
     setReason(order?.outcomeReason || undefined);
     setNote(order?.outcomeNote || '');
-  }, [open, order]);
+    setEvidence(Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : []);
+  }, [open, order, offlineNotStarted]);
+
+  const uploadEvidence = async (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    setUploading(true);
+    try {
+      const { data } = await http.post('/upload/screenshot', fd);
+      const url = data?.data?.url || data?.url || '';
+      if (!url) throw new Error('no url');
+      setEvidence((prev) => [...prev, url].slice(0, 6));
+      message.success('截图已上传');
+    } catch {
+      message.error('截图上传失败，再传一次');
+    } finally {
+      setUploading(false);
+    }
+    return false;
+  };
 
   const submit = async () => {
     if (!order?.id) return;
@@ -151,10 +177,23 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
       message.warning('请选一个不成功的原因');
       return;
     }
+    if (outcome === 'FAILED' && !evidence.length) {
+      message.warning('报「不成功」要粘贴截图（店长得凭这个定责）');
+      return;
+    }
     setSaving(true);
     try {
-      await ordersApi.recordOutcome(order.id, { outcome, reason, note: note.trim() || undefined });
-      message.success(outcome === 'SUCCESS' ? '已记为成功' : '已记为不成功');
+      await ordersApi.recordOutcome(order.id, {
+        outcome,
+        reason,
+        note: note.trim() || undefined,
+        evidence: outcome === 'FAILED' ? evidence : undefined,
+      });
+      message.success(
+        outcome === 'SUCCESS'
+          ? '已记为成功，已推给发单者计入考核'
+          : '已记为不成功：已连截图推给发单者 + 店长，等店长拍板定责',
+      );
       onClose();
       onSaved?.();
     } catch (e: any) {
@@ -164,7 +203,6 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
     }
   };
 
-  const channel = channelProp || orderChannelOf(order);
   return (
     <Modal
       title="这张单成不成？"
@@ -177,8 +215,9 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
       destroyOnClose
     >
       <Text type="secondary" style={{ fontSize: 12 }}>
-        {channel === 'online' ? '线上俱乐部' : '桥接工作室'}接的单：只有反馈「成功」才算客服提成，
-        不成功不计提成、也不扣钱，但会留记录（谁、哪单、什么原因）。
+        {offlineNotStarted
+          ? '这张单还没点「开始首单」——点了才算成功。没打成（添加失败 / 客户没同意 / 暂时不打 / 价格或单双陪谈不拢…）就报「不成功」，必须粘贴截图：单子会同时推给发单客服和店长，店长拍板到底是谁的问题（谁的问题找谁）。'
+          : `${channel === 'online' ? '线上俱乐部' : '桥接工作室'}接的单：报「成功」直接推给发单者、计入考核；报「不成功」要粘贴截图，同时推给发单者 + 店长，由店长拍板定责。成功的不用重点追查，失败的重点追。`}
       </Text>
       <div style={{ marginTop: 14 }}>
         <Text strong>结果</Text>
@@ -188,8 +227,9 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
             onChange={(e) => setOutcome(e.target.value)}
             optionType="button"
             buttonStyle="solid"
+            disabled={offlineNotStarted}
           >
-            <Radio.Button value="SUCCESS">成功</Radio.Button>
+            {!offlineNotStarted && <Radio.Button value="SUCCESS">成功</Radio.Button>}
             <Radio.Button value="FAILED">不成功</Radio.Button>
           </Radio.Group>
         </div>
@@ -204,6 +244,40 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
             onChange={(v) => setReason(v)}
             options={reasons.map((r) => ({ label: r, value: r }))}
           />
+          <Text strong style={{ display: 'block', marginTop: 14 }}>
+            截图（必传，至少 1 张）
+          </Text>
+          <div style={{ marginTop: 8 }}>
+            {evidence.map((url) => (
+              <div
+                key={url}
+                style={{ display: 'inline-flex', alignItems: 'center', marginRight: 8, marginBottom: 8 }}
+              >
+                <img
+                  src={url}
+                  alt="失败凭据"
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  onClick={() => window.open(url, '_blank')}
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  danger
+                  onClick={() => setEvidence((prev) => prev.filter((u) => u !== url))}
+                >
+                  删
+                </Button>
+              </div>
+            ))}
+            <Upload beforeUpload={uploadEvidence} showUploadList={false} accept="image/*" disabled={uploading}>
+              <Button size="small" loading={uploading}>
+                上传截图
+              </Button>
+            </Upload>
+          </div>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            截图会一起推给发单客服和店长，店长凭它定责（到底是谁的问题、谁的问题找谁）。
+          </Text>
         </div>
       )}
       <div style={{ marginTop: 14 }}>

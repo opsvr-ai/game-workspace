@@ -97,6 +97,7 @@ import ExpenseReviewPage from './pages/finance/ExpenseReviewPage';
 import BattleScreenshotsPage from './pages/BattleScreenshotsPage';
 import BattleScreenshotReviewPage from './pages/BattleScreenshotReviewPage';
 import ContentCheckPage from './pages/ContentCheckPage';
+import OrderReviewPage from './pages/admin/OrderReviewPage';
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -332,6 +333,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'owner/order-review',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrderReviewPage />
           </Suspense>
         ),
       },
@@ -582,6 +591,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'admin/order-review',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrderReviewPage />
+          </Suspense>
+        ),
+      },
+      {
         path: 'admin/blacklist',
         element: (
           <Suspense fallback={<SuspenseFallback />}>
@@ -667,6 +684,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrdersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'cs/order-review',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <OrderReviewPage />
           </Suspense>
         ),
       },

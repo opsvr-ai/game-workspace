@@ -40,6 +40,13 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **成交核对：接单方报结果 + 店长拍板定责（2026-10-06，服务端 + 网页 `v967`）:** 老板「客服发起 + 接单方确认 ——
+  这个需要接单方进行发起」。线上 / 桥接单的结果改由**接单方自己**点：报**成功**直接推给发单客服计入考核；
+  报**失败必须粘贴 ≥1 张截图**，推给发单客服 **+** 店长，进「待拍板」，由店长 / 老板**拍板定责**
+  （接单方 / 发单客服 / 客户 / 无人担责 + 必填结论，谁的问题去找谁），结论同时推给双方。成功的不用重点追查，
+  重点追查失败的。管理端 / 客服端「订单管理」下新增「成交核对」页（`/owner|admin|cs/order-review`，CS 只读）：
+  三栏「待拍板 / 抢了没结果 / 已拍板」+ 顶部统计，菜单挂**待拍板条数**红数字。
+  **钱的口径没变**（仍只有报成功 / 本店线下点「开始首单」才算提成），历史单不追溯、不倒扣。
 
 - **陪玩「不点结束 = 不算数」提示 + 到点提醒每 30 分钟重复（2026-10-05，服务端 + 网页 `v948`）:** 陪玩首页看板最上面一条橙色提示 +
   陪玩端「评分说明」弹窗顶部同口径提示，都说清「不点结束这一单不计流水、不算首单成交 / 续单 / 复购，分数和名额都会少」；
@@ -1009,6 +1016,7 @@ chunlv-esports/
 │   │       ├── pages/
 │   │       │   ├── LoginPage.tsx
 │   │       │   ├── ContentCheckPage.tsx # 内容查重 + 违禁词检测
+│   │       │   ├── admin/OrderReviewPage.tsx # 成交核对（待拍板 / 抢了没结果 / 已拍板）
 │   │       │   ├── owner/           # Owner pages (5 pages)
 │   │       │   │   ├── AuthorizationsPage.tsx
 │   │       │   │   ├── CustomersPage.tsx
@@ -1232,7 +1240,10 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/release` | JWT | CS, ADMIN, OWNER | Return a claimed order to the pool and mark it urgent. Body: `{ urgency }`. |
 | `POST` | `/api/orders/:id/release-to-offline` | JWT | CS, ADMIN, OWNER | 「线上→线下流转」（`poolScope=ONLINE_FIRST`）的单，客服 / 店长点一下提前放给本店线下陪玩；不点也会在 `pool.online_first_release_minutes` 后自动放行。 |
 | `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。2026-10-03 起**只发出申请**（`OrderTransferRequest`，TTL 30 分钟），**被转让方的接单记录里会先出现这张单**、行上带 `pendingTransferForMe`，他在那一行点「接手」才真正换手（顶栏 🔁 铃铛也留一份，不再自动弹窗）；转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
-| `POST` | `/api/orders/:id/outcome` | JWT | CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note? }`；报「不成功」必须带原因，本店线下的单调这个会 403（线下点「开始首单」自动算成功）。 |
+| `POST` | `/api/orders/:id/outcome` | JWT | COMPANION, CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈，**接单方本人自己点**（CS / ADMIN / OWNER 可代录）。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note?, evidence?: string[] }`；报「不成功」**必须带 ≥1 张截图**（`evidence` 走 `/api/upload/screenshot`），进「待拍板」；线下已点「开始首单」的单 400（不用再反馈）。 |
+| `POST` | `/api/orders/:id/review` | JWT | ADMIN, OWNER | 店长 / 老板**拍板定责**：这张「不成功」到底是谁的问题。Body: `{ responsibility: 'COMPANION'\|'CS'\|'CUSTOMER'\|'NONE', note }`（结论必填），置 `reviewStatus=DECIDED`，结论推给接单方 + 发单客服。 |
+| `GET` | `/api/orders/reviews` | JWT | CS, ADMIN, OWNER | 成交核对清单。Query: `?scope=waiting`（待拍板，默认）\|`recheck`（抢了没结果）\|`decided`（已拍板）；OWNER 全量，其余按可见工作室。 |
+| `GET` | `/api/orders/reviews/summary` | JWT | CS, ADMIN, OWNER | 成交核对条数 `{ waiting, recheck, decided }`（管理端菜单红数字）。 |
 | `POST` | `/api/orders/:id/chase-feedback` | JWT | CS, ADMIN, OWNER | 「催一下」：线上 / 桥接单还挂着「待反馈」时催接单工作室给个说法。单上记 `feedbackChasedAt` / `feedbackChaseCount`，并把 `order:feedback_chase` 推给接单工作室（客服 / 店长右下角提醒）。已反馈过 / 没人接 / 本店线下单会 403。 |
 | `GET` | `/api/orders/escalated-pool` | JWT | CS, ADMIN, OWNER | 「线下→线上流转」的单被桥接工作室 / 线上俱乐部接走的统计 + 标注。Query: `?month=YYYY-MM`（默认本月）、`?csUserId=`（**CS 角色强制为自己**，店长 / 老板可看任意客服或全部）。每条带**客服 `csUserId`** / 去向 / 结算模式（首单不结 / 抽成）/ 机密·绝密 / 单量 / 应收 / 应返还 / 工作室净得 / 钱在哪里 / 结果，并返回按月汇总；前端这页可**按客服筛选 + 一键导出 CSV**（逐单明细 + 汇总）。 |
 | `POST` | `/api/orders/:id/redispatch` | JWT | CS, ADMIN, OWNER | 重新派到抢单池。Body 可带 `{ poolScope: 'OFFLINE_FIRST'\|'ONLINE_FIRST' }` 重选入池方式（不传沿用原方式），并重置发单时间、清掉「流转失败 / 已处理 / 已放给线下」标记。 |
@@ -1453,7 +1464,7 @@ Every endpoint returns a standard JSON envelope:
 
 | Method | Path | Auth | Roles | Description |
 |--------|------|------|-------|-------------|
-| `POST` | `/api/upload/screenshot` | JWT | COMPANION | Upload a billing screenshot. Multipart form: `file` (JPG/PNG/WebP, max 5 MB). |
+| `POST` | `/api/upload/screenshot` | JWT | COMPANION, CS, ADMIN, OWNER | Upload a screenshot (billing / 失败结果证据 / 客服代录). Multipart form: `file` (JPG/PNG/WebP, max 5 MB). |
 
 ### Agent (客户端装机 / 更新)
 

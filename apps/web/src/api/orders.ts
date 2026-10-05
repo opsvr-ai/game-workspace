@@ -49,9 +49,17 @@ export const ordersApi = {
   release: (id: string, urgency?: string) => http.post(`/orders/${id}/release`, { urgency }),
   /** 「线上→线下流转」的单：放给本店线下陪玩（老板 2026-10-01） */
   releaseToOffline: (id: string) => http.post(`/orders/${id}/release-to-offline`),
-  /** 线上 / 桥接单的结果反馈：成功 / 不成功（不成功要带原因） */
-  recordOutcome: (id: string, data: { outcome: 'SUCCESS' | 'FAILED'; reason?: string; note?: string }) =>
+  /** 线上 / 桥接单的结果反馈：成功 / 不成功（老板 2026-10-06：接单方自己报，不成功必须带截图） */
+  recordOutcome: (id: string, data: { outcome: 'SUCCESS' | 'FAILED'; reason?: string; note?: string; evidence?: string[] }) =>
     http.post(`/orders/${id}/outcome`, data),
+  /** 成交核对：店长 / 老板拍板这张「不成功」到底是谁的问题（谁的问题找谁） */
+  reviewOutcome: (id: string, data: { responsibility: 'COMPANION' | 'CS' | 'CUSTOMER' | 'NONE'; note: string }) =>
+    http.post(`/orders/${id}/review`, data),
+  /** 成交核对清单：waiting 待拍板失败单 / recheck 抢了没结果的 / decided 已拍板 */
+  orderReviews: (scope: 'waiting' | 'recheck' | 'decided') =>
+    http.get('/orders/reviews', { params: { scope } }),
+  /** 成交核对条数（菜单红点 / 每天提醒） */
+  orderReviewSummary: () => http.get('/orders/reviews/summary'),
   /** 「催一下」：线上 / 桥接单一直没反馈结果时，催接单工作室给个说法（老板 2026-09-30） */
   chaseFeedback: (id: string) => http.post(`/orders/${id}/chase-feedback`),
   getSessions: (id: string) => http.get(`/orders/${id}/sessions`),
