@@ -17,6 +17,8 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   unlockScreen: (pass) => import_electron.ipcRenderer.invoke("screen:unlock", pass),
   getServerUrl: () => import_electron.ipcRenderer.invoke("config:getServerUrl"),
   getAppVersion: () => import_electron.ipcRenderer.invoke("app:getVersion"),
+  /** 打开/聚焦一个「独立的聊天窗口」（一个联系人一个系统窗口，能最小化到任务栏 —— 老板 2026-10-05）。 */
+  openChatWindow: (payload) => import_electron.ipcRenderer.invoke("chat:open-window", payload),
   openFolder: (path) => import_electron.ipcRenderer.invoke("folder:open", path),
   testWatchdog: () => import_electron.ipcRenderer.invoke("watchdog:test"),
   collectProcesses: (token) => import_electron.ipcRenderer.invoke("processes:collect", token),
