@@ -5,7 +5,7 @@ import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined, MinusOutl
 import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
-import { ordersPathWithOrder, parseOrderInfo } from '../../utils/chatOrder';
+import { ordersPathWithOrder, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
 
 const { Text } = Typography;
 
@@ -48,6 +48,26 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
   // 聊天框顶上那行「这一单」（老板 2026-09-30）：带着订单 id 就能点，点一下跳到订单管理
   // 并把这一单的详情弹窗打开；老会话只存了一句文本，照旧只显示、不给点。
   const orderRef = parseOrderInfo(orderInfo);
+  // 「这一单」只在顶上挂 10 分钟，到点自己消失（老板 2026-10-05：「从沟通点聊天订单消息
+  // 只显示 10 分钟，10 分钟后自动消失」）。老会话（没有时间戳）直接不显示。
+  // 到点要自己消失就得挂个定时器重画一次，否则这一页不重渲染的话那行字会一直留在那儿。
+  const orderAt = orderRef?.at;
+  const [orderExpired, setOrderExpired] = React.useState(() => !orderInfoVisible(orderInfo));
+  React.useEffect(() => {
+    if (!orderAt) {
+      setOrderExpired(true);
+      return;
+    }
+    const left = orderAt + ORDER_INFO_TTL_MS - Date.now();
+    if (left <= 0) {
+      setOrderExpired(true);
+      return;
+    }
+    setOrderExpired(false);
+    const t = setTimeout(() => setOrderExpired(true), left);
+    return () => clearTimeout(t);
+  }, [orderInfo, orderAt]);
+  const showOrder = !!orderRef && !orderExpired;
 
   return (
     <div
@@ -86,7 +106,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
             </Text>
             <Tag style={{ fontSize: 11, padding: '0 6px', lineHeight: '18px' }}>{ROLE_LABELS[role] || role}</Tag>
           </Space>
-        {orderRef &&
+        {showOrder && orderRef &&
           (orderRef.orderId ? (
             <span
               role="button"

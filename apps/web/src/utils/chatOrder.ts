@@ -19,13 +19,25 @@ export interface ChatOrderInfo {
   text: string;
   /** 点这行字要跳哪一单；没有（老会话 / 不带订单的会话）就不给点 */
   orderId?: string;
+  /** 什么时候点的「沟通」（毫秒时间戳）。老会话没有这个值 → 当作已过期，不再显示。 */
+  at?: number;
 }
+
+/**
+ * 聊天框顶上那行「这一单」只挂这么久。
+ *
+ * 老板 2026-10-05：「从沟通点聊天订单消息只显示 10 分钟，10 分钟后自动消失，
+ * 管理端要是想确定哪个订单，可以让陪玩再次点对应订单的沟通」。
+ * 这样也就不怕聊天框顶上永远挂着一单不知道多久以前的（点人员列表进来时看到的常是这种）。
+ */
+export const ORDER_INFO_TTL_MS = 10 * 60 * 1000;
 
 /** 把「显示文本 + 订单 id」编成聊天室里存的那一个字符串。 */
 export function encodeOrderInfo(text?: string | null, orderId?: string | null): string | undefined {
   const shown = (text || '').trim();
   if (!orderId) return shown || undefined;
-  return JSON.stringify({ t: shown, o: orderId });
+  // 带上「点沟通」的时间：聊天框顶上那行字 10 分钟后自己消失。
+  return JSON.stringify({ t: shown, o: orderId, at: Date.now() });
 }
 
 /** 反过来解：老会话（纯文本）原样返回，只是不给点。 */
@@ -37,13 +49,26 @@ export function parseOrderInfo(raw?: string | null): ChatOrderInfo | null {
       if (parsed && typeof parsed === 'object') {
         const text = typeof parsed.t === 'string' ? parsed.t : '';
         const orderId = typeof parsed.o === 'string' ? parsed.o : undefined;
-        if (text || orderId) return { text, orderId };
+        const at = typeof parsed.at === 'number' ? parsed.at : undefined;
+        if (text || orderId) return { text, orderId, at };
       }
     } catch {
       /* 不是 JSON 就当纯文本显示 */
     }
   }
   return { text: raw };
+}
+
+/**
+ * 这行「这一单」现在还要不要显示：
+ *   ① 得是「点沟通」写进去的（带时间戳）；
+ *   ② 距那次点沟通不超过 10 分钟。
+ * 老数据（纯文本 / 没有时间戳）一律当过期 —— 免得顶上永远挂着一单不知多久以前的。
+ */
+export function orderInfoVisible(raw?: string | null, now = Date.now()): boolean {
+  const info = parseOrderInfo(raw);
+  if (!info || !info.at) return false;
+  return now - info.at < ORDER_INFO_TTL_MS;
 }
 
 /** 订单在聊天框顶上那行字：单号 · 游戏 · 金额 · 时长（单号就是老板嘴里「250 单」那个号，放最前面）。 */
