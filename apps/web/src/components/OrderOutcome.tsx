@@ -5,6 +5,7 @@ import { ordersApi } from '../api/orders';
 import { configApi } from '../api/config';
 import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';
+import PasteImageBox from './PasteImageBox';
 
 const { Text } = Typography;
 
@@ -153,21 +154,33 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
     setEvidence(Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : []);
   }, [open, order, offlineNotStarted]);
 
-  const uploadEvidence = async (file: File) => {
-    const fd = new FormData();
-    fd.append('file', file);
+  /** 一次收多张（Ctrl+V 粘贴 / 拖进来 / 多选文件都走这里），最多留 6 张。 */
+  const uploadEvidenceFiles = async (files: File[]) => {
+    const list = (files || []).filter(Boolean).slice(0, 6);
+    if (!list.length) return;
     setUploading(true);
     try {
-      const { data } = await http.post('/upload/screenshot', fd);
-      const url = data?.data?.url || data?.url || '';
-      if (!url) throw new Error('no url');
-      setEvidence((prev) => [...prev, url].slice(0, 6));
-      message.success('截图已上传');
+      const urls: string[] = [];
+      for (const file of list) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await http.post('/upload/screenshot', fd);
+        const url = data?.data?.url || data?.url || '';
+        if (url) urls.push(url);
+      }
+      if (!urls.length) throw new Error('no url');
+      setEvidence((prev) => [...prev, ...urls].slice(0, 6));
+      message.success(urls.length > 1 ? `已上传 ${urls.length} 张截图` : '截图已上传');
     } catch {
       message.error('截图上传失败，再传一次');
     } finally {
       setUploading(false);
     }
+  };
+
+  /** antd Upload 的 beforeUpload：收单张，返回 false 表示自己传、不走它内置的请求。 */
+  const beforeUploadEvidence = (file: File) => {
+    void uploadEvidenceFiles([file]);
     return false;
   };
 
@@ -247,7 +260,16 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
           <Text strong style={{ display: 'block', marginTop: 14 }}>
             截图（必传，至少 1 张）
           </Text>
-          <div style={{ marginTop: 8 }}>
+          {/* 老板 2026-10-06：「上传截图的时候能不能做个输入框？直接粘贴？」——
+              这里以前只有一个「选文件」按钮，跟旁边写着的「粘贴截图」对不上（全站别的截图框
+              早就换成 PasteImageBox 了，就这一处漏了）。现在跟它们同一套：点一下框内 Ctrl+V 直接粘，
+              可一次粘多张（微信 / QQ 截图都行），也能把图片拖进来；原来的「上传截图」按钮留着。 */}
+          <PasteImageBox
+            onFiles={uploadEvidenceFiles}
+            disabled={uploading}
+            style={{ marginTop: 8 }}
+            hint="点一下这里，直接 Ctrl+V 粘贴截图（可一次粘多张，也能把图片拖进来）"
+          >
             {evidence.map((url) => (
               <div
                 key={url}
@@ -269,12 +291,18 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
                 </Button>
               </div>
             ))}
-            <Upload beforeUpload={uploadEvidence} showUploadList={false} accept="image/*" disabled={uploading}>
+            <Upload
+              beforeUpload={beforeUploadEvidence}
+              showUploadList={false}
+              accept="image/*"
+              multiple
+              disabled={uploading}
+            >
               <Button size="small" loading={uploading}>
                 上传截图
               </Button>
             </Upload>
-          </div>
+          </PasteImageBox>
           <Text type="secondary" style={{ fontSize: 11 }}>
             截图会一起推给发单客服和店长，店长凭它定责（到底是谁的问题、谁的问题找谁）。
           </Text>

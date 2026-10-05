@@ -802,9 +802,13 @@ const OrdersPage: React.FC = () => {
                 </Tag>
               </Tooltip>
             ) : (
-              <Button size="small" style={{ width: 58 }} onClick={() => setOutcomeOrder(r)}>
-                {isCompanion ? '报结果' : '记结果'}
-              </Button>
+              // 老板 2026-10-06 问「这单失败了，陪玩应该在哪里选首单失败」——按钮就是这里，
+              // 但「报结果」三个字看不出是干这个的，鼠标停上去说清楚什么时候该点它。
+              <Tooltip title="这单没打成（客户退出组队 / 加上了客户但没开成 / 价格或单双陪没谈拢…）就点这里：选原因 + 粘贴截图，单子会推给发单客服 + 店长定责">
+                <Button size="small" style={{ width: 58 }} onClick={() => setOutcomeOrder(r)}>
+                  {isCompanion ? '报结果' : '记结果'}
+                </Button>
+              </Tooltip>
             )
           ) : null}
         </span>
