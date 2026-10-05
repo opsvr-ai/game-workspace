@@ -1,8 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useEffect, useState } from 'react';
-import { Modal, Radio, Select, Input, Typography, message, Space, Upload, Button } from 'antd';
+import { Modal, Radio, Input, Typography, message, Space, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
-import { configApi } from '../api/config';
 import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';
 import PasteImageBox from './PasteImageBox';
@@ -17,17 +16,11 @@ const { Text } = Typography;
  * 口径与后端 `common/order-outcome.ts` 完全一致：
  *  - 本店线下的单**不用**反馈 —— 陪玩点「开始首单」就算成功；
  *  - 桥接 / 线上单只有接单方反馈「成功」才算成功，没反馈 = 待反馈（不计提成）；
- *  - 不成功要选原因，原因在「选项字典 → 反馈不成功的原因」里能改。
+ *  - 不成功要把原因写清楚（**备注必填**）+ 贴截图；**没有固定原因选项**了 ——
+ *    老板 2026-10-06：「那些不成功的原因全部删除吧，只留备注必填，让他们自己填，
+ *    因为很多奇奇怪怪的原因，如果乱写管理端给驳回就行了」。
+ *    他填的内容直接当成原因存进 `Order.outcomeReason`（管理端「成交核对」看的还是这个字段）。
  */
-
-export const OUTCOME_FAIL_REASONS_FALLBACK = [
-  '客户对陪玩不满意',
-  '陪玩没接、放鸽子',
-  '时间对不上',
-  '价格没谈拢',
-  '客户临时取消',
-  '其他',
-];
 
 /** 这张单是哪种渠道：线下（本店）/ 桥接（别家直营店）/ 线上（租赁俱乐部）。 */
 export function orderChannelOf(order: any): 'offline' | 'bridge' | 'online' {
@@ -85,15 +78,16 @@ export function OutcomeSuffix({ order, onClick }: { order: any; onClick?: () => 
     textDecoration: clickable ? 'underline dotted' : undefined,
   };
   const title = clickable
-    ? '点这里记结果：成功 / 不成功（不成功要选原因）'
+    ? '点这里记结果：成功 / 不成功（不成功要把原因写清楚 + 贴截图）'
     : state === 'PENDING'
       ? '线上 / 桥接单要等接单方反馈「成功 / 不成功」'
       : undefined;
-  if (state === 'FAILED' && order?.outcomeReason) {
+  const failText = order?.outcomeReason || order?.outcomeNote;
+  if (state === 'FAILED' && failText) {
     return (
       <span
         style={common}
-        title={clickable ? `${title}｜现在记的是：不成功（${order.outcomeReason}）` : `不成功原因：${order.outcomeReason}`}
+        title={clickable ? `${title}｜现在记的是：不成功（${failText}）` : `不成功说明：${failText}`}
         onClick={onClick}
       >
         · {cfg.label}
@@ -105,20 +99,6 @@ export function OutcomeSuffix({ order, onClick }: { order: any; onClick?: () => 
       · {cfg.label}
     </span>
   );
-}
-
-export function useOutcomeReasons(): string[] {
-  const [reasons, setReasons] = useState<string[]>(OUTCOME_FAIL_REASONS_FALLBACK);
-  useEffect(() => {
-    configApi
-      .getAll()
-      .then((res: any) => {
-        const list = res?.data?.data?.['options.outcome_fail_reasons'];
-        if (Array.isArray(list) && list.length) setReasons(list.map((x: any) => String(x)));
-      })
-      .catch(() => {});
-  }, []);
-  return reasons;
 }
 
 interface Props {
@@ -134,9 +114,7 @@ interface Props {
 }
 
 const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, channel: channelProp }) => {
-  const reasons = useOutcomeReasons();
   const [outcome, setOutcome] = useState<'SUCCESS' | 'FAILED'>('SUCCESS');
-  const [reason, setReason] = useState<string | undefined>();
   const [note, setNote] = useState('');
   // 报「不成功」必须粘贴截图（老板 2026-10-06）：店长要凭这个定责，谁的问题找谁。
   const [evidence, setEvidence] = useState<string[]>([]);
@@ -149,8 +127,7 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
   useEffect(() => {
     if (!open) return;
     setOutcome(order?.outcome === 'FAILED' || offlineNotStarted ? 'FAILED' : 'SUCCESS');
-    setReason(order?.outcomeReason || undefined);
-    setNote(order?.outcomeNote || '');
+    setNote(order?.outcomeReason || order?.outcomeNote || '');
     setEvidence(Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : []);
   }, [open, order, offlineNotStarted]);
 
@@ -186,8 +163,8 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
 
   const submit = async () => {
     if (!order?.id) return;
-    if (outcome === 'FAILED' && !reason) {
-      message.warning('请选一个不成功的原因');
+    if (outcome === 'FAILED' && !note.trim()) {
+      message.warning('报「不成功」要把原因写清楚（写清楚为什么没打成，乱写会被管理端驳回）');
       return;
     }
     if (outcome === 'FAILED' && !evidence.length) {
@@ -198,8 +175,9 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
     try {
       await ordersApi.recordOutcome(order.id, {
         outcome,
-        reason,
-        note: note.trim() || undefined,
+        // 老板 2026-10-06 起不成功只有一个自由填写的「备注」：内容直接当成原因存，
+        // 管理端「成交核对」看的还是 outcomeReason，展示不用改。
+        reason: note.trim() || undefined,
         evidence: outcome === 'FAILED' ? evidence : undefined,
       });
       message.success(
@@ -229,8 +207,8 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
     >
       <Text type="secondary" style={{ fontSize: 12 }}>
         {offlineNotStarted
-          ? '这张单还没点「开始首单」——点了才算成功。没打成（添加失败 / 客户没同意 / 暂时不打 / 价格或单双陪谈不拢…）就报「不成功」，必须粘贴截图：单子会同时推给发单客服和店长，店长拍板到底是谁的问题（谁的问题找谁）。'
-          : `${channel === 'online' ? '线上俱乐部' : '桥接工作室'}接的单：报「成功」直接推给发单者、计入考核；报「不成功」要粘贴截图，同时推给发单者 + 店长，由店长拍板定责。成功的不用重点追查，失败的重点追。`}
+          ? '这张单还没点「开始首单」——点了才算成功。没打成（添加失败 / 客户没同意 / 暂时不打 / 价格或单双陪谈不拢…）就报「不成功」：**原因自己在下面写清楚（备注必填）+ 粘贴截图**，单子会同时推给发单客服和店长，店长拍板到底是谁的问题（谁的问题找谁）。'
+          : `${channel === 'online' ? '线上俱乐部' : '桥接工作室'}接的单：报「成功」直接推给发单者、计入考核；报「不成功」要把原因写清楚（备注必填）并粘贴截图，同时推给发单者 + 店长，由店长拍板定责。成功的不用重点追查，失败的重点追。`}
       </Text>
       <div style={{ marginTop: 14 }}>
         <Text strong>结果</Text>
@@ -249,17 +227,7 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
       </div>
       {outcome === 'FAILED' && (
         <div style={{ marginTop: 14 }}>
-          <Text strong>不成功的原因</Text>
-          <Select
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder="选一个原因"
-            value={reason}
-            onChange={(v) => setReason(v)}
-            options={reasons.map((r) => ({ label: r, value: r }))}
-          />
-          <Text strong style={{ display: 'block', marginTop: 14 }}>
-            截图（必传，至少 1 张）
-          </Text>
+          <Text strong>截图（必传，至少 1 张）</Text>
           {/* 老板 2026-10-06：「上传截图的时候能不能做个输入框？直接粘贴？」——
               这里以前只有一个「选文件」按钮，跟旁边写着的「粘贴截图」对不上（全站别的截图框
               早就换成 PasteImageBox 了，就这一处漏了）。现在跟它们同一套：点一下框内 Ctrl+V 直接粘，
@@ -310,12 +278,16 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
       )}
       <div style={{ marginTop: 14 }}>
         <Space direction="vertical" style={{ width: '100%' }} size={6}>
-          <Text strong>备注（可不填）</Text>
+          <Text strong>{outcome === 'FAILED' ? '备注 / 原因（必填）' : '备注（可不填）'}</Text>
           <Input.TextArea
-            rows={2}
+            rows={3}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="例如：对方说客户嫌价格高，没谈拢"
+            placeholder={
+              outcome === 'FAILED'
+                ? '自己写清楚为什么没打成（原因没有选项了；管理端会看，乱写会被驳回）'
+                : '例如：客户满意，下把还来'
+            }
           />
         </Space>
       </div>

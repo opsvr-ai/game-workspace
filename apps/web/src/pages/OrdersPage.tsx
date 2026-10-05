@@ -158,26 +158,17 @@ const OrdersPage: React.FC = () => {
   const [outcomeOrder, setOutcomeOrder] = useState<any>(null);
   // 陪玩点「添加失败」也要能贴证据（老板 2026-10-06）。以前这个按钮一点就直接提交、
   // 没有地方粘「客户没同意」的截图，管理端审核补单申请时看不到凭据。现在跟「报结果」一套弹窗：
-  // 选原因 + 粘贴截图（可选）+ 备注；提交时把 failReason / screenshotUrl 一起带给服务端
-  // （updateContact 早就会收这两个字段，之前只是界面漏传）。
+  // **只填备注（必填）+ 粘贴截图（可选）** —— 老板同一天说「那些不成功的原因全部删除吧，
+  // 只留备注必填，让他们自己填，因为很多奇奇怪怪的原因，如果乱写管理端给驳回就行了」，
+  // 所以这里不再给固定原因选项；备注内容直接当原因存（管理端补单审核里看得到）。
   const [contactFailOrder, setContactFailOrder] = useState<any>(null);
-  const [contactFailReason, setContactFailReason] = useState('客户一直没同意');
   const [contactFailNote, setContactFailNote] = useState('');
   const [contactFailEvidence, setContactFailEvidence] = useState<string[]>([]);
   const [contactFailUploading, setContactFailUploading] = useState(false);
   const [contactFailSaving, setContactFailSaving] = useState(false);
 
-  const CONTACT_FAIL_REASONS = [
-    '客户一直没同意',
-    '客户没通过好友验证',
-    '客户不回消息',
-    '微信加错 / 被封',
-    '其他',
-  ];
-
   const openContactFail = (r: any) => {
     setContactFailOrder(r);
-    setContactFailReason('客户一直没同意');
     setContactFailNote('');
     setContactFailEvidence([]);
   };
@@ -208,16 +199,17 @@ const OrdersPage: React.FC = () => {
 
   const submitContactFail = async () => {
     if (!contactFailOrder) return;
-    if (!contactFailReason) {
-      message.warning('请选一个添加失败的原因');
+    const note = contactFailNote.trim();
+    if (!note) {
+      message.warning('把为什么添加失败写清楚（原因没有选项了，自己填；乱写会被管理端驳回）');
       return;
     }
     setContactFailSaving(true);
     try {
       await http.put(`/orders/${contactFailOrder.id}/contact`, {
         contactStatus: 'not_accepted',
-        notes: contactFailNote.trim() || contactFailReason,
-        failReason: contactFailReason,
+        notes: note,
+        failReason: note,
         screenshotUrl: contactFailEvidence[0] || undefined,
       });
       message.success('已标记添加失败');
@@ -835,7 +827,7 @@ const OrdersPage: React.FC = () => {
         </span>
         <span style={actionSlot(60)}>
           {contactState === 'pending' ? (
-            <Tooltip title="客户一直没加你 / 没同意，就点这里：选原因 + 粘贴客户没同意的截图（可选），管理端审核补单申请时能看到证据">
+            <Tooltip title="客户一直没加你 / 没同意就点这里：自己写清楚为什么（备注必填，乱写会被管理端驳回）+ 可粘贴「客户没同意」的截图，管理端审核补单申请时能看到">
               <Button
                 size="small"
                 danger
@@ -1518,17 +1510,9 @@ const OrdersPage: React.FC = () => {
         destroyOnClose
       >
         <Text type="secondary" style={{ fontSize: 12 }}>
-          客户一直没同意就选个原因；能贴上「客户没同意 / 没通过验证」的截图更好 —— 管理端审核补单申请、翻这张单时都看得到这张图。
+          为什么加不上，自己写清楚就行（没有固定原因选项了）；能贴上「客户没同意 / 没通过验证」的截图更好 ——
+          管理端审核补单申请、翻这张单时都看得到。
         </Text>
-        <div style={{ marginTop: 14 }}>
-          <Text strong>原因</Text>
-          <Select
-            style={{ width: '100%', marginTop: 8 }}
-            value={contactFailReason}
-            onChange={(v) => setContactFailReason(v)}
-            options={CONTACT_FAIL_REASONS.map((r) => ({ label: r, value: r }))}
-          />
-        </div>
         <div style={{ marginTop: 14 }}>
           <Text strong>截图（可选，建议贴一张）</Text>
           <PasteImageBox
@@ -1575,12 +1559,12 @@ const OrdersPage: React.FC = () => {
           </PasteImageBox>
         </div>
         <div style={{ marginTop: 14 }}>
-          <Text strong>备注（可选）</Text>
+          <Text strong>备注（必填）</Text>
           <Input.TextArea
-            rows={2}
+            rows={3}
             value={contactFailNote}
             onChange={(e) => setContactFailNote(e.target.value)}
-            placeholder="例如：加了三次都没通过，客户说暂时不打"
+            placeholder="自己写清楚为什么添加失败（管理端会看，乱写会被驳回）"
             style={{ marginTop: 8 }}
           />
         </div>

@@ -1374,13 +1374,15 @@ export class OrdersService implements OnModuleInit {
           ? OrderOutcome.FAILED
           : null;
     if (!outcome) throw new BadRequestException('结果只能是「成功」或「不成功」');
-    const reason = (body.reason || '').trim();
+    // 老板 2026-10-06 起前端不再给固定原因选项，只留一个自由填写的「备注」（必填）：
+    // 备注内容直接当原因存（两边都收，保证老客户端 / 老数据也认）。
+    const reason = (body.reason || body.note || '').trim();
     const evidence = (Array.isArray(body.evidence) ? body.evidence : [])
       .map((u) => String(u ?? '').trim())
       .filter((u) => !!u)
       .slice(0, 12);
     if (outcome === OrderOutcome.FAILED) {
-      if (!reason) throw new BadRequestException('不成功要选一个原因');
+      if (!reason) throw new BadRequestException('报「不成功」要把原因写清楚（备注必填）');
       if (!evidence.length) {
         throw new BadRequestException('报「不成功」要粘贴截图 —— 店长得凭这个定责（谁的问题找谁）');
       }

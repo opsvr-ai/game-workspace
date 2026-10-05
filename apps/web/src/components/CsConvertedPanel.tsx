@@ -200,26 +200,18 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   };
 
   // 客服点「添加失败」也要能贴证据（老板 2026-10-06）：以前一点就直接提交、没地方粘
-  // 「客户没同意」的截图。现在弹窗选原因 + 粘贴截图（可选）+ 备注；截图存进订单，
-  // 之后在客服这块台账号这一行能看到缩略图，方便跟发单者 / 店长核对。
+  // 「客户没同意」的截图。现在弹窗**只填备注（必填）+ 粘贴截图（可选）** ——
+  // 老板同一天说「那些不成功的原因全部删除吧，只留备注必填，让他们自己填，
+  // 因为很多奇奇怪怪的原因，如果乱写管理端给驳回就行了」，所以不再给固定原因选项；
+  // 备注内容直接当原因存，截图存进订单，这一行能看到缩略图，方便跟发单者 / 店长核对。
   const [failTarget, setFailTarget] = useState<{ item: any; viaCsContact: boolean } | null>(null);
-  const [failReason, setFailReason] = useState('客户一直没同意');
   const [failNote, setFailNote] = useState('');
   const [failEvidence, setFailEvidence] = useState<string[]>([]);
   const [failUploading, setFailUploading] = useState(false);
   const [failSaving, setFailSaving] = useState(false);
 
-  const CONTACT_FAIL_REASONS = [
-    '客户一直没同意',
-    '客户没通过好友验证',
-    '客户不回消息',
-    '微信加错 / 被封',
-    '其他',
-  ];
-
   const openFail = (item: any, viaCsContact: boolean) => {
     setFailTarget({ item, viaCsContact });
-    setFailReason('客户一直没同意');
     setFailNote('');
     setFailEvidence([]);
   };
@@ -250,8 +242,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
 
   const submitFail = async () => {
     if (!failTarget) return;
-    if (!failReason) {
-      message.warning('请选一个添加失败的原因');
+    const note = failNote.trim();
+    if (!note) {
+      message.warning('把为什么添加失败写清楚（原因没有选项了，自己填；乱写会被管理端驳回）');
       return;
     }
     setFailSaving(true);
@@ -261,14 +254,14 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         // 还没派出去的跟进单：订单还不是 GRABBED / CONFIRMED，走 /cs-contact 才写得了
         await ordersApi.markCsContact(failTarget.item.id, 'added', evidenceUrl, {
           addResult: 'failed',
-          failReason,
-          note: failNote.trim() || undefined,
+          failReason: note,
+          note,
         });
       } else {
         await ordersApi.updateContact(failTarget.item.id, {
           contactStatus: 'not_accepted',
-          notes: failNote.trim() || failReason,
-          failReason,
+          notes: note,
+          failReason: note,
           screenshotUrl: evidenceUrl,
         });
       }
@@ -862,17 +855,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         destroyOnClose
       >
         <Text type="secondary" style={{ fontSize: 12 }}>
-          客户一直没同意就选个原因；能贴上「客户没同意 / 没通过验证」的截图更好 —— 之后跟发单者 / 店长核对、定责时都看得到这张图。
+          为什么加不上，自己写清楚就行（没有固定原因选项了）；能贴上「客户没同意 / 没通过验证」的截图更好 ——
+          之后跟发单者 / 店长核对、定责时都看得到。
         </Text>
-        <div style={{ marginTop: 14 }}>
-          <Text strong>原因</Text>
-          <Select
-            style={{ width: '100%', marginTop: 8 }}
-            value={failReason}
-            onChange={(v) => setFailReason(v)}
-            options={CONTACT_FAIL_REASONS.map((r) => ({ label: r, value: r }))}
-          />
-        </div>
         <div style={{ marginTop: 14 }}>
           <Text strong>截图（可选，建议贴一张）</Text>
           <PasteImageBox
@@ -919,12 +904,12 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           </PasteImageBox>
         </div>
         <div style={{ marginTop: 14 }}>
-          <Text strong>备注（可选）</Text>
+          <Text strong>备注（必填）</Text>
           <Input.TextArea
-            rows={2}
+            rows={3}
             value={failNote}
             onChange={(e) => setFailNote(e.target.value)}
-            placeholder="例如：加了三次都没通过，客户说暂时不打"
+            placeholder="自己写清楚为什么添加失败（管理端会看，乱写会被驳回）"
             style={{ marginTop: 8 }}
           />
         </div>

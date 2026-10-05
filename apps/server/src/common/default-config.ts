@@ -42,15 +42,9 @@ export const DEFAULT_CONFIGS: Record<string, any> = {
   'options.contact_results': ['现在玩', '改天玩', '未回消息', '好友未通过', '被客户删除'],
   'options.finish_results': ['正常完成', '客户续单', '变声器退款', '技术差退款'],
   'options.fail_reasons': ['抢单未加微信', '好友未通过', '客户不回消息', '客户删除', '客户说不打', '其他'],
-  // 线上 / 桥接单接单方反馈「不成功」的原因（老板 2026-09-29 口述的 6 项）
-  'options.outcome_fail_reasons': [
-    '客户对陪玩不满意',
-    '陪玩没接、放鸽子',
-    '时间对不上',
-    '价格没谈拢',
-    '客户临时取消',
-    '其他',
-  ],
+  // 线上 / 桥接单反馈「不成功」**不再有固定原因选项**（老板 2026-10-06：「那些不成功的原因全部删除吧，
+  // 只留备注必填，让他们自己填，因为很多奇奇怪怪的原因，如果乱写管理端给驳回就行了」）——
+  // 原来的 options.outcome_fail_reasons 已整条移除，原因 = 接单方自己填的备注（存 Order.outcomeReason）。
   'traffic.account_types': ['抖音', '小红书', '视频号', '快手', '咸鱼', 'B站'],
   'traffic.account_columns': [
     { key: 'type', label: '平台', custom: false },

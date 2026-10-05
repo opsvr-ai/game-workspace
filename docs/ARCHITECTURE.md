@@ -207,7 +207,8 @@
   这个需要接单方进行发起」—— 线上 / 桥接单的结果由**接单方本人**在 `POST /api/orders/:id/outcome` 自己点
   （`COMPANION` 只能报自己名下 / 搭档名下的单，CS / ADMIN / OWNER 可代录）。**报成功** = 直接推给发单客服计入考核，
   不必店长拍板；**报失败** = **必须粘贴 ≥1 张截图**（存 `Order.outcomeEvidence`，走 `/upload/screenshot`）
-  + 原因 + 说明，推给发单客服 **和** 店长，单上写 `reviewStatus=WAITING` 进「待拍板」。店长 / 老板在「成交核对」页
+  + **必填备注**（老板 2026-10-06「不成功的原因全部删除，只留备注必填，让他们自己填」——
+  原因不再有下拉选项，备注内容直接存 `Order.outcomeReason`），推给发单客服 **和** 店长，单上写 `reviewStatus=WAITING` 进「待拍板」。店长 / 老板在「成交核对」页
   `POST /api/orders/:id/review` 拍板定责（`reviewResponsibility` = 接单方 / 发单客服 / 客户 / 无人担责，
   必填结论 `reviewNote`，置 `reviewStatus=DECIDED`），结论同时推给接单方和发单客服 —— **谁的问题就去找谁**。
   成功的不用重点追查，重点追查失败的（如客服发的机密双本来 35+35 可赚，接单方找理由说没打成，店长 + 发单者要去追究）。
@@ -924,7 +925,8 @@ sequenceDiagram
 - **「这单成不成」唯一口径**（老板 2026-09-29）：`common/order-outcome.ts` ——
   `successOrderWhere()`（算钱的成功单）/ `bridgeMetOrderWhere()`（桥接达标）/ `outcomeOf()`（界面展示）。
   本店线下 = 会话有 `startedAt` 或 `status=DONE` 即成功；桥接 / 线上 = `Order.outcome=SUCCESS` 才算，
-  空 = 待反馈，`FAILED` 不计提成且带 `outcomeReason`（原因字典 `options.outcome_fail_reasons`）；
+  空 = 待反馈，`FAILED` 不计提成且带 `outcomeReason`（**老板 2026-10-06 起没有原因字典了**：
+  原因 = 接单方自己填的必填备注，前端一个字段、存进 `outcomeReason`，展示口径不变）；
   退款 / 取消一律不算。提成（`commission.service`）、工资达标（`payroll.service`）、今日看板三处调同一套，
   不允许再各写一份（这个项目已经在「两套口径」上翻过车）
 - **成交核对只追记录、不改钱**（老板 2026-10-06）：`Order.reviewStatus / reviewResponsibility / reviewNote / reviewAt`
