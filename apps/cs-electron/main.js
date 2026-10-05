@@ -418,9 +418,18 @@ function openChatWindow(payload) {
     const key = String((payload && payload.userId) || conversationId);
     const existing = chatWindows.get(key);
     if (existing && !existing.isDestroyed()) {
+      // 已经开着（可能被最小化到任务栏了）就还原 + 顶到最前，绝不重复开。
       if (existing.isMinimized()) existing.restore();
       existing.show();
       existing.focus();
+      // Windows 有前台锁定：光 focus() 有时顶不到最上面（老板 2026-10-06 报「点了不弹出来」）。
+      // 用 alwaysOnTop 开关闪一下强制激活到前台，再恢复普通层级。
+      try {
+        existing.setAlwaysOnTop(true);
+        existing.setAlwaysOnTop(false);
+      } catch {
+        // 闪一下失败就算了，下面的 moveTop 仍会尽力
+      }
       existing.moveTop();
       return true;
     }
@@ -468,6 +477,15 @@ function openChatWindow(payload) {
     chatWindows.set(key, win);
     win.on('closed', () => chatWindows.delete(key));
     win.loadURL(url);
+    // 新开的窗口也确保自己浮到前面（新建的窗口不一定会自动拿到焦点）。
+    win.once('ready-to-show', () => {
+      try {
+        win.show();
+        win.focus();
+      } catch {
+        // 忽略
+      }
+    });
     return true;
   } catch {
     return false;
