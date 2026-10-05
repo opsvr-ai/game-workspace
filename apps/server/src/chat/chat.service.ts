@@ -167,10 +167,14 @@ export class ChatService {
       }
     }
 
-    // Find existing room
-    let room = null;
-    room = await this.prisma.chatRoom.findFirst({
-      where: { studioId: effectiveStudioId as any, participantA, participantB },
+    // 一个联系人只对应一个会话（2026-10-05 修复）：
+    // 房间只按「两个人」查，不再把 studioId 拼进查询键。历史上的写法是
+    // 「先 findFirst 再 create」，且没有唯一约束 —— 并发时（双击沟通 / 订单页和人员
+    // 列表同时开 / 两个标签页 / socket 重连）两边都查不到、都去建，于是一个人建出两个
+    // 房间：同一个联系人两个聊天框、消息被拆散、红点（全部房间未读之和）跟点开看到的消息
+    // 对不上。现在查询只按 (participantA, participantB)，并在并发撞上唯一索引时回查一次。
+    let room = await this.prisma.chatRoom.findFirst({
+      where: { isGroup: false, participantA, participantB },
     });
 
     // 订单信息是“当前这次会话”的上下文，不是永久属性（老板 2026-09-30：「陪玩/管理端通过某个
@@ -183,14 +187,23 @@ export class ChatService {
     const hasExplicitOrder = orderInfo !== undefined;
     const nextOrderInfo = orderInfo || null;
     if (!room) {
-      room = await this.prisma.chatRoom.create({
-        data: {
-          studioId: effectiveStudioId as any,
-          participantA,
-          participantB,
-          orderInfo: hasExplicitOrder ? nextOrderInfo : null,
-        },
-      });
+      try {
+        room = await this.prisma.chatRoom.create({
+          data: {
+            studioId: effectiveStudioId as any,
+            participantA,
+            participantB,
+            orderInfo: hasExplicitOrder ? nextOrderInfo : null,
+          },
+        });
+      } catch (e: any) {
+        // P2002 = 违反唯一索引：并发下另一个请求抢先建好了，用它的，别再建第二个。
+        if (e?.code !== 'P2002') throw e;
+        room = await this.prisma.chatRoom.findFirst({
+          where: { isGroup: false, participantA, participantB },
+        });
+        if (!room) throw e;
+      }
     } else if (hasExplicitOrder && (room.orderInfo || null) !== nextOrderInfo) {
       room = await this.prisma.chatRoom.update({
         where: { id: room.id },
@@ -201,15 +214,17 @@ export class ChatService {
     return room;
   }
 
-  /** List rooms for a user, including cross-studio rooms (studioId=null) */
+  /**
+   * List rooms for a user. 私聊房间只按「我是不是参与人」来判断可见性（不再拿 studioId 过滤），
+   * 这样跨店 / 历史遗留 studioId 的会话都不会漏显示；群聊仍按本工作室 + 成员判断。
+   */
   async listRooms(userId: string, studioId: string, opts?: { pinned?: boolean; search?: string }) {
     if (studioId) {
       await this.ensureUserInStudioGroup(userId, studioId);
     }
     const where: any = {
       OR: [
-        { studioId, OR: [{ participantA: userId }, { participantB: userId }] },
-        { studioId: null, OR: [{ participantA: userId }, { participantB: userId }] },
+        { isGroup: false, OR: [{ participantA: userId }, { participantB: userId }] },
         { studioId, isGroup: true, members: { some: { userId } } },
       ],
       ...(opts?.pinned ? { pinned: true } : {}),
@@ -651,10 +666,8 @@ export class ChatService {
     const rooms = await this.prisma.chatRoom.findMany({
       where: {
         OR: [
-          { studioId, participantA: userId, archived: false },
-          { studioId, participantB: userId, archived: false },
-          { studioId: null, participantA: userId, archived: false },
-          { studioId: null, participantB: userId, archived: false },
+          { isGroup: false, participantA: userId, archived: false },
+          { isGroup: false, participantB: userId, archived: false },
           { studioId, isGroup: true, archived: false, members: { some: { userId } } },
         ],
       },
@@ -674,7 +687,7 @@ export class ChatService {
     const rooms = await this.prisma.chatRoom.findMany({
       where: {
         OR: [
-          { studioId, OR: [{ participantA: userId }, { participantB: userId }] },
+          { isGroup: false, OR: [{ participantA: userId }, { participantB: userId }] },
           { studioId, isGroup: true, members: { some: { userId } } },
         ],
       },

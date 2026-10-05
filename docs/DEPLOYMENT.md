@@ -249,6 +249,28 @@ python scripts/_deploy_server_cloud.py
 > 交付前自检：拿一个新模型跑一次 `GET` 接口。如果报 `undefined (reading 'xxx')`，
 > 十有八九就是这一步忘了做。
 
+### 3.4.3 2026-10-05 聊天「一个联系人一个会话」迁移（含数据合并 + 唯一索引）
+
+「同一个联系人出现两个聊天框 / 红点与消息对不上」的修复带一个**一次性数据迁移**
+`apps/server/prisma/migrations/20261005140000_dedupe_private_chat_rooms/migration.sql`。
+它会：① 把已有的重复私聊房间合并成一个（消息一条不丢、按时间重排 `seq`、重算已读位、保留当前订单上下文）；
+② 建部分唯一索引 `ChatRoom_private_pair_key (participantA, participantB) WHERE isGroup = false`。
+迁移是幂等的（没有重复时基本是空操作，索引用 `IF NOT EXISTS`）。
+
+```bash
+# 在服务器上手工跑一遍（线上没有 _prisma_migrations，不用 migrate deploy）
+scp apps/server/prisma/migrations/20261005140000_dedupe_private_chat_rooms/migration.sql \
+    ubuntu@1.117.229.36:/home/ubuntu/_ops.sql
+ssh ubuntu@1.117.229.36 "sudo docker cp /home/ubuntu/_ops.sql chunlv-postgres:/tmp/_ops.sql && \
+  sudo docker exec chunlv-postgres psql -U postgres -d chunlv -v ON_ERROR_STOP=1 -f /tmp/_ops.sql"
+
+# 服务端代码（getOrCreateRoom 并发安全 + 私聊可见性按参与人）用脚本部署
+python scripts/_deploy_server_cloud.py
+```
+
+自检：`select count(*) from (select 1 from "ChatRoom" where "isGroup"=false group by "participantA","participantB" having count(*)>1) x;`
+应返回 `0`；`select count(*) from pg_indexes where indexname='ChatRoom_private_pair_key';` 应返回 `1`。
+
 ### 3.5 导入测试数据（可选）
 
 ```bash
