@@ -100,6 +100,9 @@ const OrdersPage: React.FC = () => {
   const [editingOrder, setEditingOrder] = useState<any>(null);
   // 只读详情：没权限修改的订单（广播/指定等）也能整行点开看一眼
   const [detailOrder, setDetailOrder] = useState<any>(null);
+  // 从聊天框「查看订单」跳过来（或刚点开）的那一单：整行加选中阴影 + 滚到表格中间，
+  // 不用自己再找是哪一单（老板 2026-10-05）。
+  const [focusOrderId, setFocusOrderId] = useState<string>('');
   const [preFill, setPreFill] = useState<any>(null);
   const [dateFilter, setDateFilter] = useState<any>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -283,6 +286,7 @@ const OrdersPage: React.FC = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('orderId');
     setSearchParams(next, { replace: true });
+    setFocusOrderId(focusId);
     const hit = orders.find((o: any) => o.id === focusId);
     if (hit) {
       setDetailOrder(hit);
@@ -297,6 +301,16 @@ const OrdersPage: React.FC = () => {
       })
       .catch((e: any) => message.error(extractErrorMessage(e, '没找到这个订单')));
   }, [searchParams, setSearchParams, orders, loading]);
+
+  // 被高亮的那一单滚到表格中间（跳过来一眼就能看到）。
+  const focusScrolledRef = useRef<string>('');
+  useEffect(() => {
+    if (!focusOrderId) return;
+    const el = document.querySelector(`.data-table tr[data-row-key="${focusOrderId}"]`);
+    if (!el || focusScrolledRef.current === focusOrderId) return;
+    focusScrolledRef.current = focusOrderId;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusOrderId, orders]);
 
   useEffect(() => {
     const refreshOrders = () => fetch();
@@ -1179,10 +1193,12 @@ const OrdersPage: React.FC = () => {
                         : '暂无订单',
                 }}
                 // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
+                rowClassName={(record: any) => (record.id === focusOrderId ? 'order-row-focus' : '')}
                 onRow={(record: any) => ({
                   style: { cursor: 'pointer' },
                   onClick: (e: React.MouseEvent) => {
                     if (isRowClickIgnored(e)) return;
+                    setFocusOrderId(String(record.id));
                     if (canEditOrder(record)) setEditingOrder(record);
                     else setDetailOrder(record);
                   },

@@ -875,6 +875,18 @@ body {
 .app-content .ant-table-tbody > tr.ant-table-row-selected > td {
   background: #f3eeff !important;
 }
+/* 从聊天框「查看订单」跳过来 / 刚点开的那一单：整行加选中阴影（含钉住的左/右列），
+   一眼就能认出刚才是哪一单（老板 2026-10-05）。 */
+.app-content .ant-table-tbody > tr.order-row-focus > td,
+.app-content .ant-table-tbody > tr.order-row-focus > td.ant-table-cell-fix-right,
+.app-content .ant-table-tbody > tr.order-row-focus > td.ant-table-cell-fix-left {
+  background: #f3eeff !important;
+}
+.app-content .ant-table-tbody > tr.order-row-focus {
+  box-shadow: inset 0 0 0 2px #7c4dff, 0 6px 16px -8px rgba(124, 77, 255, 0.55);
+  position: relative;
+  z-index: 1;
+}
 .app-content .ant-table-summary > tr > td {
   background: #f8fafc !important;
   font-weight: 600;
