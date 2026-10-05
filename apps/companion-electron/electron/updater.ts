@@ -247,11 +247,11 @@ function companionBusy(): boolean {
 
 // 开机宽限期：系统刚启动的这段时间，机器上还没人开打，把备好的更新直接装上最省事。
 // 老板 2026-10-04：「什么都不用加，你直接每次开机的时候给他们更新就行。」
-// 以前只看 store 里的 lastStatus：上一单结束时若残留了 BUSY，客户端重启/开机后仍读成 BUSY，
-// waitUntilIdle 一等就是半小时、等不到就跳过，机器于是永远卡在旧版本（王甲振那台就是这样）。
-// 这里改用**系统运行时长**判断「刚开机」：宽限期内直接放行装更新，不再等那个残留的 BUSY。
-// 用 os.uptime() 而不是 process.uptime()：客户端可能被看门狗单独拉起，那种情况下进程刚启动
-// 但机器早已开机，绝不能误判成「刚开机」去打断正在打单的人 —— 那种情况仍按老规矩等空闲。
+// 老板 2026-10-06：「等他们下次关机开机登录的时候再更新吧」——
+// 于是自动更新收紧成**只在刚开机/刚登录那一次落地**：机器一直开着、中途就算空闲也不装，
+// 包先备着，等下次开机自然换新版。正在打单的人从此零影响，不会被更新踢下线。
+// 用**系统运行时长**判断「刚开机」：客户端可能被看门狗单独拉起，那种情况下进程刚启动
+// 但机器早已开机，绝不能误判成「刚开机」去打断正在打单的人。
 const BOOT_GRACE_SECONDS = 10 * 60;
 
 function justBooted(): boolean {
@@ -262,23 +262,35 @@ function justBooted(): boolean {
   }
 }
 
-/** 等陪玩空闲（最多 30 分钟）。返回 false = 还在接单，这一轮先不动它。 */
-async function waitUntilIdle(why: string): Promise<boolean> {
-  if (justBooted()) {
+/**
+ * 这一次到底装不装（返回 false = 先不装，包留着等下次开机）。
+ *
+ * bootWindow：这次检查是不是「刚开机」的那一次 —— 由 performUpdate 在**下载开始前**定好。
+ *   下载要限速排队、可能耗时十几分钟，下载完再判断会把这次开机白白错过。
+ * allowIdleFallback：后台「推送更新」是管理端明确点的，仍按老规矩等这一单打完就装（最多等 30 分钟），
+ *   免得刚推了却要拖到下次开机才生效。
+ */
+async function mayApplyUpdateNow(
+  why: string,
+  bootWindow: boolean,
+  allowIdleFallback: boolean,
+): Promise<boolean> {
+  if (bootWindow) {
     let uptimeSeconds = -1;
     try {
       uptimeSeconds = Math.round(os.uptime());
     } catch {
       /* ignore */
     }
-    logger.info('System just booted, applying update without waiting for idle', {
-      why,
-      uptimeSeconds,
-    });
+    logger.info('System just booted, applying update now', { why, uptimeSeconds });
     return true;
   }
+  if (!allowIdleFallback) {
+    logger.info('Not a fresh boot, keep the package and apply it at next boot', { why });
+    return false;
+  }
   if (!companionBusy()) return true;
-  logger.info('Companion is busy, deferring update', { why });
+  logger.info('Companion is busy, deferring pushed update', { why });
   const deadline = Date.now() + 30 * 60 * 1000;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 15_000));
@@ -287,7 +299,7 @@ async function waitUntilIdle(why: string): Promise<boolean> {
   return false;
 }
 
-async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
+async function performUpdate(downloadUrl: string, version = '', allowIdleFallback = false): Promise<void> {
   // 同一个版本刚下过、本机版本却还是旧的（说明上一轮没真的装上去）→ 这一轮先别再下 123MB。
   // 等版本变了或过了 SAME_VERSION_RETRY_MS 再来，把「反复重下」这条死循环掐死。
   if (sameVersionTriedRecently(version)) {
@@ -297,6 +309,9 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     });
     return;
   }
+  // 这次检查算不算「刚开机」的那一次 —— 下载要排队限速、可能耗时很久，
+  // 所以宽限期在下载前就定下来；等下载完再判断，容易因为超过 10 分钟白白错过这次开机。
+  const bootWindow = justBooted();
   const localDir = 'C:\\ProgramData\\chunlv';
   const localZip = path.join(localDir, 'update.zip');
   // 上一轮在接单时已经把这一版的包下好了 → 不用再下 123MB，等空闲直接装。
@@ -321,10 +336,16 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
       // 记下「这一版已经备好货」：即使现在正在接单，下一轮 / 下次开机也能直接装，不用重下。
       stageUpdate(version, localZip);
     } catch (err: any) {
-      logger.error('Download failed, fallback to SystemHelper download', { error: err?.message });
+      logger.error('Download failed', { error: err?.message });
       await releaseUpdateSlot(serverUrl, token);
       stopUpdateSpin();
       updateTrayTooltip('陪玩管理');
+      // 兜底把包交给看门狗去下也要退出重启（一样会打断接单），所以同样只在刚开机
+      // 或管理端明确推送时才走；别的时段这一轮先算了，等下轮、或干脆等下次开机再试。
+      if (!bootWindow && !allowIdleFallback) {
+        logger.info('Download failed and not a fresh boot, retry later instead of restarting');
+        return;
+      }
       signalUpdate(downloadUrl, undefined, version);
       rememberUpdateAttempt(version);
       setTimeout(() => { app.exit(0); }, 800);
@@ -334,10 +355,10 @@ async function performUpdate(downloadUrl: string, version = ''): Promise<void> {
     stopUpdateSpin();
     updateTrayTooltip('陪玩管理');
   }
-  // 包已经在本地了。到这一步才需要「别打断接单」：等陪玩空闲，再交给看门狗解压重启。
-  // 等不到就把包留着（备货标记还在），这单结束后的下一轮立刻就能装，不重下。
-  if (!(await waitUntilIdle('before applying downloaded package'))) {
-    logger.info('Still busy after waiting, keep the downloaded package for the next round');
+  // 包已经在本地了（备货标记还在）。到这一步才需要「别打断接单」：
+  // 自动更新只在刚开机那一次落地，其余时段把包留着，等下次开机再装，不用重下。
+  if (!(await mayApplyUpdateNow('before applying downloaded package', bootWindow, allowIdleFallback))) {
+    logger.info('Deferred, keep the downloaded package for the next boot');
     return;
   }
   signalUpdate(downloadUrl, localZip, version);
@@ -597,7 +618,7 @@ export async function handleUpdateCommand(downloadUrl?: string, pushedVersion?: 
     const staggerMs = Math.floor(Math.random() * 5_000);
     await new Promise((resolve) => setTimeout(resolve, staggerMs));
     logger.info('Update command received, downloading...', { url, version });
-    await performUpdate(url, version);
+    await performUpdate(url, version, true);
   } catch (err: any) {
     logger.error('Update command failed', { error: err.message });
   }

@@ -51,6 +51,15 @@
   判断系统刚启动（< 10 分钟）：此时残留的 BUSY 不算「接单中」，直接把已备好的包装上；开机已久又确实在接单的
   仍老实等空闲，绝不打断。开机时机器上还没人开打，所以这一步无痛。
 
+  **收紧成「只在刚开机 / 刚登录落地」（2026-10-06，老板「等他们下次关机开机登录的时候再更新吧」，
+  陪玩端 `1.0.20261018` / 客服端 `1.0.20260937`）**：`waitUntilIdle` 换成
+  `mayApplyUpdateNow(why, bootWindow, allowIdleFallback)` —— 宽限期内照装；**宽限期外一律 `return false`
+  （离线包留着下次开机装），不再等空闲**，于是运行中途永不换版。`bootWindow` 在 `performUpdate`
+  **下载开始前**取一次（下载要排队限速、可能十几分钟，下载完再判断会把这次开机白错过）；
+  下载失败那条「交给看门狗去下」的兜底同样受这道门管（它也会退出重启）。后台「推送更新」走
+  `handleUpdateCommand → performUpdate(url, version, true)`，`allowIdleFallback=true` 仍按老规矩等空闲（最多 30 分钟）。
+  客服端 `apps/cs-electron/main.js` 同口径：`withinLaunchGrace()`（`process.uptime() < 10 分钟`）之外只查版本不换装。
+
 - **订单列表给陪玩加了 `scope='served'`（2026-10-03，`OrdersService.findAll` + `order-privacy.ts`）**：
   「我服务的」＝ 我是该单主陪 **或** 我是它某条会话的副陪（`sessions.some.coCompanionId`）。
   没有 `companionId` 的账号走这条分支时直接返回空数组（防越权）。非主陪的 `served` 单统一过

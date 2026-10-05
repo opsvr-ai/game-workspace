@@ -165,6 +165,19 @@ function runInstallerElevated(installerPath) {
   // 以前先退出，客服一点「取消」授权，这台机器的客服端就再也没人拉起来了。
 }
 
+// 老板 2026-10-06：「等他们下次关机开机登录的时候再更新吧」——
+// 客服端也只在**这次启动/登录后的一小段宽限期**里换版，运行中途不再退出换装，
+// 客服正忙着的时候不会被更新打断。宽限期之外的检查只看看版本，不动手。
+const CS_LAUNCH_GRACE_MS = 10 * 60 * 1000;
+
+function withinLaunchGrace() {
+  try {
+    return process.uptime() * 1000 < CS_LAUNCH_GRACE_MS;
+  } catch {
+    return false;
+  }
+}
+
 function checkForUpdates() {
   try {
     const serverUrl = getServerUrl().replace(/\/$/, '');
@@ -180,6 +193,8 @@ function checkForUpdates() {
         if (compareVersions(latest, app.getVersion()) <= 0) return;
         // 这个版本在这台机器上装坏过（看门狗已回滚 + 拉黑）：别再下了，否则死循环。
         if (Object.prototype.hasOwnProperty.call(readBlockedVersions(), latest)) return;
+        // 老板 2026-10-06：只有「刚启动/刚登录」这一下才真装；跑着的时候只查不换版。
+        if (!withinLaunchGrace()) return;
 
         const toFull = (u) => (u.indexOf('http') === 0 ? u : serverUrl + u);
         // 静默路径：有「认得客服端」的新看门狗就走整包 zip，不需要授权。
@@ -687,9 +702,10 @@ app.whenReady().then(() => {
   // 每次启动顺手校正桌面图标：更新/改名后老机器的图标会变白、点不开。
   ensureDesktopShortcut();
   // 随机错峰，避免多台客服机同时下载 74MB 安装包。
+  // 这次启动的检查才是真正会换版的那一次（宽限期内）；见上面的 withinLaunchGrace。
   setTimeout(checkForUpdates, 20000 + Math.floor(Math.random() * 120000));
-  // 版本号查询从 5 分钟放宽到 30 分钟（一天 288 次没有意义）；
-  // 后台「推送更新」仍然可以立刻下发，不影响装机时间。
+  // 版本号查询从 5 分钟放宽到 30 分钟（一天 288 次没有意义）。
+  // 老板 2026-10-06 起这一轮只查版本、不换装：换装留给「下次启动那一下」（见 withinLaunchGrace）。
   setInterval(checkForUpdates, 30 * 60 * 1000);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
