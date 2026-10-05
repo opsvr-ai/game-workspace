@@ -674,14 +674,13 @@ const CSDispatchView: React.FC = () => {
                               {c.displayName || c.username || c.id}
                             </span>
                             {hasUnread && (
-                              <span
-                                style={{
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: '50%',
-                                  background: '#FF4757',
-                                  flexShrink: 0,
-                                }}
+                              // 显示未读消息**条数**（不是简单点个红点）—— 老板 2026-10-05。
+                              <Badge
+                                count={companionConvUnread}
+                                size="small"
+                                overflowCount={99}
+                                title={`${companionConvUnread} 条未读消息`}
+                                style={{ flexShrink: 0 }}
                               />
                             )}
                             <Button

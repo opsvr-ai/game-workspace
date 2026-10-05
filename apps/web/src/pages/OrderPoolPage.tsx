@@ -606,6 +606,8 @@ const OrderPoolPage: React.FC = () => {
             renderItem={(c) => {
               const avatarUrl = c.user?.avatar ? `/uploads/avatars/${c.user.avatar}?v=${c.user.avatar}` : null;
               const initial = (c.user?.displayName || c.user?.username || '?').slice(0, 1).toUpperCase();
+              // 未读消息**条数**（不是简单点个红点）—— 老板 2026-10-05：「要的是未读消息数」。
+              const companionUnread = unreadByParticipant[c.user?.id || c.id] || 0;
               return (
                 <List.Item
                   style={{
@@ -676,15 +678,13 @@ const OrderPoolPage: React.FC = () => {
                         >
                           {c.user?.displayName || c.user?.username || c.id}
                         </span>
-                        {(unreadByParticipant[c.user?.id || c.id] || 0) > 0 && (
-                          <span
-                            style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: '50%',
-                              background: '#FF4757',
-                              flexShrink: 0,
-                            }}
+                        {companionUnread > 0 && (
+                          <Badge
+                            count={companionUnread}
+                            size="small"
+                            overflowCount={99}
+                            title={`${companionUnread} 条未读消息`}
+                            style={{ flexShrink: 0 }}
                           />
                         )}
                         <Button
