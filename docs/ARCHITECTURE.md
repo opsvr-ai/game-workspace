@@ -328,6 +328,12 @@ stateDiagram-v2
 > 点「抢单」。它在陪玩端以**灰色记录**出现在抢单池下方「今天已发过的单」里（`findTakenPoolOrders()` 现在同时查
 > `POOL` 和 `DIRECT`），写「🎯 客服指定给 XX 接」（指定给自己写「🎯 这单指定给你」、紫色，时间栏「指定时间」）。
 > 陪玩端桌面横幅对指定单只提示「已指定给你」，不再提示「再点一下抢单」。
+>
+> **指定单的「怕注意不到」补喊**（`DirectAssignmentReminderService`，2026-10-06）：指定单横幅停 45 秒
+> （`DIRECT_ALERT_SECONDS`，普通单 15 秒）；20 分钟内还没点「开始首单」（`sessions` 无 `startedAt`）就在
+> 第 5 / 10 / 20 分钟各补喊一条 `order:urgent`（`_direct` + `_directReminder`）。判据与
+> `UnstartedOrderReminderService`（次日 + 第 7 天）同一套，20 分钟后交给它。陪玩没连着（`WsGateway.isCompanionConnected`）
+> 就不记账、等他上线补喊；多个时间点一起到只喊一条。状态在内存里，不写库。
 
 ### 3.2 派单流程时序
 

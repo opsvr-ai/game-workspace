@@ -13,6 +13,7 @@ import { ContactReminderService } from './contact-reminder.service';
 import { UnstartedOrderReminderService } from './unstarted-order-reminder.service';
 import { StaleSessionSweepService } from './stale-session-sweep.service';
 import { OnlineFirstReleaseService } from './online-first-release.service';
+import { DirectAssignmentReminderService } from './direct-assignment-reminder.service';
 
 @Module({
   imports: [WsModule, StudiosModule, CompanionsModule],
@@ -31,6 +32,9 @@ import { OnlineFirstReleaseService } from './online-first-release.service';
     StaleSessionSweepService,
     // 老板 2026-10-01：「线上→线下流转」的单到点自动放给本店线下时，给本店每个陪玩弹一次。
     OnlineFirstReleaseService,
+    // 老板 2026-10-06：客服「指定」给某个陪玩的单，陪玩经常注意不到（横幅一闪而过）——
+    // 还没点「开始首单」就在第 5 / 10 / 20 分钟再各弹一遍，直到他开始 / 取消 / 转走。
+    DirectAssignmentReminderService,
   ],
   exports: [OrdersService, CompanionQuotaService],
 })

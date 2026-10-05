@@ -1069,6 +1069,16 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * 这个陪玩的客户端现在有没有连着。
+   *
+   * 给「客服指定单」那道补喊用（`DirectAssignmentReminderService`）：人不在就别把这次提醒
+   * 记账，等他上线的那一轮再喊，免得三次全弹给一个没开的客户端、等于没提醒。
+   */
+  isCompanionConnected(companionId: string): boolean {
+    return !!this.companionSockets.get(companionId)?.size;
+  }
+
+  /**
    * 把「有人提交了东西等你审核」推给本店客服 / 店长 + 全站老板。
    *
    * 老板 2026-10-04：「其他需要交互的地方也都双方都能提示了么」——

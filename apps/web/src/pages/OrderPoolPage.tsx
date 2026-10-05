@@ -498,6 +498,18 @@ const OrderPoolPage: React.FC = () => {
                 {orderStatusConfig[order.status]?.label || order.status}
               </Text>
             )}
+            {/* 客服指定给自己的单：这里没有「抢单」按钮，真正要做的动作是去「订单管理」点「开始首单」。
+                从 Windows 横幅点过来的人一眼看到这个按钮就能直接过去，不用自己再翻菜单
+                （老板 2026-10-06：「指定到某个陪玩，直接进订单管理，陪玩有时候可能注意不到」）。 */}
+            {order._direct && order._takenByMe && order.status === 'GRABBED' && (
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => navigate(`/companion/orders?orderId=${order.id}`)}
+              >
+                去开始首单
+              </Button>
+            )}
           </Space>
         ) : isCompanion ? (
           <Space size={8}>

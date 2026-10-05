@@ -13,6 +13,7 @@ import { releaseCompanionIfIdle } from '../common/companion-presence';
 import { computeEntertainmentFee, loadEntertainmentRule } from '../common/entertainment-fee';
 import { currentBusinessDayRange, settlementMonthRange } from '../common/business-day';
 import { resolveConfigsRaw } from '../common/studio-config';
+import { DIRECT_ALERT_SECONDS } from './direct-assignment-reminder.service';
 import { isBelowPriceFloor, isRenewalSegment, partnerUnitPriceYuan, priceStatsFloor, resolvePriceMode } from '../common/price-rules';
 import { PoolScope, OrderOutcome } from '@chunlv/shared';
 import {
@@ -397,9 +398,13 @@ export class OrdersService implements OnModuleInit {
     }
 
     // DIRECT: 指定给某个陪玩，右下角弹窗提醒他
+    // 老板 2026-10-06：「指定到某个陪玩，直接进订单管理，陪玩有时候可能注意不到」——
+    // 指定单不用抢、只在订单管理里躺着，横幅 15 秒一闪而过就再也看不见了，所以给它更长的停留时间；
+    // 之后还没点「开始首单」，由 DirectAssignmentReminderService 在第 5 / 10 / 20 分钟再各喊一遍。
     if (dto.dispatchType === 'DIRECT' && dto.companionId) {
       this.wsGateway.notifyCompanion(dto.companionId, 'order:urgent', {
         ...popupPayload,
+        _popupSeconds: DIRECT_ALERT_SECONDS,
         _direct: true,
       });
     }
