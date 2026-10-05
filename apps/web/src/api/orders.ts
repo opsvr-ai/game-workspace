@@ -52,6 +52,9 @@ export const ordersApi = {
   /** 线上 / 桥接单的结果反馈：成功 / 不成功（老板 2026-10-06：接单方自己报，不成功必须带截图） */
   recordOutcome: (id: string, data: { outcome: 'SUCCESS' | 'FAILED'; reason?: string; note?: string; evidence?: string[] }) =>
     http.post(`/orders/${id}/outcome`, data),
+  /** 发单客服确认「已跟接单方核对、双方无异议」——失败单先过这一步，才轮到店长拍板（老板 2026-10-06） */
+  confirmOutcomeWithCs: (id: string, data: { note?: string }) =>
+    http.post(`/orders/${id}/cs-confirm`, data),
   /** 成交核对：店长 / 老板拍板这张「不成功」到底是谁的问题（谁的问题找谁） */
   reviewOutcome: (id: string, data: { responsibility: 'COMPANION' | 'CS' | 'CUSTOMER' | 'NONE'; note: string }) =>
     http.post(`/orders/${id}/review`, data),

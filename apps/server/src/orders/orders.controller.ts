@@ -351,6 +351,18 @@ export class OrdersController {
     return { code: 200, message: '已拍板', data };
   }
 
+  /** 发单客服确认「已跟接单方核对、双方无异议」—— 失败单先过这一步才轮到店长拍板（老板 2026-10-06）。 */
+  @Post('orders/:id/cs-confirm')
+  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  async confirmOutcomeWithCs(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.confirmOutcomeWithCs(id, req.user, body || {});
+    return { code: 200, message: '已确认，等店长拍板', data };
+  }
+
   /** 成交核对清单：waiting 待拍板的失败单 / recheck 抢了没结果的 / decided 已拍板。 */
   @Get('orders/reviews')
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)

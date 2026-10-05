@@ -176,6 +176,7 @@ const CsCommissionTodayPage: React.FC = () => {
     precision?: number;
     hint?: string;
     color?: string;
+    pay?: boolean;
   }> = [
     { title: isCsRole ? '今天发单' : '全店发单', value: board?.published ?? 0, suffix: '单', hint: '今天建了多少单' },
     { title: '成功', value: board?.success ?? 0, suffix: '单', hint: '线下陪玩点「开始首单」/ 桥接·线上反馈成功' },
@@ -192,10 +193,23 @@ const CsCommissionTodayPage: React.FC = () => {
       value: boardPay,
       prefix: '¥',
       precision: 1,
-      hint: '底薪按天折算 + 提成（只有成功单才算提成）',
+      // 老板 2026-10-06：「点提成也可以看到今日 +多少提成 + 明细」—— 这张卡点一下开明细抽屉。
+      hint: isCsRole
+        ? '底薪按天折算 + 提成（只有成功单才算提成）—— 点一下看今日 +多少提成 + 每一单明细'
+        : '底薪按天折算 + 提成（只有成功单才算提成）',
       color: '#cf1322',
+      pay: true,
     },
   ];
+
+  /** 客服点「今天挣了」那张卡 → 直接开自己的今日明细（和表格里那一列同一个抽屉）。 */
+  const openMyDetail = () => {
+    if (!isCsRole) return;
+    const row =
+      myRow ||
+      ({ userId: user?.id, displayName: user?.displayName || user?.username, todayPay: boardPay } as any);
+    void openRow(row);
+  };
   const boardPie: Array<{ name: string; value: number; color: string }> = [
     { name: '成功', value: Number(board?.success || 0), color: '#15803D' },
     { name: '不成功', value: Number(board?.failed || 0), color: '#DC2626' },
@@ -393,20 +407,33 @@ const CsCommissionTodayPage: React.FC = () => {
           <Row gutter={[12, 12]} align="middle">
             <Col xs={24} md={16}>
               <Row gutter={[12, 12]}>
-                {boardCards.map((c) => (
-                  <Col xs={8} sm={4} key={c.title}>
-                    <Tooltip title={c.hint}>
-                      <Statistic
-                        title={c.title}
-                        value={c.value}
-                        precision={c.precision}
-                        prefix={c.prefix}
-                        suffix={c.suffix}
-                        valueStyle={c.color ? { color: c.color } : undefined}
-                      />
-                    </Tooltip>
-                  </Col>
-                ))}
+                {boardCards.map((c) => {
+                  const clickable = !!c.pay && isCsRole;
+                  return (
+                    <Col xs={8} sm={4} key={c.title}>
+                      <Tooltip title={c.hint}>
+                        <div
+                          style={clickable ? { cursor: 'pointer' } : undefined}
+                          onClick={clickable ? openMyDetail : undefined}
+                        >
+                          <Statistic
+                            title={c.title}
+                            value={c.value}
+                            precision={c.precision}
+                            prefix={c.prefix}
+                            suffix={c.suffix}
+                            valueStyle={c.color ? { color: c.color } : undefined}
+                          />
+                        </div>
+                      </Tooltip>
+                      {clickable ? (
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          点击看明细 ›
+                        </Text>
+                      ) : null}
+                    </Col>
+                  );
+                })}
               </Row>
             </Col>
             <Col xs={24} md={8}>

@@ -984,10 +984,10 @@ function estimatePopupHeight(payload: {
   const lines = (s: string, per: number) => Math.max(1, Math.ceil(s.length / per));
   let h = 26; // 卡片上下 padding + 外边距
   h += lines(String(payload?.title || ''), 24) * 17;
-  if (payload?.big) h += lines(String(payload.big), 15) * 25;
-  if (payload?.body) h += 2 + Math.min(2, lines(String(payload.body), 22)) * 18;
-  if (payload?.note) h += 4 + Math.min(2, lines(String(payload.note), 22)) * 20;
-  if (payload?.hint) h += 3 + Math.min(2, lines(String(payload.hint), 28)) * 15;
+  if (payload?.big) h += lines(String(payload.big), 19) * 25;
+  if (payload?.body) h += 2 + Math.min(2, lines(String(payload.body), 28)) * 18;
+  if (payload?.note) h += 4 + Math.min(2, lines(String(payload.note), 28)) * 20;
+  if (payload?.hint) h += 3 + Math.min(2, lines(String(payload.hint), 35)) * 15;
   return Math.max(80, Math.min(220, h));
 }
 
@@ -1014,7 +1014,8 @@ function showBroadcastPopup(payload: {
   big?: string;
   note?: string;
 }): void {
-  const W = 380;
+  // 老板 2026-10-06：「其实也没必要改小」—— 宽度恢复原来的 480，只把关键字放大、备注标红。
+  const W = 480;
   const GAP = 10;
   const MARGIN = 16;
   const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;

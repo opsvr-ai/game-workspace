@@ -1377,12 +1377,16 @@ export class OrdersService implements OnModuleInit {
       outcomeByUserId: user?.id ?? null,
       outcomeAt: new Date(),
       outcomeEvidence: evidence.length ? evidence : null,
-      // 失败单进「待店长拍板」；成功单不用拍板（老板 2026-10-06）。
-      reviewStatus: outcome === OrderOutcome.FAILED ? 'WAITING' : null,
+      // 成功单不用拍板；失败单**先进「等发单客服跟接单方核对」**（老板 2026-10-06：
+      // 「他们不跟发单者掰扯明白，直接进店长，那不把店长累死」），核对完才轮到店长拍板。
+      reviewStatus: outcome === OrderOutcome.FAILED ? 'CS_CONFIRMING' : null,
       reviewResponsibility: null,
       reviewNote: null,
       reviewByUserId: null,
       reviewAt: null,
+      csConfirmedAt: null,
+      csConfirmedByUserId: null,
+      csConfirmNote: null,
     };
     const updated = await this.prisma.order.update({ where: { id: orderId }, data });
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
@@ -1418,19 +1422,100 @@ export class OrdersService implements OnModuleInit {
       companionName: ctx.companionName,
       channel: ctx.channel,
       message: failed
-        ? `${ctx.companionName} 报了「不成功」（订单 ${code}${order?.outcomeReason ? '：' + order.outcomeReason : ''}）—— 已附截图，等店长拍板到底是谁的问题`
+        ? `${ctx.companionName} 报了「不成功」（订单 ${code}${order?.outcomeReason ? '：' + order.outcomeReason : ''}）—— 已附截图，请先跟接单方核对（双方都没异议了再推店长拍板）`
         : `${ctx.companionName} 报了「成功」（订单 ${code}）—— 计入发单客服考核`,
     };
     const csUserId: string | null = order?.csUserId ?? null;
     const event = failed ? 'order:outcome_failed' : 'order:outcome_success';
-    if (csUserId) this.wsGateway.notifyUser(csUserId, event, payload);
+    if (csUserId) {
+      // 失败单**只先找发单客服**：先跟接单方掰扯明白，别直接堆给店长（老板 2026-10-06）。
+      this.wsGateway.notifyUser(csUserId, event, payload);
+      return;
+    }
     if (!failed) return;
+    // 这单没记发单客服（老单 / 客服代录）→ 找不到人，退回到店长 / 老板，免得没人管。
+    await this.notifyOrderReviewers(order?.studioId ?? null, event, payload);
+  }
+
+  /**
+   * 发单客服确认「已跟接单方核对、双方无异议」（老板 2026-10-06）：
+   * 失败单必须先过这一步，才轮到店长拍板 —— 免得两边还没掰扯明白就直接堆到店长那儿。
+   */
+  async confirmOutcomeWithCs(orderId: string, user: any, body: { note?: string }) {
+    const role = user?.role ?? '';
+    if (!['OWNER', 'ADMIN', 'CS'].includes(role)) {
+      throw new ForbiddenException('只有发单客服 / 店长 / 老板能确认这一步');
+    }
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        companion: { select: { user: { select: { id: true, username: true, displayName: true } } } },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (order.outcome !== OrderOutcome.FAILED) {
+      throw new BadRequestException('只有报「不成功」的单才要客服先核对');
+    }
+    if (order.reviewStatus === 'DECIDED') {
+      throw new BadRequestException('这张单店长已经拍过板了');
+    }
+    if (role === 'CS') {
+      // 只有「发单客服」本人能确认；这张单没记发单客服时，本店客服都能顶上，别让它卡住。
+      if (order.csUserId && order.csUserId !== user?.id) {
+        throw new ForbiddenException('这张单不是你发的，等发单客服自己跟接单方核对');
+      }
+      if (!order.csUserId && user?.studioId && order.studioId !== user.studioId) {
+        throw new ForbiddenException('无权确认其他工作室的订单');
+      }
+    } else if (role === 'ADMIN' && user?.studioId && order.studioId !== user.studioId) {
+      throw new ForbiddenException('无权确认其他工作室的订单');
+    }
+    const note = (body?.note || '').trim();
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        reviewStatus: 'CS_CONFIRMED',
+        csConfirmedAt: new Date(),
+        csConfirmedByUserId: user?.id ?? null,
+        csConfirmNote: note || null,
+      },
+    });
+    const code = updated.orderCode || updated.id;
+    const payload = {
+      orderId: updated.id,
+      orderCode: updated.orderCode ?? null,
+      gameName: (updated as any).gameName ?? null,
+      outcome: updated.outcome ?? null,
+      reason: updated.outcomeReason ?? null,
+      evidence: Array.isArray(updated.outcomeEvidence) ? updated.outcomeEvidence : [],
+      message: `订单 ${code}：发单客服已跟接单方核对完（双方无异议），等店长拍板到底是谁的问题`,
+    };
+    // 接单方也知会一声：这事定了，等店长定责。
+    const companionUserId = (order.companion as any)?.user?.id ?? null;
+    if (companionUserId) {
+      this.wsGateway.notifyUser(companionUserId, 'order:outcome_cs_confirmed', {
+        ...payload,
+        message: `订单 ${code}：发单客服已跟你核对完（双方无异议），等店长拍板`,
+      });
+    }
+    // 轮到店长 / 老板了（这才是他们该被叫的时候）。
+    await this.notifyOrderReviewers(order.studioId ?? null, 'order:outcome_cs_confirmed', payload);
+    return updated;
+  }
+
+  /** 店长 / 老板（含全站老板）：拍板这类事只找他们。 */
+  private async notifyOrderReviewers(
+    studioId: string | null,
+    event: string,
+    payload: any,
+    excludeUserId?: string | null,
+  ): Promise<void> {
     const where: any = { isAuthorized: true, role: { in: ['OWNER', 'ADMIN'] } };
-    if (order?.studioId) where.OR = [{ studioId: order.studioId }, { role: 'OWNER', studioId: null }];
+    if (studioId) where.OR = [{ studioId }, { role: 'OWNER', studioId: null }];
     else where.role = 'OWNER';
     const found = await this.prisma.user.findMany({ where, select: { id: true } }).catch(() => []);
     for (const reviewer of (Array.isArray(found) ? found : []) as any[]) {
-      if (csUserId && reviewer.id === csUserId) continue;
+      if (excludeUserId && reviewer.id === excludeUserId) continue;
       this.wsGateway.notifyUser(reviewer.id, event, payload);
     }
   }
@@ -1463,6 +1548,12 @@ export class OrdersService implements OnModuleInit {
     }
     if (order.outcome !== OrderOutcome.FAILED) {
       throw new BadRequestException('只有报「不成功」的单才需要拍板');
+    }
+    // 老板 2026-10-06：失败单必须先由发单客服跟接单方核对完（双方无异议），才轮到店长拍板。
+    if (order.reviewStatus !== 'CS_CONFIRMED') {
+      throw new BadRequestException(
+        '这张单还没经过发单客服核对 —— 先让发单客服在「成交核对 → 待拍板」点「已跟接单方确认、双方无异议」',
+      );
     }
     const responsibility = String(body.responsibility || '').trim().toUpperCase();
     if (!(OrdersService.REVIEW_RESPONSIBILITIES as readonly string[]).includes(responsibility)) {
@@ -1597,6 +1688,9 @@ export class OrdersService implements OnModuleInit {
           reviewResponsibility: o.reviewResponsibility,
           reviewNote: o.reviewNote,
           reviewAt: o.reviewAt,
+          csConfirmedAt: o.csConfirmedAt,
+          csConfirmedByUserId: o.csConfirmedByUserId,
+          csConfirmNote: o.csConfirmNote,
           csUserId: o.csUserId,
           csUserName: (o.csUser as any)?.displayName || (o.csUser as any)?.username || null,
           companionId: o.companionId,
@@ -1627,13 +1721,20 @@ export class OrdersService implements OnModuleInit {
   /** 管理端菜单 / 首页红点要的条数（老板 2026-10-06：每天点名管理端去核对）。 */
   async orderReviewSummary(user: any) {
     if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
-      return { waiting: 0, recheck: 0, decided: 0 };
+      return { waiting: 0, waitingCs: 0, waitingDecide: 0, recheck: 0, decided: 0 };
     }
     const [waiting, recheck] = await Promise.all([
       this.listOrderReviews(user, 'waiting').catch(() => []),
       this.listOrderReviews(user, 'recheck').catch(() => []),
     ]);
-    return { waiting: waiting.length, recheck: recheck.length };
+    // waiting 里再分两段：还没过发单客服核对的（等客服）/ 核对完等店长拍板的（等店长）。
+    const waitingDecide = waiting.filter((o: any) => o.reviewStatus === 'CS_CONFIRMED').length;
+    return {
+      waiting: waiting.length,
+      waitingCs: waiting.length - waitingDecide,
+      waitingDecide,
+      recheck: recheck.length,
+    };
   }
 
   /**

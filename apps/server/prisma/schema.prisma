@@ -273,11 +273,16 @@ model Order {
   // 和店长，由店长拍板「到底是谁的问题」（谁的问题就去找谁），发单者据此去追。
   // 点「成功」不用拍板，直接推给发单者、计入考核。重点追查的永远是失败单。
   outcomeEvidence      Json? // 接单方报「不成功」时粘贴的截图（URL 列表，至少 1 张）
-  reviewStatus         String? // WAITING（待店长拍板）| DECIDED（已拍板）
+  reviewStatus         String? // CS_CONFIRMING（等发单客服跟接单方核对）| CS_CONFIRMED（客服已确认，等店长拍板）| DECIDED（已拍板）
   reviewResponsibility String? // COMPANION | CS | CUSTOMER | NONE —— 谁的问题
   reviewNote           String? // 店长的结论 / 追责说明
   reviewByUserId       String?
   reviewAt             DateTime?
+  // 老板 2026-10-06 补：「他们不跟发单者掰扯明白，直接进店长，那不把店长累死」——
+  // 失败单必须先由发单客服点「已跟接单方确认、双方无异议」，才轮到店长拍板。
+  csConfirmedAt       DateTime? // 发单客服确认「双方无异议」的时间
+  csConfirmedByUserId String? // 点确认的那个客服
+  csConfirmNote       String? // 核对说明（可选）
 
   // 「催一下」（老板 2026-09-30）：线上 / 桥接单一直是「待反馈」时，发单的客服可以催接单
   // 工作室给个说法。催了几次、最后一次什么时候记在这里；接单方的看板上显示「对方催过 N 次」。

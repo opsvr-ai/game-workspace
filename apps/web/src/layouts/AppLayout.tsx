@@ -1867,6 +1867,53 @@ const AppLayout: React.FC = () => {
         action: 'open-orders',
       });
     },
+    onOrderOutcomeReport: (data: any) => {
+      // 接单方报了结果（老板 2026-10-06）：成功 → 计入考核；不成功 → 先由发单客服跟接单方核对，
+      // 核对完才轮到店长拍板。所以失败这条只找发单客服（服务端就只推给他）。
+      const failed = data?.outcome === 'FAILED';
+      const code = data?.orderCode || '这一单';
+      const text =
+        data?.message ||
+        (failed ? `接单方报了「不成功」（${code}），先跟接单方核对一下` : `接单方报了「成功」（${code}）`);
+      const title = failed ? `🔔 先跟接单方核对：${code}` : `✅ 接单方报了成功：${code}`;
+      notifyNotice({
+        kind: 'order',
+        icon: failed ? '🔔' : '✅',
+        title,
+        desc: text,
+        href: rolePage(user?.role, 'orders'),
+        toast: failed ? 'warning' : 'success',
+        duration: 8,
+        dedupeKey: `outcome-report:${data?.orderId || code}`,
+        dedupeMs: 6 * 60 * 60 * 1000,
+      });
+      if (failed) {
+        showBannerNotification({
+          title,
+          body: text,
+          icon: '🔔',
+          seconds: 15,
+          hint: '点这里 → 去「订单管理 → 成交核对」核对',
+          action: 'open-orders',
+        });
+      }
+    },
+    onOrderOutcomeCsConfirmed: (data: any) => {
+      // 客服核对完 → 该店长 / 老板拍板了（老板 2026-10-06）。接单方那边只留一条通知，不弹窗。
+      const code = data?.orderCode || '这一单';
+      const isReviewer = user?.role === 'OWNER' || user?.role === 'ADMIN';
+      notifyNotice({
+        kind: 'audit',
+        icon: '🧾',
+        title: `可以拍板了：${code}`,
+        desc: data?.message || '发单客服已跟接单方核对完（双方无异议），等店长拍板',
+        href: rolePage(user?.role, 'orders'),
+        toast: isReviewer ? 'info' : 'none',
+        duration: 8,
+        dedupeKey: `outcome-cs-confirmed:${data?.orderId || code}`,
+        dedupeMs: 6 * 60 * 60 * 1000,
+      });
+    },
     onOrderUnstartedReminderAdmin: (data: any) => {
       // 满 7 天还没处理 → 只落进「待办」（右上角铃铛），不弹窗打扰；人工去「成交核对 → 抢了没结果」核。
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';

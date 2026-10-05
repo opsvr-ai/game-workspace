@@ -18,8 +18,12 @@ const { Text, Paragraph } = Typography;
  * 这个到底是谁的原因、到底谁的问题，谁的问题就去找谁；失败的还得粘贴上截图。
  * 成功的不用重点追查，重点追查失败的。」
  *
+ * 老板 2026-10-06 又补一步：「失败单先由发单客服点『已跟接单方确认、双方无异议』，
+ * 才轮到店长审核拍板」——「他们不跟发单者掰扯明白，直接进店长，那不把店长累死」。
+ * 所以「待拍板」里再分两段：等发单客服核对 → 等店长拍板。
+ *
  * 所以这一页就四类：
- *  - 待拍板：接单方报了「不成功」还没定责的（带截图）——重点追这类；
+ *  - 待拍板：接单方报了「不成功」还没定责的（带截图）——先让发单客服跟接单方核对，再轮到店长拍板；
  *  - 抢了没结果：抢走 30 分钟了还没点开始首单 / 没反馈、**还在 7 天以内**的（线下的、桥接 / 线上的都在）；
  *  - 历史记录：上面那批**满了 7 天**的（陪玩那边两次提醒走完就进这儿，不再占着要在清单，随时可翻）；
  *  - 已拍板：最近拍过板的留痕，可回看。
@@ -66,14 +70,18 @@ function money(o: any): string {
 const OrderReviewPage: React.FC = () => {
   const user = useAuthStore((s: any) => s.user);
   const canDecide = user?.role === 'OWNER' || user?.role === 'ADMIN';
+  const isCs = user?.role === 'CS';
   const [tab, setTab] = useState<'waiting' | 'recheck' | 'archived' | 'decided'>('waiting');
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState({ waiting: 0, recheck: 0 });
+  const [summary, setSummary] = useState({ waiting: 0, waitingCs: 0, waitingDecide: 0, recheck: 0 });
   const [target, setTarget] = useState<any>(null);
   const [responsibility, setResponsibility] = useState<string>('COMPANION');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [csTarget, setCsTarget] = useState<any>(null);
+  const [csNote, setCsNote] = useState('');
+  const [csSaving, setCsSaving] = useState(false);
 
   const fetchList = useCallback(async (scope: 'waiting' | 'recheck' | 'archived' | 'decided') => {
     setLoading(true);
@@ -91,7 +99,12 @@ const OrderReviewPage: React.FC = () => {
     try {
       const { data } = await ordersApi.orderReviewSummary();
       const d = (data as any)?.data || {};
-      setSummary({ waiting: Number(d.waiting || 0), recheck: Number(d.recheck || 0) });
+      setSummary({
+        waiting: Number(d.waiting || 0),
+        waitingCs: Number(d.waitingCs ?? d.waiting ?? 0),
+        waitingDecide: Number(d.waitingDecide || 0),
+        recheck: Number(d.recheck || 0),
+      });
     } catch {
       /* 红点拿不到就算了，不影响清单 */
     }
@@ -111,6 +124,28 @@ const OrderReviewPage: React.FC = () => {
     setTarget(row);
     setResponsibility(row.channel === 'offline' ? 'COMPANION' : 'NONE');
     setNote('');
+  };
+
+  /** 发单客服点「已跟接单方确认、双方无异议」——失败单先过这一步才轮到店长拍板。 */
+  const openConfirmCs = (row: any) => {
+    setCsTarget(row);
+    setCsNote('');
+  };
+
+  const submitConfirmCs = async () => {
+    if (!csTarget) return;
+    setCsSaving(true);
+    try {
+      await ordersApi.confirmOutcomeWithCs(csTarget.id, { note: csNote.trim() || undefined });
+      message.success('已确认，等店长拍板');
+      setCsTarget(null);
+      await fetchList(tab);
+      void fetchSummary();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '确认失败'));
+    } finally {
+      setCsSaving(false);
+    }
   };
 
   const submitDecide = async () => {
@@ -246,13 +281,47 @@ const OrderReviewPage: React.FC = () => {
           );
         }
         if (o.outcome === 'FAILED') {
+          // 第一段：还没过发单客服核对 —— 谁发单谁跟接单方掰扯明白（老板 2026-10-06）。
+          if (o.reviewStatus !== 'CS_CONFIRMED') {
+            const mine = !o.csUserId || o.csUserId === user?.id;
+            if (isCs && mine) {
+              return (
+                <Space direction="vertical" size={2}>
+                  <Button size="small" type="primary" onClick={() => openConfirmCs(o)}>
+                    已跟接单方确认、无异议
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    核对完才轮到店长拍板
+                  </Text>
+                </Space>
+              );
+            }
+            return (
+              <Space direction="vertical" size={2}>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  等发单客服{o.csUserName ? ' ' + o.csUserName : ''}跟接单方核对
+                </Text>
+                {canDecide ? (
+                  <Button size="small" onClick={() => openConfirmCs(o)}>
+                    代客服确认
+                  </Button>
+                ) : null}
+              </Space>
+            );
+          }
+          // 第二段：客服已核对完，轮到店长拍板。
           return canDecide ? (
-            <Button size="small" type="primary" danger onClick={() => openDecide(o)}>
-              拍板定责
-            </Button>
+            <Space direction="vertical" size={2}>
+              <Button size="small" type="primary" danger onClick={() => openDecide(o)}>
+                拍板定责
+              </Button>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                客服已核对{fmt(o.csConfirmedAt)}
+              </Text>
+            </Space>
           ) : (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              等店长拍板
+              客服已核对{fmt(o.csConfirmedAt)}，等店长拍板
             </Text>
           );
         }
@@ -269,7 +338,7 @@ const OrderReviewPage: React.FC = () => {
     <div>
       <PageHeader
         title="成交核对"
-        subtitle="接单方报的「不成功」重点追：截图 + 原因 → 店长拍板到底是谁的问题；抢了没结果的 7 天内在这儿催，满 7 天自动进「历史记录」"
+        subtitle="接单方报「不成功」→ 先由发单客服跟接单方核对（无异议）→ 再轮店长拍板定责；抢了没结果的 7 天内在这儿催，满 7 天自动进「历史记录」"
         extra={
           <Button
             icon={React.createElement(ReloadOutlined)}
@@ -288,9 +357,18 @@ const OrderReviewPage: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title="待店长拍板（失败单，重点追）"
-              value={summary.waiting}
-              valueStyle={{ color: summary.waiting ? '#DC2626' : '#16A34A' }}
+              title={canDecide ? '① 等发单客服核对（在跟接单方掰扯）' : '① 等我跟接单方核对'}
+              value={summary.waitingCs}
+              valueStyle={{ color: summary.waitingCs ? '#D97706' : '#16A34A' }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="② 等店长拍板（客服已核对完）"
+              value={summary.waitingDecide}
+              valueStyle={{ color: summary.waitingDecide ? '#DC2626' : '#16A34A' }}
             />
           </Card>
         </Col>
@@ -303,11 +381,6 @@ const OrderReviewPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card size="small">
-            <Statistic title="当前这一栏" value={rows.length} />
-          </Card>
-        </Col>
       </Row>
 
       {summary.waiting > 0 && tab !== 'waiting' ? (
@@ -315,7 +388,10 @@ const OrderReviewPage: React.FC = () => {
           type="error"
           showIcon
           style={{ marginBottom: 12 }}
-          message={'有 ' + summary.waiting + ' 张报「不成功」的单还没拍板 —— 去「待拍板」那一栏定责（谁的问题找谁）'}
+          message={
+            '有 ' + summary.waiting + ' 张报「不成功」的单还没走完：' +
+            summary.waitingCs + ' 张等发单客服跟接单方核对、' + summary.waitingDecide + ' 张等店长拍板'
+          }
           action={
             <Button size="small" danger onClick={() => setTab('waiting')}>
               去拍板
@@ -356,6 +432,51 @@ const OrderReviewPage: React.FC = () => {
           }}
         />
       </Card>
+
+      <Modal
+        title={'跟接单方核对：' + (csTarget?.orderCode || '')}
+        open={!!csTarget}
+        onOk={submitConfirmCs}
+        onCancel={() => setCsTarget(null)}
+        okText="确认：双方已核对、无异议"
+        cancelText="取消"
+        confirmLoading={csSaving}
+        destroyOnClose
+      >
+        {csTarget ? (
+          <div>
+            <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              接单方 {csTarget.companionName || '—'} 报的「不成功」：{csTarget.outcomeReason || '未填原因'}
+              {csTarget.outcomeNote ? '（' + csTarget.outcomeNote + '）' : ''}。
+              先跟接单方（和发单的自己）把这事掰扯明白：确实没打成、双方都认，再点确认，
+              然后就轮到店长拍板定责 —— 别把没核清楚的单直接堆给店长。
+            </Paragraph>
+            {Array.isArray(csTarget.evidence) && csTarget.evidence.length ? (
+              <Space size={6} wrap style={{ marginBottom: 10 }}>
+                {csTarget.evidence.map((url: string) => (
+                  <img
+                    key={url}
+                    src={url}
+                    alt="失败凭据"
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                    onClick={() => window.open(url, '_blank')}
+                  />
+                ))}
+              </Space>
+            ) : null}
+            <Text strong style={{ display: 'block', marginTop: 10 }}>
+              核对说明（可选）
+            </Text>
+            <Input.TextArea
+              rows={2}
+              style={{ marginTop: 8 }}
+              value={csNote}
+              onChange={(e) => setCsNote(e.target.value)}
+              placeholder="例如：已微信问过接单方，客户临时不打，双方都认；截图齐了"
+            />
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         title={'拍板：' + (target?.orderCode || '') + ' 这张单到底是谁的问题'}

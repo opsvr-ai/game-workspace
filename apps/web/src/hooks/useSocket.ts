@@ -69,6 +69,10 @@ interface UseSocketOptions {
   onOrderUnstartedReminder?: (data: any) => void;
   /** 同上满 7 天仍没处理 → 提醒客服 / 店长 / 老板去核（成交核对 → 抢了没结果） */
   onOrderUnstartedReminderAdmin?: (data: any) => void;
+  /** 接单方报了结果（成功 / 不成功）→ 发单客服实时收到（老板 2026-10-06：失败单先找他核对） */
+  onOrderOutcomeReport?: (data: any) => void;
+  /** 发单客服确认「跟接单方核对无异议」→ 推给店长 / 老板来拍板（老板 2026-10-06） */
+  onOrderOutcomeCsConfirmed?: (data: any) => void;
   /**
    * 通用「审核 / 交互」提醒（老板 2026-10-04）——报账 / 支取 / 战绩图 / 客户删除申请 /
    * 封存解封 / 桥接申请 / 注册审核，提交方和审核方都要能实时收到提示。
@@ -346,6 +350,18 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:unstarted_reminder_admin', (data: any) => {
       optsRef.current.onOrderUnstartedReminderAdmin?.(data);
+    });
+
+    socket.on('order:outcome_failed', (data: any) => {
+      optsRef.current.onOrderOutcomeReport?.(data);
+    });
+
+    socket.on('order:outcome_success', (data: any) => {
+      optsRef.current.onOrderOutcomeReport?.(data);
+    });
+
+    socket.on('order:outcome_cs_confirmed', (data: any) => {
+      optsRef.current.onOrderOutcomeCsConfirmed?.(data);
     });
 
     socket.on('review:notice', (data: any) => {
