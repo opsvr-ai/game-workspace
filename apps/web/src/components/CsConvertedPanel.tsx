@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Space, message, Modal, InputNumber, Select, Typography, Popconfirm } from 'antd';
+import { Button, Card, Input, Space, message, Modal, InputNumber, Select, Typography, Popconfirm, Upload } from 'antd';
 import { ordersApi } from '../api/orders';
+import http from '../api/client';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';
 import { extractErrorMessage } from '../utils/error-handler';
@@ -17,6 +18,7 @@ import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/order
 import { orderMatchesSearch } from '../utils/orderPool';
 import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
+import PasteImageBox from './PasteImageBox';
 
 const { Text } = Typography;
 
@@ -194,6 +196,89 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       load();
     } catch (e: any) {
       message.error(extractErrorMessage(e, '操作失败'));
+    }
+  };
+
+  // 客服点「添加失败」也要能贴证据（老板 2026-10-06）：以前一点就直接提交、没地方粘
+  // 「客户没同意」的截图。现在弹窗选原因 + 粘贴截图（可选）+ 备注；截图存进订单，
+  // 之后在客服这块台账号这一行能看到缩略图，方便跟发单者 / 店长核对。
+  const [failTarget, setFailTarget] = useState<{ item: any; viaCsContact: boolean } | null>(null);
+  const [failReason, setFailReason] = useState('客户一直没同意');
+  const [failNote, setFailNote] = useState('');
+  const [failEvidence, setFailEvidence] = useState<string[]>([]);
+  const [failUploading, setFailUploading] = useState(false);
+  const [failSaving, setFailSaving] = useState(false);
+
+  const CONTACT_FAIL_REASONS = [
+    '客户一直没同意',
+    '客户没通过好友验证',
+    '客户不回消息',
+    '微信加错 / 被封',
+    '其他',
+  ];
+
+  const openFail = (item: any, viaCsContact: boolean) => {
+    setFailTarget({ item, viaCsContact });
+    setFailReason('客户一直没同意');
+    setFailNote('');
+    setFailEvidence([]);
+  };
+
+  /** 一次收多张（Ctrl+V 粘贴 / 拖进来 / 多选文件都走这里），最多留 3 张。 */
+  const uploadFailFiles = async (files: File[]) => {
+    const list = (files || []).filter(Boolean).slice(0, 3);
+    if (!list.length) return;
+    setFailUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of list) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await http.post('/upload/screenshot', fd);
+        const url = data?.data?.url || data?.url || '';
+        if (url) urls.push(url);
+      }
+      if (!urls.length) throw new Error('no url');
+      setFailEvidence((prev) => [...prev, ...urls].slice(0, 3));
+      message.success(urls.length > 1 ? `已上传 ${urls.length} 张截图` : '截图已上传');
+    } catch {
+      message.error('截图上传失败，再传一次');
+    } finally {
+      setFailUploading(false);
+    }
+  };
+
+  const submitFail = async () => {
+    if (!failTarget) return;
+    if (!failReason) {
+      message.warning('请选一个添加失败的原因');
+      return;
+    }
+    setFailSaving(true);
+    try {
+      const evidenceUrl = failEvidence[0] || undefined;
+      if (failTarget.viaCsContact) {
+        // 还没派出去的跟进单：订单还不是 GRABBED / CONFIRMED，走 /cs-contact 才写得了
+        await ordersApi.markCsContact(failTarget.item.id, 'added', evidenceUrl, {
+          addResult: 'failed',
+          failReason,
+          note: failNote.trim() || undefined,
+        });
+      } else {
+        await ordersApi.updateContact(failTarget.item.id, {
+          contactStatus: 'not_accepted',
+          notes: failNote.trim() || failReason,
+          failReason,
+          screenshotUrl: evidenceUrl,
+        });
+      }
+      message.success('已标记添加失败');
+      setFailTarget(null);
+      load();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    } finally {
+      setFailSaving(false);
     }
   };
 
@@ -402,7 +487,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           </Button>,
         );
         buttons.push(
-          <Button key="failed" size="small" danger onClick={() => mark(r, 'added', 'failed', '已标记添加失败')}>
+          <Button key="failed" size="small" danger onClick={() => openFail(r, true)}>
             添加失败
           </Button>,
         );
@@ -432,7 +517,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         </Button>,
       );
       buttons.push(
-        <Button key="failed" size="small" danger onClick={() => markContact(r, 'not_accepted')}>
+        <Button key="failed" size="small" danger onClick={() => openFail(r, false)}>
           添加失败
         </Button>,
       );
@@ -447,6 +532,20 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         <Button key="flow" size="small" onClick={() => openFlow(r)}>
           记流水
         </Button>,
+      );
+    }
+    // 客服留过「添加失败」截图的话，在这一行的按钮前面挂个缩略图，点开看大图（老板 2026-10-06）
+    const contactEvidence = (r.customFields || {}).csContactEvidenceUrl;
+    if (contactEvidence) {
+      buttons.unshift(
+        <img
+          key="fail-evidence"
+          src={contactEvidence}
+          alt="添加失败截图"
+          title="点开看「添加失败」时留的截图"
+          style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 4, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+          onClick={() => window.open(contactEvidence, '_blank')}
+        />,
       );
     }
     return <Space size={4}>{buttons}</Space>;
@@ -748,6 +847,86 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
               })}
             </Select>
           </div>
+        </div>
+      </Modal>
+      {/* 客服点「添加失败」时的弹窗：选原因 + 粘贴截图（可选）+ 备注（老板 2026-10-06） */}
+      <Modal
+        title="标记「添加失败」"
+        open={!!failTarget}
+        onOk={submitFail}
+        onCancel={() => setFailTarget(null)}
+        okText="确认添加失败"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        confirmLoading={failSaving}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          客户一直没同意就选个原因；能贴上「客户没同意 / 没通过验证」的截图更好 —— 之后跟发单者 / 店长核对、定责时都看得到这张图。
+        </Text>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>原因</Text>
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            value={failReason}
+            onChange={(v) => setFailReason(v)}
+            options={CONTACT_FAIL_REASONS.map((r) => ({ label: r, value: r }))}
+          />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>截图（可选，建议贴一张）</Text>
+          <PasteImageBox
+            onFiles={uploadFailFiles}
+            disabled={failUploading}
+            style={{ marginTop: 8 }}
+            hint="点一下这里，直接 Ctrl+V 粘贴截图（可一次粘多张，也能把图片拖进来）"
+          >
+            {failEvidence.map((url) => (
+              <div
+                key={url}
+                style={{ display: 'inline-flex', alignItems: 'center', marginRight: 8, marginBottom: 8 }}
+              >
+                <img
+                  src={url}
+                  alt="添加失败凭据"
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  onClick={() => window.open(url, '_blank')}
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  danger
+                  onClick={() => setFailEvidence((prev) => prev.filter((u) => u !== url))}
+                >
+                  删
+                </Button>
+              </div>
+            ))}
+            <Upload
+              beforeUpload={(f) => {
+                void uploadFailFiles([f]);
+                return false;
+              }}
+              showUploadList={false}
+              accept="image/*"
+              multiple
+              disabled={failUploading}
+            >
+              <Button size="small" loading={failUploading}>
+                上传截图
+              </Button>
+            </Upload>
+          </PasteImageBox>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>备注（可选）</Text>
+          <Input.TextArea
+            rows={2}
+            value={failNote}
+            onChange={(e) => setFailNote(e.target.value)}
+            placeholder="例如：加了三次都没通过，客户说暂时不打"
+            style={{ marginTop: 8 }}
+          />
         </div>
       </Modal>
     </Card>

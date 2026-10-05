@@ -4,8 +4,12 @@ import http from './client';
 export const ordersApi = {
   urgent: () => http.get('/orders/urgent'),
   pendingStart: () => http.get('/orders/pending-start'),
-  markCsContact: (id: string, status: string, evidenceUrl?: string, extra?: { workWechatId?: string; workWechatName?: string; addResult?: string }) =>
-    http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
+  markCsContact: (
+    id: string,
+    status: string,
+    evidenceUrl?: string,
+    extra?: { workWechatId?: string; workWechatName?: string; addResult?: string; failReason?: string; note?: string },
+  ) => http.put(`/orders/${id}/cs-contact`, { status, evidenceUrl, ...extra }),
   redispatch: (id: string, poolScope?: string) => http.post(`/orders/${id}/redispatch`, { poolScope }),
   markPoolHandled: (id: string) => http.post(`/orders/${id}/pool-handled`),
   csFollowup: () => http.get('/orders/cs-followup'),

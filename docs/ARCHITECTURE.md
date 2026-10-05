@@ -230,6 +230,14 @@
   只提醒、**不自动判废**、不动名额、不改钱；进度存 `order.customFields.unstartedReminder`
   （`count / sent / firstAt / lastAt / adminNotified`，不加数据库列）
 
+- **「添加失败」也要贴证据**（2026-10-06，服务端 + 网页 `v977`）: 老板「添加失败的时候 也是不能粘贴」。
+  陪玩端「订单管理」操作列的「添加失败」、客服端「管理端直添客户流转明细」的两处「添加失败」都换成弹窗：
+  选原因 + `PasteImageBox` 点框内 Ctrl+V 粘贴截图（可选，最多 3 张，走 `POST /api/upload/screenshot`）+ 备注。
+  陪玩走 `PUT /api/orders/:id/contact`（`failReason` / `screenshotUrl`，落 `Order.screenshotUrl` 与
+  `SupplementRequest.evidenceUrl`）；客服未派单的跟进单走 `PUT /api/orders/:id/cs-contact`
+  （`markCsContact` 新增可选 `failReason` / `note`，落 `customFields.csContactFailReason` / `csContactNote`），
+  已派出去被接的走 `/orders/:id/contact`。
+
 ---
 
 ## 1. 系统全景架构

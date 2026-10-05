@@ -2460,7 +2460,7 @@ export class OrdersService implements OnModuleInit {
     orderId: string,
     status: string,
     evidenceUrl?: string,
-    extra?: { workWechatId?: string; workWechatName?: string; addResult?: string },
+    extra?: { workWechatId?: string; workWechatName?: string; addResult?: string; failReason?: string; note?: string },
     user?: { id: string; role: string },
   ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
@@ -2490,6 +2490,9 @@ export class OrdersService implements OnModuleInit {
           ...cf,
           csContactAt: new Date().toISOString(),
           csContactEvidenceUrl: evidenceUrl || '',
+          // 客服标「添加失败」时选的原因 + 备注（老板 2026-10-06）：留档，方便跟发单者 / 店长核对
+          ...(extra?.failReason ? { csContactFailReason: extra.failReason } : {}),
+          ...(extra?.note ? { csContactNote: extra.note } : {}),
           ...(extra?.workWechatId !== undefined ? { csWorkWechatId: extra.workWechatId } : {}),
           ...(extra?.workWechatName !== undefined ? { csWorkWechatName: extra.workWechatName } : {}),
           ...(result === 'passed' ? { csCultivated: true } : {}),

@@ -45,13 +45,24 @@ export class OrdersController {
   @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async markCsContact(
     @Param('id') id: string,
-    @Body() body: { status: string; evidenceUrl?: string; workWechatId?: string; workWechatName?: string; addResult?: string },
+    @Body()
+    body: {
+      status: string;
+      evidenceUrl?: string;
+      workWechatId?: string;
+      workWechatName?: string;
+      addResult?: string;
+      failReason?: string;
+      note?: string;
+    },
     @Req() req: any,
   ): Promise<ApiResponse<unknown>> {
     const data = await this.ordersService.markCsContact(id, body?.status || 'added', body?.evidenceUrl, {
       workWechatId: body?.workWechatId,
       workWechatName: body?.workWechatName,
       addResult: body?.addResult,
+      failReason: body?.failReason,
+      note: body?.note,
     }, req.user);
     return { code: 200, message: '已记录客服联系状态', data };
   }

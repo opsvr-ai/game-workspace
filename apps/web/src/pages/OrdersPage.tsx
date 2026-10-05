@@ -17,6 +17,7 @@ import {
   Segmented,
   Table,
   Card,
+  Upload,
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
@@ -26,6 +27,7 @@ import { ordersApi } from '../api/orders';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
+import PasteImageBox from '../components/PasteImageBox';
 import OrderDetailModal from '../components/OrderDetailModal';
 import OrderOutcomeModal, { orderChannelOf } from '../components/OrderOutcome';
 import { buildOrderColumns } from '../components/orderColumns';
@@ -154,6 +156,79 @@ const OrdersPage: React.FC = () => {
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   // 线上 / 桥接单的结果反馈（老板 2026-09-29）：客服 / 店长点状态格或操作列的「记结果」都能打开
   const [outcomeOrder, setOutcomeOrder] = useState<any>(null);
+  // 陪玩点「添加失败」也要能贴证据（老板 2026-10-06）。以前这个按钮一点就直接提交、
+  // 没有地方粘「客户没同意」的截图，管理端审核补单申请时看不到凭据。现在跟「报结果」一套弹窗：
+  // 选原因 + 粘贴截图（可选）+ 备注；提交时把 failReason / screenshotUrl 一起带给服务端
+  // （updateContact 早就会收这两个字段，之前只是界面漏传）。
+  const [contactFailOrder, setContactFailOrder] = useState<any>(null);
+  const [contactFailReason, setContactFailReason] = useState('客户一直没同意');
+  const [contactFailNote, setContactFailNote] = useState('');
+  const [contactFailEvidence, setContactFailEvidence] = useState<string[]>([]);
+  const [contactFailUploading, setContactFailUploading] = useState(false);
+  const [contactFailSaving, setContactFailSaving] = useState(false);
+
+  const CONTACT_FAIL_REASONS = [
+    '客户一直没同意',
+    '客户没通过好友验证',
+    '客户不回消息',
+    '微信加错 / 被封',
+    '其他',
+  ];
+
+  const openContactFail = (r: any) => {
+    setContactFailOrder(r);
+    setContactFailReason('客户一直没同意');
+    setContactFailNote('');
+    setContactFailEvidence([]);
+  };
+
+  /** 一次收多张（Ctrl+V 粘贴 / 拖进来 / 多选文件都走这里），最多留 3 张。 */
+  const uploadContactFailFiles = async (files: File[]) => {
+    const list = (files || []).filter(Boolean).slice(0, 3);
+    if (!list.length) return;
+    setContactFailUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of list) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await http.post('/upload/screenshot', fd);
+        const url = data?.data?.url || data?.url || '';
+        if (url) urls.push(url);
+      }
+      if (!urls.length) throw new Error('no url');
+      setContactFailEvidence((prev) => [...prev, ...urls].slice(0, 3));
+      message.success(urls.length > 1 ? `已上传 ${urls.length} 张截图` : '截图已上传');
+    } catch {
+      message.error('截图上传失败，再传一次');
+    } finally {
+      setContactFailUploading(false);
+    }
+  };
+
+  const submitContactFail = async () => {
+    if (!contactFailOrder) return;
+    if (!contactFailReason) {
+      message.warning('请选一个添加失败的原因');
+      return;
+    }
+    setContactFailSaving(true);
+    try {
+      await http.put(`/orders/${contactFailOrder.id}/contact`, {
+        contactStatus: 'not_accepted',
+        notes: contactFailNote.trim() || contactFailReason,
+        failReason: contactFailReason,
+        screenshotUrl: contactFailEvidence[0] || undefined,
+      });
+      message.success('已标记添加失败');
+      setContactFailOrder(null);
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '操作失败'));
+    } finally {
+      setContactFailSaving(false);
+    }
+  };
   // 「线上→线下流转」的单提前放给本店线下陪玩（点状态格小字，走二次确认）
   const [releaseOrder, setReleaseOrder] = useState<any>(null);
   const [releaseSubmitting, setReleaseSubmitting] = useState(false);
@@ -760,25 +835,16 @@ const OrdersPage: React.FC = () => {
         </span>
         <span style={actionSlot(60)}>
           {contactState === 'pending' ? (
-            <Button
-              size="small"
-              danger
-              style={{ width: 58 }}
-              onClick={async () => {
-                try {
-                  await http.put(`/orders/${r.id}/contact`, {
-                    contactStatus: 'not_accepted',
-                    notes: '客户一直没同意',
-                  });
-                  message.success('已标记添加失败');
-                  fetch();
-                } catch (e: any) {
-                  message.error(extractErrorMessage(e, '操作失败'));
-                }
-              }}
-            >
-              添加失败
-            </Button>
+            <Tooltip title="客户一直没加你 / 没同意，就点这里：选原因 + 粘贴客户没同意的截图（可选），管理端审核补单申请时能看到证据">
+              <Button
+                size="small"
+                danger
+                style={{ width: 58 }}
+                onClick={() => openContactFail(r)}
+              >
+                添加失败
+              </Button>
+            </Tooltip>
           ) : canRecordOutcome(r) ? (
             // 这一格平时被「添加失败」占着；客户微信已经加过（或这单不用标）时就空出来了，
             // 空出来正好放「记结果 / 报结果」—— 位置固定（永远第 3 格 60px），
@@ -1439,6 +1505,86 @@ const OrdersPage: React.FC = () => {
         onClose={() => setOutcomeOrder(null)}
         onSaved={fetch}
       />
+      {/* 陪玩点「添加失败」时的弹窗：选原因 + 粘贴截图（可选）+ 备注（老板 2026-10-06） */}
+      <Modal
+        title="标记「添加失败」"
+        open={!!contactFailOrder}
+        onOk={submitContactFail}
+        onCancel={() => setContactFailOrder(null)}
+        okText="确认添加失败"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        confirmLoading={contactFailSaving}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          客户一直没同意就选个原因；能贴上「客户没同意 / 没通过验证」的截图更好 —— 管理端审核补单申请、翻这张单时都看得到这张图。
+        </Text>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>原因</Text>
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            value={contactFailReason}
+            onChange={(v) => setContactFailReason(v)}
+            options={CONTACT_FAIL_REASONS.map((r) => ({ label: r, value: r }))}
+          />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>截图（可选，建议贴一张）</Text>
+          <PasteImageBox
+            onFiles={uploadContactFailFiles}
+            disabled={contactFailUploading}
+            style={{ marginTop: 8 }}
+            hint="点一下这里，直接 Ctrl+V 粘贴截图（可一次粘多张，也能把图片拖进来）"
+          >
+            {contactFailEvidence.map((url) => (
+              <div
+                key={url}
+                style={{ display: 'inline-flex', alignItems: 'center', marginRight: 8, marginBottom: 8 }}
+              >
+                <img
+                  src={url}
+                  alt="添加失败凭据"
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  onClick={() => window.open(url, '_blank')}
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  danger
+                  onClick={() => setContactFailEvidence((prev) => prev.filter((u) => u !== url))}
+                >
+                  删
+                </Button>
+              </div>
+            ))}
+            <Upload
+              beforeUpload={(f) => {
+                void uploadContactFailFiles([f]);
+                return false;
+              }}
+              showUploadList={false}
+              accept="image/*"
+              multiple
+              disabled={contactFailUploading}
+            >
+              <Button size="small" loading={contactFailUploading}>
+                上传截图
+              </Button>
+            </Upload>
+          </PasteImageBox>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <Text strong>备注（可选）</Text>
+          <Input.TextArea
+            rows={2}
+            value={contactFailNote}
+            onChange={(e) => setContactFailNote(e.target.value)}
+            placeholder="例如：加了三次都没通过，客户说暂时不打"
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
       <Modal
         title="放给本店线下陪玩"
         open={!!releaseOrder}
