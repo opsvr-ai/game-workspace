@@ -875,17 +875,28 @@ body {
 .app-content .ant-table-tbody > tr.ant-table-row-selected > td {
   background: #f3eeff !important;
 }
-/* 从聊天框「查看订单」跳过来 / 刚点开的那一单：整行加选中阴影（含钉住的左/右列），
-   一眼就能认出刚才是哪一单（老板 2026-10-05）。 */
-.app-content .ant-table-tbody > tr.order-row-focus > td,
-.app-content .ant-table-tbody > tr.order-row-focus > td.ant-table-cell-fix-right,
-.app-content .ant-table-tbody > tr.order-row-focus > td.ant-table-cell-fix-left {
+/* ── 「跳过去高亮的那一条」：全局统一（老板 2026-10-05）──
+   从聊天框点「查看订单 ›」、点 Windows 新单横幅进抢单池、点「工作抽查异常」通知进工作记录……
+   不管从哪儿跳过来，落在列表里的那一行都套这一个样式（紫色选中阴影 + 外发光），
+   一眼认出是哪一条，不会再一个页面一个样（以前订单管理是紫的、抢单池是橙的、工作记录是红的）。
+   想改这一处样式，改这里就全局生效，不要在页面里各写各的。 */
+.row-jump-focus {
   background: #f3eeff !important;
-}
-.app-content .ant-table-tbody > tr.order-row-focus {
-  box-shadow: inset 0 0 0 2px #7c4dff, 0 6px 16px -8px rgba(124, 77, 255, 0.55);
+  box-shadow: inset 0 0 0 2px #7c4dff, 0 6px 16px -8px rgba(124, 77, 255, 0.55) !important;
+  border-radius: 8px;
   position: relative;
   z-index: 1;
+}
+/* antd 表格行：底色要落到每个 td 上（含钉住的左 / 右列）才盖得住；
+   tr 本身撑不起圆角（td 的底色是方的），表格里保持整行矩形，跟以前一模一样。 */
+.app-content .ant-table-tbody > tr.row-jump-focus,
+.app-content .ant-table-tbody > tr.row-jump-focus > td,
+.app-content .ant-table-tbody > tr.row-jump-focus > td.ant-table-cell-fix-right,
+.app-content .ant-table-tbody > tr.row-jump-focus > td.ant-table-cell-fix-left {
+  background: #f3eeff !important;
+}
+.app-content .ant-table-tbody > tr.row-jump-focus {
+  border-radius: 0;
 }
 .app-content .ant-table-summary > tr > td {
   background: #f8fafc !important;

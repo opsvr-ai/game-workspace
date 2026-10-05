@@ -1193,7 +1193,7 @@ const OrdersPage: React.FC = () => {
                         : '暂无订单',
                 }}
                 // 整行可点：订单信息一长，右侧按钮容易被挤到看不见，点行也能进去
-                rowClassName={(record: any) => (record.id === focusOrderId ? 'order-row-focus' : '')}
+                rowClassName={(record: any) => (record.id === focusOrderId ? 'row-jump-focus' : '')}
                 onRow={(record: any) => ({
                   style: { cursor: 'pointer' },
                   onClick: (e: React.MouseEvent) => {

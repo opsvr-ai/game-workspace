@@ -423,7 +423,7 @@ const OrderPoolPage: React.FC = () => {
   const renderPoolCard = (order: any, idx: number) => {
     // 已被抢走的单：整行灰掉、不能点、右侧只说明「被谁抢走了 / 什么时候」。
     const taken = !!order._taken;
-    // 横幅里点过来的那一单：整行标黄一会儿，一眼就能找到。
+    // 横幅里点过来的那一单：整行套全局那套「跳过来」高亮（紫色选中阴影），一会儿自己褪掉。
     const highlighted = highlightId === String(order.id);
     const fields = buildOrderPoolFields(order, now, disappearMinutes, scheduledDisappearMinutes, {
       taken,
@@ -435,16 +435,15 @@ const OrderPoolPage: React.FC = () => {
       <div
         key={order.id}
         data-order-id={order.id}
-        className="order-pool-row"
+        className={highlighted ? 'order-pool-row row-jump-focus' : 'order-pool-row'}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           padding: DATA_ROW_PADDING,
-          background: highlighted ? '#FFF7E6' : taken ? '#FAFAFA' : '#fff',
+          background: taken ? '#FAFAFA' : '#fff',
           borderBottom: '1px solid #f0f0f0',
-          borderLeft: highlighted ? '3px solid #FA8C16' : taken ? '3px solid #E2E8F0' : '3px solid transparent',
-          boxShadow: highlighted ? 'inset 0 0 0 1px #FFD591' : undefined,
+          borderLeft: taken ? '3px solid #E2E8F0' : '3px solid transparent',
           transition: 'background .3s ease',
           fontSize: DATA_FONT_SIZE,
           color: taken ? '#9AA3AF' : '#1f2329',

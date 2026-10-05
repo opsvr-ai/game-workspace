@@ -75,11 +75,12 @@ const WorkRecordsDrawer: React.FC<Props> = ({ open, companionId, companionName, 
               <List.Item
                 key={r.id}
                 data-work-session={r.id}
+                // 从「工作抽查异常」通知跳过来的那一条：跟订单管理 / 抢单池同一套全局高亮，
+                // 不再单独用红框（异常本身还有上面那个「🔴 异常」标签，不会看不清）。
+                className={focusSessionId && r.id === focusSessionId ? 'row-jump-focus' : undefined}
                 style={{
                   display: 'block',
-                  ...(focusSessionId && r.id === focusSessionId
-                    ? { background: '#FFF1F0', boxShadow: 'inset 0 0 0 2px #FF4D4F', borderRadius: 8, padding: 10 }
-                    : {}),
+                  ...(focusSessionId && r.id === focusSessionId ? { padding: 10 } : {}),
                 }}
               >
                 <Space wrap style={{ marginBottom: 8 }}>
