@@ -1088,8 +1088,85 @@ window.__onPwResult=function(ok){if(!ok){document.getElementById('err').style.di
   });
 }
 
+// ── 独立聊天窗口（老板 2026-10-05）──
+// 一个联系人一个真正的应用窗口：任务栏有按钮、能原生最小化（跟微信一样）。
+// 同一个人已经开着就把它拉到前台，不会重复开 —— 网页端按 userId 传 key。
+const chatWindows = new Map<string, BrowserWindow>();
+function openChatWindow(payload: {
+  conversationId?: string;
+  userId?: string;
+  name?: string;
+  avatar?: string;
+  role?: string;
+  orderInfo?: string | null;
+}): boolean {
+  try {
+    const conversationId = String(payload?.conversationId || '');
+    if (!conversationId) return false;
+    const key = String(payload?.userId || conversationId);
+    const existing = chatWindows.get(key);
+    if (existing && !existing.isDestroyed()) {
+      if (existing.isMinimized()) existing.restore();
+      existing.show();
+      existing.focus();
+      return true;
+    }
+    const params = new URLSearchParams();
+    params.set('room', conversationId);
+    if (payload?.userId) params.set('uid', String(payload.userId));
+    if (payload?.name) params.set('name', String(payload.name));
+    if (payload?.avatar) params.set('avatar', String(payload.avatar));
+    if (payload?.role) params.set('role', String(payload.role));
+    // undefined = 不带参数（保持服务端那单）；null / 空串 = 带一个空的 order=（清掉）。
+    if (payload && payload.orderInfo !== undefined) params.set('order', String(payload.orderInfo || ''));
+    const url = getServerUrl().replace(/\/$/, '') + '/chat-window?' + params.toString();
+    const win = new BrowserWindow({
+      width: 430,
+      height: 620,
+      minWidth: 340,
+      minHeight: 400,
+      title: String(payload?.name || '聊天') + ' - 聊天',
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, '../preload-dist/preload.js'),
+      },
+    });
+    const allowedOrigin = new URL(getServerUrl()).origin;
+    win.webContents.on('will-navigate', (event, targetUrl) => {
+      try {
+        if (new URL(targetUrl).origin !== allowedOrigin) event.preventDefault();
+      } catch {
+        event.preventDefault();
+      }
+    });
+    win.webContents.setWindowOpenHandler(({ url: openUrl }) => {
+      try {
+        if (new URL(openUrl).origin === allowedOrigin) return { action: 'allow' };
+      } catch {
+        /* deny invalid or external URLs */
+      }
+      return { action: 'deny' };
+    });
+    win.on('closed', () => chatWindows.delete(key));
+    void win.loadURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── IPC ──
 function setupIPC(): void {
+  ipcMain.handle('chat:open-window', (_e, payload: {
+    conversationId?: string;
+    userId?: string;
+    name?: string;
+    avatar?: string;
+    role?: string;
+    orderInfo?: string | null;
+  }) => openChatWindow(payload));
   ipcMain.on('pw:submit', (_e, pass: string) => {
     const ok = pass === getAppPassword();
     if (ok && pwResolve) {

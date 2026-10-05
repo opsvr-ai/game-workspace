@@ -20,6 +20,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unlockScreen: (pass: string) => ipcRenderer.invoke('screen:unlock', pass),
   getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
   getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
+  /** 打开/聚焦一个「独立的聊天窗口」（一个联系人一个系统窗口，能最小化到任务栏 —— 老板 2026-10-05）。 */
+  openChatWindow: (payload: {
+    conversationId: string;
+    userId?: string;
+    name?: string;
+    avatar?: string;
+    role?: string;
+    orderInfo?: string | null;
+  }) => ipcRenderer.invoke('chat:open-window', payload),
   openFolder: (path: string) => ipcRenderer.invoke('folder:open', path),
   testWatchdog: () => ipcRenderer.invoke('watchdog:test'),
   collectProcesses: (token: string) => ipcRenderer.invoke('processes:collect', token),

@@ -407,6 +407,68 @@ function onLoadFailure(desc, code) {
   autoRetryTimer = setTimeout(() => loadAppPage('auto-retry'), 10000);
 }
 
+// ── 独立聊天窗口（老板 2026-10-05）──
+// 一个联系人一个真正的应用窗口：任务栏有按钮、能原生最小化（跟微信一样）。
+// 同一个人已经开着就把它拉到前台，不会重复开。
+const chatWindows = new Map();
+function openChatWindow(payload) {
+  try {
+    const conversationId = String((payload && payload.conversationId) || '');
+    if (!conversationId) return false;
+    const key = String((payload && payload.userId) || conversationId);
+    const existing = chatWindows.get(key);
+    if (existing && !existing.isDestroyed()) {
+      if (existing.isMinimized()) existing.restore();
+      existing.show();
+      existing.focus();
+      return true;
+    }
+    const params = new URLSearchParams();
+    params.set('room', conversationId);
+    if (payload && payload.userId) params.set('uid', String(payload.userId));
+    if (payload && payload.name) params.set('name', String(payload.name));
+    if (payload && payload.avatar) params.set('avatar', String(payload.avatar));
+    if (payload && payload.role) params.set('role', String(payload.role));
+    // undefined = 不带参数（保持服务端那单）；null / 空串 = 带一个空的 order=（清掉）。
+    if (payload && payload.orderInfo !== undefined) params.set('order', String(payload.orderInfo || ''));
+    const url = getServerUrl().replace(/\/$/, '') + '/chat-window?' + params.toString();
+    const win = new BrowserWindow({
+      width: 430,
+      height: 620,
+      minWidth: 340,
+      minHeight: 400,
+      title: String((payload && payload.name) || '聊天') + ' - 聊天',
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, 'preload.js'),
+      },
+    });
+    const allowedOrigin = new URL(getServerUrl()).origin;
+    win.webContents.on('will-navigate', (event, targetUrl) => {
+      try {
+        if (new URL(targetUrl).origin !== allowedOrigin) event.preventDefault();
+      } catch {
+        event.preventDefault();
+      }
+    });
+    win.webContents.setWindowOpenHandler(({ url: openUrl }) => {
+      try {
+        if (new URL(openUrl).origin === allowedOrigin) return { action: 'allow' };
+      } catch {
+        // deny invalid or external URLs
+      }
+      return { action: 'deny' };
+    });
+    win.on('closed', () => chatWindows.delete(key));
+    win.loadURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -563,6 +625,7 @@ app.whenReady().then(() => {
     callback(allowed.includes(permission));
   });
   ipcMain.handle('config:getServerUrl', () => getServerUrl());
+  ipcMain.handle('chat:open-window', (_e, payload) => openChatWindow(payload));
   ipcMain.handle('app:getVersion', () => app.getVersion());
   // 兜底页上的「立即重新加载」按钮走这里（不用整页刷新，重试次数不会被清零）
   ipcMain.handle('app:reload', () => {

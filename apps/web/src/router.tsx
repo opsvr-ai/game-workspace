@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { Spin, Button, Result } from 'antd';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
+import ChatWindowPage from './pages/ChatWindowPage';
 
 function RouteErrorBoundary() {
   const error = useRouteError();
@@ -122,6 +123,17 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<SuspenseFallback />}>
         <LoginPage />
+      </Suspense>
+    ),
+  },
+  {
+    // 独立的聊天窗口（一个联系人一个系统窗口，能最小化到任务栏 —— 老板 2026-10-05）。
+    // 不在 AppLayout 里，只渲染一个聊天面板。
+    path: '/chat-window',
+    errorElement: <RouteErrorBoundary />,
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <ChatWindowPage />
       </Suspense>
     ),
   },

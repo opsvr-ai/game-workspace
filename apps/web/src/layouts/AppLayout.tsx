@@ -14,6 +14,7 @@ import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
 import ChatModal from '../components/ChatModal';
+import { openChatWindow } from '../utils/chatWindow';
 import IncomingCallModal from '../components/IncomingCallModal';
 import VoiceCallBar from '../components/VoiceCallBar';
 import { useVoiceCall } from '../hooks/useVoiceCall';
@@ -1020,18 +1021,27 @@ const AppLayout: React.FC = () => {
 
   // Chat 3.0: notification handled by ChatProvider
 
-  // Listen for open-chat-modal event from CSDispatchView
+  // 打开一个聊天窗口：优先开成「独立的系统窗口」（陪玩端 / 客服端是真的应用窗口，任务栏有
+  // 按钮、能原生最小化；浏览器里是弹窗），弹窗被浏览器拦了才退回页内那个全局浮窗。
+  // 同一个人只会有一个窗口：Electron 主进程按 userId 去重，浏览器按窗口名去重。
+  const openChatTarget = useCallback((target: any) => {
+    setNotifOpen(false);
+    if (target?.conversationId && openChatWindow(target)) return;
+    setGlobalChatPartner(target);
+  }, []);
+
+  // Listen for open-chat-modal event from CSDispatchView / 订单页 / 客户页 / 订单池
   useEffect(() => {
-    const handler = (e: CustomEvent) => setGlobalChatPartner(e.detail);
+    const handler = (e: CustomEvent) => openChatTarget(e.detail);
     window.addEventListener('open-chat-modal', handler as EventListener);
     return () => window.removeEventListener('open-chat-modal', handler as EventListener);
-  }, []);
+  }, [openChatTarget]);
 
   // 打开和某个人的私聊：左侧消息面板点人、订单/客户页点「沟通」都走这里
   const openDirectChat = useCallback((conversationId: string, participantName: string) => {
     const conv = useChatStore.getState().conversations[conversationId];
     setNotifOpen(false);
-    setGlobalChatPartner({
+    openChatTarget({
       conversationId,
       participant: conv?.participant || {
         // 未知对方时不要用 roomId 冒充 userId，否则会在服务端建出幽灵会话。
@@ -1043,12 +1053,12 @@ const AppLayout: React.FC = () => {
       orderInfo: conv?.orderInfo,
     });
     useChatStore.getState().markRead(conversationId);
-  }, []);
+  }, [openChatTarget]);
 
   // Open the studio group chat from the persistent left-side message panel.
   const openGroupChat = useCallback((conversationId: string, groupName: string) => {
     const conv = useChatStore.getState().conversations[conversationId];
-    setGlobalChatPartner({
+    openChatTarget({
       conversationId,
       participant: conv?.participant || {
         userId: '',
@@ -1058,7 +1068,7 @@ const AppLayout: React.FC = () => {
       },
     });
     useChatStore.getState().markRead(conversationId);
-  }, []);
+  }, [openChatTarget]);
 
   // Keyboard shortcuts
   useEffect(() => {
