@@ -65,6 +65,17 @@ const OrderPoolPage: React.FC = () => {
     setChatPartner(null);
   }, [chatPartner]);
   const conversations = useChatStore((s) => s.conversations);
+  // 每个人（会话）的未读：人员列表据此把「有未读的人」顶到最上面 + 名字旁点红点
+  // （老板 2026-10-05：「未读根本就不会置顶，有时候会看不到」）。
+  const unreadByParticipant = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const conv of Object.values(conversations)) {
+      const participantId = conv.participant?.userId;
+      if (!participantId || conv.unreadCount <= 0) continue;
+      map[participantId] = (map[participantId] || 0) + conv.unreadCount;
+    }
+    return map;
+  }, [conversations]);
 
   // Companion sidebar state (visible to companion users)
   const [companions, setCompanions] = useState<any[]>([]);
@@ -197,6 +208,10 @@ const OrderPoolPage: React.FC = () => {
   const sortedCompanions = useMemo(
     () =>
       [...companions].sort((a, b) => {
+        // 有未读的人一律顶到最上面（老板 2026-10-05：「未读根本就不会置顶，有时候会看不到」）。
+        const aMsg = unreadByParticipant[a.user?.id || a.id] > 0 ? 1 : 0;
+        const bMsg = unreadByParticipant[b.user?.id || b.id] > 0 ? 1 : 0;
+        if (aMsg !== bMsg) return bMsg - aMsg;
         // 群聊固定在最上方单独渲染，这里只排人员：客服 → 店长 → 在线空闲陪玩 →
         // 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员；同组内按昵称排。
         const aGroup = personnelGroupRank(a);
@@ -206,7 +221,7 @@ const OrderPoolPage: React.FC = () => {
         const bName = b.user?.displayName || b.user?.username || '';
         return aName.localeCompare(bName, 'zh-CN');
       }),
-    [companions],
+    [companions, unreadByParticipant],
   );
 
   const filteredCompanions = companionSearch
@@ -662,6 +677,17 @@ const OrderPoolPage: React.FC = () => {
                         >
                           {c.user?.displayName || c.user?.username || c.id}
                         </span>
+                        {(unreadByParticipant[c.user?.id || c.id] || 0) > 0 && (
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: '50%',
+                              background: '#FF4757',
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
                         <Button
                           size="small"
                           type="text"

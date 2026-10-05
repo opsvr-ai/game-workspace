@@ -388,17 +388,18 @@ const CSDispatchView: React.FC = () => {
   const groupLastMessage = groupConversation?.lastMessage || '';
   const groupLastMentions = groupConversation?.lastMentions || [];
 
-  // 人员列表顺序：群聊（列表最上方单独渲染）→ 客服 → 店长 → 在线空闲陪玩 →
-  // 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员；同一组内先看未读，再看等级/评分/昵称。
+  // 人员列表顺序：有未读的**一律置顶**（老板 2026-10-05：「未读根本就不会置顶，有时候会看不到」），
+  // 其余按 客服 → 店长 → 在线空闲陪玩 → 在线接单中陪玩 → 在线娱乐中陪玩 → 离线人员；
+  // 同一组内再按等级 / 评分 / 昵称。
   const sortedCompanions = useMemo(
     () =>
       [...companions].sort((a, b) => {
-        const aGroup = personnelGroupRank(a);
-        const bGroup = personnelGroupRank(b);
-        if (aGroup !== bGroup) return aGroup - bGroup;
         const aMsg = unreadByParticipant[a.id] > 0 ? 1 : 0;
         const bMsg = unreadByParticipant[b.id] > 0 ? 1 : 0;
         if (aMsg !== bMsg) return bMsg - aMsg;
+        const aGroup = personnelGroupRank(a);
+        const bGroup = personnelGroupRank(b);
+        if (aGroup !== bGroup) return aGroup - bGroup;
         const aTier = TIER_ORDER[a.tier ?? 'MIDDLE'] ?? 1;
         const bTier = TIER_ORDER[b.tier ?? 'MIDDLE'] ?? 1;
         if (aTier !== bTier) return aTier - bTier;

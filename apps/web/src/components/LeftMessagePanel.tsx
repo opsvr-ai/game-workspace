@@ -150,13 +150,19 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
     [all],
   );
 
-  // 私聊：只列有来有往的会话，空壳房间不占地方；最近的排前面。
+  // 私聊：只列有来有往的会话，空壳房间不占地方；有未读的一律置顶，其余最近的排前面
+  // （老板 2026-10-05：「未读根本就不会置顶，有时候会看不到」）。
   const directs = useMemo(
     () =>
       all
         .filter((c) => !(c.isGroup || c.participant?.role === 'GROUP'))
         .filter((c) => (c.lastMessageAt || 0) > 0 || (c.messages?.length || 0) > 0)
-        .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)),
+        .sort((a, b) => {
+          const aUnread = (a.unreadCount || 0) > 0 ? 1 : 0;
+          const bUnread = (b.unreadCount || 0) > 0 ? 1 : 0;
+          if (aUnread !== bUnread) return bUnread - aUnread;
+          return (b.lastMessageAt || 0) - (a.lastMessageAt || 0);
+        }),
     [all],
   );
 

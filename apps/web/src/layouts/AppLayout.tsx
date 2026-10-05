@@ -2349,13 +2349,35 @@ const AppLayout: React.FC = () => {
             />
             {/* 当前门店 / 俱乐部：混店操作时一眼知道自己在哪家（老板自己没绑店，就不显示） */}
             {studioBrand?.name && <span className="app-brand-chip">{studioBrand.name}</span>}
-            <Button
-              type="text"
-              icon={React.createElement(MessageOutlined)}
-              onClick={() => setMessagePanelCollapsed((v) => !v)}
-              title={messagePanelCollapsed ? '显示消息栏' : '隐藏消息栏'}
-              style={{ color: messagePanelCollapsed ? commander.textSecondary : '#2563EB' }}
-            />
+            {/* 消息入口：有未读就把条数挂在图标上并闪红。以前未读只在左侧消息栏里，
+                栏一收起就完全看不到有私信（老板 2026-10-05）。 */}
+            <Badge
+              count={totalUnread}
+              overflowCount={99}
+              offset={[-2, 6]}
+              className={totalUnread > 0 ? 'badge-pop-active' : undefined}
+            >
+              <div
+                style={{
+                  borderRadius: 8,
+                  ...(totalUnread > 0
+                    ? { animation: 'bell-glow 2s ease-in-out infinite', boxShadow: '0 0 12px rgba(255, 77, 79, 0.5)' }
+                    : {}),
+                }}
+              >
+                <Button
+                  type="text"
+                  icon={React.createElement(MessageOutlined)}
+                  onClick={() => setMessagePanelCollapsed((v) => !v)}
+                  title={
+                    totalUnread > 0
+                      ? `消息未读 ${totalUnread} 条 · ${messagePanelCollapsed ? '点这里显示消息栏' : '点这里隐藏消息栏'}`
+                      : messagePanelCollapsed ? '显示消息栏' : '隐藏消息栏'
+                  }
+                  style={{ color: totalUnread > 0 ? '#FF4D4F' : (messagePanelCollapsed ? commander.textSecondary : '#2563EB') }}
+                />
+              </div>
+            </Badge>
             <Space size="middle">
               {/* Notification bell */}
               {user && (
