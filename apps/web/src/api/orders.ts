@@ -59,6 +59,9 @@ export const ordersApi = {
   /** 发单客服确认「已跟接单方核对、双方无异议」——失败单先过这一步，才轮到店长拍板（老板 2026-10-06） */
   confirmOutcomeWithCs: (id: string, data: { note?: string }) =>
     http.post(`/orders/${id}/cs-confirm`, data),
+  /** 店长 / 老板「打回重写」：接单方说明乱写 / 截图不对 → 退回让他重填再报（老板 2026-10-06） */
+  rejectOutcome: (id: string, data: { note: string }) =>
+    http.post(`/orders/${id}/review-reject`, data),
   /** 成交核对：店长 / 老板拍板这张「不成功」到底是谁的问题（谁的问题找谁） */
   reviewOutcome: (id: string, data: { responsibility: 'COMPANION' | 'CS' | 'CUSTOMER' | 'NONE'; note: string }) =>
     http.post(`/orders/${id}/review`, data),

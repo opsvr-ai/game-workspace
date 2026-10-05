@@ -1405,6 +1405,12 @@ export class OrdersService implements OnModuleInit {
       csConfirmedByUserId: null,
       csConfirmNote: null,
     };
+    // 被店长 / 老板打回过的（customFields.outcomeReject）：这次重报就把打回标记清掉，
+    // 免得接单方下次打开弹窗又看到旧的驳回说明（老板 2026-10-06「乱写就驳回」）。
+    const prevCf = (order.customFields as any) || null;
+    if (prevCf && prevCf.outcomeReject) {
+      data.customFields = { ...prevCf, outcomeReject: null };
+    }
     const updated = await this.prisma.order.update({ where: { id: orderId }, data });
     this.wsGateway.broadcastToBridgedStudios(updated.studioId, 'order:pool_updated', updated);
     await this.notifyOutcomeReport(updated, {
@@ -1511,6 +1517,85 @@ export class OrdersService implements OnModuleInit {
     }
     // 轮到店长 / 老板了（这才是他们该被叫的时候）。
     await this.notifyOrderReviewers(order.studioId ?? null, 'order:outcome_cs_confirmed', payload);
+    return updated;
+  }
+
+
+  /**
+   * 店长 / 老板「打回重写」（老板 2026-10-06）。
+   *
+   * 老板原话：「那些不成功的原因全部删除吧，只留备注必填，让他们自己填，因为很多奇奇怪怪的原因，
+   * 如果乱写管理端给驳回就行了」——「驳回」就落在这里：接单方报的说明糊弄、截图不对、或者根本没写清楚，
+   * 店长一点就把这张单**退回去让他重填**，不占店长的待拍板清单（`reviewStatus=REJECTED`）。
+   * 陪玩重新在「报结果」里填 + 重贴截图再报一次，流程从头走（recordOutcome 会把状态置回 CS_CONFIRMING）。
+   */
+  async rejectOrderOutcome(orderId: string, user: any, body: { note?: string }) {
+    if (!['OWNER', 'ADMIN'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有店长 / 老板能打回重写');
+    }
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        companion: {
+          select: {
+            id: true,
+            user: { select: { id: true, username: true, displayName: true } },
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    if (user?.role !== 'OWNER' && user?.studioId && order.studioId !== user.studioId) {
+      throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (order.outcome !== OrderOutcome.FAILED) {
+      throw new BadRequestException('只有报「不成功」的单才能打回重写');
+    }
+    if (order.reviewStatus === 'DECIDED') {
+      throw new BadRequestException('这张单已经拍过板了，不能打回');
+    }
+    const note = (body?.note || '').trim();
+    if (!note) throw new BadRequestException('写一句为什么打回（接单方要照着改）');
+    const cf = (order.customFields as any) || {};
+    const byName = user?.displayName || user?.username || '店长';
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        // REJECTED = 退给接单方重填，不在「待拍板」清单里（listOrderReviews 已把它排除）
+        reviewStatus: 'REJECTED',
+        csConfirmedAt: null,
+        csConfirmedByUserId: null,
+        csConfirmNote: null,
+        customFields: {
+          ...cf,
+          outcomeReject: {
+            at: new Date().toISOString(),
+            byUserId: user?.id ?? null,
+            byName,
+            note,
+          },
+        },
+      },
+    });
+    const code = updated.orderCode || updated.id;
+    const payload = {
+      orderId: updated.id,
+      orderCode: updated.orderCode ?? null,
+      note,
+      byName,
+      message: `订单 ${code}：店长把你的「不成功」说明打回了 —— ${note}。请重新填清楚原因、重新贴截图再报一次`,
+    };
+    const companionUserId = (order.companion as any)?.user?.id ?? null;
+    if (companionUserId) {
+      this.wsGateway.notifyUser(companionUserId, 'order:outcome_rejected', payload);
+    }
+    // 发单客服也知会一声：这张单退回去重填了，不在他那儿挂着等核对。
+    if (updated.csUserId) {
+      this.wsGateway.notifyUser(updated.csUserId, 'order:outcome_rejected', {
+        ...payload,
+        message: `订单 ${code}：店长把接单方的「不成功」说明打回了，让他重填（你先不用核对这张）`,
+      });
+    }
     return updated;
   }
 
@@ -1640,7 +1725,8 @@ export class OrdersService implements OnModuleInit {
       where.outcome = OrderOutcome.FAILED;
       // 注意：`not` 在 SQL 里会把 NULL 一起排掉，而这批字段是新加的 ——
       // 之前报过「不成功」的老单 reviewStatus 是 NULL，也必须留在清单里等拍板。
-      where.OR = [{ reviewStatus: null }, { reviewStatus: { not: 'DECIDED' } }];
+      // 被打回重写的（REJECTED）已经退给接单方了，不该继续占着店长的清单。
+      where.OR = [{ reviewStatus: null }, { reviewStatus: { notIn: ['DECIDED', 'REJECTED'] } }];
     } else if (scope === 'decided') {
       where.reviewStatus = 'DECIDED';
     } else {
@@ -1740,11 +1826,23 @@ export class OrdersService implements OnModuleInit {
     ]);
     // waiting 里再分两段：还没过发单客服核对的（等客服）/ 核对完等店长拍板的（等店长）。
     const waitingDecide = waiting.filter((o: any) => o.reviewStatus === 'CS_CONFIRMED').length;
+    const rejected = await this.prisma.order
+      .count({
+        where: {
+          ...(user?.role === 'OWNER' || !user?.studioId
+            ? {}
+            : { studioId: { in: (await this.reviewScopeIds(user)) || [user.studioId] } }),
+          outcome: OrderOutcome.FAILED,
+          reviewStatus: 'REJECTED',
+        },
+      })
+      .catch(() => 0);
     return {
       waiting: waiting.length,
       waitingCs: waiting.length - waitingDecide,
       waitingDecide,
       recheck: recheck.length,
+      rejected,
     };
   }
 

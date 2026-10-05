@@ -123,6 +123,8 @@ interface MenuItemDef {
 
 const roleMenus: Record<UserRole, MenuItemDef[]> = {
   [UserRole.OWNER]: [
+    // 待处理工作台（老板 2026-10-06）：上班第一件事就点这一页。
+    { key: '/todos', icon: IconClock, label: '待处理' },
     {
       key: 'owner-home', icon: IconDashboard, label: '首页',
       children: [
@@ -250,6 +252,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
   ],
   [UserRole.ADMIN]: [
+    // 待处理工作台（老板 2026-10-06）：上班第一件事就点这一页。
+    { key: '/todos', icon: IconClock, label: '待处理' },
     {
       key: 'admin-home', icon: IconDashboard, label: '首页',
       children: [
@@ -364,6 +368,8 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
     },
   ],
   [UserRole.CS]: [
+    // 待处理工作台（老板 2026-10-06）：上班第一件事就点这一页。
+    { key: '/todos', icon: IconClock, label: '待处理' },
     {
       key: 'cs-home', icon: IconDashboard, label: '首页',
       children: [
@@ -585,6 +591,8 @@ const decorateMenu = (
 /** 通知里的「查看 ›」跳哪：同一模块四个角色的路由都不一样，按角色查一次 */
 const ROLE_PAGES: Record<string, Record<string, string>> = {
   COMPANION: { pool: '/companion/pool', orders: '/companion/orders', billing: '/companion/billing', audits: '/companion', customers: '/companion/customers', battle: '/companion/battle-screenshots' },
+  // 待处理工作台三个角色共用一条路由
+  TODOS: { CS: '/todos', ADMIN: '/todos', OWNER: '/todos' },
   CS: { pool: '/cs/dispatch', orders: '/cs/orders', billing: '/cs/billing', audits: '/cs/employees', 'work-wechats': '/cs/work-wechats?type=COMPANION', customers: '/cs/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
   ADMIN: { pool: '/admin/dispatch', orders: '/admin/orders', billing: '/admin/finance/expenses', audits: '/admin/companions?role=COMPANION', 'work-wechats': '/admin/work-wechats?type=COMPANION', customers: '/admin/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
   OWNER: { pool: '/admin/dispatch', orders: '/owner/orders', billing: '/admin/finance/expenses', audits: '/owner/review', 'work-wechats': '/owner/work-wechats?type=COMPANION', customers: '/owner/customers', battle: '/admin/battle-screenshots', bridges: '/owner/bridges' },
@@ -869,6 +877,35 @@ const AppLayout: React.FC = () => {
     doFetch();
     const t = setInterval(() => { if (document.visibilityState === 'visible') doFetch(); }, 120000);
     return () => clearInterval(t);
+  }, [user?.role, user?.id]);
+
+
+  // 待处理总数（老板 2026-10-06）：店长 / 老板 / 客服上班先看这个数。
+  // 跟别的角标不一样 —— 这个是**真实待办条数**，不是「点过就消」的未读：活儿没干完数字就一直在。
+  const [todosBadge, setTodosBadge] = React.useState(0);
+  const [todosHint, setTodosHint] = React.useState('');
+  React.useEffect(() => {
+    if (user?.role !== 'OWNER' && user?.role !== 'ADMIN' && user?.role !== 'CS') return;
+    let alive = true;
+    const doFetch = async () => {
+      try {
+        const { data } = await http.get('/todos');
+        if (!alive) return;
+        const d = data?.data || {};
+        setTodosBadge(Number(d.total) || 0);
+        setTodosHint(
+          (Array.isArray(d.groups) ? d.groups : [])
+            .slice(0, 4)
+            .map((g: any) => `${g.label}：${g.count} 条`)
+            .join('\n'),
+        );
+      } catch {}
+    };
+    doFetch();
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') doFetch();
+    }, 120000);
+    return () => { alive = false; clearInterval(t); };
   }, [user?.role, user?.id]);
 
   // Bridge pending badge for ADMIN (same pattern as pendingBadge above)
@@ -1915,6 +1952,39 @@ const AppLayout: React.FC = () => {
         dedupeMs: 6 * 60 * 60 * 1000,
       });
     },
+    onOrderOutcomeRejected: (data: any) => {
+      // 店长 / 老板把接单方的「不成功」说明打回了（老板 2026-10-06：乱写就驳回）：
+      // 接单方要重新填原因 + 重贴截图再报一次；发单客服先不用核对这张，只留个通知。
+      const code = data?.orderCode || '这一单';
+      const note = (data?.note || '').toString().trim();
+      const isCompanion = user?.role === 'COMPANION';
+      notifyNotice({
+        kind: 'order',
+        icon: '↩️',
+        title: isCompanion ? `店长把你的说明打回了：${code}` : `接单方说明被打回：${code}`,
+        desc:
+          data?.message ||
+          (isCompanion
+            ? `店长把这张单的「不成功」说明打回了${note ? `（${note}）` : ''}，请重新填清楚原因、重新贴截图再报一次`
+            : `店长把接单方的「不成功」说明打回了${note ? `（${note}）` : ''}，让他重填，你先不用核对这张`),
+        href: rolePage(user?.role, 'orders'),
+        toast: isCompanion ? 'warning' : 'none',
+        duration: 10,
+        dedupeKey: `outcome-rejected:${data?.orderId || code}`,
+        dedupeMs: 6 * 60 * 60 * 1000,
+      });
+      if (isCompanion) {
+        showBannerNotification({
+          title: `↩️ 店长打回了 ${code} 的说明`,
+          body: (note ? `${note}
+` : '') + '请重新填清楚原因、重新贴截图，再报一次结果',
+          icon: '↩️',
+          seconds: 20,
+          hint: '点这里 → 去「订单管理」重新报结果',
+          action: 'open-orders',
+        });
+      }
+    },
     onOrderUnstartedReminderAdmin: (data: any) => {
       // 满 7 天还没处理 → 只落进「待办」（右上角铃铛），不弹窗打扰；人工去「成交核对 → 抢了没结果」核。
       const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
@@ -2390,8 +2460,14 @@ const AppLayout: React.FC = () => {
       return { items, count: total };
     };
     // 上面「徽标那一段」是拿 label 字符串比对的，所以这层装饰必须放在它之后。
-    return withNoticeBadges(flattened).items;
-  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared]);
+    const finalItems = withNoticeBadges(flattened).items;
+    // 「待处理」那一项挂真实待办条数（不是未读），鼠标停上去写清是哪几类有几条。
+    return finalItems.map((it: any) =>
+      it.key === '/todos' && todosBadge > 0
+        ? { ...it, label: menuBadgeLabel(it.label, todosBadge, todosHint || undefined) }
+        : it,
+    );
+  }, [user, directUnread, pendingBadge, bridgePendingBadge, billingBadge, contactBadge, pendingStartBadge, shareRatios, unreadByPath, titlesByPath, clearNoticesByKey, rememberCleared, todosBadge, todosHint]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;

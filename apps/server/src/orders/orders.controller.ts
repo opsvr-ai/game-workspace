@@ -362,6 +362,18 @@ export class OrdersController {
     return { code: 200, message: '已拍板', data };
   }
 
+  /** 店长 / 老板「打回重写」：接单方报的「不成功」说明糊弄 / 写不清楚 → 退回去让他重填（老板 2026-10-06）。 */
+  @Post('orders/:id/review-reject')
+  @Roles(UserRole.ADMIN, UserRole.OWNER)
+  async rejectOrderOutcome(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Body() body: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.rejectOrderOutcome(id, req.user, body || {});
+    return { code: 200, message: '已打回，等接单方重新填', data };
+  }
+
   /** 发单本人确认「已跟接单方核对、双方无异议」—— 失败单先过这一步才轮到店长拍板（老板 2026-10-06）。 */
   @Post('orders/:id/cs-confirm')
   @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)

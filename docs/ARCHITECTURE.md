@@ -208,7 +208,7 @@
   （`COMPANION` 只能报自己名下 / 搭档名下的单，CS / ADMIN / OWNER 可代录）。**报成功** = 直接推给发单客服计入考核，
   不必店长拍板；**报失败** = **必须粘贴 ≥1 张截图**（存 `Order.outcomeEvidence`，走 `/upload/screenshot`）
   + **必填备注**（老板 2026-10-06「不成功的原因全部删除，只留备注必填，让他们自己填」——
-  原因不再有下拉选项，备注内容直接存 `Order.outcomeReason`），推给发单客服 **和** 店长，单上写 `reviewStatus=WAITING` 进「待拍板」。店长 / 老板在「成交核对」页
+  原因不再有下拉选项，备注内容直接存 `Order.outcomeReason`），推给发单客服 **和** 店长，单上写 `reviewStatus=CS_CONFIRMING` 进「待拍板」。店长 / 老板在「成交核对」页
   `POST /api/orders/:id/review` 拍板定责（`reviewResponsibility` = 接单方 / 发单客服 / 客户 / 无人担责，
   必填结论 `reviewNote`，置 `reviewStatus=DECIDED`），结论同时推给接单方和发单客服 —— **谁的问题就去找谁**。
   成功的不用重点追查，重点追查失败的（如客服发的机密双本来 35+35 可赚，接单方找理由说没打成，店长 + 发单者要去追究）。
@@ -221,6 +221,18 @@
   发单本人 = `Order.csUserId`（**NOT NULL**，建单时写死；CS / ADMIN / COMPANION 建的单都算），
   所以每张单都找得到发单人；服务端只把失败单推给他。**钱的口径完全不动**
   （仍只有报成功 / 本店线下点「开始首单」才算提成；失败单只留痕归档、不计提成），历史单不追溯、不倒扣。
+  店长 / 老板还可以「**打回重写**」（老板 2026-10-06「乱写就驳回」）：`POST /api/orders/:id/review-reject`
+  `{ note }`（仅 ADMIN/OWNER），把糊弄的说明退回接单方 —— 置 `reviewStatus=REJECTED` 退出「待拍板」、
+  `customFields.outcomeReject = { at, byUserId, byName, note }` 留痕，实时推接单方 `order:outcome_rejected`
+  + 发单客服；接单方重开「报结果」弹窗看到红条 + 备注 / 截图清空，重报（`recordOutcome`）自动清掉标记、
+  流程从头走（`listOrderReviews` 的 waiting 分支已 `notIn: ['DECIDED','REJECTED']`，`orderReviewSummary` 另返回 `rejected`）。
+- **待处理工作台**（老板 2026-10-06「把店长 / 老板 / 客服需要处理的集合起来……每天上班先点开待处理看一下」）：
+  新模块 `apps/server/src/todos`（`TodosService` / `TodosController`），`GET /api/todos` 按角色
+  （CS / ADMIN / OWNER）汇总散在各页面的待办 —— 成交核对待拍板 / 等我核对 / 抢了没结果、客服该跟进的客户、
+  补单申请、陪玩报账 / 支取 / 流水待审、战绩图、工作微信、实名审核、删除客户、桥接申请（老板专属）——
+  每组 `{ key, label, hint, count, href, items[≤5] }`（空组不返回），**只读 + 跳转**（真正的同意 / 驳回 / 拍板
+  仍在各页面做，权限 / 留痕 / 实时通知不重写）；scope 用 `bridge.getVisibleStudioIds(studioId)`，OWNER 全量。
+  网页 `pages/TodosPage.tsx`（路由 `/todos`，三个角色共用）+ 侧边栏「待处理」入口挂**真实待办条数**角标。
 - **「抢了没结果」自动催办**（老板 2026-10-06 定稿：次日 + 第 7 天各一次，之后进历史记录；服务端 + 网页 `v972`）:
   老板「次日弹一次、后边第七天弹一次，然后进历史记录」。`UnstartedOrderReminderService` 每 10 分钟扫一轮，
   判据和上面「成交核对 → 抢了没结果」**同一套**（`outcome` 空 + 没点「开始首单」+ 没退款 / 取消 + 只看最近 14 天）：
@@ -992,7 +1004,9 @@ sequenceDiagram
   已经开始服务（有 `startedAt` 会话）的单拒绝，提示走客服「归属调整」
 - `POST /api/orders/:id/outcome` — 线上 / 桥接单的结果反馈（**接单方 COMPANION 自己点**，CS/ADMIN/OWNER 可代录；`SUCCESS`/`FAILED`+原因+备注+`evidence` 截图，报 `FAILED` 必须带截图；线下已点开始首单的单 400 不用再反馈）
 - `POST /api/orders/:id/review` — 店长 / 老板拍板失败单责任（**仅 ADMIN/OWNER**）：`{ responsibility: 'COMPANION'|'CS'|'CUSTOMER'|'NONE', note }`，结论推给接单方 + 发单客服
-- `GET /api/orders/reviews?scope=waiting|recheck|decided` — 成交核对清单（待拍板 / 抢了没结果 / 已拍板；OWNER 全量，其余按可见工作室）
-- `GET /api/orders/reviews/summary` — 成交核对条数（管理端菜单红数字 `{ waiting, recheck, decided }`）
+- `GET /api/orders/reviews?scope=waiting|recheck|archived|decided` — 成交核对清单（待拍板 / 抢了没结果 / 历史记录 / 已拍板；OWNER 全量，其余按可见工作室）
+- `GET /api/orders/reviews/summary` — 成交核对条数（管理端菜单红数字 `{ waiting, waitingCs, waitingDecide, recheck, rejected }`）
+- `POST /api/orders/:id/review-reject` — 店长 / 老板「打回重写」（**仅 ADMIN/OWNER**）：`{ note }` 必填，把失败单退回接单方重填（`reviewStatus=REJECTED` + `customFields.outcomeReject` 留痕，推接单方 + 发单客服）
+- `GET /api/todos` — 待处理工作台（**CS/ADMIN/OWNER**）：按角色汇总待拍板 / 等我核对 / 抢了没结果 / 跟进的客户 / 补单 / 报账 / 支取 / 流水 / 战绩图 / 工作微信 / 实名 / 删除客户 / 桥接申请，返回 `{ total, groups[] }`
 - `POST /api/upload/screenshot` — 截图上传（`COMPANION`/`CS`/`ADMIN`/`OWNER`，失败结果证据 / 客服代录用）
 - `GET/PUT /api/config` — 全局配置（含 `capture.*` 截图阈值）

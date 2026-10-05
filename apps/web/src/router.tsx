@@ -98,6 +98,7 @@ import BattleScreenshotsPage from './pages/BattleScreenshotsPage';
 import BattleScreenshotReviewPage from './pages/BattleScreenshotReviewPage';
 import ContentCheckPage from './pages/ContentCheckPage';
 import OrderReviewPage from './pages/admin/OrderReviewPage';
+import TodosPage from './pages/TodosPage';
 
 const SuspenseOutlet = () => (
   <Suspense
@@ -341,6 +342,16 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <OrderReviewPage />
+          </Suspense>
+        ),
+      },
+      {
+        // 待处理工作台（老板 2026-10-06）：店长 / 老板 / 客服上班先点这一页，
+        // 所有待办汇总在这儿（不跟着角色分路由，三个角色共用一条）。
+        path: 'todos',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <TodosPage />
           </Suspense>
         ),
       },

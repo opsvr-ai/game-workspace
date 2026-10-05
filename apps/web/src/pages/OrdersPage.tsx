@@ -848,15 +848,17 @@ const OrdersPage: React.FC = () => {
                     ? '已报「成功」：推给发单者、计入考核'
                     : r.reviewStatus === 'DECIDED'
                       ? `已报「不成功」，店长已拍板：${r.reviewNote || '（没写结论）'}`
-                      : '已报「不成功」：已附截图推给发单者 + 店长，等店长拍板定责'
+                      : r.reviewStatus === 'REJECTED'
+                        ? `店长把说明打回了：${(r.customFields as any)?.outcomeReject?.note || '写得不清楚'} —— 点开重新填原因 + 重贴截图再报一次`
+                        : '已报「不成功」：已附截图推给发单者 + 店长，等店长拍板定责'
                 }
               >
                 <Tag
-                  color={r.outcome === 'SUCCESS' ? 'green' : 'red'}
+                  color={r.outcome === 'SUCCESS' ? 'green' : r.reviewStatus === 'REJECTED' ? 'orange' : 'red'}
                   style={{ margin: 0, cursor: 'pointer' }}
                   onClick={() => setOutcomeOrder(r)}
                 >
-                  {r.outcome === 'SUCCESS' ? '成功' : '不成功'}
+                  {r.outcome === 'SUCCESS' ? '成功' : r.reviewStatus === 'REJECTED' ? '待重报' : '不成功'}
                 </Tag>
               </Tooltip>
             ) : (

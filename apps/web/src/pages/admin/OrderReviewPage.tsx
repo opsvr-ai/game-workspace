@@ -74,7 +74,7 @@ const OrderReviewPage: React.FC = () => {
   const [tab, setTab] = useState<'waiting' | 'recheck' | 'archived' | 'decided'>('waiting');
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState({ waiting: 0, waitingCs: 0, waitingDecide: 0, recheck: 0 });
+  const [summary, setSummary] = useState({ waiting: 0, waitingCs: 0, waitingDecide: 0, recheck: 0, rejected: 0 });
   const [target, setTarget] = useState<any>(null);
   const [responsibility, setResponsibility] = useState<string>('COMPANION');
   const [note, setNote] = useState('');
@@ -82,6 +82,9 @@ const OrderReviewPage: React.FC = () => {
   const [csTarget, setCsTarget] = useState<any>(null);
   const [csNote, setCsNote] = useState('');
   const [csSaving, setCsSaving] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const [rejectNote, setRejectNote] = useState('');
+  const [rejectSaving, setRejectSaving] = useState(false);
 
   const fetchList = useCallback(async (scope: 'waiting' | 'recheck' | 'archived' | 'decided') => {
     setLoading(true);
@@ -104,6 +107,7 @@ const OrderReviewPage: React.FC = () => {
         waitingCs: Number(d.waitingCs ?? d.waiting ?? 0),
         waitingDecide: Number(d.waitingDecide || 0),
         recheck: Number(d.recheck || 0),
+        rejected: Number(d.rejected || 0),
       });
     } catch {
       /* 红点拿不到就算了，不影响清单 */
@@ -165,6 +169,32 @@ const OrderReviewPage: React.FC = () => {
       message.error(extractErrorMessage(e, '拍板失败'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** 店长 / 老板「打回重写」：接单方说明乱写、截图不对 → 退回让他重填（老板 2026-10-06）。 */
+  const openReject = (row: any) => {
+    setRejectTarget(row);
+    setRejectNote('');
+  };
+
+  const submitReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectNote.trim()) {
+      message.warning('写一句为什么打回（接单方要照着改）');
+      return;
+    }
+    setRejectSaving(true);
+    try {
+      await ordersApi.rejectOutcome(rejectTarget.id, { note: rejectNote.trim() });
+      message.success('已打回，接单方要重新填原因 + 重贴截图再报一次');
+      setRejectTarget(null);
+      await fetchList(tab);
+      void fetchSummary();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '打回失败'));
+    } finally {
+      setRejectSaving(false);
     }
   };
 
@@ -301,9 +331,14 @@ const OrderReviewPage: React.FC = () => {
                   等发单的人{o.csUserName ? '（' + o.csUserName + '）' : ''}跟接单方核对
                 </Text>
                 {canDecide ? (
-                  <Button size="small" onClick={() => openConfirmCs(o)}>
-                    代发单者确认
-                  </Button>
+                  <Space size={6}>
+                    <Button size="small" onClick={() => openConfirmCs(o)}>
+                      代发单者确认
+                    </Button>
+                    <Button size="small" onClick={() => openReject(o)}>
+                      打回重写
+                    </Button>
+                  </Space>
                 ) : null}
               </Space>
             );
@@ -311,9 +346,14 @@ const OrderReviewPage: React.FC = () => {
           // 第二段：客服已核对完，轮到店长拍板。
           return canDecide ? (
             <Space direction="vertical" size={2}>
-              <Button size="small" type="primary" danger onClick={() => openDecide(o)}>
-                拍板定责
-              </Button>
+              <Space size={6}>
+                <Button size="small" type="primary" danger onClick={() => openDecide(o)}>
+                  拍板定责
+                </Button>
+                <Button size="small" onClick={() => openReject(o)}>
+                  打回重写
+                </Button>
+              </Space>
               <Text type="secondary" style={{ fontSize: 11 }}>
                 客服已核对{fmt(o.csConfirmedAt)}
               </Text>
@@ -353,7 +393,7 @@ const OrderReviewPage: React.FC = () => {
       />
 
       <Row gutter={12} style={{ marginBottom: 12 }}>
-        <Col span={8}>
+        <Col span={6}>
           <Card size="small">
             <Statistic
               title={canDecide ? '① 等发单的人核对（在跟接单方掰扯）' : '① 等我核对（我发的单）'}
@@ -362,7 +402,7 @@ const OrderReviewPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col span={6}>
           <Card size="small">
             <Statistic
               title="② 等店长拍板（客服已核对完）"
@@ -371,12 +411,21 @@ const OrderReviewPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col span={8}>
+        <Col span={6}>
           <Card size="small">
             <Statistic
               title="抢了没结果（7 天内）"
               value={summary.recheck}
               valueStyle={{ color: summary.recheck ? '#D97706' : '#16A34A' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card size="small">
+            <Statistic
+              title="打回重写（等接单方重报）"
+              value={summary.rejected}
+              valueStyle={{ color: summary.rejected ? '#D97706' : '#16A34A' }}
             />
           </Card>
         </Col>
@@ -532,6 +581,51 @@ const OrderReviewPage: React.FC = () => {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="例如：接单方没跟客户谈拢就报废，记一次；这张单不计发单客服提成，接单方按店规处理"
+            />
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title={'打回重写：' + (rejectTarget?.orderCode || '') + ' 这张单的说明'}
+        open={!!rejectTarget}
+        onOk={submitReject}
+        onCancel={() => setRejectTarget(null)}
+        okText="确认打回，让接单方重填"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        confirmLoading={rejectSaving}
+        destroyOnClose
+      >
+        {rejectTarget ? (
+          <div>
+            <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+              接单方 {rejectTarget.companionName || '—'} 现在填的：{rejectTarget.outcomeReason || '未填'}
+              {rejectTarget.outcomeNote ? '（' + rejectTarget.outcomeNote + '）' : ''}。
+              打回后这张单**退出待拍板清单**，接单方要重新填原因、重新贴截图再报一次，流程从头走。
+            </Paragraph>
+            {Array.isArray(rejectTarget.evidence) && rejectTarget.evidence.length ? (
+              <Space size={6} wrap style={{ marginBottom: 10 }}>
+                {rejectTarget.evidence.map((url: string) => (
+                  <img
+                    key={url}
+                    src={url}
+                    alt="失败凭据"
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                    onClick={() => window.open(url, '_blank')}
+                  />
+                ))}
+              </Space>
+            ) : null}
+            <Text strong style={{ display: 'block', marginTop: 10 }}>
+              为什么打回（必填，接单方照着改）
+            </Text>
+            <Input.TextArea
+              rows={3}
+              style={{ marginTop: 8 }}
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="例如：原因写得太糊弄，说不清为什么没打成；截图是聊天记录不是对局截图，重贴"
             />
           </div>
         ) : null}

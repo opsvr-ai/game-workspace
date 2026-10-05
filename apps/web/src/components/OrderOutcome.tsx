@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useEffect, useState } from 'react';
-import { Modal, Radio, Input, Typography, message, Space, Upload, Button } from 'antd';
+import { Alert, Modal, Radio, Input, Typography, message, Space, Upload, Button } from 'antd';
 import { ordersApi } from '../api/orders';
 import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';
@@ -124,11 +124,16 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
   // 本店线下单还没点「开始首单」= 这单没打成：只能报「不成功」，走截图 + 店长定责。
   const offlineNotStarted = channel === 'offline';
 
+  // 店长 / 老板把这个说明打回过（老板 2026-10-06「乱写就驳回」）：弹窗顶上要标出来，
+  // 备注和截图都清空，逼接单方重新写清楚、重新贴图，不能原样再交一遍。
+  const outcomeReject: any = (order?.customFields as any)?.outcomeReject || null;
+
   useEffect(() => {
     if (!open) return;
+    const rejected: any = (order?.customFields as any)?.outcomeReject || null;
     setOutcome(order?.outcome === 'FAILED' || offlineNotStarted ? 'FAILED' : 'SUCCESS');
-    setNote(order?.outcomeReason || order?.outcomeNote || '');
-    setEvidence(Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : []);
+    setNote(rejected ? '' : order?.outcomeReason || order?.outcomeNote || '');
+    setEvidence(rejected ? [] : Array.isArray(order?.outcomeEvidence) ? order.outcomeEvidence : []);
   }, [open, order, offlineNotStarted]);
 
   /** 一次收多张（Ctrl+V 粘贴 / 拖进来 / 多选文件都走这里），最多留 6 张。 */
@@ -205,6 +210,18 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
       confirmLoading={saving}
       destroyOnClose
     >
+      {outcomeReject ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`店长把这个说明打回了：${outcomeReject?.note || '写得不清楚，重填'}`}
+          description={
+            '原因 / 截图都给你清空了，请重新写清楚「到底为什么没打成」、重新贴对局截图，再报一次。' +
+            (outcomeReject?.byName ? `（${outcomeReject.byName} ${outcomeReject?.at ? new Date(outcomeReject.at).toLocaleString('zh-CN') : ''}）` : '')
+          }
+        />
+      ) : null}
       <Text type="secondary" style={{ fontSize: 12 }}>
         {offlineNotStarted
           ? '这张单还没点「开始首单」——点了才算成功。没打成（添加失败 / 客户没同意 / 暂时不打 / 价格或单双陪谈不拢…）就报「不成功」：**原因自己在下面写清楚（备注必填）+ 粘贴截图**，单子会同时推给发单客服和店长，店长拍板到底是谁的问题（谁的问题找谁）。'

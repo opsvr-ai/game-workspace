@@ -28,6 +28,7 @@ import { BattleScreenshotsModule } from './battle-screenshots/battle-screenshots
 import { RedisModule } from './redis/redis.module';
 import { LoggerMiddleware } from './common/logger.middleware';
 import { ContentCheckModule } from './content-check/content-check.module';
+import { TodosModule } from './todos/todos.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { ContentCheckModule } from './content-check/content-check.module';
     TrafficAccountModule,
     BattleScreenshotsModule,
     ContentCheckModule,
+    TodosModule,
   ],
   providers: [
     {
