@@ -1109,6 +1109,7 @@ function openChatWindow(payload: {
       if (existing.isMinimized()) existing.restore();
       existing.show();
       existing.focus();
+      existing.moveTop();
       return true;
     }
     const params = new URLSearchParams();
@@ -1149,6 +1150,10 @@ function openChatWindow(payload: {
       }
       return { action: 'deny' };
     });
+    // 记进 map —— 少了这一行去重就永远不生效：每次点都新开一个窗口，
+    // 最小化后（缩到任务栏）再点也不会还原它。老板 2026-10-06 报的
+    // 「群聊缩到任务栏、再点人员列表的群聊不弹出来」就是这个。
+    chatWindows.set(key, win);
     win.on('closed', () => chatWindows.delete(key));
     void win.loadURL(url);
     return true;
