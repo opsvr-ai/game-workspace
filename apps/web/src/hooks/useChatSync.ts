@@ -33,17 +33,33 @@ export function useChatSync(wsConnected: boolean) {
     }
   }, []);
 
+  // 定期拉一次完整会话列表：服务端是权威列表，配合 store 的 setConversations 会
+  // 丢掉「已经不存在」的会话（例如重复房间被合并后残留的幽灵聊天框），不用等用户刷新页面。
+  const refreshConversations = useCallback(async () => {
+    try {
+      const { data } = await chatApi.listConversations();
+      const list = data?.data?.conversations || [];
+      if (list.length > 0) useChatStore.getState().setConversations(list);
+    } catch {
+      // silent — 下个周期再试
+    }
+  }, []);
+
   useEffect(() => {
     // 挂载时先对一次账
     sync();
+    refreshConversations();
     // 长连接正常时用不着每 30 秒问一次：一发一收就是一次 HTTP 往返，
     // 一天白跑两千多次。连着的时候只留一个 2 分钟的兜底对账；
     // 真断了才降回 30 秒一次快速补齐。
     const period = wsConnected ? 120000 : 30000;
-    intervalRef.current = setInterval(sync, period);
+    intervalRef.current = setInterval(() => {
+      sync();
+      refreshConversations();
+    }, period);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [wsConnected, sync]);
+  }, [wsConnected, sync, refreshConversations]);
 }

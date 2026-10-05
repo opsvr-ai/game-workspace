@@ -232,9 +232,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setConversations: (list: ConversationSummary[]) =>
     set((s) => {
-      const conversations: Record<string, ConversationState> = { ...s.conversations };
-      const orderSet = new Set(s.conversationOrder);
+      // 服务端返回的是「我这个人的全部会话」，是权威列表。
+      // 不在列表里的会话 = 已经不存在了（例如重复房间被合并/删除后的残留幽灵会话），
+      // 直接丢掉，否则同一个人会一直留着一个点开是空的聊天框。唯一例外是「我正开着、
+      // 但这次列表还没返回它」的会话（列表请求与刚建会话有竞态），保留它免得把正开着的窗口关掉。
+      const incoming = new Set(list.map((i) => i.id));
+      const conversations: Record<string, ConversationState> = {};
       let totalUnread = 0;
+      for (const [id, conv] of Object.entries(s.conversations)) {
+        if (incoming.has(id)) continue; // 下面会用最新数据重建
+        if (id === s.activeConversationId) {
+          conversations[id] = conv;
+          totalUnread += conv.unreadCount || 0;
+        }
+      }
+      const orderSet = new Set(s.conversationOrder.filter((id) => conversations[id]));
 
       for (const item of list) {
         const existing = s.conversations[item.id];
@@ -259,9 +271,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           openedReadSeq: existing?.openedReadSeq,
         };
 
-        if (!orderSet.has(item.id)) {
-          orderSet.add(item.id);
-        }
+        orderSet.add(item.id);
         totalUnread += unread;
       }
 
