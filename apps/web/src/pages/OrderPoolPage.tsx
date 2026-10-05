@@ -311,9 +311,6 @@ const OrderPoolPage: React.FC = () => {
     // 语音通话/聊天都需要真实 userId（JWT 里的 sub），而不是 companionId。
     // /companions 接口里 user.id 才是 User id，companion.id 是 Companion 模型 id。
     const targetUserId = companion.user?.id || companion.id;
-    // 人员列表点聊天 = 普通会话，不带订单上下文（老板 2026-09-30：「如果通过抢单池左侧的
-    // 人员列表点聊天，那么聊天框就不要显示订单信息」）。显式传 null：服务端据此把这个
-    // 房间挂着的那一单清掉，双方聊天框顶上都不再显示。
     await useChatStore.getState().openConversation(
       companion.id,
       {
@@ -323,11 +320,9 @@ const OrderPoolPage: React.FC = () => {
         avatar: companion.user?.avatar,
         role: 'COMPANION',
       },
-      null,
     );
     setChatPartner({
       conversationId: companion.id,
-      orderInfo: null,
       participant: {
         userId: targetUserId,
         username: companion.user?.username || companion.id,

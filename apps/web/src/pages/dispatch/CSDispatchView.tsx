@@ -604,7 +604,6 @@ const CSDispatchView: React.FC = () => {
                                 avatar: c.avatar,
                                 role: c.role,
                               },
-                              orderInfo: null,
                             },
                           }),
                         );
@@ -690,14 +689,13 @@ const CSDispatchView: React.FC = () => {
                               style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                // 人员列表点聊天 = 普通会话，显式不带订单上下文（传 null）。
                                 await useChatStore.getState().openConversation(c.id, {
                                   userId: c.id,
                                   username: c.username || '未知',
                                   displayName: c.displayName || c.username || '未知',
                                   avatar: c.avatar,
                                   role: c.role,
-                                }, null);
+                                });
                                 window.dispatchEvent(
                                   new CustomEvent('open-chat-modal', {
                                     detail: {
@@ -709,7 +707,6 @@ const CSDispatchView: React.FC = () => {
                                         avatar: c.avatar,
                                         role: c.role,
                                       },
-                                      orderInfo: null,
                                     },
                                   }),
                                 );
