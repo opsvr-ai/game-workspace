@@ -314,7 +314,7 @@ stateDiagram-v2
     [*] --> PENDING: 客服创建订单
     PENDING --> GRABBED: 陪玩抢单 (POOL)
     PENDING --> CLAIMED: 客服自抢单/认领线索
-    PENDING --> CONFIRMED: 指定派单 (DIRECT)
+    PENDING --> GRABBED: 客服「指定」给某陪玩 (DIRECT，发布即已属于他)
     PENDING --> CANCELLED: 客服取消
     CLAIMED --> PENDING: 客服放回抢单池（立即打）
     GRABBED --> CONFIRMED: 陪玩确认接单
@@ -322,6 +322,12 @@ stateDiagram-v2
     CONFIRMED --> DONE: 陪玩完成
     CONFIRMED --> CANCELLED: 客服取消
 ```
+
+> **客服「指定」单不进抢单池（老板 2026-10-06）。** `dispatchType=DIRECT` + `companionId` 的单在**发布那一刻**
+> 就是 `GRABBED`（`OrderService.create`），`findPool()` 的可抢列表又钉死 `companionId` 为空 —— 谁都不会再对它
+> 点「抢单」。它在陪玩端以**灰色记录**出现在抢单池下方「今天已发过的单」里（`findTakenPoolOrders()` 现在同时查
+> `POOL` 和 `DIRECT`），写「🎯 客服指定给 XX 接」（指定给自己写「🎯 这单指定给你」、紫色，时间栏「指定时间」）。
+> 陪玩端桌面横幅对指定单只提示「已指定给你」，不再提示「再点一下抢单」。
 
 ### 3.2 派单流程时序
 

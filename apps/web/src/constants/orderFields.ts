@@ -65,6 +65,8 @@ export const ORDER_FIELD_LABELS = {
   waited: '已等待',
   disappearIn: '距离消失',
   takenAt: '抢单时间',
+  /** 客服「指定」单在抢单池灰色行里显示的时间（跟「抢单时间」分开） */
+  directAt: '指定时间',
 } as const;
 
 export type OrderFieldKey = keyof typeof ORDER_FIELD_LABELS;

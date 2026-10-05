@@ -131,10 +131,12 @@ export function buildOrderPoolFields(
   }
   const wait = now - new Date(order.createdAt).getTime();
   if (opts.taken) {
-    // 已经被抢走的单（灰色记录）：不再有「等多久 / 还差多久消失」，改成什么时候被抢的。
+    // 已经被抢走 / 被客服指定的单（灰色记录）：不再有「等多久 / 还差多久消失」，
+    // 改成什么时候被抢的；客服「指定」单写「指定时间」，跟抢单分开。
+    const direct = order._direct === true;
     entries.push({
-      key: 'takenAt',
-      label: orderFieldLabel('takenAt'),
+      key: direct ? 'directAt' : 'takenAt',
+      label: orderFieldLabel(direct ? 'directAt' : 'takenAt'),
       text: fmtClock(order._takenAt || order.grabbedAt || order.updatedAt || order.createdAt),
     });
     return entries;

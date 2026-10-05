@@ -40,6 +40,11 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **客服「指定」某个陪玩的单不再显示「抢单」按钮（2026-10-06，服务端 + 网页 `v974`）:** 老板「发单者指定某个陪玩的订单，
+  为什么还显示抢单按钮？直接出现在抢单池，显示指定给哪个陪玩了、已被抢就行了」。可抢列表钉死 `companionId` 为空；
+  陪玩端「已被抢」灰色区（`findTakenPoolOrders`）带上 `dispatchType='DIRECT'`，指定单灰色列出「🎯 客服指定给 XX 接」
+  （指定给自己写「🎯 这单指定给你」、紫色，时间栏写「指定时间」），附带真实订单号；网页端带陪玩的单只给
+  「🎯 客服指定给你接」标签，不给抢单按钮。
 - **失败单先由发单客服跟接单方核对，再轮到店长拍板（2026-10-06，服务端 + 网页 `v973`）:**
   老板「他们不跟发单者掰扯明白，直接进店长，那不把店长累死」。接单方报「不成功」不再直接落到店长：
   先只推给**发单本人**（订单 `csUserId`，建单那一刻写死、NOT NULL —— 客服 / 店长 / 陪玩自己建的都算，
@@ -1272,7 +1277,7 @@ Every endpoint returns a standard JSON envelope:
 |--------|------|------|-------|-------------|
 | `POST` | `/api/orders` | JWT | CS, ADMIN | Create a new order. Body: `CreateOrderDto`. |
 | `PUT` | `/api/orders/:id` | JWT | CS, ADMIN, OWNER, COMPANION | Update a published order (publisher or privileged role). Body includes order info fields such as customer WeChat/room code. |
-| `GET` | `/api/orders/pool` | JWT | -- | Get the dispatch pool (PENDING orders). |
+| `GET` | `/api/orders/pool` | JWT | -- | 抢单池。陪玩端（带 `companionId`）返回「可抢 + 今天已被抢/被客服指定的灰色记录」：可抢列表只含 `dispatchType=POOL` 且 `companionId` 为空的单；灰色记录含 `POOL + DIRECT`，带 `_taken` / `_direct` / `_takenByMe` / `_takenByName` / `orderCode`。客服 / 管理端只返回可抢列表。 |
 | `GET` | `/api/orders` | JWT | CS, ADMIN, COMPANION | List orders. Query: `?status=PENDING\|GRABBED\|CONFIRMED\|DONE\|CANCELLED`; `?scope=` 客服 `mine`（自己发布 / 认领的单，前端默认）\| `all`（本店 + 桥接工作室）；陪玩 `taken`（我接的单，前端默认）\| `published`（我发的单）。ADMIN / OWNER 忽略 `scope`。Data isolation applied. |
 | `POST` | `/api/orders/:id/grab` | JWT | COMPANION | Grab an order from the pool. |
 | `POST` | `/api/orders/:id/claim` | JWT | CS, ADMIN, OWNER | CS claims a lead order to a work WeChat account. Body: `{ workWechatId, workWechatName }`. |

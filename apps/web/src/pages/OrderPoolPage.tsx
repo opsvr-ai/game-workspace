@@ -471,16 +471,24 @@ const OrderPoolPage: React.FC = () => {
         <div style={{ flexShrink: 0 }}>
         {taken ? (
           <Space size={8}>
+            {/* 客服「指定」单（老板 2026-10-06）：不走抢单池，直接灰色列在这里，写清「指定给谁、已被接」，
+                永远不给「抢单」按钮。紫色跟全局「跳过来」的选中阴影同一色系，一眼分得出是指定单。 */}
             <Tag
               style={{
                 margin: 0,
                 fontSize: DATA_TAG_FONT_SIZE,
-                color: order._takenByMe ? '#16A34A' : '#64748B',
-                background: order._takenByMe ? '#F0FDF4' : '#EEF2F6',
-                borderColor: order._takenByMe ? '#BBF7D0' : '#E2E8F0',
+                color: order._direct ? '#7C3AED' : order._takenByMe ? '#16A34A' : '#64748B',
+                background: order._direct ? '#F5F3FF' : order._takenByMe ? '#F0FDF4' : '#EEF2F6',
+                borderColor: order._direct ? '#DDD6FE' : order._takenByMe ? '#BBF7D0' : '#E2E8F0',
               }}
             >
-              {order._takenByMe ? '✅ 你已抢到这单' : `已被 ${order._takenByName || '其他陪玩'} 抢走`}
+              {order._direct
+                ? order._takenByMe
+                  ? '🎯 这单指定给你'
+                  : `🎯 客服指定给 ${order._takenByName || '其他陪玩'} 接`
+                : order._takenByMe
+                  ? '✅ 你已抢到这单'
+                  : `已被 ${order._takenByName || '其他陪玩'} 抢走`}
             </Tag>
             {/* 「已被 XX 抢走」已经写明白了，这里只在后面还有进展（进行中 / 已完成）时才补一句。
                 状态文字跟订单管理表是同一份（constants/orders.ts 的 orderStatusConfig）——
@@ -493,7 +501,6 @@ const OrderPoolPage: React.FC = () => {
           </Space>
         ) : isCompanion ? (
           <Space size={8}>
-            {order.companionId && <Text type="danger" style={{ fontSize: DATA_SUB_FONT_SIZE }}>客服指定给你接</Text>}
             <Badge count={unreadMap[order.id] || 0} size="small" offset={[-4, 0]}>
               <Button
                 size="small"
@@ -504,15 +511,33 @@ const OrderPoolPage: React.FC = () => {
                 沟通
               </Button>
             </Badge>
-            <Button
-              type="primary"
-              size="small"
-              danger
-              loading={grabbing === order.id}
-              onClick={() => handleGrab(order.id)}
-            >
-              抢单
-            </Button>
+            {/* 客服「指定」给你的单已经是你的了，**不给「抢单」按钮**（老板 2026-10-06：
+                「发单者指定某个陪玩的订单，为什么还显示抢单按钮」）。正常路径下它本来就以
+                「已被抢」的灰色行出现在下面那一段；这里兜的是历史/异常数据（companionId 已写、
+                状态还停在待抢的单），保证这种单也永远点不出「抢单」。 */}
+            {order.companionId ? (
+              <Tag
+                style={{
+                  margin: 0,
+                  fontSize: DATA_TAG_FONT_SIZE,
+                  color: '#7C3AED',
+                  background: '#F5F3FF',
+                  borderColor: '#DDD6FE',
+                }}
+              >
+                🎯 客服指定给你接
+              </Tag>
+            ) : (
+              <Button
+                type="primary"
+                size="small"
+                danger
+                loading={grabbing === order.id}
+                onClick={() => handleGrab(order.id)}
+              >
+                抢单
+              </Button>
+            )}
           </Space>
         ) : (
           // 「发布」（发布人 + 时间）和「状态」左边那一行字段里已经有了，右边只留操作按钮。

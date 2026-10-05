@@ -510,7 +510,10 @@ export class OrdersService implements OnModuleInit {
     const where: any = {
       status: 'PENDING',
       dispatchType: 'POOL',
-      OR: companionId ? [{ companionId: null }, { companionId: companionId }] : [{ companionId: null }],
+      // 客服「指定」给某个陪玩的单不再出现在可抢列表里（老板 2026-10-06）：
+      // 指定单发布那一刻就是 GRABBED + dispatchType=DIRECT，本来也进不来；
+      // 这里再钉一道「companionId 必须为空」，保证任何已经带陪玩的单都不会被人再点一次「抢单」。
+      companionId: null,
     };
     if (studioId) {
       const bridgedIds = await this.bridgeService.getBridgedStudioIds(studioId);
@@ -636,8 +639,12 @@ export class OrdersService implements OnModuleInit {
    */
   private async findTakenPoolOrders(companionId: string, studioId?: string) {
     const { start } = currentBusinessDayRange();
+    // 陪玩端「已被抢」灰色记录现在也带上客服「指定」单（老板 2026-10-06）：
+    // 指定单不走抢单池，以前一条都不显示 —— 陪玩在池子里既找不到自己那张被指定的单，
+    // 也看不到「这单已经指定给谁了」。带上 DIRECT 之后，指定单会像被抢走的单一样灰色列出来，
+    // 写清「🎯 客服指定给 XX 接」，且永远没有「抢单」按钮。
     const where: any = {
-      dispatchType: 'POOL',
+      dispatchType: { in: ['POOL', 'DIRECT'] },
       status: { in: ['GRABBED', 'CONFIRMED', 'DONE', 'CANCELLED', 'CLAIMED'] },
       OR: [{ createdAt: { gte: start } }, { grabbedAt: { gte: start } }],
     };
@@ -650,8 +657,10 @@ export class OrdersService implements OnModuleInit {
       where,
       select: {
         id: true,
+        orderCode: true,
         type: true,
         status: true,
+        dispatchType: true,
         amount: true,
         gameName: true,
         serviceType: true,
@@ -683,6 +692,7 @@ export class OrdersService implements OnModuleInit {
         ...o,
         customer: null,
         _taken: true,
+        _direct: o.dispatchType === 'DIRECT',
         _takenByMe: o.companionId === companionId || o.coCompanionId === companionId,
         _takenByName:
           o.companion?.user?.displayName ||
