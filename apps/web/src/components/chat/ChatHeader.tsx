@@ -141,7 +141,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
           <PhoneOutlined onClick={onCallClick} style={{ cursor: 'pointer', color: '#52c41a', padding: 4, fontSize: 16 }} title="语音通话" />
         )}
         {onTogglePin && (
-          <span onClick={onTogglePin} style={{ cursor: 'pointer', padding: 4, color: pinned ? '#F0B232' : '#949BA4' }}>
+          <span
+            onClick={onTogglePin}
+            title={pinned ? '已置顶 · 点一下取消置顶' : '置顶到「消息」列表最上面'}
+            style={{ cursor: 'pointer', padding: 4, color: pinned ? '#F0B232' : '#949BA4' }}
+          >
             {pinned ? <PushpinFilled /> : <PushpinOutlined />}
           </span>
         )}

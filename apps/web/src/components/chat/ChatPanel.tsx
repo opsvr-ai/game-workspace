@@ -248,7 +248,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
           window.dispatchEvent(new CustomEvent('start-voice-call', { detail: { targetUserId: participant!.userId, targetUserName: participantName } }));
         } : undefined}
         onTogglePin={() => {
-          if (roomId) chatApi.updateRoom?.(roomId, { pinned: !conv?.pinned }).catch(() => {});
+          if (!roomId) return;
+          const next = !conv?.pinned;
+          // 先本地立刻生效（大头针变金色），再存服务端；失败回滚并提示
+          // （老板 2026-10-05：以前点了没反应 —— 服务端存了、界面一点没变）。
+          useChatStore.getState().setPinned(roomId, next);
+          chatApi
+            .updateRoom(roomId, { pinned: next })
+            .then(() => message.success(next ? '已置顶 · 消息列表里排最上面' : '已取消置顶'))
+            .catch(() => {
+              useChatStore.getState().setPinned(roomId, !next);
+              message.error('置顶失败，请重试');
+            });
         }}
         onBroadcast={canBroadcast ? () => setBroadcastOpen(true) : undefined}
       />

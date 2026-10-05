@@ -30,10 +30,11 @@ interface RowProps {
   unread: number;
   avatar: React.ReactNode;
   highlighted: boolean;
+  pinned?: boolean;
   onClick: () => void;
 }
 
-const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, avatar, highlighted, onClick }) => (
+const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, avatar, highlighted, pinned, onClick }) => (
   <div
     onClick={onClick}
     style={{
@@ -56,18 +57,23 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
     {avatar}
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <Text
-          strong
-          style={{
-            fontSize: 13,
-            color: '#1E293B',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {name}
-        </Text>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0, flex: 1 }}>
+          {pinned && (
+            <span title="已置顶" style={{ fontSize: 11, flexShrink: 0 }}>📌</span>
+          )}
+          <Text
+            strong
+            style={{
+              fontSize: 13,
+              color: '#1E293B',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {name}
+          </Text>
+        </span>
         <Text style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{formatTime(lastMessageAt)}</Text>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
@@ -150,14 +156,17 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
     [all],
   );
 
-  // 私聊：只列有来有往的会话，空壳房间不占地方；有未读的一律置顶，其余最近的排前面
-  // （老板 2026-10-05：「未读根本就不会置顶，有时候会看不到」）。
+  // 私聊：只列有来有往的会话，空壳房间不占地方；**手动置顶的排最上面**，其次有未读的置顶，
+  // 其余最近的排前面（老板 2026-10-05）。
   const directs = useMemo(
     () =>
       all
         .filter((c) => !(c.isGroup || c.participant?.role === 'GROUP'))
         .filter((c) => (c.lastMessageAt || 0) > 0 || (c.messages?.length || 0) > 0)
         .sort((a, b) => {
+          const aPin = a.pinned ? 1 : 0;
+          const bPin = b.pinned ? 1 : 0;
+          if (aPin !== bPin) return bPin - aPin;
           const aUnread = (a.unreadCount || 0) > 0 ? 1 : 0;
           const bUnread = (b.unreadCount || 0) > 0 ? 1 : 0;
           if (aUnread !== bUnread) return bUnread - aUnread;
@@ -201,6 +210,69 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
   }, [all.length]);
 
   const displayGroups = groups.length > 0 ? groups : fallbackGroup ? [fallbackGroup] : [];
+
+  // 置顶的会话（私聊、群聊都算）统一浮到整个列表最上面（老板 2026-10-05：
+  // 聊天窗口那个大头针要真的把会话钉到消息列表顶部）。
+  const pinnedItems = useMemo(
+    () =>
+      all
+        .filter((c) => c.pinned)
+        .sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)),
+    [all],
+  );
+  const isPinnedGroupRow = (g: any) => {
+    const storeGroup = groups.find((item) => item.id === g.id);
+    return !!(storeGroup?.pinned || (g as any).pinned);
+  };
+
+  // 「置顶」分区里私聊 / 群聊混着排，所以单独一套行渲染（头像 / 名字 / 点击行为按类型走）。
+  const renderConvRow = (c: any) => {
+    const isGroupConv = !!(c.isGroup || c.participant?.role === 'GROUP');
+    const name = isGroupConv
+      ? c.groupName || c.participant?.displayName || c.participant?.username || '工作室群聊'
+      : c.participant?.displayName || c.participant?.username || '未知';
+    const unread = c.unreadCount || 0;
+    return (
+      <Row
+        key={c.id}
+        name={name}
+        lastMessage={c.lastMessage || ''}
+        lastMessageAt={c.lastMessageAt || 0}
+        unread={unread}
+        highlighted={unread > 0}
+        pinned={!!c.pinned}
+        avatar={
+          isGroupConv ? (
+            groupAvatar
+          ) : (
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                borderRadius: '50%',
+                background: unread > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : '#CBD5E1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                fontSize: 16,
+                fontWeight: 700,
+              }}
+            >
+              {String(name)[0].toUpperCase()}
+            </div>
+          )
+        }
+        onClick={() => {
+          markRead(c.id);
+          if (isGroupConv) onOpenChat(c.id, name);
+          else if (onOpenDirectChat) onOpenDirectChat(c.id, name);
+          else onOpenChat(c.id, name);
+        }}
+      />
+    );
+  };
 
   const sectionTitle = (label: string) => (
     <div style={{ padding: '10px 10px 4px', fontSize: 11, color: '#94A3B8' }}>{label}</div>
@@ -248,12 +320,15 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
-        {directs.length === 0 && displayGroups.length === 0 ? (
+        {directs.length === 0 && displayGroups.length === 0 && pinnedItems.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>暂无消息</div>
         ) : (
           <>
-            {directs.length > 0 && sectionTitle('私聊')}
-            {directs.map((c: any) => {
+            {pinnedItems.length > 0 && sectionTitle('置顶')}
+            {pinnedItems.map(renderConvRow)}
+
+            {directs.some((c: any) => !c.pinned) && sectionTitle('私聊')}
+            {directs.filter((c: any) => !c.pinned).map((c: any) => {
               const name = c.participant?.displayName || c.participant?.username || '未知';
               return (
                 <Row
@@ -263,6 +338,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
                   lastMessageAt={c.lastMessageAt || 0}
                   unread={c.unreadCount || 0}
                   highlighted={(c.unreadCount || 0) > 0}
+                  pinned={!!c.pinned}
                   avatar={
                     <div
                       style={{
@@ -291,8 +367,8 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
               );
             })}
 
-            {displayGroups.length > 0 && sectionTitle('群聊')}
-            {displayGroups.map((g: any) => {
+            {displayGroups.some((g: any) => !isPinnedGroupRow(g)) && sectionTitle('群聊')}
+            {displayGroups.filter((g: any) => !isPinnedGroupRow(g)).map((g: any) => {
               const storeGroup = groups.find((item) => item.id === g.id);
               const groupName =
                 storeGroup?.groupName ||

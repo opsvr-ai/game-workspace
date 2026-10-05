@@ -89,6 +89,8 @@ interface ChatState {
    * 服务端会实时推过来，这里更新本地，聊天框顶上立刻跟着出现 / 消失。
    */
   setOrderInfo: (convId: string, orderInfo?: string | null) => void;
+  /** 置顶 / 取消置顶某个会话（消息列表里排最上面）。 */
+  setPinned: (convId: string, pinned: boolean) => void;
   closeConversation: () => void;
   markRead: (convId: string) => void;
   /** 记录对方读到哪一条（服务端返回或 WebSocket 推来） */
@@ -430,6 +432,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return {
         ...s2,
         conversations: { ...s2.conversations, [convId]: { ...conv, orderInfo: next } },
+      };
+    }),
+
+  setPinned: (convId: string, pinned: boolean) =>
+    set((s) => {
+      const conv = s.conversations[convId];
+      if (!conv || !!conv.pinned === pinned) return s;
+      return {
+        ...s,
+        conversations: { ...s.conversations, [convId]: { ...conv, pinned } },
       };
     }),
 
