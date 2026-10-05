@@ -3022,6 +3022,7 @@ export class OrdersService implements OnModuleInit {
     const payload = {
       sessionId: session.id,
       orderId: order.id,
+      companionId: session.companionId,
       companionName: who,
       level: 'yellow',
       reason: `单价低于底线：${mode}${isRenewal ? '续单 / 复购' : '首单'}（底线 ${floor}），${parts.join('、')}，客户 ${customerLabel}`,

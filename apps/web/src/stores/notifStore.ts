@@ -136,6 +136,8 @@ interface NotifState {
   markRead: (id: string) => void;
   /** 把「指向这个页面」的未读通知全部标为已读（左侧栏点对应菜单时用） */
   markReadByPath: (path: string) => void;
+  /** 就地改一条通知的字段（把老通知的跳转地址校正到正确页面时用） */
+  patch: (id: string, partial: Partial<Pick<NoticeItem, 'href' | 'title' | 'desc'>>) => void;
   markAllRead: () => void;
   clear: () => void;
 }
@@ -194,6 +196,19 @@ export const useNotifStore = create<NotifState>((set, get) => ({
     const next = items.map((it) =>
       !it.read && noticePath(it.href) === target ? { ...it, read: true } : it,
     );
+    set({ items: next });
+    writeStored(userId, next);
+  },
+
+  patch: (id, partial) => {
+    const { userId, items } = get();
+    let hit = false;
+    const next = items.map((it) => {
+      if (it.id !== id) return it;
+      hit = true;
+      return { ...it, ...partial };
+    });
+    if (!hit) return;
     set({ items: next });
     writeStored(userId, next);
   },

@@ -85,6 +85,7 @@ export class CustomerBaselineService {
       session.companion?.user?.displayName || session.companion?.user?.username || '未知';
     this.wsGateway.broadcastToStudio(session.parentOrder.studioId, 'review:alert', {
       sessionId,
+      companionId: session.companionId,
       companionName,
       reason,
       level,

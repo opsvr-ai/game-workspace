@@ -761,6 +761,26 @@ const AppLayout: React.FC = () => {
     }
     return { unreadByPath: map, titlesByPath: titles };
   }, [notifItems]);
+  // 老板 2026-10-05：「工作抽查异常」的通知点进「陪玩管理」什么都没有。
+  // 根因：这类通知早先的跳转地址指向泛泛的审核页（老板账号是 /owner/review），
+  // 左侧栏角标和页面横幅自然都挂在那张页面上，人却按提示去「陪玩管理」找。
+  // 这里按标题里的名字，把这一类老通知的 href 校正到「陪玩管理 → 这个人的工作记录」。
+  const patchNotice = useNotifStore((s) => s.patch);
+  const markNoticeRead = useNotifStore((s) => s.markRead);
+  const workAlertBase = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
+  const workAlertHref = (name: string) =>
+    `${workAlertBase}?role=COMPANION&workName=${encodeURIComponent(name)}`;
+  useEffect(() => {
+    for (const it of notifItems) {
+      const title = String(it.title || '');
+      if (!title.startsWith('工作抽查异常 · ')) continue;
+      if (it.href && (it.href.includes('workName') || it.href.includes('workCompanion'))) continue;
+      const name = title.slice('工作抽查异常 · '.length).trim();
+      if (!name) continue;
+      patchNotice(it.id, { href: workAlertHref(name) });
+    }
+    // 校正过一条 href 就带 workName 了，下一轮不会再匹配 —— 不会打转。
+  }, [notifItems, patchNotice, workAlertBase]);
   // 老板 2026-10-05：「订单管理有未读，我点进去也没看到什么变化」——
   // 点菜单只把角标数字清掉、页面里什么都不留，人根本不知道刚才那几条提醒是什么。
   // 所以「刚点掉的是哪几条」按页面路径记在这，进到那一页顶头再写一遍（见下面内容区横幅）。
@@ -1807,12 +1827,19 @@ const AppLayout: React.FC = () => {
         setReviewBadge((p) => p + 1);
         const text = `工作抽查：${data.companionName} 存在异常（${data.reason || data.level || '异常'}），请到陪玩管理工作记录核查`;
         message.warning({ content: text, duration: 10 });
+        // 「查看」直接落到这个人的工作记录，并把异常那一条高亮出来（老板 2026-10-05：
+        // 以前只跳到陪玩列表 / 实名审核，什么都没标出来，根本找不到是哪一条）。
+        const base = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
+        const params = new URLSearchParams({ role: 'COMPANION' });
+        if (data.companionId) params.set('workCompanion', data.companionId);
+        if (data.sessionId) params.set('workSession', data.sessionId);
+        if (data.companionName) params.set('workName', data.companionName);
         recordNotice({
           kind: 'audit',
           icon: '🛡️',
           title: `工作抽查异常 · ${data.companionName || ''}`,
           desc: text,
-          href: rolePage(user?.role, 'audits'),
+          href: data.companionId ? `${base}?${params.toString()}` : rolePage(user?.role, 'audits'),
         });
       }
     },
@@ -2388,7 +2415,30 @@ const AppLayout: React.FC = () => {
                   placement="bottomRight"
                   title="通知"
                   content={
-                    <NoticeList onClose={() => setNotifOpen(false)} onNavigate={(href) => navigate(href)} />
+                    <NoticeList
+                      onClose={() => setNotifOpen(false)}
+                      onNavigate={(href, item) => {
+                        // 「工作抽查异常」的老通知：href 里没带陪玩 id，点进去只到陪玩列表、
+                        // 什么都没标出来。按标题里的名字补一次，直接落到那个人的工作记录
+                        // （老板 2026-10-05）。
+                        const title = String(item?.title || '');
+                        const PREFIX = '工作抽查异常 · ';
+                        if (
+                          title.startsWith(PREFIX) &&
+                          href &&
+                          !href.includes('workCompanion') &&
+                          !href.includes('workName')
+                        ) {
+                          const name = title.slice(PREFIX.length).trim();
+                          if (name) {
+                            const base = user?.role === 'CS' ? '/cs/employees' : '/admin/companions';
+                            navigate(`${base}?role=COMPANION&workName=${encodeURIComponent(name)}`);
+                            return;
+                          }
+                        }
+                        navigate(href);
+                      }}
+                    />
                   }
                 >
                   <Badge
@@ -2669,6 +2719,16 @@ const AppLayout: React.FC = () => {
                 !!ordersPath &&
                 curPath === noticePath(ordersPath) &&
                 list.some((t) => t.includes('补单'));
+              // 「工作抽查异常」的横幅里直接把人的名字做成按钮 —— 点一下就到他的工作记录，
+              // 不用再让人从一长串提醒里猜「具体是哪一条」（老板 2026-10-05）。
+              const workNames = Array.from(
+                new Set(
+                  list
+                    .filter((t) => t.startsWith('工作抽查异常 · '))
+                    .map((t) => t.slice('工作抽查异常 · '.length).trim())
+                    .filter(Boolean),
+                ),
+              );
               return (
                 <Alert
                   type={unread ? 'info' : 'warning'}
@@ -2684,6 +2744,21 @@ const AppLayout: React.FC = () => {
                   }`}
                   action={
                     <Space size={8}>
+                      {workNames.slice(0, 3).map((n) => (
+                        <Button
+                          key={n}
+                          size="small"
+                          danger
+                          onClick={() => {
+                            notifItems
+                              .filter((it) => !it.read && String(it.title).slice('工作抽查异常 · '.length).trim() === n && String(it.title).startsWith('工作抽查异常 · '))
+                              .forEach((it) => markNoticeRead(it.id));
+                            navigate(workAlertHref(n));
+                          }}
+                        >
+                          🔎 {n} 的工作记录
+                        </Button>
+                      ))}
                       {canGoSupplement && (
                         <Button
                           size="small"

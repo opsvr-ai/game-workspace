@@ -1,10 +1,10 @@
 import React from 'react';
 import { Button, Typography } from 'antd';
-import { useNotifStore } from '../stores/notifStore';
+import { useNotifStore, type NoticeItem } from '../stores/notifStore';
 
 interface Props {
   onClose: () => void;
-  onNavigate: (href: string) => void;
+  onNavigate: (href: string, item: NoticeItem) => void;
 }
 
 const formatTime = (ts: number): string => {
@@ -66,7 +66,7 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
               onClick={() => {
                 markRead(it.id);
                 if (it.href) {
-                  onNavigate(it.href);
+                  onNavigate(it.href, it);
                   onClose();
                 }
               }}

@@ -23,13 +23,25 @@ interface Props {
   open: boolean;
   companionId: string | null;
   companionName?: string;
+  /** 从「工作抽查异常」跳过来时要高亮 / 滚到中间的那一条工作记录 id。 */
+  focusSessionId?: string | null;
   onClose: () => void;
 }
 
-const WorkRecordsDrawer: React.FC<Props> = ({ open, companionId, companionName, onClose }) => {
+const WorkRecordsDrawer: React.FC<Props> = ({ open, companionId, companionName, focusSessionId, onClose }) => {
   const [records, setRecords] = useState<WorkRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState<string | null>(null);
+
+  // 复盘抽查异常时，把「那一条」滚到中间（默认列表可能很长）。
+  useEffect(() => {
+    if (!open || !focusSessionId || loading) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-work-session="${focusSessionId}"]`);
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [open, focusSessionId, loading, records]);
 
   useEffect(() => {
     if (!open || !companionId) return;
@@ -60,7 +72,16 @@ const WorkRecordsDrawer: React.FC<Props> = ({ open, companionId, companionName, 
           <List
             dataSource={records}
             renderItem={(r) => (
-              <List.Item key={r.id} style={{ display: 'block' }}>
+              <List.Item
+                key={r.id}
+                data-work-session={r.id}
+                style={{
+                  display: 'block',
+                  ...(focusSessionId && r.id === focusSessionId
+                    ? { background: '#FFF1F0', boxShadow: 'inset 0 0 0 2px #FF4D4F', borderRadius: 8, padding: 10 }
+                    : {}),
+                }}
+              >
                 <Space wrap style={{ marginBottom: 8 }}>
                   <Tag color={r.flagged === 'red' ? 'red' : r.flagged === 'yellow' ? 'gold' : 'default'}>
                     {r.flagged === 'red' ? '🔴 异常' : r.flagged === 'yellow' ? '🟡 可疑' : '正常'}

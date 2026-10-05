@@ -109,7 +109,7 @@ function formatHeartbeat(
 
 const CompanionsPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const roleFilter = searchParams.get('role');
   const role = user?.role;
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
@@ -121,10 +121,17 @@ const CompanionsPage: React.FC = () => {
   // Filters
   const [searchText, setSearchText] = useState('');
   const [wrCompanion, setWrCompanion] = useState<Personnel | null>(null);
+  const [wrFocusSession, setWrFocusSession] = useState<string | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<Personnel | null>(null);
   const [idCardMap, setIdCardMap] = useState<Record<string, Personnel>>({});
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [gameFilter, setGameFilter] = useState<string | undefined>();
+
+  // 从「工作抽查异常」通知点「查看」跳过来：?workCompanion=<陪玩id>&workSession=<工作记录id>
+  // —— 自动打开这个人的工作记录抽屉，并把异常那一条高亮（老板 2026-10-05）。
+  const workCompanionParam = searchParams.get('workCompanion');
+  const workSessionParam = searchParams.get('workSession');
+  const workNameParam = searchParams.get('workName');
 
   const GAME_OPTIONS = ['王者荣耀', '英雄联盟', '和平精英', '无畏契约', '永劫无间', 'CS2', 'DOTA2', 'APEX', '其他'];
 
@@ -156,6 +163,33 @@ const CompanionsPage: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!workCompanionParam && !workNameParam) return;
+    // 只有名字（老通知）时，等人员列表加载完再按名字找；找不到就不弹。
+    if (!workCompanionParam && loading && companions.length === 0) return;
+    const hit = companions.find(
+      (c) =>
+        (!!workCompanionParam && (c.companionId === workCompanionParam || c.id === workCompanionParam)) ||
+        (!!workNameParam && (c.displayName === workNameParam || c.username === workNameParam)),
+    );
+    if (!hit && !workCompanionParam) return;
+    setWrCompanion(
+      hit ||
+        ({
+          id: workCompanionParam,
+          companionId: workCompanionParam,
+          username: workNameParam || '',
+          role: 'COMPANION',
+        } as Personnel),
+    );
+    setWrFocusSession(workSessionParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('workCompanion');
+    next.delete('workSession');
+    next.delete('workName');
+    setSearchParams(next, { replace: true });
+  }, [workCompanionParam, workSessionParam, workNameParam, companions, loading, searchParams, setSearchParams]);
 
   const loadEmployeeIdCards = useCallback(async () => {
     if (!isAdmin) return;
@@ -792,7 +826,11 @@ const CompanionsPage: React.FC = () => {
         open={!!wrCompanion}
         companionId={wrCompanion?.companionId || null}
         companionName={wrCompanion?.username || undefined}
-        onClose={() => setWrCompanion(null)}
+        focusSessionId={wrFocusSession}
+        onClose={() => {
+          setWrCompanion(null);
+          setWrFocusSession(null);
+        }}
       />
     </div>
   );
