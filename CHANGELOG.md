@@ -9,6 +9,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **新：聊天窗口可以最小化（老板 2026-10-05，网页 `v953`）。** 老板：「每个聊天框可以最小化啊，现在只能打开、关闭。」
+  以前聊天浮窗右上角只有置顶 / 关闭两个按钮（`apps/web/src/components/chat/ChatHeader.tsx`）。现在标题栏多了「−」最小化：
+  点一下整个窗口收成**右下角一条小窗**（头像 + 名字 + 未读条数），点小窗任意处或「⤢」还原，旁边「×」直接关闭。
+  最小化期间窗口**不算「人正在看」**：新消息照常计未读、照常响、不自动标已读（`chatStore.activeConversationMinimized` +
+  `ChatProvider` / `receiveMessage` 判定），还原回来那一下自动把这期间攒的未读清掉。纯网页改动，客户端不用更新。
+
 ### Changed
 
 - **改：陪玩状态看板只留首页那一张，侧栏「实时看板」入口收掉（老板 2026-10-05，网页 `v951`）。**

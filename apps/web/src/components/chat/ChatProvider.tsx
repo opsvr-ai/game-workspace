@@ -63,7 +63,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data?.roomId && data?.message) {
         const state = useChatStore.getState();
         const isMine = data.message.senderId === state.myUserId;
-        const isActive = state.activeConversationId === data.roomId;
+        // 最小化 = 人没在看，按「没打开」对待：要响、要计未读、不自动标已读。
+        const isActive = state.activeConversationId === data.roomId && !state.activeConversationMinimized;
         if (!isMine && !isActive) playMessageSound();
         if (!isMine && data.message.mentions?.includes(state.myUserId)) {
           // 老板 2026-10-03：@提醒统一走陪玩端那张能点的置顶横幅，点一下直接打开这个会话。

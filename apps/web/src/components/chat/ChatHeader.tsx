@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
 import { Button, Space, Tag, Typography } from 'antd';
-import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined } from '@ant-design/icons';
+import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined, MinusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,6 +17,8 @@ interface ChatHeaderProps {
   orderInfo?: string | null;
   pinned?: boolean;
   onTogglePin?: () => void;
+  /** 最小化成右下角一条小窗（再点一下还原） */
+  onMinimize?: () => void;
   onClose?: () => void;
   onCallClick?: () => void;
   /** 群聊里可见：客服/店长发广播（弹到每个陪玩电脑右下角） */
@@ -38,7 +40,7 @@ function formatCallDuration(seconds?: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onClose, onCallClick, onBroadcast }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, orderInfo, pinned, onTogglePin, onMinimize, onClose, onCallClick, onBroadcast }) => {
   const call = useVoiceCallStore((s) => s.call);
   const inCall = call.status === 'connected' && !!userId && call.peerId === userId;
   const navigate = useNavigate();
@@ -143,8 +145,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
             {pinned ? <PushpinFilled /> : <PushpinOutlined />}
           </span>
         )}
+        {onMinimize && (
+          <MinusOutlined onClick={onMinimize} style={{ cursor: 'pointer', color: '#949BA4', padding: 4, fontSize: 14 }} title="最小化（收到新消息会自动提醒）" />
+        )}
         {onClose && (
-          <CloseOutlined onClick={onClose} style={{ cursor: 'pointer', color: '#949BA4', padding: 4, fontSize: 14 }} />
+          <CloseOutlined onClick={onClose} style={{ cursor: 'pointer', color: '#949BA4', padding: 4, fontSize: 14 }} title="关闭" />
         )}
       </Space>
     </div>

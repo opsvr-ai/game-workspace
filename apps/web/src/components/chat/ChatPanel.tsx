@@ -15,10 +15,11 @@ interface ChatPanelProps {
   participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
   orderInfo?: string | null;
   embedded?: boolean;
+  onMinimize?: () => void;
   onClose?: () => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, embedded, onClose }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, embedded, onMinimize, onClose }) => {
   const user = useAuthStore((s) => s.user);
   // Use selectors — never subscribe to full store (causes infinite loops)
   const conv = useChatStore((s) => (roomId ? s.conversations[roomId] : undefined));
@@ -241,6 +242,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
         // props 只在本地还没有这个会话时兜底（正常流程下 store 里已经有值）。
         orderInfo={conv ? conv.orderInfo : orderInfo}
         pinned={conv?.pinned}
+        onMinimize={onMinimize}
         onClose={onClose}
         onCallClick={participant?.userId ? () => {
           window.dispatchEvent(new CustomEvent('start-voice-call', { detail: { targetUserId: participant!.userId, targetUserName: participantName } }));

@@ -67,6 +67,8 @@ interface ChatState {
   totalUnread: number;
   myUserId: string | null;
   syncing: boolean;
+  /** 当前会话窗口是否被最小化：最小化时不自动标已读、新消息照常提醒（人没在看） */
+  activeConversationMinimized: boolean;
 
   /** THE single write path for incoming messages (WS + send response) */
   receiveMessage: (
@@ -95,6 +97,8 @@ interface ChatState {
   setOpenedReadSeq: (convId: string, seq: number) => void;
   setMyUserId: (id: string) => void;
   setSyncing: (v: boolean) => void;
+  /** 最小化 / 还原当前会话窗口 */
+  setActiveConversationMinimized: (v: boolean) => void;
   reset: () => void;
 }
 
@@ -148,6 +152,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   totalUnread: 0,
   myUserId: null,
   syncing: false,
+  activeConversationMinimized: false,
 
   receiveMessage: (
     convId: string,
@@ -202,7 +207,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       const newMsg = normalizeMessage(msg);
 
-      const isActive = s2.activeConversationId === convId;
+      // 最小化的窗口 = 人没在看，不能算「已读」：新消息要计未读、要响。
+      const isActive = s2.activeConversationId === convId && !s2.activeConversationMinimized;
       const isMine = msg.senderId === s2.myUserId;
       const shouldIncrementUnread = !isActive && !isMine;
 
@@ -323,6 +329,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }),
 
   openConversation: async (participantId: string, participant: ParticipantInfo, orderInfo?: string | null) => {
+    // 打开 / 切到一个会话时，窗口一定是展开态
+    if (get().activeConversationMinimized) set({ activeConversationMinimized: false });
     let convId = participantId;
     // 订单上下文的三种叫法（老板 2026-09-30：「通过某个链接点沟通，双方互相显示该订单；
     // 通过人员列表点聊天，聊天框就不要显示订单信息」）：
@@ -398,12 +406,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   closeConversation: () =>
     set((s) => {
-      if (!s.activeConversationId) return { activeConversationId: null };
+      if (!s.activeConversationId) return { activeConversationId: null, activeConversationMinimized: false };
       const conv = s.conversations[s.activeConversationId];
-      if (!conv) return { activeConversationId: null };
+      if (!conv) return { activeConversationId: null, activeConversationMinimized: false };
       const unread = conv.unreadCount;
       return {
         activeConversationId: null,
+        activeConversationMinimized: false,
         conversations: {
           ...s.conversations,
           [s.activeConversationId]: { ...conv, unreadCount: 0 },
@@ -459,11 +468,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setMyUserId: (id: string) => set({ myUserId: id }),
   setSyncing: (v: boolean) => set({ syncing: v }),
+  setActiveConversationMinimized: (v: boolean) => set({ activeConversationMinimized: v }),
   reset: () =>
     set({
       conversations: {},
       conversationOrder: [],
       activeConversationId: null,
+      activeConversationMinimized: false,
       totalUnread: 0,
       syncing: false,
       myUserId: null,
