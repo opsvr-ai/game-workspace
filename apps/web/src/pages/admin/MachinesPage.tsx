@@ -195,6 +195,13 @@ const MachinesPage: React.FC = () => {
   /** 没有客户端在跑的行（旧客服端版本记录 / 手工登记的电脑）：开不了远程管理，单独一组。 */
   const clientless = useMemo(() => filtered.filter((i) => i.source !== 'machine'), [filtered]);
 
+  // 看门狗版本汇总（老板 2026-10-05：「不都应该是最新的么？还用我费脑子去看？」）：
+  // 一行说清楚全机队是不是都最新，不用再去表格里一台台找那枚红色「待自动更新」标签。
+  const wdBehind = useMemo(
+    () => (stats.watchdogLatestBuild ? realMachines.filter((m) => m.watchdogBuild !== stats.watchdogLatestBuild) : []),
+    [realMachines, stats.watchdogLatestBuild],
+  );
+
   const columns = [
     {
       title: '状态',
@@ -448,6 +455,22 @@ const MachinesPage: React.FC = () => {
           onChange={(e) => setKeyword(e.target.value)}
         />
         <Button icon={<ReloadOutlined />} loading={loading} onClick={fetchItems}>刷新</Button>
+        {!!stats.watchdogLatestBuild &&
+          (wdBehind.length === 0 ? (
+            <Tooltip title={`看门狗负责自动更新和远程任务，现在全机队都是最新版（${stats.watchdogLatestBuild}）`}>
+              <Tag color="success" style={{ marginInlineStart: 4, padding: '4px 10px' }}>
+                看门狗 全部最新 ✓
+              </Tag>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              title={`这 ${wdBehind.length} 台还不是最新（最新版 ${stats.watchdogLatestBuild}）。机器一上线，服务端会自动派任务把它补成最新，不用手动点。`}
+            >
+              <Tag color="danger" style={{ marginInlineStart: 4, padding: '4px 10px' }}>
+                看门狗 {wdBehind.length} 台待自动更新（上线自动补齐）
+              </Tag>
+            </Tooltip>
+          ))}
       </Space>
 
       <Alert
