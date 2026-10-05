@@ -10,7 +10,6 @@ import { chatApi } from '../api/chat';
 import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useChatStore } from '../stores/chatStore';
-import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
@@ -57,6 +56,14 @@ const OrderPoolPage: React.FC = () => {
 
   // Chat state
   const [chatPartner, setChatPartner] = useState<any>(null);
+  // 全站只保留一个聊天窗口（AppLayout 里的全局 ChatModal）：页面这一层不再自己弹窗，
+  // 只把「要打开谁」转交给全局那一个 —— 否则「订单页的聊天框」和「左侧消息面板的聊天框」
+  // 会同时弹出，同一个人出现两个聊天框、也没法统一最小化（老板 2026-10-05）。
+  useEffect(() => {
+    if (!chatPartner) return;
+    window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: chatPartner }));
+    setChatPartner(null);
+  }, [chatPartner]);
   const conversations = useChatStore((s) => s.conversations);
 
   // Companion sidebar state (visible to companion users)
@@ -907,8 +914,6 @@ const OrderPoolPage: React.FC = () => {
         editingOrder={editingOrder || undefined}
       />
 
-      {/* Chat Modal */}
-      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
     </div>
   );
 };

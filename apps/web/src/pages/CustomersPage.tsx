@@ -41,7 +41,6 @@ import PasteImageBox from '../components/PasteImageBox';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { platformOptions, customerStatusConfig, orderTypeConfig } from '../constants';
-import ChatModal from '../components/ChatModal';
 import CreateOrderModal from '../components/CreateOrderModal';
 import StartServiceModal from '../components/StartServiceModal';
 import ServiceTimer from '../components/ServiceTimer';
@@ -184,6 +183,14 @@ const CustomersPage: React.FC = () => {
 
   // Companion: chat, create order, schedule
   const [chatPartner, setChatPartner] = useState<any>(null);
+  // 全站只保留一个聊天窗口（AppLayout 里的全局 ChatModal）：页面这一层不再自己弹窗，
+  // 只把「要打开谁」转交给全局那一个 —— 否则「客户页的聊天框」和「左侧消息面板的聊天框」
+  // 会同时弹出，同一个人出现两个聊天框、也没法统一最小化（老板 2026-10-05）。
+  useEffect(() => {
+    if (!chatPartner) return;
+    window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: chatPartner }));
+    setChatPartner(null);
+  }, [chatPartner]);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
   // 客服养客：客户还没决定打的，先在客户管理这一页直接登记（和派单工作台的「直接添加客户」同一个弹窗）
   const [directAddOpen, setDirectAddOpen] = useState(false);
@@ -1330,7 +1337,6 @@ const CustomersPage: React.FC = () => {
             </Form.Item>
           </Form>
         </Modal>
-        <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
         <CreateOrderModal
           open={createOrderOpen}
           onClose={() => {

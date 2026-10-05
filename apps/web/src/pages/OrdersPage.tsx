@@ -33,7 +33,6 @@ import { isRowClickIgnored } from '../utils/rowClick';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
-import ChatModal from '../components/ChatModal';
 import { orderStatusConfig } from '../constants';
 import { ORDER_FIELD_LABELS, ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
 import PageHeader from '../components/PageHeader';
@@ -139,6 +138,14 @@ const OrdersPage: React.FC = () => {
   const [companions, setCompanions] = useState<any[]>([]);
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [chatPartner, setChatPartner] = useState<any>(null);
+  // 全站只保留一个聊天窗口（AppLayout 里的全局 ChatModal）：页面这一层不再自己弹窗，
+  // 只把「要打开谁」转交给全局那一个 —— 否则「订单页的聊天框」和「左侧消息面板的聊天框」
+  // 会同时弹出，同一个人出现两个聊天框、也没法统一最小化（老板 2026-10-05）。
+  useEffect(() => {
+    if (!chatPartner) return;
+    window.dispatchEvent(new CustomEvent('open-chat-modal', { detail: chatPartner }));
+    setChatPartner(null);
+  }, [chatPartner]);
   const [refundOrder, setRefundOrder] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
@@ -1342,7 +1349,6 @@ const OrdersPage: React.FC = () => {
         editingOrder={editingOrder || undefined}
         customerPreFill={preFill || undefined}
       />
-      <ChatModal open={!!chatPartner} partner={chatPartner} onClose={() => setChatPartner(null)} />
       <OrderDetailModal
         order={detailOrder}
         open={!!detailOrder}
