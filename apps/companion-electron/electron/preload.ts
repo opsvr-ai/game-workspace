@@ -37,8 +37,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setCurrentUser: (userId: string, username: string) => ipcRenderer.send('auth:setCurrentUser', userId, username),
   setStudioName: (name: string) => ipcRenderer.send('auth:setStudioName', name),
   notify: (title: string, body: string) => ipcRenderer.send('notify', title, body),
-  /** 新单横幅：鼠标移到卡片上时告诉主进程「这块可点」（其余时候保持鼠标穿透，不挡玩游戏）。 */
-  orderBannerHover: (over: boolean) => ipcRenderer.send('order-banner:hover', !!over),
   /** 点横幅：跳到抢单池并把这一单标出来。 */
   orderBannerClick: (orderId: string) => ipcRenderer.send('order-banner:click', String(orderId || '')),
   /** 主进程叫界面「去抢单池看这单」的回调（返回取消订阅函数）。 */

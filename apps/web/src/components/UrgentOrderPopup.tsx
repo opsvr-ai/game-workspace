@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Typography, message } from 'antd';
 import { configApi } from '../api/config';
-import { ORDER_FIELD_LABELS, orderTypeLabel } from '../constants/orderFields';
+import { ORDER_FIELD_LABELS, orderDeltaCountText, orderTypeLabel } from '../constants/orderFields';
 
 const { Text, Title } = Typography;
 
@@ -78,9 +78,10 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               </Text>
               {urgentOrder.duration ? ` · ${urgentOrder.duration}h` : ''}
             </div>
-            <div style={{ fontSize: 13, color: '#64748B' }}>
+            <div style={{ fontSize: 14.5, color: '#334155', fontWeight: 700 }}>
               {orderTypeLabel(urgentOrder)}
               {urgentOrder.customFields?.deltaMission ? ` · ${urgentOrder.customFields.deltaMission}` : ''}
+              {` · ${orderDeltaCountText(urgentOrder)}`}
               {urgentOrder.customFields?.urgency === 'later' ? ' · 预约单' : ' · 立即打（占 1 个名额）'}
             </div>
             {/* 客服发单时填的备注（老板 2026-09-29：「陪玩抢到订单后，订单管理怎么没显示当时发单时
@@ -89,8 +90,13 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
               <div
                 style={{
                   fontSize: 13,
-                  color: '#B45309',
-                  marginTop: 4,
+                  fontWeight: 800,
+                  color: '#FF3B30',
+                  background: 'rgba(255,59,48,0.10)',
+                  borderLeft: '3px solid #FF3B30',
+                  borderRadius: 4,
+                  padding: '2px 6px',
+                  marginTop: 6,
                   wordBreak: 'break-word',
                   maxHeight: 54,
                   overflow: 'hidden',
@@ -171,7 +177,9 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
                 </div>
               )}
               {urgentGrabbed.customFields?.deltaNote && (
-                <div style={{ color: '#B45309' }}>📝 备注：{urgentGrabbed.customFields.deltaNote}</div>
+                <div style={{ color: '#FF3B30', fontWeight: 800 }}>
+                  📝 备注：{urgentGrabbed.customFields.deltaNote}
+                </div>
               )}
             </div>
             <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>

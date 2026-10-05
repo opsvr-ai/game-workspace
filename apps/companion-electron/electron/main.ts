@@ -903,9 +903,13 @@ function broadcastPopupHtml(payload: {
   hint?: string;
   action?: string;
   actionPayload?: any;
+  big?: string;
+  note?: string;
 }): string {
   const title = escapeHtml(payload?.title || '群聊广播');
   const body = escapeHtml(payload?.body || '');
+  const big = escapeHtml(payload?.big || '');
+  const note = escapeHtml(payload?.note || '');
   const icon = escapeHtml(payload?.icon || '📢');
   const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
   const orderId = String(payload?.orderId || '');
@@ -914,23 +918,24 @@ function broadcastPopupHtml(payload: {
   // 可点 = 带订单号（点了跳抢单池）或带动作（打开搭档邀请 / 转让 / 会话等）。
   // 老板 2026-10-03：所有提醒统一成这张能点的横幅，不再用「点了没反应」的系统通知。
   const clickable = (orderId.length > 0 && hint.length > 0) || action.length > 0;
-  const bodyMax = hint ? 40 : 66;
   const clickCss = clickable ? '.card{cursor:pointer}' : '';
   const hintHtml = hint ? `<div class="hint">${hint}</div>` : '';
+  // 老板 2026-10-06：新单横幅要一眼看清「哪个游戏 · 机密还是绝密 · 单陪还是双陪」，
+  // 单独拎成一行大字（.big）；发单备注标红加粗（.note），免得陪玩看不见。
+  const bigHtml = big ? `<div class="big">${big}</div>` : '';
+  const bodyHtml = body ? `<div class="b">${body}</div>` : '';
+  const noteHtml = note ? `<div class="note">${note}</div>` : '';
   const jsLiteral = (v: unknown) => JSON.stringify(v ?? null).split('<').join('\\u003c');
   const clickCall = action
     ? `api.bannerAction(${jsLiteral(action)}, ${jsLiteral(payload?.actionPayload)});`
     : `api.orderBannerClick(${JSON.stringify(orderId)});`;
+  // 老板 2026-10-06：「鼠标还没碰到弹窗就弹出去了」——
+  // 以前这里用 mousemove 判断「鼠标移到卡片上」，再叫主进程把「鼠标穿透」关掉（横幅变可点），
+  // 结果鼠标一挨近就把游戏里的鼠标抢出来。现在横幅全程不理会鼠标移动，只认真点一下左键。
   const script = clickable
     ? `<script>
 (function(){
-  var api = window.electronAPI; if (!api || !api.orderBannerHover) return;
-  var over = false;
-  document.addEventListener('mousemove', function(e){
-    var t = e.target;
-    var hit = !!(t && t.closest && t.closest('.card'));
-    if (hit !== over) { over = hit; try { api.orderBannerHover(hit); } catch(_){} }
-  });
+  var api = window.electronAPI; if (!api) return;
   document.addEventListener('click', function(){
     try { ${clickCall} } catch(_){}
   });
@@ -940,26 +945,62 @@ function broadcastPopupHtml(payload: {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:transparent;font-family:"Microsoft YaHei",sans-serif;overflow:hidden}
-.card{position:relative;display:flex;gap:12px;align-items:flex-start;height:calc(100vh - 8px);margin:4px;padding:14px 16px 16px;background:linear-gradient(135deg,#1E293B,#0F172A);border:1px solid #FF4757;border-left:5px solid #FF4757;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);color:#F8FAFC;overflow:hidden}
-.icon{font-size:22px;line-height:1.2}
-.t{font-size:14px;font-weight:700;color:#fff}
-.b{margin-top:6px;font-size:13px;line-height:1.6;color:#E2E8F0;word-break:break-word;max-height:${bodyMax}px;overflow:hidden}
-.hint{margin-top:8px;font-size:12px;font-weight:600;color:#FFD166}
+.card{position:relative;display:flex;gap:10px;align-items:flex-start;height:calc(100vh - 6px);margin:3px;padding:10px 12px 12px;background:linear-gradient(135deg,#1E293B,#0F172A);border:1px solid #FF4757;border-left:4px solid #FF4757;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);color:#F8FAFC;overflow:hidden}
+.icon{font-size:20px;line-height:1.2}
+.t{font-size:12px;font-weight:600;color:#94A3B8}
+.big{margin-top:2px;font-size:19px;font-weight:800;color:#FFFFFF;letter-spacing:.5px;line-height:1.25;word-break:break-word}
+.b{margin-top:2px;font-size:13px;line-height:1.5;color:#E2E8F0;word-break:break-word;max-height:40px;overflow:hidden}
+.note{margin-top:4px;font-size:13px;font-weight:800;color:#FF3B30;background:rgba(255,59,48,.14);border-left:3px solid #FF3B30;border-radius:4px;padding:2px 6px;line-height:1.4;word-break:break-word;max-height:56px;overflow:hidden}
+.hint{margin-top:3px;font-size:11px;font-weight:600;color:#FFD166}
 .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:#FF4757;transform-origin:left;animation:drain ${seconds}s linear forwards}
 ${clickCss}
 @keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style></head><body>
-<div class="card"><div class="icon">${icon}</div><div style="min-width:0;flex:1"><div class="t">${title}</div><div class="b">${body}</div>${hintHtml}</div><div class="bar"></div></div>
+<div class="card"><div class="icon">${icon}</div><div style="min-width:0;flex:1"><div class="t">${title}</div>${bigHtml}${bodyHtml}${noteHtml}${hintHtml}</div><div class="bar"></div></div>
 ${script}
 </body></html>`;
 }
 
+/** 点过的那张横幅自己关掉：点一下就该消失，别留在那儿挡着打游戏（老板 2026-10-06）。 */
+function closeBannerOf(event: any): void {
+  try {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.destroy();
+  } catch {
+    /* ignore */
+  }
+}
+
 const broadcastWindows: BrowserWindow[] = [];
 
+/** 横幅要多高：按内容估。窗口越小越不挡陪玩点游戏，所以不再固定 150 高。 */
+function estimatePopupHeight(payload: {
+  title?: string;
+  body?: string;
+  hint?: string;
+  big?: string;
+  note?: string;
+}): number {
+  const lines = (s: string, per: number) => Math.max(1, Math.ceil(s.length / per));
+  let h = 26; // 卡片上下 padding + 外边距
+  h += lines(String(payload?.title || ''), 24) * 17;
+  if (payload?.big) h += lines(String(payload.big), 15) * 25;
+  if (payload?.body) h += 2 + Math.min(2, lines(String(payload.body), 22)) * 18;
+  if (payload?.note) h += 4 + Math.min(2, lines(String(payload.note), 22)) * 20;
+  if (payload?.hint) h += 3 + Math.min(2, lines(String(payload.hint), 28)) * 15;
+  return Math.max(80, Math.min(220, h));
+}
+
 /**
- * 弹出广播提示：置顶、不抢焦点、鼠标穿透，默认 5 秒后自己关闭。
+ * 弹出广播提示：置顶、不抢焦点，默认 5 秒后自己关闭。
  * 陪玩在打游戏或最小化了客户端时，也能在屏幕右下角看到。
  * 新单提醒会带上自己的停留时长（服务端 _popupSeconds，默认 20 秒），比群聊广播停久一点。
+ *
+ * 老板 2026-10-06：「在游戏中鼠标还没碰到弹窗就弹出去了」——
+ * 以前这张横幅是鼠标穿透的，靠横幅里的脚本在**鼠标移到卡片上**时再改成可点：
+ * 鼠标一挨近就把游戏里的鼠标抢出来，陪玩当场被弹出游戏。现在横幅从出现到消失
+ * 都不理会鼠标移动，只有**真的在横幅上点一下左键**才会关掉它 / 执行跳转
+ * （见下面 order-banner:click、banner:action）。
  */
 function showBroadcastPopup(payload: {
   title?: string;
@@ -970,12 +1011,14 @@ function showBroadcastPopup(payload: {
   hint?: string;
   action?: string;
   actionPayload?: any;
+  big?: string;
+  note?: string;
 }): void {
-  const W = 480;
-  const H = 150;
+  const W = 380;
   const GAP = 10;
-  const MARGIN = 20;
+  const MARGIN = 16;
   const seconds = Number(payload?.seconds) > 0 ? Number(payload.seconds) : 5;
+  const H = estimatePopupHeight(payload);
   const area = screen.getPrimaryDisplay().workArea;
 
   // 同时最多 3 个，超了先关掉最旧的
@@ -983,13 +1026,15 @@ function showBroadcastPopup(payload: {
     const oldest = broadcastWindows.shift();
     if (oldest && !oldest.isDestroyed()) oldest.destroy();
   }
-  const index = broadcastWindows.length;
+  // 每张横幅高度不一定一样（带备注的更高），叠加位置按实际高度往上摞。
+  let offset = 0;
+  for (const w of broadcastWindows) offset += (Number((w as any).__bh) || 0) + GAP;
 
   const win = new BrowserWindow({
     width: W,
     height: H,
     x: area.x + area.width - W - MARGIN,
-    y: area.y + area.height - H - MARGIN - index * (H + GAP),
+    y: area.y + area.height - H - MARGIN - offset,
     frame: false,
     transparent: true,
     resizable: false,
@@ -1011,10 +1056,11 @@ function showBroadcastPopup(payload: {
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  // 默认鼠标穿透：不挡住陪玩点游戏/点微信；
-  // 只有鼠标移到卡片上时，横幅里那段脚本会叫我们把穿透关掉（见 order-banner:hover）。
-  win.setIgnoreMouseEvents(true, { forward: true });
+  // 老板 2026-10-06：不再用「鼠标穿透 + 鼠标移到卡片上就变可点」那一套 ——
+  // 就是那一步把陪玩在游戏里的鼠标抢出来的。窗口全程保持可点，但 focusable:false
+  // 既不会激活窗口也不会抢键盘焦点；鼠标扫过毫无反应，只有真的点一下左键才有动作。
   broadcastWindows.push(win);
+  (win as any).__bh = H;
   win.on('closed', () => {
     const i = broadcastWindows.indexOf(win);
     if (i >= 0) broadcastWindows.splice(i, 1);
@@ -1326,17 +1372,12 @@ function setupIPC(): void {
   // 群聊广播：主进程直接画一个 Windows 置顶窗口（5 秒后自动消失）。
   // 普通系统通知在没装过开机快捷方式的机器上不一定弹得出来，所以这里自己画，
   // 保证"客服喊话陪玩必须看到"。
-  // 新单横幅：鼠标在卡片上才「可点」（其余时候穿透，不挡玩游戏）。
-  ipcMain.on('order-banner:hover', (event, over: boolean) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    if (win && !win.isDestroyed()) {
-      try {
-        win.setIgnoreMouseEvents(!over, { forward: true });
-      } catch { /* 窗口正在关掉 */ }
-    }
-  });
+  // 老板 2026-10-06：原来这儿有个 order-banner:hover —— 鼠标移到横幅上就关掉「鼠标穿透」，
+  // 就是它把陪玩在游戏里的鼠标抢出来的。横幅现在全程可点、不再理会鼠标移动，这条 IPC 删掉。
   // 点横幅 = 把客户端拉到最前 + 跳到抢单池并把这一单标出来（老板 2026-10-01：「跳转进池子再抢」）。
-  ipcMain.on('order-banner:click', (_event, orderId: string) => {
+  ipcMain.on('order-banner:click', (event, orderId: string) => {
+    // 老板 2026-10-06：点一下横幅 = 关掉它 + 跳过去（别再留着挡着打游戏）。
+    closeBannerOf(event);
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore();
@@ -1352,7 +1393,9 @@ function setupIPC(): void {
   // （搭档邀请 / 订单转让 / 接单记录 / 会话……）。老板 2026-10-03：
   // 王甲振点 Windows 弹窗没跳转 —— 那些提醒原来走系统通知，点了本来就不跳，
   // 现在统一改成这张横幅 + 这个动作回执。
-  ipcMain.on('banner:action', (_event, action: string, payload: unknown) => {
+  ipcMain.on('banner:action', (event, action: string, payload: unknown) => {
+    // 点一下横幅上的动作 = 关掉这张横幅 + 去打开对应界面。
+    closeBannerOf(event);
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
         if (mainWindow.isMinimized()) mainWindow.restore();
@@ -1825,12 +1868,20 @@ app.whenReady().then(() => {
         : data?._bridged
           ? `🌉 桥接工作室发单！${data?._createdBy || '系统'} 发布`
           : `⚡ 新订单！${data?._createdBy || '系统'} 发布`;
-      const body = `${data?.gameName || '新订单'} · ¥${Number(data?.amount || 0).toFixed(0)} · ${
-        data?.duration || 1
-      }h · 去订单管理抢单`;
+      // 老板 2026-10-06：大字那一行只放「哪个游戏 · 机密/绝密 · 单陪/双陪」，
+      // 金额时长放小字那行；发单备注单独标红加粗（陪玩忙着打游戏，字小了看不见）。
+      const orderCf = data?.customFields || {};
+      const mission = orderCf.deltaMission ? String(orderCf.deltaMission) : '';
+      const dual = data?.coCompanionId || orderCf.deltaCount === '双' ? '双陪' : '单陪';
+      const big = [data?.gameName || '新订单', mission, dual].filter(Boolean).join(' · ');
+      const body = `¥${Number(data?.amount || 0).toFixed(0)} · ${data?.duration || 1}h · ${
+        orderCf.urgency === 'later' ? '预约单' : '立即打（占名额）'
+      }`;
       showBroadcastPopup({
         title,
+        big,
         body,
+        note: orderCf.deltaNote ? `备注：${orderCf.deltaNote}` : '',
         icon: '⚡',
         seconds: Number(data?._popupSeconds) > 0 ? Number(data._popupSeconds) : 15,
         // 带上订单号 + 提示：横幅就可点，点了跳到抢单池并标出这一单（再点一下「抢单」）。
