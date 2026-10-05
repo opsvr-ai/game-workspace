@@ -18,9 +18,10 @@ const { Text, Paragraph } = Typography;
  * 这个到底是谁的原因、到底谁的问题，谁的问题就去找谁；失败的还得粘贴上截图。
  * 成功的不用重点追查，重点追查失败的。」
  *
- * 所以这一页就三类：
+ * 所以这一页就四类：
  *  - 待拍板：接单方报了「不成功」还没定责的（带截图）——重点追这类；
- *  - 抢了没结果：抢走 30 分钟了还没点开始首单 / 没反馈的（线下的、桥接 / 线上的都在）；
+ *  - 抢了没结果：抢走 30 分钟了还没点开始首单 / 没反馈、**还在 7 天以内**的（线下的、桥接 / 线上的都在）；
+ *  - 历史记录：上面那批**满了 7 天**的（陪玩那边两次提醒走完就进这儿，不再占着要在清单，随时可翻）；
  *  - 已拍板：最近拍过板的留痕，可回看。
  */
 
@@ -65,7 +66,7 @@ function money(o: any): string {
 const OrderReviewPage: React.FC = () => {
   const user = useAuthStore((s: any) => s.user);
   const canDecide = user?.role === 'OWNER' || user?.role === 'ADMIN';
-  const [tab, setTab] = useState<'waiting' | 'recheck' | 'decided'>('waiting');
+  const [tab, setTab] = useState<'waiting' | 'recheck' | 'archived' | 'decided'>('waiting');
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState({ waiting: 0, recheck: 0 });
@@ -74,7 +75,7 @@ const OrderReviewPage: React.FC = () => {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const fetchList = useCallback(async (scope: 'waiting' | 'recheck' | 'decided') => {
+  const fetchList = useCallback(async (scope: 'waiting' | 'recheck' | 'archived' | 'decided') => {
     setLoading(true);
     try {
       const { data } = await ordersApi.orderReviews(scope);
@@ -268,7 +269,7 @@ const OrderReviewPage: React.FC = () => {
     <div>
       <PageHeader
         title="成交核对"
-        subtitle="接单方报的「不成功」重点追：截图 + 原因 → 店长拍板到底是谁的问题（谁的问题找谁）；抢了没结果的也在这儿"
+        subtitle="接单方报的「不成功」重点追：截图 + 原因 → 店长拍板到底是谁的问题；抢了没结果的 7 天内在这儿催，满 7 天自动进「历史记录」"
         extra={
           <Button
             icon={React.createElement(ReloadOutlined)}
@@ -296,7 +297,7 @@ const OrderReviewPage: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title="抢了没结果（超过 30 分钟）"
+              title="抢了没结果（7 天内）"
               value={summary.recheck}
               valueStyle={{ color: summary.recheck ? '#D97706' : '#16A34A' }}
             />
@@ -328,6 +329,7 @@ const OrderReviewPage: React.FC = () => {
         tabList={[
           { key: 'waiting', tab: '待拍板（' + summary.waiting + '）' },
           { key: 'recheck', tab: '抢了没结果（' + summary.recheck + '）' },
+          { key: 'archived', tab: '历史记录' },
           { key: 'decided', tab: '已拍板' },
         ]}
         activeTabKey={tab}
@@ -347,8 +349,10 @@ const OrderReviewPage: React.FC = () => {
               tab === 'waiting'
                 ? '没有待拍板的失败单 —— 干净'
                 : tab === 'recheck'
-                  ? '没有抢了没结果的单'
-                  : '还没有拍过板',
+                  ? '没有 7 天内还挂着没结果的单'
+                  : tab === 'archived'
+                    ? '历史记录里还没有单'
+                    : '还没有拍过板',
           }}
         />
       </Card>

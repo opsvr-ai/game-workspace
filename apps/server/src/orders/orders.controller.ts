@@ -358,7 +358,8 @@ export class OrdersController {
     @Req() req: any,
     @Query('scope') scope?: string,
   ): Promise<ApiResponse<unknown>> {
-    const wanted = scope === 'recheck' || scope === 'decided' ? scope : 'waiting';
+    const wanted =
+      scope === 'recheck' || scope === 'archived' || scope === 'decided' ? scope : 'waiting';
     const data = await this.ordersService.listOrderReviews(req.user, wanted);
     return { code: 200, message: 'ok', data };
   }

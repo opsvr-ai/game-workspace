@@ -1512,12 +1512,22 @@ export class OrdersService implements OnModuleInit {
   private static readonly RECHECK_AFTER_MINUTES = 30;
 
   /**
-   * 「成交核对」清单（老板 2026-10-06）。管理端每天要核的就这三类：
+   * 「抢了没结果」在要在清单里挂多久（天）。老板 2026-10-06：接单方那边**次日提醒一次、第 7 天提醒一次**，
+   * 满 7 天还是没结果的就挪去「历史记录」—— 不再占着要在清单，但记录留着随时能翻。
+   */
+  private static readonly ARCHIVE_AFTER_DAYS = 7;
+
+  /**
+   * 「成交核对」清单（老板 2026-10-06）。管理端每天要核的就这四类：
    *  - waiting：接单方报了「不成功」、还没拍板的（**重点追这类**，带截图，店长来定责）；
-   *  - recheck：抢走了却一直没结果的（本店线下没点「开始首单」、桥接 / 线上没反馈）；
+   *  - recheck：抢走了却一直没结果、**还在 7 天以内**的（本店线下没点「开始首单」、桥接 / 线上没反馈）；
+   *  - archived：上面那批**满了 7 天**的（陪玩那边两次提醒走完就进这儿，不再占着要在清单，随时可翻）；
    *  - decided：最近拍过板的（留痕，可回看）。
    */
-  async listOrderReviews(user: any, scope: 'waiting' | 'recheck' | 'decided' = 'waiting') {
+  async listOrderReviews(
+    user: any,
+    scope: 'waiting' | 'recheck' | 'archived' | 'decided' = 'waiting',
+  ) {
     if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
       throw new ForbiddenException('只有客服 / 店长 / 老板能看成交核对');
     }
@@ -1534,9 +1544,11 @@ export class OrdersService implements OnModuleInit {
     } else {
       where.outcome = null;
       where.status = { not: 'DONE' };
-      // 只看最近这两周抢走的：更早的属于历史烂账，堆上来只会把真正要追的淹掉。
-      const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-      where.OR = [{ grabbedAt: { gte: since } }, { grabbedAt: null, createdAt: { gte: since } }];
+      // 「抢了没结果」按 7 天一分为二：7 天以内算要在清单（recheck），满了 7 天的挪去
+      // 「历史记录」（archived）—— 不再占着要在清单，但记录留着随时能翻。
+      const since = new Date(Date.now() - OrdersService.ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+      const range = scope === 'archived' ? { lt: since } : { gte: since };
+      where.OR = [{ grabbedAt: range }, { grabbedAt: null, createdAt: range }];
     }
     const rows = await this.prisma.order.findMany({
       where,
@@ -1600,10 +1612,15 @@ export class OrdersService implements OnModuleInit {
           createdAt: o.createdAt,
         };
       })
-      // 「待核对」只留抢走 30 分钟以上、还一直没结果的 —— 刚抢走的不算问题单。
-      .filter((o) =>
-        scope === 'recheck' ? !o.started && new Date(o.grabbedAt as any).getTime() <= cutoff : true,
-      );
+      // 「待核对」只留抢走 30 分钟以上、还一直没结果的 —— 刚抢走的不算问题单；
+      // 「历史记录」只做「没点开始首单」这一条（7 天窗口已经在查询里切好）。
+      .filter((o) => {
+        if (scope === 'recheck') {
+          return !o.started && new Date(o.grabbedAt as any).getTime() <= cutoff;
+        }
+        if (scope === 'archived') return !o.started;
+        return true;
+      });
     return list;
   }
 

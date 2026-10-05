@@ -1836,15 +1836,16 @@ const AppLayout: React.FC = () => {
       });
     },
     onOrderUnstartedReminder: (data: any) => {
-      // 老板 2026-10-06：「为什么没打成，选择原因 + 截图；你不处理就当天提醒，然后后边 7 天提醒。」
-      // 抢了单一直没点「开始首单」、也没报结果的，服务端按阶梯催陪玩本人（当天 1 次 + 之后每天 1 次、连 7 天）。
+      // 老板 2026-10-06：「次日弹一次、后边第七天弹一次，然后进历史记录。」
+      // 抢了单一直没点「开始首单」、也没报结果的，服务端只在满 24 小时、满 7 天各催一次（共 2 次）。
       const text =
         data?.message ||
         '你有订单抢到手还没点「开始首单」也没报结果：打成了就点「开始首单」；没打成请点「报结果」，选原因 + 贴截图';
       const count = Number(data?.count) || 0;
       const stage = Number(data?.stage) || 1;
+      const maxReminders = Number(data?.maxReminders) || 2;
       const what = count > 1 ? `有 ${count} 单抢了还没点「开始首单」` : '抢了单还没点「开始首单」';
-      const title = stage > 1 ? `🔔 再次提醒（第 ${stage} 次）：${what}` : `🔔 ${what}`;
+      const title = stage >= maxReminders ? `🔔 最后一次提醒：${what}` : `🔔 ${what}`;
       notifyNotice({
         kind: 'order',
         icon: '🔔',

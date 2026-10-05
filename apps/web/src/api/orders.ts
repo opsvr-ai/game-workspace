@@ -55,8 +55,8 @@ export const ordersApi = {
   /** 成交核对：店长 / 老板拍板这张「不成功」到底是谁的问题（谁的问题找谁） */
   reviewOutcome: (id: string, data: { responsibility: 'COMPANION' | 'CS' | 'CUSTOMER' | 'NONE'; note: string }) =>
     http.post(`/orders/${id}/review`, data),
-  /** 成交核对清单：waiting 待拍板失败单 / recheck 抢了没结果的 / decided 已拍板 */
-  orderReviews: (scope: 'waiting' | 'recheck' | 'decided') =>
+  /** 成交核对清单：waiting 待拍板失败单 / recheck 抢了没结果（7 天内）/ archived 历史记录 / decided 已拍板 */
+  orderReviews: (scope: 'waiting' | 'recheck' | 'archived' | 'decided') =>
     http.get('/orders/reviews', { params: { scope } }),
   /** 成交核对条数（菜单红点 / 每天提醒） */
   orderReviewSummary: () => http.get('/orders/reviews/summary'),
