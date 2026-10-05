@@ -42,8 +42,10 @@
 ## Recent Updates (v3.3.0)
 - **失败单先由发单客服跟接单方核对，再轮到店长拍板（2026-10-06，服务端 + 网页 `v973`）:**
   老板「他们不跟发单者掰扯明白，直接进店长，那不把店长累死」。接单方报「不成功」不再直接落到店长：
-  先只推给**发单客服**，等他点「已跟接单方确认、无异议」才推店长 / 老板拍板（没过这一步店长点拍板会被拦下）。
-  「待拍板」顶部把「等客服核对 / 等店长拍板」分开统计；客服只能确认自己发的单，店长 / 老板可「代客服确认」兜底。
+  先只推给**发单本人**（订单 `csUserId`，建单那一刻写死、NOT NULL —— 客服 / 店长 / 陪玩自己建的都算，
+  不存在查不到发单人的单），等他点「已跟接单方确认、无异议」才推店长 / 老板拍板（没过这一步店长点拍板会被拦下）。
+  「待拍板」顶部把「等发单的人核对 / 等店长拍板」分开统计；**谁发的单谁点确认**，
+  店长 / 老板可「代发单者确认」兜底。
   **只有成功单计入提成**，失败单只走「核对 → 定责」留痕归档、不发钱（口径没变）。
   顺带：客服「我的今日」里那张「今天挣了」现在点一下就能看今日每一单 + 提成明细。
 - **新单横幅改回原宽度，只放大关键字（2026-10-06，陪玩端 `1.0.20261019`）:**
@@ -1279,7 +1281,7 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/transfer` | JWT | COMPANION | 陪玩把「加了很久没通过 / 客户不满意」的单转让给同工作室的另一个人（**只有当前持单人**）。Body: `{ toCompanionId, reason? }`。2026-10-03 起**只发出申请**（`OrderTransferRequest`，TTL 30 分钟），**被转让方的接单记录里会先出现这张单**、行上带 `pendingTransferForMe`，他在那一行点「接手」才真正换手（顶栏 🔁 铃铛也留一份，不再自动弹窗）；转让后订单归属换成新人，转出方的接单记录里仍保留该单并标注「已于某时转让给某人」（新表 `OrderTransfer`），客户归属同步转给新人；已经开始服务的单只能走客服「归属调整」。 |
 | `POST` | `/api/orders/:id/outcome` | JWT | COMPANION, CS, ADMIN, OWNER | 线上 / 桥接单的结果反馈，**接单方本人自己点**（CS / ADMIN / OWNER 可代录）。Body: `{ outcome: 'SUCCESS'\|'FAILED', reason?, note?, evidence?: string[] }`；报「不成功」**必须带 ≥1 张截图**（`evidence` 走 `/api/upload/screenshot`），进「待拍板」；线下已点「开始首单」的单 400（不用再反馈）。 |
 | `POST` | `/api/orders/:id/review` | JWT | ADMIN, OWNER | 店长 / 老板**拍板定责**：这张「不成功」到底是谁的问题。Body: `{ responsibility: 'COMPANION'\|'CS'\|'CUSTOMER'\|'NONE', note }`（结论必填），置 `reviewStatus=DECIDED`，结论推给接单方 + 发单客服。 |
-| `POST` | `/api/orders/:id/cs-confirm` | JWT | CS, ADMIN, OWNER | 发单客服确认「已跟接单方核对、双方无异议」——失败单先过这一步才轮到店长拍板（老板 2026-10-06）。Body: `{ note? }`；只有发单客服本人（或本店客服顶上）能确认，之后推给店长 / 老板。 |
+| `POST` | `/api/orders/:id/cs-confirm` | JWT | COMPANION, CS, ADMIN, OWNER | 发单本人确认「已跟接单方核对、双方无异议」——失败单先过这一步才轮到店长拍板（老板 2026-10-06）。Body: `{ note? }`；只有发单本人（`Order.csUserId`，NOT NULL）能确认，店长 / 老板可代确认兜底，之后推给店长 / 老板。 |
 | `GET` | `/api/orders/reviews` | JWT | CS, ADMIN, OWNER | 成交核对清单。Query: `?scope=waiting`（待拍板，默认）\|`recheck`（抢了没结果，7 天内）\|`archived`（历史记录，满 7 天）\|`decided`（已拍板）；OWNER 全量，其余按可见工作室。 |
 | `GET` | `/api/orders/reviews/summary` | JWT | CS, ADMIN, OWNER | 成交核对条数 `{ waiting, recheck, decided }`（管理端菜单红数字）。 |
 | `POST` | `/api/orders/:id/chase-feedback` | JWT | CS, ADMIN, OWNER | 「催一下」：线上 / 桥接单还挂着「待反馈」时催接单工作室给个说法。单上记 `feedbackChasedAt` / `feedbackChaseCount`，并把 `order:feedback_chase` 推给接单工作室（客服 / 店长右下角提醒）。已反馈过 / 没人接 / 本店线下单会 403。 |

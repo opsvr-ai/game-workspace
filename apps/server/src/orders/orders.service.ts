@@ -1425,16 +1425,10 @@ export class OrdersService implements OnModuleInit {
         ? `${ctx.companionName} 报了「不成功」（订单 ${code}${order?.outcomeReason ? '：' + order.outcomeReason : ''}）—— 已附截图，请先跟接单方核对（双方都没异议了再推店长拍板）`
         : `${ctx.companionName} 报了「成功」（订单 ${code}）—— 计入发单客服考核`,
     };
-    const csUserId: string | null = order?.csUserId ?? null;
     const event = failed ? 'order:outcome_failed' : 'order:outcome_success';
-    if (csUserId) {
-      // 失败单**只先找发单客服**：先跟接单方掰扯明白，别直接堆给店长（老板 2026-10-06）。
-      this.wsGateway.notifyUser(csUserId, event, payload);
-      return;
-    }
-    if (!failed) return;
-    // 这单没记发单客服（老单 / 客服代录）→ 找不到人，退回到店长 / 老板，免得没人管。
-    await this.notifyOrderReviewers(order?.studioId ?? null, event, payload);
+    // 只通知**发单本人**：失败单先跟他把事掰扯明白，别直接堆给店长（老板 2026-10-06）；
+    // 成功单也只告诉他，计入考核。`Order.csUserId` 是 NOT NULL（建单人），每张单一定有发单人。
+    this.wsGateway.notifyUser(order.csUserId, event, payload);
   }
 
   /**
@@ -1443,8 +1437,8 @@ export class OrdersService implements OnModuleInit {
    */
   async confirmOutcomeWithCs(orderId: string, user: any, body: { note?: string }) {
     const role = user?.role ?? '';
-    if (!['OWNER', 'ADMIN', 'CS'].includes(role)) {
-      throw new ForbiddenException('只有发单客服 / 店长 / 老板能确认这一步');
+    if (!['OWNER', 'ADMIN', 'CS', 'COMPANION'].includes(role)) {
+      throw new ForbiddenException('只有发单本人 / 店长 / 老板能确认这一步');
     }
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -1459,16 +1453,16 @@ export class OrdersService implements OnModuleInit {
     if (order.reviewStatus === 'DECIDED') {
       throw new BadRequestException('这张单店长已经拍过板了');
     }
-    if (role === 'CS') {
-      // 只有「发单客服」本人能确认；这张单没记发单客服时，本店客服都能顶上，别让它卡住。
-      if (order.csUserId && order.csUserId !== user?.id) {
-        throw new ForbiddenException('这张单不是你发的，等发单客服自己跟接单方核对');
+    // **谁发的单谁确认**：订单上的 `csUserId` 就是建单人（客服 / 店长 / 陪玩自己建的都算，
+    // 这一列是 NOT NULL，不存在「查不到发单人」的情况）。
+    if (order.csUserId !== user?.id) {
+      // 不是发单本人 → 只有店长 / 老板能「代确认」兜底（发单人休假 / 离职时别把单卡死）。
+      if (role !== 'OWNER' && role !== 'ADMIN') {
+        throw new ForbiddenException('这张单不是你发的，等发单的人自己跟接单方核对');
       }
-      if (!order.csUserId && user?.studioId && order.studioId !== user.studioId) {
+      if (user?.studioId && order.studioId !== user.studioId) {
         throw new ForbiddenException('无权确认其他工作室的订单');
       }
-    } else if (role === 'ADMIN' && user?.studioId && order.studioId !== user.studioId) {
-      throw new ForbiddenException('无权确认其他工作室的订单');
     }
     const note = (body?.note || '').trim();
     const updated = await this.prisma.order.update({

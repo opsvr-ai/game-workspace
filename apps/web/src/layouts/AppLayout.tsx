@@ -1887,7 +1887,8 @@ const AppLayout: React.FC = () => {
         dedupeKey: `outcome-report:${data?.orderId || code}`,
         dedupeMs: 6 * 60 * 60 * 1000,
       });
-      if (failed) {
+      if (failed && user?.role !== 'COMPANION') {
+        // 陪玩没有「成交核对」页（发单人不是他时不该弹），所以横幅只给客服 / 店长 / 老板。
         showBannerNotification({
           title,
           body: text,

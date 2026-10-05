@@ -281,10 +281,9 @@ const OrderReviewPage: React.FC = () => {
           );
         }
         if (o.outcome === 'FAILED') {
-          // 第一段：还没过发单客服核对 —— 谁发单谁跟接单方掰扯明白（老板 2026-10-06）。
+          // 第一段：还没过发单本人核对 —— 谁发单谁跟接单方掰扯明白（老板 2026-10-06）。
           if (o.reviewStatus !== 'CS_CONFIRMED') {
-            const mine = !o.csUserId || o.csUserId === user?.id;
-            if (isCs && mine) {
+            if (o.csUserId === user?.id) {
               return (
                 <Space direction="vertical" size={2}>
                   <Button size="small" type="primary" onClick={() => openConfirmCs(o)}>
@@ -299,11 +298,11 @@ const OrderReviewPage: React.FC = () => {
             return (
               <Space direction="vertical" size={2}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  等发单客服{o.csUserName ? ' ' + o.csUserName : ''}跟接单方核对
+                  等发单的人{o.csUserName ? '（' + o.csUserName + '）' : ''}跟接单方核对
                 </Text>
                 {canDecide ? (
                   <Button size="small" onClick={() => openConfirmCs(o)}>
-                    代客服确认
+                    代发单者确认
                   </Button>
                 ) : null}
               </Space>
@@ -357,7 +356,7 @@ const OrderReviewPage: React.FC = () => {
         <Col span={8}>
           <Card size="small">
             <Statistic
-              title={canDecide ? '① 等发单客服核对（在跟接单方掰扯）' : '① 等我跟接单方核对'}
+              title={canDecide ? '① 等发单的人核对（在跟接单方掰扯）' : '① 等我核对（我发的单）'}
               value={summary.waitingCs}
               valueStyle={{ color: summary.waitingCs ? '#D97706' : '#16A34A' }}
             />
@@ -448,7 +447,7 @@ const OrderReviewPage: React.FC = () => {
             <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
               接单方 {csTarget.companionName || '—'} 报的「不成功」：{csTarget.outcomeReason || '未填原因'}
               {csTarget.outcomeNote ? '（' + csTarget.outcomeNote + '）' : ''}。
-              先跟接单方（和发单的自己）把这事掰扯明白：确实没打成、双方都认，再点确认，
+              **谁发的单谁来点这个确认**：先跟接单方把这事掰扯明白，确实没打成、双方都认，再点确认，
               然后就轮到店长拍板定责 —— 别把没核清楚的单直接堆给店长。
             </Paragraph>
             {Array.isArray(csTarget.evidence) && csTarget.evidence.length ? (

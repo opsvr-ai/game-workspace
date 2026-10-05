@@ -351,9 +351,9 @@ export class OrdersController {
     return { code: 200, message: '已拍板', data };
   }
 
-  /** 发单客服确认「已跟接单方核对、双方无异议」—— 失败单先过这一步才轮到店长拍板（老板 2026-10-06）。 */
+  /** 发单本人确认「已跟接单方核对、双方无异议」—— 失败单先过这一步才轮到店长拍板（老板 2026-10-06）。 */
   @Post('orders/:id/cs-confirm')
-  @Roles(UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
+  @Roles(UserRole.COMPANION, UserRole.CS, UserRole.ADMIN, UserRole.OWNER)
   async confirmOutcomeWithCs(
     @Param('id') id: string,
     @Req() req: any,
