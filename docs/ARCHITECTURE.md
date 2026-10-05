@@ -206,6 +206,13 @@
   待拍板 / 抢了没结果 / 已拍板，顶部统计卡 + 拍板弹窗（截图墙 + 责任方 + 结论）；管理端「订单管理」菜单挂
   **待拍板条数**红数字（不是「看过就消」的角标）。**钱的口径完全不动**（仍只有报成功 / 本店线下点「开始首单」才算提成），
   历史单不追溯、不倒扣。
+- **「抢了没结果」自动催办**（老板 2026-10-06，服务端 + 网页 `v969`）: 老板「这个逻辑之前就有……为什么没打成，
+  选择原因 + 截图；或者你不处理就当天提醒，然后后边 7 天提醒」。`UnstartedOrderReminderService` 每 10 分钟扫一轮，
+  判据和上面「成交核对 → 抢了没结果」**同一套**（`outcome` 空 + 没点「开始首单」+ 没退款 / 取消 + 只看最近 14 天）：
+  抢单当天（满 2 小时）提醒一次，之后**每天一次、连着 7 天**（同一张单最多 8 次），直到点了「开始首单」/ 报了结果 /
+  退款取消 / 转让；**按人汇总成一条**（一个人名下所有待处理的单列在一起，最多 10 条 + 「还有 N 单」，
+  同一人 24 小时内一条），免得压了几十单的人被弹屏；满 7 天没动 → 给本店客服 / 店长 / 老板留一条待办。
+  只提醒、**不自动判废**、不动名额、不改钱；进度存 `order.customFields.unstartedReminder`（不加数据库列）
 
 ---
 
@@ -889,6 +896,10 @@ sequenceDiagram
   不影响上面那套成功口径，也不追溯、不倒扣。「抢了没结果」栏（`listOrderReviews(scope=recheck)`）= `outcome` 空 +
   没点「开始首单」+ 抢单满 `OrdersService.RECHECK_AFTER_MINUTES`（30 分钟）+ 只看最近 14 天，用来捞
   「派出去没人报结果」的漏网单。
+- **「抢了没结果」怎么催**（老板 2026-10-06）：`UnstartedOrderReminderService` —— 判据与 `listOrderReviews(scope=recheck)`
+  完全一致（`outcome` 空 + 没点「开始首单」+ 没退款 / 取消 + 最近 14 天），节奏「当天 1 次 + 之后每天 1 次 × 7 天」，
+  按人汇总、24 小时一条；端点 `order:unstarted_reminder`（陪玩本人）/ `order:unstarted_reminder_admin`（满 7 天给管理端）。
+  它只催人：`successOrderWhere()` 与 `commission.service` 都不看它，钱和名额都不变。
 - **线上俱乐部提成口径**（老板 2026-09-30）：`commission.cs_online_mode` = `RATE`（默认，流水 ×
   `commission.cs_online_rate_percent`，2026-09-29 定的口径）/ `PER_ORDER`（成功单数 ×
   `commission.cs_online_per_order_yuan`）。判定在 `onlineModeOf`，算钱只走 `CommissionService.onlineCommissionOf`，

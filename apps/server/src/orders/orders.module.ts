@@ -10,6 +10,7 @@ import { OrderDispatchService } from './order-dispatch.service';
 import { ScheduledOrderReminderService } from './scheduled-order-reminder.service';
 import { ServiceDurationReminderService } from './service-duration-reminder.service';
 import { ContactReminderService } from './contact-reminder.service';
+import { UnstartedOrderReminderService } from './unstarted-order-reminder.service';
 import { StaleSessionSweepService } from './stale-session-sweep.service';
 import { OnlineFirstReleaseService } from './online-first-release.service';
 
@@ -25,6 +26,8 @@ import { OnlineFirstReleaseService } from './online-first-release.service';
     ServiceDurationReminderService,
     // 老板 2026-10-04：抢单后迟迟没标「添加成功 / 添加失败」的，定期提醒陪玩本人 + 满 3 天提醒管理端。
     ContactReminderService,
+    // 老板 2026-10-06：抢了单一直没点「开始首单」、也没报结果的，当天提醒 + 之后 7 天每天提醒。
+    UnstartedOrderReminderService,
     StaleSessionSweepService,
     // 老板 2026-10-01：「线上→线下流转」的单到点自动放给本店线下时，给本店每个陪玩弹一次。
     OnlineFirstReleaseService,

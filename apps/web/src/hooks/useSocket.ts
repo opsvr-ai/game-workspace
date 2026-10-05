@@ -65,6 +65,10 @@ interface UseSocketOptions {
   onOrderContactReminder?: (data: any) => void;
   /** 同上满 3 天仍没处理 → 提醒客服 / 店长 / 老板去核实，确认过不了就删客户 */
   onOrderContactReminderAdmin?: (data: any) => void;
+  /** 抢了单一直没点「开始首单」、也没报结果 → 提醒陪玩本人（老板 2026-10-06） */
+  onOrderUnstartedReminder?: (data: any) => void;
+  /** 同上满 7 天仍没处理 → 提醒客服 / 店长 / 老板去核（成交核对 → 抢了没结果） */
+  onOrderUnstartedReminderAdmin?: (data: any) => void;
   /**
    * 通用「审核 / 交互」提醒（老板 2026-10-04）——报账 / 支取 / 战绩图 / 客户删除申请 /
    * 封存解封 / 桥接申请 / 注册审核，提交方和审核方都要能实时收到提示。
@@ -334,6 +338,14 @@ export function useSocket(opts: UseSocketOptions = {}) {
 
     socket.on('order:contact_reminder_admin', (data: any) => {
       optsRef.current.onOrderContactReminderAdmin?.(data);
+    });
+
+    socket.on('order:unstarted_reminder', (data: any) => {
+      optsRef.current.onOrderUnstartedReminder?.(data);
+    });
+
+    socket.on('order:unstarted_reminder_admin', (data: any) => {
+      optsRef.current.onOrderUnstartedReminderAdmin?.(data);
     });
 
     socket.on('review:notice', (data: any) => {

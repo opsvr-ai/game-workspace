@@ -1835,6 +1835,54 @@ const AppLayout: React.FC = () => {
         dedupeMs: 12 * 60 * 60 * 1000,
       });
     },
+    onOrderUnstartedReminder: (data: any) => {
+      // 老板 2026-10-06：「为什么没打成，选择原因 + 截图；你不处理就当天提醒，然后后边 7 天提醒。」
+      // 抢了单一直没点「开始首单」、也没报结果的，服务端按阶梯催陪玩本人（当天 1 次 + 之后每天 1 次、连 7 天）。
+      const text =
+        data?.message ||
+        '你有订单抢到手还没点「开始首单」也没报结果：打成了就点「开始首单」；没打成请点「报结果」，选原因 + 贴截图';
+      const count = Number(data?.count) || 0;
+      const stage = Number(data?.stage) || 1;
+      const what = count > 1 ? `有 ${count} 单抢了还没点「开始首单」` : '抢了单还没点「开始首单」';
+      const title = stage > 1 ? `🔔 再次提醒（第 ${stage} 次）：${what}` : `🔔 ${what}`;
+      notifyNotice({
+        kind: 'order',
+        icon: '🔔',
+        title,
+        desc: text,
+        href: rolePage(user?.role, 'orders'),
+        toast: 'warning',
+        duration: 8,
+        // 同一个人半天内只在铃铛里留一条，别把通知中心刷满
+        dedupeKey: `unstarted-reminder:${user?.id || 'me'}`,
+        dedupeMs: 12 * 60 * 60 * 1000,
+      });
+      showBannerNotification({
+        title,
+        body: text,
+        icon: '🔔',
+        seconds: 15,
+        hint: '点这里 → 去订单管理点「报结果」',
+        action: 'open-orders',
+      });
+    },
+    onOrderUnstartedReminderAdmin: (data: any) => {
+      // 满 7 天还没处理 → 只落进「待办」（右上角铃铛），不弹窗打扰；人工去「成交核对 → 抢了没结果」核。
+      const isMgmt = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'CS';
+      if (!isMgmt) return;
+      const count = Number(data?.count) || 0;
+      recordNotice({
+        kind: 'order',
+        icon: '🧾',
+        title: `抢了没结果的单${count ? ` ${count} 个` : ''}：满 7 天了，去核一下`,
+        desc:
+          data?.message ||
+          '有订单抢走满 7 天还没点「开始首单」也没报结果，去「订单管理 → 成交核对 → 抢了没结果」处理',
+        href: rolePage(user?.role, 'orders'),
+        dedupeKey: 'unstarted-reminder-admin',
+        dedupeMs: 12 * 60 * 60 * 1000,
+      });
+    },
     onBridgeResponded: (data: any) => {
       const text = data.message || (data.accepted ? '对方已同意桥接申请' : '对方已拒绝桥接申请');
       message.info(text);
