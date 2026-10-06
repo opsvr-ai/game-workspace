@@ -585,7 +585,7 @@ graph TB
 
 | 位置 | 管什么 |
 |------|--------|
-| `apps/web/src/styles/tokens.ts` | **设计令牌唯一真源**：品牌 / 文本 / 背景 / 描边 / 语义色、间距 `SPACE`、圆角 `RADIUS`、字体 `FONT`、阴影 `SHADOW`、渐变 `GRADIENTS`。导出 `applyTokenCssVars()`，`main.tsx` 启动时写进 `:root` 的 CSS 变量（页面 / 组件读 `var(--color-*)`）。**改颜色只改这里。** |
+| `apps/web/src/styles/tokens.ts` | **设计令牌唯一真源**：品牌 / 文本 / 背景 / 描边 / 语义色、间距 `SPACE`、圆角 `RADIUS`、字体 `FONT`、阴影 `SHADOW`、渐变 `GRADIENTS`。**渐变分「深色底」和「浅色底」两档，别混用**：页面标题（浅色内容区）走 `GRADIENTS.titleText`（紫 → 品红，对白底 4.6~7.1:1）；`styles/commander.ts` 那套「青 → 紫 → 品红」霓虹渐变是给**深色面板 / 顶栏**用的（青 `#00E5FF` 在白底上只有 1.5:1，当标题会糊）。导出 `applyTokenCssVars()`，`main.tsx` 启动时写进 `:root` 的 CSS 变量（页面 / 组件读 `var(--color-*)`）。**改颜色只改这里。** |
 | `apps/web/src/theme.ts` | Ant Design 令牌：**不写色值，全部从 `styles/tokens.ts` 取**，再映射成 antd 的组件级 token（圆角、表格表头与悬浮色、卡片圆角、标签胶囊等，一次影响所有 antd 组件） |
 | `apps/web/src/styles/global.css` 末尾「视觉系统 v2」一段 | 整页晕染底色 `.app-shell`、内容白卡 `.app-content`、卡片/表格/按钮/标签/滚动条、左侧导航配色，以及通用小组件类 `.ui-panel` / `.ui-dot` / `.ui-section-title` / `.ui-chip` |
 | `apps/web/src/config/roleMenus.tsx` 的 `MODULE_TINTS`（颜色值本体在 `styles/tokens.ts`） | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots）。**菜单配置的唯一来源就是这个文件**（2026-10-07 从 `layouts/AppLayout.tsx` 抽出来，原来混在 3000 行里） |

@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { Typography, Breadcrumb } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { commander } from '../styles/commander';
+import { GRADIENTS } from '../styles/tokens';
 
 const { Title, Text } = Typography;
 
@@ -40,7 +40,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcr
             }))}
           />
         )}
-        <Title level={5} style={{ margin: 0, fontSize: 20, fontWeight: 700, ...commander.gradientText }}>
+        {/* 标题渐变走 GRADIENTS.titleText（浅色区可读的那一档），不是深色顶栏那套霓虹渐变 */}
+        <Title level={5} style={{ margin: 0, fontSize: 20, fontWeight: 700, background: GRADIENTS.titleText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           {title}
         </Title>
         {subtitle && (
