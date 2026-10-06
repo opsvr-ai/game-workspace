@@ -6,6 +6,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
 import { chatApi } from '../api/chat';
 import ChatPanel from './chat/ChatPanel';
+import { BRAND } from '../styles/tokens';
 
 interface ChatPartner {
   conversationId: string;
@@ -123,7 +124,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
       >
         <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
           <div style={{
-            width: 28, height: 28, borderRadius: '50%', background: '#2563EB',
+            width: 28, height: 28, borderRadius: '50%', background: BRAND.primary,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#FFF', fontSize: 13, fontWeight: 700,
           }}>

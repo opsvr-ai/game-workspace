@@ -1,13 +1,27 @@
+/* 蠢驴电竞 — 全局基础样式
+ *
+ * 颜色 / 圆角 / 间距 / 字号的唯一真源是 src/styles/tokens.ts。
+ * 下面 :root 只放「首屏兜底」值 —— main.tsx 启动时会用 tokens.ts 里的同一套值覆盖，
+ * 保证 JS 起来之前不会闪一下默认色。要改值请改 tokens.ts，并同步这里。 */
 :root {
-  --color-primary: #2563EB;
-  --color-primary-light: #3B82F6;
-  --color-gradient-brand: linear-gradient(135deg, #2563EB, #7C3AED);
+  --color-brand: #7C4DFF;
+  --color-brand-hover: #8B62FF;
+  --color-brand-blue: #5B7CFA;
+  --color-accent: #00E5FF;
+  --color-primary: #7C4DFF;
+  --color-primary-light: #8B62FF;
+  --color-gradient-brand: linear-gradient(135deg, #7C4DFF 0%, #5B7CFA 100%);
   --color-success: #16A34A;
   --color-warning: #F59E0B;
   --color-error: #EF4444;
+  --color-text: #1E293B;
+  --color-text-secondary: #64748B;
+  --color-text-tertiary: #94A3B8;
+  --color-bg-base: #F8FAFC;
+  --color-bg-container: #FFFFFF;
   --color-bg-hover: #F8FAFC;
   --color-bg-error: #FEF2F2;
-  --color-text-secondary: #64748B;
+  --color-border: #E2E8F0;
 }
 
 body {
@@ -22,8 +36,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--color-bg-base, #f8fafc);
+  color: var(--color-text, #1e293b);
 }
 
 #root {

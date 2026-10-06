@@ -6,6 +6,7 @@ import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreen
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -142,7 +143,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
                             width: 36,
                             height: 36,
                             borderRadius: '50%',
-                            background: av ? `url(/uploads/avatars/${av}) center/cover` : '#2563EB',
+                            background: av ? `url(/uploads/avatars/${av}) center/cover` : BRAND.primary,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',

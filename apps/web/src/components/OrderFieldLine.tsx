@@ -3,11 +3,12 @@ import React from 'react';
 import { Typography } from 'antd';
 import { DATA_SUB_FONT_SIZE } from '../constants/datasetColumns';
 import type { OrderFieldEntry } from '../constants/orderFields';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
-/** 可复制的那种值（抢单成功浮窗里的客户联系方式）用蓝色，跟订单详情弹窗一致 */
-const COPYABLE_COLOR = '#1677ff';
+/** 可复制的那种值（抢单成功浮窗里的客户联系方式）用品牌紫，跟订单详情弹窗一致 */
+const COPYABLE_COLOR = BRAND.primary;
 
 /**
  * 一条订单 / 客户数据的「标签 + 值」一行（抢单池、派单工作台用）。

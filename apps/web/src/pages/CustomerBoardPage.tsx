@@ -43,6 +43,7 @@ import { customersApi } from '../api/customers';
 import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, customerStatusConfig } from '../constants';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -658,7 +659,7 @@ const CustomerBoardPage: React.FC = () => {
         style={{
           width: 232,
           cursor: 'pointer',
-          borderColor: active ? '#1677FF' : c.servingCustomer ? '#FCA5A5' : undefined,
+          borderColor: active ? BRAND.primary : c.servingCustomer ? '#FCA5A5' : undefined,
           background: active ? '#F0F7FF' : c.servingCustomer ? '#FEF2F2' : undefined,
         }}
         bodyStyle={{ padding: 10 }}

@@ -8,6 +8,7 @@ import {
 import dayjs from 'dayjs';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
+import { BRAND } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -216,7 +217,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
 
       {/* ── KPI ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 14 }}>
-        <Col xs={12} md={4}><Kpi label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint="#1677ff" /></Col>
+        <Col xs={12} md={4}><Kpi label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
         <Col xs={12} md={4}><Kpi label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
         <Col xs={12} md={4}><Kpi label="今日单量" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} sub={dash ? `接单率 ${pct(dash.today?.acceptRate)}` : undefined} tint="#faad14" /></Col>
         <Col xs={12} md={4}><Kpi label="在线陪玩" value={dash ? `${dash.today?.onlineCount ?? 0} / ${dash.today?.totalCount ?? 0}` : '—'} sub={`打单中 ${servingCount} 人`} tint="#722ed1" /></Col>
@@ -242,7 +243,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `¥${v}`} />
                   <Tooltip formatter={(v: any) => [`¥${Number(v).toFixed(1)}`, '流水']} />
-                  <Bar dataKey="revenue" fill="#1677ff" radius={[4, 4, 0, 0]} maxBarSize={26}>
+                  <Bar dataKey="revenue" fill={BRAND.primary} radius={[4, 4, 0, 0]} maxBarSize={26}>
                     <LabelList dataKey="revenue" position="top" formatter={(v: any) => (Number(v) > 0 ? Number(v).toFixed(0) : '')} style={{ fontSize: 10, fill: '#94a3b8' }} />
                   </Bar>
                 </BarChart>
@@ -344,7 +345,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         style={{ marginBottom: 14 }}
       >
         {rankMode === 'score' && (topByScore.length
-          ? topByScore.map((r) => <RankBar key={r.id} name={r.name} value={r.score} max={100} text={`${r.score} 分`} color={TIER_META[r.tier]?.color || '#1677ff'} />)
+          ? topByScore.map((r) => <RankBar key={r.id} name={r.name} value={r.score} max={100} text={`${r.score} 分`} color={TIER_META[r.tier]?.color || BRAND.primary} />)
           : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />)}
         {rankMode === 'revenue' && (topByRevenue.length
           ? topByRevenue.map((r) => <RankBar key={r.id} name={r.name} value={r.month} max={maxRev} text={yuan(r.month)} color="#52c41a" />)
@@ -378,7 +379,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                   },
                   {
                     title: '综合分', dataIndex: 'score', width: 110,
-                    render: (v: number) => <Progress percent={Math.min(100, v)} size="small" strokeColor="#1677ff" format={() => `${v}`} />,
+                    render: (v: number) => <Progress percent={Math.min(100, v)} size="small" strokeColor={BRAND.primary} format={() => `${v}`} />,
                   },
                   { title: '首单成功率', dataIndex: 'newRate', width: 100, render: (v: number) => <span style={{ color: v < 50 ? '#cf1322' : '#3f8600', fontWeight: 600 }}>{pct(v)}</span> },
                   { title: '续单率', dataIndex: 'renewRate', width: 84, render: (v: number) => pct(v) },
@@ -400,7 +401,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           <Card size="small" title="客户消费 Top（含今日在打）">
             {custTop.length ? custTop.map((r: any, i: number) => (
               <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', color: '#475569' }}>
-                <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color="#1677ff" style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
+                <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color={BRAND.primary} style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
                 <span style={{ fontWeight: 600 }}>{yuan(r.spent)}</span>
               </div>
             )) : <Empty description="暂无客户数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}

@@ -63,6 +63,7 @@ import {
 } from '../../constants/orderFields';
 import { encodeOrderInfo, orderInfoTextOf } from '../../utils/chatOrder';
 import { visibleInterval } from '../../hooks/usePolling';
+import { BRAND } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -460,7 +461,7 @@ const CSDispatchView: React.FC = () => {
         items={[
           {
             key: 'dispatch',
-            label: <span style={{ color: '#1677ff', fontWeight: 600 }}>派单工作台</span>,
+            label: <span style={{ color: BRAND.primary, fontWeight: 600 }}>派单工作台</span>,
             children: (
               <>
                 <div
@@ -621,7 +622,7 @@ const CSDispatchView: React.FC = () => {
                                   width: 36,
                                   height: 36,
                                   borderRadius: '50%',
-                                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
+                                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : BRAND.primary,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -686,7 +687,7 @@ const CSDispatchView: React.FC = () => {
                             <Button
                               size="small"
                               type="text"
-                              style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
+                              style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: BRAND.primary, height: 22, width: 22, flexShrink: 0 }}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 await useChatStore.getState().openConversation(c.id, {
@@ -1003,7 +1004,7 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'pending',
-            label: <span style={{ color: '#1677ff', fontWeight: 600 }}>订单池流转失败明细</span>,
+            label: <span style={{ color: BRAND.primary, fontWeight: 600 }}>订单池流转失败明细</span>,
             children: <UrgentOrdersPanel onDispatch={handleDispatch} onGotoFollowup={() => setActiveTab('converted')} />,
           },
           {

@@ -44,6 +44,7 @@ import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import CompanionHomeBoard from '../components/CompanionHomeBoard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
+import { BRAND } from '../styles/tokens';
 
 /** 通知过滤设置里的开关标签，一律取 constants/orders.ts 的唯一一份（跟发布订单表单同一套字）。 */
 const configItems = (cfg: Record<string, { label: string; color: string }>) =>
@@ -294,7 +295,7 @@ const CompanionPage: React.FC = () => {
     <div>
       {/* ① Status Header — compact inline */}
       <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
-        <a href="/uploads/agent-setup.exe" download style={{ float: 'right', fontSize: 12, color: '#1677ff' }}>
+        <a href="/uploads/agent-setup.exe" download style={{ float: 'right', fontSize: 12, color: BRAND.primary }}>
           ⬇ 下载最新版
         </a>
         <Row align="middle" gutter={16}>
@@ -568,7 +569,7 @@ const CompanionPage: React.FC = () => {
                         <td style={{ padding: 3 }}>
                           {['🥇', '🥈', '🥉'][i] || `${i + 1}`} {r.name?.slice(0, 6)}
                         </td>
-                        <td style={{ color: '#2563EB', fontWeight: 500, textAlign: 'center' }}>
+                        <td style={{ color: BRAND.primary, fontWeight: 500, textAlign: 'center' }}>
                           ¥{(r.totalAmount || 0).toFixed(0)}
                         </td>
                         <td style={{ textAlign: 'center' }}>

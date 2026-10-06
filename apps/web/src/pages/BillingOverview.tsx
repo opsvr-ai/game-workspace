@@ -32,6 +32,7 @@ import {
   HistoryOutlined,
 } from '@ant-design/icons';
 import { visibleInterval } from '../hooks/usePolling';
+import { BRAND } from '../styles/tokens';
 const IconCheck = React.createElement(CheckCircleOutlined);
 const IconClose = React.createElement(CloseCircleOutlined);
 const IconReload = React.createElement(ReloadOutlined);
@@ -473,7 +474,7 @@ const BillingOverview: React.FC = () => {
               label="今日流水"
               value={`¥${(overviewData?.summary?.todayRevenue ?? 0).toFixed(1)}`}
               icon={IconDollar}
-              color="#2563EB"
+              color={BRAND.primary}
             />
           </Col>
           <Col span={4}>
@@ -783,7 +784,7 @@ const BillingOverview: React.FC = () => {
                     <td style={{ padding: '8px 10px', fontSize: 12 }}>{serviceTypeConfig[o.serviceType]?.label || '陪玩'}</td>
                     <td style={{ padding: '8px 10px', fontSize: 12 }}>{o.claimedMode || '-'}</td>
                     <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', whiteSpace: 'nowrap' }}>{Number(o.unitPrice || o.claimedPrice || 0).toFixed(1)}/时</td>
-                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: '#2563EB', fontWeight: 600, whiteSpace: 'nowrap' }}>¥{Number(o.systemAmount || o.amount || 0).toFixed(1)}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: BRAND.primary, fontWeight: 600, whiteSpace: 'nowrap' }}>¥{Number(o.systemAmount || o.amount || 0).toFixed(1)}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right' }}>
                       <InputNumber
                         size="small"
@@ -812,7 +813,7 @@ const BillingOverview: React.FC = () => {
           <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, marginTop: 12 }}>
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
               <Text>共 {todayOrders.length} 单</Text>
-              <Text>应报总额（系统）：<b style={{ color: '#2563EB' }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
+              <Text>应报总额（系统）：<b style={{ color: BRAND.primary }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
               <Text>实际总额（陪玩填）：<b style={{ color: '#16A34A' }}>¥{reportActualTotal.toFixed(1)}</b></Text>
               <Text>
                 差额：

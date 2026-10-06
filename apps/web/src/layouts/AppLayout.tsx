@@ -26,6 +26,7 @@ import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { NoticeList } from '../components/NoticeList';
 import LeftMessagePanel from '../components/LeftMessagePanel';
+import { BRAND } from '../styles/tokens';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
 // Badge pulse animation
@@ -571,7 +572,7 @@ const decorateMenu = (
               flex: '0 0 auto',
               fontSize: 11,
               lineHeight: '16px',
-              color: '#1677ff',
+              color: BRAND.primary,
               background: '#eef4ff',
               borderRadius: 6,
               padding: '0 4px',
@@ -2643,7 +2644,7 @@ const AppLayout: React.FC = () => {
                       ? `消息未读 ${totalUnread} 条 · ${messagePanelCollapsed ? '点这里显示消息栏' : '点这里隐藏消息栏'}`
                       : messagePanelCollapsed ? '显示消息栏' : '隐藏消息栏'
                   }
-                  style={{ color: totalUnread > 0 ? '#FF4D4F' : (messagePanelCollapsed ? commander.textSecondary : '#2563EB') }}
+                  style={{ color: totalUnread > 0 ? '#FF4D4F' : (messagePanelCollapsed ? commander.textSecondary : BRAND.primary) }}
                 />
               </div>
             </Badge>
@@ -2878,7 +2879,7 @@ const AppLayout: React.FC = () => {
                           borderRadius: '50%',
                           background: user.avatar
                             ? `url(/uploads/avatars/${user.avatar}?v=${user.avatar}) center/cover`
-                            : '#1677ff',
+                            : BRAND.primary,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -2909,7 +2910,7 @@ const AppLayout: React.FC = () => {
                       size="small"
                       type="link"
                       onClick={() => setSalaryOpen(true)}
-                      style={{ color: '#2563EB', padding: 0, fontWeight: 600 }}
+                      style={{ color: BRAND.primary, padding: 0, fontWeight: 600 }}
                     >
                       底薪 + 提奖
                     </Button>
@@ -3062,7 +3063,7 @@ const AppLayout: React.FC = () => {
               <div>底薪实发：<b>¥{Number(mySalary.row.baseEffective).toFixed(2)}</b></div>
               <div>全勤奖：<b>¥{Number(mySalary.row.attendanceBonus).toFixed(2)}</b></div>
               <div>考勤扣款：<b>¥{Number(mySalary.row.attendanceDeduction).toFixed(2)}</b></div>
-              <div>预计合计：<b style={{ color: '#1677ff' }}>¥{Number(mySalary.row.totalYuan).toFixed(2)}</b></div>
+              <div>预计合计：<b style={{ color: BRAND.primary }}>¥{Number(mySalary.row.totalYuan).toFixed(2)}</b></div>
             </div>
             <div style={{ marginTop: 12, marginBottom: 4, fontWeight: 600 }}>订单明细</div>
             <div style={{ maxHeight: 260, overflow: 'auto' }}>
@@ -3134,7 +3135,7 @@ const AppLayout: React.FC = () => {
                 )}
                 {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
                 {g.customFields?.csCultivated === true && (
-                  <div style={{ color: '#1677ff', fontWeight: 500 }}>
+                  <div style={{ color: BRAND.primary, fontWeight: 500 }}>
                     ✅ 该客户已添加到客服工作微信（{g.customFields?.csWorkWechatName || '客服微信'}），请注意措辞
                   </div>
                 )}

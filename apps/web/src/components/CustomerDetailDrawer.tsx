@@ -20,6 +20,7 @@ import {
 import { EditOutlined, SaveOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
 import { DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -411,7 +412,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ customerId,
             {followUps.length > 0 ? (
               <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                 {followUps.map((f) => (
-                  <div key={f.id} style={{ borderLeft: '2px solid #1677ff', paddingLeft: 10, marginBottom: 10 }}>
+                  <div key={f.id} style={{ borderLeft: `2px solid ${BRAND.primary}`, paddingLeft: 10, marginBottom: 10 }}>
                     <Text style={{ fontSize: 13 }}>{f.content}</Text>
                     {f.nextAction && (
                       <Tag color="green" style={{ fontSize: 10, marginLeft: 4 }}>

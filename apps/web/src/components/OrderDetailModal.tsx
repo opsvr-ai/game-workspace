@@ -26,6 +26,7 @@ import {
 } from '../constants/orderFields';
 import { useAuthStore } from '../stores/authStore';
 import { TransferNote, transferList } from './OrderTransferNote';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -144,7 +145,7 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
         )}
         <Descriptions.Item label={ORDER_FIELD_LABELS.customerContact} span={2}>
           {contactText ? (
-            <Text copyable={{ text: contactText }} style={{ color: '#1677ff' }}>
+            <Text copyable={{ text: contactText }} style={{ color: BRAND.primary }}>
               {contactText}
             </Text>
           ) : (

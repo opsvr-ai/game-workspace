@@ -5,6 +5,7 @@ import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { payrollApi } from '../../api/payroll';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
+import { BRAND } from '../../styles/tokens';
 
 const { Title, Text } = Typography;
 
@@ -199,7 +200,7 @@ const PayrollPage: React.FC = () => {
   );
 
   const lockedValue = (value: number, unit: string) => (
-    <Text strong style={{ fontSize: 14, color: '#1677ff' }}>{`${value} ${unit}`}</Text>
+    <Text strong style={{ fontSize: 14, color: BRAND.primary }}>{`${value} ${unit}`}</Text>
   );
 
   const dash = <Text type="secondary">—</Text>;

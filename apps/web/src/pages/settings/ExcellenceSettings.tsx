@@ -4,6 +4,7 @@ import { Alert, Card, InputNumber, Button, Typography, Space, message, Row, Col,
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
+import { BRAND } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -84,7 +85,7 @@ const ExcellenceSettings: React.FC = () => {
     0: { style: { fontSize: 11 }, label: '0' },
     100: { style: { fontSize: 11 }, label: '100' },
   };
-  lineMarks[midThreshold] = { style: { fontSize: 11, color: '#1677ff', fontWeight: 600 }, label: String(midThreshold) };
+  lineMarks[midThreshold] = { style: { fontSize: 11, color: BRAND.primary, fontWeight: 600 }, label: String(midThreshold) };
   lineMarks[topThreshold] = { style: { fontSize: 11, color: '#d4a017', fontWeight: 600 }, label: String(topThreshold) };
 
   const save = async () => {
@@ -227,7 +228,7 @@ const ExcellenceSettings: React.FC = () => {
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', background: '#E8F1FF', borderRadius: 8, padding: '6px 4px' }}>
                   <div style={{ fontSize: 12, color: '#64748B' }}>中等马</div>
-                  <div style={{ fontWeight: 700, color: '#1677ff' }}>{midThreshold} – {Math.max(midThreshold, topThreshold - 1)} 分</div>
+                  <div style={{ fontWeight: 700, color: BRAND.primary }}>{midThreshold} – {Math.max(midThreshold, topThreshold - 1)} 分</div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', background: '#FFF7E6', borderRadius: 8, padding: '6px 4px' }}>
                   <div style={{ fontSize: 12, color: '#64748B' }}>上等马</div>

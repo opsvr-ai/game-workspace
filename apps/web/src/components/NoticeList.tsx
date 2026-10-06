@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Typography } from 'antd';
 import { useNotifStore, type NoticeItem } from '../stores/notifStore';
+import { BRAND } from '../styles/tokens';
 
 interface Props {
   onClose: () => void;
@@ -104,7 +105,7 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
                   </div>
                 ) : null}
                 {it.href ? (
-                  <div style={{ fontSize: 11, color: '#2563EB', marginTop: 4 }}>查看 ›</div>
+                  <div style={{ fontSize: 11, color: BRAND.primary, marginTop: 4 }}>查看 ›</div>
                 ) : null}
               </div>
             </div>

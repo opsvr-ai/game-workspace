@@ -1,6 +1,7 @@
 // craftsman-ignore: TS002
 import React, { memo } from 'react';
 import { Empty } from 'antd';
+import { BRAND } from '../styles/tokens';
 
 interface EmptyStateProps {
   description?: string;
@@ -49,7 +50,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         <button
           onClick={action.onClick}
           style={{
-            background: '#1677ff',
+            background: BRAND.primary,
             color: '#fff',
             border: 'none',
             borderRadius: 6,

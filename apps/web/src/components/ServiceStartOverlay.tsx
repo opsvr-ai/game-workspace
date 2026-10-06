@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Progress } from 'antd';
+import { BRAND } from '../styles/tokens';
 
 // 服务开始后的「进入接单中，用心服务」过渡：粗进度条走满后自动进入接单状态提示。
 const ServiceStartOverlay: React.FC = () => {
@@ -57,7 +58,7 @@ const ServiceStartOverlay: React.FC = () => {
         strokeWidth={18}
         status={percent >= 100 ? 'success' : 'active'}
         showInfo={false}
-        strokeColor={{ from: '#52c41a', to: '#1677ff' }}
+        strokeColor={{ from: '#52c41a', to: BRAND.primary }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: percent >= 100 ? '#52c41a' : '#888' }}>
         {percent >= 100 ? '✅ 已切换到接单状态' : '正在进入接单状态…'}

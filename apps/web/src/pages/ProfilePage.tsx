@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
 import { compressImage } from '../utils/imageCompress';
+import { BRAND } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 
@@ -132,7 +133,7 @@ const ProfilePage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={{
             width: 72, height: 72, borderRadius: '50%',
-            background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
+            background: avatarUrl ? `url(${avatarUrl}) center/cover` : BRAND.primary,
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             {!avatarUrl && (

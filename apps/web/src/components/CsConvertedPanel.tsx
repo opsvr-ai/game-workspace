@@ -19,6 +19,7 @@ import { orderMatchesSearch } from '../utils/orderPool';
 import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
 import PasteImageBox from './PasteImageBox';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -156,7 +157,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
   const stageOf = (r: any): { text: string; color: string } => {
     switch (r.contactStatus) {
       case 'dispatched':
-        return { text: '已派单', color: '#2563EB' };
+        return { text: '已派单', color: BRAND.primary };
       case 'agreed':
         return { text: '客户已同意', color: '#15803D' };
       case 'added':
@@ -167,7 +168,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         return { text: '待添加', color: '#B45309' };
       default:
         // 没标过添加结果、但已经派出去被陪玩接了的老数据
-        return r._converted ? { text: '已派单', color: '#2563EB' } : { text: '待添加', color: '#B45309' };
+        return r._converted ? { text: '已派单', color: BRAND.primary } : { text: '待添加', color: '#B45309' };
     }
   };
 

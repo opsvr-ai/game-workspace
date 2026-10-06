@@ -6,6 +6,7 @@ import { configApi } from '../../api/config';
 import { financeApi } from '../../api/finance';
 import { extractErrorMessage } from '../../utils/error-handler';
 import { Link } from 'react-router-dom';
+import { BRAND } from '../../styles/tokens';
 
 const { Title, Text } = Typography;
 
@@ -28,7 +29,7 @@ const Field = ({ label, unit, value, onChange, step = 1, min = 0, max, hint }: {
       value={value}
       onChange={(v) => onChange(Number(v ?? 0))}
       style={{ width: 150 }}
-      suffix={<Text strong style={{ color: '#1677ff' }}>{unit}</Text>}
+      suffix={<Text strong style={{ color: BRAND.primary }}>{unit}</Text>}
     />
     {hint && <Text type="secondary">{hint}</Text>}
   </div>
@@ -184,7 +185,7 @@ const CsSettingsPage: React.FC = () => {
         <Text type="secondary">
           客服的提成在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
           桥接提成按本月单价阶梯算（跑得越多单价越高），跑不够只是单价停在第一档，不扣底薪、不打折提成。
-          输入框里的蓝色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
+          输入框里的紫色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
         </Text>
       </div>
 
@@ -208,7 +209,7 @@ const CsSettingsPage: React.FC = () => {
             <Field label="线下保底" unit="元/单" value={getCfg('commission.cs_offline_floor_cents', 200) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_floor_cents', Math.round(v * 100))} hint="每单提成不足时按保底发" />
             <Field label="线下每单封顶" unit="元/单" value={getCfg('commission.cs_offline_per_order_cap_cents', 0) / 100} step={0.5} onChange={(v) => setCfg('commission.cs_offline_per_order_cap_cents', Math.round(v * 100))} hint="每单线下提成上限，0=不封顶" />
             <Divider style={{ margin: '8px 0' }} />
-            <Text strong style={{ color: '#1677ff' }}>桥接</Text>
+            <Text strong style={{ color: BRAND.primary }}>桥接</Text>
             <Field label="桥接每单提成" unit="元/单" value={getCfg('commission.cs_bridge_per_order_yuan', 1)} step={0.5} onChange={(v) => setCfg('commission.cs_bridge_per_order_yuan', v)} hint="单陪算1单，双陪算2单" />
             <Field label="桥接最低单数" unit="单/月" value={getCfg('commission.cs_bridge_min_threshold', 130)} step={5} onChange={(v) => setCfg('commission.cs_bridge_min_threshold', v)} hint="低于此数按上面的「桥接每单提成」单价算，不扣底薪" />
             <Field label="3元/单门槛" unit="单/月" value={getCfg('commission.cs_bridge_tier3_threshold', 182)} step={5} onChange={(v) => setCfg('commission.cs_bridge_tier3_threshold', v)} hint="达到后按 3 元/单" />

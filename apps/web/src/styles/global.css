@@ -163,7 +163,7 @@ body {
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(0, 0, 0, 0.02);
   border-left: 3px solid;
-  border-left-color: #2563eb;
+  border-left-color: var(--color-brand);
   transition:
     box-shadow 0.25s,
     transform 0.25s;
@@ -189,7 +189,7 @@ body {
   color: #1e293b;
 }
 .stat-card .stat-value.blue {
-  color: #2563eb;
+  color: var(--color-brand);
 }
 .stat-card .stat-value.green {
   color: #00e676;
@@ -304,31 +304,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
+  background: #f5f7fb;
   position: relative;
+  overflow: hidden;
 }
 
+/* 品牌色晕染：跟登录后的 .app-shell 是同一套底，进出不跳色 */
 .login-wrapper::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  background:
+    radial-gradient(900px 460px at 12% 6%, rgba(124, 77, 255, 0.18), transparent 60%),
+    radial-gradient(760px 420px at 88% 14%, rgba(0, 229, 255, 0.16), transparent 58%),
+    linear-gradient(180deg, #f7f5ff 0%, #f2f4fb 100%);
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: saturate(180%) blur(30px);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 24px;
   padding: 48px 40px;
   width: 400px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.04);
+    0 20px 48px -24px rgba(76, 46, 160, 0.35),
+    0 2px 10px rgba(15, 23, 42, 0.05);
   position: relative;
   overflow: hidden;
   z-index: 1;
+  animation: fade-in 0.35s ease-out;
 }
 
 .login-card::before {
@@ -337,7 +343,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: var(--color-gradient-brand);
 }
 
@@ -355,15 +361,23 @@ body {
 .login-card .subtitle {
   text-align: center;
   font-size: 13px;
-  color: #94a3b8;
-  margin-bottom: 36px;
+  color: var(--color-text-tertiary, #94a3b8);
+  margin-bottom: 32px;
   letter-spacing: 0.3px;
 }
+/* 品牌标：把 ⚡ 放进品牌紫渐变圆角块里，比一个裸 emoji 更像「一个产品的 logo」 */
 .login-card .brand-icon {
-  display: block;
-  text-align: center;
-  font-size: 40px;
-  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  font-size: 28px;
+  line-height: 1;
+  border-radius: 18px;
+  background: var(--grad-brand, linear-gradient(135deg, #7c4dff 0%, #5b7cfa 100%));
+  box-shadow: 0 12px 24px -12px rgba(124, 77, 255, 0.9);
 }
 
 /* ── 表头风格化 ── */
@@ -508,7 +522,7 @@ body {
 
 /* ── 订单池卡片悬浮 ── */
 .pool-card:hover {
-  border-color: #2563eb !important;
+  border-color: var(--color-brand) !important;
   box-shadow: 0 2px 12px rgba(0, 212, 255, 0.1) !important;
   transform: translateY(-1px);
 }
@@ -771,7 +785,7 @@ body {
 
 /* ── 2. 顶栏：品牌渐变 + 一条发光分割线 ── */
 .app-header {
-  background: linear-gradient(90deg, #0b1024 0%, #1b1246 55%, #0b1024 100%) !important;
+  background: var(--grad-header, linear-gradient(90deg, #0b1024 0%, #1b1246 55%, #0b1024 100%)) !important;
   border-bottom: 1px solid rgba(124, 77, 255, 0.35) !important;
   box-shadow: 0 6px 24px -14px rgba(124, 77, 255, 0.9);
 }
@@ -795,7 +809,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 2px;
-  background: linear-gradient(135deg, #00e5ff, #7c4dff);
+  background: var(--grad-accent-bar, linear-gradient(135deg, #00e5ff, #7c4dff));
 }
 
 /* ── 3. 内容区：更立体的白卡 ── */
@@ -841,7 +855,7 @@ body {
   width: 3px;
   height: 15px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
 }
 
 /* ── 5. 表格：渐变表头 + 分隔线 + 悬浮行高亮，行列都更好读 ── */
@@ -909,17 +923,17 @@ body {
 
 /* ── 6. 按钮：主按钮走品牌渐变，次按钮悬浮变紫 ── */
 .ant-btn-primary:not(:disabled) {
-  background: linear-gradient(135deg, #7c4dff 0%, #5b7cfa 100%);
+  background: var(--grad-brand);
   border-color: transparent;
   box-shadow: 0 6px 16px -8px rgba(124, 77, 255, 0.95);
 }
 .ant-btn-primary:not(:disabled):hover {
-  background: linear-gradient(135deg, #8b62ff 0%, #6d8bff 100%) !important;
+  background: var(--grad-brand-hover) !important;
   border-color: transparent !important;
   box-shadow: 0 8px 20px -8px rgba(124, 77, 255, 1);
 }
 .ant-btn-primary:not(:disabled):active {
-  background: linear-gradient(135deg, #6a3df0 0%, #4a6bf0 100%);
+  background: var(--grad-brand-active);
 }
 
 /* ── 7. 标签 / 徽标：一律做成胶囊，颜色更柔和 ── */
@@ -979,7 +993,7 @@ body {
 }
 .ant-layout-sider .ant-menu-item-selected,
 .ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title {
-  background: linear-gradient(90deg, rgba(124, 77, 255, 0.42), rgba(0, 229, 255, 0.14)) !important;
+  background: var(--grad-sider-selected, linear-gradient(90deg, rgba(124, 77, 255, 0.42), rgba(0, 229, 255, 0.14))) !important;
   border-radius: 10px;
   box-shadow: inset 0 0 0 1px rgba(124, 77, 255, 0.38);
 }
@@ -992,7 +1006,7 @@ body {
   bottom: 7px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
 }
 .ant-layout-sider .ant-menu-item-selected .ant-menu-title-content,
@@ -1050,7 +1064,7 @@ body {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #00e5ff, #7c4dff);
+  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
   opacity: 0.9;
 }
 .stat-card .stat-value {

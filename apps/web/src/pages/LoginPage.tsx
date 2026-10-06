@@ -9,6 +9,7 @@ import { reportClientError, diagnoseUploadPath } from '../api/diagnostics';
 import { compressImage } from '../utils/imageCompress';
 import { restoreClientSession } from '../utils/sessionRestore';
 import PasteImageBox from '../components/PasteImageBox';
+import { BRAND, SEMANTIC, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -474,7 +475,7 @@ const LoginPage: React.FC = () => {
       <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
-        <div className="subtitle">陪玩管理系统 · 前端 {webVersion}</div>
+        <div className="subtitle">一站式陪玩派单管理 · 前端 {webVersion}</div>
 
         {/* 被别的电脑顶号（客服 / 管理）：不自动登录，只提示，等人手动登。 */}
         {kickedOut && (
@@ -634,20 +635,17 @@ const LoginPage: React.FC = () => {
                   fontWeight: 600,
                   borderRadius: 10,
                   marginTop: 4,
-                  background: 'var(--color-gradient-brand)',
-                  border: 'none',
-                  color: '#FFF',
-                  boxShadow: '0 2px 8px rgba(123,97,255,0.3)',
+                  boxShadow: '0 8px 18px -10px rgba(124,77,255,0.9)',
                 }}
               >
                 登 录
               </Button>
             </div>
             <div style={{ marginTop: 16, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Button type="link" onClick={() => { setMode('register'); setUsername(''); setPassword(''); }} style={{ color: '#2563EB', fontSize: 13 }}>
+              <Button type="link" onClick={() => { setMode('register'); setUsername(''); setPassword(''); }} style={{ color: BRAND.primary, fontSize: 13 }}>
                 注册新账号 →
               </Button>
-              <Text style={{ color: '#94A3B8', fontSize: 11 }}>工作室店长 / 客服 / 陪玩均可注册</Text>
+              <Text style={{ color: TEXT.tertiary, fontSize: 11 }}>工作室店长 / 客服 / 陪玩均可注册</Text>
             </div>
           </>
         ) : (
@@ -669,7 +667,7 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => handleIdNumberChange(e.target.value)}
                 status={idNumberError ? 'error' : undefined}
               />
-              <div style={{ color: '#FF4757', fontSize: 12, marginTop: -8, marginBottom: 8, textAlign: 'left' }}>
+              <div style={{ color: SEMANTIC.danger, fontSize: 12, marginTop: -8, marginBottom: 8, textAlign: 'left' }}>
                 {idNumberError || '\u00A0'}
               </div>
               <Input size="large" placeholder="手机号 *" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -723,7 +721,7 @@ const LoginPage: React.FC = () => {
                         </Button>
                       </Upload>
                     </PasteImageBox>
-                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>选填</Text>
+                    <Text style={{ color: TEXT.tertiary, fontSize: 11 }}>选填</Text>
                   </div>
                 </>
               )}
@@ -773,7 +771,7 @@ const LoginPage: React.FC = () => {
                     setSkipPhotos(true);
                     void handleRegister(true);
                   }}
-                  style={{ color: '#94A3B8', fontSize: 12, padding: 0, height: 20 }}
+                  style={{ color: TEXT.tertiary, fontSize: 12, padding: 0, height: 20 }}
                 >
                   照片一直传不上去？先不带照片提交（店长稍后补传）
                 </Button>
@@ -790,16 +788,13 @@ const LoginPage: React.FC = () => {
                   fontWeight: 600,
                   borderRadius: 10,
                   marginTop: 4,
-                  background: 'var(--color-gradient-brand)',
-                  border: 'none',
-                  color: '#FFF',
                 }}
               >
                 提交注册
               </Button>
             </div>
             <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <Button type="link" onClick={() => setMode('login')} style={{ color: '#94A3B8', fontSize: 13 }}>
+              <Button type="link" onClick={() => setMode('login')} style={{ color: TEXT.tertiary, fontSize: 13 }}>
                 ← 返回登录
               </Button>
             </div>
@@ -846,13 +841,13 @@ const LoginPage: React.FC = () => {
           <a
             href={`/api/agent/download/exe?v=${CLIENT_VERSION}`}
             download
-            style={{ color: '#2563EB', fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
+            style={{ color: BRAND.primary, fontSize: 13, textDecoration: 'none', fontWeight: 500 }}
           >
             📥 下载 Windows 客户端
           </a>
         </div>
         <div style={{ marginTop: 8, textAlign: 'center' }}>
-          <Text style={{ color: '#94A3B8', fontSize: 12 }}>v2.1 · 514ba7c</Text>
+          <Text style={{ color: TEXT.tertiary, fontSize: 12 }}>v2.1 · 514ba7c</Text>
         </div>
       </div>
     </div>

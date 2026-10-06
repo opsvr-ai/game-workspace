@@ -10,6 +10,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import CardSkeleton from '../../components/CardSkeleton';
 import EmptyState from '../../components/EmptyState';
 import DueFollowUpBanner from '../../components/DueFollowUpBanner';
+import { BRAND } from '../../styles/tokens';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -145,7 +146,7 @@ const RevenueDashboard: React.FC = () => {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={2} />
               <YAxis tickFormatter={(v) => `¥${v}`} width={60} />
               <Tooltip formatter={(v: any) => `¥${Number(v).toLocaleString()}`} />
-              <Bar dataKey="revenue" fill="#1677ff" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="revenue" fill={BRAND.primary} radius={[2, 2, 0, 0]}>
                 <LabelList dataKey="revenue" position="top" formatter={(v: any) => `¥${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
               </Bar>
             </BarChart>
@@ -178,7 +179,7 @@ const RevenueDashboard: React.FC = () => {
                   <XAxis type="number" tickFormatter={(v) => `¥${v}`} />
                   <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v: any) => `¥${v.toLocaleString()}`} />
-                  <Bar dataKey="revenue" fill="#1677ff" radius={[0, 4, 4, 0]} cursor="pointer"
+                  <Bar dataKey="revenue" fill={BRAND.primary} radius={[0, 4, 4, 0]} cursor="pointer"
                     onClick={(d: any) => openDetail(d.companionId)}>
                     <LabelList dataKey="revenue" position="right" formatter={(v: any) => `¥${Number(v).toFixed(0)}`} style={{ fontSize: 10 }} />
                   </Bar>

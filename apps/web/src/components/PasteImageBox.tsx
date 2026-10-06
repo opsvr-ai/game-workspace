@@ -2,6 +2,7 @@
 import React from 'react';
 import { message } from 'antd';
 import { getImagesFromClipboard, isImageFile } from '../utils/clipboardImage';
+import { BRAND } from '../styles/tokens';
 
 interface Props {
   /** 只收一张图时用（旧调用方，例如收款码 / 二维码）。 */
@@ -160,7 +161,7 @@ const PasteImageBox: React.FC<Props> = ({
       style={{
         outline: 'none',
         cursor: disabled ? 'not-allowed' : 'text',
-        border: borderless ? 'none' : `1px dashed ${dragging ? '#1677ff' : '#d9d9d9'}`,
+        border: borderless ? 'none' : `1px dashed ${dragging ? BRAND.primary : '#d9d9d9'}`,
         borderRadius: 8,
         padding: borderless ? 0 : '10px 12px',
         background: borderless ? 'transparent' : dragging ? '#e6f4ff' : '#fafafa',
@@ -170,7 +171,7 @@ const PasteImageBox: React.FC<Props> = ({
     >
       {children}
       {showHint && (
-        <div style={{ marginTop: children ? 6 : 0, fontSize: 12, color: dragging ? '#1677ff' : '#888' }}>
+        <div style={{ marginTop: children ? 6 : 0, fontSize: 12, color: dragging ? BRAND.primary : '#888' }}>
           {hint ??
             (dragging ? '松手即可上传' : '点一下这里，直接 Ctrl+V 粘贴截图（支持一次多张，也可以把图片拖进来）')}
         </div>

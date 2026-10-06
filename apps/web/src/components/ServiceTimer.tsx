@@ -1,5 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
+import { BRAND } from '../styles/tokens';
 
 interface Props {
   startedAt?: string | Date | null;
@@ -27,7 +28,7 @@ const ServiceTimer: React.FC<Props> = ({ startedAt }) => {
     : `${m}:${String(s).padStart(2, '0')}`;
 
   return (
-    <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: '#1677ff' }}>
+    <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: BRAND.primary }}>
       ⏱ {text}
     </span>
   );

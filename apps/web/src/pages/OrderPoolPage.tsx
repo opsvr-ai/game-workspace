@@ -29,6 +29,7 @@ import {
   DATA_TAG_FONT_SIZE,
 } from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -670,7 +671,7 @@ const OrderPoolPage: React.FC = () => {
                           width: 36,
                           height: 36,
                           borderRadius: '50%',
-                          background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#2563EB',
+                          background: avatarUrl ? `url(${avatarUrl}) center/cover` : BRAND.primary,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -727,7 +728,7 @@ const OrderPoolPage: React.FC = () => {
                         <Button
                           size="small"
                           type="text"
-                          style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: '#2563EB', height: 22, width: 22, flexShrink: 0 }}
+                          style={{ padding: 0, fontSize: DATA_FONT_SIZE, color: BRAND.primary, height: 22, width: 22, flexShrink: 0 }}
                           onClick={(e) => {
                             e.stopPropagation();
                             openCompanionChat(c);
@@ -745,7 +746,7 @@ const OrderPoolPage: React.FC = () => {
                           <span
                             style={{
                               fontSize: DATA_SUB_FONT_SIZE,
-                              color: '#1677ff',
+                              color: BRAND.primary,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',

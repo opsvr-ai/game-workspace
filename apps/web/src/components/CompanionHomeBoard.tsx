@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React from 'react';
 import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -106,7 +107,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       />
       {/* ① 关键数字 */}
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
-        <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint="#1677FF" /></Col>
+        <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint={BRAND.primary} /></Col>
         <Col xs={12} md={4}><Kpi label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
         <Col xs={12} md={4}><Kpi label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierMeta.color }}>{tierMeta.label}</span>} tint={tierMeta.color} /></Col>
         <Col xs={12} md={4}>
@@ -136,7 +137,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
         {/* ② 我的 KPI */}
         <Col xs={24} lg={12}>
           <Card size="small" title="📈 我的 KPI（达标自动加分）" style={{ height: '100%' }}>
-            <Bar label="新客首单成功率" percent={Number(excellence?.newRate ?? 0)} text={pct(excellence?.newRate)} color="#2563EB" />
+            <Bar label="新客首单成功率" percent={Number(excellence?.newRate ?? 0)} text={pct(excellence?.newRate)} color={BRAND.primary} />
             <Bar label="续单率" percent={Number(excellence?.renewRate ?? 0)} text={pct(excellence?.renewRate)} color="#16A34A" />
             <Bar label="复购率" percent={Number(excellence?.repurchaseRate ?? 0)} text={pct(excellence?.repurchaseRate)} color="#722ED1" />
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />

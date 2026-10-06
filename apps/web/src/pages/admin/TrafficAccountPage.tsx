@@ -19,6 +19,7 @@ import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
+import { BRAND } from '../../styles/tokens';
 
 const { Text, Title } = Typography;
 const TYPE_COLORS: Record<string, string> = {
@@ -1024,7 +1025,7 @@ const TrafficAccountPage: React.FC = () => {
             <Divider style={{ margin: '8px 0' }} />
             {analysis.aiAdvice && (
               <>
-                <Text strong style={{ color: '#1677ff' }}>AI 建议</Text>
+                <Text strong style={{ color: BRAND.primary }}>AI 建议</Text>
                 <div style={{ whiteSpace: 'pre-wrap', background: '#fff', border: '1px solid #e6f4ff', borderRadius: 6, padding: 8, marginTop: 6 }}>
                   {analysis.aiAdvice}
                 </div>
@@ -1124,7 +1125,7 @@ const TrafficAccountPage: React.FC = () => {
                     </Text>
                     {planResult?.rows?.length > 0 && (
                       <div style={{ marginTop: 8 }}>
-                        <Text strong style={{ color: '#1677ff' }}>最近已生成 {planResult.rows.length} 条计划</Text>
+                        <Text strong style={{ color: BRAND.primary }}>最近已生成 {planResult.rows.length} 条计划</Text>
                         <Button size="small" style={{ marginLeft: 8 }} onClick={copyPlanTable} icon={<CopyOutlined />}>复制整表</Button>
                       </div>
                     )}

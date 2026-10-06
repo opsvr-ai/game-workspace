@@ -21,6 +21,7 @@ import {
   CELL_SUB_TEXT,
   TABLE_STYLE,
 } from '../constants/datasetColumns';
+import { BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -381,7 +382,7 @@ const CompanionsPage: React.FC = () => {
                   width: 24,
                   height: 24,
                   borderRadius: '50%',
-                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : '#1677ff',
+                  background: avatarUrl ? `url(${avatarUrl}) center/cover` : BRAND.primary,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -760,10 +761,10 @@ const CompanionsPage: React.FC = () => {
                     fontSize: 12,
                     fontWeight: statusFilter === tab.value ? 600 : 400,
                     border: statusFilter === tab.value
-                      ? '1px solid #2563EB'
+                      ? `1px solid ${BRAND.primary}`
                       : '1px solid #E2E8F0',
                     background: statusFilter === tab.value ? '#EFF6FF' : '#FFFFFF',
-                    color: statusFilter === tab.value ? '#2563EB' : '#64748B',
+                    color: statusFilter === tab.value ? BRAND.primary : '#64748B',
                   }}
                   onClick={() => setStatusFilter(tab.value)}
                 >
