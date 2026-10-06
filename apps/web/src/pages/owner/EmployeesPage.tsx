@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import PageHeader from '../../components/PageHeader';
+import { SEMANTIC } from '../../styles/tokens';
 import {
   Table,
   Button,
@@ -518,18 +520,10 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text strong style={{ fontSize: 16 }}>
-          {pageLabel}
-        </Text>
-        <Space>
+      <PageHeader
+        title={pageLabel}
+        extra={
+          <Space>
           {user?.role === UserRole.OWNER && (
           <Select
             placeholder="选择工作室"
@@ -578,15 +572,16 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
             新建员工
           </Button>
           )}
-        </Space>
-      </div>
+          </Space>
+        }
+      />
 
       {error && (
         <div
           style={{
-            color: '#ff4d4f',
-            background: '#fff2f0',
-            border: '1px solid #ffccc7',
+            color: SEMANTIC.danger,
+            background: SEMANTIC.dangerSoft,
+            border: '1px solid ' + SEMANTIC.dangerBorder,
             borderRadius: 6,
             padding: '8px 12px',
             marginBottom: 12,

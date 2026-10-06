@@ -5,9 +5,10 @@ import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { payrollApi } from '../../api/payroll';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
+import PageHeader from '../../components/PageHeader';
 import { BG, BORDER, BRAND } from '../../styles/tokens';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /**
  * 工资规则（2026-09-22 合并，老板「一样的功能全部放在一起，要不然乱七八糟」）
@@ -240,18 +241,16 @@ const PayrollPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>工资规则</Title>
-        <Text type="secondary">
-          工资 = 基本工资 + 提成 − 考勤扣款。店长 / 客服的底薪、月休与考勤扣款全在这一页；
-          提成（四个人分成）在「设置 → 系统配置 → 利润分成（分账规则）」里设。
-        </Text>
-      </div>
-
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>刷新</Button>
-        <Button type="primary" icon={<SaveOutlined />} onClick={save} loading={saving}>保存全部</Button>
-      </Space>
+      <PageHeader
+        title="工资规则"
+        subtitle="工资 = 基本工资 + 提成 − 考勤扣款。店长 / 客服的底薪、月休与考勤扣款全在这一页；提成（四个人分成）在「设置 → 系统配置 → 利润分成（分账规则）」里设。"
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<SaveOutlined />} onClick={save} loading={saving}>保存全部</Button>
+          </Space>
+        }
+      />
 
       <Card size="small" title="💰 各岗位工资规则" style={{ marginBottom: 16 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
