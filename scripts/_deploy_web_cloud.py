@@ -13,8 +13,10 @@ if not PASSWORD:
     raise SystemExit('缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
                          '口令不再写死在脚本里（2026-10-03 清理明文凭证）。')
 LOCAL_DIST = r"E:\source_code\game-workspace\apps\web\dist"
-REMOTE_DIR = "/home/ubuntu/chunlv/apps/server/web-dist"
-TMP_TGZ = "/tmp/chunlv-web-dist.tar.gz"
+# 2026-10-06 起服务端（含它托管的网页）都归 root：/apps/server/game-workspace，
+# 细节见 _deploy_server_cloud.py 顶部说明（ubuntu + 免密 sudo 落地）
+REMOTE_DIR = "/apps/server/game-workspace/apps/server/web-dist"
+TMP_TGZ = "/home/ubuntu/chunlv-web-dist.tar.gz"
 
 
 def make_tgz():
@@ -46,10 +48,12 @@ def main():
     os.remove(local_tgz)
 
     cmd = (
-        f"rm -rf {REMOTE_DIR}/* && "
+        f"sudo -n bash -c 'rm -rf {REMOTE_DIR}/* && "
         f"mkdir -p {REMOTE_DIR} && "
-        f"tar -xzf {TMP_TGZ} -C {REMOTE_DIR} && "
-        f"ls -la {REMOTE_DIR} && echo WEB_DEPLOY_OK"
+        f"tar -xzf {TMP_TGZ} -C {REMOTE_DIR}' && "
+        f"ls -la {REMOTE_DIR} && "
+        f"curl -s -o /dev/null -w 'web=%{{http_code}}\\n' http://127.0.0.1:3001/ && "
+        f"echo WEB_DEPLOY_OK"
     )
     _stdin, stdout, stderr = c.exec_command(cmd, timeout=120)
     out = stdout.read().decode("utf-8", "replace")

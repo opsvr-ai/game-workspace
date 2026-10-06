@@ -22,7 +22,9 @@ if not PASSWORD:
     raise SystemExit('缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
                          '口令不再写死在脚本里（2026-10-03 清理明文凭证）。')
 LOCAL = "apps/watchdog-service/SystemHelper.exe"
-REMOTE = "/home/ubuntu/chunlv/uploads/SystemHelper.exe"
+REMOTE = "/apps/server/game-workspace/uploads/SystemHelper.exe"
+# uploads/ 是 root 所有：SFTP（ubuntu 登录）写不进去，先落到 ubuntu 的临时路径再 sudo 改名
+TMP = "/home/ubuntu/chunlv-SystemHelper.exe.new"
 MARKER = b"CHUNLV_WATCHDOG_BUILD="
 
 def check_old_parser_readable(data: bytes) -> int:
@@ -58,14 +60,14 @@ def main() -> int:
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     c.connect(HOST, username=USER, password=PASSWORD, look_for_keys=False, allow_agent=False, timeout=30)
     s = c.open_sftp()
-    s.put(LOCAL, REMOTE + ".new")
+    s.put(LOCAL, TMP)
     s.close()
 
     def run(cmd):
         _i, o, e = c.exec_command(cmd, timeout=180)
         return o.read().decode(errors="replace").strip(), e.read().decode(errors="replace").strip()
 
-    print(run("md5sum %s.new && sudo -n mv -f %s.new %s && md5sum %s && ls -la %s" % (REMOTE, REMOTE, REMOTE, REMOTE, REMOTE)))
+    print(run("md5sum %s && sudo -n mv -f %s %s && md5sum %s && ls -la %s" % (TMP, TMP, REMOTE, REMOTE, REMOTE)))
     print(run("curl -s -o /dev/null -w '%{http_code} %{size_download}' http://127.0.0.1:3001/uploads/SystemHelper.exe"))
     c.close()
     return 0

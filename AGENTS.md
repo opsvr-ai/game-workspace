@@ -21,6 +21,13 @@
    服务端 `python scripts\_deploy_server_cloud.py`。
    服务端改完即全端生效（客户端直连云服务器，不用等发版）；部署后按老规矩自检（dist/schema 指纹、
    pm2 uptime 对齐、版本键回读、重启后无 error/5xx）。
+   > **服务端现在跑在哪（2026-10-06 起）**：**root** + `/apps/server/game-workspace`（腾讯云 `1.117.229.36`）。
+   > pm2 是 root 那份（命令要带 `sudo env PM2_HOME=/root/.pm2 pm2 ...`），启动入口是
+   > `apps/server/start-server.sh`（内部 `node --env-file=.env` 显式读 `.env`）——
+   > **别再直接 `pm2 start dist/main.js`**，那样不读 `.env`，会 crash loop 报 `JWT_SECRET not set`。
+   > root 的 SSH 口令登录是**关的**，脚本统一「ubuntu 登录 + 传 ubuntu 可写临时路径 + `sudo` 装进 root 目录」。
+   > 数据库 / Redis 容器**没搬**，仍然 bind 老目录 `/home/ubuntu/chunlv/data`，千万别动。
+   > 细节见 `docs/DEPLOYMENT.md` 3.4.1.1。
    **唯一例外 —— 必须问：** 凡是要**在终端上更新程序**的动作，例如
    `python scripts\_publish_client.py <版本号>`（陪玩端）、`python scripts\_publish_cs_client.py <版本号>`（客服端）、
    整包换装 / 强制升级 / 推送安装包，**都要先问老板「要不要现在自动更新」**，得到许可才发；

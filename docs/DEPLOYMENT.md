@@ -216,14 +216,39 @@ pnpm db:migrate
 
 ```bash
 # 1) 把新的 schema 传上去
-scp apps/server/prisma/schema.prisma ubuntu@1.117.229.36:/home/ubuntu/chunlv/apps/server/prisma/schema.prisma
+scp apps/server/prisma/schema.prisma ubuntu@1.117.229.36:/home/ubuntu/chunlv-schema.prisma
+ssh ubuntu@1.117.229.36 'sudo install -m 644 /home/ubuntu/chunlv-schema.prisma /apps/server/game-workspace/apps/server/prisma/schema.prisma'
 
 # 2) 在服务器上重新生成客户端（否则 prisma.<新模型> 是 undefined）
-ssh ubuntu@1.117.229.36 'cd /home/ubuntu/chunlv/apps/server && ./node_modules/.bin/prisma generate'
+ssh ubuntu@1.117.229.36 'cd /apps/server/game-workspace/apps/server && sudo ./node_modules/.bin/prisma generate'
 
 # 3) 重启服务端
-ssh ubuntu@1.117.229.36 'pm2 restart chunlv-server --update-env'
+ssh ubuntu@1.117.229.36 'sudo env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env'
 ```
+
+### 3.4.1.1 服务端跑在哪：root + `/apps/server/game-workspace`（2026-10-06 起）
+
+以前服务端跑在 `ubuntu` 名下 `/home/ubuntu/chunlv`。2026-10-06 起改成 **root 运行、代码在
+`/apps/server/game-workspace`**（腾讯云 `1.117.229.36`）。要点：
+
+- **上线方式**：root 的 SSH 口令登录是**关的**（实测 `AuthenticationException`），所以一律用
+  `ubuntu` 登录 + 免密 `sudo` 落地。发版脚本已经按这个改好
+  （SFTP 先落到 ubuntu 可写的临时路径，再 `sudo` 装进 root 目录）。
+- **进程管理**：pm2 是 root 那份，命令要带 `sudo env PM2_HOME=/root/.pm2 pm2 ...`；
+  开机自启走 `pm2-root.service`（老的 `pm2-ubuntu.service` 已经不会再拉起 chunlv-server）。
+- **启动入口**：`/apps/server/game-workspace/apps/server/start-server.sh`，
+  它用 `node --env-file=.env` **显式**加载 `.env`。
+  > 为什么要显式：以前是 `@prisma/client` 被 import 时顺手 dotenv 读 `.env`（cwd 相对），
+  > 换到新目录后这条路失效 —— 直接 `pm2 start dist/main.js` 会 crash loop，
+  > 报 `FATAL: JWT_SECRET environment variable is not set`。
+- **数据目录**：`uploads/`、`onboard-reports/`、`client-errors/` 跟着代码搬到了新目录下
+  （都在仓库根，按 app 里 `process.cwd()/../../` 的算法解析）；`.env` 在
+  `apps/server/.env`（cwd 相对，别只搬根目录那份）。
+  但**数据库和 Redis 没搬**：两个容器仍然 bind `/home/ubuntu/chunlv/data/{postgres,redis}`，
+  那个目录千万别动，否则库就没了。
+- **回滚**：老目录 `/home/ubuntu/chunlv` 和它的 `dist` 都还在。先
+  `sudo env PM2_HOME=/root/.pm2 pm2 stop chunlv-server`，再把 `uploads` 等目录移回去，
+  然后 `sudo -u ubuntu -H env PM2_HOME=/home/ubuntu/.pm2 pm2 start chunlv-server`。
 
 建表语句本身按本项目的老路子是**手工在库里执行**（`apps/server/prisma/migrations/<时间戳>_xxx/migration.sql`
 里的 SQL 用 `psql` 跑一遍；线上 `_prisma_migrations` 没有登记，不用 `migrate deploy`）。
@@ -332,20 +357,21 @@ pm2 start apps/server/dist/main.js \
   --cwd /data/project/game-workspace/apps/server
 
 # 查看运行状态
-pm2 status
+# 注意：服务端 2026-10-06 起归 root 的 pm2 管，命令前要加 sudo env PM2_HOME=/root/.pm2
+sudo env PM2_HOME=/root/.pm2 pm2 status
 
 # 查看日志
-pm2 logs chunlv-server
+sudo env PM2_HOME=/root/.pm2 pm2 logs chunlv-server
 
-# 设置开机自启
-pm2 startup
-pm2 save
+# 设置开机自启（root 的 pm2；已经配好 pm2-root.service，不用重复做）
+sudo env PM2_HOME=/root/.pm2 pm2 startup
+sudo env PM2_HOME=/root/.pm2 pm2 save
 
 # 常用操作
-pm2 restart chunlv-server   # 重启
-pm2 stop chunlv-server      # 停止
-pm2 delete chunvl-server    # 删除（会移除进程）
-pm2 reload chunlv-server    # 零停机重载（需集群模式）
+sudo env PM2_HOME=/root/.pm2 pm2 restart chunlv-server   # 重启
+sudo env PM2_HOME=/root/.pm2 pm2 stop chunlv-server      # 停止
+sudo env PM2_HOME=/root/.pm2 pm2 delete chunlv-server    # 删除（会移除进程）
+sudo env PM2_HOME=/root/.pm2 pm2 reload chunlv-server    # 零停机重载（需集群模式）
 ```
 
 #### 4.1.4 多实例集群模式（高负载）
@@ -1504,10 +1530,10 @@ docker compose -f docker/docker-compose.yaml logs -f     # 查看数据库日志
 docker exec -it chunlv-postgres psql -U postgres chunlv # 进入 psql
 
 # === 应用 ===
-pm2 status                          # 查看所有进程
-pm2 logs chunlv-server              # 查看日志
-pm2 restart chunlv-server           # 重启
-pm2 monit                           # 实时监控
+sudo env PM2_HOME=/root/.pm2 pm2 status        # 查看所有进程（root 的 pm2）
+sudo env PM2_HOME=/root/.pm2 pm2 logs chunlv-server   # 查看日志
+sudo env PM2_HOME=/root/.pm2 pm2 restart chunlv-server # 重启
+sudo env PM2_HOME=/root/.pm2 pm2 monit         # 实时监控
 
 # === 构建 ===
 pnpm build                          # 完整构建

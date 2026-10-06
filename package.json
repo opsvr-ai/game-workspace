@@ -11,8 +11,8 @@
     "db:seed": "pnpm --filter @chunlv/server db:seed",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "deploy": "git pull && pnpm install && pnpm --filter @chunlv/shared build && pnpm --filter @chunlv/server build && fuser -k 3001/tcp; pm2 restart chunlv-server --update-env",
-    "deploy:full": "git pull && pnpm install && pnpm build && fuser -k 3001/tcp; pm2 restart chunlv-server --update-env"
+    "deploy": "git pull && pnpm install && pnpm --filter @chunlv/shared build && pnpm --filter @chunlv/server build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env",
+    "deploy:full": "git pull && pnpm install && pnpm build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env"
   },
   "engines": {
     "node": ">=18.0.0",

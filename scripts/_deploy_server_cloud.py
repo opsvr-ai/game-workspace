@@ -6,6 +6,14 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="repla
 
 HOST = "1.117.229.36"
 USER = "ubuntu"
+# 2026-10-06 起服务端改成 root 部署：代码在 /apps/server/game-workspace（pm2 也归 root）。
+#   * root 的 SSH 口令登录是关的（实测 AuthenticationException），只能 ubuntu 连 + 免密 sudo；
+#   * /apps 下面都是 root 所有、SFTP 以 ubuntu 登录写不进去 ——
+#     所以统一「先传到 ubuntu 可写的临时路径，再用 sudo 落到 root 目录」。
+SUDO = "sudo -n "
+REMOTE_ROOT = "/apps/server/game-workspace"
+REMOTE_APP = REMOTE_ROOT + "/apps/server"
+ROOT_PM2 = "env PM2_HOME=/root/.pm2 pm2"
 # 服务器口令不写死在代码里（2026-10-03 清理明文凭证）：
 #   先设置环境变量再跑，例如 PowerShell:  $env:CHUNLV_SSH_PASS="<口令>"
 PASSWORD = os.environ.get("CHUNLV_SSH_PASS", "")
@@ -13,7 +21,7 @@ if not PASSWORD:
     raise SystemExit('缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
                          '口令不再写死在脚本里（2026-10-03 清理明文凭证）。')
 LOCAL_DIST = r"E:\source_code\game-workspace\apps\server\dist"
-REMOTE_DIR = "/home/ubuntu/chunlv/apps/server/dist"
+REMOTE_DIR = REMOTE_APP + "/dist"
 TMP_TGZ = "/home/ubuntu/chunlv-server-dist.tar.gz"
 # 服务端 dist 里 `require('@chunlv/shared')` 是走 apps/server/node_modules/@chunlv/shared
 # 软链到 packages/shared 的 —— 所以 **shared 的 dist 也必须一起传**。
@@ -21,11 +29,12 @@ TMP_TGZ = "/home/ubuntu/chunlv-server-dist.tar.gz"
 # shared，`PoolScope.ONLINE_FIRST` 直接 undefined，发单接口 500。
 # 以后加 / 改 shared 的东西（枚举、类型）只要改了这里的指纹就会重新推 + 重启。
 LOCAL_SHARED_DIST = r"E:\source_code\game-workspace\packages\shared\dist"
-REMOTE_SHARED_DIR = "/home/ubuntu/chunlv/packages/shared/dist"
+REMOTE_SHARED_DIR = REMOTE_ROOT + "/packages/shared/dist"
 TMP_SHARED_TGZ = "/home/ubuntu/chunlv-shared-dist.tar.gz"
 LOCAL_SCHEMA = r"E:\source_code\game-workspace\apps\server\prisma\schema.prisma"
-REMOTE_SCHEMA = "/home/ubuntu/chunlv/apps/server/prisma/schema.prisma"
-REMOTE_SCHEMA_HASH = "/home/ubuntu/chunlv/apps/server/prisma/.schema-hash"
+REMOTE_SCHEMA = REMOTE_APP + "/prisma/schema.prisma"
+REMOTE_SCHEMA_HASH = REMOTE_APP + "/prisma/.schema-hash"
+TMP_SCHEMA = "/home/ubuntu/chunlv-schema.prisma"
 
 
 def dist_hash():
@@ -103,8 +112,8 @@ def main():
     local_schema_hash = schema_hash()
     skip = False
     if not force:
-        rc, remote_hash = run_raw(f"cat {REMOTE_DIR}/.deploy-hash 2>/dev/null || true")
-        rc, remote_schema_hash = run_raw(f"cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
+        rc, remote_hash = run_raw(f"{SUDO}cat {REMOTE_DIR}/.deploy-hash 2>/dev/null || true")
+        rc, remote_schema_hash = run_raw(f"{SUDO}cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
         if remote_hash.strip() == local_hash and remote_schema_hash.strip() == local_schema_hash:
             skip = True
     if skip:
@@ -113,26 +122,36 @@ def main():
         print("done")
         return
 
-    run(f"rm -rf {REMOTE_DIR}/* && mkdir -p {REMOTE_DIR} && tar -xzf {TMP_TGZ} -C {REMOTE_DIR}")
-    run(f"echo {local_hash} > {REMOTE_DIR}/.deploy-hash")
+    run(f"{SUDO}bash -c 'rm -rf {REMOTE_DIR}/* && mkdir -p {REMOTE_DIR} && tar -xzf {TMP_TGZ} -C {REMOTE_DIR}'")
+    run(f"echo {local_hash} | {SUDO}tee {REMOTE_DIR}/.deploy-hash > /dev/null")
     # shared 包（@chunlv/shared）的 dist：server dist 是软链到 packages/shared 的，必须一起换
-    run(f"rm -rf {REMOTE_SHARED_DIR}/* && mkdir -p {REMOTE_SHARED_DIR} && tar -xzf {TMP_SHARED_TGZ} -C {REMOTE_SHARED_DIR}")
+    run(f"{SUDO}bash -c 'rm -rf {REMOTE_SHARED_DIR}/* && mkdir -p {REMOTE_SHARED_DIR} && tar -xzf {TMP_SHARED_TGZ} -C {REMOTE_SHARED_DIR}'")
     print("shared dist 已同步")
 
     # schema 变了要单独同步 + 重新生成客户端（Prisma 客户端是构建产物，不在 dist 里）
-    rc, remote_schema_hash_now = run_raw(f"cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
+    rc, remote_schema_hash_now = run_raw(f"{SUDO}cat {REMOTE_SCHEMA_HASH} 2>/dev/null || true")
     if force or remote_schema_hash_now.strip() != local_schema_hash:
         sftp = c.open_sftp()
-        sftp.put(LOCAL_SCHEMA, REMOTE_SCHEMA)
+        # prisma/ 是 root 所有：先落到 ubuntu 可写的临时文件，再 sudo 装进去
+        sftp.put(LOCAL_SCHEMA, TMP_SCHEMA)
         sftp.close()
-        gen_rc = run("cd /home/ubuntu/chunlv/apps/server && ./node_modules/.bin/prisma generate 2>&1 | tail -3")
+        run(f"{SUDO}install -m 644 {TMP_SCHEMA} {REMOTE_SCHEMA} && rm -f {TMP_SCHEMA}")
+        # 注意 pipefail：老写法 `... | tail -3` 会让管道退出码永远是 tail 的 0，
+        # generate 失败也被当成成功（以前的守卫其实从来没生效过）
+        gen_rc = run(f"cd {REMOTE_APP} && {SUDO}bash -c 'set -o pipefail; ./node_modules/.bin/prisma generate 2>&1 | tail -3'")
         if gen_rc != 0:
             c.close()
             raise SystemExit("prisma generate 失败，已中止部署（不重启，避免线上带着旧客户端跑）")
-        run(f"echo {local_schema_hash} > {REMOTE_SCHEMA_HASH}")
+        run(f"echo {local_schema_hash} | {SUDO}tee {REMOTE_SCHEMA_HASH} > /dev/null")
         print(f"schema 已同步并重新生成 Prisma 客户端（{local_schema_hash[:12]}）")
 
-    run("pm2 restart chunlv-server --update-env")
+    # 应用由 apps/server/start-server.sh 拉起（用 node --env-file 显式加载 .env），pm2 归 root 管
+    run(f"{SUDO}{ROOT_PM2} restart chunlv-server --update-env")
+
+    # 部署后自检：端口/进程状态、健康检查、线上版本回读。不通过就别当成功了。
+    run(f"sleep 6; {SUDO}{ROOT_PM2} list | grep -E 'chunlv-server|name' || true")
+    run("curl -s -o /dev/null -w 'health=%{http_code}\\n' http://127.0.0.1:3001/api/health")
+    run("curl -s http://127.0.0.1:3001/api/agent/frontend-version; echo")
     c.close()
     print("done")
 

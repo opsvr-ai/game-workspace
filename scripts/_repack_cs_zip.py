@@ -35,7 +35,9 @@ if not PASSWORD:
         '缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
         '口令不再写死在脚本里（2026-10-03 清理明文凭证）。'
     )
-REMOTE = "/home/ubuntu/chunlv/uploads/chunlv-cs-latest.zip"
+# uploads/ 是 root 所有：SFTP（ubuntu 登录）写不进去，先落到 ubuntu 的临时路径再 sudo 改名
+REMOTE = "/apps/server/game-workspace/uploads/chunlv-cs-latest.zip"
+TMP = "/home/ubuntu/chunlv-cs-latest.zip.new"
 
 
 MARKER = b"CHUNLV_WATCHDOG_BUILD="
@@ -100,14 +102,14 @@ def main() -> int:
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     c.connect(HOST, username=USER, password=PASSWORD, look_for_keys=False, allow_agent=False, timeout=60)
     sftp = c.open_sftp()
-    sftp.put(ZIP, REMOTE + ".new")
+    sftp.put(ZIP, TMP)
     sftp.close()
 
     def run(cmd: str):
         _i, o, e = c.exec_command(cmd, timeout=300)
         return o.read().decode("utf-8", "replace").strip(), e.read().decode("utf-8", "replace").strip()
 
-    print(run("md5sum %s.new && mv -f %s.new %s && md5sum %s && ls -la %s" % (REMOTE, REMOTE, REMOTE, REMOTE, REMOTE)))
+    print(run("md5sum %s && sudo -n mv -f %s %s && md5sum %s && ls -la %s" % (TMP, TMP, REMOTE, REMOTE, REMOTE)))
     print("本地 md5:", hashlib.md5(open(ZIP, "rb").read()).hexdigest())
     # 只取前 64KB 验「地址通、能下载」：整包 100 多兆，全下来得等好几分钟
     print(run("curl -s -o /dev/null -w 'download/cs-zip -> %{http_code} %{size_download}\\n' --max-time 30 -r 0-65535 http://127.0.0.1:3001/api/agent/download/cs-zip"))

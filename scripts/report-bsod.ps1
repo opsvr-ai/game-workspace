@@ -8,7 +8,7 @@
 #   ②把蓝屏（BugCheck）现场、转储文件、显卡驱动、硬件错误等取证回传服务器。
 #
 # 用法（目标机，管理员）：右键「以管理员身份运行」，或双击（会自动提权）。
-# 回传结果落服务器 /home/ubuntu/chunlv/onboard-reports/diag/ 与 machines.jsonl。
+# 回传结果落服务器 /apps/server/game-workspace/onboard-reports/diag/ 与 machines.jsonl。
 #
 # 自检开关（只给自己/装机验证用，现场双击不用管）：
 #   -NoRemoteFix  不改本机 chunlvops 账号（干跑）

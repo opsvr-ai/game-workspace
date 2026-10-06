@@ -42,9 +42,22 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_RELEASE = os.path.join(ROOT, "apps", "cs-electron", "release")
 LOCAL_UNPACKED = os.path.join(LOCAL_RELEASE, "win-unpacked")
 SH = os.path.join(ROOT, "apps", "watchdog-service", "SystemHelper.exe")
-REMOTE_SETUP = "/home/ubuntu/chunlv/uploads/agent-cs-setup.exe"
-REMOTE_SETUP_CN = "/home/ubuntu/chunlv/uploads/客服管理-Setup.exe"
-REMOTE_ZIP = "/home/ubuntu/chunlv/uploads/chunlv-cs-latest.zip"
+REMOTE_SETUP = "/apps/server/game-workspace/uploads/agent-cs-setup.exe"
+REMOTE_SETUP_CN = "/apps/server/game-workspace/uploads/客服管理-Setup.exe"
+REMOTE_ZIP = "/apps/server/game-workspace/uploads/chunlv-cs-latest.zip"
+# uploads/ 是 root 所有：SFTP（ubuntu 登录）写不进去。
+# 统一「先传到 ubuntu 可写的 STAGE，再用 sudo 原子改名就位」——细节见 _deploy_server_cloud.py 顶部。
+STAGE = "/home/ubuntu/chunlv-stage"
+
+
+def staged(remote: str) -> str:
+    return STAGE + "/" + os.path.basename(remote) + ".new"
+
+
+def ensure_stage(c) -> None:
+    _i, o, e = c.exec_command("mkdir -p " + STAGE + " && chmod 700 " + STAGE)
+    o.read()
+    e.read()
 UPDATE_DOWNLOAD_URL = "/api/agent/download/cs"
 UPDATE_ZIP_URL = "/api/agent/download/cs-zip"
 
@@ -146,14 +159,15 @@ def main():
     print("线上客服端当前 " + old + " -> 本次发布 " + VERSION
           + "（装机包 " + str(size_mb) + "MB，更新整包 " + str(zip_mb) + "MB）")
 
+    ensure_stage(c)
     sftp = c.open_sftp()
     # 先传临时文件，再原子改名，避免客服端正好在下载时拿到半个包
     for remote in (REMOTE_SETUP, REMOTE_SETUP_CN):
-        sftp.put(local_setup, remote + ".new")
-    sftp.put(local_zip, REMOTE_ZIP + ".new")
+        sftp.put(local_setup, staged(remote))
+    sftp.put(local_zip, staged(REMOTE_ZIP))
     sftp.close()
     for remote in (REMOTE_SETUP, REMOTE_SETUP_CN, REMOTE_ZIP):
-        run(c, "mv -f '" + remote + ".new' '" + remote + "' && md5sum '" + remote + "' && ls -l '" + remote + "'")
+        run(c, "sudo -n mv -f '" + staged(remote) + "' '" + remote + "' && sudo -n md5sum '" + remote + "' && sudo -n ls -l '" + remote + "'")
     os.remove(local_zip)
 
     sql = (

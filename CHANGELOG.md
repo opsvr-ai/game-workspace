@@ -188,6 +188,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **改：服务端改成 root 部署在 `/apps/server/game-workspace`（老板 2026-10-06）。**
+  以前服务端跑在 `ubuntu` 名下 `/home/ubuntu/chunlv`；现在代码在 **root** 名下的
+  `/apps/server/game-workspace`，pm2 也换成 root 那份，开机自启走 `pm2-root.service`
+  （老的 `pm2-ubuntu.service` 不再拉起 chunlv-server，避免开机两个实例抢 3001）。
+  `uploads/`、`onboard-reports/`、`client-errors/` 跟代码一起搬过去；**数据库 / Redis 容器没搬**，
+  仍然 bind 老目录的 `data/{postgres,redis}`（那个目录以后别删别移，库在里面）。
+  踩到的坑：新目录下直接 `pm2 start dist/main.js` 会 crash loop 报
+  `FATAL: JWT_SECRET environment variable is not set` —— 应用以前是靠 `@prisma/client`
+  被 import 时顺手 dotenv 读 `.env`（cwd 相对）才拿到环境变量的，换目录后这条路不灵了。
+  现在统一由 `apps/server/start-server.sh` 用 `node --env-file=.env` **显式**加载 `.env` 启动，
+  pm2 里记的就是这个入口。`scripts/` 里 7 个发版 / 上传脚本一起改成
+  「ubuntu 登录 → 先传到 ubuntu 可写的临时路径 → `sudo` 装进 root 目录」
+  （实测 root 的 SSH 口令登录是关的）；`docs/DEPLOYMENT.md` 新增 3.4.1.1 记了全套（含回滚步骤）。
+  顺带修好一个线上老毛病：线上那份 Prisma Client 比 dist 旧，`ChatRoom.isGroup` 一直报
+  `Unknown argument 'isGroup'`（聊天室建群失败），在新目录重新 `prisma generate` 后查询正常。
+
 - **改：新单横幅宽度恢复原来的 480 —— 只放大关键字、备注标红（老板 2026-10-06，陪玩端 `1.0.20261019`）。**
   老板：「我感觉其实也没必要改小，你别改小了，只把关键字放大吧。」上一版把横幅从 480 收到 380，
   现在**恢复 480 宽**，保留那行 19px 加粗大字（游戏 · 机密/绝密 · 单陪/双陪）和红底红字的备注。

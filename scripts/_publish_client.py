@@ -13,11 +13,23 @@ if not PASSWORD:
     raise SystemExit('缺少服务器口令：先设置环境变量 CHUNLV_SSH_PASS（PowerShell: $env:CHUNLV_SSH_PASS="<口令>"）。'
                          '口令不再写死在脚本里（2026-10-03 清理明文凭证）。')
 LOCAL_UNPACKED = r"E:\source_code\game-workspace\apps\companion-electron\release\win-unpacked"
-REMOTE_ZIP = "/home/ubuntu/chunlv/uploads/chunlv-latest.zip"
-REMOTE_ZIP_TMP = REMOTE_ZIP + ".new"
+REMOTE_ZIP = "/apps/server/game-workspace/uploads/chunlv-latest.zip"
 LOCAL_RELEASE = r"E:\source_code\game-workspace\apps\companion-electron\release"
-REMOTE_SETUP = "/home/ubuntu/chunlv/uploads/agent-setup.exe"
-REMOTE_SETUP_CN = "/home/ubuntu/chunlv/uploads/陪玩管理-Setup.exe"
+REMOTE_SETUP = "/apps/server/game-workspace/uploads/agent-setup.exe"
+REMOTE_SETUP_CN = "/apps/server/game-workspace/uploads/陪玩管理-Setup.exe"
+# uploads/ 是 root 所有：SFTP（ubuntu 登录）写不进去。
+# 统一「先传到 ubuntu 可写的 STAGE，再用 sudo 原子改名就位」——细节见 _deploy_server_cloud.py 顶部。
+STAGE = "/home/ubuntu/chunlv-stage"
+
+
+def staged(remote: str) -> str:
+    return STAGE + "/" + os.path.basename(remote) + ".new"
+
+
+def ensure_stage(c) -> None:
+    _i, o, e = c.exec_command(f"mkdir -p {STAGE} && chmod 700 {STAGE}")
+    o.read()
+    e.read()
 # 自动更新包必须走服务端限速接口：直链 /uploads/xxx.zip 是全速下发，
 # 一台机器下载就会把办公室那条网占满，别的陪玩接口请求超时（看起来像掉线）。
 UPDATE_DOWNLOAD_URL = "/api/agent/download/latest"
@@ -59,12 +71,13 @@ def upload_setup(c):
     if not os.path.exists(local):
         print(f"!! 未找到装机包 {name}，装机包保持原样（先跑 electron-builder --win）")
         return
+    ensure_stage(c)
     sftp = c.open_sftp()
     for remote in (REMOTE_SETUP, REMOTE_SETUP_CN):
-        sftp.put(local, remote + ".new")
+        sftp.put(local, staged(remote))
     sftp.close()
     for remote in (REMOTE_SETUP, REMOTE_SETUP_CN):
-        _in, out, err = c.exec_command(f"mv -f '{remote}.new' '{remote}' && md5sum '{remote}'")
+        _in, out, err = c.exec_command(f"sudo -n mv -f '{staged(remote)}' '{remote}' && sudo -n md5sum '{remote}'")
         print(out.read().decode("utf-8", "replace").strip())
         e = err.read().decode("utf-8", "replace").strip()
         if e:
@@ -98,12 +111,13 @@ def main():
         sys.exit(1)
     print(f"线上当前 {old} -> 本次发布 {VERSION}")
 
+    ensure_stage(c)
     sftp = c.open_sftp()
     # 先传到临时文件，再原子改名，避免陪玩端正好在下载时拿到半个包
-    sftp.put(local_zip, REMOTE_ZIP_TMP)
+    sftp.put(local_zip, staged(REMOTE_ZIP))
     sftp.close()
     # 用 shell 的 mv -f 改名（SFTP rename 在目标已存在时会失败）
-    _in, out, err = c.exec_command(f"mv -f {REMOTE_ZIP_TMP} {REMOTE_ZIP} && md5sum {REMOTE_ZIP}")
+    _in, out, err = c.exec_command(f"sudo -n mv -f {staged(REMOTE_ZIP)} {REMOTE_ZIP} && sudo -n md5sum {REMOTE_ZIP}")
     print(out.read().decode("utf-8", "replace").strip())
     if err.read().decode("utf-8", "replace").strip():
         print("ERR", err)

@@ -17,6 +17,13 @@
 > $env:CHUNLV_SMB_CRED = "chunlvops:<运维口令>"      # 只有 _push_watchdog_all.py 需要
 > ```
 
+> **服务端跑在哪（2026-10-06 起）**：**root** + `/apps/server/game-workspace`（腾讯云 1.117.229.36）。
+> pm2 是 root 那份，管理命令要带 `sudo env PM2_HOME=/root/.pm2 pm2 ...`；root 的 SSH 口令登录是关的，
+> 所以脚本统一「ubuntu 登录 → 传到 ubuntu 可写的临时路径 → `sudo` 装进 root 目录」。
+> 启动入口是 `apps/server/start-server.sh`（内部 `node --env-file=.env`），
+> **别再用 `pm2 start dist/main.js`** —— 那样不会加载 `.env`，会 crash loop。
+> 老目录 `/home/ubuntu/chunlv` 还在（可回滚），但数据库容器仍 bind 它的 `data/`，别删。
+
 ```powershell
 # 1. 前端（网页端）——部署 + 打版本号
 python scripts\_deploy_web_cloud.py

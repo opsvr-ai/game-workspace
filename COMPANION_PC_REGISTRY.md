@@ -93,7 +93,8 @@
 建 / 补齐 `chunlvops`（管理员组、14 位随机密码、密码永不过期）→ 打开远程管理通道
 （`LocalAccountTokenFilterPolicy` / `LimitBlankPasswordUse` / `LanmanServer` / 文件共享防火墙）→
 把「主机名 + IP + MAC + 账号 + 密码 + 修复前版本」回传 `/api/agent/onboard-report`，
-落在云服务器 `/home/ubuntu/chunlv/onboard-reports/machines.jsonl`。
+落在云服务器 `/apps/server/game-workspace/onboard-reports/machines.jsonl`
+（2026-10-06 起服务端搬到 root 名下的 `/apps/server/game-workspace`，见 `docs/DEPLOYMENT.md` 3.4.1.1）。
 **已经配好的机器不动密码**（`accountEvent=kept`），免得把本来能用的那把换掉、回传又失败就彻底进不去。
 所以：只要秦伟杰双击一次修复链接，这台机器就同时「修好客户端」+「回到标准状态」，以后我能直接连进去。
 
