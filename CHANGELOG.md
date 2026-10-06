@@ -207,6 +207,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **首屏体积量出来了，也把「怎么再减」试完了：两条路都不通（2026-10-07，dev 分支）。**
+  上一批把页面拆出去之后，首屏到底还剩多少一直没量过具体数。这一批把**「首屏」定义成
+  「index.html 引到的文件 + 顺着静态 import 递归下去」**（这才是打开第一眼要下的量），实测：
+  **3 个文件 1844KB（gzip 582KB）** = index 347KB + antd 1293KB + react 204KB。
+  顺手试了两条「再减首屏」的路，**都不通**，结论写进代码免得后面再试一遍：
+  1. 让 antd 走默认分块 → Rollup 直接把 antd 并进 react 块（204KB → 1446KB），首屏只少 22KB；
+  2. 把 `Table / DatePicker / Upload` 这些「只有表格页才用」的摘成单独块 → 那个块**仍然被首屏静态引用**
+     （代码里 `import { X } from 'antd'` 走的是 antd 的汇总出口，所有组件都算「可达」），首屏反而 +2KB。
+  真正能减的办法是「外壳别再 import 汇总出口、改成 `antd/es/xxx` 按组件引」—— 工序大，另开一批。
+  守卫 `scripts/_check_route_splitting.mjs` 也跟着升级：除了卡入口分包，还会算**首屏合计**
+  （上限 2000KB / gzip 640KB，当前 1844/582）。
+
 - **异常页（404 / 出错兜底）换成品牌样式，不再用 antd 那套大插画（2026-10-07，dev 分支）。**
   翻界面时顺手点了 `/this-page-does-not-exist`：一屏白底 + antd 自带的**蓝紫色大插画**
   （`<Result status="404">`），跟全站的品牌紫不是一套 —— 而这一页**真的会被人看到**：

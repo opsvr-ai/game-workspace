@@ -19,7 +19,13 @@ const proxy = {
 //
 // 2026-10-07 又往前一步：页面改成按路由懒加载（见 src/router.tsx），
 // 入口分包从 1.2MB 掉到 347KB（首屏 gzip 820KB → 582KB），图表分块也不再首屏必拉。
-// 守卫：scripts/_check_route_splitting.mjs（不许把页面写回同步 import）。
+// 守卫：scripts/_check_route_splitting.mjs（不许把页面写回同步 import，并量首屏合计体积）。
+//
+// 想再减首屏？先看这条，别白试（2026-10-07 实测过）：
+//   ① 让 antd 走默认分块 → Rollup 会把 antd 直接并进 react 块（204KB → 1446KB），首屏只少 22KB；
+//   ② 把 Table / DatePicker / Upload 这些「只有表格页才用」的摘成单独块 → 那个块**仍然被首屏静态引用**
+//      （代码里 `import { X } from 'antd'` 走的是 antd 的汇总出口，所有组件都算「可达」），首屏反而 +2KB。
+// 所以真正的办法是「外壳别再 import 汇总出口，改成 antd/es/xxx 按组件引」—— 工序大，另开一批。
 function manualChunks(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
   if (id.includes('recharts') || id.includes('d3-') || id.includes('victory')) return 'charts';
