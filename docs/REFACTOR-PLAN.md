@@ -53,8 +53,9 @@
    - ✅ **抢单原子性**（2026-10-07）：`apps/server/src/__tests__/order-workflow.grab.test.ts`（22 用例）—— 一次带条件的写 / 扣了名额抢不到必须退 / 不该抢的在动数据前拦下；**已自证会红**。
    - 报账口径（`order-outcome` / `order-split` / `deposit-deduct`）、可支取余额（`withdrawable`）、黑名单开关（`blacklist-switch` / `ws.gateway.blacklist`）本来就有专门测试，不用重复造。
    - ✅ **陪玩端（客户端侧）第一批**（2026-10-07，见「第 18 批」）：主进程里「要不要动用户机器」的五个判断，21 用例。
-   - 还缺：**客服端**（`apps/cs-electron/main.js`，717 行纯 JS，零测试、也没接 vitest）的启动与升级链路回归；
-     看门狗那段自动更新链路最终仍要靠真机验 —— 见 P0-5。
+   - ✅ **客服端也补上了**（2026-10-07，见「第 19 批」）：`main.js` 771 → 658 行（更新决策抽到 `update-decisions.js`），
+     37 用例 + 打包白名单守卫 + 该端第一份静态检查。
+   - 还缺：看门狗那段「解压换装 + 拉起来」的链路只能靠真机验（本机开发环境没有 Windows 服务、也没法真重启客户端）—— 见 P0-5。
 5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 6. **路由契约冻结** ✅：`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`（**86 条**页面路径 / 含 4 条重定向），CI `--check` 拦「删路径 / 改路径 / 换页面」。**这是动 `router.tsx` 前必须先到位的前端安全网** —— 前端零测试，而 70 处死的 `<Suspense>` 包装、组件抽取都要改这个文件。
 7. **`router.tsx` 去 Suspense 噪声** ✅：77 处复制粘贴的 `<Suspense>` → 单一入口 `page()`，787 → 487 行；顺带把错误边界 3 处写死色值收进令牌（色值基线 939 → 935）。**路由契约冻结前后逐条一致**，零行为变化。
@@ -300,6 +301,21 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 19 批 · 已完成（2026-10-07，客服端：更新决策抽出来 + 第一份测试 + 打包白名单守卫）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 更新决策抽一层 | P0-1 / P0-5 客服端 | 新建 `apps/cs-electron/update-decisions.js`：把「跨端保护 / 拉黑版本 / 只在刚启动那一段宽限期换版 / 写信号带 kind」从 700 行的 `main.js` 里抽出来（`main.js` **771 → 658 行**），`fs` / `env` / `uptime` 全部注入 —— 不抽出来就没法在开发机上测（这段逻辑要有看门狗服务、更新包、真重启才能跑）。**行为零变化**：判定顺序（服务器没给信息 → 版本不新 → 拉黑 → 不在宽限期 → 才选静默 / 安装包）原样保留，连「跳过时绝不去读那个 1MB 的看门狗 exe」这点也照旧 | 本次 |
+| 新增 `decideUpdate` | P0-1 | 把「动不动手、走哪条路」收成一个纯函数：`skip`（no-server-info / not-newer / blocked / outside-grace）或 `silent` / `installer` + 该用哪个 url。`main.js` 的 `checkForUpdates` 改成「取数据 → 问决策 → 照着做」，不再把 5 个判断散在 40 行里 | 本次 |
+| 客服端第一份测试 | P0-1 | `update-decisions.test.mjs`（**37 用例 / 2 文件**）：跨端保护（`cs` / 带空格 / `companion` / 身份文件没了但本机有陪玩端 / 陪玩端清单命中）；看门狗就绪（不在 / 半截文件 / 旧看门狗没标记 / 本机这台守的是陪玩端）；拉黑名单（读坏 / 读不到 / `null` = 放行）；写信号必带 `kind=cs`；宽限期边界（5 分钟在内、10 分钟不在、取不到 uptime 当不在）；`decideUpdate` 的顺序与副作用（跳过时不许读 exe）；`compareVersions` 按段比数字。**已自证会红**：把跨端保护改成恒真 → 3 条用例点名失败 | 本次 |
+| 打包白名单守卫 | 新增 P2 | `packaging.test.mjs`：`electron-builder.yml` 的 `files:` 是白名单，漏列一个被 `require` 的文件 → 装机版**启动即崩**（客户端崩了连「我崩了」都上报不了，只能等人说「打不开」）。测试机械比对「三个 .js 里的 `require('./x')`」与「白名单」是否一一对应 | 本次 |
+| 客服端 JS 静态检查 | P1 | 新建 `apps/cs-electron/eslint.config.mjs` + `lint` 脚本（根配置一直把 `**/*.js` 整个忽略，这一端既没类型检查也没测试）：只开 `no-undef` / `no-unused-vars` / `no-redeclare` / `no-dupe-keys` / `no-unreachable`，不掺风格。**已自证会红**：把 `writeHealthMarker` 改名 → 立刻点出「定义没人用 + 2 处调用未定义」（本次抽函数时真踩过一次） | 本次 |
+| 顺手补的 | — | 客服端 `package.json` 补 `test` / `test:watch` / `lint`；CI 的 check 任务加一步 `pnpm --filter @chunlv/cs-electron test`（`pnpm -r lint` 自动带上客服端） | 本次 |
+
+> 验收口径（可复算）：`pnpm --filter @chunlv/cs-electron test`（37 passed）、`pnpm --filter @chunlv/cs-electron lint`（0 error）、
+> `pnpm -r lint`（cs-electron 0 error / server 1224 warn / web 1618 warn，与基线一致）、
+> `pnpm -r test`（cs 37 + companion 21 + server 689 + web 15）。
+
 ### 第 18 批 · 已完成（2026-10-07，陪玩端主进程第一份测试）
 
 | 任务 | 对应问题 | 交付 | 提交 |
@@ -473,7 +489,7 @@ flowchart TD
 
 | # | 问题 | 证据 | 后果 |
 |---|---|---|---|
-| P0-1 | **前端与客户端零测试** | `apps/web` 与两个 Electron 目录下 0 个 `*.test.ts(x)`；对比服务端 73 个测试文件 | 前端拆到一半无法判断「有没有拆坏」，只能靠人肉点 |
+| P0-1 | **前端与客户端测试太薄** | 服务端 73 个测试文件；前端起步（15 用例）；两个 Electron 端刚起步（陪玩端 21 + 客服端 37），且都只盖到「判断层」，窗口 / 托盘 / 启动流程尚未覆盖 | 拆到一半仍难判断「有没有拆坏」，主要靠人肉点 —— 在继续拆之前先把能自动化的那部分补上 |
 | P0-2 | **部署无版本管理、无回滚** | `scripts/_deploy_*.py` 直接 `rm -rf` 远端目录再解包；指纹只用于「要不要重启」 | 一次坏发布只能手工救，重构期高频发布风险极高 |
 | P0-3 | **契约面巨大且无 schema 校验** | 400 个接口 / 68 处 socket 事件 / 仅 15 个 DTO 文件 | 内部重构极易打破某个客户端，且类型系统拦不住 |
 | P0-4 | **工具产物混入仓库** | `.rtfm/library.db` 17 MB 被 git 跟踪；`CHANGELOG.md` 已 4,676 行 / 606 KB | 仓库膨胀、clone 慢、diff 噪声大 |
@@ -667,9 +683,9 @@ const page = (loader: () => Promise<{ default: React.FC }>) => {
 |---|---|---|
 | 语言 | TypeScript + esbuild 打包 | **纯 JS，手写，无构建** |
 | 机器端能力 | `electron/machine-agent.js` | `machine-agent.js`（与陪玩端 298/305 行相同） |
-| 主进程 | `electron/main.ts` 1,848 行 | `main.js` 678 行 |
+| 主进程 | `electron/main.ts` 1,848 行 | `main.js` 658 行（2026-10-07 起更新判断在 `update-decisions.js`） |
 | 页面 | 加载远端 Web | 加载远端 Web |
-| 升级 | `updater.ts` 574 行：备货 + 等空闲 + 名额 + 进度 | `main.js` 内联：拉版本 → 下载 → 写信号（**无备货、无等空闲、无名额**） |
+| 升级 | `updater.ts` 574 行：备货 + 等空闲 + 名额 + 进度（有 21 条单测） | `update-decisions.js` + `main.js`：拉版本 → 下载 → 写信号（**无备货、无等空闲、无名额**；判断层有 37 条单测） |
 | 看门狗 | 共用 `SystemHelper`（按 `--client=companion/cs` 区分身份） | 同左 |
 
 ### 8.2 方案

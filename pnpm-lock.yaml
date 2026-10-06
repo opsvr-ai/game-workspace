@@ -99,12 +99,21 @@ importers:
 
   apps/cs-electron:
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.5
+        version: 9.39.5
       electron:
         specifier: ^30.0.0
         version: 30.0.0
       electron-builder:
         specifier: ^24.13.0
         version: 24.13.0
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.43)(jsdom@30.1.2)(terser@5.48.0)
 
   apps/server:
     dependencies:

@@ -5,10 +5,16 @@
   "author": "Chunlv",
   "main": "main.js",
   "scripts": {
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "electron": "^30.0.0",
-    "electron-builder": "^24.13.0"
+    "electron-builder": "^24.13.0",
+    "eslint": "^9.39.5",
+    "vitest": "^3.2.7"
   }
 }

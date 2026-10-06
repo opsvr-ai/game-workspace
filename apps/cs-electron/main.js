@@ -2,6 +2,11 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, session, ipcMain, safeStora
 const fs = require('fs');
 const path = require('path');
 const { createMachineAgent } = require('./machine-agent');
+const {
+  createUpdateDecisions,
+  decideUpdate,
+  DEFAULT_UPDATE_DIR,
+} = require('./update-decisions');
 
 // 低配电脑无独显/驱动老旧时，关闭硬件加速避免黑屏
 app.disableHardwareAcceleration();
@@ -40,17 +45,6 @@ async function clearSessionCache() {
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
-
-function compareVersions(a, b) {
-  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = pa[i] ?? 0;
-    const y = pb[i] ?? 0;
-    if (x !== y) return x > y ? 1 : -1;
-  }
-  return 0;
-}
 
 function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
@@ -95,87 +89,20 @@ function downloadFile(url, dest) {
 // 现在改成跟陪玩端一样的路子：先下好整包 zip → 给看门狗（SystemHelper 服务，
 // 系统权限）写一个信号文件 → 自己退出 → 看门狗解压换装并把客户端拉起来。
 // 全程不弹 UAC，客服什么都不用做。
-const UPDATE_DIR = 'C:' + path.sep + 'ProgramData' + path.sep + 'chunlv';
-const UPDATE_SIGNAL = path.join(UPDATE_DIR, 'update.json');
+// —— 更新决策集中在 ./update-decisions.js ——
+// 「跨端保护 / 拉黑版本 / 只在刚启动那一段宽限期里换版」这几个判断以前写在这个文件里，
+// 2026-10-07 挪到单独一层：它们决定的是「要不要动用户这台机器」，挪出来只为了能写测试
+// （见 update-decisions.test.mjs）。这里只留主进程要用的路径和几个入口。
+const UPDATE_DIR = DEFAULT_UPDATE_DIR;
 const UPDATE_ZIP = path.join(UPDATE_DIR, 'update-cs.zip');
 const HEALTH_FILE = path.join(UPDATE_DIR, 'client-healthy.json');
-const BLOCKED_FILE = path.join(UPDATE_DIR, 'blocked-versions.json');
-const WATCHDOG_EXE = 'C:' + path.sep + 'Program Files' + path.sep + 'SystemHelper' + path.sep + 'SystemHelper.exe';
-// 这个字符串只有「认得客服端」的看门狗里才有（旧看门狗只盯陪玩端）。把客服端交给
-// 旧看门狗会变成「关掉之后再也没人拉起来」，更新信号还会被解压到陪玩端目录里，
-// 所以必须先确认它认得客服端 —— 只看这个标记，不钉死具体构建号，
-// 以后看门狗再升级也不会把这条路堵死。
-const WATCHDOG_CLIENT_MARK = '客服管理.exe';
-// 本机看门狗的「身份」：装机时写下的（客服端 install --client=cs、陪玩端 --client=companion）。
-// 一台电脑上可能两份客户端都在（客服机常见：以前装过陪玩端没删干净），而看门狗只守身份写的那一端 ——
-// 光看「它认不认得客服端」不够，还得看它这一台到底守谁。
-const WATCHDOG_KIND_FILE = path.join(UPDATE_DIR, 'watchdog-client.txt');
-// 陪玩端的落脚点（跟看门狗里的清单一致）：用来判断本机有没有陪玩端。
-const COMPANION_EXE_PATHS = [
-  'C:\\Program Files\\陪玩管理\\陪玩管理.exe',
-  'C:\\Program Files (x86)\\陪玩管理\\陪玩管理.exe',
-  path.join(process.env.LOCALAPPDATA || '', 'Programs\\陪玩管理\\陪玩管理.exe'),
-  path.join(process.env.ProgramFiles || 'C:\\Program Files', '陪玩管理\\陪玩管理.exe'),
-  'C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe',
-  'C:\\Program Files\\@chunlvcompanion-electron\\蠢驴电竞.exe',
-  'C:\\Program Files (x86)\\@chunlvcompanion-electron\\蠢驴电竞.exe',
-  'C:\\Program Files (x86)\\蠢驴电竞\\蠢驴电竞.exe',
-  path.join(process.env.LOCALAPPDATA || '', 'Programs\\蠢驴电竞\\蠢驴电竞.exe'),
-  path.join(process.env.ProgramFiles || 'C:\\Program Files', '@chunlvcompanion-electron\\蠢驴电竞.exe'),
-];
 
-function readWatchdogKind() {
-  try {
-    return String(fs.readFileSync(WATCHDOG_KIND_FILE, 'utf-8')).trim().toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
-// 本机有没有装陪玩端（老机器上「装过陪玩端没删干净」很常见）。
-function companionInstalled() {
-  return COMPANION_EXE_PATHS.some((p) => {
-    try {
-      return !!p && fs.existsSync(p);
-    } catch {
-      return false;
-    }
-  });
-}
-
-// 这台机器上的看门狗到底会不会管客服端？（决定能不能走「静默整包更新」）
-//   ① 身份写着 cs → 会（正常的客服机）；
-//   ② 身份没写（很老的机器）→ 看门狗默认守陪玩端，只有本机压根没装陪玩端时才轮得到客服端；
-//   ③ 身份写着陪玩端 → 不会。这种机器上走静默路径，看门狗会把**客服端的包解压进陪玩端目录**
-//      （把陪玩端换成客服端，那台机器就没法接单了），所以必须退回「装安装包」那条路。
-function watchdogWatchesCs() {
-  const kind = readWatchdogKind();
-  if (kind === 'cs') return true;
-  if (kind === '') return !companionInstalled();
-  return false;
-}
-
-function readBlockedVersions() {
-  try {
-    return JSON.parse(fs.readFileSync(BLOCKED_FILE, 'utf-8')) || {};
-  } catch {
-    return {};
-  }
-}
-
-// 看门狗在不在、认不认得客服端（exe 里找内嵌标记），而且**本机这台看门狗确实守客服端**。
-// 最后一条是 2026-10-07 补的：只看标记不够 —— 同机装了陪玩端时，看门狗可能守的是陪玩端，
-// 那时候走静默更新会把客服端的包解压进陪玩端目录。
-function watchdogReady() {
-  if (!watchdogWatchesCs()) return false;
-  try {
-    if (!fs.existsSync(WATCHDOG_EXE)) return false;
-    const buf = fs.readFileSync(WATCHDOG_EXE);
-    return buf.length > (1 << 20) && buf.includes(Buffer.from(WATCHDOG_CLIENT_MARK));
-  } catch {
-    return false;
-  }
-}
+const updateDecisions = createUpdateDecisions({
+  fs,
+  env: process.env,
+  uptime: () => process.uptime(),
+});
+const { watchdogReady, readBlockedVersions, withinLaunchGrace, signalUpdate } = updateDecisions;
 
 // 看门狗更新完会等客户端自报「我起来了」（client-healthy.json）：
 // 等不到就整目录回滚到更新前那一版。所以只要主进程起来了就写，之后每分钟刷新一次。
@@ -191,18 +118,6 @@ function writeHealthMarker() {
     // 写不了就算了：只是少一层「装坏了自动回滚」的保护。
   }
 }
-
-function signalUpdate(url, localPath, version) {
-  try {
-    fs.mkdirSync(UPDATE_DIR, { recursive: true });
-    // kind：这份信号是哪一端写的。同名信号文件两端共用，老看门狗不看这个字段（忽略未知字段），
-    // 新看门狗靠它拦「把别家的包解压进自己目录」。
-    fs.writeFileSync(UPDATE_SIGNAL, JSON.stringify({ url, localPath, version, kind: 'cs' }), 'utf-8');
-  } catch {
-    // 写不进信号文件：这轮更新装不上，下轮再说，不影响客服正在用的窗口。
-  }
-}
-
 // 没装新看门狗的老机器退回老办法：装 NSIS 安装包（需要点一次 UAC），
 // 保证不会因为「装不了」而永远停在老版本。
 function runInstallerElevated(installerPath) {
@@ -218,50 +133,36 @@ function runInstallerElevated(installerPath) {
   // 以前先退出，客服一点「取消」授权，这台机器的客服端就再也没人拉起来了。
 }
 
-// 老板 2026-10-06：「等他们下次关机开机登录的时候再更新吧」——
-// 客服端也只在**这次启动/登录后的一小段宽限期**里换版，运行中途不再退出换装，
-// 客服正忙着的时候不会被更新打断。宽限期之外的检查只看看版本，不动手。
-const CS_LAUNCH_GRACE_MS = 10 * 60 * 1000;
-
-function withinLaunchGrace() {
-  try {
-    return process.uptime() * 1000 < CS_LAUNCH_GRACE_MS;
-  } catch {
-    return false;
-  }
-}
-
 function checkForUpdates() {
   try {
     const serverUrl = getServerUrl().replace(/\/$/, '');
     fetch(serverUrl + '/api/agent/cs-version')
       .then((res) => res.json())
       .then((json) => {
-        const latest = json && json.data && json.data.version;
-        const exeUrl = json && json.data && json.data.downloadUrl;
-        const zipUrl = json && json.data && json.data.zipUrl;
-        if (!latest || !exeUrl) return;
-        // 只有服务器版本严格更新时才更新；本地已是最新/更新时不触发，
-        // 避免字符串不等（===）导致反复下载安装并退出（闪退）。
-        if (compareVersions(latest, app.getVersion()) <= 0) return;
-        // 这个版本在这台机器上装坏过（看门狗已回滚 + 拉黑）：别再下了，否则死循环。
-        if (Object.prototype.hasOwnProperty.call(readBlockedVersions(), latest)) return;
-        // 老板 2026-10-06：只有「刚启动/刚登录」这一下才真装；跑着的时候只查不换版。
-        if (!withinLaunchGrace()) return;
+        const data = (json && json.data) || {};
+        // 「要不要动这台机器、走哪条路」全在 decideUpdate 里（每次检查都重新读本机状态）。
+        const decision = decideUpdate({
+          latest: data.version,
+          current: app.getVersion(),
+          exeUrl: data.downloadUrl,
+          zipUrl: data.zipUrl,
+          blockedVersions: readBlockedVersions(),
+          withinGrace: withinLaunchGrace(),
+          isWatchdogReady: watchdogReady,
+        });
+        if (decision.action === 'skip') return;
 
         const toFull = (u) => (u.indexOf('http') === 0 ? u : serverUrl + u);
-        // 静默路径：有「认得客服端」的新看门狗就走整包 zip，不需要授权。
-        const silent = !!(zipUrl && watchdogReady());
-        const fullUrl = toFull(silent ? zipUrl : exeUrl);
+        const fullUrl = toFull(decision.url);
         // 先在主进程把包完整下载下来，再退出安装；避免之前用后台 PowerShell 下载时
         // 应用一退出就把下载进程一起杀掉，导致永远装不上。
-        const out = silent
+        const out = decision.action === 'silent'
           ? UPDATE_ZIP
-          : path.join(app.getPath('temp'), 'Chunlv-CS-Setup-' + latest + '.exe');
+          : path.join(app.getPath('temp'), 'Chunlv-CS-Setup-' + decision.version + '.exe');
         downloadFile(fullUrl, out)
           .then(() => {
-            if (silent) {
-              signalUpdate(fullUrl, out, latest);
+            if (decision.action === 'silent') {
+              signalUpdate(fullUrl, out, decision.version);
               // 交给看门狗（系统权限）解压换装并重启：不弹 UAC。
               setTimeout(() => app.exit(0), 800);
               return;
