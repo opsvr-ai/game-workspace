@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Col, Input, Modal, Radio, Row, Space, Table, Tag, Typography, message,
+  Alert, Button, Card, Col, Input, Modal, Radio, Row, Space, Table, Tag, Typography,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';

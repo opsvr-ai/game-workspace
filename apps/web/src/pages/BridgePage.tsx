@@ -1,6 +1,7 @@
 // craftsman-ignore: TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Tag, Tabs, message, Modal, Select, Space, Typography, Checkbox } from 'antd';
+import { Card, Table, Button, Tag, Tabs, Modal, Select, Space, Typography, Checkbox } from 'antd';
+import { message } from '../utils/feedback';
 import { LinkOutlined, CheckOutlined, CloseOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { bridgeApi, BridgeInfo } from '../api/bridge';
 import BridgeSettlementPanel from '../components/BridgeSettlementPanel';

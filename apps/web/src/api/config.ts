@@ -1,5 +1,5 @@
 import http from './client';
-import { message } from 'antd';
+import { message } from '../utils/feedback';
 
 /**
  * 系统配置接口。

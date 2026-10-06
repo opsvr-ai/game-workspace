@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, createElement, useMemo } from 'react';
-import { Table, Tag, Typography, DatePicker, Select, Button, Space, message } from 'antd';
+import { Table, Tag, Typography, DatePicker, Select, Button, Space} from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import PageHeader from '../../components/PageHeader';

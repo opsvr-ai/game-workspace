@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Card, Space, Tag, Typography, message } from 'antd';
+import { Badge, Button, Card, Space, Tag, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import { useNavigate } from 'react-router-dom';

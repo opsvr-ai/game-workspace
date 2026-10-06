@@ -5,7 +5,6 @@ import {
   Button,
   Space,
   Typography,
-  message,
   Table,
   Tag,
   Statistic,
@@ -14,6 +13,7 @@ import {
   Drawer,
   Tooltip,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';

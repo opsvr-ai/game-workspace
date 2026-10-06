@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Typography, message } from 'antd';
+import { Button, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { configApi } from '../api/config';
 import { ORDER_FIELD_LABELS, orderDeltaCountText, orderTypeLabel } from '../constants/orderFields';
 

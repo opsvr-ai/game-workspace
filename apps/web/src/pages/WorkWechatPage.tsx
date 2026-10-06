@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Input, message, Popconfirm, Tag, Typography, Select, Space, Card, Modal, Tooltip, Alert } from 'antd';
+import { Table, Button, Input, Popconfirm, Tag, Typography, Select, Space, Card, Modal, Tooltip, Alert } from 'antd';
+import { message } from '../utils/feedback';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import PageHeader from '../components/PageHeader';

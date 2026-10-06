@@ -11,13 +11,13 @@ import {
   Tag,
   Typography,
   Space,
-  message,
   List,
   Input,
   Badge,
   Tabs,
   Divider,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import { PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { CompanionStatus, OrderType } from '@chunlv/shared';
 import { companionsApi } from '../../api/companions';

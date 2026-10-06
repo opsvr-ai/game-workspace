@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Typography, message, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Row, Col, Popconfirm } from 'antd';
+import { Card, Table, Button, Space, Typography, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Row, Col, Popconfirm } from 'antd';
+import { message } from '../../utils/feedback';
 import { PlusOutlined, ReloadOutlined, EditOutlined, CalculatorOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';

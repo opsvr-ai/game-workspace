@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback } from 'react';
-import { Row, Col, Button, Tag, Space, Typography, message, Empty } from 'antd';
+import { Row, Col, Button, Tag, Space, Typography, Empty } from 'antd';
+import { message } from '../utils/feedback';
 import LoadingState from './LoadingState';
 import {
   ThunderboltOutlined,

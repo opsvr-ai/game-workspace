@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card,
+  Button, Space, Table, Typography, Tag, Modal, Form, Input, Select, Popconfirm, Row, Col, DatePicker, Tabs, Drawer, InputNumber, Statistic, Divider, List, Empty, Progress, Alert, Card,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   PlusOutlined, ReloadOutlined, DeleteOutlined, FolderOpenOutlined, SettingOutlined, FileTextOutlined, ThunderboltOutlined,
   LeftOutlined, RightOutlined, CameraOutlined, CopyOutlined,

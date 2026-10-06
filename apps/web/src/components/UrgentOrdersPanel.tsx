@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Input, Modal, Select, Space, Typography, message } from 'antd';
+import { Button, Card, Input, Modal, Select, Space, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';

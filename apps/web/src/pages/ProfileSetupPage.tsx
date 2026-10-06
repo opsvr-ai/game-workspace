@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Select, Button, Typography, message, Checkbox, Tag, Row, Col } from 'antd';
+import { Card, Select, Button, Typography, Checkbox, Tag, Row, Col } from 'antd';
+import { message } from '../utils/feedback';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { BG } from '../styles/tokens';

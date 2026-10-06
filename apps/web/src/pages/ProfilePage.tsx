@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Form, Input, Button, Typography, Upload, Row, Col, message } from 'antd';
+import { Card, Form, Input, Button, Typography, Upload, Row, Col} from 'antd';
+import { message } from '../utils/feedback';
 import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';

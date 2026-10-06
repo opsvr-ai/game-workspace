@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Button, Input, message } from 'antd';
+import { Button, Input} from 'antd';
+import { message } from '../../utils/feedback';
 import { SendOutlined, SmileOutlined, PaperClipOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';

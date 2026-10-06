@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001
 import React from 'react';
-import { Button, Card, Space, Typography, message } from 'antd';
+import { Button, Card, Space, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 

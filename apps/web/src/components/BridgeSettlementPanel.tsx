@@ -6,13 +6,13 @@ import {
   Button,
   Space,
   Typography,
-  message,
   DatePicker,
   Tag,
   Row,
   Col,
   Select,
 } from 'antd';
+import { message } from '../utils/feedback';
 import { ReloadOutlined, CopyOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { bridgeApi, BridgeSettlement, BridgeSettlementRow } from '../api/bridge';

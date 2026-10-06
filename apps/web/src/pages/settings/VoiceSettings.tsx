@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Form, Input, message, Typography } from 'antd';
+import { Button, Card, Form, Input, Typography } from 'antd';
+import { message } from '../../utils/feedback';
 import { configApi } from '../../api/config';
 
 const KEYS = ['turn.url', 'turn.username', 'turn.credential'];

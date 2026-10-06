@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Modal, Segmented, Space, Table, Tag, Typography, message } from 'antd';
+import { Badge, Button, Modal, Segmented, Space, Table, Tag, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { extractErrorMessage } from '../utils/error-handler';
 

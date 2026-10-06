@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Input, message, Modal } from 'antd';
+import { Input, Modal } from 'antd';
+import { message } from '../../utils/feedback';
 import { useChatStore, type Message } from '../../stores/chatStore';
 import { useAuthStore } from '../../stores/authStore';
 import { chatApi } from '../../api/chat';

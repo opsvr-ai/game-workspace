@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Tabs, Typography, Space, Tag, message, Input, Modal } from 'antd';
+import { Card, Button, Tabs, Typography, Space, Tag, Input, Modal } from 'antd';
+import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import { DownloadOutlined } from '@ant-design/icons';

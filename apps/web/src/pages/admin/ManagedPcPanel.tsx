@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Button, Space, Table, Typography, Tag, message, Modal, Form, Input, Switch, Popconfirm,
+  Button, Space, Table, Typography, Tag, Modal, Form, Input, Switch, Popconfirm,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   PlusOutlined, ReloadOutlined, PoweroffOutlined, RedoOutlined, MoonOutlined, CloudOutlined, DeleteOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';

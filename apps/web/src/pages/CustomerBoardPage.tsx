@@ -34,8 +34,8 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
+import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import { ReloadOutlined } from '@ant-design/icons';

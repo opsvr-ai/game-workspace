@@ -7,7 +7,6 @@ import {
   Tag,
   Space,
   Typography,
-  message,
   Popconfirm,
   Spin,
   Row,
@@ -18,6 +17,7 @@ import {
   Divider,
   Alert,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   ReloadOutlined,
   CloudUploadOutlined,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Button, Space, Modal, Input, Popconfirm, message, Tag, Typography, Select, Radio } from 'antd';
+import { Table, Button, Space, Modal, Input, Popconfirm, Tag, Typography, Select, Radio } from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
 import PageHeader from '../../components/PageHeader';

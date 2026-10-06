@@ -11,6 +11,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **全站的提示只剩一个出口了：600 多处「弹一下的提醒」统一收口（2026-10-07，dev 分支）。**
+  以前 79 个文件都各写各的 import { message } from 'antd' —— 谁都能弹、弹完就走，于是
+  「同一句话连着弹两条」收不住（双击保存 / 接口重试 / 断线重连 / 一个页面里两处 catch 撞一起），
+  想改提示的位置或时长得全局搜 600 处。现在统一走 apps/web/src/utils/feedback.ts
+  （**同名同形状，调用点一个字不用改**，只把 import 换过去），并且**同一级别 + 同一句话 2.5 秒内只弹一次**；
+  认不出文案（传的是 ReactNode）就不去重 —— 宁可多弹，也别把该看到的吞掉。
+  守卫 scripts/_check_feedback_layer.mjs（pnpm feedback:check）：谁再直接从 antd import message，CI 直接红。
+  测试 src/__tests__/feedback.test.ts（9 用例）。真机验过：把订单接口全部打挂、拦下 6 次请求，
+  页面上只出现 1 条「加载失败」。
 - **看板 / 财务页剩下的「大数字」也统一了：财务·管理端 31 处统计卡一并收到 StatCard（2026-10-07，dev 分支）。**
   第 20 批把四个看板统一之后，财务 / 管理端还有一批页面各写各的 —— 提成、对账、风险台、
   客服提成今日看板、陪玩钱包日历、订单复核、杀进程日志、桥接结算、客户端版本管理，共 **9 个文件 31 处**

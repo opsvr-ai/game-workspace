@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, DatePicker, Row, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Col, DatePicker, Row, Select, Space, Table, Tag, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { ordersApi } from '../api/orders';

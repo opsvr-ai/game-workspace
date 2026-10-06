@@ -16,8 +16,8 @@ import {
   InputNumber,
   Image,
   Switch,
-  message,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   PlusOutlined,
   ReloadOutlined,

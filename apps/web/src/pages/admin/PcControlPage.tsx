@@ -7,12 +7,12 @@ import {
   Button,
   Space,
   Popconfirm,
-  message,
   Tooltip,
   Input,
   Select,
   Segmented,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   ReloadOutlined,
   DesktopOutlined,

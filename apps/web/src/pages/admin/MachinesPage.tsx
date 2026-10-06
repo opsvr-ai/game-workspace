@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Button, Descriptions, Drawer, Form, Input, Modal, Space, Statistic, Table, Tag, Tooltip, Typography, message,
+  Alert, Button, Descriptions, Drawer, Form, Input, Modal, Space, Statistic, Table, Tag, Tooltip, Typography,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   CloudDownloadOutlined, DesktopOutlined, ExclamationCircleOutlined, ReloadOutlined, SafetyCertificateOutlined,
   SearchOutlined, ThunderboltOutlined,

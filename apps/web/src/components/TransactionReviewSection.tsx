@@ -10,9 +10,9 @@ import {
   Modal,
   InputNumber,
   Input,
-  message,
   Popconfirm,
 } from 'antd';
+import { message } from '../utils/feedback';
 import {
   CheckOutlined,
   CloseOutlined,

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Col, Divider, Empty, Input, List, Modal, Progress, Row, Select, Space, Table, Tag, Typography, message,
+  Alert, Button, Card, Col, Divider, Empty, Input, List, Modal, Progress, Row, Select, Space, Table, Tag, Typography,
 } from 'antd';
+import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import { CheckCircleOutlined, CopyOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { contentCheckApi, ContentCheckResult, WeeklyPlanResult } from '../api/contentCheck';

@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, message, notification, Form, Input, Alert } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, notification, Form, Input, Alert } from 'antd';
+import { message } from '../utils/feedback';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import { usePolling } from '../hooks/usePolling';

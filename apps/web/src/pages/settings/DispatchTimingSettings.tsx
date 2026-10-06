@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Form, InputNumber, message, Typography } from 'antd';
+import { Button, Card, Form, InputNumber, Typography } from 'antd';
+import { message } from '../../utils/feedback';
 import { configApi } from '../../api/config';
 
 const KEYS = ['pool.priority_delay_seconds', 'pool.bridge_delay_seconds', 'pool.middle_delay_seconds', 'pool.low_delay_seconds', 'pool.online_delay_seconds', 'pool.immediate_disappear_minutes', 'pool.scheduled_disappear_minutes', 'pool.online_first_release_minutes', 'pool.offline_first_bridge_minutes'];

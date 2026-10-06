@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { message } from 'antd';
+import { message } from '../utils/feedback';
 import { getImagesFromClipboard, isImageFile } from '../utils/clipboardImage';
 import { BRAND } from '../styles/tokens';
 

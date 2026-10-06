@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Modal } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Progress, Space, Badge, List, Input, Modal } from 'antd';
+import { message } from '../utils/feedback';
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined, EditOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';

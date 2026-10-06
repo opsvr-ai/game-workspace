@@ -14,9 +14,9 @@ import {
   Switch,
   Slider,
   Table,
-  message,
   Tooltip,
 } from 'antd';
+import { message } from '../utils/feedback';
 import {
   PlayCircleOutlined,
   SearchOutlined,

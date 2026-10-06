@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { DatePicker, Form, Input, Modal, Select, message } from 'antd';
+import { DatePicker, Form, Input, Modal, Select} from 'antd';
+import { message } from '../utils/feedback';
 import { companionsApi } from '../api/companions';
 import { customersApi } from '../api/customers';
 import { extractErrorMessage } from '../utils/error-handler';

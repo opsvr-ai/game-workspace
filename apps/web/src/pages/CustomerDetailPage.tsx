@@ -18,10 +18,10 @@ import {
   Skeleton,
   Space,
   Typography,
-  message,
   Row,
   Col,
 } from 'antd';
+import { message } from '../utils/feedback';
 import { SaveOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { customersApi } from '../api/customers';

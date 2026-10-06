@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback } from 'react';
-import { Row, Col, Button, Tag, Space, Typography, message, Empty, Modal, Select, Input, Form } from 'antd';
+import { Row, Col, Button, Tag, Space, Typography, Empty, Modal, Select, Input, Form } from 'antd';
+import { message } from '../utils/feedback';
 import { ThunderboltOutlined, AimOutlined, FireOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { customerTrackingApi } from '../api/customerTracking';
 import { customersApi } from '../api/customers';

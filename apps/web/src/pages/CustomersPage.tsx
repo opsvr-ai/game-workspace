@@ -14,7 +14,6 @@ import {
   InputNumber,
   Space,
   Typography,
-  message,
   Popconfirm,
   Tag,
   DatePicker,
@@ -26,6 +25,7 @@ import {
   Alert,
   Radio,
 } from 'antd';
+import { message } from '../utils/feedback';
 import zhCN from 'antd/locale/zh_CN';
 import {
   PlusOutlined,

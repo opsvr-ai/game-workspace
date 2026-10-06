@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Input, Button, Typography, message, Select, Upload, Modal, Checkbox, Alert } from 'antd';
+import { Input, Button, Typography, Select, Upload, Modal, Checkbox, Alert } from 'antd';
+import { message } from '../utils/feedback';
 import { UserOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
 import { UserRole } from '@chunlv/shared';
 import { useAuthStore } from '../stores/authStore';

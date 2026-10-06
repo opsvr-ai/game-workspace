@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Space, Modal, Typography, Image, Input, Popconfirm, message, Tag } from 'antd';
+import { Table, Button, Space, Modal, Typography, Image, Input, Popconfirm, Tag } from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import http from '../../api/client';
 import PageHeader from '../../components/PageHeader';

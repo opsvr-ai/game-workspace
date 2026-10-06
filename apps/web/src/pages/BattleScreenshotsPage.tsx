@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image } from 'antd';
+import { Card, Button, Upload, Select, Typography, Space, Tag, Image } from 'antd';
+import { message } from '../utils/feedback';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import type { UploadFile } from 'antd';

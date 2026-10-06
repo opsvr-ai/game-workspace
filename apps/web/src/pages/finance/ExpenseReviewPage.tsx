@@ -1,8 +1,9 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Tabs, Table, Button, Space, Typography, Tag, message, Modal, Select, Input, DatePicker, Row, Col, Popconfirm,
+  Card, Tabs, Table, Button, Space, Typography, Tag, Modal, Select, Input, DatePicker, Row, Col, Popconfirm,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import PageHeader from '../../components/PageHeader';

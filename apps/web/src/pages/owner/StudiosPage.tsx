@@ -11,9 +11,9 @@ import {
   Segmented,
   Radio,
   Select,
-  message,
   Popconfirm,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   ReloadOutlined,
   EditOutlined,

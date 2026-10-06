@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
-import { message } from 'antd';
+import { message } from '../utils/feedback';
 import { useVoiceCallStore } from '../stores/voiceCallStore';
 
 interface CallState {

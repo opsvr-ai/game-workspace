@@ -14,10 +14,10 @@ import {
   Tag,
   Typography,
   Space,
-  message,
   Spin,
   Upload,
 } from 'antd';
+import { message } from '../utils/feedback';
 import {
   DollarOutlined,
   WalletOutlined,

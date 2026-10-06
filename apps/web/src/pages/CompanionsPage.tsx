@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, message, Popconfirm, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
+import { Table, Tag, Typography, Button, Space, Popconfirm, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
+import { message } from '../utils/feedback';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';

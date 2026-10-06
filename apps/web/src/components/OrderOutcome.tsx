@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { memo, useEffect, useState } from 'react';
-import { Alert, Modal, Radio, Input, Typography, message, Space, Upload, Button } from 'antd';
+import { Alert, Modal, Radio, Input, Typography, Space, Upload, Button } from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';

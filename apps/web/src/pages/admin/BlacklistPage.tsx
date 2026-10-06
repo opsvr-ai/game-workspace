@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, createElement } from 'react';
-import { Table, Button, Tag, Typography, message, Tabs, Select, Space, Card, Popconfirm, Switch, Modal } from 'antd';
+import { Table, Button, Tag, Typography, Tabs, Select, Space, Card, Popconfirm, Switch, Modal } from 'antd';
+import { message } from '../../utils/feedback';
 import { PlusOutlined, ReloadOutlined, CloudDownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { companionsApi } from '../../api/companions';
 import { blacklistApi } from '../../api/blacklist';

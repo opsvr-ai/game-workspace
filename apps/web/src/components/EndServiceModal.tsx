@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { Modal, InputNumber, Typography, message } from 'antd';
+import { Modal, InputNumber, Typography} from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 
 const { Text } = Typography;

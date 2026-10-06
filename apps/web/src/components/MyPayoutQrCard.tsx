@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, Button, Space, Typography, Upload, message, Tag } from 'antd';
+import { Card, Button, Space, Typography, Upload, Tag } from 'antd';
+import { message } from '../utils/feedback';
 import { UploadOutlined } from '@ant-design/icons';
 import { companionsApi } from '../api/companions';
 import http from '../api/client';

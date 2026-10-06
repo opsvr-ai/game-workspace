@@ -6,7 +6,6 @@ import {
   Button,
   Select,
   DatePicker,
-  message,
   Badge,
   Tag,
   Image,
@@ -19,6 +18,7 @@ import {
   Card,
   Upload,
 } from 'antd';
+import { message } from '../utils/feedback';
 import { ReloadOutlined } from '@ant-design/icons';
 import { extractErrorMessage } from '../utils/error-handler';
 import { describeTransfer, transferWho } from '../components/OrderTransferNote';

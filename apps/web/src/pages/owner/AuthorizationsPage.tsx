@@ -5,10 +5,10 @@ import {
   Space,
   Typography,
   Tag,
-  message,
   Segmented,
   Input,
 } from 'antd';
+import { message } from '../../utils/feedback';
 import {
   CheckOutlined,
   ReloadOutlined,

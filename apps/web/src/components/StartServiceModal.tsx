@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState } from 'react';
-import { Modal, Select, InputNumber, Button, Row, Col, Radio, Switch, message, notification, Typography } from 'antd';
+import { Modal, Select, InputNumber, Button, Row, Col, Radio, Switch, notification, Typography } from 'antd';
+import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
 import { useAuthStore } from '../stores/authStore';

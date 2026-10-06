@@ -301,6 +301,21 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 22 批 · 已完成（2026-10-07，反馈层统一出口：提示只留一个门）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 建统一出口 | P2-8 | `apps/web/src/utils/feedback.ts`：导出与 antd **同名**的 `message`（success / error / warning / info）—— **调用点一个字不用改**；**同级别 + 同文案 `FEEDBACK_DEDUP_MS`（2500ms）内只弹一次**；认不出文案（ReactNode）不去重（宁可多弹，别吞掉该看到的）；`message.raw` 是「每次都弹」的逃生口；`resetFeedbackDedup()` 给测试 / 主动刷新用 | 本次 |
+| 79 个文件换 import | P2-8 | 625 处调用**一处没动**，只把 `import { message } from 'antd'` → `import { message } from '<相对>/utils/feedback'`（79 个文件；其中 4 个原来只 import 了 message，antd 那条 import 整条消失） | 本次 |
+| 守门 + 测试 | P2-8 | `scripts/_check_feedback_layer.mjs`（`pnpm feedback:check`，CI 已接）：从 antd（含 `antd/es/message` / `antd/lib/message`）直接 import message → 直接红，**目标恒为 0**；行尾 `feedback-layer-ok` 可豁免（测试自己拿 antd 真身时用）。`src/__tests__/feedback.test.ts`（9 用例） | 本次 |
+
+> 验收口径（可复算）：`pnpm feedback:check`（0）、`pnpm --filter @chunlv/web test`（9 文件 / 29 用例）、
+> `pnpm -r typecheck`、`pnpm -r lint`（web 1618 warn / 0 error，与基线一致）、其余 6 个守门全绿。
+> 真机验证：让订单接口全部失败 → 拦下 **6 次**请求，页面上只出现 **1 条**「加载失败」
+> （证据 `tmp_shots/b22/after/toast-proof.png`）；窄屏体检 `tmp_shots/b22/audit.json`（6 页 `overflow` / `issues` 全空）。
+> **已自证会红**：① 塞一个 `import { message } from 'antd'` → 守卫点名到文件行号、退出码 1；
+> ② 把去重窗口改成 0 → feedback 测试挂 3 条。
+
 ### 第 21 批 · 已完成（2026-10-07，财务 / 管理端统计卡一并收到 StatCard）
 
 | 任务 | 对应问题 | 交付 | 提交 |
@@ -1022,7 +1037,8 @@ IDLE
    - `DataTable`：三个大表共用（表头/行高/字号/列宽/钉左钉右/列配置持久化）；
    - `PageShell`：标题区 + 筛选区 + 操作区统一；
    - `EmptyState` / `LoadingState` / `ErrorState` 统一；
-   - `StatCard` 统一（看板上的大数字只有这一个来源，见「第 20／21 批」；**整站 `<Card><Statistic/>` 已归零**）。
+   - `StatCard` 统一（看板上的大数字只有这一个来源，见「第 20／21 批」；**整站 `<Card><Statistic/>` 已归零**）；
+   - 反馈层统一出口 `utils/feedback.ts`（提示只留一个门 + 同一句话去重，见「第 22 批」）。
 
 **顺带修的**：`theme.ts` 的注释与主色对齐；若确实要保留紫色主色，就把「经典蓝」的描述改掉，并把 AntD 默认蓝全部替换。
 

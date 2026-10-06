@@ -16,7 +16,8 @@
  * 只有客户**编号**，没有客户微信 —— 看板是给派单用的，不是给谁抄客户的。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Avatar, Badge, Button, Card, Tooltip, Typography, message } from 'antd';
+import { Avatar, Badge, Button, Card, Tooltip, Typography} from 'antd';
+import { message } from '../../utils/feedback';
 import EmptyState from '../../components/EmptyState';
 import LoadingState from '../../components/LoadingState';
 import { ReloadOutlined } from '@ant-design/icons';

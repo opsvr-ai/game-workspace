@@ -67,6 +67,12 @@ jobs:
       # <Card><Statistic/> 拼统计卡」。基线见 docs/STAT-CARD-BASELINE.json（当前 0 + 31，只能减不能增）。
       - name: 统计卡冻结（看板大数字只有一个来源）
         run: node scripts/_check_stat_cards.mjs --check
+      # 提示层出口冻结（docs/REFACTOR-PLAN.md P2-8「反馈层无统一出口」）：全站 600 多处提示以前
+      # 都各自从 antd 直接 import message —— 「同一句话连着弹两条」这类问题没法收口，想改提示
+      # 得全局搜 600 处。统一走 apps/web/src/utils/feedback.ts（同名同形，调用点一个字不用改）后，
+      # 谁再直接从 antd import message 这里就红（目标恒为 0）。
+      - name: 提示层出口冻结（提示只留一个出口）
+        run: node scripts/_check_feedback_layer.mjs --check
       # 路由分包守卫（2026-10-07）：50 个页面原来全是同步 import，首屏必须把所有页面的代码
       # 都下载 + 解析完才画出第一帧（主包 1.2MB）。改成按路由 lazy 之后主包 347KB。
       # 但「新加一个页面」时同步 import 是最自然的写法，写下去没人会觉得不对 —— 这里拦住它。

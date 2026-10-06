@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, Typography, Tag, Input, Button, Space, message } from 'antd';
+import { Card, Typography, Tag, Input, Button, Space} from 'antd';
+import { message } from '../utils/feedback';
 import http from '../api/client';
 
 const { Text } = Typography;

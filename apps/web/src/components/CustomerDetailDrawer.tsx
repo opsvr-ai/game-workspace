@@ -10,13 +10,13 @@ import {
   Switch,
   Space,
   Typography,
-  message,
   Form,
   Divider,
   Spin,
   Empty,
   Tooltip,
 } from 'antd';
+import { message } from '../utils/feedback';
 import { EditOutlined, SaveOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { customersApi } from '../api/customers';
 import { DATA_FONT_SIZE, DATA_SUB_FONT_SIZE, DETAIL_LABEL_WIDTH } from '../constants/datasetColumns';

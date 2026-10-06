@@ -19,6 +19,8 @@
     "loading:check": "node scripts/_check_loading_state.mjs --check",
     "stat-cards": "node scripts/_check_stat_cards.mjs",
     "stat-cards:check": "node scripts/_check_stat_cards.mjs --check",
+  "feedback": "node scripts/_check_feedback_layer.mjs",
+  "feedback:check": "node scripts/_check_feedback_layer.mjs --check",
     "splitting:check": "node scripts/_check_route_splitting.mjs",
     "routes": "node scripts/_export_web_routes.mjs",
     "routes:check": "node scripts/_export_web_routes.mjs --check",
