@@ -562,6 +562,13 @@ graph TB
 | `apps/web/src/styles/global.css` 末尾「视觉系统 v2」一段 | 整页晕染底色 `.app-shell`、内容白卡 `.app-content`、卡片/表格/按钮/标签/滚动条、左侧导航配色，以及通用小组件类 `.ui-panel` / `.ui-dot` / `.ui-section-title` / `.ui-chip` |
 | `apps/web/src/layouts/AppLayout.tsx` 的 `MODULE_TINTS` | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots） |
 
+**铁律：颜色只认 `styles/tokens.ts`。** 页面 / 组件里**不要再写十六进制色值** —— 要么从 tokens 取
+（`TEXT.* / BORDER.* / BG.* / BRAND.* / SEMANTIC.*`），要么在 CSS 里读 `var(--color-*)`。
+CI 有一道「UI 硬编码色值冻结」检查（`scripts/_check_ui_tokens.mjs`，基线 `docs/UI-TOKEN-BASELINE.json`）：
+**只能减、不能增**，新写硬编码色值会让 CI 直接红；数量降下来了才用 `--update` 把基线调低。
+（唯一例外：`styles/tokens.ts` 本身、`styles/commander.ts` 那套深色主题调色板、`index.css` 的 `:root` 首屏兜底
+—— 后者的值必须写死，写成 `var(--自身)` 等于没定义。）
+
 **铁律：只做渲染，不动字号。** 订单 / 客户这份数据的字号唯一来源是
 `apps/web/src/constants/datasetColumns.ts`（启动时注入成 CSS 变量），
 视觉改版里出现 `font-size` 就会重新踩「同一个数据两个字号」的老坑。
