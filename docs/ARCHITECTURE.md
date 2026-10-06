@@ -562,6 +562,16 @@ graph TB
 
 改界面只改这几处（颜色只认 `tokens.ts`），不要在页面里各写一套颜色：
 
+> **本机怎么看界面（2026-10-07 起）**：本机没有数据库、页面又要登录，所以直接开浏览器是白屏。
+> 现在可以全程离线地看真实页面：
+> ```powershell
+> node scripts/_mock_api.mjs                     # 假后台（静态发 dist + 接管 /api/*），另开一个窗口
+> node scripts/_shot_pages.mjs --out=tmp_shots/audit \
+>   --pre=scripts/_shot_seed_owner.js --base=http://127.0.0.1:8123 /admin /cs/dispatch /admin/orders
+> ```
+> 「已经登录 + 登录的是老板」由 `--pre=` 注入；要看别的角色或更真实的数据，改 `_mock_api.mjs` 的 FIXTURES。
+> 单页细看用 `_shot_ui.mjs`（支持 `--sel` 只截某块、`--scale` 放大、`--eval` 取数）。
+
 | 位置 | 管什么 |
 |------|--------|
 | `apps/web/src/styles/tokens.ts` | **设计令牌唯一真源**：品牌 / 文本 / 背景 / 描边 / 语义色、间距 `SPACE`、圆角 `RADIUS`、字体 `FONT`、阴影 `SHADOW`、渐变 `GRADIENTS`。导出 `applyTokenCssVars()`，`main.tsx` 启动时写进 `:root` 的 CSS 变量（页面 / 组件读 `var(--color-*)`）。**改颜色只改这里。** |

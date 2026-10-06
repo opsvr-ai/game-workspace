@@ -2091,7 +2091,9 @@ const AppLayout: React.FC = () => {
               padding: '0 16px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              // 左侧（折叠 / 门店名 / 消息）自然并排，右侧那一组靠 marginLeft:auto 顶到最右。
+              // 以前用 space-between，中间那个「消息」按钮会被甩到整条栏的正中间悬着。
+              gap: 12,
               borderBottom: '1px solid rgba(255,255,255,0.08)',
               zIndex: 1,
               height: 56,
@@ -2135,7 +2137,7 @@ const AppLayout: React.FC = () => {
                 />
               </div>
             </Badge>
-            <Space size="middle">
+            <Space size="middle" style={{ marginLeft: 'auto' }}>
               {/* Notification bell */}
               {user && (
                 <Popover

@@ -216,3 +216,8 @@ apps/*/.claude/
 /tmp_*
 /__pycache__/
 **/__pycache__/
+
+# 本机预览用：假后台 + 截图注入脚本（2026-10-07）
+!scripts/_mock_api.mjs
+!scripts/_shot_seed_owner.js
+!scripts/_shot_pages.mjs

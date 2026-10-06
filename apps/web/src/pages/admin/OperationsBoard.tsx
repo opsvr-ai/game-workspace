@@ -211,7 +211,11 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       </SectionTitle>
 
       {/* ── KPI ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 14 }}>
+      {/* alignItems: "stretch"：几张卡都是 height:100%，而 antd 的 Row 默认不拉伸 ——
+          结果带副标题的那张比别的矮一截、一行的下沿参差不齐（看板最扎眼的地方）。
+          （注意：antd 5.18 的 Row 上那个 align="stretch" 只会加个 class、并没有真的生成 CSS，
+           实测 align-items 还是 flex-start，所以这里直接写行内样式。） */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
         <Col xs={12} md={4}><Kpi label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
         <Col xs={12} md={4}><Kpi label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
         <Col xs={12} md={4}><Kpi label="今日单量" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} sub={dash ? `接单率 ${pct(dash.today?.acceptRate)}` : undefined} tint="#faad14" /></Col>
@@ -228,7 +232,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       </Row>
 
       {/* ── 图表 ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 14 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
         <Col xs={24} lg={15}>
           <Card size="small" title="近 14 天流水" styles={{ body: { paddingTop: 8 } }}>
             {trendData.length ? (
@@ -351,7 +355,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
       </Card>
 
       {/* ── 质量榜 + 最该关注的 ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 14 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
         <Col xs={24} lg={15}>
           <Card size="small" title="陪玩 KPI（首单成功率 / 续单率 / 复购率）">
             {rateList.length ? (

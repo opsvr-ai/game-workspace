@@ -52,6 +52,14 @@ const scale = Number(opt('scale', 2));
 const wait = Number(opt('wait', 1500));
 const sel = opt('sel', '');
 const port = Number(opt('port', 9333));
+// --pre=<js 文件>：导航**之前**注入的脚本（用来造登录态 / 挡掉 Electron 相关探测）
+const pre = opt('pre', '');
+// --await=<选择器>：等它出现再截图（页面是异步拉数据的，固定 sleep 不可靠）
+const awaitSel = opt('await', '');
+// --full：按整个文档的高度截图（长页面看全貌）
+const full = args.includes('--full');
+// --eval=<js>：顺手在页面上跑一段表达式并把结果打出来（量宽度 / 对齐这种「必须拿数」的检查）
+const evalJs = opt('eval', '');
 
 const browser = EDGE_CANDIDATES.find((p) => fs.existsSync(p));
 if (!browser) {
@@ -133,10 +141,44 @@ try {
   await cdp.ready;
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
+  if (pre) {
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(pre, 'utf8') });
+  }
   await cdp.send('Page.navigate', { url });
   await sleep(wait);
 
-  let clip = { x: 0, y: 0, width, height, scale };
+  if (awaitSel) {
+    const expr = 'document.querySelector(' + JSON.stringify(awaitSel) + ') !== null';
+    for (let i = 0; i < 40; i++) {
+      const r = await cdp.send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      if (r?.result?.value === true) break;
+      await sleep(250);
+    }
+  }
+
+  let boxW = width;
+  let boxH = height;
+  if (full) {
+    const m = await cdp.send('Runtime.evaluate', {
+      expression:
+        'JSON.stringify({ w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth), h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) })',
+      returnByValue: true,
+    });
+    try {
+      const b = JSON.parse(m?.result?.value || '{}');
+      if (b.w) boxW = Math.min(Math.max(b.w, 320), 3000);
+      if (b.h) boxH = Math.min(Math.max(b.h, 400), 12000);
+    } catch {
+      /* 量不到就用传进来的高度 */
+    }
+  }
+
+  if (evalJs) {
+    const r = await cdp.send('Runtime.evaluate', { expression: evalJs, returnByValue: true, awaitPromise: true });
+    console.log('[eval] ' + JSON.stringify(r?.result?.value ?? r?.result?.description ?? null));
+  }
+
+  let clip = { x: 0, y: 0, width: full ? boxW : width, height: full ? boxH : height, scale };
   if (sel) {
     const box = await cdp.send('Runtime.evaluate', {
       expression: `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; el.scrollIntoView({ block: 'start' }); const r = el.getBoundingClientRect(); return JSON.stringify({ x: r.x + window.scrollX, y: r.y + window.scrollY, w: r.width, h: r.height }); })()`,

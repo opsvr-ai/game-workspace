@@ -128,6 +128,21 @@
 > 继续照模子补；再往后是 `AppLayout` 剩下的弹窗 / 通知 / 语音通话（带 socket，要另配 mock）。
 
 
+### 第 7 批 · 已完成（2026-10-07，本机可看界面 + 第一批真 UI 缺陷）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 本地假后台 | P1-2 / 开工前提 | `scripts/_mock_api.mjs`：静态发 `apps/web/dist` + 接管 `/api/*`（`/auth/me` 给老板账号，其余「成功但没数据」）；请求路径记进 `tmp_shots/_api_log.txt`。**不用数据库、不连线上** | 本次 |
+| 造登录态 | P1-2 | `scripts/_shot_seed_owner.js` + `_shot_ui.mjs` 的 `--pre=`：导航前注入，前端以为「已登录且是老板」 | 本次 |
+| 批量截图 | P1-2 / 安全网 | `scripts/_shot_pages.mjs`：只开一次浏览器逐页拍，**6 页 82 秒**（原来单页 60 秒）；`_shot_ui.mjs` 补 `--await` / `--eval`；`--full`+`--sel` 按元素 scrollHeight 算（外壳 overflow:hidden，页面在内层容器里滚） | 本次 |
+| 顶栏「消息」按钮悬空 | P2-7 / 15.3 | `justify-content: space-between` 遇上三个平级子元素 → 中间那个被甩到整条栏正中。改成「左侧并排 + 右侧 `margin-left:auto`」（改前 `tmp_shots/audit/admin_orders.png` ↔ 改后 `tmp_shots/audit3/admin.png`） | 本次 |
+| 看板卡片下沿参差 | P2-7 / 15.3 | `OperationsBoard` 三排卡片都是 `height:100%`，而 antd `Row` 默认不拉伸 → 带副标题的那张高出一截。改 `alignItems:'stretch'`，6 张 KPI 实测都 100px（改前 79/79/79/100/79/79） | 本次 |
+
+> 这一批把「UI 改动能不能自己验证」这件事解决了 —— 以前只能改完等老板点，现在本机就能看一眼。
+> 顺带确认：左栏菜单文字**没有**被截断（`scrollWidth == clientWidth`，是截图缩放看走眼），没有白改。
+> 下一步：拿这套工具把主要页面过一遍，继续收 UI；同时 `AppLayout` 的弹窗 / 通知 / 语音通话可以开始拆了（现在拆完能看）。
+
+
 ---
 
 ## 0. 结论速览
