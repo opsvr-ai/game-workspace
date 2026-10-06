@@ -11,6 +11,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **加：网页端路由表自动导出 + CI「路由契约冻结」检查（2026-10-07，dev 分支）。**
+  和接口契约是同一个道理，但这次保的是**页面路径**：`apps/web/src/router.tsx` 里现在有 **86 条路由**，
+  每一条外面都包着一层 `<Suspense>`（其实什么都没懒加载，纯历史包袱），文件 786 行。
+  这些 URL 是**四端共用的导航契约** —— 陪玩端 / 客服端的内嵌窗口、看门狗、客服发给别人的地址、老板收藏的链接，
+  全都写死这些路径；而前端**一个测试都没有**，重构 `router.tsx` 时「顺手」删掉或改名一条老路径，没有任何东西拦得住。
+  所以先把手头这份表导出来冻结：
+  - 新增 `scripts/_export_web_routes.mjs`：**静态**扫 `router.tsx` 的 `createBrowserRouter([...])` 字面量
+    （不启 vite、不 import 任何页面组件，所以秒跑、不会被 antd / 浏览器 API 拖住），导出 `docs/WEB-ROUTES.json`
+    —— 每条含 `path` / `kind`（page / redirect / layout / index）/ `component` / `redirectTo` / 是否有 `errorElement`，
+    按路径排序，稳定可比对。当前基线 **86 条**（含 4 条重定向 + 2 个布局壳 + 2 条 `path:''` 的默认子路由）。
+  - **出错不静默**：`path` 写成变量拼接、字段不认识、或「源码里出现 N 个 `path:` 但只导出 M 条」时**直接报错退出**，
+    不许输出一份「看起来对、其实少算了」的表。（写这个脚本时就踩到过一次：数路径的行首正则会漏掉
+    `{ path: '', element: <Navigate ... /> }` 这种单行路由，少了 4 条 —— 所以这类校验一定要有，而且要先自证能红。）
+  - `--check` 比对模式：路径少了 / 改了 / 换了页面 → 退出码 1，并打印「+ 新增 / - 删除」明细；
+    CI 的 `check` 任务里加了这一步（排在「接口契约冻结」后面），谁动了页面路径 CI 直接红。
+  - 本地用法：`pnpm routes`（重新生成）/ `pnpm routes:check`（比对）。
+  - 已自证能红：故意把 JSON 里 `/companion/pool` 改成 `/companion/pool-x`，`pnpm routes:check` 退出码 1 并逐条列出差异。
+  - **这一步只加工具链，网页端一行运行时代码都没动**（`router.tsx` 本身没改）。
+
 - **加：接口 / Socket 契约自动导出 + CI「契约冻结」检查（2026-10-06）。**
   `docs/REFACTOR-PLAN.md` 的三条前提之一是「契约冻结」：400 个接口 + 30 多个 Socket 事件是
   网页端 / 陪玩端 / 客服端 / 看门狗共用的契约，重构期间路径与事件名不得变更 —— 但靠人记是记不住的

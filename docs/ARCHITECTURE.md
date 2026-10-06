@@ -551,6 +551,13 @@ graph TB
 
 > ★ 盈亏统计需二级密码验证（5 分钟 secondToken）
 
+> **路由清单（自动生成，CI 冻结，2026-10-07）：** 上面这张图只是按角色的示意，**完整 86 条**在
+> `docs/WEB-ROUTES.json`（由 `scripts/_export_web_routes.mjs` 从 `router.tsx` 静态导出：路径 / 类型
+> （page / redirect / layout）/ 组件 / 重定向目标 / 有没有 `errorElement`）。**页面路径是四端共用的契约**
+> —— 陪玩端与客服端的内嵌窗口、看门狗、客服外发的链接、老板收藏的链接都写死这些 URL；
+> 所以 CI 会重新导出一次再比对，删路径 / 改路径 / 换页面直接红，本地 `pnpm routes` / `pnpm routes:check`。
+> 动 `router.tsx` 之前请先看这份表。
+
 ### 5.1 前端视觉系统（老板 2026-09-21 要求「整齐、有层次感」）
 
 改界面只改这几处（颜色只认 `tokens.ts`），不要在页面里各写一套颜色：

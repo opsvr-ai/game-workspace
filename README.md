@@ -40,6 +40,10 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **工程地基：页面路由表自动导出 + CI「路由契约冻结」（2026-10-07，只动工具链，不影响线上）：** 新增
+  `scripts/_export_web_routes.mjs`，静态扫 `router.tsx` 导出 `docs/WEB-ROUTES.json`（基线 **86 条**页面路径），
+  CI 重新生成一次再比对 —— 谁删了 / 改了页面路径、或把某条路由换了页面，CI 直接红。
+  本地：`pnpm routes` / `pnpm routes:check`。这是接下来重构 `router.tsx`（786 行、70 处死 `<Suspense>`）的安全网。
 - **工程地基：契约自动导出 + CI「契约冻结」（2026-10-06，只动工具链，不影响线上）：** 新增
   `scripts/_export_api_contract.mjs`，从 Controller / Gateway 源码静态导出四端共用的契约到
   `docs/API-CONTRACT.json`（当前基线 **400 个接口 / 28 个 controller / 15 个入站事件 / 19 个出站事件**），
@@ -1120,7 +1124,7 @@ chunlv-esports/
 │   │       │       ├── SettlementPage.tsx
 │   │       │       ├── ReconciliationPage.tsx
 │   │       │       └── RiskWorkbenchPage.tsx
-│   │       └── router.tsx           # 14 frontend routes
+│   │       └── router.tsx           # 86 routes（清单见 docs/WEB-ROUTES.json，CI 冻结）
 │   │
 │   ├── server/                       # Nest.js backend
 │   │   ├── prisma/
@@ -1812,6 +1816,7 @@ Every endpoint returns a standard JSON envelope:
 ## Documents
 
 - [**接口 / Socket 契约清单（自动生成，CI 冻结）**](docs/API-CONTRACT.json) —— 改接口路径 / 事件名前先看这份；`pnpm contract` 重新生成、`pnpm contract:check` 比对
+- [**页面路由清单（自动生成，CI 冻结）**](docs/WEB-ROUTES.json) —— 改页面路径 / 删路由前先看这份（陪玩端与客服端内嵌窗口、看门狗、外发链接都写死这些 URL）；`pnpm routes` 重新生成、`pnpm routes:check` 比对
 - [重构方案（dev 分支）](docs/REFACTOR-PLAN.md)
 - [架构说明 (Mermaid 图表)](docs/ARCHITECTURE.md)
 - [部署手册](docs/DEPLOYMENT.md)

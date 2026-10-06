@@ -1,0 +1,609 @@
+{
+  "_comment": "网页端路由表（四端共用的导航契约）。只能加、不能悄悄删改：改路由会动到这里，请确认陪玩端 / 客服端没有依赖老路径。",
+  "_exportedAt": "2026-10-07",
+  "count": 86,
+  "routes": [
+    {
+      "path": "/",
+      "kind": "layout",
+      "component": "AppLayout",
+      "redirectTo": null,
+      "hasErrorElement": true
+    },
+    {
+      "path": "/",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin",
+      "kind": "page",
+      "component": "OperationsBoard",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/agent-version",
+      "kind": "page",
+      "component": "AgentVersionPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/attendance",
+      "kind": "page",
+      "component": "AttendancePage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/battle-screenshots",
+      "kind": "page",
+      "component": "BattleScreenshotReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/billing",
+      "kind": "page",
+      "component": "BillingOverview",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/blacklist",
+      "kind": "page",
+      "component": "BlacklistPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/companion-wallet-calendar",
+      "kind": "page",
+      "component": "CompanionWalletCalendarPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/companions",
+      "kind": "page",
+      "component": "CompanionsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/cs-settings",
+      "kind": "page",
+      "component": "CsSettingsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/cs-wechat-flow",
+      "kind": "page",
+      "component": "CsWechatFlowPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/customer-board",
+      "kind": "page",
+      "component": "CustomerBoardPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/customers",
+      "kind": "page",
+      "component": "CustomersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/customers/:id",
+      "kind": "page",
+      "component": "CustomerDetailPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/dispatch",
+      "kind": "page",
+      "component": "DispatchPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/employees",
+      "kind": "page",
+      "component": "EmployeesPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/commission",
+      "kind": "page",
+      "component": "CommissionPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/commission-today",
+      "kind": "page",
+      "component": "CsCommissionTodayPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/expenses",
+      "kind": "page",
+      "component": "ExpenseReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/price-rules",
+      "kind": "page",
+      "component": "PriceRulesPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/reconciliation",
+      "kind": "page",
+      "component": "ReconciliationPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/finance/risk",
+      "kind": "page",
+      "component": "RiskWorkbenchPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/live-board",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/machines",
+      "kind": "page",
+      "component": "MachinesPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/managed-pcs",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/machines",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/order-review",
+      "kind": "page",
+      "component": "OrderReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/orders",
+      "kind": "page",
+      "component": "OrdersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/payroll",
+      "kind": "page",
+      "component": "PayrollPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/pc-control",
+      "kind": "page",
+      "component": "PcControlPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/process-kill-log",
+      "kind": "page",
+      "component": "ProcessKillLogPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/profit-calendar",
+      "kind": "page",
+      "component": "ProfitCalendarPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/profit-split",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/settings?tab=payment",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/revenue",
+      "kind": "page",
+      "component": "UnifiedDashboard",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/review",
+      "kind": "page",
+      "component": "ReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/settings",
+      "kind": "page",
+      "component": "SettingsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/store-manager-settings",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/payroll",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/traffic-accounts",
+      "kind": "page",
+      "component": "TrafficAccountPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/whitelist",
+      "kind": "page",
+      "component": "WhitelistPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/work-wechats",
+      "kind": "page",
+      "component": "WorkWechatPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/chat-window",
+      "kind": "page",
+      "component": "ChatWindowPage",
+      "redirectTo": null,
+      "hasErrorElement": true
+    },
+    {
+      "path": "/companion",
+      "kind": "layout",
+      "component": "AppLayout",
+      "redirectTo": null,
+      "hasErrorElement": true
+    },
+    {
+      "path": "/companion",
+      "kind": "page",
+      "component": "CompanionPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/battle-screenshots",
+      "kind": "page",
+      "component": "BattleScreenshotsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/billing",
+      "kind": "page",
+      "component": "BillingOverview",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/companions",
+      "kind": "page",
+      "component": "CompanionsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/customer-board",
+      "kind": "page",
+      "component": "CustomerBoardPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/customers",
+      "kind": "page",
+      "component": "CustomersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/customers/:id",
+      "kind": "page",
+      "component": "CustomerDetailPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/dispatch",
+      "kind": "page",
+      "component": "DispatchPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/live-board",
+      "kind": "page",
+      "component": "LiveBoardPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/orders",
+      "kind": "page",
+      "component": "OrdersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/pool",
+      "kind": "page",
+      "component": "CompanionPoolPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/stats",
+      "kind": "page",
+      "component": "StatsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/companion/wallet-calendar",
+      "kind": "page",
+      "component": "CompanionWalletCalendarPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/content-check",
+      "kind": "page",
+      "component": "ContentCheckPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/billing",
+      "kind": "page",
+      "component": "BillingOverview",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/customers",
+      "kind": "page",
+      "component": "CustomersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/customers/:id",
+      "kind": "page",
+      "component": "CustomerDetailPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/dispatch",
+      "kind": "page",
+      "component": "DispatchPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/employees",
+      "kind": "page",
+      "component": "CompanionsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/finance/commission-today",
+      "kind": "page",
+      "component": "CsCommissionTodayPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/home",
+      "kind": "page",
+      "component": "OperationsBoard",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/live-board",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/cs/home",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/order-review",
+      "kind": "page",
+      "component": "OrderReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/orders",
+      "kind": "page",
+      "component": "OrdersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/stats",
+      "kind": "page",
+      "component": "StatsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/traffic-accounts",
+      "kind": "page",
+      "component": "TrafficAccountPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/cs/work-wechats",
+      "kind": "page",
+      "component": "WorkWechatPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/login",
+      "kind": "page",
+      "component": "LoginPage",
+      "redirectTo": null,
+      "hasErrorElement": true
+    },
+    {
+      "path": "/owner/authorizations",
+      "kind": "page",
+      "component": "AuthorizationsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/bridges",
+      "kind": "page",
+      "component": "BridgePage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/customer-board",
+      "kind": "page",
+      "component": "CustomerBoardPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/customers",
+      "kind": "page",
+      "component": "CustomersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/customers/:id",
+      "kind": "page",
+      "component": "CustomerDetailPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/employees",
+      "kind": "page",
+      "component": "EmployeesPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/live-board",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/order-review",
+      "kind": "page",
+      "component": "OrderReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/orders",
+      "kind": "page",
+      "component": "OrdersPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/review",
+      "kind": "page",
+      "component": "ReviewPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/settings",
+      "kind": "page",
+      "component": "SettingsPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/studios",
+      "kind": "page",
+      "component": "StudiosPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/owner/work-wechats",
+      "kind": "page",
+      "component": "WorkWechatPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/profile",
+      "kind": "page",
+      "component": "ProfilePage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/profile-setup",
+      "kind": "page",
+      "component": "ProfileSetupPage",
+      "redirectTo": null,
+      "hasErrorElement": true
+    },
+    {
+      "path": "/todos",
+      "kind": "page",
+      "component": "TodosPage",
+      "redirectTo": null,
+      "hasErrorElement": false
+    }
+  ]
+}
