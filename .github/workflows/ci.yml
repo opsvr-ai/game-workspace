@@ -2,26 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
   pull_request:
-    branches: [master]
+    branches: [master, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm -r typecheck
-
-  test:
+  # 类型 + lint + 测试：最快能给出「这次改动有没有把东西改坏」的反馈。
+  check:
+    name: typecheck / lint / test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -48,8 +40,32 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @chunlv/shared build
-      - run: pnpm --filter @chunlv/server test
+      - name: typecheck（全仓）
+        run: pnpm -r typecheck
+      # 只卡 error、不卡 warning：warning 是历史积压（约 2800 条，主要是 no-explicit-any），
+      # 属于 burn-down 范畴，见 docs/REFACTOR-PLAN.md。error 必须保持为 0。
+      - name: lint（只卡 error）
+        run: pnpm -r lint
+      - name: 服务端测试
+        run: pnpm --filter @chunlv/server test
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chunlv_test?schema=public
           JWT_SECRET: ci-test-secret
           JWT_REFRESH_SECRET: ci-test-refresh-secret
+
+  # 打包：重构期最容易「类型过了但打不出包」（vite 分包、Nest 构建产物路径）。
+  # 2026-10-06 加上：此前 CI 不跑 build，打包挂了只能靠本地发现。
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
