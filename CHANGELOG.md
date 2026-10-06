@@ -11,7 +11,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **订单池页面上冒烟测试：第 4 个前端测试文件（2026-10-07，dev 分支）。**
+- **客服端三个「要数据」的大页面上了冒烟测试，顺手把打桩逻辑收成一份（2026-10-07，dev 分支）。**
+  前端现在能「真渲染」了，但只覆盖了登录页 / 整站启动 / 订单池；客服端真正干活的三个页面
+  （客户看板 890 行、管理端直添客户流转明细 923 行、派单工作台 1,169 行）仍然只能靠人点。
+  这三个页面都要数据、不连后端就渲染不出来，所以这一批先把「怎么让它们渲染起来」做成可复用的：
+  - 新增 `apps/web/src/test/apiStub.ts`：`stubApi(模块, 'xxxApi')` 把该模块里的接口对象
+    **每个方法**都打桩成「请求成功、但没有数据」。第一版订单池测试是手写方法名的，漏一个
+    `configApi.get` 页面就直接崩，而报错跟业务毫无关系 —— 所以按真实模块的 key 生成。
+    工厂函数仍然写在测试文件里（`vi.mock` 的路径要按测试文件解析），共用逻辑只此一份；
+    订单池那条测试也一并改成用它。
+  - `src/__tests__/customer-board-page.test.tsx`：客户看板（老板 2026-10-03 要的那张板子）。
+  - `src/__tests__/cs-converted-panel.test.tsx`：管理端直添客户流转明细（「客服跟进台账」并进来的那一页）。
+  - `src/__tests__/cs-dispatch-view.test.tsx`：客服派单工作台（客服每天真正干活的地方）。
+  - 三条都只断言一件事：**一个数据都没有的时候，页面照样画得出来**（标题 / 统计卡 / 页签 /
+    空态文案都在），不是一片白。（Socket 在测试里没有 token，会自动不连。）
+  - **已自证会红**：把客户看板的断言目标换成一句根本不存在的话，测试立刻失败并点名
+    （`Unable to find an element with the text`）。
+  - 前端测试 **4 文件 / 12 用例 → 7 文件 / 15 用例**。
+
+- **设计令牌补「同一含义的深浅档」与「角色身份色」（2026-10-07，dev 分支）。**
+  清客服端那几个页面时发现：同一个「绿」在不同页面能写四五种（`#16A34A` / `#15803D` / `#10B981` /
+  `#52C41A` / `#34C759`），因为没有地方表达「我要的是**深绿字**还是**亮绿数字**」。
+  于是按用途把语义色补齐（判断标准就一条：当字用 / 当点用 / 当底用）：
+  - 深浅档：`successDeep` `successBright` `dangerMid` `dangerStrong` `dangerEdge` `dangerEdgeSoft`
+    `warningStrong` `orangeDeeper` `infoBright` `infoDeep` `teal` `idle`；
+  - 淡底 / 描边：`orangeSoft` `infoSoftBlue` `tealSoft`；`BG.brandSoft`；
+  - `ROLE_TINT`：四个角色的身份色（陪玩蓝 / 客服青 / 店长橙 / 老板紫），原先藏在
+    `dispatch/CSDispatchView.tsx` 一个视图文件里，别处要用只能再抄一遍。
+  - CSS 变量（`index.css` 的 `:root`）**92 → 94**，仍由 `tokens.ts` 自动生成。
+  - 内部设计校对页 `/ui-kit` 同步补了这三组（深浅档 / 淡底+描边 / 角色身份色），
+    截图 `tmp_shots/ui-kit-semantic-2.png`、`tmp_shots/ui-kit-modules-2.png`。
+
+- **订单池页面上冒烟测试：第 4 个前端测试文件（2026-10-07，dev 分支）。**（2026-10-07，dev 分支）。**
   订单池（`/companion/pool`）是陪玩每天第一个打开的页面，也是「抢单」的落地页 —— 它白屏等于当天没法开张。
   但它跟登录页不一样，是**要数据**的页面：不给数据就渲染不出来，所以这批先解决「怎么让要数据的页面渲染起来」。
   - 新增 `apps/web/src/__tests__/order-pool-page.test.tsx`，用一个通用小工具 `stubModule(name)`
@@ -146,7 +177,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **订单池页面 20 处硬编码色值清零（2026-10-07，dev 分支，像素级不变）。**
+- **客服端三个页面 108 处硬编码色值清零、陪玩状态点「多处归一」（2026-10-07，dev 分支）。**
+  - `CustomerBoardPage.tsx`（42 处）、`CsConvertedPanel.tsx`（32 处）、`dispatch/CSDispatchView.tsx`（34 处）
+    全部收进令牌；这三个文件里已经**没有裸写的十六进制色值**。
+    硬编码色值基线 **795 → 687**、不同色值 **150 → 136**（`docs/UI-TOKEN-BASELINE.json` 已同步调低）。
+  - **同一个人的状态点，以前在不同页面是两个颜色**：聊天 / 人员列表用 `STATUS_DOT`
+    （空闲 `#22C55E` / 接单 `#EF4444` / 娱乐 `#F59E0B` / 休息 `#F97316`），
+    而客户看板自己写了一套（空闲 `#16A34A` / 接单 `#DC2626` / 娱乐 `#F59E0B` / 休息 `#C2410C`）。
+    现在看板改走同一个 `statusDotColor()`。**会变色的只有三处、都是同色系微调**：
+    空闲绿（`#16A34A` → `#22C55E`）、接单红（`#DC2626` → `#EF4444`）、休息橙（`#C2410C` → `#F97316`）。
+  - 顺手归一（跟第 3 批同一个口径）：抢单球的接单红 `#FF4757` → `SEMANTIC.danger`；
+    「有号」小标记的 iOS 绿 `#34C759` → `SEMANTIC.success`；三处「深灰正文」
+    （`#1F2937` / `#1f2329`）→ `TEXT.primary`（与 `#1E293B` 差不到 2，肉眼不可辨）；
+    两处浅灰分隔线（`#EEF2F6` → `BORDER.hairline`、`#f0f0f0` → `BORDER.secondary`）。
+    角色身份色 `#2563EB` / `#0891B2` / `#EA580C` / `#7C3AED` → `ROLE_TINT`。
+
+- **订单池页面 20 处硬编码色值清零（2026-10-07，dev 分支，像素级不变）。**（2026-10-07，dev 分支，像素级不变）。**
   订单池的行底色 / 行描边 / 状态角标 / 段位标签 / 群聊卡片 / 头像 / 名额胶囊 / 告警条等
   全部收进令牌（走本批新增的 `SEMANTIC` 状态配色组）；这个文件里已经**没有裸写的十六进制色值**。
   - 硬编码色值基线 **822 → 795**、不同色值 **151 → 150**（`docs/UI-TOKEN-BASELINE.json` 已同步调低）。

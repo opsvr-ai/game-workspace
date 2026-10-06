@@ -42,8 +42,8 @@ import PageHeader from '../components/PageHeader';
 import { customersApi } from '../api/customers';
 import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
 import { useAuthStore } from '../stores/authStore';
-import { companionStatusConfig, customerStatusConfig } from '../constants';
-import { BRAND, TEXT } from '../styles/tokens';
+import { companionStatusConfig, customerStatusConfig, statusDotColor } from '../constants';
+import { BG, BORDER, BRAND, SEMANTIC, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -206,7 +206,7 @@ function ensureBoardStyle(): void {
     '@keyframes chunlvBoardLivePulse{0%,100%{background:rgba(220,38,38,.05)}50%{background:rgba(220,38,38,.15)}}',
     '.chunlv-board-live > td{animation:chunlvBoardLivePulse 2.8s ease-in-out infinite}',
     '@keyframes chunlvBoardDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)}}',
-    '.chunlv-board-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#DC2626;margin-right:5px;vertical-align:middle;animation:chunlvBoardDot 1.4s ease-in-out infinite}',
+    '.chunlv-board-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--color-danger-mid);margin-right:5px;vertical-align:middle;animation:chunlvBoardDot 1.4s ease-in-out infinite}',
   ].join('');
   document.head.appendChild(st);
 }
@@ -325,17 +325,7 @@ const CustomerBoardPage: React.FC = () => {
         <Tooltip title={cfg?.label || ''}>
           <Badge
             status="processing"
-            color={
-              !r.companionOnline
-                ? TEXT.tertiary
-                : r.companionStatus === 'AVAILABLE'
-                  ? '#16A34A'
-                  : r.companionStatus === 'ENTERTAINMENT'
-                    ? '#F59E0B'
-                    : r.companionStatus === 'RESTING'
-                      ? '#C2410C'
-                      : '#DC2626'
-            }
+            color={r.companionOnline ? statusDotColor({ status: r.companionStatus }) : TEXT.tertiary}
           />
         </Tooltip>
         <span style={{ fontSize: 11, color: TEXT.tertiary }}>{cfg?.label || ''}</span>
@@ -357,7 +347,7 @@ const CustomerBoardPage: React.FC = () => {
       <div style={{ lineHeight: 1.5 }}>
         <div>
           <span className="chunlv-board-dot" />
-          <Text strong style={{ color: '#B91C1C' }}>
+          <Text strong style={{ color: SEMANTIC.dangerStrong }}>
             {live.gameName || '游戏中'}
           </Text>
           {live.orderCode ? <span style={{ fontSize: 11, color: TEXT.tertiary }}> · 单号 {live.orderCode}</span> : null}
@@ -387,8 +377,8 @@ const CustomerBoardPage: React.FC = () => {
             <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
               <span>{showWechat ? r.wechatId || '—' : maskWechat(r.wechatId)}</span>
             </Tooltip>
-            {r.depositBalance ? <span style={{ color: '#15803D' }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
-            {fmtSchedule(r.scheduledAt) ? <span style={{ color: '#B45309' }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span> : null}
+            {r.depositBalance ? <span style={{ color: SEMANTIC.successDeep }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
+            {fmtSchedule(r.scheduledAt) ? <span style={{ color: SEMANTIC.warningDeep }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span> : null}
           </div>
           {r.servedBy > 0 ? (
             <div style={{ fontSize: 12 }}>
@@ -396,7 +386,7 @@ const CustomerBoardPage: React.FC = () => {
                 <Tag color="purple" style={{ marginInlineEnd: 4 }}>{r.servedBy} 人打过</Tag>
               ) : null}
               {r.topMode && r.topMode !== '未知' ? (
-                <span style={{ color: '#7C3AED' }}>常打{r.topMode}</span>
+                <span style={{ color: SEMANTIC.direct }}>常打{r.topMode}</span>
               ) : null}
             </div>
           ) : null}
@@ -422,7 +412,7 @@ const CustomerBoardPage: React.FC = () => {
       align: 'right',
       render: (v: number, r: BoardRow) => (
         <Tooltip title={r.orderCount ? '累计已完成 ' + r.orderCount + ' 单（口径同盈亏统计）' : '还没有已完成的单'}>
-          <span style={{ color: v > 0 ? '#B91C1C' : TEXT.tertiary, fontWeight: v > 0 ? 600 : 400 }}>{yuan(v)}</span>
+          <span style={{ color: v > 0 ? SEMANTIC.dangerStrong : TEXT.tertiary, fontWeight: v > 0 ? 600 : 400 }}>{yuan(v)}</span>
         </Tooltip>
       ),
     },
@@ -435,7 +425,7 @@ const CustomerBoardPage: React.FC = () => {
         r.todaySpent || r.todayOrders || r.todayHours ? (
           <Tooltip title={'今日 ' + r.todayOrders + ' 单 · 今日时长 ' + fmtHours(r.todayHours) + '（营业日 12:00 起算，与实时看板同口径）'}>
             <div style={{ lineHeight: 1.4 }}>
-              <div style={{ color: '#B91C1C', fontWeight: 600 }}>{yuan(r.todaySpent)}</div>
+              <div style={{ color: SEMANTIC.dangerStrong, fontWeight: 600 }}>{yuan(r.todaySpent)}</div>
               <div style={{ fontSize: 11, color: TEXT.tertiary }}>
                 {r.todayOrders ? r.todayOrders + ' 单' : ''}
                 {r.todayHours ? (r.todayOrders ? ' · ' : '') + fmtHours(r.todayHours) : ''}
@@ -547,8 +537,8 @@ const CustomerBoardPage: React.FC = () => {
               marginBottom: 8,
               padding: '10px 12px',
               borderRadius: 10,
-              border: '1px solid ' + (live ? '#FECACA' : '#EEF2F6'),
-              background: '#fff',
+              border: '1px solid ' + (live ? SEMANTIC.dangerEdgeSoft : BORDER.hairline),
+              background: BG.container,
               cursor: 'pointer',
               overflow: 'hidden',
             }}
@@ -573,7 +563,7 @@ const CustomerBoardPage: React.FC = () => {
                   textAlign: 'center',
                   fontWeight: 700,
                   fontSize: i < 3 ? 16 : 13,
-                  color: i === 0 ? '#D97706' : i === 1 ? TEXT.secondary : i === 2 ? '#B45309' : TEXT.tertiary,
+                  color: i === 0 ? SEMANTIC.warningStrong : i === 1 ? TEXT.secondary : i === 2 ? SEMANTIC.warningDeep : TEXT.tertiary,
                 }}
               >
                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
@@ -585,16 +575,16 @@ const CustomerBoardPage: React.FC = () => {
                   {live ? <Tag color="red" style={{ marginInlineEnd: 0 }}>🎮 正在打</Tag> : null}
                   {/* 老板 2026-10-04：陪玩端不显示「N 人打过」—— 不暴露「跟谁打过」。 */}
                   {r.topMode && r.topMode !== '未知' ? (
-                    <span style={{ fontSize: 11, color: '#7C3AED' }}>常打{r.topMode}</span>
+                    <span style={{ fontSize: 11, color: SEMANTIC.direct }}>常打{r.topMode}</span>
                   ) : null}
                 </Space>
                 <div style={{ fontSize: 12, color: TEXT.secondary }}>
                   <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
                     <span>{showWechat ? r.wechatId || '—' : maskWechat(r.wechatId)}</span>
                   </Tooltip>
-                  {r.depositBalance ? <span style={{ color: '#15803D' }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
+                  {r.depositBalance ? <span style={{ color: SEMANTIC.successDeep }}>{' · 存款 ' + yuan(r.depositBalance)}</span> : null}
                   {fmtSchedule(r.scheduledAt) ? (
-                    <span style={{ color: '#B45309' }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span>
+                    <span style={{ color: SEMANTIC.warningDeep }}>{' · 预约 ' + fmtSchedule(r.scheduledAt)}</span>
                   ) : null}
                 </div>
               </div>
@@ -602,7 +592,7 @@ const CustomerBoardPage: React.FC = () => {
                 {live ? (
                   <span>
                     <span className="chunlv-board-dot" />
-                    <Text strong style={{ color: '#B91C1C' }}>{live.gameName || '游戏中'}</Text>
+                    <Text strong style={{ color: SEMANTIC.dangerStrong }}>{live.gameName || '游戏中'}</Text>
                     {live.paused ? ' · ⏸ 暂停中' : ' · 已打 ' + fmtDuration(elapsedOf(live))}
                     {live.partnerName ? ' · 搭档 ' + live.partnerName : ''}
                   </span>
@@ -615,7 +605,7 @@ const CustomerBoardPage: React.FC = () => {
                   style={{
                     fontSize: 17,
                     fontWeight: 700,
-                    color: v > 0 ? '#B91C1C' : TEXT.tertiary,
+                    color: v > 0 ? SEMANTIC.dangerStrong : TEXT.tertiary,
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -659,15 +649,15 @@ const CustomerBoardPage: React.FC = () => {
         style={{
           width: 232,
           cursor: 'pointer',
-          borderColor: active ? BRAND.primary : c.servingCustomer ? '#FCA5A5' : undefined,
-          background: active ? '#F0F7FF' : c.servingCustomer ? '#FEF2F2' : undefined,
+          borderColor: active ? BRAND.primary : c.servingCustomer ? SEMANTIC.dangerEdge : undefined,
+          background: active ? BG.brandSoft : c.servingCustomer ? BG.error : undefined,
         }}
         bodyStyle={{ padding: 10 }}
       >
         <Space size={8} align="start">
           <Badge
             dot
-            color={!c.online ? TEXT.tertiary : c.status === 'AVAILABLE' ? '#16A34A' : c.status === 'BUSY' ? '#DC2626' : c.status === 'ENTERTAINMENT' ? '#F59E0B' : '#C2410C'}
+            color={!c.online ? TEXT.tertiary : statusDotColor({ status: c.status })}
             offset={[-2, 22]}
           >
             <Avatar size={30} src={c.avatar || undefined}>
@@ -683,7 +673,7 @@ const CustomerBoardPage: React.FC = () => {
               {c.resigned ? <Tag color="default">已离职</Tag> : null}
             </div>
             {c.servingCustomer ? (
-              <div style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: SEMANTIC.dangerStrong, marginTop: 2 }}>
                 🎮 {c.servingCustomer.gameName || '游戏中'}
                 {c.servingCustomer.paused ? '（暂停）' : ' · ' + fmtDuration(c.servingCustomer.elapsedSec + Math.max(0, Math.floor((nowMs - fetchedAtRef.current) / 1000)))}
                 <div style={{ color: TEXT.secondary }}>客户 {c.servingCustomer.customerCode}</div>
@@ -734,12 +724,12 @@ const CustomerBoardPage: React.FC = () => {
       />
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        {statCard('客户总数', String(counts?.customers ?? rows.length), '#1D4ED8', '#EFF6FF')}
-        {statCard('正在打', String(counts?.serving ?? 0), '#B91C1C', '#FEF2F2')}
-        {statCard('今日消费', yuan(counts?.todaySpentTotal ?? 0), '#C2410C', '#FFF7ED')}
-        {statCard('累计消费', yuan(counts?.spentTotal ?? 0), '#15803D', '#F0FDF4')}
-        {statCard('累计时长', fmtHours(counts?.hoursTotal ?? 0), '#7C3AED', '#F5F3FF')}
-        {isCompanion ? null : statCard('陪玩数', String(counts?.companions ?? companions.length), '#0F766E', '#F0FDFA')}
+        {statCard('客户总数', String(counts?.customers ?? rows.length), SEMANTIC.infoDeep, SEMANTIC.infoSoftBlue)}
+        {statCard('正在打', String(counts?.serving ?? 0), SEMANTIC.dangerStrong, BG.error)}
+        {statCard('今日消费', yuan(counts?.todaySpentTotal ?? 0), SEMANTIC.orangeDeeper, SEMANTIC.orangeSoft)}
+        {statCard('累计消费', yuan(counts?.spentTotal ?? 0), SEMANTIC.successDeep, SEMANTIC.successSoft)}
+        {statCard('累计时长', fmtHours(counts?.hoursTotal ?? 0), SEMANTIC.direct, SEMANTIC.directSoft)}
+        {isCompanion ? null : statCard('陪玩数', String(counts?.companions ?? companions.length), SEMANTIC.teal, SEMANTIC.tealSoft)}
       </div>
 
       <div
@@ -848,7 +838,7 @@ const CustomerBoardPage: React.FC = () => {
                       客户 {g.c.customers} · 消费 {yuan(g.c.spent)} · {fmtHours(g.c.hours)}
                     </Text>
                     {g.c.servingCustomer ? (
-                      <Text style={{ fontSize: 12, color: '#B91C1C' }}>
+                      <Text style={{ fontSize: 12, color: SEMANTIC.dangerStrong }}>
                         🎮 正在给 {g.c.servingCustomer.customerCode} 打 {g.c.servingCustomer.gameName}
                       </Text>
                     ) : null}

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Alert, Badge, Button, Card, Col, Empty, Input, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
+import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, ROLE_TINT, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
 import TierBadge from '../components/TierBadge';
 import { tierMeta } from '../constants/tiers';
 
@@ -116,6 +116,47 @@ const UiKitPage: React.FC = () => (
           <Swatch name="danger" value={SEMANTIC.danger} />
           <Swatch name="info" value={SEMANTIC.info} />
         </Space>
+        <div style={{ marginTop: SPACE.lg, fontSize: 12, color: TEXT.tertiary }}>
+          同一个含义的深浅档 —— 深的是「当字用」、亮的是「当数字用」，别混
+        </div>
+        <Space size={SPACE.xl} style={{ marginTop: SPACE.sm }} wrap>
+          <Swatch name="success.deep" value={SEMANTIC.successDeep} />
+          <Swatch name="success.bright" value={SEMANTIC.successBright} />
+          <Swatch name="danger.mid" value={SEMANTIC.dangerMid} />
+          <Swatch name="danger.strong" value={SEMANTIC.dangerStrong} />
+          <Swatch name="danger.deep" value={SEMANTIC.dangerDeep} />
+          <Swatch name="warning.strong" value={SEMANTIC.warningStrong} />
+          <Swatch name="warning.deep" value={SEMANTIC.warningDeep} />
+          <Swatch name="orange.deeper" value={SEMANTIC.orangeDeeper} />
+          <Swatch name="info.bright" value={SEMANTIC.infoBright} />
+          <Swatch name="info.deep" value={SEMANTIC.infoDeep} />
+          <Swatch name="teal" value={SEMANTIC.teal} />
+          <Swatch name="direct" value={SEMANTIC.direct} />
+          <Swatch name="online" value={SEMANTIC.online} />
+          <Swatch name="busy" value={SEMANTIC.busy} />
+          <Swatch name="idle" value={SEMANTIC.idle} />
+        </Space>
+        <div style={{ marginTop: SPACE.lg, fontSize: 12, color: TEXT.tertiary }}>
+          淡底 + 同色描边那一套 —— 标签 / 告警条 / 统计卡底用的
+        </div>
+        <Space size={SPACE.xl} style={{ marginTop: SPACE.sm }} wrap>
+          <Swatch name="success.soft" value={SEMANTIC.successSoft} />
+          <Swatch name="success.border" value={SEMANTIC.successBorder} />
+          <Swatch name="warning.soft" value={SEMANTIC.warningSoft} />
+          <Swatch name="orange.soft" value={SEMANTIC.orangeSoft} />
+          <Swatch name="danger.soft" value={SEMANTIC.dangerSoft} />
+          <Swatch name="danger.border" value={SEMANTIC.dangerBorder} />
+          <Swatch name="danger.edge" value={SEMANTIC.dangerEdge} />
+          <Swatch name="danger.edgeSoft" value={SEMANTIC.dangerEdgeSoft} />
+          <Swatch name="info.soft" value={SEMANTIC.infoSoft} />
+          <Swatch name="info.border" value={SEMANTIC.infoBorder} />
+          <Swatch name="info.softBlue" value={SEMANTIC.infoSoftBlue} />
+          <Swatch name="teal.soft" value={SEMANTIC.tealSoft} />
+          <Swatch name="direct.soft" value={SEMANTIC.directSoft} />
+          <Swatch name="direct.border" value={SEMANTIC.directBorder} />
+          <Swatch name="bg.brandSoft" value={BG.brandSoft} />
+          <Swatch name="bg.error" value={BG.error} />
+        </Space>
         <Space size={SPACE.sm} style={{ marginTop: SPACE.md }} wrap>
           <Tag color="success">已完成</Tag>
           <Tag color="processing">接单中</Tag>
@@ -158,6 +199,17 @@ const UiKitPage: React.FC = () => (
       <Section id="modules" title="模块色（左栏一级菜单）" hint="MODULE_TINTS · 按菜单 key 后半段取色">
         <Space size={SPACE.lg} wrap>
           {Object.entries(MODULE_TINTS).map(([key, value]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: TEXT.secondary }}>
+              <span className="ui-dot" style={{ background: value }} />
+              {key}
+            </div>
+          ))}
+        </Space>
+        <div style={{ marginTop: SPACE.lg, fontSize: 12, color: TEXT.tertiary }}>
+          角色身份色 —— ROLE_TINT（按「人是谁」上色，别跟上面按「菜单」上色的混）
+        </div>
+        <Space size={SPACE.lg} wrap style={{ marginTop: SPACE.sm }}>
+          {Object.entries(ROLE_TINT).map(([key, value]) => (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: TEXT.secondary }}>
               <span className="ui-dot" style={{ background: value }} />
               {key}

@@ -19,7 +19,7 @@ import { orderMatchesSearch } from '../utils/orderPool';
 import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
 import PasteImageBox from './PasteImageBox';
-import { BRAND, TEXT } from '../styles/tokens';
+import { BORDER, BRAND, SEMANTIC, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -159,16 +159,16 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       case 'dispatched':
         return { text: '已派单', color: BRAND.primary };
       case 'agreed':
-        return { text: '客户已同意', color: '#15803D' };
+        return { text: '客户已同意', color: SEMANTIC.successDeep };
       case 'added':
-        return { text: '已添加', color: '#15803D' };
+        return { text: '已添加', color: SEMANTIC.successDeep };
       case 'not_accepted':
-        return { text: '添加失败', color: '#B45309' };
+        return { text: '添加失败', color: SEMANTIC.warningDeep };
       case 'pending':
-        return { text: '待添加', color: '#B45309' };
+        return { text: '待添加', color: SEMANTIC.warningDeep };
       default:
         // 没标过添加结果、但已经派出去被陪玩接了的老数据
-        return r._converted ? { text: '已派单', color: BRAND.primary } : { text: '待添加', color: '#B45309' };
+        return r._converted ? { text: '已派单', color: BRAND.primary } : { text: '待添加', color: SEMANTIC.warningDeep };
     }
   };
 
@@ -338,9 +338,9 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     const feePaid = r.companionFeeStatus === 'PAID';
     const feeAmount = Number(r.companionFeeAmount || 0);
     const out = moneyOut > 0 || (feePaid && feeAmount > 0);
-    if (moneyIn > 0 && out) return { text: '已收已转', color: '#15803D' };
-    if (moneyIn > 0) return { text: '已收未转', color: '#B45309' };
-    if (out) return { text: '未记转入', color: '#B45309' };
+    if (moneyIn > 0 && out) return { text: '已收已转', color: SEMANTIC.successDeep };
+    if (moneyIn > 0) return { text: '已收未转', color: SEMANTIC.warningDeep };
+    if (out) return { text: '未记转入', color: SEMANTIC.warningDeep };
     return { text: '未记流水', color: TEXT.tertiary };
   };
 
@@ -457,7 +457,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             key="passed"
             size="small"
             type="primary"
-            style={{ background: '#16A34A', borderColor: '#16A34A' }}
+            style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
             onClick={() => mark(r, 'added', 'passed', '已标记添加成功')}
           >
             加上了
@@ -474,7 +474,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             key="passed"
             size="small"
             type="primary"
-            style={{ background: '#16A34A', borderColor: '#16A34A' }}
+            style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
             onClick={() => mark(r, 'added', 'passed', '已标记添加成功')}
           >
             添加成功
@@ -492,7 +492,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           key="agree"
           size="small"
           type="primary"
-          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
           onClick={() => markContact(r, 'added')}
         >
           客户已同意
@@ -504,7 +504,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           key="passed"
           size="small"
           type="primary"
-          style={{ background: '#16A34A', borderColor: '#16A34A' }}
+          style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
           onClick={() => markContact(r, 'added')}
         >
           添加成功
@@ -537,7 +537,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           src={contactEvidence}
           alt="添加失败截图"
           title="点开看「添加失败」时留的截图"
-          style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 4, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+          style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 4, border: '1px solid ' + BORDER.base, cursor: 'pointer' }}
           onClick={() => window.open(contactEvidence, '_blank')}
         />,
       );
@@ -601,7 +601,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         const due = dueFollowUpAtOf(r, now) !== null;
         return (
           <span
-            style={{ color: due ? '#DC2626' : '#7C3AED', fontWeight: due ? 600 : 400 }}
+            style={{ color: due ? SEMANTIC.dangerMid : SEMANTIC.direct, fontWeight: due ? 600 : 400 }}
             title={due ? `${mmddhhmm(at)} 到点了，该跟进了` : mmddhhmm(at)}
           >
             {mmddhhmm(at)}
@@ -628,7 +628,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           <div style={{ fontWeight: 600 }}>
             管理端直添客户流转明细
             {dueRows.length > 0 && (
-              <span style={{ color: '#DC2626', marginLeft: 8 }}>
+              <span style={{ color: SEMANTIC.dangerMid, marginLeft: 8 }}>
                 有 {dueRows.length} 位客户到点该跟进了（已红字排在最上面）
               </span>
             )}
@@ -666,8 +666,8 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
               key={b.id}
               style={{
                 padding: '5px 10px',
-                background: '#F0FDF4',
-                border: '1px solid #BBF7D0',
+                background: SEMANTIC.successSoft,
+                border: '1px solid ' + SEMANTIC.successBorder,
                 borderRadius: 6,
                 display: 'flex',
                 alignItems: 'center',
@@ -675,7 +675,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
               }}
             >
               <Text style={{ fontSize: 12 }}>{b.wechatId}</Text>
-              <Text strong style={{ fontSize: 12, color: b.balance < 0 ? '#cf1322' : '#16A34A' }}>
+              <Text strong style={{ fontSize: 12, color: b.balance < 0 ? SEMANTIC.dangerDeep : SEMANTIC.success }}>
                 ¥{b.balance.toFixed(1)}
               </Text>
               {canClearBalance && (
@@ -709,8 +709,8 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
             flexWrap: 'wrap',
             marginBottom: 10,
             padding: '6px 10px',
-            background: '#F5F3FF',
-            border: '1px solid #DDD6FE',
+            background: SEMANTIC.directSoft,
+            border: '1px solid ' + SEMANTIC.directBorder,
             borderRadius: 6,
             fontSize: 12,
           }}
@@ -730,7 +730,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         actionsWidth={FIELD_WIDTH.orderActions}
         renderActions={renderActions}
         // 到点该跟进的那一行整行淡红底（老板 2026-09-29：「红字置顶」）
-        rowStyle={(r: any) => (dueFollowUpAtOf(r, now) !== null ? { background: '#FFF1F2' } : undefined)}
+        rowStyle={(r: any) => (dueFollowUpAtOf(r, now) !== null ? { background: SEMANTIC.dangerSoft } : undefined)}
         emptyText={items.length === 0 ? '还没有直添客户流转记录：派单工作台点「直接添加客户」开始登记。' : `没有匹配「${search}」的客户。`}
         noteColumn={{
           title: '收款情况',
@@ -780,8 +780,8 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
                   style={{
                     marginBottom: 14,
                     padding: '8px 12px',
-                    background: '#F0FDF4',
-                    border: '1px solid #BBF7D0',
+                    background: SEMANTIC.successSoft,
+                    border: '1px solid ' + SEMANTIC.successBorder,
                     borderRadius: 6,
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -793,7 +793,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
                   </Text>
                   <Text>
                     当前余额：
-                    <Text strong style={{ color: bal != null && bal < 0 ? '#cf1322' : '#16A34A' }}>
+                    <Text strong style={{ color: bal != null && bal < 0 ? SEMANTIC.dangerDeep : SEMANTIC.success }}>
                       ¥{bal != null ? bal.toFixed(1) : '0.0'}
                     </Text>
                   </Text>
@@ -875,7 +875,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
                 <img
                   src={url}
                   alt="添加失败凭据"
-                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid ' + BORDER.base, cursor: 'pointer' }}
                   onClick={() => window.open(url, '_blank')}
                 />
                 <Button

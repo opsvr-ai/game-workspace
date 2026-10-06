@@ -78,6 +78,8 @@ export const BG = {
   page: '#F5F7FB',
   /** 卡中卡（内层卡 / 内嵌块）底色 */
   containerSoft: '#FCFDFF',
+  /** 很淡的品牌蓝底（陪玩卡 / 客户卡「正在服务」「选中」那一层底） */
+  brandSoft: '#F0F7FF',
 } as const;
 
 /** 描边色。 */
@@ -127,6 +129,37 @@ export const SEMANTIC = {
   infoBorder: '#C7D2FE',
   directSoft: '#F5F3FF',
   directBorder: '#DDD6FE',
+  /* ── 同一含义的「深浅档」（用途不同、别混用；判断标准是「当字用 / 当点用 / 当底用」） ── */
+  /** 深绿字（浅底上的正数金额 / 已完成） */
+  successDeep: '#15803D',
+  /** 亮绿（统计数字 / KPI，比状态绿 #16A34A 亮） */
+  successBright: '#10B981',
+  /** 中间红（状态点 / 徽标，比 danger 深、比 dangerStrong 浅） */
+  dangerMid: '#DC2626',
+  /** 深红字（负数金额 / 严重告警） */
+  dangerStrong: '#B91C1C',
+  /** 红描边（卡片 / 头像圈「正在服务」） */
+  dangerEdge: '#FCA5A5',
+  /** 更浅的红描边（卡片描边） */
+  dangerEdgeSoft: '#FECACA',
+  /** 深琥珀（冠军名次 / 待办数字，比 warning 深、当字用） */
+  warningStrong: '#D97706',
+  /** 深橙（休息状态） */
+  orangeDeeper: '#C2410C',
+  /** orange-50 底（统计卡） */
+  orangeSoft: '#FFF7ED',
+  /** 亮蓝（信息类数字） */
+  infoBright: '#3B82F6',
+  /** 深蓝（统计卡字） */
+  infoDeep: '#1D4ED8',
+  /** blue-50 底（统计卡） */
+  infoSoftBlue: '#EFF6FF',
+  /** teal（「陪玩数」那种青绿） */
+  teal: '#0F766E',
+  /** teal-50 底 */
+  tealSoft: '#F0FDFA',
+  /** 空闲待派（黄点：客服端「这个人现在能派单」的状态球） */
+  idle: '#FFD600',
 } as const;
 
 /**
@@ -180,6 +213,19 @@ export const MODULE_TINTS: Record<string, string> = {
   shop: '#EC4899',
   settings: '#7C8DA6',
   'battle-screenshots': '#F97316',
+};
+
+/**
+ * 四个角色的「身份色」（文字 / 头像圈 / 标签）。
+ * 2026-10-07 从 dispatch/CSDispatchView.tsx 的 ROLE_TEXT_COLOR 搬进来 —— 之前这份值
+ * 藏在客服端一个视图文件里，别的地方要用只能再抄一遍。
+ * 注意它跟 MODULE_TINTS 不是一回事：那个按「菜单模块」上色，这个按「人是谁」上色。
+ */
+export const ROLE_TINT: Record<string, string> = {
+  COMPANION: '#2563EB',
+  CS: '#0891B2',
+  ADMIN: '#EA580C',
+  OWNER: '#7C3AED',
 };
 
 export const GRADIENTS = {
@@ -273,6 +319,7 @@ export const CSS_VARS: Record<string, string> = {
   '--color-danger-soft': SEMANTIC.dangerSoft,
   '--color-danger-border': SEMANTIC.dangerBorder,
   '--color-danger-deep': SEMANTIC.dangerDeep,
+  '--color-danger-mid': SEMANTIC.dangerMid,
   '--color-info-soft': SEMANTIC.infoSoft,
   '--color-info-border': SEMANTIC.infoBorder,
   '--color-direct': SEMANTIC.direct,
@@ -299,6 +346,7 @@ export const CSS_VARS: Record<string, string> = {
   '--color-bg-inverse': BG.inverse,
   '--color-bg-page': BG.page,
   '--color-bg-container-soft': BG.containerSoft,
+  '--color-bg-brand-soft': BG.brandSoft,
   // 描边
   '--color-border': BORDER.base,
   '--color-border-secondary': BORDER.secondary,

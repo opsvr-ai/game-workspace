@@ -1,28 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-
-/**
- * 把某个 api 模块的**每一个方法**都打桩成「返回空数据」。
- * 手写方法名容易漏（第一版就漏了 configApi.get，页面直接崩）—— 这里按真实模块的 key 生成，
- * 以后接口加了新方法也不用改测试。
- */
-function stubModule(name: 'orders' | 'companions' | 'config' | 'chat') {
-  return async () => {
-    const actual = await vi.importActual<Record<string, Record<string, unknown>>>(`../api/${name}`);
-    const key = `${name}Api`;
-    const stubbed = Object.fromEntries(
-      Object.keys(actual[key]).map((k) => [k, vi.fn(async () => ({ data: { data: null } }))]),
-    );
-    return { ...actual, [key]: stubbed };
-  };
-}
+import { stubApi } from '../test/apiStub';
 
 // 抢单池要的四个接口全部打桩：只验「页面能不能打开」，不验数据。（2026-10-07）
-vi.mock('../api/orders', stubModule('orders'));
-vi.mock('../api/companions', stubModule('companions'));
-vi.mock('../api/config', stubModule('config'));
-vi.mock('../api/chat', stubModule('chat'));
+vi.mock('../api/orders', async () => stubApi(await vi.importActual('../api/orders'), 'ordersApi'));
+vi.mock('../api/companions', async () => stubApi(await vi.importActual('../api/companions'), 'companionsApi'));
+vi.mock('../api/config', async () => stubApi(await vi.importActual('../api/config'), 'configApi'));
+vi.mock('../api/chat', async () => stubApi(await vi.importActual('../api/chat'), 'chatApi'));
 import OrderPoolPage from '../pages/OrderPoolPage';
 
 /**

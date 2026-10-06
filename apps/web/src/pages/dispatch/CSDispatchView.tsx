@@ -63,7 +63,7 @@ import {
 } from '../../constants/orderFields';
 import { encodeOrderInfo, orderInfoTextOf } from '../../utils/chatOrder';
 import { visibleInterval } from '../../hooks/usePolling';
-import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
+import { BG, BORDER, BRAND, ROLE_TINT, SEMANTIC, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -108,12 +108,6 @@ const ROLE_TAG: Record<string, { color: string; label: string }> = {
   OWNER: { color: 'purple', label: '老板' },
 };
 
-const ROLE_TEXT_COLOR: Record<string, string> = {
-  COMPANION: '#2563EB',
-  CS: '#0891B2',
-  ADMIN: '#EA580C',
-  OWNER: '#7C3AED',
-};
 
 const CSDispatchView: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -518,8 +512,8 @@ const CSDispatchView: React.FC = () => {
                 margin: '2px 3px 8px',
                 borderRadius: 8,
                 cursor: 'pointer',
-                background: groupUnread > 0 ? '#EEF2FF' : BG.base,
-                border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
+                background: groupUnread > 0 ? SEMANTIC.infoSoft : BG.base,
+                border: groupUnread > 0 ? '1px solid ' + SEMANTIC.infoBorder : '1px solid transparent',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
@@ -528,7 +522,7 @@ const CSDispatchView: React.FC = () => {
               <span style={{ fontSize: 18 }}>🏠</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#1F2937' }}>
+                  <Text strong style={{ fontSize: DATA_FONT_SIZE, color: TEXT.primary }}>
                     {studioGroup?.groupName || '工作室群聊'}
                   </Text>
                   {groupLastMentions.includes(user?.id || '') && (
@@ -577,8 +571,8 @@ const CSDispatchView: React.FC = () => {
                         cursor: 'pointer',
                         margin: '2px 3px',
                         borderRadius: 8,
-                        background: isSelected ? '#EEF2FF' : 'transparent',
-                        border: isSelected ? '1px solid #C7D2FE' : '1px solid transparent',
+                        background: isSelected ? SEMANTIC.infoSoft : 'transparent',
+                        border: isSelected ? '1px solid ' + SEMANTIC.infoBorder : '1px solid transparent',
                         transition: 'background 0.15s ease, border-color 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
@@ -630,7 +624,7 @@ const CSDispatchView: React.FC = () => {
                                 }}
                               >
                                 {!avatarUrl && (
-                                  <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>
+                                  <span style={{ color: TEXT.inverse, fontSize: 15, fontWeight: 700 }}>{initial}</span>
                                 )}
                               </div>
                             );
@@ -644,7 +638,7 @@ const CSDispatchView: React.FC = () => {
                               height: 11,
                               borderRadius: '50%',
                               background: statusDotColor(c),
-                              border: '2px solid #fff',
+                              border: '2px solid ' + TEXT.inverse,
                               boxShadow: isPersonnelOnline(c) ? `0 0 0 3px ${statusDotColor(c)}22` : 'none',
                             }}
                           />
@@ -664,7 +658,7 @@ const CSDispatchView: React.FC = () => {
                               style={{
                                 fontWeight: 600,
                                 fontSize: DATA_FONT_SIZE,
-                                color: '#1F2937',
+                                color: TEXT.primary,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -722,7 +716,7 @@ const CSDispatchView: React.FC = () => {
                               <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
                               <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.heading }}>{displayStatus(c).label}</span>
                             </span>
-                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || TEXT.secondary }}>
+                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TINT[c.role] || TEXT.secondary }}>
                               {ROLE_TAG[c.role]?.label || c.role}
                             </span>
                             {c.studioName && (
@@ -740,10 +734,10 @@ const CSDispatchView: React.FC = () => {
                               </span>
                             )}
                             {(c as any).processStatus === 'BLOCKED' && (
-                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#EF4444', fontWeight: 600 }}>已限制</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: SEMANTIC.danger, fontWeight: 600 }}>已限制</span>
                             )}
                             {(c as any).processStatus === 'WARNING' && (
-                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#F59E0B', fontWeight: 600 }}>⚠️进程异常</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: SEMANTIC.warning, fontWeight: 600 }}>⚠️进程异常</span>
                             )}
                           </div>
 
@@ -791,10 +785,10 @@ const CSDispatchView: React.FC = () => {
             {/* Order pool header */}
             <div
               style={{
-                background: '#FFFFFF',
+                background: BG.container,
                 borderRadius: '8px 8px 0 0',
                 padding: '10px 14px',
-                borderBottom: '1px solid #E2E8F0',
+                borderBottom: '1px solid ' + BORDER.base,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -808,18 +802,18 @@ const CSDispatchView: React.FC = () => {
                 </Space>
                 <Space size={16}>
                   <span style={{ color: TEXT.secondary, fontSize: 12 }}>
-                    今日新增 <b style={{ color: '#3B82F6' }}>{todayNew}</b>
+                    今日新增 <b style={{ color: SEMANTIC.infoBright }}>{todayNew}</b>
                   </span>
                   <span style={{ color: TEXT.secondary, fontSize: 12 }}>
-                    已抢 <b style={{ color: '#10B981' }}>{todayGrabbed}</b>
+                    已抢 <b style={{ color: SEMANTIC.successBright }}>{todayGrabbed}</b>
                   </span>
                   <span style={{ color: TEXT.secondary, fontSize: 12 }}>
-                    待抢 <b style={{ color: '#F59E0B' }}>{poolCount}</b>
+                    待抢 <b style={{ color: SEMANTIC.warning }}>{poolCount}</b>
                   </span>
                 </Space>
               </div>
               {poolError && (
-                <div style={{ marginTop: 8, padding: '4px 8px', color: '#EF4444', fontSize: 12, background: '#FEF2F2', borderRadius: 6 }}>
+                <div style={{ marginTop: 8, padding: '4px 8px', color: SEMANTIC.danger, fontSize: 12, background: BG.error, borderRadius: 6 }}>
                   {poolError}
                 </div>
               )}
@@ -827,7 +821,7 @@ const CSDispatchView: React.FC = () => {
             {/* Pool body */}
             <div
               style={{
-                background: '#FFF',
+                background: BG.container,
                 borderRadius: '0 0 16px 16px',
                 padding: '10px 12px',
                 minHeight: 0,
@@ -887,10 +881,10 @@ const CSDispatchView: React.FC = () => {
                             alignItems: 'center',
                             gap: 10,
                             padding: DATA_ROW_PADDING,
-                            background: '#fff',
-                            borderBottom: '1px solid #f0f0f0',
+                            background: BG.container,
+                            borderBottom: '1px solid ' + BORDER.secondary,
                             fontSize: DATA_FONT_SIZE,
-                            color: '#1f2329',
+                            color: TEXT.primary,
                           }}
                         >
                           {/* 字段区：标签口径跟订单管理表 / 订单详情 / 客户管理是同一份
@@ -992,7 +986,7 @@ const CSDispatchView: React.FC = () => {
               <div>
                 ⚪ 离线 <b>{offlineCount}</b>
               </div>
-              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 4 }}>
+              <div style={{ borderTop: '1px solid ' + BORDER.base, paddingTop: 4 }}>
                 📦 待派 <b>{poolCount}</b>
               </div>
             </div>
@@ -1009,7 +1003,7 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'converted',
-            label: <span style={{ color: '#16A34A', fontWeight: 600 }}>管理端直添客户流转明细</span>,
+            label: <span style={{ color: SEMANTIC.success, fontWeight: 600 }}>管理端直添客户流转明细</span>,
             children: (
               <CsConvertedPanel
                 refreshSignal={customerRefresh}
@@ -1019,7 +1013,7 @@ const CSDispatchView: React.FC = () => {
           },
           {
             key: 'escalated',
-            label: <span style={{ color: '#7C3AED', fontWeight: 600 }}>线下转桥接/线上统计</span>,
+            label: <span style={{ color: SEMANTIC.direct, fontWeight: 600 }}>线下转桥接/线上统计</span>,
             children: <EscalatedPoolPanel />,
           },
         ]}
@@ -1068,14 +1062,14 @@ const CSDispatchView: React.FC = () => {
                 marginBottom: 8,
                 background:
                   selectedCompanion.status === CompanionStatus.BUSY
-                    ? '#FF4757'
+                    ? SEMANTIC.danger
                     : selectedCompanion.status === CompanionStatus.ENTERTAINMENT
-                      ? '#00E676'
+                      ? SEMANTIC.online
                       : selectedCompanion.status === CompanionStatus.AVAILABLE
-                        ? '#FFD600'
+                        ? SEMANTIC.idle
                         : TEXT.tertiary,
                 boxShadow:
-                  isPersonnelOnline(selectedCompanion) ? '0 0 16px #00E676' : 'none',
+                  isPersonnelOnline(selectedCompanion) ? `0 0 16px ${SEMANTIC.online}` : 'none',
                 animation:
                   isPersonnelOnline(selectedCompanion) ? 'pulse-glow 2s ease-in-out infinite' : 'none',
               }}
@@ -1097,8 +1091,8 @@ const CSDispatchView: React.FC = () => {
                   {selectedCompanion.games.map((g: any, i: number) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                       <span>🎮 {g.game}</span>
-                      <span style={{ color: '#7C3AED', fontWeight: 600 }}>{g.rank || '?'}</span>
-                      <span style={{ color: g.hasAccount ? '#34C759' : TEXT.tertiary }}>
+                      <span style={{ color: SEMANTIC.direct, fontWeight: 600 }}>{g.rank || '?'}</span>
+                      <span style={{ color: g.hasAccount ? SEMANTIC.success : TEXT.tertiary }}>
                         {g.hasAccount ? '有号' : '无号'}
                       </span>
                     </div>

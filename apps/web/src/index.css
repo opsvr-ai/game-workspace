@@ -40,6 +40,7 @@
   --color-danger-soft: #FFF2F0;
   --color-danger-border: #FFCCC7;
   --color-danger-deep: #CF1322;
+  --color-danger-mid: #DC2626;
   --color-info-soft: #EEF2FF;
   --color-info-border: #C7D2FE;
   --color-direct: #7C3AED;
@@ -64,6 +65,7 @@
   --color-bg-inverse: #1E293B;
   --color-bg-page: #F5F7FB;
   --color-bg-container-soft: #FCFDFF;
+  --color-bg-brand-soft: #F0F7FF;
   --color-border: #E2E8F0;
   --color-border-secondary: #F1F5F9;
   --color-border-track: #EEF2F8;

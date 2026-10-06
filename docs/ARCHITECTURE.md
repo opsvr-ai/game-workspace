@@ -568,6 +568,8 @@ graph TB
 | `apps/web/src/theme.ts` | Ant Design 令牌：**不写色值，全部从 `styles/tokens.ts` 取**，再映射成 antd 的组件级 token（圆角、表格表头与悬浮色、卡片圆角、标签胶囊等，一次影响所有 antd 组件） |
 | `apps/web/src/styles/global.css` 末尾「视觉系统 v2」一段 | 整页晕染底色 `.app-shell`、内容白卡 `.app-content`、卡片/表格/按钮/标签/滚动条、左侧导航配色，以及通用小组件类 `.ui-panel` / `.ui-dot` / `.ui-section-title` / `.ui-chip` |
 | `apps/web/src/config/roleMenus.tsx` 的 `MODULE_TINTS`（颜色值本体在 `styles/tokens.ts`） | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots）。**菜单配置的唯一来源就是这个文件**（2026-10-07 从 `layouts/AppLayout.tsx` 抽出来，原来混在 3000 行里） |
+| `styles/tokens.ts` 的 `ROLE_TINT` | 四个角色的**身份色**（陪玩蓝 `#2563EB` / 客服青 `#0891B2` / 店长橙 `#EA580C` / 老板紫 `#7C3AED`）：文字、头像圈、角色标签用它。**跟 `MODULE_TINTS` 不是一回事** —— 那个按「菜单模块」上色、这个按「人是谁」上色（2026-10-07 从 `pages/dispatch/CSDispatchView.tsx` 搬进来） |
+| `styles/tokens.ts` 的 `SEMANTIC` | 状态 / 语义色。同一个含义有**深浅档**，判断标准只有一条：**当字用 / 当点用 / 当底用**（深绿 `successDeep` 是字、亮绿 `successBright` 是数字、`successSoft + successBorder` 是「淡底 + 同色描边」的标签底）。深色状态点一律走 `constants/companions.ts` 的 `statusDotColor()`，**不要**在页面里再写一套 |
 
 左栏菜单（`config/roleMenus.tsx`）与页面路由（`router.tsx`）现在各有一道闸：
 

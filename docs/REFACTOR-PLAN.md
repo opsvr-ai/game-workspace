@@ -110,6 +110,24 @@
 > / `OperationsBoard`（28 处）可以照同一个模子批量补。
 
 
+### 第 6 批 · 已完成（2026-10-07，客服端三个大页面：色值清零 + 冒烟测试）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 公用的接口打桩助手 | P0-1 / 安全网 | 新增 `apps/web/src/test/apiStub.ts` 的 `stubApi()`：按**真实模块的 key** 生成「成功但空数据」的打桩，以后接口加方法不用改测试；订单池那条测试也改用它 | 本次 |
+| 冒烟：客户看板 | P0-1 | `src/__tests__/customer-board-page.test.tsx` —— 890 行、店长天天看的板子；断言「标题 + 统计卡都在」 | 本次 |
+| 冒烟：直添客户流转明细 | P0-1 | `src/__tests__/cs-converted-panel.test.tsx` —— 客服端 923 行面板；断言标题 + 空态 | 本次 |
+| 冒烟：派单工作台 | P0-1 | `src/__tests__/cs-dispatch-view.test.tsx` —— 客服端 1,169 行主战场；断言两个页签 + 「订单池」都在 | 本次 |
+| 陪玩状态点配色归一 | P2-7 / 15.3 | 客户看板的状态点改走全站唯一那份 `statusDotColor()`（原来自己写了一套，跟聊天列表的绿 / 红 / 橙都不一样）；**只有空闲 / 接单 / 休息三处微调** | 本次 |
+| 客服端三页色值清零 | P2-7 | `CustomerBoardPage` 42 + `CsConvertedPanel` 32 + `CSDispatchView` 34 = **108 处** → 令牌；`ROLE_TINT` 从视图文件搬进 tokens；基线 **795 → 687** | 本次 |
+| 令牌补深浅档 | P2-7 / 15.3 | `SEMANTIC` 补深浅档 + 淡底、`BG.brandSoft`、`ROLE_TINT`；CSS 变量 **92 → 94**；`/ui-kit` 同步展示（截图 `ui-kit-semantic-2.png` / `ui-kit-modules-2.png`） | 本次 |
+
+> 前端测试 **4 文件 / 12 用例 → 7 文件 / 15 用例**；服务端 689 不变；`pnpm -r lint` 0 error。
+> 「要数据的页面怎么测」这条路彻底走通了：新增一个页面冒烟测试 = 十几行 + 一句 `stubApi`。
+> 下一步（P0-1 剩下的）：`OperationsBoard`（28 处）/ `CustomerTrackingCenter`（26 处）/ `BillingOverview`（24 处）
+> 继续照模子补；再往后是 `AppLayout` 剩下的弹窗 / 通知 / 语音通话（带 socket，要另配 mock）。
+
+
 ---
 
 ## 0. 结论速览
