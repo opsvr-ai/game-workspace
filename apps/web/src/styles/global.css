@@ -298,8 +298,8 @@ body {
   padding: 8px 4px !important;
 }
 
-/* ── 登录页 ── */
-.login-wrapper {
+/* ── 品牌外壳（登录页 + 异常页共用；出错时颜色不跳）── */
+.brand-shell {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -310,7 +310,7 @@ body {
 }
 
 /* 品牌色晕染：跟登录后的 .app-shell 是同一套底，进出不跳色 */
-.login-wrapper::before {
+.brand-shell::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -320,7 +320,7 @@ body {
     var(--grad-login);
 }
 
-.login-card {
+.brand-card {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: saturate(180%) blur(30px);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
@@ -337,7 +337,7 @@ body {
   animation: fade-in 0.35s ease-out;
 }
 
-.login-card::before {
+.brand-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -347,7 +347,7 @@ body {
   background: var(--color-gradient-brand);
 }
 
-.login-card h1 {
+.brand-card h1 {
   text-align: center;
   font-size: 28px;
   font-weight: 700;
@@ -358,7 +358,7 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.login-card .subtitle {
+.brand-card .subtitle {
   text-align: center;
   font-size: 13px;
   color: var(--color-text-tertiary, var(--color-text-tertiary));
@@ -366,7 +366,7 @@ body {
   letter-spacing: 0.3px;
 }
 /* 品牌标：把 ⚡ 放进品牌紫渐变圆角块里，比一个裸 emoji 更像「一个产品的 logo」 */
-.login-card .brand-icon {
+.brand-card .brand-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -594,12 +594,12 @@ body {
 
 /* ── Responsive: Mobile (<=768px) ── */
 @media (max-width: 768px) {
-  .login-card {
+  .brand-card {
     width: 90%;
     max-width: 400px;
     padding: 32px 24px;
   }
-  .login-card h1 {
+  .brand-card h1 {
     font-size: 22px;
   }
   .ant-table {
@@ -608,11 +608,11 @@ body {
 }
 
 @media (max-width: 480px) {
-  .login-card {
+  .brand-card {
     padding: 24px 16px;
     border-radius: 16px;
   }
-  .login-card h1 {
+  .brand-card h1 {
     font-size: 20px;
   }
 }

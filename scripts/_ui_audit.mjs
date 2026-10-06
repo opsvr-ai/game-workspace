@@ -143,6 +143,22 @@ const PROBE = `(() => {
     if (d > 1 && el.clientWidth > 0) out.menuClipped.push({ text: t.slice(0, 16), over: d, w: el.clientWidth });
   }
 
+  // ── 3.6 表格要不要横向滚（列太多 / 密度太高时，小屏上就得左右拉）──
+  //    表格**能**滚是设计，不算缺陷；但「一张表要滚 1.6 倍宽」就说明这一页在窄屏上不好用，
+  //    要么减列、要么把次要列收起来 —— 这里只把数字量出来，判断留给人。
+  out.tablesScrolled = [];
+  for (const el of host.querySelectorAll('.ant-table-content, .ant-table-body')) {
+    const need = el.scrollWidth - el.clientWidth;
+    if (need > 4 && el.clientWidth > 0) {
+      out.tablesScrolled.push({
+        w: el.clientWidth,
+        need,
+        ratio: Number((el.scrollWidth / el.clientWidth).toFixed(2)),
+        head: (el.textContent || '').trim().slice(0, 24),
+      });
+    }
+  }
+
   // ── 4. 页面顶部压根没有标题（一进页面不知道自己在哪）──
   if (!out.titles.length) out.noTitle = true;
   return out;
@@ -235,6 +251,10 @@ try {
     if ((data.issues || []).length) flags.push('!! ' + data.issues.join(';'));
     if (data.noTitle) flags.push('没有页面标题');
     if ((data.menuClipped || []).length) flags.push('菜单文字截断 ' + data.menuClipped.length + '（侧栏 ' + data.siderWidth + 'px）');
+    if ((data.tablesScrolled || []).length) {
+      const worst = [...data.tablesScrolled].sort((a, b) => b.need - a.need)[0];
+      flags.push('表格要横滚 ' + data.tablesScrolled.length + ' 张（最宽 ×' + worst.ratio + '）');
+    }
     console.log(
       '[audit] ' + p.padEnd(34) + ' 标题=' + JSON.stringify((head.text || '').slice(0, 16)) +
         ' ' + (head.size || '-') + '/' + (head.weight || '-') +

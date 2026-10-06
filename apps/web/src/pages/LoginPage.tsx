@@ -471,8 +471,8 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="login-wrapper">
-      <div className="login-card" style={{ width: mode === 'register' ? 440 : 400 }}>
+    <div className="brand-shell">
+      <div className="brand-card" style={{ width: mode === 'register' ? 440 : 400 }}>
         <span className="brand-icon">⚡</span>
         <h1>陪玩管理系统</h1>
         <div className="subtitle">一站式陪玩派单管理 · 前端 {webVersion}</div>

@@ -1,57 +1,73 @@
 import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { Suspense, lazy, type ReactNode } from 'react';
-import { Button, Result } from 'antd';
+import { Button, Space } from 'antd';
 import LoadingState from './components/LoadingState';
-import { BG, TEXT } from './styles/tokens';
+import { TEXT } from './styles/tokens';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 // 独立聊天窗那一页也懒加载（它是单独一个窗口打开的，首屏用不到）。
 const ChatWindowPage = lazy(() => import('./pages/ChatWindowPage'));
 
+/**
+ * 路由出错时的兜底页（页面不存在 / 页面自己崩了）。
+ *
+ * 为什么不再用 antd 的 <Result>：它自带的大插画是 antd 那套蓝紫色，跟本产品的品牌紫不是一套；
+ * 而且这一页**真的会被人看到** —— 陪玩端 / 客服端内嵌窗口写死的老地址在新版本里下线之后，
+ * 打开就是这里（还有客服发给别人、对方点进来的过期链接）。
+ * 所以它跟登录页共用同一套「品牌外壳 + 品牌卡」（.brand-shell / .brand-card）：
+ * 出错时颜色不跳、看着还是同一个产品，并且明确给出「下一步点哪」。
+ */
 function RouteErrorBoundary() {
   const error = useRouteError();
   const message = error instanceof Error ? error.message : String(error);
-
-  if (isRouteErrorResponse(error)) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: BG.base }}>
-        <Result
-          status={error.status === 404 ? '404' : 'error'}
-          title={error.status === 404 ? '页面未找到' : error.statusText}
-          subTitle={error.status === 404 ? '请检查URL是否正确' : error.data?.message || '发生了意外错误'}
-          extra={
-            <Button type="primary" onClick={() => (window.location.href = '/login')}>
-              返回登录
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
+  const routeError = isRouteErrorResponse(error) ? error : null;
+  const notFound = routeError?.status === 404;
+  const subtitle = notFound
+    ? '这个地址不存在，或者这个页面已经下线了。'
+    : routeError?.data?.message || routeError?.statusText || message || '发生了意外错误，请刷新页面重试';
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: BG.base, padding: 24 }}>
-      <Result
-        status="error"
-        title="应用错误"
-        subTitle={message || '发生了意外错误，请刷新页面重试'}
-        extra={
-          <>
-            <Button type="primary" onClick={() => window.location.reload()}>
+    <div className="brand-shell">
+      <div className="brand-card" style={{ width: 440, textAlign: 'center' }}>
+        <span className="brand-icon">{notFound ? '🧭' : '⚡'}</span>
+        <h1>{notFound ? '没有这个页面' : '页面出了点问题'}</h1>
+        <div className="subtitle">{subtitle}</div>
+        <Space direction="vertical" size={10} style={{ width: '100%' }}>
+          <Button type="primary" size="large" block onClick={() => (window.location.href = '/')}>
+            回到首页
+          </Button>
+          {notFound ? null : (
+            <Button size="large" block onClick={() => window.location.reload()}>
               刷新页面
             </Button>
-            <Button onClick={() => (window.location.href = '/login')}>
-              返回登录
-            </Button>
-            <details style={{ marginTop: 16, textAlign: 'left', maxWidth: 600, overflow: 'auto' }}>
-              <summary style={{ cursor: 'pointer', color: TEXT.tertiary, fontSize: 12 }}>错误详情</summary>
-              <pre style={{ fontSize: 12, color: TEXT.secondary, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                {message}{'\n\n'}{error instanceof Error ? error.stack : ''}
-              </pre>
-            </details>
-          </>
-        }
-      />
+          )}
+          <Button type="text" block style={{ color: TEXT.secondary }} onClick={() => (window.location.href = '/login')}>
+            重新登录
+          </Button>
+        </Space>
+        {notFound ? null : (
+          <details style={{ marginTop: 18, textAlign: 'left' }}>
+            <summary style={{ cursor: 'pointer', color: TEXT.tertiary, fontSize: 12 }}>
+              错误详情（给技术同事看）
+            </summary>
+            <pre
+              style={{
+                marginTop: 8,
+                maxHeight: 200,
+                overflow: 'auto',
+                fontSize: 12,
+                color: TEXT.secondary,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+              }}
+            >
+              {message}
+              {'\n\n'}
+              {error instanceof Error ? error.stack : ''}
+            </pre>
+          </details>
+        )}
+      </div>
     </div>
   );
 }
