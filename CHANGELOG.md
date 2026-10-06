@@ -9,6 +9,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **重构地基第一批（2026-10-06，dev 分支）。** 三件事，都不碰业务逻辑：
+  1. **仓库瘦身**：`.rtfm/library.db`（16.7 MB 的 RTFM 本地检索索引，可随时重建）移出 git 跟踪
+     （本地文件保留）；`.gitignore` 补上 `/tmp_*`（根目录历史上堆了约 250 个 `tmp_*.py/.txt`
+     一次性排障脚本，旧规则只忽略了带点的 `/.tmp-*`、`/.tmp_*`）、`/__pycache__/`。
+     `git status` 的未跟踪项从约 400 条降到 13 条。
+  2. **ESLint 救活**：旧配置是 `.eslintrc.json`，ESLint 10 直接拒绝加载 → `pnpm lint` 在整仓范围内
+     一律以「找不到配置文件」失败，**这个保护从来没生效过**。迁移为 `eslint.config.mjs`（flat config），
+     规则集与旧配置一一对应；`eslint-plugin-react` 尚不支持 ESLint 10，故 eslint / `@eslint/js`
+     对齐到 9.x；lint 脚本从 `--max-warnings 50` 改为只卡 error（warning 是约 2,800 条历史积压）。
+  3. **CI 补全**：此前 CI 只在 `master` 上触发 —— 重构在 `dev` 上做，等于完全没有 CI；
+     且从不跑打包。现在 push / PR 到 `master` 与 `dev` 都跑，任务为
+     `typecheck → lint → test` 与 `build`，并加了 concurrency 取消旧运行。
+
+### Fixed
+
+- **修掉三处让 CI 形同虚设的预存问题（2026-10-06）。** 把 CI 修绿的过程中挖出来的：
+  1. **类型检查在 master 上就是红的**：`common/order-outcome.ts` 的 `OutcomeLike` 漏声明
+     `outcomeReason`，而它是真实列（`Order.outcomeReason`）。补上可选字段。
+  2. **一条早就失效的测试**：`orders.pool-taken` 断言 `dispatchType` 必须是 `'POOL'`，
+     但实现（`f6175fb8` 客服指定单不再显示「抢单」按钮）已经改成 `{ in: ['POOL', 'DIRECT'] }`。
+     实现是较新的意图，改测试并写清原因。
+  3. **真实的 React Bug**：`CompanionsPage` 的 `ExpandableRow` 把 `useEffect` 写在
+     `if (!record.companionId) return ...` 之后 —— 条件调用 hooks，会打乱 hooks 调用顺序。
+     挪到提前 return 之前，回调里自己判断，行为不变（非陪玩人员仍不发请求）。
+- **外链安全加固（2026-10-06）**：5 处 `target="_blank"` 补 `rel="noreferrer"`
+  （`MessageBubble` / `ReviewPage` / `EmployeesPage` / `StudiosPage` ×2）。
+- **若干机械问题（2026-10-06）**：`agent.controller` 的 `execSync` 与 `os`、`identity-verify` 的
+  `https` 改成顶层 import；`composite.service` 的 `sharp` 是可选依赖，保留 `require` 并加定向豁免；
+  2 处正则多余转义、1 处全角空格改显式转义、4 处 `let` 改 `const`。
+
 ### Added
 
 - **加：店长「打回重写」+ 新增「待处理」工作台（老板 2026-10-06，服务端 + 网页 `v979`）。**

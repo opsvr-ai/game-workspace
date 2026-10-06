@@ -7,6 +7,28 @@
 
 ---
 
+## 进展（滚动更新）
+
+> 只记「已完成 / 在做 / 下一批」，与 `CHANGELOG.md` 呼应，细节看对应提交与 CHANGELOG。
+
+### 第 0 批 · 已完成（2026-10-06）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 仓库瘦身 | P0-4 / P2-5 | `.rtfm/library.db` 停止跟踪（本地文件保留）；`.gitignore` 补 `/tmp_*`、`/__pycache__/` | `9d398178` |
+| ESLint 救活 | P2-1 | `.eslintrc.json` → `eslint.config.mjs`（flat config）；lint 脚本从 `--max-warnings 50` 改为只卡 error | `6e084c5a` |
+| CI 覆盖 dev + 补打包 | P0-7 | CI 改为在 `master` / `dev` 触发，任务 `typecheck → lint → test` + `build`，加 concurrency | `6e084c5a` |
+| CI 修绿（预存问题） | P0-3 / P2-1 | 类型错误 ×1、失效测试 ×1、条件 hooks ×1、外链 `rel` ×5、机械问题若干 | `637e9dd6` |
+
+### 第 1 批 · 待开工（建议顺序）
+
+1. **P0-2 部署可回滚**：远端改为 `releases/<sha>` 目录 + `current` 软链，脚本支持 `--rollback`（纯新增能力，不动线上）。
+2. **P0-1 抢单主链路 e2e**：把「抢单 / 报账 / 结算 / 黑名单」四条主链路的自动化回归建起来，作为后续所有拆分的验收基线。
+3. **P0-5 升级信号按端隔离**：陪玩端 / 客服端 / 看门狗的信号文件分命名空间，兼容读取旧路径（避免一台机器装两端时互相踩）。
+4. **P0-6 升级名额按店**：`agent.service.ts` 的全网单个内存名额改为 Redis 按店并发配额（必须保持 `update-queue.test.ts` 绿）。
+
+---
+
 ## 0. 结论速览
 
 **一句话判断**：这套系统已经跑完了「从 0 到 1」——业务闭环完整、线上有真实用户和真实钱在流。它的问题不是功能不够，而是**结构已经到顶**：一个 4000 行的订单服务、一个 3000 行的前端外壳、两套复制粘贴的客户端、116 个散装配置键、零前端测试。再往上叠功能，成本会指数上升。
@@ -173,6 +195,7 @@ flowchart TD
 | P0-4 | **工具产物混入仓库** | `.rtfm/library.db` 17 MB 被 git 跟踪；`CHANGELOG.md` 已 4,676 行 / 606 KB | 仓库膨胀、clone 慢、diff 噪声大 |
 | P0-5 | **两端升级信号文件共用** | 陪玩端 `updater.ts` 与客服端 `main.js` 都写 `C:\ProgramData\chunlv\update.json`、`client-healthy.json`、`blocked-versions.json`；看门狗只有一份 `updateSignalDir` | **同一台机器装了两端时互相踩**：健康上报被对方覆盖 → 误判更新失败 → 误回滚 / 误拉黑版本 |
 | P0-6 | **升级名额是全网单个内存变量** | `agent.service.ts` 模块级 `let updateSlot`，`updateWaiters` 同为内存 Map | 一家店在升级，**所有店一起排队**；服务重启即丢状态；无法多实例 |
+| P0-7 | **CI 此前只在 master 触发** | `.github/workflows/ci.yml` 的 `on.push.branches` 只有 `master`，且从不跑打包 | 重构全在 `dev` 上做，等于整个重构期没有任何自动检查（2026-10-06 已修） |
 
 ### 3.2 P1 — 结构性债务
 
