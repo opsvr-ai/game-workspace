@@ -52,7 +52,8 @@
 4. **P0-1 抢单主链路 e2e**：把「抢单 / 报账 / 结算 / 黑名单」四条主链路的自动化回归建起来，作为后续所有拆分的验收基线。
 5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 6. **路由契约冻结** ✅：`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`（**86 条**页面路径 / 含 4 条重定向），CI `--check` 拦「删路径 / 改路径 / 换页面」。**这是动 `router.tsx` 前必须先到位的前端安全网** —— 前端零测试，而 70 处死的 `<Suspense>` 包装、组件抽取都要改这个文件。
-> 下一步就是在这个安全网下动 `router.tsx`：先把 70 处「什么都不做」的 `<Suspense>` 换成一行辅助函数（跑 freeze 前后比对，证明路由契约零变化），再把 `AppLayout.tsx` 里的菜单 / 图标常量抽到 `config/roleMenus.tsx`（纯搬运，行为零变化）。
+7. **`router.tsx` 去 Suspense 噪声** ✅：77 处复制粘贴的 `<Suspense>` → 单一入口 `page()`，787 → 487 行；顺带把错误边界 3 处写死色值收进令牌（色值基线 939 → 935）。**路由契约冻结前后逐条一致**，零行为变化。
+> 下一步：把 `AppLayout.tsx`（约 3000 行）里的菜单 / 图标常量抽到 `config/roleMenus.tsx`（纯搬运，行为零变化）。
 
 ---
 

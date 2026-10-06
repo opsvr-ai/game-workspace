@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
-import { Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Spin, Button, Result } from 'antd';
+import { BG, TEXT } from './styles/tokens';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import ChatWindowPage from './pages/ChatWindowPage';
@@ -11,7 +12,7 @@ function RouteErrorBoundary() {
 
   if (isRouteErrorResponse(error)) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: BG.base }}>
         <Result
           status={error.status === 404 ? '404' : 'error'}
           title={error.status === 404 ? '页面未找到' : error.statusText}
@@ -27,7 +28,7 @@ function RouteErrorBoundary() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5', padding: 24 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: BG.base, padding: 24 }}>
       <Result
         status="error"
         title="应用错误"
@@ -41,8 +42,8 @@ function RouteErrorBoundary() {
               返回登录
             </Button>
             <details style={{ marginTop: 16, textAlign: 'left', maxWidth: 600, overflow: 'auto' }}>
-              <summary style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}>错误详情</summary>
-              <pre style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              <summary style={{ cursor: 'pointer', color: TEXT.tertiary, fontSize: 12 }}>错误详情</summary>
+              <pre style={{ fontSize: 12, color: TEXT.secondary, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {message}{'\n\n'}{error instanceof Error ? error.stack : ''}
               </pre>
             </details>
@@ -118,35 +119,30 @@ const SuspenseFallback = () => (
   </div>
 );
 
+/**
+ * 每个页面统一包一层 Suspense —— 单一入口，别在每个路由里各抄一遍 fallback。
+ * 现在还没有真正的懒加载（页面都是同步 import 的），所以这一层暂时不会真的被触发；
+ * 将来要按路由拆包，只把上面的 import 换成 lazy(() => import(...)) 就行，这里不用动。
+ */
+const page = (node: ReactNode) => <Suspense fallback={<SuspenseFallback />}>{node}</Suspense>;
+
 export const router = createBrowserRouter([
   {
     path: '/login',
     errorElement: <RouteErrorBoundary />,
-    element: (
-      <Suspense fallback={<SuspenseFallback />}>
-        <LoginPage />
-      </Suspense>
-    ),
+    element: page(<LoginPage />),
   },
   {
     // 独立的聊天窗口（一个联系人一个系统窗口，能最小化到任务栏 —— 老板 2026-10-05）。
     // 不在 AppLayout 里，只渲染一个聊天面板。
     path: '/chat-window',
     errorElement: <RouteErrorBoundary />,
-    element: (
-      <Suspense fallback={<SuspenseFallback />}>
-        <ChatWindowPage />
-      </Suspense>
-    ),
+    element: page(<ChatWindowPage />),
   },
   {
     path: '/profile-setup',
     errorElement: <RouteErrorBoundary />,
-    element: (
-      <Suspense fallback={<SuspenseFallback />}>
-        <ProfileSetupPage />
-      </Suspense>
-    ),
+    element: page(<ProfileSetupPage />),
   },
   {
     path: '/companion',
@@ -155,107 +151,55 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionPage />
-          </Suspense>
-        ),
+        element: page(<CompanionPage />),
       },
       {
         path: 'pool',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionPoolPage />
-          </Suspense>
-        ),
+        element: page(<CompanionPoolPage />),
       },
       {
         path: 'live-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <LiveBoardPage />
-          </Suspense>
-        ),
+        element: page(<LiveBoardPage />),
       },
       {
         path: 'billing',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BillingOverview />
-          </Suspense>
-        ),
+        element: page(<BillingOverview />),
       },
       {
         path: 'wallet-calendar',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionWalletCalendarPage />
-          </Suspense>
-        ),
+        element: page(<CompanionWalletCalendarPage />),
       },
       {
         path: 'customers/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerDetailPage />
-          </Suspense>
-        ),
+        element: page(<CustomerDetailPage />),
       },
       {
         path: 'customer-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerBoardPage />
-          </Suspense>
-        ),
+        element: page(<CustomerBoardPage />),
       },
       {
         path: 'customers',
-       element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomersPage />
-          </Suspense>
-        ),
+       element: page(<CustomersPage />),
       },
       {
         path: 'orders',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrdersPage />
-          </Suspense>
-        ),
+        element: page(<OrdersPage />),
       },
       {
         path: 'dispatch',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <DispatchPage />
-          </Suspense>
-        ),
+        element: page(<DispatchPage />),
       },
       {
         path: 'companions',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionsPage />
-          </Suspense>
-        ),
+        element: page(<CompanionsPage />),
       },
       {
         path: 'stats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StatsPage />
-          </Suspense>
-        ),
+        element: page(<StatsPage />),
       },
       {
         path: 'battle-screenshots',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BattleScreenshotsPage />
-          </Suspense>
-        ),
+        element: page(<BattleScreenshotsPage />),
       },
     ],
   },
@@ -267,265 +211,137 @@ export const router = createBrowserRouter([
       { path: 'owner/live-board', element: <Navigate to="/admin" replace /> },
       {
         path: 'owner/customers',
-       element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomersPage />
-          </Suspense>
-        ),
+       element: page(<CustomersPage />),
       },
       {
         path: 'owner/employees',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <EmployeesPage />
-          </Suspense>
-        ),
+        element: page(<EmployeesPage />),
       },
       {
         path: 'owner/studios',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StudiosPage />
-          </Suspense>
-        ),
+        element: page(<StudiosPage />),
       },
       {
         path: 'owner/bridges',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BridgePage />
-          </Suspense>
-        ),
+        element: page(<BridgePage />),
       },
       {
         path: 'owner/authorizations',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <AuthorizationsPage />
-          </Suspense>
-        ),
+        element: page(<AuthorizationsPage />),
       },
       {
         path: 'owner/review',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ReviewPage />
-          </Suspense>
-        ),
+        element: page(<ReviewPage />),
       },
       {
         path: 'owner/settings',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <SettingsPage />
-          </Suspense>
-        ),
+        element: page(<SettingsPage />),
       },
       {
         path: 'owner/work-wechats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <WorkWechatPage />
-          </Suspense>
-        ),
+        element: page(<WorkWechatPage />),
       },
       {
         path: 'owner/orders',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrdersPage />
-          </Suspense>
-        ),
+        element: page(<OrdersPage />),
       },
       {
         path: 'owner/order-review',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderReviewPage />
-          </Suspense>
-        ),
+        element: page(<OrderReviewPage />),
       },
       {
         // 待处理工作台（老板 2026-10-06）：店长 / 老板 / 客服上班先点这一页，
         // 所有待办汇总在这儿（不跟着角色分路由，三个角色共用一条）。
         path: 'todos',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <TodosPage />
-          </Suspense>
-        ),
+        element: page(<TodosPage />),
       },
       {
         path: 'admin',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OperationsBoard />
-          </Suspense>
-        ),
+        element: page(<OperationsBoard />),
       },
       {
         path: 'admin/revenue',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <UnifiedDashboard />
-          </Suspense>
-        ),
+        element: page(<UnifiedDashboard />),
       },
       {
         path: 'admin/dispatch',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <DispatchPage />
-          </Suspense>
-        ),
+        element: page(<DispatchPage />),
       },
       { path: 'admin/live-board', element: <Navigate to="/admin" replace /> },
       {
         path: 'admin/employees',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <EmployeesPage />
-          </Suspense>
-        ),
+        element: page(<EmployeesPage />),
       },
       {
         path: 'admin/companions',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionsPage />
-          </Suspense>
-        ),
+        element: page(<CompanionsPage />),
       },
       {
         path: 'admin/battle-screenshots',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BattleScreenshotReviewPage />
-          </Suspense>
-        ),
+        element: page(<BattleScreenshotReviewPage />),
       },
       {
         path: 'admin/customers/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerDetailPage />
-          </Suspense>
-        ),
+        element: page(<CustomerDetailPage />),
       },
       // 客户看板：老板 / 店长各自的菜单路径（陪玩端另有 /companion/customer-board；
       // 原来菜单里的 /owner/customer-board、/admin/customer-board 点进去是 404，老板 2026-10-04 发现）
       {
         path: 'owner/customer-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerBoardPage />
-          </Suspense>
-        ),
+        element: page(<CustomerBoardPage />),
       },
       {
         path: 'admin/customer-board',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerBoardPage />
-          </Suspense>
-        ),
+        element: page(<CustomerBoardPage />),
       },
       // 老板看客户看板点「详情」跳的是 /owner/customers/:id，这条原来也漏了
       {
         path: 'owner/customers/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerDetailPage />
-          </Suspense>
-        ),
+        element: page(<CustomerDetailPage />),
       },
       {
         path: 'admin/customers',
-       element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomersPage />
-          </Suspense>
-        ),
+       element: page(<CustomersPage />),
       },
       {
         path: 'admin/billing',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BillingOverview />
-          </Suspense>
-        ),
+        element: page(<BillingOverview />),
       },
       {
         path: 'admin/finance/risk',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <RiskWorkbenchPage />
-          </Suspense>
-        ),
+        element: page(<RiskWorkbenchPage />),
       },
       {
         path: 'admin/finance/reconciliation',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ReconciliationPage />
-          </Suspense>
-        ),
+        element: page(<ReconciliationPage />),
       },
       {
         path: 'admin/cs-wechat-flow',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CsWechatFlowPage />
-          </Suspense>
-        ),
+        element: page(<CsWechatFlowPage />),
       },
       {
         path: 'admin/profit-calendar',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ProfitCalendarPage />
-          </Suspense>
-        ),
+        element: page(<ProfitCalendarPage />),
       },
       {
         path: 'admin/companion-wallet-calendar',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionWalletCalendarPage />
-          </Suspense>
-        ),
+        element: page(<CompanionWalletCalendarPage />),
       },
       {
         path: 'admin/finance/expenses',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ExpenseReviewPage />
-          </Suspense>
-        ),
+        element: page(<ExpenseReviewPage />),
       },
       {
         path: 'admin/finance/commission',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CommissionPage />
-          </Suspense>
-        ),
+        element: page(<CommissionPage />),
       },
       {
         path: 'admin/finance/commission-today',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CsCommissionTodayPage />
-          </Suspense>
-        ),
+        element: page(<CsCommissionTodayPage />),
       },
       {
         path: 'admin/cs-settings',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CsSettingsPage />
-          </Suspense>
-        ),
+        element: page(<CsSettingsPage />),
       },
       {
         // 「店长设置」页 2026-09-22 并进「工资规则」（店长 / 客服就是同一张工资表的两行），
@@ -535,27 +351,15 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/finance/price-rules',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <PriceRulesPage />
-          </Suspense>
-        ),
+        element: page(<PriceRulesPage />),
       },
       {
         path: 'admin/pc-control',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <PcControlPage />
-          </Suspense>
-        ),
+        element: page(<PcControlPage />),
       },
       {
                 path: 'admin/machines',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <MachinesPage />
-          </Suspense>
-        ),
+        element: page(<MachinesPage />),
       },
       {
         // 「电脑管理」2026-10-04 并进「机器管理」（手工登记 + 远程开关机那一块就在机器管理页里），
@@ -565,11 +369,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/payroll',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <PayrollPage />
-          </Suspense>
-        ),
+        element: page(<PayrollPage />),
       },
       {
         // 「利润分成」页 2026-09-22 合并进「设置 → 系统配置 → 利润分成（分账规则）」，
@@ -579,206 +379,106 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin/traffic-accounts',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <TrafficAccountPage />
-          </Suspense>
-        ),
+        element: page(<TrafficAccountPage />),
       },
       {
         path: 'admin/review',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ReviewPage />
-          </Suspense>
-        ),
+        element: page(<ReviewPage />),
       },
       {
         path: 'admin/orders',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrdersPage />
-          </Suspense>
-        ),
+        element: page(<OrdersPage />),
       },
       {
         path: 'admin/order-review',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderReviewPage />
-          </Suspense>
-        ),
+        element: page(<OrderReviewPage />),
       },
       {
         path: 'admin/blacklist',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BlacklistPage />
-          </Suspense>
-        ),
+        element: page(<BlacklistPage />),
       },
       {
         path: 'admin/whitelist',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <WhitelistPage />
-          </Suspense>
-        ),
+        element: page(<WhitelistPage />),
       },
       {
         path: 'admin/process-kill-log',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ProcessKillLogPage />
-          </Suspense>
-        ),
+        element: page(<ProcessKillLogPage />),
       },
       {
         path: 'admin/attendance',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <AttendancePage />
-          </Suspense>
-        ),
+        element: page(<AttendancePage />),
       },
       {
         path: 'content-check',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ContentCheckPage />
-          </Suspense>
-        ),
+        element: page(<ContentCheckPage />),
       },
       {
         path: 'admin/settings',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <SettingsPage />
-          </Suspense>
-        ),
+        element: page(<SettingsPage />),
       },
       {
         path: 'admin/agent-version',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <AgentVersionPage />
-          </Suspense>
-        ),
+        element: page(<AgentVersionPage />),
       },
       {
         path: 'admin/work-wechats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <WorkWechatPage />
-          </Suspense>
-        ),
+        element: page(<WorkWechatPage />),
       },
       {
         path: 'cs/billing',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <BillingOverview />
-          </Suspense>
-        ),
+        element: page(<BillingOverview />),
       },
       {
         path: 'cs/dispatch',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <DispatchPage />
-          </Suspense>
-        ),
+        element: page(<DispatchPage />),
       },
       { path: 'cs/live-board', element: <Navigate to="/cs/home" replace /> },
       {
         path: 'cs/orders',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrdersPage />
-          </Suspense>
-        ),
+        element: page(<OrdersPage />),
       },
       {
         path: 'cs/order-review',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OrderReviewPage />
-          </Suspense>
-        ),
+        element: page(<OrderReviewPage />),
       },
       {
         path: 'cs/customers/:id',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomerDetailPage />
-          </Suspense>
-        ),
+        element: page(<CustomerDetailPage />),
       },
       {
         path: 'cs/customers',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CustomersPage />
-          </Suspense>
-        ),
+        element: page(<CustomersPage />),
       },
       {
         path: 'cs/employees',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CompanionsPage />
-          </Suspense>
-        ),
+        element: page(<CompanionsPage />),
       },
       {
         path: 'cs/work-wechats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <WorkWechatPage />
-          </Suspense>
-        ),
+        element: page(<WorkWechatPage />),
       },
       {
         path: 'cs/home',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OperationsBoard compact />
-          </Suspense>
-        ),
+        element: page(<OperationsBoard compact />),
       },
       {
         path: 'cs/stats',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <StatsPage />
-          </Suspense>
-        ),
+        element: page(<StatsPage />),
       },
       {
         // 客服自己的提成看板（老板 2026-09-29）：和店长/老板那张是同一页，
         // 客服打开只能看自己的明细（后端强制），但整张表的人和数字都看得见。
         path: 'cs/finance/commission-today',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <CsCommissionTodayPage />
-          </Suspense>
-        ),
+        element: page(<CsCommissionTodayPage />),
       },
       {
         path: 'cs/traffic-accounts',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <TrafficAccountPage />
-          </Suspense>
-        ),
+        element: page(<TrafficAccountPage />),
       },
       {
         path: 'profile',
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <ProfilePage />
-          </Suspense>
-        ),
+        element: page(<ProfilePage />),
       },
       { path: '', element: <Navigate to="/admin" replace /> },
     ],

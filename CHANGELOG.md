@@ -47,6 +47,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **`router.tsx` 去噪：77 处复制粘贴的 `<Suspense>` 收成一个入口（2026-10-07，dev 分支，零行为变化）。**
+  这个文件 787 行里有 **77 处**一模一样的 `<Suspense fallback={<SuspenseFallback />}>` 包壳 —— 而且全是**废的**：
+  页面都是同步 `import` 的，没有任何 `lazy()`，这一层 Suspense 永远不会真的被触发（纯历史包袱），
+  但重构时要在 86 条路由里逐个绕过它，非常碍事。
+  - 新增一个入口 `const page = (node) => <Suspense fallback={<SuspenseFallback />}>{node}</Suspense>`，
+    77 条路由各自缩成一行 `element: page(<XxxPage />)`；**文件 787 → 487 行**。
+  - **行为完全不变**：渲染出来的组件树与之前逐层一致（仍然包着 Suspense，只是不再各复制一份 fallback），
+    路由契约冻结前后都是 86 条、内容逐条一致（`pnpm routes:check` 通过即为证据）。
+  - 顺手把错误边界里 3 个写死的色值（`#f5f5f5` / `#999` / `#666`）收进设计令牌
+    （`BG.base` / `TEXT.tertiary` / `TEXT.secondary`），硬编码色值基线 **939 → 935**（同步调低 `docs/UI-TOKEN-BASELINE.json`）。
+  - 留好的口子：将来真要按路由拆包（首屏 1.2MB + antd 1.3MB 的告警），
+    只把顶部那一坨 `import` 换成 `lazy(() => import(...))` 即可，`page()` 这一层不用动。
+
 - **硬编码色值清一批 + 加一道「只能减不能增」的冻结检查（P2-7，2026-10-07，dev 分支）。**
   上一版把三套主色归成了一个紫，但只要还能随手写十六进制，界面早晚又漂回去 —— 这一版两件事一起做：
   - **清掉「中性灰」那一族**：`#94A3B8`（109 处）、`#64748B`（51）、`#475569`（31）、
