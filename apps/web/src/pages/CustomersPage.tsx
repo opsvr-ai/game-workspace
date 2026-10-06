@@ -68,6 +68,7 @@ import { ORDER_FIELD_LABELS, orderFieldText } from '../constants/orderFields';
 import TableSkeleton from '../components/TableSkeleton';
 import { visibleInterval } from '../hooks/usePolling';
 import { currentBusinessDayStart } from '../utils/businessDay';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -635,7 +636,7 @@ const CustomersPage: React.FC = () => {
         return (
           <div style={CELL_ONE_LINE} title={text + (deprecated ? '（该来源账号已弃用）' : '')}>
             <span>{text}</span>
-            {deprecated && <span style={{ ...CELL_SUB_TEXT, color: '#94A3B8' }}>已弃用</span>}
+            {deprecated && <span style={{ ...CELL_SUB_TEXT, color: TEXT.tertiary }}>已弃用</span>}
           </div>
         );
       },
@@ -648,7 +649,7 @@ const CustomersPage: React.FC = () => {
       render: (s: string) => {
         const cfg = customerStatusConfig[s];
         return (
-          <span style={{ color: CUSTOMER_STATUS_TEXT_COLOR[s] || '#475569' }}>{cfg?.label || s || '-'}</span>
+          <span style={{ color: CUSTOMER_STATUS_TEXT_COLOR[s] || TEXT.heading }}>{cfg?.label || s || '-'}</span>
         );
       },
     },
@@ -663,7 +664,7 @@ const CustomersPage: React.FC = () => {
         const name = r.companion?.user?.username;
         return (
           <div style={CELL_ONE_LINE} title={[name || '未分配', wx].filter(Boolean).join(' · ')}>
-            <span style={{ color: name ? undefined : '#94A3B8' }}>{name || '未分配'}</span>
+            <span style={{ color: name ? undefined : TEXT.tertiary }}>{name || '未分配'}</span>
             {wx && <span style={CELL_SUB_TEXT}>· {wx}</span>}
           </div>
         );

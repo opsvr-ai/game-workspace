@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Typography } from 'antd';
 import { useNotifStore, type NoticeItem } from '../stores/notifStore';
-import { BRAND } from '../styles/tokens';
+import { BG, BRAND, TEXT } from '../styles/tokens';
 
 interface Props {
   onClose: () => void;
@@ -41,7 +41,7 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
           borderBottom: '1px solid #F0F0F0',
         }}
       >
-        <Typography.Text strong style={{ fontSize: 13, color: '#1E293B' }}>
+        <Typography.Text strong style={{ fontSize: 13, color: TEXT.primary }}>
           🔔 通知{unread > 0 ? '（未读 ' + (unread > 99 ? '99+' : unread) + '）' : ''}
         </Typography.Text>
         <span>
@@ -56,7 +56,7 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
 
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 4 }}>
         {items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '28px 12px', color: '#94A3B8', fontSize: 13 }}>
+          <div style={{ textAlign: 'center', padding: '28px 12px', color: TEXT.tertiary, fontSize: 13 }}>
             <div style={{ fontSize: 36, marginBottom: 6, opacity: 0.5 }}>🔔</div>
             暂无通知
           </div>
@@ -80,7 +80,7 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
                 background: it.read ? 'transparent' : '#EFF6FF',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = it.read ? '#F8FAFC' : '#E3EEFF';
+                e.currentTarget.style.background = it.read ? BG.base : '#E3EEFF';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = it.read ? 'transparent' : '#EFF6FF';
@@ -91,16 +91,16 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <Typography.Text
                     strong={!it.read}
-                    style={{ fontSize: 13, color: '#1E293B', whiteSpace: 'normal' }}
+                    style={{ fontSize: 13, color: TEXT.primary, whiteSpace: 'normal' }}
                   >
                     {it.title}
                   </Typography.Text>
-                  <Typography.Text style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>
+                  <Typography.Text style={{ fontSize: 11, color: TEXT.tertiary, flexShrink: 0 }}>
                     {formatTime(it.at)}
                   </Typography.Text>
                 </div>
                 {it.desc ? (
-                  <div style={{ fontSize: 12, color: it.read ? '#94A3B8' : '#475569', marginTop: 3, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: it.read ? TEXT.tertiary : TEXT.heading, marginTop: 3, lineHeight: 1.5 }}>
                     {it.desc}
                   </div>
                 ) : null}

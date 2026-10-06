@@ -22,6 +22,7 @@ import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
 import { statusDotColor } from '../../constants/companions';
 import { useAuthStore } from '../../stores/authStore';
+import { BG, BORDER, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -79,7 +80,7 @@ const BUCKET_META: Array<{ key: Bucket; label: string; dot: string; color: strin
   { key: 'entertainment', label: '娱乐中', dot: '#F59E0B', color: '#B45309', bg: '#FFFBEB' },
   { key: 'available', label: '空闲', dot: '#22C55E', color: '#15803D', bg: '#F0FDF4' },
   { key: 'resting', label: '休息', dot: '#F97316', color: '#C2410C', bg: '#FFF7ED' },
-  { key: 'offline', label: '离线', dot: '#94A3B8', color: '#64748B', bg: '#F8FAFC' },
+  { key: 'offline', label: '离线', dot: TEXT.tertiary, color: TEXT.secondary, bg: BG.base },
 ];
 
 function bucketOf(r: BoardRow): Bucket {
@@ -168,9 +169,9 @@ const LiveBoardPage: React.FC = () => {
     const meta = BUCKET_META.find((m) => m.key === b);
     const s = r.serving;
     const offline = b === 'offline';
-    const dot = meta ? meta.dot : '#94A3B8';
-    const pillColor = meta ? meta.color : '#475569';
-    const pillBg = meta ? meta.bg : '#F1F5F9';
+    const dot = meta ? meta.dot : TEXT.tertiary;
+    const pillColor = meta ? meta.color : TEXT.heading;
+    const pillBg = meta ? meta.bg : BORDER.secondary;
     const pillText = meta ? meta.label : '在线';
 
     const body = (
@@ -189,7 +190,7 @@ const LiveBoardPage: React.FC = () => {
         {/* 头像 + 名字 + 状态 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Badge dot color={statusDotColor({ status: r.status, isOnline: r.online, lastHeartbeat: r.lastHeartbeat })}>
-            <Avatar size={38} src={r.avatar || undefined} style={{ background: '#E2E8F0', color: '#334155', fontSize: 15 }}>
+            <Avatar size={38} src={r.avatar || undefined} style={{ background: BORDER.base, color: '#334155', fontSize: 15 }}>
               {(r.name || '?').slice(0, 1)}
             </Avatar>
           </Badge>
@@ -197,7 +198,7 @@ const LiveBoardPage: React.FC = () => {
             <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.name || r.username || '未知'}
             </div>
-            <div style={{ fontSize: 11, color: r.isBridged ? '#B45309' : '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 11, color: r.isBridged ? '#B45309' : TEXT.tertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.isBridged ? '🌉 桥接 · ' : ''}{r.studioName || '—'}
             </div>
           </div>
@@ -212,7 +213,7 @@ const LiveBoardPage: React.FC = () => {
         </div>
 
         {/* 打单中：跟谁、打什么、多久 */}
-        <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px dashed #E8ECF1', fontSize: 12, color: '#475569', lineHeight: 1.75 }}>
+        <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px dashed #E8ECF1', fontSize: 12, color: TEXT.heading, lineHeight: 1.75 }}>
           {s ? (
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
@@ -233,7 +234,7 @@ const LiveBoardPage: React.FC = () => {
                   s.role === 'CO' ? '双陪' : '单陪'
                 )}
               </div>
-              <div style={{ color: '#94A3B8' }}>
+              <div style={{ color: TEXT.tertiary }}>
                 {s.orderCode ? `📄 ${s.orderCode}` : ''}
                 {s.customerCode ? `${s.orderCode ? ' · ' : ''}客户 ${s.customerCode}` : ''}
               </div>
@@ -242,27 +243,27 @@ const LiveBoardPage: React.FC = () => {
               ) : null}
             </>
           ) : (
-            <div style={{ color: '#94A3B8' }}>{offline ? '电脑没在跑客户端' : '没在打单'}</div>
+            <div style={{ color: TEXT.tertiary }}>{offline ? '电脑没在跑客户端' : '没在打单'}</div>
           )}
         </div>
 
         {/* 业绩 / 工作量：桥接工作室的人、以及陪玩端看别人，都只给订单信息，不给挣了多少 */}
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
           {r.earningsHidden ? (
-            <span style={{ color: '#94A3B8' }}>
+            <span style={{ color: TEXT.tertiary }}>
               今日 {r.todayOrders || 0}单
               {r.todayMinutes ? <span> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
               <span style={{ marginLeft: 6 }}>🔒 业绩不公开</span>
             </span>
           ) : (
-            <span style={{ color: '#64748B' }}>
+            <span style={{ color: TEXT.secondary }}>
               今日 <Text strong style={{ color: '#0F172A' }}>¥{money(r.todayRevenue)}</Text>
-              {r.todayOrders ? <span style={{ color: '#94A3B8' }}> · {r.todayOrders}单</span> : null}
-              {r.todayMinutes ? <span style={{ color: '#94A3B8' }}> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
+              {r.todayOrders ? <span style={{ color: TEXT.tertiary }}> · {r.todayOrders}单</span> : null}
+              {r.todayMinutes ? <span style={{ color: TEXT.tertiary }}> · 接单 {formatDuration((r.todayMinutes || 0) * 60)}</span> : null}
             </span>
           )}
           {!r.earningsHidden && s && s.myAmount != null ? (
-            <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>
+            <span style={{ color: TEXT.secondary, whiteSpace: 'nowrap' }}>
               本单 <Text strong style={{ color: '#0F172A' }}>¥{money(s.myAmount)}</Text>
             </span>
           ) : null}
@@ -321,7 +322,7 @@ const LiveBoardPage: React.FC = () => {
                 font: 'inherit',
               }}
             >
-              <div style={{ fontSize: 12, color: '#64748B' }}>
+              <div style={{ fontSize: 12, color: TEXT.secondary }}>
                 {m.label}
                 {active ? ' · 只看' : ''}
               </div>

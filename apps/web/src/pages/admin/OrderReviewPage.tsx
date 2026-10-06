@@ -8,6 +8,7 @@ import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
 import { extractErrorMessage } from '../../utils/error-handler';
+import { TEXT } from '../../styles/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -211,7 +212,7 @@ const OrderReviewPage: React.FC = () => {
               {o.channel === 'offline' ? '本店线下' : o.channel === 'online' ? '线上俱乐部' : '桥接'}
             </Text>
           </div>
-          <div style={{ fontSize: 12, color: '#475569' }}>
+          <div style={{ fontSize: 12, color: TEXT.heading }}>
             {o.gameName || '—'} · {money(o)}
           </div>
         </div>
@@ -224,7 +225,7 @@ const OrderReviewPage: React.FC = () => {
       render: (_: unknown, o: any) => (
         <div style={{ lineHeight: '18px' }}>
           <div>{o.customerCode || o.customerWechat || '—'}</div>
-          <div style={{ fontSize: 11, color: '#94A3B8' }}>微信 {o.customerWechat || '—'}</div>
+          <div style={{ fontSize: 11, color: TEXT.tertiary }}>微信 {o.customerWechat || '—'}</div>
         </div>
       ),
     },
@@ -235,7 +236,7 @@ const OrderReviewPage: React.FC = () => {
       render: (_: unknown, o: any) => (
         <div style={{ lineHeight: '18px' }}>
           <div>发单：{o.csUserName || '—'}</div>
-          <div style={{ fontSize: 11, color: '#94A3B8' }}>
+          <div style={{ fontSize: 11, color: TEXT.tertiary }}>
             接单：{o.companionName || '—'}
             {o.coCompanionName ? '+' + o.coCompanionName : ''}
             {o.companionStudioName && o.channel !== 'offline' ? '（' + o.companionStudioName + '）' : ''}
@@ -262,11 +263,11 @@ const OrderReviewPage: React.FC = () => {
             </Tag>
           )}
           <span style={{ marginLeft: 6 }}>{o.outcomeReason || ''}</span>
-          {o.outcomeNote ? <div style={{ fontSize: 11, color: '#64748B' }}>{o.outcomeNote}</div> : null}
+          {o.outcomeNote ? <div style={{ fontSize: 11, color: TEXT.secondary }}>{o.outcomeNote}</div> : null}
           {o.started ? (
             <div style={{ fontSize: 11, color: '#16A34A' }}>已点开始首单</div>
           ) : (
-            <div style={{ fontSize: 11, color: '#94A3B8' }}>抢单 {ago(o.grabbedAt)}</div>
+            <div style={{ fontSize: 11, color: TEXT.tertiary }}>抢单 {ago(o.grabbedAt)}</div>
           )}
         </div>
       ),
@@ -305,8 +306,8 @@ const OrderReviewPage: React.FC = () => {
               <Tag color="blue" style={{ margin: 0 }}>
                 {RESP_LABEL[o.reviewResponsibility] || '已拍板'}
               </Tag>
-              <div style={{ fontSize: 11, color: '#64748B' }}>{o.reviewNote}</div>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>{fmt(o.reviewAt)}</div>
+              <div style={{ fontSize: 11, color: TEXT.secondary }}>{o.reviewNote}</div>
+              <div style={{ fontSize: 11, color: TEXT.tertiary }}>{fmt(o.reviewAt)}</div>
             </div>
           );
         }

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ordersPathWithOrder, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
-import { BRAND } from '../../styles/tokens';
+import { BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -86,7 +86,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: '50%', background: '#CBD5E1',
+            width: 36, height: 36, borderRadius: '50%', background: TEXT.disabled,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#FFF', fontSize: 14, fontWeight: 700,
             position: 'absolute', top: 0, left: 0,

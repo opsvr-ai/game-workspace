@@ -29,7 +29,7 @@ import {
   DATA_TAG_FONT_SIZE,
 } from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
-import { BRAND } from '../styles/tokens';
+import { BG, BORDER, BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -478,9 +478,9 @@ const OrderPoolPage: React.FC = () => {
               style={{
                 margin: 0,
                 fontSize: DATA_TAG_FONT_SIZE,
-                color: order._direct ? '#7C3AED' : order._takenByMe ? '#16A34A' : '#64748B',
+                color: order._direct ? '#7C3AED' : order._takenByMe ? '#16A34A' : TEXT.secondary,
                 background: order._direct ? '#F5F3FF' : order._takenByMe ? '#F0FDF4' : '#EEF2F6',
-                borderColor: order._direct ? '#DDD6FE' : order._takenByMe ? '#BBF7D0' : '#E2E8F0',
+                borderColor: order._direct ? '#DDD6FE' : order._takenByMe ? '#BBF7D0' : BORDER.base,
               }}
             >
               {order._direct
@@ -596,7 +596,7 @@ const OrderPoolPage: React.FC = () => {
             margin: '2px 3px 8px',
             borderRadius: 8,
             cursor: 'pointer',
-            background: groupUnread > 0 ? '#EEF2FF' : '#F8FAFC',
+            background: groupUnread > 0 ? '#EEF2FF' : BG.base,
             border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
             display: 'flex',
             alignItems: 'center',
@@ -621,7 +621,7 @@ const OrderPoolPage: React.FC = () => {
                 display: 'block',
                 marginTop: 2,
                 fontSize: DATA_SUB_FONT_SIZE,
-                color: groupUnread > 0 ? '#475569' : '#94A3B8',
+                color: groupUnread > 0 ? TEXT.heading : TEXT.tertiary,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -657,7 +657,7 @@ const OrderPoolPage: React.FC = () => {
                     transition: 'background 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#F8FAFC';
+                    e.currentTarget.style.background = BG.base;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
@@ -740,7 +740,7 @@ const OrderPoolPage: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
                           <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
-                          <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
+                          <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.heading }}>{displayStatus(c).label}</span>
                         </span>
                         {c.currentOrder && (
                           <span
@@ -788,7 +788,7 @@ const OrderPoolPage: React.FC = () => {
 
       <Row
         gutter={12}
-        style={{ background: '#F8FAFC', borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
+        style={{ background: BG.base, borderRadius: 12, padding: 12, minHeight: 'calc(100vh - 160px)' }}
       >
         {isCompanion && !personnelCollapsed && renderCompanionSidebar()}
         {/* 同上：basis 0 + minWidth 0，避免订单内容太宽把整列挤到人员列表下面 */}
@@ -824,7 +824,7 @@ const OrderPoolPage: React.FC = () => {
                   marginBottom: 6,
                 }}
               >
-                <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#64748B' }}>
+                <Text strong style={{ fontSize: DATA_FONT_SIZE, color: TEXT.secondary }}>
                   今天已发过的单（灰色 = 已被抢走）
                 </Text>
                 <Tag style={{ margin: 0, fontSize: DATA_TAG_FONT_SIZE }}>{takenOrders.length} 单</Tag>

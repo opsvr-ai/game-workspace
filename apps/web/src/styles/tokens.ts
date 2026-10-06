@@ -64,6 +64,10 @@ export const BG = {
   sider: BRAND.sider,
   /** 内容区（管理端外壳） */
   content: '#F4F6FD',
+  /** 深色浮层底（语音通话条那种黑底） */
+  inverse: '#1E293B',
+  /** 深色浮层底 · 更深一档（渐变用） */
+  inverseDeep: '#0F172A',
 } as const;
 
 /** 描边色。 */
@@ -168,6 +172,7 @@ export const CSS_VARS: Record<string, string> = {
   '--color-bg-hover': BG.hover,
   '--color-bg-sider': BG.sider,
   '--color-bg-error': '#FEF2F2',
+  '--color-bg-inverse': BG.inverse,
   // 描边
   '--color-border': BORDER.base,
   '--color-border-secondary': BORDER.secondary,

@@ -4,7 +4,7 @@ import { Alert, Card, InputNumber, Button, Typography, Space, message, Row, Col,
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
-import { BRAND } from '../../styles/tokens';
+import { BORDER, BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -222,16 +222,16 @@ const ExcellenceSettings: React.FC = () => {
                 />
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
-                <div style={{ flex: 1, textAlign: 'center', background: '#F1F5F9', borderRadius: 8, padding: '6px 4px' }}>
-                  <div style={{ fontSize: 12, color: '#64748B' }}>下等马</div>
+                <div style={{ flex: 1, textAlign: 'center', background: BORDER.secondary, borderRadius: 8, padding: '6px 4px' }}>
+                  <div style={{ fontSize: 12, color: TEXT.secondary }}>下等马</div>
                   <div style={{ fontWeight: 700, color: '#8c8c8c' }}>0 – {Math.max(0, midThreshold - 1)} 分</div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', background: '#E8F1FF', borderRadius: 8, padding: '6px 4px' }}>
-                  <div style={{ fontSize: 12, color: '#64748B' }}>中等马</div>
+                  <div style={{ fontSize: 12, color: TEXT.secondary }}>中等马</div>
                   <div style={{ fontWeight: 700, color: BRAND.primary }}>{midThreshold} – {Math.max(midThreshold, topThreshold - 1)} 分</div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', background: '#FFF7E6', borderRadius: 8, padding: '6px 4px' }}>
-                  <div style={{ fontSize: 12, color: '#64748B' }}>上等马</div>
+                  <div style={{ fontSize: 12, color: TEXT.secondary }}>上等马</div>
                   <div style={{ fontWeight: 700, color: '#d4a017' }}>{topThreshold} – 100 分</div>
                 </div>
               </div>

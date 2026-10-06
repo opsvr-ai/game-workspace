@@ -5,6 +5,7 @@ import { ThunderboltOutlined, AimOutlined, FireOutlined, PlusOutlined, DeleteOut
 import { customerTrackingApi } from '../api/customerTracking';
 import { customersApi } from '../api/customers';
 import { extractErrorMessage } from '../utils/error-handler';
+import { BRAND } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -119,7 +120,7 @@ const CompanionTrackingPanel: React.FC = () => {
   const cfg = status?.config ?? {};
   const quota = status?.quota ?? {};
   const stat = [
-    { label: '今日有效客户', value: `${status?.todayValidCustomers ?? 0}`, icon: ThunderboltOutlined, color: '#00E5FF' },
+    { label: '今日有效客户', value: `${status?.todayValidCustomers ?? 0}`, icon: ThunderboltOutlined, color: BRAND.accent },
     {
       label: '今日名额（已用/每天）',
       value: `${quota.usedToday ?? 0}/${quota.dailyLimit ?? 0}`,

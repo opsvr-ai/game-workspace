@@ -9,6 +9,7 @@ import { visibleInterval } from '../hooks/usePolling';
 import { createZip, type ZipEntry } from '../utils/zip';
 import { buildEscalatedPoolCsv, safeFileName, STATE_MAP } from '../utils/escalated-pool-csv';
 import { useAuthStore } from '../stores/authStore';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -181,7 +182,7 @@ const EscalatedPoolPanel: React.FC = () => {
       render: (_: any, r: any) => (
         <div>
           <Tag color={r.destination === '线上俱乐部' ? 'geekblue' : 'purple'}>{r.destination}</Tag>
-          <div style={{ fontSize: 12, color: '#64748B' }}>{r.destinationStudioName || '—'}</div>
+          <div style={{ fontSize: 12, color: TEXT.secondary }}>{r.destinationStudioName || '—'}</div>
         </div>
       ),
     },
@@ -230,10 +231,10 @@ const EscalatedPoolPanel: React.FC = () => {
             {bits.length ? (
               bits.map((b, i) => <div key={i}>{b}</div>)
             ) : (
-              <span style={{ color: '#94A3B8' }}>还没记录收款去向</span>
+              <span style={{ color: TEXT.tertiary }}>还没记录收款去向</span>
             )}
             {(r.moneyInYuan > 0 || r.moneyOutYuan > 0) && (
-              <div style={{ color: '#64748B', marginTop: 2 }}>
+              <div style={{ color: TEXT.secondary, marginTop: 2 }}>
                 已记流入 {yuan(r.moneyInYuan)} / 流出 {yuan(r.moneyOutYuan)}
               </div>
             )}
@@ -246,7 +247,7 @@ const EscalatedPoolPanel: React.FC = () => {
       dataIndex: 'state',
       width: 100,
       render: (v: string, r: any) => {
-        const s = STATE_MAP[v] || { text: v || '—', color: '#475569' };
+        const s = STATE_MAP[v] || { text: v || '—', color: TEXT.heading };
         return (
           <span style={{ color: s.color }} title={r.stateReason || ''}>
             {s.text}
@@ -312,7 +313,7 @@ const EscalatedPoolPanel: React.FC = () => {
             <Text type="secondary">被接走</Text>
             <div style={{ fontSize: 22, fontWeight: 600 }}>
               {totals.count || 0} 单
-              <span style={{ fontSize: 13, color: '#64748B', marginLeft: 8 }}>
+              <span style={{ fontSize: 13, color: TEXT.secondary, marginLeft: 8 }}>
                 桥接 {totals.bridgeCount || 0} / 线上 {totals.onlineCount || 0}
               </span>
             </div>

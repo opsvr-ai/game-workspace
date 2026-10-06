@@ -5,7 +5,7 @@ import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { payrollApi } from '../../api/payroll';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
-import { BRAND } from '../../styles/tokens';
+import { BG, BORDER, BRAND } from '../../styles/tokens';
 
 const { Title, Text } = Typography;
 
@@ -42,7 +42,7 @@ const CELL: React.CSSProperties = {
 const HEAD_CELL: React.CSSProperties = {
   ...CELL,
   borderTop: 'none',
-  background: '#f1f5f9',
+  background: BORDER.secondary,
   color: '#334155',
   fontSize: 12,
 };
@@ -51,7 +51,7 @@ const LABEL_CELL: React.CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-start',
   gap: 0,
-  background: '#f8fafc',
+  background: BG.base,
 };
 /** 岗位列 + 6 个数字列；窄窗口横向滚动，不把输入框挤扁（老板 2026-09-22 提过挤到点不到） */
 const GRID_COLS = '150px repeat(6, minmax(150px, 1fr))';

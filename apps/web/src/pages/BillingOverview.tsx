@@ -32,7 +32,7 @@ import {
   HistoryOutlined,
 } from '@ant-design/icons';
 import { visibleInterval } from '../hooks/usePolling';
-import { BRAND } from '../styles/tokens';
+import { BG, BRAND, TEXT } from '../styles/tokens';
 const IconCheck = React.createElement(CheckCircleOutlined);
 const IconClose = React.createElement(CloseCircleOutlined);
 const IconReload = React.createElement(ReloadOutlined);
@@ -82,8 +82,8 @@ const StatBlock: React.FC<{
     <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}12`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
       <span style={{ fontSize: 20, color }}>{icon}</span>
     </div>
-    <div style={{ fontSize: 20, fontWeight: 700, color: '#1E293B', lineHeight: 1.2 }}>{value}</div>
-    <Text style={{ fontSize: 12, color: '#94A3B8' }}>{label}</Text>
+    <div style={{ fontSize: 20, fontWeight: 700, color: TEXT.primary, lineHeight: 1.2 }}>{value}</div>
+    <Text style={{ fontSize: 12, color: TEXT.tertiary }}>{label}</Text>
   </Card>
 );
 
@@ -742,31 +742,31 @@ const BillingOverview: React.FC = () => {
           </Button>
         </div>
         {todayOrders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94A3B8' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: TEXT.tertiary }}>
             这个营业日没有待报账的单（已报过的单不会重复出现）
           </div>
         ) : (
           <div style={{ maxHeight: 620, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0' }}>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 44 }}>序号</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 460 }}>订单</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>开始时间</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 150 }}>结束时间</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 70 }}>时长</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 80 }}>服务</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 60 }}>模式</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 90 }}>单价</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>应报（系统）</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 100 }}>实际到账</th>
-                  <th style={{ padding: '8px 10px', fontSize: 12, color: '#64748B', width: 180 }}>备注</th>
+                <tr style={{ background: BG.base, borderBottom: '2px solid #E2E8F0' }}>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 44 }}>序号</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 460 }}>订单</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 150 }}>开始时间</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 150 }}>结束时间</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 70 }}>时长</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 80 }}>服务</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 60 }}>模式</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 90 }}>单价</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 100 }}>应报（系统）</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 100 }}>实际到账</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 180 }}>备注</th>
                 </tr>
               </thead>
               <tbody>
                 {todayOrders.map((o: any, idx: number) => (
                   <tr key={o.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                    <td style={{ padding: '8px 10px', fontSize: 12, color: '#94A3B8' }}>{idx + 1}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 12, color: TEXT.tertiary }}>{idx + 1}</td>
                     <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <Space size={4} style={{ flexWrap: 'nowrap' }}>
                         <Text>{o.gameName}</Text>
@@ -810,7 +810,7 @@ const BillingOverview: React.FC = () => {
           </div>
         )}
         {todayOrders.length > 0 && (
-          <div style={{ background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, marginTop: 12 }}>
+          <div style={{ background: BG.base, border: '1px solid #E5E7EB', borderRadius: 8, padding: 14, marginTop: 12 }}>
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
               <Text>共 {todayOrders.length} 单</Text>
               <Text>应报总额（系统）：<b style={{ color: BRAND.primary }}>¥{reportSystemTotal.toFixed(1)}</b></Text>

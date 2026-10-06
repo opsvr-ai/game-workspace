@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button, Slider } from 'antd';
 import { PhoneOutlined, SoundOutlined } from '@ant-design/icons';
+import { BG, TEXT } from '../styles/tokens';
 
 interface Props {
   peerName?: string;
@@ -28,7 +29,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
         bottom: 20,
         zIndex: 2000,
         width: 280,
-        background: '#1E293B',
+        background: BG.inverse,
         color: '#fff',
         borderRadius: 12,
         padding: '12px 14px',
@@ -55,7 +56,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
           <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {peerName || '语音通话中'}
           </div>
-          <div style={{ color: '#94A3B8', fontSize: 12, marginTop: 1 }}>{formatDuration(duration)}</div>
+          <div style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 1 }}>{formatDuration(duration)}</div>
         </div>
         <Button
           danger
@@ -66,7 +67,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
         />
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-        <SoundOutlined style={{ color: '#94A3B8', fontSize: 13, flexShrink: 0 }} />
+        <SoundOutlined style={{ color: TEXT.tertiary, fontSize: 13, flexShrink: 0 }} />
         <Slider
           min={0}
           max={100}

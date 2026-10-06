@@ -51,6 +51,11 @@ jobs:
       # 谁不小心改了路径或事件名，这里直接红。
       - name: 契约冻结（接口路径 / Socket 事件名）
         run: node scripts/_export_api_contract.mjs --check
+      # UI 硬编码色值冻结（docs/REFACTOR-PLAN.md 15.3 / P2-7）：界面「漂移」的根因是颜色到处手写
+      # （曾经同时存在三套主色）。只清一批不够，还得「只能减不能增」：
+      # 基线见 docs/UI-TOKEN-BASELINE.json，谁新写了硬编码色值这里直接红。
+      - name: UI 硬编码色值冻结
+        run: node scripts/_check_ui_tokens.mjs --check
       - name: 服务端测试
         run: pnpm --filter @chunlv/server test
         env:

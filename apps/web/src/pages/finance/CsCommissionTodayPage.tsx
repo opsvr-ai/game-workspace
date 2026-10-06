@@ -24,6 +24,7 @@ import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
 import OrderOutcomeModal from '../../components/OrderOutcome';
 import { orderTypeConfig } from '../../constants/orders';
+import { TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -62,7 +63,7 @@ const STATE: Record<string, { label: string; color: string }> = {
   SUCCESS: { label: '成功', color: '#15803D' },
   FAILED: { label: '不成功', color: '#DC2626' },
   PENDING: { label: '待反馈', color: '#B45309' },
-  NONE: { label: '未开始', color: '#94A3B8' },
+  NONE: { label: '未开始', color: TEXT.tertiary },
 };
 
 const yuan = (v: any, digits = 1) => `¥${Number(v || 0).toFixed(digits)}`;
@@ -214,7 +215,7 @@ const CsCommissionTodayPage: React.FC = () => {
     { name: '成功', value: Number(board?.success || 0), color: '#15803D' },
     { name: '不成功', value: Number(board?.failed || 0), color: '#DC2626' },
     { name: '待反馈', value: Number(board?.pending || 0), color: '#B45309' },
-    { name: '未开始', value: Number(board?.unstarted || 0), color: '#94A3B8' },
+    { name: '未开始', value: Number(board?.unstarted || 0), color: TEXT.tertiary },
   ].filter((d) => d.value > 0);
 
   const summaryCards = [
@@ -256,7 +257,7 @@ const CsCommissionTodayPage: React.FC = () => {
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>{r.offlineOrders ?? 0} 单</Text>
-          <div style={{ fontSize: 11, color: '#94A3B8' }}>流水 {yuan(r.offlineFlow)}</div>
+          <div style={{ fontSize: 11, color: TEXT.tertiary }}>流水 {yuan(r.offlineFlow)}</div>
           <div style={{ fontSize: 11, color: '#cf1322' }}>提成 {yuan(r.offlineCommission)}</div>
         </div>
       ),
@@ -307,9 +308,9 @@ const CsCommissionTodayPage: React.FC = () => {
       render: (_: unknown, r: any) => (
         <div>
           <span style={{ color: STATE.SUCCESS.color, fontWeight: 600 }}>{r.success ?? 0}</span>
-          <span style={{ color: '#cbd5e1' }}> / </span>
+          <span style={{ color: TEXT.disabled }}> / </span>
           <span style={{ color: STATE.FAILED.color, fontWeight: 600 }}>{r.failed ?? 0}</span>
-          <span style={{ color: '#cbd5e1' }}> / </span>
+          <span style={{ color: TEXT.disabled }}> / </span>
           <span style={{ color: STATE.PENDING.color, fontWeight: 600 }}>{r.pending ?? 0}</span>
         </div>
       ),
@@ -633,7 +634,7 @@ const CsCommissionTodayPage: React.FC = () => {
               render: (v: string, r: any) => (
                 <div>
                   <Text strong>{v || r.orderId?.slice(0, 8)}</Text>
-                  <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.gameName || '—'}</div>
+                  <div style={{ fontSize: 11, color: TEXT.tertiary }}>{r.gameName || '—'}</div>
                 </div>
               ),
             },
@@ -645,7 +646,7 @@ const CsCommissionTodayPage: React.FC = () => {
                   <Tag color={CHANNEL[r.channel]?.color || 'default'} style={{ marginInlineEnd: 0 }}>
                     {CHANNEL[r.channel]?.label || r.channel}
                   </Tag>
-                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{r.issuerStudio || '—'}</div>
+                  <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 2 }}>{r.issuerStudio || '—'}</div>
                 </div>
               ),
             },
@@ -671,8 +672,8 @@ const CsCommissionTodayPage: React.FC = () => {
                     {r.state === 'FAILED' && r.outcomeReason && (
                       <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
                     )}
-                    {r.outcomeBy && <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.outcomeBy} 记</div>}
-                    {r.refundedAt && <div style={{ fontSize: 11, color: '#94A3B8' }}>已退款</div>}
+                    {r.outcomeBy && <div style={{ fontSize: 11, color: TEXT.tertiary }}>{r.outcomeBy} 记</div>}
+                    {r.refundedAt && <div style={{ fontSize: 11, color: TEXT.tertiary }}>已退款</div>}
                   </div>
                 );
               },
@@ -743,7 +744,7 @@ const CsCommissionTodayPage: React.FC = () => {
               render: (v: string, r: any) => (
                 <div>
                   <Text strong>{v || r.orderId?.slice(0, 8)}</Text>
-                  <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                  <div style={{ fontSize: 11, color: TEXT.tertiary }}>
                     {orderTypeConfig[r.type]?.label || r.type || '首单'}
                   </div>
                 </div>
@@ -759,7 +760,7 @@ const CsCommissionTodayPage: React.FC = () => {
                     {CHANNEL[v]?.label || v}
                   </Tag>
                   {r.units === 2 && (
-                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>主+副 2 份</div>
+                    <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 2 }}>主+副 2 份</div>
                   )}
                 </div>
               ),
@@ -772,7 +773,7 @@ const CsCommissionTodayPage: React.FC = () => {
                   <div>
                     <Text>{r.customerCode || r.customerWechat || '—'}</Text>
                   </div>
-                  <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                  <div style={{ fontSize: 11, color: TEXT.tertiary }}>
                     {r.companionName || '还没人接'}
                     {r.companionStudio ? ` · ${r.companionStudio}` : ''}
                   </div>
@@ -793,11 +794,11 @@ const CsCommissionTodayPage: React.FC = () => {
                     {r.state === 'FAILED' && r.outcomeReason && (
                       <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
                     )}
-                    {r.outcomeBy && <div style={{ fontSize: 11, color: '#94A3B8' }}>{r.outcomeBy} 记</div>}
+                    {r.outcomeBy && <div style={{ fontSize: 11, color: TEXT.tertiary }}>{r.outcomeBy} 记</div>}
                     {r.state === 'PENDING' && r.chaseCount > 0 && (
                       <div style={{ fontSize: 11, color: '#fa541c' }}>已催 {r.chaseCount} 次</div>
                     )}
-                    {r.refundedAt && <div style={{ fontSize: 11, color: '#94A3B8' }}>已退款</div>}
+                    {r.refundedAt && <div style={{ fontSize: 11, color: TEXT.tertiary }}>已退款</div>}
                   </div>
                 );
               },

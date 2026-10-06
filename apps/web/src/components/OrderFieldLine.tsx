@@ -3,7 +3,7 @@ import React from 'react';
 import { Typography } from 'antd';
 import { DATA_SUB_FONT_SIZE } from '../constants/datasetColumns';
 import type { OrderFieldEntry } from '../constants/orderFields';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -21,7 +21,7 @@ const COPYABLE_COLOR = BRAND.primary;
  */
 const LABEL_STYLE: React.CSSProperties = {
   fontSize: DATA_SUB_FONT_SIZE,
-  color: '#94A3B8',
+  color: TEXT.tertiary,
   marginRight: 4,
 };
 

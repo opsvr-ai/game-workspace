@@ -63,7 +63,7 @@ import {
 } from '../../constants/orderFields';
 import { encodeOrderInfo, orderInfoTextOf } from '../../utils/chatOrder';
 import { visibleInterval } from '../../hooks/usePolling';
-import { BRAND } from '../../styles/tokens';
+import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -482,7 +482,7 @@ const CSDispatchView: React.FC = () => {
                       <Button type="primary" icon={React.createElement(PlusOutlined)} onClick={() => { setDirectAddMode(true); setEditingOrder(null); setModalOpen(true); }}>
                         直接添加客户
                       </Button>
-                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                      <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 4 }}>
                         客户还没决定打、先加上微信的走这里：只进客户流转明细，不打扰陪玩
                       </div>
                     </div>
@@ -491,7 +491,7 @@ const CSDispatchView: React.FC = () => {
 
       <Row
         gutter={6}
-        style={{ background: '#F8FAFC', borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
+        style={{ background: BG.base, borderRadius: 10, padding: 8, minHeight: 'calc(100vh - 160px)' }}
       >
         {/* Left: Companion sidebar */}
         <Col flex={fixedColumnFlex(PERSONNEL_COLUMN_WIDTH)} style={fixedColumnStyle(PERSONNEL_COLUMN_WIDTH)}>
@@ -518,7 +518,7 @@ const CSDispatchView: React.FC = () => {
                 margin: '2px 3px 8px',
                 borderRadius: 8,
                 cursor: 'pointer',
-                background: groupUnread > 0 ? '#EEF2FF' : '#F8FAFC',
+                background: groupUnread > 0 ? '#EEF2FF' : BG.base,
                 border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
                 display: 'flex',
                 alignItems: 'center',
@@ -543,7 +543,7 @@ const CSDispatchView: React.FC = () => {
                     display: 'block',
                     marginTop: 2,
                     fontSize: DATA_SUB_FONT_SIZE,
-                    color: groupUnread > 0 ? '#475569' : '#94A3B8',
+                    color: groupUnread > 0 ? TEXT.heading : TEXT.tertiary,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -582,7 +582,7 @@ const CSDispatchView: React.FC = () => {
                         transition: 'background 0.15s ease, border-color 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                        if (!isSelected) e.currentTarget.style.background = BG.base;
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected) e.currentTarget.style.background = 'transparent';
@@ -720,16 +720,16 @@ const CSDispatchView: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2, flexWrap: 'wrap' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
                               <span style={{ fontSize: DATA_TAG_FONT_SIZE, color: statusDotColor(c) }}>●</span>
-                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#475569' }}>{displayStatus(c).label}</span>
+                              <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.heading }}>{displayStatus(c).label}</span>
                             </span>
-                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || '#64748B' }}>
+                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, fontWeight: 600, color: ROLE_TEXT_COLOR[c.role] || TEXT.secondary }}>
                               {ROLE_TAG[c.role]?.label || c.role}
                             </span>
                             {c.studioName && (
                               <span
                                 style={{
                                   fontSize: DATA_SUB_FONT_SIZE,
-                                  color: '#94A3B8',
+                                  color: TEXT.tertiary,
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
@@ -759,8 +759,8 @@ const CSDispatchView: React.FC = () => {
                               key={i}
                               style={{
                                 fontSize: DATA_SUB_FONT_SIZE,
-                                color: '#64748B',
-                                background: '#F1F5F9',
+                                color: TEXT.secondary,
+                                background: BORDER.secondary,
                                 borderRadius: 4,
                                 padding: '1px 6px',
                                 lineHeight: '17px',
@@ -770,7 +770,7 @@ const CSDispatchView: React.FC = () => {
                             </span>
                           ))}
                           {c.games.length > 2 && (
-                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8', lineHeight: '17px' }}>+{c.games.length - 2}</span>
+                            <span style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.tertiary, lineHeight: '17px' }}>+{c.games.length - 2}</span>
                           )}
                         </div>
                       )}
@@ -799,7 +799,7 @@ const CSDispatchView: React.FC = () => {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Space>
-                  <Text strong style={{ color: '#1E293B', fontSize: 16 }}>
+                  <Text strong style={{ color: TEXT.primary, fontSize: 16 }}>
                     订单池
                   </Text>
                   <Tag color="purple" style={{ borderRadius: 10, fontWeight: 700 }}>
@@ -807,13 +807,13 @@ const CSDispatchView: React.FC = () => {
                   </Tag>
                 </Space>
                 <Space size={16}>
-                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                  <span style={{ color: TEXT.secondary, fontSize: 12 }}>
                     今日新增 <b style={{ color: '#3B82F6' }}>{todayNew}</b>
                   </span>
-                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                  <span style={{ color: TEXT.secondary, fontSize: 12 }}>
                     已抢 <b style={{ color: '#10B981' }}>{todayGrabbed}</b>
                   </span>
-                  <span style={{ color: '#64748B', fontSize: 12 }}>
+                  <span style={{ color: TEXT.secondary, fontSize: 12 }}>
                     待抢 <b style={{ color: '#F59E0B' }}>{poolCount}</b>
                   </span>
                 </Space>
@@ -1073,7 +1073,7 @@ const CSDispatchView: React.FC = () => {
                       ? '#00E676'
                       : selectedCompanion.status === CompanionStatus.AVAILABLE
                         ? '#FFD600'
-                        : '#94A3B8',
+                        : TEXT.tertiary,
                 boxShadow:
                   isPersonnelOnline(selectedCompanion) ? '0 0 16px #00E676' : 'none',
                 animation:
@@ -1089,7 +1089,7 @@ const CSDispatchView: React.FC = () => {
               </Tag>
               <Tag color={displayStatus(selectedCompanion).color}>{displayStatus(selectedCompanion).label}</Tag>
             </Space>
-            <div style={{ marginTop: 16, textAlign: 'left', background: '#F8FAFC', borderRadius: 10, padding: 14 }}>
+            <div style={{ marginTop: 16, textAlign: 'left', background: BG.base, borderRadius: 10, padding: 14 }}>
               {selectedCompanion.games &&
               selectedCompanion.games.length > 0 &&
               typeof selectedCompanion.games[0] === 'object' ? (
@@ -1098,7 +1098,7 @@ const CSDispatchView: React.FC = () => {
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                       <span>🎮 {g.game}</span>
                       <span style={{ color: '#7C3AED', fontWeight: 600 }}>{g.rank || '?'}</span>
-                      <span style={{ color: g.hasAccount ? '#34C759' : '#94A3B8' }}>
+                      <span style={{ color: g.hasAccount ? '#34C759' : TEXT.tertiary }}>
                         {g.hasAccount ? '有号' : '无号'}
                       </span>
                     </div>
@@ -1154,7 +1154,7 @@ const CSDispatchView: React.FC = () => {
             )}
             {grabbedOrder.customFields?.customerWechatQr && (
               <div style={{ marginTop: 6 }}>
-                <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>
+                <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.tertiary }}>
                   {ORDER_FIELD_LABELS.customerWechatQr}
                 </div>
                 <img

@@ -411,13 +411,13 @@ const LoginPage: React.FC = () => {
                 '这次请求根本没到服务器（网络中断，或被这台电脑的安全软件 / 上网保护拦了）。系统已自动重试并做了一轮自检：')
             : null,
           ...diagnosis.map((line, index) =>
-            React.createElement('div', { key: index, style: { marginTop: 4, fontSize: 13, color: '#475569' } }, line)),
+            React.createElement('div', { key: index, style: { marginTop: 4, fontSize: 13, color: TEXT.heading } }, line)),
           networkLevel
-            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: '#475569' } },
+            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: TEXT.heading } },
                 '自检里「纯文字请求」通了、带照片那条失败：多半是杀毒软件的上网保护在拦上传 —— 把 1.117.229.36 加进信任，或临时关掉「上网保护」再试一次。照片已经自动压缩过，正常网络下重试一般就能过。')
             : null,
           networkLevel && !allowNoPhotos
-            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: '#475569' } },
+            ? React.createElement('div', { style: { marginTop: 10, fontSize: 13, color: TEXT.heading } },
                 '照片一直传不上去：可以点下面的「先不带照片提交」，让店长之后在人员资料里补传照片。')
             : null,
         ),

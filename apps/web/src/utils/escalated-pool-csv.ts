@@ -6,6 +6,7 @@
  * 文件带 BOM + CRLF，Excel 双击直接打开。
  */
 import dayjs from 'dayjs';
+import { TEXT } from '../styles/tokens';
 
 /** CSV 单元格：带逗号 / 引号 / 换行就整体加引号。 */
 export const csvCell = (v: unknown): string => {
@@ -18,7 +19,7 @@ export const STATE_MAP: Record<string, { text: string; color: string }> = {
   SUCCESS: { text: '成功', color: '#15803D' },
   FAILED: { text: '不成功', color: '#DC2626' },
   PENDING: { text: '待反馈', color: '#B45309' },
-  NONE: { text: '已退款/取消', color: '#94A3B8' },
+  NONE: { text: '已退款/取消', color: TEXT.tertiary },
 };
 
 /** 文件名里不能出现的字符（客服名理论上不会有，但也兜一下）。 */

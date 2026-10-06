@@ -7,6 +7,7 @@ import ChatPanel from '../components/chat/ChatPanel';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import http from '../api/client';
+import { BG } from '../styles/tokens';
 
 /**
  * 独立的聊天窗口（老板 2026-10-05：跟微信一样，一个联系人一个窗口、能同时开好几个、
@@ -23,7 +24,7 @@ const Center: React.FC<{ children: React.ReactNode }> = ({ children }) => (
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#F8FAFC',
+      background: BG.base,
       color: '#949BA4',
       fontSize: 14,
     }}
@@ -112,7 +113,7 @@ const StandaloneChat: React.FC = () => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8FAFC' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: BG.base }}>
       <ChatPanel
         roomId={convId}
         participant={participant}

@@ -6,7 +6,7 @@ import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreen
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -156,7 +156,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
                           <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937' }}>
                             上传人：{name}
                           </div>
-                          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                          <div style={{ fontSize: 12, color: TEXT.tertiary, marginTop: 2 }}>
                             {it.customer ? `关联客户：${it.customer.customerCode || it.customer.wechatId} · ` : ''}
                             {new Date(it.createdAt).toLocaleString('zh-CN')}
                           </div>

@@ -1,4 +1,5 @@
 import type React from 'react';
+import { TEXT } from '../styles/tokens';
 
 /**
  * 订单 / 客户是同一份数据，从「订单发布 → 订单池 → 订单管理 → 客户管理」一路都在展示它。
@@ -438,7 +439,7 @@ export const CELL_ONE_LINE: React.CSSProperties = {
 /** 单行里的「次要信息」：11px 灰字，跟在主信息后面（如「232 · 首单」里的「首单」） */
 export const CELL_SUB_TEXT: React.CSSProperties = {
   fontSize: DATA_SUB_FONT_SIZE,
-  color: '#94A3B8',
+  color: TEXT.tertiary,
   marginLeft: 4,
 };
 

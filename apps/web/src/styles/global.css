@@ -11,7 +11,7 @@
 /* ── 页面底色 ── */
 body {
   background: linear-gradient(160deg, #f5f7ff 0%, #faf8ff 45%, #f5f7fb 100%);
-  color: #1e293b;
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -29,12 +29,12 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+  background: var(--color-text-disabled);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-text-tertiary);
 }
 
 /* ── 状态指示点 + 呼吸动画 ── */
@@ -91,7 +91,7 @@ body {
   }
 }
 .status-dot.offline {
-  background: #94a3b8;
+  background: var(--color-text-tertiary);
 }
 .status-dot.busy {
   background: #ff9100;
@@ -122,8 +122,8 @@ body {
 .ant-menu-dark .ant-menu-sub,
 .ant-menu-dark .ant-menu-submenu-popup,
 .ant-menu-dark .ant-menu-submenu > .ant-menu {
-  background: #0b1024 !important;
-  background-color: #0b1024 !important;
+  background: var(--color-bg-sider) !important;
+  background-color: var(--color-bg-sider) !important;
 }
 
 /* 左侧导航栏：antd 的 .ant-layout-sider-children 默认是 block，
@@ -145,12 +145,12 @@ body {
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: #1e293b;
+  color: var(--color-text);
   margin-bottom: 4px;
 }
 .page-subtitle {
   font-size: 14px;
-  color: #64748b;
+  color: var(--color-text-secondary);
   margin-bottom: 24px;
 }
 
@@ -177,7 +177,7 @@ body {
 .stat-card .stat-label {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -186,7 +186,7 @@ body {
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: #1e293b;
+  color: var(--color-text);
 }
 .stat-card .stat-value.blue {
   color: var(--color-brand);
@@ -361,7 +361,7 @@ body {
 .login-card .subtitle {
   text-align: center;
   font-size: 13px;
-  color: var(--color-text-tertiary, #94a3b8);
+  color: var(--color-text-tertiary, var(--color-text-tertiary));
   margin-bottom: 32px;
   letter-spacing: 0.3px;
 }
@@ -771,7 +771,7 @@ body {
    1) **不动字号**。订单 / 客户那份数据的字号仍然是 datasetColumns.ts 一个来源，
       这里只加颜色、圆角、描边、阴影、间距和分组感。
    2) **不改信息结构**。只做「渲染」：底色晕染、卡片层次、模块配色、表头/按钮/标签统一。
-   3) 所有颜色走品牌紫 #7C4DFF + 青 #00E5FF 那套（commander.ts），
+   3) 所有颜色走品牌紫 #7C4DFF + 青 var(--color-accent) 那套（commander.ts），
       模块色统一在 AppLayout 的 MODULE_TINTS 里定义，页面不要各写一套。
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -785,7 +785,7 @@ body {
 
 /* ── 2. 顶栏：品牌渐变 + 一条发光分割线 ── */
 .app-header {
-  background: var(--grad-header, linear-gradient(90deg, #0b1024 0%, #1b1246 55%, #0b1024 100%)) !important;
+  background: var(--grad-header, linear-gradient(90deg, var(--color-bg-sider) 0%, #1b1246 55%, var(--color-bg-sider) 100%)) !important;
   border-bottom: 1px solid rgba(124, 77, 255, 0.35) !important;
   box-shadow: 0 6px 24px -14px rgba(124, 77, 255, 0.9);
 }
@@ -809,7 +809,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 2px;
-  background: var(--grad-accent-bar, linear-gradient(135deg, #00e5ff, #7c4dff));
+  background: var(--grad-accent-bar, linear-gradient(135deg, var(--color-accent), #7c4dff));
 }
 
 /* ── 3. 内容区：更立体的白卡 ── */
@@ -838,7 +838,7 @@ body {
   background: #fcfdff;
 }
 .app-content .ant-card > .ant-card-head {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-border-secondary);
   padding-inline: 18px;
 }
 .app-content .ant-card > .ant-card-head .ant-card-head-title {
@@ -855,17 +855,17 @@ body {
   width: 3px;
   height: 15px;
   border-radius: 2px;
-  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
+  background: var(--grad-accent-bar, linear-gradient(180deg, var(--color-accent), #7c4dff));
 }
 
 /* ── 5. 表格：渐变表头 + 分隔线 + 悬浮行高亮，行列都更好读 ── */
 .app-content .ant-table-thead > tr > th {
-  background: linear-gradient(180deg, #f8fafc, #f1f5f9) !important;
-  color: #475569 !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  background: linear-gradient(180deg, var(--color-bg-base), var(--color-border-secondary)) !important;
+  color: var(--color-text-heading) !important;
+  border-bottom: 1px solid var(--color-border) !important;
 }
 .app-content .ant-table-thead > tr > th:not(:last-child)::before {
-  background-color: #e2e8f0 !important;
+  background-color: var(--color-border) !important;
 }
 /* 单元格内容一律顶对齐（浏览器对 td 的默认是垂直居中）：
    订单 / 客户这些密集表里每列行数不一样，居中会让单行的「待接单」「未接单」
@@ -913,7 +913,7 @@ body {
   border-radius: 0;
 }
 .app-content .ant-table-summary > tr > td {
-  background: #f8fafc !important;
+  background: var(--color-bg-base) !important;
   font-weight: 600;
 }
 .app-content .ant-pagination-item-active {
@@ -941,7 +941,7 @@ body {
   border-radius: 999px;
   padding-inline: 10px;
   border-color: transparent;
-  background: #f1f5f9;
+  background: var(--color-border-secondary);
 }
 .ant-tag-checkable-checked {
   background: #7c4dff;
@@ -1006,7 +1006,7 @@ body {
   bottom: 7px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
+  background: var(--grad-accent-bar, linear-gradient(180deg, var(--color-accent), #7c4dff));
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
 }
 .ant-layout-sider .ant-menu-item-selected .ant-menu-title-content,
@@ -1025,7 +1025,7 @@ body {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-text);
 }
 .ui-dot {
   width: 9px;
@@ -1064,7 +1064,7 @@ body {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: var(--grad-accent-bar, linear-gradient(180deg, #00e5ff, #7c4dff));
+  background: var(--grad-accent-bar, linear-gradient(180deg, var(--color-accent), #7c4dff));
   opacity: 0.9;
 }
 .stat-card .stat-value {

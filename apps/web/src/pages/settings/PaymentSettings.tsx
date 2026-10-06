@@ -4,6 +4,7 @@ import { Alert, Button, Card, InputNumber, Popconfirm, Space, Typography, messag
 import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { clampPercent, FULL_PERCENT } from '../../utils/percent';
+import { BG, BORDER } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -104,7 +105,7 @@ const CELL: React.CSSProperties = {
 const HEAD_CELL: React.CSSProperties = {
   ...CELL,
   borderTop: 'none',
-  background: '#f1f5f9',
+  background: BORDER.secondary,
   color: '#334155',
   fontSize: 12,
 };
@@ -113,7 +114,7 @@ const LABEL_CELL: React.CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-start',
   gap: 0,
-  background: '#f8fafc',
+  background: BG.base,
   borderRight: '1px solid #eef2f7',
 };
 

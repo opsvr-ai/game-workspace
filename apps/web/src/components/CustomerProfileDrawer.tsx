@@ -31,6 +31,7 @@ import {
   Typography,
 } from 'antd';
 import { customersApi } from '../api/customers';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -137,7 +138,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                     <Text strong>{showWx(r.workWechatId)}</Text>
                   </Tooltip>
                   {!r.recorded ? (
-                    <span style={{ fontSize: 11, color: '#94A3B8' }}>（按绑定号）</span>
+                    <span style={{ fontSize: 11, color: TEXT.tertiary }}>（按绑定号）</span>
                   ) : null}
                 </>
               ) : (
@@ -148,7 +149,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
               ) : null}
               {r.isResigned ? <Tag style={{ marginInlineStart: 6 }}>已离职</Tag> : null}
             </div>
-            <div style={{ fontSize: 11, color: '#64748B' }}>
+            <div style={{ fontSize: 11, color: TEXT.secondary }}>
               {r.role === 'CO' ? '副陪 ' : r.role === 'BOTH' ? '主/副陪 ' : '主陪 '}
               <span style={{ color: '#334155' }}>{r.companionName}</span>
               {r.studioName ? ' · ' + r.studioName : ''}
@@ -168,7 +169,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       key: 'online',
       width: 84,
       render: (_: any, r: any) => (
-        <span style={{ fontSize: 12, color: r.online ? '#15803D' : '#94A3B8' }}>
+        <span style={{ fontSize: 12, color: r.online ? '#15803D' : TEXT.tertiary }}>
           {r.online ? STAFF_STATUS[r.status] || '在线' : '离线'}
         </span>
       ),
@@ -225,9 +226,9 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       key: 'maintain',
       width: 122,
       render: (_: any, r: any) => (
-        <span style={{ fontSize: 12, color: '#475569' }}>
+        <span style={{ fontSize: 12, color: TEXT.heading }}>
           维护 {r.maintainDays} 天
-          <div style={{ fontSize: 11, color: '#94A3B8' }}>最近 {daysAgoText(r.lastDaysAgo)}</div>
+          <div style={{ fontSize: 11, color: TEXT.tertiary }}>最近 {daysAgoText(r.lastDaysAgo)}</div>
         </span>
       ),
     },
@@ -287,7 +288,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                       <div style={{ fontSize: 11, color: '#6B7280' }}>
                         陪他 {fmtHours(p.modeHours)} {p.topMode} · 共 {fmtHours(p.hours)} / {p.orders} 单
                       </div>
-                      <div style={{ fontSize: 11, color: p.online ? '#15803D' : '#94A3B8' }}>
+                      <div style={{ fontSize: 11, color: p.online ? '#15803D' : TEXT.tertiary }}>
                         {p.online ? STAFF_STATUS[p.status] || '在线' : '离线'}
                         {p.workWechatId ? ' · ' + showWx(p.workWechatId) : ''}
                       </div>
@@ -307,7 +308,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
             <Descriptions.Item label="归属陪玩">{customer.ownerCompanionName || '未分配'}</Descriptions.Item>
             <Descriptions.Item label="维护时长">
               {customer.maintainDays} 天
-              <span style={{ color: '#94A3B8', fontSize: 12 }}>
+              <span style={{ color: TEXT.tertiary, fontSize: 12 }}>
                 （首次 {fmtDay(customer.firstOrderAt)} · 最近 {daysAgoText(customer.lastDaysAgo)}）
               </span>
             </Descriptions.Item>
@@ -323,7 +324,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                   <div key={m.mode} style={{ marginBottom: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                       <Tag color={modeColor(m.mode)} style={{ marginInlineEnd: 0 }}>{m.mode}</Tag>
-                      <span style={{ color: '#475569' }}>
+                      <span style={{ color: TEXT.heading }}>
                         {m.orders} 单 · {fmtHours(m.hours)} · {yuan(m.money)} · {m.ratio}%
                       </span>
                     </div>
@@ -338,7 +339,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
               ) : (
                 <Text type="secondary">还没有成交记录</Text>
               )}
-              <div style={{ fontSize: 12, color: '#64748B', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: TEXT.secondary, marginTop: 6 }}>
                 习惯单价：
                 {totals.price?.min != null
                   ? `${totals.price.min}~${totals.price.max} 元/小时（均值 ${totals.price.avg}，共 ${totals.price.samples} 次）`

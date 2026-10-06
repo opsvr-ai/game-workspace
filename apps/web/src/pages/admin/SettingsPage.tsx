@@ -18,6 +18,7 @@ import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
 import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
 import { useAuthStore } from '../../stores/authStore';
 import { useSearchParams } from 'react-router-dom';
+import { TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -233,7 +234,7 @@ const SettingsPage: React.FC = () => {
           <Input
             allowClear
             size="small"
-            prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+            prefix={<SearchOutlined style={{ color: TEXT.tertiary }} />}
             placeholder="搜索设置项"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -256,7 +257,7 @@ const SettingsPage: React.FC = () => {
                   alignItems: 'center',
                   gap: 6,
                   fontSize: 11,
-                  color: '#94a3b8',
+                  color: TEXT.tertiary,
                   padding: '6px 8px 4px',
                   letterSpacing: 0.5,
                 }}
@@ -298,7 +299,7 @@ const SettingsPage: React.FC = () => {
                     >
                       {it.label}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>{it.hint}</div>
+                    <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 1 }}>{it.hint}</div>
                   </div>
                 );
               })}

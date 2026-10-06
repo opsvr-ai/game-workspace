@@ -8,7 +8,7 @@ import {
 import dayjs from 'dayjs';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
-import { BRAND } from '../../styles/tokens';
+import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -36,7 +36,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   ENTERTAINMENT: { label: '娱乐中', color: '#722ed1', bg: '#F4EBFF' },
   AVAILABLE: { label: '空闲', color: '#52c41a', bg: '#EAF7EA' },
   RESTING: { label: '休息', color: '#faad14', bg: '#FFF7E6' },
-  OFFLINE: { label: '离线', color: '#94a3b8', bg: '#F1F5F9' },
+  OFFLINE: { label: '离线', color: TEXT.tertiary, bg: BORDER.secondary },
 };
 const ATT_ROLE_LABEL: Record<string, string> = { COMPANION: '陪玩', CS: '客服', ADMIN: '店长' };
 const ATT_STATUS: Record<string, { label: string; color: string }> = {
@@ -58,12 +58,12 @@ const TIER_META: Record<string, { label: string; color: string }> = {
 const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
   <div className="ui-panel" style={{ position: 'relative', overflow: 'hidden', padding: '12px 14px', height: '100%' }}>
     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tint}, ${tint}66)` }} />
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#64748B' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: TEXT.secondary }}>
       <span style={{ width: 6, height: 6, borderRadius: 2, background: tint }} />
       {label}
     </div>
     <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.25, color: tint }}>{value}</div>
-    {sub ? <div style={{ marginTop: 2, fontSize: 12, color: '#94a3b8' }}>{sub}</div> : null}
+    {sub ? <div style={{ marginTop: 2, fontSize: 12, color: TEXT.tertiary }}>{sub}</div> : null}
   </div>
 );
 
@@ -79,7 +79,7 @@ const RankBar: React.FC<{ name: string; value: number; max: number; text: string
   const p = max > 0 ? Math.max(0, Math.min(100, Math.round((value / max) * 100))) : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
-      <span style={{ width: 62, fontSize: 12, color: '#475569', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+      <span style={{ width: 62, fontSize: 12, color: TEXT.heading, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
       <div style={{ flex: 1 }}>
         <Progress percent={p} showInfo={false} strokeColor={color} size="small" />
       </div>
@@ -244,7 +244,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `¥${v}`} />
                   <Tooltip formatter={(v: any) => [`¥${Number(v).toFixed(1)}`, '流水']} />
                   <Bar dataKey="revenue" fill={BRAND.primary} radius={[4, 4, 0, 0]} maxBarSize={26}>
-                    <LabelList dataKey="revenue" position="top" formatter={(v: any) => (Number(v) > 0 ? Number(v).toFixed(0) : '')} style={{ fontSize: 10, fill: '#94a3b8' }} />
+                    <LabelList dataKey="revenue" position="top" formatter={(v: any) => (Number(v) > 0 ? Number(v).toFixed(0) : '')} style={{ fontSize: 10, fill: TEXT.tertiary }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -256,8 +256,8 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
             <Row gutter={[8, 8]}>
               {Object.keys(TYPE_LABELS).map((k) => (
                 <Col span={12} key={k}>
-                  <div style={{ background: '#F8FAFC', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 12, color: '#64748B' }}>
+                  <div style={{ background: BG.base, borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 12, color: TEXT.secondary }}>
                       <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 2, background: TYPE_COLORS[k], marginRight: 6 }} />
                       {TYPE_LABELS[k]}
                     </div>
@@ -267,7 +267,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               ))}
             </Row>
             {csStats?.summary ? (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0', fontSize: 12, color: '#475569' }}>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0', fontSize: 12, color: TEXT.heading }}>
                 今日客服发单 <b>{csStats.summary.totalOrders ?? 0}</b> 单 · 合计 <b>{yuan(csStats.summary.totalAmount)}</b>
                 （直派 {csStats.summary.directCount ?? 0} · 抢单 {csStats.summary.claimedCount ?? 0} · 桥接 {csStats.summary.bridgeCount ?? 0}）
               </div>
@@ -299,12 +299,12 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                         {r.serving.gameName || '游戏'} · {hm(r.serving.elapsedSec)}
                       </div>
                     ) : (
-                      <div style={{ fontSize: 12, color: '#64748B', marginTop: 4, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 12, color: TEXT.secondary, marginTop: 4, lineHeight: 1.5 }}>
                         今日 {r.todayOrders || 0} 单 · {r.earningsHidden ? '—' : yuan(r.todayRevenue)}<br />
                         工时 {r.todayMinutes || 0} 分钟
                       </div>
                     )}
-                    {r.isBridged ? <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>桥接 · {r.studioName}</div> : null}
+                    {r.isBridged ? <div style={{ fontSize: 11, color: TEXT.tertiary, marginTop: 2 }}>桥接 · {r.studioName}</div> : null}
                   </div>
                 </Col>
               );
@@ -400,7 +400,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           </Card>
           <Card size="small" title="客户消费 Top（含今日在打）">
             {custTop.length ? custTop.map((r: any, i: number) => (
-              <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', color: '#475569' }}>
+              <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', color: TEXT.heading }}>
                 <span>{r.customerCode || r.wechatId || '客户'}{r.live ? <Tag color={BRAND.primary} style={{ marginLeft: 6, fontSize: 10 }}>在打</Tag> : null}</span>
                 <span style={{ fontWeight: 600 }}>{yuan(r.spent)}</span>
               </div>
@@ -417,9 +417,9 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               <Text key={role} style={{ fontSize: 12 }}>
                 <b>{ATT_ROLE_LABEL[role] || role}</b>
                 （{r.workStart}–{r.workEnd}）：迟到{' '}
-                <Text style={{ color: r.counts.late ? '#CF1322' : '#94A3B8', fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
-                <Text style={{ color: r.counts.earlyLeave ? '#FA8C16' : '#94A3B8', fontWeight: 600 }}>{r.counts.earlyLeave}</Text> · 未打卡{' '}
-                <Text style={{ color: r.counts.absent ? '#CF1322' : '#94A3B8', fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
+                <Text style={{ color: r.counts.late ? '#CF1322' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
+                <Text style={{ color: r.counts.earlyLeave ? '#FA8C16' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.earlyLeave}</Text> · 未打卡{' '}
+                <Text style={{ color: r.counts.absent ? '#CF1322' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
               </Text>
             ))}
           </Space>

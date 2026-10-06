@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../components/PageHeader';
 import http from '../api/client';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -207,7 +208,7 @@ const TodosPage: React.FC = () => {
                           {it.title}
                         </div>
                         {it.sub ? (
-                          <div style={{ fontSize: 12, color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ fontSize: 12, color: TEXT.secondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {it.sub}
                           </div>
                         ) : null}

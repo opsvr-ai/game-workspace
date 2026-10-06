@@ -4,7 +4,7 @@ import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin } from 'antd';
 import { ordersApi } from '../../api/orders';
 import PageHeader from '../../components/PageHeader';
 import { ORDER_FIELD_LABELS } from '../../constants/orderFields';
-import { BRAND } from '../../styles/tokens';
+import { BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -38,13 +38,13 @@ const CsWechatFlowPage: React.FC = () => {
       title: '客户转入',
       dataIndex: 'inTotal',
       align: 'right' as const,
-      render: (v: number) => <Text style={{ color: v > 0 ? BRAND.primary : '#94A3B8' }}>¥{v.toFixed(1)}</Text>,
+      render: (v: number) => <Text style={{ color: v > 0 ? BRAND.primary : TEXT.tertiary }}>¥{v.toFixed(1)}</Text>,
     },
     {
       title: '转出',
       dataIndex: 'outTotal',
       align: 'right' as const,
-      render: (v: number) => <Text style={{ color: v > 0 ? '#16A34A' : '#94A3B8' }}>¥{v.toFixed(1)}</Text>,
+      render: (v: number) => <Text style={{ color: v > 0 ? '#16A34A' : TEXT.tertiary }}>¥{v.toFixed(1)}</Text>,
     },
     {
       title: '问题',

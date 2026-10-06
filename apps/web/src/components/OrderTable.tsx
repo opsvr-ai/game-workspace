@@ -11,6 +11,7 @@ import {
 import { buildOrderColumns } from './orderColumns';
 import { loadInactiveAccounts } from '../utils/inactiveTrafficAccounts';
 import { useAuthStore } from '../stores/authStore';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -150,7 +151,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
 };
 
 /** 说明列里的次要信息（灰色小字） */
-export const noteSub: React.CSSProperties = { fontSize: 11, color: '#94A3B8' };
+export const noteSub: React.CSSProperties = { fontSize: 11, color: TEXT.tertiary };
 /** 说明列里的分隔符 */
 export const NOTE_SEP = ' · ';
 

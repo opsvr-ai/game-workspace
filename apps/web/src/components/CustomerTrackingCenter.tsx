@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { customerTrackingApi } from '../api/customerTracking';
 import { extractErrorMessage } from '../utils/error-handler';
+import { BRAND } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 
@@ -70,7 +71,7 @@ const CustomerTrackingCenter: React.FC = () => {
   };
 
   const statCards = [
-    { label: '优质客户留存率', value: `${kpi?.retentionRate ?? 0}%`, icon: TrophyOutlined, color: '#00E5FF' },
+    { label: '优质客户留存率', value: `${kpi?.retentionRate ?? 0}%`, icon: TrophyOutlined, color: BRAND.accent },
     { label: '客户转化率', value: `${kpi?.conversionRate ?? 0}%`, icon: AimOutlined, color: '#7C4DFF' },
     { label: '近 3 日追踪', value: kpi?.trackedRecentCount ?? 0, icon: ThunderboltOutlined, color: '#FFB300' },
     { label: '响应/投诉风险', value: kpi?.responseRiskCount ?? 0, icon: FireOutlined, color: '#FF2E9A' },
@@ -107,7 +108,7 @@ const CustomerTrackingCenter: React.FC = () => {
         <Button
           ghost
           onClick={load}
-          style={{ borderColor: 'rgba(0,229,255,0.5)', color: '#00E5FF', fontWeight: 700 }}
+          style={{ borderColor: 'rgba(0,229,255,0.5)', color: BRAND.accent, fontWeight: 700 }}
         >
           刷新
         </Button>
@@ -177,7 +178,7 @@ const CustomerTrackingCenter: React.FC = () => {
         <Col xs={24} lg={12}>
           <div style={{ ...glass, padding: 20, minHeight: 300 }}>
             <Space align="center" style={{ marginBottom: 14 }}>
-              <CheckCircleOutlined style={{ color: '#00E5FF', fontSize: 18 }} />
+              <CheckCircleOutlined style={{ color: BRAND.accent, fontSize: 18 }} />
               <Text strong style={{ color: '#fff', fontSize: 16 }}>删除申请审核</Text>
             </Space>
             {requests.length === 0 ? (

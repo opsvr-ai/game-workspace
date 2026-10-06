@@ -19,6 +19,7 @@ import {
 } from '../constants/orderFields';
 import { OutcomeSuffix, outcomeSuffixText } from './OrderOutcome';
 import { describeTransfer, transferList } from './OrderTransferNote';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -137,7 +138,7 @@ export function buildOrderColumns({
         const suffix = isCompanion ? '' : outcomeSuffixText(o);
         return (
           <div style={CELL_ONE_LINE} title={`${label}${suffix}`}>
-            <span style={{ color: ORDER_STATUS_TEXT_COLOR[o.status] || '#475569' }}>{label}</span>
+            <span style={{ color: ORDER_STATUS_TEXT_COLOR[o.status] || TEXT.heading }}>{label}</span>
             {!isCompanion && o.poolScope === 'ONLINE_FIRST' && (
               <span
                 style={{
@@ -199,7 +200,7 @@ export function buildOrderColumns({
         return (
           <div style={CELL_ONE_LINE} title={`${money} · ${urgencyText}`}>
             <Text strong>{money}</Text>
-            <span style={{ ...CELL_SUB_TEXT, color: o.customFields?.urgency === 'later' ? '#1D4ED8' : '#94A3B8' }}>
+            <span style={{ ...CELL_SUB_TEXT, color: o.customFields?.urgency === 'later' ? '#1D4ED8' : TEXT.tertiary }}>
               {urgencyText}
             </span>
           </div>
@@ -256,7 +257,7 @@ export function buildOrderColumns({
                 {account}
               </span>
               {deprecated && (
-                <span style={{ flex: '0 0 auto', fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>已弃用</span>
+                <span style={{ flex: '0 0 auto', fontSize: DATA_SUB_FONT_SIZE, color: TEXT.tertiary }}>已弃用</span>
               )}
             </div>
           );
@@ -320,7 +321,7 @@ export function buildOrderColumns({
               <span style={{ flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {bits.map((bit, i) => (
                   <React.Fragment key={i}>
-                    {i > 0 && <span style={{ color: '#CBD5E1' }}> · </span>}
+                    {i > 0 && <span style={{ color: TEXT.disabled }}> · </span>}
                     <span>{bit}</span>
                   </React.Fragment>
                 ))}
@@ -371,7 +372,7 @@ export function buildOrderColumns({
         const text = `${name}${co ? '+' + co : ''}${isBridged ? ' · 桥接·' + studio.name : ''}`;
         return (
           <div style={CELL_ONE_LINE} title={text}>
-            <span style={{ color: o.companion ? undefined : '#94A3B8' }}>{name}</span>
+            <span style={{ color: o.companion ? undefined : TEXT.tertiary }}>{name}</span>
             {co && <span style={CELL_SUB_TEXT}>+{co}</span>}
             {isBridged && <span style={{ ...CELL_SUB_TEXT, color: '#6D28D9' }}>· 桥接·{studio.name}</span>}
           </div>

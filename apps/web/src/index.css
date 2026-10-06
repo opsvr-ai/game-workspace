@@ -2,7 +2,8 @@
  *
  * 颜色 / 圆角 / 间距 / 字号的唯一真源是 src/styles/tokens.ts。
  * 下面 :root 只放「首屏兜底」值 —— main.tsx 启动时会用 tokens.ts 里的同一套值覆盖，
- * 保证 JS 起来之前不会闪一下默认色。要改值请改 tokens.ts，并同步这里。 */
+ * 保证 JS 起来之前不会闪一下默认色。要改值请改 tokens.ts，并同步这里。
+ * ⚠️ 这里必须写「字面色值」，不要写成 var(--自身)，否则自己引用自己等于没定义。 */
 :root {
   --color-brand: #7C4DFF;
   --color-brand-hover: #8B62FF;
@@ -15,13 +16,17 @@
   --color-warning: #F59E0B;
   --color-error: #EF4444;
   --color-text: #1E293B;
+  --color-text-heading: #475569;
   --color-text-secondary: #64748B;
   --color-text-tertiary: #94A3B8;
+  --color-text-disabled: #CBD5E1;
   --color-bg-base: #F8FAFC;
   --color-bg-container: #FFFFFF;
   --color-bg-hover: #F8FAFC;
+  --color-bg-sider: #0B1024;
   --color-bg-error: #FEF2F2;
   --color-border: #E2E8F0;
+  --color-border-secondary: #F1F5F9;
 }
 
 body {

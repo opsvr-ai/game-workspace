@@ -19,7 +19,7 @@ import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
-import { BRAND } from '../../styles/tokens';
+import { BRAND, TEXT } from '../../styles/tokens';
 
 const { Text, Title } = Typography;
 const TYPE_COLORS: Record<string, string> = {
@@ -725,7 +725,7 @@ const TrafficAccountPage: React.FC = () => {
           <div style={{ lineHeight: 1.5 }}>
             {keys.map((k) => (
               <div key={k} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                <span style={{ color: '#94A3B8', fontSize: 11 }}>{FIELD_LABELS[k] || k}</span> {cellOf(k, r)}
+                <span style={{ color: TEXT.tertiary, fontSize: 11 }}>{FIELD_LABELS[k] || k}</span> {cellOf(k, r)}
               </div>
             ))}
           </div>

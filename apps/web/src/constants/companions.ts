@@ -6,6 +6,7 @@
  */
 
 import { CompanionStatus } from '@chunlv/shared';
+import { TEXT } from '../styles/tokens';
 
 export const companionStatusConfig: Record<string, { color: string; label: string }> = {
   AVAILABLE:     { color: 'green',  label: '空闲' },
@@ -109,7 +110,7 @@ export const STATUS_DOT: Record<string, string> = {
   red: '#EF4444',
   gold: '#F59E0B',
   orange: '#F97316',
-  default: '#94A3B8',
+  default: TEXT.tertiary,
 };
 
 /**
@@ -126,5 +127,5 @@ export function displayStatus(p: PersonnelLike): { label: string; color: string 
 
 /** 人员状态圆点颜色（取 displayStatus 的 color 再映射成色值） */
 export function statusDotColor(p: PersonnelLike): string {
-  return STATUS_DOT[displayStatus(p).color] || '#94A3B8';
+  return STATUS_DOT[displayStatus(p).color] || TEXT.tertiary;
 }

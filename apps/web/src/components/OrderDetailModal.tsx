@@ -26,7 +26,7 @@ import {
 } from '../constants/orderFields';
 import { useAuthStore } from '../stores/authStore';
 import { TransferNote, transferList } from './OrderTransferNote';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -101,12 +101,12 @@ const OrderDetailModal: React.FC<Props> = ({ order, open, onClose, onTransfer })
           <span style={CELL_SUB_TEXT}>· {orderTypeLabel(order)}</span>
         </Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.status}>
-          <span style={{ color: ORDER_STATUS_TEXT_COLOR[order.status] || '#475569' }}>{orderStatusLabel(order)}</span>
+          <span style={{ color: ORDER_STATUS_TEXT_COLOR[order.status] || TEXT.heading }}>{orderStatusLabel(order)}</span>
         </Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.game}>{orderGameText(order)}</Descriptions.Item>
         <Descriptions.Item label={ORDER_FIELD_LABELS.amount}>
           <Text strong>{orderAmountText(order)}</Text>
-          <span style={{ ...CELL_SUB_TEXT, color: cf.urgency === 'later' ? '#1D4ED8' : '#94A3B8' }}>
+          <span style={{ ...CELL_SUB_TEXT, color: cf.urgency === 'later' ? '#1D4ED8' : TEXT.tertiary }}>
             {orderUrgencyText(order)}
           </span>
         </Descriptions.Item>

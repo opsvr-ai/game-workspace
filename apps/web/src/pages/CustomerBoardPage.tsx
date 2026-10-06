@@ -43,7 +43,7 @@ import { customersApi } from '../api/customers';
 import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
 import { useAuthStore } from '../stores/authStore';
 import { companionStatusConfig, customerStatusConfig } from '../constants';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -305,7 +305,7 @@ const CustomerBoardPage: React.FC = () => {
   const statusTag = (r: BoardRow) => {
     const cfg = customerStatusConfig[r.status];
     return (
-      <span style={{ color: cfg ? undefined : '#475569' }}>
+      <span style={{ color: cfg ? undefined : TEXT.heading }}>
         <Tag color={cfg?.color || 'default'} style={{ marginInlineEnd: 0 }}>
           {cfg?.label || r.status || '-'}
         </Tag>
@@ -327,7 +327,7 @@ const CustomerBoardPage: React.FC = () => {
             status="processing"
             color={
               !r.companionOnline
-                ? '#94A3B8'
+                ? TEXT.tertiary
                 : r.companionStatus === 'AVAILABLE'
                   ? '#16A34A'
                   : r.companionStatus === 'ENTERTAINMENT'
@@ -338,7 +338,7 @@ const CustomerBoardPage: React.FC = () => {
             }
           />
         </Tooltip>
-        <span style={{ fontSize: 11, color: '#94A3B8' }}>{cfg?.label || ''}</span>
+        <span style={{ fontSize: 11, color: TEXT.tertiary }}>{cfg?.label || ''}</span>
         {r.companionResigned ? <Tag color="default">已离职</Tag> : null}
       </Space>
     );
@@ -347,7 +347,7 @@ const CustomerBoardPage: React.FC = () => {
   const nowCell = (r: BoardRow) => {
     if (!r.live) {
       return (
-        <span style={{ fontSize: 12, color: '#94A3B8' }}>
+        <span style={{ fontSize: 12, color: TEXT.tertiary }}>
           {r.lastOrderAt ? '最近 ' + fmtWhen(r.lastOrderAt) : '还没打过'}
         </span>
       );
@@ -360,9 +360,9 @@ const CustomerBoardPage: React.FC = () => {
           <Text strong style={{ color: '#B91C1C' }}>
             {live.gameName || '游戏中'}
           </Text>
-          {live.orderCode ? <span style={{ fontSize: 11, color: '#94A3B8' }}> · 单号 {live.orderCode}</span> : null}
+          {live.orderCode ? <span style={{ fontSize: 11, color: TEXT.tertiary }}> · 单号 {live.orderCode}</span> : null}
         </div>
-        <div style={{ fontSize: 12, color: '#475569' }}>
+        <div style={{ fontSize: 12, color: TEXT.heading }}>
           {live.paused ? '⏸ 暂停中' : '已打 ' + fmtDuration(elapsedOf(live))}
           {live.servingCompanionName ? ' · 陪玩 ' + live.servingCompanionName : ''}
           {live.partnerName ? ' · 搭档 ' + live.partnerName : ''}
@@ -383,7 +383,7 @@ const CustomerBoardPage: React.FC = () => {
             <Text strong>{r.customerCode}</Text>
             {statusTag(r)}
           </Space>
-          <div style={{ fontSize: 12, color: '#475569' }}>
+          <div style={{ fontSize: 12, color: TEXT.heading }}>
             <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
               <span>{showWechat ? r.wechatId || '—' : maskWechat(r.wechatId)}</span>
             </Tooltip>
@@ -422,7 +422,7 @@ const CustomerBoardPage: React.FC = () => {
       align: 'right',
       render: (v: number, r: BoardRow) => (
         <Tooltip title={r.orderCount ? '累计已完成 ' + r.orderCount + ' 单（口径同盈亏统计）' : '还没有已完成的单'}>
-          <span style={{ color: v > 0 ? '#B91C1C' : '#94A3B8', fontWeight: v > 0 ? 600 : 400 }}>{yuan(v)}</span>
+          <span style={{ color: v > 0 ? '#B91C1C' : TEXT.tertiary, fontWeight: v > 0 ? 600 : 400 }}>{yuan(v)}</span>
         </Tooltip>
       ),
     },
@@ -436,14 +436,14 @@ const CustomerBoardPage: React.FC = () => {
           <Tooltip title={'今日 ' + r.todayOrders + ' 单 · 今日时长 ' + fmtHours(r.todayHours) + '（营业日 12:00 起算，与实时看板同口径）'}>
             <div style={{ lineHeight: 1.4 }}>
               <div style={{ color: '#B91C1C', fontWeight: 600 }}>{yuan(r.todaySpent)}</div>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>
+              <div style={{ fontSize: 11, color: TEXT.tertiary }}>
                 {r.todayOrders ? r.todayOrders + ' 单' : ''}
                 {r.todayHours ? (r.todayOrders ? ' · ' : '') + fmtHours(r.todayHours) : ''}
               </div>
             </div>
           </Tooltip>
         ) : (
-          <span style={{ color: '#CBD5E1', fontSize: 12 }}>—</span>
+          <span style={{ color: TEXT.disabled, fontSize: 12 }}>—</span>
         ),
     },
     {
@@ -452,7 +452,7 @@ const CustomerBoardPage: React.FC = () => {
       key: 'orderCount',
       width: 82,
       align: 'right',
-      render: (v: number) => (v ? String(v) : <span style={{ color: '#94A3B8' }}>0</span>),
+      render: (v: number) => (v ? String(v) : <span style={{ color: TEXT.tertiary }}>0</span>),
     },
     {
       title: '累计时长',
@@ -460,14 +460,14 @@ const CustomerBoardPage: React.FC = () => {
       key: 'hours',
       width: 98,
       align: 'right',
-      render: (v: number) => (v ? fmtHours(v) : <span style={{ color: '#94A3B8' }}>—</span>),
+      render: (v: number) => (v ? fmtHours(v) : <span style={{ color: TEXT.tertiary }}>—</span>),
     },
     {
       title: '最近一单',
       dataIndex: 'lastOrderAt',
       key: 'lastOrderAt',
       width: 96,
-      render: (v: string | null) => <span style={{ fontSize: 12, color: '#64748B' }}>{fmtWhen(v)}</span>,
+      render: (v: string | null) => <span style={{ fontSize: 12, color: TEXT.secondary }}>{fmtWhen(v)}</span>,
     },
     {
       title: '',
@@ -531,7 +531,7 @@ const CustomerBoardPage: React.FC = () => {
 
   const barList = (
     <div>
-      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: TEXT.secondary, marginBottom: 8 }}>
         按「{barLabel}」从高到低排列，条形越长 = {barLabel}越高；点任意一行看客户详情，点「客户喜好」看他爱打机密还是绝密、习惯什么单价。
       </div>
       {rankRows.map((r, i) => {
@@ -573,7 +573,7 @@ const CustomerBoardPage: React.FC = () => {
                   textAlign: 'center',
                   fontWeight: 700,
                   fontSize: i < 3 ? 16 : 13,
-                  color: i === 0 ? '#D97706' : i === 1 ? '#64748B' : i === 2 ? '#B45309' : '#94A3B8',
+                  color: i === 0 ? '#D97706' : i === 1 ? TEXT.secondary : i === 2 ? '#B45309' : TEXT.tertiary,
                 }}
               >
                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
@@ -588,7 +588,7 @@ const CustomerBoardPage: React.FC = () => {
                     <span style={{ fontSize: 11, color: '#7C3AED' }}>常打{r.topMode}</span>
                   ) : null}
                 </Space>
-                <div style={{ fontSize: 12, color: '#64748B' }}>
+                <div style={{ fontSize: 12, color: TEXT.secondary }}>
                   <Tooltip title={showWechat ? '' : '已打码：右上角「显示微信号」可展开'}>
                     <span>{showWechat ? r.wechatId || '—' : maskWechat(r.wechatId)}</span>
                   </Tooltip>
@@ -598,7 +598,7 @@ const CustomerBoardPage: React.FC = () => {
                   ) : null}
                 </div>
               </div>
-              <div style={{ flex: 1, minWidth: 170, fontSize: 12, color: '#475569' }}>
+              <div style={{ flex: 1, minWidth: 170, fontSize: 12, color: TEXT.heading }}>
                 {live ? (
                   <span>
                     <span className="chunlv-board-dot" />
@@ -607,7 +607,7 @@ const CustomerBoardPage: React.FC = () => {
                     {live.partnerName ? ' · 搭档 ' + live.partnerName : ''}
                   </span>
                 ) : (
-                  <span style={{ color: '#94A3B8' }}>{r.lastOrderAt ? '最近 ' + fmtWhen(r.lastOrderAt) : '还没打过'}</span>
+                  <span style={{ color: TEXT.tertiary }}>{r.lastOrderAt ? '最近 ' + fmtWhen(r.lastOrderAt) : '还没打过'}</span>
                 )}
               </div>
               <div style={{ textAlign: 'right', minWidth: 104 }}>
@@ -615,13 +615,13 @@ const CustomerBoardPage: React.FC = () => {
                   style={{
                     fontSize: 17,
                     fontWeight: 700,
-                    color: v > 0 ? '#B91C1C' : '#94A3B8',
+                    color: v > 0 ? '#B91C1C' : TEXT.tertiary,
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {sort === 'hours' ? fmtHours(v) : yuan(v)}
                 </div>
-                <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                <div style={{ fontSize: 11, color: TEXT.tertiary }}>
                   {'今日 ' + yuan(r.todaySpent) + ' · ' + (r.orderCount || 0) + ' 单 · ' + fmtHours(r.hours)}
                 </div>
                 {/* 老板 2026-10-04：陪玩端只给「客户喜好」（爱打机密/绝密、习惯单价），
@@ -667,7 +667,7 @@ const CustomerBoardPage: React.FC = () => {
         <Space size={8} align="start">
           <Badge
             dot
-            color={!c.online ? '#94A3B8' : c.status === 'AVAILABLE' ? '#16A34A' : c.status === 'BUSY' ? '#DC2626' : c.status === 'ENTERTAINMENT' ? '#F59E0B' : '#C2410C'}
+            color={!c.online ? TEXT.tertiary : c.status === 'AVAILABLE' ? '#16A34A' : c.status === 'BUSY' ? '#DC2626' : c.status === 'ENTERTAINMENT' ? '#F59E0B' : '#C2410C'}
             offset={[-2, 22]}
           >
             <Avatar size={30} src={c.avatar || undefined}>
@@ -686,12 +686,12 @@ const CustomerBoardPage: React.FC = () => {
               <div style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>
                 🎮 {c.servingCustomer.gameName || '游戏中'}
                 {c.servingCustomer.paused ? '（暂停）' : ' · ' + fmtDuration(c.servingCustomer.elapsedSec + Math.max(0, Math.floor((nowMs - fetchedAtRef.current) / 1000)))}
-                <div style={{ color: '#64748B' }}>客户 {c.servingCustomer.customerCode}</div>
+                <div style={{ color: TEXT.secondary }}>客户 {c.servingCustomer.customerCode}</div>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>此刻没在打</div>
+              <div style={{ fontSize: 12, color: TEXT.tertiary, marginTop: 2 }}>此刻没在打</div>
             )}
-            <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: TEXT.heading, marginTop: 2 }}>
               客户 {c.customers} · 消费 {yuan(c.spent)} · {fmtHours(c.hours)}
             </div>
           </div>
@@ -705,7 +705,7 @@ const CustomerBoardPage: React.FC = () => {
       key={label}
       style={{ flex: '1 1 130px', minWidth: 118, padding: '10px 14px', borderRadius: 10, background: bg, border: '1px solid ' + color + '22' }}
     >
-      <div style={{ fontSize: 12, color: '#64748B' }}>{label}</div>
+      <div style={{ fontSize: 12, color: TEXT.secondary }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   );

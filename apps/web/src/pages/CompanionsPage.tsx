@@ -21,7 +21,7 @@ import {
   CELL_SUB_TEXT,
   TABLE_STYLE,
 } from '../constants/datasetColumns';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -458,7 +458,7 @@ const CompanionsPage: React.FC = () => {
             <div style={CELL_ONE_LINE} title={full}>
               <Text strong>{first.game}</Text>
               <span style={{ ...CELL_SUB_TEXT, color: '#7C3AED', fontWeight: 600 }}>{first.rank || '?'}</span>
-              <span style={{ ...CELL_SUB_TEXT, color: first.hasAccount ? '#34C759' : '#94A3B8' }}>
+              <span style={{ ...CELL_SUB_TEXT, color: first.hasAccount ? '#34C759' : TEXT.tertiary }}>
                 {first.hasAccount ? '有号' : '无号'}
               </span>
               {games.length > 1 && <span style={CELL_SUB_TEXT}>+{games.length - 1}</span>}
@@ -764,7 +764,7 @@ const CompanionsPage: React.FC = () => {
                       ? `1px solid ${BRAND.primary}`
                       : '1px solid #E2E8F0',
                     background: statusFilter === tab.value ? '#EFF6FF' : '#FFFFFF',
-                    color: statusFilter === tab.value ? BRAND.primary : '#64748B',
+                    color: statusFilter === tab.value ? BRAND.primary : TEXT.secondary,
                   }}
                   onClick={() => setStatusFilter(tab.value)}
                 >

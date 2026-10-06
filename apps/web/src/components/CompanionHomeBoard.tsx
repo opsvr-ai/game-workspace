@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React from 'react';
 import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -34,16 +34,16 @@ const TIER_META: Record<string, { label: string; color: string }> = {
 
 const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
   <Card size="small" bodyStyle={{ padding: '10px 12px' }} style={{ height: '100%' }}>
-    <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: 12, color: TEXT.secondary, fontWeight: 600 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: tint, letterSpacing: '-0.5px' }}>{value}</div>
-    <div style={{ fontSize: 11, color: '#94A3B8', minHeight: 15 }}>{sub}</div>
+    <div style={{ fontSize: 11, color: TEXT.tertiary, minHeight: 15 }}>{sub}</div>
   </Card>
 );
 
 const Bar: React.FC<{ label: string; percent: number; text: string; color: string }> = ({ label, percent, text, color }) => (
   <div style={{ marginBottom: 6 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-      <Text style={{ color: '#475569' }}>{label}</Text>
+      <Text style={{ color: TEXT.heading }}>{label}</Text>
       <Text strong style={{ color }}>{text}</Text>
     </div>
     <Progress percent={Math.max(0, Math.min(100, Math.round(percent)))} showInfo={false} strokeColor={color} size="small" />
@@ -162,7 +162,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
             {sortedCustomers.length ? (
               sortedCustomers.map((c: any) => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0' }}>
-                  <span style={{ width: 96, fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ width: 96, fontSize: 12, color: TEXT.heading, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.customerCode || c.wechatId || '客户'}
                   </span>
                   <div style={{ flex: 1 }}>

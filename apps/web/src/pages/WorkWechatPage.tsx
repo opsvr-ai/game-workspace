@@ -7,6 +7,7 @@ import http from '../api/client';
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { CELL_ONE_LINE } from '../constants/datasetColumns';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -396,7 +397,7 @@ const WorkWechatPage: React.FC = () => {
                   return (
                     <div style={CELL_ONE_LINE} title={`${who} 提交的号 · 通过后绑给他`}>
                       <Text>{who}</Text>
-                      <span style={{ fontSize: 11, color: '#94A3B8' }}> · 提交人{studio}</span>
+                      <span style={{ fontSize: 11, color: TEXT.tertiary }}> · 提交人{studio}</span>
                     </div>
                   );
                 }

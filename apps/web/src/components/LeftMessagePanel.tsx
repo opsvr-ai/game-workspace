@@ -4,6 +4,7 @@ import { Typography } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
 import { chatApi } from '../api/chat';
+import { BG, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -48,7 +49,7 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
       background: highlighted ? '#EFF6FF' : 'transparent',
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.background = highlighted ? '#EFF6FF' : '#F8FAFC';
+      e.currentTarget.style.background = highlighted ? '#EFF6FF' : BG.base;
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.background = highlighted ? '#EFF6FF' : 'transparent';
@@ -65,7 +66,7 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
             strong
             style={{
               fontSize: 13,
-              color: '#1E293B',
+              color: TEXT.primary,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -74,13 +75,13 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
             {name}
           </Text>
         </span>
-        <Text style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0 }}>{formatTime(lastMessageAt)}</Text>
+        <Text style={{ fontSize: 11, color: TEXT.tertiary, flexShrink: 0 }}>{formatTime(lastMessageAt)}</Text>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
         <Text
           style={{
             fontSize: 12,
-            color: unread > 0 ? '#475569' : '#94A3B8',
+            color: unread > 0 ? TEXT.heading : TEXT.tertiary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -251,7 +252,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
                 height: 40,
                 flexShrink: 0,
                 borderRadius: '50%',
-                background: unread > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : '#CBD5E1',
+                background: unread > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : TEXT.disabled,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -275,7 +276,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
   };
 
   const sectionTitle = (label: string) => (
-    <div style={{ padding: '10px 10px 4px', fontSize: 11, color: '#94A3B8' }}>{label}</div>
+    <div style={{ padding: '10px 10px 4px', fontSize: 11, color: TEXT.tertiary }}>{label}</div>
   );
 
   return (
@@ -294,7 +295,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
           flexShrink: 0,
         }}
       >
-        <Text strong style={{ fontSize: 15, color: '#1E293B' }}>
+        <Text strong style={{ fontSize: 15, color: TEXT.primary }}>
           消息
         </Text>
         {unreadTotal > 0 && (
@@ -321,7 +322,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
         {directs.length === 0 && displayGroups.length === 0 && pinnedItems.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>暂无消息</div>
+          <div style={{ padding: 24, textAlign: 'center', color: TEXT.tertiary, fontSize: 13 }}>暂无消息</div>
         ) : (
           <>
             {pinnedItems.length > 0 && sectionTitle('置顶')}
@@ -346,7 +347,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
                         height: 40,
                         flexShrink: 0,
                         borderRadius: '50%',
-                        background: (c.unreadCount || 0) > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : '#CBD5E1',
+                        background: (c.unreadCount || 0) > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : TEXT.disabled,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

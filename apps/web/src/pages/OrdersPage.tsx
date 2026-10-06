@@ -51,6 +51,7 @@ import {
   fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
+import { TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -1237,7 +1238,7 @@ const OrdersPage: React.FC = () => {
           )}
         </div>
         {/* 今日单量：一行灰字（原来三个彩色标签块，视觉噪音太大，老板 2026-09-28） */}
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: TEXT.secondary, marginBottom: 8 }}>
           今日抢单{' '}
           {
             orders.filter((o: any) => {

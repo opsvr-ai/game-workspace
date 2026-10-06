@@ -19,7 +19,7 @@ import { orderMatchesSearch } from '../utils/orderPool';
 import { dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 import FollowUpModal from './FollowUpModal';
 import PasteImageBox from './PasteImageBox';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -341,7 +341,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
     if (moneyIn > 0 && out) return { text: '已收已转', color: '#15803D' };
     if (moneyIn > 0) return { text: '已收未转', color: '#B45309' };
     if (out) return { text: '未记转入', color: '#B45309' };
-    return { text: '未记流水', color: '#94A3B8' };
+    return { text: '未记流水', color: TEXT.tertiary };
   };
 
   const openFlow = (r: any) => {
@@ -555,7 +555,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
         const wx = workWechatOf(r);
         return (
           <div style={CELL_ONE_LINE} title={wx}>
-            {wx || <span style={{ color: '#94A3B8' }}>-</span>}
+            {wx || <span style={{ color: TEXT.tertiary }}>-</span>}
           </div>
         );
       },
@@ -579,12 +579,12 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       width: LEDGER_FIELD_WIDTH.lastFollow,
       render: (_: unknown, r: any) => {
         const last = lastFollowUpOf(r);
-        if (!last) return <span style={{ color: '#94A3B8' }}>还没记过跟进</span>;
+        if (!last) return <span style={{ color: TEXT.tertiary }}>还没记过跟进</span>;
         const text = `${mmddhhmm(last.createdAt)} · ${last.content || ''}`;
         return (
           <div style={CELL_ONE_LINE} title={text}>
-            <span style={{ color: '#94A3B8' }}>{mmddhhmm(last.createdAt)}</span>
-            <span style={{ color: '#CBD5E1' }}> · </span>
+            <span style={{ color: TEXT.tertiary }}>{mmddhhmm(last.createdAt)}</span>
+            <span style={{ color: TEXT.disabled }}> · </span>
             <span>{last.content}</span>
           </div>
         );
@@ -596,7 +596,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
       width: LEDGER_FIELD_WIDTH.nextFollow,
       render: (_: unknown, r: any) => {
         const at = lastFollowUpOf(r)?.nextFollowUpAt;
-        if (!at) return <span style={{ color: '#94A3B8' }}>-</span>;
+        if (!at) return <span style={{ color: TEXT.tertiary }}>-</span>;
         // 到点了就红字加粗、后面缀「该跟进了」；没到点是紫色
         const due = dueFollowUpAtOf(r, now) !== null;
         return (
@@ -633,7 +633,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
               </span>
             )}
           </div>
-          <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: '#94A3B8' }}>
+          <div style={{ fontSize: DATA_SUB_FONT_SIZE, color: TEXT.tertiary }}>
             客户先加到客服工作微信上、慢慢聊；谈得差不多了点「直接派单」发给陪玩。已经派出去的在下面，看「收款情况」记流水。
           </div>
         </div>
@@ -737,7 +737,7 @@ const CsConvertedPanel: React.FC<Props> = ({ refreshSignal, onDispatch }) => {
           width: LEDGER_FIELD_WIDTH.receipt,
           render: (r: any) => {
             // 还没派出去的这一半：钱还没到，写清楚，别让人以为漏记了
-            if (!r._converted) return <span style={{ color: '#94A3B8' }}>还没派出去</span>;
+            if (!r._converted) return <span style={{ color: TEXT.tertiary }}>还没派出去</span>;
             const st = moneyStateOf(r);
             return (
               <>

@@ -10,7 +10,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import CardSkeleton from '../../components/CardSkeleton';
 import EmptyState from '../../components/EmptyState';
 import DueFollowUpBanner from '../../components/DueFollowUpBanner';
-import { BRAND } from '../../styles/tokens';
+import { BRAND, TEXT } from '../../styles/tokens';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -126,7 +126,7 @@ const RevenueDashboard: React.FC = () => {
           <KpiCard
             label="待审核"
             value={`${pendingReview} 项`}
-            tint={pendingReview > 0 ? '#F59E0B' : '#94A3B8'}
+            tint={pendingReview > 0 ? '#F59E0B' : TEXT.tertiary}
           />
         </Col>
       </Row>
@@ -255,7 +255,7 @@ const KpiCard: React.FC<{ label: string; value: React.ReactNode; tint: string }>
         background: `linear-gradient(180deg, ${tint}, ${tint}66)`,
       }}
     />
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#64748B' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: TEXT.secondary }}>
       <span style={{ width: 6, height: 6, borderRadius: 2, background: tint }} />
       {label}
     </div>

@@ -4,6 +4,7 @@ import { Modal, Spin, Tag, Descriptions, Alert, Space, Typography } from 'antd';
 import { CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import TierHorseIcon from './TierHorseIcon';
+import { BG, TEXT } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 
@@ -153,7 +154,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                   message="今天是第一次记录积分，从明天开始这里会显示每天加了多少分、扣了多少分。"
                 />
               ) : (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: '#F8FAFC' }}>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: BG.base }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>今天的变化</Text>
                     <span
@@ -166,7 +167,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                       {delta.delta > 0 ? '+' : ''}{delta.delta} 分
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: TEXT.secondary, marginTop: 2 }}>
                     昨天 {delta.prevTotal ?? '-'} 分 → 现在 {delta.total} 分
                     {delta.baselineDate ? `（基准：${delta.baselineDate}）` : ''}
                     {delta.tierChanged ? ` · 段位：${(TIER[delta.prevTier || 'MIDDLE'] || tier).label} → ${tier.label}` : ''}
@@ -180,7 +181,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                         .map((it) => (
                           <div
                             key={it.key}
-                            style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0', color: '#475569' }}
+                            style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0', color: TEXT.heading }}
                           >
                             <span>
                               {it.label}

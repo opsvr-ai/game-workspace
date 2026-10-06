@@ -18,6 +18,7 @@
  * 陪玩端只是**少几个字段**（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」），不是换一套写法。
  */
 import { billingModeConfig, orderTypeConfig, orderStatusConfig, serviceTypeConfig } from './orders';
+import { TEXT } from '../styles/tokens';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -126,7 +127,7 @@ export const ORDER_STATUS_TEXT_COLOR: Record<string, string> = {
   GRABBED: '#1D4ED8',
   CONFIRMED: '#15803D',
   DONE: '#15803D',
-  CANCELLED: '#94A3B8',
+  CANCELLED: TEXT.tertiary,
 };
 
 // ── 取值（纯文本，一个字段一行）─────────────────────────────────────────────

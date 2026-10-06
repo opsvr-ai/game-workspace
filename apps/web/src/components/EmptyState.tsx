@@ -1,7 +1,7 @@
 // craftsman-ignore: TS002
 import React, { memo } from 'react';
 import { Empty } from 'antd';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 interface EmptyStateProps {
   description?: string;
@@ -32,7 +32,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           borderRadius: 8,
           padding: '12px 12px',
           textAlign: 'center',
-          color: '#94A3B8',
+          color: TEXT.tertiary,
           fontSize: 13,
           lineHeight: '20px',
         }}

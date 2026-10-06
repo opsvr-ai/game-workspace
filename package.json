@@ -12,6 +12,8 @@
     "lint": "pnpm -r lint",
     "contract": "node scripts/_export_api_contract.mjs",
     "contract:check": "node scripts/_export_api_contract.mjs --check",
+    "ui:tokens": "node scripts/_check_ui_tokens.mjs",
+    "ui:tokens:check": "node scripts/_check_ui_tokens.mjs --check",
     "typecheck": "pnpm -r typecheck",
     "deploy": "git pull && pnpm install && pnpm --filter @chunlv/shared build && pnpm --filter @chunlv/server build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env",
     "deploy:full": "git pull && pnpm install && pnpm build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env"

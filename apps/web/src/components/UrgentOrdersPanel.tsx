@@ -6,6 +6,7 @@ import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
+import { TEXT } from '../styles/tokens';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -167,7 +168,7 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
                       {bits.join(NOTE_SEP)}
                     </span>
                   )}
-                  {!st && bits.length === 0 && <span style={{ color: '#94A3B8' }}>-</span>}
+                  {!st && bits.length === 0 && <span style={{ color: TEXT.tertiary }}>-</span>}
                 </>
               );
             },
