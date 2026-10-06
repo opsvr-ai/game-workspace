@@ -1,14 +1,13 @@
 {
   "_comment": "UI 硬编码色值基线。只能减不能增；降下来后跑 node scripts/_check_ui_tokens.mjs --update 调低。",
   "_updatedAt": "2026-10-07",
-  "total": 822,
-  "distinct": 151,
+  "total": 795,
+  "distinct": 150,
   "byFile": {
     "pages/CustomerBoardPage.tsx": 42,
     "pages/dispatch/CSDispatchView.tsx": 34,
     "components/CsConvertedPanel.tsx": 32,
     "pages/admin/OperationsBoard.tsx": 28,
-    "pages/OrderPoolPage.tsx": 27,
     "components/CustomerTrackingCenter.tsx": 26,
     "pages/BillingOverview.tsx": 24,
     "pages/admin/LiveBoardPage.tsx": 23,

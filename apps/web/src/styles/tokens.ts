@@ -72,6 +72,8 @@ export const BG = {
   inverse: '#1E293B',
   /** 深色浮层底 · 更深一档（渐变用） */
   inverseDeep: '#0F172A',
+  /** 报错提示条的底（浅红） */
+  error: '#FEF2F2',
   /** 登录页 / 无晕染时的兜底页底 */
   page: '#F5F7FB',
   /** 卡中卡（内层卡 / 内嵌块）底色 */
@@ -111,6 +113,20 @@ export const SEMANTIC = {
   busy: '#FF9100',
   /** 浅底上的「深琥珀」文字（备注 / 转让提示那种）—— 亮橙当文字看不清，所以单独留一档 */
   warningDeep: '#B45309',
+  /** 浅底上的深红文字（报错标题那种） */
+  dangerDeep: '#CF1322',
+  /** 直派单标记（紫罗兰 —— 刻意跟品牌紫 `#7C4DFF` 分开，免得看着像选中态） */
+  direct: '#7C3AED',
+  /* ── 状态标签的「淡底 + 同色描边」那一套（以前每个页面各写各的十六进制） ── */
+  successSoft: '#F0FDF4',
+  successBorder: '#BBF7D0',
+  warningSoft: '#FFF7E6',
+  dangerSoft: '#FFF2F0',
+  dangerBorder: '#FFCCC7',
+  infoSoft: '#EEF2FF',
+  infoBorder: '#C7D2FE',
+  directSoft: '#F5F3FF',
+  directBorder: '#DDD6FE',
 } as const;
 
 /**
@@ -250,6 +266,18 @@ export const CSS_VARS: Record<string, string> = {
   '--color-online-ring-fade': SEMANTIC.onlineRingFade,
   '--color-busy': SEMANTIC.busy,
   '--color-tier-top': TIER_TINT.top,
+  '--color-success-soft': SEMANTIC.successSoft,
+  '--color-success-border': SEMANTIC.successBorder,
+  '--color-warning-soft': SEMANTIC.warningSoft,
+  '--color-warning-deep': SEMANTIC.warningDeep,
+  '--color-danger-soft': SEMANTIC.dangerSoft,
+  '--color-danger-border': SEMANTIC.dangerBorder,
+  '--color-danger-deep': SEMANTIC.dangerDeep,
+  '--color-info-soft': SEMANTIC.infoSoft,
+  '--color-info-border': SEMANTIC.infoBorder,
+  '--color-direct': SEMANTIC.direct,
+  '--color-direct-soft': SEMANTIC.directSoft,
+  '--color-direct-border': SEMANTIC.directBorder,
   '--color-tier-middle': TIER_TINT.middle,
   '--color-tier-low': TIER_TINT.low,
   // 文本
@@ -267,7 +295,7 @@ export const CSS_VARS: Record<string, string> = {
   '--color-bg-container': BG.container,
   '--color-bg-hover': BG.hover,
   '--color-bg-sider': BG.sider,
-  '--color-bg-error': '#FEF2F2',
+  '--color-bg-error': BG.error,
   '--color-bg-inverse': BG.inverse,
   '--color-bg-page': BG.page,
   '--color-bg-container-soft': BG.containerSoft,

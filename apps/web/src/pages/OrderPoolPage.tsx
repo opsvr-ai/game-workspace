@@ -29,7 +29,7 @@ import {
   DATA_TAG_FONT_SIZE,
 } from '../constants/datasetColumns';
 import { visibleInterval } from '../hooks/usePolling';
-import { BG, BORDER, BRAND, TEXT } from '../styles/tokens';
+import { BG, BORDER, BRAND, SEMANTIC, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -442,12 +442,12 @@ const OrderPoolPage: React.FC = () => {
           alignItems: 'center',
           gap: 10,
           padding: DATA_ROW_PADDING,
-          background: taken ? '#FAFAFA' : '#fff',
-          borderBottom: '1px solid #f0f0f0',
-          borderLeft: taken ? '3px solid #E2E8F0' : '3px solid transparent',
+          background: taken ? BG.hover : BG.container,
+          borderBottom: `1px solid ${BORDER.secondary}`,
+          borderLeft: taken ? `3px solid ${BORDER.base}` : '3px solid transparent',
           transition: 'background .3s ease',
           fontSize: DATA_FONT_SIZE,
-          color: taken ? '#9AA3AF' : '#1f2329',
+          color: taken ? TEXT.tertiary : TEXT.primary,
         }}
       >
         {/* 订单字段：标签口径跟订单管理表 / 订单详情 / 客户管理是同一份（constants/orderFields.ts）。
@@ -478,9 +478,9 @@ const OrderPoolPage: React.FC = () => {
               style={{
                 margin: 0,
                 fontSize: DATA_TAG_FONT_SIZE,
-                color: order._direct ? '#7C3AED' : order._takenByMe ? '#16A34A' : TEXT.secondary,
-                background: order._direct ? '#F5F3FF' : order._takenByMe ? '#F0FDF4' : '#EEF2F6',
-                borderColor: order._direct ? '#DDD6FE' : order._takenByMe ? '#BBF7D0' : BORDER.base,
+                color: order._direct ? SEMANTIC.direct : order._takenByMe ? SEMANTIC.success : TEXT.secondary,
+                background: order._direct ? SEMANTIC.directSoft : order._takenByMe ? SEMANTIC.successSoft : BORDER.track,
+                borderColor: order._direct ? SEMANTIC.directBorder : order._takenByMe ? SEMANTIC.successBorder : BORDER.base,
               }}
             >
               {order._direct
@@ -533,9 +533,9 @@ const OrderPoolPage: React.FC = () => {
                 style={{
                   margin: 0,
                   fontSize: DATA_TAG_FONT_SIZE,
-                  color: '#7C3AED',
-                  background: '#F5F3FF',
-                  borderColor: '#DDD6FE',
+                  color: SEMANTIC.direct,
+                  background: SEMANTIC.directSoft,
+                  borderColor: SEMANTIC.directBorder,
                 }}
               >
                 🎯 客服指定给你接
@@ -596,8 +596,8 @@ const OrderPoolPage: React.FC = () => {
             margin: '2px 3px 8px',
             borderRadius: 8,
             cursor: 'pointer',
-            background: groupUnread > 0 ? '#EEF2FF' : BG.base,
-            border: groupUnread > 0 ? '1px solid #C7D2FE' : '1px solid transparent',
+            background: groupUnread > 0 ? SEMANTIC.infoSoft : BG.base,
+            border: groupUnread > 0 ? `1px solid ${SEMANTIC.infoBorder}` : '1px solid transparent',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
@@ -606,7 +606,7 @@ const OrderPoolPage: React.FC = () => {
           <span style={{ fontSize: 18 }}>🏠</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Text strong style={{ fontSize: DATA_FONT_SIZE, color: '#1F2937' }}>
+              <Text strong style={{ fontSize: DATA_FONT_SIZE, color: TEXT.primary }}>
                 {studioGroup?.groupName || '工作室群聊'}
               </Text>
               {groupLastMentions.includes(user?.id || '') && (
@@ -678,7 +678,7 @@ const OrderPoolPage: React.FC = () => {
                           flexShrink: 0,
                         }}
                       >
-                        {!avatarUrl && <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>}
+                        {!avatarUrl && <span style={{ color: TEXT.inverse, fontSize: 15, fontWeight: 700 }}>{initial}</span>}
                       </div>
                       <span
                         style={{
@@ -689,7 +689,7 @@ const OrderPoolPage: React.FC = () => {
                           height: 11,
                           borderRadius: '50%',
                           background: statusDotColor(c),
-                          border: '2px solid #fff',
+                          border: `2px solid ${BG.container}`,
                           boxShadow: isPersonnelOnline(c) ? `0 0 0 3px ${statusDotColor(c)}22` : 'none',
                         }}
                       />
@@ -706,7 +706,7 @@ const OrderPoolPage: React.FC = () => {
                           style={{
                             fontWeight: 600,
                             fontSize: DATA_FONT_SIZE,
-                            color: '#1F2937',
+                            color: TEXT.primary,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -846,9 +846,9 @@ const OrderPoolPage: React.FC = () => {
           {isCompanion && poolStatus && poolStatus.hasWorkWechat === false && (
             <Card
               size="small"
-              style={{ marginTop: 12, background: '#fff2f0', borderColor: '#ffccc7' }}
+              style={{ marginTop: 12, background: BG.error, borderColor: SEMANTIC.dangerBorder }}
             >
-              <Text strong style={{ color: '#cf1322', fontSize: DATA_FONT_SIZE }}>
+              <Text strong style={{ color: SEMANTIC.dangerDeep, fontSize: DATA_FONT_SIZE }}>
                 ⚠️ 你还没绑定工作微信，现在抢不了单
               </Text>
               <div style={{ marginTop: 4 }}>
@@ -865,7 +865,7 @@ const OrderPoolPage: React.FC = () => {
               size="small"
               style={{
                 marginTop: 12,
-                background: quotaRemaining > 0 ? '#f6ffed' : '#fff7e6',
+                background: quotaRemaining > 0 ? SEMANTIC.successSoft : SEMANTIC.warningSoft,
               }}
             >
               <Row align="middle" justify="space-between">

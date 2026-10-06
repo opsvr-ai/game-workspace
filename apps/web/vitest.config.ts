@@ -18,6 +18,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    // globals: Testing Library 靠全局 afterEach 自动卸载组件；不开的话每个用例的组件都留着，
+    // 定时器 / 请求会跨用例串味（测试文件里仍然用 import { describe, it } 显式引入）。
+    globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,

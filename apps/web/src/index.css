@@ -33,6 +33,18 @@
   --color-online-ring-fade: rgba(0,230,118,0);
   --color-busy: #FF9100;
   --color-tier-top: #D4A017;
+  --color-success-soft: #F0FDF4;
+  --color-success-border: #BBF7D0;
+  --color-warning-soft: #FFF7E6;
+  --color-warning-deep: #B45309;
+  --color-danger-soft: #FFF2F0;
+  --color-danger-border: #FFCCC7;
+  --color-danger-deep: #CF1322;
+  --color-info-soft: #EEF2FF;
+  --color-info-border: #C7D2FE;
+  --color-direct: #7C3AED;
+  --color-direct-soft: #F5F3FF;
+  --color-direct-border: #DDD6FE;
   --color-tier-middle: #A9A9A9;
   --color-tier-low: #CD7F32;
   --color-text: #1E293B;

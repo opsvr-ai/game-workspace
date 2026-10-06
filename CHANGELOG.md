@@ -11,6 +11,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **订单池页面上冒烟测试：第 4 个前端测试文件（2026-10-07，dev 分支）。**
+  订单池（`/companion/pool`）是陪玩每天第一个打开的页面，也是「抢单」的落地页 —— 它白屏等于当天没法开张。
+  但它跟登录页不一样，是**要数据**的页面：不给数据就渲染不出来，所以这批先解决「怎么让要数据的页面渲染起来」。
+  - 新增 `apps/web/src/__tests__/order-pool-page.test.tsx`，用一个通用小工具 `stubModule(name)`
+    把 `ordersApi / companionsApi / configApi / chatApi` 的**每一个方法**都打桩成「成功但返回空数据」
+    （`{ data: { data: null } }`）。为什么是「每个方法」而不是「用到的那几个」：第一版只挑了想到的，
+    结果 `configApi.get` 没人管，页面一渲染就崩 —— 这种崩溃跟业务无关、纯属自找，所以改成整体打桩。
+  - 断言两件事：① 标题「订单池」渲染出来；② 空状态文案（`暂无待派订单` / `暂时没有可抢的新单`）出现 ——
+    **证明是一个「渲染完成、只是没数据」的页面，而不是白屏**。
+  - 顺手把 `vitest.config.ts` 加了 `globals: true`：这条是同一个进程里的**第 4 个**测试文件，
+    不加这个，Testing Library 的自动清理不生效，前一个用例的 DOM 会漏到下一个。
+  - 前端测试 **3 文件 / 11 用例 → 4 文件 / 12 用例**。
+
+- **设计令牌新增「语义状态配色组」（2026-10-07，dev 分支）。**
+  `styles/tokens.ts` 的 `SEMANTIC` 补了一组「浅底 + 同色描边」的成对状态色：
+  成功（`successSoft` / `successBorder`）、提示（`warningSoft`）、危险（`dangerSoft` / `dangerBorder` / `dangerDeep`）、
+  信息（`infoSoft` / `infoBorder`）、直派（`direct` / `directSoft` / `directBorder`），外加 `BG.error`。
+  这类小色块（标签、告警条、名额小胶囊）以前在每个页面各写一遍、深浅不一，现在只有一处定义。
+  - CSS 变量（`index.css` 的 `:root`）从 **80 → 92 个**，仍由 `tokens.ts` 自动生成。
+
 - **前端能「真渲染」了：jsdom + Testing Library + 两个冒烟测试（2026-10-07，dev 分支）。**
   前端以前只有 1 个「纯数据」测试（菜单表），**页面根本渲染不起来**。
   于是「改一行 import → 线上白屏」这类事故，只有老板打开网页才发现。这一批把渲染能力补上：
@@ -125,6 +145,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     的变量转发静态扫不出来，所以那份列表是「至少这些」。
 
 ### Changed
+
+- **订单池页面 20 处硬编码色值清零（2026-10-07，dev 分支，像素级不变）。**
+  订单池的行底色 / 行描边 / 状态角标 / 段位标签 / 群聊卡片 / 头像 / 名额胶囊 / 告警条等
+  全部收进令牌（走本批新增的 `SEMANTIC` 状态配色组）；这个文件里已经**没有裸写的十六进制色值**。
+  - 硬编码色值基线 **822 → 795**、不同色值 **151 → 150**（`docs/UI-TOKEN-BASELINE.json` 已同步调低）。
 
 - **`AppLayout.tsx` 的 46 处硬编码色值清零（2026-10-07，dev 分支）。**
   角标那圈光晕 `0 0 10px #FF4757` 在外面手写了 **9 遍**（还有橙色 3 遍）——
