@@ -93,6 +93,9 @@ importers:
       vite-plugin-electron-renderer:
         specifier: ^0.14.0
         version: 0.14.7
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.43)(jsdom@30.1.2)(terser@5.48.0)
 
   apps/cs-electron:
     devDependencies:

@@ -90,6 +90,12 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chunlv_test?schema=public
           JWT_SECRET: ci-test-secret
           JWT_REFRESH_SECRET: ci-test-refresh-secret
+      # 陪玩端（Electron 主进程）测试（2026-10-07）：这一端会自己「下好新版 → 等陪玩空闲 →
+      # 写信号让看门狗换文件重启」。这段判断错了的后果不是「页面打不开」，而是这台机器接不了单
+      # （线上真发生过：同机装了客服端，更新信号被看门狗按客服端解压，陪玩端被换掉）。
+      # 所以这里盯住那几个「决定要不要动用户机器」的判断：跨端信号 / 拉黑版本 / 同一个包别反复下 / 备货包能否用。
+      - name: 陪玩端测试（主进程判断层）
+        run: pnpm --filter @chunlv/companion-electron test
       # 看门狗（SystemHelper）Go 测试（2026-10-07）：它是「陪玩端 / 客服端自动更新」的唯一落地执行者，
       # 以前零测试，改一行只能靠真机回归。本批新增的「更新信号按端隔离」正是靠这组测试守住 ——
       # 一台电脑同时装了两端时，绝不能让 A 端的包被解压进 B 端的目录。

@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.electron.json --noEmit && node esbuild.electron.js && cp dist-electron/preload.js preload-dist/preload.js && electron-builder",
     "postbuild": "cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://1.117.229.36:3001/uploads/蠢驴电竞-portable.zip'",
-    "build:win": "tsc -p tsconfig.electron.json --noEmit && node esbuild.electron.js && cp dist-electron/preload.js preload-dist/preload.js && electron-builder --win dir && cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://1.117.229.36:3001/uploads/蠢驴电竞-portable.zip'"
+    "build:win": "tsc -p tsconfig.electron.json --noEmit && node esbuild.electron.js && cp dist-electron/preload.js preload-dist/preload.js && electron-builder --win dir && cd release && rm -f 蠢驴电竞-portable.zip && zip -r 蠢驴电竞-portable.zip win-unpacked/ -q && cp 蠢驴电竞-portable.zip ../../uploads/ && echo '✅ 下载地址: http://1.117.229.36:3001/uploads/蠢驴电竞-portable.zip'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.electron.json --noEmit"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.0",
@@ -29,6 +32,7 @@
     "typescript": "^5.5.0",
     "vite": "^6.0.0",
     "vite-plugin-electron": "^0.28.0",
-    "vite-plugin-electron-renderer": "^0.14.0"
+    "vite-plugin-electron-renderer": "^0.14.0",
+    "vitest": "^3.2.7"
   }
 }

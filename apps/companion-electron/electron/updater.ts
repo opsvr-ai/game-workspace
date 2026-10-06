@@ -153,6 +153,23 @@ function signalUpdate(downloadUrl: string, localPath?: string, version?: string)
   }
 }
 
+/**
+ * 只给单测用的出口（electron/updater.test.ts）。
+ *
+ * 为什么不直接 export 这些函数：它们都是「决定要不要动用户这台机器」的判断，
+ * 不想让别的地方顺手当成 API 用 —— 主进程里它们只在本文件内部被调用。
+ * 单测盯的就是这几个：跨端信号（别把陪玩端换成客服端）、拉黑版本、同一个包别反复下、
+ * 备货包还能不能用、版本号怎么比。
+ */
+export const __test__ = {
+  watchdogWatchesCompanion,
+  signalUpdate,
+  isVersionBlocked,
+  sameVersionTriedRecently,
+  stagedPackageReady,
+  compareVersions,
+};
+
 // 更新进度不再弹窗，改为更新托盘提示文字（配合托盘图标转圈）
 function setUpdateProgress(percent: number): void {
   updateTrayTooltip(`陪玩管理 · 正在更新 ${percent}%`);

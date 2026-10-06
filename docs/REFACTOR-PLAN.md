@@ -52,7 +52,9 @@
 4. **P0-1 抢单主链路 e2e**：把「抢单 / 报账 / 结算 / 黑名单」四条主链路的自动化回归建起来，作为后续所有拆分的验收基线。
    - ✅ **抢单原子性**（2026-10-07）：`apps/server/src/__tests__/order-workflow.grab.test.ts`（22 用例）—— 一次带条件的写 / 扣了名额抢不到必须退 / 不该抢的在动数据前拦下；**已自证会红**。
    - 报账口径（`order-outcome` / `order-split` / `deposit-deduct`）、可支取余额（`withdrawable`）、黑名单开关（`blacklist-switch` / `ws.gateway.blacklist`）本来就有专门测试，不用重复造。
-   - 还缺：客户端侧（陪玩端 / 客服端）的启动与升级链路没有回归 —— 见 P0-5。
+   - ✅ **陪玩端（客户端侧）第一批**（2026-10-07，见「第 18 批」）：主进程里「要不要动用户机器」的五个判断，21 用例。
+   - 还缺：**客服端**（`apps/cs-electron/main.js`，717 行纯 JS，零测试、也没接 vitest）的启动与升级链路回归；
+     看门狗那段自动更新链路最终仍要靠真机验 —— 见 P0-5。
 5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 6. **路由契约冻结** ✅：`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`（**86 条**页面路径 / 含 4 条重定向），CI `--check` 拦「删路径 / 改路径 / 换页面」。**这是动 `router.tsx` 前必须先到位的前端安全网** —— 前端零测试，而 70 处死的 `<Suspense>` 包装、组件抽取都要改这个文件。
 7. **`router.tsx` 去 Suspense 噪声** ✅：77 处复制粘贴的 `<Suspense>` → 单一入口 `page()`，787 → 487 行；顺带把错误边界 3 处写死色值收进令牌（色值基线 939 → 935）。**路由契约冻结前后逐条一致**，零行为变化。
@@ -298,6 +300,17 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 18 批 · 已完成（2026-10-07，陪玩端主进程第一份测试）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 陪玩端测试底座 | P0-1 / P0-5 | `apps/companion-electron` 接上 vitest（`vitest.config.ts`：`environment: node`，只收 `electron/**/*.test.ts`）；`package.json` 补 `test` / `test:watch` / `typecheck`；CI 的 check 任务加一步跑它 | 本次 |
+| 五个「要不要动用户机器」的判断 | P0-5 客户端侧回归 | `electron/updater.test.ts`（**21 用例**）：① 跨端保护 —— 本机看门狗守的不是陪玩端（`cs` / 带空格的 ` CS ` / `companion` / 身份文件读不到）就不写更新信号；② 写信号必带 `kind=companion`（没 `localPath` / `version` 时那两字段干脆不写）；③ 被拉黑的版本不下（读坏 / 读不到 = 放行，`constructor` 这类当键不误判）；④ 同一台机同一个包 30 分钟内不反复下（含「已经是这个版本」「记的是别的版本」）；⑤ 备货包能不能用（版本对不上 / 包没了 / 半个文件 / 没备货 / 空 `localPath` 走兜底路径）；⑥ `compareVersions` 按段比数字（`1.10.0 > 1.9.0`、缺段补 0） | 本次 |
+| 测试绝不碰真机 | 安全 | `fs` / `electron` / `store` / `logger` / `tray` / `child_process` 一律 `vi.mock`，**绝不真读写 `C:\ProgramData`**（开发机就是老板在用的那台）；`updater.ts` 只新增一个只给单测用的出口 `__test__`，不把内部函数变成对外 API；桩对象走 `vi.hoisted`（普通 const 会被 `vi.mock` 提到 import 之前的求值抢跑，撞「Cannot access before initialization」） | 本次 |
+| 顺手补的 | P1 | 这个包此前**根本没进 `pnpm -r typecheck`**（没有这个脚本），只有 CI 的 `build` 任务顺带查一次；现在补上 `typecheck`，`pnpm -r typecheck` 覆盖 5/6 个包 | 本次 |
+
+> 验收口径（可复算）：`pnpm --filter @chunlv/companion-electron test`（21 passed）、
+> `pnpm -r typecheck`（含本包）、`pnpm -r test`（server 689 + web 15 + companion 21）。
 ---
 
 ## 0. 结论速览
