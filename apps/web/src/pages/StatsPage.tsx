@@ -5,9 +5,10 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { statsApi } from '../api/stats';
 import DueFollowUpBanner from '../components/DueFollowUpBanner';
+import PageHeader from '../components/PageHeader';
 import { orderStatusConfig } from '../constants/orders';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const paidToConfig: Record<string, string> = {
@@ -152,13 +153,10 @@ const StatsPage: React.FC = () => {
 
   return (
     <div>
-      {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
-      <DueFollowUpBanner />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>客服派单 / 提成核对</Title>
-          <Text type="secondary">{data?.dateFrom || ''} ~ {data?.dateTo || ''}</Text>
-        </div>
+      <PageHeader
+        title="客服派单 / 提成核对"
+        subtitle={data?.dateFrom && data?.dateTo ? `${data.dateFrom} ~ ${data.dateTo}` : '按日期区间核对客服的发单、认领与提成'}
+        extra={
         <Space wrap>
           <RangePicker value={range} onChange={(v) => v && v[0] && v[1] && setRange([v[0], v[1]])} allowClear={false} />
           <Select placeholder="订单状态" allowClear style={{ width: 120 }} value={status} onChange={(v) => setStatus(v)}>
@@ -179,7 +177,11 @@ const StatsPage: React.FC = () => {
           />
           <Button type="primary" icon={<ReloadOutlined />} onClick={doLoad} loading={loading}>查询</Button>
         </Space>
-      </div>
+        }
+      />
+
+      {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
+      <DueFollowUpBanner />
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={4}><Card size="small"><Text type="secondary">发单总数</Text><div><Text strong style={{ fontSize: 22 }}>{s.totalOrders} 单</Text></div></Card></Col>

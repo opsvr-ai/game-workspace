@@ -40,6 +40,8 @@ import {
 } from '../constants';
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 import EmptyState from '../components/EmptyState';
+import ErrorBanner from '../components/ErrorBanner';
+import PageHeader from '../components/PageHeader';
 import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import CompanionHomeBoard from '../components/CompanionHomeBoard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
@@ -289,12 +291,22 @@ const CompanionPage: React.FC = () => {
   };
 
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
-  if (!data) return <Text type="secondary">加载失败</Text>;
+  // 拉不到数据时原来只有一行灰字「加载失败」，既没说清也没法重试 —— 换成统一的报错条（带「重试」）。
+  if (!data) {
+    return (
+      <div>
+        <PageHeader title="我的首页" subtitle="今天的状态、待跟进客户和收入都在这一页" />
+        <ErrorBanner message="首页数据加载失败" description="点「重试」再拉一次。" onRetry={fetchData} />
+      </div>
+    );
+  }
 
   return (
     <div>
+      <PageHeader title="我的首页" subtitle="今天的状态、待跟进客户和收入都在这一页" />
+
       {/* ① Status Header — compact inline */}
-      <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
+      <Card size="small" style={{ marginBottom: 12 }}>
         <a href="/uploads/agent-setup.exe" download style={{ float: 'right', fontSize: 12, color: BRAND.primary }}>
           ⬇ 下载最新版
         </a>

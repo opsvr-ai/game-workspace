@@ -174,7 +174,7 @@ const BattleScreenshotsPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="🏆 战绩图上传" subtitle="上传你的高光战绩图，审核采纳后可为综合评分加分（作为小红书素材）" />
+      <PageHeader title="战绩图上传" subtitle="上传你的高光战绩图，审核采纳后可为综合评分加分（作为小红书素材）" />
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Space>

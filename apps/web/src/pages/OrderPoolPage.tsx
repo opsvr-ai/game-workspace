@@ -385,7 +385,7 @@ const OrderPoolPage: React.FC = () => {
   if (loading) {
     return (
       <div>
-        <PageHeader title="📦 订单池" />
+        <PageHeader title="订单池" />
         <CardSkeleton lines={6} />
       </div>
     );
@@ -770,7 +770,8 @@ const OrderPoolPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="📦 订单池"
+        title="订单池"
+        subtitle="待派 / 已抢的单都在这里，最新发布的排最上面"
         extra={
           <Space>
             {isCompanion && (

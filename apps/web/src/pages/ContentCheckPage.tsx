@@ -5,8 +5,9 @@ import {
 import { CheckCircleOutlined, CopyOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { contentCheckApi, ContentCheckResult, WeeklyPlanResult } from '../api/contentCheck';
 import CollectorPluginHint from '../components/CollectorPluginHint';
+import PageHeader from '../components/PageHeader';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const ContentCheckPage: React.FC = () => {
   const [title, setTitle] = useState('');
@@ -341,18 +342,15 @@ const ContentCheckPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>内容查重 + 违禁词检测</Title>
-          <Text type="secondary">
-            用于小红书、抖音等笔记发布前检查
-            {lexiconVersion ? ` · 词库版本 ${lexiconVersion}` : ''}
-          </Text>
-        </div>
-        <Button type="primary" icon={<ThunderboltOutlined />} loading={loading} onClick={doCheck}>
-          开始检测
-        </Button>
-      </div>
+      <PageHeader
+        title="内容查重 + 违禁词检测"
+        subtitle={`用于小红书、抖音等笔记发布前检查${lexiconVersion ? ` · 词库版本 ${lexiconVersion}` : ''}`}
+        extra={
+          <Button type="primary" icon={<ThunderboltOutlined />} loading={loading} onClick={doCheck}>
+            开始检测
+          </Button>
+        }
+      />
 
       <Row gutter={16}>
         <Col span={12}>

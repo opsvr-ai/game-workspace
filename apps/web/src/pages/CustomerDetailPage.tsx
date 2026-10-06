@@ -30,10 +30,11 @@ import { customerTrackingApi } from '../api/customerTracking';
 import { useAuthStore } from '../stores/authStore';
 import { canSeeCustomerSource } from '../constants/datasetColumns';
 import { TransferMark } from '../components/OrderTransferNote';
+import PageHeader from '../components/PageHeader';
 import { customerStatusConfig, orderStatusConfig, orderTypeConfig } from '../constants';
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -435,15 +436,14 @@ const CustomerDetailPage: React.FC = () => {
   return (
     <div>
       {/* ── Header ──────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Space>
-          <Button type="text" icon={React.createElement(ArrowLeftOutlined)} onClick={() => navigate(-1)}>
+      <PageHeader
+        title="客户详情"
+        leading={
+          <Button type="text" icon={React.createElement(ArrowLeftOutlined)} onClick={() => navigate(-1)} style={{ marginTop: 2 }}>
             返回
           </Button>
-          <Title level={4} style={{ margin: 0 }}>
-            客户详情
-          </Title>
-        </Space>
+        }
+        extra={
         <Space>
           <Button type="primary" size="small" onClick={() => handleOrderAction('complete')}>完成服务</Button>
           <Button danger size="small" onClick={() => handleOrderAction('refund')}>退款</Button>
@@ -462,7 +462,8 @@ const CustomerDetailPage: React.FC = () => {
             刷新
           </Button>
         </Space>
-      </div>
+        }
+      />
 
       {/* ── Section 1: Basic Info ────────────────────────── */}
       <Card title="基本信息" style={{ marginBottom: 12 }} loading={loadingCustomer}>

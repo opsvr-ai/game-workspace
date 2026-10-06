@@ -11,9 +11,11 @@ interface PageHeaderProps {
   subtitle?: string;
   extra?: React.ReactNode;
   breadcrumb?: { title: string; path?: string }[];
+  /** 标题**前面**放个东西 —— 详情页的「‹ 返回」这类，别在页面里再手搓一个标题行。 */
+  leading?: React.ReactNode;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcrumb }) => {
+const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcrumb, leading }) => {
   const navigate = useNavigate();
 
   return (
@@ -27,7 +29,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcr
         gap: 8,
       }}
     >
-      <div>
+      {/* 左边这一块不跟着右侧操作区一起缩（缩了副标题会挤成一个字一行、甚至只剩个「~」）。
+          放不下的时候让 flexWrap 把右侧操作区整块换到下一行，而不是把标题压窄。 */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexShrink: 0, maxWidth: '100%' }}>
+        {leading && <div style={{ flexShrink: 0 }}>{leading}</div>}
+        <div>
         {breadcrumb && breadcrumb.length > 0 && (
           <Breadcrumb
             style={{ marginBottom: 4 }}
@@ -45,10 +51,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, extra, breadcr
           {title}
         </Title>
         {subtitle && (
-          <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block' }}>
+          <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block', maxWidth: 780 }}>
             {subtitle}
           </Text>
         )}
+        </div>
       </div>
       {extra && <div>{extra}</div>}
     </div>
