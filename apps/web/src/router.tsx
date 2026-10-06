@@ -81,6 +81,7 @@ import ProcessKillLogPage from './pages/admin/ProcessKillLogPage';
 import WhitelistPage from './pages/admin/WhitelistPage';
 import AttendancePage from './pages/admin/AttendancePage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
+import UiKitPage from './pages/UiKitPage';
 import CompanionPage from './pages/CompanionPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import ProfilePage from './pages/ProfilePage';
@@ -143,6 +144,13 @@ export const router = createBrowserRouter([
     path: '/profile-setup',
     errorElement: <RouteErrorBoundary />,
     element: page(<ProfileSetupPage />),
+  },
+
+  {
+    // 内部「设计校对页」：不在菜单里、不需要登录，改界面时前后各截一张图对照用（见 docs/ARCHITECTURE.md 5.1）。
+    path: '/ui-kit',
+    errorElement: <RouteErrorBoundary />,
+    element: page(<UiKitPage />),
   },
   {
     path: '/companion',

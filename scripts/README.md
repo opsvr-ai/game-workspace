@@ -48,6 +48,9 @@ python scripts\_publish_cs_client.py <版本号>
 | `_repack_client_zip.py` | 重打陪玩端客户端 zip（换看门狗之后必跑，只重打包不动版本号） |
 | `_repack_cs_zip.py` | 重打客服端客户端 zip（同上，客服端那份） |
 | `_export_api_contract.mjs` | 从 Controller / Gateway 源码导出四端契约（接口路径 + Socket 事件）到 `docs/API-CONTRACT.json`；CI 用 `--check` 比对 |
+| `_export_web_routes.mjs` | 从 `router.tsx` 导出页面路由表到 `docs/WEB-ROUTES.json`；CI 用 `--check` 比对（`pnpm routes` / `routes:check`） |
+| `_check_ui_tokens.mjs` | 扫前端还剩多少硬编码色值，和基线 `docs/UI-TOKEN-BASELINE.json` 比对（只能减不能增；`pnpm ui:tokens` / `ui:tokens:check`） |
+| `_shot_ui.mjs` | **界面改版前后对照用**：无头 Edge + CDP，给某一页 / 某一区块截图（`node scripts/_shot_ui.mjs http://127.0.0.1:8100/ui-kit tmp_shots/x.png --sel="#controls" --scale=2`）|
 | `update-changelog.sh` | 从 git log 生成 CHANGELOG 片段 |
 
 > 注意：`AGENTS.md` / `docs/DEPLOYMENT.md` 里出现过的 `scripts/_set_autokill_on.py` 已经删除

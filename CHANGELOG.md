@@ -11,6 +11,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **加：内部「设计校对页」（`/ui-kit`）+ 截图工具 `scripts/_shot_ui.mjs`（2026-10-07，dev 分支）。**
+  起因很直白：这套系统**在本机没法看界面** —— 进页面要登录、登录要连数据库，
+  而数据库在本机起不来（Docker 启不动）。于是「颜色 / 圆角 / 字号 / 按钮样式」这类全站统一的东西，
+  改完只能靠人肉点线上页面才发现漂了；老板要的「整齐」也就无从验证。这一批把这条路补上：
+  - `/ui-kit` 设计校对页（`apps/web/src/pages/UiKitPage.tsx`）：把令牌与常见控件（色板、文字层级、语义色、
+    模块色、按钮、输入、标签、卡片、统计卡、表格、空状态、提示条、圆角 / 间距 / 字号）
+    按**真实主题**摆出来，**不需要登录、不需要后端**；每个分区带锚点（`/ui-kit#controls`），可以直接定位。
+    它不在任何菜单里，是内部页（已写进 `docs/ARCHITECTURE.md` 5.1 与 `scripts/README.md`）。
+  - `scripts/_shot_ui.mjs`：无头 Edge + CDP 截图，支持「只截某个元素 + 放大倍率」，
+    于是改版前后各一张、逐像素对照（只允许本地地址，避免误截线上）。
+    `node scripts/_shot_ui.mjs http://127.0.0.1:8100/ui-kit tmp_shots/x.png --sel="#controls" --scale=2`
+  - **立竿见影：第一次跑就抓到两个真问题**（都在 `styles/global.css` 的「主按钮走品牌渐变」那条规则上，
+    它没排除两类按钮）——
+    ① **幽灵按钮（`type="primary" ghost`）变成「紫底紫字」，整颗按钮看不见字**；
+    ② **删除类按钮（`type="primary" danger`）被刷成品牌紫渐变** —— 也就是「删除订单」和「确定」长得一模一样，
+       看不出是危险操作。现网三处中招：订单核对（`OrderReviewPage`）、抢单池（`OrderPoolPage`）、订单转让弹窗（`OrderDetailModal`）。
+    修法是在渐变规则上排除 `.ant-btn-background-ghost` 与 `.ant-btn-dangerous`，并给幽灵按钮补上「透明底 + 品牌紫边紫字」。
+    改完两张对照图：`tmp_shots/ui-kit-controls.png`（紫底紫字）↔ `ui-kit-controls-fixed2.png`（正常）。
+
 - **抢单主链路上了真测试（P0-1，2026-10-07，dev 分支）。**
   `docs/REFACTOR-PLAN.md` 说的「四条主链路」里，报账口径（`order-outcome` / `order-split` / `deposit-deduct`）、
   可支取余额（`withdrawable`）、黑名单开关（`blacklist-switch` + `ws.gateway.blacklist`）本来就有专门测试；
@@ -77,6 +96,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     的变量转发静态扫不出来，所以那份列表是「至少这些」。
 
 ### Changed
+
+- **`/ui-kit` 内部页进路由表（2026-10-07，dev 分支）。** 路由契约从 **86 → 87 条**
+  （`docs/WEB-ROUTES.json` 已同步重新导出）。它不在菜单里，也不参与任何业务。
 
 - **`AppLayout.tsx` 拆第一批：菜单 / 图标常量搬去 `config/roleMenus.tsx`（2026-10-07，dev 分支，行为零变化）。**
   `AppLayout.tsx` 曾经 **3179 行**，但它绝大部分是「外壳 + 实时推送 + 弹窗」这类运行时代码；

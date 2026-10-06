@@ -577,6 +577,16 @@ graph TB
 - **路由契约冻结**（`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`，CI `--check`）：
   页面路径删了 / 改了 / 换了页面直接红。
 
+**改界面怎么验证（2026-10-07）：** 本机跑不起数据库，所以「登录后的页面」看不了 —— 用这两件工具代替：
+
+1. `/ui-kit`（内部设计校对页，不在菜单里）：把令牌与常见控件按真实主题摆出来，**不用登录、不连后端**，
+   每个分区有锚点（`/ui-kit#controls`）。改完 `pnpm --filter @chunlv/web build && pnpm preview` 打开 `http://localhost:8100/ui-kit`。
+2. `node scripts/_shot_ui.mjs <url> <out.png> [--sel="#controls"] [--scale=2]`：无头 Edge + CDP，
+   只截某个元素并放大，改版前后各截一张对照（只允许本地地址）。
+
+> 已经靠它抓到过：主按钮的品牌渐变把 `ghost`（紫底紫字、看不见）和 `danger`（删除按钮变成品牌紫、看不出危险）也刷了 —— 
+> 现在渐变规则排除了这两类。**再写「全站按钮 / 全站控件」的样式时，先看 `global.css` 第 6 节那条注释。**
+
 **铁律：颜色只认 `styles/tokens.ts`。** 页面 / 组件里**不要再写十六进制色值** —— 要么从 tokens 取
 （`TEXT.* / BORDER.* / BG.* / BRAND.* / SEMANTIC.*`），要么在 CSS 里读 `var(--color-*)`。
 CI 有一道「UI 硬编码色值冻结」检查（`scripts/_check_ui_tokens.mjs`，基线 `docs/UI-TOKEN-BASELINE.json`）：

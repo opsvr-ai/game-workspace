@@ -154,7 +154,7 @@ describe('抢单：名额扣减与退回（老板 2026-10-04 口径）', () => {
   });
 
   it('名额用完 → 拦在动数据之前（不能「先抢下来再发现没名额」）', async () => {
-    const { service, prisma, quota } = setup({
+    const { service, prisma } = setup({
       quota: { reserve: vi.fn().mockResolvedValue({ ok: false, tier: 'LOW', dailyLimit: 3 }) },
     });
     wireHappyPath(prisma, poolOrder());

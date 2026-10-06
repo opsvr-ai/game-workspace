@@ -921,19 +921,35 @@ body {
   border-color: #7c4dff;
 }
 
-/* ── 6. 按钮：主按钮走品牌渐变，次按钮悬浮变紫 ── */
-.ant-btn-primary:not(:disabled) {
+/* ── 6. 按钮：主按钮走品牌渐变，次按钮悬浮变紫 ──
+   两个「别套渐变」的例外（2026-10-07 在 /ui-kit 上对着截图发现的）：
+   · ghost（幽灵按钮）：它本身就是「透明底 + 紫字」，套上品牌渐变会变成**紫底紫字**，
+     整颗按钮看不见字；
+   · dangerous（删除类）：必须是红的。套上品牌渐变之后「删除」看起来跟「确定」一模一样，
+     分不出这是危险操作（订单核对 / 抢单池 / 订单转让那三处就是这么写的）。 */
+.ant-btn-primary:not(:disabled):not(.ant-btn-background-ghost):not(.ant-btn-dangerous) {
   background: var(--grad-brand);
   border-color: transparent;
   box-shadow: 0 6px 16px -8px rgba(124, 77, 255, 0.95);
 }
-.ant-btn-primary:not(:disabled):hover {
+.ant-btn-primary:not(:disabled):not(.ant-btn-background-ghost):not(.ant-btn-dangerous):hover {
   background: var(--grad-brand-hover) !important;
   border-color: transparent !important;
   box-shadow: 0 8px 20px -8px rgba(124, 77, 255, 1);
 }
-.ant-btn-primary:not(:disabled):active {
+.ant-btn-primary:not(:disabled):not(.ant-btn-background-ghost):not(.ant-btn-dangerous):active {
   background: var(--grad-brand-active);
+}
+/* 幽灵按钮：回到「透明底 + 品牌紫边 / 紫字」，悬浮时给一层很淡的品牌底色 */
+.ant-btn-primary.ant-btn-background-ghost:not(:disabled) {
+  background: transparent;
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+}
+.ant-btn-primary.ant-btn-background-ghost:not(:disabled):hover {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
 }
 
 /* ── 7. 标签 / 徽标：一律做成胶囊，颜色更柔和 ── */
