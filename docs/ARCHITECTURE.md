@@ -584,6 +584,10 @@ graph TB
 2. `node scripts/_shot_ui.mjs <url> <out.png> [--sel="#controls"] [--scale=2]`：无头 Edge + CDP，
    只截某个元素并放大，改版前后各截一张对照（只允许本地地址）。
 
+3. `pnpm --filter @chunlv/web test`：**真渲染**的冒烟测试（jsdom + Testing Library，不连后端）——
+   登录页能渲染、整个 App 打开 `/ui-kit` 能渲染、**冻结的路由表每一条在真路由里都还匹配得到**。
+   动了 `router.tsx` / `App.tsx` / 任何页面组件的引用之后，先跑这个。
+
 > 已经靠它抓到过：主按钮的品牌渐变把 `ghost`（紫底紫字、看不见）和 `danger`（删除按钮变成品牌紫、看不出危险）也刷了 —— 
 > 现在渐变规则排除了这两类。**再写「全站按钮 / 全站控件」的样式时，先看 `global.css` 第 6 节那条注释。**
 

@@ -1072,7 +1072,7 @@ Browser (React SPA) ──HTTP──▶ Nest.js (Express) ──▶ PostgreSQL 1
 | | Recharts (charts) | 3.9 |
 | | Vite (build tool) | 6.0 |
 | | Axios (HTTP client) | 1.7 |
-| | Vitest (前端测试) | 3.2 |
+| | Vitest + Testing Library + jsdom（前端测试，可真渲染页面） | 3.2 / 16 / 30 |
 | **Backend** | Nest.js (Node.js framework) | 10.3 |
 | | Express (HTTP platform) | 10.3 |
 | | Prisma ORM | 5.14 |
@@ -1096,7 +1096,9 @@ chunlv-esports/
 │   ├── web/                          # React frontend (management & CS portal)
 │   │   └── src/
 │   │       ├── api/                  # Axios API client
+│   │       ├── __tests__/            # 前端冒烟测试（真渲染，不连后端）
 │   │       ├── config/roleMenus.tsx # 左栏菜单唯一来源（哪个角色看哪些菜单）+ 契约测试
+│   │       ├── test/setup.ts         # jsdom 补丁（matchMedia / ResizeObserver 等）
 │   │       ├── layouts/             # AppLayout — 外壳 / 实时推送 / 弹窗（菜单配置见 config/）
 │   │       ├── stores/              # Zustand state stores
 │   │       ├── pages/

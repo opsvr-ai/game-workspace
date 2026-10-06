@@ -82,6 +82,20 @@
 > **下一个 UI 收口点：`CustomerBoardPage.tsx`（42 处）与 `dispatch/CSDispatchView.tsx`（34 处）—— 客服端的主战场。**
 
 
+### 第 4 批 · 已完成（2026-10-07，前端测试底座）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 前端能「真渲染」了 | P0-1 / 阶段 0 | 装 `@testing-library/react` + `jsdom`，加 `vitest.config.ts`（environment: jsdom）与 `src/test/setup.ts`（补 matchMedia / ResizeObserver / scrollTo） | 本次 |
+| 冒烟：登录页 | P0-1 | `src/__tests__/login-page.test.tsx`：品牌名 / 姓名 / 密码 / 登录按钮都在 —— 拦「改一行 import 就白屏」 | 本次 |
+| 冒烟：整站启动 | P0-1 | `src/__tests__/app-boot.test.tsx`：渲染**真的 App**（真主题 + 真路由 + 真 Suspense）打开 `/ui-kit` | 本次 |
+| 冒烟：路由契约运行时校验 | P0-1 / 前提 3 | 同文件：`docs/WEB-ROUTES.json` 里**每一条路径**都拿 `matchRoutes` 在真路由里对一遍 —— 静态冻结 + 运行时可达，双保险。**已自证会红**（塞一条假路由 → 立刻失败） | 本次 |
+
+> 前端测试从 **1 个文件 / 8 用例** → **3 个文件 / 11 用例**。首次 import 整张页面图约 15s，所以那两条单独放宽了超时。
+> 下一步（P0-1 剩下的）：订单池 / 客户管理这类**要数据**的页面，靠 mock 掉 `api/*` 来渲染；
+> 客户端（陪玩端 / 客服端）的启动与升级链路仍然没有回归 —— 那部分在 Electron 里，要另建 harness。
+
+
 ---
 
 ## 0. 结论速览

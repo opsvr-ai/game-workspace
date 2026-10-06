@@ -11,6 +11,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **前端能「真渲染」了：jsdom + Testing Library + 两个冒烟测试（2026-10-07，dev 分支）。**
+  前端以前只有 1 个「纯数据」测试（菜单表），**页面根本渲染不起来**。
+  于是「改一行 import → 线上白屏」这类事故，只有老板打开网页才发现。这一批把渲染能力补上：
+  - 依赖：`@testing-library/react` + `@testing-library/jest-dom` + `jsdom`；
+    配置在 `apps/web/vitest.config.ts`（jsdom + 关掉 CSS 处理），
+    jsdom 缺的浏览器 API 统一补在 `apps/web/src/test/setup.ts`（matchMedia / ResizeObserver / scrollTo），
+    不补的话报错跟业务毫无关系、白折腾。
+  - `src/__tests__/login-page.test.tsx`：登录页能渲染出品牌名 / 姓名 / 密码 / 登录按钮。
+  - `src/__tests__/app-boot.test.tsx`：① 渲染 **真的那个 App**（真 antd 主题 + 真路由 + 真 Suspense）
+    打开 `/ui-kit`；② 把 `docs/WEB-ROUTES.json`（静态冻结的路由契约）**每一条路径**
+    拿 `matchRoutes` 在真路由里对一遍 —— 静态冻结 + 运行时可达，双保险。
+  - **已自证会红**：往 `WEB-ROUTES.json` 里塞一条假路由 → 第二个用例立刻失败并点名。
+  - 前端测试 1 文件 / 8 用例 → **3 文件 / 11 用例**；CI 里那句 `pnpm --filter @chunlv/web test` 不用改。
+
 - **`AppLayout.tsx` 拆第二批：两个全局弹窗搬出去（2026-10-07，dev 分支，行为零变化）。**
   「💰 底薪 + 提奖」与「抢单成功」这两张弹窗以前都写在外壳组件里（2666 行的文件），
   现在分别是 `components/SalaryDetailModal.tsx` 与 `components/GrabSuccessModal.tsx`，
