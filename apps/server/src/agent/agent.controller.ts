@@ -13,6 +13,7 @@ import { streamFileThrottled } from '../common/throttled-file';
 import type { ApiResponse } from '@chunlv/shared';
 import * as fs from 'fs';
 import * as os from 'os';
+import { execSync } from 'child_process';
 
 /** 同一台机器两次「去更新」叫号之间的最小间隔。 */
 const UPDATE_PUSH_COOLDOWN_MS = 10 * 60 * 1000;
@@ -459,7 +460,6 @@ export class AgentController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER)
   async scanLan(): Promise<ApiResponse<unknown>> {
-    const { execSync } = require('child_process');
     const hosts: { ip: string; mac?: string }[] = [];
     const seen = new Set<string>();
 
@@ -515,7 +515,7 @@ export class AgentController {
 
     // 容器里没有主机网卡时，再用当前进程网卡补充一次（慢速，且跳过 docker 网段）。
     try {
-      const nets = require('os').networkInterfaces();
+      const nets = os.networkInterfaces();
       const scanned = new Set<string>();
       for (const iface of Object.values(nets) as any[]) {
         for (const addr of iface as any[]) {

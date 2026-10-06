@@ -71,6 +71,8 @@ export function bridgeMetOrderWhere() {
 export interface OutcomeLike {
   status?: string | null;
   outcome?: string | null;
+  /** 接单方报「不成功」时自己填的原因（Order.outcomeReason）。口径仍由 outcomeOf 归一，这里只是让传整单时类型对得上。 */
+  outcomeReason?: string | null;
   refundedAt?: Date | string | null;
   companion?: { studioId?: string | null; studio?: { id?: string | null; type?: string | null } | null } | null;
   sessions?: Array<{ startedAt?: Date | string | null }> | null;

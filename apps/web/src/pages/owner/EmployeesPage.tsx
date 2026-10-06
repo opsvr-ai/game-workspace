@@ -745,7 +745,7 @@ const EMPLOYEE_TABLE_WIDTH = 120 + 76 + 110 + 96 + 80 + 130 + 76 + 88 + 80 + 96 
             <p><Text strong>身份证号：</Text>{detailEmployee.idNumber || detailEmployee.companion?.idNumber || '-'}</p>
             <p><Text strong>地址：</Text>{detailEmployee.address || '-'}</p>
             <p><Text strong>工作室：</Text>{detailEmployee.studio?.name || '-'}</p>
-            {detailEmployee.leaseContractUrl && <p><Text strong>租赁合同：</Text><a href={detailEmployee.leaseContractUrl} target="_blank">查看</a></p>}
+            {detailEmployee.leaseContractUrl && <p><Text strong>租赁合同：</Text><a href={detailEmployee.leaseContractUrl} target="_blank" rel="noreferrer">查看</a></p>}
             {(detailEmployee.idCardFront || detailEmployee.companion?.idCardFront) && <p><Text strong>身份证正面：</Text><Image src={`/uploads/idcards/${detailEmployee.idCardFront || detailEmployee.companion?.idCardFront}`} width={200} style={{borderRadius:4}} /></p>}
             {(detailEmployee.idCardBack || detailEmployee.companion?.idCardBack) && <p><Text strong>身份证反面：</Text><Image src={`/uploads/idcards/${detailEmployee.idCardBack || detailEmployee.companion?.idCardBack}`} width={200} style={{borderRadius:4}} /></p>}
             <p><Text strong>注册时间：</Text>{detailEmployee.createdAt ? new Date(detailEmployee.createdAt).toLocaleString('zh-CN') : '-'}</p>

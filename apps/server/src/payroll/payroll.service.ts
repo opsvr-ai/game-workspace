@@ -85,7 +85,7 @@ export class PayrollService {
       });
       const absent = attendance.filter((a) => a.status === 'ABSENT').length;
       const late = attendance.filter((a) => a.status === 'LATE').length;
-      let base = baseSalaryCfg;
+      const base = baseSalaryCfg;
       // 月休天数（复用 fullAttendanceDays 存），满勤 = 当月天数 − 月休天数；月休内缺勤不扣款
       const monthDays = Math.round((end.getTime() - start.getTime()) / 86400000);
       const restDays = config.fullAttendanceDays ?? 4;

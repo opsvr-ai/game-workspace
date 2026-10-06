@@ -128,7 +128,7 @@ export class RegisterController {
 
     const isCompanion = role === 'COMPANION';
 
-    let studioId = body.studioId;
+    const studioId = body.studioId;
     if (isCompanion && !studioId) {
       return { code: 400, message: '请选择工作室', data: null };
     }

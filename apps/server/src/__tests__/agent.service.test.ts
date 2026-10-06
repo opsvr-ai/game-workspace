@@ -115,7 +115,7 @@ describe('AgentService', () => {
 
       expect(script).toContain(`$adminUser = 'admin'`);
       expect(script).toContain(`$adminPass = 'p''$(value)"'`);
-      expect(script).not.toContain(`$adminPass = "p'$(value)\""`);
+      expect(script).not.toContain(`$adminPass = "p'$(value)""`);
     });
 
     it('should reject malformed server URLs when generating scripts', () => {

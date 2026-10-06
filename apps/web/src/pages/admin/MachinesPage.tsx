@@ -487,7 +487,7 @@ const MachinesPage: React.FC = () => {
             上面三个统计数只算**真有客户端在上报机器信息的机器**。下面单独一组就是「没有客户端上报、开不了」的那些行：
             以前手工登记的电脑，或只会报个版本号、不报机器信息的旧记录；它们开不了远程管理、也点不了「一键诊断」，
             别当成「没开通的机器」。等那台电脑上的客户端把机器信息报一次，就会自动挪到上面的真机器里。
-            {stats.diagScriptVersion ? `　当前诊断脚本版本：${stats.diagScriptVersion}` : ''}
+            {stats.diagScriptVersion ? `\u3000当前诊断脚本版本：${stats.diagScriptVersion}` : ''}
           </span>
         }
       />

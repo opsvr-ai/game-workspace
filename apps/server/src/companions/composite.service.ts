@@ -20,6 +20,8 @@ export class CompositeService {
   /** 延迟加载 sharp，避免该可选依赖缺失时阻断服务端启动。 */
   private loadSharp(): any {
     try {
+      // sharp 是**可选**依赖：只能延迟 require，改成顶层 import 会在没装 sharp 的机器上直接起不来。
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       return require('sharp');
     } catch {
       this.logger.warn('sharp 未安装，长图合成功能不可用');
@@ -177,7 +179,7 @@ export class CompositeService {
       const width = 1280;
       const height = metas.reduce((s: number, m: any) => s + (m.height || 0), 0);
 
-      let composite = sharp({ create: { width, height, channels: 3, background: '#000' } });
+      const composite = sharp({ create: { width, height, channels: 3, background: '#000' } });
       const layers: any[] = [];
       let y = 0;
       for (const p of parts) {

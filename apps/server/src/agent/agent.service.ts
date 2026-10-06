@@ -766,7 +766,7 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
 
     // Validate inputs to prevent command injection
     const safeUser = /^[a-zA-Z0-9_.\\-]+$/.test(adminUser) ? adminUser : 'Administrator';
-    const safePass = /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~` ]+$/.test(adminPass) ? adminPass : '';
+    const safePass = /^[a-zA-Z0-9!@#$%^&*()_+\-=[\]{}|;:,.<>?/~` ]+$/.test(adminPass) ? adminPass : '';
     if (adminUser !== safeUser || adminPass !== safePass) {
       logger.warn('Admin credentials contained unsafe characters, using sanitized values');
     }
@@ -942,7 +942,7 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const url = new URL(candidate);
-      const safeHost = /^[a-zA-Z0-9.:\[\]-]+$/.test(url.host);
+      const safeHost = /^[a-zA-Z0-9.:[\]-]+$/.test(url.host);
       if ((url.protocol === 'http:' || url.protocol === 'https:') && safeHost) {
         return `${url.protocol}//${url.host}`;
       }

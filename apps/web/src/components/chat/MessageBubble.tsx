@@ -246,7 +246,7 @@ const ImageContent: React.FC<{ attachments: any[]; isMe: boolean }> = ({ attachm
 const FileContent: React.FC<{ attachment: any; isMe: boolean }> = ({ attachment, isMe }) => {
   const { url, fileName, fileSize } = attachment;
   return (
-    <a href={url} target="_blank" rel="noopener" style={{ color: isMe ? '#FFF' : '#313338', textDecoration: 'none' }}>
+    <a href={url} target="_blank" rel="noreferrer" style={{ color: isMe ? '#FFF' : '#313338', textDecoration: 'none' }}>
       📎 {fileName || '文件'} {fileSize ? `(${(fileSize / 1024).toFixed(1)}KB)` : ''}
     </a>
   );

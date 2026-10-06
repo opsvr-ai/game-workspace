@@ -606,6 +606,14 @@ const CompanionsPage: React.FC = () => {
 
   // Inner component for expandable time log rows
   const ExpandableRow: React.FC<{ record: Personnel }> = ({ record }) => {
+    // hooks 必须放在任何提前 return 之前：原来这段 useEffect 写在
+    // if (!record.companionId) return ... 后面，属于「条件调用 hooks」，
+    // 一旦某行在同伴/非同伴之间切换就会打乱 hooks 调用顺序。
+    // 挪到前面 + 在回调里自己判断，行为不变（非陪玩人员依然不发请求）。
+    useEffect(() => {
+      if (record.companionId) loadTimeLogs(record.companionId);
+    }, [record.companionId, loadTimeLogs]);
+
     if (!record.companionId) {
       return (
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -614,10 +622,6 @@ const CompanionsPage: React.FC = () => {
       );
     }
     const cache = timeLogsCache[record.companionId];
-
-    useEffect(() => {
-      loadTimeLogs(record.companionId!);
-    }, [record.companionId, loadTimeLogs]);
 
     if (!cache) {
       return (

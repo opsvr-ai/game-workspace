@@ -69,7 +69,7 @@ export class SettlementService {
         },
       });
       // 统一口径：主陪/搭档/splits 一并计算
-      let monthlyRevenue = orders.reduce((s, o) => s + companionOrderRevenue(o, c.id), 0);
+      const monthlyRevenue = orders.reduce((s, o) => s + companionOrderRevenue(o, c.id), 0);
 
       if (monthlyRevenue === 0) continue; // skip companions with no revenue
 

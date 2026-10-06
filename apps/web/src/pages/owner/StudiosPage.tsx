@@ -541,7 +541,7 @@ const StudiosPage: React.FC = () => {
                   <div><Text type="secondary">手机号：</Text>{u.phone || '-'}</div>
                   <div><Text type="secondary">身份证号：</Text>{u.idNumber || '-'}</div>
                   {u.address && <div><Text type="secondary">地址：</Text>{u.address}</div>}
-                  {u.leaseContractUrl && <div><Text type="secondary">合同：</Text><a href={u.leaseContractUrl} target="_blank">查看</a></div>}
+                  {u.leaseContractUrl && <div><Text type="secondary">合同：</Text><a href={u.leaseContractUrl} target="_blank" rel="noreferrer">查看</a></div>}
                   <div><Text type="secondary">注册时间：</Text>{u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : '-'}</div>
                 </div>
               </div>
@@ -604,7 +604,7 @@ const StudiosPage: React.FC = () => {
             <p><Text strong>地址：</Text>{detailUser.address || '-'}</p>
             <p><Text strong>申请时间：</Text>{detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleString('zh-CN') : '-'}</p>
             {detailUser.leaseContractUrl && (
-              <p><Text strong>租赁合同：</Text><a href={detailUser.leaseContractUrl} target="_blank">查看合同照片</a></p>
+              <p><Text strong>租赁合同：</Text><a href={detailUser.leaseContractUrl} target="_blank" rel="noreferrer">查看合同照片</a></p>
             )}
           </div>
         )}

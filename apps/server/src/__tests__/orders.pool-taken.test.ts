@@ -96,9 +96,12 @@ describe('订单池：今天已被抢走的单（灰色记录）', () => {
     // 灰色记录里不带客户信息
     expect(taken[0].customer).toBeNull();
     expect(taken[1].customer).toBeNull();
-    // 灰色记录只查「今天」的、且只查订单池的单
+    // 灰色记录只查「今天」的，且只查订单池 + 客服指定单。
+    // 2026-10-06 校正（commit f6175fb8 改了实现、漏改了这条断言）：
+    // 客服「指定」发出去的单也要灰色列出来，让陪玩看见「这单指定给谁 / 已被谁接」，
+    // 所以实现用的是 { in: ['POOL', 'DIRECT'] }，不能只认 POOL。
     const takenWhere = prisma.order.findMany.mock.calls[1][0].where;
-    expect(takenWhere.dispatchType).toBe('POOL');
+    expect(takenWhere.dispatchType).toEqual({ in: ['POOL', 'DIRECT'] });
     expect(takenWhere.status.in).toContain('GRABBED');
     expect(takenWhere.OR[0].createdAt.gte).toBeInstanceOf(Date);
   });

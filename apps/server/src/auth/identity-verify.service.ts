@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as https from 'https';
 
 
 @Injectable()
@@ -17,7 +18,6 @@ export class IdentityVerifyService {
     }
 
     try {
-      const https = require('https');
       return await new Promise((resolve) => {
         const url = `https://eid.shumaidata.com/eid/check?idcard=${idNumber}&name=${encodeURIComponent(realName)}`;
         https.get(url, { headers: { 'Authorization': `APPCODE ${code}` }, timeout: 10000 }, (res: any) => {
