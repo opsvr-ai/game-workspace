@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback } from 'react';
-import { Row, Col, Button, Tag, Space, Typography, message, Empty, Spin } from 'antd';
+import { Row, Col, Button, Tag, Space, Typography, message, Empty } from 'antd';
+import LoadingState from './LoadingState';
 import {
   ThunderboltOutlined,
   FireOutlined,
@@ -78,11 +79,7 @@ const CustomerTrackingCenter: React.FC = () => {
   ];
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <LoadingState size="large" minHeight={240} />;
   }
 
   return (

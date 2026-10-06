@@ -1,0 +1,7 @@
+{
+  "_comment": "加载态基线：页面 / 组件里**裸写的 <Spin />** 只能减不能增。统一用 apps/web/src/components/LoadingState.tsx（形状可预判时用 TableSkeleton / CardSkeleton）。降下来后跑 node scripts/_check_loading_state.mjs --update 调低。",
+  "_updatedAt": "2026-10-07",
+  "bareSpin": 0,
+  "total": 0,
+  "byFile": {}
+}

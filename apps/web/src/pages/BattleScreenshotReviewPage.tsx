@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Tabs, Typography, Space, Tag, message, Spin, Input, Modal } from 'antd';
+import { Card, Button, Tabs, Typography, Space, Tag, message, Input, Modal } from 'antd';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { DownloadOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import PageHeader from '../components/PageHeader';
@@ -125,7 +126,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
           ]}
         />
         {loading ? (
-          <Spin />
+          <LoadingState minHeight={200} />
         ) : items.length === 0 ? (
           <EmptyState description="暂无记录" />
         ) : (

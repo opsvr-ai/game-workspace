@@ -1,10 +1,11 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState, useCallback } from 'react';
-import { Row, Col, Button, Tag, Space, Typography, message, Empty, Spin, Modal, Select, Input, Form } from 'antd';
+import { Row, Col, Button, Tag, Space, Typography, message, Empty, Modal, Select, Input, Form } from 'antd';
 import { ThunderboltOutlined, AimOutlined, FireOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { customerTrackingApi } from '../api/customerTracking';
 import { customersApi } from '../api/customers';
 import { extractErrorMessage } from '../utils/error-handler';
+import LoadingState from './LoadingState';
 import { BRAND } from '../styles/tokens';
 
 const { Text, Title } = Typography;
@@ -114,7 +115,7 @@ const CompanionTrackingPanel: React.FC = () => {
   };
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spin size="large" /></div>;
+    return <LoadingState size="large" minHeight={240} />;
   }
 
   const cfg = status?.config ?? {};

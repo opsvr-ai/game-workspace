@@ -56,6 +56,12 @@ jobs:
       # 基线见 docs/UI-TOKEN-BASELINE.json，谁新写了硬编码色值这里直接红。
       - name: UI 硬编码色值冻结
         run: node scripts/_check_ui_tokens.mjs --check
+      # 加载态冻结（2026-10-07）：全站「正在加载」原来有四种画法（裸转圈 / Spin tip /
+      # 塞进 Card 再补 padding / 拿空态插画冒充），同一种「还没来」长得都不一样，
+      # 而且没写明占多高 → 一加载整页跳一下。统一到 LoadingState 后，这里卡「不许再写裸 <Spin />」。
+      # 基线见 docs/LOADING-STATE-BASELINE.json（当前 0）。
+      - name: 加载态冻结（不许裸写 Spin）
+        run: node scripts/_check_loading_state.mjs --check
       # CSS 变量兜底 + 变量定义完整性（2026-10-07）：index.css 的 :root 是从 tokens.ts
       # 生成出来的，手抄漏了这里直接红；顺带卡「CSS 里用了 var(--x) 但没人定义」——
       # 上一版就漏了 --grad-brand-hover / --grad-brand-active，导致主按钮悬浮态是无效声明。

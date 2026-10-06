@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image, Spin } from 'antd';
+import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image } from 'antd';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import type { UploadFile } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
@@ -244,7 +245,7 @@ const BattleScreenshotsPage: React.FC = () => {
 
       <Card size="small" title="我的提交记录">
         {loading ? (
-          <Spin />
+          <LoadingState minHeight={160} />
         ) : items.length === 0 ? (
           <EmptyState description="还没有上传过战绩图" />
         ) : (

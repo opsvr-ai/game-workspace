@@ -13,7 +13,6 @@ import {
   Space,
   message,
   List,
-  Spin,
   Input,
   Badge,
   Tabs,
@@ -33,6 +32,7 @@ import CsConvertedPanel from '../../components/CsConvertedPanel';
 import EscalatedPoolPanel from '../../components/EscalatedPoolPanel';
 import CreateOrderModal from '../../components/CreateOrderModal';
 import EmptyState from '../../components/EmptyState';
+import LoadingState from '../../components/LoadingState';
 import TierBadge from '../../components/TierBadge';
 import {
   DATA_FONT_SIZE,
@@ -548,9 +548,7 @@ const CSDispatchView: React.FC = () => {
               </div>
             </div>
             {loadingCompanions && companions.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 24 }}>
-                <Spin />
-              </div>
+              <LoadingState minHeight={120} />
             ) : filteredCompanions.length === 0 && companionSearch ? (
               <Text type="secondary">未找到匹配的人员</Text>
             ) : companions.length === 0 ? (
@@ -857,9 +855,7 @@ const CSDispatchView: React.FC = () => {
                 )}
               </div>
               {loadingPool && poolOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 48 }}>
-                  <Spin size="large" />
-                </div>
+                <LoadingState size="large" minHeight={160} />
               ) : poolOrders.length === 0 ? (
                 <EmptyState compact description="暂无待派订单 · 有新单会自动出现在这里（最新发布的排最上面）" />
               ) : (

@@ -29,7 +29,6 @@ import {
   Input,
   Segmented,
   Space,
-  Spin,
   Switch,
   Table,
   Tag,
@@ -38,6 +37,7 @@ import {
   message,
 } from 'antd';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -806,8 +806,7 @@ const CustomerBoardPage: React.FC = () => {
 
       {loading && !data ? (
         <Card size="small">
-          {/* 「加载中」不能用空态画（空态是「没数据」，不是「还没来」）—— 统一用 Spin */}
-          <div style={{ textAlign: 'center', padding: 50 }}><Spin /></div>
+          <LoadingState minHeight={200} />
         </Card>
       ) : filtered.length === 0 ? (
         <Card size="small">

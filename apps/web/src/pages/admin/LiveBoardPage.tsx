@@ -16,8 +16,9 @@
  * 只有客户**编号**，没有客户微信 —— 看板是给派单用的，不是给谁抄客户的。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Avatar, Badge, Button, Card, Spin, Tooltip, Typography, message } from 'antd';
+import { Avatar, Badge, Button, Card, Tooltip, Typography, message } from 'antd';
 import EmptyState from '../../components/EmptyState';
+import LoadingState from '../../components/LoadingState';
 import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
@@ -337,8 +338,7 @@ const LiveBoardPage: React.FC = () => {
 
       {loading && !data ? (
         <Card size="small">
-          {/* 「加载中」不能用空态画（空态是「没数据」，不是「还没来」）—— 统一用 Spin */}
-          <div style={{ textAlign: 'center', padding: 50 }}><Spin /></div>
+          <LoadingState minHeight={200} />
         </Card>
       ) : rows.length === 0 ? (
         <Card size="small">

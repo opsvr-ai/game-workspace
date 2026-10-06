@@ -16,6 +16,7 @@
     "contract:check": "node scripts/_export_api_contract.mjs --check",
     "ui:tokens": "node scripts/_check_ui_tokens.mjs",
     "ui:tokens:check": "node scripts/_check_ui_tokens.mjs --check",
+    "loading:check": "node scripts/_check_loading_state.mjs --check",
     "routes": "node scripts/_export_web_routes.mjs",
     "routes:check": "node scripts/_export_web_routes.mjs --check",
     "css:vars": "node scripts/_export_css_vars.mjs",

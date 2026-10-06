@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { Spin } from 'antd';
+import LoadingState from '../components/LoadingState';
 import { useSearchParams } from 'react-router-dom';
 import { ChatProvider } from '../components/chat/ChatProvider';
 import ChatPanel from '../components/chat/ChatPanel';
@@ -99,7 +99,7 @@ const StandaloneChat: React.FC = () => {
   if (!ready) {
     return (
       <Center>
-        <Spin size="large" />
+        <LoadingState size="large" tip="" />
       </Center>
     );
   }
@@ -152,7 +152,7 @@ const ChatWindowPage: React.FC = () => {
   if (state !== 'ok') {
     return (
       <Center>
-        <Spin size="large" />
+        <LoadingState size="large" tip="" />
       </Center>
     );
   }

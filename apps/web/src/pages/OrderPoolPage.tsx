@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Spin, Modal } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, message, Progress, Space, Badge, List, Input, Modal } from 'antd';
 import { PlusOutlined, ReloadOutlined, ClockCircleOutlined, MessageOutlined, EditOutlined } from '@ant-design/icons';
 import { ordersApi } from '../api/orders';
 import { companionsApi } from '../api/companions';
@@ -13,6 +13,7 @@ import { useChatStore } from '../stores/chatStore';
 import CreateOrderModal from '../components/CreateOrderModal';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import CardSkeleton from '../components/CardSkeleton';
 import TierBadge from '../components/TierBadge';
 import { encodeOrderInfo, orderInfoTextOf } from '../utils/chatOrder';
@@ -632,9 +633,7 @@ const OrderPoolPage: React.FC = () => {
           </div>
         </div>
         {loadingCompanions && companions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 24 }}>
-            <Spin />
-          </div>
+          <LoadingState minHeight={120} />
         ) : filteredCompanions.length === 0 ? (
           <Text type="secondary">暂无陪玩</Text>
         ) : (

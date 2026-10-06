@@ -24,13 +24,13 @@ import {
   Empty,
   Progress,
   Space,
-  Spin,
   Table,
   Tag,
   Tooltip,
   Typography,
 } from 'antd';
 import EmptyState from './EmptyState';
+import LoadingState from './LoadingState';
 import { customersApi } from '../api/customers';
 import { TEXT } from '../styles/tokens';
 
@@ -253,9 +253,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       }
     >
       {loading ? (
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
-          <Spin />
-        </div>
+        <LoadingState minHeight={200} />
       ) : failed || !data ? (
         <EmptyState description="画像加载失败，请关掉重开一次" />
       ) : (

@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin, Tag, Modal, Badge, Popover, message, notification, Form, Input, Alert } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Tag, Modal, Badge, Popover, message, notification, Form, Input, Alert } from 'antd';
 import type { MenuProps } from 'antd';
 import { useSocket } from '../hooks/useSocket';
 import { usePolling } from '../hooks/usePolling';
@@ -10,6 +10,7 @@ import { configApi } from '../api/config';
 import { ordersApi } from '../api/orders';
 // useChatNotification → now handled by ChatProvider
 import ErrorBoundary from '../components/ErrorBoundary';
+import LoadingState from '../components/LoadingState';
 import UrgentOrderPopup from '../components/UrgentOrderPopup';
 import { ChatProvider } from '../components/chat/ChatProvider';
 import { commander } from '../styles/commander';
@@ -2017,7 +2018,7 @@ const AppLayout: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Spin size="large" tip="加载中..." />
+        <LoadingState size="large" minHeight={240} />
       </div>
     );
   }

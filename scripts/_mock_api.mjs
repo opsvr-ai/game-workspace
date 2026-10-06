@@ -35,6 +35,12 @@ const PORT = Number(opt('port', 8123));
 // --role=OWNER|ADMIN|CS|COMPANION：/auth/me 用哪个身份返回。
 // 想看别的角色就再起一个实例、换个 --port 即可（截图脚本用 --base 指过去）。
 const ROLE = String(opt('role', 'OWNER')).toUpperCase();
+// --delay=<ms>：所有 /api/* 响应人为拖慢这么多毫秒。只用来「看清加载态」——
+// 正常速度下数据秒回，截图根本拍不到「正在加载」那一帧。
+const DELAY = Number(opt('delay', 0)) || 0;
+// --delay-skip=<正则>：这些路径不拖慢（比如 ^/api/auth —— 登录态要秒回，
+// 才能把「外壳已经在了、页面自己还在加载」那一帧单独拍下来）。
+const DELAY_SKIP = String(opt('delay-skip', ''));
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -161,7 +167,17 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     const hit = FIXTURES.find((f) => f.m === method && f.p.test(p));
     log(method + ' ' + p + (url.search ? url.search : '') + (hit ? '  [fixture]' : ''));
-    json(res, hit ? hit.body : { data: null });
+    const payload = hit ? hit.body : { data: null };
+    const send = () => {
+      try {
+        if (!res.writableEnded) json(res, payload);
+      } catch {
+        /* 客户端已经走了（截图脚本常秒退），忽略 */
+      }
+    };
+    const slow = DELAY > 0 && !(DELAY_SKIP && new RegExp(DELAY_SKIP).test(p));
+    if (slow) setTimeout(send, DELAY);
+    else send();
   });
 });
 

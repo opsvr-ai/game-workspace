@@ -1,7 +1,8 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useState } from 'react';
-import { Badge, Button, Card, Space, Spin, Tag, Typography, message } from 'antd';
+import { Badge, Button, Card, Space, Tag, Typography, message } from 'antd';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { useNavigate } from 'react-router-dom';
 import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../components/PageHeader';
@@ -129,9 +130,7 @@ const TodosPage: React.FC = () => {
       />
 
       {loading && !groups.length ? (
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <Spin />
-        </div>
+        <LoadingState minHeight={200} />
       ) : total === 0 ? (
         <Card>
           <EmptyState description="今天没有待处理的事，可以安心摸鱼了" />

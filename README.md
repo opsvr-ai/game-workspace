@@ -40,6 +40,12 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **界面地基：加载态统一 + CI「加载态冻结」（2026-10-07，dev 分支）：** 全站「正在加载」原来有四种画法
+  （光秃秃一个转圈飘在白框中间 / `<Spin tip>` / 塞进 `<Card>` 再补 `padding` / 拿空态插画冒充），
+  而且没一处写明占多高，切页时总是「先一片空、数据回来突然填满」。统一成
+  `apps/web/src/components/LoadingState.tsx`（转圈 + 「加载中…」+ 显式占位高度），19 处手写转圈全部换掉。
+  并加了守门 `scripts/_check_loading_state.mjs`（`pnpm loading:check`），**页面里裸写 `<Spin />` CI 直接红**
+  （基线见 `docs/LOADING-STATE-BASELINE.json`）；要看的样式摆在内页 `/ui-kit` 的「加载中的样子」。
 - **工程地基：页面路由表自动导出 + CI「路由契约冻结」（2026-10-07，只动工具链，不影响线上）：** 新增
   `scripts/_export_web_routes.mjs`，静态扫 `router.tsx` 导出 `docs/WEB-ROUTES.json`（基线 **86 条**页面路径），
   CI 重新生成一次再比对 —— 谁删了 / 改了页面路径、或把某条路由换了页面，CI 直接红。

@@ -40,6 +40,7 @@ import {
 } from '../constants';
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import MyWorkWechatCard from '../components/MyWorkWechatCard';
@@ -290,7 +291,7 @@ const CompanionPage: React.FC = () => {
     }
   };
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading) return <LoadingState size="large" minHeight={220} />;
   // 拉不到数据时原来只有一行灰字「加载失败」，既没说清也没法重试 —— 换成统一的报错条（带「重试」）。
   if (!data) {
     return (

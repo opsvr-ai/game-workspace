@@ -1,9 +1,10 @@
 // craftsman-ignore: TS001,TS002
 import React, { useEffect, useState } from 'react';
-import { Modal, Spin, Tag, Descriptions, Alert, Space, Typography } from 'antd';
+import { Modal, Tag, Descriptions, Alert, Space, Typography } from 'antd';
 import { CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import TierHorseIcon from './TierHorseIcon';
+import LoadingState from './LoadingState';
 import { BG, TEXT } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 
@@ -119,7 +120,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
   return (
     <Modal open={open} onCancel={onClose} footer={null} width={640} title="🏆 综合评分说明">
       {loading && !data ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+        <LoadingState minHeight={120} />
       ) : (
         <div style={{ lineHeight: 1.9 }}>
           {data && (

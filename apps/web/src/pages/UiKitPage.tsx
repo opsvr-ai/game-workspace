@@ -2,6 +2,9 @@
 import React from 'react';
 import { Alert, Badge, Button, Card, Col, Input, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
+import TableSkeleton from '../components/TableSkeleton';
+import CardSkeleton from '../components/CardSkeleton';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, ROLE_TINT, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
 import TierBadge from '../components/TierBadge';
@@ -274,6 +277,16 @@ const UiKitPage: React.FC = () => (
           items={[
             { key: 'a', label: '订单列表', children: <Table size="small" pagination={false} columns={columns} dataSource={rows} /> },
             { key: 'b', label: '空数据的样子', children: <EmptyState description="今天还没有单" /> },
+            { key: 'd', label: '加载中的样子', children: (
+              <Space direction="vertical" size={SPACE.md} style={{ width: '100%' }}>
+                <Text type="secondary">页面 / 区块「第一次加载」一律用 LoadingState（转圈 + 文案，显式占高，内容回来不跳）</Text>
+                <Card size="small"><LoadingState minHeight={120} /></Card>
+                <Card size="small"><LoadingState size="large" minHeight={200} /></Card>
+                <Text type="secondary">形状可预判的地方用骨架屏（表格 / 卡片），比转圈更稳、看着更「快」</Text>
+                <TableSkeleton columns={4} rows={3} />
+                <CardSkeleton lines={3} />
+              </Space>
+            ) },
             { key: 'c', label: '提示条', children: (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Alert type="success" showIcon message="对账完成，38 张单全部核对通过" />

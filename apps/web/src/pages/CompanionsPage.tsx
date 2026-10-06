@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { extractErrorMessage } from '../utils/error-handler';
-import { Table, Tag, Typography, Button, Space, message, Popconfirm, Spin, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
+import { Table, Tag, Typography, Button, Space, message, Popconfirm, Tooltip, Card, Input, Select, Image, Modal } from 'antd';
 import { ReloadOutlined, DesktopOutlined, SearchOutlined } from '@ant-design/icons';
 import { CompanionStatus } from '@chunlv/shared';
 import { companionsApi } from '../api/companions';
@@ -12,6 +12,7 @@ import { companionStatusConfig, STATUS_SORT, modeLabels, HEARTBEAT_THRESHOLD } f
 import ErrorBanner from '../components/ErrorBanner';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import TableSkeleton from '../components/TableSkeleton';
 import WorkRecordsDrawer from '../components/WorkRecordsDrawer';
 import { visibleInterval } from '../hooks/usePolling';
@@ -625,19 +626,11 @@ const CompanionsPage: React.FC = () => {
     const cache = timeLogsCache[record.companionId];
 
     if (!cache) {
-      return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <Spin tip="加载中..." />
-        </div>
-      );
+      return <LoadingState minHeight={120} />;
     }
 
     if (cache.loading) {
-      return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <Spin tip="加载中..." />
-        </div>
-      );
+      return <LoadingState minHeight={120} />;
     }
 
     if (cache.error) {

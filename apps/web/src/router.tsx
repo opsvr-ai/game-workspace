@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { Suspense, type ReactNode } from 'react';
-import { Spin, Button, Result } from 'antd';
+import { Button, Result } from 'antd';
+import LoadingState from './components/LoadingState';
 import { BG, TEXT } from './styles/tokens';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
@@ -104,21 +105,13 @@ import TodosPage from './pages/TodosPage';
 
 const SuspenseOutlet = () => (
   <Suspense
-    fallback={
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-        <Spin size="large" />
-      </div>
-    }
+    fallback={<LoadingState size="large" minHeight={200} />}
   >
     <AppLayout />
   </Suspense>
 );
 
-const SuspenseFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-    <Spin size="large" />
-  </div>
-);
+const SuspenseFallback = () => <LoadingState size="large" minHeight={200} />;
 
 /**
  * 每个页面统一包一层 Suspense —— 单一入口，别在每个路由里各抄一遍 fallback。
