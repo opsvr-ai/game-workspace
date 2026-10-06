@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useMemo, useState } from 'react';
-import { Input, Typography, Empty } from 'antd';
+import { Input, Typography } from 'antd';
+import EmptyState from '../../components/EmptyState';
 import { SearchOutlined } from '@ant-design/icons';
 import RevenueSettings from '../settings/RevenueSettings';
 import PaymentSettings from '../settings/PaymentSettings';
@@ -305,7 +306,7 @@ const SettingsPage: React.FC = () => {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {visibleGroups.length === 0 ? (
-            <Empty description={<Text type="secondary">换个词试试，例如「分账」「截图」「提成」</Text>} />
+            <EmptyState description={<Text type="secondary">换个词试试，例如「分账」「截图」「提成」</Text>} />
           ) : (
             active.render()
           )}

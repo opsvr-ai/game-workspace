@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Button, Tabs, Typography, Space, Tag, message, Empty, Spin, Input, Modal } from 'antd';
+import { Card, Button, Tabs, Typography, Space, Tag, message, Spin, Input, Modal } from 'antd';
+import EmptyState from '../components/EmptyState';
 import { DownloadOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
 import PageHeader from '../components/PageHeader';
@@ -126,7 +127,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
         {loading ? (
           <Spin />
         ) : items.length === 0 ? (
-          <Empty description="暂无记录" />
+          <EmptyState description="暂无记录" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {items.map((it) => (

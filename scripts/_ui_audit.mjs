@@ -130,6 +130,19 @@ const PROBE = `(() => {
   }
   out.clipped = out.clipped.slice(0, 12);
 
+  // ── 3.5 左栏菜单文字有没有被截断（「运营看板」显示成「运营…」）──
+  out.menuClipped = [];
+  const siderEl = document.querySelector('.ant-layout-sider');
+  out.siderCollapsed = !!(siderEl && siderEl.className.indexOf('sider-collapsed') >= 0);
+  out.siderWidth = siderEl ? Math.round(siderEl.getBoundingClientRect().width) : 0;
+  out.windowWidth = window.innerWidth;
+  for (const el of document.querySelectorAll('.ant-layout-sider .ant-menu-title-content')) {
+    const t = (el.textContent || '').trim();
+    if (!t) continue;
+    const d = el.scrollWidth - el.clientWidth;
+    if (d > 1 && el.clientWidth > 0) out.menuClipped.push({ text: t.slice(0, 16), over: d, w: el.clientWidth });
+  }
+
   // ── 4. 页面顶部压根没有标题（一进页面不知道自己在哪）──
   if (!out.titles.length) out.noTitle = true;
   return out;
@@ -204,6 +217,7 @@ try {
   await cdp.ready;
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   if (pre) {
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(pre, 'utf8') });
   }
@@ -220,6 +234,7 @@ try {
     if ((data.clipped || []).length) flags.push('文字截断 ' + data.clipped.length);
     if ((data.issues || []).length) flags.push('!! ' + data.issues.join(';'));
     if (data.noTitle) flags.push('没有页面标题');
+    if ((data.menuClipped || []).length) flags.push('菜单文字截断 ' + data.menuClipped.length + '（侧栏 ' + data.siderWidth + 'px）');
     console.log(
       '[audit] ' + p.padEnd(34) + ' 标题=' + JSON.stringify((head.text || '').slice(0, 16)) +
         ' ' + (head.size || '-') + '/' + (head.weight || '-') +

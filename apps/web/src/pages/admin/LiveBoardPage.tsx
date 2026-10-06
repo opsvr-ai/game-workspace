@@ -16,7 +16,8 @@
  * 只有客户**编号**，没有客户微信 —— 看板是给派单用的，不是给谁抄客户的。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Avatar, Badge, Button, Card, Empty, Tooltip, Typography, message } from 'antd';
+import { Avatar, Badge, Button, Card, Spin, Tooltip, Typography, message } from 'antd';
+import EmptyState from '../../components/EmptyState';
 import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
@@ -336,15 +337,16 @@ const LiveBoardPage: React.FC = () => {
 
       {loading && !data ? (
         <Card size="small">
-          <Empty description="加载中…" />
+          {/* 「加载中」不能用空态画（空态是「没数据」，不是「还没来」）—— 统一用 Spin */}
+          <div style={{ textAlign: 'center', padding: 50 }}><Spin /></div>
         </Card>
       ) : rows.length === 0 ? (
         <Card size="small">
-          <Empty description="本店还没有陪玩" />
+          <EmptyState description="本店还没有陪玩" />
         </Card>
       ) : visibleRows.length === 0 ? (
         <Card size="small">
-          <Empty description="这一类现在没有人" />
+          <EmptyState description="这一类现在没有人" />
         </Card>
       ) : (
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(232px, 1fr))' }}>

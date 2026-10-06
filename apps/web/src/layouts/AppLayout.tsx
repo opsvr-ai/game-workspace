@@ -664,13 +664,25 @@ const AppLayout: React.FC = () => {
   }, []);
 
   // Auto-collapse sidebar on mobile
+  // 2026-10-07 修两处：
+  //   ① 以前是**单向**的 —— 窄到 768 以下把侧栏收起来，之后再拉宽也不会展开；挂载那一瞬间
+  //      如果 innerWidth 还没量出来，也会被当成「窄屏」，侧栏就永远卡在半折叠。
+  //      现在只认「跨过断点」这一件事：变窄收、变宽放。
+  //   ② 加一道「不合理宽度直接忽略」的护栏（见下）：否则窗口最小化 / 截图动作里浏览器
+  //      瞬时报的个位数宽度会让侧栏收起再弹回，看着就像界面坏了。
+  const narrowRef = React.useRef(false);
   useEffect(() => {
     const onResize = () => {
-      const compact = window.innerWidth <= 1080;
+      const w = window.innerWidth;
+      // 小得不像真实窗口的宽度一律当「没量到」（截图时 Chrome 会瞬时报 1x1，真机最小化时也会报个位数）
+      if (w < 320) return;
+      const compact = w <= 1080;
       setIsCompact(compact);
       if (compact) setMessagePanelCollapsed(true);
-      if (window.innerWidth <= 768) {
-        setCollapsed(true);
+      const narrow = w <= 768;
+      if (narrow !== narrowRef.current) {
+        narrowRef.current = narrow;
+        setCollapsed(narrow);
       }
     };
     onResize();

@@ -30,6 +30,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
+import EmptyState from './EmptyState';
 import { customersApi } from '../api/customers';
 import { TEXT } from '../styles/tokens';
 
@@ -256,7 +257,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
           <Spin />
         </div>
       ) : failed || !data ? (
-        <Empty description="画像加载失败，请关掉重开一次" />
+        <EmptyState description="画像加载失败，请关掉重开一次" />
       ) : (
         <div style={{ display: 'grid', gap: 14 }}>
           <Card size="small" style={{ background: '#F5F3FF', borderColor: '#DDD6FE' }} bodyStyle={{ padding: 12 }}>

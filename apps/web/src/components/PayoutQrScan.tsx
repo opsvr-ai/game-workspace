@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState } from 'react';
-import { Button, Modal, Typography, Space, Empty } from 'antd';
+import { Button, Modal, Typography, Space } from 'antd';
+import EmptyState from './EmptyState';
 import { QrcodeOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -87,7 +88,7 @@ const PayoutQrScan: React.FC<Props> = ({ url, who, variant = 'link', label = '�
             )}
           </div>
         ) : (
-          <Empty description="这个陪玩还没上传报账微信码（陪玩端 → 报账系统 → 我的报账微信码）" />
+          <EmptyState description="这个陪玩还没上传报账微信码（陪玩端 → 报账系统 → 我的报账微信码）" />
         )}
       </Modal>
     </>

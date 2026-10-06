@@ -141,11 +141,21 @@ try {
   await cdp.ready;
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
+  // 视口按 --w/--h 精确设死。以前只靠 --window-size：无头窗口尺寸会被窗口边框 / 系统缩放吃掉，
+  // 而且 captureScreenshot(captureBeyondViewport) 还会临时改布局宽度 —— 量出来的侧栏宽度、
+  // 菜单文字就可能跟真实页面不一样（曾据此误判「菜单文字被截断」）。改成显式覆盖后，
+  // window.innerWidth 就等于 --w，截图和探针看到的是同一个视口。
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
   if (pre) {
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(pre, 'utf8') });
   }
   await cdp.send('Page.navigate', { url });
   await sleep(wait);
+  {
+    const vp = await cdp.send('Runtime.evaluate', { expression: 'window.innerWidth', returnByValue: true });
+    const realW = Number(vp?.result?.value) || width;
+    if (Math.abs(realW - width) > 8) console.log('[shot] ！视口 ' + realW + 'px 与 --w=' + width + 'px 不一致，这张图可能失真');
+  }
 
   if (awaitSel) {
     const expr = 'document.querySelector(' + JSON.stringify(awaitSel) + ') !== null';

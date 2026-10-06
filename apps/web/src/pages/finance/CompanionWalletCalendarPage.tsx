@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Statistic, Row, Col, Spin, Typography, Table, Input, DatePicker, Empty, Tag, Image, List, Space } from 'antd';
+import { Card, Statistic, Row, Col, Spin, Typography, Table, Input, DatePicker, Tag, Image, List, Space } from 'antd';
+import EmptyState from '../../components/EmptyState';
 import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { UserRole } from '@chunlv/shared';
@@ -153,7 +154,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
         >
           <List
             dataSource={dailyReports}
-            locale={{ emptyText: <Empty description="暂无报账记录" /> }}
+            locale={{ emptyText: <EmptyState description="暂无报账记录" /> }}
             renderItem={(r: any) => {
               const shots = reportScreenshots(r);
               return (
@@ -192,7 +193,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
         <Card size="small" title="支取明细">
           <List
             dataSource={withdraws}
-            locale={{ emptyText: <Empty description="暂无支取记录" /> }}
+            locale={{ emptyText: <EmptyState description="暂无支取记录" /> }}
             renderItem={(w: any) => (
               <List.Item>
                 <Space direction="vertical" size={2}>
@@ -263,7 +264,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
             size="small"
             dataSource={filteredCompanions}
             pagination={{ pageSize: 20, hideOnSinglePage: true, showSizeChanger: false }}
-            locale={{ emptyText: <Empty description="本月暂无已通过流水" /> }}
+            locale={{ emptyText: <EmptyState description="本月暂无已通过流水" /> }}
             columns={[
               { title: '#', width: 50, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
               {

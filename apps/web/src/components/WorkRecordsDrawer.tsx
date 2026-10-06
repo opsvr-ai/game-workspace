@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useState } from 'react';
-import { Drawer, List, Tag, DatePicker, Empty, Spin, Image, Descriptions, Space, Typography } from 'antd';
+import { Drawer, List, Tag, DatePicker, Spin, Image, Descriptions, Space, Typography } from 'antd';
+import EmptyState from './EmptyState';
 import { monitorApi } from '../api/monitor';
 
 const { Text, Title } = Typography;
@@ -67,7 +68,7 @@ const WorkRecordsDrawer: React.FC<Props> = ({ open, companionId, companionName, 
 
       <Spin spinning={loading}>
         {records.length === 0 && !loading ? (
-          <Empty description="该日无工作记录" />
+          <EmptyState description="该日无工作记录" />
         ) : (
           <List
             dataSource={records}

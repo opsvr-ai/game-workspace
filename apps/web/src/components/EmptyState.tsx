@@ -4,7 +4,7 @@ import { Empty } from 'antd';
 import { BRAND, TEXT } from '../styles/tokens';
 
 interface EmptyStateProps {
-  description?: string;
+  description?: React.ReactNode;
   image?: React.ReactNode;
   action?: { text: string; onClick: () => void };
   /**

@@ -29,6 +29,7 @@ import {
   Input,
   Segmented,
   Space,
+  Spin,
   Switch,
   Table,
   Tag,
@@ -36,6 +37,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import EmptyState from '../components/EmptyState';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -804,11 +806,12 @@ const CustomerBoardPage: React.FC = () => {
 
       {loading && !data ? (
         <Card size="small">
-          <Empty description="加载中…" />
+          {/* 「加载中」不能用空态画（空态是「没数据」，不是「还没来」）—— 统一用 Spin */}
+          <div style={{ textAlign: 'center', padding: 50 }}><Spin /></div>
         </Card>
       ) : filtered.length === 0 ? (
         <Card size="small">
-          <Empty description={focusCompanion || search ? '没有符合条件的客户' : '还没有客户'} />
+          <EmptyState description={focusCompanion || search ? '没有符合条件的客户' : '还没有客户'} />
         </Card>
       ) : isCompanion ? (
         <Card size="small">{barList}</Card>

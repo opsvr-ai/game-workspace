@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React from 'react';
-import { Alert, Badge, Button, Card, Col, Empty, Input, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { Alert, Badge, Button, Card, Col, Input, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
+import EmptyState from '../components/EmptyState';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, ROLE_TINT, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
 import TierBadge from '../components/TierBadge';
@@ -272,7 +273,7 @@ const UiKitPage: React.FC = () => (
         <Tabs
           items={[
             { key: 'a', label: '订单列表', children: <Table size="small" pagination={false} columns={columns} dataSource={rows} /> },
-            { key: 'b', label: '空数据的样子', children: <Empty description="今天还没有单" style={{ padding: SPACE.xl }} /> },
+            { key: 'b', label: '空数据的样子', children: <EmptyState description="今天还没有单" /> },
             { key: 'c', label: '提示条', children: (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Alert type="success" showIcon message="对账完成，38 张单全部核对通过" />

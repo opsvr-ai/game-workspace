@@ -1,6 +1,7 @@
 // craftsman-ignore: TS001,TS002
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image, Empty, Spin } from 'antd';
+import { Card, Button, Upload, Select, Typography, Space, Tag, message, Image, Spin } from 'antd';
+import EmptyState from '../components/EmptyState';
 import type { UploadFile } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { battleScreenshotsApi, type BattleScreenshot } from '../api/battleScreenshots';
@@ -245,7 +246,7 @@ const BattleScreenshotsPage: React.FC = () => {
         {loading ? (
           <Spin />
         ) : items.length === 0 ? (
-          <Empty description="还没有上传过战绩图" />
+          <EmptyState description="还没有上传过战绩图" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {items.map((it) => (

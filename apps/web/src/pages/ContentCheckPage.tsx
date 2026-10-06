@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Col, Divider, Empty, Input, List, Modal, Progress, Row, Select, Space, Table, Tag, Typography, message,
 } from 'antd';
+import EmptyState from '../components/EmptyState';
 import { CheckCircleOutlined, CopyOutlined, SafetyOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { contentCheckApi, ContentCheckResult, WeeklyPlanResult } from '../api/contentCheck';
 import CollectorPluginHint from '../components/CollectorPluginHint';
@@ -396,7 +397,7 @@ const ContentCheckPage: React.FC = () => {
         <Col span={12}>
           <Card title="检测结果" size="small">
             {!result ? (
-              <Empty description="填写内容后点击“开始检测”" />
+              <EmptyState description="填写内容后点击「开始检测」" />
             ) : (
               <div>
                 <Alert
@@ -568,7 +569,7 @@ const ContentCheckPage: React.FC = () => {
           </div>
         )}
         {!weeklyPlan ? (
-          <Empty description="选择“周主推”或“DeepSeek 策划 + 豆包成稿”，系统会自动去重并检查违禁词" />
+          <EmptyState description="选择「周主推」或「DeepSeek 策划 + 豆包成稿」，系统会自动去重并检查违禁词" />
         ) : (
           <>
             <Alert
