@@ -1,8 +1,8 @@
 {
   "_comment": "UI 硬编码色值基线。只能减不能增；降下来后跑 node scripts/_check_ui_tokens.mjs --update 调低。",
   "_updatedAt": "2026-10-07",
-  "total": 678,
-  "distinct": 136,
+  "total": 677,
+  "distinct": 135,
   "byFile": {
     "pages/admin/OperationsBoard.tsx": 28,
     "components/CustomerTrackingCenter.tsx": 26,
@@ -80,7 +80,6 @@
     "config/roleMenus.tsx": 2,
     "pages/admin/AttendancePage.tsx": 2,
     "pages/admin/CsSettingsPage.tsx": 2,
-    "pages/finance/ExpenseReviewPage.tsx": 2,
     "components/DueFollowUpBanner.tsx": 1,
     "components/OrderDetailModal.tsx": 1,
     "components/OrderFieldLine.tsx": 1,
@@ -92,6 +91,7 @@
     "pages/admin/ManagedPcPanel.tsx": 1,
     "pages/BattleScreenshotsPage.tsx": 1,
     "pages/ChatWindowPage.tsx": 1,
+    "pages/finance/ExpenseReviewPage.tsx": 1,
     "pages/LoginPage.tsx": 1,
     "pages/ProfilePage.tsx": 1,
     "pages/settings/NoteBenchmarkSettings.tsx": 1,

@@ -62,6 +62,11 @@ jobs:
       # 基线见 docs/LOADING-STATE-BASELINE.json（当前 0）。
       - name: 加载态冻结（不许裸写 Spin）
         run: node scripts/_check_loading_state.mjs --check
+      # 统计卡冻结（2026-10-07）：看板上的「一个大数字」原来有四种长相（运营看板 / 陪玩端首页 /
+      # 客户看板 / 支出审核各写各的），统一到 components/StatCard.tsx。这里卡「自己再写一个 Kpi /
+      # <Card><Statistic/> 拼统计卡」。基线见 docs/STAT-CARD-BASELINE.json（当前 0 + 31，只能减不能增）。
+      - name: 统计卡冻结（看板大数字只有一个来源）
+        run: node scripts/_check_stat_cards.mjs --check
       # 路由分包守卫（2026-10-07）：50 个页面原来全是同步 import，首屏必须把所有页面的代码
       # 都下载 + 解析完才画出第一帧（主包 1.2MB）。改成按路由 lazy 之后主包 347KB。
       # 但「新加一个页面」时同步 import 是最自然的写法，写下去没人会觉得不对 —— 这里拦住它。

@@ -159,6 +159,7 @@ scripts/_*
 !scripts/_check_ui_tokens.mjs
 !scripts/_check_loading_state.mjs
 !scripts/_check_route_splitting.mjs
+!scripts/_check_stat_cards.mjs
 !scripts/_export_web_routes.mjs
 !scripts/_export_css_vars.mjs
 !scripts/_shot_ui.mjs

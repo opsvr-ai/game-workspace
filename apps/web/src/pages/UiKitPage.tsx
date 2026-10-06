@@ -8,6 +8,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, ROLE_TINT, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
 import TierBadge from '../components/TierBadge';
+import StatCard from '../components/StatCard';
 import { tierMeta } from '../constants/tiers';
 
 const { Text, Title, Paragraph } = Typography;
@@ -246,23 +247,18 @@ const UiKitPage: React.FC = () => (
         </Space>
       </Section>
 
-      <Section id="cards" title="卡片 / 统计卡" hint=".ui-panel / .stat-card">
+      <Section id="cards" title="卡片 / 统计卡" hint=".ui-panel / StatCard（看板上的大数字只有这一个来源）">
         <Row gutter={SPACE.lg}>
-          <Col span={8}>
-            <Card className="stat-card" size="small">
-              <Text type="secondary">今日流水</Text>
-              <div style={{ fontSize: 26, fontWeight: 700, color: TEXT.primary }}>￥12,860</div>
-              <Text type="secondary" style={{ fontSize: 12 }}>较昨日 +8%</Text>
-            </Card>
+          <Col span={6}>
+            <StatCard label="今日流水" value="￥12,860" sub="较昨日 +8%" tint={BRAND.primary} />
           </Col>
-          <Col span={8}>
-            <Card className="stat-card" size="small">
-              <Text type="secondary">待抢单</Text>
-              <div style={{ fontSize: 26, fontWeight: 700, color: BRAND.primary }}>6</div>
-              <Text type="secondary" style={{ fontSize: 12 }}>最久等了 12 分钟</Text>
-            </Card>
+          <Col span={6}>
+            <StatCard label="待抢单" value="6" sub="最久等了 12 分钟" tint={SEMANTIC.warning} />
           </Col>
-          <Col span={8}>
+          <Col span={6}>
+            <StatCard label="淡色底那套" value="￥3,200" sub="客户看板那一套" tint={SEMANTIC.successDeep} variant="tinted" />
+          </Col>
+          <Col span={6}>
             <Card size="small">
               <div className="ui-section-title" style={{ marginBottom: SPACE.sm }}>面板标题</div>
               <div className="ui-chip" style={{ background: BRAND.soft, color: BRAND.primary }}>胶囊</div>

@@ -301,6 +301,23 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 20 批 · 已完成（2026-10-07，统计卡统一：看板上的大数字只有一个来源）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 新增统一统计卡 | P2-7 / 交互一致性 | `apps/web/src/components/StatCard.tsx`：白卡（`.ui-panel`）+ 左侧 4px 渐变竖条 + 圆点标签 + 彩色大数字 + 可选小字；`variant="tinted"` 是客户看板那套淡色底（底色/描边都从同一个 tint 换算，不再各写一个 `*Soft` 令牌）；`size` / `icon` / `onClick` / `title` 可选 | 本次 |
+| 四个看板换成它 | P2-7 | ① 运营看板（`Kpi` → `StatCard`，形状不变，零视觉回归）；② 陪玩端首页看板（同上）；③ 客户看板（手写的 `statCard()` → `variant="tinted"`）；④ 支出/支取审核（4 张 `<Card><Statistic/></Card>` → `StatCard`，顺手把写死的 `#d48806` 换成令牌） | 本次 |
+| 清掉打架的旧样式 | 卫生 | `styles/global.css` 里 `.stat-card` 原本**定义了两遍**（一份 `padding:20px 24px` + 左边框，一份 `::after` 色条），谁也说不清哪套为准，而且只有 `/ui-kit` 在用 → 两处一并删掉（**-67 行**），改由组件统一表达 | 本次 |
+| 写进设计校对页 | — | `/ui-kit` 的「卡片 / 统计卡」改成实物：三种形态（白卡 / 淡色底 / 普通面板）排一排，新页面照着抄 | 本次 |
+| 守门 + 测试 | P2-7 | `scripts/_check_stat_cards.mjs`（`pnpm stat-cards:check`，CI 已接）：**自己写 `Kpi`/`statCard`/`MetricCard`、或 `<Card><Statistic/>` 拼统计卡 → 直接红**（基线 `docs/STAT-CARD-BASELINE.json`：0 + 31，只能减不能增）；`src/__tests__/stat-card.test.tsx`（5 用例）把形状钉住。**已自证会红**：塞一个本地 `Kpi` 进去，守卫点名到文件与行号并退出码 1 | 本次 |
+
+> 验收口径（可复算）：`pnpm stat-cards:check`（自己写的 0 / `<Card><Statistic/>` 31）、
+> `pnpm ui:tokens:check`（677，比上一批少 1 —— 顺手清了写死色值）、
+> `pnpm --filter @chunlv/web test`（8 文件 / 20 用例）、改前改后截图对照 `tmp_shots/b20/` 与 `tmp_shots/b20/after/`。
+>
+> 还没收的：财务 / 管理端还有 10 个文件共 31 处 `<Card><Statistic/>`（提成 / 对账 / 风险台 / 客服提成今日 /
+> 陪玩钱包日历 / 订单复核 / 进程黑名单 / 桥接结算 / 客户端版本 …），已列在守卫输出里，下一批按页面逐个换、逐个截图核。
+
 ### 第 19 批 · 已完成（2026-10-07，客服端：更新决策抽出来 + 第一份测试 + 打包白名单守卫）
 
 | 任务 | 对应问题 | 交付 | 提交 |
@@ -991,7 +1008,8 @@ IDLE
 3. **统一组件层**
    - `DataTable`：三个大表共用（表头/行高/字号/列宽/钉左钉右/列配置持久化）；
    - `PageShell`：标题区 + 筛选区 + 操作区统一；
-   - `EmptyState` / `LoadingState` / `ErrorState` 统一。
+   - `EmptyState` / `LoadingState` / `ErrorState` 统一；
+   - `StatCard` 统一（看板上的大数字只有这一个来源，见「第 20 批」；财务 / 管理端还剩 31 处 `<Card><Statistic/>` 待收）。
 
 **顺带修的**：`theme.ts` 的注释与主色对齐；若确实要保留紫色主色，就把「经典蓝」的描述改掉，并把 AntD 默认蓝全部替换。
 

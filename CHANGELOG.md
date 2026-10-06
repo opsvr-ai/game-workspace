@@ -11,6 +11,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **看板上的「大数字」收成一个样子了：统计卡统一（2026-10-07，dev 分支）。**
+  同一套系统里原来同时存在四种长相的统计卡 —— 运营看板（白卡 + 左侧竖条 + 圆点标签）、
+  陪玩端首页（antd Card，没竖条没圆点）、客户看板（淡色底 + 同色描边）、支出审核（antd Statistic 默认样式）。
+  老板在几个看板之间来回切，同一个「今日消费」一会儿一个长相。现在收成一个组件
+  `apps/web/src/components/StatCard.tsx`（`label / value / sub / tint`，外加 `variant="tinted"` 淡色底那套），
+  四个看板全部改用它（运营看板、陪玩端首页、客户看板、支出/支取审核），
+  并清掉了 styles/global.css 里两处互相打架的 `.stat-card` 旧样式（67 行）。
+  加守门 `scripts/_check_stat_cards.mjs`（`pnpm stat-cards:check`）：**自己再写一个 `Kpi`、
+  或用 `<Card><Statistic/>` 拼统计卡，CI 直接红**（基线见 `docs/STAT-CARD-BASELINE.json`；
+  财务 / 管理端还剩 31 处，后续分批收）。实物在 `/ui-kit` 的「卡片 / 统计卡」。
 - **客服端的自动升级判断也抽出来测了，并补上「打包别漏文件」的守卫（2026-10-07，dev 分支）。**
   客服端只有一条路会碰到用户机器 —— 自动升级（写信号让看门狗解压整包，或下安装包让对方点一次 UAC）。
   走错了不是「页面难看」，而是**这台机器上的客户端起不来 / 陪玩端被换成客服端（那台机器就接不了单）**。

@@ -154,53 +154,6 @@ body {
   margin-bottom: 24px;
 }
 
-/* ── 统计卡片增强 ── */
-.stat-card {
-  background: var(--color-bg-container);
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
-  border-left: 3px solid;
-  border-left-color: var(--color-brand);
-  transition:
-    box-shadow 0.25s,
-    transform 0.25s;
-}
-.stat-card:hover {
-  box-shadow:
-    0 4px 20px rgba(0, 212, 255, 0.12),
-    0 0 0 1px rgba(0, 212, 255, 0.2);
-  transform: translateY(-2px);
-}
-.stat-card .stat-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-.stat-card .stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--color-text);
-}
-.stat-card .stat-value.blue {
-  color: var(--color-brand);
-}
-.stat-card .stat-value.green {
-  color: var(--color-online);
-}
-.stat-card .stat-value.orange {
-  color: var(--color-busy);
-}
-.stat-card .stat-value.red {
-  color: var(--color-danger);
-}
-
 /* ── 圆角卡片 ── */
 .apple-card {
   background: var(--color-bg-container);
@@ -1066,23 +1019,3 @@ body {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
 }
 
-/* ── 11. 统计卡片：加色块图标位，数字更有层次 ── */
-.stat-card {
-  position: relative;
-  overflow: hidden;
-  border-left-width: 0;
-  border-radius: 14px;
-}
-.stat-card::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--grad-accent-bar, linear-gradient(180deg, var(--color-accent), var(--color-brand)));
-  opacity: 0.9;
-}
-.stat-card .stat-value {
-  background-clip: text;
-}

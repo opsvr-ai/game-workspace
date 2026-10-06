@@ -3,6 +3,7 @@ import React from 'react';
 import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
 import { BRAND, TEXT } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
+import StatCard from './StatCard';
 
 const { Text } = Typography;
 
@@ -26,14 +27,6 @@ const ATT_META: Record<string, { label: string; color: string }> = {
   ABSENT: { label: '未打卡', color: '#8C8C8C' },
   NOT_STARTED: { label: '未到上班时间', color: '#8C8C8C' },
 };
-
-const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
-  <Card size="small" bodyStyle={{ padding: '10px 12px' }} style={{ height: '100%' }}>
-    <div style={{ fontSize: 12, color: TEXT.secondary, fontWeight: 600 }}>{label}</div>
-    <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, color: tint, letterSpacing: '-0.5px' }}>{value}</div>
-    <div style={{ fontSize: 11, color: TEXT.tertiary, minHeight: 15 }}>{sub}</div>
-  </Card>
-);
 
 const Bar: React.FC<{ label: string; percent: number; text: string; color: string }> = ({ label, percent, text, color }) => (
   <div style={{ marginBottom: 6 }}>
@@ -102,23 +95,23 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       />
       {/* ① 关键数字 */}
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
-        <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint={BRAND.primary} /></Col>
-        <Col xs={12} md={4}><Kpi label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
-        <Col xs={12} md={4}><Kpi label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierInfo.color }}>{tierInfo.label}</span>} tint={tierInfo.color} /></Col>
+        <Col xs={12} md={4}><StatCard label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint={BRAND.primary} /></Col>
+        <Col xs={12} md={4}><StatCard label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
+        <Col xs={12} md={4}><StatCard label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierInfo.color }}>{tierInfo.label}</span>} tint={tierInfo.color} /></Col>
         <Col xs={12} md={4}>
-          <Kpi
+          <StatCard
             label="今日剩余抢单名额"
             value={quota ? `${quota.remaining ?? 0} 个` : '—'}
             sub={quota ? `每天发 ${quota.dailyLimit ?? 0} 个 · 今天已用 ${quota.usedToday ?? 0}` : '名额加载中…'}
             tint={Number(quota?.remaining) > 0 ? '#722ED1' : '#FA8C16'}
           />
         </Col>
-        <Col xs={12} md={4}><Kpi label="我的客户" value={`${list.length} 个`} sub={`累计消费 ${yuan(totalSpent)}`} tint="#EB2F96" /></Col>
+        <Col xs={12} md={4}><StatCard label="我的客户" value={`${list.length} 个`} sub={`累计消费 ${yuan(totalSpent)}`} tint="#EB2F96" /></Col>
         {/* 今日考勤：本店把「陪玩考勤」关掉时接口返回 null —— 这张卡整张不显示
             （老板 2026-10-04：陪玩是提成制、没必要考勤），不再挂个「未考勤」占地方。 */}
         {attendance && (
           <Col xs={12} md={4}>
-            <Kpi
+            <StatCard
               label="今日考勤"
               value={att ? att.label : '未考勤'}
               sub={attTime ? `${attTime} 打卡 · 上班 ${attendance?.workStart || '—'}` : `上班时间 ${attendance?.workStart || '—'}`}

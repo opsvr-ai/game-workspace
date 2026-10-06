@@ -41,6 +41,7 @@ import LoadingState from '../components/LoadingState';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import StatCard from '../components/StatCard';
 import { customersApi } from '../api/customers';
 import CustomerProfileDrawer from '../components/CustomerProfileDrawer';
 import { useAuthStore } from '../stores/authStore';
@@ -48,6 +49,9 @@ import { companionStatusConfig, customerStatusConfig, statusDotColor } from '../
 import { BG, BORDER, BRAND, SEMANTIC, TEXT } from '../styles/tokens';
 
 const { Text } = Typography;
+
+/** 一排统计卡在窄屏会自动换行：每个卡最小 118px、长了就均分。 */
+const STAT_FLEX: React.CSSProperties = { flex: '1 1 130px', minWidth: 118 };
 
 interface BoardLive {
   sessionId: string;
@@ -692,16 +696,6 @@ const CustomerBoardPage: React.FC = () => {
     );
   };
 
-  const statCard = (label: string, value: string, color: string, bg: string) => (
-    <div
-      key={label}
-      style={{ flex: '1 1 130px', minWidth: 118, padding: '10px 14px', borderRadius: 10, background: bg, border: '1px solid ' + color + '22' }}
-    >
-      <div style={{ fontSize: 12, color: TEXT.secondary }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-    </div>
-  );
-
   return (
     <>
       <PageHeader
@@ -726,12 +720,14 @@ const CustomerBoardPage: React.FC = () => {
       />
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        {statCard('客户总数', String(counts?.customers ?? rows.length), SEMANTIC.infoDeep, SEMANTIC.infoSoftBlue)}
-        {statCard('正在打', String(counts?.serving ?? 0), SEMANTIC.dangerStrong, BG.error)}
-        {statCard('今日消费', yuan(counts?.todaySpentTotal ?? 0), SEMANTIC.orangeDeeper, SEMANTIC.orangeSoft)}
-        {statCard('累计消费', yuan(counts?.spentTotal ?? 0), SEMANTIC.successDeep, SEMANTIC.successSoft)}
-        {statCard('累计时长', fmtHours(counts?.hoursTotal ?? 0), SEMANTIC.direct, SEMANTIC.directSoft)}
-        {isCompanion ? null : statCard('陪玩数', String(counts?.companions ?? companions.length), SEMANTIC.teal, SEMANTIC.tealSoft)}
+        <StatCard variant="tinted" style={STAT_FLEX} label="客户总数" value={String(counts?.customers ?? rows.length)} tint={SEMANTIC.infoDeep} />
+        <StatCard variant="tinted" style={STAT_FLEX} label="正在打" value={String(counts?.serving ?? 0)} tint={SEMANTIC.dangerStrong} />
+        <StatCard variant="tinted" style={STAT_FLEX} label="今日消费" value={yuan(counts?.todaySpentTotal ?? 0)} tint={SEMANTIC.orangeDeeper} />
+        <StatCard variant="tinted" style={STAT_FLEX} label="累计消费" value={yuan(counts?.spentTotal ?? 0)} tint={SEMANTIC.successDeep} />
+        <StatCard variant="tinted" style={STAT_FLEX} label="累计时长" value={fmtHours(counts?.hoursTotal ?? 0)} tint={SEMANTIC.direct} />
+        {isCompanion ? null : (
+          <StatCard variant="tinted" style={STAT_FLEX} label="陪玩数" value={String(counts?.companions ?? companions.length)} tint={SEMANTIC.teal} />
+        )}
       </div>
 
       <div

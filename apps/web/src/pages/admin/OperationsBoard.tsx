@@ -10,6 +10,7 @@ import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
 import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
+import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
 
 const { Text } = Typography;
@@ -50,18 +51,6 @@ const ATT_STATUS: Record<string, { label: string; color: string }> = {
   NOT_STARTED: { label: '未到点', color: 'default' },
 };
 const ATT_RANK: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
-
-const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
-  <div className="ui-panel" style={{ position: 'relative', overflow: 'hidden', padding: '12px 14px', height: '100%' }}>
-    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${tint}, ${tint}66)` }} />
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: TEXT.secondary }}>
-      <span style={{ width: 6, height: 6, borderRadius: 2, background: tint }} />
-      {label}
-    </div>
-    <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.25, color: tint }}>{value}</div>
-    {sub ? <div style={{ marginTop: 2, fontSize: 12, color: TEXT.tertiary }}>{sub}</div> : null}
-  </div>
-);
 
 /** 一行「名字 + 进度条 + 数值」：老板要的进度条样式，从高到低排。 */
 const RankBar: React.FC<{ name: string; value: number; max: number; text: string; color: string }> = ({ name, value, max, text, color }) => {
@@ -205,13 +194,13 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
           （注意：antd 5.18 的 Row 上那个 align="stretch" 只会加个 class、并没有真的生成 CSS，
            实测 align-items 还是 flex-start，所以这里直接写行内样式。） */}
       <Row gutter={[12, 12]} style={{ marginBottom: 14, alignItems: 'stretch' }}>
-        <Col xs={12} md={4}><Kpi label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
-        <Col xs={12} md={4}><Kpi label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
-        <Col xs={12} md={4}><Kpi label="今日单量" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} sub={dash ? `接单率 ${pct(dash.today?.acceptRate)}` : undefined} tint="#faad14" /></Col>
-        <Col xs={12} md={4}><Kpi label="在线陪玩" value={dash ? `${dash.today?.onlineCount ?? 0} / ${dash.today?.totalCount ?? 0}` : '—'} sub={`打单中 ${servingCount} 人`} tint="#722ed1" /></Col>
-        <Col xs={12} md={4}><Kpi label="今日娱乐费" value={dash ? yuan(dash.today?.entertainmentFee) : '—'} tint="#13c2c2" /></Col>
+        <Col xs={12} md={4}><StatCard label="今日流水" value={dash ? yuan(dash.today?.totalRevenue) : '—'} tint={BRAND.primary} /></Col>
+        <Col xs={12} md={4}><StatCard label="本月流水" value={overview ? yuan(overview.monthlyRevenue) : '—'} tint="#52c41a" /></Col>
+        <Col xs={12} md={4}><StatCard label="今日单量" value={dash ? `${dash.today?.orderCount ?? 0} 单` : '—'} sub={dash ? `接单率 ${pct(dash.today?.acceptRate)}` : undefined} tint="#faad14" /></Col>
+        <Col xs={12} md={4}><StatCard label="在线陪玩" value={dash ? `${dash.today?.onlineCount ?? 0} / ${dash.today?.totalCount ?? 0}` : '—'} sub={`打单中 ${servingCount} 人`} tint="#722ed1" /></Col>
+        <Col xs={12} md={4}><StatCard label="今日娱乐费" value={dash ? yuan(dash.today?.entertainmentFee) : '—'} tint="#13c2c2" /></Col>
         <Col xs={12} md={4}>
-          <Kpi
+          <StatCard
             label="客户"
             value={counts ? `${counts.customers ?? 0} 个` : '—'}
             sub={counts ? `今日消费 ${yuan(counts.todaySpentTotal)} · 在打 ${counts.serving ?? 0}` : undefined}

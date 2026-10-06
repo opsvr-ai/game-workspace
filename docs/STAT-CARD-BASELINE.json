@@ -1,0 +1,18 @@
+{
+  "_comment": "统计卡基线：自己写的统计卡组件（Kpi/statCard/MetricCard）+「<Card><Statistic/>」写法，只能减不能增。统一用 apps/web/src/components/StatCard.tsx。降下来后跑 node scripts/_check_stat_cards.mjs --update 调低。",
+  "_updatedAt": "2026-10-07",
+  "localImpl": 0,
+  "cardStatistic": 31,
+  "total": 31,
+  "byFile": {
+    "components/BridgeSettlementPanel.tsx": 3,
+    "pages/admin/AgentVersionPage.tsx": 3,
+    "pages/admin/OrderReviewPage.tsx": 4,
+    "pages/admin/ProcessKillLogPage.tsx": 4,
+    "pages/finance/CommissionPage.tsx": 3,
+    "pages/finance/CompanionWalletCalendarPage.tsx": 5,
+    "pages/finance/CsCommissionTodayPage.tsx": 2,
+    "pages/finance/ReconciliationPage.tsx": 3,
+    "pages/finance/RiskWorkbenchPage.tsx": 4
+  }
+}

@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Tabs, Table, Button, Space, Typography, Tag, message, Modal, Select, Input, DatePicker, Statistic, Row, Col, Popconfirm,
+  Card, Tabs, Table, Button, Space, Typography, Tag, message, Modal, Select, Input, DatePicker, Row, Col, Popconfirm,
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -9,9 +9,13 @@ import PageHeader from '../../components/PageHeader';
 import { expenseReportsApi } from '../../api/expenses';
 import { billingApi } from '../../api/billing';
 import PayoutQrScan from '../../components/PayoutQrScan';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 const { TextArea } = Input;
+
+const yuan = (v: unknown) => `¥${(Number(v) || 0).toFixed(1)}`;
 
 const expenseTypeConfig: Record<string, { color: string; label: string }> = {
   EXPENSE: { color: 'blue', label: '支出' },
@@ -190,10 +194,10 @@ const ExpenseReviewPage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card size="small"><Statistic title="当月已通过支出" value={summary?.totalExpense || 0} precision={1} prefix="¥" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="当月已通过支取" value={summary?.totalWithdraw || 0} precision={1} prefix="¥" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="待审金额" value={summary?.pendingAmount || 0} precision={1} prefix="¥" valueStyle={{ color: '#d48806' }} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="待审单数" value={summary?.pendingCount || 0} suffix="单" /></Card></Col>
+        <Col span={6}><StatCard label="当月已通过支出" value={yuan(summary?.totalExpense)} tint={SEMANTIC.orangeDeeper} /></Col>
+        <Col span={6}><StatCard label="当月已通过支取" value={yuan(summary?.totalWithdraw)} tint={SEMANTIC.successDeep} /></Col>
+        <Col span={6}><StatCard label="待审金额" value={yuan(summary?.pendingAmount)} tint={SEMANTIC.warningStrong} /></Col>
+        <Col span={6}><StatCard label="待审单数" value={`${summary?.pendingCount || 0} 单`} tint={SEMANTIC.infoDeep} /></Col>
       </Row>
 
       <Tabs

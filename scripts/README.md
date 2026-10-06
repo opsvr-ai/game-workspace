@@ -50,6 +50,8 @@ python scripts\_publish_cs_client.py <版本号>
 | `_export_api_contract.mjs` | 从 Controller / Gateway 源码导出四端契约（接口路径 + Socket 事件）到 `docs/API-CONTRACT.json`；CI 用 `--check` 比对 |
 | `_export_web_routes.mjs` | 从 `router.tsx` 导出页面路由表到 `docs/WEB-ROUTES.json`；CI 用 `--check` 比对（`pnpm routes` / `routes:check`） |
 | `_check_ui_tokens.mjs` | 扫前端还剩多少硬编码色值，和基线 `docs/UI-TOKEN-BASELINE.json` 比对（只能减不能增；`pnpm ui:tokens` / `ui:tokens:check`） |
+| `_check_loading_state.mjs` | 加载态冻结：页面里「裸写的 `<Spin />`」只能减不能增（基线 `docs/LOADING-STATE-BASELINE.json`，统一用 `components/LoadingState.tsx`；`pnpm loading:check`） |
+| `_check_stat_cards.mjs` | 统计卡冻结：自己写 `Kpi`/`statCard`/`MetricCard`、或 `<Card><Statistic/>` 拼统计卡，只能减不能增（基线 `docs/STAT-CARD-BASELINE.json`，统一用 `components/StatCard.tsx`；`pnpm stat-cards` / `stat-cards:check`） |
 | `_export_css_vars.mjs` | 把 `styles/tokens.ts` 里的全部 CSS 变量生成进 `index.css` 的 `:root` 兜底区，并卡「CSS 里用了 var(--x) 但没人定义」（`pnpm css:vars` / `css:vars:check`） |
 | `_shot_ui.mjs` | **界面改版前后对照用**：无头 Edge + CDP，给某一页 / 某一区块截图。选项：`--sel=` 只截某个元素、`--pre=<js 文件>` 导航前注入（造登录态）、`--await=` 等元素出现、`--full` 整页高度、`--eval=<js>` 顺手取个数（量宽度 / 对齐）（`node scripts/_shot_ui.mjs http://127.0.0.1:8100/ui-kit tmp_shots/x.png --sel="#controls" --scale=2`）|
 | `_ui_audit.mjs` | **「界面体检」**：逐页跑探针，量「横向溢出 / 文字截断 / 每页页头的文字·字号·字重·颜色·是否渐变 / 有没有页面标题」，输出 JSON（`--json=`）。「有没有被切掉、页头齐不齐」用这个量，不要靠眼睛看截图 |
