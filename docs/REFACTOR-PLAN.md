@@ -50,6 +50,9 @@
 2. **P0-5 升级信号按端隔离**：陪玩端 / 客服端 / 看门狗的信号文件分命名空间，兼容读取旧路径（避免一台机器装两端时互相踩）。
 3. **P0-2 部署可回滚**：远端改为 `releases/<sha>` 目录 + `current` 软链，脚本支持 `--rollback`（纯新增能力，不动线上；需要 `CHUNLV_SSH_PASS`）。
 4. **P0-1 抢单主链路 e2e**：把「抢单 / 报账 / 结算 / 黑名单」四条主链路的自动化回归建起来，作为后续所有拆分的验收基线。
+   - ✅ **抢单原子性**（2026-10-07）：`apps/server/src/__tests__/order-workflow.grab.test.ts`（22 用例）—— 一次带条件的写 / 扣了名额抢不到必须退 / 不该抢的在动数据前拦下；**已自证会红**。
+   - 报账口径（`order-outcome` / `order-split` / `deposit-deduct`）、可支取余额（`withdrawable`）、黑名单开关（`blacklist-switch` / `ws.gateway.blacklist`）本来就有专门测试，不用重复造。
+   - 还缺：客户端侧（陪玩端 / 客服端）的启动与升级链路没有回归 —— 见 P0-5。
 5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 6. **路由契约冻结** ✅：`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`（**86 条**页面路径 / 含 4 条重定向），CI `--check` 拦「删路径 / 改路径 / 换页面」。**这是动 `router.tsx` 前必须先到位的前端安全网** —— 前端零测试，而 70 处死的 `<Suspense>` 包装、组件抽取都要改这个文件。
 7. **`router.tsx` 去 Suspense 噪声** ✅：77 处复制粘贴的 `<Suspense>` → 单一入口 `page()`，787 → 487 行；顺带把错误边界 3 处写死色值收进令牌（色值基线 939 → 935）。**路由契约冻结前后逐条一致**，零行为变化。

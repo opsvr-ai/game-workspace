@@ -11,6 +11,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **抢单主链路上了真测试（P0-1，2026-10-07，dev 分支）。**
+  `docs/REFACTOR-PLAN.md` 说的「四条主链路」里，报账口径（`order-outcome` / `order-split` / `deposit-deduct`）、
+  可支取余额（`withdrawable`）、黑名单开关（`blacklist-switch` + `ws.gateway.blacklist`）本来就有专门测试；
+  **唯独最要紧的「抢单原子性」一直是假测试** —— `orders.service.test.ts` 里那几个 grab 用例
+  把 workflowService 整个 mock 掉，然后断言「mock 抛错 → 我也抛错」，等于只测了「grab 会不会转发」。
+  也就是说：**只要有人把「一次带条件的写」改成「先读再写」，或者去掉抢单失败时的名额退回，测试全绿。**
+  - 新增 `apps/server/src/__tests__/order-workflow.grab.test.ts`（22 个用例）盯住三条不变量：
+    ① **抢单是一次带条件的写**：`where` 里同时夹住 `companionId: null` 与 `status: PENDING`，
+    慢一步的人拿到 `count === 0` 并被明确告知「已被其他陪玩抢先抢走」；
+    ② **扣了名额抢不到必须退回**（老板 2026-10-04 口径是「抢单那一刻就扣」，于是「扣了没抢到」这条路必须退），
+    名额用完则在**动数据之前**拦下；
+    ③ **不该抢的一律提前拦**：不是池子单 / 已被人抢 / 已超时 / 状态机不允许 / 自己发的单 / 跨店没桥接 /
+    没绑工作微信 / 同一个微信接过这个客户 —— 每条都断言「`updateMany` 一次都没调用」。
+  - 顺带补上 mock 缺的一环：`__mocks__/prisma.mock.ts` 的 `order` 少了真实 Prisma 有的 `updateMany`，
+    以前跑不到抢单那一步。
+  - **已自证会红**：把 `where` 退化成 `{ id }`、并删掉 `quota.refund` 那行 → 立刻 2 个用例失败并点名。
+  - 回归：服务端测试 **667 → 689 全绿**（73 个文件）。
+
 - **前端第一份测试：把「左栏菜单」钉死（2026-10-07，dev 分支）。**
   前端一直是**零测试**，而接下来要动的 `AppLayout.tsx`（3000 多行）恰恰是「谁看到什么」的所在地。
   于是先给最容易出事、又最不需要数据库的那部分上测试：**左栏菜单**。

@@ -24,6 +24,9 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      // 抢单 / 完成 / 取消走的都是「带条件的一次性写」（updateMany + where 里夹状态），
+      // 用来防并发重复抢；mock 里必须有这个方法，否则跑不到那一步。
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       delete: vi.fn(),
       // 删客户时连「从未成交」的僵尸单一起清（老板 2026-10-04）
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
