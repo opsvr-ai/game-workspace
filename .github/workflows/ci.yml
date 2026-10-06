@@ -56,6 +56,11 @@ jobs:
       # 基线见 docs/UI-TOKEN-BASELINE.json，谁新写了硬编码色值这里直接红。
       - name: UI 硬编码色值冻结
         run: node scripts/_check_ui_tokens.mjs --check
+      # CSS 变量兜底 + 变量定义完整性（2026-10-07）：index.css 的 :root 是从 tokens.ts
+      # 生成出来的，手抄漏了这里直接红；顺带卡「CSS 里用了 var(--x) 但没人定义」——
+      # 上一版就漏了 --grad-brand-hover / --grad-brand-active，导致主按钮悬浮态是无效声明。
+      - name: CSS 变量兜底一致性
+        run: node scripts/_export_css_vars.mjs --check
       # 路由契约冻结（docs/REFACTOR-PLAN.md 前提 3）：页面路径是四端共用的导航契约 ——
       # 陪玩端 / 客服端内嵌窗口、看门狗、客服发出去的链接都写死这些 URL。
       # router.tsx 现在 86 条路由、每条外面包一层 <Suspense>，重构时最容易「顺手」删掉老路径；

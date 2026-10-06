@@ -18,6 +18,8 @@
     "ui:tokens:check": "node scripts/_check_ui_tokens.mjs --check",
     "routes": "node scripts/_export_web_routes.mjs",
     "routes:check": "node scripts/_export_web_routes.mjs --check",
+    "css:vars": "node scripts/_export_css_vars.mjs",
+    "css:vars:check": "node scripts/_export_css_vars.mjs --check",
     "deploy": "git pull && pnpm install && pnpm --filter @chunlv/shared build && pnpm --filter @chunlv/server build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env",
     "deploy:full": "git pull && pnpm install && pnpm build && sudo -n env PM2_HOME=/root/.pm2 pm2 restart chunlv-server --update-env"
   },

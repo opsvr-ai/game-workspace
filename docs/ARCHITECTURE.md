@@ -594,6 +594,15 @@ CI 有一道「UI 硬编码色值冻结」检查（`scripts/_check_ui_tokens.mjs
 （唯一例外：`styles/tokens.ts` 本身、`styles/commander.ts` 那套深色主题调色板、`index.css` 的 `:root` 首屏兜底
 —— 后者的值必须写死，写成 `var(--自身)` 等于没定义。）
 
+**`index.css` 里那段 `:root` 是「自动生成」的（2026-10-07 起）。** 真源还是 `styles/tokens.ts`，
+跑 `pnpm css:vars` 重新生成；CI 用 `pnpm css:vars:check` 比对，**同时卡「CSS 里用了 `var(--x)` 但没人定义」**。
+（这条检查第一次跑就抓到 `--grad-brand-hover` / `--grad-brand-active` 其实没人定义 ——
+「主按钮悬浮变亮」那条声明一直是**无效声明**，浏览器直接丢掉、还不报错。）
+
+**段位（「马级」）只有一处：** 颜色在 `styles/tokens.ts` 的 `TIER_TINT`（金 / 银 / 铜），
+叫法与取色用 `constants/tiers.ts` 的 `TIER_META` / `tierMeta()`。
+2026-10-07 之前它在 4 个页面各写一套、颜色还互相打架（中等马在两处是蓝、两处是银），**别再各写一份**。
+
 **铁律：只做渲染，不动字号。** 订单 / 客户这份数据的字号唯一来源是
 `apps/web/src/constants/datasetColumns.ts`（启动时注入成 CSS 变量），
 视觉改版里出现 `font-size` 就会重新踩「同一个数据两个字号」的老坑。

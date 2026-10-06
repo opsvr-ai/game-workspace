@@ -5,6 +5,7 @@ import { CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import TierHorseIcon from './TierHorseIcon';
 import { BG, TEXT } from '../styles/tokens';
+import { tierMeta } from '../constants/tiers';
 
 const { Text, Title } = Typography;
 
@@ -69,12 +70,6 @@ interface Excellence {
   } | null;
 }
 
-const TIER: Record<string, { label: string; color: string; emoji: string }> = {
-  TOP: { label: '上等马', color: '#D4A017', emoji: '👑🏇' },
-  MIDDLE: { label: '中等马', color: '#A9A9A9', emoji: '🐎' },
-  LOW: { label: '下等马', color: '#CD7F32', emoji: '🐴' },
-};
-
 const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
   const [fetched, setFetched] = useState<Excellence | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,7 +91,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
   const renewScore = data?.renewScore ?? 0;
   const repurchaseScore = data?.repurchaseScore ?? 0;
   const newScore = data?.firstSuccessScore ?? 0;
-  const tier = TIER[data?.tier || 'MIDDLE'];
+  const tier = tierMeta(data?.tier);
   const excellentThreshold = data?.excellentThreshold ?? 90;
   const middleTierThreshold = data?.middleTierThreshold ?? 60;
   const revenueFloor = data?.revenueFloor ?? 0;
@@ -170,7 +165,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                   <div style={{ fontSize: 12, color: TEXT.secondary, marginTop: 2 }}>
                     昨天 {delta.prevTotal ?? '-'} 分 → 现在 {delta.total} 分
                     {delta.baselineDate ? `（基准：${delta.baselineDate}）` : ''}
-                    {delta.tierChanged ? ` · 段位：${(TIER[delta.prevTier || 'MIDDLE'] || tier).label} → ${tier.label}` : ''}
+                    {delta.tierChanged ? ` · 段位：${tierMeta(delta.prevTier).label} → ${tier.label}` : ''}
                   </div>
                   <div style={{ marginTop: 8 }}>
                     {delta.items.filter((it) => it.delta !== 0).length === 0 ? (

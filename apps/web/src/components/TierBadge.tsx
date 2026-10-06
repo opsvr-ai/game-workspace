@@ -1,11 +1,6 @@
 import React from 'react';
 import TierHorseIcon from './TierHorseIcon';
-
-const TIER_META: Record<string, { label: string; color: string }> = {
-  TOP: { label: '上等马', color: '#D4A017' },
-  MIDDLE: { label: '中等马', color: '#A9A9A9' },
-  LOW: { label: '下等马', color: '#CD7F32' },
-};
+import { tierMeta } from '../constants/tiers';
 
 interface Props {
   tier?: 'TOP' | 'MIDDLE' | 'LOW' | null;
@@ -14,7 +9,7 @@ interface Props {
 
 /** 段位图标徽章：上等马=戴冠马+金色，中等马=银色，下等马=铜色。 */
 const TierBadge: React.FC<Props> = ({ tier, showLabel = false }) => {
-  const meta = TIER_META[tier || 'MIDDLE'] || TIER_META.MIDDLE;
+  const meta = tierMeta(tier);
   return (
     <span
       title={meta.label}

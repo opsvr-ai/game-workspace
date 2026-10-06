@@ -2,7 +2,9 @@
 import React from 'react';
 import { Alert, Badge, Button, Card, Col, Empty, Input, Row, Segmented, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, SEMANTIC, SHADOW, SPACE, TEXT } from '../styles/tokens';
+import { BG, BORDER, BRAND, FONT, GRADIENTS, MODULE_TINTS, RADIUS, SEMANTIC, SHADOW, SPACE, TEXT, TIER_TINT } from '../styles/tokens';
+import TierBadge from '../components/TierBadge';
+import { tierMeta } from '../constants/tiers';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -120,6 +122,36 @@ const UiKitPage: React.FC = () => (
           <Tag color="warning">待抢单</Tag>
           <Tag color="error">已取消</Tag>
           <Tag color="default">已挂起</Tag>
+        </Space>
+        {/* 状态点：绿点 = 在线（外面那圈呼吸光环是 pulse-glow，颜色跟点同色） */}
+        <Space size={SPACE.xl} style={{ marginTop: SPACE.md }} wrap>
+          <span style={{ fontSize: 12, color: TEXT.secondary }}>
+            <span className="status-dot online" /> 在线（呼吸光环）
+          </span>
+          <span style={{ fontSize: 12, color: TEXT.secondary }}>
+            <span className="status-dot busy" /> 忙碌
+          </span>
+          <span style={{ fontSize: 12, color: TEXT.secondary }}>
+            <span className="status-dot offline" /> 离线
+          </span>
+        </Space>
+      </Section>
+
+      <Section id="tier" title="段位（马级）" hint="TIER_TINT / constants/tiers.ts · 金 / 银 / 铜，全站唯一一份">
+        <Space size={SPACE.xl} wrap>
+          <Swatch name="tier.top" value={TIER_TINT.top} />
+          <Swatch name="tier.middle" value={TIER_TINT.middle} />
+          <Swatch name="tier.low" value={TIER_TINT.low} />
+        </Space>
+        <Space size={SPACE.lg} style={{ marginTop: SPACE.md }} wrap>
+          {(['TOP', 'MIDDLE', 'LOW'] as const).map((tier) => (
+            <span key={tier} style={{ display: 'inline-flex', alignItems: 'center', gap: SPACE.sm }}>
+              <TierBadge tier={tier} showLabel />
+              <Tag color={tierMeta(tier).color} style={{ borderRadius: RADIUS.pill }}>
+                {tierMeta(tier).label}
+              </Tag>
+            </span>
+          ))}
         </Space>
       </Section>
 

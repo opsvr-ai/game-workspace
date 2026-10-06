@@ -9,6 +9,7 @@ import dayjs from 'dayjs';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
 import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
+import { tierMeta } from '../../constants/tiers';
 
 const { Text } = Typography;
 
@@ -48,12 +49,6 @@ const ATT_STATUS: Record<string, { label: string; color: string }> = {
   NOT_STARTED: { label: '未到点', color: 'default' },
 };
 const ATT_RANK: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
-
-const TIER_META: Record<string, { label: string; color: string }> = {
-  TOP: { label: '上等马', color: '#d4a017' },
-  MIDDLE: { label: '中等马', color: '#1677ff' },
-  LOW: { label: '下等马', color: '#8c8c8c' },
-};
 
 const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
   <div className="ui-panel" style={{ position: 'relative', overflow: 'hidden', padding: '12px 14px', height: '100%' }}>
@@ -319,8 +314,8 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         <Card size="small" title="今日段位变动（升级 / 降级）" style={{ marginBottom: 14 }}>
           <Space wrap size={[8, 8]}>
             {dash.tierChanges.map((c: any, i: number) => (
-              <Tag key={`${c.companionId}-${i}`} color={TIER_META[c.to]?.color} style={{ padding: '4px 10px', fontSize: 12 }}>
-                {c.name}：{TIER_META[c.from]?.label || c.from} → {TIER_META[c.to]?.label || c.to}（{c.score} 分）
+              <Tag key={`${c.companionId}-${i}`} color={tierMeta(c.to).color} style={{ padding: '4px 10px', fontSize: 12 }}>
+                {c.name}：{tierMeta(c.from).label} → {tierMeta(c.to).label}（{c.score} 分）
               </Tag>
             ))}
           </Space>
@@ -345,7 +340,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         style={{ marginBottom: 14 }}
       >
         {rankMode === 'score' && (topByScore.length
-          ? topByScore.map((r) => <RankBar key={r.id} name={r.name} value={r.score} max={100} text={`${r.score} 分`} color={TIER_META[r.tier]?.color || BRAND.primary} />)
+          ? topByScore.map((r) => <RankBar key={r.id} name={r.name} value={r.score} max={100} text={`${r.score} 分`} color={tierMeta(r.tier).color} />)
           : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />)}
         {rankMode === 'revenue' && (topByRevenue.length
           ? topByRevenue.map((r) => <RankBar key={r.id} name={r.name} value={r.month} max={maxRev} text={yuan(r.month)} color="#52c41a" />)
@@ -372,7 +367,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                     render: (v: string, r: any) => (
                       <Space size={4}>
                         <span>{v}</span>
-                        <Tag color={TIER_META[r.tier]?.color} style={{ fontSize: 10, marginInlineEnd: 0 }}>{TIER_META[r.tier]?.label || r.tier}</Tag>
+                        <Tag color={tierMeta(r.tier).color} style={{ fontSize: 10, marginInlineEnd: 0 }}>{tierMeta(r.tier).label}</Tag>
                         {!r.online ? <Tag style={{ fontSize: 10, marginInlineEnd: 0 }}>离线</Tag> : null}
                       </Space>
                     ),

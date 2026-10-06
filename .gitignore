@@ -158,6 +158,7 @@ scripts/_*
 !scripts/_export_api_contract.mjs
 !scripts/_check_ui_tokens.mjs
 !scripts/_export_web_routes.mjs
+!scripts/_export_css_vars.mjs
 !scripts/_shot_ui.mjs
 
 # 仓库根目录遗留的「一次性修复脚本」（2026-09-22 清理：这些都是一次性的排障脚本，

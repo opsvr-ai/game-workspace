@@ -1,33 +1,97 @@
 /* 蠢驴电竞 — 全局基础样式
  *
  * 颜色 / 圆角 / 间距 / 字号的唯一真源是 src/styles/tokens.ts。
- * 下面 :root 只放「首屏兜底」值 —— main.tsx 启动时会用 tokens.ts 里的同一套值覆盖，
- * 保证 JS 起来之前不会闪一下默认色。要改值请改 tokens.ts，并同步这里。
- * ⚠️ 这里必须写「字面色值」，不要写成 var(--自身)，否则自己引用自己等于没定义。 */
+ * 下面 :root 是「首屏兜底」—— main.tsx 启动时会用 tokens.ts 的同一套值覆盖，
+ * 保证 JS 起来之前不会闪一下默认色。
+ *
+ * ⚠️ 这一段是**自动生成**的，不要手改：改 tokens.ts 后跑 `pnpm css:vars`。
+ *    （以前是手抄的，抄漏了没人知道 —— 详见 scripts/_export_css_vars.mjs 的注释。）
+ */
+/* ↓↓↓ 以下 :root 由 scripts/_export_css_vars.mjs 从 styles/tokens.ts 生成 —— 勿手改，改 tokens.ts 后跑 pnpm css:vars ↓↓↓ */
 :root {
   --color-brand: #7C4DFF;
   --color-brand-hover: #8B62FF;
+  --color-brand-active: #6A3DF0;
   --color-brand-blue: #5B7CFA;
+  --color-brand-soft: #F3EEFF;
+  --color-brand-soft-hover: #EEE9FF;
+  --color-brand-soft-wash: #F8F6FF;
+  --color-brand-deep: #1B1246;
+  --color-accent-soft: rgba(0,229,255,0.12);
   --color-accent: #00E5FF;
   --color-primary: #7C4DFF;
   --color-primary-light: #8B62FF;
   --color-gradient-brand: linear-gradient(135deg, #7C4DFF 0%, #5B7CFA 100%);
+  --color-gradient-brand-hover: linear-gradient(135deg, #8B62FF 0%, #6D8BFF 100%);
   --color-success: #16A34A;
   --color-warning: #F59E0B;
   --color-error: #EF4444;
+  --color-danger: #EF4444;
+  --color-info: #7C4DFF;
+  --color-online: #00E676;
+  --color-online-ring: rgba(0,230,118,0.35);
+  --color-online-ring-fade: rgba(0,230,118,0);
+  --color-busy: #FF9100;
+  --color-tier-top: #D4A017;
+  --color-tier-middle: #A9A9A9;
+  --color-tier-low: #CD7F32;
   --color-text: #1E293B;
-  --color-text-heading: #475569;
+  --color-text-primary: #1E293B;
   --color-text-secondary: #64748B;
+  --color-text-heading: #475569;
   --color-text-tertiary: #94A3B8;
   --color-text-disabled: #CBD5E1;
+  --color-text-inverse: #FFFFFF;
+  --color-text-on-dark: #EAF2FF;
+  --color-text-on-dark-soft: #C3CEE8;
   --color-bg-base: #F8FAFC;
   --color-bg-container: #FFFFFF;
   --color-bg-hover: #F8FAFC;
   --color-bg-sider: #0B1024;
   --color-bg-error: #FEF2F2;
+  --color-bg-inverse: #1E293B;
+  --color-bg-page: #F5F7FB;
+  --color-bg-container-soft: #FCFDFF;
   --color-border: #E2E8F0;
   --color-border-secondary: #F1F5F9;
+  --color-border-track: #EEF2F8;
+  --color-border-hairline: #EEF2F8;
+  --color-border-hover: #E3E8F5;
+  --color-border-content: #EAEFF8;
+  --color-border-row: #F4F7FB;
+  --color-scrollbar-accent: rgba(0,212,255,0.3);
+  --color-scrollbar-thumb: #D7DFEC;
+  --color-scrollbar-thumb-hover: #B9C6DA;
+  --grad-brand: linear-gradient(135deg, #7C4DFF 0%, #5B7CFA 100%);
+  --grad-brand-hover: linear-gradient(135deg, #8B62FF 0%, #6D8BFF 100%);
+  --grad-brand-active: linear-gradient(135deg, #6A3DF0 0%, #4A6BF0 100%);
+  --grad-accent-bar: linear-gradient(180deg, #00E5FF, #7C4DFF);
+  --grad-sider-selected: linear-gradient(90deg, rgba(124,77,255,0.42), rgba(0,229,255,0.14));
+  --grad-header: linear-gradient(90deg, #0B1024 0%, #1B1246 55%, #0B1024 100%);
+  --grad-page-body: linear-gradient(160deg, #F5F7FF 0%, #FAF8FF 45%, #F5F7FB 100%);
+  --grad-shell: linear-gradient(180deg, #F4F6FD 0%, #EEF1F9 100%);
+  --grad-login: linear-gradient(180deg, #F7F5FF 0%, #F2F4FB 100%);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-xxl: 24px;
+  --font-size: 14px;
+  --font-size-lg: 16px;
+  --font-size-sm: 12px;
+  --shadow-xs: 0 1px 3px rgba(15,23,42,0.06);
+  --shadow-sm: 0 6px 16px rgba(15,23,42,0.08);
+  --shadow-md: 0 12px 32px rgba(15,23,42,0.12);
 }
+/* ↑↑↑ 生成结束 ↑↑↑ */
+
 
 body {
   margin: 0;

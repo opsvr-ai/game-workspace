@@ -11,6 +11,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **颜色「兜底层」不再手抄：`index.css` 的 `:root` 改成从 `tokens.ts` 生成（2026-10-07，dev 分支）。**
+  顺手抓到第三个真问题：`--grad-brand-hover` / `--grad-brand-active` 这两个变量**根本没人定义**，
+  于是「主按钮悬浮变亮」那条 `background: var(--grad-brand-hover) !important` 是**无效声明**，
+  浏览器直接丢掉 —— 悬浮态从来没生效过，而且不报错、console 也干净，属于典型的「静默失效」。
+  - 新增 `scripts/_export_css_vars.mjs`（`pnpm css:vars` / `css:vars:check`）：从 `tokens.ts` 算出全部
+    CSS 变量（当前 **80 个**）写进 `index.css` 的标记区，同时校验「**CSS 里用了 `var(--x)` 但没人定义**」——
+    以后谁手滑敲错变量名，CI 直接红（这个检查已进 `.github/workflows/ci.yml`）。
+  - 新增 `apps/web/src/constants/tiers.ts`：段位（马级）的**唯一一份**定义（见下方 Changed）。
+
 - **加：内部「设计校对页」（`/ui-kit`）+ 截图工具 `scripts/_shot_ui.mjs`（2026-10-07，dev 分支）。**
   起因很直白：这套系统**在本机没法看界面** —— 进页面要登录、登录要连数据库，
   而数据库在本机起不来（Docker 启不动）。于是「颜色 / 圆角 / 字号 / 按钮样式」这类全站统一的东西，
@@ -96,6 +105,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     的变量转发静态扫不出来，所以那份列表是「至少这些」。
 
 ### Changed
+
+- **段位（马级）配色「四份合一」，统一成金 / 银 / 铜（2026-10-07，dev 分支）。**
+  以前「上等马 / 中等马 / 下等马」的颜色在 4 个文件里各写了一遍，而且**互相打架**：
+  「中等马」在陪玩首页（`CompanionHomeBoard`）和工作总览（`OperationsBoard`）是**蓝色**，
+  在段位徽章（`TierBadge`）和评分规则弹窗（`ExcellenceRuleModal`）里是**银灰**；
+  「下等马」一边是灰、一边是铜 —— 同一匹马换个页面就换一种颜色，看着像两套系统。
+  现在统一走 `apps/web/src/styles/tokens.ts` 的 `TIER_TINT`（金 `#D4A017` / 银 `#A9A9A9` / 铜 `#CD7F32`，
+  跟「上等马戴冠金」和徽章原本的注释一致），4 个文件全部改引用同一份 `constants/tiers.ts`。
+  - 影响面：陪玩首页「段位分」卡片、工作总览的「今日段位变动」标签 / 排行榜条 / KPI 表段位标签、
+    段位徽章、评分规则弹窗。**中等马由蓝转银、下等马由灰转铜**，其余不变；
+    颜色不满意随时改 `TIER_TINT` 一处，全站跟着变。
+  - 顺带统一了「认不出来的段位」的兜底：4 处以前行为不一致（有的直接显示原字符串），现在一律当「中等马」。
+
+- **`styles/global.css` 剩下的 45 处硬编码色值全部收进令牌（2026-10-07，dev 分支，像素级不变）。**
+  按「先搬进令牌、再谈合并」的做法，把页面底色渐变、滚动条、卡片 / 面板描边、表格行分隔线、
+  选中行底色、统计卡的红 / 绿 / 橙、侧栏文字色等都改成 `var(--color-*)`；
+  令牌层新增 `SCROLLBAR`（滚动条）、`TIER_TINT`（段位）、`SEMANTIC.online / busy`（在线绿点 / 忙碌橙点）、
+  `BRAND.deep`（顶栏渐变中段）、`BG.page / containerSoft`、`BORDER.hairline / hover / content / row`，
+  以及三条底色渐变 `GRADIENTS.pageBody / shell / login`。
+  - 顺带修掉一处颜色漂移：在线状态点外圈的呼吸光环（`pulse-glow`）用的还是**早就删掉的那套蓝**
+    （`rgba(37,99,235,…)`，即 `#2563EB`），而点本身是绿的 —— 现在光环跟点同色（在线绿）。
+  - 硬编码色值基线 **925 → 868**（不同色值 **173 → 152**，涉及文件 102 → 100），
+    `docs/UI-TOKEN-BASELINE.json` 已同步调低。
 
 - **`/ui-kit` 内部页进路由表（2026-10-07，dev 分支）。** 路由契约从 **86 → 87 条**
   （`docs/WEB-ROUTES.json` 已同步重新导出）。它不在菜单里，也不参与任何业务。

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
 import { BRAND, TEXT } from '../styles/tokens';
+import { tierMeta } from '../constants/tiers';
 
 const { Text } = Typography;
 
@@ -24,12 +25,6 @@ const ATT_META: Record<string, { label: string; color: string }> = {
   LATE_EARLY: { label: '迟到 + 早退', color: '#CF1322' },
   ABSENT: { label: '未打卡', color: '#8C8C8C' },
   NOT_STARTED: { label: '未到上班时间', color: '#8C8C8C' },
-};
-
-const TIER_META: Record<string, { label: string; color: string }> = {
-  TOP: { label: '上等马', color: '#D4A017' },
-  MIDDLE: { label: '中等马', color: '#1677FF' },
-  LOW: { label: '下等马', color: '#8C8C8C' },
 };
 
 const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tint: string }> = ({ label, value, sub, tint }) => (
@@ -69,7 +64,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
   // 段位分 = 四项 KPI（不含战绩图加分）；段位 / 距下一级都看它。
   const rankScore = Number(excellence?.tierScore ?? excellence?.rankScore ?? 0);
   const tier = String(excellence?.tier || 'MIDDLE');
-  const tierMeta = TIER_META[tier] || TIER_META.MIDDLE;
+  const tierInfo = tierMeta(tier);
   const excellentThreshold = Number(excellence?.excellentThreshold ?? 60);
   const middleThreshold = Number(excellence?.middleTierThreshold ?? 30);
   const nextGapText = !excellence
@@ -109,7 +104,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
         <Col xs={12} md={4}><Kpi label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint={BRAND.primary} /></Col>
         <Col xs={12} md={4}><Kpi label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
-        <Col xs={12} md={4}><Kpi label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierMeta.color }}>{tierMeta.label}</span>} tint={tierMeta.color} /></Col>
+        <Col xs={12} md={4}><Kpi label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierInfo.color }}>{tierInfo.label}</span>} tint={tierInfo.color} /></Col>
         <Col xs={12} md={4}>
           <Kpi
             label="今日剩余抢单名额"
@@ -143,7 +138,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />
             <Bar label="转化率" percent={Number(w.conversionRate ?? 0)} text={pct(w.conversionRate)} color="#FA8C16" />
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0' }}>
-              <Bar label="段位分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierMeta.color} />
+              <Bar label="段位分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierInfo.color} />
               <Space size={6} wrap style={{ marginTop: 2 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>{nextGapText}</Text>
                 {excellence?.scoreDelta?.hasBaseline && excellence.scoreDelta.delta !== 0 ? (

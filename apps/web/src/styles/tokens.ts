@@ -31,6 +31,8 @@ export const BRAND = {
   softWash: '#F8F6FF',
   /** 强调青 · 低透明（深色侧栏选中底） */
   accentSoft: 'rgba(0,229,255,0.12)',
+  /** 品牌深紫 —— 顶栏渐变的中段（比 sider 亮、比主色暗） */
+  deep: '#1B1246',
 } as const;
 
 /** 中性文本色（从深到浅）。 */
@@ -50,6 +52,8 @@ export const TEXT = {
   onDark: '#EAF2FF',
   /** 深色底上的次要文字 */
   onDarkMuted: '#A9B7D9',
+  /** 深色底上的弱文字（侧栏二级菜单标题） */
+  onDarkSoft: '#C3CEE8',
 } as const;
 
 /** 背景色。 */
@@ -68,6 +72,10 @@ export const BG = {
   inverse: '#1E293B',
   /** 深色浮层底 · 更深一档（渐变用） */
   inverseDeep: '#0F172A',
+  /** 登录页 / 无晕染时的兜底页底 */
+  page: '#F5F7FB',
+  /** 卡中卡（内层卡 / 内嵌块）底色 */
+  containerSoft: '#FCFDFF',
 } as const;
 
 /** 描边色。 */
@@ -77,6 +85,14 @@ export const BORDER = {
   light: '#EDF1F7',
   /** 轨道 / 进度槽 */
   track: '#EEF2F8',
+  /** 细描边（卡片 / 面板 / 内层卡） */
+  hairline: '#EEF2F8',
+  /** 卡片悬浮描边 */
+  hover: '#E3E8F5',
+  /** 内容区外壳描边 */
+  content: '#EAEFF8',
+  /** 表格行分隔线 */
+  row: '#F4F7FB',
 } as const;
 
 /** 语义色 —— 代表含义，不要随意替换。 */
@@ -85,6 +101,38 @@ export const SEMANTIC = {
   warning: '#F59E0B',
   danger: '#EF4444',
   info: BRAND.primary,
+  /** 在线（绿点 + 光环） */
+  online: '#00E676',
+  /** 在线光环起始（pulse-glow 用） */
+  onlineRing: 'rgba(0,230,118,0.35)',
+  /** 在线光环消散（同上、0 透明收尾） */
+  onlineRingFade: 'rgba(0,230,118,0)',
+  /** 忙碌（橙点） */
+  busy: '#FF9100',
+} as const;
+
+/** 滚动条。 */
+export const SCROLLBAR = {
+  /** 全站默认那条（偏青） */
+  accent: 'rgba(0,212,255,0.3)',
+  /** 内容区 / 侧栏的滑块 */
+  thumb: '#D7DFEC',
+  /** 滑块悬浮 */
+  thumbHover: '#B9C6DA',
+} as const;
+
+/**
+ * 段位（「马级」）配色 —— 金 / 银 / 铜。
+ *
+ * 2026-10-07 之前这份色值在 4 个文件里各写了一遍，而且互相打架：
+ * 「中等马」在陪玩首页、工作总览是**蓝色**，在段位徽章、评分规则里是**银灰**；
+ * 「下等马」一边灰、一边铜 —— 同一匹马换个页面就换一种颜色。
+ * 现在统一成金 / 银 / 铜（跟「上等马戴冠金」和徽章的注释一致），以后只改这里。
+ */
+export const TIER_TINT = {
+  top: '#D4A017',
+  middle: '#A9A9A9',
+  low: '#CD7F32',
 } as const;
 
 /** 渐变（品牌外观）。 */
@@ -113,11 +161,17 @@ export const GRADIENTS = {
   brandHover: `linear-gradient(135deg, ${BRAND.primaryHover} 0%, #6D8BFF 100%)`,
   brandActive: `linear-gradient(135deg, ${BRAND.primaryActive} 0%, #4A6BF0 100%)`,
   /** 顶栏左右渐变 */
-  header: 'linear-gradient(90deg, #0B1024 0%, #1B1246 55%, #0B1024 100%)',
+  header: `linear-gradient(90deg, ${BRAND.sider} 0%, ${BRAND.deep} 55%, ${BRAND.sider} 100%)`,
   /** 卡片标题 / 统计卡左侧的品牌竖条 */
   accentBar: `linear-gradient(180deg, ${BRAND.accent}, ${BRAND.primary})`,
   /** 侧栏选中项底 */
   siderSelected: 'linear-gradient(90deg, rgba(124,77,255,0.42), rgba(0,229,255,0.14))',
+  /** 页面兜底底色（body，一层很淡的三段白） */
+  pageBody: 'linear-gradient(160deg, #F5F7FF 0%, #FAF8FF 45%, #F5F7FB 100%)',
+  /** 管理端外壳底（.app-shell 上面还叠两层品牌色晕染） */
+  shell: 'linear-gradient(180deg, #F4F6FD 0%, #EEF1F9 100%)',
+  /** 登录页底 */
+  login: 'linear-gradient(180deg, #F7F5FF 0%, #F2F4FB 100%)',
 } as const;
 
 /** 间距（px）。 */
@@ -165,6 +219,8 @@ export const CSS_VARS: Record<string, string> = {
   '--color-brand-blue': BRAND.primaryBlue,
   '--color-brand-soft': BRAND.soft,
   '--color-brand-soft-hover': BRAND.softHover,
+  '--color-brand-soft-wash': BRAND.softWash,
+  '--color-brand-deep': BRAND.deep,
   '--color-accent-soft': BRAND.accentSoft,
   '--color-accent': BRAND.accent,
   // 兼容旧变量名（历史代码里在用）
@@ -178,6 +234,13 @@ export const CSS_VARS: Record<string, string> = {
   '--color-error': SEMANTIC.danger,
   '--color-danger': SEMANTIC.danger,
   '--color-info': SEMANTIC.info,
+  '--color-online': SEMANTIC.online,
+  '--color-online-ring': SEMANTIC.onlineRing,
+  '--color-online-ring-fade': SEMANTIC.onlineRingFade,
+  '--color-busy': SEMANTIC.busy,
+  '--color-tier-top': TIER_TINT.top,
+  '--color-tier-middle': TIER_TINT.middle,
+  '--color-tier-low': TIER_TINT.low,
   // 文本
   '--color-text': TEXT.primary,
   '--color-text-primary': TEXT.primary,
@@ -185,6 +248,9 @@ export const CSS_VARS: Record<string, string> = {
   '--color-text-heading': TEXT.heading,
   '--color-text-tertiary': TEXT.tertiary,
   '--color-text-disabled': TEXT.disabled,
+  '--color-text-inverse': TEXT.inverse,
+  '--color-text-on-dark': TEXT.onDark,
+  '--color-text-on-dark-soft': TEXT.onDarkSoft,
   // 背景
   '--color-bg-base': BG.base,
   '--color-bg-container': BG.container,
@@ -192,15 +258,29 @@ export const CSS_VARS: Record<string, string> = {
   '--color-bg-sider': BG.sider,
   '--color-bg-error': '#FEF2F2',
   '--color-bg-inverse': BG.inverse,
+  '--color-bg-page': BG.page,
+  '--color-bg-container-soft': BG.containerSoft,
   // 描边
   '--color-border': BORDER.base,
   '--color-border-secondary': BORDER.secondary,
   '--color-border-track': BORDER.track,
+  '--color-border-hairline': BORDER.hairline,
+  '--color-border-hover': BORDER.hover,
+  '--color-border-content': BORDER.content,
+  '--color-border-row': BORDER.row,
+  '--color-scrollbar-accent': SCROLLBAR.accent,
+  '--color-scrollbar-thumb': SCROLLBAR.thumb,
+  '--color-scrollbar-thumb-hover': SCROLLBAR.thumbHover,
   // 渐变
   '--grad-brand': GRADIENTS.brand,
+  '--grad-brand-hover': GRADIENTS.brandHover,
+  '--grad-brand-active': GRADIENTS.brandActive,
   '--grad-accent-bar': GRADIENTS.accentBar,
   '--grad-sider-selected': GRADIENTS.siderSelected,
   '--grad-header': GRADIENTS.header,
+  '--grad-page-body': GRADIENTS.pageBody,
+  '--grad-shell': GRADIENTS.shell,
+  '--grad-login': GRADIENTS.login,
   // 圆角
   '--radius-xs': `${RADIUS.xs}px`,
   '--radius-sm': `${RADIUS.sm}px`,
