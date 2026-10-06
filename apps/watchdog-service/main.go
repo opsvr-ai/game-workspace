@@ -198,6 +198,51 @@ func defaultClientDir(pathOrDir string) string {
 	return `C:\Program Files\陪玩管理`
 }
 
+// myClientKind：这台机器的看门狗认哪一端。装了身份记录就按它；没写（很老的机器）
+// 按陪玩端 —— 老机器全是陪玩端，行为保持不变。
+func myClientKind() string {
+	if readClientKind() == clientKindCs {
+		return clientKindCs
+	}
+	return clientKindCompanion
+}
+
+// kindOfClientPath 这个「路径 / 目录」属于哪一端。
+func kindOfClientPath(pathOrDir string) string {
+	if isCsClient(pathOrDir) {
+		return clientKindCs
+	}
+	return clientKindCompanion
+}
+
+// zipProductKind 看整包里的文件名，判断这包是给哪一端做的。
+// 只在「明确只有一端」时才给结论：两种客户端 exe 都在、或都认不出来 → 返回 ""（按老样子处理）。
+// 为什么要有它：update.json 这个信号文件是两端共用的，而且**老客户端写的信号里没有产品标识**，
+// 光看信号分不清这包是给谁的 —— 解压到另一端的安装目录，那一端的客户端就被换坏了。
+func zipProductKind(zipPath string) string {
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = zr.Close() }()
+	hasCs, hasCompanion := false, false
+	for _, f := range zr.File {
+		base := filepath.Base(f.Name)
+		if strings.EqualFold(base, csExeName) {
+			hasCs = true
+		} else if strings.EqualFold(base, "陪玩管理.exe") || strings.EqualFold(base, "蠢驴电竞.exe") {
+			hasCompanion = true
+		}
+	}
+	if hasCs && !hasCompanion {
+		return clientKindCs
+	}
+	if hasCompanion && !hasCs {
+		return clientKindCompanion
+	}
+	return ""
+}
+
 // isSkippableDir 判断目录是不是我们自己的「临时/备份」目录，找客户端时必须跳过去。
 // 备份目录里也躺着一份客户端 exe，被 findClient 认出来就会去拉旧版 ——
 // 所以 staging / 备份 / 坏目录一律用点号开头，并且在这里统一排除。
@@ -222,6 +267,12 @@ var (
 	repairLastTry      int64
 	// processKillDisabled：单测专用开关（见 main_test.go），生产路径上永远是 0。
 	processKillDisabled int32
+	// launchDisabled：同上，单测里绝不去真的启动客户端 —— 开发机上就装着老板在用的
+	// 陪玩端，测试里一次误启动就会打断他。生产路径上永远是 0。
+	launchDisabled int32
+	// shortcutRepairDisabled：同上。修快捷方式会**在桌面上建图标、还会删掉目标已失效的旧图标**，
+	// 单测跑完只会在开发机桌面上留一个指向临时目录的白图标（2026-10-07 真踩过一次）。
+	shortcutRepairDisabled int32
 )
 
 // 更新安全网 / 客户端启动健康度（2026-09-23 陈佳祺「双击图标没反应」事故之后加的）。
@@ -830,6 +881,9 @@ type updateRequest struct {
 	URL       string `json:"url"`
 	LocalPath string `json:"localPath"`
 	Version   string `json:"version"`
+	// Kind：写信号的那一端（companion / cs），2026-10-07 加。
+	// 老客户端不写这个字段（空串）—— 空串按老样子处理，保证兼容。
+	Kind string `json:"kind"`
 }
 
 // pendingUpdate 记录这次换上了什么、旧目录备份在哪，回滚时要用。
@@ -1491,6 +1545,10 @@ func ensureShortcut(exePath string, force bool) {
 	if exePath == "" {
 		return
 	}
+	if atomic.LoadInt32(&shortcutRepairDisabled) != 0 {
+		// 单测里不碰桌面（见 shortcutRepairDisabled 的注释）。
+		return
+	}
 	now := time.Now().UnixNano()
 	if !force && now-atomic.LoadInt64(&lastShortcutMs) < 60*1e9 {
 		return
@@ -1759,6 +1817,30 @@ func checkForUpdate(installDir string) {
 	if json.Unmarshal(data, &req) != nil || req.URL == "" {
 		return
 	}
+	// 信号按端隔离（2026-10-07）：一台机器上同时装了陪玩端和客服端时（客服机常见：
+	// 以前装过陪玩端没删干净），update.json 是两端共用的 —— 以前不看产品，客服端写的
+	// 信号会被这台（守陪玩端的）看门狗解压进陪玩端的安装目录，等于把陪玩端换成客服端。
+	// 现在：信号里写明是哪一端、又不是我守的那一端，就直接不处理（这一端的东西一个字节都不动）。
+	// 客户端侧也补了同一道判断（写信号之前先看本机看门狗守谁），两边各挡一道。
+	if req.Kind != "" && req.Kind != myClientKind() {
+		_ = os.Remove(updateSignalFile)
+		safeWarn(fmt.Sprintf("ignoring update signal for %s (this watchdog watches %s)", req.Kind, myClientKind()))
+		reportDiag("update-ignored-other-client", serviceStateDiag(fmt.Sprintf("signalKind=%s\nwatchKind=%s\nversion=%s", req.Kind, myClientKind(), req.Version)))
+		return
+	}
+	// 老客户端写的信号里没有 kind，上面那关拦不到 —— 那就看「它已经下好、躺在本地的那份包」
+	// 是给哪一端的。这一步刻意放在杀客户端之前：不对就直接不动这台机器，
+	// 客户端一直在跑，接单/客服都不受影响。
+	if req.LocalPath != "" {
+		if fi, err := os.Stat(req.LocalPath); err == nil && fi.Size() > 10<<20 {
+			if pk := zipProductKind(req.LocalPath); pk != "" && pk != myClientKind() {
+				_ = os.Remove(updateSignalFile)
+				safeWarn(fmt.Sprintf("refusing %s package for this %s machine (localPath=%s)", pk, myClientKind(), req.LocalPath))
+				reportDiag("update-refused-wrong-product", serviceStateDiag(fmt.Sprintf("packageKind=%s\nlocalPath=%s\nversion=%s", pk, req.LocalPath, req.Version)))
+				return
+			}
+		}
+	}
 	// 先把信号删掉：下面下载/解压要几分钟，期间别再被同一份信号触发第二遍。
 	_ = os.Remove(updateSignalFile)
 	if req.Version != "" && isVersionBlocked(req.Version) {
@@ -1780,6 +1862,17 @@ func checkForUpdate(installDir string) {
 	if err != nil {
 		safeErr(fmt.Sprintf("update download failed: %v — keeping the current install", err))
 		reportDiag("update-failed", serviceStateDiag(fmt.Sprintf("version=%s\nerror=%v", req.Version, err)))
+		clientPID = 0
+		clientPath = ""
+		maybeLaunchClient()
+		return
+	}
+	// 再挡一道：老客户端写的信号里没有 kind（上面那关拦不到），那就看整包内容 ——
+	// 包里明确是另一端的 exe、而目标目录是这一端的，一样不装：宁可这一轮不更新，
+	// 也不能把陪玩端换成客服端（换坏了这台机器就没人能接单了）。
+	if pk := zipProductKind(zip); pk != "" && pk != kindOfClientPath(destDir) {
+		safeErr(fmt.Sprintf("refusing %s package for %s install dir %s", pk, kindOfClientPath(destDir), destDir))
+		reportDiag("update-refused-wrong-product", serviceStateDiag(fmt.Sprintf("packageKind=%s\ndestDir=%s\nversion=%s", pk, destDir, req.Version)))
 		clientPID = 0
 		clientPath = ""
 		maybeLaunchClient()
@@ -2051,6 +2144,9 @@ func launchClient() {
 // loop is never blocked by kill/launch operations or crash-loop backoff.
 func maybeLaunchClient() {
 	if atomic.LoadInt32(&stopping) != 0 {
+		return
+	}
+	if atomic.LoadInt32(&launchDisabled) != 0 {
 		return
 	}
 	if !atomic.CompareAndSwapInt32(&launching, 0, 1) {

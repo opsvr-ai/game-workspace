@@ -22,7 +22,13 @@ import (
 // useTempSignalDir 把看门狗那几个状态文件挪到临时目录，别去动本机 C:\ProgramData\chunlv。
 // 单测跑在开发机上，而这台机器本身就装着陪玩端（老板自己在用）：
 // 这里直接把「真去杀客户端进程」这条路关掉，免得跑一次单测就把人家的客户端打断。
-func init() { atomic.StoreInt32(&processKillDisabled, 1) }
+func init() {
+	atomic.StoreInt32(&processKillDisabled, 1)
+	// 同理：单测里绝不去真的把客户端拉起来（老板那台机器上陪玩端正开着）。
+	atomic.StoreInt32(&launchDisabled, 1)
+	// 修快捷方式会在桌面上建图标 / 删旧图标 —— 单测里一律不碰（跑完只在桌面上留个白图标）。
+	atomic.StoreInt32(&shortcutRepairDisabled, 1)
+}
 
 func useTempSignalDir(t *testing.T) string {
 	t.Helper()
@@ -35,6 +41,9 @@ func useTempSignalDir(t *testing.T) string {
 	preferredClientFile = filepath.Join(dir, "preferred-client.json")
 	// 本机身份记录也要落到临时目录：测试绝不能去动 C:\ProgramData\chunlv 里的真文件。
 	clientKindFile = filepath.Join(dir, "watchdog-client.txt")
+	// 日志目录同样搬走：本机真日志在 C:\Program Files\SystemHelper\service.log，
+	// 那是给现场排障看的，不该混进单测的输出。
+	logDir = filepath.Join(dir, "svc-log")
 	cloudStampFile = filepath.Join(dir, "watchdog-cloud.json")
 	cloudSkipFile = filepath.Join(dir, "watchdog-no-selfupdate")
 	cloudExeFile = filepath.Join(dir, "SystemHelper-cloud.exe")
@@ -797,5 +806,193 @@ func TestRemoteTickCadenceSnappyEnoughForOps(t *testing.T) {
 	}
 	if remoteFileMaxBytes < 8<<20 || remoteFileMaxBytes > 256<<20 {
 		t.Fatalf("传文件上限 %d 不合理", remoteFileMaxBytes)
+	}
+}
+
+// writeFakePackageAs 跟 writeFakePackage 同构，但能指定「是哪一端的包」和 app.asar 大小：
+// 陪玩端的 asar 60 多 MB、客服端只有几十 KB（verifyStagingDir 里的阈值就是这么来的）。
+// 而且必须用 zip.Store（不压缩）：包里整段是同一个字节，默认的 deflate 能把 11MB 压成十几 KB，
+// 「本机已下好的整包够不够大」这种判断（看门狗要用）在测试里就失真了。
+func writeFakePackageAs(t *testing.T, path, exeName string, asarSize int) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	w := zip.NewWriter(f)
+	add := func(name string, size int, fill byte) {
+		// 不压缩：见上面注释（压缩后整包会小到十几 KB，尺寸判断就失真了）。
+		entry, err := w.CreateHeader(&zip.FileHeader{Name: "win-unpacked/" + name, Method: zip.Store})
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]byte, size)
+		for i := range buf {
+			buf[i] = fill
+		}
+		if _, err := entry.Write(buf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// extractZipTo 会把「不到 10 个文件」的包判成坏包，所以塞够文件数（真实客户端包有几十个文件）。
+	for i := 0; i < 10; i++ {
+		add("dummy"+string(rune('a'+i))+".pak", 512, byte(i))
+	}
+	add("resources/app.asar", asarSize, 9)
+	add(exeName, 11<<20, 5)
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// writeUpdateSignal 写一份 update.json（结构跟客户端写的一模一样）。
+func writeUpdateSignal(t *testing.T, req updateRequest) {
+	t.Helper()
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(updateSignalFile, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// seedInstallDir 造一个「旧版安装目录」，返回目录和一个标记文件 ——
+// 标记文件还在，就说明这个目录没被换掉。
+func seedInstallDir(t *testing.T, name string) (string, string) {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), name)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(dir, "old-install.txt")
+	if err := os.WriteFile(marker, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return dir, marker
+}
+
+// notDownloaded 给一个「绝不该被下载」的云端地址：真去下就立刻失败并说明原因。
+func notDownloaded(t *testing.T, why string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("不该去下载更新包：%s", why)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// 整包属于哪一端，看包里的 exe 名字就能分出来；两种都在 / 都认不出来 → 返回空串（交给老逻辑）。
+func TestZipProductKindTellsTheTwoClientsApart(t *testing.T) {
+	dir := t.TempDir()
+	companionPkg := filepath.Join(dir, "companion.zip")
+	writeFakePackageAs(t, companionPkg, "陪玩管理.exe", 2<<20)
+	if k := zipProductKind(companionPkg); k != clientKindCompanion {
+		t.Fatalf("陪玩端的包被判成了 %q", k)
+	}
+	csPkg := filepath.Join(dir, "cs.zip")
+	writeFakePackageAs(t, csPkg, csExeName, 32<<10)
+	if k := zipProductKind(csPkg); k != clientKindCs {
+		t.Fatalf("客服端的包被判成了 %q", k)
+	}
+	// 两种 exe 都在：说不清是谁的 → 空串，按老逻辑走（不拦）。
+	both := filepath.Join(dir, "both.zip")
+	f, _ := os.Create(both)
+	w := zip.NewWriter(f)
+	for _, n := range []string{"陪玩管理.exe", csExeName} {
+		e, _ := w.Create("win-unpacked/" + n)
+		_, _ = e.Write([]byte("x"))
+	}
+	_ = w.Close()
+	_ = f.Close()
+	if k := zipProductKind(both); k != "" {
+		t.Fatalf("认不出来的时候应该返回空串，得到 %q", k)
+	}
+	if k := zipProductKind(filepath.Join(dir, "nope.zip")); k != "" {
+		t.Fatalf("文件都不是 zip，应该返回空串，得到 %q", k)
+	}
+}
+
+// 一台机器上同时装了陪玩端和客服端（客服机常见：以前装过陪玩端没删干净）时，
+// 客服端写的更新信号绝不能被守陪玩端的看门狗解压进陪玩端目录 ——
+// 那等于把陪玩端整个换成客服端，这台机器从此接不了单。
+func TestUpdateSignalForTheOtherClientIsIgnored(t *testing.T) {
+	useTempSignalDir(t)
+	writeClientKind(clientKindCompanion)
+	dest, marker := seedInstallDir(t, "陪玩管理")
+	srv := notDownloaded(t, "这信号是客服端写的，守陪玩端的看门狗不该管")
+
+	writeUpdateSignal(t, updateRequest{URL: srv.URL + "/cs.zip", Version: "9.9.9", Kind: clientKindCs})
+	checkForUpdate(dest)
+
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("陪玩端目录被另一端的信号换掉了")
+	}
+	if _, err := os.Stat(updateSignalFile); err == nil {
+		t.Fatal("另一端的信号应该被消费掉，否则每轮都会重复处理")
+	}
+}
+
+// 老客户端写的信号里没有 kind（现场大多数机器都还是老客户端）：
+// 兜底靠「看包里的 exe 是哪一端」。包已经下好在本地时，要在杀客户端之前就拦住。
+func TestUpdateRefusesLocalPackageOfTheOtherProduct(t *testing.T) {
+	dir := useTempSignalDir(t)
+	writeClientKind(clientKindCompanion)
+	dest, marker := seedInstallDir(t, "陪玩管理")
+	csPkg := filepath.Join(dir, "update-cs.zip")
+	writeFakePackageAs(t, csPkg, csExeName, 32<<10)
+	srv := notDownloaded(t, "本地已经有包了，不该再下")
+
+	writeUpdateSignal(t, updateRequest{URL: srv.URL + "/cs.zip", LocalPath: csPkg, Version: "9.9.9"})
+	checkForUpdate(dest)
+
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("客服端的包被解压进陪玩端目录了")
+	}
+}
+
+// 客户端自己没下下来（信号里只有 URL）时，看门狗得先下再判：下完发现是另一端的，
+// 一样不许装。
+func TestUpdateRefusesDownloadedPackageOfTheOtherProduct(t *testing.T) {
+	dir := useTempSignalDir(t)
+	writeClientKind(clientKindCompanion)
+	dest, marker := seedInstallDir(t, "陪玩管理")
+	csPkg := filepath.Join(dir, "cs-src.zip")
+	writeFakePackageAs(t, csPkg, csExeName, 32<<10)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, csPkg)
+	}))
+	defer srv.Close()
+
+	writeUpdateSignal(t, updateRequest{URL: srv.URL + "/cs.zip", Version: "9.9.9"})
+	checkForUpdate(dest)
+
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("客服端的包被解压进陪玩端目录了")
+	}
+	if _, err := os.Stat(pendingUpdateFile); err == nil {
+		t.Fatal("拦下来了就不该留下「已安装待验证」的记录")
+	}
+}
+
+// 正面对照：身份对得上、包也是自己那一端的，照旧装上 ——
+// 加了护栏不能把正常更新一起堵死。
+func TestUpdateSignalForMyOwnKindStillApplies(t *testing.T) {
+	dir := useTempSignalDir(t)
+	writeClientKind(clientKindCs)
+	dest, _ := seedInstallDir(t, "客服管理")
+	csPkg := filepath.Join(dir, "update-cs.zip")
+	writeFakePackageAs(t, csPkg, csExeName, 32<<10)
+
+	writeUpdateSignal(t, updateRequest{URL: "http://127.0.0.1:1/never", LocalPath: csPkg, Version: "9.9.9", Kind: clientKindCs})
+	checkForUpdate(dest)
+
+	if _, err := os.Stat(filepath.Join(dest, "resources", "app.asar")); err != nil {
+		t.Fatalf("客服端自己的正常更新被护栏挡了：%v", err)
+	}
+	if _, err := os.Stat(pendingUpdateFile); err != nil {
+		t.Fatal("装完之后应该留下 pending-update.json 等健康标记")
 	}
 }

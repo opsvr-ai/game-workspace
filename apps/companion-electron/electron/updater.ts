@@ -114,7 +114,24 @@ function stagedPackageReady(version: string, fallbackZip: string): boolean {
   }
 }
 
+// 本机看门狗「守谁」：装机时写下的身份（陪玩端 install --client=companion、客服端 --client=cs）。
+// 没写 = 很老的机器，看门狗默认守陪玩端（跟看门狗里 readClientKind 的默认一致）。
+// 身份写着 cs 时**绝不能**把更新信号写下去：update.json 是两端共用的，看门狗会把这份陪玩端的包
+// 解压进客服端的安装目录 —— 那边就废了（客服端也补了同一道判断，两边各挡一道）。
+function watchdogWatchesCompanion(): boolean {
+  try {
+    const kind = fs
+      .readFileSync('C:\\ProgramData\\chunlv\\watchdog-client.txt', 'utf-8')
+      .trim()
+      .toLowerCase();
+    return kind !== 'cs';
+  } catch {
+    return true;
+  }
+}
+
 // version：告诉看门狗这次装的是哪一版 —— 装完等不到这一版自报健康，它就整目录回滚并拉黑它。
+// kind：这份信号是哪一端写的（老看门狗不看这个字段，会忽略未知字段）。
 function signalUpdate(downloadUrl: string, localPath?: string, version?: string): void {
   const dir = 'C:\\ProgramData\\chunlv';
   const file = path.join(dir, 'update.json');
@@ -126,6 +143,7 @@ function signalUpdate(downloadUrl: string, localPath?: string, version?: string)
         url: downloadUrl,
         ...(localPath ? { localPath } : {}),
         ...(version ? { version } : {}),
+        kind: 'companion',
       }),
       'utf-8',
     );
@@ -346,6 +364,11 @@ async function performUpdate(downloadUrl: string, version = '', allowIdleFallbac
         logger.info('Download failed and not a fresh boot, retry later instead of restarting');
         return;
       }
+      // 这台机器的看门狗守的不是陪玩端 → 信号写不得（写了会换错目录），也别退出（退出就没人拉起来）。
+      if (!watchdogWatchesCompanion()) {
+        logger.warn('Watchdog on this machine does not watch the companion client — skip handoff');
+        return;
+      }
       signalUpdate(downloadUrl, undefined, version);
       rememberUpdateAttempt(version);
       setTimeout(() => { app.exit(0); }, 800);
@@ -359,6 +382,12 @@ async function performUpdate(downloadUrl: string, version = '', allowIdleFallbac
   // 自动更新只在刚开机那一次落地，其余时段把包留着，等下次开机再装，不用重下。
   if (!(await mayApplyUpdateNow('before applying downloaded package', bootWindow, allowIdleFallback))) {
     logger.info('Deferred, keep the downloaded package for the next boot');
+    return;
+  }
+  // 同机装了客服端、而身份被写成 cs 的机器：这份陪玩端的包绝不能被那份看门狗解压出去。
+  // 这一轮不装、也不退出（退出就没人拉起来了）；备好的包留着，下轮或身份修好之后再用。
+  if (!watchdogWatchesCompanion()) {
+    logger.warn('Watchdog on this machine does not watch the companion client — keep the package, skip this round');
     return;
   }
   signalUpdate(downloadUrl, localZip, version);

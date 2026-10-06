@@ -78,6 +78,16 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chunlv_test?schema=public
           JWT_SECRET: ci-test-secret
           JWT_REFRESH_SECRET: ci-test-refresh-secret
+      # 看门狗（SystemHelper）Go 测试（2026-10-07）：它是「陪玩端 / 客服端自动更新」的唯一落地执行者，
+      # 以前零测试，改一行只能靠真机回归。本批新增的「更新信号按端隔离」正是靠这组测试守住 ——
+      # 一台电脑同时装了两端时，绝不能让 A 端的包被解压进 B 端的目录。
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/watchdog-service/go.mod
+          cache-dependency-path: apps/watchdog-service/go.sum
+      - name: 看门狗测试（Go）
+        working-directory: apps/watchdog-service
+        run: go test ./...
 
   # 打包：重构期最容易「类型过了但打不出包」（vite 分包、Nest 构建产物路径）。
   # 2026-10-06 加上：此前 CI 不跑 build，打包挂了只能靠本地发现。

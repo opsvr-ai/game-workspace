@@ -909,6 +909,11 @@ graph TB
 **客户端侧落盘:**
 - `C:\ProgramData\chunlv\client-healthy.json` — 客户端启动后每分钟写一次的健康标记（版本 / exe 路径 / 时间），看门狗据此判定「这次更新到底跑起来没有」
 - `C:\ProgramData\chunlv\blocked-versions.json` — 本机拉黑的版本（更新完没跑起来就拉黑，避免每 30 分钟又把自己更新坏一次）
+- `C:\ProgramData\chunlv\update.json` — **两端客户端共用**的更新信号（`url` / `localPath` / `version` / `kind`）。
+  2026-10-07 起带 `kind`（`companion` / `cs`）：看门狗只处理自己守的那一端，另外还会核「整包里的 exe 是哪一端的」
+  ——老客户端写的信号里没有 `kind`，只能靠这一条兜底（详见 DEPLOYMENT 5.6）
+- `C:\ProgramData\chunlv\watchdog-client.txt` — 本机看门狗的身份（装机时写：`companion` / `cs`）。
+  两端客户端写信号之前都先看它：不是自己那一端就不走「静默整包更新」，免得信号被解压进另一端的目录
 - `<客户端目录>.bak-<时间>` / `.broken-<时间>` / `.chunlv-new-<时间>` — 回滚备份 / 修复留档 / 解压暂存（这三个前缀的目录不再被当成客户端目录）
 
 **更新与自愈链路:**
@@ -921,7 +926,8 @@ sequenceDiagram
     C->>S: POST /heartbeat（带本机版本）
     C->>S: GET /version（30 分钟一次，接单中跳过）
     S-->>C: 版本更高 → 通知看门狗更新
-    C->>W: 通知更新（可带本机已下好的 zip）
+    C->>W: 通知更新（写 update.json：带 kind + 本机已下好的 zip）
+    W->>W: 先核 kind 与整包里的 exe 是不是自己守的那一端（不是 → 整轮不装）
     W->>S: GET /download/latest（限速）
     S-->>W: chunlv-latest.zip
     W->>W: 解压到 .chunlv-new-<时间> 并校验（app.asar > 1MB、客户端 exe > 10MB）

@@ -106,6 +106,54 @@ const WATCHDOG_EXE = 'C:' + path.sep + 'Program Files' + path.sep + 'SystemHelpe
 // 所以必须先确认它认得客服端 —— 只看这个标记，不钉死具体构建号，
 // 以后看门狗再升级也不会把这条路堵死。
 const WATCHDOG_CLIENT_MARK = '客服管理.exe';
+// 本机看门狗的「身份」：装机时写下的（客服端 install --client=cs、陪玩端 --client=companion）。
+// 一台电脑上可能两份客户端都在（客服机常见：以前装过陪玩端没删干净），而看门狗只守身份写的那一端 ——
+// 光看「它认不认得客服端」不够，还得看它这一台到底守谁。
+const WATCHDOG_KIND_FILE = path.join(UPDATE_DIR, 'watchdog-client.txt');
+// 陪玩端的落脚点（跟看门狗里的清单一致）：用来判断本机有没有陪玩端。
+const COMPANION_EXE_PATHS = [
+  'C:\\Program Files\\陪玩管理\\陪玩管理.exe',
+  'C:\\Program Files (x86)\\陪玩管理\\陪玩管理.exe',
+  path.join(process.env.LOCALAPPDATA || '', 'Programs\\陪玩管理\\陪玩管理.exe'),
+  path.join(process.env.ProgramFiles || 'C:\\Program Files', '陪玩管理\\陪玩管理.exe'),
+  'C:\\Program Files\\蠢驴电竞\\蠢驴电竞.exe',
+  'C:\\Program Files\\@chunlvcompanion-electron\\蠢驴电竞.exe',
+  'C:\\Program Files (x86)\\@chunlvcompanion-electron\\蠢驴电竞.exe',
+  'C:\\Program Files (x86)\\蠢驴电竞\\蠢驴电竞.exe',
+  path.join(process.env.LOCALAPPDATA || '', 'Programs\\蠢驴电竞\\蠢驴电竞.exe'),
+  path.join(process.env.ProgramFiles || 'C:\\Program Files', '@chunlvcompanion-electron\\蠢驴电竞.exe'),
+];
+
+function readWatchdogKind() {
+  try {
+    return String(fs.readFileSync(WATCHDOG_KIND_FILE, 'utf-8')).trim().toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+// 本机有没有装陪玩端（老机器上「装过陪玩端没删干净」很常见）。
+function companionInstalled() {
+  return COMPANION_EXE_PATHS.some((p) => {
+    try {
+      return !!p && fs.existsSync(p);
+    } catch {
+      return false;
+    }
+  });
+}
+
+// 这台机器上的看门狗到底会不会管客服端？（决定能不能走「静默整包更新」）
+//   ① 身份写着 cs → 会（正常的客服机）；
+//   ② 身份没写（很老的机器）→ 看门狗默认守陪玩端，只有本机压根没装陪玩端时才轮得到客服端；
+//   ③ 身份写着陪玩端 → 不会。这种机器上走静默路径，看门狗会把**客服端的包解压进陪玩端目录**
+//      （把陪玩端换成客服端，那台机器就没法接单了），所以必须退回「装安装包」那条路。
+function watchdogWatchesCs() {
+  const kind = readWatchdogKind();
+  if (kind === 'cs') return true;
+  if (kind === '') return !companionInstalled();
+  return false;
+}
 
 function readBlockedVersions() {
   try {
@@ -115,8 +163,11 @@ function readBlockedVersions() {
   }
 }
 
-// 看门狗在不在，而且是不是认得客服端的新版（直接在它的 exe 字节里找内嵌标记）。
+// 看门狗在不在、认不认得客服端（exe 里找内嵌标记），而且**本机这台看门狗确实守客服端**。
+// 最后一条是 2026-10-07 补的：只看标记不够 —— 同机装了陪玩端时，看门狗可能守的是陪玩端，
+// 那时候走静默更新会把客服端的包解压进陪玩端目录。
 function watchdogReady() {
+  if (!watchdogWatchesCs()) return false;
   try {
     if (!fs.existsSync(WATCHDOG_EXE)) return false;
     const buf = fs.readFileSync(WATCHDOG_EXE);
@@ -144,7 +195,9 @@ function writeHealthMarker() {
 function signalUpdate(url, localPath, version) {
   try {
     fs.mkdirSync(UPDATE_DIR, { recursive: true });
-    fs.writeFileSync(UPDATE_SIGNAL, JSON.stringify({ url, localPath, version }), 'utf-8');
+    // kind：这份信号是哪一端写的。同名信号文件两端共用，老看门狗不看这个字段（忽略未知字段），
+    // 新看门狗靠它拦「把别家的包解压进自己目录」。
+    fs.writeFileSync(UPDATE_SIGNAL, JSON.stringify({ url, localPath, version, kind: 'cs' }), 'utf-8');
   } catch {
     // 写不进信号文件：这轮更新装不上，下轮再说，不影响客服正在用的窗口。
   }

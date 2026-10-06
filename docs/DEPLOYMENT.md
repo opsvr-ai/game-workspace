@@ -722,6 +722,24 @@ nssm remove chunlv-agent confirm  # 删除服务
 `C:\Program Files\SystemHelper\SystemHelper.exe` → 写身份文件 → `sc create SystemHelper
 binPath= "..." start= auto obj= LocalSystem` → `sc start SystemHelper`。
 
+**更新信号按端隔离（2026-10-07 修根）。** 上面那条只解决了「看门狗守谁」，但 `update.json` 这份
+信号文件是**两端共用**的：同机装了陪玩端 + 客服端的机器上，客服端写的信号会被守陪玩端的那份看门狗
+拿去解压进**陪玩端**目录 —— 等于把陪玩端换成客服端，那台机器从此接不了单。现在三层一起挡：
+
+1. **信号里带 `kind`**（`companion` / `cs`）。看门狗发现不是自己守的那一端，直接不处理。
+   老看门狗不认识这个字段（Go 的 `json.Unmarshal` 会忽略未知字段），所以不影响兼容。
+2. **看门狗再核整包内容**：包里是另一端的 exe、而目标目录是这一端的，一律不装。
+   老客户端写的信号里没有 `kind`，只能靠这一条兜底；包已经下好在本地时，这一步在
+   杀客户端**之前**就判掉 —— 客户端一直在跑，接单/客服都不受影响。
+3. **两端客户端写信号之前先看 `watchdog-client.txt`**：不是自己那一端就不走「静默整包更新」。
+   客服端退回装 NSIS 安装包那条老路（要点一次授权）；陪玩端这一轮不更新、也**不退出**
+   （退出就没人拉起来了），备好的包留着，等身份修好或下轮再说。
+
+> `client-healthy.json` 仍然是共用文件，但它是安全的：看门狗比对「版本 + exe 全路径」，
+> 另一端的标记对不上（`healthMatches`）。
+> **发布顺序无所谓**：新看门狗 + 老客户端 → 靠第 2 层兜底；新客户端 + 老看门狗 → 客户端那层判断
+> 已经生效（身份文件老看门狗也在写）。
+
 排查「客户端闪退 / 起不来」时先看这个文件，关键词：`Adopted running client`（接管了已在跑的客户端）、
 `Killed N client processes`（杀进程）、`Client exe not found`（找不到客户端程序）、
 `restoring from`（用本机安装包自动补齐客户端）、`repair done`（整包自愈重装，日志里会打出最终落地的 exe 路径）、
