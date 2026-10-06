@@ -53,7 +53,7 @@ python scripts\_publish_cs_client.py <版本号>
 | `_export_css_vars.mjs` | 把 `styles/tokens.ts` 里的全部 CSS 变量生成进 `index.css` 的 `:root` 兜底区，并卡「CSS 里用了 var(--x) 但没人定义」（`pnpm css:vars` / `css:vars:check`） |
 | `_shot_ui.mjs` | **界面改版前后对照用**：无头 Edge + CDP，给某一页 / 某一区块截图。选项：`--sel=` 只截某个元素、`--pre=<js 文件>` 导航前注入（造登录态）、`--await=` 等元素出现、`--full` 整页高度、`--eval=<js>` 顺手取个数（量宽度 / 对齐）（`node scripts/_shot_ui.mjs http://127.0.0.1:8100/ui-kit tmp_shots/x.png --sel="#controls" --scale=2`）|
 | `_shot_pages.mjs` | **批量**给多个页面截图（只开一次无头浏览器，第二页起每页几秒）—— UI 巡检用：`node scripts/_shot_pages.mjs --out=tmp_shots/audit --pre=scripts/_shot_seed_owner.js --base=http://127.0.0.1:8123 /admin /cs/dispatch` |
-| `_mock_api.mjs` | **本地「假后台」**：把 `apps/web/dist` 当静态站发出去，同时把 `/api/*` 全部接管成假数据（`/auth/me` 直接返回一个老板账号）。于是**不用数据库、不连线上**也能把真实页面打开看。请求路径会记进 `tmp_shots/_api_log.txt`，照着补假数据即可 |
+| `_mock_api.mjs` | **本地「假后台」**：把 `apps/web/dist` 当静态站发出去，同时把 `/api/*` 全部接管成假数据。于是**不用数据库、不连线上**也能把真实页面打开看。`--port=` 换端口、`--role=OWNER\|ADMIN\|CS\|COMPANION` 换身份（要看别的角色就再起一个实例）。请求路径会记进 `tmp_shots/_api_log.txt`，照着补假数据即可 |
 | `_shot_seed_owner.js` | 配合 `--pre=` 用：导航前注入，让前端以为「已经登录、而且是老板」（只写本机 storage） |
 | `update-changelog.sh` | 从 git log 生成 CHANGELOG 片段 |
 

@@ -565,11 +565,14 @@ graph TB
 > **本机怎么看界面（2026-10-07 起）**：本机没有数据库、页面又要登录，所以直接开浏览器是白屏。
 > 现在可以全程离线地看真实页面：
 > ```powershell
-> node scripts/_mock_api.mjs                     # 假后台（静态发 dist + 接管 /api/*），另开一个窗口
+> node scripts/_mock_api.mjs --port=8123 --role=OWNER      # 假后台（静态发 dist + 接管 /api/*），另开一个窗口
 > node scripts/_shot_pages.mjs --out=tmp_shots/audit \
 >   --pre=scripts/_shot_seed_owner.js --base=http://127.0.0.1:8123 /admin /cs/dispatch /admin/orders
 > ```
-> 「已经登录 + 登录的是老板」由 `--pre=` 注入；要看别的角色或更真实的数据，改 `_mock_api.mjs` 的 FIXTURES。
+> 「已经登录 + 登录的是老板」由 `--pre=` 注入。**要看别的角色，就再起一个假后台、换个端口和 `--role`**
+> （如 `--port=8124 --role=COMPANION`），截图脚本用 `--base` 指过去即可 —— 四个角色（老板 / 店长 / 客服 / 陪玩）
+> 的菜单与页面是同一套前端按角色渲染的，切角色就能逐个对照。
+> 要给某个页面喂更真实的数据，改 `_mock_api.mjs` 的 FIXTURES（请求路径见 `tmp_shots/_api_log.txt`）。
 > 单页细看用 `_shot_ui.mjs`（支持 `--sel` 只截某块、`--scale` 放大、`--eval` 取数）。
 
 | 位置 | 管什么 |

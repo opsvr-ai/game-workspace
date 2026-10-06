@@ -32,6 +32,9 @@ const opt = (n, d) => {
   return hit ? hit.slice(n.length + 3) : d;
 };
 const PORT = Number(opt('port', 8123));
+// --role=OWNER|ADMIN|CS|COMPANION：/auth/me 用哪个身份返回。
+// 想看别的角色就再起一个实例、换个 --port 即可（截图脚本用 --base 指过去）。
+const ROLE = String(opt('role', 'OWNER')).toUpperCase();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -52,24 +55,58 @@ const MIME = {
 };
 
 /** 登录态里的那个「人」。老板角色，能看到全部菜单，最好用来对照界面。 */
-const OWNER = {
-  id: 'u-owner-1',
-  username: 'hanlei',
-  displayName: '韩磊',
-  role: 'OWNER',
-  studioId: 's-1',
-  studioName: '蠢驴电竞',
-  avatar: null,
-  pendingReviewCount: 0,
+const USERS = {
+  OWNER: {
+    id: 'u-owner-1',
+    username: 'hanlei',
+    displayName: '韩磊',
+    role: 'OWNER',
+    studioId: 's-1',
+    studioName: '蠢驴电竞',
+    avatar: null,
+    pendingReviewCount: 0,
+  },
+  ADMIN: {
+    id: 'u-admin-1',
+    username: 'dianzhang01',
+    displayName: '张店长',
+    role: 'ADMIN',
+    studioId: 's-1',
+    studioName: '蠢驴电竞',
+    avatar: null,
+    pendingReviewCount: 0,
+  },
+  CS: {
+    id: 'u-cs-1',
+    username: 'kefu01',
+    displayName: '小美',
+    role: 'CS',
+    studioId: 's-1',
+    studioName: '蠢驴电竞',
+    avatar: null,
+    pendingReviewCount: 0,
+  },
+  COMPANION: {
+    id: 'u-comp-1',
+    username: 'zhangsan',
+    displayName: '张三',
+    role: 'COMPANION',
+    studioId: 's-1',
+    studioName: '蠢驴电竞',
+    companionId: 'c-1',
+    avatar: null,
+    pendingReviewCount: 0,
+  },
 };
+const ME = USERS[ROLE] || USERS.OWNER;
 
 /** 按 方法 + 路径 精确/正则匹配的假响应；没命中的一律 { data: null }。 */
 const FIXTURES = [
-  { m: 'GET', p: /^\/api\/auth\/me$/, body: { data: OWNER } },
+  { m: 'GET', p: /^\/api\/auth\/me$/, body: { data: ME } },
   {
     m: 'POST',
     p: /^\/api\/auth\/login$/,
-    body: { data: { accessToken: 'mock-access', refreshToken: 'mock-refresh', user: OWNER } },
+    body: { data: { accessToken: 'mock-access', refreshToken: 'mock-refresh', user: ME } },
   },
   { m: 'POST', p: /^\/api\/auth\/refresh$/, body: { data: { accessToken: 'mock-access', refreshToken: 'mock-refresh' } } },
   { m: 'GET', p: /^\/api\/config/, body: { data: { data: {} } } },
@@ -130,6 +167,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   const ok = fs.existsSync(path.join(DIST, 'index.html'));
-  console.log('[mock] 假后台起来了 → http://127.0.0.1:' + PORT + (ok ? '' : '  ⚠ dist 还没构建'));
+  console.log('[mock] 假后台起来了 → http://127.0.0.1:' + PORT + '（身份 ' + ME.role + ' / ' + ME.displayName + '）' + (ok ? '' : '  ⚠ dist 还没构建'));
   console.log('[mock] 请求日志 → tmp_shots/_api_log.txt');
 });
