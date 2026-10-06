@@ -26,7 +26,9 @@ import ServiceStartOverlay from '../components/ServiceStartOverlay';
 // FloatingChatWidget removed — redundant with bell notification
 import { NoticeList } from '../components/NoticeList';
 import LeftMessagePanel from '../components/LeftMessagePanel';
-import { BRAND } from '../styles/tokens';
+import SalaryDetailModal from '../components/SalaryDetailModal';
+import GrabSuccessModal from '../components/GrabSuccessModal';
+import { BG, BORDER, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
 import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -54,7 +56,7 @@ if (!document.getElementById('menu-sub-bg-css')) {
   s3.id = 'menu-sub-bg-css';
   s3.textContent =
     '.ant-layout-sider .ant-menu, .ant-layout-sider .ant-menu-item, .ant-menu-sub .ant-menu-item, .ant-layout-sider .ant-menu-submenu-title, .ant-layout-sider .ant-menu-item:hover, .ant-layout-sider .ant-menu-item-active, .ant-layout-sider .ant-menu-item-selected, .ant-layout-sider .ant-menu-submenu-selected > .ant-menu-submenu-title, .ant-layout-sider .ant-menu-submenu-title:hover { background: transparent !important; background-color: transparent !important; } ' +
-    '.ant-layout-sider .ant-menu-sub, .ant-layout-sider .ant-menu-submenu > .ant-menu, .ant-layout-sider .ant-menu-inline .ant-menu-sub, .ant-menu-dark .ant-menu-sub, .ant-menu-dark .ant-menu-submenu-popup, .ant-menu-dark .ant-menu-submenu > .ant-menu { background: #0b1024 !important; background-color: #0b1024 !important; }';
+    '.ant-layout-sider .ant-menu-sub, .ant-layout-sider .ant-menu-submenu > .ant-menu, .ant-layout-sider .ant-menu-inline .ant-menu-sub, .ant-menu-dark .ant-menu-sub, .ant-menu-dark .ant-menu-submenu-popup, .ant-menu-dark .ant-menu-submenu > .ant-menu { background: var(--color-bg-sider) !important; background-color: var(--color-bg-sider) !important; }';
   document.head.appendChild(s3);
 }
 
@@ -62,7 +64,6 @@ import { BellOutlined, MessageOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import { useOrderStore } from '../stores/orderStore';
-import { orderTypeConfig } from '../constants/orders';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -74,7 +75,7 @@ const InviteCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
     return () => clearInterval(t);
   }, []);
   return (
-    <span style={{ color: '#f5222d', fontWeight: 600 }}>⏳ {left} 秒后自动取消</span>
+    <span style={{ color: SEMANTIC.danger, fontWeight: 600 }}>⏳ {left} 秒后自动取消</span>
   );
 };
 
@@ -1666,7 +1667,7 @@ const AppLayout: React.FC = () => {
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
                     >
                       {child.label}
-                      <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+                      <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
                     </span>
                   ),
                 };
@@ -1689,7 +1690,7 @@ const AppLayout: React.FC = () => {
                         count={bpCount}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: '0 0 10px #FF4757' }}
+                        style={{ boxShadow: badgeGlow(SEMANTIC.danger) }}
                       />
                     </span>
                   ),
@@ -1709,7 +1710,7 @@ const AppLayout: React.FC = () => {
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}
                     >
                       {child.label}
-                      <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+                      <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
                     </span>
                   ),
                 };
@@ -1732,7 +1733,7 @@ const AppLayout: React.FC = () => {
                         count={rvCount}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: '0 0 10px #FAAD14' }}
+                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
                       />
                     </span>
                   ),
@@ -1755,7 +1756,7 @@ const AppLayout: React.FC = () => {
                         count={directUnread}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: directUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+                        style={{ boxShadow: directUnread > 0 ? badgeGlow(SEMANTIC.danger) : undefined }}
                       />
                     </span>
                   ),
@@ -1781,7 +1782,7 @@ const AppLayout: React.FC = () => {
                         count={cCount}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: '0 0 10px #F59E0B' }}
+                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
                       />
                     </span>
                   ),
@@ -1811,7 +1812,7 @@ const AppLayout: React.FC = () => {
                         count={psCount}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: '0 0 10px #F59E0B' }}
+                        style={{ boxShadow: badgeGlow(SEMANTIC.warning) }}
                       />
                     </span>
                   ),
@@ -1835,7 +1836,7 @@ const AppLayout: React.FC = () => {
                         count={orCount}
                         size="small"
                         overflowCount={99}
-                        style={{ boxShadow: '0 0 10px #FF4757' }}
+                        style={{ boxShadow: badgeGlow(SEMANTIC.danger) }}
                       />
                     </span>
                   ),
@@ -1853,7 +1854,7 @@ const AppLayout: React.FC = () => {
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
-              <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+              <Badge count={pCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
             </span>
           ),
         };
@@ -1864,7 +1865,7 @@ const AppLayout: React.FC = () => {
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
-              <Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+              <Badge count={bpCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
             </span>
           ),
         };
@@ -1875,7 +1876,7 @@ const AppLayout: React.FC = () => {
           label: (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.label}
-              <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: '0 0 10px #FF4757' }} />
+              <Badge count={bCount} size="small" overflowCount={99} style={{ boxShadow: badgeGlow(SEMANTIC.danger) }} />
             </span>
           ),
         };
@@ -1890,7 +1891,7 @@ const AppLayout: React.FC = () => {
                 count={directUnread}
                 size="small"
                 overflowCount={99}
-                style={{ boxShadow: directUnread > 0 ? '0 0 10px #FF4757' : undefined }}
+                style={{ boxShadow: directUnread > 0 ? badgeGlow(SEMANTIC.danger) : undefined }}
               />
             </span>
           ),
@@ -2066,8 +2067,8 @@ const AppLayout: React.FC = () => {
           collapsed={messagePanelCollapsed}
           trigger={null}
           style={{
-            background: '#FFFFFF',
-            borderRight: '1px solid #E8E9EB',
+            background: BG.container,
+            borderRight: `1px solid ${BORDER.base}`,
             height: '100vh',
             position: 'sticky',
             top: 0,
@@ -2130,7 +2131,7 @@ const AppLayout: React.FC = () => {
                       ? `消息未读 ${totalUnread} 条 · ${messagePanelCollapsed ? '点这里显示消息栏' : '点这里隐藏消息栏'}`
                       : messagePanelCollapsed ? '显示消息栏' : '隐藏消息栏'
                   }
-                  style={{ color: totalUnread > 0 ? '#FF4D4F' : (messagePanelCollapsed ? commander.textSecondary : BRAND.primary) }}
+                  style={{ color: totalUnread > 0 ? SEMANTIC.danger : (messagePanelCollapsed ? commander.textSecondary : BRAND.primary) }}
                 />
               </div>
             </Badge>
@@ -2192,7 +2193,7 @@ const AppLayout: React.FC = () => {
                         type="text"
                         icon={React.createElement(BellOutlined)}
                         style={{
-                          color: unreadNotices > 0 ? '#FF4D4F' : commander.textSecondary,
+                          color: unreadNotices > 0 ? SEMANTIC.danger : commander.textSecondary,
                           fontSize: 20,
                         }}
                         className={unreadNotices > 0 ? 'bell-glow-active' : ''}
@@ -2216,11 +2217,11 @@ const AppLayout: React.FC = () => {
                         partnerInvites.map((p) => {
                           const remaining = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 1000));
                           return (
-                            <div key={p.sessionId} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                            <div key={p.sessionId} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER.secondary}` }}>
                               <div>
                                 <Text strong>🤝 {p.inviterName} 邀请你搭档</Text>
                               </div>
-                              <div style={{ fontSize: 12, color: '#666' }}>
+                              <div style={{ fontSize: 12, color: TEXT.secondary }}>
                                 {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)} · {p.duration || 1}h
                               </div>
                               <div style={{ margin: '6px 0' }}>
@@ -2273,7 +2274,7 @@ const AppLayout: React.FC = () => {
                     <Button
                       type="text"
                       icon={<span style={{ fontSize: 18 }}>🤝</span>}
-                      style={{ color: partnerInvites.length > 0 ? '#F59E0B' : commander.textSecondary }}
+                      style={{ color: partnerInvites.length > 0 ? SEMANTIC.warning : commander.textSecondary }}
                     />
                   </Badge>
                 </Popover>
@@ -2291,11 +2292,11 @@ const AppLayout: React.FC = () => {
                         <Text type="secondary">暂无待确认的转让</Text>
                       ) : (
                         transferReqs.map((p) => (
-                          <div key={p.requestId || p.id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                          <div key={p.requestId || p.id} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER.secondary}` }}>
                             <div>
                               <Text strong>🔁 {p.fromName} 想把订单转给你</Text>
                             </div>
-                            <div style={{ fontSize: 12, color: '#666' }}>
+                            <div style={{ fontSize: 12, color: TEXT.secondary }}>
                               {p.orderCode ? `${p.orderCode} · ` : ''}
                               {p.gameName || '订单'} · ¥{Number(p.amount || 0).toFixed(1)}
                               {p.reason ? ` · ${p.reason}` : ''}
@@ -2335,7 +2336,7 @@ const AppLayout: React.FC = () => {
                     <Button
                       type="text"
                       icon={<span style={{ fontSize: 18 }}>🔁</span>}
-                      style={{ color: transferReqs.length > 0 ? '#C2410C' : commander.textSecondary }}
+                      style={{ color: transferReqs.length > 0 ? SEMANTIC.warningDeep : commander.textSecondary }}
                     />
                   </Badge>
                 </Popover>
@@ -2372,7 +2373,7 @@ const AppLayout: React.FC = () => {
                         }}
                       >
                         {!user.avatar && (
-                          <span style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                          <span style={{ color: TEXT.inverse, fontSize: 14, fontWeight: 700 }}>
                             {(user.displayName || user.username || '?')[0].toUpperCase()}
                           </span>
                         )}
@@ -2387,7 +2388,7 @@ const AppLayout: React.FC = () => {
                     </Tag>
                   )}
                   {user?.role === 'CS' && myCommission != null && (
-                    <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>
+                    <Text style={{ color: SEMANTIC.warning, fontSize: 12, fontWeight: 600 }}>
                       本月预计提成 ¥{Number(myCommission).toFixed(1)}
                     </Text>
                   )}
@@ -2417,7 +2418,7 @@ const AppLayout: React.FC = () => {
             style={{
               margin: isCompact ? 10 : 20,
               padding: isCompact ? 12 : 20,
-              background: '#FFFFFF',
+              background: BG.container,
               borderRadius: 12,
               minHeight: 280,
               overflow: 'auto',
@@ -2523,76 +2524,7 @@ const AppLayout: React.FC = () => {
         </Layout>
       </Layout>
 
-      <Modal
-        title="💰 底薪 + 提奖"
-        open={salaryOpen}
-        onCancel={() => setSalaryOpen(false)}
-        footer={null}
-        width={720}
-      >
-        {mySalary?.row ? (
-          <div style={{ fontSize: 13, lineHeight: 1.9 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
-              <div>月份：<b>{mySalary.month}</b></div>
-              <div>底薪：<b>¥{Number(mySalary.config.baseSalary).toFixed(2)}</b></div>
-              <div>月休：<b>{mySalary.config.restDays} 天</b></div>
-              <div>满勤：<b>{mySalary.fullAttendance} 天</b></div>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
-              <div>桥接单数：<b>{mySalary.row.bridgeUnits}</b> 单</div>
-              <div>桥接单价：<b>¥{Number(mySalary.row.bridgePerUnitYuan).toFixed(2)}</b></div>
-              <div>桥接提成：<b>¥{Number(mySalary.row.bridgeCommissionYuan).toFixed(2)}</b></div>
-              <div>线下提成：<b>¥{Number(mySalary.row.offlineCommissionYuan).toFixed(2)}</b></div>
-              <div>线上提成：<b>¥{Number(mySalary.row.onlineCommissionYuan).toFixed(2)}</b></div>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
-              <div>底薪实发：<b>¥{Number(mySalary.row.baseEffective).toFixed(2)}</b></div>
-              <div>全勤奖：<b>¥{Number(mySalary.row.attendanceBonus).toFixed(2)}</b></div>
-              <div>考勤扣款：<b>¥{Number(mySalary.row.attendanceDeduction).toFixed(2)}</b></div>
-              <div>预计合计：<b style={{ color: BRAND.primary }}>¥{Number(mySalary.row.totalYuan).toFixed(2)}</b></div>
-            </div>
-            <div style={{ marginTop: 12, marginBottom: 4, fontWeight: 600 }}>订单明细</div>
-            <div style={{ maxHeight: 260, overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ background: '#f5f7fa' }}>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>订单</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>类型</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>状态</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>微信</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>金额</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>单/双</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>去向</th>
-                    <th style={{ padding: 6, border: '1px solid #e5e7eb' }}>提成</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(mySalary.orders || []).map((t: any) => (
-                    <tr key={t.orderId}>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.orderCode || t.orderId?.slice(0, 8)}</td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.type}</td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
-                        {t.status === 'DONE' ? '✅ 已打首单' : t.status === 'CONFIRMED' ? '进行中' : t.status === 'GRABBED' ? '已抢单' : t.status || '-'}
-                      </td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
-                        {t.contactStatus === 'added' ? '✅ 添加成功' : t.contactStatus === 'not_accepted' ? '❌ 添加失败' : t.contactStatus === 'pending' ? '待添加' : '-'}
-                      </td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>¥{Number(t.amount).toFixed(2)}</td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.units === 2 ? '双陪' : '单陪'}</td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>{t.kind === 'offline' ? '线下' : t.kind === 'bridge' ? '桥接' : '线上'}</td>
-                      <td style={{ padding: 6, border: '1px solid #e5e7eb' }}>
-                        {t.counted ? `+¥${Number(t.commissionYuan).toFixed(2)}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <Text type="secondary">暂无工资数据</Text>
-        )}
-      </Modal>
+      <SalaryDetailModal open={salaryOpen} onClose={() => setSalaryOpen(false)} salary={mySalary} />
 
       {/* Urgent order popup + solo grab success */}
       <UrgentOrderPopup
@@ -2603,51 +2535,7 @@ const AppLayout: React.FC = () => {
       />
 
       {/* Global Grab Success Modal — survives navigation */}
-      <Modal title="抢单成功" open={!!grabbedOrder} onCancel={() => setGrabbedOrder(null)} footer={null} width={480}>
-        {grabbedOrder &&
-          (() => {
-            const g = grabbedOrder as any;
-            return (
-              <div style={{ fontSize: 14, lineHeight: 2 }}>
-                <div>
-                  📋 {g.gameName} · {orderTypeConfig[g.type]?.label || g.type} · ¥
-                  {Number(g.amount).toFixed(0)} · {g.duration}h
-                </div>
-                {g.customer?.customerCode && <div>客户编号：{g.customer.customerCode}</div>}
-                {/* 客服发单时填的备注：抢单成功这张卡是陪玩唯一会认真看的一屏（老板 2026-09-29
-                    「陪玩抢到订单后，订单管理怎么没显示当时发单时填写的备注」）。 */}
-                {g.customFields?.deltaNote && (
-                  <div style={{ color: '#B45309' }}>📝 备注：{g.customFields.deltaNote}</div>
-                )}
-                {g.customFields?.customerSource && <div>来源：{g.customFields.customerSource}</div>}
-                {g.customFields?.csCultivated === true && (
-                  <div style={{ color: BRAND.primary, fontWeight: 500 }}>
-                    ✅ 该客户已添加到客服工作微信（{g.customFields?.csWorkWechatName || '客服微信'}），请注意措辞
-                  </div>
-                )}
-                {g.customFields?.customerWechat && (
-                  <div>
-                    💬 微信：<Typography.Text copyable>{g.customFields.customerWechat}</Typography.Text>
-                  </div>
-                )}
-                {g.customFields?.customerRoomCode && (
-                  <div>
-                    🏠 房间码：<Typography.Text copyable>{g.customFields.customerRoomCode}</Typography.Text>
-                  </div>
-                )}
-                {g.customFields?.customerPlatformAccount && (
-                  <div>
-                    🔗 平台号：
-                    <Typography.Text copyable>{g.customFields.customerPlatformAccount}</Typography.Text>
-                  </div>
-                )}
-                {g.csUser?.username && <div>发布者：{g.csUser.username}</div>}
-                {g.customFields?.urgency === 'later' && <Tag color="purple">📅预约</Tag>}
-                {g.customFields?.urgency !== 'later' && g.customFields?.urgency && <Tag color="green">⚡立即打</Tag>}
-              </div>
-            );
-          })()}
-      </Modal>
+      <GrabSuccessModal order={grabbedOrder} onClose={() => setGrabbedOrder(null)} />
 
       {/* Global Chat Modal (opened from notification bell) */}
       <ChatModal

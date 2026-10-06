@@ -109,7 +109,18 @@ export const SEMANTIC = {
   onlineRingFade: 'rgba(0,230,118,0)',
   /** 忙碌（橙点） */
   busy: '#FF9100',
+  /** 浅底上的「深琥珀」文字（备注 / 转让提示那种）—— 亮橙当文字看不清，所以单独留一档 */
+  warningDeep: '#B45309',
 } as const;
+
+/**
+ * 数字角标的一圈同色光晕。
+ * 以前这串 `0 0 10px #FF4757` 在 AppLayout 里手写了 9 遍，还有橙色的 3 遍；
+ * 现在颜色从 SEMANTIC 取，改一处全站跟着变。
+ */
+export function badgeGlow(color: string): string {
+  return `0 0 10px ${color}`;
+}
 
 /** 滚动条。 */
 export const SCROLLBAR = {

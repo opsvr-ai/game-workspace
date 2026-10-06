@@ -36,11 +36,21 @@ function loadCssVars() {
   src = src.split('function applyTokenCssVars')[0]; // 生成器函数本身不用求值
   src = src.replace(/^export\s+/gm, '');
   src = src.replace(/\bas const\b/g, '');
-  src = src.replace(/:\s*Record<string,\s*string>/g, '');
-  src = src.replace(/:\s*void\b/g, '');
-  // eslint-disable-next-line no-new-func
-  const fn = new Function(src + '\nreturn CSS_VARS;');
-  return fn();
+  // tokens.ts 只允许这些 TS 语法（多出来的写法要在下面补规则，否则这里直接报错）：
+  //   1) 对象字面量 + \`as const\`  2) \`Record<string, string>\` 类型标注
+  //   3) 函数的参数类型与返回值类型（比如 badgeGlow(color: string): string）
+  src = src.replace(/:\s*Record<[^>]*>/g, '');
+  src = src.replace(/\)\s*:\s*[A-Za-z_$][\w$<>|[\]., ]*\s*\{/g, ') {');
+  src = src.replace(/([A-Za-z_$][\w$]*)\s*:\s*(string|number|boolean|void)\s*(?=[,)])/g, '$1');
+  try {
+    // eslint-disable-next-line no-new-func
+    return new Function(src + '\nreturn CSS_VARS;')();
+  } catch (e) {
+    console.error('[css-vars] ✖ 读不懂 apps/web/src/styles/tokens.ts：' + e.message);
+    console.error('            这个脚本用「剥掉类型标注再当 JS 跑」的办法取值，tokens.ts 里出现了它没见过的 TS 写法。');
+    console.error('            往 scripts/_export_css_vars.mjs 的 loadCssVars() 里补一条剥离规则即可。');
+    process.exit(1);
+  }
 }
 
 /** 生成 marker 之间的文本。 */

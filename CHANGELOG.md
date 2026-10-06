@@ -11,6 +11,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`AppLayout.tsx` 拆第二批：两个全局弹窗搬出去（2026-10-07，dev 分支，行为零变化）。**
+  「💰 底薪 + 提奖」与「抢单成功」这两张弹窗以前都写在外壳组件里（2666 行的文件），
+  现在分别是 `components/SalaryDetailModal.tsx` 与 `components/GrabSuccessModal.tsx`，
+  **逐字搬运**、只把内部的 state 换成 props。外壳 **2666 → 2553 行**（连同下一条的色值清理）。
+  这两张都是纯展示、无副作用，所以是最安全的起步 —— 后面拆带 socket / 轮询的那些要另配测试。
+
 - **颜色「兜底层」不再手抄：`index.css` 的 `:root` 改成从 `tokens.ts` 生成（2026-10-07，dev 分支）。**
   顺手抓到第三个真问题：`--grad-brand-hover` / `--grad-brand-active` 这两个变量**根本没人定义**，
   于是「主按钮悬浮变亮」那条 `background: var(--grad-brand-hover) !important` 是**无效声明**，
@@ -105,6 +111,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
     的变量转发静态扫不出来，所以那份列表是「至少这些」。
 
 ### Changed
+
+- **`AppLayout.tsx` 的 46 处硬编码色值清零（2026-10-07，dev 分支）。**
+  角标那圈光晕 `0 0 10px #FF4757` 在外面手写了 **9 遍**（还有橙色 3 遍）——
+  现在统一走 `badgeGlow(SEMANTIC.danger | warning)`（新增在 `styles/tokens.ts`）；
+  顺手把**三种红归一**（`#FF4757` / `#FF4D4F` / `#f5222d` → `SEMANTIC.danger`）、
+  **两种橙归一**（`#FAAD14` / `#F59E0B` → `SEMANTIC.warning`）、
+  以及侧栏注入的 CSS（`#0b1024` → `var(--color-bg-sider)`）、白底 / 描边 / 灰字等。
+  深色备注文字另开一档 `SEMANTIC.warningDeep`（亮橙当文字看不清）。
+  - 硬编码色值基线 **868 → 822**（`AppLayout` 一处不再上榜）。
 
 - **段位（马级）配色「四份合一」，统一成金 / 银 / 铜（2026-10-07，dev 分支）。**
   以前「上等马 / 中等马 / 下等马」的颜色在 4 个文件里各写了一遍，而且**互相打架**：
