@@ -553,11 +553,12 @@ graph TB
 
 ### 5.1 前端视觉系统（老板 2026-09-21 要求「整齐、有层次感」）
 
-改界面只改这三处，不要在页面里各写一套颜色：
+改界面只改这几处（颜色只认 `tokens.ts`），不要在页面里各写一套颜色：
 
 | 位置 | 管什么 |
 |------|--------|
-| `apps/web/src/theme.ts` | Ant Design 令牌：主色 `#7C4DFF`、圆角 10/12/14、表格表头与悬浮色、卡片圆角、标签胶囊等（一次影响所有 antd 组件） |
+| `apps/web/src/styles/tokens.ts` | **设计令牌唯一真源**：品牌 / 文本 / 背景 / 描边 / 语义色、间距 `SPACE`、圆角 `RADIUS`、字体 `FONT`、阴影 `SHADOW`、渐变 `GRADIENTS`。导出 `applyTokenCssVars()`，`main.tsx` 启动时写进 `:root` 的 CSS 变量（页面 / 组件读 `var(--color-*)`）。**改颜色只改这里。** |
+| `apps/web/src/theme.ts` | Ant Design 令牌：**不写色值，全部从 `styles/tokens.ts` 取**，再映射成 antd 的组件级 token（圆角、表格表头与悬浮色、卡片圆角、标签胶囊等，一次影响所有 antd 组件） |
 | `apps/web/src/styles/global.css` 末尾「视觉系统 v2」一段 | 整页晕染底色 `.app-shell`、内容白卡 `.app-content`、卡片/表格/按钮/标签/滚动条、左侧导航配色，以及通用小组件类 `.ui-panel` / `.ui-dot` / `.ui-section-title` / `.ui-chip` |
 | `apps/web/src/layouts/AppLayout.tsx` 的 `MODULE_TINTS` | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots） |
 
