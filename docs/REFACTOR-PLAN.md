@@ -53,7 +53,10 @@
 5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 6. **路由契约冻结** ✅：`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`（**86 条**页面路径 / 含 4 条重定向），CI `--check` 拦「删路径 / 改路径 / 换页面」。**这是动 `router.tsx` 前必须先到位的前端安全网** —— 前端零测试，而 70 处死的 `<Suspense>` 包装、组件抽取都要改这个文件。
 7. **`router.tsx` 去 Suspense 噪声** ✅：77 处复制粘贴的 `<Suspense>` → 单一入口 `page()`，787 → 487 行；顺带把错误边界 3 处写死色值收进令牌（色值基线 939 → 935）。**路由契约冻结前后逐条一致**，零行为变化。
-> 下一步：把 `AppLayout.tsx`（约 3000 行）里的菜单 / 图标常量抽到 `config/roleMenus.tsx`（纯搬运，行为零变化）。
+8. **前端第一份测试（vitest）+ `AppLayout` 拆第一批** ✅：
+   - `apps/web/src/config/roleMenus.test.ts`（8 用例）：锁「四个角色各能看到哪些菜单」+「菜单指向的路由必须真实存在」+ 一级菜单必须有图标 + 整棵树快照；CI 加一步 `pnpm --filter @chunlv/web test`。**已自证会红**。
+   - 菜单 / 图标常量从 `layouts/AppLayout.tsx` 抽到 `config/roleMenus.tsx`：**3179 → 2666 行**，逐字搬运、行为零变化；`MODULE_TINTS` 搬进 `styles/tokens.ts`（色值基线 935 → 925）。
+> 下一步：AppLayout 继续拆（弹窗 / 通知 / 语音通话 / 聊天面板各自成组件或 hook），每拆一块先跑菜单测试 + 路由冻结；再考虑 `router.tsx` 的真懒加载（首屏 1.2MB + antd 1.3MB 的告警），但**必须能验证**才动。
 
 ---
 

@@ -88,6 +88,25 @@ export const SEMANTIC = {
 } as const;
 
 /** 渐变（品牌外观）。 */
+
+/**
+ * 左侧栏一级菜单的「模块配色」。
+ * 按菜单 key 的后半段取色（owner-home / admin-finance / cs-orders … 都命中同一张表），
+ * 所以加新菜单不用再维护第二份颜色；页面里不要再各写一套。
+ * （2026-10-07 从 layouts/AppLayout.tsx 搬进来，色值一个没动。）
+ */
+export const MODULE_TINTS: Record<string, string> = {
+  home: '#7C4DFF',
+  dispatch: '#00B8D9',
+  orders: '#3B82F6',
+  customers: '#8B5CF6',
+  employees: '#F59E0B',
+  finance: '#10B981',
+  shop: '#EC4899',
+  settings: '#7C8DA6',
+  'battle-screenshots': '#F97316',
+};
+
 export const GRADIENTS = {
   /** 主按钮 / 品牌块 */
   brand: `linear-gradient(135deg, ${BRAND.primary} 0%, ${BRAND.primaryBlue} 100%)`,

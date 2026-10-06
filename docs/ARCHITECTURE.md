@@ -567,7 +567,15 @@ graph TB
 | `apps/web/src/styles/tokens.ts` | **设计令牌唯一真源**：品牌 / 文本 / 背景 / 描边 / 语义色、间距 `SPACE`、圆角 `RADIUS`、字体 `FONT`、阴影 `SHADOW`、渐变 `GRADIENTS`。导出 `applyTokenCssVars()`，`main.tsx` 启动时写进 `:root` 的 CSS 变量（页面 / 组件读 `var(--color-*)`）。**改颜色只改这里。** |
 | `apps/web/src/theme.ts` | Ant Design 令牌：**不写色值，全部从 `styles/tokens.ts` 取**，再映射成 antd 的组件级 token（圆角、表格表头与悬浮色、卡片圆角、标签胶囊等，一次影响所有 antd 组件） |
 | `apps/web/src/styles/global.css` 末尾「视觉系统 v2」一段 | 整页晕染底色 `.app-shell`、内容白卡 `.app-content`、卡片/表格/按钮/标签/滚动条、左侧导航配色，以及通用小组件类 `.ui-panel` / `.ui-dot` / `.ui-section-title` / `.ui-chip` |
-| `apps/web/src/layouts/AppLayout.tsx` 的 `MODULE_TINTS` | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots） |
+| `apps/web/src/config/roleMenus.tsx` 的 `MODULE_TINTS`（颜色值本体在 `styles/tokens.ts`） | 左侧导航一级菜单的模块配色（按菜单 key 后半段取色：home / dispatch / orders / customers / employees / finance / shop / settings / battle-screenshots）。**菜单配置的唯一来源就是这个文件**（2026-10-07 从 `layouts/AppLayout.tsx` 抽出来，原来混在 3000 行里） |
+
+左栏菜单（`config/roleMenus.tsx`）与页面路由（`router.tsx`）现在各有一道闸：
+
+- **菜单契约测试**（`apps/web/src/config/roleMenus.test.ts`，`pnpm --filter @chunlv/web test`）：
+  锁「四个角色各能看到哪些菜单」（快照）、菜单指向的路由必须真实存在、一级菜单必须有图标、
+  分组 key 不能与路由混淆。**前端第一份测试**，跑在 vitest 上。
+- **路由契约冻结**（`scripts/_export_web_routes.mjs` → `docs/WEB-ROUTES.json`，CI `--check`）：
+  页面路径删了 / 改了 / 换了页面直接红。
 
 **铁律：颜色只认 `styles/tokens.ts`。** 页面 / 组件里**不要再写十六进制色值** —— 要么从 tokens 取
 （`TEXT.* / BORDER.* / BG.* / BRAND.* / SEMANTIC.*`），要么在 CSS 里读 `var(--color-*)`。

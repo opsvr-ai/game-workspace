@@ -62,6 +62,11 @@ jobs:
       # 表在 docs/WEB-ROUTES.json，少了 / 改了 / 换了页面这里直接红。
       - name: 路由契约冻结（页面路径）
         run: node scripts/_export_web_routes.mjs --check
+      # 前端第一份测试（2026-10-07）：锁住「四个角色各能看到哪些菜单」+「菜单里写的路由必须真实存在」。
+      # 前端以前零测试，而 AppLayout / roleMenus 正是要重构的地方；菜单少一项、路径写错一个字，
+      # 在界面上都只是「点了打不开」，靠人点是点不完的。
+      - name: 前端测试（左栏导航契约）
+        run: pnpm --filter @chunlv/web test
       - name: 服务端测试
         run: pnpm --filter @chunlv/server test
         env:
