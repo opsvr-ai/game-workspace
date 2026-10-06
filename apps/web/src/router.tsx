@@ -1,11 +1,12 @@
 import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, lazy, type ReactNode } from 'react';
 import { Button, Result } from 'antd';
 import LoadingState from './components/LoadingState';
 import { BG, TEXT } from './styles/tokens';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
-import ChatWindowPage from './pages/ChatWindowPage';
+// 独立聊天窗那一页也懒加载（它是单独一个窗口打开的，首屏用不到）。
+const ChatWindowPage = lazy(() => import('./pages/ChatWindowPage'));
 
 function RouteErrorBoundary() {
   const error = useRouteError();
@@ -55,53 +56,63 @@ function RouteErrorBoundary() {
   );
 }
 
-import UnifiedDashboard from './pages/admin/UnifiedDashboard';
-import OperationsBoard from './pages/admin/OperationsBoard';
-import LiveBoardPage from './pages/admin/LiveBoardPage';
-import CustomerBoardPage from './pages/CustomerBoardPage';
-import CustomersPage from './pages/CustomersPage';
-import DispatchPage from './pages/DispatchPage';
-import OrdersPage from './pages/OrdersPage';
-import BillingOverview from './pages/BillingOverview';
-import CompanionsPage from './pages/CompanionsPage';
-import CompanionPoolPage from './pages/OrderPoolPage';
-import MachinesPage from './pages/admin/MachinesPage';
-import PcControlPage from './pages/admin/PcControlPage';
-import PayrollPage from './pages/admin/PayrollPage';
-import TrafficAccountPage from './pages/admin/TrafficAccountPage';
-import EmployeesPage from './pages/owner/EmployeesPage';
-import StudiosPage from './pages/owner/StudiosPage';
-import BridgePage from './pages/BridgePage';
-import AuthorizationsPage from './pages/owner/AuthorizationsPage';
-import ReviewPage from './pages/admin/ReviewPage';
-import SettingsPage from './pages/admin/SettingsPage';
-import AgentVersionPage from './pages/admin/AgentVersionPage';
-import StatsPage from './pages/StatsPage';
-import BlacklistPage from './pages/admin/BlacklistPage';
-import ProcessKillLogPage from './pages/admin/ProcessKillLogPage';
-import WhitelistPage from './pages/admin/WhitelistPage';
-import AttendancePage from './pages/admin/AttendancePage';
-import ProfileSetupPage from './pages/ProfileSetupPage';
-import UiKitPage from './pages/UiKitPage';
-import CompanionPage from './pages/CompanionPage';
-import CustomerDetailPage from './pages/CustomerDetailPage';
-import ProfilePage from './pages/ProfilePage';
-import WorkWechatPage from './pages/WorkWechatPage';
-import PriceRulesPage from './pages/finance/PriceRulesPage';
-import CommissionPage from './pages/finance/CommissionPage';
-import CsCommissionTodayPage from './pages/finance/CsCommissionTodayPage';
-import CsSettingsPage from './pages/admin/CsSettingsPage';
-import ReconciliationPage from './pages/finance/ReconciliationPage';
-import CsWechatFlowPage from './pages/finance/CsWechatFlowPage';
-import ProfitCalendarPage from './pages/finance/ProfitCalendarPage';
-import CompanionWalletCalendarPage from './pages/finance/CompanionWalletCalendarPage';
-import RiskWorkbenchPage from './pages/finance/RiskWorkbenchPage';
-import ExpenseReviewPage from './pages/finance/ExpenseReviewPage';
-import BattleScreenshotsPage from './pages/BattleScreenshotsPage';
-import BattleScreenshotReviewPage from './pages/BattleScreenshotReviewPage';
-import ContentCheckPage from './pages/ContentCheckPage';
-import OrderReviewPage from './pages/admin/OrderReviewPage';
-import TodosPage from './pages/TodosPage';
+// ── 页面一律按路由懒加载 ──────────────────────────────────────────────
+// 以前 50 个页面全是同步 import：首屏必须把「所有页面」的代码都下载 + 解析完才画出第一帧
+// （实测应用主包 1.2MB，本机都要 3 秒才见到外壳，线上更慢）。改成 lazy 之后首屏只拉
+// 「外壳 + 当前这一页」，别的页面点到才下。
+//
+// 每条路由外面本来就有 <Suspense>（见下面的 page()），所以这里不用再包一层；
+// 加载中显示的就是 SuspenseFallback（统一 LoadingState）。
+//
+// 只有 AppLayout（外壳）和 LoginPage（第一屏）保持同步 import —— 这两个任一拉不到，
+// 用户连登录都进不去，不值得为这点体积冒险。
+const UnifiedDashboard = lazy(() => import('./pages/admin/UnifiedDashboard'));
+const OperationsBoard = lazy(() => import('./pages/admin/OperationsBoard'));
+const LiveBoardPage = lazy(() => import('./pages/admin/LiveBoardPage'));
+const CustomerBoardPage = lazy(() => import('./pages/CustomerBoardPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const DispatchPage = lazy(() => import('./pages/DispatchPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const BillingOverview = lazy(() => import('./pages/BillingOverview'));
+const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
+const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
+const MachinesPage = lazy(() => import('./pages/admin/MachinesPage'));
+const PcControlPage = lazy(() => import('./pages/admin/PcControlPage'));
+const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
+const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
+const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
+const StudiosPage = lazy(() => import('./pages/owner/StudiosPage'));
+const BridgePage = lazy(() => import('./pages/BridgePage'));
+const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage'));
+const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
+const AgentVersionPage = lazy(() => import('./pages/admin/AgentVersionPage'));
+const StatsPage = lazy(() => import('./pages/StatsPage'));
+const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
+const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
+const WhitelistPage = lazy(() => import('./pages/admin/WhitelistPage'));
+const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
+const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
+const UiKitPage = lazy(() => import('./pages/UiKitPage'));
+const CompanionPage = lazy(() => import('./pages/CompanionPage'));
+const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const WorkWechatPage = lazy(() => import('./pages/WorkWechatPage'));
+const PriceRulesPage = lazy(() => import('./pages/finance/PriceRulesPage'));
+const CommissionPage = lazy(() => import('./pages/finance/CommissionPage'));
+const CsCommissionTodayPage = lazy(() => import('./pages/finance/CsCommissionTodayPage'));
+const CsSettingsPage = lazy(() => import('./pages/admin/CsSettingsPage'));
+const ReconciliationPage = lazy(() => import('./pages/finance/ReconciliationPage'));
+const CsWechatFlowPage = lazy(() => import('./pages/finance/CsWechatFlowPage'));
+const ProfitCalendarPage = lazy(() => import('./pages/finance/ProfitCalendarPage'));
+const CompanionWalletCalendarPage = lazy(() => import('./pages/finance/CompanionWalletCalendarPage'));
+const RiskWorkbenchPage = lazy(() => import('./pages/finance/RiskWorkbenchPage'));
+const ExpenseReviewPage = lazy(() => import('./pages/finance/ExpenseReviewPage'));
+const BattleScreenshotsPage = lazy(() => import('./pages/BattleScreenshotsPage'));
+const BattleScreenshotReviewPage = lazy(() => import('./pages/BattleScreenshotReviewPage'));
+const ContentCheckPage = lazy(() => import('./pages/ContentCheckPage'));
+const OrderReviewPage = lazy(() => import('./pages/admin/OrderReviewPage'));
+const TodosPage = lazy(() => import('./pages/TodosPage'));
 
 const SuspenseOutlet = () => (
   <Suspense

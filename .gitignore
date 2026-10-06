@@ -158,6 +158,7 @@ scripts/_*
 !scripts/_export_api_contract.mjs
 !scripts/_check_ui_tokens.mjs
 !scripts/_check_loading_state.mjs
+!scripts/_check_route_splitting.mjs
 !scripts/_export_web_routes.mjs
 !scripts/_export_css_vars.mjs
 !scripts/_shot_ui.mjs

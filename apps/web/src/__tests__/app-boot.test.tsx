@@ -25,9 +25,11 @@ describe('整站启动冒烟（不连后端）', () => {
   it('打开 /ui-kit：整个 App 能渲染出来', async () => {
     const { default: App } = await import('../App');
     render(<App />);
-    expect(await screen.findByText('设计校对页')).toBeInTheDocument();
-    // 第一次 import ../App 会把整张页面图（80+ 个页面模块）都装进来，本机实测 ~15s，
-    // 所以这一条单独放宽超时（默认 5s，只有它需要）。
+    // 页面是**按路由懒加载**的（见 router.tsx）：import ../App 现在只装「外壳 + 当前这一页」，
+    // 而这一页的模块是渲染时才真正 transform 的 —— 第一次跑 vitest 没有缓存，本机实测要十来秒。
+    // 所以这条断言要单独放宽等待（findBy* 默认只等 1 秒，跑全量测试时会被 CPU 抢占拖红）。
+    // 放宽的是「等多久」，不是「等什么」：等不到这行字照样红。
+    expect(await screen.findByText('设计校对页', {}, { timeout: 60_000 })).toBeInTheDocument();
   }, 120_000);
 
   it('冻结的路由表里每一条路径，在真路由里都还能匹配到', async () => {

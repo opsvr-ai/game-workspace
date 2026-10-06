@@ -13,9 +13,13 @@ const proxy = {
 };
 
 // 把第三方库拆成几个「长期不变」的分块。
-// 现在整个前端是一个 2.8MB 的大文件，每次发布（哪怕只改一行字）所有客户端都要
+// 以前整个前端是一个 2.8MB 的大文件，每次发布（哪怕只改一行字）所有客户端都要
 // 重新下载这 2.8MB。拆开之后 react / antd / 图表 各自一个文件，
 // 发布界面改动时只有应用那一个分块变，客户端只重下那部分。
+//
+// 2026-10-07 又往前一步：页面改成按路由懒加载（见 src/router.tsx），
+// 入口分包从 1.2MB 掉到 347KB（首屏 gzip 820KB → 582KB），图表分块也不再首屏必拉。
+// 守卫：scripts/_check_route_splitting.mjs（不许把页面写回同步 import）。
 function manualChunks(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
   if (id.includes('recharts') || id.includes('d3-') || id.includes('victory')) return 'charts';

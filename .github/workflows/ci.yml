@@ -62,6 +62,12 @@ jobs:
       # 基线见 docs/LOADING-STATE-BASELINE.json（当前 0）。
       - name: 加载态冻结（不许裸写 Spin）
         run: node scripts/_check_loading_state.mjs --check
+      # 路由分包守卫（2026-10-07）：50 个页面原来全是同步 import，首屏必须把所有页面的代码
+      # 都下载 + 解析完才画出第一帧（主包 1.2MB）。改成按路由 lazy 之后主包 347KB。
+      # 但「新加一个页面」时同步 import 是最自然的写法，写下去没人会觉得不对 —— 这里拦住它。
+      # 顺手量入口分包体积（有构建产物时），悄悄塞回大页面会超上限。
+      - name: 路由分包守卫（页面必须懒加载）
+        run: node scripts/_check_route_splitting.mjs
       # CSS 变量兜底 + 变量定义完整性（2026-10-07）：index.css 的 :root 是从 tokens.ts
       # 生成出来的，手抄漏了这里直接红；顺带卡「CSS 里用了 var(--x) 但没人定义」——
       # 上一版就漏了 --grad-brand-hover / --grad-brand-active，导致主按钮悬浮态是无效声明。
@@ -111,3 +117,6 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # 打包完再量一次入口分包体积（check 任务里没有 dist，量不到这一项）。
+      - name: 路由分包守卫（入口分包体积）
+        run: node scripts/_check_route_splitting.mjs
