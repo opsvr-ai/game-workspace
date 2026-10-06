@@ -7,6 +7,7 @@ import { companionStatusConfig } from '../../constants';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
 import { studiosApi } from '../../api/studios';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -378,20 +379,15 @@ const BlacklistPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <Text strong style={{ fontSize: 16 }}>
-            状态黑名单管理
-          </Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            采集进程 → 挑选进待禁用名单 → 再分配到各状态。
-          </Text>
-        </div>
-        <Button icon={createElement(ReloadOutlined)} onClick={fetchAll} loading={loading}>
-          刷新
-        </Button>
-      </div>
+      <PageHeader
+        title="状态黑名单管理"
+        subtitle="采集进程 → 挑选进待禁用名单 → 再分配到各状态。"
+        extra={
+          <Button icon={createElement(ReloadOutlined)} onClick={fetchAll} loading={loading}>
+            刷新
+          </Button>
+        }
+      />
 
       {isOwner ? (
         <Card size="small" style={{ marginBottom: 12, background: '#fafafa' }}>

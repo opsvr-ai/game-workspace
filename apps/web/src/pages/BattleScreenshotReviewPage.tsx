@@ -105,7 +105,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={canReview ? '🖼 战绩图审核' : '🖼 战绩图查看'}
+        title={canReview ? '战绩图审核' : '战绩图查看'}
         subtitle={
           canReview
             ? '采纳后自动给该陪玩综合评分加分（作为小红书素材）'

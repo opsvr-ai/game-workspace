@@ -24,6 +24,7 @@ import {
 import { studiosApi } from '../../api/studios';
 import http from '../../api/client';
 import { useAuthStore } from '../../stores/authStore';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -252,6 +253,11 @@ const StudiosPage: React.FC = () => {
 
   return (
     <div>
+      <PageHeader
+        title="工作室管理"
+        subtitle={isOwner ? '全站的工作室 / 线上俱乐部，以及它们之间的桥接关系' : '本店工作室信息'}
+        extra={<Button icon={<ReloadOutlined />} onClick={fetchStudios} loading={loading}>刷新</Button>}
+      />
       <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 10, border: '1px solid #E2E8F0' }}>
         <Text strong style={{ fontSize: 14 }}>🌐 线上俱乐部桥接</Text>
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>

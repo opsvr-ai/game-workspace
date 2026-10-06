@@ -7,8 +7,9 @@ import { financeApi } from '../../api/finance';
 import { extractErrorMessage } from '../../utils/error-handler';
 import { Link } from 'react-router-dom';
 import { BRAND } from '../../styles/tokens';
+import PageHeader from '../../components/PageHeader';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const Field = ({ label, unit, value, onChange, step = 1, min = 0, max, hint }: {
   label: string;
@@ -180,19 +181,16 @@ const CsSettingsPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>客服设置</Title>
-        <Text type="secondary">
-          客服的提成在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。
-          桥接提成按本月单价阶梯算（跑得越多单价越高），跑不够只是单价停在第一档，不扣底薪、不打折提成。
-          输入框里的紫色小字是单位。线上俱乐部那一项是「按流水比例」还是「按成功单数 × 每单单价」，自己选一个。
-        </Text>
-      </div>
-
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>刷新</Button>
-        <Button type="primary" icon={<SaveOutlined />} onClick={save} loading={saving}>保存全部</Button>
-      </Space>
+      <PageHeader
+        title="客服设置"
+        subtitle="客服的提成在这里设置（底薪、月休、迟到/缺勤扣款、全勤奖在「工资规则」里）。桥接提成按本月单价阶梯算（跑得越多单价越高），跑不够只是单价停在第一档，不扣底薪、不打折提成。输入框里的紫色小字是单位。"
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>刷新</Button>
+            <Button type="primary" icon={<SaveOutlined />} onClick={save} loading={saving}>保存全部</Button>
+          </Space>
+        }
+      />
 
       <Row gutter={16}>
         <Col xs={24} lg={12}>

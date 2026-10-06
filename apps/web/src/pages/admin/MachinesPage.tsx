@@ -12,6 +12,7 @@ import {
 } from '../../api/machines';
 import { visibleInterval } from '../../hooks/usePolling';
 import ManagedPcPanel from './ManagedPcPanel';
+import PageHeader from '../../components/PageHeader';
 
 const { Text, Paragraph } = Typography;
 
@@ -437,6 +438,10 @@ const MachinesPage: React.FC = () => {
 
   return (
     <div>
+      <PageHeader
+        title="机器管理"
+        subtitle="本店电脑台账：谁在用、在不在线、看门狗版本，以及远程管理开通没有"
+      />
       <Space style={{ marginBottom: 16 }} wrap>
         <Statistic title="真机器" value={stats.total} />
         <Statistic title="在线" value={stats.onlineCount} valueStyle={{ color: '#52c41a' }} />

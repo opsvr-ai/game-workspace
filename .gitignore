@@ -221,3 +221,4 @@ apps/*/.claude/
 !scripts/_mock_api.mjs
 !scripts/_shot_seed_owner.js
 !scripts/_shot_pages.mjs
+!scripts/_ui_audit.mjs

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, createElement, useMemo } from 
 import { Table, Tag, Typography, Select, Button, Space, Tooltip, Card, Row, Col, Statistic, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
+import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
 
 const { Text } = Typography;
@@ -66,15 +67,18 @@ const ProcessKillLogPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Text strong style={{ fontSize: 16 }}>杀进程日志</Text>
-        <Space>
-          <Select placeholder="按陪玩筛选" allowClear style={{ width: 160 }} value={companionFilter}
-            onChange={setCompanionFilter}
-            options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))} />
-          <Button icon={createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="杀进程日志"
+        subtitle="每次杀掉黑名单进程都会记一条，能按陪玩筛"
+        extra={
+          <Space>
+            <Select placeholder="按陪玩筛选" allowClear style={{ width: 160 }} value={companionFilter}
+              onChange={setCompanionFilter}
+              options={companions.map((c) => ({ label: c.user?.username || c.id, value: c.id }))} />
+            <Button icon={createElement(ReloadOutlined)} onClick={fetch} loading={loading}>刷新</Button>
+          </Space>
+        }
+      />
             <Row gutter={16} style={{ marginBottom: 12 }}>
         <Col span={6}><Card size="small"><Statistic title="总杀进程次数" value={logs.length} valueStyle={{ fontSize: 20 }} /></Card></Col>
         <Col span={6}><Card size="small"><Statistic title="成功" value={logs.filter(l => l.success).length} valueStyle={{ fontSize: 20, color: '#3f8600' }} /></Card></Col>

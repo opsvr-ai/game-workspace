@@ -197,7 +197,7 @@ const ProfitCalendarPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="💰 财务中心" subtitle="利润、应付、固定支出（平摊到天）与每日/月度净利润" />
+      <PageHeader title="财务中心" subtitle="利润、应付、固定支出（平摊到天）与每日/月度净利润" />
 
       <Card size="small" title="本月利润（赚进来的）" style={{ marginBottom: 12 }}>
         <Row gutter={16}>

@@ -4,6 +4,7 @@ import { Card, Table, Button, Tag, Tabs, message, Modal, Select, Space, Typograp
 import { LinkOutlined, CheckOutlined, CloseOutlined, DisconnectOutlined } from '@ant-design/icons';
 import { bridgeApi, BridgeInfo } from '../api/bridge';
 import BridgeSettlementPanel from '../components/BridgeSettlementPanel';
+import PageHeader from '../components/PageHeader';
 import { studiosApi } from '../api/studios';
 import { useAuthStore } from '../stores/authStore';
 
@@ -34,7 +35,8 @@ export default function BridgePage() {
     setLoading(true);
     try {
       const [bridgeRes, studioRes] = await Promise.all([bridgeApi.list(), studiosApi.list()]);
-      setBridges(bridgeRes.data.data);
+      // 接口万一回了个空壳，不能把 active / pending 直接设成 undefined（下面 .flatMap 会炸、整页白屏）
+      setBridges(bridgeRes.data.data ?? { active: [], pending: [] });
       setStudios(studioRes.data.data || []);
     } catch {
       message.error('加载失败');
@@ -230,7 +232,12 @@ export default function BridgePage() {
   );
 
   return (
-    <Card title="工作室桥接管理">
+    <div>
+      <PageHeader
+        title="工作室桥接"
+        subtitle="把线上俱乐部作为最后一级兜底，接到本店的工作室链路上；两边各自决定共享什么"
+      />
+      <Card>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -320,6 +327,7 @@ export default function BridgePage() {
           </div>
         </div>
       </Modal>
-    </Card>
+      </Card>
+    </div>
   );
 }

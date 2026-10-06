@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, createElement } from 'react';
 import { Table, Button, Space, Modal, Input, Popconfirm, message, Tag, Typography, Select, Radio } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -102,20 +103,17 @@ const WhitelistPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <Text strong style={{ fontSize: 16 }}>进程白名单</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            白名单中的进程不会被关闭（优先级高于黑名单） · 系统内置条目不可删除
-          </Text>
-        </div>
-        <Space>
-          <Button icon={createElement(ReloadOutlined)} onClick={fetchItems} loading={loading}>刷新</Button>
-          <Button type="primary" icon={createElement(PlusOutlined)}
-            onClick={() => { setProcessName(''); setProcessPath(''); setModalOpen(true); }}>添加白名单</Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="进程白名单"
+        subtitle="白名单里的进程不会被关闭（优先级高于黑名单） · 系统内置条目不可删除"
+        extra={
+          <Space>
+            <Button icon={createElement(ReloadOutlined)} onClick={fetchItems} loading={loading}>刷新</Button>
+            <Button type="primary" icon={createElement(PlusOutlined)}
+              onClick={() => { setProcessName(''); setProcessPath(''); setModalOpen(true); }}>添加白名单</Button>
+          </Space>
+        }
+      />
 
       <Table size="small" columns={columns} dataSource={items} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无白名单条目' }}

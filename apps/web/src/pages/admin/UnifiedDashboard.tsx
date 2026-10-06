@@ -11,6 +11,7 @@ import CardSkeleton from '../../components/CardSkeleton';
 import EmptyState from '../../components/EmptyState';
 import DueFollowUpBanner from '../../components/DueFollowUpBanner';
 import { BRAND, TEXT } from '../../styles/tokens';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -107,6 +108,11 @@ const RevenueDashboard: React.FC = () => {
 
   return (
     <div>
+      <PageHeader
+        title="营收报表"
+        subtitle="昨日 / 全月流水、在线陪玩、订单结构与陪玩收入排行"
+        extra={<Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>}
+      />
       {error && <ErrorBanner message={error} onRetry={fetchData} />}
       {/* 到点该跟进的客户（客服在跟进台账里记的下次跟进时间）：没有就什么都不显示 */}
       <DueFollowUpBanner />

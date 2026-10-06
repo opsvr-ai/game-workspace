@@ -212,7 +212,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="📊 陪玩报账与支取统计"
+        title="陪玩报账与支取统计"
         subtitle="按陪玩汇总本月收入与支取"
         extra={
           <DatePicker

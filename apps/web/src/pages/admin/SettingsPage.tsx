@@ -19,6 +19,7 @@ import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar
 import { useAuthStore } from '../../stores/authStore';
 import { useSearchParams } from 'react-router-dom';
 import { TEXT } from '../../styles/tokens';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -209,16 +210,11 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
+      <PageHeader
+        title="系统设置"
+        subtitle={`修改后即时生效 · 共 ${availableCount} 项，左边选分类，或者直接搜`}
+      />
       <StudioConfigScopeBar />
-      <div style={{ marginBottom: 12 }}>
-        <span className="ui-section-title" style={{ fontSize: 16 }}>
-          <span className="ui-dot" style={{ background: 'linear-gradient(135deg,#00e5ff,#7c4dff)' }} />
-          系统设置
-        </span>
-        <Text type="secondary" style={{ marginLeft: 10, fontSize: 12 }}>
-          修改后即时生效 · 共 {availableCount} 项，左边选分类，或者直接搜
-        </Text>
-      </div>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <div

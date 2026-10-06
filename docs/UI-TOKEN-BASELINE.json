@@ -1,7 +1,7 @@
 {
   "_comment": "UI 硬编码色值基线。只能减不能增；降下来后跑 node scripts/_check_ui_tokens.mjs --update 调低。",
   "_updatedAt": "2026-10-07",
-  "total": 684,
+  "total": 679,
   "distinct": 136,
   "byFile": {
     "pages/admin/OperationsBoard.tsx": 28,
@@ -32,7 +32,6 @@
     "components/UrgentOrderPopup.tsx": 9,
     "components/chat/CompanionItem.tsx": 8,
     "components/chat/MessageList.tsx": 8,
-    "pages/admin/SettingsPage.tsx": 8,
     "pages/CompanionsPage.tsx": 8,
     "pages/ContentCheckPage.tsx": 8,
     "pages/CustomersPage.tsx": 7,
@@ -41,7 +40,7 @@
     "components/IncomingCallModal.tsx": 6,
     "components/PartnerInviteCards.tsx": 6,
     "pages/admin/BlacklistPage.tsx": 6,
-    "pages/owner/AuthorizationsPage.tsx": 6,
+    "pages/admin/SettingsPage.tsx": 6,
     "pages/owner/StudiosPage.tsx": 6,
     "components/chat/MessageContextMenu.tsx": 5,
     "components/chat/ReplyBar.tsx": 5,
@@ -70,6 +69,7 @@
     "pages/admin/ProcessKillLogPage.tsx": 3,
     "pages/BattleScreenshotReviewPage.tsx": 3,
     "pages/finance/CsWechatFlowPage.tsx": 3,
+    "pages/owner/AuthorizationsPage.tsx": 3,
     "pages/ProfileSetupPage.tsx": 3,
     "utils/escalated-pool-csv.ts": 3,
     "components/chat/DateDivider.tsx": 2,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, createElement, useMemo } from 
 import { Table, Tag, Typography, DatePicker, Select, Button, Space, message } from 'antd';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import http from '../../api/client';
+import PageHeader from '../../components/PageHeader';
 import type { Dayjs } from 'dayjs';
 
 const { Text } = Typography;
@@ -196,20 +197,19 @@ const AttendancePage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <Text strong style={{ fontSize: 16 }}>📋 考勤管理</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {companionOn
-              ? '查看陪玩上下班打卡记录与考勤状态'
-              : '本店没开陪玩考勤（陪玩是提成制），这一页只统计客服 / 店长'}
-          </Text>
-        </div>
-        <Space>
-          <Button icon={createElement(ReloadOutlined)} onClick={fetchRecords} loading={loading}>刷新</Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="考勤管理"
+        subtitle={
+          companionOn
+            ? '查看陪玩上下班打卡记录与考勤状态'
+            : '本店没开陪玩考勤（陪玩是提成制），这一页只统计客服 / 店长'
+        }
+        extra={
+          <Space>
+            <Button icon={createElement(ReloadOutlined)} onClick={fetchRecords} loading={loading}>刷新</Button>
+          </Space>
+        }
+      />
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         {companionOn && (

@@ -9,6 +9,7 @@ import dayjs from 'dayjs';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
 import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
+import PageHeader from '../../components/PageHeader';
 import { tierMeta } from '../../constants/tiers';
 
 const { Text } = Typography;
@@ -59,13 +60,6 @@ const Kpi: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNo
     </div>
     <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.25, color: tint }}>{value}</div>
     {sub ? <div style={{ marginTop: 2, fontSize: 12, color: TEXT.tertiary }}>{sub}</div> : null}
-  </div>
-);
-
-const SectionTitle: React.FC<{ children: React.ReactNode; extra?: React.ReactNode }> = ({ children, extra }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 10px' }}>
-    <Text strong style={{ fontSize: 15 }}>{children}</Text>
-    {extra}
   </div>
 );
 
@@ -197,18 +191,13 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
 
   return (
     <div>
-      <SectionTitle
+      <PageHeader
+        title="运营看板"
+        subtitle={`${compact ? '客服' : '老板 / 店长'}视角的经营总览 · 每 60 秒自动刷新（上次 ${dayjs().format('HH:mm')}）`}
         extra={
-          <Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              每 60 秒自动刷新 · {dayjs().format('HH:mm')}
-            </Text>
-            <Button size="small" icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-          </Space>
+          <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
         }
-      >
-        📊 运营看板{compact ? '' : ' · 老板 / 店长'}
-      </SectionTitle>
+      />
 
       {/* ── KPI ── */}
       {/* alignItems: "stretch"：几张卡都是 height:100%，而 antd 的 Row 默认不拉伸 ——

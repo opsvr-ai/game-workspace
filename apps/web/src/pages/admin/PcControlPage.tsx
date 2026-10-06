@@ -29,6 +29,7 @@ import { managedPcApi, ManagedPcItem } from '../../api/managedPc';
 import { useSocket } from '../../hooks/useSocket';
 import { companionStatusConfig, modeLabels } from '../../constants';
 import { visibleInterval } from '../../hooks/usePolling';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 
@@ -385,17 +386,10 @@ const PcControlPage: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text strong style={{ fontSize: 16 }}>
-          PC 远程控制
-        </Text>
+      <PageHeader
+        title="PC 远程控制"
+        subtitle="远程看陪玩电脑的屏幕、下发指令（机器要先开通远程管理）"
+        extra={
         <Space wrap>
           <Input.Search
             placeholder="搜索员工姓名"
@@ -455,7 +449,8 @@ const PcControlPage: React.FC = () => {
             刷新
           </Button>
         </Space>
-      </div>
+        }
+      />
 
       <Table
         columns={columns}

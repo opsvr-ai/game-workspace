@@ -235,7 +235,7 @@ const WorkWechatPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={typeFilter === 'STUDIO' ? '📱 客服工作微信' : typeFilter === 'COMPANION' ? '📱 陪玩工作微信' : '📱 工作微信管理'}
+        title={typeFilter === 'STUDIO' ? '客服工作微信' : typeFilter === 'COMPANION' ? '陪玩工作微信' : '工作微信管理'}
         subtitle={typeFilter === 'STUDIO' ? '管理客服使用的工作微信，并绑定给客服' : typeFilter === 'COMPANION' ? '管理陪玩使用的工作微信，并绑定给陪玩' : '管理本店工作微信'}
         extra={
           <Button icon={<ReloadOutlined />} onClick={fetch} loading={loading}>

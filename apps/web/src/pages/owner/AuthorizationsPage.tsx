@@ -17,6 +17,8 @@ import {
 import { UserRole } from '@chunlv/shared';
 import { employeesApi } from '../../api/employees';
 import { authApi } from '../../api/client';
+import PageHeader from '../../components/PageHeader';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -159,17 +161,10 @@ const AuthorizationsPage: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text strong style={{ fontSize: 16 }}>
-          客户端授权
-        </Text>
+      <PageHeader
+        title="客户端授权"
+        subtitle="谁在用我们的客户端、有没有授权过，在这里审"
+        extra={
         <Space>
           <Input.Search
             placeholder="搜索用户名/角色/工作室"
@@ -195,14 +190,15 @@ const AuthorizationsPage: React.FC = () => {
             刷新
           </Button>
         </Space>
-      </div>
+        }
+      />
 
       {error && (
         <div
           style={{
-            color: '#ff4d4f',
-            background: '#fff2f0',
-            border: '1px solid #ffccc7',
+            color: SEMANTIC.danger,
+            background: SEMANTIC.dangerSoft,
+            border: '1px solid ' + SEMANTIC.dangerBorder,
             borderRadius: 6,
             padding: '8px 12px',
             marginBottom: 12,

@@ -5,8 +5,9 @@ import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
 import { compressImage } from '../utils/imageCompress';
 import { BRAND } from '../styles/tokens';
+import PageHeader from '../components/PageHeader';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const ProfilePage: React.FC = () => {
   const [pwdLoading, setPwdLoading] = useState(false);
@@ -126,7 +127,7 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Title level={4} style={{ marginBottom: 16 }}>个人设置</Title>
+      <PageHeader title="个人设置" subtitle="头像、昵称与登录密码" />
 
       {/* Avatar Card */}
       <Card size="small" style={{ marginBottom: 12 }}>

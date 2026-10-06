@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Modal, Typography, Image, Input, Popconfirm, message, Tag } from 'antd';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import http from '../../api/client';
+import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -91,13 +92,21 @@ const ReviewPage: React.FC = () => {
     },
   ];
 
+  // 列宽合计 1410。不设 scroll.x 的话 antd 会把表格直接撑出内容卡：右边「操作」列被切掉、
+  // 还没法横向滚（2026-10-07 实测溢出卡外 112px、整列点不到）。跟员工管理用同一个办法。
+  const REVIEW_TABLE_WIDTH = 120 + 80 + 100 + 200 + 130 + 120 + 120 + 100 + 80 + 160 + 200;
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Text strong style={{ fontSize: 16 }}>实名审核</Text>
-        <Button icon={React.createElement(ReloadOutlined)} onClick={fetchPending} loading={loading}>刷新</Button>
-      </div>
+      <PageHeader
+        title="实名审核"
+        subtitle="陪玩提交的实名资料在这里审核，通过了才能接单"
+        extra={
+          <Button icon={React.createElement(ReloadOutlined)} onClick={fetchPending} loading={loading}>刷新</Button>
+        }
+      />
       <Table size="small" columns={columns} dataSource={companions} rowKey="id" loading={loading}
+        scroll={{ x: REVIEW_TABLE_WIDTH }}
         locale={{ emptyText: '暂无待审核申请' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条待审核` }} />
       <Modal open={!!previewImage} footer={null} onCancel={() => setPreviewImage(null)} width={600}>

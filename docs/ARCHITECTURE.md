@@ -574,6 +574,14 @@ graph TB
 > 的菜单与页面是同一套前端按角色渲染的，切角色就能逐个对照。
 > 要给某个页面喂更真实的数据，改 `_mock_api.mjs` 的 FIXTURES（请求路径见 `tmp_shots/_api_log.txt`）。
 > 单页细看用 `_shot_ui.mjs`（支持 `--sel` 只截某块、`--scale` 放大、`--eval` 取数）。
+> **「有没有溢出 / 有没有被切掉 / 页头齐不齐」别用眼睛看截图**（缩放一下就看走眼，误判过一次）——
+> 用 `scripts/_ui_audit.mjs` 逐页量：
+> ```powershell
+> node scripts/_ui_audit.mjs --base=http://127.0.0.1:8123 --pre=scripts/_shot_seed_owner.js \
+>   --json=tmp_shots/ui_audit.json /admin /admin/orders /admin/settings
+> ```
+> 它会报四件事：横向溢出（比内容卡还宽、右边被切）、文字截断、每页页头的**文字 / 字号 / 字重 / 颜色 / 是否渐变**、
+> 以及**压根没有页面标题**的页面。有横滚祖先的元素会跳过（antd 表格列多本来就是滚着看，不是缺陷）。
 
 | 位置 | 管什么 |
 |------|--------|

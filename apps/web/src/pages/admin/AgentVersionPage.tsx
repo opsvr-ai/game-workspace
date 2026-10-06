@@ -34,8 +34,9 @@ import {
 } from '@ant-design/icons';
 import { agentApi } from '../../api/agent';
 import { visibleInterval } from '../../hooks/usePolling';
+import PageHeader from '../../components/PageHeader';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 interface CompanionVersion {
   companionId: string;
@@ -443,13 +444,10 @@ const AgentVersionPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>
-            版本管理
-          </Title>
-          <Text type="secondary">管理陪玩客户端版本，一键构建并推送更新</Text>
-        </div>
+      <PageHeader
+        title="版本管理"
+        subtitle="管理陪玩客户端版本，一键构建并推送更新"
+        extra={
         <Space>
           <Tooltip title="下载安装包（发给新工作室/新电脑安装）">
             <Button icon={<DownloadOutlined />} onClick={() => setDownloadModalOpen(true)}>
@@ -487,7 +485,8 @@ const AgentVersionPage: React.FC = () => {
             </Button>
           </Popconfirm>
         </Space>
-      </div>
+        }
+      />
 
       {/* Stat Cards */}
       <Row gutter={16} style={{ marginBottom: 12 }}>

@@ -64,7 +64,7 @@ const CsWechatFlowPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="📱 客服微信收款明细" subtitle="按客服工作微信查看每一笔订单的资金流向，有问题自动标红" />
+      <PageHeader title="客服微信收款明细" subtitle="按客服工作微信查看每一笔订单的资金流向，有问题自动标红" />
       <Spin spinning={loading}>
         {data.length === 0 && !loading ? (
           <Card size="small">

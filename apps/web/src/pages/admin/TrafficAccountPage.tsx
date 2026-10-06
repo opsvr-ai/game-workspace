@@ -20,6 +20,7 @@ import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
 import { BRAND, TEXT } from '../../styles/tokens';
+import PageHeader from '../../components/PageHeader';
 
 const { Text, Title } = Typography;
 const TYPE_COLORS: Record<string, string> = {
@@ -828,19 +829,19 @@ const TrafficAccountPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>工作室账号管理</Title>
-          <Text type="secondary">按平台管理抖音、小红书、视频号、快手、咸鱼、B站账号</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
-          <Button icon={<FileTextOutlined />} onClick={openGuide}>打法指南</Button>
-          <Button icon={<SettingOutlined />} onClick={() => setColModalOpen(true)}>列设置</Button>
-          <Button onClick={() => setBanAnalysisOpen(true)}>封号分析</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加账号</Button>
-        </Space>
-      </div>
+      <PageHeader
+        title="工作室账号管理"
+        subtitle="按平台管理抖音、小红书、视频号、快手、咸鱼、B站账号"
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchItems} loading={loading}>刷新</Button>
+            <Button icon={<FileTextOutlined />} onClick={openGuide}>打法指南</Button>
+            <Button icon={<SettingOutlined />} onClick={() => setColModalOpen(true)}>列设置</Button>
+            <Button onClick={() => setBanAnalysisOpen(true)}>封号分析</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加账号</Button>
+          </Space>
+        }
+      />
       <Tabs
         activeKey={activeStatus}
         onChange={(key) => setActiveStatus(key as 'ACTIVE' | 'INACTIVE')}
