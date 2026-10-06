@@ -7,6 +7,7 @@ import http from '../api/client';
 import { extractErrorMessage } from '../utils/error-handler';
 import PasteImageBox from './PasteImageBox';
 
+import { BORDER, SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 
 /**
@@ -46,9 +47,9 @@ export function outcomeStateOf(order: any): 'SUCCESS' | 'FAILED' | 'PENDING' | '
 }
 
 const STATE_STYLE: Record<string, { label: string; color: string }> = {
-  SUCCESS: { label: '成功', color: '#15803D' },
-  FAILED: { label: '不成功', color: '#DC2626' },
-  PENDING: { label: '待反馈', color: '#B45309' },
+  SUCCESS: { label: '成功', color: SEMANTIC.successDeep },
+  FAILED: { label: '不成功', color: SEMANTIC.dangerMid },
+  PENDING: { label: '待反馈', color: SEMANTIC.warningDeep },
 };
 
 /**
@@ -264,7 +265,7 @@ const OrderOutcomeModal: React.FC<Props> = ({ open, order, onClose, onSaved, cha
                 <img
                   src={url}
                   alt="失败凭据"
-                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                   onClick={() => window.open(url, '_blank')}
                 />
                 <Button

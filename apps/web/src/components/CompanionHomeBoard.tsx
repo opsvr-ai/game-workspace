@@ -1,7 +1,7 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React from 'react';
 import { Alert, Card, Row, Col, Progress, Tag, Typography, Space, Empty } from 'antd';
-import { BRAND, TEXT } from '../styles/tokens';
+import { BRAND, TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 import StatCard from './StatCard';
 
@@ -20,10 +20,10 @@ const yuan = (v: unknown) => `¥${(Number(v) || 0).toFixed(1)}`;
 const pct = (v: unknown) => `${Math.round(Number(v) || 0)}%`;
 
 const ATT_META: Record<string, { label: string; color: string }> = {
-  PRESENT: { label: '正常打卡', color: '#16A34A' },
-  LATE: { label: '迟到', color: '#CF1322' },
+  PRESENT: { label: '正常打卡', color: SEMANTIC.success },
+  LATE: { label: '迟到', color: SEMANTIC.dangerDeep },
   EARLY_LEAVE: { label: '早退', color: '#FA8C16' },
-  LATE_EARLY: { label: '迟到 + 早退', color: '#CF1322' },
+  LATE_EARLY: { label: '迟到 + 早退', color: SEMANTIC.dangerDeep },
   ABSENT: { label: '未打卡', color: '#8C8C8C' },
   NOT_STARTED: { label: '未到上班时间', color: '#8C8C8C' },
 };
@@ -96,7 +96,7 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
       {/* ① 关键数字 */}
       <Row gutter={[8, 8]} style={{ marginBottom: 10 }}>
         <Col xs={12} md={4}><StatCard label="今日流水" value={yuan(w.todayRevenue)} sub={`本月 ${yuan(monthRevenue)}`} tint={BRAND.primary} /></Col>
-        <Col xs={12} md={4}><StatCard label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint="#16A34A" /></Col>
+        <Col xs={12} md={4}><StatCard label="今日接单" value={`${w.todayOrderCount ?? 0} 单`} sub={`本月 ${w.monthlyOrderCount ?? 0} 单`} tint={`${SEMANTIC.success}`} /></Col>
         <Col xs={12} md={4}><StatCard label="段位分 · 段位" value={rankScore} sub={<span style={{ color: tierInfo.color }}>{tierInfo.label}</span>} tint={tierInfo.color} /></Col>
         <Col xs={12} md={4}>
           <StatCard
@@ -126,11 +126,11 @@ const CompanionHomeBoard: React.FC<Props> = ({ workbench, excellence, quota, cus
         <Col xs={24} lg={12}>
           <Card size="small" title="📈 我的 KPI（达标自动加分）" style={{ height: '100%' }}>
             <Bar label="新客首单成功率" percent={Number(excellence?.newRate ?? 0)} text={pct(excellence?.newRate)} color={BRAND.primary} />
-            <Bar label="续单率" percent={Number(excellence?.renewRate ?? 0)} text={pct(excellence?.renewRate)} color="#16A34A" />
+            <Bar label="续单率" percent={Number(excellence?.renewRate ?? 0)} text={pct(excellence?.renewRate)} color={`${SEMANTIC.success}`} />
             <Bar label="复购率" percent={Number(excellence?.repurchaseRate ?? 0)} text={pct(excellence?.repurchaseRate)} color="#722ED1" />
             <Bar label="微信添加成功率" percent={Number(w.wechatAddRate ?? 0)} text={pct(w.wechatAddRate)} color="#EB2F96" />
             <Bar label="转化率" percent={Number(w.conversionRate ?? 0)} text={pct(w.conversionRate)} color="#FA8C16" />
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0' }}>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${BORDER.base}` }}>
               <Bar label="段位分" percent={(rankScore / scoreMax) * 100} text={nextLine > 0 ? `${rankScore} / ${scoreMax}` : `${rankScore} 分`} color={tierInfo.color} />
               <Space size={6} wrap style={{ marginTop: 2 }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>{nextGapText}</Text>

@@ -20,7 +20,7 @@ import { TABLE_STYLE } from '../../constants/datasetColumns';
 import { evaluateNote } from '../../utils/noteBenchmark';
 import { NOTE_TEMPLATES } from '../../utils/noteTemplates';
 import dayjs from 'dayjs';
-import { BRAND, TEXT } from '../../styles/tokens';
+import { BRAND, TEXT, BG, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 
 const { Text, Title } = Typography;
@@ -1028,7 +1028,7 @@ const TrafficAccountPage: React.FC = () => {
             {analysis.aiAdvice && (
               <>
                 <Text strong style={{ color: BRAND.primary }}>AI 建议</Text>
-                <div style={{ whiteSpace: 'pre-wrap', background: '#fff', border: '1px solid #e6f4ff', borderRadius: 6, padding: 8, marginTop: 6 }}>
+                <div style={{ whiteSpace: 'pre-wrap', background: BG.container, border: '1px solid #e6f4ff', borderRadius: 6, padding: 8, marginTop: 6 }}>
                   {analysis.aiAdvice}
                 </div>
                 <Divider style={{ margin: '8px 0' }} />
@@ -1059,7 +1059,7 @@ const TrafficAccountPage: React.FC = () => {
         )}
         {overdueFailingIds.size > 0 && (
           <div style={{ background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 8, padding: '8px 12px', marginBottom: 8 }}>
-            <Text strong style={{ color: '#cf1322' }}>⚠️ 有 {overdueFailingIds.size} 条笔记已发布超 48 小时仍在淘汰档，建议换封面/标题重写（下方已标红）。</Text>
+            <Text strong style={{ color: SEMANTIC.dangerDeep }}>⚠️ 有 {overdueFailingIds.size} 条笔记已发布超 48 小时仍在淘汰档，建议换封面/标题重写（下方已标红）。</Text>
           </div>
         )}
         <Table

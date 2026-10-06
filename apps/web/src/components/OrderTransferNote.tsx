@@ -2,6 +2,7 @@ import React from 'react';
 import { Tooltip } from 'antd';
 import { CELL_SUB_TEXT, DATA_SUB_FONT_SIZE } from '../constants/datasetColumns';
 
+import { SEMANTIC } from '../styles/tokens';
 /**
  * 订单转让留痕的展示件（老板 2026-09-29）。
  *
@@ -58,7 +59,7 @@ export const TransferMark: React.FC<{ transfers?: TransferLike[] | null }> = ({ 
         </div>
       }
     >
-      <span style={{ ...CELL_SUB_TEXT, color: '#C2410C', cursor: 'help' }}>
+      <span style={{ ...CELL_SUB_TEXT, color: SEMANTIC.orangeDeeper, cursor: 'help' }}>
         · 已转让{list.length > 1 ? `（${list.length}）` : ''}
       </span>
     </Tooltip>
@@ -72,7 +73,7 @@ export const TransferNote: React.FC<{ transfers?: TransferLike[] | null }> = ({ 
   return (
     <div style={{ fontSize: DATA_SUB_FONT_SIZE }}>
       {list.map((t, i) => (
-        <div key={t.id || i} style={{ color: '#C2410C' }}>
+        <div key={t.id || i} style={{ color: SEMANTIC.orangeDeeper }}>
           已转让：{describeTransfer(t)}
         </div>
       ))}

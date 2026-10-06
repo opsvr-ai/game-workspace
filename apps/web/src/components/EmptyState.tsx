@@ -1,7 +1,7 @@
 // craftsman-ignore: TS002
 import React, { memo } from 'react';
 import { Empty } from 'antd';
-import { BRAND, TEXT } from '../styles/tokens';
+import { BRAND, TEXT, BG, BORDER } from '../styles/tokens';
 
 interface EmptyStateProps {
   description?: React.ReactNode;
@@ -27,8 +27,8 @@ const EmptyState: React.FC<EmptyStateProps> = ({
     return (
       <div
         style={{
-          background: '#FFFFFF',
-          border: '1px dashed #E2E8F0',
+          background: BG.container,
+          border: `1px dashed ${BORDER.base}`,
           borderRadius: 8,
           padding: '12px 12px',
           textAlign: 'center',
@@ -51,7 +51,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           onClick={action.onClick}
           style={{
             background: BRAND.primary,
-            color: '#fff',
+            color: TEXT.inverse,
             border: 'none',
             borderRadius: 6,
             padding: '4px 15px',

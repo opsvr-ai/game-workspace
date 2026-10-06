@@ -8,6 +8,7 @@ import http from '../api/client';
 import PasteImageBox from './PasteImageBox';
 import PayoutQrScan from './PayoutQrScan';
 
+import { BG } from '../styles/tokens';
 const { Text } = Typography;
 
 const fmtDay = (v?: string | null) => {
@@ -76,7 +77,7 @@ const MyPayoutQrCard: React.FC = () => {
             <img
               src={url}
               alt="我的报账微信码"
-              style={{ width: 132, height: 132, objectFit: 'contain', border: '1px solid #E5E7EB', borderRadius: 10, background: '#fff' }}
+              style={{ width: 132, height: 132, objectFit: 'contain', border: '1px solid #E5E7EB', borderRadius: 10, background: BG.container }}
             />
           ) : (
             <div

@@ -5,6 +5,7 @@ import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { usePartnerInviteStore } from '../stores/partnerInviteStore';
 
+import { SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 
 /** 倒计时（只剩几秒就变灰，免得看着像还能点）。 */
@@ -71,8 +72,8 @@ export const PartnerInviteCards: React.FC = () => {
   return (
     <Card
       size="small"
-      style={{ marginBottom: 12, borderColor: '#F59E0B', background: '#FFFBEB' }}
-      title={<span style={{ color: '#B45309' }}>🤝 待我确认的搭档邀请（{invites.length}）</span>}
+      style={{ marginBottom: 12, borderColor: SEMANTIC.warning, background: '#FFFBEB' }}
+      title={<span style={{ color: SEMANTIC.warningDeep }}>🤝 待我确认的搭档邀请（{invites.length}）</span>}
     >
       {invites.map((p: any) => (
         <div

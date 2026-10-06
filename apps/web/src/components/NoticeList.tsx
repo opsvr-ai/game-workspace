@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, Typography } from 'antd';
 import { useNotifStore, type NoticeItem } from '../stores/notifStore';
-import { BG, BRAND, TEXT } from '../styles/tokens';
+import { BG, BRAND, TEXT, SEMANTIC } from '../styles/tokens';
 
 interface Props {
   onClose: () => void;
@@ -77,13 +77,13 @@ const NoticeList: React.FC<Props> = ({ onClose, onNavigate }) => {
                 padding: '10px 10px',
                 borderRadius: 8,
                 cursor: it.href ? 'pointer' : 'default',
-                background: it.read ? 'transparent' : '#EFF6FF',
+                background: it.read ? 'transparent' : SEMANTIC.infoSoftBlue,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = it.read ? BG.base : '#E3EEFF';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = it.read ? 'transparent' : '#EFF6FF';
+                e.currentTarget.style.background = it.read ? 'transparent' : SEMANTIC.infoSoftBlue;
               }}
             >
               <span style={{ fontSize: 18, lineHeight: '20px', flexShrink: 0 }}>{it.icon}</span>

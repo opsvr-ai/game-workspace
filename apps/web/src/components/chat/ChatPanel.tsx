@@ -11,6 +11,7 @@ import MessageList from './MessageList';
 import ChatComposer from './ChatComposer';
 import MessageContextMenu from './MessageContextMenu';
 
+import { BG } from '../../styles/tokens';
 interface ChatPanelProps {
   roomId?: string;
   participant?: { userId: string; username: string; displayName?: string; avatar?: string; role: string };
@@ -233,7 +234,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomId, participant, orderInfo, e
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FFF', borderLeft: embedded ? '1px solid #E8E9EB' : undefined }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: BG.container, borderLeft: embedded ? '1px solid #E8E9EB' : undefined }}>
       <ChatHeader
         name={participantName}
         role={participant?.role || ''}

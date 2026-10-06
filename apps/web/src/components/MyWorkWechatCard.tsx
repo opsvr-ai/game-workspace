@@ -4,6 +4,7 @@ import { Card, Typography, Tag, Input, Button, Space} from 'antd';
 import { message } from '../utils/feedback';
 import http from '../api/client';
 
+import { BORDER, SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 
 /**
@@ -69,8 +70,8 @@ const MyWorkWechatCard: React.FC = () => {
       size="small"
       style={{
         marginBottom: 12,
-        border: effective ? '1px solid #E2E8F0' : '1px solid #ffccc7',
-        background: effective ? undefined : '#fff2f0',
+        border: effective ? `1px solid ${BORDER.base}` : `1px solid ${SEMANTIC.dangerBorder}`,
+        background: effective ? undefined : SEMANTIC.dangerSoft,
       }}
     >
       <Space size={12} wrap align="center">
@@ -95,7 +96,7 @@ const MyWorkWechatCard: React.FC = () => {
         )}
         {rejected && !pending && (
           <div style={{ marginTop: 2 }}>
-            <Text type="secondary" style={{ fontSize: 12, color: '#cf1322' }}>
+            <Text type="secondary" style={{ fontSize: 12, color: SEMANTIC.dangerDeep }}>
               上次提交的「{rejected.wechatId}」没通过{rejected.reason ? `：${rejected.reason}` : ''}
             </Text>
           </div>

@@ -748,7 +748,7 @@ const AgentVersionPage: React.FC = () => {
         <Spin spinning={!deployData}>
           {deployData && (
             <>
-              <Card size="small" style={{ background: '#fff7e6' }}>
+              <Card size="small" style={{ background: SEMANTIC.warningSoft }}>
                 <Text strong style={{ fontSize: 15 }}>
                   ⚡ PsExec 远程批量部署
                 </Text>

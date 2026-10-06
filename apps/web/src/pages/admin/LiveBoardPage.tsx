@@ -25,7 +25,7 @@ import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
 import { statusDotColor } from '../../constants/companions';
 import { useAuthStore } from '../../stores/authStore';
-import { BG, BORDER, TEXT } from '../../styles/tokens';
+import { BG, BORDER, TEXT, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -79,10 +79,10 @@ const REFRESH_MS = 15_000;
 type Bucket = 'serving' | 'entertainment' | 'available' | 'resting' | 'other' | 'offline';
 
 const BUCKET_META: Array<{ key: Bucket; label: string; dot: string; color: string; bg: string }> = [
-  { key: 'serving', label: '接单中', dot: '#EF4444', color: '#B91C1C', bg: '#FEF2F2' },
-  { key: 'entertainment', label: '娱乐中', dot: '#F59E0B', color: '#B45309', bg: '#FFFBEB' },
-  { key: 'available', label: '空闲', dot: '#22C55E', color: '#15803D', bg: '#F0FDF4' },
-  { key: 'resting', label: '休息', dot: '#F97316', color: '#C2410C', bg: '#FFF7ED' },
+  { key: 'serving', label: '接单中', dot: SEMANTIC.danger, color: SEMANTIC.dangerStrong, bg: BG.error },
+  { key: 'entertainment', label: '娱乐中', dot: SEMANTIC.warning, color: SEMANTIC.warningDeep, bg: '#FFFBEB' },
+  { key: 'available', label: '空闲', dot: '#22C55E', color: SEMANTIC.successDeep, bg: SEMANTIC.successSoft },
+  { key: 'resting', label: '休息', dot: '#F97316', color: SEMANTIC.orangeDeeper, bg: SEMANTIC.orangeSoft },
   { key: 'offline', label: '离线', dot: TEXT.tertiary, color: TEXT.secondary, bg: BG.base },
 ];
 
@@ -181,7 +181,7 @@ const LiveBoardPage: React.FC = () => {
       <div
         key={r.companionId}
         style={{
-          background: '#fff',
+          background: BG.container,
           border: '1px solid #E8ECF1',
           borderTop: `3px solid ${dot}`,
           borderRadius: 12,
@@ -201,7 +201,7 @@ const LiveBoardPage: React.FC = () => {
             <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.name || r.username || '未知'}
             </div>
-            <div style={{ fontSize: 11, color: r.isBridged ? '#B45309' : TEXT.tertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 11, color: r.isBridged ? SEMANTIC.warningDeep : TEXT.tertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {r.isBridged ? '🌉 桥接 · ' : ''}{r.studioName || '—'}
             </div>
           </div>
@@ -223,7 +223,7 @@ const LiveBoardPage: React.FC = () => {
                 <span style={{ fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   🎮 {s.gameName || '未知游戏'}
                 </span>
-                <span style={{ fontWeight: 700, color: s.paused ? '#B45309' : '#B91C1C', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                <span style={{ fontWeight: 700, color: s.paused ? SEMANTIC.warningDeep : SEMANTIC.dangerStrong, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                   {s.paused ? '⏸ ' : ''}
                   {formatDuration(elapsedOf(s))}
                 </span>
@@ -242,7 +242,7 @@ const LiveBoardPage: React.FC = () => {
                 {s.customerCode ? `${s.orderCode ? ' · ' : ''}客户 ${s.customerCode}` : ''}
               </div>
               {!r.online ? (
-                <div style={{ color: '#B91C1C' }}>⚠ 客户端已掉线（这单还在进行）</div>
+                <div style={{ color: SEMANTIC.dangerStrong }}>⚠ 客户端已掉线（这单还在进行）</div>
               ) : null}
             </>
           ) : (

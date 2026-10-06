@@ -6,7 +6,7 @@
  */
 
 import { CompanionStatus } from '@chunlv/shared';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 export const companionStatusConfig: Record<string, { color: string; label: string }> = {
   AVAILABLE:     { color: 'green',  label: '空闲' },
@@ -107,8 +107,8 @@ export function personnelGroupRank(p: PersonnelLike): number {
 /** 状态圆点用的色值（配合头像右下角的状态点，比一排彩色 Tag 更清爽、易读） */
 export const STATUS_DOT: Record<string, string> = {
   green: '#22C55E',
-  red: '#EF4444',
-  gold: '#F59E0B',
+  red: SEMANTIC.danger,
+  gold: SEMANTIC.warning,
   orange: '#F97316',
   default: TEXT.tertiary,
 };

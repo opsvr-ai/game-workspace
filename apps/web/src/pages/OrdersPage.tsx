@@ -51,7 +51,7 @@ import {
   fitOrderColumnWidths,
   sumWidths,
 } from '../constants/datasetColumns';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -479,8 +479,8 @@ const OrdersPage: React.FC = () => {
                 size="small"
                 disabled={contactDisabled}
                 style={{
-                  background: contactDisabled ? undefined : '#16A34A',
-                  borderColor: contactDisabled ? undefined : '#16A34A',
+                  background: contactDisabled ? undefined : SEMANTIC.success,
+                  borderColor: contactDisabled ? undefined : SEMANTIC.success,
                 }}
                 onClick={async () => {
                   try {
@@ -525,7 +525,7 @@ const OrdersPage: React.FC = () => {
             <Button
               type="primary"
               size="small"
-              style={{ background: '#16A34A', borderColor: '#16A34A' }}
+              style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -620,7 +620,7 @@ const OrdersPage: React.FC = () => {
         </Button>
       )}
       {r.status === 'CLAIMED' && (
-        <Button size="small" type="primary" style={{ background: '#7C3AED', borderColor: '#7C3AED' }} onClick={() => releaseClaim(r)}>
+        <Button size="small" type="primary" style={{ background: SEMANTIC.direct, borderColor: SEMANTIC.direct }} onClick={() => releaseClaim(r)}>
           放回抢单池
         </Button>
       )}
@@ -755,7 +755,7 @@ const OrdersPage: React.FC = () => {
               flex: '1 1 auto',
               minWidth: 0,
               fontSize: 11,
-              color: '#C2410C',
+              color: SEMANTIC.orangeDeeper,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -771,7 +771,7 @@ const OrdersPage: React.FC = () => {
               flex: '1 1 auto',
               minWidth: 0,
               fontSize: 11,
-              color: '#C2410C',
+              color: SEMANTIC.orangeDeeper,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -792,7 +792,7 @@ const OrdersPage: React.FC = () => {
             <Button
               size="small"
               type="primary"
-              style={{ width: 60, background: '#16A34A', borderColor: '#16A34A' }}
+              style={{ width: 60, background: SEMANTIC.success, borderColor: SEMANTIC.success }}
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -810,7 +810,7 @@ const OrdersPage: React.FC = () => {
             <Button
               size="small"
               type="primary"
-              style={{ width: 60, background: '#16A34A', borderColor: '#16A34A' }}
+              style={{ width: 60, background: SEMANTIC.success, borderColor: SEMANTIC.success }}
               onClick={async () => {
                 try {
                   await http.put(`/orders/${r.id}/contact`, { contactStatus: 'added' });
@@ -880,7 +880,7 @@ const OrdersPage: React.FC = () => {
             <Button
               size="small"
               type="primary"
-              style={{ width: 36, background: '#16A34A', borderColor: '#16A34A' }}
+              style={{ width: 36, background: SEMANTIC.success, borderColor: SEMANTIC.success }}
               loading={transferRespondId === incomingTransfer.requestId}
               onClick={() => respondIncomingTransfer(incomingTransfer, true)}
             >
@@ -1532,7 +1532,7 @@ const OrdersPage: React.FC = () => {
                 <img
                   src={url}
                   alt="添加失败凭据"
-                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                  style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                   onClick={() => window.open(url, '_blank')}
                 />
                 <Button

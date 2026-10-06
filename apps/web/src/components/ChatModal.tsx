@@ -6,7 +6,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
 import { chatApi } from '../api/chat';
 import ChatPanel from './chat/ChatPanel';
-import { BRAND } from '../styles/tokens';
+import { BRAND, BG, TEXT, SEMANTIC } from '../styles/tokens';
 
 interface ChatPartner {
   conversationId: string;
@@ -113,7 +113,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          background: '#FFF',
+          background: BG.container,
           border: '1px solid #E8E9EB',
           borderRadius: 10,
           boxShadow: '0 6px 20px rgba(0,0,0,0.18)',
@@ -126,7 +126,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
           <div style={{
             width: 28, height: 28, borderRadius: '50%', background: BRAND.primary,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#FFF', fontSize: 13, fontWeight: 700,
+            color: TEXT.inverse, fontSize: 13, fontWeight: 700,
           }}>
             {initial}
           </div>
@@ -138,7 +138,7 @@ const ChatModal: React.FC<Props> = ({ open, partner, onClose }) => {
           <div style={{ fontSize: 13, fontWeight: 600, color: '#313338', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {name}
           </div>
-          <div style={{ fontSize: 11, color: unread > 0 ? '#EF4444' : '#949BA4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 11, color: unread > 0 ? SEMANTIC.danger : '#949BA4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {unread > 0 ? `${unread} 条新消息 · 点这里查看` : '已最小化 · 点这里还原'}
           </div>
         </div>

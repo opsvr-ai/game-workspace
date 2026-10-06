@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { ReloadOutlined } from '@ant-design/icons';
 import PageHeader from '../components/PageHeader';
 import http from '../api/client';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -65,11 +65,11 @@ const ago = (value?: string | null): string => {
 
 /** 每一类给个颜色，扫一眼就知道轻重 */
 const GROUP_TINT: Record<string, string> = {
-  outcome_decide: '#DC2626',
-  outcome_confirm: '#DC2626',
-  cs_recheck: '#D97706',
+  outcome_decide: SEMANTIC.dangerMid,
+  outcome_confirm: SEMANTIC.dangerMid,
+  cs_recheck: SEMANTIC.warningStrong,
   followup_due: '#2563EB',
-  supplement: '#7C3AED',
+  supplement: SEMANTIC.direct,
   expense_report: '#059669',
   withdraw: '#059669',
   transaction: '#059669',
@@ -141,7 +141,7 @@ const TodosPage: React.FC = () => {
           {/* 顶部总览：今天一共欠多少事，点一下滚到那一类 */}
           <Card style={{ marginBottom: 12 }}>
             <Space size={8} wrap align="center">
-              <Tag color="#DC2626" style={{ fontSize: 14, padding: '4px 10px', fontWeight: 700 }}>
+              <Tag color={`${SEMANTIC.dangerMid}`} style={{ fontSize: 14, padding: '4px 10px', fontWeight: 700 }}>
                 一共 {total} 条待处理
               </Tag>
               {groups.map((g) => (
@@ -198,7 +198,7 @@ const TodosPage: React.FC = () => {
                         gap: 10,
                         padding: '8px 10px',
                         borderRadius: 8,
-                        border: '1px solid #F1F5F9',
+                        border: `1px solid ${BORDER.secondary}`,
                         marginBottom: 6,
                         cursor: 'pointer',
                       }}

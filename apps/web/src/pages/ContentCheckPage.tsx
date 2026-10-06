@@ -9,6 +9,7 @@ import { contentCheckApi, ContentCheckResult, WeeklyPlanResult } from '../api/co
 import CollectorPluginHint from '../components/CollectorPluginHint';
 import PageHeader from '../components/PageHeader';
 
+import { SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 
 const ContentCheckPage: React.FC = () => {
@@ -420,7 +421,7 @@ const ContentCheckPage: React.FC = () => {
                 <Divider orientation="left" style={{ margin: '12px 0 8px' }}>违禁词 / 风险词</Divider>
                 <Row gutter={12}>
                   <Col span={12}>
-                    <Text strong style={{ color: '#cf1322' }}>高危</Text>
+                    <Text strong style={{ color: SEMANTIC.dangerDeep }}>高危</Text>
                     {renderMatches(result.wordCheck.red, 'red')}
                   </Col>
                   <Col span={12}>

@@ -19,7 +19,7 @@ import NoteBenchmarkSettings from '../settings/NoteBenchmarkSettings';
 import StudioConfigScopeBar from '../../components/settings/StudioConfigScopeBar';
 import { useAuthStore } from '../../stores/authStore';
 import { useSearchParams } from 'react-router-dom';
-import { TEXT } from '../../styles/tokens';
+import { TEXT, SEMANTIC, BRAND } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
@@ -51,7 +51,7 @@ interface SettingGroup {
 
 const GROUPS: SettingGroup[] = [
   {
-    title: '钱 · 分账', tint: '#10B981',
+    title: '钱 · 分账', tint: SEMANTIC.successBright,
     items: [
       {
         key: 'revenue',
@@ -110,7 +110,7 @@ const GROUPS: SettingGroup[] = [
     ],
   },
   {
-    title: '陪玩端 · 客户端', tint: '#7C4DFF',
+    title: '陪玩端 · 客户端', tint: BRAND.primary,
     items: [
       {
         key: 'capture',
@@ -145,7 +145,7 @@ const GROUPS: SettingGroup[] = [
     ],
   },
   {
-    title: '门店 · 通知', tint: '#F59E0B',
+    title: '门店 · 通知', tint: SEMANTIC.warning,
     items: [
       {
         key: 'studio',

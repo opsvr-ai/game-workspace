@@ -6,6 +6,7 @@ import { orderStatusConfig } from '../../constants/orders';
 import ReplyPreview from './ReplyPreview';
 import MessageReactions from './MessageReactions';
 
+import { BG, TEXT } from '../../styles/tokens';
 interface MessageBubbleProps {
   message: Message;
   isMe: boolean;
@@ -62,7 +63,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     padding: '10px 14px',
     borderRadius: isMe ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
     background: isBroadcast ? '#FFF1F0' : isMe ? '#2B579A' : isMentioned ? '#FFF3C4' : '#F2F3F5',
-    color: isBroadcast ? '#8C1F1F' : isMe ? '#FFF' : '#313338',
+    color: isBroadcast ? '#8C1F1F' : isMe ? BG.container : '#313338',
     fontSize: 14,
     lineHeight: '22px',
     wordBreak: 'break-word',
@@ -120,7 +121,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               width: 36, height: 36, borderRadius: '50%',
               background: avatarUrl ? 'transparent' : fallbackColor,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#FFF', fontSize: 14, fontWeight: 700,
+              color: TEXT.inverse, fontSize: 14, fontWeight: 700,
               position: 'absolute', top: 0, left: 0,
             }}>
               {(participantName || '?')[0].toUpperCase()}
@@ -246,7 +247,7 @@ const ImageContent: React.FC<{ attachments: any[]; isMe: boolean }> = ({ attachm
 const FileContent: React.FC<{ attachment: any; isMe: boolean }> = ({ attachment, isMe }) => {
   const { url, fileName, fileSize } = attachment;
   return (
-    <a href={url} target="_blank" rel="noreferrer" style={{ color: isMe ? '#FFF' : '#313338', textDecoration: 'none' }}>
+    <a href={url} target="_blank" rel="noreferrer" style={{ color: isMe ? BG.container : '#313338', textDecoration: 'none' }}>
       📎 {fileName || '文件'} {fileSize ? `(${(fileSize / 1024).toFixed(1)}KB)` : ''}
     </a>
   );

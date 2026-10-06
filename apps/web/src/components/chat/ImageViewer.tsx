@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { LeftOutlined, RightOutlined, CloseOutlined } from '@ant-design/icons';
 
+import { TEXT } from '../../styles/tokens';
 interface ImageViewerProps {
   images: Array<{ url: string; thumbnailUrl?: string; width?: number; height?: number }>;
   initialIndex?: number;
@@ -35,7 +36,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, initialIndex = 0, onC
           position: 'absolute',
           top: 20,
           right: 20,
-          color: '#FFF',
+          color: TEXT.inverse,
           fontSize: 24,
           cursor: 'pointer',
           zIndex: 2,
@@ -51,7 +52,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, initialIndex = 0, onC
               left: 20,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: '#FFF',
+              color: TEXT.inverse,
               fontSize: 32,
               cursor: 'pointer',
               padding: 16,
@@ -67,7 +68,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, initialIndex = 0, onC
               right: 20,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: '#FFF',
+              color: TEXT.inverse,
               fontSize: 32,
               cursor: 'pointer',
               padding: 16,
@@ -94,7 +95,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, initialIndex = 0, onC
       />
 
       {images.length > 1 && (
-        <div style={{ position: 'absolute', bottom: 24, color: '#FFF', fontSize: 13, opacity: 0.7 }}>
+        <div style={{ position: 'absolute', bottom: 24, color: TEXT.inverse, fontSize: 13, opacity: 0.7 }}>
           {index + 1} / {images.length}
         </div>
       )}

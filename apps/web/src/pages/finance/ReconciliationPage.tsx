@@ -72,7 +72,7 @@ const ReconciliationPage: React.FC = () => {
             render={(v: number) => {
               const val = Number(v || 0);
               return (
-                <Text strong style={{ color: val < 0 ? '#cf1322' : val > 0 ? '#389e0d' : undefined }}>
+                <Text strong style={{ color: val < 0 ? SEMANTIC.dangerDeep : val > 0 ? '#389e0d' : undefined }}>
                   {val > 0 ? '+' : ''}{val.toFixed(1)}
                 </Text>
               );

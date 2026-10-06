@@ -47,7 +47,7 @@ import MyWorkWechatCard from '../components/MyWorkWechatCard';
 import CompanionHomeBoard from '../components/CompanionHomeBoard';
 import ExcellenceRuleModal from '../components/ExcellenceRuleModal';
 import { visibleInterval } from '../hooks/usePolling';
-import { BRAND } from '../styles/tokens';
+import { BRAND, SEMANTIC, BORDER } from '../styles/tokens';
 
 /** 通知过滤设置里的开关标签，一律取 constants/orders.ts 的唯一一份（跟发布订单表单同一套字）。 */
 const configItems = (cfg: Record<string, { label: string; color: string }>) =>
@@ -345,7 +345,7 @@ const CompanionPage: React.FC = () => {
                         style={{
                           marginLeft: 6,
                           fontWeight: 700,
-                          color: excellence.scoreDelta.delta > 0 ? '#3f8600' : '#cf1322',
+                          color: excellence.scoreDelta.delta > 0 ? '#3f8600' : SEMANTIC.dangerDeep,
                         }}
                       >
                         {excellence.scoreDelta.delta > 0 ? '+' : ''}
@@ -436,7 +436,7 @@ const CompanionPage: React.FC = () => {
       <MyWorkWechatCard />
 
       {data.tierInfo?.mode === 'TIERED' && (
-        <Card size="small" style={{ marginBottom: 12, border: '1px solid #E2E8F0' }}>
+        <Card size="small" style={{ marginBottom: 12, border: `1px solid ${BORDER.base}` }}>
           <Space size={12} wrap style={{ marginBottom: 8 }}>
             <Text strong>阶梯分成</Text>
             <Tag color="blue">本月流水 ¥{Number(data.tierInfo.monthlyRevenue || 0).toFixed(2)}</Tag>
@@ -480,7 +480,7 @@ const CompanionPage: React.FC = () => {
               ].map(({ title, stats, revenue }) => {
                 const pieData = [
                   { key: 'NEW', name: '首单', color: '#2563EB' },
-                  { key: 'RENEW', name: '续单', color: '#16A34A' },
+                  { key: 'RENEW', name: '续单', color: SEMANTIC.success },
                   { key: 'REPURCHASE', name: '复购', color: '#722ed1' },
                   { key: 'TIP', name: '礼物', color: '#fa8c16' },
                 ]
@@ -612,7 +612,7 @@ const CompanionPage: React.FC = () => {
                           style={{
                             textAlign: 'right',
                             fontWeight: 600,
-                            color: r.qualityScore > 50 ? '#16A34A' : '#999',
+                            color: r.qualityScore > 50 ? SEMANTIC.success : '#999',
                           }}
                         >
                           {r.qualityScore || 0}

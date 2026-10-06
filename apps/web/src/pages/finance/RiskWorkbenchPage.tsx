@@ -189,7 +189,7 @@ const RiskWorkbenchPage: React.FC = () => {
             title="风险评分"
             dataIndex="riskScore"
             sorter={(a: any, b: any) => a.riskScore - b.riskScore}
-            render={(v: number) => <Text strong style={{ color: v >= 50 ? '#cf1322' : v >= 20 ? '#d46b08' : '#389e0d' }}>{v}</Text>}
+            render={(v: number) => <Text strong style={{ color: v >= 50 ? SEMANTIC.dangerDeep : v >= 20 ? '#d46b08' : '#389e0d' }}>{v}</Text>}
           />
           <Table.Column title="90天订单" dataIndex="orderCount" />
           <Table.Column title="流水（元）" dataIndex="revenueYuan" render={(v: number) => `¥${Number(v || 0).toFixed(0)}`} />

@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from 'antd';
 import { PhoneOutlined, CloseOutlined } from '@ant-design/icons';
 
+import { BG, TEXT } from '../styles/tokens';
 interface Props {
   open: boolean;
   callerName?: string;
@@ -22,8 +23,8 @@ const IncomingCallModal: React.FC<Props> = ({ open, callerName, calling, onAccep
         bottom: 20,
         zIndex: 2000,
         width: 280,
-        background: 'linear-gradient(135deg,#1E293B,#0F172A)',
-        color: '#fff',
+        background: `linear-gradient(135deg,${BG.inverse},#0F172A)`,
+        color: TEXT.inverse,
         borderRadius: 12,
         padding: 16,
         boxShadow: '0 12px 40px rgba(0,0,0,0.35)',

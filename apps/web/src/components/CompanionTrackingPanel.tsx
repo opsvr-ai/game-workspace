@@ -7,7 +7,7 @@ import { customerTrackingApi } from '../api/customerTracking';
 import { customersApi } from '../api/customers';
 import { extractErrorMessage } from '../utils/error-handler';
 import LoadingState from './LoadingState';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -127,7 +127,7 @@ const CompanionTrackingPanel: React.FC = () => {
       label: '今日名额（已用/每天）',
       value: `${quota.usedToday ?? 0}/${quota.dailyLimit ?? 0}`,
       icon: AimOutlined,
-      color: '#7C4DFF',
+      color: BRAND.primary,
     },
     { label: '综合成功率', value: `${status?.success?.sum ?? 0}%`, icon: CheckCircleOutlined, color: '#FFB300' },
   ];
@@ -135,14 +135,14 @@ const CompanionTrackingPanel: React.FC = () => {
   return (
     <div
       style={{
-        background: 'radial-gradient(900px 400px at 0% 0%, rgba(0,229,255,0.16), transparent 55%), linear-gradient(160deg,#070B18,#0B1024 50%,#130B2E)',
+        background: `radial-gradient(900px 400px at 0% 0%, rgba(0,229,255,0.16), transparent 55%), linear-gradient(160deg,#070B18,${BRAND.sider} 50%,#130B2E)`,
         borderRadius: 24,
         padding: '26px 24px 32px',
-        color: '#EAF2FF',
+        color: TEXT.onDark,
         minHeight: 520,
       }}
     >
-      <Title level={3} style={{ color: '#fff', marginTop: 0 }}>
+      <Title level={3} style={{ color: TEXT.inverse, marginTop: 0 }}>
         我的追踪战报
       </Title>
       {!status?.allowed && (
@@ -169,7 +169,7 @@ const CompanionTrackingPanel: React.FC = () => {
               <div style={{ position: 'absolute', top: -24, right: -24, width: 90, height: 90, borderRadius: '50%', background: `radial-gradient(circle, ${s.color}44, transparent 70%)` }} />
               <s.icon style={{ color: s.color, fontSize: 20 }} />
               <div style={{ marginTop: 12, fontSize: 30, fontWeight: 800, textShadow: `0 0 22px ${s.color}66` }}>{s.value}</div>
-              <Text style={{ color: '#A9B7D9' }}>{s.label}</Text>
+              <Text style={{ color: TEXT.onDarkMuted }}>{s.label}</Text>
             </div>
           </Col>
         ))}
@@ -178,7 +178,7 @@ const CompanionTrackingPanel: React.FC = () => {
       <div style={{ ...glass, padding: 20, marginTop: 22 }}>
         <Space align="center" style={{ marginBottom: 14 }}>
           <FireOutlined style={{ color: '#FFB300', fontSize: 18 }} />
-          <Text strong style={{ color: '#fff', fontSize: 16 }}>待追踪客户</Text>
+          <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>待追踪客户</Text>
           <Tag color="gold" style={{ borderRadius: 999 }}>{reminders.length}</Tag>
         </Space>
         {reminders.length === 0 ? (
@@ -189,8 +189,8 @@ const CompanionTrackingPanel: React.FC = () => {
               <div key={c.id} style={{ padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <Text strong style={{ color: '#fff' }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
-                    <div><Text style={{ color: '#A9B7D9', fontSize: 12 }}>{c.platform || '未知平台'}</Text></div>
+                    <Text strong style={{ color: TEXT.inverse }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
+                    <div><Text style={{ color: TEXT.onDarkMuted, fontSize: 12 }}>{c.platform || '未知平台'}</Text></div>
                   </div>
                   <Space>
                     <Button size="small" ghost onClick={() => setContactCustomer(c)}>登记结果</Button>
@@ -213,8 +213,8 @@ const CompanionTrackingPanel: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {depositCustomers.map((c: any) => (
               <div key={c.id} style={{ padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                <Text strong style={{ color: '#fff' }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
-                <div><Text style={{ color: '#A9B7D9', fontSize: 12 }}>{c.notes}</Text></div>
+                <Text strong style={{ color: TEXT.inverse }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
+                <div><Text style={{ color: TEXT.onDarkMuted, fontSize: 12 }}>{c.notes}</Text></div>
               </div>
             ))}
           </div>

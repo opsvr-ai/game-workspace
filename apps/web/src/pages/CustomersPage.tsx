@@ -68,7 +68,7 @@ import { ORDER_FIELD_LABELS, orderFieldText } from '../constants/orderFields';
 import TableSkeleton from '../components/TableSkeleton';
 import { visibleInterval } from '../hooks/usePolling';
 import { currentBusinessDayStart } from '../utils/businessDay';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -554,10 +554,10 @@ const CustomersPage: React.FC = () => {
   // 客服默认窗口（1320 宽 → 表格可用 991px）一屏放得下、不用左右拖。
   // 客户状态用彩色文字代替彩色标签块（和订单管理的状态列同一种做法）
   const CUSTOMER_STATUS_TEXT_COLOR: Record<string, string> = {
-    ACTIVE: '#15803D',
-    FOLLOW_UP: '#1D4ED8',
-    LOST: '#DC2626',
-    PENDING_DEVELOPMENT: '#B45309',
+    ACTIVE: SEMANTIC.successDeep,
+    FOLLOW_UP: SEMANTIC.infoDeep,
+    LOST: SEMANTIC.dangerMid,
+    PENDING_DEVELOPMENT: SEMANTIC.warningDeep,
   };
 
   const columns: any[] = [
@@ -592,7 +592,7 @@ const CustomersPage: React.FC = () => {
           >
             <Text strong>{code}</Text>
             <span style={CELL_SUB_TEXT}>· {sub}</span>
-            {tail && <span style={{ ...CELL_SUB_TEXT, color: '#1D4ED8' }}>· {tail}</span>}
+            {tail && <span style={{ ...CELL_SUB_TEXT, color: SEMANTIC.infoDeep }}>· {tail}</span>}
             {serving && <span className="chunlv-serving-mark">服务中</span>}
           </div>
         );
@@ -732,7 +732,7 @@ const CustomersPage: React.FC = () => {
             <Button
               type="primary"
               size="small"
-              style={{ background: '#16A34A', borderColor: '#16A34A' }}
+              style={{ background: SEMANTIC.success, borderColor: SEMANTIC.success }}
               onClick={async () => {
                 if (!orderId) return;
                 try {

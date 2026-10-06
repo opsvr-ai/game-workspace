@@ -6,6 +6,7 @@ import MessageBubble from './MessageBubble';
 import DateDivider from './DateDivider';
 import TypingIndicator from './TypingIndicator';
 
+import { BG, SEMANTIC } from '../../styles/tokens';
 const SHOULD_SHOW_TIME_THRESHOLD = 3 * 60 * 1000;
 
 interface MessageListProps {
@@ -206,7 +207,7 @@ const MessageList: React.FC<MessageListProps> = ({
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: '#FFF' }}
+        style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', background: BG.container }}
       >
         <div style={{ height: totalSize, position: 'relative' }}>
           {virtualizer.getVirtualItems().map((vi) => {
@@ -264,9 +265,9 @@ const MessageList: React.FC<MessageListProps> = ({
                       fontSize: 12,
                     }}
                   >
-                    <div style={{ flex: 1, height: 1, background: '#FFCCC7' }} />
+                    <div style={{ flex: 1, height: 1, background: SEMANTIC.dangerBorder }} />
                     <span>以下为新消息</span>
-                    <div style={{ flex: 1, height: 1, background: '#FFCCC7' }} />
+                    <div style={{ flex: 1, height: 1, background: SEMANTIC.dangerBorder }} />
                   </div>
                 )}
                 <MessageBubble
@@ -306,7 +307,7 @@ const MessageList: React.FC<MessageListProps> = ({
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 5,
-            background: '#fff',
+            background: BG.container,
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             borderRadius: 14,
             padding: '4px 12px',
@@ -326,7 +327,7 @@ const MessageList: React.FC<MessageListProps> = ({
             position: 'absolute',
             bottom: 12,
             right: 20,
-            background: '#fff',
+            background: BG.container,
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             borderRadius: 14,
             padding: '4px 10px',

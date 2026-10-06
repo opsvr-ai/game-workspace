@@ -8,7 +8,7 @@ import {
 import dayjs from 'dayjs';
 import http from '../../api/client';
 import CardSkeleton from '../../components/CardSkeleton';
-import { BG, BORDER, BRAND, TEXT } from '../../styles/tokens';
+import { BG, BORDER, BRAND, TEXT, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import { tierMeta } from '../../constants/tiers';
@@ -38,7 +38,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   BUSY: { label: '接单中', color: '#1677ff', bg: '#E8F1FF' },
   ENTERTAINMENT: { label: '娱乐中', color: '#722ed1', bg: '#F4EBFF' },
   AVAILABLE: { label: '空闲', color: '#52c41a', bg: '#EAF7EA' },
-  RESTING: { label: '休息', color: '#faad14', bg: '#FFF7E6' },
+  RESTING: { label: '休息', color: '#faad14', bg: SEMANTIC.warningSoft },
   OFFLINE: { label: '离线', color: TEXT.tertiary, bg: BORDER.secondary },
 };
 const ATT_ROLE_LABEL: Record<string, string> = { COMPANION: '陪玩', CS: '客服', ADMIN: '店长' };
@@ -244,7 +244,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               ))}
             </Row>
             {csStats?.summary ? (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0', fontSize: 12, color: TEXT.heading }}>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${BORDER.base}`, fontSize: 12, color: TEXT.heading }}>
                 今日客服发单 <b>{csStats.summary.totalOrders ?? 0}</b> 单 · 合计 <b>{yuan(csStats.summary.totalAmount)}</b>
                 （直派 {csStats.summary.directCount ?? 0} · 抢单 {csStats.summary.claimedCount ?? 0} · 桥接 {csStats.summary.bridgeCount ?? 0}）
               </div>
@@ -358,7 +358,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                     title: '综合分', dataIndex: 'score', width: 110,
                     render: (v: number) => <Progress percent={Math.min(100, v)} size="small" strokeColor={BRAND.primary} format={() => `${v}`} />,
                   },
-                  { title: '首单成功率', dataIndex: 'newRate', width: 100, render: (v: number) => <span style={{ color: v < 50 ? '#cf1322' : '#3f8600', fontWeight: 600 }}>{pct(v)}</span> },
+                  { title: '首单成功率', dataIndex: 'newRate', width: 100, render: (v: number) => <span style={{ color: v < 50 ? SEMANTIC.dangerDeep : '#3f8600', fontWeight: 600 }}>{pct(v)}</span> },
                   { title: '续单率', dataIndex: 'renewRate', width: 84, render: (v: number) => pct(v) },
                   { title: '复购率', dataIndex: 'repurchaseRate', width: 84, render: (v: number) => pct(v) },
                   { title: '成单(30天)', dataIndex: 'orders', width: 84 },
@@ -372,7 +372,7 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
         <Col xs={24} lg={9}>
           <Card size="small" title="最该盯的（首单成功率最低）" style={{ marginBottom: 12 }}>
             {worstByNew.length ? worstByNew.map((r) => (
-              <RankBar key={r.id} name={r.name} value={r.newRate} max={100} text={`${pct(r.newRate)} · ${r.orders}单`} color={r.newRate < 50 ? '#cf1322' : '#faad14'} />
+              <RankBar key={r.id} name={r.name} value={r.newRate} max={100} text={`${pct(r.newRate)} · ${r.orders}单`} color={r.newRate < 50 ? SEMANTIC.dangerDeep : '#faad14'} />
             )) : <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
           </Card>
           <Card size="small" title="客户消费 Top（含今日在打）">
@@ -394,9 +394,9 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
               <Text key={role} style={{ fontSize: 12 }}>
                 <b>{ATT_ROLE_LABEL[role] || role}</b>
                 （{r.workStart}–{r.workEnd}）：迟到{' '}
-                <Text style={{ color: r.counts.late ? '#CF1322' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
+                <Text style={{ color: r.counts.late ? SEMANTIC.dangerDeep : TEXT.tertiary, fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
                 <Text style={{ color: r.counts.earlyLeave ? '#FA8C16' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.earlyLeave}</Text> · 未打卡{' '}
-                <Text style={{ color: r.counts.absent ? '#CF1322' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
+                <Text style={{ color: r.counts.absent ? SEMANTIC.dangerDeep : TEXT.tertiary, fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
               </Text>
             ))}
           </Space>

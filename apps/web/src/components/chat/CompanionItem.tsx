@@ -3,6 +3,7 @@ import React from 'react';
 import { Space, Tag, Typography } from 'antd';
 import { companionStatusConfig } from '../../constants';
 
+import { SEMANTIC, TEXT } from '../../styles/tokens';
 const { Text } = Typography;
 
 interface CompanionItemProps {
@@ -56,7 +57,7 @@ const CompanionItem: React.FC<CompanionItemProps> = ({ companion: c, isSelected,
                   borderRadius: 8,
                   padding: '0 4px',
                   background: '#F23F42',
-                  color: '#FFF',
+                  color: TEXT.inverse,
                   fontSize: 10,
                   lineHeight: '16px',
                   textAlign: 'center',
@@ -85,7 +86,7 @@ const CompanionItem: React.FC<CompanionItemProps> = ({ companion: c, isSelected,
               key={i}
               style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', opacity: 0.85, color: '#949BA4' }}
             >
-              {g.game} <span style={{ color: '#7C3AED' }}>{g.rank || '?'}</span>
+              {g.game} <span style={{ color: SEMANTIC.direct }}>{g.rank || '?'}</span>
             </Tag>
           ))}
         </div>

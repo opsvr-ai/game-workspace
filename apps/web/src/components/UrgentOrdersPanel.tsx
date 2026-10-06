@@ -7,7 +7,7 @@ import OrderTable, { noteSub, NOTE_SEP } from './OrderTable';
 import { visibleInterval } from '../hooks/usePolling';
 import { orderMatchesSearch } from '../utils/orderPool';
 import { ORDER_SEARCH_PLACEHOLDER } from '../constants/orderFields';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 interface Props {
   onDispatch?: (item: any) => void;
@@ -87,10 +87,10 @@ const UrgentOrdersPanel: React.FC<Props> = ({ onDispatch, onGotoFollowup }) => {
 
   // 这一页特有的「这一单现在什么情况」：加了没有 / 退回了 / 派了几次 / 谁发的能不能处理
   const contactStateOf = (r: any) => {
-    if (r.csContactStatus === 'added') return { text: '已添加', color: '#15803D' };
-    if (r.csContactStatus === 'not_accepted') return { text: '添加失败', color: '#B45309' };
-    if (r.poolExpired) return { text: '流转失败', color: '#DC2626' };
-    if (r.requireCsContact) return { text: '需添加', color: '#DC2626' };
+    if (r.csContactStatus === 'added') return { text: '已添加', color: SEMANTIC.successDeep };
+    if (r.csContactStatus === 'not_accepted') return { text: '添加失败', color: SEMANTIC.warningDeep };
+    if (r.poolExpired) return { text: '流转失败', color: SEMANTIC.dangerMid };
+    if (r.requireCsContact) return { text: '需添加', color: SEMANTIC.dangerMid };
     return null;
   };
   const noteBits = (r: any) => {

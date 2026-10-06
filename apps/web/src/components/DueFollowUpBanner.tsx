@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { visibleInterval } from '../hooks/usePolling';
 import { customerLabelOf, dueFollowUpAtOf, lastFollowUpOf, mmddhhmm } from '../utils/followUp';
 
+import { SEMANTIC } from '../styles/tokens';
 /**
  * 首页上的「到点该跟进了」提示（老板 2026-09-29）。
  *
@@ -55,7 +56,7 @@ const DueFollowUpBanner: React.FC = () => {
         <span>
           到点了该跟进：<b>{names}</b>
           {more ? <span>{more}</span> : null}
-          {earliest ? <span style={{ color: '#B91C1C' }}>（最早一条 {mmddhhmm(earliest)} 就该跟了）</span> : null}
+          {earliest ? <span style={{ color: SEMANTIC.dangerStrong }}>（最早一条 {mmddhhmm(earliest)} 就该跟了）</span> : null}
         </span>
       }
       action={

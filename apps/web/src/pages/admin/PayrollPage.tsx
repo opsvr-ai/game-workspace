@@ -7,7 +7,7 @@ import { payrollApi } from '../../api/payroll';
 import { configApi } from '../../api/config';
 import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
-import { BG, BORDER, BRAND } from '../../styles/tokens';
+import { BG, BORDER, BRAND, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -29,7 +29,7 @@ const { Text } = Typography;
  */
 
 /** 岗位色，和「分账规则」同一套：店长蓝 / 客服橙 */
-const ROLE_TINT = { ADMIN: '#3B82F6', CS: '#F59E0B' } as const;
+const ROLE_TINT = { ADMIN: SEMANTIC.infoBright, CS: SEMANTIC.warning } as const;
 
 const CELL: React.CSSProperties = {
   display: 'flex',

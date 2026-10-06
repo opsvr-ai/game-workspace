@@ -9,7 +9,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+- **页面里写死的颜色值又扫掉一批：硬编码色值回了令牌表（2026-10-07，dev 分支）。**
+  71 个文件里 `#F8FAFC`、`1px solid #E2E8F0` 这种「复制粘贴的色值」共 297 处，全部换成
+  apps/web/src/styles/tokens.ts 的令牌引用（BG.container / BORDER.base / SEMANTIC.* …）—— 换品牌色只动一个文件。
+  **色值一个没变**：逐文件把改动前后的「颜色集合」排序比对，71/71 完全一致（像素级不变，截图亦零差异）。
+  全站写死色值 645 → 348（-297），守门 docs/UI-TOKEN-BASELINE.json 同步下调，pnpm ui:tokens:check 从此卡 348。
 
 - **全站的提示只剩一个出口了：600 多处「弹一下的提醒」统一收口（2026-10-07，dev 分支）。**
   以前 79 个文件都各写各的 import { message } from 'antd' —— 谁都能弹、弹完就走，于是

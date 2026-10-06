@@ -5,7 +5,7 @@ import { message } from '../../utils/feedback';
 import { ReloadOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { SettingsField as Field } from '../../components/settings/SettingsField';
-import { BORDER, BRAND, TEXT } from '../../styles/tokens';
+import { BORDER, BRAND, TEXT, TIER_TINT, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -87,7 +87,7 @@ const ExcellenceSettings: React.FC = () => {
     100: { style: { fontSize: 11 }, label: '100' },
   };
   lineMarks[midThreshold] = { style: { fontSize: 11, color: BRAND.primary, fontWeight: 600 }, label: String(midThreshold) };
-  lineMarks[topThreshold] = { style: { fontSize: 11, color: '#d4a017', fontWeight: 600 }, label: String(topThreshold) };
+  lineMarks[topThreshold] = { style: { fontSize: 11, color: TIER_TINT.top, fontWeight: 600 }, label: String(topThreshold) };
 
   const save = async () => {
     setSaving(true);
@@ -231,9 +231,9 @@ const ExcellenceSettings: React.FC = () => {
                   <div style={{ fontSize: 12, color: TEXT.secondary }}>中等马</div>
                   <div style={{ fontWeight: 700, color: BRAND.primary }}>{midThreshold} – {Math.max(midThreshold, topThreshold - 1)} 分</div>
                 </div>
-                <div style={{ flex: 1, textAlign: 'center', background: '#FFF7E6', borderRadius: 8, padding: '6px 4px' }}>
+                <div style={{ flex: 1, textAlign: 'center', background: SEMANTIC.warningSoft, borderRadius: 8, padding: '6px 4px' }}>
                   <div style={{ fontSize: 12, color: TEXT.secondary }}>上等马</div>
-                  <div style={{ fontWeight: 700, color: '#d4a017' }}>{topThreshold} – 100 分</div>
+                  <div style={{ fontWeight: 700, color: TIER_TINT.top }}>{topThreshold} – 100 分</div>
                 </div>
               </div>
               {revenueFloor > 0 ? (

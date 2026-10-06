@@ -434,7 +434,7 @@ const roleLabels: Record<UserRole, string> = {
  */
 // 取色规则：按 key 的后半段查 MODULE_TINTS —— 颜色表已搬到 styles/tokens.ts（与页面共用一份）。
 const tintOfMenuKey = (key: string): string =>
-  MODULE_TINTS[String(key).split('-').slice(1).join('-')] || '#7C4DFF';
+  MODULE_TINTS[String(key).split('-').slice(1).join('-')] || BRAND.primary;
 
 /**
  * 菜单角标（红色）：label 后面跟一个数量。

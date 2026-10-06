@@ -5,7 +5,7 @@ import { UserOutlined, LockOutlined, CameraOutlined } from '@ant-design/icons';
 import { authApi } from '../api/client';
 import PasteImageBox from '../components/PasteImageBox';
 import { compressImage } from '../utils/imageCompress';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 import PageHeader from '../components/PageHeader';
 
 const { Text } = Typography;
@@ -139,7 +139,7 @@ const ProfilePage: React.FC = () => {
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             {!avatarUrl && (
-              <Text style={{ color: '#fff', fontSize: 28, fontWeight: 700 }}>
+              <Text style={{ color: TEXT.inverse, fontSize: 28, fontWeight: 700 }}>
                 {(user?.displayName || user?.username || '?')[0].toUpperCase()}
               </Text>
             )}

@@ -96,7 +96,7 @@ const BridgeSettlementPanel: React.FC = () => {
       title: '对方陪我店（我应付）',
       dataIndex: 'payable',
       render: (v: number, r: any) => (
-        <Text style={{ color: v ? '#cf1322' : undefined }}>
+        <Text style={{ color: v ? SEMANTIC.dangerDeep : undefined }}>
           {money(v)} <Text type="secondary">（{r.payableCount} 单）</Text>
         </Text>
       ),
@@ -116,7 +116,7 @@ const BridgeSettlementPanel: React.FC = () => {
       render: (v: number) => {
         const val = Number(v || 0);
         return (
-          <Text strong style={{ color: val > 0 ? '#389e0d' : val < 0 ? '#cf1322' : undefined }}>
+          <Text strong style={{ color: val > 0 ? '#389e0d' : val < 0 ? SEMANTIC.dangerDeep : undefined }}>
             {val > 0 ? `对方给我 ${money(val)}` : val < 0 ? `我给对方 ${money(-val)}` : '已平'}
           </Text>
         );

@@ -25,6 +25,7 @@ import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@chunlv/shared';
 import { visibleInterval } from '../hooks/usePolling';
 
+import { SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -148,7 +149,7 @@ const TransactionReviewSection: React.FC = () => {
       title: '金额',
       dataIndex: 'amount',
       width: 100,
-      render: (v: number) => <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(1)}</Text>,
+      render: (v: number) => <Text strong style={{ color: SEMANTIC.danger }}>¥{v?.toFixed(1)}</Text>,
     },
     {
       title: '协商后',

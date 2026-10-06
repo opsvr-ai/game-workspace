@@ -6,6 +6,7 @@ import { message } from '../utils/feedback';
 import { configApi } from '../api/config';
 import { ORDER_FIELD_LABELS, orderDeltaCountText, orderTypeLabel } from '../constants/orderFields';
 
+import { BG } from '../styles/tokens';
 const { Text, Title } = Typography;
 
 interface UrgentOrderPopupProps {
@@ -56,7 +57,7 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
             bottom: 20,
             right: 20,
             zIndex: 9999,
-            background: '#FFF',
+            background: BG.container,
             borderRadius: 12,
             boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
             padding: 20,
@@ -161,7 +162,7 @@ const UrgentOrderPopup: React.FC<UrgentOrderPopupProps> = ({
             justifyContent: 'center',
           }}
         >
-          <div style={{ background: '#FFF', borderRadius: 16, padding: 28, maxWidth: 440, width: '90%' }}>
+          <div style={{ background: BG.container, borderRadius: 16, padding: 28, maxWidth: 440, width: '90%' }}>
             <Title level={4}>🎉 恭喜抢单成功</Title>
             <div style={{ lineHeight: 2.2, marginTop: 12 }}>
               <div>

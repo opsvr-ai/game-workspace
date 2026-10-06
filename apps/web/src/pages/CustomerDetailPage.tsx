@@ -34,6 +34,7 @@ import PageHeader from '../components/PageHeader';
 import { customerStatusConfig, orderStatusConfig, orderTypeConfig } from '../constants';
 import { ORDER_FIELD_LABELS } from '../constants/orderFields';
 
+import { SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 const { TextArea } = Input;
 
@@ -720,8 +721,8 @@ const CustomerDetailPage: React.FC = () => {
               <div
                 style={{
                   padding: '12px 16px',
-                  background: riskLevel === 'high' ? '#fff2f0' : riskLevel === 'medium' ? '#fff7e6' : '#f6ffed',
-                  border: `1px solid ${riskLevel === 'high' ? '#ffccc7' : riskLevel === 'medium' ? '#ffe7ba' : '#b7eb8f'}`,
+                  background: riskLevel === 'high' ? SEMANTIC.dangerSoft : riskLevel === 'medium' ? SEMANTIC.warningSoft : '#f6ffed',
+                  border: `1px solid ${riskLevel === 'high' ? SEMANTIC.dangerBorder : riskLevel === 'medium' ? '#ffe7ba' : '#b7eb8f'}`,
                   borderRadius: 8,
                 }}
               >

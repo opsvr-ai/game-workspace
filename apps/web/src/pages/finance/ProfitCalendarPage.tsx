@@ -9,6 +9,7 @@ import { configApi } from '../../api/config';
 import PageHeader from '../../components/PageHeader';
 import { Link } from 'react-router-dom';
 
+import { SEMANTIC } from '../../styles/tokens';
 const { Text } = Typography;
 
 const money = (v: number) => Number(v ?? 0).toFixed(1);
@@ -166,10 +167,10 @@ const ProfitCalendarPage: React.FC = () => {
     const netAfter = d.net - dailyExpense;
     return (
       <div style={{ fontSize: 12, lineHeight: 1.55, whiteSpace: 'nowrap' }}>
-        <div style={{ color: '#16A34A' }}>利润 ¥{money(d.income)}</div>
-        <div style={{ color: '#cf1322' }}>应付 ¥{money(d.pay)}</div>
-        <div style={{ color: '#B45309' }}>支出 ¥{money(dailyExpense)}</div>
-        <div style={{ color: netAfter >= 0 ? '#3f8600' : '#cf1322' }}>净利 ¥{money(netAfter)}</div>
+        <div style={{ color: SEMANTIC.success }}>利润 ¥{money(d.income)}</div>
+        <div style={{ color: SEMANTIC.dangerDeep }}>应付 ¥{money(d.pay)}</div>
+        <div style={{ color: SEMANTIC.warningDeep }}>支出 ¥{money(dailyExpense)}</div>
+        <div style={{ color: netAfter >= 0 ? '#3f8600' : SEMANTIC.dangerDeep }}>净利 ¥{money(netAfter)}</div>
       </div>
     );
   };
@@ -217,8 +218,8 @@ const ProfitCalendarPage: React.FC = () => {
           <Col span={6}><Statistic title="返还桥接" value={bt.returnAmount || 0} prefix="¥" precision={1} /></Col>
         </Row>
         <Row gutter={16} style={{ marginTop: 12 }}>
-          <Col span={12}><Statistic title="应付合计" value={monthPay} prefix="¥" precision={1} valueStyle={{ color: '#cf1322' }} /></Col>
-          <Col span={12}><Statistic title="本月净利（不含支出）" value={monthNet} prefix="¥" precision={1} valueStyle={{ color: monthNet >= 0 ? '#3f8600' : '#cf1322' }} /></Col>
+          <Col span={12}><Statistic title="应付合计" value={monthPay} prefix="¥" precision={1} valueStyle={{ color: SEMANTIC.dangerDeep }} /></Col>
+          <Col span={12}><Statistic title="本月净利（不含支出）" value={monthNet} prefix="¥" precision={1} valueStyle={{ color: monthNet >= 0 ? '#3f8600' : SEMANTIC.dangerDeep }} /></Col>
         </Row>
       </Card>
 
@@ -323,7 +324,7 @@ const ProfitCalendarPage: React.FC = () => {
                   <Text strong>¥{Number(t.onlineNet || 0).toFixed(1)}</Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={5} align="right">
-                  <Text strong style={{ color: Number(t.diff || 0) >= 0 ? '#3f8600' : '#cf1322' }}>
+                  <Text strong style={{ color: Number(t.diff || 0) >= 0 ? '#3f8600' : SEMANTIC.dangerDeep }}>
                     {(Number(t.diff || 0) >= 0 ? '+' : '−') + Math.abs(Number(t.diff || 0)).toFixed(1)}
                   </Text>
                 </Table.Summary.Cell>
@@ -374,7 +375,7 @@ const ProfitCalendarPage: React.FC = () => {
           ))}
         </div>
         <Row style={{ marginTop: 12 }}>
-          <Col span={12}><Statistic title="本月支出合计" value={monthlyExpense} prefix="¥" precision={1} valueStyle={{ color: '#B45309' }} /></Col>
+          <Col span={12}><Statistic title="本月支出合计" value={monthlyExpense} prefix="¥" precision={1} valueStyle={{ color: SEMANTIC.warningDeep }} /></Col>
         </Row>
       </Card>
 
@@ -404,8 +405,8 @@ const ProfitCalendarPage: React.FC = () => {
       <Card size="small" title="桥接返还台账（实际打给桥接/线上的钱）" style={{ marginBottom: 12 }}>
         <Row gutter={16} style={{ marginBottom: 12 }}>
           <Col span={8}><Statistic title="本月应返还" value={bt.returnAmount || 0} prefix="¥" precision={1} /></Col>
-          <Col span={8}><Statistic title="本月已返还" value={bridgeReturns.total || 0} prefix="¥" precision={1} valueStyle={{ color: '#16A34A' }} /></Col>
-          <Col span={8}><Statistic title="待返还" value={Math.max(0, (bt.returnAmount || 0) - (bridgeReturns.total || 0))} prefix="¥" precision={1} valueStyle={{ color: '#cf1322' }} /></Col>
+          <Col span={8}><Statistic title="本月已返还" value={bridgeReturns.total || 0} prefix="¥" precision={1} valueStyle={{ color: SEMANTIC.success }} /></Col>
+          <Col span={8}><Statistic title="待返还" value={Math.max(0, (bt.returnAmount || 0) - (bridgeReturns.total || 0))} prefix="¥" precision={1} valueStyle={{ color: SEMANTIC.dangerDeep }} /></Col>
         </Row>
         <Space wrap>
           <Text>返还金额</Text>
@@ -421,7 +422,7 @@ const ProfitCalendarPage: React.FC = () => {
             {bridgeReturns.records.map((r: any) => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Text style={{ width: 110 }}>{dayjs(r.date).format('YYYY-MM-DD')}</Text>
-                <Text strong style={{ color: '#16A34A', width: 100 }}>¥{Number(r.amount || 0).toFixed(1)}</Text>
+                <Text strong style={{ color: SEMANTIC.success, width: 100 }}>¥{Number(r.amount || 0).toFixed(1)}</Text>
                 <Text type="secondary" style={{ flex: 1 }}>{r.note || '-'}</Text>
                 <Popconfirm title="删除这条返还记录？" onConfirm={() => removeBridgeReturn(r.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />} />
@@ -432,7 +433,7 @@ const ProfitCalendarPage: React.FC = () => {
         )}
       </Card>
 
-      <Card size="small" style={{ marginBottom: 12, background: '#F0FDF4' }}>
+      <Card size="small" style={{ marginBottom: 12, background: SEMANTIC.successSoft }}>
         <Row gutter={16} align="middle">
           <Col span={12}>
             <Statistic
@@ -440,7 +441,7 @@ const ProfitCalendarPage: React.FC = () => {
               value={monthNetAfterExpense}
               prefix="¥"
               precision={1}
-              valueStyle={{ color: monthNetAfterExpense >= 0 ? '#16A34A' : '#cf1322', fontSize: 28 }}
+              valueStyle={{ color: monthNetAfterExpense >= 0 ? SEMANTIC.success : SEMANTIC.dangerDeep, fontSize: 28 }}
             />
           </Col>
           <Col span={12}>

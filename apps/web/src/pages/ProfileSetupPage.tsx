@@ -4,7 +4,7 @@ import { Card, Select, Button, Typography, Checkbox, Tag, Row, Col } from 'antd'
 import { message } from '../utils/feedback';
 import http from '../api/client';
 import { useAuthStore } from '../stores/authStore';
-import { BG } from '../styles/tokens';
+import { BG, BORDER } from '../styles/tokens';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -59,7 +59,7 @@ const ProfileSetupPage: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: BG.base, padding: '40px 0' }}>
-      <div style={{ maxWidth: 700, margin: '0 auto', background: '#FFF', borderRadius: 16, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+      <div style={{ maxWidth: 700, margin: '0 auto', background: BG.container, borderRadius: 16, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
         <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>完善陪玩资料</h2>
         <Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 16 }}>
           选择游戏后为每个游戏设置段位和账号情况
@@ -69,7 +69,7 @@ const ProfileSetupPage: React.FC = () => {
         <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {gameOptions.map((g) => (
             <Tag.CheckableTag key={g} checked={selectedGames.includes(g)} onChange={() => toggleGame(g)}
-              style={{ padding: '6px 14px', fontSize: 14, borderRadius: 6, border: '1px solid #E2E8F0' }}>
+              style={{ padding: '6px 14px', fontSize: 14, borderRadius: 6, border: `1px solid ${BORDER.base}` }}>
               {g}
             </Tag.CheckableTag>
           ))}
@@ -82,7 +82,7 @@ const ProfileSetupPage: React.FC = () => {
               {selectedGames.map((game) => (
                 <Col span={12} key={game}>
                   <Card size="small" title={<span style={{ fontSize: 13 }}>{game}</span>}
-                    style={{ borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                    style={{ borderRadius: 10, border: `1px solid ${BORDER.base}` }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <Select size="small" placeholder="段位" value={profiles[game]?.rank || undefined}
                         onChange={(v) => updateProfile(game, 'rank', v)} style={{ width: '100%' }}>

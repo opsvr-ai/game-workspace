@@ -10,7 +10,7 @@ import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import { extractErrorMessage } from '../../utils/error-handler';
-import { TEXT, SEMANTIC } from '../../styles/tokens';
+import { TEXT, SEMANTIC, BORDER } from '../../styles/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -267,7 +267,7 @@ const OrderReviewPage: React.FC = () => {
           <span style={{ marginLeft: 6 }}>{o.outcomeReason || ''}</span>
           {o.outcomeNote ? <div style={{ fontSize: 11, color: TEXT.secondary }}>{o.outcomeNote}</div> : null}
           {o.started ? (
-            <div style={{ fontSize: 11, color: '#16A34A' }}>已点开始首单</div>
+            <div style={{ fontSize: 11, color: SEMANTIC.success }}>已点开始首单</div>
           ) : (
             <div style={{ fontSize: 11, color: TEXT.tertiary }}>抢单 {ago(o.grabbedAt)}</div>
           )}
@@ -286,7 +286,7 @@ const OrderReviewPage: React.FC = () => {
                 key={url}
                 src={url}
                 alt="失败凭据"
-                style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                 onClick={() => window.open(url, '_blank')}
               />
             ))}
@@ -501,7 +501,7 @@ const OrderReviewPage: React.FC = () => {
                     key={url}
                     src={url}
                     alt="失败凭据"
-                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                     onClick={() => window.open(url, '_blank')}
                   />
                 ))}
@@ -544,7 +544,7 @@ const OrderReviewPage: React.FC = () => {
                     key={url}
                     src={url}
                     alt="失败凭据"
-                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                     onClick={() => window.open(url, '_blank')}
                   />
                 ))}
@@ -606,7 +606,7 @@ const OrderReviewPage: React.FC = () => {
                     key={url}
                     src={url}
                     alt="失败凭据"
-                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0', cursor: 'pointer' }}
+                    style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER.base}`, cursor: 'pointer' }}
                     onClick={() => window.open(url, '_blank')}
                   />
                 ))}

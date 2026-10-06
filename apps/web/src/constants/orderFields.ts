@@ -18,7 +18,7 @@
  * 陪玩端只是**少几个字段**（老板 2026-09-29「陪玩端 隐藏 客户小红书信息」），不是换一套写法。
  */
 import { billingModeConfig, orderTypeConfig, orderStatusConfig, serviceTypeConfig } from './orders';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -122,11 +122,11 @@ export const fieldVisibleTo = (
  * 只用彩色文字）。表格和详情弹窗共用这一份，别各写一套。
  */
 export const ORDER_STATUS_TEXT_COLOR: Record<string, string> = {
-  PENDING: '#B45309',
+  PENDING: SEMANTIC.warningDeep,
   CLAIMED: '#6D28D9',
-  GRABBED: '#1D4ED8',
-  CONFIRMED: '#15803D',
-  DONE: '#15803D',
+  GRABBED: SEMANTIC.infoDeep,
+  CONFIRMED: SEMANTIC.successDeep,
+  DONE: SEMANTIC.successDeep,
   CANCELLED: TEXT.tertiary,
 };
 

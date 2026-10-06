@@ -10,6 +10,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { studiosApi } from '../../api/studios';
 import PageHeader from '../../components/PageHeader';
 
+import { SEMANTIC } from '../../styles/tokens';
 const { Text } = Typography;
 
 const STATUS_OPTIONS = ['AVAILABLE', 'BUSY', 'ENTERTAINMENT', 'RESTING'];
@@ -404,7 +405,7 @@ const BlacklistPage: React.FC = () => {
       ) : (
         <Card
           size="small"
-          style={{ marginBottom: 12, background: killEffective ? '#fff2f0' : '#f6ffed', borderColor: killEffective ? '#ffccc7' : '#b7eb8f' }}
+          style={{ marginBottom: 12, background: killEffective ? SEMANTIC.dangerSoft : '#f6ffed', borderColor: killEffective ? SEMANTIC.dangerBorder : '#b7eb8f' }}
         >
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <div>

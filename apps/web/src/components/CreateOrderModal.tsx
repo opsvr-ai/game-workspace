@@ -12,6 +12,7 @@ import PasteImageBox from './PasteImageBox';
 import { TransferNote, transferList } from './OrderTransferNote';
 import { orderTypeConfig, dispatchTypeConfig, deltaMissionDefaultPrice } from '../constants/orders';
 
+import { SEMANTIC } from '../styles/tokens';
 const { Option } = Select;
 
 const ORDER_TYPES = Object.entries(orderTypeConfig).filter(([k]) => k !== 'TIP');
@@ -233,7 +234,7 @@ const CreateOrderModal: React.FC<Props> = ({ open, onClose, onCreated, userId, d
       {/* 转让留痕（老板 2026-10-03「400 订单转给王甲振，怎么没看到转让记录」）：
           订单管理里老板点开这一单走的是编辑弹窗，之前这里一个字都没有。 */}
       {transferList(editingOrder?.transfers).length > 0 && (
-        <div style={{ marginBottom: 12, padding: '8px 10px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 6 }}>
+        <div style={{ marginBottom: 12, padding: '8px 10px', background: SEMANTIC.orangeSoft, border: '1px solid #FED7AA', borderRadius: 6 }}>
           <TransferNote transfers={editingOrder?.transfers} />
         </div>
       )}

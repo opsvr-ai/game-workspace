@@ -10,7 +10,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import CardSkeleton from '../../components/CardSkeleton';
 import EmptyState from '../../components/EmptyState';
 import DueFollowUpBanner from '../../components/DueFollowUpBanner';
-import { BRAND, TEXT } from '../../styles/tokens';
+import { BRAND, TEXT, SEMANTIC } from '../../styles/tokens';
 import PageHeader from '../../components/PageHeader';
 
 const { Text } = Typography;
@@ -120,19 +120,19 @@ const RevenueDashboard: React.FC = () => {
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
-          <KpiCard label="昨日总流水" value={yuan(data?.yesterdayRevenue)} tint="#10B981" />
+          <KpiCard label="昨日总流水" value={yuan(data?.yesterdayRevenue)} tint={`${SEMANTIC.successBright}`} />
         </Col>
         <Col xs={12} sm={6}>
-          <KpiCard label="全月总流水" value={yuan(data?.monthlyRevenue)} tint="#7C4DFF" />
+          <KpiCard label="全月总流水" value={yuan(data?.monthlyRevenue)} tint={`${BRAND.primary}`} />
         </Col>
         <Col xs={12} sm={6}>
-          <KpiCard label="在线陪玩" value={`${onlineCount} 人`} tint="#3B82F6" />
+          <KpiCard label="在线陪玩" value={`${onlineCount} 人`} tint={`${SEMANTIC.infoBright}`} />
         </Col>
         <Col xs={12} sm={6}>
           <KpiCard
             label="待审核"
             value={`${pendingReview} 项`}
-            tint={pendingReview > 0 ? '#F59E0B' : TEXT.tertiary}
+            tint={pendingReview > 0 ? SEMANTIC.warning : TEXT.tertiary}
           />
         </Col>
       </Row>

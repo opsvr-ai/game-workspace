@@ -6,7 +6,7 @@
  * 文件带 BOM + CRLF，Excel 双击直接打开。
  */
 import dayjs from 'dayjs';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 /** CSV 单元格：带逗号 / 引号 / 换行就整体加引号。 */
 export const csvCell = (v: unknown): string => {
@@ -16,9 +16,9 @@ export const csvCell = (v: unknown): string => {
 
 /** 结果标签（表格和 CSV 共用一份，避免两处口径不一致）。 */
 export const STATE_MAP: Record<string, { text: string; color: string }> = {
-  SUCCESS: { text: '成功', color: '#15803D' },
-  FAILED: { text: '不成功', color: '#DC2626' },
-  PENDING: { text: '待反馈', color: '#B45309' },
+  SUCCESS: { text: '成功', color: SEMANTIC.successDeep },
+  FAILED: { text: '不成功', color: SEMANTIC.dangerMid },
+  PENDING: { text: '待反馈', color: SEMANTIC.warningDeep },
   NONE: { text: '已退款/取消', color: TEXT.tertiary },
 };
 

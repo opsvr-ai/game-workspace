@@ -32,7 +32,7 @@ import {
 import EmptyState from './EmptyState';
 import LoadingState from './LoadingState';
 import { customersApi } from '../api/customers';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC, BG } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -157,7 +157,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
               {r.workWechatNickname ? ' · ' + r.workWechatNickname : ''}
             </div>
             {r.companionsCount > 1 && r.companions?.length ? (
-              <div style={{ fontSize: 11, color: '#7C3AED' }}>
+              <div style={{ fontSize: 11, color: SEMANTIC.direct }}>
                 一起打的：{r.companions.map((c: any) => `${c.companionName} ${fmtHours(c.hours)}`).join(' · ')}
               </div>
             ) : null}
@@ -170,7 +170,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       key: 'online',
       width: 84,
       render: (_: any, r: any) => (
-        <span style={{ fontSize: 12, color: r.online ? '#15803D' : TEXT.tertiary }}>
+        <span style={{ fontSize: 12, color: r.online ? SEMANTIC.successDeep : TEXT.tertiary }}>
           {r.online ? STAFF_STATUS[r.status] || '在线' : '离线'}
         </span>
       ),
@@ -190,7 +190,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
       key: 'money',
       width: 84,
       align: 'right',
-      render: (v: number) => <span style={{ color: '#B91C1C', fontWeight: 600 }}>{yuan(v)}</span>,
+      render: (v: number) => <span style={{ color: SEMANTIC.dangerStrong, fontWeight: 600 }}>{yuan(v)}</span>,
     },
     {
       title: '机密 / 绝密',
@@ -258,7 +258,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
         <EmptyState description="画像加载失败，请关掉重开一次" />
       ) : (
         <div style={{ display: 'grid', gap: 14 }}>
-          <Card size="small" style={{ background: '#F5F3FF', borderColor: '#DDD6FE' }} bodyStyle={{ padding: 12 }}>
+          <Card size="small" style={{ background: SEMANTIC.directSoft, borderColor: SEMANTIC.directBorder }} bodyStyle={{ padding: 12 }}>
             <div style={{ fontSize: 13, color: '#4C1D95', fontWeight: 600, marginBottom: 4 }}>{companionView ? '💡 这个客户喜欢什么' : '💡 派单建议'}</div>
             <div style={{ fontSize: 13, lineHeight: 1.7, color: '#312E81' }}>{rec?.summary}</div>
             {rec?.picks?.length ? (
@@ -272,7 +272,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                       gap: 8,
                       padding: '6px 10px',
                       borderRadius: 8,
-                      background: i === 0 ? '#EDE9FE' : '#fff',
+                      background: i === 0 ? '#EDE9FE' : BG.container,
                       border: '1px solid ' + (i === 0 ? '#A78BFA' : '#E9D5FF'),
                     }}
                   >
@@ -287,7 +287,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                       <div style={{ fontSize: 11, color: '#6B7280' }}>
                         陪他 {fmtHours(p.modeHours)} {p.topMode} · 共 {fmtHours(p.hours)} / {p.orders} 单
                       </div>
-                      <div style={{ fontSize: 11, color: p.online ? '#15803D' : TEXT.tertiary }}>
+                      <div style={{ fontSize: 11, color: p.online ? SEMANTIC.successDeep : TEXT.tertiary }}>
                         {p.online ? STAFF_STATUS[p.status] || '在线' : '离线'}
                         {p.workWechatId ? ' · ' + showWx(p.workWechatId) : ''}
                       </div>
@@ -331,7 +331,7 @@ const CustomerProfileDrawer: React.FC<Props> = ({ customerId, open, onClose, sho
                       percent={m.ratio}
                       showInfo={false}
                       size="small"
-                      strokeColor={m.mode === '绝密' ? '#DC2626' : '#F59E0B'}
+                      strokeColor={m.mode === '绝密' ? SEMANTIC.dangerMid : SEMANTIC.warning}
                     />
                   </div>
                 ))

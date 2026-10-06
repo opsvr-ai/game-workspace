@@ -5,7 +5,7 @@ import { CrownOutlined } from '@ant-design/icons';
 import http from '../api/client';
 import TierHorseIcon from './TierHorseIcon';
 import LoadingState from './LoadingState';
-import { BG, TEXT } from '../styles/tokens';
+import { BG, TEXT, BORDER, SEMANTIC } from '../styles/tokens';
 import { tierMeta } from '../constants/tiers';
 
 const { Text, Title } = Typography;
@@ -150,14 +150,14 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                   message="今天是第一次记录积分，从明天开始这里会显示每天加了多少分、扣了多少分。"
                 />
               ) : (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', background: BG.base }}>
+                <div style={{ border: `1px solid ${BORDER.base}`, borderRadius: 10, padding: '10px 12px', background: BG.base }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>今天的变化</Text>
                     <span
                       style={{
                         fontWeight: 700,
                         fontSize: 18,
-                        color: delta.delta > 0 ? '#3f8600' : delta.delta < 0 ? '#cf1322' : '#8c8c8c',
+                        color: delta.delta > 0 ? '#3f8600' : delta.delta < 0 ? SEMANTIC.dangerDeep : '#8c8c8c',
                       }}
                     >
                       {delta.delta > 0 ? '+' : ''}{delta.delta} 分
@@ -183,7 +183,7 @@ const ExcellenceRuleModal: React.FC<Props> = ({ open, onClose, initial }) => {
                               {it.label}
                               {it.key === 'bonus' ? '' : `（${it.prevValue}${it.unit} → ${it.value}${it.unit}）`}
                             </span>
-                            <span style={{ fontWeight: 700, color: it.delta > 0 ? '#3f8600' : '#cf1322' }}>
+                            <span style={{ fontWeight: 700, color: it.delta > 0 ? '#3f8600' : SEMANTIC.dangerDeep }}>
                               {it.delta > 0 ? '+' : ''}{it.delta} 分 → 现在 {it.now} 分
                             </span>
                           </div>

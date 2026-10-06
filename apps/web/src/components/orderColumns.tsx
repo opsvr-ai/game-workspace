@@ -19,7 +19,7 @@ import {
 } from '../constants/orderFields';
 import { OutcomeSuffix, outcomeSuffixText } from './OrderOutcome';
 import { describeTransfer, transferList } from './OrderTransferNote';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -128,7 +128,7 @@ export function buildOrderColumns({
           return (
             <div style={CELL_ONE_LINE}>
               <Tooltip title="超时没人抢，已从抢单池退回「流转失败明细」：需要重新发布或标记处理完成">
-                <span style={{ color: '#DC2626' }}>无人接</span>
+                <span style={{ color: SEMANTIC.dangerMid }}>无人接</span>
               </Tooltip>
             </div>
           );
@@ -142,7 +142,7 @@ export function buildOrderColumns({
             {!isCompanion && o.poolScope === 'ONLINE_FIRST' && (
               <span
                 style={{
-                  color: '#7C3AED',
+                  color: SEMANTIC.direct,
                   marginLeft: 6,
                   cursor: !o.releasedToOfflineAt && onReleaseToOffline ? 'pointer' : 'default',
                   textDecoration:
@@ -200,7 +200,7 @@ export function buildOrderColumns({
         return (
           <div style={CELL_ONE_LINE} title={`${money} · ${urgencyText}`}>
             <Text strong>{money}</Text>
-            <span style={{ ...CELL_SUB_TEXT, color: o.customFields?.urgency === 'later' ? '#1D4ED8' : TEXT.tertiary }}>
+            <span style={{ ...CELL_SUB_TEXT, color: o.customFields?.urgency === 'later' ? SEMANTIC.infoDeep : TEXT.tertiary }}>
               {urgencyText}
             </span>
           </div>
@@ -406,7 +406,7 @@ export function buildOrderColumns({
                   }
                 >
                   <div style={CELL_ONE_LINE}>
-                    <span style={{ color: '#C2410C', cursor: 'help' }}>
+                    <span style={{ color: SEMANTIC.orangeDeeper, cursor: 'help' }}>
                       已转让{list.length > 1 ? `（${list.length}）` : ''}
                     </span>
                   </div>

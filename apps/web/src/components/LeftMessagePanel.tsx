@@ -4,7 +4,7 @@ import { Typography } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
 import { chatApi } from '../api/chat';
-import { BG, TEXT } from '../styles/tokens';
+import { BG, TEXT, SEMANTIC, BRAND } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -46,13 +46,13 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
       borderRadius: 10,
       cursor: 'pointer',
       transition: 'background 0.15s',
-      background: highlighted ? '#EFF6FF' : 'transparent',
+      background: highlighted ? SEMANTIC.infoSoftBlue : 'transparent',
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.background = highlighted ? '#EFF6FF' : BG.base;
+      e.currentTarget.style.background = highlighted ? SEMANTIC.infoSoftBlue : BG.base;
     }}
     onMouseLeave={(e) => {
-      e.currentTarget.style.background = highlighted ? '#EFF6FF' : 'transparent';
+      e.currentTarget.style.background = highlighted ? SEMANTIC.infoSoftBlue : 'transparent';
     }}
   >
     {avatar}
@@ -101,7 +101,7 @@ const Row: React.FC<RowProps> = ({ name, lastMessage, lastMessageAt, unread, ava
               marginLeft: 8,
               borderRadius: 9,
               background: '#F5222D',
-              color: '#FFFFFF',
+              color: TEXT.inverse,
               fontSize: 11,
               lineHeight: '18px',
               flexShrink: 0,
@@ -122,11 +122,11 @@ const groupAvatar = (
       height: 40,
       flexShrink: 0,
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #7C4DFF, #5B7CFA)',
+      background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryBlue})`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      color: '#FFFFFF',
+      color: TEXT.inverse,
       fontSize: 18,
     }}
   >
@@ -252,11 +252,11 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
                 height: 40,
                 flexShrink: 0,
                 borderRadius: '50%',
-                background: unread > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : TEXT.disabled,
+                background: unread > 0 ? `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryBlue})` : TEXT.disabled,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#FFFFFF',
+                color: TEXT.inverse,
                 fontSize: 16,
                 fontWeight: 700,
               }}
@@ -285,7 +285,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#FFFFFF',
+        background: BG.container,
       }}
     >
       <div
@@ -310,7 +310,7 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
               padding: '0 6px',
               borderRadius: 10,
               background: '#F5222D',
-              color: '#FFFFFF',
+              color: TEXT.inverse,
               fontSize: 12,
               lineHeight: '20px',
             }}
@@ -347,11 +347,11 @@ const LeftMessagePanel: React.FC<Props> = ({ onOpenChat, onOpenDirectChat }) => 
                         height: 40,
                         flexShrink: 0,
                         borderRadius: '50%',
-                        background: (c.unreadCount || 0) > 0 ? 'linear-gradient(135deg, #7C4DFF, #5B7CFA)' : TEXT.disabled,
+                        background: (c.unreadCount || 0) > 0 ? `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryBlue})` : TEXT.disabled,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#FFFFFF',
+                        color: TEXT.inverse,
                         fontSize: 16,
                         fontWeight: 700,
                       }}

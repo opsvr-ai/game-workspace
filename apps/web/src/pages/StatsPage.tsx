@@ -8,6 +8,7 @@ import DueFollowUpBanner from '../components/DueFollowUpBanner';
 import PageHeader from '../components/PageHeader';
 import { orderStatusConfig } from '../constants/orders';
 
+import { BG, SEMANTIC } from '../styles/tokens';
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
@@ -79,7 +80,7 @@ const StatsPage: React.FC = () => {
       ),
     },
     { title: '游戏', dataIndex: 'gameName', width: 90 },
-    { title: '金额', dataIndex: 'amount', width: 90, render: (v: number) => <Text strong style={{ color: '#cf1322' }}>¥{v?.toFixed(1)}</Text> },
+    { title: '金额', dataIndex: 'amount', width: 90, render: (v: number) => <Text strong style={{ color: SEMANTIC.dangerDeep }}>¥{v?.toFixed(1)}</Text> },
     { title: '状态', dataIndex: 'status', width: 90, render: (v: string) => {
       const cfg = orderStatusConfig[v] ?? { color: 'default', label: v };
       return <Tag color={cfg.color}>{cfg.label}</Tag>;
@@ -185,7 +186,7 @@ const StatsPage: React.FC = () => {
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={4}><Card size="small"><Text type="secondary">发单总数</Text><div><Text strong style={{ fontSize: 22 }}>{s.totalOrders} 单</Text></div></Card></Col>
-        <Col xs={12} sm={4}><Card size="small"><Text type="secondary">总金额</Text><div><Text strong style={{ fontSize: 22, color: '#cf1322' }}>¥{s.totalAmount.toFixed(0)}</Text></div></Card></Col>
+        <Col xs={12} sm={4}><Card size="small"><Text type="secondary">总金额</Text><div><Text strong style={{ fontSize: 22, color: SEMANTIC.dangerDeep }}>¥{s.totalAmount.toFixed(0)}</Text></div></Card></Col>
         <Col xs={12} sm={4}><Card size="small"><Text type="secondary">客服认领</Text><div><Text strong style={{ fontSize: 22, color: '#722ed1' }}>{s.claimedCount || 0} 单 / ¥{(s.claimedAmount || 0).toFixed(0)}</Text></div></Card></Col>
         <Col xs={12} sm={4}><Card size="small"><Text type="secondary">未接单</Text><div><Text strong style={{ fontSize: 22, color: s.unassignedCount > 0 ? '#faad14' : '#8c8c8c' }}>{s.unassignedCount} 单</Text></div></Card></Col>
         <Col xs={12} sm={4}><Card size="small"><Text type="secondary">已付 / 未付</Text><div><Text strong style={{ fontSize: 20 }}>{s.feePaidCount} / {s.feeUnpaidCount}</Text></div></Card></Col>
@@ -195,12 +196,12 @@ const StatsPage: React.FC = () => {
       <Card title={`客服汇总（${csList.length}人）`} size="small" style={{ marginBottom: 16 }}>
         <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, overflow: 'hidden' }}>
           {csList.map((cs: any, i: number) => (
-            <div key={cs.csUserId} style={{ padding: '8px 12px', borderBottom: i < csList.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
+            <div key={cs.csUserId} style={{ padding: '8px 12px', borderBottom: i < csList.length - 1 ? '1px solid #f0f0f0' : 'none', background: i % 2 === 0 ? '#fafafa' : BG.container }}>
               <Row gutter={[12, 4]} align="middle">
                 <Col xs={24} sm={3}><Text strong>{cs.csDisplayName || cs.csName}</Text></Col>
                 <Col xs={12} sm={2}><Text>发单 {cs.totalOrders}</Text></Col>
                 <Col xs={12} sm={2}><Text style={{ color: '#722ed1' }}>认领 {cs.claimedCount || 0}</Text></Col>
-                <Col xs={12} sm={2}><Text style={{ color: '#cf1322' }}>¥{cs.totalAmount.toFixed(0)}</Text></Col>
+                <Col xs={12} sm={2}><Text style={{ color: SEMANTIC.dangerDeep }}>¥{cs.totalAmount.toFixed(0)}</Text></Col>
                 <Col xs={24} sm={6}>
                   {(cs.studioBreakdown || []).map((b: any) => (
                     <Text key={b.studioName} style={{ display: 'inline-block', background: b.isOwn ? '#f6ffed' : b.studioType === 'RENTAL' ? '#f9f0ff' : '#e6f4ff', padding: '0 6px', borderRadius: 3, marginRight: 4, fontSize: 12, border: '1px solid ' + (b.isOwn ? '#b7eb8f' : b.studioType === 'RENTAL' ? '#d3adf7' : '#91caff') }}>{b.studioName} {b.count}单 ¥{b.amount.toFixed(0)}</Text>

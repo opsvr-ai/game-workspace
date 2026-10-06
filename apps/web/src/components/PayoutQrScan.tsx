@@ -4,6 +4,7 @@ import { Button, Modal, Typography, Space } from 'antd';
 import EmptyState from './EmptyState';
 import { QrcodeOutlined } from '@ant-design/icons';
 
+import { BG } from '../styles/tokens';
 const { Text } = Typography;
 
 interface Props {
@@ -73,7 +74,7 @@ const PayoutQrScan: React.FC<Props> = ({ url, who, variant = 'link', label = 'æ”
                 objectFit: 'contain',
                 border: '1px solid #E5E7EB',
                 borderRadius: 12,
-                background: '#fff',
+                background: BG.container,
               }}
             />
             <div style={{ marginTop: 10 }}>

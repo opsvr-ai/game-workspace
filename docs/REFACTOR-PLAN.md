@@ -301,6 +301,21 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 23 批 · 已完成（2026-10-07，写死色值换设计令牌：颜色只有一个真源）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 色值搬进令牌表 | P2-6 / 卫生 | 71 个文件、**297 处**硬编码色值（`'#F8FAFC'`、模板串里的 `1px solid #E2E8F0`、JSX 属性里的色值）换成 apps/web/src/styles/tokens.ts 的令牌引用（BG.container / BORDER.base / SEMANTIC.* …）；插值模板串改写成 `1px solid ${BORDER.base}`；自动合并 / 新增 import { … } from `<相对>/styles/tokens` | 本次 |
+| 色值零变化（可复算） | 安全底线 | 改动走 TypeScript 编译器 API（不靠正则，避免被正则字面量 / 多行 import 骗）；逐文件把「改动前那一版」与「当前版」的**颜色多重集**（#RGB 展开成 6 位、rgba 归一化、令牌值**两边都展开**、**最长键优先**）排序比对：**71/71 完全一致** | 本次 |
+| 守门基线下调 | P2-6 | docs/UI-TOKEN-BASELINE.json：写死色值 **645 → 348**；pnpm ui:tokens:check 从此卡 348 | 本次 |
+
+> 验收口径（可复算）：pnpm ui:tokens:check（348）、pnpm --filter @chunlv/web typecheck、pnpm -r lint
+> （web 1618 warn / 0 error，与基线一致）、pnpm -r test（web 29 / server 689 / companion 21 / cs 37）、
+> 八个守门全绿（ui-tokens 348 / loading 0 / stat-cards 0 / feedback 0 / splitting 入口 348KB / css-vars 94 / routes 87 / contract 400）。
+> 视觉零差异：改后截图 tmp_shots/b23/after/（1400×860，看板 / 订单 / 客户 / 客服提成 / 设计校对页）
+> ＋窄屏体检 tmp_shots/b23/audit.json（5 页 overflow / clipped / issues / menuClipped 全空）。
+> **复算的坑**：SEMANTIC.danger 是 SEMANTIC.dangerDeep 的前缀 —— 必须最长键优先替换、且新旧两边都要展开，否则会假报警。
+
 ### 第 22 批 · 已完成（2026-10-07，反馈层统一出口：提示只留一个门）
 
 | 任务 | 对应问题 | 交付 | 提交 |

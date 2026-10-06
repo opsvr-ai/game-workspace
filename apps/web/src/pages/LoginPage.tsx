@@ -408,7 +408,7 @@ const LoginPage: React.FC = () => {
           null,
           React.createElement('div', null, msg),
           networkLevel
-            ? React.createElement('div', { style: { marginTop: 10, color: '#B45309' } },
+            ? React.createElement('div', { style: { marginTop: 10, color: SEMANTIC.warningDeep } },
                 '这次请求根本没到服务器（网络中断，或被这台电脑的安全软件 / 上网保护拦了）。系统已自动重试并做了一轮自检：')
             : null,
           ...diagnosis.map((line, index) =>

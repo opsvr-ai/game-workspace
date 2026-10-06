@@ -8,6 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 import ReplyBar from './ReplyBar';
 import { getImagesFromClipboard, isImageFile } from '../../utils/clipboardImage';
 
+import { BG } from '../../styles/tokens';
 interface ChatComposerProps {
   onSend: (text: string, replyToId?: string, mentionUserIds?: string[]) => void;
   onUpload?: (file: File) => Promise<string | undefined>;
@@ -278,7 +279,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
         }
         message.success(dropped.length > 1 ? `已拖入 ${dropped.length} 张图片` : '图片已添加');
       }}
-      style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: dragOver ? '#EAF3FF' : '#FFF', transition: 'background .15s' }}
+      style={{ flexShrink: 0, borderTop: '1px solid #E8E9EB', background: dragOver ? '#EAF3FF' : BG.container, transition: 'background .15s' }}
     >
       {replyTo && <ReplyBar content={replyTo.content} onCancel={() => setReplyTo(null)} />}
 
@@ -419,7 +420,7 @@ const ChatComposer: React.FC<ChatComposerProps> = ({ onSend, onUpload, uploading
                       </span>
                       <DeleteOutlined
                         onClick={() => removeCustomEmoji(emoji)}
-                        style={{ position: 'absolute', top: -2, right: -2, fontSize: 10, color: '#F23F42', cursor: 'pointer', background: '#FFF', borderRadius: '50%', padding: 1 }}
+                        style={{ position: 'absolute', top: -2, right: -2, fontSize: 10, color: '#F23F42', cursor: 'pointer', background: BG.container, borderRadius: '50%', padding: 1 }}
                       />
                     </span>
                   ))}

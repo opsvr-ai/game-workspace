@@ -8,7 +8,7 @@ import http from '../api/client';
 import PageHeader from '../components/PageHeader';
 import { useAuthStore } from '../stores/authStore';
 import { CELL_ONE_LINE } from '../constants/datasetColumns';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -307,7 +307,7 @@ const WorkWechatPage: React.FC = () => {
           rowKey={(r: any) => r._rowKey}
           loading={loading || requestsLoading}
           pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 个` }}
-          onRow={(r: any) => (r._request ? { style: { background: '#FFF7E6' } } : {})}
+          onRow={(r: any) => (r._request ? { style: { background: SEMANTIC.warningSoft } } : {})}
           columns={[
             {
               title: '类型',

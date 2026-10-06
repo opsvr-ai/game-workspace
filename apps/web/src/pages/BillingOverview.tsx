@@ -32,7 +32,7 @@ import {
   HistoryOutlined,
 } from '@ant-design/icons';
 import { visibleInterval } from '../hooks/usePolling';
-import { BG, BRAND, TEXT } from '../styles/tokens';
+import { BG, BRAND, TEXT, SEMANTIC, BORDER } from '../styles/tokens';
 const IconCheck = React.createElement(CheckCircleOutlined);
 const IconClose = React.createElement(CloseCircleOutlined);
 const IconReload = React.createElement(ReloadOutlined);
@@ -361,7 +361,7 @@ const BillingOverview: React.FC = () => {
     {
       title: '金额', dataIndex: 'amount', key: 'amount', width: 100,
       render: (v: number) => (
-        <Text strong style={{ color: '#EF4444' }}>¥{v?.toFixed(1) ?? '0.00'}</Text>
+        <Text strong style={{ color: SEMANTIC.danger }}>¥{v?.toFixed(1) ?? '0.00'}</Text>
       ),
     },
     {
@@ -482,7 +482,7 @@ const BillingOverview: React.FC = () => {
               label="总流水"
               value={`¥${(overviewData?.summary?.totalRevenue ?? 0).toFixed(1)}`}
               icon={IconWallet}
-              color="#7C3AED"
+              color={`${SEMANTIC.direct}`}
             />
           </Col>
           <Col span={4}>
@@ -490,7 +490,7 @@ const BillingOverview: React.FC = () => {
               label="已支取"
               value={`¥${(overviewData?.summary?.totalWithdrawn ?? 0).toFixed(1)}`}
               icon={IconBank}
-              color="#16A34A"
+              color={`${SEMANTIC.success}`}
             />
           </Col>
           <Col span={4}>
@@ -498,7 +498,7 @@ const BillingOverview: React.FC = () => {
               label="审核中"
               value={`¥${(overviewData?.summary?.pendingWithdraw ?? 0).toFixed(1)}`}
               icon={IconHourglass}
-              color="#F59E0B"
+              color={`${SEMANTIC.warning}`}
             />
           </Col>
           <Col span={4}>
@@ -506,7 +506,7 @@ const BillingOverview: React.FC = () => {
               label="待支取"
               value={`¥${(overviewData?.summary?.withdrawable ?? 0).toFixed(1)}`}
               icon={IconSwap}
-              color="#F59E0B"
+              color={`${SEMANTIC.warning}`}
             />
           </Col>
           <Col span={4}>
@@ -537,7 +537,7 @@ const BillingOverview: React.FC = () => {
                     <Space>
                       <Text strong>{day.date}</Text>
                       <Tag color="blue">{day.reports.length}条报账</Tag>
-                      <Text style={{ color: '#EF4444', fontWeight: 600 }}>¥{day.totalAmount.toFixed(1)}</Text>
+                      <Text style={{ color: SEMANTIC.danger, fontWeight: 600 }}>¥{day.totalAmount.toFixed(1)}</Text>
                       <Tag>{allScreenshots.length}张截图</Tag>
                     </Space>
                   }
@@ -562,7 +562,7 @@ const BillingOverview: React.FC = () => {
                   {day.items && day.items.length > 0 && (
                     <div style={{ marginBottom: 8 }}>
                       {day.items.map((item: any, i: number) => (
-                        <div key={i} style={{ padding: '4px 8px', fontSize: 12, background: '#fff', borderRadius: 4, marginBottom: 2 }}>
+                        <div key={i} style={{ padding: '4px 8px', fontSize: 12, background: BG.container, borderRadius: 4, marginBottom: 2 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Space size={8}>
                               <Text type="secondary">{item.gameName}</Text>
@@ -578,11 +578,11 @@ const BillingOverview: React.FC = () => {
                               {item.claimedPrice != null && (
                                 <Text type="secondary" style={{ fontSize: 10 }}>{item.claimedPrice}×{item.duration || 1}h</Text>
                               )}
-                              <Text strong style={{ color: '#EF4444' }}>¥{item.amount}</Text>
+                              <Text strong style={{ color: SEMANTIC.danger }}>¥{item.amount}</Text>
                             </Space>
                           </div>
                           {item.remark && (
-                            <div style={{ fontSize: 12, color: '#B45309', background: '#FFFBEB', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: SEMANTIC.warningDeep, background: '#FFFBEB', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>
                               💬 {item.remark}
                             </div>
                           )}
@@ -749,7 +749,7 @@ const BillingOverview: React.FC = () => {
           <div style={{ maxHeight: 620, overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: BG.base, borderBottom: '2px solid #E2E8F0' }}>
+                <tr style={{ background: BG.base, borderBottom: `2px solid ${BORDER.base}` }}>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 44 }}>序号</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 460 }}>订单</th>
                   <th style={{ padding: '8px 10px', fontSize: 12, color: TEXT.secondary, width: 150 }}>开始时间</th>
@@ -765,7 +765,7 @@ const BillingOverview: React.FC = () => {
               </thead>
               <tbody>
                 {todayOrders.map((o: any, idx: number) => (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <tr key={o.id} style={{ borderBottom: `1px solid ${BORDER.secondary}` }}>
                     <td style={{ padding: '8px 10px', fontSize: 12, color: TEXT.tertiary }}>{idx + 1}</td>
                     <td style={{ padding: '8px 10px', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <Space size={4} style={{ flexWrap: 'nowrap' }}>
@@ -814,10 +814,10 @@ const BillingOverview: React.FC = () => {
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
               <Text>共 {todayOrders.length} 单</Text>
               <Text>应报总额（系统）：<b style={{ color: BRAND.primary }}>¥{reportSystemTotal.toFixed(1)}</b></Text>
-              <Text>实际总额（陪玩填）：<b style={{ color: '#16A34A' }}>¥{reportActualTotal.toFixed(1)}</b></Text>
+              <Text>实际总额（陪玩填）：<b style={{ color: SEMANTIC.success }}>¥{reportActualTotal.toFixed(1)}</b></Text>
               <Text>
                 差额：
-                <b style={{ color: Math.abs(reportDiff) < 0.01 ? '#16A34A' : '#F59E0B' }}>
+                <b style={{ color: Math.abs(reportDiff) < 0.01 ? SEMANTIC.success : SEMANTIC.warning }}>
                   {reportDiff >= 0 ? '+' : ''}{reportDiff.toFixed(1)}
                 </b>
                 {Math.abs(reportDiff) >= 0.01 && <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>请核对每单实际到账金额</Text>}
@@ -854,7 +854,7 @@ const BillingOverview: React.FC = () => {
         <div style={{ marginBottom: 12 }}>
           <div
             style={{
-              background: '#F0FDF4',
+              background: SEMANTIC.successSoft,
               borderRadius: 8,
               padding: 12,
               marginBottom: 12,

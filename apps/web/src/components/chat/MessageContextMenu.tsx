@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { CopyOutlined, UndoOutlined, DeleteOutlined, StarOutlined } from '@ant-design/icons';
 
+import { BG } from '../../styles/tokens';
 interface MessageContextMenuProps {
   x: number;
   y: number;
@@ -51,7 +52,7 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         left: Math.min(x, window.innerWidth - 180),
         top: Math.min(y, window.innerHeight - 250),
         zIndex: 10000,
-        background: '#FFF',
+        background: BG.container,
         borderRadius: 10,
         boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
         padding: '6px 0',

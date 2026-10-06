@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Progress } from 'antd';
-import { BRAND } from '../styles/tokens';
+import { BRAND, BG } from '../styles/tokens';
 
 // 服务开始后的「进入接单中，用心服务」过渡：粗进度条走满后自动进入接单状态提示。
 const ServiceStartOverlay: React.FC = () => {
@@ -45,7 +45,7 @@ const ServiceStartOverlay: React.FC = () => {
         right: 24,
         zIndex: 10001,
         width: 320,
-        background: '#fff',
+        background: BG.container,
         borderRadius: 14,
         boxShadow: '0 10px 40px rgba(0,0,0,0.28)',
         padding: '18px 20px',

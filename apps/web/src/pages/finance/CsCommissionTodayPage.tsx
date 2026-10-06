@@ -61,9 +61,9 @@ const CHANNEL: Record<string, { label: string; color: string }> = {
 };
 
 const STATE: Record<string, { label: string; color: string }> = {
-  SUCCESS: { label: '成功', color: '#15803D' },
-  FAILED: { label: '不成功', color: '#DC2626' },
-  PENDING: { label: '待反馈', color: '#B45309' },
+  SUCCESS: { label: '成功', color: SEMANTIC.successDeep },
+  FAILED: { label: '不成功', color: SEMANTIC.dangerMid },
+  PENDING: { label: '待反馈', color: SEMANTIC.warningDeep },
   NONE: { label: '未开始', color: TEXT.tertiary },
 };
 
@@ -182,7 +182,7 @@ const CsCommissionTodayPage: React.FC = () => {
   }> = [
     { title: isCsRole ? '今天发单' : '全店发单', value: board?.published ?? 0, suffix: '单', hint: '今天建了多少单' },
     { title: '成功', value: board?.success ?? 0, suffix: '单', hint: '线下陪玩点「开始首单」/ 桥接·线上反馈成功' },
-    { title: '不成功', value: board?.failed ?? 0, suffix: '单', hint: '没打成的，不计提成', color: '#cf1322' },
+    { title: '不成功', value: board?.failed ?? 0, suffix: '单', hint: '没打成的，不计提成', color: SEMANTIC.dangerDeep },
     { title: '待反馈', value: board?.pending ?? 0, suffix: '单', hint: '桥接 / 线上还没给结果' },
     {
       title: '成功率',
@@ -199,7 +199,7 @@ const CsCommissionTodayPage: React.FC = () => {
       hint: isCsRole
         ? '底薪按天折算 + 提成（只有成功单才算提成）—— 点一下看今日 +多少提成 + 每一单明细'
         : '底薪按天折算 + 提成（只有成功单才算提成）',
-      color: '#cf1322',
+      color: SEMANTIC.dangerDeep,
       pay: true,
     },
   ];
@@ -213,9 +213,9 @@ const CsCommissionTodayPage: React.FC = () => {
     void openRow(row);
   };
   const boardPie: Array<{ name: string; value: number; color: string }> = [
-    { name: '成功', value: Number(board?.success || 0), color: '#15803D' },
-    { name: '不成功', value: Number(board?.failed || 0), color: '#DC2626' },
-    { name: '待反馈', value: Number(board?.pending || 0), color: '#B45309' },
+    { name: '成功', value: Number(board?.success || 0), color: SEMANTIC.successDeep },
+    { name: '不成功', value: Number(board?.failed || 0), color: SEMANTIC.dangerMid },
+    { name: '待反馈', value: Number(board?.pending || 0), color: SEMANTIC.warningDeep },
     { name: '未开始', value: Number(board?.unstarted || 0), color: TEXT.tertiary },
   ].filter((d) => d.value > 0);
 
@@ -259,7 +259,7 @@ const CsCommissionTodayPage: React.FC = () => {
         <div>
           <Text strong>{r.offlineOrders ?? 0} 单</Text>
           <div style={{ fontSize: 11, color: TEXT.tertiary }}>流水 {yuan(r.offlineFlow)}</div>
-          <div style={{ fontSize: 11, color: '#cf1322' }}>提成 {yuan(r.offlineCommission)}</div>
+          <div style={{ fontSize: 11, color: SEMANTIC.dangerDeep }}>提成 {yuan(r.offlineCommission)}</div>
         </div>
       ),
     },
@@ -283,7 +283,7 @@ const CsCommissionTodayPage: React.FC = () => {
               </Text>
             )}
           </div>
-          <div style={{ fontSize: 11, color: '#cf1322' }}>提成 {yuan(r.bridgeCommission)}</div>
+          <div style={{ fontSize: 11, color: SEMANTIC.dangerDeep }}>提成 {yuan(r.bridgeCommission)}</div>
           <div style={{ fontSize: 11 }} className="text-secondary">
             <Text type="secondary" style={{ fontSize: 11 }}>
               今日 {r.bridgeOrders ?? 0}/{r.bridgeTarget ?? 0}
@@ -299,7 +299,7 @@ const CsCommissionTodayPage: React.FC = () => {
       render: (_: unknown, r: any) => (
         <div>
           <Text strong>{r.onlineOrders ?? 0} 单</Text>
-          <div style={{ fontSize: 11, color: '#cf1322' }}>提成 {yuan(r.onlineCommission)}</div>
+          <div style={{ fontSize: 11, color: SEMANTIC.dangerDeep }}>提成 {yuan(r.onlineCommission)}</div>
         </div>
       ),
     },
@@ -343,7 +343,7 @@ const CsCommissionTodayPage: React.FC = () => {
       dataIndex: 'todayPay',
       width: 88,
       render: (v: number) => (
-        <Text strong style={{ color: '#cf1322', fontSize: 15 }}>
+        <Text strong style={{ color: SEMANTIC.dangerDeep, fontSize: 15 }}>
           {yuan(v)}
         </Text>
       ),
@@ -647,7 +647,7 @@ const CsCommissionTodayPage: React.FC = () => {
                       {st.label}
                     </Text>
                     {r.state === 'FAILED' && r.outcomeReason && (
-                      <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
+                      <div style={{ fontSize: 11, color: SEMANTIC.dangerMid }}>{r.outcomeReason}</div>
                     )}
                     {r.outcomeBy && <div style={{ fontSize: 11, color: TEXT.tertiary }}>{r.outcomeBy} 记</div>}
                     {r.refundedAt && <div style={{ fontSize: 11, color: TEXT.tertiary }}>已退款</div>}
@@ -769,7 +769,7 @@ const CsCommissionTodayPage: React.FC = () => {
                       {st.label}
                     </Text>
                     {r.state === 'FAILED' && r.outcomeReason && (
-                      <div style={{ fontSize: 11, color: '#DC2626' }}>{r.outcomeReason}</div>
+                      <div style={{ fontSize: 11, color: SEMANTIC.dangerMid }}>{r.outcomeReason}</div>
                     )}
                     {r.outcomeBy && <div style={{ fontSize: 11, color: TEXT.tertiary }}>{r.outcomeBy} 记</div>}
                     {r.state === 'PENDING' && r.chaseCount > 0 && (

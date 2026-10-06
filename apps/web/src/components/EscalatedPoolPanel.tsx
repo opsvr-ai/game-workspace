@@ -10,7 +10,7 @@ import { visibleInterval } from '../hooks/usePolling';
 import { createZip, type ZipEntry } from '../utils/zip';
 import { buildEscalatedPoolCsv, safeFileName, STATE_MAP } from '../utils/escalated-pool-csv';
 import { useAuthStore } from '../stores/authStore';
-import { TEXT } from '../styles/tokens';
+import { TEXT, SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -212,14 +212,14 @@ const EscalatedPoolPanel: React.FC = () => {
       dataIndex: 'returnYuan',
       width: 100,
       align: 'right' as const,
-      render: (v: number) => (v > 0 ? <span style={{ color: '#DC2626' }}>{yuan(v)}</span> : '—'),
+      render: (v: number) => (v > 0 ? <span style={{ color: SEMANTIC.dangerMid }}>{yuan(v)}</span> : '—'),
     },
     {
       title: '工作室净得',
       dataIndex: 'studioNetYuan',
       width: 110,
       align: 'right' as const,
-      render: (v: number) => <span style={{ color: '#15803D' }}>{yuan(v)}</span>,
+      render: (v: number) => <span style={{ color: SEMANTIC.successDeep }}>{yuan(v)}</span>,
     },
     {
       title: '钱在哪里',
@@ -335,7 +335,7 @@ const EscalatedPoolPanel: React.FC = () => {
         <Col xs={12} md={6}>
           <Card size="small">
             <Text type="secondary">应返还（绝密）</Text>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#DC2626' }}>{yuan(totals.returnYuan)}</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: SEMANTIC.dangerMid }}>{yuan(totals.returnYuan)}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               桥接 {yuan(totals.bridgeReturnYuan)} / 线上 {yuan(totals.onlineReturnYuan)}
             </Text>
@@ -344,7 +344,7 @@ const EscalatedPoolPanel: React.FC = () => {
         <Col xs={12} md={6}>
           <Card size="small">
             <Text type="secondary">工作室净得</Text>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#15803D' }}>{yuan(totals.studioNetYuan)}</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: SEMANTIC.successDeep }}>{yuan(totals.studioNetYuan)}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
               已记流入 {yuan(totals.moneyInYuan)} / 流出 {yuan(totals.moneyOutYuan)}
             </Text>

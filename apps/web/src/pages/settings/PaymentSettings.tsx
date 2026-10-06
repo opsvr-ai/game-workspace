@@ -5,7 +5,7 @@ import { message } from '../../utils/feedback';
 import { DeleteOutlined, PlusOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { configApi } from '../../api/config';
 import { clampPercent, FULL_PERCENT } from '../../utils/percent';
-import { BG, BORDER } from '../../styles/tokens';
+import { BG, BORDER, BRAND, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -55,13 +55,13 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * 全页只用这一份，行的底色、左侧光条、工作室的数字都取它 —— 一眼能分清「这行是谁的」。
  */
 const ROLE_TINT = {
-  companion: '#7C4DFF',
-  admin: '#3B82F6',
-  cs: '#F59E0B',
-  studio: '#10B981',
+  companion: BRAND.primary,
+  admin: SEMANTIC.infoBright,
+  cs: SEMANTIC.warning,
+  studio: SEMANTIC.successBright,
 } as const;
 
-const GROUP_TINT = { offline: '#10B981', online: '#00B8D9', bridge: '#F97316' } as const;
+const GROUP_TINT = { offline: SEMANTIC.successBright, online: '#00B8D9', bridge: '#F97316' } as const;
 
 /** 缺配置时按后端实际生效的默认值补上：看到多少，算的就是多少。 */
 const withEffectiveDefaults = (raw: any) => {
@@ -91,7 +91,7 @@ const withEffectiveDefaults = (raw: any) => {
 const GRID_BASE: React.CSSProperties = {
   display: 'grid',
   alignItems: 'stretch',
-  background: '#fff',
+  background: BG.container,
 };
 const CELL: React.CSSProperties = {
   display: 'flex',
@@ -280,7 +280,7 @@ const PaymentSettings: React.FC = () => {
           color: '#334155',
           background:
             'linear-gradient(90deg, rgba(124,77,255,0.09), rgba(0,229,255,0.06) 60%, rgba(255,255,255,0))',
-          borderLeft: '3px solid #7C4DFF',
+          borderLeft: `3px solid ${BRAND.primary}`,
         }}
       >
         <span>
@@ -371,7 +371,7 @@ const PaymentSettings: React.FC = () => {
             const v = studioOf(t?.companion);
             return (
               <div key={`s${i}`} style={{ ...CELL, background: `${ROLE_TINT.studio}0A` }}>
-                <Text strong style={{ fontSize: 14, color: v < 0 ? '#EF4444' : ROLE_TINT.studio }}>{v}%</Text>
+                <Text strong style={{ fontSize: 14, color: v < 0 ? SEMANTIC.danger : ROLE_TINT.studio }}>{v}%</Text>
               </div>
             );
           })}
@@ -427,7 +427,7 @@ const PaymentSettings: React.FC = () => {
 
           {labelCell('studio', '工作室', '自动算出')}
           <div style={{ ...CELL, background: `${ROLE_TINT.studio}0A` }}>
-            <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? '#EF4444' : ROLE_TINT.studio }}>{onlineStudio}%</Text>
+            <Text strong style={{ fontSize: 14, color: onlineStudio < 0 ? SEMANTIC.danger : ROLE_TINT.studio }}>{onlineStudio}%</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>100 − 陪玩 − 店长 − 客服</Text>
           </div>
         </div>

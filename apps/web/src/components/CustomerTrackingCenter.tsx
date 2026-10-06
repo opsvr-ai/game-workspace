@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons';
 import { customerTrackingApi } from '../api/customerTracking';
 import { extractErrorMessage } from '../utils/error-handler';
-import { BRAND } from '../styles/tokens';
+import { BRAND, TEXT } from '../styles/tokens';
 
 const { Text, Title } = Typography;
 
@@ -27,7 +27,7 @@ const glass = {
 } as const;
 
 const gradientText = {
-  background: 'linear-gradient(90deg,#00E5FF 0%,#7C4DFF 50%,#FF2E9A 100%)',
+  background: `linear-gradient(90deg,${BRAND.accent} 0%,${BRAND.primary} 50%,#FF2E9A 100%)`,
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
@@ -74,7 +74,7 @@ const CustomerTrackingCenter: React.FC = () => {
 
   const statCards = [
     { label: '优质客户留存率', value: `${kpi?.retentionRate ?? 0}%`, icon: TrophyOutlined, color: BRAND.accent },
-    { label: '客户转化率', value: `${kpi?.conversionRate ?? 0}%`, icon: AimOutlined, color: '#7C4DFF' },
+    { label: '客户转化率', value: `${kpi?.conversionRate ?? 0}%`, icon: AimOutlined, color: BRAND.primary },
     { label: '近 3 日追踪', value: kpi?.trackedRecentCount ?? 0, icon: ThunderboltOutlined, color: '#FFB300' },
     { label: '响应/投诉风险', value: kpi?.responseRiskCount ?? 0, icon: FireOutlined, color: '#FF2E9A' },
   ];
@@ -87,10 +87,10 @@ const CustomerTrackingCenter: React.FC = () => {
     <div
       style={{
         background:
-          'radial-gradient(1200px 500px at 10% 0%, rgba(124,77,255,0.28), transparent 55%), radial-gradient(1000px 500px at 100% 0%, rgba(0,229,255,0.20), transparent 55%), linear-gradient(160deg,#070B18 0%,#0B1024 45%,#130B2E 100%)',
+          `radial-gradient(1200px 500px at 10% 0%, rgba(124,77,255,0.28), transparent 55%), radial-gradient(1000px 500px at 100% 0%, rgba(0,229,255,0.20), transparent 55%), linear-gradient(160deg,#070B18 0%,${BRAND.sider} 45%,#130B2E 100%)`,
         borderRadius: 24,
         padding: '28px 26px 34px',
-        color: '#EAF2FF',
+        color: TEXT.onDark,
         minHeight: 560,
       }}
     >
@@ -131,7 +131,7 @@ const CustomerTrackingCenter: React.FC = () => {
               <div style={{ marginTop: 14, fontSize: 34, fontWeight: 800, lineHeight: 1, textShadow: `0 0 24px ${s.color}66` }}>
                 {s.value}
               </div>
-              <Text style={{ color: '#A9B7D9', marginTop: 8, display: 'block' }}>{s.label}</Text>
+              <Text style={{ color: TEXT.onDarkMuted, marginTop: 8, display: 'block' }}>{s.label}</Text>
             </div>
           </Col>
         ))}
@@ -142,7 +142,7 @@ const CustomerTrackingCenter: React.FC = () => {
           <div style={{ ...glass, padding: 20, minHeight: 300 }}>
             <Space align="center" style={{ marginBottom: 14 }}>
               <AlertOutlined style={{ color: '#FF2E9A', fontSize: 18 }} />
-              <Text strong style={{ color: '#fff', fontSize: 16 }}>异常波动雷达</Text>
+              <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>异常波动雷达</Text>
               <Tag color="magenta" style={{ borderRadius: 999 }}>{anomalies.length} 条</Tag>
             </Space>
             {anomalies.length === 0 ? (
@@ -160,10 +160,10 @@ const CustomerTrackingCenter: React.FC = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text strong style={{ color: '#fff' }}>{a.wechatId || '未知客户'}</Text>
+                      <Text strong style={{ color: TEXT.inverse }}>{a.wechatId || '未知客户'}</Text>
                       <Tag color="red" style={{ borderRadius: 999 }}>↓ {a.dropPercent}%</Tag>
                     </div>
-                    <Text style={{ color: '#A9B7D9', fontSize: 12 }}>
+                    <Text style={{ color: TEXT.onDarkMuted, fontSize: 12 }}>
                       陪玩：{a.companion?.user?.displayName || a.companion?.user?.username || '-'} · 近周 ¥{Math.round(a.recentSpend)} / 基线 ¥{Math.round(a.baselineWeekly)}
                     </Text>
                   </div>
@@ -177,7 +177,7 @@ const CustomerTrackingCenter: React.FC = () => {
           <div style={{ ...glass, padding: 20, minHeight: 300 }}>
             <Space align="center" style={{ marginBottom: 14 }}>
               <CheckCircleOutlined style={{ color: BRAND.accent, fontSize: 18 }} />
-              <Text strong style={{ color: '#fff', fontSize: 16 }}>删除申请审核</Text>
+              <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>删除申请审核</Text>
             </Space>
             {requests.length === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span style={{ color: '#8A97B8' }}>暂无待处理申请</span>} />
@@ -195,9 +195,9 @@ const CustomerTrackingCenter: React.FC = () => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <Text strong style={{ color: '#fff' }}>{r.customer?.wechatId || '未知客户'}</Text>
+                        <Text strong style={{ color: TEXT.inverse }}>{r.customer?.wechatId || '未知客户'}</Text>
                         <div>
-                          <Text style={{ color: '#A9B7D9', fontSize: 12 }}>
+                          <Text style={{ color: TEXT.onDarkMuted, fontSize: 12 }}>
                             {r.companion?.user?.displayName || r.companion?.user?.username || '-'} · {r.status}
                           </Text>
                         </div>
@@ -226,7 +226,7 @@ const CustomerTrackingCenter: React.FC = () => {
       <div style={{ ...glass, padding: 20, marginTop: 22 }}>
         <Space align="center" style={{ marginBottom: 14 }}>
           <ThunderboltOutlined style={{ color: '#FFB300', fontSize: 18 }} />
-          <Text strong style={{ color: '#fff', fontSize: 16 }}>不消费客户提醒</Text>
+          <Text strong style={{ color: TEXT.inverse, fontSize: 16 }}>不消费客户提醒</Text>
           <Tag color="gold" style={{ borderRadius: 999 }}>{reminders.length} 位</Tag>
         </Space>
         {reminders.length === 0 ? (
@@ -244,10 +244,10 @@ const CustomerTrackingCenter: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong style={{ color: '#fff' }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
+                    <Text strong style={{ color: TEXT.inverse }}>{c.wechatId || c.customerCode || '未知客户'}</Text>
                     <Tag color="cyan" style={{ borderRadius: 999 }}>待追踪</Tag>
                   </div>
-                  <Text style={{ color: '#A9B7D9', fontSize: 12, display: 'block', marginTop: 6 }}>
+                  <Text style={{ color: TEXT.onDarkMuted, fontSize: 12, display: 'block', marginTop: 6 }}>
                     {c.platform ? `${c.platform} · ` : ''}最近更新 {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : '-'}
                   </Text>
                 </div>

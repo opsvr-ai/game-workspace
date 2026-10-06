@@ -30,7 +30,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
         zIndex: 2000,
         width: 280,
         background: BG.inverse,
-        color: '#fff',
+        color: TEXT.inverse,
         borderRadius: 12,
         padding: '12px 14px',
         boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
@@ -53,7 +53,7 @@ export default function VoiceCallBar({ peerName, duration, volume, onVolumeChang
           <PhoneOutlined style={{ color: '#52C41A', fontSize: 16 }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ color: TEXT.inverse, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {peerName || '语音通话中'}
           </div>
           <div style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 1 }}>{formatDuration(duration)}</div>

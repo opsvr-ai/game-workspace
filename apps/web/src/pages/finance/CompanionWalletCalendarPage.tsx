@@ -164,7 +164,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
                     </Text>
                     <StatusTag status={r.status} />
                   </Space>
-                  <div style={{ fontWeight: 700, color: '#16A34A', minWidth: 90 }}>
+                  <div style={{ fontWeight: 700, color: SEMANTIC.success, minWidth: 90 }}>
                     ¥{money(r.amount)}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: 1 }}>
@@ -198,7 +198,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
                   <Text strong>{dayjs(w.createdAt).format('YYYY-MM-DD HH:mm')}</Text>
                   <StatusTag status={w.status} />
                 </Space>
-                <div style={{ fontWeight: 700, color: '#cf1322' }}>¥{money(w.amount)}</div>
+                <div style={{ fontWeight: 700, color: SEMANTIC.dangerDeep }}>¥{money(w.amount)}</div>
               </List.Item>
             )}
           />
@@ -270,9 +270,9 @@ const CompanionWalletCalendarPage: React.FC = () => {
                   </span>
                 ),
               },
-              { title: '本月收入', dataIndex: 'income', width: 120, align: 'right' as const, sorter: (a: any, b: any) => a.income - b.income, render: (v: number) => <span style={{ color: '#16A34A' }}>¥{money(v)}</span> },
-              { title: '本月支取', dataIndex: 'withdraw', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: '#cf1322' }}>¥{money(v)}</span> },
-              { title: '净额', dataIndex: 'net', width: 120, align: 'right' as const, sorter: (a: any, b: any) => a.net - b.net, render: (v: number) => <span style={{ color: v >= 0 ? '#16A34A' : '#cf1322' }}>¥{money(v)}</span> },
+              { title: '本月收入', dataIndex: 'income', width: 120, align: 'right' as const, sorter: (a: any, b: any) => a.income - b.income, render: (v: number) => <span style={{ color: SEMANTIC.success }}>¥{money(v)}</span> },
+              { title: '本月支取', dataIndex: 'withdraw', width: 120, align: 'right' as const, render: (v: number) => <span style={{ color: SEMANTIC.dangerDeep }}>¥{money(v)}</span> },
+              { title: '净额', dataIndex: 'net', width: 120, align: 'right' as const, sorter: (a: any, b: any) => a.net - b.net, render: (v: number) => <span style={{ color: v >= 0 ? SEMANTIC.success : SEMANTIC.dangerDeep }}>¥{money(v)}</span> },
               { title: '收入笔数', dataIndex: 'incomeCount', width: 90, align: 'center' as const },
               { title: '支取笔数', dataIndex: 'withdrawCount', width: 90, align: 'center' as const },
               { title: '最近一笔', dataIndex: 'lastDate', width: 120, render: (v: string) => v || '-' },

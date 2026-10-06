@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ordersPathWithOrder, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
-import { BRAND, TEXT } from '../../styles/tokens';
+import { BRAND, TEXT, BG, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -78,7 +78,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
         justifyContent: 'space-between',
         padding: '10px 16px',
         borderBottom: '1px solid #E8E9EB',
-        background: '#FFF',
+        background: BG.container,
         minHeight: 56,
         flexShrink: 0,
       }}
@@ -88,7 +88,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
           <div style={{
             width: 36, height: 36, borderRadius: '50%', background: TEXT.disabled,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#FFF', fontSize: 14, fontWeight: 700,
+            color: TEXT.inverse, fontSize: 14, fontWeight: 700,
             position: 'absolute', top: 0, left: 0,
           }}>
             {name[0]?.toUpperCase()}
@@ -138,7 +138,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
           <span
             style={{
               fontSize: 12,
-              color: '#16A34A',
+              color: SEMANTIC.success,
               fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',
@@ -146,7 +146,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
               marginTop: 2,
             }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16A34A', display: 'inline-block', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: SEMANTIC.success, display: 'inline-block', animation: 'pulse-glow 1.5s ease-in-out infinite' }} />
             正在语音通话 {formatCallDuration(call.duration)}
           </span>
         )}

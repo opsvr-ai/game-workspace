@@ -153,7 +153,7 @@ const BattleScreenshotReviewPage: React.FC = () => {
                             flexShrink: 0,
                           }}
                         >
-                          {!av && <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{initial}</span>}
+                          {!av && <span style={{ color: TEXT.inverse, fontSize: 15, fontWeight: 700 }}>{initial}</span>}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937' }}>

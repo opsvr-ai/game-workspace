@@ -23,7 +23,7 @@ import {
   CELL_SUB_TEXT,
   TABLE_STYLE,
 } from '../constants/datasetColumns';
-import { BRAND, TEXT } from '../styles/tokens';
+import { BRAND, TEXT, SEMANTIC, BORDER, BG } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -392,7 +392,7 @@ const CompanionsPage: React.FC = () => {
                 }}
               >
                 {!avatarUrl && (
-                  <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
+                  <span style={{ color: TEXT.inverse, fontSize: 13, fontWeight: 700 }}>
                     {(username || '?')[0].toUpperCase()}
                   </span>
                 )}
@@ -459,7 +459,7 @@ const CompanionsPage: React.FC = () => {
           return (
             <div style={CELL_ONE_LINE} title={full}>
               <Text strong>{first.game}</Text>
-              <span style={{ ...CELL_SUB_TEXT, color: '#7C3AED', fontWeight: 600 }}>{first.rank || '?'}</span>
+              <span style={{ ...CELL_SUB_TEXT, color: SEMANTIC.direct, fontWeight: 600 }}>{first.rank || '?'}</span>
               <span style={{ ...CELL_SUB_TEXT, color: first.hasAccount ? '#34C759' : TEXT.tertiary }}>
                 {first.hasAccount ? '有号' : '无号'}
               </span>
@@ -756,8 +756,8 @@ const CompanionsPage: React.FC = () => {
                     fontWeight: statusFilter === tab.value ? 600 : 400,
                     border: statusFilter === tab.value
                       ? `1px solid ${BRAND.primary}`
-                      : '1px solid #E2E8F0',
-                    background: statusFilter === tab.value ? '#EFF6FF' : '#FFFFFF',
+                      : `1px solid ${BORDER.base}`,
+                    background: statusFilter === tab.value ? SEMANTIC.infoSoftBlue : BG.container,
                     color: statusFilter === tab.value ? BRAND.primary : TEXT.secondary,
                   }}
                   onClick={() => setStatusFilter(tab.value)}
