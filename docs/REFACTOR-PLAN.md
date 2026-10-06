@@ -19,7 +19,8 @@
 | ESLint 救活 | P2-1 | `.eslintrc.json` → `eslint.config.mjs`（flat config）；lint 脚本从 `--max-warnings 50` 改为只卡 error | `6e084c5a` |
 | CI 覆盖 dev + 补打包 | P0-7 | CI 改为在 `master` / `dev` 触发，任务 `typecheck → lint → test` + `build`，加 concurrency | `6e084c5a` |
 | CI 修绿（预存问题） | P0-3 / P2-1 | 类型错误 ×1、失效测试 ×1、条件 hooks ×1、外链 `rel` ×5、机械问题若干 | `637e9dd6` |
-| 升级名额按店隔离 | P0-6 | `agent.service.ts` 全网单变量 → 每店一名额 + 每店一条队列；`/api/agent/update/queue` 加 `byScope` | 本次 |
+| 升级名额按店隔离 | P0-6 | `agent.service.ts` 全网单变量 → 每店一名额 + 每店一条队列；`/api/agent/update/queue` 加 `byScope` | `c543be6c` |
+| 契约自动导出 + CI 冻结 | P0-3 / 前提 3 | `scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站）；CI `--check` 拦截路径与事件名变更 | 本次 |
 
 ### 第 1 批 · 进行中
 
@@ -27,6 +28,7 @@
 2. **P0-5 升级信号按端隔离**：陪玩端 / 客服端 / 看门狗的信号文件分命名空间，兼容读取旧路径（避免一台机器装两端时互相踩）。
 3. **P0-2 部署可回滚**：远端改为 `releases/<sha>` 目录 + `current` 软链，脚本支持 `--rollback`（纯新增能力，不动线上；需要 `CHUNLV_SSH_PASS`）。
 4. **P0-1 抢单主链路 e2e**：把「抢单 / 报账 / 结算 / 黑名单」四条主链路的自动化回归建起来，作为后续所有拆分的验收基线。
+5. **契约自动导出 + CI 冻结** ✅：`scripts/_export_api_contract.mjs` → `docs/API-CONTRACT.json`（400 接口 / 15 入站 / 19 出站），CI `--check` 拦路径与事件名变更。
 
 ---
 

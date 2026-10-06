@@ -40,6 +40,11 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **工程地基：契约自动导出 + CI「契约冻结」（2026-10-06，只动工具链，不影响线上）：** 新增
+  `scripts/_export_api_contract.mjs`，从 Controller / Gateway 源码静态导出四端共用的契约到
+  `docs/API-CONTRACT.json`（当前基线 **400 个接口 / 28 个 controller / 15 个入站事件 / 19 个出站事件**），
+  CI 的 `check` 任务里重新生成一次再比对 —— 谁不小心改了接口路径或 Socket 事件名，CI 直接红。
+  本地：`pnpm contract` / `pnpm contract:check`。
 - **店长「打回重写」+ 新增「待处理」工作台（2026-10-06，服务端 + 网页 `v979`）:** 老板「乱写就驳回」——
   「成交核对 → 待拍板」每张失败单，店长 / 老板可点 **「打回重写」**：写一句为什么打回（必填）即把单退回
   （`reviewStatus=REJECTED`，退出待拍板，留痕 `customFields.outcomeReject`），实时推给接单方 + 发单客服；
@@ -1806,6 +1811,8 @@ Every endpoint returns a standard JSON envelope:
 
 ## Documents
 
+- [**接口 / Socket 契约清单（自动生成，CI 冻结）**](docs/API-CONTRACT.json) —— 改接口路径 / 事件名前先看这份；`pnpm contract` 重新生成、`pnpm contract:check` 比对
+- [重构方案（dev 分支）](docs/REFACTOR-PLAN.md)
 - [架构说明 (Mermaid 图表)](docs/ARCHITECTURE.md)
 - [部署手册](docs/DEPLOYMENT.md)
 - [使用手册](docs/USER_MANUAL.md)

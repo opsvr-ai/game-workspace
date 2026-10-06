@@ -9,6 +9,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **加：接口 / Socket 契约自动导出 + CI「契约冻结」检查（2026-10-06）。**
+  `docs/REFACTOR-PLAN.md` 的三条前提之一是「契约冻结」：400 个接口 + 30 多个 Socket 事件是
+  网页端 / 陪玩端 / 客服端 / 看门狗共用的契约，重构期间路径与事件名不得变更 —— 但靠人记是记不住的
+  （全仓只有 15 个 DTO 文件，类型系统也拦不住）。新增 `scripts/_export_api_contract.mjs`：
+  - 静态扫 Controller / Gateway 源码里的装饰器字面量（不启动 Nest、不连库、不需要环境变量），
+    导出 `docs/API-CONTRACT.json`（按路径 / 事件排序，稳定可比对，每条带出处文件与 handler）；
+  - **出错不静默**：装饰器写成变量拼接、或「源码里出现 N 次 `@Get`/`@Post` 但只绑上 M 个方法」时直接报错退出，
+    不许输出一份「看起来对、其实少算了」的契约；
+  - `--check` 比对模式：契约变了但文件没更新时退出码 1，并打印「+ 新增 / - 删除」明细；
+  - CI 的 `check` 任务里加了这一步 → 谁不小心改了接口路径或 Socket 事件名，CI 直接红。
+  - 本地用法：`pnpm contract`（重新生成）/ `pnpm contract:check`（比对）。
+  - 当前基线：**400 个接口 / 28 个 controller / 15 个入站事件 / 19 个出站事件**。
+  - 已知边界（写在文件里，避免误读）：出站事件只收录字面量写法，gateway 里几处 `emit(event, payload)`
+    的变量转发静态扫不出来，所以那份列表是「至少这些」。
+
 ### Changed
 
 - **升级名额按店隔离 —— 多工作室不再互相排队（P0-6，2026-10-06）。**

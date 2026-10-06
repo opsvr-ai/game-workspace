@@ -1,0 +1,3036 @@
+{
+  "$comment": [
+    "本文件由 scripts/_export_api_contract.mjs 自动生成，不要手改（CI 会重新生成并比对）。",
+    "这是四端共用的契约：网页端 / 陪玩端 / 客服端 / 看门狗。重构期间路径与事件名不得变更。",
+    "改了这里 = 改了对外契约，必须同时确认四个客户端都跟得上（见 docs/REFACTOR-PLAN.md 前提 3）。",
+    "出站事件只收录字面量写法 emit('order:new', ...)；gateway 里还有几处用变量转发（emit(event, payload)），",
+    "那种事件名在调用方，静态扫不出来 —— 所以出站列表是「至少这些」，不是「只有这些」。"
+  ],
+  "httpPrefix": "/api",
+  "stats": {
+    "controllers": 28,
+    "endpoints": 400,
+    "socketEmitters": 3,
+    "socketInbound": 15,
+    "socketOutbound": 19
+  },
+  "http": [
+    {
+      "method": "DELETE",
+      "path": "/api/bridges/:id",
+      "controller": "BridgeController",
+      "handler": "remove",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat/rooms/:id/messages/:msgId",
+      "controller": "ChatController",
+      "handler": "recallMessage",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat/rooms/:id/messages/:msgId/reactions/:emoji",
+      "controller": "ChatController",
+      "handler": "removeReaction",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companions/status-blacklist/:entryId",
+      "controller": "CompanionsController",
+      "handler": "removeStatusBlacklist",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companions/work-wechats/:id",
+      "controller": "CompanionsController",
+      "handler": "deleteWorkWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/config/studio-overrides",
+      "controller": "SettingsController",
+      "handler": "resetStudioOverrides",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/customers/:id",
+      "controller": "CustomersController",
+      "handler": "delete",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/employees/:id",
+      "controller": "StudiosController",
+      "handler": "deleteEmployee",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/finance/bridge-returns/:id",
+      "controller": "FinanceController",
+      "handler": "deleteBridgeReturn",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/managed-pcs/:id",
+      "controller": "ManagedPcController",
+      "handler": "remove",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/processes/blacklist/:id",
+      "controller": "ProcessBlacklistController",
+      "handler": "removeBlacklist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/processes/blacklist/companions/:companionId/overrides/:overrideId",
+      "controller": "ProcessBlacklistController",
+      "handler": "removeOverride",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/processes/pending-disable/:id",
+      "controller": "ProcessBlacklistController",
+      "handler": "removePendingDisable",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/processes/whitelist/:id",
+      "controller": "ProcessBlacklistController",
+      "handler": "removeWhitelist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/studios/:id",
+      "controller": "StudiosController",
+      "handler": "delete",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/traffic-accounts/:id",
+      "controller": "TrafficAccountController",
+      "handler": "remove",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/traffic-accounts/note/:noteId",
+      "controller": "TrafficAccountController",
+      "handler": "removeNote",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/review-queue",
+      "controller": "SessionShotsController",
+      "handler": "reviewQueue",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/review-queue-count",
+      "controller": "SessionShotsController",
+      "handler": "reviewQueueCount",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/client-diag.ps1",
+      "controller": "MachineController",
+      "handler": "diagScript",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/cs-version",
+      "controller": "AgentController",
+      "handler": "getCsVersion",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/cs-version-status",
+      "controller": "AgentController",
+      "handler": "csVersionStatus",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/deploy/scan-lan",
+      "controller": "AgentController",
+      "handler": "scanLan",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/deploy/script",
+      "controller": "AgentController",
+      "handler": "getDeployScript",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/download/cs",
+      "controller": "AgentController",
+      "handler": "downloadCs",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/download/cs-zip",
+      "controller": "AgentController",
+      "handler": "downloadCsZip",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/download/exe",
+      "controller": "AgentController",
+      "handler": "downloadExe",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/download/latest",
+      "controller": "AgentController",
+      "handler": "downloadLatest",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/enable-remote.ps1",
+      "controller": "MachineController",
+      "handler": "enableRemoteScript",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/frontend-version",
+      "controller": "AgentController",
+      "handler": "getFrontendVersion",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/machine-tasks",
+      "controller": "MachineController",
+      "handler": "machineTasks",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/machine-tasks/:taskId/report",
+      "controller": "MachineController",
+      "handler": "taskReport",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/machines",
+      "controller": "MachineController",
+      "handler": "listMachines",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/machines/:machineId/tasks",
+      "controller": "MachineController",
+      "handler": "listTasks",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/update/queue",
+      "controller": "AgentController",
+      "handler": "getUpdateQueue",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/version",
+      "controller": "AgentController",
+      "handler": "getVersion",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/version-status",
+      "controller": "AgentController",
+      "handler": "getVersionStatus",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/admins",
+      "controller": "AnalyticsController",
+      "handler": "admins",
+      "file": "apps/server/src/analytics/analytics.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/companions",
+      "controller": "AnalyticsController",
+      "handler": "companions",
+      "file": "apps/server/src/analytics/analytics.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/cs",
+      "controller": "AnalyticsController",
+      "handler": "cs",
+      "file": "apps/server/src/analytics/analytics.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/customers",
+      "controller": "AnalyticsController",
+      "handler": "customers",
+      "file": "apps/server/src/analytics/analytics.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/check-username",
+      "controller": "RegisterController",
+      "handler": "checkUsername",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "controller": "AuthController",
+      "handler": "me",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me/emojis",
+      "controller": "AuthController",
+      "handler": "getEmojis",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/battle-screenshots",
+      "controller": "BattleScreenshotsController",
+      "handler": "list",
+      "file": "apps/server/src/battle-screenshots/battle-screenshots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/battle-screenshots/:id/download",
+      "controller": "BattleScreenshotsController",
+      "handler": "download",
+      "file": "apps/server/src/battle-screenshots/battle-screenshots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/battle-screenshots/mine",
+      "controller": "BattleScreenshotsController",
+      "handler": "mine",
+      "file": "apps/server/src/battle-screenshots/battle-screenshots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/daily-reconciliation",
+      "controller": "BillingController",
+      "handler": "getDailyReconciliation",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/overview",
+      "controller": "BillingController",
+      "handler": "getOverview",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/pending-count",
+      "controller": "BillingController",
+      "handler": "pendingCount",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bridges",
+      "controller": "BridgeController",
+      "handler": "list",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bridges/active",
+      "controller": "BridgeController",
+      "handler": "active",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bridges/settlement",
+      "controller": "BridgeController",
+      "handler": "settlement",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/conversations",
+      "controller": "ChatController",
+      "handler": "legacyListConversations",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/conversations/:id/messages",
+      "controller": "ChatController",
+      "handler": "legacyGetMessages",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/rooms",
+      "controller": "ChatController",
+      "handler": "listRooms",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/rooms/:id/members",
+      "controller": "ChatController",
+      "handler": "getRoomMembers",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/rooms/:id/messages",
+      "controller": "ChatController",
+      "handler": "getMessages",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/search",
+      "controller": "ChatController",
+      "handler": "search",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/studio-group",
+      "controller": "ChatController",
+      "handler": "getStudioGroup",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/unread-count",
+      "controller": "ChatController",
+      "handler": "legacyUnreadCount",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/unread-summary",
+      "controller": "ChatController",
+      "handler": "unreadSummary",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/users/:userId/profile",
+      "controller": "ChatController",
+      "handler": "getUserProfile",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions",
+      "controller": "CompanionsController",
+      "handler": "findAll",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/:companionId/work-records",
+      "controller": "SessionShotsController",
+      "handler": "workRecords",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/:id",
+      "controller": "CompanionsController",
+      "handler": "findOne",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/:id/revenue",
+      "controller": "CompanionsController",
+      "handler": "getRevenue",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/attendance",
+      "controller": "CompanionsController",
+      "handler": "getAttendance",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/attendance-today",
+      "controller": "CompanionsController",
+      "handler": "getAttendanceToday",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/chat-history/:companionId",
+      "controller": "CompanionsController",
+      "handler": "chatHistory",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/chat-pending",
+      "controller": "CompanionsController",
+      "handler": "chatPending",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/live-board",
+      "controller": "CompanionsController",
+      "handler": "liveBoard",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/attendance-today",
+      "controller": "CompanionsController",
+      "handler": "getMyAttendanceToday",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/dormant-customers",
+      "controller": "CompanionsController",
+      "handler": "getDormantCustomers",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/excellence",
+      "controller": "CompanionsController",
+      "handler": "getMyExcellence",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/notify-prefs",
+      "controller": "CompanionsController",
+      "handler": "getNotifyPrefs",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/payout-qr",
+      "controller": "CompanionsController",
+      "handler": "getMyPayoutQr",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/reportable-sessions",
+      "controller": "CompanionsController",
+      "handler": "getReportableSessions",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/today-sessions",
+      "controller": "CompanionsController",
+      "handler": "getTodaySessions",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/wallet",
+      "controller": "CompanionsController",
+      "handler": "getWallet",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/work-wechat",
+      "controller": "CompanionsController",
+      "handler": "getMyWorkWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/me/workbench",
+      "controller": "CompanionsController",
+      "handler": "getWorkbench",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/pending-review",
+      "controller": "RegisterController",
+      "handler": "listPending",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/ranking",
+      "controller": "CompanionsController",
+      "handler": "getRanking",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/staff-attendance",
+      "controller": "CompanionsController",
+      "handler": "getStaffAttendance",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/status-blacklist",
+      "controller": "CompanionsController",
+      "handler": "getStatusBlacklist",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/status-blacklists",
+      "controller": "CompanionsController",
+      "handler": "listStatusBlacklists",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/work-wechat-requests",
+      "controller": "CompanionsController",
+      "handler": "listWorkWechatRequests",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/companions/work-wechats",
+      "controller": "CompanionsController",
+      "handler": "listWorkWechats",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/config",
+      "controller": "SettingsController",
+      "handler": "getConfig",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content-check/lexicon",
+      "controller": "ContentCheckController",
+      "handler": "lexicon",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content-check/weekly-plan",
+      "controller": "ContentCheckController",
+      "handler": "weeklyPlan",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/anomalies",
+      "controller": "CustomerTrackingController",
+      "handler": "listAnomalies",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/delete-requests",
+      "controller": "CustomerTrackingController",
+      "handler": "listDeleteRequests",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/journey/:customerId",
+      "controller": "CustomerTrackingController",
+      "handler": "getJourney",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/kpi",
+      "controller": "CustomerTrackingController",
+      "handler": "getKpi",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/reminders",
+      "controller": "CustomerTrackingController",
+      "handler": "listReminders",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/status",
+      "controller": "CustomerTrackingController",
+      "handler": "getStatus",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customer-tracking/tracks",
+      "controller": "CustomerTrackingController",
+      "handler": "listTracks",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers",
+      "controller": "CustomersController",
+      "handler": "findAll",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id",
+      "controller": "CustomersController",
+      "handler": "findOne",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/deposits",
+      "controller": "CustomersController",
+      "handler": "listDeposits",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/follow-ups",
+      "controller": "CustomersController",
+      "handler": "getFollowUps",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/orders",
+      "controller": "CustomersController",
+      "handler": "findOrders",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/profile",
+      "controller": "CustomersController",
+      "handler": "getProfile",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/profile-analytics",
+      "controller": "CustomersController",
+      "handler": "profileAnalytics",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/:id/type",
+      "controller": "CustomersController",
+      "handler": "getCustomerType",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/board",
+      "controller": "CustomersController",
+      "handler": "customerBoard",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/duplicates",
+      "controller": "CustomersController",
+      "handler": "listDuplicates",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/traffic/pool",
+      "controller": "CustomersController",
+      "handler": "getTrafficPool",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/customers/traffic/stats",
+      "controller": "CustomersController",
+      "handler": "getChannelStats",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard",
+      "controller": "DashboardController",
+      "handler": "getDashboard",
+      "file": "apps/server/src/dashboard/dashboard.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/companion-revenue/:id",
+      "controller": "DashboardController",
+      "handler": "getCompanionRevenueDetail",
+      "file": "apps/server/src/dashboard/dashboard.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/companions",
+      "controller": "DashboardController",
+      "handler": "getCompanionStatus",
+      "file": "apps/server/src/dashboard/dashboard.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/revenue-overview",
+      "controller": "DashboardController",
+      "handler": "getRevenueOverview",
+      "file": "apps/server/src/dashboard/dashboard.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/trend",
+      "controller": "DashboardController",
+      "handler": "getTrend",
+      "file": "apps/server/src/dashboard/dashboard.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/employees",
+      "controller": "StudiosController",
+      "handler": "getEmployees",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/expense-reports",
+      "controller": "BillingController",
+      "handler": "findExpenseReports",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/expense-reports/monthly-summary",
+      "controller": "BillingController",
+      "handler": "getMonthlySummary",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/expenses",
+      "controller": "BillingController",
+      "handler": "getExpenses",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/account-reconciliation",
+      "controller": "FinanceController",
+      "handler": "accountReconciliation",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/bridge-online-daily",
+      "controller": "FinanceController",
+      "handler": "bridgeOnlineDaily",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/bridge-returns",
+      "controller": "FinanceController",
+      "handler": "listBridgeReturns",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/:month",
+      "controller": "FinanceController",
+      "handler": "listCommission",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/cs-profiles",
+      "controller": "FinanceController",
+      "handler": "listCsProfiles",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/cs-today-orders",
+      "controller": "FinanceController",
+      "handler": "csTodayOrders",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/live/:month",
+      "controller": "FinanceController",
+      "handler": "liveCommission",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/my-month",
+      "controller": "FinanceController",
+      "handler": "myCommission",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/my-salary",
+      "controller": "FinanceController",
+      "handler": "mySalary",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/rules",
+      "controller": "FinanceController",
+      "handler": "listCommissionRules",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/commission/today",
+      "controller": "FinanceController",
+      "handler": "commissionToday",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/companion-compare",
+      "controller": "FinanceController",
+      "handler": "companionCompare",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/expense-items",
+      "controller": "FinanceController",
+      "handler": "getExpenseItems",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/price-rules",
+      "controller": "FinanceController",
+      "handler": "listPriceRules",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/price-rules/builtin",
+      "controller": "FinanceController",
+      "handler": "builtinModes",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/profit-daily",
+      "controller": "FinanceController",
+      "handler": "profitDaily",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/received-today",
+      "controller": "FinanceController",
+      "handler": "receivedToday",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/reconciliation",
+      "controller": "FinanceController",
+      "handler": "reconciliation",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/risk-queue",
+      "controller": "FinanceController",
+      "handler": "riskQueue",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/finance/risk/low-price-pairs",
+      "controller": "FinanceController",
+      "handler": "lowPricePairs",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "controller": "HealthController",
+      "handler": "check",
+      "file": "apps/server/src/health/health.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/managed-pcs",
+      "controller": "ManagedPcController",
+      "handler": "list",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/monthly-settlement",
+      "controller": "BillingController",
+      "handler": "getMonthlySettlement",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders",
+      "controller": "OrdersController",
+      "handler": "findAll",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/:id",
+      "controller": "OrdersController",
+      "handler": "findOne",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/:id/money-flows",
+      "controller": "OrdersController",
+      "handler": "listMoneyFlows",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/:id/sessions",
+      "controller": "OrdersController",
+      "handler": "getSessions",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/cs-converted",
+      "controller": "OrdersController",
+      "handler": "csConverted",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/cs-followup",
+      "controller": "OrdersController",
+      "handler": "csFollowup",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/cs-wechat-balances",
+      "controller": "OrdersController",
+      "handler": "csWechatBalances",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/cs-wechat-balances/summary",
+      "controller": "OrdersController",
+      "handler": "csWechatBalanceSummary",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/cs-wechat-flow",
+      "controller": "OrdersController",
+      "handler": "csWechatFlow",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/escalated-pool",
+      "controller": "OrdersController",
+      "handler": "escalatedPool",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/money-reconciliation",
+      "controller": "OrdersController",
+      "handler": "moneyReconciliation",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/pending-contact-count",
+      "controller": "OrdersController",
+      "handler": "pendingContactCount",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/pending-start",
+      "controller": "OrdersController",
+      "handler": "pendingStart",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/pool",
+      "controller": "OrdersController",
+      "handler": "findPool",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/pool/status",
+      "controller": "OrdersController",
+      "handler": "getPoolStatus",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/reviews",
+      "controller": "OrdersController",
+      "handler": "listOrderReviews",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/reviews/summary",
+      "controller": "OrdersController",
+      "handler": "orderReviewSummary",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/supplements",
+      "controller": "OrdersController",
+      "handler": "listSupplements",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/supplements/summary",
+      "controller": "OrdersController",
+      "handler": "supplementSummary",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/transfer-requests/mine",
+      "controller": "OrdersController",
+      "handler": "myTransferRequests",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/urgent",
+      "controller": "OrdersController",
+      "handler": "urgent",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payment-accounts",
+      "controller": "StudiosController",
+      "handler": "getPaymentAccounts",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/configs",
+      "controller": "PayrollController",
+      "handler": "configs",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/records",
+      "controller": "PayrollController",
+      "handler": "records",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/payroll/staff",
+      "controller": "PayrollController",
+      "handler": "staff",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/personnel",
+      "controller": "CompanionsController",
+      "handler": "listPersonnel",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/blacklist",
+      "controller": "ProcessBlacklistController",
+      "handler": "listBlacklist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/blacklist/companion-switches",
+      "controller": "ProcessBlacklistController",
+      "handler": "listCompanionSwitches",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/blacklist/companions/:companionId/overrides",
+      "controller": "ProcessBlacklistController",
+      "handler": "listOverrides",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/blacklist/my-rules",
+      "controller": "ProcessBlacklistController",
+      "handler": "getMyRules",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/kill-logs",
+      "controller": "ProcessBlacklistController",
+      "handler": "getKillLogs",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/pending-disable",
+      "controller": "ProcessBlacklistController",
+      "handler": "listPendingDisable",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/reports",
+      "controller": "ProcessBlacklistController",
+      "handler": "getReports",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/reports/:companionId",
+      "controller": "ProcessBlacklistController",
+      "handler": "getLatestReport",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/unique-names",
+      "controller": "ProcessBlacklistController",
+      "handler": "getUniqueNames",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/processes/whitelist",
+      "controller": "ProcessBlacklistController",
+      "handler": "listWhitelist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/revenue/stats",
+      "controller": "BillingController",
+      "handler": "getProfitLoss",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings",
+      "controller": "SettingsController",
+      "handler": "getSettings",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/daily",
+      "controller": "StatsController",
+      "handler": "getDailyStats",
+      "file": "apps/server/src/stats/stats.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/studios",
+      "controller": "StudiosController",
+      "handler": "findAll",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/studios/online-clubs",
+      "controller": "StudiosController",
+      "handler": "listOnlineClubs",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/studios/public",
+      "controller": "StudiosController",
+      "handler": "listPublic",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tenant/authorizations",
+      "controller": "SettingsController",
+      "handler": "getAuthorizations",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/todos",
+      "controller": "TodosController",
+      "handler": "get",
+      "file": "apps/server/src/todos/todos.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/traffic-accounts",
+      "controller": "TrafficAccountController",
+      "handler": "list",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/traffic-accounts/:accountId/notes",
+      "controller": "TrafficAccountController",
+      "handler": "listNotes",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/transactions",
+      "controller": "BillingController",
+      "handler": "findAll",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/cs",
+      "controller": "RegisterController",
+      "handler": "listCsUsers",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/pending-review",
+      "controller": "RegisterController",
+      "handler": "listPendingUsers",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/version",
+      "controller": "HealthController",
+      "handler": "getVersion",
+      "file": "apps/server/src/health/health.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/wallet-daily",
+      "controller": "BillingController",
+      "handler": "getWalletDaily",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/wallet-transactions",
+      "controller": "BillingController",
+      "handler": "getWalletTransactions",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/chat/rooms/:id",
+      "controller": "ChatController",
+      "handler": "updateRoom",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/finance/commission/ledgers/:id/status",
+      "controller": "FinanceController",
+      "handler": "updateCommissionLedgerStatus",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/finance/price-rules/:id",
+      "controller": "FinanceController",
+      "handler": "updatePriceRule",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/build-and-push",
+      "controller": "AgentController",
+      "handler": "buildAndPush",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/client-error",
+      "controller": "AgentController",
+      "handler": "clientError",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/cs-heartbeat",
+      "controller": "AgentController",
+      "handler": "csHeartbeat",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/deploy/execute",
+      "controller": "AgentController",
+      "handler": "executeRemoteDeploy",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/deploy/remote-script",
+      "controller": "AgentController",
+      "handler": "getRemoteDeployScript",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/diag-report",
+      "controller": "AgentController",
+      "handler": "diagReport",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/heartbeat",
+      "controller": "AgentController",
+      "handler": "heartbeat",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/logs/report",
+      "controller": "AgentController",
+      "handler": "reportLogs",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/machine-report",
+      "controller": "MachineController",
+      "handler": "machineReport",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/machine-task-result",
+      "controller": "MachineController",
+      "handler": "machineTaskResult",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/machines/:machineId/diag",
+      "controller": "MachineController",
+      "handler": "queueDiag",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/machines/:machineId/enable-remote",
+      "controller": "MachineController",
+      "handler": "queueEnableRemote",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/machines/:machineId/shell",
+      "controller": "MachineController",
+      "handler": "queueShell",
+      "file": "apps/server/src/agent/machine.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/onboard-report",
+      "controller": "AgentController",
+      "handler": "onboardReport",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/test-watchdog",
+      "controller": "AgentController",
+      "handler": "testWatchdog",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/update/acquire",
+      "controller": "AgentController",
+      "handler": "acquireUpdateSlot",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/update/push",
+      "controller": "AgentController",
+      "handler": "pushUpdate",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/update/push-studio",
+      "controller": "AgentController",
+      "handler": "pushUpdateStudio",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent/update/release",
+      "controller": "AgentController",
+      "handler": "releaseUpdateSlot",
+      "file": "apps/server/src/agent/agent.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/advice",
+      "controller": "AiController",
+      "handler": "getAdvice",
+      "file": "apps/server/src/ai/ai.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/analyze/:customerId",
+      "controller": "AiController",
+      "handler": "analyze",
+      "file": "apps/server/src/ai/ai.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/forgot-password",
+      "controller": "AuthController",
+      "handler": "forgotPassword",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "controller": "AuthController",
+      "handler": "login",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/me/avatar",
+      "controller": "AuthController",
+      "handler": "uploadAvatar",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "controller": "AuthController",
+      "handler": "refresh",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "controller": "RegisterController",
+      "handler": "register",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-2nd",
+      "controller": "AuthController",
+      "handler": "verifySecond",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/battle-screenshots",
+      "controller": "BattleScreenshotsController",
+      "handler": "create",
+      "file": "apps/server/src/battle-screenshots/battle-screenshots.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/battle-screenshots/:id/review",
+      "controller": "BattleScreenshotsController",
+      "handler": "review",
+      "file": "apps/server/src/battle-screenshots/battle-screenshots.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/company-transfer",
+      "controller": "BillingController",
+      "handler": "submitCompanyTransfer",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/report-today",
+      "controller": "BillingController",
+      "handler": "reportToday",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/report-today-v2",
+      "controller": "BillingController",
+      "handler": "reportTodayV2",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bridges/:id/respond",
+      "controller": "BridgeController",
+      "handler": "respond",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bridges/propose",
+      "controller": "BridgeController",
+      "handler": "propose",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/conversations",
+      "controller": "ChatController",
+      "handler": "legacyCreateConversation",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/conversations/:id/messages",
+      "controller": "ChatController",
+      "handler": "legacySendMessage",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/conversations/:id/read",
+      "controller": "ChatController",
+      "handler": "legacyMarkRead",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms",
+      "controller": "ChatController",
+      "handler": "createRoom",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms/:id/messages",
+      "controller": "ChatController",
+      "handler": "sendMessage",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms/:id/messages/:msgId/reactions",
+      "controller": "ChatController",
+      "handler": "addReaction",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms/:id/read",
+      "controller": "ChatController",
+      "handler": "markRead",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms/:id/typing",
+      "controller": "ChatController",
+      "handler": "typing",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/rooms/read-all",
+      "controller": "ChatController",
+      "handler": "markAllRead",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/studio-broadcast",
+      "controller": "ChatController",
+      "handler": "studioBroadcast",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sync",
+      "controller": "ChatController",
+      "handler": "sync",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/upload",
+      "controller": "ChatController",
+      "handler": "uploadFile",
+      "file": "apps/server/src/chat/chat.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/:id/command",
+      "controller": "CompanionsController",
+      "handler": "sendCommand",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/:id/kick",
+      "controller": "CompanionsController",
+      "handler": "kickCompanion",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/:id/resign",
+      "controller": "CompanionsController",
+      "handler": "resignCompanion",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/agent-heartbeat",
+      "controller": "CompanionsController",
+      "handler": "agentHeartbeat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/chat-notify",
+      "controller": "CompanionsController",
+      "handler": "chatNotify",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/chat-upload",
+      "controller": "CompanionsController",
+      "handler": "chatUpload",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/me/proof-no-customer",
+      "controller": "CompanionsController",
+      "handler": "requestProofNoCustomer",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/me/withdraw",
+      "controller": "CompanionsController",
+      "handler": "requestWithdraw",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/me/work-wechat",
+      "controller": "CompanionsController",
+      "handler": "submitMyWorkWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/status-blacklist",
+      "controller": "CompanionsController",
+      "handler": "addStatusBlacklist",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/companions/work-wechats",
+      "controller": "CompanionsController",
+      "handler": "addWorkWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-check/benchmark-analyze",
+      "controller": "ContentCheckController",
+      "handler": "benchmarkAnalyze",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-check/benchmark-generate",
+      "controller": "ContentCheckController",
+      "handler": "benchmarkGenerate",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-check/check",
+      "controller": "ContentCheckController",
+      "handler": "check",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-check/generate-plan",
+      "controller": "ContentCheckController",
+      "handler": "generatePlan",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content-check/rewrite-row",
+      "controller": "ContentCheckController",
+      "handler": "rewriteRow",
+      "file": "apps/server/src/content-check/content-check.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customer-tracking/contacts",
+      "controller": "CustomerTrackingController",
+      "handler": "registerContact",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customer-tracking/delete-requests",
+      "controller": "CustomerTrackingController",
+      "handler": "submitDeleteRequest",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customer-tracking/delete-requests/:id/review",
+      "controller": "CustomerTrackingController",
+      "handler": "reviewDeleteRequest",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customer-tracking/tracks",
+      "controller": "CustomerTrackingController",
+      "handler": "addTrack",
+      "file": "apps/server/src/customer-tracking/customer-tracking.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers",
+      "controller": "CustomersController",
+      "handler": "create",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers/:id/archive",
+      "controller": "CustomersController",
+      "handler": "archive",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers/:id/deposits",
+      "controller": "CustomersController",
+      "handler": "createDeposit",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers/:id/follow-ups",
+      "controller": "CustomersController",
+      "handler": "addFollowUp",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers/:id/merge-into",
+      "controller": "CustomersController",
+      "handler": "mergeInto",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/customers/:id/unarchive",
+      "controller": "CustomersController",
+      "handler": "unarchive",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/employees",
+      "controller": "StudiosController",
+      "handler": "createEmployee",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/employees/:id/resign",
+      "controller": "StudiosController",
+      "handler": "resignEmployee",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/employees/:id/restore",
+      "controller": "StudiosController",
+      "handler": "restoreEmployee",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/expense-reports",
+      "controller": "BillingController",
+      "handler": "createExpenseReport",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/expenses",
+      "controller": "BillingController",
+      "handler": "createExpense",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/bridge-returns",
+      "controller": "FinanceController",
+      "handler": "createBridgeReturn",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/commission/calculate/:month",
+      "controller": "FinanceController",
+      "handler": "calculateCommission",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/commission/rules",
+      "controller": "FinanceController",
+      "handler": "upsertCommissionRule",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/finance/price-rules",
+      "controller": "FinanceController",
+      "handler": "createPriceRule",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/managed-pcs",
+      "controller": "ManagedPcController",
+      "handler": "create",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/managed-pcs/:id/power",
+      "controller": "ManagedPcController",
+      "handler": "power",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/managed-pcs/batch-power",
+      "controller": "ManagedPcController",
+      "handler": "batchPower",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/managed-pcs/sync-mac",
+      "controller": "ManagedPcController",
+      "handler": "syncMac",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/monthly-settlement",
+      "controller": "BillingController",
+      "handler": "runMonthlySettlement",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders",
+      "controller": "OrdersController",
+      "handler": "create",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/accept-assignment",
+      "controller": "OrdersController",
+      "handler": "acceptAssignment",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/assign",
+      "controller": "OrdersController",
+      "handler": "assign",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/cancel",
+      "controller": "OrdersController",
+      "handler": "cancel",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/chase-feedback",
+      "controller": "OrdersController",
+      "handler": "chaseFeedback",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/check-cs-anomaly",
+      "controller": "OrdersController",
+      "handler": "checkCsAnomaly",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/claim",
+      "controller": "OrdersController",
+      "handler": "claim",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/compensate-customer",
+      "controller": "OrdersController",
+      "handler": "compensateCustomer",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/complete",
+      "controller": "OrdersController",
+      "handler": "complete",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/confirm",
+      "controller": "OrdersController",
+      "handler": "confirm",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/cs-confirm",
+      "controller": "OrdersController",
+      "handler": "confirmOutcomeWithCs",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/decline-assignment",
+      "controller": "OrdersController",
+      "handler": "declineAssignment",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/deposit",
+      "controller": "OrdersController",
+      "handler": "deposit",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/grab",
+      "controller": "OrdersController",
+      "handler": "grab",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/money-flows",
+      "controller": "OrdersController",
+      "handler": "addMoneyFlow",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/outcome",
+      "controller": "OrdersController",
+      "handler": "recordOutcome",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/pool-handled",
+      "controller": "OrdersController",
+      "handler": "markPoolHandled",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/quick-grab",
+      "controller": "OrdersController",
+      "handler": "quickGrab",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/redispatch",
+      "controller": "OrdersController",
+      "handler": "redispatch",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/refund",
+      "controller": "OrdersController",
+      "handler": "refund",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/release",
+      "controller": "OrdersController",
+      "handler": "releaseClaim",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/release-to-offline",
+      "controller": "OrdersController",
+      "handler": "releaseToOffline",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/review",
+      "controller": "OrdersController",
+      "handler": "reviewOrderOutcome",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/review-reject",
+      "controller": "OrdersController",
+      "handler": "rejectOrderOutcome",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/sessions",
+      "controller": "OrdersController",
+      "handler": "addSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/transfer",
+      "controller": "OrdersController",
+      "handler": "transfer",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/cs-wechat-balances/:workWechatId/clear",
+      "controller": "OrdersController",
+      "handler": "clearCsWechatBalance",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/supplements/:id/decide",
+      "controller": "OrdersController",
+      "handler": "decideSupplement",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/supplements/:id/review",
+      "controller": "OrdersController",
+      "handler": "reviewSupplement",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/transfer-requests/:id/accept",
+      "controller": "OrdersController",
+      "handler": "acceptTransferRequest",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/transfer-requests/:id/cancel",
+      "controller": "OrdersController",
+      "handler": "cancelTransferRequest",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/transfer-requests/:id/reject",
+      "controller": "OrdersController",
+      "handler": "rejectTransferRequest",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payment-accounts",
+      "controller": "StudiosController",
+      "handler": "createPaymentAccount",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/attendance",
+      "controller": "PayrollController",
+      "handler": "attendance",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/configs",
+      "controller": "PayrollController",
+      "handler": "saveConfig",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payroll/generate",
+      "controller": "PayrollController",
+      "handler": "generate",
+      "file": "apps/server/src/payroll/payroll.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/blacklist",
+      "controller": "ProcessBlacklistController",
+      "handler": "addBlacklist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/blacklist/companions/:companionId/overrides",
+      "controller": "ProcessBlacklistController",
+      "handler": "addOverride",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/blacklist/push",
+      "controller": "ProcessBlacklistController",
+      "handler": "pushBlacklist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/kill",
+      "controller": "ProcessBlacklistController",
+      "handler": "manualKill",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/kill-report",
+      "controller": "ProcessBlacklistController",
+      "handler": "submitKillReport",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/pending-disable",
+      "controller": "ProcessBlacklistController",
+      "handler": "addPendingDisable",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/reports",
+      "controller": "ProcessBlacklistController",
+      "handler": "submitReport",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/processes/whitelist",
+      "controller": "ProcessBlacklistController",
+      "handler": "addWhitelist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/:id/screenshots",
+      "controller": "SessionShotsController",
+      "handler": "uploadShot",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/:sessionId/partner-accept",
+      "controller": "OrdersController",
+      "handler": "acceptPartnerInvite",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/:sessionId/partner-broadcast",
+      "controller": "OrdersController",
+      "handler": "broadcastPartnerInvite",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/:sessionId/partner-reject",
+      "controller": "OrdersController",
+      "handler": "rejectPartnerInvite",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/studios",
+      "controller": "StudiosController",
+      "handler": "create",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/studios/invite",
+      "controller": "StudiosController",
+      "handler": "createInvite",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/studios/online-clubs",
+      "controller": "StudiosController",
+      "handler": "createOnlineClub",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/studios/register-invite",
+      "controller": "StudiosController",
+      "handler": "registerInvite",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/traffic-accounts",
+      "controller": "TrafficAccountController",
+      "handler": "create",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/traffic-accounts/:accountId/notes",
+      "controller": "TrafficAccountController",
+      "handler": "createNote",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/traffic-accounts/:accountId/notes/analyze",
+      "controller": "TrafficAccountController",
+      "handler": "analyzeNotes",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/traffic-accounts/note/recognize",
+      "controller": "TrafficAccountController",
+      "handler": "recognizeNote",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/traffic-accounts/play-guide",
+      "controller": "TrafficAccountController",
+      "handler": "savePlayGuide",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/transactions",
+      "controller": "BillingController",
+      "handler": "createTransaction",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/screenshot",
+      "controller": "UploadController",
+      "handler": "uploadScreenshot",
+      "file": "apps/server/src/billing/upload.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/review-queue/:id/processed",
+      "controller": "SessionShotsController",
+      "handler": "markProcessed",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me",
+      "controller": "AuthController",
+      "handler": "updateProfile",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me/emojis",
+      "controller": "AuthController",
+      "handler": "updateEmojis",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me/password",
+      "controller": "AuthController",
+      "handler": "changePassword",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/users/:id/authorize",
+      "controller": "AuthController",
+      "handler": "authorizeUser",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/users/:id/reject",
+      "controller": "AuthController",
+      "handler": "rejectUser",
+      "file": "apps/server/src/auth/auth.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bridges/:id/permissions",
+      "controller": "BridgeController",
+      "handler": "updatePermissions",
+      "file": "apps/server/src/studios/bridge.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/:id/finance",
+      "controller": "CompanionsController",
+      "handler": "updateFinance",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/:id/profile",
+      "controller": "CompanionsController",
+      "handler": "updateProfile",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/:id/review",
+      "controller": "RegisterController",
+      "handler": "review",
+      "file": "apps/server/src/auth/register.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/:id/senior-staff",
+      "controller": "CompanionsController",
+      "handler": "setSeniorStaff",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/:id/status",
+      "controller": "CompanionsController",
+      "handler": "updateStatus",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/me/idle-rest",
+      "controller": "CompanionsController",
+      "handler": "idleRest",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/me/notify-prefs",
+      "controller": "CompanionsController",
+      "handler": "setNotifyPrefs",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/me/payout-qr",
+      "controller": "CompanionsController",
+      "handler": "setMyPayoutQr",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/me/status",
+      "controller": "CompanionsController",
+      "handler": "updateMyStatus",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechat-requests/:id/approve",
+      "controller": "CompanionsController",
+      "handler": "approveWorkWechatRequest",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechat-requests/:id/reject",
+      "controller": "CompanionsController",
+      "handler": "rejectWorkWechatRequest",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechats/:id/bind",
+      "controller": "CompanionsController",
+      "handler": "bindWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechats/:id/bind-cs",
+      "controller": "CompanionsController",
+      "handler": "bindCsUser",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechats/:id/nickname",
+      "controller": "CompanionsController",
+      "handler": "updateWorkWechatNickname",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechats/:id/unbind",
+      "controller": "CompanionsController",
+      "handler": "unbindWechat",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/companions/work-wechats/:id/unbind-cs",
+      "controller": "CompanionsController",
+      "handler": "unbindCsUser",
+      "file": "apps/server/src/companions/companions.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/config",
+      "controller": "SettingsController",
+      "handler": "updateConfig",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/customers/:id",
+      "controller": "CustomersController",
+      "handler": "update",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/customers/:id/profile",
+      "controller": "CustomersController",
+      "handler": "updateProfile",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/customers/:id/reassign",
+      "controller": "CustomersController",
+      "handler": "reassign",
+      "file": "apps/server/src/customers/customers.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/employees/:id/password",
+      "controller": "StudiosController",
+      "handler": "resetPassword",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/expense-reports/:id/review",
+      "controller": "BillingController",
+      "handler": "reviewExpenseReport",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/finance/commission/bridge-rule",
+      "controller": "FinanceController",
+      "handler": "saveCommissionBridgeRule",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/finance/commission/cs-profiles",
+      "controller": "FinanceController",
+      "handler": "saveCsProfile",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/finance/expense-items",
+      "controller": "FinanceController",
+      "handler": "saveExpenseItems",
+      "file": "apps/server/src/finance/finance.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/managed-pcs/:id",
+      "controller": "ManagedPcController",
+      "handler": "update",
+      "file": "apps/server/src/managed-pc/managed-pc.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/:id",
+      "controller": "OrdersController",
+      "handler": "updateOrder",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/:id/amount",
+      "controller": "OrdersController",
+      "handler": "updateAmount",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/:id/contact",
+      "controller": "OrdersController",
+      "handler": "updateContact",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/:id/cs-contact",
+      "controller": "OrdersController",
+      "handler": "markCsContact",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/:id/payment",
+      "controller": "OrdersController",
+      "handler": "updatePayment",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/processes/blacklist/:id",
+      "controller": "ProcessBlacklistController",
+      "handler": "updateBlacklist",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/processes/blacklist/companion-switches",
+      "controller": "ProcessBlacklistController",
+      "handler": "setCompanionSwitch",
+      "file": "apps/server/src/process-blacklist/process-blacklist.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sessions/:id/finish",
+      "controller": "SessionShotsController",
+      "handler": "finishSession",
+      "file": "apps/server/src/companions/session-shots.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sessions/:sessionId/end",
+      "controller": "OrdersController",
+      "handler": "endSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sessions/:sessionId/pause",
+      "controller": "OrdersController",
+      "handler": "pauseSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sessions/:sessionId/resume",
+      "controller": "OrdersController",
+      "handler": "resumeSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sessions/:sessionId/start",
+      "controller": "OrdersController",
+      "handler": "startSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings",
+      "controller": "SettingsController",
+      "handler": "updateSettings",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/studios/:id",
+      "controller": "StudiosController",
+      "handler": "update",
+      "file": "apps/server/src/studios/studios.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tenant/authorizations",
+      "controller": "SettingsController",
+      "handler": "updateAuthorization",
+      "file": "apps/server/src/auth/settings.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/traffic-accounts/:id",
+      "controller": "TrafficAccountController",
+      "handler": "update",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/traffic-accounts/note/:noteId",
+      "controller": "TrafficAccountController",
+      "handler": "updateNote",
+      "file": "apps/server/src/traffic-account/traffic-account.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/:id/accept-proposal",
+      "controller": "BillingController",
+      "handler": "acceptProposal",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/:id/approve",
+      "controller": "BillingController",
+      "handler": "approve",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/:id/propose",
+      "controller": "BillingController",
+      "handler": "proposeAmount",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/:id/reject",
+      "controller": "BillingController",
+      "handler": "reject",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/:id/reject-proposal",
+      "controller": "BillingController",
+      "handler": "rejectProposal",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/transactions/batch",
+      "controller": "BillingController",
+      "handler": "batchUpdate",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/wallet-transactions/:id/review",
+      "controller": "BillingController",
+      "handler": "reviewWalletTransaction",
+      "file": "apps/server/src/billing/billing.controller.ts"
+    }
+  ],
+  "socketInbound": [
+    {
+      "event": "blacklist:kill_result",
+      "gateway": "WsGateway",
+      "handler": "handleBlacklistKillResult"
+    },
+    {
+      "event": "blacklist:report",
+      "gateway": "WsGateway",
+      "handler": "handleBlacklistReport"
+    },
+    {
+      "event": "blacklist:update_ack",
+      "gateway": "WsGateway",
+      "handler": "handleBlacklistUpdateAck"
+    },
+    {
+      "event": "call:answer",
+      "gateway": "WsGateway",
+      "handler": "handleCallAnswer"
+    },
+    {
+      "event": "call:audio",
+      "gateway": "WsGateway",
+      "handler": "handleCallAudio"
+    },
+    {
+      "event": "call:hangup",
+      "gateway": "WsGateway",
+      "handler": "handleCallHangup"
+    },
+    {
+      "event": "call:ice-candidate",
+      "gateway": "WsGateway",
+      "handler": "handleCallIce"
+    },
+    {
+      "event": "call:offer",
+      "gateway": "WsGateway",
+      "handler": "handleCallOffer"
+    },
+    {
+      "event": "chat:send",
+      "gateway": "WsGateway",
+      "handler": "handleChatSend"
+    },
+    {
+      "event": "companion:heartbeat",
+      "gateway": "WsGateway",
+      "handler": "handleHeartbeat"
+    },
+    {
+      "event": "companion:status",
+      "gateway": "WsGateway",
+      "handler": "handleStatusChange"
+    },
+    {
+      "event": "message:ack",
+      "gateway": "ChatGateway",
+      "handler": "handleMessageAck"
+    },
+    {
+      "event": "pc:command_ack",
+      "gateway": "WsGateway",
+      "handler": "handleCommandAck"
+    },
+    {
+      "event": "typing:start",
+      "gateway": "ChatGateway",
+      "handler": "handleTypingStart"
+    },
+    {
+      "event": "typing:stop",
+      "gateway": "ChatGateway",
+      "handler": "handleTypingStop"
+    }
+  ],
+  "socketOutbound": [
+    {
+      "event": "auth:failed",
+      "emitter": "WsGateway",
+      "handler": "handleConnection",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "auth:replaced",
+      "emitter": "WsGateway",
+      "handler": "kickUser",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "auth:replaced",
+      "emitter": "WsGateway",
+      "handler": "setTimeout",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "auth:stale_token",
+      "emitter": "WsGateway",
+      "handler": "setTimeout",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "blacklist:update",
+      "emitter": "WsGateway",
+      "handler": "sendBlacklistUpdate",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "chat:message",
+      "emitter": "WsGateway",
+      "handler": "notifyNewMessage",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "chat:new",
+      "emitter": "WsGateway",
+      "handler": "handleChatSend",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "chat:new",
+      "emitter": "WsGateway",
+      "handler": "notifyChatMessage",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "chat:notify",
+      "emitter": "WsGateway",
+      "handler": "notifyChat",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "chat:read",
+      "emitter": "ChatGateway",
+      "handler": "notifyRead",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "entertainment:forceIdle",
+      "emitter": "HeartbeatService",
+      "handler": "process",
+      "file": "apps/server/src/ws/heartbeat.service.ts"
+    },
+    {
+      "event": "entertainment:warning",
+      "emitter": "HeartbeatService",
+      "handler": "process",
+      "file": "apps/server/src/ws/heartbeat.service.ts"
+    },
+    {
+      "event": "message:new",
+      "emitter": "ChatGateway",
+      "handler": "deliverOfflineMessages",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "message:new",
+      "emitter": "ChatGateway",
+      "handler": "notifyNewMessage",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "message:updated",
+      "emitter": "ChatGateway",
+      "handler": "notifyMessageUpdated",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "order:new",
+      "emitter": "WsGateway",
+      "handler": "pushOrder",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "order:urgent",
+      "emitter": "WsGateway",
+      "handler": "broadcastNewOrder",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "pc:command",
+      "emitter": "WsGateway",
+      "handler": "sendCommand",
+      "file": "apps/server/src/ws/ws.gateway.ts"
+    },
+    {
+      "event": "room:updated",
+      "emitter": "ChatGateway",
+      "handler": "notifyRoomUpdated",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "status:broadcast",
+      "emitter": "HeartbeatService",
+      "handler": "process",
+      "file": "apps/server/src/ws/heartbeat.service.ts"
+    },
+    {
+      "event": "sync:required",
+      "emitter": "ChatGateway",
+      "handler": "requestSync",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "typing:notify",
+      "emitter": "ChatGateway",
+      "handler": "handleTypingStart",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    },
+    {
+      "event": "typing:notify",
+      "emitter": "ChatGateway",
+      "handler": "handleTypingStop",
+      "file": "apps/server/src/chat/chat.gateway.ts"
+    }
+  ]
+}

@@ -46,6 +46,11 @@ jobs:
       # 属于 burn-down 范畴，见 docs/REFACTOR-PLAN.md。error 必须保持为 0。
       - name: lint（只卡 error）
         run: pnpm -r lint
+      # 契约冻结（docs/REFACTOR-PLAN.md 前提 3）：接口路径与 Socket 事件名是四端共用的契约，
+      # 重构期间不得变更。脚本从 Controller / Gateway 源码重新导出一次再比对，
+      # 谁不小心改了路径或事件名，这里直接红。
+      - name: 契约冻结（接口路径 / Socket 事件名）
+        run: node scripts/_export_api_contract.mjs --check
       - name: 服务端测试
         run: pnpm --filter @chunlv/server test
         env:

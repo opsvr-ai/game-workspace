@@ -47,6 +47,7 @@ python scripts\_publish_cs_client.py <版本号>
 | `_push_watchdog_all.py` | 批量给各台陪玩机下发新看门狗（逐台停服务→换文件→起服务→回读构建号） |
 | `_repack_client_zip.py` | 重打陪玩端客户端 zip（换看门狗之后必跑，只重打包不动版本号） |
 | `_repack_cs_zip.py` | 重打客服端客户端 zip（同上，客服端那份） |
+| `_export_api_contract.mjs` | 从 Controller / Gateway 源码导出四端契约（接口路径 + Socket 事件）到 `docs/API-CONTRACT.json`；CI 用 `--check` 比对 |
 | `update-changelog.sh` | 从 git log 生成 CHANGELOG 片段 |
 
 > 注意：`AGENTS.md` / `docs/DEPLOYMENT.md` 里出现过的 `scripts/_set_autokill_on.py` 已经删除

@@ -155,6 +155,7 @@ scripts/_*
 !scripts/_push_watchdog_all.py
 !scripts/_repack_client_zip.py
 !scripts/_repack_cs_zip.py
+!scripts/_export_api_contract.mjs
 
 # 仓库根目录遗留的「一次性修复脚本」（2026-09-22 清理：这些都是一次性的排障脚本，
 # 事情做完就没用了；正式装机入口是 setup-pc.bat / setup-pc.ps1（新电脑一键装机）+ scripts/ 下的发版链路）
