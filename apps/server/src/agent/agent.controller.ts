@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { UserRole } from '@chunlv/shared';
 import { AgentService } from './agent.service';
+import type { UpdateWaiter } from './agent.service';
 import { ONBOARD_REPORT_TOKEN } from './agent-token';
 import { WsGateway } from '../ws/ws.gateway';
 import { logger } from '../common/logger';
@@ -80,12 +81,18 @@ export class AgentController {
    * 把「去更新」推给第一台能更新的机器；剩下的等下一次 release 继续叫。
    */
   private async pumpUpdateQueue(): Promise<void> {
-    const skipped: Array<{ companionId: string; firstAskedAt: number }> = [];
+    const skipped: UpdateWaiter[] = [];
     try {
       const { version, downloadUrl } = await this.agentService.getLatestVersion();
       for (let i = 0; i < 50; i += 1) {
         const next = this.agentService.takeNextUpdateWaiter();
         if (!next) break;
+        // P0-6 名额按店隔离：这家店已经有别的机器在下载 → 放回队列，别去抢（也不打断它）。
+        // 一家店在升级不再挡住别的店：别的店的排队机器会被下面继续挑到。
+        if (this.agentService.isUpdateScopeBusy(next.scope)) {
+          skipped.push(next);
+          continue;
+        }
         // 刚叫过号的机器，10 分钟内不再叫第二遍。
         // 2026-10-01 线上实测：一台机器被反复叫号时，每次都要把 123MB 整包重下一遍（限速约 3 分钟），
         // 于是全网唯一的更新名额被它和自己的循环占用，队列里别的机器一直「名额被占、不更新」。
@@ -122,7 +129,7 @@ export class AgentController {
           lastUpdatePushAt.set(next.companionId, Date.now());
           // 先把名额留给它：被叫到的机器要错峰几秒才来申请，这几十秒里名额经常被别的机器抢走，
           // 抢不到它就整轮放弃、排队位置也丢了（老板 2026-10-03 报的「徐泽宁一直不升级」）。
-          this.agentService.reserveUpdateSlot(next.companionId);
+          this.agentService.reserveUpdateSlot(next.companionId, next.scope);
           return;
         }
         // 推不出去（离线 / WS 没连上）：放回队列，别把它的排队位置吃掉。
@@ -290,14 +297,17 @@ export class AgentController {
     // 新机器装完还没登录，拿不到令牌：用 IP 兜底给它一个排队身份。
     // 否则客户端只能打印「Update slot busy」，版本卡死在装机包那一版。
     const companionId = this.resolveCompanionId(req) || `anon:${req.ip || 'unknown'}`;
-    const result = this.agentService.acquireUpdateSlot(companionId);
+    // P0-6：名额按店隔离，先解析出这台机器归属的店（未登录的 anon:* 落到共享名额）。
+    const scope = await this.agentService.resolveUpdateScope(companionId);
+    const result = this.agentService.acquireUpdateSlot(companionId, scope);
     return { code: 200, message: 'ok', data: result };
   }
 
   @Post('update/release')
   async releaseUpdateSlot(@Req() req: any): Promise<ApiResponse<unknown>> {
     const companionId = this.resolveCompanionId(req);
-    this.agentService.releaseUpdateSlot(companionId);
+    const scope = await this.agentService.resolveUpdateScope(companionId);
+    this.agentService.releaseUpdateSlot(companionId, scope);
     return { code: 200, message: 'ok', data: null };
   }
 
@@ -362,7 +372,12 @@ export class AgentController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.OWNER, UserRole.CS)
   async getUpdateQueue(): Promise<ApiResponse<unknown>> {
-    return { code: 200, message: 'ok', data: this.agentService.getUpdateSlot() };
+    return {
+      code: 200,
+      message: 'ok',
+      // 老字段（共享名额）形状不变，另加 byScope：发布时能看清「哪家店在下载、还有几台在排队」
+      data: { ...this.agentService.getUpdateSlot(), byScope: this.agentService.getUpdateScopes() },
+    };
   }
 
   // Admin only: trigger build and push

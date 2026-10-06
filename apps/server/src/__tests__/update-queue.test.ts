@@ -185,3 +185,116 @@ describe('更新名额叫号（发布铺开速度）', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// P0-6（2026-10-06）：名额按店隔离。
+// 以前 updateSlot / updateWaiters 是全网一份 —— 一家店在升级，其它店全得排队等它。
+// 多工作室场景（直营店 + 租赁店 + 桥接工作室同库跑）下这是硬伤。
+// ---------------------------------------------------------------------------
+describe('更新名额按店隔离（多工作室）', () => {
+  let service: AgentServiceType;
+  let prisma: ReturnType<typeof createMockPrisma>;
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    vi.resetModules();
+    const mod = await import('../agent/agent.service');
+    prisma = createMockPrisma();
+    service = new mod.AgentService(prisma as any);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('一家店在下载，不影响另一家店的机器拿名额（以前要一起排队）', () => {
+    expect(service.acquireUpdateSlot('a-machine', 'studio-A').granted).toBe(true);
+    expect(service.acquireUpdateSlot('b-machine', 'studio-B').granted).toBe(true);
+
+    // 同一家店内部仍然串行下载（不抢办公室那条带宽）
+    const second = service.acquireUpdateSlot('a-machine-2', 'studio-A');
+    expect(second.granted).toBe(false);
+    expect(second.waitingFor).toBe('a-machine');
+  });
+
+  it('排队队列也按店分开：一家店的队列不会把别的店挤到后面', () => {
+    service.acquireUpdateSlot('a-holder', 'studio-A');
+    service.acquireUpdateSlot('b-holder', 'studio-B');
+    vi.setSystemTime(T0 + 30_000);
+    service.acquireUpdateSlot('a-waiter', 'studio-A');
+    vi.setSystemTime(T0 + 60_000);
+    service.acquireUpdateSlot('b-waiter', 'studio-B');
+
+    expect(service.takeNextUpdateWaiter('studio-A')?.companionId).toBe('a-waiter');
+    expect(service.takeNextUpdateWaiter('studio-A')).toBeNull();
+    expect(service.takeNextUpdateWaiter('studio-B')?.companionId).toBe('b-waiter');
+  });
+
+  it('不带 scope 时仍然按全网排队先后叫号（老行为不变）', () => {
+    service.acquireUpdateSlot('a-holder', 'studio-A');
+    service.acquireUpdateSlot('b-holder', 'studio-B');
+    vi.setSystemTime(T0 + 30_000);
+    service.acquireUpdateSlot('b-waiter', 'studio-B');
+    vi.setSystemTime(T0 + 60_000);
+    service.acquireUpdateSlot('a-waiter', 'studio-A');
+
+    expect(service.takeNextUpdateWaiter()?.companionId).toBe('b-waiter');
+    expect(service.takeNextUpdateWaiter()?.companionId).toBe('a-waiter');
+  });
+
+  it('释放一家店的名额不会把另一家店正在下载的名额一起放掉', () => {
+    service.acquireUpdateSlot('a-machine', 'studio-A');
+    service.acquireUpdateSlot('b-machine', 'studio-B');
+
+    service.releaseUpdateSlot('a-machine', 'studio-A');
+    expect(service.acquireUpdateSlot('a-machine-2', 'studio-A').granted).toBe(true);
+    expect(service.acquireUpdateSlot('b-machine-2', 'studio-B').granted).toBe(false);
+    expect(service.getUpdateSlot('studio-B').companionId).toBe('b-machine');
+  });
+
+  it('getUpdateScopes 能看到每家店各自的名额占用与排队人数', () => {
+    service.acquireUpdateSlot('a-machine', 'studio-A');
+    service.acquireUpdateSlot('a-machine-2', 'studio-A');
+    service.acquireUpdateSlot('b-machine', 'studio-B');
+
+    const byScope = service.getUpdateScopes();
+    const a = byScope.find((s) => s.scope === 'studio-A');
+    const b = byScope.find((s) => s.scope === 'studio-B');
+    expect(a).toMatchObject({ companionId: 'a-machine', waiters: 1 });
+    expect(b).toMatchObject({ companionId: 'b-machine', waiters: 0 });
+  });
+
+  it('名额空着的店可以直接叫号，不被正在下载的店挡住', () => {
+    const notify = vi.fn().mockResolvedValue(undefined);
+    service.setUpdateNotifier(notify);
+
+    service.acquireUpdateSlot('a-machine', 'studio-A');
+    service.acquireUpdateSlot('b-machine', 'studio-B');
+    vi.setSystemTime(T0 + 30_000);
+    service.acquireUpdateSlot('b-waiter', 'studio-B');
+
+    expect(service.isUpdateScopeBusy('studio-B')).toBe(true);
+    service.releaseUpdateSlot('b-machine', 'studio-B');
+    expect(notify).toHaveBeenCalledTimes(1); // B 店空出来了：立刻叫它自己的下一位
+    expect(service.acquireUpdateSlot('a-machine-2', 'studio-A').granted).toBe(false);
+  });
+
+  it('查库解析机器归属的店，并缓存（客户端每 5 分钟来问一次不能每次都打库）', async () => {
+    prisma.companion.findUnique.mockResolvedValue({ studioId: 'studio-A' });
+    expect(await service.resolveUpdateScope('comp-1')).toBe('studio-A');
+    expect(await service.resolveUpdateScope('comp-1')).toBe('studio-A');
+    expect(prisma.companion.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it('未登录的新机器（anon:IP）不查库，落到全网共享的那个名额', async () => {
+    expect(await service.resolveUpdateScope('anon:203.0.113.9')).toBe('');
+    expect(prisma.companion.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('归属查库失败时退回共享名额，不让一次查询失败把更新链路整个卡死', async () => {
+    prisma.companion.findUnique.mockRejectedValue(new Error('db down'));
+    expect(await service.resolveUpdateScope('comp-2')).toBe('');
+  });
+});

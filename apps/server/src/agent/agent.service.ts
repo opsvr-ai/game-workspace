@@ -13,11 +13,39 @@ const execFileAsync = promisify(execFile);
 const logger = new Logger('AgentService');
 
 // 串行更新锁：同一时间只允许一个客户端下载更新包，避免多台机器同时抢带宽导致谁都下不动。
-let updateSlot: { companionId: string; startedAt: number; reserved: boolean } = {
-  companionId: '',
-  startedAt: 0,
-  reserved: false,
-};
+//
+// 2026-10-06（P0-6 多工作室）：名额从「全网一个」改成「每家店一个」。
+// 以前这里是一个模块级单变量 —— 一家店在升级，其它店全部排队等它，多工作室场景下这是硬伤。
+// 现在按 scope（= studioId）分名额：一家店在下载，不影响另一家店自己铺开。
+// 拿不到归属的机器（新装机还没登录，按 IP 记账的 anon:*）落到空 scope，
+// 全网共用那一个名额，保持老行为。
+type UpdateSlotState = { companionId: string; startedAt: number; reserved: boolean };
+/** 未归属 / 匿名机器共用的名额（老行为：全网一个）。 */
+const DEFAULT_UPDATE_SCOPE = '';
+const emptyUpdateSlot = (): UpdateSlotState => ({ companionId: '', startedAt: 0, reserved: false });
+/** 每家店一个名额。 */
+const updateSlots = new Map<string, UpdateSlotState>();
+/** 每家店一条排队队列（companionId → 排队时间）。 */
+const updateWaiters = new Map<string, Map<string, { firstAskedAt: number }>>();
+
+function slotOf(scope: string): UpdateSlotState {
+  let slot = updateSlots.get(scope);
+  if (!slot) {
+    slot = emptyUpdateSlot();
+    updateSlots.set(scope, slot);
+  }
+  return slot;
+}
+
+function waitersOf(scope: string): Map<string, { firstAskedAt: number }> {
+  let queue = updateWaiters.get(scope);
+  if (!queue) {
+    queue = new Map();
+    updateWaiters.set(scope, queue);
+  }
+  return queue;
+}
+
 const UPDATE_SLOT_TIMEOUT = 10 * 60 * 1000; // 10 分钟超时，避免某台卡死长期占住名额
 /**
  * 叫号时先把名额「预约」给被叫到的那台机器：
@@ -31,11 +59,12 @@ const RESERVE_TTL_MS = 3 * 60 * 1000;
 const WAIT_PRIORITY_MS = 5 * 60 * 1000;
 /** 但当前那台至少先让它下载 3 分钟，别刚下到一半就被打断。 */
 const HOLD_MIN_MS = 3 * 60 * 1000;
-/** 谁在排队、排了多久。 */
-const updateWaiters = new Map<string, { firstAskedAt: number }>();
-
-/** 排队中的一台机器（给 controller 叫号用）。 */
-export type UpdateWaiter = { companionId: string; firstAskedAt: number };
+/** 名额归属（companionId → studioId）查库结果缓存多久：客户端每 5 分钟来问一次，不能每次都打库。 */
+const UPDATE_SCOPE_TTL_MS = 10 * 60 * 1000;
+/** 归属缓存最多存多少台机器，超了按 TTL 清一遍。 */
+const UPDATE_SCOPE_CACHE_MAX = 2000;
+/** 排队中的一台机器（给 controller 叫号用）。scope = 它归属的店，叫号时要带上。 */
+export type UpdateWaiter = { companionId: string; firstAskedAt: number; scope: string };
 
 @Injectable()
 export class AgentService implements OnModuleInit, OnModuleDestroy {
@@ -50,25 +79,32 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
 
   private updateSlotTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** companionId → 归属店（P0-6 名额按店隔离用）。查库结果带 TTL 的小缓存，避免每 5 分钟一次申请都打库。 */
+  private readonly updateScopeCache = new Map<string, { scope: string; at: number }>();
+
   setUpdateNotifier(fn: () => Promise<void>): void {
     this.updateNotifier = fn;
   }
 
   onModuleInit(): void {
-    // 每分钟看一眼更新队列：
+    // 每分钟扫一遍所有店的更新队列：
     // 1) 名额被占住却没人释放（客户端下到一半断网/崩了）→ 兜底腾位；
     // 2) 名额空着却还有人在排队 → 继续叫号，别让队列停在那儿等人 30 分钟后自己来问。
     this.updateSlotTimer = setInterval(() => {
-      if (updateSlot.companionId && this.slotBusy()) return; // 有人在下载：别打扰
-      if (updateSlot.companionId) {
-        logger.warn(
-          updateSlot.reserved
-            ? `Reserved update slot not claimed, releasing ${updateSlot.companionId}`
-            : `Update slot timed out, releasing ${updateSlot.companionId}`,
-        );
-        updateSlot = { companionId: '', startedAt: 0, reserved: false };
+      for (const scope of [...updateSlots.keys()]) {
+        if (this.slotBusy(scope)) continue; // 这家店有人在下载：别打扰
+        const slot = slotOf(scope);
+        if (slot.companionId) {
+          logger.warn(
+            slot.reserved
+              ? `Reserved update slot not claimed, releasing ${slot.companionId}`
+              : `Update slot timed out, releasing ${slot.companionId}`,
+          );
+          updateSlots.set(scope, emptyUpdateSlot());
+        }
+        this.pumpUpdateQueue(scope);
       }
-      this.pumpUpdateQueue();
+      this.pruneUpdateScopes();
     }, 60_000);
     this.updateSlotTimer.unref?.();
   }
@@ -154,101 +190,190 @@ export class AgentService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** 名额还在有效期内占着吗（预约的名额超时更短）。 */
-  private slotBusy(): boolean {
-    if (!updateSlot.companionId) return false;
-    const ttl = updateSlot.reserved ? RESERVE_TTL_MS : UPDATE_SLOT_TIMEOUT;
-    return Date.now() - updateSlot.startedAt < ttl;
+  private slotBusy(scope: string): boolean {
+    const slot = slotOf(scope);
+    if (!slot.companionId) return false;
+    const ttl = slot.reserved ? RESERVE_TTL_MS : UPDATE_SLOT_TIMEOUT;
+    return Date.now() - slot.startedAt < ttl;
+  }
+
+  /** 这家店的更新名额现在是不是被占着（controller 叫号时用来跳过名额已满的店）。 */
+  isUpdateScopeBusy(scope?: string): boolean {
+    return this.slotBusy(scope || DEFAULT_UPDATE_SCOPE);
+  }
+
+  /**
+   * 申请名额的机器属于哪家店（P0-6：名额按店隔离）。
+   * 未登录的新机器（`anon:IP`）拿不到归属 → 落到空 scope（全网共用一个名额，保持老行为）。
+   * 查库结果缓存 10 分钟：客户端每 5 分钟来问一次，不能每次都打库。
+   */
+  async resolveUpdateScope(companionId: string): Promise<string> {
+    if (!companionId || companionId.startsWith('anon:')) return DEFAULT_UPDATE_SCOPE;
+    const cached = this.updateScopeCache.get(companionId);
+    if (cached && Date.now() - cached.at < UPDATE_SCOPE_TTL_MS) return cached.scope;
+    let scope = DEFAULT_UPDATE_SCOPE;
+    try {
+      const rec = await this.prisma.companion.findUnique({
+        where: { id: companionId },
+        select: { studioId: true },
+      });
+      scope = rec?.studioId || DEFAULT_UPDATE_SCOPE;
+    } catch (err: any) {
+      // 查不到就把名额退回全网共享：不能让一次查询失败把整个更新链路卡死
+      logger.warn(`resolveUpdateScope failed for ${companionId}: ${err?.message || err}`);
+    }
+    this.updateScopeCache.set(companionId, { scope, at: Date.now() });
+    if (this.updateScopeCache.size > UPDATE_SCOPE_CACHE_MAX) this.pruneUpdateScopeCache();
+    return scope;
   }
 
   /**
    * 叫号前先把名额留给被叫到的那台机器，别让它在错峰的那几十秒里被别人抢走。
    * 三分钟内没来申请就当它没收到，定时器会把名额放回队列。
    */
-  reserveUpdateSlot(companionId: string): void {
+  reserveUpdateSlot(companionId: string, scope: string = DEFAULT_UPDATE_SCOPE): void {
     if (!companionId) return;
-    updateSlot = { companionId, startedAt: Date.now(), reserved: true };
-    updateWaiters.delete(companionId);
-    logger.log(`Update slot reserved for ${companionId}`);
+    const key = scope || DEFAULT_UPDATE_SCOPE;
+    updateSlots.set(key, { companionId, startedAt: Date.now(), reserved: true });
+    waitersOf(key).delete(companionId);
+    logger.log(`Update slot reserved for ${companionId}${key ? ` @${key}` : ''}`);
   }
 
-  /** 申请更新下载名额：同一时间只放行一台；超时未释放则自动让给下一台。 */
-  acquireUpdateSlot(companionId: string): { granted: boolean; waitingFor?: string } {
+  /** 申请更新下载名额：同一时间每家店只放行一台；超时未释放则自动让给下一台。 */
+  acquireUpdateSlot(
+    companionId: string,
+    scope: string = DEFAULT_UPDATE_SCOPE,
+  ): { granted: boolean; waitingFor?: string } {
+    const key = scope || DEFAULT_UPDATE_SCOPE;
     const now = Date.now();
-    if (this.slotBusy()) {
-      if (updateSlot.companionId === companionId) {
+    const slot = slotOf(key);
+    const queue = waitersOf(key);
+    if (this.slotBusy(key)) {
+      if (slot.companionId === companionId) {
         // 自己预约/持有的名额：从「真的开始下载」这一刻重新计时。
-        updateSlot = { companionId, startedAt: now, reserved: false };
+        updateSlots.set(key, { companionId, startedAt: now, reserved: false });
         return { granted: true };
       }
 
       // 排队记账：每 5 分钟来申请一次却一直抢不到的机器（新装的机房电脑常常这样），
       // 等够 WAIT_PRIORITY_MS 就把名额让给它，避免老版本永远挂着不更新。
-      const waiter = updateWaiters.get(companionId) || { firstAskedAt: now };
-      updateWaiters.set(companionId, waiter);
+      const waiter = queue.get(companionId) || { firstAskedAt: now };
+      queue.set(companionId, waiter);
       const waitedMs = now - waiter.firstAskedAt;
-      const heldMs = now - updateSlot.startedAt;
+      const heldMs = now - slot.startedAt;
       // 预约不占着名额：客户端要是没来领，别拦着排队的机器等满 5 分钟。
-      if (!updateSlot.reserved && waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
+      if (!slot.reserved && waitedMs >= WAIT_PRIORITY_MS && heldMs >= HOLD_MIN_MS) {
         logger.warn(`Update slot preempted for waiter ${companionId} (waited ${Math.round(waitedMs / 1000)}s)`);
-        updateSlot = { companionId, startedAt: now, reserved: false };
-        updateWaiters.delete(companionId);
+        updateSlots.set(key, { companionId, startedAt: now, reserved: false });
+        queue.delete(companionId);
         return { granted: true };
       }
-      return { granted: false, waitingFor: updateSlot.companionId };
+      return { granted: false, waitingFor: slot.companionId };
     }
-    updateSlot = { companionId, startedAt: now, reserved: false };
-    updateWaiters.delete(companionId);
+    updateSlots.set(key, { companionId, startedAt: now, reserved: false });
+    queue.delete(companionId);
     return { granted: true };
   }
 
   /** 下载完成（或放弃）后释放名额。 */
-  releaseUpdateSlot(companionId: string): void {
-    if (updateSlot.companionId === companionId) {
-      updateSlot = { companionId: '', startedAt: 0, reserved: false };
+  releaseUpdateSlot(companionId: string, scope: string = DEFAULT_UPDATE_SCOPE): void {
+    const key = scope || DEFAULT_UPDATE_SCOPE;
+    if (slotOf(key).companionId === companionId) {
+      updateSlots.set(key, emptyUpdateSlot());
     }
-    updateWaiters.delete(companionId);
+    waitersOf(key).delete(companionId);
     // 名额空了：立刻叫下一位，别让它干等到下一次 30 分钟轮询。
-    this.pumpUpdateQueue();
+    this.pumpUpdateQueue(key);
   }
 
-  /** 当前名额状态（诊断/联调用）。 */
-  getUpdateSlot(): { companionId: string; heldMs: number; waiters: number } {
+  /** 当前名额状态（诊断/联调用）。scope 省略时看「未归属」那个共享名额。 */
+  getUpdateSlot(scope: string = DEFAULT_UPDATE_SCOPE): {
+    companionId: string;
+    heldMs: number;
+    waiters: number;
+  } {
+    const key = scope || DEFAULT_UPDATE_SCOPE;
+    const slot = slotOf(key);
     return {
-      companionId: updateSlot.companionId,
-      heldMs: updateSlot.companionId ? Date.now() - updateSlot.startedAt : 0,
-      waiters: updateWaiters.size,
+      companionId: slot.companionId,
+      heldMs: slot.companionId ? Date.now() - slot.startedAt : 0,
+      waiters: waitersOf(key).size,
     };
   }
 
-  /** 取排队最久的一台（跳过没身份、推不了 WS 的匿名机器）。 */
-  takeNextUpdateWaiter(): UpdateWaiter | null {
+  /** 所有店的名额快照（发布时盯铺开进度：哪家在下载、哪家还有几台在排队）。 */
+  getUpdateScopes(): Array<{ scope: string; companionId: string; heldMs: number; waiters: number }> {
+    const scopes = new Set<string>([...updateSlots.keys(), ...updateWaiters.keys()]);
+    return [...scopes].map((scope) => ({ scope, ...this.getUpdateSlot(scope) }));
+  }
+
+  /** 取排队最久的一台（跳过没身份、推不了 WS 的匿名机器）。带 scope 就只在本店队列里挑。 */
+  takeNextUpdateWaiter(scope?: string): UpdateWaiter | null {
+    const pools: Array<[string, Map<string, { firstAskedAt: number }>]> =
+      scope === undefined ? [...updateWaiters.entries()] : [[scope, waitersOf(scope)]];
     let next: UpdateWaiter | null = null;
-    for (const [companionId, waiter] of updateWaiters) {
-      if (companionId.startsWith('anon:')) continue;
-      if (!next || waiter.firstAskedAt < next.firstAskedAt) {
-        next = { companionId, firstAskedAt: waiter.firstAskedAt };
+    for (const [poolScope, queue] of pools) {
+      for (const [companionId, waiter] of queue) {
+        if (companionId.startsWith('anon:')) continue;
+        if (!next || waiter.firstAskedAt < next.firstAskedAt) {
+          next = { companionId, firstAskedAt: waiter.firstAskedAt, scope: poolScope };
+        }
       }
     }
-    if (next) updateWaiters.delete(next.companionId);
+    if (next) waitersOf(next.scope).delete(next.companionId);
     return next;
   }
 
   /** 被跳过（例如正在接单）的机器放回队列，保留原来的排队时间，别让它排到队尾。 */
   requeueUpdateWaiter(waiter: UpdateWaiter): void {
-    if (!updateWaiters.has(waiter.companionId)) {
-      updateWaiters.set(waiter.companionId, { firstAskedAt: waiter.firstAskedAt });
+    const queue = waitersOf(waiter.scope || DEFAULT_UPDATE_SCOPE);
+    if (!queue.has(waiter.companionId)) {
+      queue.set(waiter.companionId, { firstAskedAt: waiter.firstAskedAt });
     }
   }
 
-  /** 名额一空就叫号（交给 controller，它才拿得到 WS 网关）。 */
-  pumpUpdateQueue(): void {
+  /** 名额一空就叫号（交给 controller，它才拿得到 WS 网关）。带 scope 就只按本店判断。 */
+  pumpUpdateQueue(scope?: string): void {
     if (!this.updateNotifier) return;
-    if (this.slotBusy()) return;
+    if (scope === undefined ? this.allUpdateScopesBusy() : this.slotBusy(scope)) return;
     void this.updateNotifier().catch((err) =>
       logger.warn(`Update queue pump failed: ${err?.message || err}`),
     );
   }
 
+  /** 所有店的名额都占着 → 没得叫（一个 scope 都没有时按「没占」处理，保持老行为）。 */
+  private allUpdateScopesBusy(): boolean {
+    if (updateSlots.size === 0) return false;
+    for (const scope of updateSlots.keys()) {
+      if (!this.slotBusy(scope)) return false;
+    }
+    return true;
+  }
+
+  /** 清掉既没名额、也没人排队的 scope，别让 Map 无限长。 */
+  private pruneUpdateScopes(): void {
+    for (const scope of [...updateSlots.keys()]) {
+      if (updateSlots.get(scope)?.companionId) continue;
+      if ((updateWaiters.get(scope)?.size ?? 0) > 0) continue;
+      updateSlots.delete(scope);
+      updateWaiters.delete(scope);
+    }
+  }
+
+  /** 归属缓存按 TTL 清一遍（只在超过上限时调用）。 */
+  private pruneUpdateScopeCache(): void {
+    const now = Date.now();
+    for (const [companionId, entry] of [...this.updateScopeCache]) {
+      if (now - entry.at >= UPDATE_SCOPE_TTL_MS) this.updateScopeCache.delete(companionId);
+    }
+    // 全都还在有效期内（同时上线的机器特别多）：清掉最旧的一半，别无限膨胀
+    if (this.updateScopeCache.size > UPDATE_SCOPE_CACHE_MAX) {
+      const oldest = [...this.updateScopeCache.entries()]
+        .sort((a, b) => a[1].at - b[1].at)
+        .slice(0, Math.ceil(this.updateScopeCache.size / 2));
+      for (const [companionId] of oldest) this.updateScopeCache.delete(companionId);
+    }
+  }
   async getOnlineCompanionTargets(studioId?: string): Promise<
     Array<{
       companionId: string;
