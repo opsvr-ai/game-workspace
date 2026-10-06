@@ -1,14 +1,15 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Col, Input, Modal, Radio, Row, Space, Statistic, Table, Tag, Typography, message,
+  Alert, Button, Card, Col, Input, Modal, Radio, Row, Space, Table, Tag, Typography, message,
 } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
+import StatCard from '../../components/StatCard';
 import { extractErrorMessage } from '../../utils/error-handler';
-import { TEXT } from '../../styles/tokens';
+import { TEXT, SEMANTIC } from '../../styles/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -395,40 +396,32 @@ const OrderReviewPage: React.FC = () => {
 
       <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title={canDecide ? '① 等发单的人核对（在跟接单方掰扯）' : '① 等我核对（我发的单）'}
-              value={summary.waitingCs}
-              valueStyle={{ color: summary.waitingCs ? '#D97706' : '#16A34A' }}
-            />
-          </Card>
+          <StatCard
+            label={canDecide ? '① 等发单的人核对（在跟接单方掰扯）' : '① 等我核对（我发的单）'}
+            value={summary.waitingCs}
+            tint={summary.waitingCs ? SEMANTIC.warningStrong : SEMANTIC.success}
+          />
         </Col>
         <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="② 等店长拍板（客服已核对完）"
-              value={summary.waitingDecide}
-              valueStyle={{ color: summary.waitingDecide ? '#DC2626' : '#16A34A' }}
-            />
-          </Card>
+          <StatCard
+            label="② 等店长拍板（客服已核对完）"
+            value={summary.waitingDecide}
+            tint={summary.waitingDecide ? SEMANTIC.dangerMid : SEMANTIC.success}
+          />
         </Col>
         <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="抢了没结果（7 天内）"
-              value={summary.recheck}
-              valueStyle={{ color: summary.recheck ? '#D97706' : '#16A34A' }}
-            />
-          </Card>
+          <StatCard
+            label="抢了没结果（7 天内）"
+            value={summary.recheck}
+            tint={summary.recheck ? SEMANTIC.warningStrong : SEMANTIC.success}
+          />
         </Col>
         <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="打回重写（等接单方重报）"
-              value={summary.rejected}
-              valueStyle={{ color: summary.rejected ? '#D97706' : '#16A34A' }}
-            />
-          </Card>
+          <StatCard
+            label="打回重写（等接单方重报）"
+            value={summary.rejected}
+            tint={summary.rejected ? SEMANTIC.warningStrong : SEMANTIC.success}
+          />
         </Col>
       </Row>
 

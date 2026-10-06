@@ -1,10 +1,12 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Typography, message, DatePicker, Tag, Statistic, Row, Col } from 'antd';
+import { Card, Table, Button, Space, Typography, message, DatePicker, Tag, Row, Col } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';
 import PageHeader from '../../components/PageHeader';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -46,9 +48,9 @@ const ReconciliationPage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}><Card size="small"><Statistic title="对账人数" value={rows.length} suffix="人" /></Card></Col>
-        <Col span={8}><Card size="small"><Statistic title="差额异常" value={flaggedCount} suffix="人" valueStyle={{ color: flaggedCount ? '#cf1322' : undefined }} /></Card></Col>
-        <Col span={8}><Card size="small"><Statistic title="合计差额" value={totalDiff} precision={1} prefix="¥" valueStyle={{ color: totalDiff < 0 ? '#cf1322' : undefined }} /></Card></Col>
+        <Col span={8}><StatCard label="对账人数" value={`${rows.length} 人`} /></Col>
+        <Col span={8}><StatCard label="差额异常" value={`${flaggedCount} 人`} tint={flaggedCount ? SEMANTIC.dangerDeep : undefined} /></Col>
+        <Col span={8}><StatCard label="合计差额" value={`¥${Number(totalDiff || 0).toFixed(1)}`} tint={totalDiff < 0 ? SEMANTIC.dangerDeep : undefined} /></Col>
       </Row>
 
       <Card size="small" title={`${day.format('YYYY-MM-DD')} 营业日对账`}>

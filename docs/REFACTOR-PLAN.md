@@ -301,6 +301,19 @@
 > 验收口径（可复算）：`pnpm --filter @chunlv/web build` 后跑 `node scripts/_check_route_splitting.mjs`，
 > 输出里两行数（入口分包 / 首屏合计）。两次实验都临时改过 `vite.config.ts`，跑完已还原（`git diff` 无差异）。
 
+### 第 21 批 · 已完成（2026-10-07，财务 / 管理端统计卡一并收到 StatCard）
+
+| 任务 | 对应问题 | 交付 | 提交 |
+|---|---|---|---|
+| 收完剩下的统计卡 | P2-7 / 交互一致性 | 9 个文件共 **31 处** `<Card><Statistic/></Card>`，外加客服提成页 4 张手写「线下 / 桥接 / 线上」小卡 → `StatCard`：提成（`CommissionPage`）、对账（`ReconciliationPage`）、风险台（`RiskWorkbenchPage`）、客服提成今日（`CsCommissionTodayPage`）、陪玩钱包日历（`CompanionWalletCalendarPage`）、订单复核（`OrderReviewPage`）、杀进程日志（`ProcessKillLogPage`）、桥接结算（`BridgeSettlementPanel`）、客户端版本（`AgentVersionPage`）。**整站 `<Card><Statistic/>` 归零**（只剩客服提成页看板里「包在 Card 内、无卡面」的那一排，属设计上的不同用途，不动产） | 本次 |
+| 写死色值换令牌 | 卫生 | 这批涉及的 `#cf1322` / `#389e0d` / `#52c41a` / `#faad14` / `#fa8c16` / `#3f8600` / `#D97706` / `#DC2626` / `#d46b08` / `#16A34A` / `#B45309` 全换成 `SEMANTIC.*`（金额格式复用各页已有的 `money` / `yuan`）→ 全站写死色值 **677 → 645（-32）** | 本次 |
+| 守门基线下调 | P2-7 | `docs/STAT-CARD-BASELINE.json`：`<Card><Statistic/>` 31 → **0**；`docs/UI-TOKEN-BASELINE.json`：677 → 645 | 本次 |
+
+> 验收口径（可复算）：`pnpm stat-cards`（`0 / 0`）、`pnpm ui:tokens:check`（645）、
+> `pnpm --filter @chunlv/web typecheck`、`pnpm -r test`（web 20 / server 689 / companion 21 / cs 37）、
+> 七个守门全绿，改后截图 `tmp_shots/b21/after/`（1400×860，7 个管理 / 财务页 + 陪玩钱包 / 桥接页）
+> ＋窄屏体检 `tmp_shots/b21/audit.json`（7 页 `overflow / clipped / issues` 全空）。
+
 ### 第 20 批 · 已完成（2026-10-07，统计卡统一：看板上的大数字只有一个来源）
 
 | 任务 | 对应问题 | 交付 | 提交 |
@@ -316,7 +329,7 @@
 > `pnpm --filter @chunlv/web test`（8 文件 / 20 用例）、改前改后截图对照 `tmp_shots/b20/` 与 `tmp_shots/b20/after/`。
 >
 > 还没收的：财务 / 管理端还有 10 个文件共 31 处 `<Card><Statistic/>`（提成 / 对账 / 风险台 / 客服提成今日 /
-> 陪玩钱包日历 / 订单复核 / 进程黑名单 / 桥接结算 / 客户端版本 …），已列在守卫输出里，下一批按页面逐个换、逐个截图核。
+> 陪玩钱包日历 / 订单复核 / 进程黑名单 / 桥接结算 / 客户端版本 …），已列在守卫输出里，下一批按页面逐个换、逐个截图核。**（已在第 21 批全部收完，整站 `<Card><Statistic/>` = 0。）**
 
 ### 第 19 批 · 已完成（2026-10-07，客服端：更新决策抽出来 + 第一份测试 + 打包白名单守卫）
 
@@ -1009,7 +1022,7 @@ IDLE
    - `DataTable`：三个大表共用（表头/行高/字号/列宽/钉左钉右/列配置持久化）；
    - `PageShell`：标题区 + 筛选区 + 操作区统一；
    - `EmptyState` / `LoadingState` / `ErrorState` 统一；
-   - `StatCard` 统一（看板上的大数字只有这一个来源，见「第 20 批」；财务 / 管理端还剩 31 处 `<Card><Statistic/>` 待收）。
+   - `StatCard` 统一（看板上的大数字只有这一个来源，见「第 20／21 批」；**整站 `<Card><Statistic/>` 已归零**）。
 
 **顺带修的**：`theme.ts` 的注释与主色对齐；若确实要保留紫色主色，就把「经典蓝」的描述改掉，并把 AntD 默认蓝全部替换。
 

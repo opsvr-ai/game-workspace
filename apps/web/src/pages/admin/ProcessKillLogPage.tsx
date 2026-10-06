@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, createElement, useMemo } from 'react';
-import { Table, Tag, Typography, Select, Button, Space, Tooltip, Card, Row, Col, Statistic, message } from 'antd';
+import { Table, Tag, Typography, Select, Button, Space, Tooltip, Card, Row, Col, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { blacklistApi } from '../../api/blacklist';
 import PageHeader from '../../components/PageHeader';
 import { companionsApi } from '../../api/companions';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -80,10 +82,10 @@ const ProcessKillLogPage: React.FC = () => {
         }
       />
             <Row gutter={16} style={{ marginBottom: 12 }}>
-        <Col span={6}><Card size="small"><Statistic title="总杀进程次数" value={logs.length} valueStyle={{ fontSize: 20 }} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="成功" value={logs.filter(l => l.success).length} valueStyle={{ fontSize: 20, color: '#3f8600' }} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="失败" value={logs.filter(l => !l.success).length} valueStyle={{ fontSize: 20, color: '#cf1322' }} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="告警" value={logs.filter(l => l.resultText?.includes('REPEAT_KILL_ALERT') || l.resultText?.includes('RATE_LIMITED')).length} valueStyle={{ fontSize: 20, color: '#faad14' }} /></Card></Col>
+        <Col span={6}><StatCard size="sm" label="总杀进程次数" value={logs.length} /></Col>
+        <Col span={6}><StatCard size="sm" label="成功" value={logs.filter(l => l.success).length} tint={SEMANTIC.successDeep} /></Col>
+        <Col span={6}><StatCard size="sm" label="失败" value={logs.filter(l => !l.success).length} tint={SEMANTIC.dangerDeep} /></Col>
+        <Col span={6}><StatCard size="sm" label="告警" value={logs.filter(l => l.resultText?.includes('REPEAT_KILL_ALERT') || l.resultText?.includes('RATE_LIMITED')).length} tint={SEMANTIC.warning} /></Col>
       </Row>
       {topProcesses.length > 0 && (
         <Row gutter={16} style={{ marginBottom: 12 }}>

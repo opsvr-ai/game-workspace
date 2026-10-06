@@ -1,12 +1,13 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Typography, message, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Statistic, Row, Col, Popconfirm } from 'antd';
+import { Card, Table, Button, Space, Typography, message, Modal, Form, InputNumber, Select, Switch, DatePicker, Tag, Row, Col, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, CalculatorOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { financeApi } from '../../api/finance';
 import PageHeader from '../../components/PageHeader';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '@chunlv/shared';
+import StatCard from '../../components/StatCard';
 
 const { Text } = Typography;
 
@@ -166,19 +167,13 @@ const CommissionPage: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title={`${month.format('YYYY-MM')} 提成合计`} value={totalAmount} precision={1} prefix="¥" />
-          </Card>
+          <StatCard label={`${month.format('YYYY-MM')} 提成合计`} value={`¥${Number(totalAmount || 0).toFixed(1)}`} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title="提成人数" value={ledgers.length} suffix="人" />
-          </Card>
+          <StatCard label="提成人数" value={`${ledgers.length} 人`} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title="启用规则数" value={rules.filter((r: any) => r.isActive).length} suffix="条" />
-          </Card>
+          <StatCard label="启用规则数" value={`${rules.filter((r: any) => r.isActive).length} 条`} />
         </Col>
       </Row>
 

@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Statistic, Row, Col, Spin, Typography, Table, Input, DatePicker, Tag, Image, List, Space } from 'antd';
+import { Card, Row, Col, Spin, Typography, Table, Input, DatePicker, Tag, Image, List, Space } from 'antd';
 import EmptyState from '../../components/EmptyState';
 import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -11,6 +11,8 @@ import { expenseReportsApi } from '../../api/expenses';
 import PageHeader from '../../components/PageHeader';
 import PayoutQrScan from '../../components/PayoutQrScan';
 import { useAuthStore } from '../../stores/authStore';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -135,14 +137,10 @@ const CompanionWalletCalendarPage: React.FC = () => {
 
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={12}>
-            <Card size="small">
-              <Statistic title="余额" value={wallet.balance || 0} prefix="¥" precision={1} valueStyle={{ color: '#16A34A', fontSize: 28 }} />
-            </Card>
+            <StatCard label="余额" value={`¥${money(wallet.balance || 0)}`} tint={SEMANTIC.success} />
           </Col>
           <Col span={12}>
-            <Card size="small">
-              <Statistic title="押金" value={wallet.deposit || 0} prefix="¥" precision={1} valueStyle={{ color: '#B45309', fontSize: 28 }} />
-            </Card>
+            <StatCard label="押金" value={`¥${money(wallet.deposit || 0)}`} tint={SEMANTIC.warningDeep} />
           </Col>
         </Row>
 
@@ -227,25 +225,17 @@ const CompanionWalletCalendarPage: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title="本月收入" value={t.income || 0} prefix="¥" precision={1} valueStyle={{ color: '#16A34A' }} />
-          </Card>
+          <StatCard label="本月收入" value={`¥${money(t.income || 0)}`} tint={SEMANTIC.success} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title="本月支取" value={t.withdraw || 0} prefix="¥" precision={1} valueStyle={{ color: '#cf1322' }} />
-          </Card>
+          <StatCard label="本月支取" value={`¥${money(t.withdraw || 0)}`} tint={SEMANTIC.dangerDeep} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="本月净额"
-              value={t.net || 0}
-              prefix="¥"
-              precision={1}
-              valueStyle={{ color: (t.net || 0) >= 0 ? '#16A34A' : '#cf1322' }}
-            />
-          </Card>
+          <StatCard
+            label="本月净额"
+            value={`¥${money(t.net || 0)}`}
+            tint={(t.net || 0) >= 0 ? SEMANTIC.success : SEMANTIC.dangerDeep}
+          />
         </Col>
       </Row>
 

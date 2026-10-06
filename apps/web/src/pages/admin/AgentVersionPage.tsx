@@ -10,7 +10,6 @@ import {
   message,
   Popconfirm,
   Spin,
-  Statistic,
   Row,
   Col,
   Modal,
@@ -35,6 +34,8 @@ import {
 import { agentApi } from '../../api/agent';
 import { visibleInterval } from '../../hooks/usePolling';
 import PageHeader from '../../components/PageHeader';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -491,29 +492,13 @@ const AgentVersionPage: React.FC = () => {
       {/* Stat Cards */}
       <Row gutter={16} style={{ marginBottom: 12 }}>
         <Col span={8}>
-          <Card size="small">
-            <Statistic title="在线陪玩" value={versionStatus?.onlineCount || 0} suffix="人" />
-          </Card>
+          <StatCard label="在线陪玩" value={`${versionStatus?.onlineCount || 0} 人`} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="已是最新"
-              value={versionStatus?.upToDateCount || 0}
-              valueStyle={{ color: '#52c41a' }}
-              suffix="人"
-            />
-          </Card>
+          <StatCard label="已是最新" value={`${versionStatus?.upToDateCount || 0} 人`} tint={SEMANTIC.success} />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="未更新"
-              value={versionStatus?.pendingCount || 0}
-              valueStyle={{ color: '#faad14' }}
-              suffix="人"
-            />
-          </Card>
+          <StatCard label="未更新" value={`${versionStatus?.pendingCount || 0} 人`} tint={SEMANTIC.warning} />
         </Col>
       </Row>
 

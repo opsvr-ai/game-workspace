@@ -23,8 +23,9 @@ import { ordersApi } from '../../api/orders';
 import { useAuthStore } from '../../stores/authStore';
 import PageHeader from '../../components/PageHeader';
 import OrderOutcomeModal from '../../components/OrderOutcome';
+import StatCard from '../../components/StatCard';
 import { orderTypeConfig } from '../../constants/orders';
-import { TEXT } from '../../styles/tokens';
+import { TEXT, SEMANTIC } from '../../styles/tokens';
 
 const { Text } = Typography;
 
@@ -469,14 +470,11 @@ const CsCommissionTodayPage: React.FC = () => {
         {summaryCards.map((c) => (
           <Col xs={12} sm={8} md={4} key={c.title}>
             <Tooltip title={c.hint}>
-              <Card size="small">
-                <Statistic
-                  title={c.title}
-                  value={c.value}
-                  suffix={c.suffix}
-                  valueStyle={c.title === '不成功' ? { color: '#cf1322' } : undefined}
-                />
-              </Card>
+              <StatCard
+                label={c.title}
+                value={c.suffix === '%' ? `${c.value}%` : `${c.value} ${c.suffix}`}
+                tint={c.title === '不成功' ? SEMANTIC.dangerDeep : undefined}
+              />
             </Tooltip>
           </Col>
         ))}
@@ -484,84 +482,63 @@ const CsCommissionTodayPage: React.FC = () => {
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Text type="secondary">线下（本店陪玩）</Text>
-            <div>
-              <Text strong style={{ fontSize: 20 }}>
-                {s?.offlineOrders ?? 0}
-              </Text>{' '}
-              <Text type="secondary">单</Text>
-            </div>
-            <Text style={{ color: '#cf1322', fontSize: 12 }}>
-              流水 {yuan(s?.offlineFlow)} · 提成 {yuan(s?.offlineCommission)}
-            </Text>
-          </Card>
+          <StatCard
+            label="线下（本店陪玩）"
+            value={`${s?.offlineOrders ?? 0} 单`}
+            sub={`流水 ${yuan(s?.offlineFlow)} · 提成 ${yuan(s?.offlineCommission)}`}
+            tint={SEMANTIC.dangerDeep}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Text type="secondary">桥接（别家工作室）</Text>
-            <div>
-              <Text strong style={{ fontSize: 20 }}>
-                {s?.bridgeOrders ?? 0}
-              </Text>{' '}
-              <Text type="secondary">单</Text>
-            </div>
-            <Text style={{ color: '#cf1322', fontSize: 12 }}>提成 {yuan(s?.bridgeCommission)}</Text>
-          </Card>
+          <StatCard
+            label="桥接（别家工作室）"
+            value={`${s?.bridgeOrders ?? 0} 单`}
+            sub={`提成 ${yuan(s?.bridgeCommission)}`}
+            tint={SEMANTIC.dangerDeep}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Text type="secondary">线上（租赁俱乐部）</Text>
-            <div>
-              <Text strong style={{ fontSize: 20 }}>
-                {s?.onlineOrders ?? 0}
-              </Text>{' '}
-              <Text type="secondary">单</Text>
-            </div>
-            <Text style={{ color: '#cf1322', fontSize: 12 }}>提成 {yuan(s?.onlineCommission)}</Text>
-          </Card>
+          <StatCard
+            label="线上（租赁俱乐部）"
+            value={`${s?.onlineOrders ?? 0} 单`}
+            sub={`提成 ${yuan(s?.onlineCommission)}`}
+            tint={SEMANTIC.dangerDeep}
+          />
         </Col>
         <Col xs={12} sm={6}>
-          <Card size="small">
-            <Text type="secondary">桥接达标（本月）</Text>
-            <div>
-              <Text
-                strong
-                style={{
-                  fontSize: 20,
-                  color:
-                    (s?.bridgeMetMonthCount ?? 0) === (s?.csCount ?? 0) && (s?.csCount ?? 0) > 0
-                      ? '#52c41a'
-                      : '#fa8c16',
-                }}
-              >
-                {s?.bridgeMetMonthCount ?? 0}
-              </Text>{' '}
-              <Text type="secondary">/ {s?.csCount ?? 0} 人</Text>
-            </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              本月跑到 {data?.config?.bridgeLadder?.minUnits ?? 130} 单 → 单价升到{' '}
-              {yuan(data?.config?.bridgeLadder?.tier3Yuan ?? 3)}/单，{data?.config?.bridgeLadder?.tier5Units ?? 260} 单 →{' '}
-              {yuan(data?.config?.bridgeLadder?.tier5Yuan ?? 5)}/单。没跑到只是单价停在{' '}
-              {yuan(data?.config?.bridgeLadder?.baseUnitYuan ?? 1)}/单，不扣底薪、不扣提成；每天{' '}
-              {s?.bridgeTarget ?? 10} 单只是看板上的进度，线上按
-              {data?.config?.onlineMode === 'PER_ORDER'
-                ? `每单 ¥${data?.config?.onlinePerOrderYuan ?? 1}`
-                : `流水 ${data?.config?.onlineRatePercent ?? 1}%`}
-              算
-            </Text>
-          </Card>
+          <StatCard
+            label="桥接达标（本月）"
+            value={`${s?.bridgeMetMonthCount ?? 0} / ${s?.csCount ?? 0} 人`}
+            tint={
+              (s?.bridgeMetMonthCount ?? 0) === (s?.csCount ?? 0) && (s?.csCount ?? 0) > 0
+                ? SEMANTIC.success
+                : SEMANTIC.warning
+            }
+            sub={
+              <>
+                本月跑到 {data?.config?.bridgeLadder?.minUnits ?? 130} 单 → 单价升到{' '}
+                {yuan(data?.config?.bridgeLadder?.tier3Yuan ?? 3)}/单，{data?.config?.bridgeLadder?.tier5Units ?? 260} 单 →{' '}
+                {yuan(data?.config?.bridgeLadder?.tier5Yuan ?? 5)}/单。没跑到只是单价停在{' '}
+                {yuan(data?.config?.bridgeLadder?.baseUnitYuan ?? 1)}/单，不扣底薪、不扣提成；每天{' '}
+                {s?.bridgeTarget ?? 10} 单只是看板上的进度，线上按
+                {data?.config?.onlineMode === 'PER_ORDER'
+                  ? `每单 ¥${data?.config?.onlinePerOrderYuan ?? 1}`
+                  : `流水 ${data?.config?.onlineRatePercent ?? 1}%`}
+                算
+              </>
+            }
+          />
         </Col>
       </Row>
 
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} md={8}>
-          <Card size="small">
-            <Statistic title="今日应发合计（全体客服）" value={todayPayTotal} precision={1} prefix="¥" valueStyle={{ color: '#cf1322' }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              = 底薪按天折算 + 提成（一套口径：桥接只按本月单价阶梯算，不扣底薪、不打折提成）
-            </Text>
-          </Card>
+          <StatCard
+            label="今日应发合计（全体客服）"
+            value={`¥${Number(todayPayTotal || 0).toFixed(1)}`}
+            tint={SEMANTIC.dangerDeep}
+            sub="= 底薪按天折算 + 提成（一套口径：桥接只按本月单价阶梯算，不扣底薪、不打折提成）"
+          />
         </Col>
         <Col xs={24} sm={12} md={16}>
           <Card size="small" title="不成功的原因（今天）">

@@ -9,7 +9,6 @@ import {
   message,
   DatePicker,
   Tag,
-  Statistic,
   Row,
   Col,
   Select,
@@ -17,6 +16,8 @@ import {
 import { ReloadOutlined, CopyOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { bridgeApi, BridgeSettlement, BridgeSettlementRow } from '../api/bridge';
+import StatCard from './StatCard';
+import { SEMANTIC } from '../styles/tokens';
 
 const { Text } = Typography;
 
@@ -217,39 +218,27 @@ const BridgeSettlementPanel: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="我应付对方（对方陪我店的单）"
-              value={totals?.payable || 0}
-              precision={2}
-              prefix="¥"
-              suffix={`${totals?.inboundCount || 0} 单`}
-              valueStyle={{ color: totals?.payable ? '#cf1322' : undefined }}
-            />
-          </Card>
+          <StatCard
+            label="我应付对方（对方陪我店的单）"
+            value={money(totals?.payable)}
+            sub={`${totals?.inboundCount || 0} 单`}
+            tint={totals?.payable ? SEMANTIC.dangerDeep : undefined}
+          />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="我应收对方（我陪对方店的单）"
-              value={totals?.receivable || 0}
-              precision={2}
-              prefix="¥"
-              suffix={`${totals?.outboundCount || 0} 单`}
-              valueStyle={{ color: totals?.receivable ? '#389e0d' : undefined }}
-            />
-          </Card>
+          <StatCard
+            label="我应收对方（我陪对方店的单）"
+            value={money(totals?.receivable)}
+            sub={`${totals?.outboundCount || 0} 单`}
+            tint={totals?.receivable ? SEMANTIC.successBright : undefined}
+          />
         </Col>
         <Col span={8}>
-          <Card size="small">
-            <Statistic
-              title="净额"
-              value={Math.abs(net)}
-              precision={2}
-              prefix={net > 0 ? '+¥' : net < 0 ? '−¥' : '¥'}
-              suffix={net > 0 ? '对方该给我' : net < 0 ? '我该给对方' : '已平'}
-            />
-          </Card>
+          <StatCard
+            label="净额"
+            value={`${net > 0 ? '+' : net < 0 ? '−' : ''}${money(Math.abs(net))}`}
+            sub={net > 0 ? '对方该给我' : net < 0 ? '我该给对方' : '已平'}
+          />
         </Col>
       </Row>
 

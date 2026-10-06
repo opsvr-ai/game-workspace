@@ -1,9 +1,11 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Typography, message, Tag, Statistic, Row, Col, Tooltip } from 'antd';
+import { Card, Table, Button, Space, Typography, message, Tag, Row, Col, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { financeApi } from '../../api/finance';
 import PageHeader from '../../components/PageHeader';
+import StatCard from '../../components/StatCard';
+import { SEMANTIC } from '../../styles/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -61,10 +63,10 @@ const RiskWorkbenchPage: React.FC = () => {
       />
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card size="small"><Statistic title="高风险陪玩" value={highCount} valueStyle={{ color: highCount ? '#cf1322' : undefined }} suffix="人" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="中风险陪玩" value={mediumCount} valueStyle={{ color: mediumCount ? '#d46b08' : undefined }} suffix="人" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="异常订单信号" value={totalFlagged} suffix="条" /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="纳入统计陪玩" value={rows.length} suffix="人" /></Card></Col>
+        <Col span={6}><StatCard label="高风险陪玩" value={`${highCount} 人`} tint={highCount ? SEMANTIC.dangerDeep : undefined} /></Col>
+        <Col span={6}><StatCard label="中风险陪玩" value={`${mediumCount} 人`} tint={mediumCount ? SEMANTIC.warningStrong : undefined} /></Col>
+        <Col span={6}><StatCard label="异常订单信号" value={`${totalFlagged} 条`} /></Col>
+        <Col span={6}><StatCard label="纳入统计陪玩" value={`${rows.length} 人`} /></Col>
       </Row>
 
       <Card
