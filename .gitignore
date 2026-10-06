@@ -196,3 +196,18 @@ apps/*/.claude/
 .axme-code/active-sessions/
 .axme-code/audit-logs/
 .axme-code/.cache/
+
+# ============================================================================
+# 仓库瘦身（2026-10-06，dev 分支重构第一批）
+# 1) .rtfm/library.db 是 RTFM 检索工具本地生成的索引（单个 17 MB），
+#    属于「可随时重建」的机器产物，不该入库；config.json 是配置，保留跟踪。
+# 2) 根目录历史上堆了约 250 个 tmp_*.py / tmp_*.txt 一次性排障脚本；
+#    旧规则只忽略了带点的 /.tmp-* 与 /.tmp_*，漏掉了不带点的 tmp_*。
+# 3) __pycache__/ 是跑 Python 脚本产生的字节码缓存。
+# ============================================================================
+.rtfm/library.db
+.rtfm/*.db
+.rtfm/*.db-journal
+/tmp_*
+/__pycache__/
+**/__pycache__/
