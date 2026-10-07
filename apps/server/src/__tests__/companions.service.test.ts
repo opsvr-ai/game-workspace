@@ -451,4 +451,57 @@ describe('CompanionsService', () => {
       });
     });
   });
+
+  describe('getNotifyPrefs / setNotifyPrefs（订单通知偏好，老板 2026-10-08）', () => {
+    it('把当前状态一起给出去 —— 陪玩端设置面板靠它写「现在到底弹不弹」', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue({
+        notifyWhileBusy: false,
+        notifyWhileEntertainment: true,
+        status: 'BUSY',
+      } as any);
+
+      const prefs = await service.getNotifyPrefs('comp-1');
+
+      expect(prefs).toEqual({
+        notifyWhileBusy: false,
+        notifyWhileEntertainment: true,
+        status: 'BUSY',
+      });
+      const arg = mockPrisma.companion.findUnique.mock.calls.at(-1)![0] as any;
+      expect(arg.select.status).toBe(true);
+    });
+
+    it('查不到人也照样给默认值（接单中默认不弹、娱乐中默认弹），不炸', async () => {
+      mockPrisma.companion.findUnique.mockResolvedValue(null);
+
+      const prefs = await service.getNotifyPrefs('nobody');
+
+      expect(prefs).toEqual({
+        notifyWhileBusy: false,
+        notifyWhileEntertainment: true,
+        status: null,
+      });
+    });
+
+    it('只改传进来的那一项，改完回读也带 status', async () => {
+      mockPrisma.companion.update.mockResolvedValue({} as any);
+      mockPrisma.companion.findUnique.mockResolvedValue({
+        notifyWhileBusy: true,
+        notifyWhileEntertainment: true,
+        status: 'AVAILABLE',
+      } as any);
+
+      const prefs = await service.setNotifyPrefs('comp-1', { notifyWhileBusy: true });
+
+      expect(mockPrisma.companion.update).toHaveBeenCalledWith({
+        where: { id: 'comp-1' },
+        data: { notifyWhileBusy: true },
+      });
+      expect(prefs).toEqual({
+        notifyWhileBusy: true,
+        notifyWhileEntertainment: true,
+        status: 'AVAILABLE',
+      });
+    });
+  });
 });

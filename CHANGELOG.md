@@ -38,7 +38,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   首页那颗按钮从「🔔」改成「**🔔 通知设置**」；指路文案统一改成「设置 → **通知设置**」。
   服务端 `GET /api/companions/me/notify-prefs` 顺手把当前 `status` 一起返回（面板靠它写结论）。
   验证：网页 `vitest run` **55 / 55**（新增 11 条：六种状态的判定口径 / 面板顶部结论 / 开关点下去真写回服务端 / 新页面打得开）；
-  服务端 `vitest run --maxWorkers=1` **749 / 749**；两边 `tsc --noEmit` 通过，`nest build` / `vite build` 通过；
+  服务端 `vitest run --maxWorkers=1` **752 / 752**（本轮新增 3 条：通知偏好连状态一起返回 / 查不到人给默认值 / 改一项回读也带状态）；
+  两边 `tsc --noEmit` 通过，`nest build` / `vite build` 通过；
   菜单树快照按规矩手动更新（菜单一改这条测试就该红）；守门脚本全绿（`routes:check` **90** 条、`contract:check` 403、`ui:tokens` 333、
   `splitting` 入口 349KB / 512KB、`loading` / `stat-cards` / `feedback` / `table-scroll` 全过）。
 - **陪玩端首页「本月流水」口径再收口：只算他自己那份，并把「当主陪 / 当搭档」摊开给他看（老板 2026-10-08，服务端 + 网页 `v989`）。**
