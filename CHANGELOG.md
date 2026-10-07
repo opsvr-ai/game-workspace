@@ -25,6 +25,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   `tsc --noEmit`、`vite build` 通过；守门脚本全绿（`ui:tokens` / `routes:check` 90 条 / `splitting` / `loading` / `stat-cards` / `feedback` / `table-scroll`）。
 
 
+### Fixed
+
+- **客户端「打字打一半被刷新打断」彻底治住：换版刷新前先问页面在不在写；休眠唤醒不再无条件重载（老板 2026-10-08，陪玩端 `1.0.20261022` + 网页 `v999`）。**
+  老板原话：「① 主进程『发现网页版号变了就整页重载』→ 改成重载前先问页面在不在写，在写就下一轮再来；② 『休眠唤醒后无条件重载』→ 不再无条件」。
+  上一轮（网页 `v996`）只在**网页侧**拦了一道（`busyGuard` 的 `beforeunload` 会让 Electron 取消这次 reload）—— 但主进程并不知情：
+  它已经把新版号记进本地了，于是**那次刷新被拦掉以后再也不会重试**，机器等于永远停在旧界面。这轮把客户端那一半补上：
+  * `electron/reload-policy.ts`（新）把「刷不刷」收成一个纯函数：页面在写 → 不刷，而且**版号先不记**（下一个 5 分钟周期再来一次）；
+    窗口没了 / 正在退出 → 不刷、版号照记（没什么可刷的）；其余才刷。
+  * 主进程新增 `pageHasUnsavedInput()`：换版刷新和休眠唤醒**动手之前都先问页面一句**
+    （`webContents.executeJavaScript` 问 `window.__chunlvBusyGuard.isBusy()`；这个口子由网页侧 `utils/busyGuard.ts` 挂上）。
+    **问不到就当「没在写」**（页面还没加载完 / 还是更老的网页 / 渲染进程崩了）—— 「偶尔多刷一下」比「机器永远卡在旧版本」轻得多。
+  * 系统休眠唤醒：原来无条件 `reload()`（本意防白屏）—— 现在有人在写就不刷，并记一条日志。
+  验证：陪玩端 `vitest run` **46 / 46**（新增 `electron/reload-policy.test.ts` 8 条：窗口没了 / 退出中 / 页面在写 / 正常 四类，
+  外加一条跨包守卫 —— 直接读 `apps/web/src/utils/busyGuard.ts`，比对主进程问的那个口子名字有没有被改掉）；
+  网页 `vitest run` **100 / 100**（新增 `utils/busyGuard.test.ts` 7 条：登记处、给主进程的查询口、`beforeunload` 拦不拦）；
+  两边 `tsc --noEmit` / `vite build` 通过；网页守门脚本全绿（`ui:tokens` / `routes:check` 90 条 / `splitting` / `loading` / `stat-cards` / `feedback` / `table-scroll`）。
+  **发布**：老板批准（「现在没人接单 全员更新吧」）→ 网页 `v999` 先上线（客户端要问的那个口子得先在），
+  再打陪玩端 `1.0.20261022` 并发自动更新包（`uploads/chunlv-latest.zip` md5 `ae4e5aae3694dd364bbc5dfd714e54eb`）
+  + 装机包（`uploads/agent-setup.exe` md5 `05b4c6428dfb9d99d1bb3596baa4af40`，与本机逐字节一致）；
+  线上 `agent.latest_version` 回读 `1.0.20261022`。客户端自己挑空闲 / 开机那一刻升级，铺开是逐步的。
+  **顺手补一个真漏**：仓库里 `preload-dist/preload.js` 停在 2026-10-19 那一版（`electron/preload.ts` 后来加的
+  `banner-fs-adapted` IPC 从没同步进打包目录），而安装包读的就是这份 —— 也就是说**装机包里那个「全屏会被顶出去的机器自动改提示音」的通道一直是死的**。
+  这次重打包前按流程重跑了一次 preload 同步，已一并修正（结论：发版前那次 `Copy-Item dist-electron/preload.js preload-dist/preload.js` 不能省）。
+  **客服端不用重发**：它压根没有「网页版号变了就重载」和「唤醒后重载」这两条路（只有兜底页上一个手动重试按钮），
+  而「打字保护」在**网页**里，客服端同一套网页，已经跟着 `v999` 生效。
+
 ### Added
 
 - **陪玩端新增「退单」：客户同意了但没打成 → 陪玩点「退单」，客服核对「无异议，转店长」→ 店长拍板（老板 2026-10-08，服务端 + 网页 `v994`）。**

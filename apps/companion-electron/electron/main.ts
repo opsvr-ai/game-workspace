@@ -10,6 +10,7 @@ import { logger } from './logger';
 import { connectWebSocket, disconnectWebSocket, emitStatus, onWsEvent, isConnected } from './websocket';
 import { handleUpdateCommand, checkForUpdates } from './updater';
 import { createTray, updateTrayTooltip } from './tray';
+import { PAGE_BUSY_PROBE, decidePageReload } from './reload-policy';
 import { startCapture, stopCaptureAndFlush, cleanupStaleCaptures, flushAllPending, pauseCapture, resumeCapture } from './capture';
 import { handleStatusChanged, ensureHibernateEnabled, setAppPassword, getAppPassword } from './screen-lock';
 import {
@@ -206,6 +207,26 @@ function writeHealthMarker(): void {
   }
 }
 
+/**
+ * 问页面一句「现在有没有还没提交的内容」（登记处见 apps/web/src/utils/busyGuard.ts）。
+ *
+ * 为什么要问：老板 2026-10-08 报「发布订单或者聊天的时候 软件经常会刷新一下 然后好不容易输入的东西就全没了」。
+ * 主进程够不着网页的模块，只能 executeJavaScript 问 window 上那个口子（名字见 reload-policy.ts）。
+ *
+ * **问不到就当「没在写」**：页面还没加载完 / 还是更老的网页 / 渲染进程崩了，都会走到这里。
+ * 那时候按老办法正常换版 —— 「偶尔多刷一下」比「机器永远卡在旧版本」轻得多。
+ */
+async function pageHasUnsavedInput(): Promise<boolean> {
+  const wc = mainWindow?.webContents;
+  if (!wc || wc.isDestroyed()) return false;
+  try {
+    const busy = await wc.executeJavaScript(PAGE_BUSY_PROBE, true);
+    return busy === true;
+  } catch {
+    return false;
+  }
+}
+
 // 前端热更：陪玩不需要彻底退出客户端。主进程定时询问服务器最新前端版本，
 // 一旦发现变了，只刷新当前页面（webContents.reload），不杀进程、不弹 UAC。
 async function checkFrontendVersion(): Promise<void> {
@@ -222,11 +243,26 @@ async function checkFrontendVersion(): Promise<void> {
       return;
     }
     if (previous !== version) {
-      store.set('webVersion', version);
-      logger.info('Frontend version changed, reloading page', { previous, version });
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.reload();
+      const decision = decidePageReload({
+        kind: 'frontend-version',
+        hasWindow: Boolean(mainWindow && !mainWindow.isDestroyed()),
+        quitting: isQuitting,
+        pageBusy: await pageHasUnsavedInput(),
+      });
+      if (decision.deferred) {
+        // 页面在写：**版号先不记**，下一个周期再发现一次换版。
+        // （记了就不会重试 —— 网页那边 beforeunload 把这次 reload 拦掉，机器就永远停在旧界面。）
+        logger.info('Frontend version changed, but page is busy — defer reload', { previous, version });
+        return;
       }
+      store.set('webVersion', version);
+      if (!decision.reload) {
+        // 窗口没了 / 正在退出：没什么可刷的，版号照记（下次开窗口本来就会重新拉最新页面）。
+        logger.info('Frontend version changed, nothing to reload', { previous, version, reason: decision.reason });
+        return;
+      }
+      logger.info('Frontend version changed, reloading page', { previous, version });
+      mainWindow!.webContents.reload();
     }
   } catch (err: any) {
     logger.warn('Frontend version check failed (non-fatal)', { error: err?.message });
@@ -1872,8 +1908,18 @@ async function handleSystemResume(): Promise<void> {
     try { handleStatusChanged('AVAILABLE'); } catch { /* 锁屏窗口可能已销毁 */ }
     await reportResumedAvailable();
   }
-  if (mainWindow && !mainWindow.isDestroyed() && !isQuitting) {
-    mainWindow.reload();
+  // 唤醒后不再**无条件**重载（老板 2026-10-08）：页面正在写东西（发布订单 / 聊天）就先不刷，
+  // 免得把输入冲掉。原来的 reload 本意是防唤醒后白屏 —— 没在写的时候照旧刷一次。
+  const decision = decidePageReload({
+    kind: 'system-resume',
+    hasWindow: Boolean(mainWindow && !mainWindow.isDestroyed()),
+    quitting: isQuitting,
+    pageBusy: await pageHasUnsavedInput(),
+  });
+  if (decision.reload) {
+    mainWindow!.reload();
+  } else {
+    logger.info('System resume: skip page reload', { reason: decision.reason });
   }
 }
 
