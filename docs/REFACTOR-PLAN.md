@@ -307,10 +307,12 @@
 |---|---|---|---|
 | 全站页面广度体检 | P2 / 交互一致性 | `_ui_audit.mjs` 把 74 个可访问页面在 **1024 / 1280 两种宽度**下各跑一遍（老板视角）：1024 查出 3 页横向溢出（工作室管理 / 报账 / 杀进程日志），1280 查出 1 页（工作室管理）—— 以前只按 1280 体检，窄屏那几页是盲区 | 本次 |
 | 修根：12 张超宽表补横滚 | P2 / 交互 | 溢出根因是同一个 —— 表格列按 `width` 写死、合计超过内容区可用宽度（1024 窗口下实测 763px），而 antd 只在写了 `scroll={{ x }}` 时才给横向滚动，没写就**把右边几列直接切掉、滚都滚不到**。按「列宽合计」逐张补 `scroll={{ x: <合计> }}`，共 **12 张**（工作室账号 1717 / 机器管理 1372 / 受管电脑 1280 / PC 远程控制 1190 / 工作室管理 1180 / 客户看板 1014 / 陪玩报账与支取 990 / 报账审核 930 / 杀进程日志 870 / 客服设置 780 / 客户画像风险台 780 / 工作微信 770）—— 其中 9 张体检**看不到**（藏在条件渲染 / 展开行 / 弹窗里），是静态扫描补出来的 | 本次 |
+| 一键复查命令 | P2 / 交付纪律 | 新增 `scripts/_sweep_ui.mjs`（`pnpm ui:sweep`）：路由从 `docs/WEB-ROUTES.json` 取，默认跑 **1024 + 1280** 两种宽度共 74 个页面，横向溢出 / 文字截断 / 缺标题**有任一处就退出码 1**；`--widths=` 选宽度、`--from-json=<旧体检 json>` 离线复看。以后每批改完 UI 自己先跑这一条，别让老板去发现 | 本次 |
 | 新守门：`table-scroll` | P2 / 防回归 | `scripts/_check_table_scroll.mjs`（`pnpm table-scroll:check`，CI 已接）：解析每个 `<Table>`，没有 `scroll` 的就把 `columns` 里的数字宽度加起来（认内联数组、同文件的数组常量、`useMemo(() => [...])`、`as any` 外壳），合计 > 760 就红，**目标恒为 0**；静态算不出的只报告不判红（避免误伤）；确需超宽的写 `table-scroll-ok` 豁免 | 本次 |
 
 > 验收口径（可复算）：`pnpm table-scroll:check`（0）、`pnpm --filter @chunlv/web typecheck`、`pnpm -r lint`（web 1618 warn / 0 error，与基线一致）、
 > `pnpm -r test`（web 29 / server 689 / companion 21 / cs 37）、九个守门全绿（ui-tokens 348 / loading 0 / stat-cards 0 / feedback 0 / table-scroll 0 / splitting / css-vars 94 / routes 87 / contract 400）。
+> 一键复查：`pnpm ui:sweep`（=74 页 × 1024/1280，共 142 个组合）—— 改前 5 处问题（退出码 1）、改后 0 处（退出码 0），离线复看 `pnpm ui:sweep --from-json=tmp_shots/b24/audit-1024.json`。
 > 广度体检（**74 个页面 × 1024 / 1280 两种宽度**）：`overflow / clipped` 全空 —— 只剩 `/login`、`/profile-setup`、`/chat-window` 三个本就不在框架里的页面（没有 `.app-content`，体检脚本本来就会报）。
 > 证据：改前 `tmp_shots/b24/before/`、改后 `tmp_shots/b24/after/`（1024×768）；体检明细 `tmp_shots/b24/audit-1024.json`（改前）/ `audit-1024-after.json` / `audit-1280-after.json`。
 > **已自证会红**：临时抽掉工作室管理页的 `scroll={{ x: 1180 }}` → 守卫点名 `pages/owner/StudiosPage.tsx:346`、退出码 1。

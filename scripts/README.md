@@ -52,10 +52,12 @@ python scripts\_publish_cs_client.py <版本号>
 | `_check_ui_tokens.mjs` | 扫前端还剩多少硬编码色值，和基线 `docs/UI-TOKEN-BASELINE.json` 比对（只能减不能增；`pnpm ui:tokens` / `ui:tokens:check`） |
 | `_check_loading_state.mjs` | 加载态冻结：页面里「裸写的 `<Spin />`」只能减不能增（基线 `docs/LOADING-STATE-BASELINE.json`，统一用 `components/LoadingState.tsx`；`pnpm loading:check`） |
 | `_check_stat_cards.mjs` | 统计卡冻结：自己写 `Kpi`/`statCard`/`MetricCard`、或 `<Card><Statistic/>` 拼统计卡，只能减不能增（基线 `docs/STAT-CARD-BASELINE.json`，统一用 `components/StatCard.tsx`；`pnpm stat-cards` / `stat-cards:check`） |
-| `_export_css_vars.mjs` | 把 `styles/tokens.ts` 里的全部 CSS 变量生成进 `index.css` 的 `:root` 兜底区，并卡「CSS 里用了 var(--x) 但没人定义」（`pnpm css:vars` / `css:vars:check`） |
+| `_check_feedback_layer.mjs` | 提示层出口冻结：谁再从 antd 直接 `import { message }`（含 `antd/es/message` / `antd/lib/message`）就红，目标恒为 0 —— 统一走 `apps/web/src/utils/feedback.ts`（同名同形，调用点不用改）。行尾 `feedback-layer-ok` 可豁免（`pnpm feedback` / `feedback:check`） |
+| `_check_table_scroll.mjs` | 表格横滚兜底：没有 `scroll` 的 `<Table>`，把 `columns` 里的数字宽度加起来（认内联数组 / 同文件数组常量 / `useMemo(() => [...])` / `as any` 外壳），合计 > 760 就红（1024 宽窗口下内容区可用宽度实测约 763px），目标恒为 0；行尾 `table-scroll-ok` 可豁免（`pnpm table-scroll` / `table-scroll:check`） |
 | `_shot_ui.mjs` | **界面改版前后对照用**：无头 Edge + CDP，给某一页 / 某一区块截图。选项：`--sel=` 只截某个元素、`--pre=<js 文件>` 导航前注入（造登录态）、`--await=` 等元素出现、`--full` 整页高度、`--eval=<js>` 顺手取个数（量宽度 / 对齐）（`node scripts/_shot_ui.mjs http://127.0.0.1:8100/ui-kit tmp_shots/x.png --sel="#controls" --scale=2`）|
 | `_ui_audit.mjs` | **「界面体检」**：逐页跑探针，量「横向溢出 / 文字截断 / 每页页头的文字·字号·字重·颜色·是否渐变 / 有没有页面标题」，输出 JSON（`--json=`）。「有没有被切掉、页头齐不齐」用这个量，不要靠眼睛看截图 |
 | `_shot_pages.mjs` | **批量**给多个页面截图（只开一次无头浏览器，第二页起每页几秒）—— UI 巡检用：`node scripts/_shot_pages.mjs --out=tmp_shots/audit --pre=scripts/_shot_seed_owner.js --base=http://127.0.0.1:8123 /admin /cs/dispatch` |
+| `_sweep_ui.mjs` | **一键全站体检**（把「改完必复查」做成一条命令）：路由从 `docs/WEB-ROUTES.json` 取，默认跑 **1024 + 1280** 两种宽度共 74 个页面，横向溢出 / 文字截断 / 缺标题**有任一处就退出码 1**。`--widths=1280` 选宽度、`--from-json=<旧体检 json>` 离线复看（`pnpm ui:sweep`，需先开 `_mock_api.mjs`） |
 | `_mock_api.mjs` | **本地「假后台」**：把 `apps/web/dist` 当静态站发出去，同时把 `/api/*` 全部接管成假数据。于是**不用数据库、不连线上**也能把真实页面打开看。`--port=` 换端口、`--role=OWNER\|ADMIN\|CS\|COMPANION` 换身份（要看别的角色就再起一个实例）。请求路径会记进 `tmp_shots/_api_log.txt`，照着补假数据即可 |
 | `_shot_seed_owner.js` | 配合 `--pre=` 用：导航前注入，让前端以为「已经登录、而且是老板」（只写本机 storage） |
 | `update-changelog.sh` | 从 git log 生成 CHANGELOG 片段 |
