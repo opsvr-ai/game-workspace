@@ -1,7 +1,7 @@
 {
   "_comment": "网页端路由表（四端共用的导航契约）。只能加、不能悄悄删改：改路由会动到这里，请确认陪玩端 / 客服端没有依赖老路径。",
   "_exportedAt": "2026-10-07",
-  "count": 88,
+  "count": 89,
   "routes": [
     {
       "path": "/",
@@ -28,7 +28,7 @@
       "path": "/admin/agent-version",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/machines?tab=version",
+      "redirectTo": "/admin/client-management?tab=version",
       "hasErrorElement": false
     },
     {
@@ -56,7 +56,14 @@
       "path": "/admin/blacklist",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/process-control?tab=blacklist",
+      "redirectTo": "/admin/client-management?tab=blacklist",
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/client-management",
+      "kind": "page",
+      "component": "ClientManagementPage",
+      "redirectTo": null,
       "hasErrorElement": false
     },
     {
@@ -174,7 +181,7 @@
     {
       "path": "/admin/machines",
       "kind": "page",
-      "component": "ClientDevicePage",
+      "component": "LegacyClientRedirect",
       "redirectTo": null,
       "hasErrorElement": false
     },
@@ -182,7 +189,7 @@
       "path": "/admin/managed-pcs",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/machines",
+      "redirectTo": "/admin/client-management",
       "hasErrorElement": false
     },
     {
@@ -210,13 +217,13 @@
       "path": "/admin/pc-control",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/machines?tab=remote",
+      "redirectTo": "/admin/client-management?tab=remote",
       "hasErrorElement": false
     },
     {
       "path": "/admin/process-control",
       "kind": "page",
-      "component": "ProcessControlPage",
+      "component": "LegacyClientRedirect",
       "redirectTo": null,
       "hasErrorElement": false
     },
@@ -224,7 +231,7 @@
       "path": "/admin/process-kill-log",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/process-control?tab=killlog",
+      "redirectTo": "/admin/client-management?tab=killlog",
       "hasErrorElement": false
     },
     {
@@ -280,7 +287,7 @@
       "path": "/admin/whitelist",
       "kind": "redirect",
       "component": null,
-      "redirectTo": "/admin/process-control?tab=whitelist",
+      "redirectTo": "/admin/client-management?tab=whitelist",
       "hasErrorElement": false
     },
     {

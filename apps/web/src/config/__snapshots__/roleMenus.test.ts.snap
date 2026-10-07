@@ -47,9 +47,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "· /admin/payroll | 工资规则 | admin",
     "· /admin/finance/price-rules | 价格规则",
     "· /owner/bridges | 工作室桥接",
-    "▸ 客户端管理 | 客户端管理",
-    "· /admin/machines | 客户端与设备",
-    "· /admin/process-control | 进程管控",
+    "· /admin/client-management | 客户端管理",
     "· /profile | 个人设置",
   ],
   "COMPANION": [
@@ -150,9 +148,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "· /admin/cs-settings | 客服设置 | cs",
     "· /admin/payroll | 工资规则 | admin",
     "· /admin/finance/price-rules | 价格规则",
-    "▸ 客户端管理 | 客户端管理",
-    "· /admin/machines | 客户端与设备",
-    "· /admin/process-control | 进程管控",
+    "· /admin/client-management | 客户端管理",
     "· /profile | 个人设置",
   ],
 }

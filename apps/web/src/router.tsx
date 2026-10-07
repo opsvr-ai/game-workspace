@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { Suspense, lazy, type ReactNode } from 'react';
 import { Button, Space } from 'antd';
 import LoadingState from './components/LoadingState';
@@ -92,9 +92,10 @@ const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const BillingOverview = lazy(() => import('./pages/BillingOverview'));
 const CompanionsPage = lazy(() => import('./pages/CompanionsPage'));
 const CompanionPoolPage = lazy(() => import('./pages/OrderPoolPage'));
-// 「客户端与设备」= 机器管理 + 远程控制 + 客户端版本 三页合一（老板 2026-10-07）；
-// 那三个页面组件由这一页内部引用，不在这里各占一条懒加载。
-const ClientDevicePage = lazy(() => import('./pages/admin/ClientDevicePage'));
+// 「客户端管理」= 机器管理 + 远程控制 + 客户端版本 + 进程黑名单 + 进程白名单 + 杀进程日志，
+// 六页并成一页六个页签（老板 2026-10-07 分三步并完）；那六个页面组件由这一页内部引用，
+// 不在这里各占一条懒加载。
+const ClientManagementPage = lazy(() => import('./pages/admin/ClientManagementPage'));
 const PayrollPage = lazy(() => import('./pages/admin/PayrollPage'));
 const TrafficAccountPage = lazy(() => import('./pages/admin/TrafficAccountPage'));
 const EmployeesPage = lazy(() => import('./pages/owner/EmployeesPage'));
@@ -104,9 +105,6 @@ const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage')
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
-// 「进程管控」= 进程黑名单 + 进程白名单 + 杀进程日志 三页合一（老板 2026-10-07）；
-// 那三个页面组件由这一页内部引用，不在这里各占一条懒加载。
-const ProcessControlPage = lazy(() => import('./pages/admin/ProcessControlPage'));
 const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
 const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
 const UiKitPage = lazy(() => import('./pages/UiKitPage'));
@@ -146,6 +144,16 @@ const SuspenseFallback = () => <LoadingState size="large" minHeight={200} />;
  * 将来要按路由拆包，只把上面的 import 换成 lazy(() => import(...)) 就行，这里不用动。
  */
 const page = (node: ReactNode) => <Suspense fallback={<SuspenseFallback />}>{node}</Suspense>;
+
+/**
+ * 老地址 → 新页，并把 ?tab= 一起带过去。
+ * 「客户端管理」这六个页签的 key 和之前两页完全一样（machines / remote / version / blacklist /
+ * whitelist / killlog），所以老链接上的 ?tab= 原样搬到新地址仍然落在同一个页签上，不用做映射表。
+ */
+const LegacyClientRedirect: React.FC<{ to: string }> = ({ to }) => {
+  const { search } = useLocation();
+  return <Navigate to={to + search} replace />;
+};
 
 export const router = createBrowserRouter([
   {
@@ -382,21 +390,27 @@ export const router = createBrowserRouter([
         element: page(<PriceRulesPage />),
       },
       {
-        // 「远程控制」2026-10-07 并进「客户端与设备」（三页合一），老书签照旧能用，
+        // 「远程控制」2026-10-07 并进「客户端管理」（三批合一），老书签照旧能用，
         // 直接落到对应的那个页签上。
         path: 'admin/pc-control',
-        element: <Navigate to="/admin/machines?tab=remote" replace />,
+        element: <Navigate to="/admin/client-management?tab=remote" replace />,
       },
       {
-        // 「客户端与设备」= 机器管理（页签一）+ 远程控制 + 客户端版本（老板 2026-10-07：这 3 个功能合并）。
+        // 「客户端管理」= 机器管理 + 远程控制 + 客户端版本 + 进程黑名单 + 进程白名单 + 杀进程日志，
+        // 一页六个页签（老板 2026-10-07 分三步并完：这三条本来就是一回事）。
+        path: 'admin/client-management',
+        element: page(<ClientManagementPage />),
+      },
+      {
+        // 「机器管理」前两步的地址：?tab= 原样带到新页（页签 key 没变）。
         path: 'admin/machines',
-        element: page(<ClientDevicePage />),
+        element: <LegacyClientRedirect to="/admin/client-management" />,
       },
       {
         // 「电脑管理」2026-10-04 并进「机器管理」（手工登记 + 远程开关机那一块就在机器管理页里），
-        // 老书签 / 老链接照旧能用，直接落到机器管理页。
+        // 老书签 / 老链接照旧能用，直接落到机器管理页签。
         path: 'admin/managed-pcs',
-        element: <Navigate to="/admin/machines" replace />,
+        element: <Navigate to="/admin/client-management" replace />,
       },
       {
         path: 'admin/payroll',
@@ -425,22 +439,22 @@ export const router = createBrowserRouter([
         element: page(<OrderReviewPage />),
       },
       {
-        // 「进程管控」= 进程黑名单（页签一）+ 进程白名单 + 杀进程日志（老板 2026-10-07：这 3 个功能合并）。
+        // 「进程管控」前两步的地址：?tab= 原样带到新页（页签 key 没变）。
         path: 'admin/process-control',
-        element: page(<ProcessControlPage />),
+        element: <LegacyClientRedirect to="/admin/client-management" />,
       },
       {
-        // 老地址：三条各自跳到自己那个页签上，老书签照旧能用。
+        // 老地址：各自跳到自己那个页签上，老书签照旧能用。
         path: 'admin/blacklist',
-        element: <Navigate to="/admin/process-control?tab=blacklist" replace />,
+        element: <Navigate to="/admin/client-management?tab=blacklist" replace />,
       },
       {
         path: 'admin/whitelist',
-        element: <Navigate to="/admin/process-control?tab=whitelist" replace />,
+        element: <Navigate to="/admin/client-management?tab=whitelist" replace />,
       },
       {
         path: 'admin/process-kill-log',
-        element: <Navigate to="/admin/process-control?tab=killlog" replace />,
+        element: <Navigate to="/admin/client-management?tab=killlog" replace />,
       },
       {
         path: 'admin/attendance',
@@ -455,9 +469,9 @@ export const router = createBrowserRouter([
         element: page(<SettingsPage />),
       },
       {
-        // 「客户端版本」2026-10-07 并进「客户端与设备」（三页合一），老书签照旧能用。
+        // 「客户端版本」2026-10-07 并进「客户端管理」（三批合一），老书签照旧能用。
         path: 'admin/agent-version',
-        element: <Navigate to="/admin/machines?tab=version" replace />,
+        element: <Navigate to="/admin/client-management?tab=version" replace />,
       },
       {
         path: 'admin/work-wechats',

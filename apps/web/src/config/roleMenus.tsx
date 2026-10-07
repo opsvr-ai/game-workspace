@@ -182,14 +182,9 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          // 老板 2026-10-07：分两批把 6 个功能收进 2 页 ——「远程控制 / 机器管理 / 客户端版本」
-          // 合并成「客户端与设备」；「进程黑名单 / 进程白名单 / 杀进程日志」合并成「进程管控」。
-          // 菜单里各只剩一条（分组改叫「客户端管理」，免得和条目同名）。
-          key: '客户端管理', label: '客户端管理',
-          children: [
-            { key: '/admin/machines', label: '客户端与设备' },
-            { key: '/admin/process-control', label: '进程管控' },
-          ],
+          // 老板 2026-10-07：6 个功能分三步并成一页，左侧菜单只剩这一条「客户端管理」
+          // （原「客户端与设备 / 进程管控」两页现在是它里面的页签）。
+          key: '/admin/client-management', label: '客户端管理',
         },
         { key: '/profile', label: '个人设置' },
       ],
@@ -297,14 +292,9 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          // 老板 2026-10-07：分两批把 6 个功能收进 2 页 ——「远程控制 / 机器管理 / 客户端版本」
-          // 合并成「客户端与设备」；「进程黑名单 / 进程白名单 / 杀进程日志」合并成「进程管控」。
-          // 菜单里各只剩一条（分组改叫「客户端管理」，免得和条目同名）。
-          key: '客户端管理', label: '客户端管理',
-          children: [
-            { key: '/admin/machines', label: '客户端与设备' },
-            { key: '/admin/process-control', label: '进程管控' },
-          ],
+          // 老板 2026-10-07：6 个功能分三步并成一页，左侧菜单只剩这一条「客户端管理」
+          // （原「客户端与设备 / 进程管控」两页现在是它里面的页签）。
+          key: '/admin/client-management', label: '客户端管理',
         },
         { key: '/profile', label: '个人设置' },
       ],
