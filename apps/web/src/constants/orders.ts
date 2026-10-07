@@ -25,6 +25,9 @@ export const orderStatusConfig: Record<string, { color: string; label: string }>
   GRABBED: { color: 'blue', label: '已被抢' },
   CONFIRMED: { color: 'green', label: '进行中' },
   DONE: { color: 'green', label: '已完成' },
+  // 存单：客户先把钱存进来、这次还没打。老板 2026-10-08 全链路复查时补的 ——
+  // 以前这个状态没进枚举，界面会把英文 DEPOSITED 直接打给用户看。
+  DEPOSITED: { color: 'cyan', label: '已存单' },
   CANCELLED: { color: 'default', label: '已取消' },
 };
 

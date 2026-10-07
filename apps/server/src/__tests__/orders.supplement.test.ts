@@ -344,7 +344,14 @@ describe('管理端直接补单：订单管理里「退款」改成「补单」�
   it('本来就有待审申请的单：直接补单把它改成「已同意」，不再新增一条', async () => {
     const { service, prisma } = setup();
     prisma.order.findUnique.mockResolvedValue(ORDER);
-    prisma.supplementRequest.findFirst.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
+    // 这张单只有一条「待审」的补单记录；查询里带 status / type 就照着过滤（跟真库一样过滤，
+    // 否则「查有没有已同意的记录」也会拿到这条待审记录，把防重复返还的判定带偏）
+    prisma.supplementRequest.findFirst.mockImplementation(async (args: any) => {
+      const row = { id: 'sr1', type: 'SUPPLEMENT', status: 'PENDING' };
+      if (args?.where?.status && args.where.status !== row.status) return null;
+      if (args?.where?.type && args.where.type !== row.type) return null;
+      return row;
+    });
     prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
     prisma.order.update.mockResolvedValue({ id: 'o1' });
     prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });

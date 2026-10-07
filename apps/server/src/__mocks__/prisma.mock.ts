@@ -198,7 +198,9 @@ export function createMockPrisma() {
     // 补单申请 + 到期核查（老板 2026-10-04）
     supplementRequest: {
       findUnique: vi.fn(),
-      findFirst: vi.fn(),
+      // 真库这里永远回一个 Promise（查不到就是 null）；桩也必须这样，
+      // 否则调用方 `.catch(...)` 会直接炸在 undefined 上（2026-10-08 全链路复查）
+      findFirst: vi.fn().mockResolvedValue(null),
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),

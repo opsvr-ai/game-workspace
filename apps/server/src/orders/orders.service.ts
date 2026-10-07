@@ -1183,6 +1183,24 @@ export class OrdersService implements OnModuleInit {
    * 审核补单（老板 2026-10-04）：同意 = 陪玩次数 +1（写台账），
    * 并排一次「客户后来通过没」的核查，别把这个客户浪费掉；驳回只留痕。
    */
+  /**
+   * 这张单是不是已经因为「补单 / 退单」返还过名额了（老板 2026-10-08 全链路复查）。
+   *
+   * 抢单时一张单只扣了 1 个名额，所以最多只能返还 1 个：
+   * 「报不成功 → 补单同意」(名额 +1) 之后再「退单同意」，如果再 +1 就是凭空多出来的；
+   * 反过来先退单同意、再让管理端直接补单，也一样。
+   * 判定：同一张单下已经有一条「已同意」的补单 / 退单记录（不含正在处理的这一条）。
+   */
+  private async hasReturnedQuota(orderId: string, excludeId: string): Promise<boolean> {
+    const row = await this.prisma.supplementRequest
+      .findFirst({
+        where: { orderId, status: 'APPROVED', id: { not: excludeId } },
+        select: { id: true },
+      })
+      .catch(() => null);
+    return !!row;
+  }
+
   async decideSupplement(id: string, decision: string, note: string | undefined, user: any) {
     if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
       throw new ForbiddenException('只有客服 / 店长 / 老板能审核补单');
@@ -1217,6 +1235,8 @@ export class OrdersService implements OnModuleInit {
     }
 
     const approve = isRefund ? act !== 'REJECT' : act === 'APPROVE';
+    // 一张单只返还一次名额：抢单只扣了 1 个，「补单同意」+「退单同意」不能各还一个（老板 2026-10-08 全链路复查）。
+    const alreadyReturned = approve ? await this.hasReturnedQuota(req.orderId, req.id) : false;
     const reviewDueAt = new Date(Date.now() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
     const updated = await this.prisma.supplementRequest.update({
       where: { id },
@@ -1233,16 +1253,20 @@ export class OrdersService implements OnModuleInit {
       // 同意退单 = 这张单没打成：按「退款」处理（refundedAt → 不计利润与提成），
       // 并把陪玩的名额还回去（跟「添加失败」的补偿一致 —— 名额被这张单占掉了，老板 2026-10-08）。
       await this.markRefund(req.orderId, undefined, req.reason || '陪玩申请退单', '退单').catch(() => null);
-      await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
-        refId: req.orderId,
-        note: '管理端同意退单，返还 1 个名额',
-      });
+      if (!alreadyReturned) {
+        await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
+          refId: req.orderId,
+          note: '管理端同意退单，返还 1 个名额',
+        });
+      }
     }
     if (approve && !isRefund) {
-      await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
-        refId: req.orderId,
-        note: '管理端同意补单，返还 1 个名额',
-      });
+      if (!alreadyReturned) {
+        await this.quota.credit(req.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
+          refId: req.orderId,
+          note: '管理端同意补单，返还 1 个名额',
+        });
+      }
       const order = await this.prisma.order.findUnique({
         where: { id: req.orderId },
         select: { customFields: true },
@@ -1274,10 +1298,10 @@ export class OrdersService implements OnModuleInit {
         note: (note || '').trim() || null,
         message: isRefund
           ? approve
-            ? '管理端已同意退单：这张单已退掉（不计利润与提成），你的抢单次数 +1'
+            ? `管理端已同意退单：这张单已退掉（不计利润与提成）${alreadyReturned ? '' : '，你的抢单次数 +1'}`
             : '管理端驳回了退单申请，这张单照旧'
           : approve
-            ? '管理端已同意补单，你的抢单次数 +1'
+            ? `管理端已同意补单${alreadyReturned ? '' : '，你的抢单次数 +1'}`
             : '管理端驳回了补单申请，这次不返还名额',
       });
     }
@@ -1313,6 +1337,10 @@ export class OrdersService implements OnModuleInit {
     });
     if (existing?.status === 'APPROVED') {
       throw new BadRequestException('这张单已经补过名额了');
+    }
+    // 同一张单只返还一次名额：先走过「退单同意」的，这里不能再补一个（老板 2026-10-08 全链路复查）。
+    if (await this.hasReturnedQuota(orderId, '')) {
+      throw new BadRequestException('这张单已经因为补单 / 退单返还过名额了，不能重复返还');
     }
     const now = new Date();
     const reviewDueAt = new Date(now.getTime() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
@@ -2669,68 +2697,6 @@ export class OrdersService implements OnModuleInit {
       },
     });
     return customer;
-  }
-
-  async renew(orderId: string, userId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
-    const orderCode = await this.nextGlobalCode();
-    const newOrder = await this.prisma.order.create({
-      data: {
-        orderCode,
-        type: 'RENEW',
-        studioId: order.studioId,
-        csUserId: userId,
-        customerId: order.customerId,
-        companionId: order.companionId,
-        coCompanionId: order.coCompanionId,
-        coAmount: order.coAmount,
-        dispatchType: 'DIRECT',
-        source: order.source,
-        attributedCsUserId: order.attributedCsUserId ?? order.claimedCsUserId ?? order.csUserId,
-        amount: order.amount,
-        gameName: order.gameName,
-        duration: order.duration,
-        customFields: { ...((order.customFields as any) || {}), renewedFrom: orderId },
-        status: 'PENDING',
-      },
-    });
-    if (order.companionId) {
-      this.wsGateway.pushOrder(order.companionId, newOrder);
-    }
-    if (order.coCompanionId) {
-      this.wsGateway.pushOrder(order.coCompanionId, newOrder);
-    }
-    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
-    return newOrder;
-  }
-
-  async republish(orderId: string, userId: string, companionId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('订单不存在');
-    if (order.companionId !== companionId) throw new ForbiddenException('无权操作此订单');
-    const orderCode = await this.nextGlobalCode();
-    const newOrder = await this.prisma.order.create({
-      data: {
-        orderCode,
-        type: order.type,
-        studioId: order.studioId,
-        csUserId: userId,
-        customerId: order.customerId,
-        dispatchType: 'POOL',
-        source: order.source,
-        attributedCsUserId: order.attributedCsUserId ?? order.claimedCsUserId ?? order.csUserId,
-        amount: order.amount,
-        gameName: order.gameName,
-        duration: order.duration,
-        customFields: order.customFields as any,
-        status: 'PENDING',
-      },
-      include: { csUser: { select: { username: true, avatar: true, displayName: true, role: true } } },
-    });
-    this.wsGateway.broadcastToBridgedStudios(order.studioId, 'order:pool_updated', newOrder);
-    return newOrder;
   }
 
   async assign(orderId: string, companionId: string, userStudioId?: string) {

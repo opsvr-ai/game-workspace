@@ -134,6 +134,7 @@ export const ORDER_STATUS_TEXT_COLOR: Record<string, string> = {
   GRABBED: SEMANTIC.infoDeep,
   CONFIRMED: SEMANTIC.successDeep,
   DONE: SEMANTIC.successDeep,
+  DEPOSITED: SEMANTIC.warningDeep,
   CANCELLED: TEXT.tertiary,
 };
 

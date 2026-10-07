@@ -18,6 +18,13 @@ export enum OrderStatus {
   GRABBED = 'GRABBED',
   CONFIRMED = 'CONFIRMED',
   DONE = 'DONE',
+  /**
+   * 存单：客户先把钱存进来、这次还没打（OrdersService.markDeposit）。
+   * 不是终态 —— 客人来了接着打（CONFIRMED）/ 打完（DONE）/ 不打了（CANCELLED）都还要能转。
+   * 老板 2026-10-08 全链路复查：以前这个状态既不在枚举里、也不在状态机里，
+   * 界面上直接把英文 DEPOSITED 打给用户看，单子之后也转不动了。
+   */
+  DEPOSITED = 'DEPOSITED',
   CANCELLED = 'CANCELLED',
 }
 

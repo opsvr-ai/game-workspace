@@ -18,6 +18,11 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
   [OrderStatus.CLAIMED]: [OrderStatus.PENDING, OrderStatus.CANCELLED],
   [OrderStatus.GRABBED]: [OrderStatus.CONFIRMED, OrderStatus.DONE, OrderStatus.CANCELLED, OrderStatus.PENDING], // H2: allow re-pool; allow direct complete (unified flow)
   [OrderStatus.CONFIRMED]: [OrderStatus.DONE, OrderStatus.CANCELLED],
+  // 存单（OrdersService.markDeposit 写的 status=DEPOSITED）：客户先把钱存进来、这次还没打。
+  // 以前这张表里没有 DEPOSITED，于是「存单」过的单之后完成 / 取消全被 validateTransition 判成
+  // 「不允许从 DEPOSITED 转换到 DONE」—— 单子卡死在那儿（老板 2026-10-08 全链路复查）。
+  // 现在补上：客人来了接着打（CONFIRMED）、打完（DONE）、或者不打了取消（CANCELLED）。
+  [OrderStatus.DEPOSITED]: [OrderStatus.CONFIRMED, OrderStatus.DONE, OrderStatus.CANCELLED],
 };
 
 @Injectable()
