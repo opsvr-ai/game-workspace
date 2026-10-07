@@ -380,6 +380,13 @@ export class ExcellenceService implements OnModuleInit {
     // 第五版（老板 2026-10-05 又一句）：「（首单成功率）我什么时候说过，不打完怎么算？」
     //   → 首单成功率也统一到「打完才算」：分子从「点过『开始首单』（开过会话）」改成
     //     「这张首单**打完了**（父单 DONE）」的客户数。三率现在同一个口径：都要 DONE。
+    // 第六版（老板 2026-10-07）：「钱鸿鸣虽然被邀请，但是事实是没续单，应该被统计进去」——
+    //   **双陪单里当搭档（被主陪邀请）打的，也算他服务过这个客户**：
+    //   分母（打过首单的客户）把他算进去；分子（续单 / 复购）只认**他参与过的那次**。
+    //   事实是没续单 → 分母照加、分子不给：既不白捡（别人跟这个客户续单不算他的），
+    //   也不当没打过（他自己那一栏看得见这个客户）。一句话：**这张单我出力了（主陪或搭档），就记在我头上**。
+    //   边界（不动老口径）：一个客户只在「他当搭档的续单 / 复购单」里出现过、没有他参与的首单 →
+    //   不进分母也不进分子（分子永远只在「打过首单的客户」里数，防止比率 >100%）。
     const RATE_WINDOW_DAYS = 30;
     const rateWindowStart = new Date(Date.now() - RATE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -388,14 +395,17 @@ export class ExcellenceService implements OnModuleInit {
     // 「评分说明」里连上等马线都拿不到真实配置（老板 2026-10-04 顺手修）。
     for (const cid of ids) m.set(cid, { count: 0, firstCustomers: 0, renew: 0, repurchase: 0 });
 
+    // 老板 2026-10-07：「双陪单里被邀请（当搭档）打的，也算他服务过这个客户」——
+    // 所以取「他参与过的单」而不是「他当主陪的单」：一张双陪单同时记在主陪和搭档两个人头上。
     const windowOrders = await this.prisma.order.findMany({
       where: {
-        companionId: { in: ids },
+        OR: [{ companionId: { in: ids } }, { coCompanionId: { in: ids } }],
         status: 'DONE',
         createdAt: { gte: rateWindowStart },
       },
       select: {
         companionId: true,
+        coCompanionId: true,
         customerId: true,
         type: true,
         createdAt: true,
@@ -404,67 +414,92 @@ export class ExcellenceService implements OnModuleInit {
     // 老板 2026-10-05：「不结束、还没打完你怎么计算？」——除了父单要是 DONE（上面已卡），
     // **段**也要打完才算数：陪玩点了「续单」开了第 2 段、但那段还在打（会话 ACTIVE）的先不算。
     // 修前读的是父单的 `_count.sessions`（不分段状态），点了续单即刻就计 —— 正是这个洞。
+    // 段按**实际打这一段的人**归户（会话上的主陪 + 搭档，缺了退回父单上的），
+    // 这样搭档也拿得到「他参与过的那次续单」。
     const windowDoneSessions = await this.prisma.orderSession.findMany({
       where: {
         status: 'DONE',
         parentOrder: {
-          companionId: { in: ids },
+          OR: [{ companionId: { in: ids } }, { coCompanionId: { in: ids } }],
           status: 'DONE',
           createdAt: { gte: rateWindowStart },
         },
       },
-      select: { parentOrder: { select: { companionId: true, customerId: true } } },
+      select: {
+        companionId: true,
+        coCompanionId: true,
+        parentOrder: { select: { companionId: true, coCompanionId: true, customerId: true } },
+      },
     });
     const doneSegments = new Map<string, Map<string, number>>(); // companionId -> customerId -> 已打完的段数
     for (const seg of windowDoneSessions) {
-      const cid = (seg as any).parentOrder?.companionId;
       const cust = (seg as any).parentOrder?.customerId;
-      if (!cid || !cust) continue;
-      let segByCust = doneSegments.get(cid);
-      if (!segByCust) {
-        segByCust = new Map<string, number>();
-        doneSegments.set(cid, segByCust);
+      if (!cust) continue;
+      const mainId = (seg as any).companionId || (seg as any).parentOrder?.companionId;
+      const coId = (seg as any).coCompanionId || (seg as any).parentOrder?.coCompanionId;
+      for (const pid of new Set([mainId, coId].filter(Boolean) as string[])) {
+        if (!m.has(pid)) continue;
+        let segByCust = doneSegments.get(pid);
+        if (!segByCust) {
+          segByCust = new Map<string, number>();
+          doneSegments.set(pid, segByCust);
+        }
+        segByCust.set(cust, (segByCust.get(cust) || 0) + 1);
       }
-      segByCust.set(cust, (segByCust.get(cust) || 0) + 1);
     }
-    // companionId -> (customerId -> 这个客户在你这的汇总：单数 / 段数 / 有没有续复购单 / 出现过哪些营业日）
+    // companionId -> (customerId -> 这个客户在你这的汇总：单数 / 段数 / 有没有续复购单 / 出现过哪些营业日)
     type CustAgg = {
       orders: number;
       hasRenewType: boolean;
       days: Set<string>;
       firstDone: boolean;
+      /** 这个客户他**自己主陪过**（窗口内当过主陪，不管什么单型）——判断「算不算他自己的客户」用 */
+      mainSeen: boolean;
     };
     const perCustomer = new Map<string, Map<string, CustAgg>>();
     for (const o of windowOrders) {
-      const s = m.get(o.companionId!);
-      if (!s) continue;
-      s.count += 1;
-      let byCust = perCustomer.get(o.companionId!);
-      if (!byCust) {
-        byCust = new Map<string, CustAgg>();
-        perCustomer.set(o.companionId!, byCust);
+      if (!o.customerId) continue;
+      // 这张单的参与人：主陪 + 搭档（两个都在本次要算的人里才算）
+      const participants = Array.from(
+        new Set([o.companionId, (o as any).coCompanionId].filter((v): v is string => !!v && m.has(v))),
+      );
+      for (const pid of participants) {
+        const s = m.get(pid)!;
+        s.count += 1;
+        let byCust = perCustomer.get(pid);
+        if (!byCust) {
+          byCust = new Map<string, CustAgg>();
+          perCustomer.set(pid, byCust);
+        }
+        const agg =
+          byCust.get(o.customerId) ||
+          { orders: 0, hasRenewType: false, days: new Set<string>(), firstDone: false, mainSeen: false };
+        agg.orders += 1;
+        if (o.companionId === pid) agg.mainSeen = true; // 主陪过这个客户（哪怕首单在 30 天窗口外）
+        if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.hasRenewType = true;
+        if (o.type === 'NEW') agg.firstDone = true;
+        if (o.createdAt) agg.days.add(businessDayKey(o.createdAt as Date));
+        byCust.set(o.customerId, agg);
       }
-      const agg =
-        byCust.get(o.customerId) ||
-        { orders: 0, hasRenewType: false, days: new Set<string>(), firstDone: false };
-      agg.orders += 1;
-      if (o.type === 'RENEW' || o.type === 'REPURCHASE') agg.hasRenewType = true;
-      if (o.type === 'NEW') agg.firstDone = true;
-      if (o.createdAt) agg.days.add(businessDayKey(o.createdAt as Date));
-      byCust.set(o.customerId, agg);
     }
     for (const [cid, byCust] of perCustomer) {
       const s = m.get(cid)!;
       for (const [custId, agg] of byCust) {
         const doneSegs = doneSegments.get(cid)?.get(custId) || 0;
         if (agg.firstDone) s.firstCustomers += 1; // 打了首单的客户数 = 续单率 / 复购率的分母
+        // 分子（续单 / 复购）只在「算得上他自己的客户」里数（老板 2026-10-07 双陪改动后的收口）：
+        //   · 在他这打过首单的客户 → 算；
+        //   · 他自己**主陪**过的客户 → 也算（老口径不动：首单在 30 天窗口外、窗口内又回来续单的照样算；
+        //     卡死这条会让 童祥瑞 那种「老客户回头」的续单凭空掉 2 个，92% → 75%）；
+        //   · **纯搭档**关系（他从没在这客户身上当过主陪、也没打过首单）→ 分母分子都不进。
+        // 收口前分子没卡这一条，线上 胡程硕 被算成 133%（分子 4 / 分母 3）。
+        if (!agg.firstDone && !agg.mainSeen) continue;
         // 续单：该客户有 2 段及以后**打完的**会话（或一张 DONE 的 RENEW / REPURCHASE 单）。
         // 「点了续单还在打」不算（老板 2026-10-05）。
         if (doneSegs >= 2 || agg.hasRenewType) s.renew += 1;
         if (agg.days.size >= 2) s.repurchase += 1; // 复购：隔了一个营业日又来打（另有成交单，且父单 DONE）
       }
     }
-
     // 最近 30 天流水（老板 2026-10-04：「所有指标都按照最近 30 天统计」）：
     //   原来按「营业月」（当月 1 日 12:00 至次月 1 日 12:00）取，月初几天全员流水从 0 起算，
     //   连最厉害的陪玩也会暂时掉成下等马；改成滚动 30 天，跟续单率 / 复购率 / 首单成功率同窗口，

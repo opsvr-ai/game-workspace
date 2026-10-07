@@ -68,6 +68,12 @@ type CustSpec = {
   sameDay?: boolean;
   /** 这个客户在你这总共有多少段会话（默认 = 单数；给更大的值表示同一张单里点过「续单」加段） */
   sessions?: number;
+  /** 这单是双陪：搭档（被邀请方）是谁 —— 老板 2026-10-07「被邀请打的也要统计进去」 */
+  co?: string;
+  /** 只有第 1 单带搭档（第 2 单他自己跟客户打的，搭档没参与） */
+  coFirstOnly?: boolean;
+  /** 这些单的订单类型（默认 NEW 首单）；给 RENEW / REPURCHASE 表示这个客户在这没打过首单 */
+  kind?: 'NEW' | 'RENEW' | 'REPURCHASE';
 };
 
 function setup(opts: {
@@ -102,8 +108,9 @@ function setup(opts: {
         const sessions = i === 0 ? totalSessions - (count - 1) : 1;
         windowRows.push({
           companionId,
+          coCompanionId: c.co && (!c.coFirstOnly || i === 0) ? c.co : null,
           customerId: `${companionId}-${c.cust}`,
-          type: 'NEW',
+          type: c.kind ?? 'NEW',
           createdAt: new Date(2026, 9, 1 + dayIdx, 14, 0, 0),
           _count: { sessions },
         });
@@ -146,7 +153,13 @@ function setup(opts: {
             const total = (r as any)._count?.sessions || 0;
             const open = opts.openSegments?.[`${r.companionId}|${r.customerId}`] ?? 0;
             return Array.from({ length: Math.max(0, total - open) }, () => ({
-              parentOrder: { companionId: r.companionId, customerId: r.customerId },
+              companionId: r.companionId,
+              coCompanionId: r.coCompanionId ?? null,
+              parentOrder: {
+                companionId: r.companionId,
+                coCompanionId: r.coCompanionId ?? null,
+                customerId: r.customerId,
+              },
             }));
           }),
         ),
@@ -336,6 +349,87 @@ describe('回头客口径：按客户算 + 最近 30 天 + 12 点营业日', () 
     expect(r.orderCount).toBe(0);
     expect(r.rankScore).toBe(4);
     expect(r.revenueScore).toBe(0);
+  });
+
+  // 老板 2026-10-07：「钱鸿鸣虽然被邀请，但是事实是没续单，应该被统计进去」——
+  // 双陪单里当搭档（被主邀方邀请）打的，也算他服务过这个客户：分母照加，没续单就不给分子。
+  it('双陪单里当搭档（被邀请）打的，也进他的分母；事实没续单 → 分子不给（老板 2026-10-07）', async () => {
+    const svc = setup({
+      doneOrders: {
+        // c1 主陪：客户 x 只打 1 单（搭档 c2）、客户 y 打了 2 单（c2 没参与）
+        c1: [
+          { cust: 'x', count: 1, co: 'c2' },
+          { cust: 'y', count: 2 },
+        ],
+      },
+      monthlyRevenue: { c1: 6000 },
+    });
+    const map = await svc.computeForCompanions(['c1', 'c2']);
+    const main = map.get('c1')!;
+    const co = map.get('c2')!;
+
+    expect(main.orderCount).toBe(3);
+    expect(main.renewRate).toBe(50); // 分母 2（x / y），只有 y 有第 2 段
+
+    expect(co.orderCount).toBe(1); // 这张双陪单记在他头上（改前是 0：他这一栏根本看不到）
+    expect(co.renewRate).toBe(0); // 事实是没续单 → 分母加了、分子不给
+    expect(co.repurchaseRate).toBe(0);
+  });
+
+  it('搭档也拿得到「他参与过的那次续单」：两单都带他 → 续单率 100%', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'x', count: 2, co: 'c2' }] }, // 两张单（隔营业日）都是 c1 + c2 双陪
+      monthlyRevenue: { c1: 6000 },
+    });
+    const co = (await svc.computeForCompanions(['c2'])).get('c2')!;
+    expect(co.orderCount).toBe(2);
+    expect(co.renewRate).toBe(100);
+    expect(co.repurchaseRate).toBe(100);
+  });
+
+  it('搭档只在首单出现过（第 2 单他自己打的）→ 不能被别人的续单算成他的', async () => {
+    const svc = setup({
+      doneOrders: { c1: [{ cust: 'x', count: 2, co: 'c2', coFirstOnly: true }] },
+      monthlyRevenue: { c1: 6000 },
+    });
+    const map = await svc.computeForCompanions(['c1', 'c2']);
+    expect(map.get('c1')!.renewRate).toBe(100); // 主陪打了第 2 段
+    expect(map.get('c2')!.orderCount).toBe(1);
+    expect(map.get('c2')!.renewRate).toBe(0); // 搭档没参与第 2 段 → 不算他的续单
+  });
+
+  it('只在「他当搭档的续单 / 复购单」里出现过的客户：不进分母也不进分子（续单率不会 >100%）', async () => {
+    const svc = setup({
+      doneOrders: {
+        // c1 主陪：客户 z1 是 REPURCHASE、z2 是 RENEW，两单都拉上 c2 当搭档 —— c2 没在这俩客户身上打过首单
+        c1: [
+          { cust: 'x', count: 1 },
+          { cust: 'z1', count: 1, kind: 'REPURCHASE', co: 'c2' },
+          { cust: 'z2', count: 1, kind: 'RENEW', co: 'c2' },
+        ],
+        c2: [{ cust: 'k', count: 1 }], // c2 自己只服务过一个客户（打过首单 → 分母 1）
+      },
+      monthlyRevenue: { c2: 6000 },
+    });
+    const co = (await svc.computeForCompanions(['c2'])).get('c2')!;
+    expect(co.orderCount).toBe(3); // 三张单他都参与了（都记在他头上）
+    expect(co.renewRate).toBe(0); // 但 z1 / z2 他一次主陪都没当过 → 纯搭档关系，不算他的续单
+    expect(co.repurchaseRate).toBe(0);
+  });
+
+  it('他自己主陪过、只是首单落在 30 天窗口外的回头客户：照老口径算续单（收口不能误伤）', async () => {
+    const svc = setup({
+      doneOrders: {
+        c1: [
+          { cust: 'k', count: 1 }, // 窗口内打过首单 → 分母 1
+          { cust: 'old', count: 1, kind: 'RENEW' }, // 只有一张续单（首单在窗口外、查不到）→ 仍算他的续单
+        ],
+      },
+      monthlyRevenue: { c1: 6000 },
+    });
+    const r = (await svc.computeForCompanions(['c1'])).get('c1')!;
+    expect(r.orderCount).toBe(2);
+    expect(r.renewRate).toBe(100); // 1 / 1：主陪过的客户照样算分子（线上 童祥瑞 就是这个口径，92% 不能掉）
   });
 });
 
