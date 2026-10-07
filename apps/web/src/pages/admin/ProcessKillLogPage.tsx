@@ -111,7 +111,7 @@ const ProcessKillLogPage: React.FC = () => {
         </Row>
       )}
 
-      <Table size="small" columns={columns} dataSource={logs} rowKey="id" loading={loading}
+      <Table scroll={{ x: 870 }} size="small" columns={columns} dataSource={logs} rowKey="id" loading={loading}
         locale={{ emptyText: '暂无杀进程记录' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
     </div>

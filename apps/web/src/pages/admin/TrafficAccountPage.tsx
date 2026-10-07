@@ -1063,6 +1063,7 @@ const TrafficAccountPage: React.FC = () => {
           </div>
         )}
         <Table
+          scroll={{ x: 1717 }}
           rowKey="id"
           size="small"
           loading={notesLoading}

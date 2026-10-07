@@ -303,6 +303,7 @@ const WorkWechatPage: React.FC = () => {
         )}
 
         <Table
+          scroll={{ x: 770 }}
           dataSource={tableRows}
           rowKey={(r: any) => r._rowKey}
           loading={loading || requestsLoading}

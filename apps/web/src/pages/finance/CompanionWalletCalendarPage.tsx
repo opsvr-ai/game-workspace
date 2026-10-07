@@ -250,6 +250,7 @@ const CompanionWalletCalendarPage: React.FC = () => {
             style={{ width: 280, marginBottom: 12 }}
           />
           <Table
+            scroll={{ x: 990 }}
             rowKey="companionId"
             size="small"
             dataSource={filteredCompanions}

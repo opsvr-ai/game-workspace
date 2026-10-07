@@ -494,6 +494,7 @@ const CustomerBoardPage: React.FC = () => {
 
   const tableFor = (list: BoardRow[]) => (
     <Table
+      scroll={{ x: 1014 }}
       rowKey="customerId"
       size="small"
       columns={columns}

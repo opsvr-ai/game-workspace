@@ -344,6 +344,7 @@ const StudiosPage: React.FC = () => {
 
       {/* Single unified table: pending applications + approved studios */}
       <Table
+        scroll={{ x: 1180 }}
         dataSource={[
           ...pendingUsers.map((u: any) => ({ ...u, _type: 'pending' })),
           // Filter: don't show studios that have pending users (avoid duplicate)

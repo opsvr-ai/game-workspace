@@ -499,6 +499,7 @@ const MachinesPage: React.FC = () => {
       />
 
       <Table<MachineItem>
+        scroll={{ x: 1372 }}
         rowKey="machineId"
         size="small"
         loading={loading}

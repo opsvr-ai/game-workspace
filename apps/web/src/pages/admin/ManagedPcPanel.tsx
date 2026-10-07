@@ -234,6 +234,7 @@ const ManagedPcPanel: React.FC = () => {
         </div>
       )}
       <Table
+        scroll={{ x: 1280 }}
         rowKey="id"
         rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys as string[]) }}
         columns={columns}

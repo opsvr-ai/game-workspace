@@ -154,6 +154,7 @@ const RiskWorkbenchPage: React.FC = () => {
               <div style={{ padding: '4px 12px' }}>
                 {record.customers?.length ? (
                   <Table
+                    scroll={{ x: 780 }}
                     rowKey="customerId"
                     size="small"
                     pagination={false}

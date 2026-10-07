@@ -21,6 +21,8 @@
     "stat-cards:check": "node scripts/_check_stat_cards.mjs --check",
   "feedback": "node scripts/_check_feedback_layer.mjs",
   "feedback:check": "node scripts/_check_feedback_layer.mjs --check",
+    "table-scroll": "node scripts/_check_table_scroll.mjs",
+    "table-scroll:check": "node scripts/_check_table_scroll.mjs --check",
     "splitting:check": "node scripts/_check_route_splitting.mjs",
     "routes": "node scripts/_export_web_routes.mjs",
     "routes:check": "node scripts/_export_web_routes.mjs --check",

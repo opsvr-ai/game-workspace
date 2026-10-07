@@ -161,6 +161,7 @@ scripts/_*
 !scripts/_check_route_splitting.mjs
 !scripts/_check_stat_cards.mjs
 !scripts/_check_feedback_layer.mjs
+!scripts/_check_table_scroll.mjs
 !scripts/_export_web_routes.mjs
 !scripts/_export_css_vars.mjs
 !scripts/_shot_ui.mjs

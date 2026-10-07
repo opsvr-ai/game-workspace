@@ -67,6 +67,11 @@ jobs:
       # <Card><Statistic/> 拼统计卡」。基线见 docs/STAT-CARD-BASELINE.json（当前 0 + 31，只能减不能增）。
       - name: 统计卡冻结（看板大数字只有一个来源）
         run: node scripts/_check_stat_cards.mjs --check
+      # 表格横滚兜底（2026-10-07）：1024 宽窗口下内容区可用宽度实测约 763px。表格列宽合计超过它、
+      # 又没写 scroll={{ x }} 时 antd 不给横滚 —— 右边几列（通常是「操作」）会被直接切掉、滚都滚不到。
+      # 规则：无 scroll 的 <Table> 列宽合计 > 760 就红；确需超宽的写 table-scroll-ok 并说明理由。目标恒为 0。
+      - name: 表格横滚兜底（列宽超了就横滚，不许切掉）
+        run: node scripts/_check_table_scroll.mjs --check
       # 提示层出口冻结（docs/REFACTOR-PLAN.md P2-8「反馈层无统一出口」）：全站 600 多处提示以前
       # 都各自从 antd 直接 import message —— 「同一句话连着弹两条」这类问题没法收口，想改提示
       # 得全局搜 600 处。统一走 apps/web/src/utils/feedback.ts（同名同形，调用点一个字不用改）后，

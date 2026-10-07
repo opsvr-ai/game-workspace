@@ -453,6 +453,7 @@ const PcControlPage: React.FC = () => {
       />
 
       <Table
+        scroll={{ x: 1190 }}
         columns={columns}
         dataSource={filtered}
         rowKey="id"

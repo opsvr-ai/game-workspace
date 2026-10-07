@@ -245,6 +245,7 @@ const TransactionReviewSection: React.FC = () => {
       style={{ marginTop: 16 }}
     >
       <Table
+        scroll={{ x: 930 }}
         size="small"
         rowKey="id"
         columns={columns}

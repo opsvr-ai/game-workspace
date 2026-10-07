@@ -308,6 +308,7 @@ const CsSettingsPage: React.FC = () => {
           **留空的项还是用本店那一套**；想让他回到本店一套，点弹窗里的「清空」。
         </Text>
         <Table
+          scroll={{ x: 780 }}
           style={{ marginTop: 12 }}
           rowKey="userId"
           size="small"
