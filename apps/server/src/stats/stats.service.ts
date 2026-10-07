@@ -95,6 +95,8 @@ export interface DailyKpiRow {
   repurchaseRate: number;
   /** 当天服务过的客户数（去重） */
   customers: number;
+  /** 其中的「老客」= 打过首单的客户数（续单率 / 复购率的分母，跟陪玩 KPI 同一条线） */
+  denomCustomers: number;
   /** 当天在他这打了首单的客户数（新客） */
   newCustomers: number;
   /** 当天流水（元） */
@@ -203,6 +205,7 @@ function emptyDailyKpiRow(date: string): DailyKpiRow {
     renewRate: 0,
     repurchaseRate: 0,
     customers: 0,
+    denomCustomers: 0,
     newCustomers: 0,
     amount: 0,
     hours: 0,
@@ -736,6 +739,7 @@ export class StatsService {
       const renew = [...(renewCustByDay.get(day) || [])].filter((c) => denom.has(c));
       const buyAgain = [...(buyAgainCustByDay.get(day) || [])].filter((c) => denom.has(c));
       row.customers = served.size;
+      row.denomCustomers = denom.size;
       row.newCustomers = newCustByDay.get(day)?.size || 0;
       row.renew = renew.length;
       row.repurchase = buyAgain.length;
@@ -767,6 +771,7 @@ export class StatsService {
       amount: round1(tAmount),
       hours: round1(tHours),
       customers: allServed.size,
+      denomCustomers: allDenom.size,
       newCustomers: allNew.size,
       renew: allRenew.size,
       repurchase: allBuyAgain.size,

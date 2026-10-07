@@ -55,6 +55,7 @@ interface DailyRow {
   renewRate: number;
   repurchaseRate: number;
   customers: number;
+  denomCustomers: number;
   newCustomers: number;
   amount: number;
   hours: number;
@@ -304,6 +305,16 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
         align: 'right' as const,
         render: (v: number) => <Text style={{ color: v >= 30 ? SEMANTIC.repurchase : TEXT.secondary }}>{pct(v)}</Text>,
       },
+      {
+        title: (
+          <Tooltip title="当天服务过、且在他这打过首单的客户数 —— 续单率 / 复购率的分母（跟陪玩 KPI 同一条线）">
+            <span>老客</span>
+          </Tooltip>
+        ),
+        dataIndex: 'denomCustomers',
+        width: 56,
+        align: 'right' as const,
+      },
       { title: '服务客户', dataIndex: 'customers', width: 74, align: 'right' as const },
       { title: '新客', dataIndex: 'newCustomers', width: 56, align: 'right' as const },
       {
@@ -542,18 +553,21 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
                     <Text strong style={{ color: SEMANTIC.repurchase }}>{total?.repurchase ?? 0}</Text>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={5} align="right">
-                    {pct(total?.renewRate)}
+                    {total?.denomCustomers ?? 0}
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={6} align="right">
-                    {pct(total?.repurchaseRate)}
+                    {pct(total?.renewRate)}
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={7} align="right">
-                    {total?.customers ?? 0}
+                    {pct(total?.repurchaseRate)}
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={8} align="right">
-                    {total?.newCustomers ?? 0}
+                    {total?.customers ?? 0}
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={9} align="right">
+                    {total?.newCustomers ?? 0}
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={10} align="right">
                     <Text strong>{yuan(total?.amount)}</Text>
                   </Table.Summary.Cell>
                 </Table.Summary.Row>
@@ -609,7 +623,10 @@ const DailyKpiPanel: React.FC<DailyKpiPanelProps> = ({
               locale={{ emptyText: <Empty description="这一天没有这一类单" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             />
             <Space size={8} wrap>
-              <Text strong>这一天服务过的客户（{detail.customers.length} 个）</Text>
+              <Text strong>
+                这一天服务过的客户（{detail.customers.length} 个，其中{' '}
+                {detail.customers.filter((c) => c.counted).length} 个算进分母）
+              </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 只加了段、没有新单的客户也在这儿（不再漏掉「同一个单里加打一段」）
               </Text>
