@@ -31,6 +31,7 @@ import LeftMessagePanel from '../components/LeftMessagePanel';
 import SalaryDetailModal from '../components/SalaryDetailModal';
 import GrabSuccessModal from '../components/GrabSuccessModal';
 import { BG, BORDER, BRAND, SEMANTIC, TEXT, badgeGlow } from '../styles/tokens';
+import { installWindowNavListener } from '../utils/windowNav';
 import { roleMenus, roleLabels, menuBadgeLabel, decorateMenu, rolePage, IconLogout, IconFold, IconUnfold } from '../config/roleMenus';
 // Chat 3.0: playMessageSound + chatApi now handled by ChatProvider
 
@@ -798,6 +799,11 @@ const AppLayout: React.FC = () => {
     };
   }, []);
 
+  // 「独立聊天窗口」里点「查看订单」→ 让**主程序这个窗口**跳到订单管理并把那一单标出来
+  // （老板 2026-10-08：「直接跳到订单管理不行？为啥还得搞窗口？」）。跨窗口用的是
+  // localStorage + storage 事件（同源窗口一定收得到，而且是事件、不受后台节流），
+  // 见 utils/windowNav.ts —— 独立系统窗口没有 opener，只能靠这条。
+  React.useEffect(() => installWindowNavListener((url) => navigate(url)), [navigate]);
   // 右下角通知弹窗被点了一下（utils/notice.ts 派发的自定义事件）→ 跳到通知指向的页面。
   React.useEffect(() => {
     const onNoticeGoto = (e: Event) => {

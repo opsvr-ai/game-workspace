@@ -5,7 +5,8 @@ import { PushpinOutlined, PushpinFilled, CloseOutlined, PhoneOutlined, MinusOutl
 import { useNavigate } from 'react-router-dom';
 import { useVoiceCallStore } from '../../stores/voiceCallStore';
 import { useAuthStore } from '../../stores/authStore';
-import { ordersPathWithOrder, openOrdersWindow, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
+import { ordersPathWithOrder, parseOrderInfo, orderInfoVisible, ORDER_INFO_TTL_MS } from '../../utils/chatOrder';
+import { navigateInOtherWindow, navigateOpenerWindow } from '../../utils/windowNav';
 import { message } from '../../utils/feedback';
 import { BRAND, TEXT, BG, SEMANTIC } from '../../styles/tokens';
 
@@ -76,21 +77,28 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ name, role, userId, avatarUrl, 
   }, [orderInfo, orderAt]);
   const showOrder = !!orderRef && !orderExpired;
 
-  // 点「查看订单」：在订单管理里把这一单标出来（整行高亮 + 自动弹出它的详情）。
+  // 点「查看订单」：跳到订单管理并把这一单标出来（整行高亮 + 自动弹出它的详情）。
   //
   // **独立聊天窗口里不能用 navigate**：聊天窗口本身就是个独立窗口，navigate 会把
-  // 「跟这个人的聊天」整个换成订单管理页（老板 2026-10-07 报的那个）。独立窗口里
-  // 改成另开一个订单管理窗口 —— 聊天窗口原地不动，聊天记录一条不少。
+  // 「跟这个人的聊天」整个换成订单管理页（老板 2026-10-07 报的那个）。
+  // 但**也不再另开订单管理窗口**（老板 2026-10-08：「直接跳到订单管理不行？为啥还得搞窗口？」）——
+  // 改成让**主程序窗口**去跳：浏览器里 window.open 出来的聊天窗口直接指挥 window.opener，
+  // 独立系统窗口走 utils/windowNav.ts 的跨窗口通道。聊天窗口原地不动，聊天记录一条不少。
   const openOrderDetail = () => {
     const orderId = orderRef?.orderId;
     if (!orderId) return;
-    if (standalone) {
-      if (!openOrdersWindow(myRole, orderId)) {
-        message.warning('新窗口被浏览器拦住了，请允许弹出窗口后再点一次');
-      }
+    const url = ordersPathWithOrder(myRole, orderId);
+    if (!standalone) {
+      navigate(url);
       return;
     }
-    navigate(ordersPathWithOrder(myRole, orderId));
+    if (navigateOpenerWindow(url)) return;
+    void navigateInOtherWindow(url).then((ok) => {
+      if (ok) return;
+      // 走到这儿说明主程序窗口不在（被关掉了）。这里**不能再开新窗口** —— 已经不在用户手势里，
+      // 浏览器一定拦（老板 2026-10-08 报的那条提示就是这么来的），直接告诉人去哪儿点更实在。
+      message.warning('没找到主程序窗口，先在任务栏（或右下角托盘）打开主程序，再点一次这里');
+    });
   };
 
   return (
