@@ -182,14 +182,13 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          // 老板 2026-10-07：「远程控制 / 机器管理 / 客户端版本」这 3 个功能合并成一页，
-          // 菜单里只剩一条（分组改叫「客户端管理」，免得和条目同名）。
+          // 老板 2026-10-07：分两批把 6 个功能收进 2 页 ——「远程控制 / 机器管理 / 客户端版本」
+          // 合并成「客户端与设备」；「进程黑名单 / 进程白名单 / 杀进程日志」合并成「进程管控」。
+          // 菜单里各只剩一条（分组改叫「客户端管理」，免得和条目同名）。
           key: '客户端管理', label: '客户端管理',
           children: [
             { key: '/admin/machines', label: '客户端与设备' },
-            { key: '/admin/blacklist', label: '进程黑名单' },
-            { key: '/admin/whitelist', label: '进程白名单' },
-            { key: '/admin/process-kill-log', label: '杀进程日志' },
+            { key: '/admin/process-control', label: '进程管控' },
           ],
         },
         { key: '/profile', label: '个人设置' },
@@ -298,14 +297,13 @@ const roleMenus: Record<UserRole, MenuItemDef[]> = {
           ],
         },
         {
-          // 老板 2026-10-07：「远程控制 / 机器管理 / 客户端版本」这 3 个功能合并成一页，
-          // 菜单里只剩一条（分组改叫「客户端管理」，免得和条目同名）。
+          // 老板 2026-10-07：分两批把 6 个功能收进 2 页 ——「远程控制 / 机器管理 / 客户端版本」
+          // 合并成「客户端与设备」；「进程黑名单 / 进程白名单 / 杀进程日志」合并成「进程管控」。
+          // 菜单里各只剩一条（分组改叫「客户端管理」，免得和条目同名）。
           key: '客户端管理', label: '客户端管理',
           children: [
             { key: '/admin/machines', label: '客户端与设备' },
-            { key: '/admin/blacklist', label: '进程黑名单' },
-            { key: '/admin/whitelist', label: '进程白名单' },
-            { key: '/admin/process-kill-log', label: '杀进程日志' },
+            { key: '/admin/process-control', label: '进程管控' },
           ],
         },
         { key: '/profile', label: '个人设置' },

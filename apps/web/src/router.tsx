@@ -104,9 +104,9 @@ const AuthorizationsPage = lazy(() => import('./pages/owner/AuthorizationsPage')
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
-const BlacklistPage = lazy(() => import('./pages/admin/BlacklistPage'));
-const ProcessKillLogPage = lazy(() => import('./pages/admin/ProcessKillLogPage'));
-const WhitelistPage = lazy(() => import('./pages/admin/WhitelistPage'));
+// 「进程管控」= 进程黑名单 + 进程白名单 + 杀进程日志 三页合一（老板 2026-10-07）；
+// 那三个页面组件由这一页内部引用，不在这里各占一条懒加载。
+const ProcessControlPage = lazy(() => import('./pages/admin/ProcessControlPage'));
 const AttendancePage = lazy(() => import('./pages/admin/AttendancePage'));
 const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
 const UiKitPage = lazy(() => import('./pages/UiKitPage'));
@@ -425,16 +425,22 @@ export const router = createBrowserRouter([
         element: page(<OrderReviewPage />),
       },
       {
+        // 「进程管控」= 进程黑名单（页签一）+ 进程白名单 + 杀进程日志（老板 2026-10-07：这 3 个功能合并）。
+        path: 'admin/process-control',
+        element: page(<ProcessControlPage />),
+      },
+      {
+        // 老地址：三条各自跳到自己那个页签上，老书签照旧能用。
         path: 'admin/blacklist',
-        element: page(<BlacklistPage />),
+        element: <Navigate to="/admin/process-control?tab=blacklist" replace />,
       },
       {
         path: 'admin/whitelist',
-        element: page(<WhitelistPage />),
+        element: <Navigate to="/admin/process-control?tab=whitelist" replace />,
       },
       {
         path: 'admin/process-kill-log',
-        element: page(<ProcessKillLogPage />),
+        element: <Navigate to="/admin/process-control?tab=killlog" replace />,
       },
       {
         path: 'admin/attendance',

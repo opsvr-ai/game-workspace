@@ -49,9 +49,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "· /owner/bridges | 工作室桥接",
     "▸ 客户端管理 | 客户端管理",
     "· /admin/machines | 客户端与设备",
-    "· /admin/blacklist | 进程黑名单",
-    "· /admin/whitelist | 进程白名单",
-    "· /admin/process-kill-log | 杀进程日志",
+    "· /admin/process-control | 进程管控",
     "· /profile | 个人设置",
   ],
   "COMPANION": [
@@ -154,9 +152,7 @@ exports[`左侧导航菜单（roleMenus） > 整棵菜单树快照（重构 AppL
     "· /admin/finance/price-rules | 价格规则",
     "▸ 客户端管理 | 客户端管理",
     "· /admin/machines | 客户端与设备",
-    "· /admin/blacklist | 进程黑名单",
-    "· /admin/whitelist | 进程白名单",
-    "· /admin/process-kill-log | 杀进程日志",
+    "· /admin/process-control | 进程管控",
     "· /profile | 个人设置",
   ],
 }

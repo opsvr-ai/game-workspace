@@ -14,7 +14,7 @@ interface WhitelistEntry {
   isSystem: boolean;
 }
 
-const WhitelistPage: React.FC = () => {
+const WhitelistPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [items, setItems] = useState<WhitelistEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -105,6 +105,7 @@ const WhitelistPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="进程白名单"
         subtitle="白名单里的进程不会被关闭（优先级高于黑名单） · 系统内置条目不可删除"
         extra={

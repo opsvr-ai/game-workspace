@@ -1,7 +1,7 @@
 {
   "_comment": "网页端路由表（四端共用的导航契约）。只能加、不能悄悄删改：改路由会动到这里，请确认陪玩端 / 客服端没有依赖老路径。",
   "_exportedAt": "2026-10-07",
-  "count": 87,
+  "count": 88,
   "routes": [
     {
       "path": "/",
@@ -54,9 +54,9 @@
     },
     {
       "path": "/admin/blacklist",
-      "kind": "page",
-      "component": "BlacklistPage",
-      "redirectTo": null,
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/process-control?tab=blacklist",
       "hasErrorElement": false
     },
     {
@@ -214,10 +214,17 @@
       "hasErrorElement": false
     },
     {
-      "path": "/admin/process-kill-log",
+      "path": "/admin/process-control",
       "kind": "page",
-      "component": "ProcessKillLogPage",
+      "component": "ProcessControlPage",
       "redirectTo": null,
+      "hasErrorElement": false
+    },
+    {
+      "path": "/admin/process-kill-log",
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/process-control?tab=killlog",
       "hasErrorElement": false
     },
     {
@@ -271,9 +278,9 @@
     },
     {
       "path": "/admin/whitelist",
-      "kind": "page",
-      "component": "WhitelistPage",
-      "redirectTo": null,
+      "kind": "redirect",
+      "component": null,
+      "redirectTo": "/admin/process-control?tab=whitelist",
       "hasErrorElement": false
     },
     {

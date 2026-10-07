@@ -21,7 +21,7 @@ interface PendingEntry {
   displayName?: string | null;
 }
 
-const BlacklistPage: React.FC = () => {
+const BlacklistPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const role = useAuthStore((s) => s.user?.role);
   const isOwner = role === 'OWNER';
   // 「按人特批」跟本店开关同一拨人：老板 / 店长能改，客服只能看。
@@ -382,6 +382,7 @@ const BlacklistPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="状态黑名单管理"
         subtitle="采集进程 → 挑选进待禁用名单 → 再分配到各状态。"
         extra={

@@ -23,7 +23,7 @@ interface KillLog {
 
 const triggerLabels: Record<string, string> = { PERIODIC: '定时检查', PUSH: '推送触发', USER_IMMEDIATE: '用户手动' };
 
-const ProcessKillLogPage: React.FC = () => {
+const ProcessKillLogPage: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [logs, setLogs] = useState<KillLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [companionFilter, setCompanionFilter] = useState<string | undefined>();
@@ -71,6 +71,7 @@ const ProcessKillLogPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        embedded={embedded}
         title="杀进程日志"
         subtitle="每次杀掉黑名单进程都会记一条，能按陪玩筛"
         extra={
