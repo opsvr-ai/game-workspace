@@ -1,6 +1,6 @@
 // craftsman-ignore: TS001,TS002,TS003
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, Row, Col, Tag, Progress, Table, Empty, Button, Typography, Segmented, Space } from 'antd';
+import { Card, Row, Col, Tag, Progress, Table, Empty, Button, Typography, Segmented, Space, Tooltip as AntTooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
@@ -170,7 +170,8 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
   const TYPE_LABELS: Record<string, string> = { NEW: '首单', RENEW: '续单', REPURCHASE: '复购', TIP: '打赏' };
 
   const attRows: any[] = Object.entries(attendance?.roles || {}).flatMap(([role, r]: any) =>
-    (r?.rows || []).map((row: any) => ({ ...row, roleKey: role })),
+    // 行上带上这一块的班次时间：「班外打卡」的提示要用（老板 2026-10-07）。
+    (r?.rows || []).map((row: any) => ({ ...row, roleKey: role, workStart: r?.workStart, workEnd: r?.workEnd })),
   );
   attRows.sort((a, b) => (ATT_RANK[a.status] ?? 9) - (ATT_RANK[b.status] ?? 9) || String(a.name).localeCompare(String(b.name)));
 
@@ -397,6 +398,13 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
                 <Text style={{ color: r.counts.late ? SEMANTIC.dangerDeep : TEXT.tertiary, fontWeight: 600 }}>{r.counts.late}</Text> · 早退{' '}
                 <Text style={{ color: r.counts.earlyLeave ? '#FA8C16' : TEXT.tertiary, fontWeight: 600 }}>{r.counts.earlyLeave}</Text> · 未打卡{' '}
                 <Text style={{ color: r.counts.absent ? SEMANTIC.dangerDeep : TEXT.tertiary, fontWeight: 600 }}>{r.counts.absent}</Text> · 正常 {r.counts.present}/{r.counts.total}
+                {r.counts.outsideShift ? (
+                  <>
+                    {'（含'}
+                    <Text style={{ color: SEMANTIC.warningDeep, fontWeight: 600 }}>班外打卡 {r.counts.outsideShift}</Text>
+                    {'）'}
+                  </>
+                ) : null}
               </Text>
             ))}
           </Space>
@@ -409,7 +417,24 @@ const OperationsBoard: React.FC<Props> = ({ compact }) => {
             columns={[
               { title: '姓名', dataIndex: 'name', width: 130, render: (v: string, r: any) => <Space size={4}><span>{v}</span>{r.onDuty ? <Tag color="blue" style={{ fontSize: 10, marginInlineEnd: 0 }}>在班</Tag> : null}</Space> },
               { title: '职位', dataIndex: 'roleKey', width: 70, render: (v: string) => ATT_ROLE_LABEL[v] || v },
-              { title: '上班', dataIndex: 'loginAt', width: 80, render: (v: string) => (v ? dayjs(v).format('HH:mm') : '—') },
+              {
+                title: '上班', dataIndex: 'loginAt', width: 118,
+                render: (v: string, r: any) => {
+                  if (!v) return '—';
+                  const time = dayjs(v).format('HH:mm');
+                  // 班外打卡（老板 2026-10-07）：凌晨开机自启 / 深夜重连写下的时间，
+                  // 不是人来上班了，单独标出来，免得看着像正常签到。
+                  if (!r.outsideShift) return time;
+                  return (
+                    <AntTooltip title={'这次上线在上班时间（' + (r.workStart || '—') + '–' + (r.workEnd || '—') + '）之外，不算当天上班打卡'}>
+                      <Space size={4}>
+                        <span style={{ color: TEXT.tertiary }}>{time}</span>
+                        <Tag color="gold" style={{ fontSize: 10, marginInlineEnd: 0 }}>班外</Tag>
+                      </Space>
+                    </AntTooltip>
+                  );
+                },
+              },
               { title: '下班', dataIndex: 'logoutAt', width: 80, render: (v: string) => (v ? dayjs(v).format('HH:mm') : '—') },
               {
                 title: '状态', dataIndex: 'status', width: 100,

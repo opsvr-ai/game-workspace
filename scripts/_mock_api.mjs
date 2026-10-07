@@ -116,6 +116,51 @@ const FIXTURES = [
   },
   { m: 'POST', p: /^\/api\/auth\/refresh$/, body: { data: { accessToken: 'mock-access', refreshToken: 'mock-refresh' } } },
   { m: 'GET', p: /^\/api\/config/, body: { data: { data: {} } } },
+  // 考勤管理页的客服 / 店长表（班外打卡的时间后面会带金色「班外」小标签）。
+  {
+    m: 'GET',
+    p: /^\/api\/companions\/staff-attendance$/,
+    body: {
+      data: [
+        { id: 'sa-1', userId: 'u-cs-1', date: '2026-10-07T00:00:00.000Z', status: 'PRESENT', loginAt: '2026-10-06T16:12:00.000Z', logoutAt: '2026-10-06T19:51:00.000Z', outsideShift: true, user: { id: 'u-cs-1', username: 'shaozh', displayName: '邵泽慧', role: 'CS', studioId: 's-1' } },
+        { id: 'sa-2', userId: 'u-cs-3', date: '2026-10-07T00:00:00.000Z', status: 'LATE', loginAt: '2026-10-07T01:40:00.000Z', logoutAt: null, outsideShift: false, user: { id: 'u-cs-3', username: 'kefu01', displayName: '小美', role: 'CS', studioId: 's-1' } },
+        { id: 'sa-3', userId: 'u-admin-1', date: '2026-10-07T00:00:00.000Z', status: 'PRESENT', loginAt: '2026-10-06T16:08:00.000Z', logoutAt: null, outsideShift: true, user: { id: 'u-admin-1', username: 'hanlei1', displayName: 'hanlei1', role: 'ADMIN', studioId: 's-1' } },
+      ],
+    },
+  },
+  // 运营看板「今日考勤」卡：把老板 2026-10-07 截图那一幕搬进来（前两行是凌晨 00:0x 的班外打卡）。
+  {
+    m: 'GET',
+    p: /^\/api\/companions\/attendance-today$/,
+    body: {
+      data: {
+        date: '2026-10-07',
+        now: '2026-10-07T00:30:00.000Z',
+        roles: {
+          CS: {
+            enabled: true,
+            workStart: '09:00',
+            workEnd: '18:00',
+            counts: { total: 3, late: 1, earlyLeave: 0, absent: 0, notStarted: 0, present: 3, outsideShift: 2 },
+            rows: [
+              { id: 'u-cs-1', name: '邵泽慧', role: 'CS', online: false, onDuty: false, loginAt: '2026-10-07T00:12:00+08:00', logoutAt: '2026-10-07T03:51:00+08:00', workMinutes: 0, status: 'PRESENT', outsideShift: true },
+              { id: 'u-cs-2', name: '孙可馨', role: 'CS', online: false, onDuty: false, loginAt: '2026-10-07T00:00:00+08:00', logoutAt: '2026-10-07T00:13:00+08:00', workMinutes: 0, status: 'PRESENT', outsideShift: true },
+              { id: 'u-cs-3', name: '小美', role: 'CS', online: true, onDuty: true, loginAt: '2026-10-07T09:40:00+08:00', logoutAt: null, workMinutes: 0, status: 'LATE', outsideShift: false },
+            ],
+          },
+          ADMIN: {
+            enabled: true,
+            workStart: '09:00',
+            workEnd: '18:00',
+            counts: { total: 1, late: 0, earlyLeave: 0, absent: 0, notStarted: 0, present: 1, outsideShift: 1 },
+            rows: [
+              { id: 'u-admin-1', name: 'hanlei1', role: 'ADMIN', online: true, onDuty: true, loginAt: '2026-10-07T00:08:00+08:00', logoutAt: null, workMinutes: 0, status: 'PRESENT', outsideShift: true },
+            ],
+          },
+        },
+      },
+    },
+  },
 ];
 
 function log(line) {

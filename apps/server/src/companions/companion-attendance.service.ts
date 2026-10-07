@@ -77,6 +77,19 @@ export class CompanionAttendanceService {
     return d;
   }
 
+  /**
+   * 这个时刻在不在「本班次」里（老板 2026-10-07：凌晨那次连接不算上班）。
+   *
+   * 下班时间晚于上班时间 = 普通白班，窗口是 [上班, 下班)；
+   * 下班时间早于等于上班时间 = 跨 0 点的夜班，窗口是 [上班, 24:00) ∪ [00:00, 下班)。
+   */
+  private isWithinShift(now: Date, today: Date, workStart: string, workEnd: string): boolean {
+    const start = this.atTime(today, workStart);
+    const end = this.atTime(today, workEnd);
+    if (end.getTime() > start.getTime()) return now >= start && now < end;
+    return now >= start || now < end;
+  }
+
   // ───────────────────────── 陪玩：客户端连接 = 上班，断开 = 下班 ─────────────────────────
 
   async ensureAttendance(companionId: string) {
@@ -92,7 +105,13 @@ export class CompanionAttendanceService {
     });
     if (existing) return existing;
 
-    const { workStart } = await this.timesOf('COMPANION', studioId);
+    const { workStart, workEnd } = await this.timesOf('COMPANION', studioId);
+    // 班次外的连接不算上班卡（老板 2026-10-07：「签到时间怎么不是中午 12 点后开机的时间？」
+    // ——凌晨 00:0x 那几条是客户端开机自启 / 看门狗重拉 / 断线重连写进来的，不是人到了）。
+    // 还没到上班时间（凌晨）或已经过了下班时间（深夜重连）都 return null；
+    // 到点还挂在线上、不会再有连接事件的人由巡检补卡（punchInForCompanionOnDuty）。
+    if (!this.isWithinShift(now, today, workStart, workEnd)) return null;
+
     const isLate = now > this.atTime(today, workStart);
 
     return this.prisma.companionAttendance.create({
@@ -140,7 +159,11 @@ export class CompanionAttendanceService {
     // 手动登记的优先：管理端当天填过（哪怕填的是缺勤），自动打卡绝不复写。
     if (existing) return existing;
 
-    const { workStart } = await this.timesOf(role as AttendanceRole, studioId);
+    const { workStart, workEnd } = await this.timesOf(role as AttendanceRole, studioId);
+    // 同上：只有落在「本班次」里的连接才算上班卡。凌晨开机自启、深夜重连、服务端发版后的
+    // 重连都不是人来上班，写进去只会得到「上班 00:12 / 正常」这种看不出问题的假考勤。
+    if (!this.isWithinShift(now, today, workStart, workEnd)) return null;
+
     return this.prisma.staffAttendance.create({
       data: {
         userId,
@@ -166,8 +189,8 @@ export class CompanionAttendanceService {
 
     const { workStart, workEnd } = await this.timesOf(role as AttendanceRole, studioId);
     // 只在「本次班内」判早退：还没到上班时间（比如半夜客户端断一下）或已经过了下班时间，
-    // 都不算早退，避免夜班 / 半夜断开被记成早退。
-    const inShift = now >= this.atTime(today, workStart) && now < this.atTime(today, workEnd);
+    // 都不算早退，避免夜班 / 半夜断开被记成早退。跨 0 点的夜班也走同一套窗口判定。
+    const inShift = this.isWithinShift(now, today, workStart, workEnd);
     const isEarlyLeave = inShift;
     const status =
       record.status === 'PRESENT' || record.status === 'LATE'
@@ -180,6 +203,59 @@ export class CompanionAttendanceService {
       where: { id: record.id },
       data: { logoutAt: now, status },
     });
+  }
+
+  /**
+   * 「到点补卡」：上班时间到了，人早就挂在线上（凌晨就开机 / 一整天没断过）——
+   * 这种人不会再有新的连接事件，只靠连接写卡他们会整天显示「未打卡」。
+   * 由巡检（AttendancePunchSweepService）每分钟跑一次，按「上班时间」补上；班次外一律不补。
+   */
+  async punchInForStaffOnDuty(userId: string, role: string): Promise<boolean> {
+    if (role !== 'CS' && role !== 'ADMIN') return false;
+    const studioId = await this.studioIdOfUser(userId);
+    if (!(await this.isEnabled(role as AttendanceRole, studioId))) return false;
+
+    const today = this.startOfDay();
+    const now = new Date();
+    const existing = await this.prisma.staffAttendance.findUnique({
+      where: { userId_date: { userId, date: today } },
+    });
+    // 当天已经有卡（自动打的或管理端手动登记的）→ 绝不动它。
+    if (existing) return false;
+
+    const { workStart, workEnd } = await this.timesOf(role as AttendanceRole, studioId);
+    if (!this.isWithinShift(now, today, workStart, workEnd)) return false;
+
+    // 白班：记「上班时间」（人早就在了 = 准点上班）；夜班当天上班时间还没到就记现在。
+    const shiftStart = this.atTime(today, workStart);
+    const loginAt = now >= shiftStart ? shiftStart : now;
+    await this.prisma.staffAttendance.create({
+      data: { userId, date: today, loginAt, status: 'PRESENT' },
+    });
+    return true;
+  }
+
+  /** 同上，陪玩版（店长把陪玩考勤打开时才有意义）。 */
+  async punchInForCompanionOnDuty(companionId: string): Promise<boolean> {
+    const studioId = await this.studioIdOf(companionId);
+    if (!(await this.isEnabled('COMPANION', studioId))) return false;
+
+    const today = this.startOfDay();
+    const now = new Date();
+    const existing = await this.prisma.companionAttendance.findUnique({
+      where: { companionId_date: { companionId, date: today } },
+    });
+    if (existing) return false;
+
+    const { workStart, workEnd } = await this.timesOf('COMPANION', studioId);
+    if (!this.isWithinShift(now, today, workStart, workEnd)) return false;
+
+    const shiftStart = this.atTime(today, workStart);
+    const loginAt = now >= shiftStart ? shiftStart : now;
+    await this.prisma.companionAttendance.create({
+      data: { companionId, date: today, loginAt, isLate: false },
+    });
+    return true;
   }
 
   /** 客服 / 店长考勤明细（按店过滤；老板不传 studioId = 看全部）。 */
@@ -220,7 +296,35 @@ export class CompanionAttendanceService {
         })
       : [];
     const userById = new Map(users.map((u) => [u.id, u]));
-    return rows.map((r) => ({ ...r, user: userById.get(r.userId) ?? null }));
+    // 「班外打卡」标记：上线时间落在这家店该职位的上/下班时间之外（凌晨开机自启、
+    // 深夜重连、发版后重连都算）。只用来提示，不改状态、不影响工资里的迟到早退判定。
+    const shiftCache = new Map<string, { workStart: string; workEnd: string }>();
+    const shiftOf = async (role: string, studioId: string | null) => {
+      const key = role + '|' + (studioId ?? '');
+      let t = shiftCache.get(key);
+      if (!t) {
+        t = await this.timesOf(role as AttendanceRole, studioId);
+        shiftCache.set(key, t);
+      }
+      return t;
+    };
+    const withFlag: any[] = [];
+    for (const r of rows) {
+      const user = userById.get(r.userId) ?? null;
+      let outsideShift = false;
+      if (r.loginAt && user && (user.role === 'CS' || user.role === 'ADMIN')) {
+        const shift = await shiftOf(user.role, user.studioId ?? null);
+        // 用这条记录自己的 date（当天 00:00）算窗口，跨天也不会错。
+        outsideShift = !this.isWithinShift(
+          new Date(r.loginAt),
+          new Date(r.date),
+          shift.workStart,
+          shift.workEnd,
+        );
+      }
+      withFlag.push({ ...r, user, outsideShift });
+    }
+    return withFlag;
   }
 
   /** 陪玩属于哪家店（考勤时间按店解析）。 */
@@ -351,6 +455,8 @@ export class CompanionAttendanceService {
           loginAt: a?.loginAt ?? null,
           logoutAt: a?.logoutAt ?? null,
           workMinutes: a?.workMinutes ?? 0,
+          // 班外打卡（凌晨开机自启 / 深夜重连写下的）：看板上单独标出来，别当成正常签到。
+          outsideShift: !!a?.loginAt && !this.isWithinShift(new Date(a.loginAt), today, workStart, workEnd),
           status: a
             ? a.isLate && a.isEarlyLeave
               ? 'LATE_EARLY'
@@ -385,6 +491,7 @@ export class CompanionAttendanceService {
           loginAt: a?.loginAt ?? null,
           logoutAt: a?.logoutAt ?? null,
           workMinutes: 0,
+          outsideShift: !!a?.loginAt && !this.isWithinShift(new Date(a.loginAt), today, workStart, workEnd),
           status: a
             ? String(a.status || 'PRESENT')
             : now < this.atTime(today, workStart)
@@ -401,6 +508,8 @@ export class CompanionAttendanceService {
       absent: rows.filter((r) => r.status === 'ABSENT').length,
       notStarted: rows.filter((r) => r.status === 'NOT_STARTED').length,
       present: rows.filter((r) => ['PRESENT', 'LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(r.status)).length,
+      // 「班外打卡」的行数：老板 2026-10-07 截图上那三条 00:0x 就是这种，一眼能看出不对。
+      outsideShift: rows.filter((r) => r.outsideShift).length,
     };
     const rank: Record<string, number> = { LATE_EARLY: 0, LATE: 1, EARLY_LEAVE: 2, ABSENT: 3, PRESENT: 4, NOT_STARTED: 5 };
     rows.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || String(a.name).localeCompare(String(b.name)));

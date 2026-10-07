@@ -7,6 +7,7 @@ import { SessionShotsController } from './session-shots.controller';
 import { RestingMonitorService } from './resting-monitor.service';
 import { CompanionRevenueService } from './companion-revenue.service';
 import { CompanionAttendanceService } from './companion-attendance.service';
+import { AttendancePunchSweepService } from './attendance-punch-sweep.service';
 import { CompanionWechatService } from './companion-wechat.service';
 import { CompositeService } from './composite.service';
 import { CustomerBaselineService } from './customer-baseline.service';
@@ -24,6 +25,7 @@ import { StudiosModule } from '../studios/studios.module';
     RestingMonitorService,
     CompanionRevenueService,
     CompanionAttendanceService,
+    AttendancePunchSweepService,
     CompanionWechatService,
     CompositeService,
     CustomerBaselineService,

@@ -93,11 +93,11 @@ describe("考勤：三个职位各自一个开关", () => {
     expect(row.isLate).toBe(true);
   });
 
-  it("陪玩上班时间前打卡不算迟到", async () => {
+  it("陪玩：上班时间之前的连接不算上班（老板 2026-10-07：凌晨那次连接不是人到了）", async () => {
     at("2026-10-04T08:30:00");
-    const { svc, created } = setup({ "attendance.workStart": "09:00" });
-    await svc.ensureAttendance("c1");
-    expect(created[0].isLate).toBe(false);
+    const { svc, created } = setup({ "attendance.workStart": "09:00", "attendance.workEnd": "18:00" });
+    expect(await svc.ensureAttendance("c1")).toBeNull();
+    expect(created).toHaveLength(0);
   });
 
   it("陪玩开关关掉 → 一条都不记", async () => {
@@ -122,17 +122,18 @@ describe("考勤：三个职位各自一个开关", () => {
     expect(late.created[0].status).toBe("LATE");
     expect(late.created[0].loginAt).toBeInstanceOf(Date);
 
-    const onTime = setup({ "attendance.cs.workStart": "11:00" });
+    // 正点打卡（10:30 上班、10:30 连上来）：不算迟到
+    const onTime = setup({ "attendance.cs.workStart": "10:30" });
     await onTime.svc.ensureStaffAttendance("u1", "CS");
     expect(onTime.created[0].status).toBe("PRESENT");
   });
 
   it("店长的上下班时间跟客服分开", async () => {
     at("2026-10-04T10:30:00");
-    // 客服线 09:00（迟到），店长线 12:00（正常）——两套配置互不影响
+    // 客服线 09:00（10:30 打卡 = 迟到），店长线 10:30（10:30 打卡 = 正点）——两套配置互不影响
     const { svc, created } = setup({
       "attendance.cs.workStart": "09:00",
-      "attendance.manager.workStart": "12:00",
+      "attendance.manager.workStart": "10:30",
     });
     await svc.ensureStaffAttendance("u1", "CS");
     await svc.ensureStaffAttendance("u2", "ADMIN");
@@ -236,5 +237,86 @@ describe("考勤：客服/店长明细", () => {
     const where = (prisma.staffAttendance.findMany as any).mock.calls[0][0].where;
     expect(where.date.gte.toISOString()).toBe(new Date("2026-10-01").toISOString());
     expect(where.date.lte.getHours()).toBe(23);
+  });
+});
+
+describe("考勤：班次外的连接不算上班（老板 2026-10-07）", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("凌晨 00:12 连上来（开机自启 / 看门狗重拉）不写上班卡", async () => {
+    at("2026-10-07T00:12:00");
+    const { svc, created } = setup({ "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" });
+    expect(await svc.ensureStaffAttendance("u1", "CS")).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+
+  it("陪玩同理：凌晨连接不写卡", async () => {
+    at("2026-10-07T00:12:00");
+    const { svc, created } = setup({ "attendance.workStart": "09:00", "attendance.workEnd": "18:00" });
+    expect(await svc.ensureAttendance("c1")).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+
+  it("过了下班时间连上来（深夜重连 / 发版后重连）也不写上班卡", async () => {
+    at("2026-10-07T21:30:00");
+    const { svc, created } = setup({ "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" });
+    expect(await svc.ensureStaffAttendance("u1", "CS")).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+
+  it("凌晨就开机、一整天没断的人：到点补卡，上班时间记「上班时间」而不是凌晨那次连接", async () => {
+    at("2026-10-07T09:30:00");
+    const { svc, created } = setup({ "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" });
+    expect(await svc.punchInForStaffOnDuty("u1", "CS")).toBe(true);
+    expect(created).toHaveLength(1);
+    expect(created[0].status).toBe("PRESENT");
+    expect(created[0].loginAt.getHours()).toBe(9);
+    expect(created[0].loginAt.getMinutes()).toBe(0);
+  });
+
+  it("还没到上班时间不补卡；当天已经有卡（手动登记）也不补", async () => {
+    at("2026-10-07T08:30:00");
+    const early = setup({ "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" });
+    expect(await early.svc.punchInForStaffOnDuty("u1", "CS")).toBe(false);
+    expect(early.created).toHaveLength(0);
+
+    at("2026-10-07T09:30:00");
+    const hasCard = setup({}, { staffExisting: { id: "sa1", userId: "u1", status: "ABSENT" } });
+    expect(await hasCard.svc.punchInForStaffOnDuty("u1", "CS")).toBe(false);
+    expect(hasCard.created).toHaveLength(0);
+  });
+
+  it("陪玩到点补卡（店长把陪玩考勤打开时才走得到）", async () => {
+    at("2026-10-07T09:30:00");
+    const { svc, created } = setup({ "attendance.workStart": "09:00", "attendance.workEnd": "18:00" });
+    expect(await svc.punchInForCompanionOnDuty("c1")).toBe(true);
+    expect(created[0].isLate).toBe(false);
+    expect(created[0].loginAt.getHours()).toBe(9);
+  });
+
+  it("夜班（上班 20:00 / 下班 04:00）跨 0 点也算在班次内", async () => {
+    const cfg = { "attendance.cs.workStart": "20:00", "attendance.cs.workEnd": "04:00" };
+    // 凌晨 1 点 = 夜班在岗 → 照常写卡，且不算迟到
+    at("2026-10-07T01:00:00");
+    const night = setup(cfg);
+    await night.svc.ensureStaffAttendance("u1", "CS");
+    expect(night.created[0].status).toBe("PRESENT");
+
+    // 白天 12 点 = 夜班空档 → 不写卡
+    at("2026-10-07T12:00:00");
+    const gap = setup(cfg);
+    expect(await gap.svc.ensureStaffAttendance("u1", "CS")).toBeNull();
+    expect(gap.created).toHaveLength(0);
+  });
+
+  it("夜班凌晨 1 点下班算早退（以前跨 0 点永远判不出来）", async () => {
+    at("2026-10-07T01:00:00");
+    const { svc } = setup(
+      { "attendance.cs.workStart": "20:00", "attendance.cs.workEnd": "04:00" },
+      { staffExisting: { id: "sa1", status: "PRESENT" } },
+    );
+    const row: any = await svc.finalizeStaffAttendance("u1", "CS");
+    expect(row.status).toBe("EARLY_LEAVE");
   });
 });

@@ -173,3 +173,49 @@ describe("陪玩自己的今日考勤", () => {
     expect(await svc.myToday("c1")).toBeNull();
   });
 });
+
+describe("今日考勤汇总：班外打卡标记", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("凌晨打卡的行标成 outsideShift（老板 2026-10-07 截图那三条 00:0x）", async () => {
+    at("2026-10-07T08:30:00");
+    const { svc } = setup(
+      { "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" },
+      {
+        staffUsers: [{ id: "u1", username: "邵泽慧", displayName: "邵泽慧", role: "CS" }],
+        staffRows: [
+          {
+            userId: "u1",
+            date: new Date("2026-10-07T00:00:00"),
+            status: "PRESENT",
+            loginAt: new Date("2026-10-07T00:12:00"),
+            logoutAt: new Date("2026-10-07T03:51:00"),
+          },
+        ],
+      },
+    );
+    const res: any = await svc.summarizeToday("s1");
+    // 行上带标记 + 汇总里有计数，网页端据此提示「这次上线在班次外」
+    expect(res.roles.CS.rows[0].outsideShift).toBe(true);
+    expect(res.roles.CS.counts.outsideShift).toBe(1);
+    // 状态本身不动（工资 / 扣款口径不在这里改）
+    expect(res.roles.CS.rows[0].status).toBe("PRESENT");
+  });
+
+  it("班次内打卡不被标成班外", async () => {
+    at("2026-10-07T10:30:00");
+    const { svc } = setup(
+      { "attendance.cs.workStart": "09:00", "attendance.cs.workEnd": "18:00" },
+      {
+        staffUsers: [{ id: "u1", username: "孙可馨", displayName: "孙可馨", role: "CS" }],
+        staffRows: [
+          { userId: "u1", date: new Date("2026-10-07T00:00:00"), status: "LATE", loginAt: new Date("2026-10-07T09:40:00"), logoutAt: null },
+        ],
+      },
+    );
+    const res: any = await svc.summarizeToday("s1");
+    expect(res.roles.CS.rows[0].outsideShift).toBe(false);
+    expect(res.roles.CS.counts.outsideShift).toBe(0);
+  });
+});

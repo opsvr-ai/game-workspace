@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createElement, useMemo } from 'react';
-import { Table, Tag, Typography, DatePicker, Select, Button, Space} from 'antd';
+import { Table, Tag, Typography, DatePicker, Select, Button, Space, Tooltip } from 'antd';
 import { message } from '../../utils/feedback';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import http from '../../api/client';
@@ -27,6 +27,8 @@ interface StaffAttendanceRecord {
   date: string;
   loginAt?: string | null;
   logoutAt?: string | null;
+  // 班外打卡（凌晨开机自启 / 深夜重连写下的）：服务端按本店该职位的上下班时间标出来。
+  outsideShift?: boolean;
   status: string;
   user?: { username?: string; displayName?: string; role?: string } | null;
 }
@@ -172,8 +174,18 @@ const AttendancePage: React.FC = () => {
       render: (v: string) => (v ? String(v).slice(0, 10) : '-'),
     },
     {
-      title: '上班', dataIndex: 'loginAt', key: 'loginAt', width: 100,
-      render: (v: string | null | undefined) => hm(v),
+      title: '上班', dataIndex: 'loginAt', key: 'loginAt', width: 120,
+      render: (v: string | null | undefined, r: StaffAttendanceRecord) => {
+        if (!v || !r.outsideShift) return hm(v);
+        return (
+          <Space size={4}>
+            <Text type="secondary">{hm(v)}</Text>
+            <Tooltip title="这次上线在上班时间之外（凌晨开机自启 / 深夜重连），不算当天上班打卡">
+              <Tag color="gold" style={{ marginInlineEnd: 0 }}>班外</Tag>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
     {
       title: '下班', dataIndex: 'logoutAt', key: 'logoutAt', width: 100,
