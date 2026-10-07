@@ -985,6 +985,16 @@ export class CommissionService {
         success: s.success,
         failed: s.failed,
         pending: s.pending,
+        // 「发单了没人接」和「抢了单还没点开始首单」这两档以前没送给界面，老板只看到
+        // 「发单 48 / 成功 8 / 不成功 0 / 待反馈 5」，剩下 35 单不知道去哪了。
+        // （2026-10-07「成功 不成功 待反馈 的数量都不对把？」）现在两档都送出去，
+        // 界面把「发单 = 没人接 + 还没开始首单 + 待反馈 + 不成功 + 成功」这条等式直接写出来。
+        unstarted: s.unstarted,
+        notDispatched: Math.max(0, s.published - s.dispatched),
+        // 「不是本店客服发的单」（陪玩 / 店长自己在客户管理里建的单）：只进全店合计，
+        // 不进下面按人分的客服明细。界面据此说明差额，免得「合计 8 单成功、表里只有 5 单」看着像算错。
+        otherPublisherOrders: others.published,
+        otherPublisherSuccess: others.success,
         successRate: concluded > 0 ? round2((s.success / concluded) * 100) : null,
         totalOrders: s.totalOrders,
         offlineOrders: s.offlineOrders,

@@ -13,6 +13,8 @@ import { OrderOutcome, PoolScope } from '@chunlv/shared';
  *  - **桥接 / 线上单**（陪玩是别的店 / 线上俱乐部的）：**只有接单方反馈「成功」**才算成功，
  *    派出去了、被抢走了都不算；没反馈 = 待反馈（既不算成功也不算不成功）。
  *  - **退款单**一律不算成功（退款接口本来也会写 `refundedAt`）。
+ *  - **线下单没点开始首单、但陪玩明确报了「不成功」**（带原因 + 截图）→ 判「不成功」
+ *    （老板 2026-10-07 修：以前被「还没开始首单」吞掉，于是「不成功」永远是 0、成功率永远 100%）。
  *
  * 提成、看板、达标判断全部调这里，别再各写一份 —— 「客服那页看到的」和「真的算钱的」
  * 必须是同一套口径（这个项目已经在这种「两套口径」上翻过车）。
@@ -99,6 +101,20 @@ export function outcomeOf(order: OutcomeLike, studioId: string): OutcomeDecision
     }
     const started =
       order.status === 'DONE' || (order.sessions || []).some((s) => !!s.startedAt);
+    // 老板 2026-10-07：「成功 / 不成功 / 待反馈 的数量都不对把？」
+    // 根因：线下单陪玩「报了不成功」（带原因 + 截图，走 /orders/:id/outcome）时，
+    // 这里原来只看「有没有点开始首单」，把这种单当成「还没开始首单」吞掉了 ——
+    // 于是「不成功」永远是 0、「成功率」永远是 100%，「不成功的原因」也永远空着。
+    // 现在：没点开始首单、但接单陪玩明确报了不成功 → 判「不成功」（不计提成，但看得见）。
+    // 已经点过开始首单的不受影响（那是真打成了，算钱那份 successOrderWhere 也照算，口径不打架）。
+    if (!started && order.outcome === OrderOutcome.FAILED) {
+      return {
+        channel,
+        state: 'FAILED',
+        counted: false,
+        reason: order.outcomeReason ? `没打成：${order.outcomeReason}` : '陪玩反馈没打成',
+      };
+    }
     return started
       ? { channel, state: 'SUCCESS', counted: true, reason: '已点「开始首单」' }
       : { channel, state: 'NONE', counted: false, reason: '还没开始首单' };

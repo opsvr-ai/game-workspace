@@ -67,6 +67,42 @@ describe('线下单：点了「开始首单」才算成功', () => {
     const cancelled = outcomeOf({ status: 'CANCELLED', companion: ownCompanion }, STUDIO);
     expect(cancelled.counted).toBe(false);
   });
+
+  // 老板 2026-10-07：「成功 / 不成功 / 待反馈 的数量都不对把？」
+  // 线上实测：10-06 有一张线下单（GRABBED、没开始首单）陪玩报了「不成功 · 听出变声器不打了」，
+  // 看板却写着「不成功 0 单、成功率 100%」—— 就是下面这条口径把这种单吞成了「还没开始首单」。
+  it('没点开始首单、但接单陪玩报了不成功（带原因）→ 判不成功、不计提成', () => {
+    const d = outcomeOf(
+      {
+        status: 'GRABBED',
+        companion: ownCompanion,
+        sessions: [],
+        outcome: 'FAILED',
+        outcomeReason: '听出变声器不打了',
+      },
+      STUDIO,
+    );
+    expect(d).toMatchObject({ channel: 'offline', state: 'FAILED', counted: false });
+    expect(d.reason).toContain('听出变声器不打了');
+  });
+
+  it('没报结果的线下单还是「还没开始首单」，不会被算成不成功', () => {
+    const d = outcomeOf({ status: 'GRABBED', companion: ownCompanion, sessions: [] }, STUDIO);
+    expect(d).toMatchObject({ state: 'NONE', counted: false });
+  });
+
+  it('已经点过开始首单的线下单，就算报表里带了不成功也不改判（提成口径一致、别少发钱）', () => {
+    const d = outcomeOf(
+      {
+        status: 'CONFIRMED',
+        companion: ownCompanion,
+        sessions: [{ startedAt: new Date() }],
+        outcome: 'FAILED',
+      },
+      STUDIO,
+    );
+    expect(d).toMatchObject({ state: 'SUCCESS', counted: true });
+  });
 });
 
 describe('桥接 / 线上单：只有接单方反馈「成功」才算成功', () => {

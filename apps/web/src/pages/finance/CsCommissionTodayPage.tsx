@@ -245,15 +245,15 @@ const CsCommissionTodayPage: React.FC = () => {
   const summaryCards = [
     { title: '今日发单', value: s?.published ?? 0, suffix: '单', hint: '客服今天建了多少单' },
     { title: '派出去了', value: s?.dispatched ?? 0, suffix: '单', hint: '有人接、进了单量统计的' },
-    { title: '成功', value: s?.success ?? 0, suffix: '单', hint: '线下开始首单 / 桥接线上反馈成功' },
-    { title: '不成功', value: s?.failed ?? 0, suffix: '单', hint: '接单方反馈不成功，不计提成' },
-    { title: '待反馈', value: s?.pending ?? 0, suffix: '单', hint: '桥接 / 线上还没反馈结果' },
     {
-      title: '成功率',
-      value: s?.successRate ?? 0,
-      suffix: '%',
-      hint: '成功 ÷（成功 + 不成功），待反馈的不算分母',
+      title: '还没开始首单',
+      value: s?.unstarted ?? 0,
+      suffix: '单',
+      hint: '陪玩已经抢到手、但一直没点「开始首单」也没报结果的单（既不算成功也不算不成功，到期会提醒陪玩报结果）',
     },
+    { title: '待反馈', value: s?.pending ?? 0, suffix: '单', hint: '桥接 / 线上还没反馈结果' },
+    { title: '不成功', value: s?.failed ?? 0, suffix: '单', hint: '接单方反馈不成功，不计提成' },
+    { title: '成功', value: s?.success ?? 0, suffix: '单', hint: '线下开始首单 / 桥接线上反馈成功' },
   ];
 
   const columns: any[] = [
@@ -498,6 +498,26 @@ const CsCommissionTodayPage: React.FC = () => {
               )}
             </Col>
           </Row>
+          {/*
+            老板 2026-10-07：「成功 不成功 待反馈 的数量都不对把？」
+            —— 单看那三个数会觉得对不上（发单 48，怎么只有 8 成功 + 0 不成功 + 5 待反馈），
+            因为「发单了没人接」和「抢了单还没点开始首单」这两档根本没有地方显示。
+            这里把账直接算给老板看：五档加起来必须等于发单数，对不上就是真出错了。
+          */}
+          {!isCsRole && (
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 10, lineHeight: 1.9 }}>
+              发单 {board?.published ?? 0} 单 ＝ 没人接 {s?.notDispatched ?? 0} ＋ 还没开始首单{' '}
+              {s?.unstarted ?? 0} ＋ 待反馈 {s?.pending ?? 0} ＋ 不成功 {s?.failed ?? 0} ＋ 成功 {s?.success ?? 0}
+              <br />
+              其中「还没开始首单」＝ 陪玩已经抢到手、但一直没点「开始首单」也没报结果的单；「没人接」＝ 发出去还没人抢。
+              {(s?.otherPublisherOrders ?? 0) > 0 && (
+                <>
+                  <br />
+                  另有 {s?.otherPublisherOrders ?? 0} 单（成功 {s?.otherPublisherSuccess ?? 0} 单）是陪玩 / 店长自己在客户管理里建的，只算全店单量，不进下面的客服明细、也不算客服提成。
+                </>
+              )}
+            </Text>
+          )}
         </Card>
       )}
 

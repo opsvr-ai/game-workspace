@@ -193,12 +193,17 @@ const FIXTURES = [
         date: '2026-10-07',
         config: { fullAttendance: 26 },
         summary: {
-          published: 44, dispatched: 38, success: 5, failed: 0, pending: 5, successRate: 100,
+          // 照线上 2026-10-06 的真实一屏铺：发单 48 = 没人接 6 + 还没开始首单 28 + 待反馈 5 + 不成功 1 + 成功 8。
+          // 「不成功 1」是陪玩报的（听出变声器不打了）—— 就是 2026-10-07 老板问「数量不对吧？」时被吞掉的那一单。
+          published: 48, dispatched: 42, success: 8, failed: 1, pending: 5, successRate: 88.9,
+          unstarted: 28, notDispatched: 6,
+          // 陪玩 / 店长自己建的单：只进全店合计，不进客服明细（界面会说明这个差额）
+          otherPublisherOrders: 4, otherPublisherSuccess: 3,
           offlineOrders: 33, offlineFlow: 285, offlineCommission: 5,
           bridgeOrders: 5, bridgeCommission: 0,
           onlineOrders: 0, onlineCommission: 0,
           bridgeMetMonthCount: 0, csCount: 4,
-          failReasons: {},
+          failReasons: { '听出变声器不打了': 1 },
         },
         csList: [
           {
@@ -209,10 +214,10 @@ const FIXTURES = [
             monthBridgeUnits: 0, bridgeMetMonth: false, bridgeUnitYuan: 1, nextTierUnits: 182, nextTierYuan: 3,
             bridgeOrders: 3, bridgeTarget: 10, bridgeMet: false, bridgeCommission: 0,
             onlineOrders: 0, onlineCommission: 0,
-            success: 4, failed: 0, pending: 2, successRate: 100,
+            success: 4, failed: 1, pending: 2, successRate: 80,
             totalCommission: 4, todayPay: 81.8, monthTotalYuan: 2111,
             offlineSuccess: 4, bridgeSuccess: 0, onlineSuccess: 0,
-            failReasons: {},
+            failReasons: { '听出变声器不打了': 1 },
           },
           {
             userId: 'u-cs-2', username: 'sunke', displayName: '孙可馨', poolScope: 'ONLINE_FIRST',
