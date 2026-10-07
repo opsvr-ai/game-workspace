@@ -46,6 +46,9 @@ const SUPPLEMENT_REVIEW_HOURS = 24;
 /** 第一次「仍未通过」之后，再过 7 天提醒管理端核查一次（第二次点仍未通过就结案）。 */
 const SUPPLEMENT_REVIEW_AGAIN_HOURS = 7 * 24;
 
+/** 管理端直接补单时给记录打的标记（老板 2026-10-08：订单管理里「退款」改成「补单」）。 */
+const ADMIN_SUPPLEMENT_TAG = '【管理端补单】';
+
 @Injectable()
 export class OrdersService implements OnModuleInit {
   constructor(
@@ -1043,27 +1046,35 @@ export class OrdersService implements OnModuleInit {
 
   /**
    * 补单申请列表（客服 / 店长 / 老板）。
-   * scope = 'pending' 只看待审；'due' 只看「已同意、到期要核查客户后来通过没」；不传看全部。
+   * scope = 'pending' 只看待审；'due' 只看「已同意、到期要核查客户后来通过没」；
+   * 'records' 只看已经同意过的（含管理端直接补单，按处理时间倒序）—— 老板要一眼看清今天给谁补过名额；
+   * 不传看全部。
    */
-  async listSupplements(user: any, scope?: 'pending' | 'due' | 'all') {
+  async listSupplements(user: any, scope?: 'pending' | 'due' | 'records' | 'all') {
     if (!['OWNER', 'ADMIN', 'CS'].includes(user?.role ?? '')) {
       throw new ForbiddenException('只有客服 / 店长 / 老板能看补单申请');
     }
     const visibleIds = await this.supplementScopeIds(user);
     const where: any = {};
     if (visibleIds) where.studioId = { in: visibleIds };
+    let orderBy: any = { createdAt: 'desc' };
     if (scope === 'pending') {
       where.status = 'PENDING';
     } else if (scope === 'due') {
       where.status = 'APPROVED';
       where.reviewStatus = { in: ['PENDING', 'STILL_NOT'] };
       where.reviewDueAt = { lte: new Date() };
+    } else if (scope === 'records') {
+      // 已经同意过的（含管理端直接补单）：按处理时间倒序，谁补的、什么时候补的一目了然
+      where.status = 'APPROVED';
+      where.decidedAt = { not: null };
+      orderBy = { decidedAt: 'desc' };
     } else {
       where.status = { in: ['PENDING', 'APPROVED', 'REJECTED'] };
     }
     const rows = await this.prisma.supplementRequest.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       take: 200,
     });
     if (!rows.length) return [];
@@ -1093,12 +1104,22 @@ export class OrdersService implements OnModuleInit {
     const nameMap = new Map(
       companions.map((c) => [c.id, c.user?.displayName || c.user?.username || null]),
     );
+    const deciderIds = [...new Set(rows.map((r) => r.decidedByUserId).filter(Boolean))] as string[];
+    const deciders = deciderIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: deciderIds } },
+          select: { id: true, username: true, displayName: true },
+        })
+      : [];
+    const deciderMap = new Map(deciders.map((u) => [u.id, u.displayName || u.username || null]));
     return rows.map((r) => {
       const order = orderMap.get(r.orderId) ?? null;
       const cf = (order?.customFields as any) || {};
       return {
         ...r,
         companionName: nameMap.get(r.companionId) ?? null,
+        decidedByName: r.decidedByUserId ? deciderMap.get(r.decidedByUserId) ?? null : null,
+        byAdmin: String(r.reason ?? '').startsWith(ADMIN_SUPPLEMENT_TAG),
         order: order
           ? {
               id: order.id,
@@ -1117,11 +1138,17 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  /** 管理端顶部红点用的数量：待审几条、到期要核查几条。 */
+  /**
+   * 管理端顶部红点用的数量：待审几条、到期要核查几条、本营业日已经补出去几个名额。
+   *
+   * `approvedToday` 是老板 2026-10-08 要的：订单管理页那句「今日抢单 · 补单 · 合计」
+   * 以前是拿当前列表里的备注猜「补单」两个字，根本不准 —— 改成读补单记录里真实的数。
+   */
   async supplementSummary(user: any) {
     const visibleIds = await this.supplementScopeIds(user);
     const base = visibleIds ? { studioId: { in: visibleIds } } : {};
-    const [pending, due] = await Promise.all([
+    const { start, end } = currentBusinessDayRange();
+    const [pending, due, approvedToday] = await Promise.all([
       this.prisma.supplementRequest.count({ where: { ...base, status: 'PENDING' } }),
       this.prisma.supplementRequest.count({
         where: {
@@ -1131,8 +1158,11 @@ export class OrdersService implements OnModuleInit {
           reviewDueAt: { lte: new Date() },
         },
       }),
+      this.prisma.supplementRequest.count({
+        where: { ...base, status: 'APPROVED', decidedAt: { gte: start, lt: end } },
+      }),
     ]);
-    return { pending, due };
+    return { pending, due, approvedToday };
   }
 
   /**
@@ -1202,6 +1232,87 @@ export class OrdersService implements OnModuleInit {
       });
     }
     return updated;
+  }
+
+  /**
+   * 管理端直接补单（老板 2026-10-08）：订单管理里的「退款」按钮改成「补单」——
+   * 店长 / 老板点一下，直接给这张单的陪玩名额 +1（写台账），并留一条 APPROVED 的补单记录，
+   * 让管理端一眼看清今天到底给谁补过名额。
+   *
+   * 和陪玩自己申请补单走同一张表：同一张单只补一次（已经有 APPROVED 记录就直接拒）。
+   * 权限故意只给店长 / 老板 —— 客服走原来的「补单审核」流程，陪玩不能给自己补。
+   */
+  async supplementOrder(orderId: string, user: any, body: { reason?: string }) {
+    if (!['OWNER', 'ADMIN'].includes(user?.role ?? '')) {
+      throw new ForbiddenException('只有店长 / 老板能直接补单');
+    }
+    const reason = String(body?.reason || '').trim();
+    if (!reason) throw new BadRequestException('补单必须写明原因');
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, orderCode: true, companionId: true, studioId: true, customFields: true },
+    });
+    if (!order) throw new NotFoundException('订单不存在');
+    const visibleIds = await this.supplementScopeIds(user);
+    if (visibleIds && order.studioId && !visibleIds.includes(order.studioId)) {
+      throw new ForbiddenException('无权操作其他工作室的订单');
+    }
+    if (!order.companionId) throw new BadRequestException('这张单还没有陪玩接单，无法补单');
+    const existing = await this.prisma.supplementRequest.findUnique({ where: { orderId } });
+    if (existing?.status === 'APPROVED') {
+      throw new BadRequestException('这张单已经补过名额了');
+    }
+    const now = new Date();
+    const reviewDueAt = new Date(now.getTime() + SUPPLEMENT_REVIEW_HOURS * 3600 * 1000);
+    const fields: any = {
+      companionId: order.companionId,
+      studioId: order.studioId ?? null,
+      reason: `${ADMIN_SUPPLEMENT_TAG}${reason}`,
+      evidenceUrl: null,
+      status: 'APPROVED',
+      decidedByUserId: user?.id ?? null,
+      decidedAt: now,
+      decisionNote: reason,
+      reviewDueAt,
+      reviewStatus: 'PENDING',
+      reviewedAt: null,
+      reviewedByUserId: null,
+    };
+    const record = existing
+      ? await this.prisma.supplementRequest.update({ where: { orderId }, data: fields })
+      : await this.prisma.supplementRequest.create({ data: { orderId, ...fields } });
+    await this.quota.credit(order.companionId, 1, QUOTA_REASON.SUPPLEMENT, {
+      refId: order.id,
+      note: `管理端直接补单：${reason}`,
+    });
+    const cf = (order.customFields as any) || {};
+    await this.prisma.order
+      .update({
+        where: { id: order.id },
+        data: {
+          customFields: {
+            ...cf,
+            supplementApproved: true,
+            supplementApprovedAt: now.toISOString(),
+            supplementByAdmin: true,
+          },
+        },
+      })
+      .catch(() => null);
+    const companion = await this.prisma.companion
+      .findUnique({ where: { id: order.companionId }, select: { userId: true } })
+      .catch(() => null);
+    if (companion?.userId) {
+      this.wsGateway.notifyUser(companion.userId, 'order:supplement', {
+        orderId: order.id,
+        approved: true,
+        note: reason,
+        message: `管理端给你补了 1 个抢单名额（订单 ${order.orderCode || order.id}）`,
+      });
+    }
+    const st: any = await this.quota.status(order.companionId).catch(() => null);
+    const balance = st?.balance ?? st?.remaining ?? null;
+    return { ...record, balance, orderCode: order.orderCode };
   }
 
   /** 到期核查：客户后来其实通过了 → 系统把这张单改成「已添加」，别把客户浪费掉。 */

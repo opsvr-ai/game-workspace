@@ -109,7 +109,10 @@ export const ordersApi = {
     customerPaymentAccountName?: string;
   }) => http.put(`/orders/${orderId}/payment`, data),
   /** 补单申请：scope=pending 待审 / due 到期要核查客户后来通过没（老板 2026-10-04） */
-  listSupplements: (scope?: 'pending' | 'due' | 'all') =>
+  // 管理端直接补单（老板 2026-10-08）：订单管理里给店长 / 老板的「补单」按钮
+  supplementOrder: (id: string, reason: string) =>
+    http.post(`/orders/${id}/supplement`, { reason }),
+  listSupplements: (scope?: 'pending' | 'due' | 'records' | 'all') =>
     http.get('/orders/supplements', { params: scope ? { scope } : {} }),
   supplementSummary: () => http.get('/orders/supplements/summary'),
   decideSupplement: (id: string, decision: 'APPROVE' | 'REJECT', note?: string) =>

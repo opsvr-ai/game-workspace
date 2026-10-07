@@ -1,9 +1,13 @@
 // craftsman-ignore: TS001,TS002
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Modal, Segmented, Space, Table, Tag, Typography} from 'antd';
 import { message } from '../utils/feedback';
 import { ordersApi } from '../api/orders';
 import { extractErrorMessage } from '../utils/error-handler';
+import { ordersPathWithOrder } from '../utils/chatOrder';
+import { isRowClickIgnored } from '../utils/rowClick';
+import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
@@ -29,22 +33,44 @@ const REASON_LABEL: Record<string, string> = {
  * 并排一次「这个客户后来到底通过了没有」的核查 —— 客户不能浪费。
  */
 const SupplementReviewButton: React.FC = () => {
+  const role = useAuthStore((s) => s.user?.role);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'pending' | 'due'>('pending');
+  const [tab, setTab] = useState<'pending' | 'due' | 'records'>('pending');
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<{ pending: number; due: number }>({ pending: 0, due: 0 });
+  const [summary, setSummary] = useState<{ pending: number; due: number; approvedToday: number }>({
+    pending: 0,
+    due: 0,
+    approvedToday: 0,
+  });
+
+  /**
+   * 老板 2026-10-08：「第一张图这个界面，给我直接跳转到订单管理的该订单，方便客服查看」。
+   * 点订单（或整行）就跳到订单管理里那一单：整行高亮 + 自动打开详情。
+   * 先把审核弹窗关掉，免得它盖在订单详情上面。
+   */
+  const gotoOrder = (r: any) => {
+    const id = r?.order?.id || r?.orderId;
+    if (!id) return;
+    setOpen(false);
+    navigate(ordersPathWithOrder(role, id));
+  };
 
   const loadSummary = useCallback(async () => {
     try {
       const { data } = await ordersApi.supplementSummary();
-      setSummary({ pending: data?.data?.pending ?? 0, due: data?.data?.due ?? 0 });
+      setSummary({
+        pending: data?.data?.pending ?? 0,
+        due: data?.data?.due ?? 0,
+        approvedToday: data?.data?.approvedToday ?? 0,
+      });
     } catch {
       /* 拿不到就先不显示角标，别打扰用户 */
     }
   }, []);
 
-  const loadRows = useCallback(async (scope: 'pending' | 'due') => {
+  const loadRows = useCallback(async (scope: 'pending' | 'due' | 'records') => {
     setLoading(true);
     try {
       const { data } = await ordersApi.listSupplements(scope);
@@ -127,7 +153,7 @@ const SupplementReviewButton: React.FC = () => {
 
   const total = summary.pending + summary.due;
 
-  const columns: any[] = [
+  const reviewColumns: any[] = [
     {
       title: '陪玩',
       dataIndex: 'companionName',
@@ -135,11 +161,13 @@ const SupplementReviewButton: React.FC = () => {
       render: (v: string) => <Text strong>{v || '—'}</Text>,
     },
     {
-      title: '订单',
-      width: 190,
+      title: '订单（点一下跳到订单管理）',
+      width: 200,
       render: (_: any, r: any) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: 12 }}>{r.order?.orderCode || r.orderId}</Text>
+          <a onClick={() => gotoOrder(r)} style={{ fontSize: 12 }}>
+            {r.order?.orderCode || r.orderId}
+          </a>
           <Text type="secondary" style={{ fontSize: 11 }}>
             {r.order?.gameName || ''} {r.order?.contactStatus === 'not_accepted' ? '· 未添加' : r.order?.contactStatus === 'added' ? '· 已添加' : ''}
           </Text>
@@ -206,6 +234,56 @@ const SupplementReviewButton: React.FC = () => {
     },
   ];
 
+  /** 「补单记录」页签：谁、给哪张单、谁批的、什么时候 —— 老板要的「今天到底发生了什么」。 */
+  const recordsColumns: any[] = [
+    {
+      title: '陪玩',
+      dataIndex: 'companionName',
+      width: 110,
+      render: (v: string) => <Text strong>{v || '—'}</Text>,
+    },
+    {
+      title: '订单（点一下跳到订单管理）',
+      width: 200,
+      render: (_: any, r: any) => (
+        <a onClick={() => gotoOrder(r)} style={{ fontSize: 12 }}>
+          {r.order?.orderCode || r.orderId}
+        </a>
+      ),
+    },
+    {
+      title: '来源',
+      width: 110,
+      render: (_: any, r: any) =>
+        r.byAdmin ? <Tag color="processing">管理端补单</Tag> : <Tag>陪玩申请</Tag>,
+    },
+    {
+      title: '补单原因',
+      width: 200,
+      render: (_: any, r: any) => (
+        <Text style={{ fontSize: 12 }}>
+          {r.decisionNote || String(r.reason || '').replace('【管理端补单】', '') || '—'}
+        </Text>
+      ),
+    },
+    {
+      title: '处理人',
+      width: 100,
+      render: (_: any, r: any) => <Text style={{ fontSize: 12 }}>{r.decidedByName || '—'}</Text>,
+    },
+    {
+      title: '补单时间',
+      width: 150,
+      render: (_: any, r: any) => (
+        <Text style={{ fontSize: 12 }}>
+          {r.decidedAt ? new Date(r.decidedAt).toLocaleString('zh-CN') : '—'}
+        </Text>
+      ),
+    },
+  ];
+
+  const columns: any[] = tab === 'records' ? recordsColumns : reviewColumns;
+
   return (
     <>
       <Badge count={total} size="small" offset={[-2, 2]}>
@@ -224,14 +302,17 @@ const SupplementReviewButton: React.FC = () => {
             同意后 **24 小时**提醒你来核查「客户后来到底通过了没有」——通过就点一下，系统自动改成「已添加」。
             点「仍未通过」→ **再等 7 天**提醒你一次；第二次再点「仍未通过」就结案，不再提醒
             （客户哪天真通过了，去「客户管理」把他捞回来就行）。
+            <br />
+            点订单（或整行）直接跳到订单管理里那一单；「补单记录」里能看到今天给谁补过名额、是谁批的。
           </Text>
         </div>
         <Segmented
           value={tab}
-          onChange={(v) => setTab(v as 'pending' | 'due')}
+          onChange={(v) => setTab(v as 'pending' | 'due' | 'records')}
           options={[
             { label: `待审核（${summary.pending}）`, value: 'pending' },
             { label: `到期核查（${summary.due}）`, value: 'due' },
+            { label: `补单记录（今日 ${summary.approvedToday}）`, value: 'records' },
           ]}
           style={{ marginBottom: 10 }}
         />
@@ -242,7 +323,20 @@ const SupplementReviewButton: React.FC = () => {
           columns={columns}
           dataSource={rows}
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
-          locale={{ emptyText: tab === 'pending' ? '没有待审核的补单申请' : '没有到期要核查的客户' }}
+          onRow={(r: any) => ({
+            onClick: (e: any) => {
+              if (!isRowClickIgnored(e)) gotoOrder(r);
+            },
+            style: { cursor: 'pointer' },
+          })}
+          locale={{
+            emptyText:
+              tab === 'pending'
+                ? '没有待审核的补单申请'
+                : tab === 'due'
+                  ? '没有到期要核查的客户'
+                  : '今天还没有补单记录',
+          }}
           scroll={{ x: 900 }}
         />
       </Modal>

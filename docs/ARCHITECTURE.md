@@ -260,6 +260,18 @@
   （`markCsContact` 新增可选 `failReason` / `note`，落 `customFields.csContactFailReason` / `csContactNote`），
   已派出去被接的走 `/orders/:id/contact`。
 
+- **管理端「补单」按钮：退款按钮按岗位拆开，店长 / 老板改成直接补名额**（2026-10-08，服务端 + 网页 `v988`）:
+  老板「管理端不需要这个退款按钮，给改成补单按钮，按补单按钮会触发陪玩端增加一次抢单名额，并记录在管理端」。
+  `apps/web/src/pages/OrdersPage.tsx` 操作列按 `isAdmin`（`ADMIN` / `OWNER`）分岔：管理端是「补单」、客服还是「退款」、陪玩那一格为空。
+  新接口 `POST /api/orders/:id/supplement`（`@Roles(OWNER, ADMIN)`）→ `OrdersService.supplementOrder()`：校验可见工作区 →
+  必须已有 `companionId` → 已有 `APPROVED` 记录则拒（同一张单只补一次）→ 复用 / 新建 `SupplementRequest`（`APPROVED`、
+  `decidedByUserId`、`reason` 前缀 `【管理端补单】`、`reviewDueAt` +24h、`reviewStatus=PENDING`）→
+  `CompanionQuotaService.credit(companionId, 1, QUOTA_REASON.SUPPLEMENT)` → 订单 `customFields.supplementApproved / supplementByAdmin` →
+  WS `order:supplement` 通知陪玩本人。列表接口 `GET /api/orders/supplements?scope=records` 新增「补单记录」档
+  （按 `decidedAt` 倒序，返回 `byAdmin` / `decidedByName`）；`summary` 新增 `approvedToday`（本营业日已同意数，12:00 换日），
+  订单管理页「今日抢单 · 补单 · 合计」的补单数改读它。「补单审核」弹窗（`components/SupplementReviewButton.tsx`）新增第三个页签，
+  并支持点订单 / 整行跳 `ordersPathWithOrder()`（整行高亮 + 自动开详情）。
+
 ---
 
 ## 1. 系统全景架构

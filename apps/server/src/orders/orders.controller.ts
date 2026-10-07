@@ -276,6 +276,22 @@ export class OrdersController {
   }
 
   /**
+   * 管理端直接补单（老板 2026-10-08）：订单管理里把「退款」改成「补单」——
+   * 店长 / 老板点一下，给这张单的陪玩名额 +1，并留一条补单记录。
+   * 故意只给店长 / 老板（客服走原来的「补单审核」流程，陪玩不能给自己补）。
+   */
+  @Post('orders/:id/supplement')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async supplementOrder(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: any,
+  ): Promise<ApiResponse<unknown>> {
+    const data = await this.ordersService.supplementOrder(id, req.user, body || {});
+    return { code: 200, message: '已补单，该陪玩抢单次数 +1', data };
+  }
+
+  /**
    * 陪玩发起转让申请（老板 2026-09-29 引入转让、2026-10-03 改成「要对方同意」）。
    *
    * 「抢单超时自动回收」已整条删除 —— 是谁抢的就是谁的；换手只剩这条路：

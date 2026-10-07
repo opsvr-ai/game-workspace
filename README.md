@@ -40,6 +40,15 @@
   老板点名的「秦硕」已从「进程黑名单 · 按人单独设置」等列表里消失（23 → 21 人）。
 
 ## Recent Updates (v3.3.0)
+- **管理端订单管理里的「退款」改成「补单」：点一下给陪玩名额 +1，并留一条补单记录（2026-10-08，服务端 + 网页 `v988`）：**
+  老板「管理端不需要这个退款按钮，给改成补单按钮，按补单按钮会触发陪玩端增加一次抢单名额，并记录在管理端，让管理端清楚知道今天工作室发生的一切」——
+  那颗红字「退款」以前**非陪玩的角色都能点**（客服 / 店长 / 老板同一颗）。现在按岗位分开：**店长 / 老板那一格是「补单」、客服照旧「退款」**。
+  点「补单」→ 填原因（必填）→ 该单陪玩**抢单次数 +1**（写台账）+ 落一条**已同意**的补单记录（同一张单只补一次）+ 实时通知陪玩本人（WS `order:supplement`）；
+  接口 `POST /api/orders/:id/supplement` **只开给 OWNER / ADMIN**。「🧾 补单审核」弹窗新增「**补单记录**」页签
+  （陪玩 / 订单 / 来源 / 原因 / 处理人 / 补单时间，按处理时间倒序，页签带「今日 N」），今天给谁补过名额一目了然。
+  订单管理页「今日抢单 · 补单 · 合计」里的**补单数**也从「猜备注」改成读真实的 `approvedToday`（营业日 12:00 换日）。
+  另外「补单审核」弹窗里**点订单（或整行）直接跳到订单管理里那一单**（整行高亮 + 自动开详情），方便客服查看。
+
 - **修：童祥瑞那台「弹窗一出现就被顶出游戏 / 退到抢单池」—— 陪玩端自动认「会被顶出去的机器」，不用手动开开关（2026-10-08，网页 `v987`，随下次陪玩端发版）：**
   根因两层：① 横幅是**置顶窗**，他那台游戏是**独占全屏**，置顶窗一出现 Windows 就把游戏顶回桌面（跟鼠标、点击无关）；
   ② 他那台还在 `1.0.20261020`，2026-10-07 那个开关（`1.0.20261021`）**还没轮到**，而且那个开关默认是关的。
@@ -1475,8 +1484,9 @@ Every endpoint returns a standard JSON envelope:
 | `POST` | `/api/orders/:id/call-partner` | JWT | COMPANION | Call partner for dual companion order. |
 | `POST` | `/api/orders/:id/accept-partner` | JWT | COMPANION | Accept partner invitation. |
 | `GET` | `/api/orders/pool/status` | JWT | COMPANION | 抢单名额状态：`{ tier, dailyLimit, balance, usedToday, remaining, todayGranted, days[], recentLogs[], hasWorkWechat, workWechatId }`（旧的「流水门槛」已废弃）。抢单即扣、没用完累计；`days` 是最近 14 天每天加/用，`recentLogs` 是最近 20 笔明细。 |
-| `GET` | `/api/orders/supplements` | JWT | OWNER, ADMIN, CS | 补单申请列表。Query: `?scope=pending`（待审）\| `due`（到期要核查客户后来通过没）\| 不传=全部。 |
-| `GET` | `/api/orders/supplements/summary` | JWT | OWNER, ADMIN, CS | 管理端红点数量 `{ pending, due }`。 |
+| `GET` | `/api/orders/supplements` | JWT | OWNER, ADMIN, CS | 补单申请列表。Query: `?scope=pending`（待审）\| `due`（到期要核查客户后来通过没）\| `records`（已同意过的补单记录，按 `decidedAt` 倒序，带 `byAdmin` / `decidedByName`）\| 不传=全部。 |
+| `GET` | `/api/orders/supplements/summary` | JWT | OWNER, ADMIN, CS | 管理端红点 / 今日补单数 `{ pending, due, approvedToday }`（`approvedToday` = 本营业日已同意的补单数，订单管理页「今日补单」用它）。 |
+| `POST` | `/api/orders/:id/supplement` | JWT | OWNER, ADMIN | 管理端直接补单（订单管理操作列的「补单」）：给这张单的陪玩名额 +1（写 `CompanionQuotaLog`，理由 `SUPPLEMENT`），落一条 APPROVED 补单记录并推 `order:supplement` 通知陪玩本人。Body: `{ reason }`（必填）。同一张单只补一次。 |
 | `POST` | `/api/orders/supplements/:id/decide` | JWT | OWNER, ADMIN, CS | 审核补单。Body: `{ decision: 'APPROVE'\|'REJECT', note? }`；同意 = 陪玩次数 +1（写 `CompanionQuotaLog`），并排 24 小时后的核查；**同意 / 驳回都会推 `order:supplement` 通知陪玩本人**。 |
 | `POST` | `/api/orders/supplements/:id/review` | JWT | OWNER, ADMIN, CS | 到期核查。Body: `{ result: 'ACCEPTED'\|'STILL_NOT' }`；`ACCEPTED` = 系统把这张单改成「已添加」并把客户归到该陪玩名下；`STILL_NOT` 3 天后再提醒。 |
 

@@ -22,7 +22,7 @@ function setup() {
     getVisibleStudioIds: vi.fn().mockResolvedValue(['s1']),
   };
   const quota = {
-    status: vi.fn(),
+    status: vi.fn().mockResolvedValue({ balance: 0, remaining: 0 }),
     ensure: vi.fn(),
     consume: vi.fn(),
     reserve: vi.fn(),
@@ -284,5 +284,137 @@ describe('到期核查：客户后来通过了要改回系统', () => {
     const data = prisma.supplementRequest.update.mock.calls[0][0].data;
     expect(data.reviewStatus).toBe('CLOSED');
     expect(data.reviewDueAt).toBeNull();
+  });
+});
+
+describe('管理端直接补单：订单管理里「退款」改成「补单」（老板 2026-10-08）', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const ORDER = {
+    id: 'o1',
+    orderCode: 'A100',
+    companionId: 'c1',
+    studioId: 's1',
+    customFields: { urgency: 'now' },
+  };
+
+  it('店长点「补单」→ 陪玩名额 +1、落一条已同意的补单记录、并通知陪玩本人', async () => {
+    const { service, prisma, quota, ws } = setup();
+    prisma.order.findUnique.mockResolvedValue(ORDER);
+    prisma.supplementRequest.findUnique.mockResolvedValue(null);
+    prisma.supplementRequest.create.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
+    prisma.order.update.mockResolvedValue({ id: 'o1' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
+    quota.status.mockResolvedValue({ balance: 4 });
+
+    const res: any = await service.supplementOrder('o1', ADMIN, { reason: '客户补偿' });
+
+    expect(quota.credit).toHaveBeenCalledWith(
+      'c1',
+      1,
+      'SUPPLEMENT',
+      expect.objectContaining({ refId: 'o1' }),
+    );
+    const created = prisma.supplementRequest.create.mock.calls[0][0].data;
+    expect(created.status).toBe('APPROVED');
+    expect(created.decidedByUserId).toBe('admin-1');
+    expect(created.reason).toContain('管理端补单');
+    expect(created.reason).toContain('客户补偿');
+    expect(created.reviewStatus).toBe('PENDING');
+    expect(prisma.order.update.mock.calls[0][0].data.customFields.supplementByAdmin).toBe(true);
+    expect(ws.notifyUser).toHaveBeenCalledWith(
+      'u1',
+      'order:supplement',
+      expect.objectContaining({ approved: true, orderId: 'o1' }),
+    );
+    expect(res.balance).toBe(4);
+  });
+
+  it('同一张单已经补过（APPROVED）→ 拒绝，不再给名额', async () => {
+    const { service, prisma, quota } = setup();
+    prisma.order.findUnique.mockResolvedValue(ORDER);
+    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
+
+    await expect(service.supplementOrder('o1', ADMIN, { reason: '再来一次' })).rejects.toThrow();
+    expect(quota.credit).not.toHaveBeenCalled();
+  });
+
+  it('本来就有待审申请的单：直接补单把它改成「已同意」，不再新增一条', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue(ORDER);
+    prisma.supplementRequest.findUnique.mockResolvedValue({ id: 'sr1', status: 'PENDING' });
+    prisma.supplementRequest.update.mockResolvedValue({ id: 'sr1', status: 'APPROVED' });
+    prisma.order.update.mockResolvedValue({ id: 'o1' });
+    prisma.companion.findUnique.mockResolvedValue({ userId: 'u1' });
+
+    await service.supplementOrder('o1', ADMIN, { reason: '客户补偿' });
+
+    expect(prisma.supplementRequest.create).not.toHaveBeenCalled();
+    expect(prisma.supplementRequest.update.mock.calls[0][0].data.status).toBe('APPROVED');
+  });
+
+  it('没写明原因 → 拒绝', async () => {
+    const { service } = setup();
+    await expect(service.supplementOrder('o1', ADMIN, { reason: '   ' })).rejects.toThrow();
+  });
+
+  it('这张单还没有陪玩接单 → 拒绝', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue({ ...ORDER, companionId: null });
+    await expect(service.supplementOrder('o1', ADMIN, { reason: 'x' })).rejects.toThrow();
+  });
+
+  it('别人工作室的单 → 拒绝', async () => {
+    const { service, prisma } = setup();
+    prisma.order.findUnique.mockResolvedValue({ ...ORDER, studioId: 's2' });
+    await expect(service.supplementOrder('o1', ADMIN, { reason: 'x' })).rejects.toThrow();
+  });
+
+  it('陪玩 / 客服没有「直接补单」权限', async () => {
+    const { service } = setup();
+    await expect(
+      service.supplementOrder('o1', { id: 'c-1', role: 'COMPANION', studioId: 's1' }, { reason: 'x' }),
+    ).rejects.toThrow();
+    await expect(
+      service.supplementOrder('o1', { id: 'cs-1', role: 'CS', studioId: 's1' }, { reason: 'x' }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('补单记录（scope=records）：让管理端看清今天到底给谁补过名额', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('列出已同意的记录，带上处理人和「管理端补单」标记', async () => {
+    const { service, prisma } = setup();
+    prisma.supplementRequest.findMany.mockResolvedValue([
+      {
+        id: 'sr1',
+        orderId: 'o1',
+        companionId: 'c1',
+        studioId: 's1',
+        reason: '【管理端补单】客户补偿',
+        status: 'APPROVED',
+        decidedByUserId: 'admin-1',
+        decidedAt: new Date(),
+      },
+    ]);
+    prisma.order.findMany.mockResolvedValue([
+      { id: 'o1', orderCode: 'A100', gameName: '英雄联盟', customFields: {} },
+    ]);
+    prisma.companion.findMany.mockResolvedValue([
+      { id: 'c1', user: { username: 'zhangsan', displayName: '张三' } },
+    ]);
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'admin-1', username: 'boss', displayName: '店长甲' },
+    ]);
+
+    const rows: any[] = await service.listSupplements(ADMIN, 'records');
+
+    expect(prisma.supplementRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { decidedAt: 'desc' } }),
+    );
+    expect(rows[0].companionName).toBe('张三');
+    expect(rows[0].decidedByName).toBe('店长甲');
+    expect(rows[0].byAdmin).toBe(true);
   });
 });

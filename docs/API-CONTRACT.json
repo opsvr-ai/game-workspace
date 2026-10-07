@@ -9,7 +9,7 @@
   "httpPrefix": "/api",
   "stats": {
     "controllers": 28,
-    "endpoints": 402,
+    "endpoints": 403,
     "socketEmitters": 3,
     "socketInbound": 15,
     "socketOutbound": 19
@@ -2190,6 +2190,13 @@
       "path": "/api/orders/:id/sessions",
       "controller": "OrdersController",
       "handler": "addSession",
+      "file": "apps/server/src/orders/orders.controller.ts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/:id/supplement",
+      "controller": "OrdersController",
+      "handler": "supplementOrder",
       "file": "apps/server/src/orders/orders.controller.ts"
     },
     {

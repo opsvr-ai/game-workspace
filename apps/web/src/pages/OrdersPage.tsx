@@ -86,6 +86,8 @@ const OrdersPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const isCompanion = user?.role === 'COMPANION';
   const isCs = user?.role === 'CS';
+  // 店长 / 老板 = 管理端：订单管理里的「退款」在他们这里是「补单」（老板 2026-10-08）
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'OWNER';
   const navigate = useNavigate();
 
   // 陪玩点「添加成功 / 客户已同意」后，直接进入客户管理接着打首单；
@@ -158,6 +160,12 @@ const OrdersPage: React.FC = () => {
   const [refundOrder, setRefundOrder] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [refundSubmitting, setRefundSubmitting] = useState(false);
+  // 管理端「补单」（老板 2026-10-08）：店长 / 老板点一下，给这张单的陪玩抢单次数 +1
+  const [supplementTarget, setSupplementTarget] = useState<any>(null);
+  const [supplementReason, setSupplementReason] = useState('');
+  const [supplementSubmitting, setSupplementSubmitting] = useState(false);
+  // 今日补单数：读补单记录里真实的数字（以前拿列表备注猜「补单」两个字，不准）
+  const [supplementToday, setSupplementToday] = useState(0);
   // 线上 / 桥接单的结果反馈（老板 2026-09-29）：客服 / 店长点状态格或操作列的「记结果」都能打开
   const [outcomeOrder, setOutcomeOrder] = useState<any>(null);
   // 陪玩点「添加失败」也要能贴证据（老板 2026-10-06）。以前这个按钮一点就直接提交、
@@ -324,6 +332,13 @@ const OrdersPage: React.FC = () => {
       if (isCompanion) params.scope = companionScope;
       const { data } = await http.get('/orders', { params });
       setOrders(data.data?.items ?? data.data ?? []);
+      // 「今日抢单 · 补单 N · 合计」里那个补单数：读管理端补单记录里真实的数字（老板 2026-10-08）
+      if (!isCompanion) {
+        void ordersApi
+          .supplementSummary()
+          .then((res) => setSupplementToday(res?.data?.data?.approvedToday ?? 0))
+          .catch(() => null);
+      }
     } catch {
       message.error('加载失败');
     } finally {
@@ -923,21 +938,31 @@ const OrdersPage: React.FC = () => {
             >
               拒绝
             </Button>
-          ) : (
-            hasOrderRow && (
-              <Button
-                size="small"
-                danger
-                style={{ width: 36 }}
-                onClick={() => {
-                  setRefundOrder(r);
-                  setRefundReason('');
-                }}
-              >
-                退款
-              </Button>
-            )
-          )}
+          ) : hasOrderRow && isAdmin ? (
+            // 管理端（店长 / 老板）不退款，改成「补单」：给这张单的陪玩名额 +1，并留一条记录
+            <Button
+              size="small"
+              style={{ width: 36 }}
+              onClick={() => {
+                setSupplementTarget(r);
+                setSupplementReason('');
+              }}
+            >
+              补单
+            </Button>
+          ) : hasOrderRow ? (
+            <Button
+              size="small"
+              danger
+              style={{ width: 36 }}
+              onClick={() => {
+                setRefundOrder(r);
+                setRefundReason('');
+              }}
+            >
+              退款
+            </Button>
+          ) : null}
         </span>
       </div>
     );
@@ -960,6 +985,28 @@ const OrdersPage: React.FC = () => {
       message.error(extractErrorMessage(e, '退款失败'));
     } finally {
       setRefundSubmitting(false);
+    }
+  };
+
+  const submitSupplementOrder = async () => {
+    if (!supplementTarget) return;
+    if (!supplementReason.trim()) {
+      message.warning('请填写补单原因');
+      return;
+    }
+    setSupplementSubmitting(true);
+    try {
+      await ordersApi.supplementOrder(supplementTarget.id, supplementReason.trim());
+      message.success(
+        `已补单：订单 ${supplementTarget.orderCode || ''} 的陪玩抢单次数 +1，已记入补单记录`,
+      );
+      setSupplementTarget(null);
+      setSupplementReason('');
+      fetch();
+    } catch (e: any) {
+      message.error(extractErrorMessage(e, '补单失败'));
+    } finally {
+      setSupplementSubmitting(false);
     }
   };
 
@@ -1263,12 +1310,7 @@ const OrdersPage: React.FC = () => {
             }).length
           }
           {' · 补单 '}
-          {
-            orders.filter((o: any) => {
-              const d = new Date(o.grabbedAt || o.createdAt).toDateString();
-              return d === new Date().toDateString() && (o.customFields?.deltaNote || o.notes || '').includes('补单');
-            }).length
-          }
+          {supplementToday}
           {' · 合计 '}
           {
             orders.filter(
@@ -1505,6 +1547,30 @@ const OrdersPage: React.FC = () => {
             value={refundReason}
             onChange={(e) => setRefundReason(e.target.value)}
             placeholder="例如：客户不满意要求退款 / 未按时开始"
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
+      <Modal
+        title="补单"
+        open={!!supplementTarget}
+        onOk={submitSupplementOrder}
+        onCancel={() => setSupplementTarget(null)}
+        okText="确认补单"
+        cancelText="取消"
+        confirmLoading={supplementSubmitting}
+      >
+        <div style={{ marginTop: 8 }}>
+          <Text>
+            给订单 <Text strong>{supplementTarget?.orderCode || supplementTarget?.gameName}</Text>{' '}
+            的陪玩补 1 个抢单名额？补完会记在「补单审核 → 补单记录」里，方便回头查。
+          </Text>
+          <Text strong style={{ display: 'block', marginTop: 12 }}>补单原因（必填）</Text>
+          <Input.TextArea
+            rows={3}
+            value={supplementReason}
+            onChange={(e) => setSupplementReason(e.target.value)}
+            placeholder="例如：客户临时改时间 / 不是陪玩的责任"
             style={{ marginTop: 8 }}
           />
         </div>
